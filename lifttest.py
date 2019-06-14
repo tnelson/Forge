@@ -2,170 +2,138 @@ from z3 import *
 
 # SETUP
 Node = DeclareSort('Node')
-Edge = Function('Edge', Node, Node, BoolSort())
 s = Solver()
 solver = s
+
+s.set(unsat_core=True)
+
+'''
 A, B, C, D, E, F = Consts('A B C D E F', Node)
+N = Int("N")
 
 # CARDINALITY CONSTRAINT
-X, Y = Consts('X Y', Node)
-s.add(ForAll([X], Or(X == A, X == B, X == C, X == D, X == E, X == F)))
+X, Y, Z = Consts('X Y Z', Node)
+CC = ForAll([X], Or(X == A, X == B, X == C, X == D, X == E, X == F))
+'''
 
 
-# OK so lifting should be fine in the simple case.
-# Could get crazy later...
-# OK so these lifted functions could be for the entire function we need to compute, not
-# just one at a time.
+A, B, C, D, E, F, G, H, I, J = Consts('A B C D E F G H I J', Node)
+X, Y, Z = Consts('X Y Z', Node)
+N = Int("N")
 
-# What's a use case?
+CC0 = ForAll([X], Or(X == A, X == B, X == C, X == D, X == E, X == F, X == G, X == H, X == I, X == J))
+CC1 = Distinct(A, B, C, D, E, F, G, H, I, J)
 
-# OK so we could just say for all x, some(x.R)
+# Basic edges relation
+R = Function('R', Node, Node, BoolSort())
 
-# The first A is the identifier, the second is the actual object in the relation
-join0 = Function("join0", A, A, BoolSort())
+'''
+GC = And(
+    ForAll([X], R(A, X) == (X == B)),
+    ForAll([X], R(B, X) == Or(X == C, X == D)),
+    ForAll([X], R(C, X) == Or(X == C, X == E)),
+    ForAll([X], R(D, X) == Or(X == B, X == D)),
+    ForAll([X], R(E, X) == Or(X == B, X == F, X == G)),
+    ForAll([X], Not(R(F, X))),
+    ForAll([X], R(G, X) == Or(X == H, X == I)),
+    ForAll([X], R(H, X) == (X == I)),
+    ForAll([X], Not(R(I, X))),
+    ForAll([X], R(J, X) == (X == J)))
+'''
 
-# Do I put constraints at the top level, or in the quantifier where it's used?
-# We could probably have a function to generate a constraint????
-# Let's see how that works. Ok, it's fine with something like join.
+GC = And(
+    ForAll([X], R(A, X) == (X == B)),
+    ForAll([X], R(B, X) == Or(X == C, X == D)),
+    ForAll([X], R(C, X) == Or(X == E)),
+    ForAll([X], R(D, X) == False),
+    ForAll([X], R(E, X) == Or(X == F, X == G)),
+    ForAll([X], Not(R(F, X))),
+    ForAll([X], R(G, X) == Or(X == H, X == I)),
+    ForAll([X], R(H, X) == (X == I)),
+    ForAll([X], Not(R(I, X))),
+    ForAll([X], Not(R(J, X))))
 
-s.add(ForAll([X], nodes in X.^(edge.Int)))
-
-
-s.add(ForAll([X], ForAll([Y], X.^(edge.Int)(Y))))
-
-What does this mean:
-Y e X.^(edge.Int)
-
-this means (X, Y) in ^(edge.Int), or ^(edge.Int)(X, Y)
-
-
-
-
-OK so that doesn't work as an example. Here's another:
-
-	not (some a, b: Node |
-		((a -> b) in s.E) and ((a->b) in ^(s.E - (a->b))))
-
-simpler:
-
-Not(Exists([A, B], (A->B) in ^(E - (A->B))))
-Not(Exists([A, B], ^(E - (A->B))(A, B)   ))
-
-# OK so we're gonna have to build the transitive closure of E - (A->B)
-# Do we have to? Can we just use the TC of E? Not worth trying to figure that out.
-# What about using the iterative TC? Can that be used to solve this? Again,
-# probably not worth it, that's implementation dependent.
-
-# Conclusion: I need to actually generate the TC of E - (A->B)
-# And that's dependent on what A and B actually are.
-
-DiffE = Function("DiffE", Node, Node, Node, Node, BoolSort())
-Diff0 = ForAll([A, B, X, Y], DiffE(A, B, X, Y) == And(E(X, Y), Not(And(X == A, Y == B))))
-
-TC = Function("TC", Node, Node, Node, Node, BoolSort())
+SEARCHLEN = 9
 
 
+
+
+# Takes out (A->B) and also (B->A)
+DiffR = Function("DiffR", Node, Node, Node, Node, BoolSort())
+Diff0 = ForAll([A, B, X, Y], DiffR(A, B, X, Y) == And(R(X, Y), Not(Or(
+		And(X == A, Y == B),
+		And(X == B, Y == A)))))
+
+TC = Function("TC", IntSort(), Node, Node, Node, Node, BoolSort())
 
 # so what constraints do I put on that?
 TC0 = ForAll([N, A, B, X, Y], Implies(N < 1, Not(TC(N, A, B, X, Y))))
-TC1 = ForAll([A, B, X, Y], TC(1, A, B, X, Y) == DiffE(A, B, X, Y))
-TC2 = ForAll([N, A, B, X, Y], Implies(And(N > 1, N <= 9), TC(N, A, B, X, Y) == Or(
+TC1 = ForAll([A, B, X, Y], TC(1, A, B, X, Y) == DiffR(A, B, X, Y))
+TC2 = ForAll([N, A, B, X, Y], Implies(And(N > 1, N <= SEARCHLEN), TC(N, A, B, X, Y) == Or(
 					TC(N - 1, A, B, X, Y),
-					Exists([Z], And(TC(N - 1, A, B, X, Z), DiffE(A, B, X, Y))))))
-))
-TC3 = ForAll([N, A, B, X, Y], Implies(N > 9, Not(TC(N, A, B, X, Y))))
+					Exists([Z], And(TC(N - 1, A, B, X, Z), DiffR(A, B, Z, Y))))))
+
+TC3 = ForAll([N, A, B, X, Y], Implies(N > SEARCHLEN, Not(TC(N, A, B, X, Y))))
 
 # This is testing cyclicity
-Not(Exists([A, B], And(E(A, B), TC(A, B))))
+NOCYCLE = Not(Exists([A, B], And(R(A, B), TC(SEARCHLEN, A, B, A, B))))
 
 
 
-
-TC0 = ForAll([X, Y, A, B], X in y.^(E.E + (A->B)))
-
-
-#	all n: Node | Node in n.^(edges.Int)
-
-R = Function("R", A, A, BoolSort())
-
-s.add(ForAll([X], Exists([Y], R(X, Y))
-
-
-Some(Join(X, R))))
-
-#	let occ = FrontDesk.occupant {
-#		-- The Guest had to have been an occupant at this time.
-#		some occ.t.g
 
 
 '''
-Join is a relation for all functions.
+s.add(Not(R(A, A)))
+s.add(R(A, B))
+s.add(Not(R(A, C)))
+s.add(Not(R(A, D)))
+s.add(Not(R(A, E)))
+s.add(R(A, F))
 
-Join takes two functions?
+s.add(Not(R(B, A)))
+s.add(R(B, B))
+s.add(R(B, C))
+s.add(Not(R(B, D)))
+s.add(Not(R(B, E)))
+s.add(Not(R(B, F)))
 
-Join(f1, f2)(val) = True or false
+s.add(R(C, A))
+s.add(Not(R(C, B)))
+s.add(Not(R(C, C)))
+s.add(Not(R(C, D)))
+s.add(R(C, E))
+s.add(Not(R(C, F)))
+
+s.add(Not(R(D, A)))
+s.add(Not(R(D, B)))
+s.add(Not(R(D, C)))
+s.add(R(D, D))
+s.add(R(D, E))
+s.add(Not(R(D, F)))
+
+s.add(Not(R(E, A)))
+s.add(Not(R(E, B)))
+s.add(Not(R(E, C)))
+s.add(Not(R(E, D)))
+s.add(Not(R(E, E)))
+s.add(Not(R(E, F)))
+
+s.add(R(F, A))
+s.add(Not(R(F, B)))
+s.add(Not(R(F, C)))
+s.add(R(F, D))
+s.add(Not(R(F, E)))
+s.add(Not(R(F, F)))
 '''
 
 
-s.add(Not(Edge(A, A)))
-s.add(Edge(A, B))
-s.add(Not(Edge(A, C)))
-s.add(Not(Edge(A, D)))
-s.add(Not(Edge(A, E)))
-s.add(Edge(A, F))
+# Wait it's saying there are no cycles. But there is a cycle!!!!
+print(s.check(CC0, CC1, GC, Diff0, TC0, TC1, TC2, TC3, NOCYCLE))
+print(s.unsat_core())
+#print(s.model().sexpr())
+#print(s.model())
 
-s.add(Not(Edge(B, A)))
-s.add(Edge(B, B))
-s.add(Edge(B, C))
-s.add(Not(Edge(B, D)))
-s.add(Not(Edge(B, E)))
-s.add(Not(Edge(B, F)))
-
-s.add(Edge(C, A))
-s.add(Not(Edge(C, B)))
-s.add(Not(Edge(C, C)))
-s.add(Not(Edge(C, D)))
-s.add(Edge(C, E))
-s.add(Not(Edge(C, F)))
-
-s.add(Not(Edge(D, A)))
-s.add(Not(Edge(D, B)))
-s.add(Not(Edge(D, C)))
-s.add(Edge(D, D))
-s.add(Edge(D, E))
-s.add(Not(Edge(D, F)))
-
-s.add(Not(Edge(E, A)))
-s.add(Not(Edge(E, B)))
-s.add(Not(Edge(E, C)))
-s.add(Not(Edge(E, D)))
-s.add(Not(Edge(E, E)))
-s.add(Not(Edge(E, F)))
-
-s.add(Edge(F, A))
-s.add(Not(Edge(F, B)))
-s.add(Not(Edge(F, C)))
-s.add(Edge(F, D))
-s.add(Not(Edge(F, E)))
-s.add(Not(Edge(F, F)))
-
-# Transitive closure of edges relation
-TC = Function('TC', Node, Node, BoolSort())
-s.add(ForAll([X, Y], TC(X, Y) == Exists(
-	[A, B, C, D], And(
-		Or(Edge(X, A), X == A),
-		Or(Edge(A, B), A == B),
-		Or(Edge(B, C), B == C),
-		Or(Edge(C, D), C == D),
-		#Or(Edge(D, E), D == E),
-		Edge(D, Y)
-	)
-)))
-
-print(s.check())
-print(s.model())
-m = s.model()
-
+'''
 floop = [A, B, C, D, E, F]
 names = ["A", "B", "C", "D", "E", "F"]
 
@@ -174,3 +142,4 @@ for x in range(6):
         print("TC(" + names[x] + ", " + names[y] + ") = " + str(m.eval(TC(floop[x], floop[y]))))
 
 print()
+'''
