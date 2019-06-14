@@ -58,23 +58,30 @@ Not(Exists([A, B], ^(E - (A->B))(A, B)   ))
 
 # Conclusion: I need to actually generate the TC of E - (A->B)
 # And that's dependent on what A and B actually are.
-tc_E_minus_AB = Function("tc_E_minus_AB", Node, Node, Node, Node, BoolSort())
+
+DiffE = Function("DiffE", Node, Node, Node, Node, BoolSort())
+Diff0 = ForAll([A, B, X, Y], DiffE(A, B, X, Y) == And(E(X, Y), Not(And(X == A, Y == B))))
+
+TC = Function("TC", Node, Node, Node, Node, BoolSort())
+
+
 
 # so what constraints do I put on that?
 TC0 = ForAll([N, A, B, X, Y], Implies(N < 1, Not(TC(N, A, B, X, Y))))
-TC1 = ForAll([A, B, X, Y], TC(1, A, B, X, Y) == (E - (A->B))(X, Y))
+TC1 = ForAll([A, B, X, Y], TC(1, A, B, X, Y) == DiffE(A, B, X, Y))
 TC2 = ForAll([N, A, B, X, Y], Implies(And(N > 1, N <= 9), TC(N, A, B, X, Y) == Or(
 					TC(N - 1, A, B, X, Y),
-					Exists([Z], And(TC(N - 1, A, B, X, Z), (E - (A->B))(Z, Y))))
+					Exists([Z], And(TC(N - 1, A, B, X, Z), DiffE(A, B, X, Y))))))
 ))
 TC3 = ForAll([N, A, B, X, Y], Implies(N > 9, Not(TC(N, A, B, X, Y))))
 
-Not(Exists([A, B], E(A, B) and ^(E - (A->B))(A, B)   ))
+# This is testing cyclicity
+Not(Exists([A, B], And(E(A, B), TC(A, B))))
 
 
 
 
-TC0 = ForAll([X], )
+TC0 = ForAll([X, Y, A, B], X in y.^(E.E + (A->B)))
 
 
 #	all n: Node | Node in n.^(edges.Int)
