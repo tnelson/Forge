@@ -1,0 +1,13 @@
+Just putting rosette integers into ocelot sets, or trying to convert from ocelot atoms to rosette integers inside a constraint, doesn't work. Because we can't embed non-ocelot functions into ocelot constraints like that. All the functions in a constraint are evaluated immediately, is the problem, with a generalized quantified variable.
+
+For integers, we can either embed rosette integers in a more clever way, or actually understand symmetry breaking. Tim's gonna talk to james bornholt about symmetry breaking, so we're focusing on other things for now.
+
+check symmetry breaking
+exclusino clause (incremental clause)
+for different minimal instance (partial ordering on instance) give me an instance where everything that was false remains false
+should be doable with rosette (already incremental) z3 is incremental
+we want a next button that's easily extensible
+
+first thing: parsing model back into constraints
+asserting negation
+
