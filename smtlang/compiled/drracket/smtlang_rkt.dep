@@ -1,1 +1,0 @@
-("7.2" racket ("b04773f21645a6f00feb42a0ffcc8e9e36ef86e8" . "71d4f6a4333e389d1075706204c1152fad684aab") #"/Users/charliecutting/Desktop/summer19/Summer-2019-New-LFS-Language/smtlang/smtlib2.rkt" (collects #"br" #"quicklang.rkt") (collects #"racket" #"runtime-config.rkt"))
