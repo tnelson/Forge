@@ -64,15 +64,15 @@
   
   ret)
 
-(define (get-model constraints model-bounds)
+(define (get-model constraints model-bounds singletons)
   (assert (interpret* constraints model-bounds))
   (define model (interpretation->relations (evaluate model-bounds (solve (assert #t)))))
-  (assert (interpret* (model->constraints model) model-bounds))
+  (assert (interpret* (model->constraints model singletons) model-bounds))
   model)
 
-(define (get-next-model model-bounds)
+(define (get-next-model model-bounds singletons)
   (define model (interpretation->relations (evaluate model-bounds (solve (assert #t)))))
-  (assert (interpret* (model->constraints model) model-bounds))
+  (assert (interpret* (model->constraints model singletons) model-bounds))
   model)
 
 #|
