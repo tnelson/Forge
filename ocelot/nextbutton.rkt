@@ -5,6 +5,11 @@
 
 (provide model->constraints bind-universe mk-rel get-model get-next-model)
 
+(define prev-constraints null)
+
+; Provides a syntax for defining a universe of discourse an binding each atom
+; to a singleton relation.  These relations aren't exposed to the forge user
+; but are used to parse a model back into constraints
 (define-syntax (bind-universe stx)
   (syntax-case stx ()
     [(_ u bound singletons (id ...)) #'(begin
@@ -13,9 +18,12 @@
                               (define singletons (list (list 'id id) ...))
                               (define bound (map (lambda (x y) (make-exact-bound x (format-datum `((~a)) y))) (list id ...) lst)))]))
 
+; Helper that wraps the ocelot 'and' macro into a function for unrolling
 (define (sneaky-and l r)
   (and l r))
 
+; Takes an ocelot model (#hash from relations to lists of tuples) and raturns
+; a list of constraints
 (define (model->constraints hashy singletons)
   (define constraints (map (lambda (rel)
          (map (lambda (tuple)
@@ -42,14 +50,18 @@
   
   ret)
 
+
+; Gets the current (or initial) model and caches it as constraints
 (define (get-model constraints model-bounds singletons)
   (assert (interpret* constraints model-bounds))
   (define model (interpretation->relations (evaluate model-bounds (solve (assert #t)))))
-  (assert (interpret* (model->constraints model singletons) model-bounds))
-  model)
+  (if (equal? null prev-constraints)
+      (begin (set! prev-constraints (interpret* (model->constraints model singletons) model-bounds)) model) model))
 
+; Gets the next model and caches it as constraints
 (define (get-next-model model-bounds singletons)
+  (assert prev-constraints)
   (define model (interpretation->relations (evaluate model-bounds (solve (assert #t)))))
-  (assert (interpret* (model->constraints model singletons) model-bounds))
+  (set! prev-constraints (interpret* (model->constraints model singletons) model-bounds))
   model)
 

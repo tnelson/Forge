@@ -3,7 +3,7 @@
 (require ocelot)
 
 (require "nextbutton.rkt")
-(require "webserver.rkt")
+(require "WebServer.rkt")
 
 (bind-universe U B L (a b c d))
 
@@ -19,4 +19,4 @@
 
 (define model (get-model model-constraints model-bounds L))
 
-(display-model model model-bounds L)
+(display-model model bounds L)
