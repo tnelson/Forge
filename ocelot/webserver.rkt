@@ -14,6 +14,7 @@
 (define $$MODEL$$ "")
 (define $$BOUNDS$$ "")
 (define $$SINGLETONS$$ "")
+(define $$MODELS-LIST$$ '())
 
 (provide display-model)
 
@@ -38,20 +39,34 @@
 
 ; start: request -> response
 (define (display count request model-parser)
+  (cond [(= count (length $$MODELS-LIST$$)) (set! $$MODELS-LIST$$ (append $$MODELS-LIST$$ (list $$MODEL$$)))])
   (define (response-generator embed/url)
     (define struct-m (model-parser $$MODEL$$))
-    (print struct-m)
     (response/xexpr
      `(html
        (body (h1 "Model")
              (form
               ((action ,(embed/url next-handler)))
               (button ((type "submit") (name "next")) "next"))
+             (form
+              ((action ,(embed/url prev-handler)))
+              (button ((type "submit") (name "prev")) "prev"))
              (p ,(number->string count))
              (p ,struct-m)))))
+  (define (prev-handler request)
+    (if (= count 0)
+        (display count (redirect/get) model-parser)
+        (begin
+          (set! $$MODEL$$ (list-ref $$MODELS-LIST$$ (- count 1)))
+          (display (- count 1) (redirect/get) model-parser))))
   (define (next-handler request)
-    (set! $$MODEL$$ (get-next-model $$BOUNDS$$ $$SINGLETONS$$))
-    (display (+ count 1) (redirect/get) model-parser))
+    (if (= count (- (length $$MODELS-LIST$$) 1))
+        (begin
+          (set! $$MODEL$$ (get-next-model $$BOUNDS$$ $$SINGLETONS$$))
+          (display (+ count 1) (redirect/get) model-parser))
+        (begin
+          (set! $$MODEL$$ (list-ref $$MODELS-LIST$$ (+ count 1)))
+          (display (+ count 1) (redirect/get) model-parser))))
   (send/suspend/dispatch response-generator))
  
 
