@@ -22,11 +22,10 @@
 (provide display-model)
 
 (define (display-model model bounds singletons)
-  (thread (lambda () (begin
-                       (set! $$MODEL$$ model)
-                       (set! $$BOUNDS$$ bounds)
-                       (set! $$SINGLETONS$$ singletons)
-                       (serve/servlet start)))))
+  (set! $$MODEL$$ model)
+  (set! $$BOUNDS$$ bounds)
+  (set! $$SINGLETONS$$ singletons)
+  (serve/servlet start))
 
 
 (define (parse-model-to-HTML m)
