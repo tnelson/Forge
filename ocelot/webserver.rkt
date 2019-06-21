@@ -6,7 +6,6 @@
 (require web-server/servlet-env)
 (require web-server/servlet)
 (require racket/format)
-;(require web-server/response/xexpr)
 
 (struct relation-display (name members))
 
@@ -15,9 +14,6 @@
 (define $$MODEL$$ "")
 (define $$BOUNDS$$ "")
 (define $$SINGLETONS$$ "")
-
-(define counter 0)
-(define (increment) (set! counter (+ 1 counter)))
 
 (provide display-model)
 
@@ -37,35 +33,27 @@
 
 (define (tup->li t) `(li ,(~a t)))
 
-; start: request -> response
 (define (start request)
+  (display 0 request parse-model-to-HTML))
+
+; start: request -> response
+(define (display count request model-parser)
   (define (response-generator embed/url)
-    (define struct-m (parse-model-to-HTML $$MODEL$$))
+    (define struct-m (model-parser $$MODEL$$))
     (print struct-m)
     (response/xexpr
      `(html
        (body (h1 "Model")
              (form
-              ((action ,(embed/url next)))
+              ((action ,(embed/url next-handler)))
               (button ((type "submit") (name "next")) "next"))
-             (p ,(number->string counter))
+             (p ,(number->string count))
              (p ,struct-m)))))
+  (define (next-handler request)
+    (set! $$MODEL$$ (get-next-model $$BOUNDS$$ $$SINGLETONS$$))
+    (display (+ count 1) (redirect/get) model-parser))
   (send/suspend/dispatch response-generator))
  
-(define (next request)
-  (increment)
-  (define (response-generator embed/url)
-    (set! $$MODEL$$ (get-next-model $$BOUNDS$$ $$SINGLETONS$$))
-    (define struct-m (parse-model-to-HTML $$MODEL$$))
-    (print struct-m)
-    (response/xexpr
-     `(html
-       (body (h1 "Model")
-             (form
-              ((action ,(embed/url next)))
-              (button ((type "submit") (name "next")) "next"))
-             (p ,(number->string counter))
-             (p ,struct-m)))))
-  (send/suspend/dispatch response-generator))
+
  
 

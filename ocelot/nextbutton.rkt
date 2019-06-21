@@ -47,7 +47,6 @@
   (case (length tuple)
     ([1] (sts (car tuple)))
     (else (apply -> (map sts tuple)))))
-  
   ret)
 
 
