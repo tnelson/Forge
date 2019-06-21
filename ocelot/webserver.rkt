@@ -30,9 +30,12 @@
 
 
 (define (parse-model-to-HTML m)
-  (~a m))
-  ;(map (lambda (rel) `(d ,(node/expr/relation-name rel) ,(~a (hash-ref m rel)))) (hash-keys m)))
-  ;(map (lambda (rel) `(d ,(node/expr/relation-name rel) ,(~a (hash-ref m rel)))) (hash-keys m)))
+  `(ul ,@(map (lambda (r) (rel->ul r m)) (hash-keys m))))
+
+(define (rel->ul r m)
+  `(li ,(node/expr/relation-name r) (ul ,@(map tup->li (hash-ref m r)))))
+
+(define (tup->li t) `(li ,(~a t)))
 
 ; start: request -> response
 (define (start request)
@@ -42,13 +45,13 @@
     (response/xexpr
      `(html
        (body (h1 "Model")
-             (a ((href ,(embed/url next)))
-                "click me!")
+             (form
+              ((action ,(embed/url next)))
+              (button ((type "submit") (name "next")) "next"))
              (p ,(number->string counter))
              (p ,struct-m)))))
   (send/suspend/dispatch response-generator))
  
-; phase-1: request -> response
 (define (next request)
   (increment)
   (define (response-generator embed/url)
@@ -58,8 +61,9 @@
     (response/xexpr
      `(html
        (body (h1 "Model")
-             (a ((href ,(embed/url next)))
-                "click me!")
+             (form
+              ((action ,(embed/url next)))
+              (button ((type "submit") (name "next")) "next"))
              (p ,(number->string counter))
              (p ,struct-m)))))
   (send/suspend/dispatch response-generator))
