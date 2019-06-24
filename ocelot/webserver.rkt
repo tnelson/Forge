@@ -37,7 +37,6 @@
 (define (start request)
   (display 0 request parse-model-to-HTML))
 
-; start: request -> response
 (define (display count request model-parser)
   (cond [(= count (length $$MODELS-LIST$$)) (set! $$MODELS-LIST$$ (append $$MODELS-LIST$$ (list $$MODEL$$)))])
   (define (response-generator embed/url)
