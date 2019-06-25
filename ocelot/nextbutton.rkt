@@ -30,25 +30,19 @@
                 (in (mk-rel tuple singletons) rel)) (hash-ref hashy rel))) (hash-keys hashy)))
   (! (foldl sneaky-and (= none none) (flatten constraints))))
 
-
 (define (sym-to-sin-func singletons)
   (define (sym-to-sin sym)
     (define filtered (filter (lambda (x) (eq? (car x) sym)) singletons))
     (car (cdr (car filtered))))
   sym-to-sin)
 
-
-
 (define (mk-rel tuple singletons)
-  
   (define sts (sym-to-sin-func singletons))
-  
   (define ret
   (case (length tuple)
     ([1] (sts (car tuple)))
     (else (apply -> (map sts tuple)))))
   ret)
-
 
 ; Gets the current (or initial) model and caches it as constraints
 (define (get-model constraints model-bounds singletons)
