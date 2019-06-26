@@ -2,6 +2,7 @@
 
 (require ocelot)
 (require "ocelot/nextbutton.rkt")
+;(require "bitblastlib.rkt")
 
 ; The i0 i1 i2 i3 represent indices in a bit vector.
 ; If an integer contains a particular index, then the bit at that index is 1.
@@ -22,12 +23,8 @@
 (define band (declare-relation 3 "band"))
 (define band-bound (make-exact-bound band '((b0 b0 b0) (b0 b1 b0) (b1 b0 b0) (b1 b1 b1))))
 
-#|
-(define fand-bound (make-exact-bound fand-bound '((b0 b0 b0) (b0 b1 b0) (b1 b0 b0) (b1 b1 b1))))
-(define for-bound)
-(define fxor0bound)
-(define fnot-bound)
-|#
+(define bor (declare-relation 3 "bor"))
+(define bor-bound (make-exact-bound bor '((b0 b0 b0) (b0 b1 b1) (b1 b0 b1) (b1 b1 b1))))
 
 (define ints-map (declare-relation 4 "ints-map"))
 (define ints-map-bound (make-exact-bound ints-map '((i0 b0 b0 b0)
@@ -39,33 +36,32 @@
                                                     (i6 b1 b1 b0)
                                                     (i7 b1 b1 b1))))
 
-(define all-bounds (instantiate-bounds (bounds U (append B (list ints-bound bvals-bound bxor-bound band-bound ints-map-bound)))))
+;(define result1 (declare-relation 1 "result1"))
+;(define result1-bound (make-upper-bound result1  '((i0) (i1) (i2) (i3) (i4) (i5) (i6) (i7))))
 
+#|(define result2 (declare-relation 1 "result2"))
+(define result2-bound (make-upper-bound result2  '((i0) (i1) (i2) (i3) (i4) (i5) (i6) (i7))))
 
-#|
-(define (arity r)
-  (set ([i ints]) (or (and (= i i0) (= r none)) (= i (plus i1 (arity (join univ r)))))))|#
+(define result3 (declare-relation 1 "result3"))
+(define result3-bound (make-upper-bound result3  '((i0) (i1) (i2) (i3) (i4) (i5) (i6) (i7))))
 
-; Yeah try that, should work.
-#|
-(define (card r)
-  (set ([i ints]) (or (and (= i i0) (= r none)) ; there is some x in r such that (card r - x) + 1 = i
-|#
+(define result4 (declare-relation 1 "result4"))
+(define result4-bound (make-upper-bound result4  '((i0) (i1) (i2) (i3) (i4) (i5) (i6) (i7))))
 
-; Get bit i of x (ith least significant bit)
-; This is a three bit model. So if i is zero, we join twice from the left.
-; If i is 1, we join once from the left, and once from the right.
-; And if i is 2, we join twice from the right.
+(define result5 (declare-relation 1 "result5"))
+(define result5-bound (make-upper-bound result5 '((i0) (i1) (i2) (i3) (i4) (i5) (i6) (i7))))|#
+
+(define all-bounds (instantiate-bounds (bounds U (append B (list ints-bound bvals-bound bxor-bound band-bound bor-bound ints-map-bound)))))
+;result1-bound))))); result2-bound result3-bound result4-bound result5-bound)))))
+
 (define (bit i xstart)
   (define (bit-helper leftjoins rightjoins x)
-    (case
-        
-        [(> leftjoins 0) (bit-helper (- leftjoins 1) rightjoins (join univ x))]
+    (cond
+      [(> leftjoins 0) (bit-helper (- leftjoins 1) rightjoins (join univ x))]
       [(> rightjoins 0) (bit-helper leftjoins (- rightjoins 1) (join x univ))]
       [else x]))
   (bit-helper (- 2 i) i xstart))
 
-(-> b0 b1 b0)
 
 (define (bxor-func bit0 bit1)
   (join bit1 (join bit0 bxor)))
@@ -73,21 +69,25 @@
 (define (band-func bit0 bit1)
   (join bit1 (join bit0 band)))
 
+(define (bor-func bit0 bit1)
+  (join bit1 (join bit0 bor)))
+
 ; returns (sum, carry)
 (define (halfadd bit0 bit1)
   (-> (bxor-func bit0 bit1) (band-func bit0 bit1)))
 
 
+; I think this one is wrong.
 (define (fulladd bit0 bit1 carry)
   (define half1 (halfadd bit0 bit1))
-  (define half1-carry (bit 0 half1))
-  (define half1-sum (bit 1 half1))
+  (define half1-carry (join univ half1))
+  (define half1-sum (join half1 univ))
 
   (define half2 (halfadd half1-sum carry))
-  (define half2-carry (bit 0 half2))
-  (define half2-sum (bit 1 half2))
+  (define half2-carry (join univ half2))
+  (define half2-sum (join half2 univ))
   
-  (define carry-out (bxor-func half1-carry half2-carry))
+  (define carry-out (bor-func half1-carry half2-carry))
   (-> half2-sum carry-out))
 
 ; Either I have some notion of carry, or I have half-add return multiple values.
@@ -96,16 +96,16 @@
   (define y (sym-to-int ysym))
   (define x0 (bit 0 x))
   (define x1 (bit 1 x))
-  (define x2 (bit 1 x))
+  (define x2 (bit 2 x))
   (define y0 (bit 0 y))
   (define y1 (bit 1 y))
   (define y2 (bit 2 y))
   
   (define t0 (fulladd x0 y0 b0))
-  (define t1 (fulladd x1 y1 (bit 0 t0)))
-  (define t2 (fulladd x0 y0 (bit 0 t1)))
+  (define t1 (fulladd x1 y1 (join univ t0)))
+  (define t2 (fulladd x2 y2 (join univ t1)))
 
-  (int-to-sym (-> (bit 1 t0) (bit 1 t1) (bit 1 t2))))
+  (int-to-sym (-> (join t2 univ) (join t1 univ) (join t0 univ) )))
 
 
 #|(define (mult x y)
@@ -123,7 +123,105 @@
 (define (int-to-sym tup)
   (set ([i ints]) (= (sym-to-int i) tup)))
 
-(define constraints [= (bit 0 (sym-to-int i2)) b0])
+#|
+(define (arity r)
+  (set ([i ints]) (or (and (= i i0) (= r none)) (= i (plus i1 (arity (join univ r)))))))|#
 
-;(define constraints [= (sym-to-int i2) (-> b0 b1 b0)])
+; Yeah try that, should work.
+#|
+(define (card r)
+  (set ([i ints]) (or (and (= i i0) (= r none)) ; there is some x in r such that (card r - x) + 1 = i
+|#
+
+; Get bit i of x (ith least significant bit)
+; This is a three bit model. So if i is zero, we join twice from the left.
+; If i is 1, we join once from the left, and once from the right.
+; And if i is 2, we join twice from the right.
+; 2 = 010 2 = 011
+; ok it's dependent on order, that's bad. Why is that happening?
+(define constraints (and ;[= (plus i2 i1) result1]))
+
+                     #|
+  (define t0 (fulladd x0 y0 b0))
+  (define t1 (fulladd x1 y1 (join univ t0)))
+  (define t2 (fulladd x2 y2 (join univ t1)))|#
+
+                     ;[= (bit 2 (sym-to-int i2)) b0]
+                     #|[= (plus i0 i0) i0]
+                         [= (plus i0 i1) i1]
+                         [= (plus i0 i2) i2]
+                         [= (plus i0 i3) i3]
+                         [= (plus i0 i4) i4]
+                         [= (plus i0 i5) i5]
+                         [= (plus i0 i6) i6]
+                         [= (plus i0 i7) i7]
+                         
+                         [= (plus i1 i0) i1]
+                         [= (plus i1 i1) i2]
+                         [= (plus i1 i2) i3]
+                         [= (plus i1 i3) i4]
+                         [= (plus i1 i4) i5]
+                         [= (plus i1 i5) i6]
+                         [= (plus i1 i6) i7]
+                         [= (plus i1 i7) i0]
+
+                         [= (plus i2 i0) i2]
+                         [= (plus i2 i1) i3]
+                         [= (plus i2 i2) i4]
+                         [= (plus i2 i3) i5]
+                         [= (plus i2 i4) i6]
+                         [= (plus i2 i5) i7]
+                         [= (plus i2 i6) i0]
+                         [= (plus i2 i7) i1]|#
+
+
+                     [= (plus i3 i0) i3]
+                     [= (plus i3 i1) i4]
+                     [= (plus i3 i2) i5]
+                     [= (plus i3 i3) i6]
+                     [= (plus i3 i4) i7]
+                     [= (plus i3 i5) i0]
+                     [= (plus i3 i6) i1]
+                     [= (plus i3 i7) i2]
+                         
+                     [= (plus i4 i0) i4]
+                     [= (plus i4 i1) i5]
+                     [= (plus i4 i2) i6]
+                     [= (plus i4 i3) i7]
+                     [= (plus i4 i4) i0]
+                     [= (plus i4 i5) i1]
+                     [= (plus i4 i6) i2]
+                     [= (plus i4 i7) i3]
+
+                     [= (plus i5 i0) i5]
+                     [= (plus i5 i1) i6]
+                     [= (plus i5 i2) i7]
+                     [= (plus i5 i3) i0]
+                     [= (plus i5 i4) i1]
+                     [= (plus i5 i5) i2]
+                     [= (plus i5 i6) i3]
+                     [= (plus i5 i7) i4]
+                     
+                     [= (plus i6 i0) i6]
+                     [= (plus i6 i1) i7]
+                     [= (plus i6 i2) i0]
+                     [= (plus i6 i3) i1]
+                     [= (plus i6 i4) i2]
+                     [= (plus i6 i5) i3]
+                     [= (plus i6 i6) i4]
+                     [= (plus i6 i7) i5]
+
+                     [= (plus i7 i0) i7]
+                     [= (plus i7 i1) i0]
+                     [= (plus i7 i2) i1]
+                     [= (plus i7 i3) i2]
+                     [= (plus i7 i4) i3]
+                     [= (plus i7 i5) i4]
+                     [= (plus i7 i6) i5]
+                     [= (plus i7 i7) i6]
+
+                     ))
+
+
+(print "yooooooooo")
 (get-model constraints all-bounds S)
