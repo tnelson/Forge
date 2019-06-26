@@ -1,0 +1,11 @@
+add to gitignore, make testcases with eval
+
+make eval func for integers, then split up, bounds for him, blasting for me.
+so arithmetic functions, inequalities, cardinalities
+
+leave overflow prevention for later. So what does charlie
+
+
+may need alloy-style two kinds of int objects
+
+charlie working on integer bounds
