@@ -9,7 +9,8 @@
 ; With four bits, the maximum value is 16 for these integers.
 ; The maximum int is the relation '((i0) (i1) (i2) (i3))
 ; The minimum int is the relation '()
-(bind-universe U B S (a b c d e b0 b1 i0 i1 i2 i3 i4 i5 i6 i7))
+(bind-universe U B S (b0 b1 i0 i1 i2 i3 i4 i5 i6 i7))
+
 
 (define ints (declare-relation 1 "ints"))
 (define ints-bound (make-exact-bound ints '((i0) (i1) (i2) (i3) (i4) (i5) (i6) (i7))))
@@ -36,8 +37,52 @@
                                                     (i6 b1 b1 b0)
                                                     (i7 b1 b1 b1))))
 
+; Not: (b0 b1) - x
+; And: (b1) - x - y?
+; need Or, And, either one.
+; I think I can only use &, +, -
+; WAIT, what if I reformulate again to make false absence, and truth presence?
+
 ; OK, make this faster (boolean op tricks? new map formulation?) and try to make cardinality.
+
+
+; new formulation, return values, take out extraneous atoms
+; relation branch cardinality?
+; sum across tuple?
+; Try the new formulation first, that's promising.
 ;
+
+; look for number of primary variables. should be zero. all time spent in translation
+; dont treat ocelot as blackbox
+; see what i can print out by hacking ocelot, to find bottleneck
+
+; primary variable for every tuple / relation symbol for every tupel that may or not be there.
+; not for things that are in the lower bound, or are not in upper bound.
+
+;secondary variables are things for anciliary reasons for converting to cnf, may be metadata stuff.
+; amine linear blowup tseitin formylation, tsytin.
+; ocelot probably uses tseytin
+
+; ocelot pipeline, probably: sparse matrices?
+
+; boolean circuit to z3. or tseytin to CNF to SAT solver.
+; How to get to boolean circuit?
+; Alloy/Forge goes to Ocelot formula/bounds.
+; That goes to Boolean formula = Boolean circuit. How? formula/bounds become primary variabels, then sparse matrices.
+; Goes through sparse matrices. What are they? mysterious. research
+
+; emina does talk about sparse matrices, her thesis was basically kodkod.
+; also did cool work on cores, and detecting symmetries. what are hte permutation of the graphs?
+; work with solver that understands those. Just farm off to solver.
+; OR convert symmetries to boolean symmetries, add boolean constraint to the formula that excludes anything that's not smallest model,
+; by number conversion of bit vector as boolean integer.
+
+; have to partition into equivalence classes. only want one model from each class, ideally, but that/s too expensive.
+; but requirigin that is super hard, much harder than original sat probleM? reserach.
+; want to rule out as many models as possible, but don't ever want to disallow an entire equivalence class.
+; so we ensure that the lexicographically least model from each class is left in, as many as possible of others are left out.
+
+; it's NP-hard to produce any expression of lex leadership without reordering variables.
 
 ;(define result1 (declare-relation 1 "result1"))
 ;(define result1-bound (make-upper-bound result1  '((i0) (i1) (i2) (i3) (i4) (i5) (i6) (i7))))
@@ -66,6 +111,8 @@
   (bit-helper (- 2 i) i xstart))
 
 
+; Replace these with functions that don't use the relations?
+; How?
 (define (bxor-func bit0 bit1)
   (join bit1 (join bit0 bxor)))
 
@@ -154,7 +201,7 @@
   
 ; How do I do without?
 
-#|
+
 (define constraints (and 
                      [= (plus i0 i0) i0]
                      [= (plus i0 i1) i1]
@@ -226,17 +273,15 @@
                      [= (plus i7 i4) i3]
                      [= (plus i7 i5) i4]
                      [= (plus i7 i6) i5]
-                     [= (plus i7 i7) i6]))|#
+                     [= (plus i7 i7) i6]))
 
 
 (println "yooooooo")
-;(get-model constraints all-bounds S)
+(get-model constraints all-bounds S)
 ;(card bvals)
 ;(fulladd i0 i0 i0)
-(plus i0 i0)
+;(plus i0 i0)
 ;(card bvals)
 
-; wait a sec. Everything in a relation must have the same arity. Is that true in alloy?
-; yes, it is. How does that simplify thigns for me?
 
 ; Hrm. relational branching in card might atually owrk.
