@@ -3,3 +3,4 @@
 *.zo
 *.dep
 *.rkt~
+.genIntSpec.py.swp
