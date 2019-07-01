@@ -3,7 +3,7 @@
 (require br/datum)
 (require ocelot)
 
-(provide model->constraints bind-universe mk-rel get-model get-next-model)
+(provide model->constraints bind-universe mk-rel get-model get-next-model sneaky-and)
 
 (define prev-constraints null)
 
@@ -22,7 +22,7 @@
 (define (sneaky-and l r)
   (and l r))
 
-; Takes an ocelot model (#hash from relations to lists of tuples) and raturns
+; Takes an ocelot model (#hash from relations to lists of tuples) and returns
 ; a list of constraints
 (define (model->constraints hashy singletons)
   (define constraints (map (lambda (rel)
