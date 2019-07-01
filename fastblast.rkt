@@ -17,6 +17,11 @@
 (define bv6 (list verum verum falsum))
 (define bv7 (list verum verum verum))
 
+; extract from alloy assignments an integer thing
+; test performance on four bits, comapred to three
+; test bit vector to atom,
+; try implementing without bit vector to atom????
+
 (define indices (declare-relation 1 "indices"))
 (define indices-bounds (make-exact-bound indices '((i0) (i1) (i2))))
 
@@ -37,7 +42,34 @@
 
 (define all-bounds (instantiate-bounds (bounds U (append B (list indices-bounds
                                                                  ints-bound ints-map-bound)))))
+; Only useful for cardinality
+#|
+(define (univ-arity n)
+  (case n
+    [(1) univ]
+    [else (-> univ (univ-arity (- n 1)))]))}|#
 
+; Totally useless, ocelot can give us this for free.
+#|
+(define (arity r)
+  (define (arity-helper r depth)
+    (case depth
+      [7 bv1]
+      [else
+       (define ret (plus bv1 (arity-helper (join univ r) (+ depth 1))))
+       (list (and (no r) (first ret)) (and (no r) (second ret)) (and (no r) (third ret)))]))
+  (arity-helper r 0))|#
+
+; yeah I think cardinality HAS to be done by messing with ocelot.
+; This is just never gonna be efficient.
+; And if cardinality HAS to be done by messing with ocelot, let's look at ocelot.
+
+#|
+(define (card r)
+  (define (card-helper r depth)
+    (case depth
+      [7 bv1]
+      [else (define ret (plus bv1|#
 
 #|
 OK!!! how does this work.
@@ -96,13 +128,16 @@ Well, doesn't have to be automatic at first...
 
   (list t2-sum t1-sum t0-sum))
 
+(define (atomplus x y)
+  (bv-to-atom (plus (atom-to-bv x) (atom-to-bv y))))
+
 (define (same-bv bva bvb)
   (and (iff (first bva) (first bvb))
        (iff (second bva) (second bvb))
        (iff (third bva) (third bvb))))
 
 
-(define constraints (and
+#|(define constraints (and
                      ;[= (bv-to-atom (plus bv0 bv0)) z0]
                      ;[= (bv-to-atom (plus bv0 bv1)) z1]
                      [same-bv (plus bv0 bv0) bv0]
@@ -176,9 +211,79 @@ Well, doesn't have to be automatic at first...
                      [same-bv (plus bv7 bv5) bv4]
                      [same-bv (plus bv7 bv6) bv5]
                      [same-bv (plus bv7 bv7) bv6]
+                     ))|#
 
+(define constraints (and [= (atomplus z0 z0) z0]
+                         [= (atomplus z0 z1) z1]
+                         [= (atomplus z0 z2) z2]
+                         [= (atomplus z0 z3) z3]
+                         [= (atomplus z0 z4) z4]
+                         [= (atomplus z0 z5) z5]
+                         [= (atomplus z0 z6) z6]
+                         [= (atomplus z0 z7) z7]
+                         
+                         [= (atomplus z1 z0) z1]
+                         [= (atomplus z1 z1) z2]
+                         [= (atomplus z1 z2) z3]
+                         [= (atomplus z1 z3) z4]
+                         [= (atomplus z1 z4) z5]
+                         [= (atomplus z1 z5) z6]
+                         [= (atomplus z1 z6) z7]
+                         [= (atomplus z1 z7) z0]
 
-                     ))
+                         [= (atomplus z2 z0) z2]
+                         [= (atomplus z2 z1) z3]
+                         [= (atomplus z2 z2) z4]
+                         [= (atomplus z2 z3) z5]
+                         [= (atomplus z2 z4) z6]
+                         [= (atomplus z2 z5) z7]
+                         [= (atomplus z2 z6) z0]
+                         [= (atomplus z2 z7) z1]
+
+                         [= (atomplus z3 z0) z3]
+                         [= (atomplus z3 z1) z4]
+                         [= (atomplus z3 z2) z5]
+                         [= (atomplus z3 z3) z6]
+                         [= (atomplus z3 z4) z7]
+                         [= (atomplus z3 z5) z0]
+                         [= (atomplus z3 z6) z1]
+                         [= (atomplus z3 z7) z2]
+                         
+                         [= (atomplus z4 z0) z4]
+                         [= (atomplus z4 z1) z5]
+                         [= (atomplus z4 z2) z6]
+                         [= (atomplus z4 z3) z7]
+                         [= (atomplus z4 z4) z0]
+                         [= (atomplus z4 z5) z1]
+                         [= (atomplus z4 z6) z2]
+                         [= (atomplus z4 z7) z3]
+
+                         [= (atomplus z5 z0) z5]
+                         [= (atomplus z5 z1) z6]
+                         [= (atomplus z5 z2) z7]
+                         [= (atomplus z5 z3) z0]
+                         [= (atomplus z5 z4) z1]
+                         [= (atomplus z5 z5) z2]
+                         [= (atomplus z5 z6) z3]
+                         [= (atomplus z5 z7) z4]
+                     
+                         [= (atomplus z6 z0) z6]
+                         [= (atomplus z6 z1) z7]
+                         [= (atomplus z6 z2) z0]
+                         [= (atomplus z6 z3) z1]
+                         [= (atomplus z6 z4) z2]
+                         [= (atomplus z6 z5) z3]
+                         [= (atomplus z6 z6) z4]
+                         [= (atomplus z6 z7) z5]
+
+                         [= (atomplus z7 z0) z7]
+                         [= (atomplus z7 z1) z0]
+                         [= (atomplus z7 z2) z1]
+                         [= (atomplus z7 z3) z2]
+                         [= (atomplus z7 z4) z3]
+                         [= (atomplus z7 z5) z4]
+                         [= (atomplus z7 z6) z5]
+                         [= (atomplus z7 z7) z6]))
 
 (println "yooooo")
 (get-model constraints all-bounds S)
