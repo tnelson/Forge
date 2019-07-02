@@ -18,9 +18,19 @@
 
 (provide display-model)
 
+(define (model-trim model)
+  (define newmodel (make-hash))
+  (hash-map model (lambda (k v) (if
+                                 (not (equal? #\$ (string-ref (node/expr/relation-name k) 0)))
+                                 (begin
+                                   (hash-set! newmodel k v)
+                                   v)
+                                 v)))
+  newmodel)
+
 (define (display-model model bounds singletons)
   (thread (lambda () (begin
-                       (set! $$MODEL$$ model)
+                       (set! $$MODEL$$ (model-trim model))
                        (set! $$BOUNDS$$ bounds)
                        (set! $$SINGLETONS$$ singletons)
                        (serve/servlet start)))))
@@ -37,6 +47,8 @@
 (define (start request)
   (display 0 request parse-model-to-HTML))
 
+;<iframe frameborder="0" width="100%" height="500px" src="https://repl.it/@amasad/PitifulLastingWhoopingcrane?lite=true"></iframe>
+
 (define (display count request model-parser)
   (cond [(= count (length $$MODELS-LIST$$)) (set! $$MODELS-LIST$$ (append $$MODELS-LIST$$ (list $$MODEL$$)))])
   (define (response-generator embed/url)
@@ -51,7 +63,9 @@
               ((action ,(embed/url prev-handler)))
               (button ((type "submit") (name "prev")) "prev"))
              (p ,(number->string count))
-             (p ,struct-m)))))
+             (p ,struct-m)
+             ;(iframe ((frameborder "0") (width "100%") (height "500px") (src "https://repl.it/@amasad/PitifulLastingWhoopingcrane?lite=true") (outputonly "1")))
+             ))))
   (define (prev-handler request)
     (if (= count 0)
         (display count (redirect/get) model-parser)
@@ -61,7 +75,7 @@
   (define (next-handler request)
     (if (= count (- (length $$MODELS-LIST$$) 1))
         (begin
-          (set! $$MODEL$$ (get-next-model $$BOUNDS$$ $$SINGLETONS$$))
+          (set! $$MODEL$$ (model-trim (get-next-model $$BOUNDS$$ $$SINGLETONS$$)))
           (display (+ count 1) (redirect/get) model-parser))
         (begin
           (set! $$MODEL$$ (list-ref $$MODELS-LIST$$ (+ count 1)))
