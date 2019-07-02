@@ -14,6 +14,36 @@ import sys
 # 8 bits: 23.194s
 # 9 bits: 3m31.831s
 
+# Time to complete with single nested plus on:
+# 1 bit: 4.812s
+# 2 bits: 4.059s
+# 3 bits: 4.888s
+# 4 bits: 5.566s
+# 5 bits: 6.228s
+# 6 bits: 8.006s
+# 7 bits: 11.854s
+# 8 bits: 33.977s
+# 9 bits: 3m52.003s
+
+# with doubly nested plus:
+# 2 bits: 5.105s
+# 3 bits: 7.698s
+# 4 bits: 10.539s
+# 5 bits: 16.539s
+# 6 bits: 28.064s
+# 7 bits: 47.459s
+
+# with triply nested plus:
+# 2 bits: 7.304s
+# 3 bits: 18.235s
+# 4 bits: 38.682s
+# 5 bits: 1m13.871s
+# 6 bits: 2m14.468s
+
+# with quadruply nested plus:
+# 3 bits: 1m9.793s
+# 4 bits: 2m54.608s
+
 
 BITWIDTH = int(sys.argv[1])
 INT_MAX = 2**BITWIDTH
@@ -152,9 +182,9 @@ print()
 random.seed();
 print("(define constraints (and", end="")
 for i in range(200):
-    a = random.randrange(INT_MAX)
-    b = random.randrange(INT_MAX - a)
-    print("\n[same-bv (plus bv" + str(a) + " bv" + str(b) + ") bv" + str(a + b) + "]", end="")
+    a = random.randrange(INT_MAX - 2)
+    b = random.randrange(INT_MAX - 2 - a)
+    print("\n[same-bv (plus (plus (plus bv" + str(a) + " bv" + str(b) + ") bv1) bv1) bv" + str(a + b + 2) + "]", end="")
 print("))")
 
 print()
