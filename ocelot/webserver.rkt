@@ -51,6 +51,9 @@
 (define (start request)
   (display 0 request parse-model-to-HTML))
 
+(define (to-string b)
+  (if b "true" "false"))
+
 ;<iframe frameborder="0" width="100%" height="500px" src="https://repl.it/@amasad/PitifulLastingWhoopingcrane?lite=true"></iframe>
 
 (define (display count request model-parser)
@@ -90,7 +93,9 @@
           (set! $$MODEL$$ (list-ref $$MODELS-LIST$$ (+ count 1)))
           (display (+ count 1) (redirect/get) model-parser))))
   (define (eval-handler request)
-    (with-handlers ([exn:fail? (lambda (exn) (set! $$EVAL-OUTPUT$$ "invalid query") exn)])
+    (with-handlers ([exn:fail? (lambda (exn)
+                                 (with-handlers ([exn:fail? (lambda (exn2) (set! $$EVAL-OUTPUT$$ "invalid query"))])
+                                 (set! $$EVAL-OUTPUT$$ (to-string (eval-form (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))) exn))])
     (set! $$EVAL-OUTPUT$$ (parse-output-to-HTML (eval-exp (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))))
     (display count (redirect/get) model-parser))
   (send/suspend/dispatch response-generator))
