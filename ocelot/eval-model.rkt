@@ -3,7 +3,7 @@
 (require racket/match)
 (require (only-in ocelot node/expr/relation-name))
 
-(provide eval-exp eval-form eval-any model->binding)
+(provide eval-exp eval-form model->binding)
 
 (require rackunit)
 
