@@ -3,6 +3,7 @@
 (require br/datum)
 (require (only-in ocelot node/expr/relation-name))
 (require "nextbutton.rkt")
+(require "eval-model.rkt")
 (require web-server/servlet-env)
 (require web-server/servlet)
 (require racket/format)
@@ -15,6 +16,7 @@
 (define $$BOUNDS$$ "")
 (define $$SINGLETONS$$ "")
 (define $$MODELS-LIST$$ '())
+(define $$EVAL-OUTPUT$$ "")
 
 (provide display-model)
 
@@ -35,6 +37,8 @@
                        (set! $$SINGLETONS$$ singletons)
                        (serve/servlet start)))))
 
+(define (parse-output-to-HTML m)
+  `(ul ,@(map (lambda (r) (tup->li r)) m)))
 
 (define (parse-model-to-HTML m)
   `(ul ,@(map (lambda (r) (rel->ul r m)) (hash-keys m))))
@@ -64,15 +68,20 @@
               (button ((type "submit") (name "prev")) "prev"))
              (p ,(number->string count))
              (p ,struct-m)
-             ;(iframe ((frameborder "0") (width "100%") (height "500px") (src "https://repl.it/@amasad/PitifulLastingWhoopingcrane?lite=true") (outputonly "1")))
-             ))))
+             (form
+              ((action ,(embed/url eval-handler)))
+              (input ((name "expr")))
+              (input ((type "submit") (value "evaluate"))))
+             (p ,$$EVAL-OUTPUT$$)))))
   (define (prev-handler request)
+    (set! $$EVAL-OUTPUT$$ "")
     (if (= count 0)
         (display count (redirect/get) model-parser)
         (begin
           (set! $$MODEL$$ (list-ref $$MODELS-LIST$$ (- count 1)))
           (display (- count 1) (redirect/get) model-parser))))
   (define (next-handler request)
+    (set! $$EVAL-OUTPUT$$ "")
     (if (= count (- (length $$MODELS-LIST$$) 1))
         (begin
           (set! $$MODEL$$ (model-trim (get-next-model $$BOUNDS$$ $$SINGLETONS$$)))
@@ -80,6 +89,10 @@
         (begin
           (set! $$MODEL$$ (list-ref $$MODELS-LIST$$ (+ count 1)))
           (display (+ count 1) (redirect/get) model-parser))))
+  (define (eval-handler request)
+    (with-handlers ([exn:fail? (lambda (exn) (set! $$EVAL-OUTPUT$$ "invalid query") exn)])
+    (set! $$EVAL-OUTPUT$$ (parse-output-to-HTML (eval-exp (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))))
+    (display count (redirect/get) model-parser))
   (send/suspend/dispatch response-generator))
  
 
