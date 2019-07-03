@@ -36,7 +36,7 @@
                                                                            (eval-exp exp-2 bind maxint))))
                                                              (eval-exp exp-1 bind maxint)))]
                    
-                   [`(set ,var ,lst, form) (filter (lambda (x) (eval-form form (hash-set bind var x) maxint)) (eval-exp lst bind maxint))]
+                   [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var x) maxint)) (eval-exp lst bind maxint))]
                    [`(^ ,lst) (tc (eval-exp lst bind maxint))]
 
                    
