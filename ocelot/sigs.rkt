@@ -23,7 +23,7 @@
 (define (fact pred)
   (set! constraints (cons pred constraints)))
 
-(provide declare-sig set-top-level-bound sigs run)
+(provide declare-sig set-top-level-bound sigs run fact iden no some lone forall exists + - ^ & ~ join ! set in)
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
@@ -54,7 +54,7 @@
 
 (define (get-bound sig hashy-bounds)
   (if
-   (hash-has-key? hashy-bounds (string->symbol (node/expr/relation-name sig)))
+   (hash-has-key? hashy-bounds sig)
    (hash-ref hashy-bounds sig)
    (int-bound 0 top-level-bound)))
 
@@ -81,7 +81,7 @@
          (define univ (universe working-universe))
          (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
          (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-         (define model (get-model (foldl sneaky-and (= none none) (flatten constraints))
+         (define model (get-model (foldl sneaky-and (= none none) constraints)
                                   run-bounds
                                   singletons))
          (display-model model run-bounds singletons))]
@@ -93,7 +93,20 @@
          (define univ (universe working-universe))
          (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
          (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-         (define model (get-model (foldl sneaky-and (= none none) (flatten constraints))
+         (define model (get-model (foldl sneaky-and (= none none) constraints)
+                                  run-bounds
+                                  singletons))
+         (display-model model run-bounds singletons))]
+    [(_ pred ((sig lower upper) ...))
+     #'(begin
+         (set! constraints (cons pred constraints))
+         (define hashy (make-hash))
+         (hash-set! hashy sig (int-bound lower upper)) ...
+         (define sig-bounds (bind-sigs hashy))
+         (define univ (universe working-universe))
+         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
+         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
+         (define model (get-model (foldl sneaky-and (= none none) constraints)
                                   run-bounds
                                   singletons))
          (display-model model run-bounds singletons))]))

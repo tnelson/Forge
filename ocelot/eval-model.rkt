@@ -1,8 +1,16 @@
 #lang racket
 
 (require racket/match)
+(require (only-in ocelot node/expr/relation-name))
+
+(provide eval-exp eval-form model->binding)
 
 (require rackunit)
+
+(define (model->binding model)
+  (define out-bind (make-hash))
+  (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (node/expr/relation-name k)) v)))
+  out-bind)
 
 (define (eval-exp exp bind maxint)
   (define result (match exp
@@ -16,16 +24,19 @@
                    [`(& ,exp-1 ,exp-2) (set->list (set-intersect
                                                    (list->set (eval-exp exp-1 bind maxint))
                                                    (list->set (eval-exp exp-2 bind maxint))))]
-                   [`(-> ,exp-1 ,exp-2) (foldl append '()
-                                               (map (lambda (x)
-                                                      (map (lambda (y) `(,x ,y))
-                                                           (eval-exp exp-2 bind maxint))) (eval-exp exp-1 bind maxint)))]
-                   [`(join ,exp-1 ,exp-2) (foldl append '()
-                                                 (map (lambda (x)
-                                                        (map (lambda (y) (cdr y))
-                                                             (filter (lambda (z) (eq? (car (reverse x)) (car z))) (eval-exp exp-2 bind maxint)))))
-                                                 (eval-exp exp-1 bind maxint))]
-                   [`(set ,var ,lst, form) (filter (lambda (x) (eval-form form (hash-set bind var x) maxint)) (eval-exp lst bind maxint))]
+                   [`(-> ,exp-1 ,exp-2) (map flatten (foldl append '()
+                                                            (map (lambda (x)
+                                                                   (map (lambda (y) `(,x ,y))
+                                                                        (eval-exp exp-2 bind maxint))) (eval-exp exp-1 bind maxint))))]
+                   [`(join ,exp-1 ,exp-2) (foldl append '() (map
+                                                             (lambda (x) (map
+                                                                          (lambda (y) (append (reverse (rest (reverse x))) (rest y)))
+                                                                          (filter
+                                                                           (lambda (z) (eq? (car (reverse x)) (car z)))
+                                                                           (eval-exp exp-2 bind maxint))))
+                                                             (eval-exp exp-1 bind maxint)))]
+                   
+                   [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var x) maxint)) (eval-exp lst bind maxint))]
                    [`(^ ,lst) (tc (eval-exp lst bind maxint))]
 
                    
@@ -37,7 +48,7 @@
                    [`(card ,lst) (length (eval-exp lst bind maxint))]
 
                    
-                   [id (cond [(list? id) id] [(integer? id) (list (list id))] [else (hash-ref bind id)])]))
+                   [id (cond [(list? id) (map (lambda (x) (eval-form x bind maxint)) id)] [(integer? id) (list (list (modulo id maxint)))] [else (hash-ref bind id)])]))
 
   
   (if (not (list? result)) (list (list result)) (remove-duplicates result)))
@@ -85,20 +96,3 @@
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]))
 
-
-
-(define binding #hash([r . ((a b) (b c))] [b . ((b) (q) (z))] [a . ((a))] [c . ((c))]
-                                          [i0 . ((0))] [i1 . ((1))] [i2 . ((2))] [i3 . ((3))] [i4 . ((4))] [i5 . ((5))] [i6 . ((6))] [i7 . ((7))]))
-(check-equal? (eval-exp '(plus 1 2) binding 7) '((3)))
-
-
-
-; Cardinality tests:
-(check-equal? (eval-exp '(card r) binding 7) '((2)))
-(check-equal? (eval-exp '(card (+ r ((a c)))) binding 7) '((3)))
-(check-equal? (eval-exp '(card (+ r 2)) binding 7) '((3)))
-(check-equal? (eval-exp '(card (+ r r)) binding 7) '((2)))
-
-
-(check-true (eval-form '(some b) binding 7))
-(check-false (eval-form '(one b) binding 7))
