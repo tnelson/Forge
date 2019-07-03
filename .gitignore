@@ -4,3 +4,4 @@
 *.dep
 *.rkt~
 .genIntSpec.py.swp
+*.swp
