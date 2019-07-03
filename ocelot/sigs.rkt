@@ -23,7 +23,7 @@
 (define (fact pred)
   (set! constraints (cons pred constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden no some lone forall exists + - ^ & ~ join ! set)
+(provide declare-sig set-top-level-bound sigs run fact iden no some lone forall exists + - ^ & ~ join ! set in)
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
