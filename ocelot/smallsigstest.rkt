@@ -2,10 +2,8 @@
 
 (require "sigs.rkt")
 
-;(declare-sig beach)
-
-(declare-sig node ((graph node))) ;(side beach)))
+(declare-sig node ((graph node)))
 
 (fact (no (& iden (^ graph))))
 
-(run ((node 3 3))) ;(beach 2 2)))
+(run ((node 6 6)))
