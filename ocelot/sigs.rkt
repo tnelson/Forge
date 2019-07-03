@@ -96,8 +96,20 @@
          (define model (get-model (foldl sneaky-and (= none none) constraints)
                                   run-bounds
                                   singletons))
-         (display-model model run-bounds singletons)
-         model)]))
+         (display-model model run-bounds singletons))]
+    [(_ pred ((sig lower upper) ...))
+     #'(begin
+         (set! constraints (cons pred constraints))
+         (define hashy (make-hash))
+         (hash-set! hashy sig (int-bound lower upper)) ...
+         (define sig-bounds (bind-sigs hashy))
+         (define univ (universe working-universe))
+         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
+         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
+         (define model (get-model (foldl sneaky-and (= none none) constraints)
+                                  run-bounds
+                                  singletons))
+         (display-model model run-bounds singletons))]))
 
 
 
