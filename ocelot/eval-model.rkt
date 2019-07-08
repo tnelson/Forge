@@ -48,7 +48,7 @@
                    [`(card ,lst) (length (eval-exp lst bind maxint))]
 
                    
-                   [id (cond [(list? id) (map (lambda (x) (eval-exp x bind maxint)) id)] [(integer? id) (list (list (modulo id maxint)))] [else (hash-ref bind id)])]))
+                   [id (cond [(list? id) (map (lambda (x) (map (lambda (y) (first (first (hash-ref bind y)))) x)) id)] [(integer? id) (list (list (modulo id maxint)))] [else (hash-ref bind id)])]))
 
   
   (if (not (list? result)) (list (list result)) (remove-duplicates result)))
