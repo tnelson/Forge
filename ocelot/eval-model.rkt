@@ -7,6 +7,8 @@
 
 (require rackunit)
 
+
+; 
 (define (model->binding model)
   (define out-bind (make-hash))
   (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (node/expr/relation-name k)) v)))
@@ -48,7 +50,11 @@
                    [`(card ,lst) (length (eval-exp lst bind maxint))]
 
                    
-                   [id (cond [(list? id) (map (lambda (x) (map (lambda (y) (first (first (hash-ref bind y)))) x)) id)] [(integer? id) (list (list (modulo id maxint)))] [else (hash-ref bind id)])]))
+                   [id
+                    (cond
+                      [(list? id) (map (lambda (x) (map (lambda (y) (first (first (hash-ref bind y)))) x)) id)]
+                      [(integer? id) (list (list (modulo id maxint)))]
+                      [else (hash-ref bind id)])]))
 
   
   (if (not (list? result)) (list (list result)) (remove-duplicates result)))
