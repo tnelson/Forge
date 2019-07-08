@@ -2,7 +2,8 @@
 
 (require ocelot)
 (require "../ocelot/goatswolves.rkt")
-(require graph)
+(require json)
+;(require graph)
 ; What does this file have to do? Has to take a model, convert to graph, print graph to dot, use dot to make svg.
 ; Website always imports the same svg, so don't have to worry about that.
 ; How do I do this?
@@ -33,9 +34,30 @@
 
 ; step one is to ake a single json object, from a single relation.
 
-(
+; This is all that should be exported to the Json.
+; Javascript does ALLLL the work, once given the json. So this is all the modelToDot does.
+; And i will need to talk to Charlie! All works out.
 
-(define mod '((s1 g1 far)
+; Convert a list of tuples of datums to a list of tuples of strings
+(define (ocelot-relation->JSON-relation rel)
+  (map (lambda (x)
+         (map (lambda (y) (symbol->string y)) x))
+       rel))
+
+(define (model-to-JSON modelhash)
+  (define relname-to-arity
+    (make-hasheq (map (lambda (x) (list (string->symbol (relation-name x)) (relation-arity x))) (hash-keys modelhash))))
+  (define relname-to-rel
+    (make-hasheq (map (lambda (x) (list (string->symbol (relation-name x)) (ocelot-relation->JSON-relation (hash-ref modelhash x)))) (hash-keys modelhash))))
+
+  (hasheq (string->symbol "arities") relname-to-arity (string->symbol "relations") relname-to-rel))
+
+(define jsontype (model-to-JSON model))
+(define text (jsexpr->string jsontype))
+
+
+
+#|3(define mod '((s1 g1 far)
               (s1 g2 near)
               (s1 g3 near)
               (s1 w1 near)
@@ -133,12 +155,12 @@
               (s11 w1 near)
               (s11 w2 near)
               (s11 w3 far)
-              (s11 boat near)))
+              (s11 boat near)))|#
 
 ; Given just one 
 ; Returns a list of all non-singleton relations
 
-
+#|
 (define (strip-middle rel)
   (map (lambda (x) (list (first x) (last x))) rel))
 
@@ -154,7 +176,7 @@
 
 (define k (first (non-singleton-keys model)))
 (define rel (hash-ref model k))
-(define strip (strip-middle rel))
+(define strip (strip-middle rel))|#
 
 ;(define graphvizs (map graphviz (map directed-graph (non-singletons model))));
 ;(display graphvizs)
