@@ -36,7 +36,7 @@
                                                                            (eval-exp exp-2 bind maxint))))
                                                              (eval-exp exp-1 bind maxint)))]
                    
-                   [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var x) maxint)) (eval-exp lst bind maxint))]
+                   [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
                    [`(^ ,lst) (tc (eval-exp lst bind maxint))]
 
                    
@@ -48,7 +48,7 @@
                    [`(card ,lst) (length (eval-exp lst bind maxint))]
 
                    
-                   [id (cond [(list? id) (map (lambda (x) (eval-form x bind maxint)) id)] [(integer? id) (list (list (modulo id maxint)))] [else (hash-ref bind id)])]))
+                   [id (cond [(list? id) (map (lambda (x) (eval-exp x bind maxint)) id)] [(integer? id) (list (list (modulo id maxint)))] [else (hash-ref bind id)])]))
 
   
   (if (not (list? result)) (list (list result)) (remove-duplicates result)))
@@ -90,8 +90,8 @@
     [`(or ,form-1 ,form-2) (or (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
     [`(implies ,form-1 ,form-2) (implies (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
     [`(iff ,form-1 ,form-2) (equal? (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(forall ,var ,lst ,f) (andmap (lambda (x) (eval-form f (hash-set bind var x) maxint)) lst)]
-    [`(some ,var ,lst ,f) (ormap (lambda (x) (eval-form f (hash-set bind var x) maxint)) lst)]
+    [`(all ,var ,lst ,f) (andmap (lambda (x) (eval-form f (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
+    [`(some ,var ,lst ,f) (ormap (lambda (x) (eval-form f (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind maxint) (eval-exp var-2 bind maxint))]
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]))
