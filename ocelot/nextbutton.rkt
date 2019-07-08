@@ -6,6 +6,7 @@
 (provide model->constraints bind-universe mk-rel get-model get-next-model sneaky-and)
 
 (define prev-constraints null)
+(define constraints-list '())
 
 ; Provides a syntax for defining a universe of discourse an binding each atom
 ; to a singleton relation.  These relations aren't exposed to the forge user
@@ -23,12 +24,13 @@
   (and l r))
 
 ; Takes an ocelot model (#hash from relations to lists of tuples) and returns
-; a list of constraints
+; a list of constraints.  This is used by get-next-model to generate a sequence
+; of unique instances.
 (define (model->constraints hashy singletons)
   (define constraints (map (lambda (rel)
          (map (lambda (tuple)
                 (in (mk-rel tuple singletons) rel)) (hash-ref hashy rel))) (hash-keys hashy)))
-  (! (foldl sneaky-and (= none none) (flatten constraints))))
+  (foldl sneaky-and (= none none) (flatten constraints)))
 
 (define (sym-to-sin-func singletons)
   (define (sym-to-sin sym)
@@ -49,11 +51,12 @@
   (assert (interpret* constraints model-bounds))
   (define model (interpretation->relations (evaluate model-bounds (solve (assert #t)))))
   (if (equal? null prev-constraints)
-      (begin (set! prev-constraints (interpret* (model->constraints model singletons) model-bounds)) model) model))
+      (begin (set! prev-constraints (interpret* (model->constraints model singletons) model-bounds)) (println prev-constraints) model) model))
 
 ; Gets the next model and caches it as constraints
 (define (get-next-model model-bounds singletons)
-  (assert prev-constraints)
+  (assert (! prev-constraints))
+  (set! constraints-list (cons prev-constraints constraints-list))
   (define model (interpretation->relations (evaluate model-bounds (solve (assert #t)))))
   (set! prev-constraints (interpret* (model->constraints model singletons) model-bounds))
   model)
