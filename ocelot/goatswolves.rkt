@@ -98,3 +98,5 @@
 
 (define model (get-model model-constraints model-bounds L))
 
+(provide model)
+
