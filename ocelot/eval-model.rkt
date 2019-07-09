@@ -58,7 +58,7 @@
                    ; Base case - implicit set comprehension, ids, integers
                    [id
                     (cond
-                      [(relation? id) (map (lambda (x) (map (lambda (y) (first (first (hash-ref bind y)))) x)) id)]
+                      [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]
                       [(integer? id) (list (list (modulo id maxint)))]
                       [else (hash-ref bind id)])]))
   ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
