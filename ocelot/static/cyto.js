@@ -1,8 +1,3 @@
-
-// need the edges to searate from each other, and be different colors
-
-	console.log(edges);
-
 	var nodes = json.nodes.map(function(name){
 		return {data: {id: name, label: name}}
 	});
@@ -16,7 +11,6 @@
 
 	var edges = Object.entries(json.relations).reduce(function(acc, val){
 		relation_name = val[0];
-		console.log(relation_name);
 
 		return acc.concat(val[1].map(function(tuple){
 			console.assert(tuple.length >= 1);

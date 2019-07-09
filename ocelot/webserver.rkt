@@ -73,10 +73,12 @@
        (head
         (script ((type "text/javascript")) ,(format "var json = ~a;" (jsexpr->string (model-to-JSON $$MODEL$$))))
         (script ((type "text/javascript") (src "/cytoscape.min.js")))
+        ; The problem is that the styling applied by the JS is higher priority than the stylesheet,
+        ; so the DOM elements are never even rendered a first time.
         (script ((type "text/javascript") (src "/tabs.js")))
         (link ((rel "stylesheet") (type "text/css") (href "/tabs.css"))
         (link ((rel "stylesheet") (type "text/css") (href "/cyto.css"))))
-       (body
+       (body ((onload "document.getElementById(\"defaultopen\").click();"))
         (div ((class "tab"))
              (button ((class "tablinks") (onclick "openTab(event, \'graph\')")) "graph")
              (button ((class "tablinks") (onclick "openTab(event, \'list\')") (id "defaultopen")) "list")
@@ -97,7 +99,8 @@
        (div ((id "graph") (class "tabcontent")) (h1 "Model") (div ((id "cy"))))
        (div ((id "list") (class "tabcontent")) (h1 "Model") (p ,struct-m))
        (script ((type "text/javascript") (src "/cyto.js")))
-       (script ((type "text/javascript")) "document.getElementById(\"defaultopen\").click();")))))
+       ;(script ((type "text/javascript")) "")
+       ))))
   (define (prev-handler request)
     (set! $$EVAL-OUTPUT$$ "")
     (if (= count 0)

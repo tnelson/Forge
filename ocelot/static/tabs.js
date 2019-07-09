@@ -1,4 +1,6 @@
 function openTab(evt, tabName) {
+	console.log("thing");
+
   // Declare all variables
   var i, tabcontent, tablinks;
 
