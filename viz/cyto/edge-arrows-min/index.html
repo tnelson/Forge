@@ -1,0 +1,46 @@
+<!DOCTYPE>
+<html>
+<head>
+	<link href="style.css" rel="stylesheet" />
+	<script src="./cytoscape.min.js"></script>
+</head>
+<body>
+	<div id="cy"></div>
+
+	<!-- Load application code at the end to ensure DOM is loaded -->
+	<script>
+	/* global document, window, fetch, cytoscape */
+
+	(function(){
+
+		var cy = window.cy = cytoscape({
+			container: document.getElementById('cy'),
+
+
+			style: [{
+				"selector": "edge",
+				"style": {
+					"curve-style": "unbundled-bezier"
+				}
+			}, {
+				"selector": "edge[arrow]",
+				"style": {
+					"target-arrow-shape": "data(arrow)"
+				}
+			}],
+
+			elements: [
+				{ "data": { "id": "n0", "type": "triangle" } },
+				{ "data": { "id": "n1" } },
+				{ "data": { "id": "e0", "source": "n0", "target": "n1", "arrow": "triangle" } },
+
+				{ "data": { "id": "n2", "type": "triangle-tee" } },
+				{ "data": { "id": "n3" } },
+				{ "data": { "id": "e1", "source": "n2", "target": "n3", "arrow": "triangle-tee" } }
+			]
+		});
+	})();
+
+	</script>
+</body>
+</html>

@@ -14,13 +14,29 @@
          (map (lambda (y) (symbol->string y)) x))
        rel))
 
+(define (unfold-list lst)
+  (foldl (lambda (x acc) (append x acc)) null lst))
+
+(define (nodes-and-edges tuples)
+  (define-values (nodes-temp edges) (partition (lambda (x) (= (length x) 1)) tuples))
+  (define nodes (unfold-list nodes-temp))
+  (values nodes edges))
+
 (define (model-to-JSON modelhash)
   ; map each name to
   (define pairs (hash-map modelhash
             (lambda (key value)
               (cons (string->symbol (relation-name key)) (ocelot-relation->JSON-relation value)))))
-  (make-hasheq pairs))
+  (define rels (make-hasheq pairs))
+  (define all-tuples (unfold-list (hash-values rels)))
+  (define-values (all-nodes all-edges) (nodes-and-edges all-tuples))
+  (hasheq 'relations rels 'nodes all-nodes 'edges all-edges))
 
+; It may be more convenient for now for this JSON expor to be in the format cytoscape expects
+; Well, no, just append an object in the format cytoscape expects. So, a list of all nodes, and a list of all edges. Easy!
+; How do I get all nodes here?
+
+    
 #|
 (define (model-to-JSON modelhash)
   (define relname-to-arity

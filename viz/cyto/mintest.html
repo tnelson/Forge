@@ -17,7 +17,7 @@
 
 	var json = {
 		"relations": {
-			"edges": [["a", "b"], ["b", "a"], ["a", "a"]]
+			"edges": [["a", "b"], ["b", "a"], ["a", "b"]]
 		},
 		"nodes": ["a", "b"],
 	};
@@ -26,44 +26,10 @@
 
 	// ahh shit. the nodes stuff is handy. But the edges stuff is useless, because I also always need to know the relation an edge came from.
 
-	// Now to make the relations actually work.
-	// How to do that? OK, relations is a map from relaiton names to lists of edges.
-	// For each relation name, I need to go through each edge and construct its cyto edge.
-	// This should be complete with the name of the containing relation, to provide labels.
-	// Alright, but then they all have to be put into the same list. How do I do that?
-	// reduce!
 
 	var nodes = json["nodes"].map(function(name){
 		return {data: {id: name, label: name}}
 	});
-
-	var edges = Object.entries(json["relations"]).reduce(function(acc, val){
-		relation_name = val[0];
-		console.log(relation_name);
-
-		acc.concat(val[1].map(function(tuple){
-			console.assert(tuple.length >= 1);
-
-			var start = tuple[0];
-			var end = tuple[tuple.length - 1];
-
-			var label = relation_name;
-			if (tuple.length >= 2){
-				var between = tuple.slice(1, tuple.length - 1);
-				label = relation_name + "\n->" + between.join("->") + "->";
-			}
-
-			return {
-				data: {
-					id: start + end,
-					source: start,
-					target: end,
-					label: label,
-					arrow: "triangle"
-				}
-			}
-		}));
-	}, []);
 
 	var edges = json["relations"]["edges"].map(function(tuple){
 		var start = tuple[0];
@@ -80,7 +46,6 @@
 				source: start,
 				target: end,
 				label: label,
-				arrow: "triangle"
 			}
 		}
 	})
@@ -122,8 +87,7 @@
 					'width': 3,
 					'line-color': '#ccc',
 					'target-arrow-color': '#ccc',
-					'target-arrow-shape': 'triangle',
-					'curve-style': 'unbundled-bezier'
+					'target-arrow-shape': 'triangle'
 				}
 			}
 		],
