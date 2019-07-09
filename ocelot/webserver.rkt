@@ -6,7 +6,10 @@
 (require "eval-model.rkt")
 (require web-server/servlet-env)
 (require web-server/servlet)
+(require web-server/insta/insta)
 (require racket/format)
+(require "../viz/modelToJson.rkt")
+(require json)
 
 (struct relation-display (name members))
 
@@ -35,26 +38,31 @@
                        (set! $$MODEL$$ (model-trim model))
                        (set! $$BOUNDS$$ bounds)
                        (set! $$SINGLETONS$$ singletons)
-                       (serve/servlet start)))))
+                       (serve/servlet start
+                                      #:extra-files-paths (list (build-path (current-directory) "static")))))))
 
+; Parses the output of an eval query to HTML
 (define (parse-output-to-HTML m)
   `(ul ,@(map (lambda (r) (tup->li r)) m)))
 
+; Parses a model to HTML
 (define (parse-model-to-HTML m)
   `(ul ,@(map (lambda (r) (rel->ul r m)) (hash-keys m))))
 
+; HTML parsing helpers
 (define (rel->ul r m)
   `(li ,(node/expr/relation-name r) (ul ,@(map tup->li (hash-ref m r)))))
 
 (define (tup->li t) `(li ,(~a t)))
 
+; Display the landing page
 (define (start request)
   (display 0 request parse-model-to-HTML))
 
+; Stringify a boolean for display
 (define (to-string b)
   (if b "true" "false"))
 
-;<iframe frameborder="0" width="100%" height="500px" src="https://repl.it/@amasad/PitifulLastingWhoopingcrane?lite=true"></iframe>
 
 (define (display count request model-parser)
   (cond [(= count (length $$MODELS-LIST$$)) (set! $$MODELS-LIST$$ (append $$MODELS-LIST$$ (list $$MODEL$$)))])
@@ -62,20 +70,34 @@
     (define struct-m (model-parser $$MODEL$$))
     (response/xexpr
      `(html
-       (body (h1 "Model")
-             (form
-              ((action ,(embed/url next-handler)))
-              (button ((type "submit") (name "next")) "next"))
-             (form
-              ((action ,(embed/url prev-handler)))
-              (button ((type "submit") (name "prev")) "prev"))
-             (p ,(number->string count))
-             (p ,struct-m)
-             (form
-              ((action ,(embed/url eval-handler)))
-              (input ((name "expr")))
-              (input ((type "submit") (value "evaluate"))))
-             (p ,$$EVAL-OUTPUT$$)))))
+       (head
+        (script ((type "text/javascript")) ,(format "var json = ~a;" (jsexpr->string (model-to-JSON $$MODEL$$))))
+        (script ((type "text/javascript") (src "/cytoscape.min.js")))
+        (script ((type "text/javascript") (src "/tabs.js")))
+        (link ((rel "stylesheet") (type "text/css") (href "/tabs.css"))
+        (link ((rel "stylesheet") (type "text/css") (href "/cyto.css"))))
+       (body
+        (div ((class "tab"))
+             (button ((class "tablinks") (onclick "openTab(event, \'graph\')")) "graph")
+             (button ((class "tablinks") (onclick "openTab(event, \'list\')") (id "defaultopen")) "list")
+             (button ((class "tablinks") (onclick "openTab(event, \'evaluator\')")) "evaluator"))
+        (form
+         ((action ,(embed/url next-handler)))
+         (button ((type "submit") (name "next")) "next"))
+        (form
+         ((action ,(embed/url prev-handler)))
+         (button ((type "submit") (name "prev")) "prev"))
+        (p ,(number->string count)))
+       (div ((id "evaluator") (class "tabcontent"))
+            (form
+             ((action ,(embed/url eval-handler)))
+             (input ((name "expr")))
+             (input ((type "submit") (value "evaluate"))))
+            (p ,$$EVAL-OUTPUT$$))
+       (div ((id "graph") (class "tabcontent")) (h1 "Model") (div ((id "cy"))))
+       (div ((id "list") (class "tabcontent")) (h1 "Model") (p ,struct-m))
+       (script ((type "text/javascript") (src "/cyto.js")))
+       (script ((type "text/javascript")) "document.getElementById(\"defaultopen\").click();")))))
   (define (prev-handler request)
     (set! $$EVAL-OUTPUT$$ "")
     (if (= count 0)
@@ -95,11 +117,10 @@
   (define (eval-handler request)
     (with-handlers ([exn:fail? (lambda (exn)
                                  (with-handlers ([exn:fail? (lambda (exn2) (set! $$EVAL-OUTPUT$$ "invalid query"))])
-                                 (set! $$EVAL-OUTPUT$$ (to-string (eval-form (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))) exn))])
-    (set! $$EVAL-OUTPUT$$ (parse-output-to-HTML (eval-exp (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))))
+                                   (set! $$EVAL-OUTPUT$$ (to-string (eval-form (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))) exn))])
+      (set! $$EVAL-OUTPUT$$ (parse-output-to-HTML (eval-exp (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))))
     (display count (redirect/get) model-parser))
   (send/suspend/dispatch response-generator))
- 
 
  
 
