@@ -1,7 +1,12 @@
 	var nodes = json.nodes.map(function(name){
 		return {data: {id: name, label: name}}
 	});
-	//
+
+
+// How to do projection? static projection is fine for now.
+// It would be nice to be able to do a callback... How could I do this in alloy?
+
+
 	// var edges = Object.entries(json.relations).reduce(function(acc, val){
 	// 	relation_
 	// 	return acc.concat(val);
