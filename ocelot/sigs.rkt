@@ -5,17 +5,27 @@
 (require "webserver.rkt")
 (require racket/stxparam)
 (require br/datum)
-
-(define top-level-bound 4)
 (require (only-in ocelot node/expr/relation-name))
+
+;Default bound
+(define top-level-bound 4)
+;Track what sigs exist in the universe
 (define sigs '())
+;Track singletons to instantiate an ocelot universe
 (define working-universe '())
 (define singleton-bounds '())
 (define singletons '())
+;Create and store a singleton relation for each atom for the next button
 (define atomic-rels-store (make-hash))
+;Map from relations to lists of types
 (define relations-store (make-hash))
+;Map from sigs to sigs to track hierarchy
 (define extensions-store (make-hash))
+;Map from relations to explicit bounds
 (define bounds-store (make-hash))
+;Map from relations to int bounds
+(define int-bounds-store (make-hash))
+;Extra constraints on the model (e.g. facts, relation constraints, etc.)
 (define constraints '())
 
 (struct int-bound (lower upper) #:transparent)
@@ -23,7 +33,7 @@
 (define (fact pred)
   (set! constraints (cons pred constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden no some lone forall exists + - ^ & ~ join ! set in)
+(provide declare-sig set-top-level-bound sigs run fact iden no some lone forall exists + - ^ & ~ join ! set in declare-one-sig)
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
@@ -40,23 +50,41 @@
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (set! constraints (cons (in field (-> name r ...)) constraints)) ...)]))
 
+(define-syntax (declare-one-sig stx)
+  (syntax-case stx ()
+    [(_ name)
+     #'(begin
+         (define name (declare-relation 1 (symbol->string 'name)))
+         (add-sig (symbol->string 'name))
+         (hash-set! int-bounds-store name (int-bound 1 1)))]
+    [(_ name ((field r ...) ...))
+     #'(begin
+         (define name (declare-relation 1 (symbol->string 'name)))
+         (add-sig (symbol->string 'name))
+         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
+         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (set! constraints (cons (in field (-> name r ...)) constraints)) ...
+         (hash-set! int-bounds-store name (int-bound 1 1)))]))
+
 (define (add-sig name)
   (set! sigs (cons (declare-relation 1 name) sigs)))
 
 (define (set-top-level-bound b) (set! top-level-bound b))
 
 ; Populates the universe with atoms according to the bounds specified by a run statement
-; 
 ; Returns a list of bounds objects
 (define (bind-sigs hashy-bounds)
   (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
                        (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms))) sigs))
 
+; Finds and returns the specified or implicit int-bounds object for the given sig
 (define (get-bound sig hashy-bounds)
   (if
    (hash-has-key? hashy-bounds sig)
    (hash-ref hashy-bounds sig)
-   (int-bound 0 top-level-bound)))
+   (if (hash-has-key? int-bounds-store sig)
+       (hash-ref int-bounds-store sig)
+       (int-bound 0 top-level-bound))))
 
 (define (populate-sig sig bound)
   (define atoms (map (lambda (n) (string-append (node/expr/relation-name sig) (number->string n))) (up-to bound)))
