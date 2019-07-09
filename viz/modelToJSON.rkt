@@ -1,7 +1,7 @@
 #lang rosette
 
 (require ocelot)
-(require "../ocelot/goatswolves.rkt")
+;(require "../ocelot/goatswolves.rkt")
 (require json)
 
 ; This is all that should be exported to the Json.
@@ -32,6 +32,8 @@
   (define-values (all-nodes all-edges) (nodes-and-edges all-tuples))
   (hasheq 'relations rels 'nodes all-nodes 'edges all-edges))
 
+(provide model-to-JSON)
+
 ; It may be more convenient for now for this JSON expor to be in the format cytoscape expects
 ; Well, no, just append an object in the format cytoscape expects. So, a list of all nodes, and a list of all edges. Easy!
 ; How do I get all nodes here?
@@ -50,5 +52,5 @@
 
   (hasheq (string->symbol "arities") relname-to-arity (string->symbol "relations") relname-to-rel))|#
 
-(define jsontype (model-to-JSON model))
-(define text (jsexpr->string jsontype))
+;(define jsontype (model-to-JSON model))
+;(define text (jsexpr->string jsontype))
