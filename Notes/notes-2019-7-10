@@ -1,0 +1,25 @@
+make visualizer look pretty!
+consider projection options
+
+The weird thing is that alloy projection combines projection over Node with projection over Node0
+
+Try just projecting over Node0, for instance.
+
+For now, do what Alloy does, and document it. Even though it sucks.
+Generate a warning for projection when a type appears twice in tuples
+Maybe make function editable by users?? yea!!!
+
+Can I do integers without kodkod? don't need special integer atoms
+cardinality constraints?
+what else? always comes down to cardinality, or arithmetic on integers in sets
+How can I make that work?
+
+OK so say I put integers in a relation. I'm actually just putting 
+
+Ach no it is complicated, because the model has to affect the model...
+Like, what if I put in a requirement that two numbers sum to a third??
+kodkod is better, yeah.
+
+
+check out kodkodi, see whether we can adapt it.
+We want cores
