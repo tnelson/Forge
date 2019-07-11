@@ -8,7 +8,7 @@
 (require web-server/servlet)
 (require web-server/insta/insta)
 (require racket/format)
-(require "../viz/modelToJson.rkt")
+(require "./modelToJson.rkt")
 (require json)
 
 (struct relation-display (name members))

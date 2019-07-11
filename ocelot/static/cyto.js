@@ -1,7 +1,32 @@
 	var nodes = json.nodes.map(function(name){
 		return {data: {id: name, label: name}}
 	});
-	//
+
+
+// How to do projection? static projection is fine for now.
+// It would be nice to be able to do a callback... How could I do this in alloy?
+// OK so projection just takes out those types from the tuples, fine.
+// But what's alloy doing with the other stuff?
+// I think the per-atom stuff is showing you every cut-down tuple that involved that atom
+
+
+// Problems with projection:
+// the way alloy does projection sucks. So, to start, it makes sense; if you are projecting over
+// Book you just remove the Book column from every tuple. fine.
+// But then it does this State-like thing, where you can advance through the books.
+// What does that mean? You would think it means, for Book1, show me every cut-down tuple that originally
+// contained Book1. It doesn't. It means, show me every cut-down tuple that, IF it contained a Book,
+// ONLY contained Book1. Ya, that's the case. Weird.
+// so ask tim about that.
+
+// for now: make it look better, label nodes, do highlighting on mouseover.
+// and make the html better.
+// how? hide that shit until its rendered, first of all. idk how to do that though....
+// size it correctly, give it borders.
+// make sure the graph is centered.
+
+
+
 	// var edges = Object.entries(json.relations).reduce(function(acc, val){
 	// 	relation_
 	// 	return acc.concat(val);
