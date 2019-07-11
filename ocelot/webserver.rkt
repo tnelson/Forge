@@ -21,6 +21,8 @@
 (define $$MODELS-LIST$$ '())
 (define $$EVAL-OUTPUT$$ "")
 
+(define $$CURRENT-TAB$$ "graph")
+
 (provide display-model)
 
 (define (model-trim model)
@@ -77,30 +79,29 @@
         ; so the DOM elements are never even rendered a first time.
         (script ((type "text/javascript") (src "/tabs.js")))
         (link ((rel "stylesheet") (type "text/css") (href "/tabs.css"))
-        (link ((rel "stylesheet") (type "text/css") (href "/cyto.css"))))
-       (body ((onload "document.getElementById(\"defaultopen\").click();"))
-        (div ((class "tab"))
-             (button ((class "tablinks") (onclick "openTab(event, \'graph\')")) "graph")
-             (button ((class "tablinks") (onclick "openTab(event, \'list\')") (id "defaultopen")) "list")
-             (button ((class "tablinks") (onclick "openTab(event, \'evaluator\')")) "evaluator"))
-        (form
-         ((action ,(embed/url next-handler)))
-         (button ((type "submit") (name "next")) "next"))
-        (form
-         ((action ,(embed/url prev-handler)))
-         (button ((type "submit") (name "prev")) "prev"))
-        (p ,(number->string count)))
-       (div ((id "evaluator") (class "tabcontent"))
-            (form
-             ((action ,(embed/url eval-handler)))
-             (input ((name "expr")))
-             (input ((type "submit") (value "evaluate"))))
-            (p ,$$EVAL-OUTPUT$$))
-       (div ((id "graph") (class "tabcontent")) (h1 "Model") (div ((id "cy"))))
-       (div ((id "list") (class "tabcontent")) (h1 "Model") (p ,struct-m))
-       (script ((type "text/javascript") (src "/cyto.js")))
-       ;(script ((type "text/javascript")) "")
-       ))))
+              (link ((rel "stylesheet") (type "text/css") (href "/cyto.css"))))
+        ;(script ((type "text/javascript")) ,(format "document.getElementById(\"~a\").id = \"defaultopen\";" $$CURRENT-TAB$$))
+        (body ((onload "document.getElementById(\"defaultopen\").click();"))
+              (div ((class "tab"))
+                   (button ((class "tablinks") (onclick "openTab(event, \'graph\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "graph") "defaultopen" "graph-tab")))) "graph")
+                   (button ((class "tablinks") (onclick "openTab(event, \'list\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "list") "defaultopen" "list-tab")))) "list")
+                   (button ((class "tablinks") (onclick "openTab(event, \'evaluator\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "evaluator") "defaultopen" "eval-tab")))) "evaluator"))
+              (form
+               ((action ,(embed/url next-handler)))
+               (button ((type "submit") (name "next")) "next"))
+              (form
+               ((action ,(embed/url prev-handler)))
+               (button ((type "submit") (name "prev")) "prev"))
+              (p ,(number->string count)))
+        (div ((id "evaluator") (class "tabcontent"))
+             (form
+              ((action ,(embed/url eval-handler)))
+              (input ((name "expr")))
+              (input ((type "submit") (value "evaluate"))))
+             (p ,$$EVAL-OUTPUT$$))
+        (div ((id "graph") (class "tabcontent")) (h1 "Model") (div ((id "cy"))))
+        (div ((id "list") (class "tabcontent")) (h1 "Model") (p ,struct-m))
+        (script ((type "text/javascript") (src "/cyto.js")))))))
   (define (prev-handler request)
     (set! $$EVAL-OUTPUT$$ "")
     (if (= count 0)
@@ -113,15 +114,18 @@
     (if (= count (- (length $$MODELS-LIST$$) 1))
         (begin
           (set! $$MODEL$$ (model-trim (get-next-model $$BOUNDS$$ $$SINGLETONS$$)))
+          (set! $$CURRENT-TAB$$ "graph")
           (display (+ count 1) (redirect/get) model-parser))
         (begin
           (set! $$MODEL$$ (list-ref $$MODELS-LIST$$ (+ count 1)))
+          (set! $$CURRENT-TAB$$ "graph")
           (display (+ count 1) (redirect/get) model-parser))))
   (define (eval-handler request)
     (with-handlers ([exn:fail? (lambda (exn)
                                  (with-handlers ([exn:fail? (lambda (exn2) (set! $$EVAL-OUTPUT$$ "invalid query"))])
                                    (set! $$EVAL-OUTPUT$$ (to-string (eval-form (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))) exn))])
       (set! $$EVAL-OUTPUT$$ (parse-output-to-HTML (eval-exp (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))))
+    (set! $$CURRENT-TAB$$ "evaluator")
     (display count (redirect/get) model-parser))
   (send/suspend/dispatch response-generator))
 
