@@ -75,6 +75,7 @@
        (head
         (script ((type "text/javascript")) ,(format "var json = ~a;" (jsexpr->string (model-to-JSON $$MODEL$$))))
         (script ((type "text/javascript") (src "/cytoscape.min.js")))
+        (script ((type "text/javascript") (src "/cytoscape-cose-bilkent.js")))
         ; The problem is that the styling applied by the JS is higher priority than the stylesheet,
         ; so the DOM elements are never even rendered a first time.
         (script ((type "text/javascript") (src "/tabs.js")))
