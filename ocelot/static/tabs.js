@@ -1,5 +1,4 @@
 function openTab(evt, tabName) {
-	console.log("thing");
 
   // Declare all variables
   var i, tabcontent, tablinks;
@@ -19,4 +18,13 @@ function openTab(evt, tabName) {
   // Show the current tab, and add an "active" class to the button that opened the tab
   document.getElementById(tabName).style.display = "block";
   evt.currentTarget.className += " active";
+
+	if (tabName == "graph"){
+		cy.resize();
+		cy.center();
+		var layout = cy.layout({
+			name: "cose-bilkent"
+		});
+		layout.run();
+	}
 }
