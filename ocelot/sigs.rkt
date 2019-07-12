@@ -30,10 +30,15 @@
 
 (struct int-bound (lower upper) #:transparent)
 
-(define (fact pred)
-  (set! constraints (cons pred constraints)))
+(define (fact form)
+  (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden no some lone forall exists + - ^ & ~ join ! set in declare-one-sig)
+(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone forall exists + - ^ & ~ join ! set in declare-one-sig pred)
+
+(define-syntax (pred stx)
+  (syntax-case stx ()
+    [(_ (name vars ...) form) #'(define (name vars ...) form)]
+     [(_ name form) #'(define name form)]))
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
@@ -51,6 +56,22 @@
          (set! constraints (cons (in field (-> name r ...)) constraints)) ...)]))
 
 (define-syntax (declare-one-sig stx)
+  (syntax-case stx ()
+    [(_ name)
+     #'(begin
+         (define name (declare-relation 1 (symbol->string 'name)))
+         (add-sig (symbol->string 'name))
+         (hash-set! int-bounds-store name (int-bound 1 1)))]
+    [(_ name ((field r ...) ...))
+     #'(begin
+         (define name (declare-relation 1 (symbol->string 'name)))
+         (add-sig (symbol->string 'name))
+         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
+         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (set! constraints (cons (in field (-> name r ...)) constraints)) ...
+         (hash-set! int-bounds-store name (int-bound 1 1)))]))
+
+(define-syntax (declare-extends-sig stx)
   (syntax-case stx ()
     [(_ name)
      #'(begin

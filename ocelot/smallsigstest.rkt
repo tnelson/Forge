@@ -12,7 +12,7 @@
 (fact (no (& iden (^ graph))))
 
 ; find instance with a path of length 2
-(define pathlen2 (some ([n1 node] [n2 node]) (in n1 (join n2 (^ graph)))))
+(pred pathlen2 (some ([n1 node] [n2 node]) (in n1 (join n2 (^ graph)))))
 
 ; run command currently has "lower int bound"; anywhere from 5-6 nodes
 (run pathlen2 ((node 5 6)))
