@@ -27,6 +27,8 @@
 (define int-bounds-store (make-hash))
 ;Extra constraints on the model (e.g. facts, relation constraints, etc.)
 (define constraints '())
+;Run names
+(define run-names '())
 
 (struct int-bound (lower upper) #:transparent)
 
@@ -38,7 +40,7 @@
 (define-syntax (pred stx)
   (syntax-case stx ()
     [(_ (name vars ...) form) #'(define (name vars ...) form)]
-     [(_ name form) #'(define name form)]))
+    [(_ name form) #'(define name form)]))
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
@@ -122,20 +124,43 @@
 (define (up-to n)
   (if (= n 1) (list n) (cons n (up-to (- n 1)))))
 
+(define disp-port 8000)
+(define (increment-port) (set! disp-port (+ 1 disp-port)))
+
+(define (append-run name)
+  (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
+
 (define-syntax (run stx)
   (syntax-case stx ()
-    [(_)
+    [(_ name)
      #'(begin
+         (append-run name)
          (define sig-bounds (bind-sigs (make-hash)))
          (define univ (universe working-universe))
          (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
          (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
          (define model (get-model (foldl sneaky-and (= none none) constraints)
                                   run-bounds
-                                  singletons))
-         (display-model model run-bounds singletons))]
-    [(_ ((sig lower upper) ...))
+                                  singletons
+                                  name))
+         (display-model model run-bounds singletons disp-port name)
+         (increment-port))]
+    [(_ name pred)
      #'(begin
+         (append-run name)
+         (define sig-bounds (bind-sigs (make-hash)))
+         (define univ (universe working-universe))
+         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
+         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
+         (define model (get-model (foldl sneaky-and pred constraints)
+                                  run-bounds
+                                  singletons
+                                  name))
+         (display-model model run-bounds singletons disp-port name)
+         (increment-port))]
+    [(_ name ((sig lower upper) ...))
+     #'(begin
+         (append-run name)
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
          (define sig-bounds (bind-sigs hashy))
@@ -144,23 +169,29 @@
          (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
          (define model (get-model (foldl sneaky-and (= none none) constraints)
                                   run-bounds
-                                  singletons))
-         (display-model model run-bounds singletons))]
-    [(_ pred ((sig lower upper) ...))
+                                  singletons
+                                  name))
+         (display-model model run-bounds singletons disp-port name)
+         (increment-port))]
+    [(_ name pred ((sig lower upper) ...))
      #'(begin
-         (set! constraints (cons pred constraints))
+         (append-run name)
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
          (define sig-bounds (bind-sigs hashy))
          (define univ (universe working-universe))
          (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
          (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-         (define model (get-model (foldl sneaky-and (= none none) constraints)
+         (define model (get-model (foldl sneaky-and pred constraints)
                                   run-bounds
-                                  singletons))
-         (display-model model run-bounds singletons))]))
-
-
+                                  singletons
+                                  name))
+         (display-model model run-bounds singletons disp-port name)
+         (increment-port))]
+    [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
+    [(_ pred) #'(error "Run statements require a unique name specification")]
+    [(_) #'(error "Run statements require a unique name specification")]
+    [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
 
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))

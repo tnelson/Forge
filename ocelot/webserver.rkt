@@ -20,6 +20,7 @@
 (define $$SINGLETONS$$ "")
 (define $$MODELS-LIST$$ '())
 (define $$EVAL-OUTPUT$$ "")
+(define $$MODEL-NAME$$ "")
 
 (define $$CURRENT-TAB$$ "graph")
 
@@ -35,13 +36,15 @@
                                  v)))
   newmodel)
 
-(define (display-model model bounds singletons)
+(define (display-model model bounds singletons port name)
   (thread (lambda () (begin
+                       (set! $$MODEL-NAME$$ name)
                        (set! $$MODEL$$ (model-trim model))
                        (set! $$BOUNDS$$ bounds)
                        (set! $$SINGLETONS$$ singletons)
                        (serve/servlet start
-                                      #:extra-files-paths (list (build-path (current-directory) "static")))))))
+                                      #:extra-files-paths (list (build-path (current-directory) "static"))
+                                      #:port port)))))
 
 ; Parses the output of an eval query to HTML
 (define (parse-output-to-HTML m)
@@ -83,10 +86,11 @@
               (link ((rel "stylesheet") (type "text/css") (href "/cyto.css"))))
         ;(script ((type "text/javascript")) ,(format "document.getElementById(\"~a\").id = \"defaultopen\";" $$CURRENT-TAB$$))
         (body ((onload "document.getElementById(\"defaultopen\").click();"))
+              (p ((class "model-name") (style "font-weight: bold; font-size: 32pt;")) ,$$MODEL-NAME$$)
               (div ((class "tab"))
                    (button ((class "tablinks") (onclick "openTab(event, \'graph\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "graph") "defaultopen" "graph-tab")))) "graph")
                    (button ((class "tablinks") (onclick "openTab(event, \'list\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "list") "defaultopen" "list-tab")))) "list"))
-                   ;(button ((class "tablinks") (onclick "openTab(event, \'evaluator\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "evaluator") "defaultopen" "eval-tab")))) "evaluator"))
+              ;(button ((class "tablinks") (onclick "openTab(event, \'evaluator\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "evaluator") "defaultopen" "eval-tab")))) "evaluator"))
               (form
                ((action ,(embed/url next-handler)))
                (button ((type "submit") (name "next")) "next"))
