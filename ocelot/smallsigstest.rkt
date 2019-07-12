@@ -15,4 +15,4 @@
 ;(run "DAG")
 
 ; run command currently has "lower int bound"; anywhere from 5-6 nodes
-(run "DAG with path length >= 2" ((node 2 3)))
+(run "DAG with path length >= 2" ((node 1 1)))
