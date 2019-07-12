@@ -119,7 +119,7 @@
     (set! $$EVAL-OUTPUT$$ "")
     (if (= count (- (length $$MODELS-LIST$$) 1))
         (begin
-          (set! $$MODEL$$ (model-trim (get-next-model $$BOUNDS$$ $$SINGLETONS$$)))
+          (set! $$MODEL$$ (model-trim (get-next-model $$BOUNDS$$ $$SINGLETONS$$ $$MODEL-NAME$$)))
           (set! $$CURRENT-TAB$$ "graph")
           (display (+ count 1) (redirect/get) model-parser))
         (begin
