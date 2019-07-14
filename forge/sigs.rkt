@@ -2,7 +2,7 @@
 
 (require ocelot)
 (require "nextbutton.rkt")
-(require "webserver.rkt")
+(require "server/webserver.rkt")
 (require racket/stxparam)
 (require br/datum)
 (require (only-in ocelot node/expr/relation-name))
@@ -21,6 +21,7 @@
 (define relations-store (make-hash))
 ;Map from sigs to sigs to track hierarchy
 (define extensions-store (make-hash))
+(define parents '())
 ;Map from relations to explicit bounds
 (define bounds-store (make-hash))
 ;Map from relations to int bounds
@@ -35,7 +36,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone forall exists + - ^ & ~ join ! set in declare-one-sig pred)
+(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or) 
 
 (define-syntax (pred stx)
   (syntax-case stx ()
@@ -45,25 +46,37 @@
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
   (syntax-case stx ()
+    [(_ name ((field r ...) ...))
+     #'(begin
+         (define name (declare-relation 1 (symbol->string 'name)))
+         (add-sig (symbol->string 'name))
+         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
+         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (set! constraints (cons (in field (-> name r ...)) constraints)) ...)]
+    [(_ name ((field r ...) ...) extends)
+     #'(begin
+         (define name (declare-relation 1 (symbol->string 'name)))
+         (add-sig (symbol->string 'name))
+         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
+         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (set! constraints (cons (in field (-> name r ...)) constraints)) ...
+         (hash-set! extensions-store name extends)
+         (set! parents (cons extends parents))
+         (set! constraints (cons (in name extends) constraints)))]
     [(_ name)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name)))]
-    [(_ name ((field r ...) ...))
+    [(_ name extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
-         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
-         (set! constraints (cons (in field (-> name r ...)) constraints)) ...)]))
+         (hash-set! extensions-store name extends)
+         (set! parents (cons extends parents))
+         (set! constraints (cons (in name extends) constraints)))]))
 
 (define-syntax (declare-one-sig stx)
   (syntax-case stx ()
-    [(_ name)
-     #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
-         (add-sig (symbol->string 'name))
-         (hash-set! int-bounds-store name (int-bound 1 1)))]
     [(_ name ((field r ...) ...))
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
@@ -71,23 +84,31 @@
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (set! constraints (cons (in field (-> name r ...)) constraints)) ...
-         (hash-set! int-bounds-store name (int-bound 1 1)))]))
-
-(define-syntax (declare-extends-sig stx)
-  (syntax-case stx ()
-    [(_ name)
-     #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
-         (add-sig (symbol->string 'name))
          (hash-set! int-bounds-store name (int-bound 1 1)))]
-    [(_ name ((field r ...) ...))
+    [(_ name ((field r ...) ...) extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (set! constraints (cons (in field (-> name r ...)) constraints)) ...
-         (hash-set! int-bounds-store name (int-bound 1 1)))]))
+         (hash-set! int-bounds-store name (int-bound 1 1))
+         (hash-set! extensions-store name extends)
+         (set! parents (cons extends parents))
+         (set! constraints (cons (in name extends) constraints)))]
+    [(_ name)
+     #'(begin
+         (define name (declare-relation 1 (symbol->string 'name)))
+         (add-sig (symbol->string 'name))
+         (hash-set! int-bounds-store name (int-bound 1 1)))]
+    [(_ name extends)
+     #'(begin
+         (define name (declare-relation 1 (symbol->string 'name)))
+         (add-sig (symbol->string 'name))
+         (hash-set! int-bounds-store name (int-bound 1 1))
+         (hash-set! extensions-store name extends)
+         (set! parents (cons extends parents))
+         (set! constraints (cons (in name extends) constraints)))]))
 
 (define (add-sig name)
   (set! sigs (cons (declare-relation 1 name) sigs)))
@@ -132,21 +153,6 @@
 
 (define-syntax (run stx)
   (syntax-case stx ()
-    [(_ name pred ((sig lower upper) ...))
-     #'(begin
-         (append-run name)
-         (define hashy (make-hash))
-         (hash-set! hashy sig (int-bound lower upper)) ...
-         (define sig-bounds (bind-sigs hashy))
-         (define univ (universe working-universe))
-         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
-         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-         (define model (get-model (foldl sneaky-and pred constraints)
-                                  run-bounds
-                                  singletons
-                                  name))
-         (display-model model run-bounds singletons disp-port name)
-         (increment-port))]
     [(_ name ((sig lower upper) ...))
      #'(begin
          (append-run name)
@@ -157,6 +163,21 @@
          (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
          (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
          (define model (get-model (foldl sneaky-and (= none none) constraints)
+                                  run-bounds
+                                  singletons
+                                  name))
+         (display-model model run-bounds singletons disp-port name)
+         (increment-port))]
+    [(_ name pred ((sig lower upper) ...))
+     #'(begin
+         (append-run name)
+         (define hashy (make-hash))
+         (hash-set! hashy sig (int-bound lower upper)) ...
+         (define sig-bounds (bind-sigs hashy))
+         (define univ (universe working-universe))
+         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
+         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
+         (define model (get-model (foldl sneaky-and pred constraints)
                                   run-bounds
                                   singletons
                                   name))

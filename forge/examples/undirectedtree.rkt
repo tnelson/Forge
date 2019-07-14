@@ -1,4 +1,4 @@
-#lang s-exp "forge.rkt"
+#lang forge
 
 
 (declare-sig vertex ((edges vertex)))

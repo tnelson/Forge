@@ -2,7 +2,7 @@
 
 (require br/datum)
 (require (only-in ocelot node/expr/relation-name))
-(require "nextbutton.rkt")
+(require "../nextbutton.rkt")
 (require "eval-model.rkt")
 (require web-server/servlet-env)
 (require web-server/servlet)
@@ -45,9 +45,11 @@
                        (set! $$MODEL$$ (model-trim model))
                        (set! $$BOUNDS$$ bounds)
                        (set! $$SINGLETONS$$ singletons)
+                       (begin
+                         (println (build-path (current-directory) "static"))
                        (serve/servlet start
-                                      #:extra-files-paths (list (build-path (current-directory) "static"))
-                                      #:port port)))))
+                                      #:extra-files-paths (list (string->path "./static"));(build-path (current-directory) "static"))
+                                      #:port port))))))
 
 ; Parses the output of an eval query to HTML
 (define (parse-output-to-HTML m)

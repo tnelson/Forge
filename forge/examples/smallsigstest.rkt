@@ -1,10 +1,10 @@
-#lang s-exp "forge.rkt"
+#lang forge
 
 ; there is a sig node, with a field graph of type (set node). (we are not defaulting to one; might in fact later require explicit set/one)
 (declare-sig node ((graph node)))
 
-(declare-one-sig left)
-(declare-one-sig right)
+;(declare-one-sig left)
+;(declare-one-sig right)
 
 ; acyclic graph (side node: Kodkod has acyclic relation pred; is this faster?)
 (fact (no (& iden (^ graph))))
@@ -12,7 +12,6 @@
 ; find instance with a path of length 2
 (pred pathlen2 (some ([n1 node] [n2 node]) (in n1 (join n2 (^ graph)))))
 
-sigs
 
 ;(run "DAG")
 
