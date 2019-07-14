@@ -12,7 +12,9 @@
 ; find instance with a path of length 2
 (pred pathlen2 (some ([n1 node] [n2 node]) (in n1 (join n2 (^ graph)))))
 
+sigs
+
 ;(run "DAG")
 
 ; run command currently has "lower int bound"; anywhere from 5-6 nodes
-(run "DAG with path length >= 2" ((node 1 1)))
+(run "DAG with path length >= 2" (some ([n1 node] [n2 node]) (in n1 (join n2 (^ graph)))) ((node 3 4)))
