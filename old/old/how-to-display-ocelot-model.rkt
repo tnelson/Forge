@@ -32,6 +32,8 @@
                            (serial next state)
                            (linear next state)))
 
-(interpretation->relations (evaluate model-bounds (solve (assert (interpret* model-constraints model-bounds)))))
+;(interpretation->relations (evaluate model-bounds (solve (assert (interpret* model-constraints model-bounds)))))
+
+(interpret* model-constraints model-bounds)
 
 

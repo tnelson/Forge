@@ -33,4 +33,12 @@
   padding: 6px 12px;
   border: 1px solid #ccc;
   border-top: none;
+  float: left;
+  width: 60%;
+}
+
+
+.repl {
+  float: right;
+  width: 30%;
 }
