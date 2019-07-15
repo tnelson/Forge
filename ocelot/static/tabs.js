@@ -22,9 +22,11 @@ function openTab(evt, tabName) {
 	if (tabName == "graph"){
 		cy.resize();
 		cy.center();
+		cy.fit();
 		var layout = cy.layout({
 			name: "cose-bilkent"
 		});
 		layout.run();
+		cy.fit();
 	}
 }
