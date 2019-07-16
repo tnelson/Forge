@@ -1,11 +1,12 @@
 #lang rosette
 
-(require ocelot)
+(require forged-ocelot)
+(require (prefix-in @ rosette))
 (require "nextbutton.rkt")
 (require "server/webserver.rkt")
 (require racket/stxparam)
 (require br/datum)
-(require (only-in ocelot node/expr/relation-name))
+;(require (only-in forged-ocelot relation-name))
 
 ;Default bound
 (define top-level-bound 4)
@@ -131,7 +132,7 @@
        (int-bound 0 top-level-bound))))
 
 (define (populate-sig sig bound)
-  (define atoms (map (lambda (n) (string-append (node/expr/relation-name sig) (number->string n))) (up-to bound)))
+  (define atoms (map (lambda (n) (string-append (relation-name sig) (number->string n))) (up-to bound)))
   (define sym-atoms (map string->symbol atoms))
   (set! singleton-bounds (append singleton-bounds (map (lambda (id)
                                                          (let ([rel (declare-relation 1 (string-append "$atomic-" id))])
@@ -143,10 +144,10 @@
   (map (lambda (x) (list x)) sym-atoms))
 
 (define (up-to n)
-  (if (= n 1) (list n) (cons n (up-to (- n 1)))))
+  (if (= n 1) (list n) (cons n (up-to (@- n 1)))))
 
 (define disp-port 8000)
-(define (increment-port) (set! disp-port (+ 1 disp-port)))
+(define (increment-port) (set! disp-port (@+ 1 disp-port)))
 
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
@@ -215,4 +216,5 @@
     [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
 
 (define (relation->bounds rel)
+  (println (hash-keys bounds-store))
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))

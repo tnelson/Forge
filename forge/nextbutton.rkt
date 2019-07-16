@@ -1,7 +1,7 @@
 #lang rosette
 
 (require br/datum)
-(require ocelot)
+(require forged-ocelot)
 (require "rosettemodels.rkt")
 
 (provide model->constraints bind-universe mk-rel get-model get-next-model sneaky-and)

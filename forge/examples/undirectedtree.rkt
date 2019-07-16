@@ -1,6 +1,5 @@
 #lang forge
 
-
 (declare-sig vertex ((edges vertex)))
 (fact (= edges (~ edges)))
 (fact (in (-> vertex vertex) (* edges)))

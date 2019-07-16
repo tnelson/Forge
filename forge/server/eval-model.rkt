@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/match)
-(require (only-in ocelot node/expr/relation-name))
+(require (only-in forged-ocelot relation-name))
 
 (provide eval-exp eval-form model->binding)
 
@@ -12,7 +12,7 @@
 ; for interpreting eval queries
 (define (model->binding model)
   (define out-bind (make-hash))
-  (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (node/expr/relation-name k)) v)))
+  (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (relation-name k)) v)))
   out-bind)
 
 ; Interpreter for evaluating an eval query for an expression in a model

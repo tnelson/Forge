@@ -1,6 +1,6 @@
 #lang rosette
 
-(require ocelot)
+(require forged-ocelot)
 ;(require "../ocelot/goatswolves.rkt")
 (require json)
 
