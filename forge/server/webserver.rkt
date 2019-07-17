@@ -6,6 +6,7 @@
 (require "eval-model.rkt")
 (require web-server/servlet-env)
 (require web-server/servlet)
+(require web-server/managers/timeouts)
 (require web-server/insta/insta)
 (require racket/format)
 (require racket/runtime-path)
@@ -52,7 +53,8 @@
                          (println static-files)
                          (serve/servlet start
                                         #:extra-files-paths (list static-files)
-                                        #:port 0))))))
+                                        #:port 0
+                                        #:manager (create-timeout-manager #f 86400 86400)))))))
 
 ; Parses the output of an eval query to HTML
 (define (parse-output-to-HTML m)
@@ -89,27 +91,22 @@
         (script ((type "text/javascript")) ,(format "var json = ~a;" (if (hash? $$MODEL$$) (jsexpr->string (model-to-JSON $$MODEL$$)) (jsexpr->string (model-to-JSON (make-hash))))))
         (script ((type "text/javascript") (src "/cytoscape.min.js")))
         (script ((type "text/javascript") (src "/cytoscape-cose-bilkent.js")))
-        ; The problem is that the styling applied by the JS is higher priority than the stylesheet,
-        ; so the DOM elements are never even rendered a first time.
         (script ((type "text/javascript") (src "/tabs.js")))
         (link ((rel "stylesheet") (type "text/css") (href "/tabs.css"))
               (link ((rel "stylesheet") (type "text/css") (href "/cyto.css"))))
-        ;(script ((type "text/javascript")) ,(format "document.getElementById(\"~a\").id = \"defaultopen\";" $$CURRENT-TAB$$))
         (body ((onload "document.getElementById(\"defaultopen\").click();"))
               (p ((class "model-name") (style "font-weight: bold; font-size: 32pt;")) ,$$MODEL-NAME$$)
               (div ((class "tab"))
                    (button ((class "tablinks") (onclick "openTab(event, \'graph\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "graph") "defaultopen" "graph-tab")))) "graph")
                    (button ((class "tablinks") (onclick "openTab(event, \'list\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "list") "defaultopen" "list-tab")))) "list"))
-              ;(button ((class "tablinks") (onclick "openTab(event, \'evaluator\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "evaluator") "defaultopen" "eval-tab")))) "evaluator"))
               (form
                ((action ,(embed/url next-handler)))
                (button ((type "submit") (name "next")) "next"))
               (form
                ((action ,(embed/url prev-handler)))
-               (button ((type "submit") (name "prev")) "prev"))
-              (p ,(number->string count)))
-        (div ((id "graph") (class "tabcontent")) (h1 "Model") ,(if (hash? $$MODEL$$) '(div ((id "cy"))) '(p "There are no additional satisfying instances")))
-        (div ((id "list") (class "tabcontent")) (h1 "Model") (p ,struct-m))
+               (button ((type "submit") (name "prev")) "prev")))
+        (div ((id "graph") (class "tabcontent")) (h1 ,(format "Instance ~a" count)) ,(if (hash? $$MODEL$$) '(div ((id "cy"))) '(p "There are no additional satisfying instances")))
+        (div ((id "list") (class "tabcontent")) (h1 ,(format "Instance ~a" count)) (p ,struct-m))
         (div ((id "evaluator") (class "repl"))
              (p "Evaluator")
              (form
@@ -138,10 +135,9 @@
           (display (+ count 1) (redirect/get) model-parser))))
   (define (eval-handler request)
     (with-handlers ([exn:fail? (lambda (exn)
-                                 (with-handlers ([exn:fail? (lambda (exn2) (set! $$EVAL-OUTPUT$$ "invalid query"))])
+                                 (with-handlers ([exn:fail? (lambda (exn2) (set! $$EVAL-OUTPUT$$ (exn-message exn2)))])
                                    (set! $$EVAL-OUTPUT$$ (to-string (eval-form (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))) exn))])
       (set! $$EVAL-OUTPUT$$ (parse-output-to-HTML (eval-exp (read (open-input-string (extract-binding/single 'expr (request-bindings request)))) (model->binding $$MODEL$$) 7))))
-    ;(set! $$CURRENT-TAB$$ "evaluator")
     (display count (redirect/get) model-parser))
   (send/suspend/dispatch response-generator))
 
