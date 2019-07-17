@@ -39,7 +39,7 @@
         newmodel)
       model))
 
-(define (display-model model bounds singletons port name)
+(define (display-model model bounds singletons name)
   (thread (lambda () (begin
                        (set! $$MODEL-NAME$$ name)
                        (set! $$MODEL$$ (model-trim model))
@@ -49,7 +49,7 @@
                          (println (build-path (current-directory) "static"))
                        (serve/servlet start
                                       #:extra-files-paths (list (string->path "static"));(build-path (current-directory) "static"))
-                                      #:port port))))))
+                                      #:port 0))))))
 
 ; Parses the output of an eval query to HTML
 (define (parse-output-to-HTML m)
