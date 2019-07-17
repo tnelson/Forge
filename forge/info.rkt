@@ -3,4 +3,4 @@
 
 (define deps '("forged-ocelot"))
 
-(define scribblings '(("quickstart.scrbl" ())))
+(define scribblings '(("doc/quickstart.scrbl" ())))
