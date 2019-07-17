@@ -53,7 +53,6 @@
 
 ; Gets the current (or initial) model and caches it as constraints
 (define (get-model constraints model-bounds singletons name)
-  ;(assert (interpret* constraints model-bounds))
   (define solvy (solve+))
   (hash-set! solvers-map name solvy)
   (define ros-model (solvy (interpret* constraints model-bounds)))
@@ -62,18 +61,14 @@
         (hash-set! constraints-map name (matrix->constraints (model ros-model)))
         (define fin-model (interpretation->relations (evaluate model-bounds ros-model)))
         fin-model) ros-model))
-;(if (equal? null prev-constraints)
-;   (begin (set! prev-constraints (interpret* (model->constraints model singletons) model-bounds)) model) model))
+
 
 ; Gets the next model and caches it as constraints
 (define (get-next-model model-bounds singletons name)
-  ;(assert (! prev-constraints))
-  ;(set! constraints-list (cons prev-constraints constraints-list))
   (define ros-model ((hash-ref solvers-map name) (hash-ref constraints-map name)))
   (if (sat? ros-model)
       (begin
         (hash-set! constraints-map name (matrix->constraints (model ros-model)))
         (define fin-model (interpretation->relations (evaluate model-bounds ros-model)))
-        ;(set! prev-constraints (interpret* (model->constraints model singletons) model-bounds))
         fin-model) ros-model))
 
