@@ -1,4 +1,6 @@
 #lang info
 (define collection "forge")
 
-(define scribblings '(("quickstart.scrbl" ())))
+(define deps '("forged-ocelot"))
+
+(define scribblings '(("doc/quickstart.scrbl" ())))

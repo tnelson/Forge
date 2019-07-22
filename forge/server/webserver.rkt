@@ -1,15 +1,18 @@
 #lang racket
 
 (require br/datum)
-(require (only-in ocelot relation-name))
+(require (only-in forged-ocelot relation-name))
 (require "../nextbutton.rkt")
 (require "eval-model.rkt")
 (require web-server/servlet-env)
 (require web-server/servlet)
 (require web-server/insta/insta)
 (require racket/format)
+(require racket/runtime-path)
 (require "./modelToJson.rkt")
 (require json)
+
+(define-runtime-path static-files "static")
 
 (struct relation-display (name members))
 
@@ -39,17 +42,17 @@
         newmodel)
       model))
 
-(define (display-model model bounds singletons port name)
+(define (display-model model bounds singletons name)
   (thread (lambda () (begin
                        (set! $$MODEL-NAME$$ name)
                        (set! $$MODEL$$ (model-trim model))
                        (set! $$BOUNDS$$ bounds)
                        (set! $$SINGLETONS$$ singletons)
                        (begin
-                         (println (build-path (current-directory) "static"))
-                       (serve/servlet start
-                                      #:extra-files-paths (list (string->path "./static"));(build-path (current-directory) "static"))
-                                      #:port port))))))
+                         (println static-files)
+                         (serve/servlet start
+                                        #:extra-files-paths (list static-files)
+                                        #:port 0))))))
 
 ; Parses the output of an eval query to HTML
 (define (parse-output-to-HTML m)
@@ -58,8 +61,8 @@
 ; Parses a model to HTML
 (define (parse-model-to-HTML m)
   (if (hash? m)
-  `(ul ,@(map (lambda (r) (rel->ul r m)) (hash-keys m)))
-  '"There are no additional satisfying instances"))
+      `(ul ,@(map (lambda (r) (rel->ul r m)) (hash-keys m)))
+      '"There are no additional satisfying instances"))
 
 ; HTML parsing helpers
 (define (rel->ul r m)
@@ -141,6 +144,3 @@
     ;(set! $$CURRENT-TAB$$ "evaluator")
     (display count (redirect/get) model-parser))
   (send/suspend/dispatch response-generator))
-
- 
-

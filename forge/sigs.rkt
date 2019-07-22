@@ -1,11 +1,12 @@
 #lang rosette
 
-(require ocelot)
+(require forged-ocelot)
+(require (prefix-in @ rosette))
 (require "nextbutton.rkt")
 (require "server/webserver.rkt")
 (require racket/stxparam)
 (require br/datum)
-(require (only-in ocelot relation-name))
+;(require (only-in forged-ocelot relation-name))
 
 ;Default bound
 (define top-level-bound 4)
@@ -36,7 +37,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or) 
+(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or)
 
 (define-syntax (pred stx)
   (syntax-case stx ()
@@ -143,10 +144,7 @@
   (map (lambda (x) (list x)) sym-atoms))
 
 (define (up-to n)
-  (if (= n 1) (list n) (cons n (up-to (- n 1)))))
-
-(define disp-port 8000)
-(define (increment-port) (set! disp-port (+ 1 disp-port)))
+  (if (= n 1) (list n) (cons n (up-to (@- n 1)))))
 
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
@@ -166,8 +164,7 @@
                                   run-bounds
                                   singletons
                                   name))
-         (display-model model run-bounds singletons disp-port name)
-         (increment-port))]
+         (display-model model run-bounds singletons name))]
     [(_ name pred ((sig lower upper) ...))
      #'(begin
          (append-run name)
@@ -181,8 +178,7 @@
                                   run-bounds
                                   singletons
                                   name))
-         (display-model model run-bounds singletons disp-port name)
-         (increment-port))]
+         (display-model model run-bounds singletons name))]
     [(_ name)
      #'(begin
          (append-run name)
@@ -194,8 +190,7 @@
                                   run-bounds
                                   singletons
                                   name))
-         (display-model model run-bounds singletons disp-port name)
-         (increment-port))]
+         (display-model model run-bounds singletons name))]
     [(_ name pred)
      #'(begin
          (append-run name)
@@ -207,12 +202,12 @@
                                   run-bounds
                                   singletons
                                   name))
-         (display-model model run-bounds singletons disp-port name)
-         (increment-port))]
+         (display-model model run-bounds singletons name))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
     [(_ pred) #'(error "Run statements require a unique name specification")]
     [(_) #'(error "Run statements require a unique name specification")]
     [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
 
 (define (relation->bounds rel)
+  (println (hash-keys bounds-store))
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))

@@ -1,7 +1,17 @@
 #lang rosette
 
-(require ocelot)
-(require "./nextbutton.rkt")
+(require forged-ocelot)
+(require br/datum)
+(require "../forge/rosettemodels.rkt")
+(require "../forge/nextbutton.rkt")
+
+(define-syntax (bind-universe stx)
+  (syntax-case stx ()
+    [(_ u bound singletons (id ...)) #'(begin
+                                         (define lst (list 'id ...))
+                                         (define-values (u id ...) (values (universe '(id ...)) (declare-relation 1 (string-append "atomic-" (symbol->string 'id))) ...))
+                                         (define singletons (list (list 'id id) ...))
+                                         (define bound (map (lambda (x y) (make-exact-bound x (format-datum `((~a)) y))) (list id ...) lst)))]))
 
 ;(define U (universe '(g1 g2 g3 w1 w2 w3 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 near far boat)))
 (bind-universe U singleton-bounds L (g1 g2 g3 w1 w2 blah1 w3 blah blah2 s1 blah3 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 near far boat))
@@ -96,7 +106,10 @@
                            firstlast
                            (and (in (join next univ) state)) (in (join univ next) state)))
 
-(define model (get-model model-constraints model-bounds L))
+
+(define model (get-model model-constraints model-bounds L "goatswolves"))
+
+model
 
 (provide model)
 

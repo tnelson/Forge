@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/match)
-(require (only-in ocelot relation-name))
+(require (only-in forged-ocelot relation-name))
 
 (provide eval-exp eval-form model->binding)
 
@@ -110,4 +110,3 @@
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind maxint) (eval-exp var-2 bind maxint))]
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]))
-
