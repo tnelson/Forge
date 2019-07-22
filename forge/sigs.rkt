@@ -5,7 +5,7 @@
 (require "server/webserver.rkt")
 (require racket/stxparam)
 (require br/datum)
-(require (only-in ocelot node/expr/relation-name))
+(require (only-in ocelot relation-name))
 
 ;Default bound
 (define top-level-bound 4)
@@ -131,7 +131,7 @@
        (int-bound 0 top-level-bound))))
 
 (define (populate-sig sig bound)
-  (define atoms (map (lambda (n) (string-append (node/expr/relation-name sig) (number->string n))) (up-to bound)))
+  (define atoms (map (lambda (n) (string-append (relation-name sig) (number->string n))) (up-to bound)))
   (define sym-atoms (map string->symbol atoms))
   (set! singleton-bounds (append singleton-bounds (map (lambda (id)
                                                          (let ([rel (declare-relation 1 (string-append "$atomic-" id))])

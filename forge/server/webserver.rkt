@@ -1,7 +1,7 @@
 #lang racket
 
 (require br/datum)
-(require (only-in ocelot node/expr/relation-name))
+(require (only-in ocelot relation-name))
 (require "../nextbutton.rkt")
 (require "eval-model.rkt")
 (require web-server/servlet-env)
@@ -31,7 +31,7 @@
   (if (hash? model)
       (begin
         (hash-map model (lambda (k v) (if
-                                       (not (equal? #\$ (string-ref (node/expr/relation-name k) 0)))
+                                       (not (equal? #\$ (string-ref (relation-name k) 0)))
                                        (begin
                                          (hash-set! newmodel k v)
                                          v)
@@ -63,7 +63,7 @@
 
 ; HTML parsing helpers
 (define (rel->ul r m)
-  `(li ,(node/expr/relation-name r) (ul ,@(map tup->li (hash-ref m r)))))
+  `(li ,(relation-name r) (ul ,@(map tup->li (hash-ref m r)))))
 
 (define (tup->li t) `(li ,(~a t)))
 
