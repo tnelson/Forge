@@ -1,0 +1,171 @@
+What I want now is an automated build system for the kodkod cli.
+
+The cli has these dependencies:
+Kodkod-CLI requires Java 8, Kodkod v2.1, and the following libaries:
+
+- asm-5.0.4.jar, asm-analysis-5.0.4.jar, asm-tree-5.0.4.jar, asm-util-5.0.4.jar from [asm-5.0.4-bin.zip](http://forge.ow2.org/project/download.php?group_id=23&file_id=20550);
+- [parboiled-core-1.1.7.jar](http://mvnrepository.com/artifact/org.parboiled/parboiled-core/1.1.7); and,
+- [parboiled-java-1.1.7.jar](http://mvnrepository.com/artifact/org.parboiled/parboiled-java/1.1.7).
+
+So here we need the kodkod-cli source.
+and a recent kodkod.jar.
+and recent asm jars, and parboil jars.
+
+use 7.1 for asm.
+now chekc parboil.
+
+
+Right I also need SAT4J.
+
+
+
+
+OK so there's still this issue with the asm library, most likely. Like two different versions are dependencies. hmmmmm.
+OK so te problem is coming from deep inside the asm library, then propagating back up to the kodkod cli main function.
+Coming from org.objectweb.asm.ClassReader. is that the same asm that I have where I need it?
+
+https://github.com/clojure/tools.analyzer.jvm/commit/f273e18a58bcf9d34861e80c5ca278427dea48cd
+This advises heavily not to use asm-all, because of possible conflicts?
+
+IS there an asm available somewhere else on my system?
+No, I'm not seeing anything else in the classpath or in the system paths or extension paths.
+
+It's just a problem with this fucking build...
+
+
+Should I ask them? Hrmmmmmmm, what's going onnnn.
+
+Idea: decompile the asm classes that are being used. (asm, asm-tree)
+
+
+OH OH OH it could easily be a problem with java 8. BECAUSE, at this point, that's the only thing that's different that could reasonably be causing these problems.
+Something with the java class library is different in version 8.
+
+OH WAIT, ALSO THE README MENTIONS ASM VERSION 5, BUT THEY HAVE VERSION 4.
+Do what they say, not what the rosette library has, you fool.
+And I am using java version 8, so that's not the issue. It's probably the asm stuff.
+
+OK now it's just not printing stuff. why is that?
+Also, even more concerning, it says there are errors, which means it's definitely not the same build as the one i see in kodkod tools.
+try analyzing kodkod tools and see what libraries its using.
+that, or try building wit hthe original jars again.
+
+Or just ask them how to build it!!!
+
+
+
+
+WAIT I'm being dumb. It can't be a problem with the libraries, because their jar works with their classes! Hm.
+
+
+
+OK. ok. calm it down. Take what I know.
+I know that the old libraries should work, right. If the source hasn't changed, the old libraries should work. Do they?
+And if the source has changed, the new libraries should work.
+
+Ok it doesn't work with the old classes or the new classes. Time to email. Then start doing viz again.
+
+
+yep definitely gotta ask.
+
+
+
+OK wait I was too hasty, it partially works. But why does it throw that parse error?
+Does it throw the same parse error with the other one?
+
+And they're identical on the good one. So what's the difference.... It's a parsing error. Maybe it doesn't like the newlines?
+
+no, it's not the configure statement. It actually is a parsing error. And they have no parsing documentation...
+
+
+
+
+
+
+
+
+don't wait for james and emina, change ocelot ourselves. and figure out what's causing that error in parsing!!!!!
+tim wants to be able to play around with it monday morning!
+He said I was doing the right thing, good not to ask emina about the parsing yet. Figure it out myself.
+
+Then we'll be gutting ocelot to make the kodkod-cli.
+
+But the first thing will be adapting the cmd lang to send to the kodkod-cli, which will be quick.
+
+
+
+
+I need to know whether this kodkod cli is even satisfying its own tests. at the moment I'm not sure about the one I built. 
+
+
+OK I need the org.junit library.
+If I run the server test from inside the server, of course it causes infinite recursion.
+So where do I run this?
+
+
+
+
+Ask emina about expected behavior
+am I building this right
+
+
+
+
+Concrete issues I am wrestling with:
+
+discrepancy in test results,
+how should we fix this, whats the problem,
+
+magic numbers? no, 
+
+What the fuck is going on with the integer bounds?
+
+Did I build it right? right libraries?
+
+good.kks not producing any output
+
+
+
+
+YOOOOO I was right about the syntax error in sample-incremental with r3. Needed the double colon.
+Same with sample.kks, and the verbosity was set to zero!
+SAME WITH THE SERVER TESTING.
+
+failing tests:
+ServerTest (fixed, was an issue with ::)
+TupleSetRuleTest
+NodeRuleTest
+IntExprRuleTest
+ExprRuleTest
+ConstraintRuleTest
+ConfigureRuleTest (but just cuz MiniSat isn't installed)
+AssertRuleTest
+
+
+OK, so in kodkod, a tuple's index specifies it exactly. Say it's of arity 3, and the universe contains 12 atoms.
+Then the index can be thought of as a 2-digit number in base 12, so each digit specifies one element of the tuple.
+The indexview of a TupleSet just tells you the indices of all the tuples in it, so it precisely specifies the set.
+
+
+Need to understand how kodkod does integers in relations, cuz tim will be unhappy otherwise.
+Also, people will ask questions. He needs to know.
+
+Use the old build to test the unit tests.
+
+
+Alloy style integers use bitwidths, but they make atoms for every integers.
+Rosette makes atoms for every power of 2.
+
+
+we know that rosette does bitvector style integers, we need to know how that maps down to kodkod.
+provide one concrete example of kodkod-cli syntax and how it is represe
+
+
+Send Tim an update on testin with the old kodkod, and on kodkod rep.
+Ah ok the old rosette tests are implemented in racket, they're not the junit tests i want.
+
+Yeah so I tested that and I was right, Emina updated the kodkod-cli without updating the tests.
+I tested that by testing the old rosette kodkod-cli jars with the source tests.
+Next thing: how does kodkod do ints in relations?
+
+So the question is, if I put an int in a relation, how does kodkod actually interpret that?

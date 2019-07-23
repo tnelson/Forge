@@ -1,0 +1,5 @@
+OK I GET IT.
+
+It's just like normal substitution language recognition. But it also has tests.
+And when you have a test with multiple things, it's just recognizing the sequence.
+
