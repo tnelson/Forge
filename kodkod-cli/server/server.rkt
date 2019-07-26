@@ -38,10 +38,10 @@
     (if incremental?
         (subprocess #f #f #f 
                     java "-Xmx2G" "-cp" cp
-                    "kodkod.cli.KodkodServer" "-fast-parsing" "-incremental" "-error-out" error-out)
+                    "kodkod.cli.KodkodServer" "-incremental" "-error-out" error-out)
         (subprocess #f #f #f 
                     java "-Xmx2G" "-cp" cp
-                    "kodkod.cli.KodkodServer" "-fast-parsing" "-error-out" error-out))))
+                    "kodkod.cli.KodkodServer" "-error-out" error-out))))
 
 (define (kodkod-stderr-handler src err)
   (match (read-line err) 
@@ -59,5 +59,12 @@
 (send kks initialize)
 (define stdin (send kks stdin))
 (define stdout (send kks stdout))
-(cmd [stdin] (solve))
+
+(cmd [stdin]
+     (configure ":bitwidth" "4" ":produce-cores" "false" ":solver" "SAT4J" ":verbosity" "3")
+     (declare-univ 4)
+     (declare-rel (r '0) (tupleset (tuple 0) (tuple 1) (tuple 2) (tuple 3)))
+     (declare (f '0) (some (r '0)))
+     (assert (f '0))
+     (solve))
 (define out (read-solution stdout))

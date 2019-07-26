@@ -25,7 +25,8 @@
 (define-syntax-rule (print-cmd arg ...)
   (begin 
     ;(printf  arg ...) (newline)
-    (fprintf (kodkod-port) arg ...)))
+    (fprintf (kodkod-port) arg ...)
+    (newline (kodkod-port))))
 
 (define (print-eof) 
   (display #\uFFFF (kodkod-port)))
@@ -46,10 +47,13 @@
     (print-cmd "(~a ~a)" int idx))
   (print-cmd "])"))
 
-(define declare-const
+(define declare-rel
   (case-lambda 
     [(id lo hi) (print-cmd "(~a [~a ~a])" id lo hi)]
     [(id exact) (print-cmd "(~a [~a])" id exact)]))
+
+(define (declare id val)
+  (print-cmd "(~a ~a)" id val))
 
 ; Identifiers
 (define (r idx) (format-symbol "r~a" idx))  ; relational constant
