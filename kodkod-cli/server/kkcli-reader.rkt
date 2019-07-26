@@ -24,7 +24,7 @@
 
                              '((cmd [stdin] (print-eof))
                                (write (read-solution stdout)))))
-  (writeln src-datums)
+  ;(writeln src-datums)
 
   (define module-datum `(module stacker-mod racket
                           ,@src-datums))
