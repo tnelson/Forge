@@ -169,3 +169,102 @@ I tested that by testing the old rosette kodkod-cli jars with the source tests.
 Next thing: how does kodkod do ints in relations?
 
 So the question is, if I put an int in a relation, how does kodkod actually interpret that?
+So, look at docs, make example with kodkod-cli syntax, run it, inspect kodkod rep.
+I'll have to make the example anyways, so do that first.
+
+Hm. where can I really see how these integers are stored?
+I can just look at how ints are implemented, from the BooleanFactory, or TwosComplementInt
+But I think it's better to look at int operators applied to relations, like sum or minus.
+Ah no not a good example, cuz there's no overloading at the operator level.
+What is an IntExpression really?
+
+Reading the docs isn't helping, cuz the docs just build up the AST, you don't really know what's actually happening.
+OK what do I really need to know? I need to know what happens when you START from the kodkod-cli. So investigate the parsing.
+OK, I give to the KodKod solver some asserts and some bounds. I need to see what those are, that can help me understand what integers are.
+And I want to see what it gives back.
+
+Simple enough! Just inject that code.
+
+OK, I'm not interested in the kodkod output, cuz they could easily represent it with normal integers. What we need to know is what kodkod does with the asserts.
+And we need to know the form of the asserts. But I'm not sure it's worth it? But I can trace it inside the kodkod source from here.
+MM, no, in the solve() kodkod function seems like it just translates to cnf and sat solves. So unless something interesting happens in translation, the interesting bits are in the asserted formulas themselves.
+
+OK yeah I just don't think the translation is the interesting bit.
+
+Alright, then trace the parser actions.
+
+
+Can also look at FOL2BoolTranslator. Yep that's an excellent place to look.
+And that includes the sum operation, which returns the abstracted int representing the sum of the integers in a given abstract set.
+I believe what we want is sum(BooleanMatrix m), where BooleanMatrix represents the contents of a relation
+
+Ah but I'm also concerned about how sigs get converted to real ints. So that's something to think about. 
+
+
+
+
+Hmmm. Look at LeafInterpreter.interpret for an int i. It just returns an index into the universe for the atom representing that integer.
+In which case, it is just the same as alloy! So that is where the int to sig conversion takes place it seems.
+
+And in the relations themselves, they seem to be stored as Ints.
+So for summing, it just goes through all possible ints, and adds them if they are there.
+How does that actually happen? OK so it goes through every possible int (lowercase). For each one, it gets an Int, which is 0 if the int isn't in the relation, and the right Int otherwise. It does this by making a new TwosComplementInt. Then it sums those.
+And yeah, they are Ints, but are actually TwosComplementInts, so they hold a bitvector!
+
+Ok, last question, how does the conversion from ints to atoms work? and how many atoms we got?
+Wait a sec, visit(IntConstant) suggests that the ints aren't in the universe at all!
+Ah no because we can't put that kind of Int in a relation. We only put atoms in a relation, and to put atoms in a relation we always use booleanmatrices!
+And we just have a flag to indicate that the atom is in the relation, and that BooleanValue becomes true.
+So to actually put an int in a relation, it has to have its own atom.
+
+Last question: how do all these ints get into the universe in the first place????
+Like, do we specify that explicitly? Each int being in the universe?
+OK so the list of allowed ints comes from the bounds, which are passed into the solve() function, which is the entry point into kodkod solving.
+And bounds are passed a list of allowed ints.
+
+
+OK let's clarify again where this is going. To go from an int to an int atom, which we need if we want to put ints in relations, we use LeafInterpreter.interpret()
+this gives us this: ints.get(i).indexView().min();
+
+We are trying to understand the meaning of that line.
+
+Also, now what happens when you want to go from atom back to full Integer?
+Oh right, that's described above. if atom 16's BooleanValue is true, then you construct the TwosComplementInt for 16.
+
+Sparsesequences are basically just like arrays. But they map to tuplesets.
+So you get the tupleset that your plain int maps to, then ask it for all the tuples it contains, and get the minimum such tuple number since there should be only one tuple. (unrelated, but it will be arity 1.)
+
+SO. How are these ints made? That's a question for the Kodkodparser.
+OK so you make the universe, with all the normal atoms, and with bounds on shit.
+Then you add to the bounds stuff for the ints.
+So, for each power
+
+Ach. OK so I think the way they did stuff in kodkod-cli is just for rosette, but I still don't understand a bunch of shit...
+OK so the int -16 would be bound to the tuple 4 in our cases. What does this actually mean for us?
+
+
+
+
+I don't really understand the purpose of the intbounds. Do the atoms in the tuple really have any meaning as integers?
+And what if they're not bound? Can't we map every integer to itself? that seems easy....
+And what if an integer is not found? Do you really have to map every single integer? that seems awful.
+
+
+Right, ok, they even specify: the atoms in a universe are not specified in any way by the Kodkod engine. Then again, Universe atoms are different...
+
+
+
+
+WAIT A SEC I WAS WRONG. ok i get it. it makes sense now. Say you want four ints, and you need six other atoms. Then you declare a universe with 10 atoms, and four of those will be bound to ints! ints must be bound to atoms already in the universe!!!!! YOU DONT EXTEND THE UNIVERSE WHEN YOU DECLARE INTS, YOU ACTUALLY SHRINK IT BY STEALING INTS
+
+
+
+mock up 7 example (no atom for it)
+Yep, so if there's no atom for it and you use intcast it produces an empty set.
+If you use bitcast, it tries to make it with smaller pow2 atoms.
+its as we expected.
+
+understand bitsetcast (native support for bits?????)
+Doing alloy-style integers for now (atom for every int)
+
+make sure we understand bitsetcast vs intcast

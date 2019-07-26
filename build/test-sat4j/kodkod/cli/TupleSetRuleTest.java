@@ -161,6 +161,8 @@ public class TupleSetRuleTest extends AbstractParserTest {
 		final TupleFactory f = (new Universe(0,1,2,3,4,5,6,7,8,9)).factory();
 		// These are just the locations of arity and indices in the object lists we're using.
 		final int arity = 2, indices = 3;
+
+		// ok so the problem is in here
 		for(Object[] left : valid) {
 			// Just duplicates the tupleset that left represents.
 			final TupleSet lts = f.setOf((Integer)left[arity], (IntSet)left[indices]);

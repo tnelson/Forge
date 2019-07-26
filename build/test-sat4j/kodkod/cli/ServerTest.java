@@ -45,8 +45,92 @@ import org.parboiled.support.Chars;
 public class ServerTest {
 
 	@Test
+	public void myTest(){
+		final Process p = call("");
+		/*send(p, "(configure :bitwidth 5 :produce-cores false :max-solutions 1 :solver SAT4J :verbosity 6)\n"+
+		        "(univ 5)\n" +
+				"(ints [(1 0)(2 1) (4 2) (8 3) (-16 4)])\n" +
+				"(r0 [(-> ints ints)])\n" +
+				"(f0 (= r0 (* r0)))\n" +
+				"(assert f0)\n" +
+				"(solve)\n");*/
+
+		/*send(p, "(configure :bitwidth 5 :produce-cores false :solver SAT4J :verbosity 0)"+
+				"(univ 10)" +
+				"(ints [(1 0)(2 1) (4 2) (8 3) (-16 4)])"+
+				"(r0 [(+ ints {(5) ... (9)})])" +
+				"(f0 (= r0 univ))"+
+				"(f1 (= 4 (+ 2 2)))" +
+				"(f2 (&& f0 f1))" +
+				"(assert f2)" +
+				"(solve)");*/
+
+		send(p, "(configure :bitwidth 5 :produce-cores false :solver SAT4J :verbosity 0)"+
+				"(univ 10)" +
+				"(ints [(0 0) (1 1) (2 2) (3 3) (4 4) (5 5)]" +
+				"(i0 (+ 2 5))" +
+				"(f0 (= 7 i0))" +
+				"(assert f0)" +
+				"(solve)");
+
+/*
+(configure :bitwidth 5 :produce-cores false :solver SAT4J :verbosity 6)
+(univ 10)
+(ints [(0 0) (1 1) (2 2) (3 3) (4 4) (5 5)])
+(r0 [ints])
+
+(i0 (+ 2 5))
+(r1 [{(1) (2) (4)}])
+
+(f0 (= r1 (set i0)))
+(assert f0)
+(solve)
+
+
+
+(configure :bitwidth 5 :produce-cores false :solver SAT4J :verbosity 6)
+(univ 10)
+(ints [(0 0) (1 1) (2 2) (3 3) (4 4) (5 5)])
+(r0 [ints])
+
+(i0 (+ 2 5))
+(r1 [{(3)}])
+
+(f0 (= r1 (lone (- i0 4))))
+(assert f0)
+(solve)
+*/
+		myreceive(p);
+		p.destroy();
+	}
+
+	private boolean myreceive(Process p) {
+		try {
+			final BufferedReader pout = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+			String msg = pout.readLine();
+			while (!msg.equals("\0")){
+				System.out.println(msg);
+				msg = pout.readLine();
+			}
+			return false;
+
+			/*
+			if (msg.matches("\\(sat.*\\)"))
+				return true;
+			else if (msg.matches("\\(unsat.*\\)"))
+				return false;
+			else
+				throw new AssertionError("Bad server output: " + msg);*/
+		} catch (IOException e) {
+			throw new AssertionError(e);
+		}
+	}
+
+	//@Test
 	public void testStandardSolver0() {
 		final Process p = call("");
+		/*
 		send(p, "(configure :bitwidth 5 :produce-cores false :solver SAT4J :verbosity 0)"+
 		        "(univ 5)" +
 				"(ints [(1 0)(2 1) (4 2) (8 3) (-16 4)])"+
@@ -56,12 +140,20 @@ public class ServerTest {
 				"(f1 (some r1))" +
 				"(f2 (&& f0 f1))" +
 				"(assert f2)" +
+				"(solve)");*/
+
+		send(p, "(configure :bitwidth 5 :produce-cores false :solver SAT4J :verbosity 0)"+
+		        "(univ 10)" +
+				"(ints [(1 0)(2 1) (4 2) (8 3) (-16 4)])"+
+				"(r0 [(+ ints {(5) ... (9)})])" +
+				"(f0 (= r0 univ))"+
+				"(assert f0)" +
 				"(solve)");
 		assertTrue(receive(p));
 		p.destroy();
 	}
 
-	@Test
+	//@Test
 	public void testStandardSolver1() {
 		final Process p = call("");
 		send(p, "(configure :bitwidth 4 :solver SAT4J  :max-solutions 1  :verbosity 0)" +
@@ -79,6 +171,22 @@ public class ServerTest {
 				"(assert f1)" +
 				"(solve)");
 
+/*
+(configure :bitwidth 4 :solver SAT4J  :max-solutions 1  :verbosity 6)
+(univ 10)
+(ints [(1 0)(2 1) (4 2) (-8 3)])
+(r0 r1 r2 [ none :: (+ ints { (4) ... (6) })])
+(r3 [iden :: (-> univ univ)])
+(i0 (sum r0))
+(i1 (sum r1))
+(f0 (< i0 i1))
+(assert f0)
+(e0 (- r2 ints))
+(e1 (. e0 r3))
+(f1 (lone e1))
+(assert f1)
+(solve)
+*/
 		assertTrue(receive(p));
 		send(p, "(configure :produce-cores false :verbosity 0)" +
 				"(univ 10)" +
@@ -99,7 +207,7 @@ public class ServerTest {
 		p.destroy();
 	}
 
-	@Test
+	//@Test
 	public void testStandardSolver2() {
 		final Process p = call("");
 		send(p, "(configure :bitwidth 32 :produce-cores false :solver SAT4J :verbosity 0)" +
@@ -131,7 +239,7 @@ public class ServerTest {
 		p.destroy();
 	}
 
-	@Test
+	//@Test
 	public void testIncrementalSolver0() {
 		final Process p = call("-incremental");
 		final String ex =
@@ -151,7 +259,7 @@ public class ServerTest {
 		p.destroy();
 	}
 
-	@Test
+	//@Test
 	public void testIncrementalSolver1() {
 		final Process p = call("-incremental");
 		send(p, "(configure :bitwidth 5 :produce-cores false :solver SAT4J :verbosity 0)" +
@@ -216,7 +324,6 @@ public class ServerTest {
 		try {
 			final BufferedReader pout = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			final String msg = pout.readLine();
-			System.out.println(msg);
 			if (msg.matches("\\(sat.*\\)"))
 				return true;
 			else if (msg.matches("\\(unsat.*\\)"))
