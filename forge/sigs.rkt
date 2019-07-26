@@ -37,7 +37,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or) 
+(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or)
 
 (define-syntax (pred stx)
   (syntax-case stx ()

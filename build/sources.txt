@@ -1,0 +1,2 @@
+../../test-sat4j/kodkod/cli/*
+../src/kodkod/cli/*

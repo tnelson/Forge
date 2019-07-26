@@ -1,0 +1,84 @@
+make view elements part of the source: can specify what relations you want to add to view
+those relations should be persistent across models, can x them out
+view options should be more compositional
+
+do we want to add evaluator results to graph, or replace graph?
+maybe we could have option on relation evaluations that let you add them to the source
+
+add my docs to charlie's docs
+
+kodkodi
+
+what do we want to fail fast at first? tim says modality, not features.
+as in language modes, check-expec
+
+we need a value syntax
+
+
+
+
+
+####### While it's still fresh: what is our priority list?
+#lang issues, install scripts, ocelot modification
+What is the language that is exported? Should be able to type (+ 1 2)
+What should the REPL be? Maybe print messages, but should be essentially meaningless
+KodKodi update, JSON output format
+Have ints by the end of the week.
+Evaulator - actually make it a REPL. Should be adjusting the model itself, not just the view. Cuz then the list will also update, automatically get browser support for the visually impaired.
+Fail fast on modality. (checkxspec mode, text)
+
+
+
+I work on updating kodkodi, forget about visualization stuff for now
+Also think about install scripts.
+Send Tim emails every day while he's away.
+
+Charlie works on #lang issues, evaluator, check-expec mode.
+
+
+When we are writing a document, always remember who we are writing documentation for.
+However, for us, there are several different users we have in mind.
+There's the person who knows a little alloy and just wants to try it.
+There's the brand new logic for system person.
+There's Shriram, and power users like him
+
+So we should have a quickstart guide, install, running through an example. Then we have a sort of branching path: basic docs, detailed reference, bnf
+We should have a stateful example.
+
+Make examples super easy to access
+kodkodI should output JSON, don't worry about inputting into kodkodI yet
+James and Emina are handling the Ocelot side, feeding into kodkodi. I just worry about what comes out of KodKodI
+
+For new KodKodI, could build new spec for ANTLR
+But maybe it's possible to do this without changing the spec at all, just piggybacking.
+
+
+
+For ocelot modification, fork ocelot, commit a change to the providing language file, and add this new package (as a github link) as a dependency to forge.
+It should not be calle ocelot, because it won't be ocelot; there will be changes, also to the rosette combine-op stuff. So the ocelot docs won't correctly describe it;
+it should be called something like ocelot-for-forge, and it should be possible to install it alongside the real ocelot.
+But that's not a first priority rn.
+
+OK! kodkodI time, time to really figure out what's going on there. That's my only focus now.
+
+OK for downloading kodkodi, that link from blanchette's website is all we have. And actually the isabelle version is more recent, so use that.
+
+wait viz documentation!!!
+
+
+
+
+For kodkodi, what am I really doing?
+Check email. OK, I'm making it compatible with the latest version of Kodkod, and I'm making sure it can do incrementality.
+So, how is it interfacing with kodkod right now? Oh there's just the kodkod jar file there.
+
+OK, the settings file in etc/ doesn't matter.
+Wait a sec, they never refer to the kodkod file directly. weird....
+OK, yeah, they use java's system for imports.
+OK, so can I just straight copy in the new kodkod file?
+
+OK, but I'm gonna need to build the .jar file, how do I do that?
+
+so .jar file is like semi-compiled, a list of compiled source files.
+Try just adding the new kodkod .jar file! Then try updating with incrementality.
+

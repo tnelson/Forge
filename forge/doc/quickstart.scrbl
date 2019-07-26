@@ -127,7 +127,7 @@ In addition to defining what sigs and relations can exist in a model, we need to
 
 Forge uses Ocelot's language for representing expressions and formulas.
 
-Expressions represent symbolic relations.  
+Expressions represent symbolic relations.
 
 @defproc[(+ [r0 expr?] [r expr?] ...) expr?]{Produces the union of the given relations.}
 
@@ -208,3 +208,16 @@ Here's an example of a simple Forge spec we might write to define an undirected 
           (fact (all ([v1 vertex] [v2 vertex])
                      (=> (in (+ (-> v1 v2) (-> v2 v1)) edges) (! (in (+ (-> v1 v2) (-> v2 v1)) (^ (- edges (+ (-> v1 v2) (-> v2 v1)))))))))
           (run "Undirected Tree" ((vertex 0 5)))]
+
+@subsection{The Visualizer}
+
+When you run Forge, it finds models that satisfy the constraints you have provided. The graph visualization tab displays a particular model, by displaying the particular relations that the model has assigned to sigs and fields.
+This model can also be viewed through the list tab, and can be interacted with through the evaluator tab; at any given time, all the tabs are working with the same model.
+
+The visualizer displays all sigs declared with declare-sig and all fields on those sigs. However, it does not display empty relations. So if there are no atoms belonging to a particular sig, that sig will not appear in the display. And if a sig's field is empty, that field will not appear.
+
+Atoms are displayed as labeled boxes, where the label is the atom's name (and remember, an atom IS its name). Relations between atoms are displayed as labeled arrows between boxes, where the arrow's label is the name of the relation. So, if the tuple (A, B) appears in some relation C in the model, there will be an arrow labeled "C" pointing from box A to box B in the display. No arrows are generated for arity 1 relations.
+
+For higher arity relations, we use Alloy's edge-labeling scheme. So, to represent the tuple (A, B, C, D) in relation E, we draw an arrow from A to D, and label it "E[B->C]".
+
+You can use your mouse to drag around nodes in the graph, and edges will highlight when you mouse over them. Every time a new visualization is created, the graph will automatically adjust its layout in an attempt to minimize edge crossings and fill up available space.
