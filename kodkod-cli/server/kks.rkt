@@ -2,7 +2,7 @@
 
 (require racket/syntax)
 
-(provide (except-out (all-defined-out) kodkod-port print-cmd print-eof define-ops))
+(provide (except-out (all-defined-out) kodkod-port define-ops))
 
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
