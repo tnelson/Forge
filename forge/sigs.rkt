@@ -3,7 +3,7 @@
 (require forged-ocelot)
 (require (prefix-in @ rosette))
 (require "nextbutton.rkt")
-(require "server/webserver.rkt")
+(require "server/forgeserver.rkt")
 (require racket/stxparam)
 (require br/datum)
 ;(require (only-in forged-ocelot relation-name))
@@ -209,5 +209,4 @@
     [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
 
 (define (relation->bounds rel)
-  (println (hash-keys bounds-store))
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))

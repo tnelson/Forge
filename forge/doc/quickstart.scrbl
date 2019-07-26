@@ -36,6 +36,13 @@ Forge extends the @hyperlink["https://docs.racket-lang.org/ocelot/"]{Ocelot} pac
 
 @local-table-of-contents[]
 
+@section{Installing Forge}
+
+To install forge, run:
+
+@codeblock|{raco pkg install forged-ocelot}|
+@codeblock|{raco pkg install forge}|
+
 @section{The Language}
 
 To begin working with forge, make sure to begin your file with the line:

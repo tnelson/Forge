@@ -1,28 +1,28 @@
 #lang scribble/manual
 
-@(require scribble/eval (for-label (except-in racket set - + -> or and => = *) "forge.rkt"))
+@(require scribble/eval (for-label (except-in racket set - + -> or and => = *) forge))
 
 @title{Forge: A Quick Guide}
 
 @(define forge-eval (make-base-eval))
 @interaction-eval[#:eval forge-eval
-                  (require "forge.rkt")]
+                  (require "../forge.rkt")]
 @(define garbage-eval (make-base-eval))
 @interaction-eval[#:eval garbage-eval
-                  (require "forge.rkt")]
+                  (require "../forge.rkt")]
 @(define garbage-eval2 (make-base-eval))
 @interaction-eval[#:eval garbage-eval2
-                  (require "forge.rkt")]
+                  (require "../forge.rkt")]
 @(define garbage-eval3 (make-base-eval))
 @interaction-eval[#:eval garbage-eval3
-                  (require "forge.rkt")]
+                  (require "../forge.rkt")]
 @(define garbage-eval4 (make-base-eval))
 @interaction-eval[#:eval garbage-eval4
-                  (require "forge.rkt")]
+                  (require "../forge.rkt")]
 @(define garbage-eval5 (make-base-eval))
 @interaction-eval[#:eval garbage-eval5
-                  (require "forge.rkt")]
-@defmodulelang["forge.rkt"]
+                  (require "../forge.rkt")]
+@defmodulelang[forge]
 
 Welcome to Forge!  Forge is a language built for teaching formal methods and model checking.  Forge is very much a work in progress, and is notably missing both integers and type hierarchy for sigs - rest assured, these features, and many more, are on their way!
 
@@ -40,7 +40,7 @@ Forge extends the @hyperlink["https://docs.racket-lang.org/ocelot/"]{Ocelot} pac
 
 To begin working with forge, make sure to begin your file with the line:
 
-@codeblock|{#lang s-exp forge}|
+@codeblock|{#lang forge}|
 
 @subsection{Atoms, Sigs, and Relations}
 
