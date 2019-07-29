@@ -1,3 +1,3 @@
 #!/bin/bash
 
-java -cp "lib/*" kodkod.cli.KodkodServer $1
+java -cp "jar/*" kodkod.cli.KodkodServer $1

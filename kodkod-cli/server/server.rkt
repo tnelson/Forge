@@ -61,7 +61,7 @@
 (define stdout (send kks stdout))
 
 (cmd [stdin]
-     (configure ":bitwidth" "4" ":produce-cores" "false" ":solver" "SAT4J" ":verbosity" "3")
+     (configure ":bitwidth 4 :produce-cores false :solver SAT4J :verbosity 3")
      (declare-univ 4)
      (declare-rel (r '0) (tupleset (tuple 0) (tuple 1) (tuple 2) (tuple 3)))
      (declare (f '0) (some (r '0)))

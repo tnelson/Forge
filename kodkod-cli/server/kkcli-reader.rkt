@@ -26,7 +26,7 @@
                                (write (read-solution stdout)))))
   ;(writeln src-datums)
 
-  (define module-datum `(module stacker-mod racket
+  (define module-datum `(module kkcli racket
                           ,@src-datums))
   (datum->syntax #f module-datum))
 (provide read-syntax)

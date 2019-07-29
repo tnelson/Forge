@@ -278,6 +278,7 @@ import org.parboiled.errors.ActionException;
 	 * @return true
 	 */
 	final boolean endBuild() {
+		System.out.println("endBuild");
 		buildTimeMillis = System.currentTimeMillis() - buildTimeMillis;
 		return true;
 	}

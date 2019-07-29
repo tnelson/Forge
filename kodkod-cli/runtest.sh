@@ -1,3 +1,3 @@
 #!/bin/bash
 
-java -cp "lib/*" org.junit.runner.JUnitCore $1
+java -cp "jar/*" org.junit.runner.JUnitCore $1

@@ -1,11 +1,8 @@
-#lang reader "kkcli-reader.rkt"
-
-
-
 (configure :bitwidth 4
+	   :produce-cores true
            :solver SAT4J 
            :max-solutions 5
-           :verbosity 1)
+           :verbosity 6)
 
 (univ 10)
 
@@ -20,8 +17,10 @@
 (e0 (- r2 ints))
 (e1 (. e0 r3))
 (f1 (lone e1))
+(f2 false)
 
 (assert f0)
 (assert f1)
+(assert f2)
 
 (solve)
