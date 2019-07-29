@@ -2,7 +2,7 @@
 
 (require (only-in forged-ocelot relation-name)
          "../nextbutton.rkt" "eval-model.rkt"
-         "modelToJson.rkt" racket/format
+         "modelToJSON.rkt" racket/format
          racket/runtime-path xml
          json web-server/servlet-env
          web-server/managers/timeouts
