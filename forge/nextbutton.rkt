@@ -62,7 +62,6 @@
         (define fin-model (interpretation->relations (evaluate model-bounds ros-model)))
         fin-model) ros-model))
 
-
 ; Gets the next model and caches it as constraints
 (define (get-next-model model-bounds singletons name)
   (define ros-model ((hash-ref solvers-map name) (hash-ref constraints-map name)))

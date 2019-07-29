@@ -1,11 +1,9 @@
 #lang rosette
 
-(require forged-ocelot)
-(require (prefix-in @ rosette))
-(require "nextbutton.rkt")
-(require "server/forgeserver.rkt")
-(require racket/stxparam)
-(require br/datum)
+(require forged-ocelot (prefix-in @ rosette)  "nextbutton.rkt" "server/forgeserver.rkt"
+         "../kodkod-cli/server/kks.rkt" "../kodkod-cli/server/server.rkt"
+         "../kodkod-cli/server/server-common.rkt" "kodkod-translate.rkt" racket/stxparam br/datum)
+
 ;(require (only-in forged-ocelot relation-name))
 
 ;Default bound
@@ -31,13 +29,17 @@
 (define constraints '())
 ;Run names
 (define run-names '())
+;Bitwidth
+(define bitwidth 4)
+
+(define (set-bitwidth i) (set! bitwidth i))
 
 (struct int-bound (lower upper) #:transparent)
 
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or) 
+(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or set-bitwidth) 
 
 (define-syntax (pred stx)
   (syntax-case stx ()
@@ -149,6 +151,44 @@
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
 
+(define (run-spec name hashy)
+  (append-run name)
+  (define sig-bounds (bind-sigs hashy))
+  ;(define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
+  ;(define run-bounds (instantiate-bounds (bounds univ total-bounds)))
+  (define allints (expt 2 bitwidth))
+  (define inty-univ (append (range allints) working-universe))
+  (define kks (new server% 
+                   [initializer (thunk (kodkod-initializer #f))]
+                   [stderr-handler (curry kodkod-stderr-handler "blank")]))
+  (send kks initialize)
+  (define stdin (send kks stdin))
+  (define stdout (send kks stdout))
+  (cmd
+   [stdin]
+   (configure (format ":bitwidth ~a :produce-cores false :solver SAT4J :verbosity 3" bitwidth))
+   (declare-univ (length inty-univ))
+   (declare-ints (allints allints)))
+  (define rels (hash-keys bounds-store))
+  (for ([key rels])
+    (cmd
+     [stdin]
+     (declare-rel
+      (relation-name key)
+      (bound-lower (hash-ref bounds-store key))
+      (bound-upper (hash-ref bounds-store key)))))
+  (for ([c constraints] [i (range (length constraints))])
+    (cmd 
+     [stdin]
+     (print-cmd (format "(f~a" i))
+     (interpret-formula c inty-univ rels)
+     (print-cmd ")\n")
+     (print-cmd (format "(assert f~a)" i))))
+  (cmd [stdin] "(solve)")
+  (define model (read-solution stdout))
+  (print model))
+  ;(display-model model run-bounds singletons name))
+
 (define-syntax (run stx)
   (syntax-case stx ()
     [(_ name ((sig lower upper) ...))
@@ -165,7 +205,7 @@
                                   singletons
                                   name))
          (display-model model run-bounds singletons name))]
-    [(_ name pred ((sig lower upper) ...))
+    [(_ name preds ((sig lower upper) ...))
      #'(begin
          (append-run name)
          (define hashy (make-hash))
@@ -181,18 +221,10 @@
          (display-model model run-bounds singletons name))]
     [(_ name)
      #'(begin
-         (append-run name)
-         (define sig-bounds (bind-sigs (make-hash)))
-         (define univ (universe working-universe))
-         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
-         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-         (define model (get-model (foldl sneaky-and (= none none) constraints)
-                                  run-bounds
-                                  singletons
-                                  name))
-         (display-model model run-bounds singletons name))]
-    [(_ name pred)
+         (run-spec name (make-hash)))]
+    [(_ name preds)
      #'(begin
+         (set! constraints (append preds constraints))
          (append-run name)
          (define sig-bounds (bind-sigs (make-hash)))
          (define univ (universe working-universe))
