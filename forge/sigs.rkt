@@ -37,7 +37,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or)
+(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or) 
 
 (define-syntax (pred stx)
   (syntax-case stx ()
@@ -54,7 +54,7 @@
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (set! constraints (cons (in field (-> name r ...)) constraints)) ...)]
-    [(_ name ((field r ...) ...) extends)
+    [(_ name ((field r ...) ...) #:extends extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
@@ -68,7 +68,7 @@
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name)))]
-    [(_ name extends)
+    [(_ name #:extends extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
@@ -86,7 +86,7 @@
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (set! constraints (cons (in field (-> name r ...)) constraints)) ...
          (hash-set! int-bounds-store name (int-bound 1 1)))]
-    [(_ name ((field r ...) ...) extends)
+    [(_ name ((field r ...) ...) #:extends extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
@@ -102,7 +102,7 @@
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (hash-set! int-bounds-store name (int-bound 1 1)))]
-    [(_ name extends)
+    [(_ name #:extends extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
