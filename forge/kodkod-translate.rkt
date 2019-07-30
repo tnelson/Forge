@@ -14,7 +14,7 @@
      (print-cmd (format "(~a " mult ))
      (interpret-expr expr universe relations)
      (print-cmd ")")]
-    [(node/formula/quantifier quantifier decls form)
+    [(node/formula/quantified quantifier decls form)
      (print-cmd (format "(~a ([~a : one" quantifier (car (car decls))))
      (interpret-expr (cdr (car decls)) universe relations)
      (print-cmd "]) ")
