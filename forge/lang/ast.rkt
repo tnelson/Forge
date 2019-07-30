@@ -199,20 +199,26 @@
      (syntax/loc stx
        (define-int-op id type? checks ... #:lift #f))]))
 
-(define-int-op int+ node/int? #:min-length 2)
-(define-int-op int- node/int? #:min-length 2)
-(define-int-op int* node/int? #:min-length 2)
-(define-int-op int/ node/int? #:min-length 2)
+(define-int-op add node/int? #:min-length 2)
+(define-int-op subtract node/int? #:min-length 2)
+(define-int-op multiply node/int? #:min-length 2)
+(define-int-op divide node/int? #:min-length 2)
 
 (define-int-op card node/expr? #:min-length 1 #:max-length 1)
 (define-int-op sum node/expr? #:min-length 1 #:max-length 1)
 
+;; -- constants ----------------------------------------------------------------
+
+(struct node/int/constant node/int (value) #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (fprintf port "~v" (node/int/constant-value self)))])
 
 ;; FORMULAS --------------------------------------------------------------------
 
 (struct node/formula () #:transparent)
 
-;; -- constants -------------------------------------------------------------------
+;; -- constants ----------------------------------------------------------------
 
 (struct node/formula/constant node/formula (type) #:transparent
   #:methods gen:custom-write
