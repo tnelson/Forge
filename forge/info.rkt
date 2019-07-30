@@ -1,6 +1,6 @@
 #lang info
 (define collection "forge")
 
-(define deps '("forged-ocelot" "beautiful-racket" "rosette"))
+(define deps '("beautiful-racket"))
 
 (define scribblings '(("doc/quickstart.scrbl" ())))

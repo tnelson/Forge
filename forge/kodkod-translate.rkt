@@ -13,7 +13,14 @@
     [(node/formula/multiplicity mult expr)
      (print-cmd (format "(~a " mult ))
      (interpret-expr expr universe relations)
-     (print-cmd ")")]))
+     (print-cmd ")")]
+    [(node/formula/quantifier quantifier decls form)
+     (print-cmd (format "(~a ([~a : one" quantifier (car (car decls))))
+     (interpret-expr (cdr (car decls)) universe relations)
+     (print-cmd "]) ")
+     (interpret-formula form universe relations)
+     (print-cmd ")")]
+    ))
 
 (define (interpret-formula-op formula universe relations args)
   (match formula
