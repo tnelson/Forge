@@ -477,6 +477,7 @@ public class KodkodParser extends BaseParser<Object> {
 				LBRK,
 					Identifier('v'),							varIdx.set(popInt()),
 					Ch(':'),
+					Space(),
 					FirstOf(
 						VarMult(ONE,  	 Multiplicity.ONE),
 						VarMult(LONE, 	 Multiplicity.LONE),
