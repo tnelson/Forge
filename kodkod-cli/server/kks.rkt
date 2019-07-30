@@ -97,6 +97,10 @@
   ; relational
   [no no] [lone lone] [one one] [some some] [sum sum] [-> ->] [in in])
 
+; Quantified constraints
+(define (quant-constraint quant id mult expr constraint)
+  (print-cmd (format "(~a ([~a : ~a ~a]) ~a)" quant id mult expr constraint)))
+
 ; Reads a solution to a Kodkod problem from specified 
 ; input port and returns a hashtable or a list.
 ;
