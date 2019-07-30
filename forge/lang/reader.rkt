@@ -1,6 +1,8 @@
 #lang racket
 
-(require "ast.rkt")
+(require "ast.rkt" racket/runtime-path)
+
+(define-runtime-path forge-path "../forge.rkt")
 
 ; this assumes that there's nothing sneakier than lists going on in the datum.
 ; so no vectors, hashes, boxes, etc.
@@ -22,7 +24,7 @@
   ; don't use format-datums, because it's awful with quotes.
   (define transformed (replace-ints src-datum))
 
-  (define module-datum `(module kkcli "../forge.rkt"
+  (define module-datum `(module kkcli ,forge-path
                           ,@transformed))
   (datum->syntax #f module-datum))
 (provide read-syntax)
