@@ -35,7 +35,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or set-bitwidth) 
+(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or set-bitwidth < > add subtract multiply divide int= card sum) 
 
 (define-syntax (pred stx)
   (syntax-case stx ()
@@ -164,14 +164,12 @@
    (declare-univ (length inty-univ))
    (declare-ints (range allints) (range allints)))
   (define (get-atom atom) (index-of inty-univ atom))
-  
-  (writeln inty-univ)
 
   (define (n-arity-none arity)
     (cond
       [(equal? arity 1) 'none]
       [(@> arity 0) (product 'none (n-arity-none (@- arity 1)))]
-      [else (error "fuuuuuuuuck hi shriram")]))
+      [else (error "Error: Relation with negative or 0 arity specified.")]))
 
   (define (adj-bound-lower bound)
     (define int-atoms (map (lambda (x) (map get-atom x))
@@ -188,12 +186,6 @@
         (tupleset int-atoms)))|#
   
   (for ([key total-bounds])
-    (writeln key)
-    (writeln (bound-lower key))
-    (writeln (map (lambda (x)
-                    (map get-atom x))
-                  (bound-lower key)))
-    (writeln (index-of rels (bound-relation key)))
     (cmd
      [stdin]
      (declare-rel
@@ -211,9 +203,7 @@
      (print-cmd (format "(assert f~a)" i))))
   (cmd [stdin] (solve))
   (define model (read-solution stdout))
-  (println model)
   (define parsed-model (parse-kodkod model rels inty-univ))
-  (println parsed-model)
   (display-model parsed-model name))
 
 (define-syntax (run stx)
@@ -223,23 +213,23 @@
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
          (run-spec name hashy))]
-    [(_ name preds ((sig lower upper) ...))
+    [(_ name (preds ...) ((sig lower upper) ...))
      #'(begin
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
-         (add-constraints preds)
+         (add-constraint preds) ...
          (run-spec name hashy))]
-[(_ name)
- #'(begin
-     (run-spec name (make-hash)))]
-[(_ name preds)
- #'(begin
-     (add-constraints preds)
-     (run-spec name (make-hash)))]
-[(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
-[(_ pred) #'(error "Run statements require a unique name specification")]
-[(_) #'(error "Run statements require a unique name specification")]
-[(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
+    [(_ name)
+     #'(begin
+         (run-spec name (make-hash)))]
+    [(_ name (preds ...))
+     #'(begin
+         (add-constraint preds) ...
+         (run-spec name (make-hash)))]
+    [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
+    [(_ pred) #'(error "Run statements require a unique name specification")]
+    [(_) #'(error "Run statements require a unique name specification")]
+    [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
 
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))

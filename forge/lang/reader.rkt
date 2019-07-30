@@ -22,7 +22,7 @@
   ; don't use format-datums, because it's awful with quotes.
   (define transformed (replace-ints src-datum))
 
-  (define module-datum `(module kkcli racket
+  (define module-datum `(module kkcli "../forge.rkt"
                           ,@transformed))
   (datum->syntax #f module-datum))
 (provide read-syntax)
