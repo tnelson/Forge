@@ -4,8 +4,6 @@
 
 (provide interpret-formula)
 
-;(define (kks-config )) TDOO
-
 (define (interpret-formula formula universe relations)
   (displayln "interpret-formula")
   (writeln formula)
@@ -40,6 +38,18 @@
     [(? node/formula/op/in?)
      (print-cmd "(in ")
      (map (lambda (x) (interpret-expr x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/formula/op/int>?)
+     (print-cmd "(> ")
+     (map (lambda (x) (interpret-int x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/formula/op/int<?)
+     (print-cmd "(< ")
+     (map (lambda (x) (interpret-int x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/formula/op/int=?)
+     (print-cmd "(= ")
+     (map (lambda (x) (interpret-int x universe relations)) args)
      (print-cmd ")")]))
 
 (define (interpret-expr expr universe relations)
@@ -81,5 +91,39 @@
      (print-cmd ")")]
     [(? node/expr/op/*?)
      (print-cmd "(* ")
+     (map (lambda (x) (interpret-expr x universe relations)) args)
+     (print-cmd ")")]))
+
+(define (interpret-int expr universe relations)
+  (match expr
+    [(node/int/constant value)
+     (print-cmd (number->string value))]
+    [(node/int/op args)
+     (interpret-int-op expr universe relations args)]))
+
+(define (interpret-int-op expr universe relations args)
+  (match expr
+    [(? node/int/op/add?)
+     (print-cmd "(+ ")
+     (map (lambda (x) (interpret-int x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/int/op/subtract?)
+     (print-cmd "(- ")
+     (map (lambda (x) (interpret-int x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/int/op/multiply?)
+     (print-cmd "(* ")
+     (map (lambda (x) (interpret-int x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/int/op/divide?)
+     (print-cmd "(/ ")
+     (map (lambda (x) (interpret-int x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/int/op/sum?)
+     (print-cmd "(sum ")
+     (map (lambda (x) (interpret-expr x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/int/op/card?)
+     (print-cmd "(# ")
      (map (lambda (x) (interpret-expr x universe relations)) args)
      (print-cmd ")")]))

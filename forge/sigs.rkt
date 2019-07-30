@@ -12,10 +12,6 @@
 (define sigs '())
 ;Track singletons to instantiate an ocelot universe
 (define working-universe '())
-;(define singleton-bounds '())
-;(define singletons '())
-;Create and store a singleton relation for each atom for the next button
-;(define atomic-rels-store (make-hash))
 ;Map from relations to lists of types
 (define relations-store (make-hash))
 ;Map from sigs to sigs to track hierarchy
@@ -68,7 +64,7 @@
          (add-constraint (in field (-> name r ...))) ...
          (hash-set! extensions-store name extends)
          (set! parents (cons extends parents))
-         (set! constraints (cons (in name extends) constraints)))]
+         (add-constraint (cons (in name extends) constraints)))]
     [(_ name)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
@@ -79,7 +75,7 @@
          (add-sig (symbol->string 'name))
          (hash-set! extensions-store name extends)
          (set! parents (cons extends parents))
-         (set! constraints (cons (in name extends) constraints)))]))
+         (add-constraint (in name extends)))]))
 
 (define-syntax (declare-one-sig stx)
   (syntax-case stx ()
@@ -89,7 +85,7 @@
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
-         (set! constraints (cons (in field (-> name r ...)) constraints)) ...
+         (add-constraint (in field (-> name r ...))) ...
          (hash-set! int-bounds-store name (int-bound 1 1)))]
     [(_ name ((field r ...) ...) #:extends extends)
      #'(begin
@@ -97,11 +93,11 @@
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
-         (set! constraints (cons (in field (-> name r ...)) constraints)) ...
+         (add-constraint (in field (-> name r ...))) ...
          (hash-set! int-bounds-store name (int-bound 1 1))
          (hash-set! extensions-store name extends)
          (set! parents (cons extends parents))
-         (set! constraints (cons (in name extends) constraints)))]
+         (add-constraint (in name extends)))]
     [(_ name)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
@@ -114,7 +110,7 @@
          (hash-set! int-bounds-store name (int-bound 1 1))
          (hash-set! extensions-store name extends)
          (set! parents (cons extends parents))
-         (set! constraints (cons (in name extends) constraints)))]))
+         (add-constraint (in name extends)))]))
 
 (define (add-sig name)
   (set! sigs (cons (declare-relation 1 name) sigs)))
@@ -139,11 +135,6 @@
 (define (populate-sig sig bound)
   (define atoms (map (lambda (n) (string-append (relation-name sig) (number->string n))) (up-to bound)))
   (define sym-atoms (map string->symbol atoms))
-  ;(set! singleton-bounds (append singleton-bounds (map (lambda (id)
-  ;                                                       (let ([rel (declare-relation 1 (string-append "$atomic-" id))])
-  ;                                                         (set! singletons (cons (list (format-datum `~a id) rel) singletons))
-  ;                                                         (make-exact-bound rel (format-datum `((~a)) id))))
-  ;                                                     atoms)))
   (set! working-universe (append sym-atoms working-universe))
   (hash-set! bounds-store sig sym-atoms)
   (map (lambda (x) (list x)) sym-atoms))
@@ -158,7 +149,6 @@
   (append-run name)
   (define sig-bounds (bind-sigs hashy))
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
-  ;(define run-bounds (instantiate-bounds (bounds univ total-bounds)))
   (define allints (expt 2 bitwidth))
   (define inty-univ (append (range allints) working-universe))
   (define rels (append (hash-keys relations-store) sigs))
@@ -230,53 +220,26 @@
   (syntax-case stx ()
     [(_ name ((sig lower upper) ...))
      #'(begin
-         (append-run name)
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
-         (define sig-bounds (bind-sigs hashy))
-         (define univ (universe working-universe))
-         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
-         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-         (define model (get-model (foldl sneaky-and (= none none) constraints)
-                                  run-bounds
-                                  singletons
-                                  name))
-         (display-model model run-bounds singletons name))]
+         (run-spec name hashy))]
     [(_ name preds ((sig lower upper) ...))
      #'(begin
-         (append-run name)
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
-         (define sig-bounds (bind-sigs hashy))
-         (define univ (universe working-universe))
-         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
-         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-         (define model (get-model (foldl sneaky-and pred constraints)
-                                  run-bounds
-                                  singletons
-                                  name))
-         (display-model model run-bounds singletons name))]
-    [(_ name)
-     #'(begin
-         (run-spec name (make-hash)))]
-    [(_ name preds)
-     #'(begin
-         (set! constraints (append preds constraints))
-         (run-spec name (make-hash)))]
-    ;         (append-run name)
-    ;         (define sig-bounds (bind-sigs (make-hash)))
-    ;         (define univ (universe working-universe))
-    ;         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
-    ;         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-    ;         (define model (get-model (foldl sneaky-and pred constraints)
-    ;                                  run-bounds
-    ;                                  singletons
-    ;                                  name))
-    ;         (display-model model run-bounds singletons name))]
-    [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
-    [(_ pred) #'(error "Run statements require a unique name specification")]
-    [(_) #'(error "Run statements require a unique name specification")]
-    [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
+         (add-constraints preds)
+         (run-spec name hashy))]
+[(_ name)
+ #'(begin
+     (run-spec name (make-hash)))]
+[(_ name preds)
+ #'(begin
+     (add-constraints preds)
+     (run-spec name (make-hash)))]
+[(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
+[(_ pred) #'(error "Run statements require a unique name specification")]
+[(_) #'(error "Run statements require a unique name specification")]
+[(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
 
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))
