@@ -1,26 +1,14 @@
 (configure :bitwidth 4
-	   :produce-cores true
            :solver SAT4J 
            :max-solutions 5
            :verbosity 6)
 
 (univ 10)
 
-(ints [(1 0)(2 1) (4 2) (-8 3)])
+(r3 [(-> none none)  (-> univ univ)])
 
-(r0 r1 r2 [ none :: (+ ints { (4) ... (6) })])
-(r3 [iden :: (-> univ univ)])
-
-(i0 (sum r0))
-(i1 (sum r1))
-(f0 (< i0 i1))
-(e0 (- r2 ints))
-(e1 (. e0 r3))
-(f1 (lone e1))
-(f2 false)
+(f0 (some r3))
 
 (assert f0)
-(assert f1)
-(assert f2)
 
 (solve)
