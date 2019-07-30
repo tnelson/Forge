@@ -1,6 +1,6 @@
 #lang racket
 
-(require (for-syntax racket/syntax) (prefix-in @ rosette) (prefix-in $ racket))
+(require (for-syntax racket/syntax) (prefix-in @ racket) (prefix-in $ racket))
 
 (provide (except-out (all-defined-out) next-name @@and @@or int< int>)
          (rename-out [@@and and] [@@or or] [int< <] [int> >]))
@@ -253,10 +253,10 @@
 (define-formula-op in node/expr? #:same-arity? #t #:max-length 2)
 (define-formula-op = node/expr? #:same-arity? #t #:max-length 2 #:lift @=)
 
-(define-formula-op && node/formula? #:min-length 1 #:lift @&&)
-(define-formula-op || node/formula? #:min-length 1 #:lift @||)
-(define-formula-op => node/formula? #:min-length 2 #:max-length 2 #:lift @=>)
-(define-formula-op ! node/formula? #:min-length 1 #:max-length 1 #:lift @!)
+(define-formula-op && node/formula? #:min-length 1 #:lift #f)
+(define-formula-op || node/formula? #:min-length 1 #:lift #f)
+(define-formula-op => node/formula? #:min-length 2 #:max-length 2 #:lift #f)
+(define-formula-op ! node/formula? #:min-length 1 #:max-length 1 #:lift #f)
 (define-formula-op int> node/int? #:min-length 2 #:max-length 2)
 (define-formula-op int< node/int? #:min-length 2 #:max-length 2)
 (define-formula-op int= node/int? #:min-length 2 #:max-length 2)
