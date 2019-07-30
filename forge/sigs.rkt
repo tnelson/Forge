@@ -161,7 +161,6 @@
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
 
 (define (run-spec name hashy)
-  (println "in run-spec")
   (append-run name)
   (define sig-bounds (bind-sigs hashy))
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
@@ -174,7 +173,6 @@
   (send kks initialize)
   (define stdin (send kks stdin))
   (define stdout (send kks stdout))
-  (println "initialized server")
   (cmd
    [stdin]
    (configure (format ":bitwidth ~a :produce-cores false :solver SAT4J :verbosity 3" bitwidth))
@@ -200,10 +198,7 @@
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))|#
-  (println total-bounds)
-  (println inty-univ)
   (for ([key total-bounds])
-    (println (adj-bound-lower key))
     (cmd
      [stdin]
      (declare-rel
