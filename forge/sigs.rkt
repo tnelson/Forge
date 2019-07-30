@@ -64,7 +64,7 @@
          (add-constraint (in field (-> name r ...))) ...
          (hash-set! extensions-store name extends)
          (set! parents (cons extends parents))
-         (add-constraint (cons (in name extends) constraints))]
+         (add-constraint (cons (in name extends) constraints)))]
     [(_ name)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
@@ -110,7 +110,7 @@
          (hash-set! int-bounds-store name (int-bound 1 1))
          (hash-set! extensions-store name extends)
          (set! parents (cons extends parents))
-         (add-constraint (in name extends))]))
+         (add-constraint (in name extends)))]))
 
 (define (add-sig name)
   (set! sigs (cons (declare-relation 1 name) sigs)))
@@ -228,7 +228,7 @@
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
          (add-constraints preds)
-         (run-spec name hashy)]
+         (run-spec name hashy))]
 [(_ name)
  #'(begin
      (run-spec name (make-hash)))]

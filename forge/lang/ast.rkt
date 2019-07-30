@@ -377,7 +377,7 @@
 (define (binary-op? op)
   (@member op (list <: :> in = => int= int> int<)))
 (define (nary-op? op)
-  (@member op (list + - & -> join && || int+ int- int* int/)))
+  (@member op (list + - & -> join && || add subtract multiply divide)))
 
 
 ;; PREFABS ---------------------------------------------------------------------

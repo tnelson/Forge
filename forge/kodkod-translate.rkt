@@ -102,27 +102,28 @@
      (interpret-int-op expr universe relations args)]))
 
 (define (interpret-int-op expr universe relations args)
-  [(? node/int/op/add?)
-   (print-cmd "(+ ")
+  (match expr
+    [(? node/int/op/add?)
+     (print-cmd "(+ ")
      (map (lambda (x) (interpret-int x universe relations)) args)
      (print-cmd ")")]
-  [(? node/int/op/subtract?)
-   (print-cmd "(- ")
+    [(? node/int/op/subtract?)
+     (print-cmd "(- ")
      (map (lambda (x) (interpret-int x universe relations)) args)
      (print-cmd ")")]
-  [(? node/int/op/multiply?)
-   (print-cmd "(* ")
+    [(? node/int/op/multiply?)
+     (print-cmd "(* ")
      (map (lambda (x) (interpret-int x universe relations)) args)
      (print-cmd ")")]
-  [(? node/int/op/divide?)
-   (print-cmd "(/ ")
+    [(? node/int/op/divide?)
+     (print-cmd "(/ ")
      (map (lambda (x) (interpret-int x universe relations)) args)
      (print-cmd ")")]
-  [(? node/int/op/sum?)
-   (print-cmd "(sum ")
+    [(? node/int/op/sum?)
+     (print-cmd "(sum ")
      (map (lambda (x) (interpret-expr x universe relations)) args)
      (print-cmd ")")]
-  [(? node/int/op/card?)
-   (print-cmd "(# ")
+    [(? node/int/op/card?)
+     (print-cmd "(# ")
      (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")])
+     (print-cmd ")")]))
