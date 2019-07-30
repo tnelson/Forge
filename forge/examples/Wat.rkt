@@ -2,4 +2,6 @@
 
 (declare-sig node ((graph node)))
 
-(run "floopdedoop")
+(pred should-be-true (> 4 3))
+
+(run "floopdedoop" (should-be-true))
