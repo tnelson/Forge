@@ -4,7 +4,7 @@
 
 ;(provide (except-out (all-defined-out) kodkod-port define-ops))
 
-(provide configure declare-ints print-cmd cmd declare-univ declare-rel read-solution)
+(provide configure declare-ints print-cmd cmd declare-univ declare-rel read-solution solve r tupleset (rename-out [-> product]))
 
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
@@ -51,7 +51,7 @@
 
 (define declare-rel
   (case-lambda 
-    [(id lo hi) (print-cmd "(~a [~a ~a])" id lo hi)]
+    [(id lo hi) (print-cmd "(~a [~a :: ~a])" id lo hi)]
     [(id exact) (print-cmd "(~a [~a])" id exact)]))
 
 (define (declare id val)

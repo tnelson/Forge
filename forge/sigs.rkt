@@ -1,8 +1,8 @@
-#lang rosette
+#lang racket
 
-(require forged-ocelot (prefix-in @ rosette)  "nextbutton.rkt" "server/forgeserver.rkt"
+(require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "nextbutton.rkt" "server/forgeserver.rkt"
          "../kodkod-cli/server/kks.rkt" "../kodkod-cli/server/server.rkt"
-         "../kodkod-cli/server/server-common.rkt" "kodkod-translate.rkt" racket/stxparam br/datum)
+         "../kodkod-cli/server/server-common.rkt" "kodkod-translate.rkt" "kodkod-model-translate.rkt" racket/stxparam br/datum)
 
 ;(require (only-in forged-ocelot relation-name))
 
@@ -12,10 +12,10 @@
 (define sigs '())
 ;Track singletons to instantiate an ocelot universe
 (define working-universe '())
-(define singleton-bounds '())
-(define singletons '())
+;(define singleton-bounds '())
+;(define singletons '())
 ;Create and store a singleton relation for each atom for the next button
-(define atomic-rels-store (make-hash))
+;(define atomic-rels-store (make-hash))
 ;Map from relations to lists of types
 (define relations-store (make-hash))
 ;Map from sigs to sigs to track hierarchy
@@ -46,6 +46,9 @@
     [(_ (name vars ...) form) #'(define (name vars ...) form)]
     [(_ name form) #'(define name form)]))
 
+(define (add-constraint c) (set! constraints (cons c constraints)))
+(define (add-constraints cs) (set! constraints (append cs constraints)))
+
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
   (syntax-case stx ()
@@ -55,14 +58,14 @@
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
-         (set! constraints (cons (in field (-> name r ...)) constraints)) ...)]
+         (add-constraint (in field (-> name r ...))) ...)]
     [(_ name ((field r ...) ...) #:extends extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
          (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
-         (set! constraints (cons (in field (-> name r ...)) constraints)) ...
+         (add-constraint (in field (-> name r ...))) ...
          (hash-set! extensions-store name extends)
          (set! parents (cons extends parents))
          (set! constraints (cons (in name extends) constraints)))]
@@ -136,17 +139,17 @@
 (define (populate-sig sig bound)
   (define atoms (map (lambda (n) (string-append (relation-name sig) (number->string n))) (up-to bound)))
   (define sym-atoms (map string->symbol atoms))
-  (set! singleton-bounds (append singleton-bounds (map (lambda (id)
-                                                         (let ([rel (declare-relation 1 (string-append "$atomic-" id))])
-                                                           (set! singletons (cons (list (format-datum `~a id) rel) singletons))
-                                                           (make-exact-bound rel (format-datum `((~a)) id))))
-                                                       atoms)))
+  ;(set! singleton-bounds (append singleton-bounds (map (lambda (id)
+  ;                                                       (let ([rel (declare-relation 1 (string-append "$atomic-" id))])
+  ;                                                         (set! singletons (cons (list (format-datum `~a id) rel) singletons))
+  ;                                                         (make-exact-bound rel (format-datum `((~a)) id))))
+  ;                                                     atoms)))
   (set! working-universe (append sym-atoms working-universe))
   (hash-set! bounds-store sig sym-atoms)
   (map (lambda (x) (list x)) sym-atoms))
 
 (define (up-to n)
-  (if (= n 1) (list n) (cons n (up-to (@- n 1)))))
+  (if (@= n 1) (list n) (cons n (up-to (@- n 1)))))
 
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
@@ -154,10 +157,11 @@
 (define (run-spec name hashy)
   (append-run name)
   (define sig-bounds (bind-sigs hashy))
-  ;(define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
+  (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   ;(define run-bounds (instantiate-bounds (bounds univ total-bounds)))
   (define allints (expt 2 bitwidth))
   (define inty-univ (append (range allints) working-universe))
+  (define rels (append (hash-keys relations-store) sigs))
   (define kks (new server% 
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
@@ -168,26 +172,59 @@
    [stdin]
    (configure (format ":bitwidth ~a :produce-cores false :solver SAT4J :verbosity 3" bitwidth))
    (declare-univ (length inty-univ))
-   (declare-ints (allints allints)))
-  (define rels (hash-keys bounds-store))
-  (for ([key rels])
+   (declare-ints (range allints) (range allints)))
+  (define (get-atom atom) (index-of inty-univ atom))
+  
+  (writeln inty-univ)
+
+  (define (n-arity-none arity)
+    (cond
+      [(equal? arity 1) 'none]
+      [(@> arity 0) (product 'none (n-arity-none (@- arity 1)))]
+      [else (error "fuuuuuuuuck hi shriram")]))
+
+  (define (adj-bound-lower bound)
+    (define int-atoms (map (lambda (x) (map get-atom x))
+                           (bound-lower bound)))
+    (if (empty? int-atoms)
+        (n-arity-none (relation-arity (bound-relation bound)))
+        (tupleset int-atoms)))
+
+  #|(define (adj-bound-upper bound)
+    (define int-atoms (map (lambda (x) (map get-atom x))
+           (bound-upper key)))
+    (if (empty? int-atoms)
+        (n-arity-none (relation-arity (bound-relation bound)))
+        (tupleset int-atoms)))|#
+  
+  (for ([key total-bounds])
+    (writeln key)
+    (writeln (bound-lower key))
+    (writeln (map (lambda (x)
+                    (map get-atom x))
+                  (bound-lower key)))
+    (writeln (index-of rels (bound-relation key)))
     (cmd
      [stdin]
      (declare-rel
-      (relation-name key)
-      (bound-lower (hash-ref bounds-store key))
-      (bound-upper (hash-ref bounds-store key)))))
+      (r (index-of rels (bound-relation key)))
+      
+      (adj-bound-lower key)
+      (tupleset #:tuples (map (lambda (x) (map get-atom x))
+                              (bound-upper key))))))
   (for ([c constraints] [i (range (length constraints))])
     (cmd 
      [stdin]
      (print-cmd (format "(f~a" i))
-     (interpret-formula c inty-univ rels)
+     (interpret-formula c working-universe rels)
      (print-cmd ")\n")
      (print-cmd (format "(assert f~a)" i))))
-  (cmd [stdin] "(solve)")
+  (cmd [stdin] (solve))
   (define model (read-solution stdout))
-  (print model))
-  ;(display-model model run-bounds singletons name))
+  (println model)
+  (define parsed-model (parse-kodkod model rels inty-univ))
+  (println parsed-model)
+  (display-model parsed-model name))
 
 (define-syntax (run stx)
   (syntax-case stx ()
@@ -225,16 +262,17 @@
     [(_ name preds)
      #'(begin
          (set! constraints (append preds constraints))
-         (append-run name)
-         (define sig-bounds (bind-sigs (make-hash)))
-         (define univ (universe working-universe))
-         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
-         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
-         (define model (get-model (foldl sneaky-and pred constraints)
-                                  run-bounds
-                                  singletons
-                                  name))
-         (display-model model run-bounds singletons name))]
+         (run-spec name (make-hash)))]
+    ;         (append-run name)
+    ;         (define sig-bounds (bind-sigs (make-hash)))
+    ;         (define univ (universe working-universe))
+    ;         (define total-bounds (append (map relation->bounds (hash-keys relations-store)) singleton-bounds sig-bounds))
+    ;         (define run-bounds (instantiate-bounds (bounds univ total-bounds)))
+    ;         (define model (get-model (foldl sneaky-and pred constraints)
+    ;                                  run-bounds
+    ;                                  singletons
+    ;                                  name))
+    ;         (display-model model run-bounds singletons name))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
     [(_ pred) #'(error "Run statements require a unique name specification")]
     [(_) #'(error "Run statements require a unique name specification")]

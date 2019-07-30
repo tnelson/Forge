@@ -1,6 +1,6 @@
 #lang web-server
 
-(require (only-in forged-ocelot relation-name)
+(require (only-in "../lang/ast.rkt" relation-name)
          "../nextbutton.rkt" "eval-model.rkt"
          "modelToJSON.rkt" racket/format
          racket/runtime-path xml
@@ -16,8 +16,6 @@
 (struct model-display (relations))
 
 (define $$MODEL$$ "")
-(define $$BOUNDS$$ "")
-(define $$SINGLETONS$$ "")
 (define $$MODELS-LIST$$ '())
 (define $$EVAL-OUTPUT$$ "")
 (define $$MODEL-NAME$$ "")
@@ -39,12 +37,11 @@
         newmodel)
       model))
 
-(define (display-model model bounds singletons name)
+(define (display-model model name)
   (thread (lambda () (begin
                        (set! $$MODEL-NAME$$ name)
                        (set! $$MODEL$$ (model-trim model))
-                       (set! $$BOUNDS$$ bounds)
-                       (set! $$SINGLETONS$$ singletons)
+                       ;(set! $$BOUNDS$$ bounds)
                        (begin 
                          (serve/servlet start
                                         #:stateless? #t
@@ -131,7 +128,7 @@
        (next-handler (lambda (request)
                        (if (= count (- (length $$MODELS-LIST$$) 1))
                            (begin
-                             (set! $$MODEL$$ (model-trim (get-next-model $$BOUNDS$$ $$SINGLETONS$$ $$MODEL-NAME$$)))
+                             (set! $$MODEL$$ (model-trim (get-next-model $$MODEL-NAME$$)))
                              (set! $$CURRENT-TAB$$ "graph")
                              (display (+ count 1) (redirect/get) model-parser))
                            (begin

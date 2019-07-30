@@ -1,4 +1,4 @@
-#lang rosette
+#lang racket
 
 (require (for-syntax racket/syntax) (prefix-in @ rosette) (prefix-in $ racket))
 
