@@ -33,6 +33,7 @@
 (struct int-bound (lower upper) #:transparent)
 
 (define (fact form)
+  (writeln form)
   (set! constraints (cons form constraints)))
 
 (provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or set-bitwidth < > add subtract multiply divide int= card sum) 
@@ -197,9 +198,9 @@
   (for ([c constraints] [i (range (length constraints))])
     (cmd 
      [stdin]
-     (print-cmd (format "(f~a" i))
-     (interpret-formula c working-universe rels)
-     (print-cmd ")\n")
+     (print-cmd-cont (format "(f~a" i))
+     (interpret-formula c rels '())
+     (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
   (cmd [stdin] (solve))
   (define model (read-solution stdout))

@@ -4,125 +4,134 @@
 
 (provide interpret-formula)
 
-(define (interpret-formula formula universe relations)
+(define (get-var-idx var quantvars)
+  (- (length quantvars) (index-of quantvars var)))
+
+; quantvars should start at -1
+(define (interpret-formula formula relations quantvars)
   (match formula
     [(node/formula/constant type)
-     (print-cmd (format "~a " type))]
+     ( print-cmd-cont (format "~a " type))]
     [(node/formula/op args)
-     (interpret-formula-op formula universe relations args)]
+     (interpret-formula-op formula relations quantvars args)]
     [(node/formula/multiplicity mult expr)
-     (print-cmd (format "(~a " mult ))
-     (interpret-expr expr universe relations)
-     (print-cmd ")")]
+     ( print-cmd-cont (format "(~a " mult ))
+     (interpret-expr expr relations quantvars)
+     ( print-cmd-cont ")")]
     [(node/formula/quantified quantifier decls form)
-     (print-cmd (format "(~a ([~a : one" quantifier (car (car decls))))
-     (interpret-expr (cdr (car decls)) universe relations)
-     (print-cmd "]) ")
-     (interpret-formula form universe relations)
-     (print-cmd ")")]
+     (writeln formula)
+     (define var (car (car decls)))
+     (let ([quantvars (cons var quantvars)])
+       ( print-cmd-cont (format "(~a ([~a : one " quantifier (v (get-var-idx var quantvars))))
+       (interpret-expr (cdr (car decls)) relations quantvars)
+       ( print-cmd-cont "]) ")
+       (interpret-formula form relations quantvars)
+       ( print-cmd-cont ")"))]
     ))
 
-(define (interpret-formula-op formula universe relations args)
+(define (interpret-formula-op formula relations quantvars args)
   (match formula
     [(? node/formula/op/&&?)
-     (print-cmd "(&& ")
-     (map (lambda (x) (interpret-formula x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(&& ")
+     (map (lambda (x) (interpret-formula x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/formula/op/||?)
-     (print-cmd "(|| ")
-     (map (lambda (x) (interpret-formula x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(|| ")
+     (map (lambda (x) (interpret-formula x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/formula/op/=>?)
-     (print-cmd "(=> ")
-     (map (lambda (x) (interpret-formula x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(=> ")
+     (map (lambda (x) (interpret-formula x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/formula/op/in?)
-     (print-cmd "(in ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(in ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/formula/op/int>?)
-     (print-cmd "(> ")
-     (map (lambda (x) (interpret-int x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(> ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/formula/op/int<?)
-     (print-cmd "(< ")
-     (map (lambda (x) (interpret-int x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(< ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/formula/op/int=?)
-     (print-cmd "(= ")
-     (map (lambda (x) (interpret-int x universe relations)) args)
-     (print-cmd ")")]))
+     ( print-cmd-cont "(= ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]))
 
-(define (interpret-expr expr universe relations)
+(define (interpret-expr expr relations quantvars)
   (match expr
     [(node/expr/relation arity name)
-     (print-cmd (format "r~a " (index-of relations expr)))]
+     ( print-cmd-cont (format "r~a " (index-of relations expr)))]
     [(node/expr/constant arity type)
-     (print-cmd (format "~a " type))]
+     ( print-cmd-cont (format "~a " type))]
     [(node/expr/op arity args)
-     (interpret-expr-op expr universe relations args)]))
+     (interpret-expr-op expr relations quantvars args)]
+    [(node/expr/quantifier-var arity sym)
+     ( print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))]))
 
-(define (interpret-expr-op expr universe relations args)
+(define (interpret-expr-op expr relations quantvars args)
   (match expr
     [(? node/expr/op/+?)
-     (print-cmd "(+ ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(+ ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/expr/op/-?)
-     (print-cmd "(- ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(- ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/expr/op/&?)
-     (print-cmd "(& ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(& ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/expr/op/->?)
-     (print-cmd "(-> ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(-> ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/expr/op/join?)
-     (print-cmd "(. ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(. ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/expr/op/^?)
-     (print-cmd "(^ ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(^ ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/expr/op/*?)
-     (print-cmd "(* ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]))
+     ( print-cmd-cont "(* ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]))
 
-(define (interpret-int expr universe relations)
+(define (interpret-int expr relations quantvars)
   (match expr
     [(node/int/constant value)
-     (print-cmd (number->string value))]
+     ( print-cmd-cont (number->string value))]
     [(node/int/op args)
-     (interpret-int-op expr universe relations args)]))
+     (interpret-int-op expr relations quantvars args)]))
 
-(define (interpret-int-op expr universe relations args)
+(define (interpret-int-op expr relations quantvars args)
   (match expr
     [(? node/int/op/add?)
-     (print-cmd "(+ ")
-     (map (lambda (x) (interpret-int x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(+ ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/int/op/subtract?)
-     (print-cmd "(- ")
-     (map (lambda (x) (interpret-int x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(- ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/int/op/multiply?)
-     (print-cmd "(* ")
-     (map (lambda (x) (interpret-int x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(* ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
     [(? node/int/op/divide?)
-     (print-cmd "(/ ")
-     (map (lambda (x) (interpret-int x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(/ ")
+     (map (lambda (x) (interpret-int x relations quantvars )) args)
+     ( print-cmd-cont ")")]
     [(? node/int/op/sum?)
-     (print-cmd "(sum ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]
+     ( print-cmd-cont "(sum ")
+     (map (lambda (x) (interpret-expr x relations quantvars )) args)
+     ( print-cmd-cont ")")]
     [(? node/int/op/card?)
-     (print-cmd "(# ")
-     (map (lambda (x) (interpret-expr x universe relations)) args)
-     (print-cmd ")")]))
+     ( print-cmd-cont "(# ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     ( print-cmd-cont ")")]))

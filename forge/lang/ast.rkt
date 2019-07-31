@@ -116,15 +116,19 @@
 (define-op/closure ^ #f)
 (define-op/closure * @*)
 
+;; -- quantifier vars ----------------------------------------------------------
+
+(struct node/expr/quantifier-var node/expr (sym))
+
 ;; -- comprehensions -----------------------------------------------------------
 
 (struct node/expr/comprehension node/expr (decls formula)
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-    (fprintf port "(comprehension ~a ~a ~a)" 
-                  (node/expr-arity self) 
-                  (node/expr/comprehension-decls self)
-                  (node/expr/comprehension-formula self)))])
+     (fprintf port "(comprehension ~a ~a ~a)" 
+              (node/expr-arity self) 
+              (node/expr/comprehension-decls self)
+              (node/expr/comprehension-formula self)))])
 (define (comprehension decls formula)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
@@ -168,6 +172,8 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (fprintf port "~v" (node/expr/constant-type self)))])
+
+; THESE SHOULD BE MACROS
 (define none (node/expr/constant 1 'none))
 (define univ (node/expr/constant 1 'univ))
 (define iden (node/expr/constant 2 'iden))
@@ -289,8 +295,16 @@
   [(define (write-proc self port mode)
      (match-define (node/formula/quantified quantifier decls formula) self)
      (fprintf port "(~a [~a] ~a)" quantifier decls formula))])
+
 (define (quantified-formula quantifier decls formula)
   (for ([e (in-list (map cdr decls))])
+    (writeln decls)
+    ;(writeln (map cdr decls))
+    ;(writeln (cdr (car decls)))
+    ;(writeln (car decls))
+    ;(writeln (car (car decls)))
+    ;(writeln (cdr (car decls)))
+    ;(writeln e)
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
     (unless (equal? (node/expr-arity e) 1)
@@ -311,14 +325,33 @@
     (raise-argument-error mult "expr?" expr))
   (node/formula/multiplicity mult expr))
 
-(define-syntax (all stx)
+
+#|(define-syntax (all stx)
   (syntax-case stx ()
     [(_ ([x1 r1] ...) pred)
      (with-syntax ([(rel ...) (generate-temporaries #'(r1 ...))])
        (syntax/loc stx
          (let* ([x1 (declare-relation 1)] ...
                 [decls (list (cons x1 r1) ...)])
-           (quantified-formula 'all decls pred))))]))
+           (quantified-formula 'all decls pred))))]))|#
+
+
+
+; ok something of this form works!
+; now to make it actually work.
+; ok, search through pred for instances of v0, replace with just the datum.
+; then, in kodkod-translate, we keep a list of quantified variables, and if we ever hit one we know what to do.
+; and that can only happen in the context of interpret-expr, right? yeah, it always appears in an expression context.
+; and in that scenario, we can always just straight print it!
+
+; OK new plan: reader goes through all 
+(define-syntax (all stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
+  (syntax-case stx ()
+    [(_ ([v0 e0]) pred)
+     ; need a with syntax????
+     (syntax/loc stx
+       (let ([v0 (node/expr/quantifier-var 1 'v0)])
+         (quantified-formula 'all (list (cons v0 e0)) pred)))]))
 
 (define-syntax (some stx)
   (syntax-case stx ()
