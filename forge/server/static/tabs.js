@@ -24,7 +24,7 @@ function openTab(evt, tabName) {
 		cy.center();
 		cy.fit();
 		var layout = cy.layout({
-			name: "cose-bilkent"
+			name: "circle"
 		});
 		layout.run();
 		cy.fit();

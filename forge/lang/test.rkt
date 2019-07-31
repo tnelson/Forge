@@ -2,7 +2,7 @@
 
 (declare-sig node ((graph node)))
 (fact (all ([asdf0 univ]) (some asdf0)))
-(fact (all ([i (+
+;(fact (all ([i (+
 
 (run "test" )
 

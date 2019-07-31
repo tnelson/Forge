@@ -1,7 +1,6 @@
 #lang racket
 
-(require racket/match)
-(require (only-in forged-ocelot relation-name))
+(require racket/match (only-in "../lang/ast.rkt" relation-name))
 
 (provide eval-exp eval-form model->binding)
 
