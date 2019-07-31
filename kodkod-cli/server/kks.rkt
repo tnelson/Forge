@@ -30,6 +30,12 @@
     (fprintf (kodkod-port) arg ...)
     (newline (kodkod-port))))
 
+(define-syntax-rule (print-cmd-nofmt arg ...)
+  (begin 
+    ;(printf  arg ...) (newline)
+    (printf (kodkod-port) arg ...)
+    (newline (kodkod-port))))
+
 (define (print-eof) 
   (display #\uFFFF (kodkod-port)))
 

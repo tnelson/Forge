@@ -175,7 +175,7 @@
   (define stdout (send kks stdout))
   (cmd
    [stdin]
-   (configure (format ":bitwidth ~a :produce-cores false :solver SAT4J :verbosity 3" bitwidth))
+   (configure (format ":bitwidth ~a :produce-cores false :solver SAT4J :max-solutions 100 :verbosity 3" bitwidth))
    (declare-univ (length inty-univ))
    (declare-ints (range allints) (range allints)))
   (define (get-atom atom) (index-of inty-univ atom))
@@ -217,7 +217,8 @@
   (cmd [stdin] (solve))
   (define model (read-solution stdout))
   (define parsed-model (parse-kodkod model rels inty-univ))
-  (display-model parsed-model name))
+  (define (get-next-model) (parse-kodkod (read-solution stdout) rels inty-univ))
+  (display-model parsed-model name get-next-model))
 
 (define-syntax (run stx)
   (syntax-case stx ()

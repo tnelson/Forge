@@ -6,6 +6,8 @@
 
 (declare-one-sig kittyBacon #:extends abstract-cat)
 
-(pred should-be-true (> 4 3))
+(pred no-self-loops (no (& iden friends)))
 
-(run "floopdedoop" (should-be-true) ((kitty 2 3)))
+(pred two-way-street (= friends (~ friends)))
+
+(run "kittyBacon" (no-self-loops two-way-street) ((kitty 2 3)))

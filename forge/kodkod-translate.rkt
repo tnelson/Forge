@@ -40,6 +40,10 @@
      (print-cmd "(in ")
      (map (lambda (x) (interpret-expr x universe relations)) args)
      (print-cmd ")")]
+    [(? node/formula/op/=?)
+     (print-cmd "(= ")
+     (map (lambda (x) (interpret-expr x universe relations)) args)
+     (print-cmd ")")]
     [(? node/formula/op/int>?)
      (print-cmd "(> ")
      (map (lambda (x) (interpret-int x universe relations)) args)
@@ -90,6 +94,10 @@
      (print-cmd ")")]
     [(? node/expr/op/*?)
      (print-cmd "(* ")
+     (map (lambda (x) (interpret-expr x universe relations)) args)
+     (print-cmd ")")]
+    [(? node/expr/op/~?)
+     (print-cmd "(~a " '~)
      (map (lambda (x) (interpret-expr x universe relations)) args)
      (print-cmd ")")]))
 
