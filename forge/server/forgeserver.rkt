@@ -19,6 +19,7 @@
 (define $$MODELS-LIST$$ '())
 (define $$EVAL-OUTPUT$$ "")
 (define $$MODEL-NAME$$ "")
+(define $$NEXT-MODEL$$ "")
 
 (define $$CURRENT-TAB$$ "graph")
 
@@ -37,10 +38,11 @@
         newmodel)
       model))
 
-(define (display-model model name)
+(define (display-model model name next-model)
   (thread (lambda () (begin
                        (set! $$MODEL-NAME$$ name)
                        (set! $$MODEL$$ (model-trim model))
+                       (set! $$NEXT-MODEL$$ next-model)
                        ;(set! $$BOUNDS$$ bounds)
                        (begin 
                          (serve/servlet start
@@ -128,7 +130,7 @@
        (next-handler (lambda (request)
                        (if (= count (- (length $$MODELS-LIST$$) 1))
                            (begin
-                             (set! $$MODEL$$ (model-trim (get-next-model $$MODEL-NAME$$)))
+                             (set! $$MODEL$$ (model-trim ($$NEXT-MODEL$$)))
                              (set! $$CURRENT-TAB$$ "graph")
                              (display (+ count 1) (redirect/get) model-parser))
                            (begin

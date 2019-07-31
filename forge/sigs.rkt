@@ -16,7 +16,6 @@
 (define relations-store (make-hash))
 ;Map from sigs to sigs to track hierarchy
 (define extensions-store (make-hash))
-(define parents '())
 ;Map from relations to explicit bounds
 (define bounds-store (make-hash))
 ;Map from relations to int bounds
@@ -38,6 +37,9 @@
 
 (provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or set-bitwidth < > add subtract multiply divide int= card sum) 
 
+(define (add-relation rel types)
+  (hash-set! relations-store rel types))
+
 (define-syntax (pred stx)
   (syntax-case stx ()
     [(_ (name vars ...) form) #'(define (name vars ...) form)]
@@ -45,6 +47,12 @@
 
 (define (add-constraint c) (set! constraints (cons c constraints)))
 (define (add-constraints cs) (set! constraints (append cs constraints)))
+
+(define (add-extension child parent)
+  (hash-set! extensions-store child parent))
+
+(define (add-int-bound rel int-bound)
+  (hash-set! int-bounds-store rel int-bound))
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
@@ -54,17 +62,16 @@
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (add-relation (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...)]
     [(_ name ((field r ...) ...) #:extends extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (add-relation (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
-         (hash-set! extensions-store name extends)
-         (set! parents (cons extends parents))
+         (add-extension name extends)
          (add-constraint (cons (in name extends) constraints)))]
     [(_ name)
      #'(begin
@@ -74,8 +81,7 @@
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
-         (hash-set! extensions-store name extends)
-         (set! parents (cons extends parents))
+         (add-extension name extends)
          (add-constraint (in name extends)))]))
 
 (define-syntax (declare-one-sig stx)
@@ -85,32 +91,30 @@
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (add-relation (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
-         (hash-set! int-bounds-store name (int-bound 1 1)))]
+         (add-int-bound name (int-bound 1 1)))]
     [(_ name ((field r ...) ...) #:extends extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (hash-set! relations-store (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (add-relation (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
-         (hash-set! int-bounds-store name (int-bound 1 1))
-         (hash-set! extensions-store name extends)
-         (set! parents (cons extends parents))
+         (add-int-bound name (int-bound 1 1))
+         (add-extension name extends)
          (add-constraint (in name extends)))]
     [(_ name)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
-         (hash-set! int-bounds-store name (int-bound 1 1)))]
+         (add-int-bound int-bounds-store name (int-bound 1 1)))]
     [(_ name #:extends extends)
      #'(begin
          (define name (declare-relation 1 (symbol->string 'name)))
          (add-sig (symbol->string 'name))
-         (hash-set! int-bounds-store name (int-bound 1 1))
-         (hash-set! extensions-store name extends)
-         (set! parents (cons extends parents))
+         (add-int-bound name (int-bound 1 1))
+         (add-extension name extends)
          (add-constraint (in name extends)))]))
 
 (define (add-sig name)
@@ -121,27 +125,38 @@
 ; Populates the universe with atoms according to the bounds specified by a run statement
 ; Returns a list of bounds objects
 (define (bind-sigs hashy-bounds)
-  (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
-                       (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms))) sigs))
+  (append
+   (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
+                       (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
+       (filter (lambda (x) (@not (member x (hash-values extensions-store)))) sigs))
+   (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (filter (lambda (x) (member x (hash-values extensions-store))) sigs))))
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
 (define (get-bound sig hashy-bounds)
-  (if
-   (hash-has-key? hashy-bounds sig)
-   (hash-ref hashy-bounds sig)
-   (if (hash-has-key? int-bounds-store sig)
-       (hash-ref int-bounds-store sig)
-       (int-bound 0 top-level-bound))))
+  (cond
+    [(hash-has-key? hashy-bounds sig)
+     (hash-ref hashy-bounds sig)]
+    [(hash-has-key? int-bounds-store sig)
+     (hash-ref int-bounds-store sig)]
+    [else
+     (int-bound 0 top-level-bound)]))
 
 (define (populate-sig sig bound)
-  (define atoms (map (lambda (n) (string-append (relation-name sig) (number->string n))) (up-to bound)))
+  (define atoms (map (lambda (n) (string-append (relation-name sig) (number->string n))) (range bound)))
   (define sym-atoms (map string->symbol atoms))
   (set! working-universe (append sym-atoms working-universe))
   (hash-set! bounds-store sig sym-atoms)
-  (map (lambda (x) (list x)) sym-atoms))
-
-(define (up-to n)
-  (if (@= n 1) (list n) (cons n (up-to (@- n 1)))))
+  (define out (map (lambda (x) (list x)) sym-atoms))
+  (if (hash-has-key? extensions-store sig)
+      (let ([parent (hash-ref extensions-store sig)])
+        (begin
+          (if (hash-has-key? bounds-store parent)
+              (hash-set! bounds-store parent (append sym-atoms (hash-ref bounds-store parent)))
+              (hash-set! bounds-store parent sym-atoms))
+          out))
+      out))
+;(define (up-to n)
+ ; (if (@= n 1) (list n) (cons n (up-to (@- n 1)))))
 
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
@@ -161,11 +176,10 @@
   (define stdout (send kks stdout))
   (cmd
    [stdin]
-   (configure (format ":bitwidth ~a :produce-cores false :solver SAT4J :verbosity 3" bitwidth))
+   (configure (format ":bitwidth ~a :produce-cores false :solver SAT4J :max-solutions 100 :verbosity 3" bitwidth))
    (declare-univ (length inty-univ))
    (declare-ints (range allints) (range allints)))
   (define (get-atom atom) (index-of inty-univ atom))
-
   (define (n-arity-none arity)
     (cond
       [(equal? arity 1) 'none]
@@ -177,15 +191,14 @@
                            (bound-lower bound)))
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
-        (tupleset int-atoms)))
+        (tupleset #:tuples int-atoms)))
 
   #|(define (adj-bound-upper bound)
     (define int-atoms (map (lambda (x) (map get-atom x))
            (bound-upper key)))
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
-        (tupleset int-atoms)))|#
-  
+        (tupleset #:tuples int-atoms)))|#
   (for ([key total-bounds])
     (cmd
      [stdin]
@@ -205,7 +218,8 @@
   (cmd [stdin] (solve))
   (define model (read-solution stdout))
   (define parsed-model (parse-kodkod model rels inty-univ))
-  (display-model parsed-model name))
+  (define (get-next-model) (parse-kodkod (read-solution stdout) rels inty-univ))
+  (display-model parsed-model name get-next-model))
 
 (define-syntax (run stx)
   (syntax-case stx ()

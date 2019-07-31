@@ -44,9 +44,15 @@
      (map (lambda (x) (interpret-formula x relations quantvars)) args)
      ( print-cmd-cont ")")]
     [(? node/formula/op/in?)
-     ( print-cmd-cont "(in ")
+
+     (print-cmd-cont "(in ")
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
-     ( print-cmd-cont ")")]
+     (print-cmd-cont ")")]
+    [(? node/formula/op/=?)
+     (print-cmd-cont "(= ")
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     (print-cmd-cont ")")]
+
     [(? node/formula/op/int>?)
      ( print-cmd-cont "(> ")
      (map (lambda (x) (interpret-int x relations quantvars)) args)
@@ -98,9 +104,13 @@
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
      ( print-cmd-cont ")")]
     [(? node/expr/op/*?)
-     ( print-cmd-cont "(* ")
+     (print-cmd-cont "(* ")
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
-     ( print-cmd-cont ")")]))
+     (print-cmd-cont ")")]
+    [(? node/expr/op/~?)
+     (print-cmd-cont "(~a " '~)
+     (map (lambda (x) (interpret-expr x relations quantvars)) args)
+     (print-cmd-cont ")")]))
 
 (define (interpret-int expr relations quantvars)
   (match expr

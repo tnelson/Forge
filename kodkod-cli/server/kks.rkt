@@ -16,7 +16,7 @@
 
 ; All command functions from this module (e.g., solve)
 ; write their Kodkod command to kodkod-port.
-(define kodkod-port 
+(define kodkod-port
   (make-parameter (current-output-port)
                   (lambda (port)
                     (unless (output-port? port)
@@ -25,7 +25,7 @@
 
 ; Prints the given command string to the kodkod-port.
 (define-syntax-rule (print-cmd arg ...)
-  (begin 
+  (begin
     ;(printf  arg ...) (newline)
     (fprintf (kodkod-port) arg ...)
     (newline (kodkod-port))))
@@ -34,13 +34,19 @@
   (begin
     (fprintf (kodkod-port) arg ...)))
 
-(define (print-eof) 
+(define-syntax-rule (print-cmd-nofmt arg ...)
+  (begin
+    ;(printf  arg ...) (newline)
+    (printf (kodkod-port) arg ...)
+    (newline (kodkod-port))))
+
+(define (print-eof)
   (display #\uFFFF (kodkod-port)))
 
 ; Commands
 (define (configure . kvs) (print-cmd "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs)))
 (define (assert val)      (print-cmd "(assert ~a)" val))
-(define (solve)           (print-cmd "(solve)") (print-eof))  
+(define (solve)           (print-cmd "(solve)") (print-eof))
 (define (clear)           (print-cmd "(clear)") (print-eof))
 
 ;; Declarations and definitions
@@ -54,7 +60,7 @@
   (print-cmd "])"))
 
 (define declare-rel
-  (case-lambda 
+  (case-lambda
     [(id lo hi) (print-cmd "(~a [~a :: ~a])" id lo hi)]
     [(id exact) (print-cmd "(~a [~a])" id exact)]))
 
@@ -69,7 +75,7 @@
 (define (v idx) (format-symbol "v~a" idx))  ; bitvector expression
 
 ; Built-in constants
-(define-values (TRUE FALSE UNIV NONE IDEN INTS) 
+(define-values (TRUE FALSE UNIV NONE IDEN INTS)
   (apply values '(true false univ none iden ints)))
 
 ; Tuples
@@ -80,25 +86,25 @@
     [(_ #:area  from to) (format "{~a # ~a}" from to)]
     [(_ #:tuples ts)     (format "{~a}" (keyword-apply ~a '(#:separator) '(" ") ts))]
     [(_ t ...)           (format "{~a}" (~a t ... #:separator " "))]))
-    
+
 ; Operators
 (define-syntax-rule (define-ops [id symbol] ...)
   (define-values (id ...)
     (values (lambda e `(symbol ,@e)) ...)))
 
-(define-ops 
+(define-ops
   ; polymorphic
-  [ite ite] [= =]                                     
-  
+  [ite ite] [= =]
+
   ; boolean
-  [not !] [and &&] [or \|\|] [<=> <=>] [=> =>]   
-  
+  [not !] [and &&] [or \|\|] [<=> <=>] [=> =>]
+
   ; bitvector
-  [set set] [bvabs abs] [bvsgn sgn] [bvneg -] [bvnot ~]          
-  [bvslt <] [bvsle <=] [bvand &] [bvor \|] [bvxor ^] 
+  [set set] [bvabs abs] [bvsgn sgn] [bvneg -] [bvnot ~]
+  [bvslt <] [bvsle <=] [bvand &] [bvor \|] [bvxor ^]
   [bvshl <<] [bvlshr >>>] [bvashr >>]
   [bvadd +] [bvsub -] [bvmul *] [bvsdiv /] [bvsrem %]
-  
+
   ; relational
   [no no] [lone lone] [one one] [some some] [sum sum] [-> ->] [in in])
 
@@ -106,19 +112,19 @@
 (define (quant-constraint quant id mult expr constraint)
   (print-cmd (format "(~a ([~a : ~a ~a]) ~a)" quant id mult expr constraint)))
 
-; Reads a solution to a Kodkod problem from specified 
+; Reads a solution to a Kodkod problem from specified
 ; input port and returns a hashtable or a list.
 ;
-; If the problem  is satisfiable, the result is a 
-; hashtable mapping relation identifiers to sets of 
-; tuples.  A set of tuples is represented as a list of 
-; lists (of natural numbers), with no duplicates.  
+; If the problem  is satisfiable, the result is a
+; hashtable mapping relation identifiers to sets of
+; tuples.  A set of tuples is represented as a list of
+; lists (of natural numbers), with no duplicates.
 ;
-; If the problem is unsatisfiable, the result is a set 
-; of formula identifiers, represented as a list with no 
-; duplicates, which identify the formulas in the problem 
-; that form a minimal unsatisfiable core.  The produced 
-; list will be non-empty if the underlying solver was 
+; If the problem is unsatisfiable, the result is a set
+; of formula identifiers, represented as a list with no
+; duplicates, which identify the formulas in the problem
+; that form a minimal unsatisfiable core.  The produced
+; list will be non-empty if the underlying solver was
 ; instructed to provide cores; it will be empty otherwise.
 (define (read-solution port)
   (match (read port)
@@ -127,9 +133,3 @@
     [(list (== 'unsat) (== ':core) (list fid ...)) fid]
     [(list (== 'unsat)) '()]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
-
-
-
-  
-
-
