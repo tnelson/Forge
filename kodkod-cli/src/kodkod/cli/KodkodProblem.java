@@ -445,6 +445,11 @@ import org.parboiled.errors.ActionException;
 		return true;
 	}
 
+	// boolean printObj(Object obj) {
+	// 	System.out.println(obj);
+	// 	return true;
+	// }
+
 	/**
 	 * Creates a set of relations with the given indices, adds them to {@code this.env.defs['r']},
 	 * and bounds them in {@code this.bounds} using the given lower/upper bounds.
@@ -543,11 +548,6 @@ import org.parboiled.errors.ActionException;
 
 		public KodkodProblem solve(KodkodOutput out) {
 			try {
-
-				//System.out.println("ASSERTS: " + asserts().toString());
-				//System.out.println("BOUNDS: " + bounds().toString());
-				//System.out.println("HEEEEERE");
-
 				if (maxSolutions()==1) {
 					write(out, solver.solve(asserts(), bounds()));
 				} else {

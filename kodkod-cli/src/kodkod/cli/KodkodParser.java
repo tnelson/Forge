@@ -511,7 +511,7 @@ public class KodkodParser extends BaseParser<Object> {
 							NaryExpr(PLUS, 		ExprOperator.UNION),
 							NaryExpr(AMP, 		ExprOperator.INTERSECTION),
 							NaryExpr(ARROW,		ExprOperator.PRODUCT),
-							NaryExpr(MINUS,		ExprOperator.DIFFERENCE),
+							NaryExpr(MINUS, ExprOperator.DIFFERENCE),
 							UnaryExpr(TILDE,	ExprOperator.TRANSPOSE),
 							UnaryExpr(HAT, 		ExprOperator.CLOSURE),
 							UnaryExpr(STAR, 	ExprOperator.REFLEXIVE_CLOSURE),
@@ -529,12 +529,78 @@ public class KodkodParser extends BaseParser<Object> {
 		return Sequence(ITE, Constraint(), Expr(), Expr(),		swap3(), push(ite(popFormula(), popExpr(), popExpr())));
 	}
 
+	boolean pnt(Object a){
+		System.out.println(a);
+		System.out.flush();
+		return true;
+	} boolean pnt(Object a, Object b){
+		System.out.print(a);
+		System.out.println(b);
+		System.out.flush();
+		return true;
+	}
+
+	boolean end(List<Expression> argsget){
+		if (argsget != null){
+			System.exit(0);
+		}
+		return true;
+	}
+
 	@Cached /** @return opRule Expr+ */
 	Rule NaryExpr(Rule opRule, ExprOperator op) {
+		//pnt("ENTER NARY");
+
+		// this is meaningless because it would only print during the construction phase.
+
+		//System.out.println("ENTER NARY");
+		// ok i have a suspicion that because this is nary, when really it should be binary, it's adding too many?
+		// nope, somehow the args are propagating up.
+
+		// OH. ok, i see what's happening. This args is persistent across naryexpr(minus) calls, but only yeah when
+		// the oprule arg is minus.
+		// so it sees the first minus, sets it to []. then checks other nary ops, they don't work,
+		// then checks minus again, and it's still [].
+
+		// then something goes wrong on returns, that's been the issue.
+
+		// so what's going wrong? well, i see now it's not an issue with parboil.
+		// every time you enter a rule, you execute the action variables! but actionvars are persistent across their cached rules.
+		// so initializing them is great, but you also have to reset them at the end of the rule, or else the parent will see changes.
+		// yeah so that's the way to think about it. everything works the way you expect,
+		// except for the fact that args is shared across all instances of NaryExpr(rule, op)
+
+		// so how do I fix this? reinitialize when you go deeper, and reset to initial state when you leave.
+		// how can I reset to initial state? probably by manipulating the stack.
+
+		// can I use the stack like that? I hope so.
+
 		final Var<List<Expression>> args = new Var<>();
-		return Sequence(opRule,									args.set(new ArrayList<Expression>(4)),
-						OneOrMore(Expr(),						args.get().add(popExpr())),
-																push(compose(op, args.get())));
+		return Sequence(										//pnt("TRYING NARY: ", args.get()),
+																//pnt("OP: ", opRule),
+																push(args.get()),
+																//end(args.get()),
+
+
+						opRule,									//pnt("GOT BEFORE"),
+																args.set(new ArrayList<Expression>(4)),
+																//pnt("FORCE: ", args.get()),
+																//args.set(null),
+																//pnt("GOT HERE"),
+						OneOrMore(Expr(),						//pnt("NARY MATCHED, EXPR RETURNED to NARY: ", peekExpr()),
+																//pnt("args before add ", args.get()),
+																args.get().add(popExpr())
+																//pnt("args after add ", args.get())
+																),
+																//pnt("NARY ALL ARGS: ", args.get()),
+																push(compose(op, args.get())),
+																//pnt("NARY RETURNING: ", peekExpr()),
+																swap(),
+																args.set(popList())
+																//args.set(new ArrayList<Expression>(4))
+
+																);
+																//push(compose(op, args.get())));
 	}
 
 	@Cached /** @return opRule Expr */
@@ -826,7 +892,6 @@ public class KodkodParser extends BaseParser<Object> {
  	final Integer  		popInt() 			{ return (Integer) pop(); }
 	final Boolean  		popBool()			{ return (Boolean) pop(); }
 	final Options  		popOptions()		{ return (Options) pop(); }
-	final Options  		peekOptions()		{ return (Options) peek(); }
 	final Tuple    		popTuple()			{ return (Tuple) pop(); }
 	final TupleSet 		popTupleSet()		{ return (TupleSet) pop(); }
 	final Relation 		popRelation()		{ return (Relation) pop(); }
@@ -836,7 +901,12 @@ public class KodkodParser extends BaseParser<Object> {
 	final Decls			popDecls()			{ return (Decls) pop(); }
 	final Multiplicity  popMult()			{ return (Multiplicity) pop(); }
 	final DefEnv		popEnv()			{ return (DefEnv) pop(); }
+
+	final List			popList()			{ return (List) pop(); }
 	final DefEnv		peekEnv()			{ return (DefEnv) peek(); }
+	final Multiplicity  peekMult()			{ return (Multiplicity) peek(); }
+	final Expression	peekExpr()			{ return (Expression) peek(); }
+	final Options  		peekOptions()		{ return (Options) peek(); }
 
 	/**
 	 * Returns the current lexical environment, which is the first environment

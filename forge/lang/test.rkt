@@ -1,7 +1,8 @@
 #lang forge
 
 (declare-sig node ((graph node)))
-(fact (all ([asdf0 univ]) (some asdf0)))
+;(fact (all ([asdf0 univ]) (some asdf0)))
+(fact (all ([asdf0 (set 5)]) (= (sum asdf0) 5)))
 ;(fact (all ([i (+
 
 (run "test" )
