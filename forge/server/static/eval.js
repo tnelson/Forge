@@ -2,7 +2,10 @@ function MakeAjaxRequest(data){
     req = new XMLHttpRequest();
     req.onreadystatechange = function() {
         if (req.readyState == 4 && req.status == 200) {
-            document.getElementById("eval-output").innerHTML += this.responseText + "\n";
+            var eout =  document.getElementById("eval-output");
+            eout.innerHTML += this.responseText + "<br>";
+            eout.scrollTop = eout.scrollHeight;
+            document.getElementById("eval-input").innerHTML = "";
         }
       };
     req.open('POST', evalurl, true);
@@ -13,7 +16,8 @@ function MakeAjaxRequest(data){
 }
 
 function SendQuery(query){
-    if(event.key === 'Enter') {
-        MakeAjaxRequest(query.value);        
+    if (event.key === 'Enter') {
+        MakeAjaxRequest(query.value);
+        document.getElementById("eval-output").innerHTML += "\> " + query.value + "<br>";
     }
 }

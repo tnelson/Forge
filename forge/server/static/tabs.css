@@ -37,8 +37,34 @@
   width: 60%;
 }
 
+.navbutton {
+  display: inline;
+}
 
 .repl {
   float: right;
-  width: 30%;
+}
+
+#wrapper {
+  width: 95%;
+  height: 800px;
+  position: relative;
+}
+
+#list {
+  font-family: Menlo;
+}
+
+#content {
+  position: absolute; 
+  top: 0; 
+  left: 0;
+  width: 100%;
+}
+
+#evaluator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 35%;
 }
