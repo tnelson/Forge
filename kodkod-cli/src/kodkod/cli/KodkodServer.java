@@ -288,6 +288,6 @@ public final class KodkodServer {
 			}
 		}
 		(new KodkodServer(incremental, fastParsing, errorOut)).serve();
-		
+
 	}
 }
