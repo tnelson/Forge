@@ -141,12 +141,10 @@
 
 (define-syntax (set stx)
   (syntax-case stx ()
-    [(_ ([x1 r1] ...) pred)
-     (with-syntax ([(rel ...) (generate-temporaries #'(r1 ...))])
-       (syntax/loc stx
-         (let* ([x1 (declare-relation 1)] ...
-                [decls (list (cons x1 r1) ...)])
-           (comprehension decls pred))))]))
+    [(_ ([r0 e0] ...) pred)
+     (syntax/loc stx
+       (let* ([r0 (node/expr/quantifier-var 1 'r0)] ... )
+         (comprehension (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 
@@ -226,6 +224,8 @@
 
 ;; -- constants ----------------------------------------------------------------
 
+
+
 (struct node/formula/constant node/formula (type) #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
@@ -258,6 +258,7 @@
 
 (define-formula-op in node/expr? #:same-arity? #t #:max-length 2)
 (define-formula-op = node/expr? #:same-arity? #t #:max-length 2 #:lift @=)
+(define-formula-op ordered node/expr? #:max-length 2)
 
 (define-formula-op && node/formula? #:min-length 1 #:lift #f)
 (define-formula-op || node/formula? #:min-length 1 #:lift #f)
@@ -298,7 +299,7 @@
 
 (define (quantified-formula quantifier decls formula)
   (for ([e (in-list (map cdr decls))])
-    (writeln decls)
+    ; (writeln decls)
     ;(writeln (map cdr decls))
     ;(writeln (cdr (car decls)))
     ;(writeln (car decls))
@@ -347,32 +348,38 @@
 ; OK new plan: reader goes through all 
 (define-syntax (all stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
   (syntax-case stx ()
+    [(_ ([v0 e0] ...) pred)
+     ; need a with syntax????
+     (syntax/loc stx
+       (let ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+         (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))
+
+#|(define-syntax (one stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
+  (syntax-case stx ()
     [(_ ([v0 e0]) pred)
      ; need a with syntax????
      (syntax/loc stx
        (let ([v0 (node/expr/quantifier-var 1 'v0)])
-         (quantified-formula 'all (list (cons v0 e0)) pred)))]))
+         (quantified-formula 'one (list (cons v0 e0)) pred)))]))|#
+
+
 
 (define-syntax (some stx)
   (syntax-case stx ()
-    [(_ ([x1 r1] ...) pred)
-     (with-syntax ([(rel ...) (generate-temporaries #'(r1 ...))])
-       (syntax/loc stx
-         (let* ([x1 (declare-relation 1)] ...
-                [decls (list (cons x1 r1) ...)])
-           (quantified-formula 'some decls pred))))]
+    [(_ ([v0 e0] ...) pred)
+     (syntax/loc stx
+       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+         (quantified-formula 'some (list (cons v0 e0) ...) pred)))]
     [(_ expr)
      (syntax/loc stx
        (multiplicity-formula 'some expr))]))
 
 (define-syntax (no stx)
   (syntax-case stx ()
-    [(_ ([x1 r1] ...) pred)
-     (with-syntax ([(rel ...) (generate-temporaries #'(r1 ...))])
-       (syntax/loc stx
-         (let* ([x1 (declare-relation 1)] ...
-                [decls (list (cons x1 r1) ...)])
-           (! (quantified-formula 'some decls pred)))))]
+    [(_ ([v0 e0] ...) pred)
+     (syntax/loc stx
+       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+         (! (quantified-formula 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
      (syntax/loc stx
        (multiplicity-formula 'no expr))]))

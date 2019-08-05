@@ -19,7 +19,7 @@
      (interpret-expr expr relations quantvars)
      ( print-cmd-cont ")")]
     [(node/formula/quantified quantifier decls form)
-     (writeln formula)
+     ;(writeln formula)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        ( print-cmd-cont (format "(~a ([~a : one " quantifier (v (get-var-idx var quantvars))))
@@ -53,6 +53,11 @@
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
      (print-cmd-cont ")")]
 
+    [(? node/formula/op/!?)
+     (print-cmd-cont "(! ")
+     (map (lambda (x) (interpret-formula x relations quantvars)) args)
+     (print-cmd-cont ")")]
+
     [(? node/formula/op/int>?)
      ( print-cmd-cont "(> ")
      (map (lambda (x) (interpret-int x relations quantvars)) args)
@@ -75,7 +80,16 @@
     [(node/expr/op arity args)
      (interpret-expr-op expr relations quantvars args)]
     [(node/expr/quantifier-var arity sym)
-     ( print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))]))
+     (print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
+     (print-cmd-cont " ")]
+    [(node/expr/comprehension len decls form)
+     (define var (car (car decls)))
+     (let ([quantvars (cons var quantvars)])
+       ( print-cmd-cont (format "{([~a : " (v (get-var-idx var quantvars))))
+       (interpret-expr (cdr (car decls)) relations quantvars)
+       ( print-cmd-cont "]) ")
+       (interpret-formula form relations quantvars)
+       ( print-cmd-cont "}"))]))
 
 (define (interpret-expr-op expr relations quantvars args)
   (match expr
