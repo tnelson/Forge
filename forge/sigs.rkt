@@ -32,10 +32,10 @@
 (struct int-bound (lower upper) #:transparent)
 
 (define (fact form)
-  (writeln form)
+  ;(writeln form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ no some lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => and or set-bitwidth < > add subtract multiply divide int= card sum) 
+(provide declare-sig set-top-level-bound sigs run fact iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum) 
 
 (define (add-relation rel types)
   (hash-set! relations-store rel types))

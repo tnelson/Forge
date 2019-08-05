@@ -132,4 +132,5 @@
      (for/hash ([r rid][tuples val]) (values r tuples))]
     [(list (== 'unsat) (== ':core) (list fid ...)) fid]
     [(list (== 'unsat)) '()]
+    ;['\#<eof> 'unsat]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
