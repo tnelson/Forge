@@ -123,14 +123,31 @@ public class KodkodParser extends BaseParser<Object> {
 		return true;
 	}
 
+	Rule ServeNext() {
+		return Sequence(SolveNext(), EOI);
+	}
+
+	Rule SolveNext() { return Sequence(LPAR, SOLVE, RPAR,			setProblem(problem.solveNext(out))); }
+
 	/** @return Problem()+ EOI */
-	public Rule Problems() 						{ return OneOrMore(Problem());  }
+	public Rule Problems() {
+		return FirstOf(ServeNext(), OneOrMore(Problem()));
+	}
+
+	// public Rule Problems() {
+	// 	return OneOrMore(Problem());
+	// }
 
 	/** @return (Problem() IncrementalProblem()*)+ EOI */
-	public Rule IncrementalProblems()			{ return OneOrMore(Problem(), ZeroOrMore(IncrementalProblem()));  }
+	// public Rule IncrementalProblems()			{ return OneOrMore(Problem(), ZeroOrMore(IncrementalProblem()));  }
+	public Rule IncrementalProblems()			{ return NOTHING; }
 
 	/** @return (Problem() IncrementalProblem()*)+ EOI */
 	public Rule RestOfIncrementalProblems()		{ return OneOrMore(IncrementalProblem(), ZeroOrMore(IncrementalProblems()));  }
+
+	// a problem can also just be (solve), in which case we just print the next Solution.
+	// but can't be multiple solves (should just be solve + eoi, and can't be series of solve + eoi, cuz that's not
+	// even possible)
 
 	/** @return Exit? Configure Universe DefineInts? IncrementalProblem  */
 	@Cached

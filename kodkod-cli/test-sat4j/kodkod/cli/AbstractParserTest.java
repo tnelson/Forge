@@ -150,9 +150,9 @@ public abstract class AbstractParserTest {
 		// }
 
 
-				if (result.hasErrors()){
-					System.out.println(result.parseErrors);
-				}
+				// if (result.hasErrors()){
+				// 	System.out.println(result.parseErrors);
+				// }
 		assertFalse(result.hasErrors());
 
 

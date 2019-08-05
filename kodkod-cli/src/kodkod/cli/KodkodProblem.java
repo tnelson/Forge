@@ -186,6 +186,22 @@ import org.parboiled.errors.ActionException;
 	 **/
 	public abstract KodkodProblem solve(KodkodOutput out);
 
+	public final KodkodProblem solveNext(KodkodOutput out){
+		if (!KodkodServer.lastModelAvailable){
+			out.writeCore(null, null);
+		} else if (!(KodkodServer.lastModel.hasNext())){
+			out.writeCore(null, null);
+		} else {
+			Solution sol = KodkodServer.lastModel.next();
+			if (sol.sat()){
+				out.writeInstance(sol.instance(), KodkodServer.lastRDefs);
+			} else {
+				out.writeCore(null, null);
+			}
+		}
+		return clear();
+	}
+
 	/**
 	 * Returns the problem definitions environment.  The relation ('r') register in the
 	 * returned environment should not be modified by client code, other than through
@@ -548,11 +564,19 @@ import org.parboiled.errors.ActionException;
 
 		public KodkodProblem solve(KodkodOutput out) {
 			try {
-				if (maxSolutions()==1) {
-					write(out, solver.solve(asserts(), bounds()));
-				} else {
-					write(out, solver.solveAll(asserts(), bounds()));
-				}
+				// if (maxSolutions()==1) {
+				// 	write(out, solver.solve(asserts(), bounds()));
+				// } else {
+					Iterator<Solution> sol = solver.solveAll(asserts(), bounds());
+					// while (sol.hasNext()){
+					// 	System.out.println(sol.next());
+					// }
+					write(out, sol);
+					KodkodServer.lastModel = sol;
+					KodkodServer.lastRDefs = (Defs<Relation>) env().defs('r');
+					KodkodServer.lastFDefs = (Defs<Formula>) env().defs('f');
+					KodkodServer.lastModelAvailable = true;
+				// }
 				return clear();
 			} catch (RuntimeException ex) {
 				throw new ActionException(ex.getMessage(), ex);
@@ -589,6 +613,7 @@ import org.parboiled.errors.ActionException;
 				if (solver==null)
 					solver = IncrementalSolver.solver(options());
 				write(out, solver.solve(asserts(), bounds()));
+				KodkodServer.lastModel = null;
 				return extend();
 			} catch (RuntimeException ex) {
 				throw new ActionException(ex.getMessage(), ex);

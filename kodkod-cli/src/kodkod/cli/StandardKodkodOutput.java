@@ -1,4 +1,4 @@
-/* 
+/*
  * Kodkod -- Copyright (c) 2005-present, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -37,47 +37,47 @@ import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
 
 /**
- * An implementation of the  {@link KodkodOutput} interface that writes solutions provided to it 
- * to standard output, in the form of s-expressions.  Given a satisfiable 
- * solution {@code s}, an instance of this class  will produce output of the form {@code (sat :model ([ri {(int+)*}]*))}, 
- * where each {@code ri} is a relation in {@code s.instance}, and {@code {(int+)*}} is an 
- * s-expression representation of the tupleset {@code s.instance.tuples(ri)}. 
- * Each tupleset is represented as a list of tuples, and each tuple is represented 
- * as a (space-separated) list of atom indices comprising that tuple.  
- * 
+ * An implementation of the  {@link KodkodOutput} interface that writes solutions provided to it
+ * to standard output, in the form of s-expressions.  Given a satisfiable
+ * solution {@code s}, an instance of this class  will produce output of the form {@code (sat :model ([ri {(int+)*}]*))},
+ * where each {@code ri} is a relation in {@code s.instance}, and {@code {(int+)*}} is an
+ * s-expression representation of the tupleset {@code s.instance.tuples(ri)}.
+ * Each tupleset is represented as a list of tuples, and each tuple is represented
+ * as a (space-separated) list of atom indices comprising that tuple.
+ *
  * <p>
- * Given an unsatisfiable solution {@code s} to a problem {@code p}, this implementation will produce output of the 
+ * Given an unsatisfiable solution {@code s} to a problem {@code p}, this implementation will produce output of the
  * form {@code (unsat :core (fi+))}, if a core is available, or of the form {@code (unsat)}, otherwise.
- * Each {@code fi} is a formula identifier in {@code p.env.defs['f']} such that the formula 
+ * Each {@code fi} is a formula identifier in {@code p.env.defs['f']} such that the formula
  * {@code p.env.defs['f'][fi]} is in {@code s.proof.highLevelCore().values()}.  If there are some formulas
- * that are in the core but are not defined in {@code p.env.defs['f']}, a warning message will be printed to 
+ * that are in the core but are not defined in {@code p.env.defs['f']}, a warning message will be printed to
  * a specified {@link Logger logger}.
  * </p>
- * 
+ *
  * <p>
- * For both sat and unsat solutions, a {@link StandardKodkodOutput} instance 
+ * For both sat and unsat solutions, a {@link StandardKodkodOutput} instance
  * prints all statistics as info messages to its {@link Logger logger}.
  * The format of the info messages is unspecified.
  * </p>
- * 
+ *
  * @specfield logger: {@link Logger}
  */
 public final class StandardKodkodOutput implements KodkodOutput {
 	private final Logger logger;
-	
+
 	/**
 	 * Creates an instance of {@link StandardKodkodOutput}.
 	 * @ensures this.logger' = logger
 	 */
 	StandardKodkodOutput(Logger logger) {  this.logger = logger; }
-	
+
 	/**
-	 * Creates an instance of {@link StandardKodkodOutput} that will use the 
+	 * Creates an instance of {@link StandardKodkodOutput} that will use the
 	 * {@link Logger#getGlobal() global logger}.
 	 * @ensures this.logger' = Logger.getGlobal()
 	 */
 	StandardKodkodOutput() {  this(Logger.getGlobal()); }
-	
+
 	/**
 	 * {@inheritDoc}
 	 * @see kodkod.cli.KodkodOutput#writeSolution(kodkod.engine.Solution, kodkod.cli.KodkodProblem)
@@ -88,13 +88,14 @@ public final class StandardKodkodOutput implements KodkodOutput {
 		else			writeCore(sol.proof(), (Defs<Formula>) problem.env().defs('f'));
 		writeStats(problem, sol);
 	}
-	
+
+
 
 	/**
 	 * Writes the instance s-expression to standard out.
 	 * @requires all r: defs.def[int] | inst.tuples(r) != null
 	 **/
-	void writeInstance(Instance inst, Defs<Relation> defs) {
+	public void writeInstance(Instance inst, Defs<Relation> defs) {
 		final StringBuilder str = new StringBuilder();
 		str.append("(sat :model (");
 		for (int i = 0, max = defs.maxIndex(); i <= max; i++) {
@@ -117,12 +118,12 @@ public final class StandardKodkodOutput implements KodkodOutput {
 		str.append("))");
 		System.out.println(str);
 	}
-	
+
 	/**
 	 * Writes the core s-expression to standard out.
 	 * @requires proof.highLevelCore().values() in defs.def[int]
 	 **/
-	void writeCore(Proof proof, Defs<Formula> defs) {
+	public void writeCore(Proof proof, Defs<Formula> defs) {
 		final StringBuilder str = new StringBuilder();
 		str.append("(unsat");
 		final Set<Node> core;
@@ -133,32 +134,32 @@ public final class StandardKodkodOutput implements KodkodOutput {
 			str.append(" :core (");
 			for (int i = 0, max = defs.maxIndex(); i <= max; i++) {
 				if (core.remove(defs.use(i)))
-					str.append('f').append(i).append(" ");			
+					str.append('f').append(i).append(" ");
 			}
 			if (str.charAt(str.length()-1)==' ')
 				str.deleteCharAt(str.length()-1);
 			str.append(")");
-		} 
+		}
 		str.append(")");
 		System.out.println(str.toString());
 		if (!core.isEmpty()) {
-			Logger.getGlobal().warning(	"Returned minimal core is missing " + core.size() + 
+			Logger.getGlobal().warning(	"Returned minimal core is missing " + core.size() +
 										" formulas for which no definitions of the form (fi ...) were provided.");
 		}
 	}
-	
+
 	/**
 	 * Logs the given solution and problem statistics to {@code this.logger} as info messages.
 	 */
 	void writeStats(KodkodProblem problem, Solution sol) {
 		final Statistics stats = sol.stats();
-		writeStat("problem size", 
-				String.format("variables = %s, clauses = %s, state = %s bits", 
+		writeStat("problem size",
+				String.format("variables = %s, clauses = %s, state = %s bits",
 				stats.variables(), stats.clauses(), stats.primaryVariables()));
-		
+
 		final long pt = problem.buildTimeMillis(), ct = problem.coreTimeMillis(),
 				   tt = stats.translationTime(), st = stats.solvingTime();
-		
+
 		if (ct >= 0)
 			writeStat("solving time (ms)",
 					String.format("total = %s, parsing = %s, translation = %s, SAT = %s, core = %s",
@@ -168,7 +169,7 @@ public final class StandardKodkodOutput implements KodkodOutput {
 					String.format("total = %s, parsing = %s, translation = %s, SAT = %s",
 					pt + tt + st, pt, tt, st));
 	}
-	
+
 	/**
 	 * Logs the given statistic and its value to {@code this.logger} as an info message.
 	 */
