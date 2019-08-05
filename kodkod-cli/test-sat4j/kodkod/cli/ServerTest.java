@@ -44,7 +44,7 @@ import org.parboiled.support.Chars;
  */
 public class ServerTest {
 
-	@Test
+	//@Test
 	public void myTest(){
 		final Process p = call("");
 		/*send(p, "(configure :bitwidth 5 :produce-cores false :max-solutions 1 :solver SAT4J :verbosity 6)\n"+
@@ -207,7 +207,7 @@ public class ServerTest {
 		p.destroy();
 	}
 
-	//@Test
+	@Test
 	public void testStandardSolver2() {
 		final Process p = call("");
 		send(p, "(configure :bitwidth 32 :produce-cores false :solver SAT4J :verbosity 0)" +
@@ -239,7 +239,7 @@ public class ServerTest {
 		p.destroy();
 	}
 
-	//@Test
+	@Test
 	public void testIncrementalSolver0() {
 		final Process p = call("-incremental");
 		final String ex =
@@ -259,7 +259,7 @@ public class ServerTest {
 		p.destroy();
 	}
 
-	//@Test
+	@Test
 	public void testIncrementalSolver1() {
 		final Process p = call("-incremental");
 		send(p, "(configure :bitwidth 5 :produce-cores false :solver SAT4J :verbosity 0)" +

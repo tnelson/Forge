@@ -1,4 +1,4 @@
-/* 
+/*
  * Kodkod -- Copyright (c) 2005-present, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -43,16 +43,16 @@ import org.parboiled.support.ParsingResult;
 
 /**
  * Tests for a rule in the Kodkod parser.
- * 
+ *
  * @specfield parser: {@link KodkodParser}
  * @specfield rule: {@link Rule}
- * 
+ *
  * @author Emina Torlak
  */
 public abstract class AbstractParserTest {
 	private KodkodParser parser;
 	private Rule rule;
-	
+
 	/**
 	 * Creates an uninitialized parser test.
 	 */
@@ -60,7 +60,7 @@ public abstract class AbstractParserTest {
 		this.parser = null;
 		this.rule = null;
 	}
-	
+
 	/**
 	 * Loads and instruments the parser class.
 	 * @throws java.lang.Exception
@@ -69,8 +69,8 @@ public abstract class AbstractParserTest {
 	public static void setUpBeforeClass() throws Exception {
 		 Parboiled.createParser(KodkodParser.class);
 	}
-	
-	
+
+
 	/**
 	 * Sets the parser and rule to be tested.  The rule must have been obtained from the parser.
 	 * @ensures this.parser' = parser && this.rule' = rule
@@ -85,40 +85,41 @@ public abstract class AbstractParserTest {
 	 * @return the result of running {@code this.rule} with the {@link ErrorLocatingParseRunner} on the given input.
 	 */
 	final ParsingResult<?> parse(String input) {
+		//System.out.println(input);
 		return (new ErrorLocatingParseRunner<Object>(rule)).run(input);
 	}
-	
+
 	/**
 	 * Returns {@code this.parser}.
 	 * @return this.parser
 	 */
 	final KodkodParser parser() { return parser; }
-	
+
 	/**
 	 * Returns {@code this.parser.problem().options}.
 	 * @return this.parser.problem().options
 	 */
 	final Options options() { return parser.problem().options(); }
-	
+
 	/**
 	 * Returns {@code this.parser.problem().bounds}.
 	 * @return this.parser.problem().bounds
 	 */
 	final Bounds bounds() { return parser.problem().bounds(); }
-	
+
 	/**
 	 * Returns {@code this.parser.problem().globals()}.
 	 * @return this.parser.problem().globals()
 	 */
 	final DefEnv globals() { return parser.problem().env(); }
-	
+
 	/**
 	 * Returns {@code this.parser.problem().asserts()}.
 	 * @return this.parser.problem().asserts()
 	 */
 	final Formula asserts() { return parser.problem().asserts(); }
 	/**
-	 * Returns the relation with the given name that is in {@code this.parser.problem().bounds}, 
+	 * Returns the relation with the given name that is in {@code this.parser.problem().bounds},
 	 * or throws an exception if such a relation is not present.
 	 * @return this.parser.problem().globals().use(name)
 	 */
@@ -127,7 +128,7 @@ public abstract class AbstractParserTest {
 	static enum ExpectedError {
 		NONE, ACTION, PARSE
 	}
-	
+
 	/**
 	 * Checks that the given result has the expected error status.
 	 */
@@ -144,10 +145,20 @@ public abstract class AbstractParserTest {
 	 */
 	final ParsingResult<?> checkNoErrors(ParsingResult<?> result) {
 //		System.out.println("\nParse Errors:\n" + ErrorUtils.printParseErrors(result));
+		// if (result.hasErrors()){
+		// 	System.out.println(result);
+		// }
+
+
+				if (result.hasErrors()){
+					System.out.println(result.parseErrors);
+				}
 		assertFalse(result.hasErrors());
+
+
 		return result;
 	}
-	
+
 	/**
 	 * Checks that the given result contains a single {@link ActionError}
 	 * and zero or more parser errors.
@@ -162,7 +173,7 @@ public abstract class AbstractParserTest {
 		}
 		return result;
 	}
-	
+
 	/**
 	 * Checks that the given result contains only {@link BasicParseError parse errors}
 	 * and no action errors.
@@ -173,9 +184,9 @@ public abstract class AbstractParserTest {
 			assertTrue(err instanceof BasicParseError);
 		return result;
 	}
-	
-	
-	
+
+
+
 	final void printMemInfo() {
 	    	Runtime runtime = Runtime.getRuntime();
 	        NumberFormat format = NumberFormat.getInstance();

@@ -227,7 +227,7 @@ public class KodkodParser extends BaseParser<Object> {
 					TupleSet(), 								lower.set(popTupleSet()),
 					FirstOf(
 						Sequence(
-							Optional(DOUBLECOLON,				upper.set(lower.get())),
+							DOUBLECOLON,						upper.set(lower.get()),
 							TupleSet(),	 						upper.set(upper.isSet() ? union(upper.get(), popTupleSet()) : popTupleSet())),
 						Sequence(EMPTY, 						upper.set(lower.get()))),
 					RBRK,
@@ -259,27 +259,25 @@ public class KodkodParser extends BaseParser<Object> {
 	}
 
 	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	/* So, yeah, ANY time a rule X can somewhere down the line contain the same rule X,
-	ActionVars will be corrupted. Because it will be reinitialized and modified
-	in the subrule, and those changes will be seen in the original rule. */
-	@Cached /** @return opRule TupleSet+ */
 	Rule TupleSetExpr(Rule opRule, ExprOperator op) {
 		final Var<TupleSet> first = new Var<>();
 		final Var<List<TupleSet>> rest = new Var<>();
-		final Var<DefaultValueStack> argstack = new Var<>();
 
-		return Sequence(										ACTION(initializeVar(argstack), new DefaultValueStack()),
-																ACTION(pushToStack(argstack, firs.get())),
-																ACTION(pushToStack(argstack, rest.get())),
+		return FirstOf(
+				Sequence(										ACTION(first.enterFrame()),
+																ACTION(rest.enterFrame()),
 
-						opRule,									rest.set(new ArrayList<TupleSet>(4)),
-						TupleSet(),								first.set(popTupleSet()),
-						ZeroOrMore(TupleSet(), 					rest.get().add(popTupleSet())),
+					opRule,										rest.set(new ArrayList<TupleSet>(4)),
+					TupleSet(),									first.set(popTupleSet()),
+					ZeroOrMore(TupleSet(), 						rest.get().add(popTupleSet())),
 																push(compose(op, first.get(), rest.get())),
 
-																ACTION(rest.set((List) argstack.get().pop()))
-																ACTION(first.set((TupleSet) argstack.get().pop())),
-																);
+																ACTION(first.exitFrame()),
+																ACTION(rest.exitFrame())),
+
+				Sequence(										ACTION(first.exitFrame()),
+																ACTION(rest.exitFrame()),
+						NOTHING));
 	}
 
 	/** @return LWING (Tuple ((ELLIPSIS Tuple) | (HASH Tuple) | Tuple*))? RWING */
@@ -446,37 +444,21 @@ public class KodkodParser extends BaseParser<Object> {
 	Rule NotConstraint() {
 		return Sequence(NOT, Constraint(), 						push(popFormula().not()));
 	}
-	// EXAMPLE {
-	// 	final Var<TupleSet> first = new Var<>();
-	// 	final Var<List<TupleSet>> rest = new Var<>();
-	// 	final Var<DefaultValueStack> argstack = new Var<>();
-	//
-	// 	return Sequence(										ACTION(initializeVar(argstack), new DefaultValueStack()),
-	// 															ACTION(pushToStack(argstack, firs.get())),
-	// 															ACTION(pushToStack(argstack, rest.get())),
-	//
-	// 					opRule,									rest.set(new ArrayList<TupleSet>(4)),
-	// 					TupleSet(),								first.set(popTupleSet()),
-	// 					ZeroOrMore(TupleSet(), 					rest.get().add(popTupleSet())),
-	// 															push(compose(op, first.get(), rest.get())),
-	//
-	// 															ACTION(rest.set((List) argstack.get().pop()))
-	// 															ACTION(first.set((TupleSet) argstack.get().pop())),
-	// 															);
-	}
 
 	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	@Cached /** @return opRule Constraint+ */
 	Rule NaryConstraint(Rule opRule, FormulaOperator op) {
 		final Var<List<Formula>> args = new Var<>();
-		//final Var<DefaultValueStack> argstack = new Var<>();
-		return Sequence(										//ACTION(initializeVar(argstack), new DefaultValueStack()),
-						opRule,									args.set(new ArrayList<Formula>(4)),
-						OneOrMore(Constraint(),					args.get().add(popFormula())),
-																push(compose(op, args.get()))
-																//swap(),
-																//args.set(popList())
-																);
+
+		return FirstOf(
+				Sequence(										ACTION(args.enterFrame()),
+					opRule,										args.set(new ArrayList<Formula>(4)),
+					OneOrMore(Constraint(),						args.get().add(popFormula())),
+																push(compose(op, args.get())),
+																ACTION(args.exitFrame())),
+
+				Sequence(										ACTION(args.exitFrame()),
+					NOTHING));
 	}
 
 	/** @return ACYCLIC Use('r') */
@@ -516,38 +498,17 @@ public class KodkodParser extends BaseParser<Object> {
 	/** @return LPAR VarDecl+ RPAR */
 	Rule VarDecls() {
 		final Var<Decls> decls = new Var<>();
-		// shared between all frames, like every other Var. We don't correct this one.
-		final Var<DefaultValueStack> argstack = new Var<>(new DefaultValueStack());
-
-
-		// It seems like initial values don't even work???? how the fuck? why the fuck?
-		// ok ok I can do conditional initialization myself. Just initialize if not null.
-		// could it be a library issue again?
-
-		// oh wait kodkod-cli explicitly says it requires java 8. So, don't compile with java 7, that's dumb.
-		// but try compiling with old libraries.
-
-		// yep, variable initialization doesn't work with either version of parboiled, 1.1.7 or 1.3.1
-		// so that shit's just broken, for unknown reasons. Probably some reflection bullshit.
-
-		// yeah, doesn't work in NaryExpr either, it just doesn't work.
-		// But yeah, can just have another Var<Boolean> that says whether its initialized!
-		// any more clever way? Unless i'm doing some more bullshit stack manipulation, no.
-
-
-		return Sequence(										ACTION(initializeVar(argstack, new DefaultValueStack())),
-																//pnt(argstack.get()),
-																//pnt(decls.get()),
-																ACTION(pushToStack(argstack, decls.get())),
-
-				LPAR,											push(env().extend()),
-					VarDecl(),									decls.set(popDecls()),
+		return FirstOf(
+				Sequence(											ACTION(decls.enterFrame()),
+					LPAR,											push(env().extend()),
+					VarDecl(),										decls.set(popDecls()),
 					ZeroOrMore(
-						Sequence(VarDecl(),						decls.set(decls.get().and(popDecls())))),
-				RPAR,											push(decls.get()),
+						Sequence(VarDecl(),							decls.set(decls.get().and(popDecls())))),
+					RPAR,											push(decls.get()),
+																	ACTION(decls.exitFrame())),
 
-																ACTION(decls.set((Decls) argstack.get().pop()))
-																);
+				Sequence(											ACTION(decls.exitFrame()),
+					NOTHING));
 	}
 
 	// WARNING CHANGED HACK USES VAR RECURSIVELY
@@ -555,31 +516,31 @@ public class KodkodParser extends BaseParser<Object> {
 	Rule VarDecl() {
 		final Var<Integer> varIdx = new Var<>();
 		final Var<Decl> decl = new Var<>();
-		final Var<DefaultValueStack> argstack = new Var<>(new DefaultValueStack());
 
-		return Sequence(
-																ACTION(initializeVar(argstack, new DefaultValueStack())),
-																ACTION(pushToStack(argstack, varIdx.get())),
-																ACTION(pushToStack(argstack, decl.get())),
-				LBRK,
-					Identifier('v'),							varIdx.set(popInt()),
-					Ch(':'),
-					Space(),
-					FirstOf(
-						VarMult(ONE,  	 Multiplicity.ONE),
-						VarMult(LONE, 	 Multiplicity.LONE),
-						VarMult(SOME, 	 Multiplicity.SOME),
-						VarMult(SET,  	 Multiplicity.SET),
-						VarMult(Space(), Multiplicity.ONE)),
-					Expr(),										swap(),
-				RBRK,											decl.set(declareVariable(varIdx.get(), popMult(), popExpr())),
-																peekEnv().def('v', varIdx.get(), decl.get().variable()),
-																push(decl.get()),
+		return FirstOf(
+				Sequence(											ACTION(varIdx.enterFrame()),
+																	ACTION(decl.enterFrame()),
+					LBRK,
+						Identifier('v'),							varIdx.set(popInt()),
+						Ch(':'),
+						Space(),
+						FirstOf(
+							VarMult(ONE,  	 Multiplicity.ONE),
+							VarMult(LONE, 	 Multiplicity.LONE),
+							VarMult(SOME, 	 Multiplicity.SOME),
+							VarMult(SET,  	 Multiplicity.SET),
+							VarMult(Space(), Multiplicity.ONE)),
+						Expr(),										swap(),
+					RBRK,											decl.set(declareVariable(varIdx.get(), popMult(), popExpr())),
+																	peekEnv().def('v', varIdx.get(), decl.get().variable()),
+																	push(decl.get()),
 
+																	ACTION(varIdx.exitFrame()),
+																	ACTION(decl.exitFrame())),
 
-																ACTION(decl.set((Decl) argstack.get().pop())),
-																ACTION(varIdx.set((Integer) argstack.get().pop()))
-																);
+				Sequence(											ACTION(varIdx.exitFrame()),
+																	ACTION(decl.exitFrame()),
+					NOTHING));
 	}
 
 	@Cached /** @return multRule */
@@ -644,29 +605,16 @@ public class KodkodParser extends BaseParser<Object> {
 	Rule NaryExpr(Rule opRule, ExprOperator op) {
 		final Var<List<Expression>> args = new Var<>();
 
-		return Sequence(										//pnt(args2.get()),
-																//args.enterFrame(),
-																//pnt("ENTER NARY with ", args.get()),
-																//pnt("ARGS LEVEL: ", args.getLevel()),
-																//push(args.get()),	// So I can restore at the end.
-						opRule,									args.set(new ArrayList<Expression>(4)),
-																//pnt("OPRULE SUCCEEDED, ARGS INITIALIZED: ", args.get()),
-						OneOrMore(								//pnt("TRYING SUBEXPR, args: ", args.get()),
-									Expr(),						//pnt("SUBEXPR SUCCEEDED, args: ", args.get()),
-																args.get().add(popExpr())
+		return FirstOf(
+				Sequence(										ACTION(args.enterFrame()),
+					opRule,										args.set(new ArrayList<Expression>(4)),
+					OneOrMore(
+						Expr(),									args.get().add(popExpr())),
+																push(compose(op, args.get())),
+																ACTION(args.exitFrame())),
 
-																// pnt("ARGS AFTER ADDING SUBEXPR: ", args.get())
-
-																),
-																// need to push the composed operation first,
-																// since args will be gone after we restore,
-																// but we need to swap in order to restore args.
-																push(compose(op, args.get()))
-																//pnt("NARYEXPR RETURNING: ", peekExpr())
-																//args.exitFrame()
-																//swap(),
-																//args.set(popList())
-																);	// restore!
+					Sequence(									ACTION(args.exitFrame()),
+						NOTHING));
 	}
 
 	@Cached /** @return opRule Expr */
@@ -684,17 +632,19 @@ public class KodkodParser extends BaseParser<Object> {
 	Rule Projection() {
 		final Var<Expression> expr = new Var<>();
 		final Var<List<IntExpression>> cols = new Var<>();
-		return Sequence(
-																//push(expr.get()),
-																//push(cols.get()),
-				AT, Expr(), 									expr.set(popExpr()), cols.set(new ArrayList<IntExpression>(4)),
-				OneOrMore(IntExpr(), 							cols.get().add(popIntExpr())),
-																push(expr.get().project(cols.get().toArray(new IntExpression[cols.get().size()])))
+		return FirstOf(
+				Sequence(										ACTION(expr.enterFrame()),
+																ACTION(cols.enterFrame()),
 
-																//swap3(),
-																//expr.set(popExpr()),
-																//cols.set(popList())
-																);
+					AT, Expr(), 								expr.set(popExpr()), cols.set(new ArrayList<IntExpression>(4)),
+					OneOrMore(IntExpr(), 						cols.get().add(popIntExpr())),
+																push(expr.get().project(cols.get().toArray(new IntExpression[cols.get().size()]))),
+																ACTION(expr.exitFrame()),
+																ACTION(cols.exitFrame())),
+
+				Sequence(										ACTION(expr.exitFrame()),
+																ACTION(cols.exitFrame()),
+					NOTHING));
 	}
 
 	/** @return LWING VarDecls Constraint RWING */
@@ -754,28 +704,32 @@ public class KodkodParser extends BaseParser<Object> {
 	@Cached /** @return opRule IntExpr+ */
 	Rule NaryIntExpr(Rule opRule, IntOperator op) {
 		final Var<List<IntExpression>> args = new Var<>();
-		return Sequence(										//push(args.get()),
-						opRule,									args.set(new ArrayList<IntExpression>(4)),
-						OneOrMore(IntExpr(),					args.get().add(popIntExpr())),
-																push(compose(op, args.get()))
 
-																//swap(),
-																//args.set(popList())
+		return FirstOf(
+				Sequence(										ACTION(args.enterFrame()),
 
-																);
+					opRule,										args.set(new ArrayList<IntExpression>(4)),
+					OneOrMore(IntExpr(),						args.get().add(popIntExpr())),
+																push(compose(op, args.get())),
+
+																ACTION(args.exitFrame())),
+
+				Sequence(										ACTION(args.exitFrame()),
+					NOTHING));
 	}
 
 	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	/** @return - IntExpr+ */
 	Rule MinusIntExpr() {
 		final Var<List<IntExpression>> args = new Var<>();
-		return Sequence(										//push(args.get()),
-						MINUS,									args.set(new ArrayList<IntExpression>(4)),
-						OneOrMore(IntExpr(),					args.get().add(popIntExpr())),
-																push(compose(args.get().size()==1 ? IntOperator.NEG : IntOperator.MINUS, args.get()))
-																//swap(),
-																//args.set(popList())
-																);
+		return FirstOf(
+				Sequence(										ACTION(args.enterFrame()),
+					MINUS,										args.set(new ArrayList<IntExpression>(4)),
+					OneOrMore(IntExpr(),						args.get().add(popIntExpr())),
+																push(compose(args.get().size()==1 ? IntOperator.NEG : IntOperator.MINUS, args.get())),
+																ACTION(args.exitFrame())),
+				Sequence(										ACTION(args.exitFrame()),
+					NOTHING));
 	}
 
 	@Cached /** @return opRule IntExpr */
