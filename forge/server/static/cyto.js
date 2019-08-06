@@ -31,6 +31,31 @@ Can honestly just put a link to the html for the documentation in the thing, tha
 even better i think.
 
 ALSO: unsat behavior!!!!
+
+
+
+engineering debt! highest priority
+different colored edges (eh?)
+expanding instance into visualizer: you evaluate some expression, and check some box, to expand instance
+you can add a relation. Evaluating a predicate is weirder, so don't do that for now.
+removing relations.
+optional zooming, font size in evaluator, maybe hiding and showing
+relations as attributes? projections?
+projection is just for state, remember. so not yet.
+relations as attributes is low priority, but do want it as base functionality.
+saved theming would be nice for later, file based
+
+using kodkod to evaluate instead of doing it ourselves
+
+
+we really really need logging from each layer! that's part of the engineering debt.
+and we need good errors / error propagation. also part of engineering debt
+check relation arities before running! those should prob be part of ast.
+focus should be on ocelot, cuz we should really really trust kodkod.
+
+
+evaluator really important, used in class
+
 */
 
 // OK, what's the most basic styling I can start with?
