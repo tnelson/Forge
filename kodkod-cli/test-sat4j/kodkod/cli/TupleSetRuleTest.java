@@ -59,7 +59,7 @@ public class TupleSetRuleTest extends AbstractParserTest {
 		this.expectedError = expectedError;
 		this.expectedArity = expectedArity;
 		this.expectedIndices = expectedIndices;
-		System.out.println(input);
+		//System.out.println(input);
 		//System.out.println()
 	}
 
@@ -176,7 +176,7 @@ public class TupleSetRuleTest extends AbstractParserTest {
 								 ExpectedError.NONE, prod.arity(), prod.indexView() };
 				composite.add(alt);
 
-				/*
+				
 				if (lts.arity()==rts.arity()) {
 					final TupleSet opSet = f.noneOf(lts.arity());
 					opSet.addAll(lts);
@@ -190,7 +190,7 @@ public class TupleSetRuleTest extends AbstractParserTest {
 							 			ExpectedError.NONE, opSet.arity(), opSet.indexView() };
 					composite.add(alt);
 					op = (op+1)%3;
-				}*/
+				}
 			}
 		}
 
@@ -216,8 +216,8 @@ public class TupleSetRuleTest extends AbstractParserTest {
 		assertEquals(1, result.valueStack.size());
 		assertTrue(result.valueStack.peek() instanceof TupleSet);
 		final TupleSet ts = (TupleSet) result.valueStack.pop();
-		System.out.println(input);
-		System.out.println(ts.toString());
+		// System.out.println(input);
+		// System.out.println(ts.toString());
 		assertEquals(bounds().universe(), ts.universe());
 		assertEquals(expectedArity, ts.arity());
 		assertEquals(expectedIndices, ts.indexView());

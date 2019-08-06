@@ -42,6 +42,18 @@ ALSO: unsat behavior!!!!
 //
 
 
+
+// how to do more complicated layouts? I think compound nodes are the answer.
+// make a compound node containing all state atoms, for instance, and then it's way easier to lay out.
+// Hmmm, but how extensible is that. because each node can only have one parent...
+// I guess if we want to lay out some groups differently, we just don't apply the layout to them, but only to a
+// compound node parent containing all of them, and then lay them out individually. Yeah, that works fine.
+
+// more important: unique colors for each relation of arity > 1!
+// Is that super important though? Cleaning up other stuff might be more important...
+// I'm exhausted. Think about this later.
+
+
 var nodes = json.nodes.map(function(name){
 	return {
 		data: {
@@ -79,6 +91,14 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 	}));
 }, []);
 
+//function edges_equal(edgeA, edgeB){
+
+//}
+
+//notseen = function(edge, index, self){
+//	return self.indexOf(edge)
+//}
+
 var cy = cytoscape({
 
 	container: document.getElementById('cy'), // container to render in
@@ -105,7 +125,7 @@ var cy = cytoscape({
 		{
 			selector: 'edge',
 			style: {
-				'width': 3,
+			 	'width': 3,
 				'line-color': "data(color)",
 				'target-arrow-color': 'data(color)',
 				'target-arrow-shape': 'triangle',
@@ -127,7 +147,8 @@ var cy = cytoscape({
 	// avsdf layout?
 
 	layout: {
-		name: 'cose-bilkent'
+		//name: 'cose-bilkent'
+		name: "circle"
 		// rows: 6
 	},
 
@@ -138,6 +159,39 @@ var cy = cytoscape({
 
 });
 
+
+// THATS THE PRBLEM IT CANT HAVE DUPLICATE EDGES. THIS CONTAINS DUPLICATE EDGES
+// no, it's not that. It's not that. cose-bilkent must be broken, that's the real problem.
+
+// yeah, having all four edges in there causes the internal this.nodes to become empty.
+// which makes no sense and shouldn't happen ever.
+// so use a different layout.
+
+// var cy = cytoscape({
+// 	container: document.getElementById('cy'),
+// 	elements: nodes.concat([edges[4], edges[5], edges[6], edges[7]]),
+// 	style: [
+// 		{
+// 			selector: 'node',
+// 			style: {
+// 				'width': 100
+// 			}
+// 		},
+// 		{
+// 			selector: 'edge',
+// 			style: {
+// 			 	'width': 3
+// 			}
+// 		}
+// 	],
+// 	layout: {
+// 		name: "circle"
+// 	},
+// 	userZoomingEnabled: false
+// });
+
+console.log(cy);
+console.log("hello?\n");
 
 // The styling is based on "data(color)"
 // So to change, the style, I just need to change the data.

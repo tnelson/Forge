@@ -1,4 +1,4 @@
-/* 
+/*
  * Kodkod -- Copyright (c) 2005-present, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -52,7 +52,7 @@ import org.parboiled.support.ParsingResult;
  */
 @RunWith(Parameterized.class)
 public class ConstraintRuleTest extends AbstractParserTest {
-	private static final Relation[] r = { 
+	private static final Relation[] r = {
 		Relation.unary("r0"), Relation.unary("r1"),
 		Relation.binary("r2"), Relation.binary("r3"),
 		Relation.ternary("r4"), Relation.ternary("r5")
@@ -60,43 +60,43 @@ public class ConstraintRuleTest extends AbstractParserTest {
 	private final String input;
 	private final ExpectedError expectedError;
 	private final Formula expectedFormula;
-	
+
 	public ConstraintRuleTest(String input, ExpectedError expectedError, Formula expectedExpr) {
 		this.input = input;
 		this.expectedError = expectedError;
 		this.expectedFormula = expectedExpr;
 //		System.out.println(input);
 	}
-	
+
 	@Before
 	public void setUp() throws Exception {
 		final KodkodParser parser = Parboiled.createParser(KodkodParser.class);
 		setUp(parser, parser.Sequence(parser.DeclareUniverse(),parser.DeclareInts(),parser.OneOrMore(parser.DeclareRelation())));
-		parse("(univ 10)" + 
-			  "(ints [(1 0) (2 1) (4 2) (-8 3)])" + 
-			  "(r0 [{} ints])" + 
-			  "(r1 [{} univ])" + 
-			  "(r2 [(-> none none) (-> ints univ)])" + 
-			  "(r3 [(-> none none) (-> univ ints)])" + 
-			  "(r4 [(-> none none none) (-> ints ints ints)])" +
-			  "(r5 [(-> none none none) (-> univ ints univ)])");
+		parse("(univ 10)" +
+			  "(ints [(1 0) (2 1) (4 2) (-8 3)])" +
+			  "(r0 [{} :: ints])" +
+			  "(r1 [{} :: univ])" +
+			  "(r2 [(-> none none) :: (-> ints univ)])" +
+			  "(r3 [(-> none none) :: (-> univ ints)])" +
+			  "(r4 [(-> none none none) :: (-> ints ints ints)])" +
+			  "(r5 [(-> none none none) :: (-> univ ints univ)])");
 		setUp(parser, parser.Sequence(parser.OneOrMore(parser.Constraint()), KodkodParser.EOI));
 	}
-	
+
 	@Parameters
 	public static Collection<Object[]> inputs() {
 		final Collection<Object[]> ret = new ArrayList<Object[]>();
 		badSyntax(ret);
 		badSemantics(ret);
 		validLeaf(ret);
-		validComparisonAndMult(ret);
+		validComparisonAndMult(ret);		// this is broken.
 		validNary(ret);
 		validRelationPredicates(ret);
 		validLet(ret);
 		validQuantifier(ret);
 		return ret;
 	}
-	
+
 	private static void badSyntax(Collection<Object[]> ret) {
 		ret.add(new Object[] { "()", ExpectedError.PARSE, null });
 		for(Multiplicity op : Multiplicity.values()) {
@@ -171,14 +171,16 @@ public class ConstraintRuleTest extends AbstractParserTest {
 		ret.add(new Object[] { "(total-order r0 r1 r2 r3)", ExpectedError.ACTION, null });
 		ret.add(new Object[] { "(total-order r2 r0 r1 r5)", ExpectedError.ACTION, null });
 	}
-	
+
 	private static void validLeaf(Collection<Object[]> ret) {
 		ret.add(new Object[] { "true", ExpectedError.NONE, Formula.TRUE  });
 		ret.add(new Object[] { "false", ExpectedError.NONE, Formula.FALSE  });
 	}
-	
+
 	private static void validComparisonAndMult(Collection<Object[]> ret) {
 		for(int i = 0; i < r.length; i += 2) {
+
+			// this has problems. what are they?
 			for(ExprCompOperator op : ExprCompOperator.values()) {
 				ret.add(new Object[] { "("+op.toString()+" " + r[i] + " " + r[i+1] +")", ExpectedError.NONE, r[i].compare(op, r[i+1]) });
 			}
@@ -190,7 +192,7 @@ public class ConstraintRuleTest extends AbstractParserTest {
 			}
 		}
 	}
-	
+
 	private static void validNary(Collection<Object[]> ret) {
 		for(FormulaOperator op : FormulaOperator.values()) {
 			ret.add(new Object[] { "("+op.toString()+" (lone r5))", ExpectedError.NONE, r[5].lone() });
@@ -217,12 +219,12 @@ public class ConstraintRuleTest extends AbstractParserTest {
 			}
 		}
 	}
-	
+
 	private static void validRelationPredicates(Collection<Object[]> ret) {
 		ret.add(new Object[] { "(acyclic r2)", ExpectedError.NONE, r[2].acyclic() });
 		ret.add(new Object[] { "(total-order r2 r0 r1 r1)", ExpectedError.NONE, r[2].totalOrder(r[0], r[1], r[1]) });
 	}
-	
+
 	private static void validLet(Collection<Object[]> ret) {
 		for(Relation leaf : r) {
 			ret.add(new Object[] { "(let ([f10 (some "+leaf+")]) f10)", ExpectedError.NONE, leaf.some() });
@@ -233,21 +235,21 @@ public class ConstraintRuleTest extends AbstractParserTest {
 		ret.add(new Object[] { "(let ([f5 (no r5)][f0 (one r0)]) (let ([f5 (lone r5)]) (<=> f0 f5)))", ExpectedError.NONE, r[0].one().iff(r[5].lone()) });
 
 	}
-	
+
 	private static void validQuantifier(Collection<Object[]> ret) {
 		final Variable v10 = Variable.unary("v10"), v5 = Variable.unary("v5"), v6 = Variable.unary("v6");
 		for(Quantifier quant : Quantifier.values()) {
 			ret.add(new Object[] { "("+quant+" ([v10 : r1]) true)", ExpectedError.NONE, Formula.TRUE.quantify(quant, v10.oneOf(r[1])) });
 			ret.add(new Object[] { "("+quant+" ([v10 :one r1]) (in v10 r0))", ExpectedError.NONE, v10.in(r[0]).quantify(quant, v10.oneOf(r[1])) });
-			ret.add(new Object[] { "("+quant+" ([v5 :one r0][v6 : (. v5 r2)]) (= v5 v6))", ExpectedError.NONE, 
+			ret.add(new Object[] { "("+quant+" ([v5 :one r0][v6 : (. v5 r2)]) (= v5 v6))", ExpectedError.NONE,
 					v5.eq(v6).quantify(quant, v5.oneOf(r[0]).and(v6.oneOf(v5.join(r[2])))) });
-			ret.add(new Object[] { "("+quant+" ([v5 :one r0][v6 : {([v10 : (. v5 r2)]) (one v10)}]) (= v5 v6))", ExpectedError.NONE, 
+			ret.add(new Object[] { "("+quant+" ([v5 :one r0][v6 : {([v10 : (. v5 r2)]) (one v10)}]) (= v5 v6))", ExpectedError.NONE,
 					v5.eq(v6).quantify(quant, v5.oneOf(r[0]).and(v6.oneOf(v10.one().comprehension(v10.oneOf(v5.join(r[2])))))) });
-			ret.add(new Object[] { "("+quant+" ([v5 :one r0][v6 : {([v6 : (. v5 r2)]) (no v6)}]) (= v5 v6))", ExpectedError.NONE, 
-					v5.eq(v6).quantify(quant, v5.oneOf(r[0]).and(v6.oneOf(v6.no().comprehension(v6.oneOf(v5.join(r[2])))))) });			
+			ret.add(new Object[] { "("+quant+" ([v5 :one r0][v6 : {([v6 : (. v5 r2)]) (no v6)}]) (= v5 v6))", ExpectedError.NONE,
+					v5.eq(v6).quantify(quant, v5.oneOf(r[0]).and(v6.oneOf(v6.no().comprehension(v6.oneOf(v5.join(r[2])))))) });
 		}
 	}
-	
+
 	@Test
 	public void test() {
 		final ParsingResult<?> result = checkExpectedErrors(expectedError, parse(input));

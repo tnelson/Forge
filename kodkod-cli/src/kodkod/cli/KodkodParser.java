@@ -73,6 +73,7 @@ import org.parboiled.annotations.MemoMismatches;
 import org.parboiled.annotations.SuppressNode;
 import org.parboiled.annotations.SuppressSubnodes;
 import org.parboiled.support.Var;
+import org.parboiled.support.DefaultValueStack;
 
 /**
  * A PEG parser for a concrete syntax for Kodkod inspired by Kodkodi and SMT-LIB2.
@@ -122,14 +123,31 @@ public class KodkodParser extends BaseParser<Object> {
 		return true;
 	}
 
+	Rule ServeNext() {
+		return Sequence(SolveNext(), EOI);
+	}
+
+	Rule SolveNext() { return Sequence(LPAR, SOLVE, RPAR,			setProblem(problem.solveNext(out))); }
+
 	/** @return Problem()+ EOI */
-	public Rule Problems() 						{ return OneOrMore(Problem());  }
+	public Rule Problems() {
+		return FirstOf(ServeNext(), OneOrMore(Problem()));
+	}
+
+	// public Rule Problems() {
+	// 	return OneOrMore(Problem());
+	// }
 
 	/** @return (Problem() IncrementalProblem()*)+ EOI */
-	public Rule IncrementalProblems()			{ return OneOrMore(Problem(), ZeroOrMore(IncrementalProblem()));  }
+	// public Rule IncrementalProblems()			{ return OneOrMore(Problem(), ZeroOrMore(IncrementalProblem()));  }
+	public Rule IncrementalProblems()			{ return NOTHING; }
 
 	/** @return (Problem() IncrementalProblem()*)+ EOI */
 	public Rule RestOfIncrementalProblems()		{ return OneOrMore(IncrementalProblem(), ZeroOrMore(IncrementalProblems()));  }
+
+	// a problem can also just be (solve), in which case we just print the next Solution.
+	// but can't be multiple solves (should just be solve + eoi, and can't be series of solve + eoi, cuz that's not
+	// even possible)
 
 	/** @return Exit? Configure Universe DefineInts? IncrementalProblem  */
 	@Cached
@@ -219,8 +237,6 @@ public class KodkodParser extends BaseParser<Object> {
 		final Var<List<Integer>> idxs = new Var<>();
 		final Var<TupleSet> lower = new Var<>(), upper = new Var<>();
 		return Sequence(
-		// This may be the problem here. Why is the 4 hardcoded?
-		// What does this represent?
 				LPAR,
 					Identifier('r'), 							idxs.set(new ArrayList<Integer>(4)), idxs.get().add(popInt()),
 					ZeroOrMore(Identifier('r'), 				idxs.get().add(popInt())),
@@ -228,7 +244,7 @@ public class KodkodParser extends BaseParser<Object> {
 					TupleSet(), 								lower.set(popTupleSet()),
 					FirstOf(
 						Sequence(
-							Optional(DOUBLECOLON,				upper.set(lower.get())),
+							DOUBLECOLON,						upper.set(lower.get()),
 							TupleSet(),	 						upper.set(upper.isSet() ? union(upper.get(), popTupleSet()) : popTupleSet())),
 						Sequence(EMPTY, 						upper.set(lower.get()))),
 					RBRK,
@@ -259,14 +275,26 @@ public class KodkodParser extends BaseParser<Object> {
 				RPAR);
 	}
 
-	@Cached /** @return opRule TupleSet+ */
+	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	Rule TupleSetExpr(Rule opRule, ExprOperator op) {
 		final Var<TupleSet> first = new Var<>();
 		final Var<List<TupleSet>> rest = new Var<>();
-		return Sequence(opRule,									rest.set(new ArrayList<TupleSet>(4)),
-						TupleSet(),								first.set(popTupleSet()),
-						ZeroOrMore(TupleSet(), 					rest.get().add(popTupleSet())),
-																push(compose(op, first.get(), rest.get())));
+
+		return FirstOf(
+				Sequence(										ACTION(first.enterFrame()),
+																ACTION(rest.enterFrame()),
+
+					opRule,										rest.set(new ArrayList<TupleSet>(4)),
+					TupleSet(),									first.set(popTupleSet()),
+					ZeroOrMore(TupleSet(), 						rest.get().add(popTupleSet())),
+																push(compose(op, first.get(), rest.get())),
+
+																ACTION(first.exitFrame()),
+																ACTION(rest.exitFrame())),
+
+				Sequence(										ACTION(first.exitFrame()),
+																ACTION(rest.exitFrame()),
+						NOTHING));
 	}
 
 	/** @return LWING (Tuple ((ELLIPSIS Tuple) | (HASH Tuple) | Tuple*))? RWING */
@@ -434,12 +462,20 @@ public class KodkodParser extends BaseParser<Object> {
 		return Sequence(NOT, Constraint(), 						push(popFormula().not()));
 	}
 
+	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	@Cached /** @return opRule Constraint+ */
 	Rule NaryConstraint(Rule opRule, FormulaOperator op) {
 		final Var<List<Formula>> args = new Var<>();
-		return Sequence(opRule,									args.set(new ArrayList<Formula>(4)),
-						OneOrMore(Constraint(),					args.get().add(popFormula())),
-																push(compose(op, args.get())));
+
+		return FirstOf(
+				Sequence(										ACTION(args.enterFrame()),
+					opRule,										args.set(new ArrayList<Formula>(4)),
+					OneOrMore(Constraint(),						args.get().add(popFormula())),
+																push(compose(op, args.get())),
+																ACTION(args.exitFrame())),
+
+				Sequence(										ACTION(args.exitFrame()),
+					NOTHING));
 	}
 
 	/** @return ACYCLIC Use('r') */
@@ -458,35 +494,70 @@ public class KodkodParser extends BaseParser<Object> {
 	//-------------------------------------------------------------------------
     //  Quantified variable declarations
     //-------------------------------------------------------------------------
+
+	public <V> Boolean pushToStack(Var<DefaultValueStack> stack, V val){
+		//if (val )
+		stack.get().push(val);
+		//pnt(stack);
+		//pnt(stack.get());
+		//stack.get().push(3);
+		return true;
+	}
+
+	public <V> Boolean initializeVar(Var<V> var, V val){
+		if (var.get() == null){
+			var.set(val);
+		}
+		return true;
+	}
+
+	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	/** @return LPAR VarDecl+ RPAR */
 	Rule VarDecls() {
 		final Var<Decls> decls = new Var<>();
-		return Sequence(
-				LPAR,											push(env().extend()),
-					VarDecl(),									decls.set(popDecls()),
+		return FirstOf(
+				Sequence(											ACTION(decls.enterFrame()),
+					LPAR,											push(env().extend()),
+					VarDecl(),										decls.set(popDecls()),
 					ZeroOrMore(
-						Sequence(VarDecl(),						decls.set(decls.get().and(popDecls())))),
-				RPAR,											push(decls.get()));
+						Sequence(VarDecl(),							decls.set(decls.get().and(popDecls())))),
+					RPAR,											push(decls.get()),
+																	ACTION(decls.exitFrame())),
+
+				Sequence(											ACTION(decls.exitFrame()),
+					NOTHING));
 	}
 
+	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	/** @return LBRK Identifier('v') :[LONE|ONE|SOME|SET] Expr RBRK */
 	Rule VarDecl() {
 		final Var<Integer> varIdx = new Var<>();
 		final Var<Decl> decl = new Var<>();
-		return Sequence(
-				LBRK,
-					Identifier('v'),							varIdx.set(popInt()),
-					Ch(':'),
-					FirstOf(
-						VarMult(ONE,  	 Multiplicity.ONE),
-						VarMult(LONE, 	 Multiplicity.LONE),
-						VarMult(SOME, 	 Multiplicity.SOME),
-						VarMult(SET,  	 Multiplicity.SET),
-						VarMult(Space(), Multiplicity.ONE)),
-					Expr(),										swap(),
-				RBRK,											decl.set(declareVariable(varIdx.get(), popMult(), popExpr())),
-																peekEnv().def('v', varIdx.get(), decl.get().variable()),
-																push(decl.get()));
+
+		return FirstOf(
+				Sequence(											ACTION(varIdx.enterFrame()),
+																	ACTION(decl.enterFrame()),
+					LBRK,
+						Identifier('v'),							varIdx.set(popInt()),
+						Ch(':'),
+						Space(),
+						FirstOf(
+							VarMult(ONE,  	 Multiplicity.ONE),
+							VarMult(LONE, 	 Multiplicity.LONE),
+							VarMult(SOME, 	 Multiplicity.SOME),
+							VarMult(SET,  	 Multiplicity.SET),
+							VarMult(Space(), Multiplicity.ONE)),
+						Expr(),										swap(),
+					RBRK,											decl.set(declareVariable(varIdx.get(), popMult(), popExpr())),
+																	peekEnv().def('v', varIdx.get(), decl.get().variable()),
+																	push(decl.get()),
+
+																	ACTION(varIdx.exitFrame()),
+																	ACTION(decl.exitFrame())),
+
+				Sequence(											ACTION(varIdx.exitFrame()),
+																	ACTION(decl.exitFrame()),
+					NOTHING));
 	}
 
 	@Cached /** @return multRule */
@@ -510,7 +581,7 @@ public class KodkodParser extends BaseParser<Object> {
 							NaryExpr(PLUS, 		ExprOperator.UNION),
 							NaryExpr(AMP, 		ExprOperator.INTERSECTION),
 							NaryExpr(ARROW,		ExprOperator.PRODUCT),
-							NaryExpr(MINUS,		ExprOperator.DIFFERENCE),
+							NaryExpr(MINUS, ExprOperator.DIFFERENCE),
 							UnaryExpr(TILDE,	ExprOperator.TRANSPOSE),
 							UnaryExpr(HAT, 		ExprOperator.CLOSURE),
 							UnaryExpr(STAR, 	ExprOperator.REFLEXIVE_CLOSURE),
@@ -528,12 +599,39 @@ public class KodkodParser extends BaseParser<Object> {
 		return Sequence(ITE, Constraint(), Expr(), Expr(),		swap3(), push(ite(popFormula(), popExpr(), popExpr())));
 	}
 
-	@Cached /** @return opRule Expr+ */
+	boolean pnt(Object a){
+		System.out.println(a);
+		System.out.flush();
+		return true;
+	} boolean pnt(Object a, Object b){
+		System.out.print(a);
+		System.out.println(b);
+		System.out.flush();
+		return true;
+	}
+
+	boolean end(List<Expression> argsget){
+		if (argsget != null){
+			System.exit(0);
+		}
+		return true;
+	}
+
+	// WARNING CHANGED HACK USES VAR RECURSIVELY
+	//@Cached /** @return opRule Expr+ */
 	Rule NaryExpr(Rule opRule, ExprOperator op) {
 		final Var<List<Expression>> args = new Var<>();
-		return Sequence(opRule,									args.set(new ArrayList<Expression>(4)),
-						OneOrMore(Expr(),						args.get().add(popExpr())),
-																push(compose(op, args.get())));
+
+		return FirstOf(
+				Sequence(										ACTION(args.enterFrame()),
+					opRule,										args.set(new ArrayList<Expression>(4)),
+					OneOrMore(
+						Expr(),									args.get().add(popExpr())),
+																push(compose(op, args.get())),
+																ACTION(args.exitFrame())),
+
+					Sequence(									ACTION(args.exitFrame()),
+						NOTHING));
 	}
 
 	@Cached /** @return opRule Expr */
@@ -546,14 +644,24 @@ public class KodkodParser extends BaseParser<Object> {
 		return Sequence(castRule, IntExpr(),					push(popIntExpr().cast(castOp)));
 	}
 
+	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	/** @return AT Expr() IntExpr()+ */
 	Rule Projection() {
 		final Var<Expression> expr = new Var<>();
 		final Var<List<IntExpression>> cols = new Var<>();
-		return Sequence(
-				AT, Expr(), 									expr.set(popExpr()), cols.set(new ArrayList<IntExpression>(4)),
-				OneOrMore(IntExpr(), 							cols.get().add(popIntExpr())),
-																push(expr.get().project(cols.get().toArray(new IntExpression[cols.get().size()]))));
+		return FirstOf(
+				Sequence(										ACTION(expr.enterFrame()),
+																ACTION(cols.enterFrame()),
+
+					AT, Expr(), 								expr.set(popExpr()), cols.set(new ArrayList<IntExpression>(4)),
+					OneOrMore(IntExpr(), 						cols.get().add(popIntExpr())),
+																push(expr.get().project(cols.get().toArray(new IntExpression[cols.get().size()]))),
+																ACTION(expr.exitFrame()),
+																ACTION(cols.exitFrame())),
+
+				Sequence(										ACTION(expr.exitFrame()),
+																ACTION(cols.exitFrame()),
+					NOTHING));
 	}
 
 	/** @return LWING VarDecls Constraint RWING */
@@ -609,20 +717,36 @@ public class KodkodParser extends BaseParser<Object> {
 						IntExpr(), IntExpr(),					swap3(), push(popFormula().thenElse(popIntExpr(), popIntExpr())));
 	}
 
+	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	@Cached /** @return opRule IntExpr+ */
 	Rule NaryIntExpr(Rule opRule, IntOperator op) {
 		final Var<List<IntExpression>> args = new Var<>();
-		return Sequence(opRule,									args.set(new ArrayList<IntExpression>(4)),
-						OneOrMore(IntExpr(),					args.get().add(popIntExpr())),
-																push(compose(op, args.get())));
+
+		return FirstOf(
+				Sequence(										ACTION(args.enterFrame()),
+
+					opRule,										args.set(new ArrayList<IntExpression>(4)),
+					OneOrMore(IntExpr(),						args.get().add(popIntExpr())),
+																push(compose(op, args.get())),
+
+																ACTION(args.exitFrame())),
+
+				Sequence(										ACTION(args.exitFrame()),
+					NOTHING));
 	}
 
+	// WARNING CHANGED HACK USES VAR RECURSIVELY
 	/** @return - IntExpr+ */
 	Rule MinusIntExpr() {
 		final Var<List<IntExpression>> args = new Var<>();
-		return Sequence(MINUS,									args.set(new ArrayList<IntExpression>(4)),
-						OneOrMore(IntExpr(),					args.get().add(popIntExpr())),
-																push(compose(args.get().size()==1 ? IntOperator.NEG : IntOperator.MINUS, args.get())));
+		return FirstOf(
+				Sequence(										ACTION(args.enterFrame()),
+					MINUS,										args.set(new ArrayList<IntExpression>(4)),
+					OneOrMore(IntExpr(),						args.get().add(popIntExpr())),
+																push(compose(args.get().size()==1 ? IntOperator.NEG : IntOperator.MINUS, args.get())),
+																ACTION(args.exitFrame())),
+				Sequence(										ACTION(args.exitFrame()),
+					NOTHING));
 	}
 
 	@Cached /** @return opRule IntExpr */
@@ -825,7 +949,6 @@ public class KodkodParser extends BaseParser<Object> {
  	final Integer  		popInt() 			{ return (Integer) pop(); }
 	final Boolean  		popBool()			{ return (Boolean) pop(); }
 	final Options  		popOptions()		{ return (Options) pop(); }
-	final Options  		peekOptions()		{ return (Options) peek(); }
 	final Tuple    		popTuple()			{ return (Tuple) pop(); }
 	final TupleSet 		popTupleSet()		{ return (TupleSet) pop(); }
 	final Relation 		popRelation()		{ return (Relation) pop(); }
@@ -835,7 +958,14 @@ public class KodkodParser extends BaseParser<Object> {
 	final Decls			popDecls()			{ return (Decls) pop(); }
 	final Multiplicity  popMult()			{ return (Multiplicity) pop(); }
 	final DefEnv		popEnv()			{ return (DefEnv) pop(); }
+
+	final List			popList()			{ return (List) pop(); }
+	final Integer		popInteger()		{ return (Integer) pop(); }
+	final Decl 			popDecl()			{ return (Decl) pop(); }
 	final DefEnv		peekEnv()			{ return (DefEnv) peek(); }
+	final Multiplicity  peekMult()			{ return (Multiplicity) peek(); }
+	final Expression	peekExpr()			{ return (Expression) peek(); }
+	final Options  		peekOptions()		{ return (Options) peek(); }
 
 	/**
 	 * Returns the current lexical environment, which is the first environment

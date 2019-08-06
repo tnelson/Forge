@@ -1,0 +1,13 @@
+#eval-output {
+    height: 600px;
+    display: block;
+    border: 2px solid black;
+    overflow: scroll;
+    font-family: Menlo;
+}
+
+#eval-input {
+    font-family: Menlo;
+    width: 100%;
+    border: 2px solid black;
+}

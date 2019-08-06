@@ -1,7 +1,7 @@
 #lang web-server
 
-(require (only-in forged-ocelot relation-name)
-         "../nextbutton.rkt" "eval-model.rkt"
+(require (only-in "../lang/ast.rkt" relation-name)
+         "eval-model.rkt"
          "modelToJSON.rkt" racket/format
          racket/runtime-path xml
          json web-server/servlet-env
@@ -16,11 +16,10 @@
 (struct model-display (relations))
 
 (define $$MODEL$$ "")
-(define $$BOUNDS$$ "")
-(define $$SINGLETONS$$ "")
 (define $$MODELS-LIST$$ '())
 (define $$EVAL-OUTPUT$$ "")
 (define $$MODEL-NAME$$ "")
+(define $$NEXT-MODEL$$ "")
 
 (define $$CURRENT-TAB$$ "graph")
 
@@ -39,12 +38,12 @@
         newmodel)
       model))
 
-(define (display-model model bounds singletons name)
+(define (display-model model name next-model)
   (thread (lambda () (begin
                        (set! $$MODEL-NAME$$ name)
                        (set! $$MODEL$$ (model-trim model))
-                       (set! $$BOUNDS$$ bounds)
-                       (set! $$SINGLETONS$$ singletons)
+                       (set! $$NEXT-MODEL$$ next-model)
+                       ;(set! $$BOUNDS$$ bounds)
                        (begin 
                          (serve/servlet start
                                         #:stateless? #t
@@ -91,37 +90,41 @@
                              (response/xexpr
                               `(html
                                 (head
-                                 (script ((type "text/javascript") (src "http://code.jquery.com/jquery-1.7.1.min.js")))
+                                 ;(script ((type "text/javascript") (src "http://code.jquery.com/jquery-1.7.1.min.js")))
                                  (script ((type "text/javascript")) ,(format "var json = ~a;" (if (hash? $$MODEL$$) (jsexpr->string (model-to-JSON $$MODEL$$)) (jsexpr->string (model-to-JSON (make-hash))))))
                                  (script ((type "text/javascript") (src "/cytoscape.min.js")))
                                  (script ((type "text/javascript") (src "/cytoscape-cose-bilkent.js")))
                                  (script ((type "text/javascript") (src "/tabs.js")))
                                  (script ((type "text/javascript") (src "/eval.js")))
                                  (script ((type "text/javascript")) ,(format "var evalurl = '~a';" (embed/url eval-handler)))
-                                 (link ((rel "stylesheet") (type "text/css") (href "/tabs.css"))
-                                       (link ((rel "stylesheet") (type "text/css") (href "/cyto.css"))))
+                                 (link ((rel "stylesheet") (type "text/css") (href "/tabs.css")))
+                                 (link ((rel "stylesheet") (type "text/css") (href "/cyto.css")))
+                                 (link ((rel "stylesheet") (type "text/css") (href "/eval.css")))
                                  (body ((onload "document.getElementById(\"defaultopen\").click();"))
                                        (p ((class "model-name") (style "font-weight: bold; font-size: 32pt;")) ,$$MODEL-NAME$$)
                                        (div ((class "tab"))
                                             (button ((class "tablinks") (onclick "openTab(event, \'graph\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "graph") "defaultopen" "graph-tab")))) "graph")
                                             (button ((class "tablinks") (onclick "openTab(event, \'list\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "list") "defaultopen" "list-tab")))) "list"))
-                                       (form
-                                        ((action ,(embed/url next-handler)))
-                                        (button ((type "submit") (name "next")) "next"))
-                                       (form
-                                        ((action ,(embed/url prev-handler)))
-                                        (button ((type "submit") (name "prev")) "prev")))
-                                 (div ((id "graph") (class "tabcontent")) (h1 ,(format "Instance ~a" count)) ,(if (hash? $$MODEL$$) '(div ((id "cy"))) '(p "There are no additional satisfying instances")))
-                                 (div ((id "list") (class "tabcontent")) (h1 ,(format "Instance ~a" count)) (p ,struct-m))
-                                 (div ((id "evaluator") (class "repl"))
-                                      (p "Evaluator")
-                                      (input ((type "text") (name "expr") (onkeydown "SendQuery(this);")))
-                                      (div ((id "eval-output"))))
+                                       (div
+                                        (form
+                                         ((action ,(embed/url prev-handler)) (class "navbutton"))
+                                         (button ((type "submit") (name "prev")) "prev"))
+                                        (form
+                                         ((action ,(embed/url next-handler)) (class "navbutton"))
+                                         (button ((type "submit") (name "next")) "next"))))
+                                 (div ((id "wrapper"))
+                                      (div ((id "content")) (h1 ,(format "Instance ~a" count))
+                                           (div ((id "graph") (class "tabcontent")) ,(if (hash? $$MODEL$$) '(div ((id "cy"))) '(p "There are no additional satisfying instances")))
+                                           (div ((id "list") (class "tabcontent")) (p ,struct-m)))
+                                      (div ((id "evaluator") (class "repl"))
+                                           (h1 "Evaluator")
+                                           (div ((id "eval-output")))
+                                           (input ((type "text") (name "expr") (onkeydown "SendQuery(this);") (id "eval-input")))))
                                  (script ((type "text/javascript") (src "/cyto.js"))))))))
        (eval-handler (lambda (request)
                        (define expr (cdr (car (filter (lambda (x) (equal? (car x) 'expr)) (request-headers request)))))
                        (response/xexpr `(xml ,(wrap-eval (read (open-input-string expr))))
-                                      #:mime-type #"text/xml charset=utf-8")))
+                                       #:mime-type #"text/xml charset=utf-8")))
        (prev-handler (lambda (request)
                        (if (= count 0)
                            (display count (redirect/get) model-parser)
@@ -131,7 +134,7 @@
        (next-handler (lambda (request)
                        (if (= count (- (length $$MODELS-LIST$$) 1))
                            (begin
-                             (set! $$MODEL$$ (model-trim (get-next-model $$BOUNDS$$ $$SINGLETONS$$ $$MODEL-NAME$$)))
+                             (set! $$MODEL$$ (model-trim ($$NEXT-MODEL$$)))
                              (set! $$CURRENT-TAB$$ "graph")
                              (display (+ count 1) (redirect/get) model-parser))
                            (begin

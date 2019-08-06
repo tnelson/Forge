@@ -1,4 +1,4 @@
-/* 
+/*
  * Kodkod -- Copyright (c) 2005-2012, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,19 +22,30 @@
 package kodkod.cli;
 
 import kodkod.engine.Solution;
+import kodkod.ast.Relation;
+import kodkod.instance.Instance;
+
+import kodkod.engine.Proof;
+import kodkod.ast.Formula;
 
 /**
- * Specifies the interface for outputting {@link Solution solutions} 
+ * Specifies the interface for outputting {@link Solution solutions}
  * to {@link KodkodProblem Kodkod problems}.
- * 
+ *
  * @author Emina Torlak
  */
 public interface KodkodOutput {
 
 	/**
-	 * Outputs the given solution to the given problem.  The output format and 
+	 * Outputs the given solution to the given problem.  The output format and
 	 * destination are implementation dependent.
 	 */
 	public abstract void writeSolution(Solution sol, KodkodProblem problem);
-	
+
+	// WARNING HACK
+	public abstract void writeInstance(Instance sol, Defs<Relation> defs);
+
+	// WARNING HACK
+	public void writeCore(Proof proof, Defs<Formula> defs);
+
  }

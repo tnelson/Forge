@@ -1,0 +1,8 @@
+(configure :bitwidth 4 :produce-cores false :solver SAT4J :max-solutions 1 :verbosity 6)
+
+(univ 10)
+
+(r1 [{} univ])
+(r2 [iden :: iden])
+
+(solve)

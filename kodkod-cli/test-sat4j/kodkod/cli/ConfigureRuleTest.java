@@ -1,4 +1,4 @@
-/* 
+/*
  * Kodkod -- Copyright (c) 2005-present, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -46,7 +46,7 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 	private final String input;
 	private final ExpectedError expectedError;
 	private final Options expectedOpts;
-	
+
 	public ConfigureRuleTest(String input, ExpectedError expectedError, Options expectedOpts) {
 		this.input = input;
 		this.expectedError = expectedError;
@@ -54,12 +54,12 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 //		System.out.println(input);
 	}
 
-	@Before 
+	@Before
 	public void setUpParser() {
 		final KodkodParser parser = Parboiled.createParser(KodkodParser.class);
 		setUp(parser, parser.Sequence(parser.Configure(),KodkodParser.EOI));
 	}
-	
+
 	@Parameters
 	public static Collection<Object[]> inputs() {
 		final Collection<Object[]> ret = new ArrayList<Object[]>();
@@ -68,7 +68,7 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 		validConfigs(ret);
 		return ret;
 	}
-	
+
 	private static void badSyntax(Collection<Object[]> ret) {
 		ret.add(new Object[] { "(configure)", ExpectedError.PARSE, null });
 		ret.add(new Object[] { "(configure)", ExpectedError.PARSE, null });
@@ -79,16 +79,16 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 		ret.add(new Object[] { "(configure :produce-cores )", ExpectedError.PARSE, null });
 		ret.add(new Object[] { "(configure :produce-cores 1)", ExpectedError.PARSE, null });
 	}
-	
+
 	private static void badSemantics(Collection<Object[]> ret) {
 		ret.add(new Object[] { "(configure :bitwidth 0)", ExpectedError.ACTION, null });
 		ret.add(new Object[] { "(configure :bitwidth 33)", ExpectedError.ACTION, null });
 	}
-	
+
 	private static void validConfigs(Collection<Object[]> ret) {
 		final Object[][] supported = {	{"MiniSat", SATFactory.MiniSat},
-										{"MiniSatProver", SATFactory.MiniSatProver},
-										{"Glucose", SATFactory.Glucose},
+										//{"MiniSatProver", SATFactory.MiniSatProver},
+										//{"Glucose", SATFactory.Glucose},
 										{"Lingeling", SATFactory.Lingeling},
 										{"SAT4J",SATFactory.DefaultSAT4J}};
 		for(Object[] solver : supported) {
@@ -102,25 +102,25 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 		if (SATFactory.available(SATFactory.MiniSatProver)) {
 			ret.add(new Object[] { "( configure :produce-cores true )", ExpectedError.NONE, enableCore(new Options()) });
 			if (SATFactory.available(SATFactory.Glucose)) {
-				ret.add(new Object[] {	"(configure :produce-cores true\t)\n" + 
+				ret.add(new Object[] {	"(configure :produce-cores true\t)\n" +
 										"(configure :bitwidth 32)\n" +
-										"(configure :solver Glucose)\n", ExpectedError.NONE, 
+										"(configure :solver Glucose)\n", ExpectedError.NONE,
 										setSolver(setBitwidth(enableCore(new Options()), 32), SATFactory.Glucose) });
-				ret.add(new Object[] {	"(configure :produce-cores true :bitwidth 32 :solver Glucose)\n", 
+				ret.add(new Object[] {	"(configure :produce-cores true :bitwidth 32 :solver Glucose)\n",
 						ExpectedError.NONE,  setSolver(setBitwidth(enableCore(new Options()), 32), SATFactory.Glucose) });
 			}
 		} else {
 			if (SATFactory.available(SATFactory.Glucose)) {
-				ret.add(new Object[] {	"(configure :produce-cores false\t)\n" + 
+				ret.add(new Object[] {	"(configure :produce-cores false\t)\n" +
 										"(configure :bitwidth 16)\n" +
-										"(configure :bitwidth 32)\n", ExpectedError.NONE, 
+										"(configure :bitwidth 32)\n", ExpectedError.NONE,
 										setBitwidth(disableCore(new Options()), 32) });
-				ret.add(new Object[] {	"(configure :produce-cores false :bitwidth 16 :bitwidth 32)\n", ExpectedError.NONE, 
+				ret.add(new Object[] {	"(configure :produce-cores false :bitwidth 16 :bitwidth 32)\n", ExpectedError.NONE,
 						setBitwidth(disableCore(new Options()), 32) });
 			}
 		}
 	}
-	
+
 	private static Options setSolver(Options opts, SATFactory factory) {
 		opts.setSolver(factory);
 		return opts;

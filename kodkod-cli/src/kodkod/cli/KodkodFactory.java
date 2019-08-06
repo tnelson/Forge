@@ -1,4 +1,4 @@
-/* 
+/*
  * Kodkod -- Copyright (c) 2005-present, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -48,23 +48,23 @@ import kodkod.instance.TupleSet;
 import org.parboiled.errors.ActionException;
 
 /**
- * Provides a set of methods that wrap Kodkod's {@link Node AST}, {@link Bounds bounds}, 
- * and {@link Options options} construction  methods.  The wrappers intercept all 
- * {@link RuntimeException runtime exceptions} thrown by the wrapped methods, 
+ * Provides a set of methods that wrap Kodkod's {@link Node AST}, {@link Bounds bounds},
+ * and {@link Options options} construction  methods.  The wrappers intercept all
+ * {@link RuntimeException runtime exceptions} thrown by the wrapped methods,
  * and re-throw them as {@link ActionException action exceptions} for better error reports.
- * 
+ *
  * @author Emina Torlak
  */
 public final class KodkodFactory {
 	private KodkodFactory() {}
-	
+
 	//-------------------------------------------------------------------------
 	//  Option configuration, verbosity and output management
 	//-------------------------------------------------------------------------
 	/**
-	 * Returns a fresh options object with all default options, except for 
+	 * Returns a fresh options object with all default options, except for
 	 * the reporter, which is set to a {@link KodkodReporter} that logs its messages
-	 * to the {@link Logger#getGlobal() global logger}.  Classes in this package 
+	 * to the {@link Logger#getGlobal() global logger}.  Classes in this package
 	 * should use this method rather than Options constructor to create new options instances.
 	 * @return some o: Options | o.reporter.logger = Logger.getGlobal() && o.reporter.logger.level = Level.SEVERE
 	 */
@@ -75,30 +75,30 @@ public final class KodkodFactory {
 		opts.setReporter(r);
 		return opts;
 	}
-	
+
 	/**
 	 * Translates a Kodkod verbosity parameter into a corresponding logging {@link Level}.
-	 * Verbosity values [0..Integer.MAX_VALUE] correspond to logger levels as follows: 
-	 * 0 = no messages; 1 = only error/severe messages;  2 = warning messages; 3 = info messages; 
-	 * 4/5/6 = fine/finer/finest messages; and >6 = all messages.  
+	 * Verbosity values [0..Integer.MAX_VALUE] correspond to logger levels as follows:
+	 * 0 = no messages; 1 = only error/severe messages;  2 = warning messages; 3 = info messages;
+	 * 4/5/6 = fine/finer/finest messages; and >6 = all messages.
 	 * @requires verbosity >= 0
 	 * @return {@link Level} correponding to the given verbosity
 	 */
 	public static final Level level(int verbosity) {
 		switch(verbosity) {
-		case 0 : return Level.OFF; 
-		case 1 : return Level.SEVERE; 
-		case 2 : return Level.WARNING; 
-		case 3 : return Level.INFO; 
-		case 4 : return Level.FINE; 
-		case 5 : return Level.FINER; 
-		case 6 : return Level.FINEST; 
+		case 0 : return Level.OFF;
+		case 1 : return Level.SEVERE;
+		case 2 : return Level.WARNING;
+		case 3 : return Level.INFO;
+		case 4 : return Level.FINE;
+		case 5 : return Level.FINER;
+		case 6 : return Level.FINEST;
 		default: return Level.ALL;
 		}
 	}
-	
+
 	//-------------------------------------------------------------------------
-	//  Tupleset construction 
+	//  Tupleset construction
 	//-------------------------------------------------------------------------
 	/**
 	 * Returns the exact bound for the given relation, as specified by the given bounds.
@@ -118,7 +118,7 @@ public final class KodkodFactory {
 	 * @requires c in UNIV + NONE + INTS + IDEN
 	 * @return the tupleset representation of the given constant expression with respect to the given bounds.
 	 */
-	public static final TupleSet valueOf(Expression c, Bounds bounds) {	
+	public static final TupleSet valueOf(Expression c, Bounds bounds) {
 		final TupleFactory f = bounds.universe().factory();
 		if (c==Expression.UNIV) {
 			return f.allOf(1);
@@ -138,15 +138,15 @@ public final class KodkodFactory {
 			return ts;
 		} else {
 			throw new ActionException("Unrecognized relational constant: " + c);
-		}	
+		}
 	}
 
 	/**
-	 * Composes the given tupleset with the provided list of tuplesets according 
+	 * Composes the given tupleset with the provided list of tuplesets according
 	 * to the semantics of the given operator.  The operator must be one of {@link ExprOperator#UNION},
-	 * {@link ExprOperator#INTERSECTION}, {@link ExprOperator#DIFFERENCE}, or 
-	 * {@link ExprOperator#PRODUCT}, describing the corresponding 
-	 * bulk operation on {@link TupleSet tuple sets}.  
+	 * {@link ExprOperator#INTERSECTION}, {@link ExprOperator#DIFFERENCE}, or
+	 * {@link ExprOperator#PRODUCT}, describing the corresponding
+	 * bulk operation on {@link TupleSet tuple sets}.
 	 * @return first op rest.get(0) op ... op rest.get(rest.size()-1)
 	 */
 	public static final TupleSet compose(ExprOperator op, TupleSet first, List<TupleSet> rest) {
@@ -166,7 +166,7 @@ public final class KodkodFactory {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
-	
+
 	/**
 	 * Creates a new tupleset containing the union of the given tuplesets and returns it.
 	 * @return first op second
@@ -184,7 +184,7 @@ public final class KodkodFactory {
 	}
 
 	/**
-	 * Returns a freshly created tupleset that consists of all tuples with indices between the two tuples. 
+	 * Returns a freshly created tupleset that consists of all tuples with indices between the two tuples.
 	 * @return this.bounds.universe.factory().range(start, end)
 	 */
 	public static final TupleSet range(Tuple start, Tuple end) {
@@ -196,8 +196,8 @@ public final class KodkodFactory {
 	}
 
 	/**
-	 * Returns a freshly created tupleset that consists of all tuples  
-	 * in the region defined by the two tuples.  
+	 * Returns a freshly created tupleset that consists of all tuples
+	 * in the region defined by the two tuples.
 	 * @return this.bounds.universe.factory().area(start, end)
 	 */
 	public static final TupleSet area(Tuple start, Tuple end) {
@@ -207,7 +207,7 @@ public final class KodkodFactory {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
-	
+
 	/**
 	 * Returns a fresh modifiable tupleset containing the given tuple.
 	 * @ensures this.bounds.universe.factory().setOf(t)
@@ -219,7 +219,7 @@ public final class KodkodFactory {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
-	
+
 	/**
 	 * Adds the given tuple to the provided tupleset.
 	 * @ensures ts.add(t)
@@ -232,9 +232,9 @@ public final class KodkodFactory {
 		}
 		return true;
 	}
-		
+
 	/**
-	 * Returns a tuple consisting  of the atoms specified in the list, constructed 
+	 * Returns a tuple consisting  of the atoms specified in the list, constructed
 	 * using the provided tuple factory.
 	 * @requires !atoms.isEmpty()
 	 * @requires all a: atoms.elts[int] | a in factory.universe.atoms[int]
@@ -246,30 +246,32 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	} 
-	
+	}
+
 	//-------------------------------------------------------------------------
     //  Quantified variable declarations
     //-------------------------------------------------------------------------
 	/**
-	 * Returns a declaration of a quantified variable {@code "v"+idx} with the 
+	 * Returns a declaration of a quantified variable {@code "v"+idx} with the
 	 * given multiplicity and expression.
 	 * @return Variable.nary("v"+idx, expr.arity()).declare(mult, expr)
 	 */
 	public static final Decl declareVariable(int idx, Multiplicity mult, Expression expr) {
 		try {
+			//System.out.println(mult);
+			//System.out.println(expr);
 			return Variable.nary("v"+idx, expr.arity()).declare(mult, expr);
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
-	
+
 	//-------------------------------------------------------------------------
     //  Formula construction
     //-------------------------------------------------------------------------
 	/**
 	 * Composes the formulas in the list according to the semantics of the given operator,
-	 * and returns the result.  Application of binary operators to more than two arguments 
+	 * and returns the result.  Application of binary operators to more than two arguments
 	 * results in a left-associative application of the operator to the arguments.
 	 * @return Formula.compose(op, args)
 	 */
@@ -287,7 +289,7 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
+	}
 	/**
 	 * Compares the expressions in the list according to the semantics of the given operator,
 	 * and returns the result.
@@ -299,7 +301,7 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
+	}
 	/**
 	 * Returns the acyliclity predicate over the given relation.
 	 * @return r.acyclic()
@@ -310,7 +312,7 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
+	}
 	/**
 	 * Returns the total order predicate over the given relations.
 	 * @return ord.totalOrder(ordered, first, last)
@@ -321,14 +323,14 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
-	
+	}
+
 	//-------------------------------------------------------------------------
     //  Expression construction
     //-------------------------------------------------------------------------
 	/**
 	 * Composes the expressions in the list according to the semantics of the given operator,
-	 * and returns the result.  Application of binary operators to more than two arguments 
+	 * and returns the result.  Application of binary operators to more than two arguments
 	 * results in a left-associative application of the operator to the arguments.
 	 * @requires args.size() > 0
 	 * @requires op.unary() => args.size()=1
@@ -337,7 +339,7 @@ public final class KodkodFactory {
 	 *         op.unary() => args.get(0).apply(op)
 	 */
 	public static final Expression compose(ExprOperator op, List<Expression> args) {
-		try {		
+		try {
 			if (op.nary()) {
 				return Expression.compose(op, args);
 			} else if (op.binary()) {
@@ -353,7 +355,7 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
+	}
 	/**
 	 * Returns the set comprehension over the given formula and declarations.
 	 * @ensures formula.comprehension(decls)
@@ -364,7 +366,7 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
+	}
 	/**
 	 * Returns the if-then-else over the given formula and branch expressions.
 	 * @ensures formula.thenElse(thenExpr, elseExpr)
@@ -375,14 +377,14 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
-	
+	}
+
 	//-------------------------------------------------------------------------
     //  IntExpression (bitvector expression) construction
     //-------------------------------------------------------------------------
 	/**
 	 * Composes the int expressions in the list according to the semantics of the given operator.
-	 * Application of binary operators to more than two arguments 
+	 * Application of binary operators to more than two arguments
 	 * results in a left-associative application of the operator to the arguments.
 	 * @requires op.unary() => args.size()=1
 	 * @return op.nary() => IntExpression.compose(op, args) else
@@ -390,7 +392,7 @@ public final class KodkodFactory {
 	 *         op.unary() => args.get(0).apply(op)
 	 */
 	public static final IntExpression compose(IntOperator op, List<IntExpression> args) {
-		try {			
+		try {
 			if (op.nary()) {
 				return IntExpression.compose(op, args);
 			} else if (op.binary()) {
@@ -407,7 +409,7 @@ public final class KodkodFactory {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
-	
+
 	/**
 	 * Returns the expression-to-bitvector conversion specified by the given operator.
 	 * @ensures expr.apply(op)
@@ -418,8 +420,8 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
-	
+	}
+
 	/**
 	 * Returns the quantified sum expression over the given decls.
 	 * @ensures expr.sum(decls)
@@ -430,5 +432,5 @@ public final class KodkodFactory {
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
-	}	
+	}
 }

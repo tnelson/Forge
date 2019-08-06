@@ -1,6 +1,6 @@
-#lang rosette
+#lang racket
 
-(require forged-ocelot)
+(require "../lang/ast.rkt")
 ;(require "../ocelot/goatswolves.rkt")
 (require json)
 

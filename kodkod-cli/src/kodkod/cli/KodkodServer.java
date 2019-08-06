@@ -46,6 +46,14 @@ import org.parboiled.parserunners.ErrorLocatingParseRunner;
 import org.parboiled.support.Chars;
 import org.parboiled.support.ParsingResult;
 
+import java.util.Iterator;
+import kodkod.engine.Solution;
+
+
+import kodkod.ast.Relation;
+
+import kodkod.ast.Formula;
+
 /**
  * Provides a server interface to Kodkod.  A {@link KodkodServer} can be used
  *  either in batch or online mode.  In batch more, a set of problem
@@ -103,6 +111,11 @@ public final class KodkodServer {
 	private final KodkodParser parser;
 	private final char[] buf = new char[1024];
 
+	public static Iterator<Solution> lastModel;
+	public static Defs<Relation> lastRDefs;
+	public static Defs<Formula> lastFDefs;
+	public static boolean lastModelAvailable = false;
+
 
 	/**
 	 * Creates a new {@link KodkodServer} that will write solutions to the given output instance.
@@ -141,6 +154,18 @@ public final class KodkodServer {
 	 * Parses and executes the batch of problems specified by the given input buffer.
 	 */
 	public void serve(InputBuffer batch) {
+		// where do I want to find the getnextsol?
+		// I think it might make most sense to just add a method to KodkodProblem that tries to match (solve)
+		// and prints the result, advancing the solution iterator.
+
+		// what are my alternatives?
+
+		// well I do have some actually.
+
+		// I could change KodkodParser to accept just (solve) as a base input,
+		// and that calls a method in problem to print the solution, throwing an error
+		// if there is no solution available. Yeah, that's simpler actually/
+
 		final KodkodProblem problem = parser.problem;
 		final Rule rule;
 		if (problem.isIncremental()) {
@@ -288,6 +313,6 @@ public final class KodkodServer {
 			}
 		}
 		(new KodkodServer(incremental, fastParsing, errorOut)).serve();
-		
+
 	}
 }
