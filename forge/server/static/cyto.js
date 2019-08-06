@@ -42,6 +42,18 @@ ALSO: unsat behavior!!!!
 //
 
 
+
+// how to do more complicated layouts? I think compound nodes are the answer.
+// make a compound node containing all state atoms, for instance, and then it's way easier to lay out.
+// Hmmm, but how extensible is that. because each node can only have one parent...
+// I guess if we want to lay out some groups differently, we just don't apply the layout to them, but only to a
+// compound node parent containing all of them, and then lay them out individually. Yeah, that works fine.
+
+// more important: unique colors for each relation of arity > 1!
+// Is that super important though? Cleaning up other stuff might be more important...
+// I'm exhausted. Think about this later.
+
+
 var nodes = json.nodes.map(function(name){
 	return {
 		data: {
