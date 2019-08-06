@@ -351,7 +351,7 @@
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax????
      (syntax/loc stx
-       (let ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
          (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))
 
 #|(define-syntax (one stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
