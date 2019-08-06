@@ -218,7 +218,10 @@
   (cmd [stdin] (solve))
   (define model (read-solution stdout))
   (define parsed-model (parse-kodkod model rels inty-univ))
-  (define (get-next-model) (parse-kodkod (read-solution stdout) rels inty-univ))
+  (define (get-next-model)
+    (cmd [stdin]
+         (solve))
+    (parse-kodkod (read-solution stdout) rels inty-univ))
   (display-model parsed-model name get-next-model))
 
 (define-syntax (run stx)
