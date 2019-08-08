@@ -1,0 +1,20 @@
+Visualization goals:
+
+1. Expanding instances from visualizer.
+2. Removing relations
+3. Optional zooming
+4. Removing relations
+5. Hiding / showing
+6. Relations as attributes
+7. State projection
+8. Saved theming
+9. Clustered layouts
+10. Dag layouts
+11. Manual theming JS input
+
+Biggest priorities:
+Manual theming
+Trying dag layouts
+Clustered layouts
+Optional zooming button
+Expanding instances.

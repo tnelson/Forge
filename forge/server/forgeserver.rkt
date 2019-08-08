@@ -44,12 +44,12 @@
                        (set! $$MODEL$$ (model-trim model))
                        (set! $$NEXT-MODEL$$ next-model)
                        ;(set! $$BOUNDS$$ bounds)
-                       (begin 
+                       (begin
                          (serve/servlet start
                                         #:stateless? #t
                                         #:launch-browser? #t
                                         #:connection-close? #f
-                                        #:quit? #f 
+                                        #:quit? #f
                                         #:listen-ip #f
                                         #:extra-files-paths (list static-files)
                                         #:servlet-path "/"
@@ -93,7 +93,7 @@
                                  ;(script ((type "text/javascript") (src "http://code.jquery.com/jquery-1.7.1.min.js")))
                                  (script ((type "text/javascript")) ,(format "var json = ~a;" (if (hash? $$MODEL$$) (jsexpr->string (model-to-JSON $$MODEL$$)) (jsexpr->string (model-to-JSON (make-hash))))))
                                  (script ((type "text/javascript") (src "/cytoscape.min.js")))
-                                 (script ((type "text/javascript") (src "/cytoscape-cose-bilkent.js")))
+                                 (script ((type "text/javascript") (src "/cytoscape-euler.js")))
                                  (script ((type "text/javascript") (src "/tabs.js")))
                                  (script ((type "text/javascript") (src "/eval.js")))
                                  (script ((type "text/javascript")) ,(format "var evalurl = '~a';" (embed/url eval-handler)))

@@ -145,6 +145,11 @@ import org.parboiled.errors.ActionException;
 	public static KodkodProblem incremental() { return new KodkodProblem.Incremental(); }
 
 	/**
+	 * Returns a new Stepper problem!
+	 */
+	public static KodkodProblem stepper() { return new KodkodProblem.Stepper(); }
+
+	/**
 	 * Returns an empty partial {@link KodkodProblem} instance that can be used to
 	 * extend the incremental specification composed of the sequence of
 	 * problems ending with this {@link KodkodProblem}.  Throws {@link ActionException}
@@ -186,21 +191,21 @@ import org.parboiled.errors.ActionException;
 	 **/
 	public abstract KodkodProblem solve(KodkodOutput out);
 
-	public final KodkodProblem solveNext(KodkodOutput out){
-		if (!KodkodServer.lastModelAvailable){
-			out.writeCore(null, null);
-		} else if (!(KodkodServer.lastModel.hasNext())){
-			out.writeCore(null, null);
-		} else {
-			Solution sol = KodkodServer.lastModel.next();
-			if (sol.sat()){
-				out.writeInstance(sol.instance(), KodkodServer.lastRDefs);
-			} else {
-				out.writeCore(null, null);
-			}
-		}
-		return clear();
-	}
+	// public final KodkodProblem solveNext(KodkodOutput out){
+	// 	if (!KodkodServer.lastModelAvailable){
+	// 		out.writeCore(null, null);
+	// 	} else if (!(KodkodServer.lastModel.hasNext())){
+	// 		out.writeCore(null, null);
+	// 	} else {
+	// 		Solution sol = KodkodServer.lastModel.next();
+	// 		if (sol.sat()){
+	// 			out.writeInstance(sol.instance(), KodkodServer.lastRDefs);
+	// 		} else {
+	// 			out.writeCore(null, null);
+	// 		}
+	// 	}
+	// 	return clear();
+	// }
 
 	/**
 	 * Returns the problem definitions environment.  The relation ('r') register in the
@@ -271,6 +276,22 @@ import org.parboiled.errors.ActionException;
 	 * @return some this.prev
 	 */
 	public abstract boolean isPartial() ;
+
+	/**
+	 * Returns true iff this is a Stepper specification (solved or unsolved).
+	 * @return some this.prev
+	 */
+	public boolean isStepper(){
+		return false;
+	}
+
+	/**
+	 * Returns true iff this is a solved Stepper specification.
+	 * @return some this.prev
+	 */
+	public boolean isSolved(){
+		return false;
+	}
 
 	/**
 	 * An action used to inform this problem instance that its state
@@ -461,11 +482,6 @@ import org.parboiled.errors.ActionException;
 		return true;
 	}
 
-	// boolean printObj(Object obj) {
-	// 	System.out.println(obj);
-	// 	return true;
-	// }
-
 	/**
 	 * Creates a set of relations with the given indices, adds them to {@code this.env.defs['r']},
 	 * and bounds them in {@code this.bounds} using the given lower/upper bounds.
@@ -544,6 +560,71 @@ import org.parboiled.errors.ActionException;
 			}
 		}
 	}
+
+
+	// TODO: allow multiple Stepper problems.
+	// possibly by having Solve() return a new Stepper? or maybe after clear...
+
+
+	// AH. realization. the other problem classes have good reason to return new objects;
+	// they need to clear the bounds and asserts! However, for Stepper, we only need to return
+	// new objects when we transition to a solved stepper. A solved stepper can return itself.
+	private static final class Stepper extends KodkodProblem {
+		private final Solver solver;
+		private boolean issolved = false;
+		private Solution lastUnsat;
+
+		// Used to print new solutions from the first solved model.
+		private Iterator<Solution> solutions;
+
+		Stepper() {
+			this.solver = new Solver(super.options);
+			super.maxSolutions = -1;	// maxSolutions has no meaning for Steppers.
+		}
+
+		// makes a solved stepper with the given solutions.
+		private Stepper(Stepper prototype, Iterator<Solution> solutions){
+			super(prototype.env(), null, null, -1);
+			assert (solutions != null);
+			this.solver = null;
+			this.issolved = true;
+			this.solutions = solutions;
+		}
+
+		public boolean isIncremental() { return false; }
+		public boolean isPartial() { return false; }
+		public boolean isStepper() { return true; }
+		public boolean isSolved() { return issolved	; }
+
+		public KodkodProblem extend() { throw new ActionException("Cannot extend a non-incremental specification."); }
+		public KodkodProblem clear() {
+			if (solver!=null)
+				solver.free();
+			return new Stepper();
+		}
+
+		public KodkodProblem solve(KodkodOutput out) {
+			if (isSolved()){
+				if (solutions.hasNext()){
+					Solution sol = solutions.next();
+					write(out, sol);
+					lastUnsat = sol;
+					return this;
+				} else {
+					assert(lastUnsat != null);
+					write(out, lastUnsat);
+					return this;
+				}
+			}
+
+			try {
+				return new Stepper(this, solver.solveAll(asserts(), bounds())).solve(out);
+			} catch (RuntimeException ex){
+				throw new ActionException(ex.getMessage(), ex);
+			}
+		}
+	}
+
 	/**
 	 * Implements a complete specification of a Kodkod problem.
 	 * @author Emina Torlak
@@ -558,25 +639,18 @@ import org.parboiled.errors.ActionException;
 		}
 		public boolean isIncremental() { return false; }
 		public boolean isPartial() { return false; }
+		public boolean isStepper() { return false; }
 
 		public KodkodProblem extend() { throw new ActionException("Cannot extend a non-incremental specification."); }
 		public KodkodProblem clear() { return new Complete(this) ; }
 
 		public KodkodProblem solve(KodkodOutput out) {
 			try {
-				// if (maxSolutions()==1) {
-				// 	write(out, solver.solve(asserts(), bounds()));
-				// } else {
-					Iterator<Solution> sol = solver.solveAll(asserts(), bounds());
-					// while (sol.hasNext()){
-					// 	System.out.println(sol.next());
-					// }
-					write(out, sol);
-					KodkodServer.lastModel = sol;
-					KodkodServer.lastRDefs = (Defs<Relation>) env().defs('r');
-					KodkodServer.lastFDefs = (Defs<Formula>) env().defs('f');
-					KodkodServer.lastModelAvailable = true;
-				// }
+				if (maxSolutions()==1) {
+					write(out, solver.solve(asserts(), bounds()));
+				} else {
+					write(out, solver.solveAll(asserts(), bounds()));
+				}
 				return clear();
 			} catch (RuntimeException ex) {
 				throw new ActionException(ex.getMessage(), ex);
@@ -599,6 +673,7 @@ import org.parboiled.errors.ActionException;
 
 		public final boolean isIncremental() { return true; }
 		public boolean isPartial() { return false; }
+		public boolean isStepper() { return false; }
 
 		public final KodkodProblem extend() { return new Partial(this); }
 
@@ -664,6 +739,7 @@ import org.parboiled.errors.ActionException;
 		}
 
 		public final boolean isPartial() { return true; }
+		public boolean isStepper() { return false; }
 
 		public final Bounds allBounds() { return complete; }
 

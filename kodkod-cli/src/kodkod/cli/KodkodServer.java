@@ -127,11 +127,22 @@ public final class KodkodServer {
 	 * report detailed parsing errors. The {@code errorOut} parameter, if not false, specifies the name of
 	 * the file to which to dump error-causing input, if any, before exiting.
 	 */
-	KodkodServer(boolean incremental, boolean fastParsing, KodkodOutput out, String errorOut) {
-		if (incremental)
-			this.parser = Parboiled.createParser(KodkodParser.class, KodkodProblem.incremental(), out);
-		else
-			this.parser = Parboiled.createParser(KodkodParser.class,  KodkodProblem.complete(), out);
+	KodkodServer(boolean incremental, boolean stepper, boolean fastParsing, KodkodOutput out, String errorOut) {
+		if (stepper && incremental){
+			System.err.println("The -incremental and -stepper options are mutually exclusive.");
+			System.err.println("This is because Kodkod Incremental solvers do not support retrieval of the next sat solution.");
+			System.exit(1);
+		}
+
+		if (stepper){
+			this.parser = Parboiled.createParser(KodkodParser.class, KodkodProblem.stepper(), out);
+		} else if (incremental){
+		 	this.parser = Parboiled.createParser(KodkodParser.class, KodkodProblem.incremental(), out);
+		} else {
+		 	this.parser = Parboiled.createParser(KodkodParser.class,  KodkodProblem.complete(), out);
+		}
+		// else if (stepper)
+		// 	this.parser = Parboiled.createParser(KodkodParser.class,  KodkodProblem.stepper(), out);
 		this.fastParsing = fastParsing;
 		this.errorOut = errorOut;
 	}
@@ -146,42 +157,42 @@ public final class KodkodServer {
 	 * report detailed parsing errors.  The {@code errorOut} parameter, if not false, specifies the name of
 	 * the file to which to dump error-causing input, if any, before exiting.
 	 */
-	public KodkodServer(boolean incremental, boolean fastParsing, String errorOut) {
-		this(incremental, fastParsing, new StandardKodkodOutput(), errorOut);
+	public KodkodServer(boolean incremental, boolean stepper, boolean fastParsing, String errorOut) {
+		this(incremental, stepper, fastParsing, new StandardKodkodOutput(), errorOut);
 	}
 
 	/**
 	 * Parses and executes the batch of problems specified by the given input buffer.
+	 * Note: Each KodkodServer instance only ever uses one problem instance in its lifetime.
+	 * They die at the same time.
 	 */
 	public void serve(InputBuffer batch) {
-		// where do I want to find the getnextsol?
-		// I think it might make most sense to just add a method to KodkodProblem that tries to match (solve)
-		// and prints the result, advancing the solution iterator.
-
-		// what are my alternatives?
-
-		// well I do have some actually.
-
-		// I could change KodkodParser to accept just (solve) as a base input,
-		// and that calls a method in problem to print the solution, throwing an error
-		// if there is no solution available. Yeah, that's simpler actually/
-
 		final KodkodProblem problem = parser.problem;
 		final Rule rule;
+
 		if (problem.isIncremental()) {
-			if (problem.isPartial())
+			if (problem.isPartial()) {
 				rule = parser.RestOfIncrementalProblems();
-			else
+			} else {
 				rule = parser.IncrementalProblems();
+			}
+		} else if (problem.isStepper()){
+			if (problem.isSolved()){
+				rule = parser.StepperServe();
+			} else {
+				rule = parser.StepperProblem();
+			}
 		} else {
 			rule = parser.Problems();
 		}
+
 		final ParsingResult<Object> result;
 		if (fastParsing) {
 			result = (new BasicParseRunner<Object>(rule)).run(batch);
 		} else {
 			result = (new ErrorLocatingParseRunner<Object>(rule)).run(batch);
 		}
+
 		if (!result.matched) {
 			if (result.hasErrors()) {
 				final Logger logger = Logger.getGlobal();
@@ -201,6 +212,61 @@ public final class KodkodServer {
 			System.exit(1);
 		}
 	}
+
+// LOL jk kodkodserver only gets one problem in its lifetime.
+	// /**
+	// * Like serve(InputBuffer), except we keep the problem alive until we're really done with it.
+	// * This modification has to be made at this level (the server level) because
+	// * each EOI causes a new InputBuffer to be read, and serve() only reads one InputBuffer.
+	// *
+	// * But we need to be able to continue running the problem AFTER an EOI, since each (solve)
+	// * must be accompanied by an EOI.
+	// *
+	// * Right. We can't make any new problems in this mode, we can run only one problem.
+	// * When we're done with it, kodkod-cli exits. serve() can handle many problems,
+	// * and can handle many EOI inputs, but can only handle one EOI per problem.
+	// */
+	// public void serveStepper() {
+	// 	final KodkodProblem problem = parser.problem;
+	//
+	// 	assert(problem.isStepper());
+	// 	final Rule rule = parser.StepperProblem()
+	//
+	// 	try(InputStreamReader ir = new InputStreamReader(System.in, "UTF-8")) {
+	//
+	// 		while (true){
+	// 			final InputBuffer batch = read(ir);
+	//
+	// 			final ParsingResult<Object> result;
+	// 			if (fastParsing) {
+	// 				result = (new BasicParseRunner<Object>(rule)).run(batch);
+	// 			} else {
+	// 				result = (new ErrorLocatingParseRunner<Object>(rule)).run(batch);
+	// 			}
+	//
+	// 			if (!result.matched) {
+	// 				if (result.hasErrors()) {
+	// 					final Logger logger = Logger.getGlobal();
+	// 					for(ParseError err : result.parseErrors) {
+	// 						logger.severe(ErrorUtils.printParseError(err));
+	// 					}
+	// 				} else {
+	// 					Logger.getGlobal().severe(	"Error in the input problem.  "+
+	// 												"To see the source of the error, re-run a new instance of KodkodServer on this problem " +
+	// 												"without -fast-parsing and, optionally, with -error-out <filename>.");
+	// 				}
+	// 				if (errorOut != null) {
+	// 					try(FileWriter fw = new FileWriter(new File(errorOut))) {
+	// 						fw.write(InputBufferUtils.collectContent(batch));
+	// 					} catch (IOException e) { }
+	// 				}
+	// 				System.exit(1);
+	// 			}
+	// 		}
+	// 	} catch (IOException e) {
+	// 		Logger.getGlobal().severe(e.getMessage());
+	// 	}
+	// }
 
 
 
@@ -264,7 +330,7 @@ public final class KodkodServer {
 
 	/** Prints version.*/
 	private static void version() {
-		System.out.println("KodkodServer version 2.0 (October 12 2012)");
+		System.out.println("KodkodServer version 2.0 (October 12 2012) (Forked 2019)");
 	}
 
 	/** Prints usage and exists with the given code. */
@@ -286,16 +352,18 @@ public final class KodkodServer {
 	 * {@code java kodkod.cli.KodkodServer -help} for usage options.
 	 */
 	public static void main(String[] args) {
-		//(new ServerTest()).testStandardSolver0();
 
-		boolean incremental = false, fastParsing = false;
+		boolean incremental = false, fastParsing = false, stepper = false;
 		String errorOut = null;
+
+		// Parse options until we reach an unrecognized option, which must be a filename.
 		for(int i = 0, len = args.length; i < len; i++) {
 			switch(args[i]) {
 			case "-help" 		: usage(0);
 			case "-version"		: version(); System.exit(0);
 			case "-incremental"	: incremental = true; break;
 			case "-fast-parsing": fastParsing = true; break;
+			case "-stepper"		: stepper = true; break;
 			case "-error-out"   :
 				if (++i < len) {
 					errorOut = args[i];
@@ -307,12 +375,14 @@ public final class KodkodServer {
 				if (i+1 < len) {
 					usage(1);
 				} else {
-					(new KodkodServer(incremental, fastParsing, errorOut)).serve(new File(args[i]));
+					// Can't use a stepper problem when running kodkod on a file.
+					(new KodkodServer(incremental, false, fastParsing, errorOut)).serve(new File(args[i]));
 					System.exit(0);
 				}
 			}
 		}
-		(new KodkodServer(incremental, fastParsing, errorOut)).serve();
 
+		KodkodServer server = new KodkodServer(incremental, stepper, fastParsing, errorOut);
+		server.serve();
 	}
 }

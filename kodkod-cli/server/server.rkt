@@ -41,7 +41,7 @@
                     "kodkod.cli.KodkodServer" "-incremental" "-error-out" error-out)
         (subprocess #f #f #f
                     java "-Xmx2G" "-cp" cp
-                    "kodkod.cli.KodkodServer" "-error-out" error-out))))
+                    "kodkod.cli.KodkodServer" "-stepper" "-error-out" error-out))))
 
 (define (kodkod-stderr-handler src err)
   (match (read-line err)

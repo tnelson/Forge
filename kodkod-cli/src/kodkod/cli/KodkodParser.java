@@ -112,7 +112,8 @@ public class KodkodParser extends BaseParser<Object> {
 	/**
 	 * Sets {@code this.problem} to the given problem and returns true.
 	 * Setting the problem to <code>null</code> causes this method to
-	 * terminate the current JVM instance with a 0 exit code.
+	 * terminate the current JVM instance with a 0 exit code. So basically,
+	 * when a solve() returns null, that's our cue to end the process.
 	 * @ensures this.problem' = problem
 	 * @return true
 	 */
@@ -123,20 +124,9 @@ public class KodkodParser extends BaseParser<Object> {
 		return true;
 	}
 
-	Rule ServeNext() {
-		return Sequence(SolveNext(), EOI);
-	}
-
-	Rule SolveNext() { return Sequence(LPAR, SOLVE, RPAR,			setProblem(problem.solveNext(out))); }
-
-	/** @return Problem()+ EOI */
 	public Rule Problems() {
-		return FirstOf(ServeNext(), OneOrMore(Problem()));
+		return OneOrMore(Problem());
 	}
-
-	// public Rule Problems() {
-	// 	return OneOrMore(Problem());
-	// }
 
 	/** @return (Problem() IncrementalProblem()*)+ EOI */
 	// public Rule IncrementalProblems()			{ return OneOrMore(Problem(), ZeroOrMore(IncrementalProblem()));  }
@@ -148,6 +138,27 @@ public class KodkodParser extends BaseParser<Object> {
 	// a problem can also just be (solve), in which case we just print the next Solution.
 	// but can't be multiple solves (should just be solve + eoi, and can't be series of solve + eoi, cuz that's not
 	// even possible)
+
+	public Rule StepperServe() {
+		return Sequence(
+				Space(),
+				Solve(),
+				Optional(FirstOf(Clear(), Exit())),
+				EOI);
+	}
+
+	@Cached
+	public Rule StepperProblem() {
+		return Sequence(
+				Space(),				 						problem.startBuild(),
+				Configure(),
+				DeclareUniverse(),
+				Optional(DeclareInts()),
+				ZeroOrMore(FirstOf(	DeclareRelation(),
+									DefNode(),
+									Assert())),					problem.endBuild(),
+				StepperServe());
+	}
 
 	/** @return Exit? Configure Universe DefineInts? IncrementalProblem  */
 	@Cached
@@ -597,24 +608,6 @@ public class KodkodParser extends BaseParser<Object> {
 	/** @return ITE Constraint Expr Expr */
 	Rule IfExpr() {
 		return Sequence(ITE, Constraint(), Expr(), Expr(),		swap3(), push(ite(popFormula(), popExpr(), popExpr())));
-	}
-
-	boolean pnt(Object a){
-		System.out.println(a);
-		System.out.flush();
-		return true;
-	} boolean pnt(Object a, Object b){
-		System.out.print(a);
-		System.out.println(b);
-		System.out.flush();
-		return true;
-	}
-
-	boolean end(List<Expression> argsget){
-		if (argsget != null){
-			System.exit(0);
-		}
-		return true;
 	}
 
 	// WARNING CHANGED HACK USES VAR RECURSIVELY

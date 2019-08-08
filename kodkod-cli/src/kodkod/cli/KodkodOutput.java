@@ -42,10 +42,4 @@ public interface KodkodOutput {
 	 */
 	public abstract void writeSolution(Solution sol, KodkodProblem problem);
 
-	// WARNING HACK
-	public abstract void writeInstance(Instance sol, Defs<Relation> defs);
-
-	// WARNING HACK
-	public void writeCore(Proof proof, Defs<Formula> defs);
-
  }
