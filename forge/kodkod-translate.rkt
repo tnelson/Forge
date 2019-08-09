@@ -1,6 +1,6 @@
 #lang racket
 
-(require "lang/ast.rkt" "../kodkod-cli/server/kks.rkt")
+(require "lang/ast.rkt" "kodkod-cli/server/kks.rkt")
 
 (provide interpret-formula)
 
