@@ -20,6 +20,7 @@
 (define $$EVAL-OUTPUT$$ "")
 (define $$MODEL-NAME$$ "")
 (define $$NEXT-MODEL$$ "")
+(define $$SIG-NAMES$$ "")
 
 (define $$CURRENT-TAB$$ "graph")
 
@@ -38,11 +39,12 @@
         newmodel)
       model))
 
-(define (display-model model name next-model)
+(define (display-model model sig-names name next-model)
   (thread (lambda () (begin
                        (set! $$MODEL-NAME$$ name)
                        (set! $$MODEL$$ (model-trim model))
                        (set! $$NEXT-MODEL$$ next-model)
+                       (set! $$SIG-NAMES$$ sig-names)
                        ;(set! $$BOUNDS$$ bounds)
                        (begin
                          (serve/servlet start
@@ -91,16 +93,22 @@
                               `(html
                                 (head
                                  ;(script ((type "text/javascript") (src "http://code.jquery.com/jquery-1.7.1.min.js")))
-                                 (script ((type "text/javascript")) ,(format "var json = ~a;" (if (hash? $$MODEL$$) (jsexpr->string (model-to-JSON $$MODEL$$)) (jsexpr->string (model-to-JSON (make-hash))))))
+                                 (script ((type "text/javascript")) ,(format "var json = ~a;" (if (hash? $$MODEL$$) (jsexpr->string (model-to-JSON $$MODEL$$ $$SIG-NAMES$$)) (jsexpr->string (model-to-JSON (make-hash))))))
                                  (script ((type "text/javascript") (src "/cytoscape.min.js")))
-                                 (script ((type "text/javascript") (src "/cytoscape-euler.js")))
+                                 (script ((src "https://unpkg.com/klayjs@0.4.1/klay.js")))
+                                 (script ((type "text/javascript") (src "/cytoscape-klay.js")))
+                                 (script ((type "text/javascript") (src "/layout-base.js")))
+                                 (script ((type "text/javascript") (src "/cose-base.js")))
+                                 (script ((type "text/javascript") (src "/avsdf-base.js")))
+                                 (script ((type "text/javascript") (src "/cytoscape-cise.js")))
                                  (script ((type "text/javascript") (src "/tabs.js")))
                                  (script ((type "text/javascript") (src "/eval.js")))
                                  (script ((type "text/javascript")) ,(format "var evalurl = '~a';" (embed/url eval-handler)))
                                  (link ((rel "stylesheet") (type "text/css") (href "/tabs.css")))
                                  (link ((rel "stylesheet") (type "text/css") (href "/cyto.css")))
                                  (link ((rel "stylesheet") (type "text/css") (href "/eval.css")))
-                                 (body ((onload "document.getElementById(\"defaultopen\").click();"))
+                                 
+                                 (body ;((onload "document.getElementById(\"defaultopen\").click();"))
                                        (p ((class "model-name") (style "font-weight: bold; font-size: 32pt;")) ,$$MODEL-NAME$$)
                                        (div ((class "tab"))
                                             (button ((class "tablinks") (onclick "openTab(event, \'graph\')") (id ,(format "~a" (if (string=? $$CURRENT-TAB$$ "graph") "defaultopen" "graph-tab")))) "graph")
@@ -114,13 +122,18 @@
                                          (button ((type "submit") (name "next")) "next"))))
                                  (div ((id "wrapper"))
                                       (div ((id "content")) (h1 ,(format "Instance ~a" count))
-                                           (div ((id "graph") (class "tabcontent")) ,(if (hash? $$MODEL$$) '(div ((id "cy"))) '(p "There are no additional satisfying instances")))
+                                           (div ((id "graph") (class "tabcontent"))
+                                                ,@(if (hash? $$MODEL$$)
+                                                      '((button ((onclick "toggle_zoom(this)") (id "zoom_button")) "Zoom DISABLED. Click to toggle.")
+                                                        (div ((id "cy"))))
+                                                     '((p "There are no additional satisfying instances"))))
                                            (div ((id "list") (class "tabcontent")) (p ,struct-m)))
                                       (div ((id "evaluator") (class "repl"))
                                            (h1 "Evaluator")
                                            (div ((id "eval-output")))
                                            (input ((type "text") (name "expr") (onkeydown "SendQuery(this);") (id "eval-input")))))
                                  (script ((type "text/javascript") (src "/cyto.js"))))))))
+       
        (eval-handler (lambda (request)
                        (define expr (cdr (car (filter (lambda (x) (equal? (car x) 'expr)) (request-headers request)))))
                        (response/xexpr `(xml ,(wrap-eval (read (open-input-string expr))))

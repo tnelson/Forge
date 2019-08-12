@@ -22,7 +22,7 @@
   (define nodes (unfold-list nodes-temp))
   (values nodes edges))
 
-(define (model-to-JSON modelhash)
+(define (model-to-JSON modelhash sig-names)
   ; map each name to
   (define pairs (hash-map modelhash
             (lambda (key value)
@@ -30,7 +30,7 @@
   (define rels (make-hasheq pairs))
   (define all-tuples (unfold-list (hash-values rels)))
   (define-values (all-nodes all-edges) (nodes-and-edges all-tuples))
-  (hasheq 'relations rels 'nodes all-nodes 'edges all-edges))
+  (hasheq 'sig_names sig-names 'relations rels 'nodes all-nodes 'edges all-edges))
 
 (provide model-to-JSON)
 

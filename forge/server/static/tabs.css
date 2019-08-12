@@ -30,7 +30,7 @@
 .tabcontent {
   /* display: block; */
 	display: none;
-  padding: 6px 12px;
+  /* padding: 6px 12px; */
   border: 1px solid #ccc;
   border-top: none;
   float: left;
@@ -56,8 +56,8 @@
 }
 
 #content {
-  position: absolute; 
-  top: 0; 
+  position: absolute;
+  top: 0;
   left: 0;
   width: 100%;
 }
@@ -67,4 +67,9 @@
   top: 0;
   right: 0;
   width: 35%;
+}
+
+#zoom_button {
+	position: absolute;
+	z-index: 100;
 }

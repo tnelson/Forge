@@ -127,8 +127,8 @@
 (define (bind-sigs hashy-bounds)
   (append
    (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
-                       (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
-       (filter (lambda (x) (@not (member x (hash-values extensions-store)))) sigs))
+                        (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
+        (filter (lambda (x) (@not (member x (hash-values extensions-store)))) sigs))
    (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (filter (lambda (x) (member x (hash-values extensions-store))) sigs))))
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
@@ -156,7 +156,7 @@
           out))
       out))
 ;(define (up-to n)
- ; (if (@= n 1) (list n) (cons n (up-to (@- n 1)))))
+; (if (@= n 1) (list n) (cons n (up-to (@- n 1)))))
 
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
@@ -222,7 +222,14 @@
     (cmd [stdin]
          (solve))
     (parse-kodkod (read-solution stdout) rels inty-univ))
-  (display-model parsed-model name get-next-model))
+  
+  (define non-abstract-sig-names
+    (map
+     (lambda (x) (relation-name x))
+     (filter-not
+      (lambda (y) (member y (hash-values extensions-store)))
+      sigs)))
+  (display-model parsed-model non-abstract-sig-names name get-next-model))
 
 (define-syntax (run stx)
   (syntax-case stx ()

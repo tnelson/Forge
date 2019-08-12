@@ -1,4 +1,5 @@
 function openTab(evt, tabName) {
+	console.log("openTab was called");
 
   // Declare all variables
   var i, tabcontent, tablinks;
@@ -19,14 +20,15 @@ function openTab(evt, tabName) {
   document.getElementById(tabName).style.display = "block";
   evt.currentTarget.className += " active";
 
-	if (tabName == "graph"){
-		cy.resize();
-		cy.center();
-		cy.fit();
-		var layout = cy.layout({
-			name: "circle"
-		});
-		layout.run();
-		cy.fit();
-	}
+	// if (tabName == "graph"){
+	// 	cy.resize();
+	// 	// cy.fit();
+	// 	// var layout = cy.layout({
+	// 	// 	name: "klay"
+	// 	// });
+	// 	cy.layout(layout_options).run();
+	//
+	// 	cy.center();
+	// 	cy.fit();
+	// }
 }

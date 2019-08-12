@@ -13,8 +13,23 @@ Visualization goals:
 11. Manual theming JS input
 
 Biggest priorities:
-Manual theming
-Trying dag layouts
+Manual theming			(CAN DO VIA CONSOLE FOR NOW)
+Trying dag layouts		(NEXT)
 Clustered layouts
-Optional zooming button
-Expanding instances.
+Optional zooming button (DONE)
+Expanding instances. 	(NOT PRIORITY)
+ASK SIRTHIAS ABOUT THE BUG
+
+Notes from Shriram: working on javascript evaluator for theming is good idea, esp. with clustered layouts.
+Also, just do the zooming, it'll take two seconds.
+
+Also, we should do a careful code audit of our model evaluator to make sure it does not assume anything extra
+about the model.
+
+That's the golden path. Worry about refactoring later. When you have time to relax and consider, that's when you
+refactor.
+
+Alright, klay is usable. But it's still not a good default layout.
+
+do rows, one per sig, and then arrange the rows to minimize edge crossings.
+How to do that? I need to experiment with compound nodes.
