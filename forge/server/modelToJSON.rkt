@@ -23,6 +23,7 @@
   (values nodes edges))
 
 (define (model-to-JSON modelhash sig-names)
+  ;(writeln modelhash)
   ; map each name to
   (define pairs (hash-map modelhash
             (lambda (key value)

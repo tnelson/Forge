@@ -6,32 +6,82 @@ json.sig_names.forEach(function(name){
 	});
 });
 
+var relation_colors = [
+	"#003366",
+	"#3366cc",
+	"#33ccff",
+	"#0000ff",
+	"#6600cc",
+	"#cc00cc",
+	"#ff66ff",
+	"#ff0000",
+	"#ff9900",
+	"#993333",
+	"#996600",
+	"#663300",
+	"#ffcc00",
+	"#999966",
+	"#669900",
+	"#00ff00",
+	"#00ff99",
+	"#669999",
+];
+
+var compound_colors = [
+	"#66ff99",
+	"#ffff99",
+	"#ccff99",
+	"#ffcc99",
+	"#ff9999",
+	"#ff99cc",
+	"#ffccff",
+	"#cc99ff",
+	"#99ccff",
+	"#66ccff",
+	"#66ffff",
+	"#99ffcc",
+];
+
 var parent = function(node_name){
 	return Object.keys(sigs).filter(function(sig_name){
 		return sigs[sig_name].includes(node_name);
 	})[0];
 };
 
+var compound_color_index = 0;
+
 var nodes = json.nodes.map(function(name){
 	return {
 		data: {
 			id: name,
 			label: name,
-			color: "#666",
-			parent: parent(name)
+			color: "#e6e6e6",
+			parent: parent(name),
+			padding: 10,
+			z_compound_depth: "auto",
 		}
 	};
 }).concat(json.sig_names.map(function(name){
+	compound_color_index += 1;
 	return {
 		data: {
 			id: name,
-			// label: name
+			label: "",
+			color: compound_colors[compound_color_index % compound_colors.length],
+			padding: 10,
+			z_compound_depth: "auto",
 		}
 	};
 }));
 
+var relation_color_index = 0;
+
 var edges = Object.entries(json.relations).reduce(function(acc, val){
 	relation_name = val[0];
+
+	if (val[1][0].length >= 2) {
+		relation_color_index += 1;
+	}
 
 	return acc.concat(val[1].map(function(tuple){
 		console.assert(tuple.length >= 1);
@@ -51,11 +101,17 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 				source: start,
 				target: end,
 				label: label,
-				color: "#ccc"
+				active_color: relation_colors[relation_color_index % relation_colors.length],
+				base_color: relation_colors[relation_color_index % relation_colors.length],
+				width: 3,
+				font_size: 12,
+				color: "black",
+				z_compound_depth: "auto",
 			}
 		}
 	}));
 }, []);
+
 
 //graph_els =
 // What's the question I want answered? I want to know how compound nodes are laid out.
@@ -77,11 +133,18 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 
 
 // --------------------------------------------------------------------------------------------------
-// ok, put them in a circle, arrange the nodes in a grid inside each compound box. What else?
-// make the lines consistently color-coded to the relation (relations won't change across instances)
-// make line highlighting better: other nodes/edges should fade out a little, highlighted line/node should grow
-// by default, maybe represent binary relations as attributes.
-// ALSO: when a sig doesn't connect to anything, put it by the side, NOT in the big circle.
+// 	 arrange the nodes in a grid inside each compound box. (high priority) (turns out its a bad idea)
+
+// make the lines consistently color-coded to the relation (relations won't change across instances) (high priority)
+// make line highlighting better: other nodes/edges should fade out a little,
+// highlighted line/node should grow (high priority)
+
+// by default, maybe represent binary relations as attributes. (NOPE)
+
+// ALSO: when a sig doesn't connect to anything, put it by the side, NOT in the big circle. (low priority)
+
+// if every atom in A connects to B0, just have an edge from the A compound box
+// to atom B0. (tricky, but high ish priority)
 // --------------------------------------------------------------------------------------------------
 
 // Alrght, so the actual layout part is clearly the hardest. How do I do it?
@@ -96,44 +159,64 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 // OK, let's try cise, and if that doesn't look nice, and it probably won't, let's give up and roll our own.
 // alright, yeah, let's try cise.
 
+
+// cose bilkent and fcose]
+// ahh fuck, fcose relies on numericjs which is clearly in EOL.
+// and cose bilkent?
+// more ideas: if every atom in A connects to B0, just have an edge from the A compound box
+// to atom B0.
+// Maybe use branching edges? nah, can't separate two edges between the same nodes.
+
+// make labels only appear when moused over.
+
+// so, while cose-bilkent sorta works, none of its options do anything, so it's basically useless.
+
+// How about cola? NOPE, the options are a lil too complicated to use effectively.
+
+// Cose can't be used on children alone, since it throws an errror when it realizes that
+// the parents aren't included. and it sucks when used on the whole thing. Yep, confirmed on cytotest.
+
 var cy = cytoscape({
 
 	container: document.getElementById('cy'), // container to render in
 
 	elements: nodes.concat(edges),
+	// elements: nodes,
 
 	style: [ // the stylesheet for the graph
 		{
 			selector: 'node',
 			style: {
-				'background-color': 'yellow',
-				'label': 'data(id)',
+				'background-color': 'data(color)',
+				'label': 'data(label)',
 				'font-size': 12,
-				'color': 'data(color)',
-				'shape': 'barrel',
-				'width': 100,
-				'border-color': 'black',
-				'border-width': 2,
+				'width': 'label',
+				'padding': 'data(padding)',
 				'text-valign': 'center',
-				'text-halign': 'center'
+				'text-halign': 'center',
+				'border-width': 1,
+				'border-color': 'black',
+				'z-compound-depth': 'data(z_compound_depth)',
 			}
 		},
 
 		{
 			selector: 'edge',
 			style: {
-			 	'width': 3,
-				'line-color': "data(color)",
-				'target-arrow-color': 'data(color)',
+			 	'width': "data(width)",
+				'line-color': "data(active_color)",
+				'target-arrow-color': 'data(active_color)',
 				'target-arrow-shape': 'triangle',
 				'curve-style': 'bezier',
 				'label': 'data(label)',
 				'text-wrap': 'wrap',
+				'source-endpoint': 'inside-to-node',
 				'control-point-weight': 0.8,
 				'control-point-step-size': 50,
-				'font-size': 12,
+				'font-size': "data(font_size)",
 				'color': 'data(color)',
-				"edge-text-rotation": "autorotate"
+				"edge-text-rotation": "autorotate",
+				"z-compound-depth": 'data(z_compound_depth)'
 			}
 		}
 	],
@@ -142,32 +225,44 @@ var cy = cytoscape({
 });
 
 var layout_options = {
+	// it seems that cose is not determinstic. That's bad.
+	// name: "cose",
+	// nodeRepulsion: 1000,
+	// animate: 'end'
+
+
+	// below options are for cise, which IS deterministic.
 	name: "cise",
 	animate: false,
 	clusters: Object.values(sigs),
-	// idealInterClusterEdgeLengthCoefficient: 2,
-	// springCoeff: 0.9,
 	nodeRepulsion: 100,
-	// gravity: 0.2
-	// gravityRange: 3
-	// klay: {
-	// 	crossingMinimization: 'INTERACTIVE'
-	// }
+	nodeSeparation: 50
+
 };
 
-cy.nodes().children().layout(layout_options).run()
-// cy.nodes().layout(layout_options).run()
+// ah, doesn't work , because they make reference to non-existent parent nodes.
+// cy.nodes().children().layout(layout_options).run();
 
-// var cy = cytoscape({
-//
-// 	container: document.getElementById('cy'), // container to render in
-//
-// 	layout: {
-// 		name: "klay"
-// 	},
-//
-// 	userZoomingEnabled: false
+cy.nodes().children().layout(layout_options).run()
+
+cy.resize();
+cy.fit();
+
+
+var bigParents = cy.filter(function(ele, i, eles){
+	return ele.children().size() >= 3;
+});
+
+// bigParents.forEach(function(ele){
+	// var pos = {};
+	// Object.assign(pos, ele.position());
+	// ele.children().layout({name: "grid", fit: false, condense: true}).run();
+
+	// Object.assign(ele.position(), pos);
 // });
+// what do I need? every node with 3 or more children.
+
+
 
 function toggle_zoom(ele) {
 	if (cy.userZoomingEnabled()){
@@ -180,9 +275,31 @@ function toggle_zoom(ele) {
 }
 
 cy.edges().on("mouseover", function(evt){
-	evt.target.data("color", "green");
+	cy.edges().data("active_color", "#cccccc")
+	cy.edges().data("color", "#cccccc")
+	evt.target.data("active_color", "black");
+	evt.target.data("color", "black");
+	evt.target.data("width", 6);
+	evt.target.data("font_size", 20);
+	evt.target.data("z_compound_depth", "top");
+	cy.$id(evt.target.data("source")).data("padding", 30);
+	cy.$id(evt.target.data("source")).data("color", "#a6a6a6");
+	cy.$id(evt.target.data("source")).data("z_compound_depth", "top");
+	cy.$id(evt.target.data("target")).data("padding", 30);
+	cy.$id(evt.target.data("target")).data("color", "#a6a6a6");
 });
 
 cy.edges().on("mouseout", function(evt){
-	evt.target.data("color", "#ccc");
+	cy.edges().forEach(function(ele, i, eles){
+		ele.data("active_color", ele.data("base_color"));
+	});
+	cy.edges().data("color", "black");
+	evt.target.data("width", 3);
+	evt.target.data("font_size", 12);
+	evt.target.data("z_compound_depth", "auto");
+	cy.$id(evt.target.data("source")).data("padding", 10);
+	cy.$id(evt.target.data("source")).data("color", "#e6e6e6");
+	cy.$id(evt.target.data("source")).data("z_compound_depth", "auto");
+	cy.$id(evt.target.data("target")).data("padding", 10);
+	cy.$id(evt.target.data("target")).data("color", "#e6e6e6");
 });

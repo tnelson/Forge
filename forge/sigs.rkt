@@ -215,9 +215,13 @@
      (interpret-formula c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
+  ;(cmd [stdin] 
   (cmd [stdin] (solve))
+
   (define model (read-solution stdout))
+  (writeln model)
   (define parsed-model (parse-kodkod model rels inty-univ))
+  
   (define (get-next-model)
     (cmd [stdin]
          (solve))
