@@ -68,10 +68,7 @@ var nodes = json.nodes.map(function(name){
 		data: {
 			id: name,
 			label: name,
-			color: "#e6e6e6",
-			parent: parent(name),
-			padding: 10,
-			z_compound_depth: "auto",
+			parent: parent(name)
 		}
 	};
 }).concat(json.sig_names.map(function(name){
@@ -80,9 +77,7 @@ var nodes = json.nodes.map(function(name){
 		data: {
 			id: name,
 			label: "",
-			color: compound_colors[compound_color_index % compound_colors.length],
-			padding: 10,
-			z_compound_depth: "auto",
+			color: compound_colors[compound_color_index % compound_colors.length]
 		}
 	};
 }));
@@ -109,7 +104,6 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 		}
 
 		return {
-			// I think these should be assigned classes based on the relation they came form.
 			classes: [relation_name],
 
 			data: {
@@ -117,12 +111,7 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 				source: start,
 				target: end,
 				label: label,
-				active_color: relation_colors[relation_color_index % relation_colors.length],
 				base_color: relation_colors[relation_color_index % relation_colors.length],
-				width: 3,
-				font_size: 16,
-				color: "black",
-				z_compound_depth: "auto",
 			}
 		}
 	}));
@@ -146,39 +135,76 @@ var cy = cytoscape({
 		{
 			selector: 'node',
 			style: {
-				'background-color': 'data(color)',
+				'background-color': "#e6e6e6",
 				'label': 'data(label)',
 				'font-size': 20,
 				'width': 'label',
-				'padding': 'data(padding)',
+				'padding': 10,
 				'text-valign': 'center',
 				'text-halign': 'center',
 				'border-width': 1,
 				'border-color': 'black',
-				'z-compound-depth': 'data(z_compound_depth)',
 				'min-zoomed-font-size': 10,
 			}
 		},
-
+		{
+			selector: '$node > node',
+			style: {
+				'background-color': 'data(color)'
+			}
+		},
 		{
 			selector: 'edge',
 			style: {
-			 	'width': "data(width)",
-				'line-color': "data(active_color)",
-				'target-arrow-color': 'data(active_color)',
+				'line-color': 'data(base_color)',
+				'target-arrow-color': 'data(base_color)',
+				'color': 'data(base_color)',
 				'target-arrow-shape': 'triangle',
 				'curve-style': 'bezier',
 				'label': 'data(label)',
 				'text-wrap': 'wrap',
 				'control-point-weight': 0.6,
 				'control-point-step-size': 100,
-				'font-size': "data(font_size)",
-				'color': 'data(color)',
-				"edge-text-rotation": "autorotate",
-				"z-compound-depth": 'data(z_compound_depth)',
+				'font-size': 16,
+			 	'width': 3,
+				'edge-text-rotation': 'autorotate',
+				'z-compound-depth': 'auto',
 				'min-zoomed-font-size': 10,
 			}
-		}
+		},
+		{
+			selector: 'edge.highlighted',
+			style: {
+				'line-color': 'black',
+				'target-arrow-color': 'black',
+				'color': 'black',
+				'width': 6,
+				'font-size': 20,
+				'z-compound-depth': 'top'
+			}
+		},
+		{
+			selector: 'edge.faded',
+			style: {
+				'line-color': '#cccccc',
+				'target-arrow-color': '#cccccc',
+				'color': '#cccccc',
+
+			}
+		},
+		{
+			selector: 'node > node.highlighted',
+			style: {
+				'background-color': '#a6a6a6'
+			}
+		},
+		{
+			selector: '$node.highlighted > node',
+			style: {
+				'border-width': 3,
+				'border-color': 'black',
+			}
+		},
 	],
 
 	userZoomingEnabled: false
@@ -195,30 +221,67 @@ function toggle_zoom(ele) {
 }
 
 cy.edges().on("mouseover", function(evt){
-	cy.edges().data("active_color", "#cccccc")
-	cy.edges().data("color", "#cccccc")
-	evt.target.data("active_color", "black");
-	evt.target.data("color", "black");
-	evt.target.data("width", 6);
-	evt.target.data("font_size", 20);
-	evt.target.data("z_compound_depth", "top");
-	cy.$id(evt.target.data("source")).data("color", "#a6a6a6");
-	cy.$id(evt.target.data("source")).data("z_compound_depth", "top");
-	cy.$id(evt.target.data("target")).data("color", "#a6a6a6");
+	cy.edges().not(evt.target).addClass('faded')
+	evt.target.addClass('highlighted');
+	evt.target.source().addClass('highlighted');
+	evt.target.target().addClass('highlighted');
 });
 
 cy.edges().on("mouseout", function(evt){
-	cy.edges().forEach(function(ele, i, eles){
-		ele.data("active_color", ele.data("base_color"));
-	});
-	cy.edges().data("color", "black");
-	evt.target.data("width", 3);
-	evt.target.data("font_size", 16);
-	evt.target.data("z_compound_depth", "auto");
-	cy.$id(evt.target.data("source")).data("color", "#e6e6e6");
-	cy.$id(evt.target.data("source")).data("z_compound_depth", "auto");
-	cy.$id(evt.target.data("target")).data("color", "#e6e6e6");
+	cy.edges().not(evt.target).removeClass('faded')
+	evt.target.removeClass('highlighted');
+	evt.target.source().removeClass('highlighted');
+	evt.target.target().removeClass('highlighted');
 });
+
+var mouseOverChildren = function(children){
+		children.addClass('highlighted');
+		connectedEdges = children.connectedEdges();
+		connectedNodes = connectedEdges.connectedNodes();
+		connectedNodes.addClass('highlighted');
+		connectedEdges.addClass('highlighted');
+		cy.edges().not(connectedEdges).addClass('faded');
+}
+
+var mouseOutChildren = function(children){
+	children.removeClass('highlighted');
+	connectedEdges = children.connectedEdges();
+	connectedNodes = connectedEdges.connectedNodes();
+	connectedNodes.removeClass('highlighted');
+	connectedEdges.removeClass('highlighted');
+	cy.edges().not(connectedEdges).removeClass('faded');
+}
+
+cy.nodes().children().on('mouseover', function(evt){
+	console.log("mouse over child")
+	mouseOverChildren(evt.target);
+});
+
+cy.nodes().children().on('mouseout', function(evt){
+	console.log("mouse out child")
+	mouseOutChildren(evt.target);
+});
+//
+cy.nodes().parents().on('mouseover', function(evt){
+	if (evt.target.isParent()){
+		console.log("mouse over parent")
+		evt.target.addClass('highlighted');
+		mouseOverChildren(evt.target.children());
+		console.log(evt.target.connectedEdges());
+	}
+})
+//
+cy.nodes().parents().on('mouseout', function(evt){
+	if (evt.target.isParent()){
+		console.log("mouse out parent")
+		evt.target.removeClass('highlighted');
+		mouseOutChildren(evt.target.children());
+	}
+})
+
+// whats hapepning is, edge.highlighted is applied AND edge.faded is applie,d at the same time. bad.
+
+// mouse over parent, mouse out parent, mouse over child, mouse over parent.
 
 // cy.nodes().children().on("mouseover", function(evt){
 // 	// highlight node, incoming/outgoing edges
