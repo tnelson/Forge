@@ -128,76 +128,19 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 	}));
 }, []);
 
-
-//graph_els =
-// What's the question I want answered? I want to know how compound nodes are laid out.
-// specifically: does it lay out the sub nodes first, and then making the bounding box for the compound node
-// based on the locations of the sub nodes?
-
-// Or maybe it depends on which elements I call the layout on? In which case, do I call the layout on the subnodes,
-// and then on the compound nodes? Let's find out.
-// On this site? No, lemme make a test site.
-
-
-// ok, what are my problems now??
-// nodes should be arranged like a grid inside each compound box.
-// also, compound boxes should be placed in a consistent way across instances.
-// also, there are just too many lines on screen, with no way to tell them apart.
-
-// Well, I can't think of any good way of placing the compound boxes, besides in a circle.
-// cuz I can't do optimization across every instance. and grids are stupid, as are concentric circles.
-
-
 // --------------------------------------------------------------------------------------------------
-// 	 arrange the nodes in a grid inside each compound box. (high priority) (turns out its a bad idea)
-
-// make the lines consistently color-coded to the relation (relations won't change across instances) (high priority)
-// make line highlighting better: other nodes/edges should fade out a little,
-// highlighted line/node should grow (high priority)
-
-// by default, maybe represent binary relations as attributes. (NOPE)
-
-// ALSO: when a sig doesn't connect to anything, put it by the side, NOT in the big circle. (low priority)
-
-// if every atom in A connects to B0, just have an edge from the A compound box
-// to atom B0. (tricky, but high ish priority)
+// arrange the nodes in a grid inside each compound box. (high priority) (turns out its a bad idea)
+// More highlighting possibilities! highlight over compound node, or over node.
+// binary relations as attributes
+// fake projection: like attributes
+// if every atom in A connects to B0, just have an edge from the A compound box to atom B0 (r condensation)
 // --------------------------------------------------------------------------------------------------
-
-// Alrght, so the actual layout part is clearly the hardest. How do I do it?
-// I don't think I can use any existing tools? Well, actually, maybe I can lay things out in a circle,
-// then reparent and expand the circle as necessary? Yeah, that may actually be the easiest way.
-
-// Or I could just do the trig mnyself... Can just use the preset layout and a function that maps
-// to a circle correctly. I think that makes more sense than adjusting this other shit weirdly.
-
-// would the transform function be at all useful? No, I don't think so, not really.
-
-// OK, let's try cise, and if that doesn't look nice, and it probably won't, let's give up and roll our own.
-// alright, yeah, let's try cise.
-
-
-// cose bilkent and fcose]
-// ahh fuck, fcose relies on numericjs which is clearly in EOL.
-// and cose bilkent?
-// more ideas: if every atom in A connects to B0, just have an edge from the A compound box
-// to atom B0.
-// Maybe use branching edges? nah, can't separate two edges between the same nodes.
-
-// make labels only appear when moused over.
-
-// so, while cose-bilkent sorta works, none of its options do anything, so it's basically useless.
-
-// How about cola? NOPE, the options are a lil too complicated to use effectively.
-
-// Cose can't be used on children alone, since it throws an errror when it realizes that
-// the parents aren't included. and it sucks when used on the whole thing. Yep, confirmed on cytotest.
 
 var cy = cytoscape({
 
 	container: document.getElementById('cy'), // container to render in
 
 	elements: nodes.concat(edges),
-	// elements: nodes,
 
 	style: [ // the stylesheet for the graph
 		{
@@ -227,13 +170,11 @@ var cy = cytoscape({
 				'curve-style': 'bezier',
 				'label': 'data(label)',
 				'text-wrap': 'wrap',
-				// 'source-endpoint': 'inside-to-node',
 				'control-point-weight': 0.6,
 				'control-point-step-size': 100,
 				'font-size': "data(font_size)",
 				'color': 'data(color)',
 				"edge-text-rotation": "autorotate",
-				// 'text-margin-x': 60,
 				"z-compound-depth": 'data(z_compound_depth)',
 				'min-zoomed-font-size': 10,
 			}
@@ -242,67 +183,6 @@ var cy = cytoscape({
 
 	userZoomingEnabled: false
 });
-
-var layout_options = {
-	// it seems that cose is not determinstic. That's bad.
-	// name: "cose",
-	// nodeRepulsion: 1000,
-	// animate: 'end'
-
-
-	// below options are for cise, which IS deterministic.
-	name: "cise",
-	animate: false,
-	clusters: Object.values(sigs),
-	nodeRepulsion: 3000,
-	nodeSeparation: 100
-
-};
-
-var breadlayout = {
-	name: "breadthfirst",
-	directed: true,
-	// grid: true
-	circle: true
-	// avoidOverlap: false
-}
-
-var layout2 = {
-	name: "avsdf"
-}
-
-cy.layout(layout_options).run();
-// cy.layout(layout2).run();
-cy.resize();
-cy.fit();
-
-// layout_options = {
-// 	name: "breadthfirst"
-// }
-
-// ah, doesn't work , because they make reference to non-existent parent nodes.
-// cy.nodes().children().layout(layout_options).run();
-
-// cy.nodes().children().layout(layout_options).run()
-//
-// cy.resize();
-// cy.fit();
-
-
-// var bigParents = cy.filter(function(ele, i, eles){
-// 	return ele.children().size() >= 3;
-// });
-
-// bigParents.forEach(function(ele){
-	// var pos = {};
-	// Object.assign(pos, ele.position());
-	// ele.children().layout({name: "grid", fit: false, condense: true}).run();
-
-	// Object.assign(ele.position(), pos);
-// });
-// what do I need? every node with 3 or more children.
-
-
 
 function toggle_zoom(ele) {
 	if (cy.userZoomingEnabled()){
@@ -325,10 +205,6 @@ cy.edges().on("mouseover", function(evt){
 	cy.$id(evt.target.data("source")).data("color", "#a6a6a6");
 	cy.$id(evt.target.data("source")).data("z_compound_depth", "top");
 	cy.$id(evt.target.data("target")).data("color", "#a6a6a6");
-
-	// Changing the padding fucks with the edge labels. So don't do that for now.
-	// cy.$id(evt.target.data("target")).data("padding", 30);
-	// cy.$id(evt.target.data("source")).data("padding", 30);
 });
 
 cy.edges().on("mouseout", function(evt){
@@ -342,40 +218,128 @@ cy.edges().on("mouseout", function(evt){
 	cy.$id(evt.target.data("source")).data("color", "#e6e6e6");
 	cy.$id(evt.target.data("source")).data("z_compound_depth", "auto");
 	cy.$id(evt.target.data("target")).data("color", "#e6e6e6");
-
-	// cy.$id(evt.target.data("target")).data("padding", 10);
-	// cy.$id(evt.target.data("source")).data("padding", 10);
 });
 
-
-/// YOOOOO this works! but it puts things in actual circles
-// if there are no edges, which is pretty fucking dumb.
-//
-
-// var internalEdges = cy.collection();
-//
-// cy.nodes().parents().forEach(function(ele, i, eles){
-// 	internalEdges = internalEdges.add(ele.children().edgesWith(ele.children()));
+// cy.nodes().children().on("mouseover", function(evt){
+// 	// highlight node, incoming/outgoing edges
 // });
+//
+// cy.nodes().parents().on("mouseover", function(evt){
+// 	// add border, highlight child nodes, incoming/outgoing edges.
+// })
+
+// var colalayoutY = {
+// 	name: "cola",
+// 	flow: { axis: 'y', minSeparation: 100 },	// WAIT this DOES have an effect.
+// 	// infinite: true
+// }
+var colalayout = {
+	name: "cola",
+	flow: { axis: 'y', minSeparation: 150 },	// WAIT this DOES have an effect.
+	nodeSpacing: function(node){return 20;},
+	animate: false,
+	convergenceThreshold: 0.005
+	// infinite: true
+}
+
+// var daglayout = {
+// 	name: "dagre",
+// 	rankDir: 'LR'
+// }
+
+// var ciselayout = {
+// 	name: "cise",
+// 	animate: false,
+// 	clusters: Object.values(sigs),
+// 	nodeRepulsion: 10,
+// 	nodeSeparation: 5
+// }
+
+cy.layout(colalayout).run();
+// FUCK ok cola doesn't work inside nodes. try dagre.
 
 
-// var adjustLayouts = function(){
+// savedEdges.restore();
+// cy.layout(breadlayout).run();
 
-// var savedEdges = cy.edges().remove();
-// internalEdges.restore();
+
+// OK the breadthfirst layout, when it does work correctly, ALWAYS
+// orients shit from top to bottom. I don't want that. I think I should roll my own.
+// I think that's the solution.
+
+// shit idk if I can roll my own actually. I mean I probably could,
+// but there could be some complicated shit within a sig. like what if its circular.
+// I could just drop down a row every time something tries to go back?
+// nah, that wouldn't work well.
+
+// Inside a sig, use cola, avsdf, or dagre.
+// nah, avsdf puts shit in circles. I don't want that.
+// either cola or dagre could be good. And if I use cola inside, I can use cola outside too.
+
+
+// ah but cola outside doesn't apply cola inside. soooooo, still gotta do the bullshit with cola.
+// cola DOES use the flow, remember to refresh.
+// use dagre LR inside the parent nodes.
+
+// breadthfirst is well and truly eliminated, as is klay.
+// AGH I keep forgetting, you have to INCLUDE THE EDGES.
+
+// Also, just stop trying to use the actual layouts to layout the subgraphs.
+// It's never gonna work. They always have scenarios where they lay out vertically.
+// that's what they're designed to do. They're not designed to ALWAYS make a horizontal graph.
+// So do that part yourself.
+
+// I changed the text size, that's why cise is now different.
+
+
+// var layoutSubgraph = function(name, layout){
+// 	var state = cy.$id(name);
+// 	var children = state.children();
+// 	var internalEdges = children.edgesWith(children);
+// 	var subgraph = state.add(children).add(internalEdges);
+// 	subgraph.layout(colalayoutX).run();
+// }
+
+
+// var savedElements = cy.elements();
 //
 // var state;
 // var x;
 // var y;
 // var thisInternalEdges;
-//
+// var stateAndChildren;
+// //
 // state = cy.$id("state");
+// // x = state.position().x;
+// // y = state.position().y;
+// thisInternalEdges = state.children().edgesWith(state.children());
+// wholeShebang = state.add(state.children()).add(thisInternalEdges);
+// cy.elements().remove();
+// stateAndChildren.restore();
+// thisInternalEdges.restore();
+// stateAndChildren.layout(daglayout).run();
+
+// state.position({x: x, y: y});
+
+
+// name = "state";
+// // json.sig_names.forEach(function(name){
+// 	var state = cy.$id(name);
+// 	var children = state.children();
+// 	var internalEdges = children.edgesWith(children);
+// 	var subgraph = state.add(children).add(internalEdges);
+// 	subgraph.layout(colalayoutX).run();
+// });
+
+// savedElements.restore();
+
+// state = cy.$id("Near");
 // x = state.position().x;
 // y = state.position().y;
 // thisInternalEdges = state.children().edgesWith(state.children());
 // state.children().add(thisInternalEdges).layout(breadlayout).run();
 // state.position({x: x, y: y});
-//
+
 // state = cy.$id("goat");
 // x = state.position().x;
 // y = state.position().y;
@@ -383,38 +347,5 @@ cy.edges().on("mouseout", function(evt){
 // state.children().add(thisInternalEdges).layout(breadlayout).run();
 // state.position({x: x, y: y});
 
-// ok so for state, it works fine, for others it doesn't. WHY?
-
-
-
-// cy.nodes().parents().forEach(function(ele, i, eles){
-// 	console.log(ele); // these are all right. What's happening on that line??
-// 	var x;
-// 	var y;
-// 	var id = ele.id();
-// 	x = ele.position().x;
-// 	y = ele.position().y;
-// 	var thisInternalEdges = ele.children().edgesWith(ele.children());
-// 	// ele.children().add(thisInternalEdges).layout(breadlayout).run();
-// 	cy.$id(id).position({x: x, y: y});
-// });
-
-// savedEdges.restore();
-// };
-
-
-
-// var myeles = cy.$("#state").children().union(cy.edges().filter(function(ele, i, eles){
-// 	return ele.connectedNodes().ancestors().same(cy.$("#state"));
-// }));
-//
-// cy.$()
-
-
-// How would I handle the sig condensation algorithm?
-
-// OK, take a look at each node. Then check each sig, for that node. Does this node touch every atom in the sig?
-// If so, make the replacement. Do this for every atom. Do the same thing for incoming edges.
-// Hmm, wait, what about higher order relations? Yeah, this algorithm would actually be tricky.
-
-// OK, what sorts of basic theming do I want to support?
+cy.resize();
+cy.fit();

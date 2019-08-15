@@ -77,3 +77,58 @@ I'll want a function to do this, once per sig.
 
 
 I don't understand why the repositioning isn't working...
+
+FUCK cise is also partially random. I don't want that, that's bad. It shouldn't be like that.
+
+Things the default layout needs: location of sigs should be consistent across instances. There should be no randomization. Right away, the fact that sig locations have to be consistent rules out using any cytoscape layout algorithm. At least, any decent one. Instead, users must position the sig boxes themselves, and those changes should be consistent across instances. An initial dag layout will be the default, until the user drags something into position.
+
+And you can save those positions, somehow. Or you can get a string of positions, and put that back in.
+
+And the default breadthfirst layout fucking sucks, so don't use it. What else can I use that actually owrks out nicely? Not cise, because of randomness.
+Not grid, obviously. Well, I could do a random grid, putting each sig on a different row? Can't be random, no.
+
+Let's enumerate my options. Specifically, I'm looking for options that do well at the SIG level, not the atom level.
+Preset: that's what I'll be using after the first instance.
+Random: a possibility.
+Grid: also a possiblity. As many rows as there are sigs.
+Circle: may as well do avsdf?
+Concentric: definitely a bad idea. Vetoed.
+Breadthfirst: Only works within sigs, so VETOED. Useless.
+Cose: actually a real possibility, despite being physics based. It's consistent, and it separates shit.
+Cola: VERY good option. Good enough that I can eliminate: random, grid, circle, concentric, breadthfirst, and probably cose.
+Cola is the one to beat.
+
+Now: cise is randomized, no.
+cose-bilkent is fucking broken, no
+dagre has no support for compound nodes, no
+elk is not supported, no
+Euler is not as good as cola, no.
+fcose relies on numeric.js, which is EOL, no.
+
+The only other real option is Klay. so compare klay with cola and cose.
+
+OK so klay is pretty nice, but it's like SUPER EOL. So my only other options for DAGS are breadthfirst and dagre, and I can't use breadthfirst.
+Also, dagre sucks for this. SO. use cola. Or cose, tbh. But more likely cola,or my own grid, or rando!
+
+In that the initial layout is almost pointless, let's not use an extension for it, cuz that shit dies easy.
+Instead! my own grid thing, or circle.
+Circle is easier for now.
+
+
+
+
+OK, the users can position the sigs themselves. But the contents of the sigs will change, so I need to have an algorithm for dealing with that. 
+
+
+Alright, NONE of my options work for layouts INSIDE a compound. breadthfirst comes the closest, but doesn't ultimately actually work, because of the vertical thing.
+So, if I want that, definitely gotta roll my own. hopefully just for inside a node.
+How would I roll my own? Look for a node with no incoming edges. IF you can find that, that's your 
+Hmm, how does alloy do it? I don't think alloy edges every go thorugh a node. Yeah, that's true. How do they do that?
+
+There must be an algorithm there. Something to think about. But focus on the options for Tim, first. Who am I kidding I'll think about it now.
+Could just try, ok, if something will cause an edge to overlap, shift it down a row?
+OK, specifically, what causes an edge to overlap?
+
+OK, ok I see what's going on with alloy. It first partitions the nodes into groups, where inside each group, none of the nodes connect to each other.
+Each group gets one row. Then, to prevent edges from overlapping nodes when moving upwards, they use fixedpoints set in the empty space between nodes in each row!
+The real tricky bit will be partitioning.
