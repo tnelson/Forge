@@ -1,5 +1,18 @@
 var sigs = {};
 
+// json = {
+// 	nodes: ["state0", "state1", "state2", "state3", "state4", "state5"],
+// 	relations: {
+// 		next: [["state0", "state2"],
+// 				["state1", "state3"],
+// 				["state2", "state5"],
+// 				["state3", "state0"],
+// 				["state4", "state1"]],
+// 		state: [["state0"], ["state1"], ["state2"], ["state3"], ["state4"], ["state5"]]
+// 	},
+// 	sig_names: ["state"]
+// }
+
 json.sig_names.forEach(function(name){
 	sigs[name] = json.relations[name].map(function(singleton){
 		return singleton[0];
@@ -79,7 +92,7 @@ var relation_color_index = 0;
 var edges = Object.entries(json.relations).reduce(function(acc, val){
 	relation_name = val[0];
 
-	if (val[1][0].length >= 2) {
+	if (val[1].length > 0 && val[1][0].length >= 2) {
 		relation_color_index += 1;
 	}
 
@@ -92,10 +105,13 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 		var label = relation_name + "\n\n\u2060";
 		if (tuple.length > 2){
 			var between = tuple.slice(1, tuple.length - 1);
-			label = relation_name + "[" + between.join("->") + "]\n\n.";
+			label = relation_name + "[" + between.join("->") + "]\n\n\u2060";
 		}
 
 		return {
+			// I think these should be assigned classes based on the relation they came form.
+			classes: [relation_name],
+
 			data: {
 				id: tuple.join(),
 				source: start,
@@ -104,7 +120,7 @@ var edges = Object.entries(json.relations).reduce(function(acc, val){
 				active_color: relation_colors[relation_color_index % relation_colors.length],
 				base_color: relation_colors[relation_color_index % relation_colors.length],
 				width: 3,
-				font_size: 12,
+				font_size: 16,
 				color: "black",
 				z_compound_depth: "auto",
 			}
@@ -189,7 +205,7 @@ var cy = cytoscape({
 			style: {
 				'background-color': 'data(color)',
 				'label': 'data(label)',
-				'font-size': 12,
+				'font-size': 20,
 				'width': 'label',
 				'padding': 'data(padding)',
 				'text-valign': 'center',
@@ -197,6 +213,7 @@ var cy = cytoscape({
 				'border-width': 1,
 				'border-color': 'black',
 				'z-compound-depth': 'data(z_compound_depth)',
+				'min-zoomed-font-size': 10,
 			}
 		},
 
@@ -210,13 +227,15 @@ var cy = cytoscape({
 				'curve-style': 'bezier',
 				'label': 'data(label)',
 				'text-wrap': 'wrap',
-				'source-endpoint': 'inside-to-node',
-				'control-point-weight': 0.8,
-				'control-point-step-size': 50,
+				// 'source-endpoint': 'inside-to-node',
+				'control-point-weight': 0.6,
+				'control-point-step-size': 100,
 				'font-size': "data(font_size)",
 				'color': 'data(color)',
 				"edge-text-rotation": "autorotate",
-				"z-compound-depth": 'data(z_compound_depth)'
+				// 'text-margin-x': 60,
+				"z-compound-depth": 'data(z_compound_depth)',
+				'min-zoomed-font-size': 10,
 			}
 		}
 	],
@@ -235,23 +254,44 @@ var layout_options = {
 	name: "cise",
 	animate: false,
 	clusters: Object.values(sigs),
-	nodeRepulsion: 100,
-	nodeSeparation: 50
+	nodeRepulsion: 3000,
+	nodeSeparation: 100
 
 };
+
+var breadlayout = {
+	name: "breadthfirst",
+	directed: true,
+	// grid: true
+	circle: true
+	// avoidOverlap: false
+}
+
+var layout2 = {
+	name: "avsdf"
+}
+
+cy.layout(layout_options).run();
+// cy.layout(layout2).run();
+cy.resize();
+cy.fit();
+
+// layout_options = {
+// 	name: "breadthfirst"
+// }
 
 // ah, doesn't work , because they make reference to non-existent parent nodes.
 // cy.nodes().children().layout(layout_options).run();
 
-cy.nodes().children().layout(layout_options).run()
+// cy.nodes().children().layout(layout_options).run()
+//
+// cy.resize();
+// cy.fit();
 
-cy.resize();
-cy.fit();
 
-
-var bigParents = cy.filter(function(ele, i, eles){
-	return ele.children().size() >= 3;
-});
+// var bigParents = cy.filter(function(ele, i, eles){
+// 	return ele.children().size() >= 3;
+// });
 
 // bigParents.forEach(function(ele){
 	// var pos = {};
@@ -282,11 +322,13 @@ cy.edges().on("mouseover", function(evt){
 	evt.target.data("width", 6);
 	evt.target.data("font_size", 20);
 	evt.target.data("z_compound_depth", "top");
-	cy.$id(evt.target.data("source")).data("padding", 30);
 	cy.$id(evt.target.data("source")).data("color", "#a6a6a6");
 	cy.$id(evt.target.data("source")).data("z_compound_depth", "top");
-	cy.$id(evt.target.data("target")).data("padding", 30);
 	cy.$id(evt.target.data("target")).data("color", "#a6a6a6");
+
+	// Changing the padding fucks with the edge labels. So don't do that for now.
+	// cy.$id(evt.target.data("target")).data("padding", 30);
+	// cy.$id(evt.target.data("source")).data("padding", 30);
 });
 
 cy.edges().on("mouseout", function(evt){
@@ -295,11 +337,84 @@ cy.edges().on("mouseout", function(evt){
 	});
 	cy.edges().data("color", "black");
 	evt.target.data("width", 3);
-	evt.target.data("font_size", 12);
+	evt.target.data("font_size", 16);
 	evt.target.data("z_compound_depth", "auto");
-	cy.$id(evt.target.data("source")).data("padding", 10);
 	cy.$id(evt.target.data("source")).data("color", "#e6e6e6");
 	cy.$id(evt.target.data("source")).data("z_compound_depth", "auto");
-	cy.$id(evt.target.data("target")).data("padding", 10);
 	cy.$id(evt.target.data("target")).data("color", "#e6e6e6");
+
+	// cy.$id(evt.target.data("target")).data("padding", 10);
+	// cy.$id(evt.target.data("source")).data("padding", 10);
 });
+
+
+/// YOOOOO this works! but it puts things in actual circles
+// if there are no edges, which is pretty fucking dumb.
+//
+
+// var internalEdges = cy.collection();
+//
+// cy.nodes().parents().forEach(function(ele, i, eles){
+// 	internalEdges = internalEdges.add(ele.children().edgesWith(ele.children()));
+// });
+
+
+// var adjustLayouts = function(){
+
+// var savedEdges = cy.edges().remove();
+// internalEdges.restore();
+//
+// var state;
+// var x;
+// var y;
+// var thisInternalEdges;
+//
+// state = cy.$id("state");
+// x = state.position().x;
+// y = state.position().y;
+// thisInternalEdges = state.children().edgesWith(state.children());
+// state.children().add(thisInternalEdges).layout(breadlayout).run();
+// state.position({x: x, y: y});
+//
+// state = cy.$id("goat");
+// x = state.position().x;
+// y = state.position().y;
+// thisInternalEdges = state.children().edgesWith(state.children());
+// state.children().add(thisInternalEdges).layout(breadlayout).run();
+// state.position({x: x, y: y});
+
+// ok so for state, it works fine, for others it doesn't. WHY?
+
+
+
+// cy.nodes().parents().forEach(function(ele, i, eles){
+// 	console.log(ele); // these are all right. What's happening on that line??
+// 	var x;
+// 	var y;
+// 	var id = ele.id();
+// 	x = ele.position().x;
+// 	y = ele.position().y;
+// 	var thisInternalEdges = ele.children().edgesWith(ele.children());
+// 	// ele.children().add(thisInternalEdges).layout(breadlayout).run();
+// 	cy.$id(id).position({x: x, y: y});
+// });
+
+// savedEdges.restore();
+// };
+
+
+
+// var myeles = cy.$("#state").children().union(cy.edges().filter(function(ele, i, eles){
+// 	return ele.connectedNodes().ancestors().same(cy.$("#state"));
+// }));
+//
+// cy.$()
+
+
+// How would I handle the sig condensation algorithm?
+
+// OK, take a look at each node. Then check each sig, for that node. Does this node touch every atom in the sig?
+// If so, make the replacement. Do this for every atom. Do the same thing for incoming edges.
+// Hmm, wait, what about higher order relations? Yeah, this algorithm would actually be tricky.
+
+// OK, what sorts of basic theming do I want to support?

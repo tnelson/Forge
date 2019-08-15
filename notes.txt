@@ -1,0 +1,79 @@
+Ideas:
+
+Theming is really the only thing that can save the gotas and wolves spec visualization. Other cool options: fake projection, good idea. So like if A->B, and B->C0, B->C1, B->C2, then A->C0, A->C1, A->C2, but with labels on each such edge. have to distinguish it from things like ternary relations, but I think it can be generalized to higher degrees.
+
+ALSO, the relation condensation idea.
+
+But those are things that we should wait to add. And the grid-based layout probably wouldn't be great either.
+
+For now, I'm just focusing on a set of console commands that Tim can run for basic theming. Let's think about what those can be.
+
+
+
+OH BETTER HIGHLIGHTING IDEA:
+Right now, if you mouse over an edge, it highlights the edge and the endpoints.
+
+If you mouse over a node, it should highlight all edges and destinations.
+
+And if you mouse over a compound node, it should highlight all nodes, edges, and destinations! Yes, that would actually be super super handy.
+
+There could even be a lasting highlight option, that keeps things highlighted, and an anti-highlight option. PERSISTENT highlighting.
+
+To clear relation "R":
+cy.$(".R").remove();
+
+To remove atom "A":
+cy.$("#A").remove();
+
+To remove a sig "S":
+cy.$("#S").children().remove();
+
+For each of the above, the call will return the elements removed. Restore them by calling .restore() on the returned elements.
+
+Get a circular layout:
+cy.nodes().layout({name: "circle"}).run()
+
+Get a concentric layout:
+cy.nodes().layout({name: "concentric"}).run()
+
+Get a grid layout:
+cy.nodes().layout({name: "grid"}).run()
+
+breadthfirst, random, cose
+
+
+
+
+Hmm, laying them out so they're all in lines seems much better. 
+
+IDEA: alllow users to choose layouts for the nodes inside a sig. Then allow them to manually position them. THEN SAVE THE POSITION ACROSS INSTANCES.
+
+that's a great idea, but I also want to prevent intersections INSIDE each compound node. How might I do that? IDEA: use cose, or cise, but constrain the size!
+
+mm, cose and cise don't even try to minimize edge crossings. Which do? avsdf and klay. OK, try those.
+
+
+GOD DAMMIT. I know why shit wasn't working. It's because cy.layout is NOT equivalent to cy.nodes().layout. You need to include the EDGES. cy.layout is equivalent to cy.elements().layout
+
+I need to try all the old layouts again. DAMN.
+OK well hm. I still want to minimize edge crossings, and breadthfirst can't do that for the graph as a whole. cise can though.
+
+Yeah the breadthfrist layout actually looks way better. But I wonder how much of that is due to the nodes being in a line... Let's try cise but reordering each individual sig.
+
+Ah ok breadthfirst still sucks there. but I wonder... what if I only give it the edges inside the sig?
+
+cy.edges().filter(
+
+
+IT's doing that to avoid the vertical alyout, which will get in the way of other nodes.
+
+I SEE THE PROBLEM. No matter what edges I give it, the layout sees the incoming edges for each node, and lays out the nodes accordingly. I have to prevent breadthfrist from seeing those.
+
+OK, so remove the edges, lay out, add them back. That's actually possible. Use circle option to get them in a straight line, also amkes more sense if we're also using cise.
+
+OK! but its good enough. Basically: we use breadthfirstlayout, set directed to true (so that we don't have edges passing underneath nodes), set circle to true (so it doesn't try laying things out vertically) and we apply it only when all the edges are cleared away.
+
+I'll want a function to do this, once per sig.
+
+
+I don't understand why the repositioning isn't working...
