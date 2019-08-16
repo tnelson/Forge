@@ -1,16 +1,16 @@
 #lang forge
 
 ; TODO: abstractness optional
-(declare-sig player)
-(declare-one-sig X #:extends player)
-(declare-one-sig O #:extends player)
+(declare-sig Player)
+(declare-one-sig X #:extends Player)
+(declare-one-sig O #:extends Player)
 
-(declare-sig index)
-(declare-one-sig A #:extends index)
-(declare-one-sig B #:extends index)
-(declare-one-sig C #:extends index)
+(declare-sig Index)
+(declare-one-sig A #:extends Index)
+(declare-one-sig B #:extends Index)
+(declare-one-sig C #:extends Index)
 
-(declare-sig board ((places index index player)))
+(declare-sig Board ([places Index Index Player]))
 
 ; TODO join syntax is pretty awkward
 ; TODO: let?
@@ -26,7 +26,14 @@
 
 ; TODO: run a predicate with args directly (auto-gen closed fmla w/ existentials)
 (pred somexturn
-      (some ([b board]) (xturn b)))
+      (some ([b Board]) (xturn b)))
 ;(run "xturn" (somexturn) ((player 2 2) (index 3 3) (board 1 1)))
 
-(run "xturn" ((some ([b board]) (xturn b))) ((player 2 2) (index 3 3) (board 1 1)))
+(pred at-most-one-mark-per-square
+      (all ([b Board] [r Index] [c Index])
+           (or (int= (card (join b (join (join places r) c))) 1)
+               (int= (card (join b (join (join places r) c))) 0))))
+
+
+(run "xturn" (at-most-one-mark-per-square (some ([b Board]) (xturn b))) ((Player 2 2) (Index 3 3) (Board 1 1)))
+
