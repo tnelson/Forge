@@ -56,11 +56,24 @@
             (all ([r Index])
                  (in b (join (join (join places p) c) r)))))
 
-(pred (winD b p)
+(pred (winDBroken b p)
       (all ([i Index])
            (or 
             (in b (join (join (join places p) i) i))
             (in b (join (join (join places p) i) (join i inverse))))))
+
+(pred (winD b p)
+      (or 
+       (all ([i Index]) (in b (join (join (join places p) i) i)))
+       (all ([i Index]) (in b (join (join (join places p) i) (join i inverse))))))
+
+(run "DiagsEquiv?" (at-most-one-mark-per-square
+                    fix-inverses
+                    (some ([b Board])
+                          (or (and (winD b O) (not (winDBroken b O)))
+                              (and (winDBroken b O) (not (winD b O))))))
+     ((Player 2 2) (Index 3 3) (Board 1 1)))
+
 
 (pred (winning b p)
       (or (winH b p) (winV b p) (winD b p)))
@@ -68,12 +81,12 @@
 (pred (valid-board b)
       (or (oturn b) (xturn b)))
 
-(run "xturn" (at-most-one-mark-per-square (some ([b Board]) (xturn b))) ((Player 2 2) (Index 3 3) (Board 1 1)))
+;(run "xturn" (at-most-one-mark-per-square (some ([b Board]) (xturn b))) ((Player 2 2) (Index 3 3) (Board 1 1)))
 ;(run "oturn" (at-most-one-mark-per-square (some ([b Board]) (oturn b))) ((Player 2 2) (Index 3 3) (Board 1 1)))
-(run "owinningDiag" (at-most-one-mark-per-square
-                     fix-inverses
-                     (some ([b Board]) (and (valid-board b) (winD b O))))
-     ((Player 2 2) (Index 3 3) (Board 1 1)))
+;(run "owinningDiag" (at-most-one-mark-per-square
+;                     fix-inverses
+;                     (some ([b Board]) (and (valid-board b) (winD b O))))
+;     ((Player 2 2) (Index 3 3) (Board 1 1)))
 
 
 ; pred management
