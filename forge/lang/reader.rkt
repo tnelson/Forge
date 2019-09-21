@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast.rkt" racket/runtime-path)
+(require "ast.rkt" racket/runtime-path "tokenizer.rkt")
 
 (define-runtime-path forge-path "../forge.rkt")
 
