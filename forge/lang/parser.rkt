@@ -4,13 +4,16 @@
 
 AlloyModule : ModuleDecl? Import* Paragraph*
 ModuleDecl : "module" QualName ("[" NameList "]")?
+           | Sexpr
 Import : "open" QualName ("[" QualNameList "]")? ("as" Name)?
+       | Sexpr
 Paragraph : SigDecl 
           | FactDecl 
           | PredDecl 
           | FunDecl 
           | AssertDecl 
           | CmdDecl
+          | Sexpr
 SigDecl : "abstract"? Mult? "sig" NameList SigExt? "{" DeclList? "}" Block?
 SigExt : "extends" QualName 
        | "in" QualName ("+" QualName)*
@@ -48,7 +51,7 @@ Expr    : Expr1
 @Expr3  : Expr4  | Expr4 ("=>" | "implies") Expr3 ("else" Expr3)?          ;; right assoc
 @Expr4  : Expr5  | Expr4 ("&&" | "and") Expr5
 @Expr5  : Expr6  | ("!" | "not") Expr5
-@Expr6  : Expr7  | Expr6 ("!" | "not")? COMP-OP-TOK Expr7
+@Expr6  : Expr7  | Expr6 ("!" | "not")? CompareOp Expr7
 @Expr7  : Expr8  | Expr7 ("+" | "-") Expr8
 @Expr8  : Expr9  | "#" Expr8
 @Expr9  : Expr10 | Expr9 "++" Expr10
@@ -82,4 +85,13 @@ LetDeclList : LetDecl
             | LetDecl "," LetDeclList
 TypescopeList : Typescope
               | Typescope "," TypescopeList
+
+
+Sexpr : "(" Sexpr* ")"
+      | Name
+      | Const
+      | UnOp
+      | BinOp
+      | CompareOp
+      | Quant
 
