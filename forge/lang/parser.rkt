@@ -94,4 +94,5 @@ Sexpr : "(" Sexpr* ")"
       | BinOp
       | CompareOp
       | Quant
+      | KEYWORD-TOK
 
