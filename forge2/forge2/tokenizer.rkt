@@ -103,9 +103,10 @@
         [";" (token+ 'SEMICOLON-TOK "" lexeme "" lexeme-start lexeme-end)]
         ["/" (token+ 'SLASH-TOK "" lexeme "" lexeme-start lexeme-end)]
         [":" (token+ 'COLON-TOK "" lexeme "" lexeme-start lexeme-end)]
+        ["@" (token+ 'AT-TOK "" lexeme "" lexeme-start lexeme-end)]
 
        ;; identifiers
-       [(: alphabetic (* (or alphabetic numeric "_" "\'" "\"")))
+       [(: alphabetic (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’"
         (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
 
        ;; otherwise
