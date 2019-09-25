@@ -106,7 +106,7 @@
         ["@" (token+ 'AT-TOK "" lexeme "" lexeme-start lexeme-end)]
 
        ;; identifiers
-       [(: alphabetic (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’"
+       [(: alphabetic (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
         (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
 
        ;; otherwise

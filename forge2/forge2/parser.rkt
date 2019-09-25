@@ -20,8 +20,8 @@ SigExt : EXTENDS-TOK QualName
 Mult : LONE-TOK | SOME-TOK | ONE-TOK
 Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? Expr
 FactDecl : FACT-TOK Name? Block
-PredDecl : /PRED-TOK (QualName PERIOD-TOK)? Name ParaDecls? Block
-FunDecl : FUN-TOK (QualName PERIOD-TOK)? Name ParaDecls? COLON-TOK Expr LEFT-CURLY-TOK Expr RIGHT-CURLY-TOK
+PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
+FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
 ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
 AssertDecl : ASSERT-TOK Name? Block
@@ -71,8 +71,9 @@ Expr1  : @Expr2  | Expr1 DISJ-TOK Expr2
 Expr2  : @Expr3  | Expr2 IFF-TOK Expr3
 Expr3  : @Expr4  | Expr4 IMPLIES-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
 Expr4  : @Expr5  | Expr4 CONJ-TOK Expr5
-Expr5  : @Expr6  | NOT-TOK Expr5
-Expr6  : @Expr7  | Expr6 NOT-TOK? CompareOp Expr7
+Expr5  : @Expr6  | NEG-TOK Expr5
+Expr6  : @Expr65 | Expr6 NEG-TOK? CompareOp Expr65
+Expr65 : @Expr7  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr7
 Expr7  : @Expr8  | Expr7 (PLUS-TOK | MINUS-TOK) Expr8
 Expr8  : @Expr9  | HASH-TOK Expr8
 Expr9  : @Expr10 | Expr9 OVER-TOK Expr10
@@ -93,6 +94,7 @@ Expr16 : Const
 ;;;;;;;;
 
 Sexpr : LEFT-PAREN-TOK Sexpr* RIGHT-PAREN-TOK
+      | LEFT-SQUARE-TOK Sexpr* RIGHT-SQUARE-TOK
       | Name
       | Const
       | UnOp

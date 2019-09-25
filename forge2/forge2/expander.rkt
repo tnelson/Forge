@@ -7,6 +7,7 @@
     ; (pretty-print 'MODULE)
     ; (displayln "")
     (pretty-print MODULE)
+    ; MODULE
   ))
 (provide (rename-out [forge2-module-begin #%module-begin]))
 
@@ -60,6 +61,7 @@
 (define Expr4  Expr) (provide Expr4)
 (define Expr5  Expr) (provide Expr5)
 (define Expr6  Expr) (provide Expr6)
+(define Expr65 Expr) (provide Expr65)
 (define Expr7  Expr) (provide Expr7)
 (define Expr8  Expr) (provide Expr8)
 (define Expr9  Expr) (provide Expr9)
