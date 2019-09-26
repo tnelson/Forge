@@ -14,7 +14,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | AssertDecl 
           | CmdDecl
           | Sexpr
-SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK @DeclList? /RIGHT-CURLY-TOK Block?
+SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK DeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
 Mult : LONE-TOK | SOME-TOK | ONE-TOK
@@ -52,7 +52,7 @@ NameList : @Name
 QualNameList : @QualName
              | @QualName /COMMA-TOK @QualNameList
 DeclList : Decl
-         | Decl COMMA-TOK DeclList
+         | Decl /COMMA-TOK @DeclList
 LetDeclList : LetDecl
             | LetDecl /COMMA-TOK @LetDeclList
 TypescopeList : Typescope

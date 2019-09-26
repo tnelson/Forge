@@ -3,8 +3,10 @@
 module tour/addressBook1 
 
 sig Name, Addr {}
-sig Book {addr: Name -> lone Addr}
+abstract one sig Book extends Name {addr: Name -> lone Addr}
+// sig Book {addr: Name -> lone Addr}  
 
+/*
 pred show (b: Book) { 
   #b.addr > 1
   #Name.(b.addr) > 1
@@ -41,3 +43,4 @@ assert addLocal {
 check delUndoesAdd for 10 but 3 Book 
 check addIdempotent for 3
 check addLocal for 3 but 2 Book
+*/

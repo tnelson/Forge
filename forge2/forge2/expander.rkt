@@ -1,6 +1,6 @@
 #lang br/quicklang
 
-(require racket/pretty)
+(require racket/pretty "../../forge/lang/ast.rkt" "../../forge/sigs.rkt")
 
 (define-macro (forge2-module-begin MODULE)
   #'(#%module-begin 
@@ -14,14 +14,50 @@
 ;; TODO: check staging (make sure these run at expand-time)
 
 (define Number string->number) (provide Number)
+(define AlloyModule append) (provide AlloyModule)      ;; append list of lists
+(define (ModuleDecl . args) '()) (provide ModuleDecl)  ;; remove
+(define (Import . args) '()) (provide Import)          ;; remove
+(define (SigDecl . args)
+  (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
+  (for ([arg args])
+    (match arg
+      ["abstract" (set! abstract #t)]
+      ; [(list 'Mult m) (set! mult m)]
+      [(list 'Mult "one") (set! one #t)]
+      [(cons 'NameList ns) (set! names (map string->symbol ns))]
+      [(list 'SigExt "extends" (list 'QualName qn)) (set! qualName (string->symbol qn))]
+      [(cons 'DeclList ds) (set! decls ds)]
+      [(cons 'Block es) (set! exprs es)]
+      [_ #f]
+    )
+  )
+  ; (println abstract)
+  ; (println one)
+  ; (println names)
+  ; (println qualName)
+  ; (println decls)
+  ; (println exprs)
+
+  (define op (if one 'declare-sig-one 'declare-sig))
+  (define ex (if qualName `(#:extends ,qualName) '()))
+
+  ; args
+  (map (lambda (name)
+    `(,op ,name ,@ex)
+  ) names)
+
+  )
+(provide SigDecl)
+
+
 
 
 
 ;; placeholders
-(define (AlloyModule . args) (cons 'AlloyModule args)) (provide AlloyModule)
-(define (ModuleDecl . args) (cons 'ModuleDecl args)) (provide ModuleDecl)
-(define (Import . args) (cons 'Import args)) (provide Import)
-(define (SigDecl . args) (cons 'SigDecl args)) (provide SigDecl)
+; (define (AlloyModule . args) (cons 'AlloyModule args)) (provide AlloyModule)
+; (define (ModuleDecl . args) (cons 'ModuleDecl args)) (provide ModuleDecl)
+; (define (Import . args) (cons 'Import args)) (provide Import)
+; (define (SigDecl . args) (cons 'SigDecl args)) (provide SigDecl)
 (define (SigExt . args) (cons 'SigExt args)) (provide SigExt)
 (define (Mult . args) (cons 'Mult args)) (provide Mult)
 (define (Decl . args) (cons 'Decl args)) (provide Decl)
