@@ -69,7 +69,27 @@
 )
 (define QualName string->symbol)
 (define Const identity)
-
+(define (CmdDecl . args) 
+  (define-values (name cmd arg scope block) (values #f #f #f #f #f))
+  (for ([arg args])
+    (match arg
+      [(list 'Name n) (set! name n)]
+      ["run"   (set! cmd 'run)]
+      ["check" (set! cmd 'check)]
+      [(? symbol? s) (set! arg (string->symbol s))]
+      [(list 'Scope scopes ...) 
+      (define (f x)
+        (match x
+         [(list 'Typescope "exactly" n things) (list things n n)]
+         [(list 'Typescope n things) (list things 0 n)]))
+      (set! scope (map f scopes))]
+      [(list 'Block bs ...) (set! block bs)]
+      [_ #f]
+    )
+  )
+  (if name #f (raise "please name your commands"))
+  (list `(,cmd ,name (,@block) ,scope))
+)
 
 
 
@@ -88,7 +108,7 @@
 (define (FunDecl . args) (cons 'FunDecl args))
 (define (ParaDecls . args) (cons 'ParaDecls args))
 (define (AssertDecl . args) (cons 'AssertDecl args))
-(define (CmdDecl . args) (cons 'CmdDecl args))
+; (define (CmdDecl . args) (cons 'CmdDecl args))
 (define (Scope . args) (cons 'Scope args))
 (define (Typescope . args) (cons 'Typescope args))
 ; (define (Const . args) (cons 'Const args))

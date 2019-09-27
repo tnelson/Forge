@@ -18,7 +18,7 @@
        [(or "$" "%" "?")
         (token+ 'RESERVED-TOK "" lexeme "" lexeme-start lexeme-end)]
        ;; numeric
-       [(: (char-range "1" "9") (* (char-range "0" "9")))
+       [(or "0" (: (char-range "1" "9") (* (char-range "0" "9"))))
         (token+ 'NUM-CONST-TOK "" lexeme "" lexeme-start lexeme-end)]
 
        ["->" (token+ 'ARROW-TOK "" lexeme "" lexeme-start lexeme-end)]

@@ -1,5 +1,11 @@
 #lang forge2
 
+/* 
+  this file is just like address.rkt but 
+  - modified to fit our constraints while satisfying Alloy syntax
+  - modified for coverage of syntax cases
+*/
+
 module tour/addressBook1 
 
 sig Name, Addr {}
@@ -9,9 +15,8 @@ pred show (b: Book, a: Addr) {
   #b.addr > 1
   #Name.(b.addr) > 1
   }
+addr1 : run {show} for 3 Name, 3 Addr, exactly 1 Book
 /*
-run show for 3 but 1 Book
-
 pred add (b, b': Book, n: Name, a: Addr) {b'.addr = b.addr + n -> a} 
 pred del (b, b': Book, n: Name) {b'.addr = b.addr - n -> Addr}
 fun lookup (b: Book, n: Name): set Addr {n.(b.addr)}
