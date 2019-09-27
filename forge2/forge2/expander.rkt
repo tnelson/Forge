@@ -17,6 +17,8 @@
 
 ;;;;;;;;
 
+;; TODO: should I be using macros?
+
 ;; note: many of these are implemented by processing arguments while ignoring order
 ;;       this is mostly just for clarity, and lets us ignore syntax details
 (define Number string->number)  
@@ -28,7 +30,6 @@
   (for ([arg args])
     (match arg
       ["abstract" (set! abstract #t)]
-      ; [(list 'Mult m) (set! mult m)]
       [(list 'Mult "one") (set! one #t)]
       [(cons 'NameList ns) (set! names (map string->symbol ns))]
       [(list 'SigExt "extends" (list 'QualName qn)) (set! qualName (string->symbol qn))]
@@ -56,6 +57,18 @@
   )
   (list `(pred (,name ,@paras) ,@block))
 )
+(define (Expr . args)
+  (match args
+    [(list a) a]
+    [(list "#" a) `(card ,a)]
+    [(list (? string? op) a) `(,(string->symbol op) ,a)]
+    [(list a "." b) `(join ,a ,b)]
+    [(list a (? string? op) b) `(,(string->symbol op) ,a ,b)]
+    [_ (cons 'Expr args)]
+  )
+)
+(define QualName string->symbol)
+(define Const identity)
 
 
 
@@ -78,7 +91,7 @@
 (define (CmdDecl . args) (cons 'CmdDecl args))
 (define (Scope . args) (cons 'Scope args))
 (define (Typescope . args) (cons 'Typescope args))
-(define (Const . args) (cons 'Const args))
+; (define (Const . args) (cons 'Const args))
 (define (UnOp . args) (cons 'UnOp args))
 (define (BinOp . args) (cons 'BinOp args))
 (define (ArrowOp . args) (cons 'ArrowOp args))
@@ -87,7 +100,7 @@
 (define (Block . args) (cons 'Block args))
 (define (BlockOrBar . args) (cons 'BlockOrBar args))
 (define (Quant . args) (cons 'Quant args))
-(define (QualName . args) (cons 'QualName args))
+; (define (QualName . args) (cons 'QualName args))
 (define (Name . args) (cons 'Name args))
 ; (define (Number . args) (cons 'Number args))
 (define (NameList . args) (cons 'NameList args))
@@ -99,7 +112,7 @@
 (define (Sexpr . args) (cons 'Sexpr args))
 
 
-(define (Expr   . args) (cons 'Expr   args))
+; (define (Expr   . args) (cons 'Expr   args))
 (define Expr1  Expr)
 (define Expr2  Expr)
 (define Expr3  Expr)
