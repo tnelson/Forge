@@ -2,6 +2,11 @@
 
 (require racket/pretty "../../forge/lang/ast.rkt" "../../forge/sigs.rkt")
 
+(provide (except-out (all-defined-out) forge2-module-begin)
+         (rename-out [forge2-module-begin #%module-begin]))
+
+;;;;;;;;
+
 (define-macro (forge2-module-begin MODULE)
   #'(#%module-begin 
     ; (pretty-print 'MODULE)
@@ -9,14 +14,15 @@
     (pretty-print MODULE)
     ; MODULE
   ))
-(provide (rename-out [forge2-module-begin #%module-begin]))
 
-;; TODO: check staging (make sure these run at expand-time)
+;;;;;;;;
 
-(define Number string->number) (provide Number)
-(define AlloyModule append) (provide AlloyModule)      ;; append list of lists
-(define (ModuleDecl . args) '()) (provide ModuleDecl)  ;; remove
-(define (Import . args) '()) (provide Import)          ;; remove
+;; note: many of these are implemented by processing arguments while ignoring order
+;;       this is mostly just for clarity, and lets us ignore syntax details
+(define Number string->number)  
+(define AlloyModule append)         ;; append list of lists
+(define (ModuleDecl . args) '())    ;; remove
+(define (Import . args) '())        ;; remove
 (define (SigDecl . args)
   (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
   (for ([arg args])
@@ -31,80 +37,83 @@
       [_ #f]
     )
   )
-  ; (println abstract)
-  ; (println one)
-  ; (println names)
-  ; (println qualName)
-  ; (println decls)
-  ; (println exprs)
 
   (define op (if one 'declare-sig-one 'declare-sig))
   (define ex (if qualName `(#:extends ,qualName) '()))
 
-  ; args
-  (map (lambda (name)
-    `(,op ,name ,@ex)
-  ) names)
-
+  (map (lambda (name) `(,op ,name ,@ex)) names)
+)
+(define (PredDecl . args) 
+  (define-values (name paras block) (values #f '() #f))
+  (for ([arg args])
+    (match arg
+      [(list 'Name n) (set! name (string->symbol n))]
+      [(list 'ParaDecls (list 'Decl (cons 'NameList ps) _ ...) ...) 
+       (set! paras (map string->symbol (flatten ps)))]
+      [(cons 'Block b) (set! block b)]
+      [_ #f]
+    )
   )
-(provide SigDecl)
+  (list `(pred (,name ,@paras) ,@block))
+)
 
 
 
 
+;;;;;;;;
 
 ;; placeholders
-; (define (AlloyModule . args) (cons 'AlloyModule args)) (provide AlloyModule)
-; (define (ModuleDecl . args) (cons 'ModuleDecl args)) (provide ModuleDecl)
-; (define (Import . args) (cons 'Import args)) (provide Import)
-; (define (SigDecl . args) (cons 'SigDecl args)) (provide SigDecl)
-(define (SigExt . args) (cons 'SigExt args)) (provide SigExt)
-(define (Mult . args) (cons 'Mult args)) (provide Mult)
-(define (Decl . args) (cons 'Decl args)) (provide Decl)
-(define (FactDecl . args) (cons 'FactDecl args)) (provide FactDecl)
-(define (PredDecl . args) (cons 'PredDecl args)) (provide PredDecl)
-(define (FunDecl . args) (cons 'FunDecl args)) (provide FunDecl)
-(define (ParaDecls . args) (cons 'ParaDecls args)) (provide ParaDecls)
-(define (AssertDecl . args) (cons 'AssertDecl args)) (provide AssertDecl)
-(define (CmdDecl . args) (cons 'CmdDecl args)) (provide CmdDecl)
-(define (Scope . args) (cons 'Scope args)) (provide Scope)
-(define (Typescope . args) (cons 'Typescope args)) (provide Typescope)
-(define (Const . args) (cons 'Const args)) (provide Const)
-(define (UnOp . args) (cons 'UnOp args)) (provide UnOp)
-(define (BinOp . args) (cons 'BinOp args)) (provide BinOp)
-(define (ArrowOp . args) (cons 'ArrowOp args)) (provide ArrowOp)
-(define (CompareOp . args) (cons 'CompareOp args)) (provide CompareOp)
-(define (LetDecl . args) (cons 'LetDecl args)) (provide LetDecl)
-(define (Block . args) (cons 'Block args)) (provide Block)
-(define (BlockOrBar . args) (cons 'BlockOrBar args)) (provide BlockOrBar)
-(define (Quant . args) (cons 'Quant args)) (provide Quant)
-(define (QualName . args) (cons 'QualName args)) (provide QualName)
-(define (Name . args) (cons 'Name args)) (provide Name)
-; (define (Number . args) (cons 'Number args)) (provide Number)
-(define (NameList . args) (cons 'NameList args)) (provide NameList)
-(define (QualNameList . args) (cons 'QualNameList args)) (provide QualNameList)
-(define (DeclList . args) (cons 'DeclList args)) (provide DeclList)
-(define (LetDeclList . args) (cons 'LetDeclList args)) (provide LetDeclList)
-(define (TypescopeList . args) (cons 'TypescopeList args)) (provide TypescopeList)
-(define (ExprList . args) (cons 'ExprList args)) (provide ExprList)
-(define (Sexpr . args) (cons 'Sexpr args)) (provide Sexpr)
+; (define (AlloyModule . args) (cons 'AlloyModule args))
+; (define (ModuleDecl . args) (cons 'ModuleDecl args))
+; (define (Import . args) (cons 'Import args))
+; (define (SigDecl . args) (cons 'SigDecl args))
+(define (SigExt . args) (cons 'SigExt args))
+(define (Mult . args) (cons 'Mult args))
+(define (Decl . args) (cons 'Decl args))
+(define (FactDecl . args) (cons 'FactDecl args))
+; (define (PredDecl . args) (cons 'PredDecl args))
+(define (FunDecl . args) (cons 'FunDecl args))
+(define (ParaDecls . args) (cons 'ParaDecls args))
+(define (AssertDecl . args) (cons 'AssertDecl args))
+(define (CmdDecl . args) (cons 'CmdDecl args))
+(define (Scope . args) (cons 'Scope args))
+(define (Typescope . args) (cons 'Typescope args))
+(define (Const . args) (cons 'Const args))
+(define (UnOp . args) (cons 'UnOp args))
+(define (BinOp . args) (cons 'BinOp args))
+(define (ArrowOp . args) (cons 'ArrowOp args))
+(define (CompareOp . args) (cons 'CompareOp args))
+(define (LetDecl . args) (cons 'LetDecl args))
+(define (Block . args) (cons 'Block args))
+(define (BlockOrBar . args) (cons 'BlockOrBar args))
+(define (Quant . args) (cons 'Quant args))
+(define (QualName . args) (cons 'QualName args))
+(define (Name . args) (cons 'Name args))
+; (define (Number . args) (cons 'Number args))
+(define (NameList . args) (cons 'NameList args))
+(define (QualNameList . args) (cons 'QualNameList args))
+(define (DeclList . args) (cons 'DeclList args))
+(define (LetDeclList . args) (cons 'LetDeclList args))
+(define (TypescopeList . args) (cons 'TypescopeList args))
+(define (ExprList . args) (cons 'ExprList args))
+(define (Sexpr . args) (cons 'Sexpr args))
 
 
-(define (Expr   . args) (cons 'Expr   args)) (provide Expr)   
-(define Expr1  Expr) (provide Expr1)
-(define Expr2  Expr) (provide Expr2)
-(define Expr3  Expr) (provide Expr3)
-(define Expr4  Expr) (provide Expr4)
-(define Expr5  Expr) (provide Expr5)
-(define Expr6  Expr) (provide Expr6)
-(define Expr65 Expr) (provide Expr65)
-(define Expr7  Expr) (provide Expr7)
-(define Expr8  Expr) (provide Expr8)
-(define Expr9  Expr) (provide Expr9)
-(define Expr10 Expr) (provide Expr10)
-(define Expr11 Expr) (provide Expr11)
-(define Expr12 Expr) (provide Expr12)
-(define Expr13 Expr) (provide Expr13)
-(define Expr14 Expr) (provide Expr14)
-(define Expr15 Expr) (provide Expr15)
-(define Expr16 Expr) (provide Expr16)
+(define (Expr   . args) (cons 'Expr   args))
+(define Expr1  Expr)
+(define Expr2  Expr)
+(define Expr3  Expr)
+(define Expr4  Expr)
+(define Expr5  Expr)
+(define Expr6  Expr)
+(define Expr65 Expr)
+(define Expr7  Expr)
+(define Expr8  Expr)
+(define Expr9  Expr)
+(define Expr10 Expr)
+(define Expr11 Expr)
+(define Expr12 Expr)
+(define Expr13 Expr)
+(define Expr14 Expr)
+(define Expr15 Expr)
+(define Expr16 Expr)
