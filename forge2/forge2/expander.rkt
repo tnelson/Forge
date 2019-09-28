@@ -1,6 +1,7 @@
 #lang br/quicklang
 
 (require racket/pretty "../../forge/lang/ast.rkt" "../../forge/sigs.rkt")
+(require (rename-in "../../forge/forge.rkt" [#%module-begin forge-module-begin]))
 
 (provide (except-out (all-defined-out) forge2-module-begin)
          (rename-out [forge2-module-begin #%module-begin]))
@@ -8,11 +9,11 @@
 ;;;;;;;;
 
 (define-macro (forge2-module-begin MODULE)
-  #'(#%module-begin 
+  #'(forge-module-begin 
     ; (pretty-print 'MODULE)
     ; (displayln "")
     (pretty-print MODULE)
-    ; MODULE
+    ; ,MODULE
   ))
 
 ;;;;;;;;
