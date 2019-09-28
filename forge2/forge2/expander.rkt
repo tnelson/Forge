@@ -55,13 +55,30 @@
   )
   (list `(pred (,name ,@paras) ,@block))
 )
+(define (FunDecl . args) 
+  (define-values (name paras expr1 expr2) (values #f '() #f #f))
+  (for ([arg args])
+    (match arg
+      [(list 'Name n) (set! name (string->symbol n))]
+      [(list 'ParaDecls (list 'Decl (cons 'NameList ps) _ ...) ...) 
+       (set! paras (map string->symbol (flatten ps)))]
+      ; [(cons 'Block b) (set! block b)]
+      [e (if expr1 (set! expr2 e) (set! expr1 e))]
+      ; [_ #f]
+    )
+  )
+  (list `(fun (,name ,@paras) ,expr2))
+)
 (define (Expr . args)
   (match args
     [(list a) a]
     [(list "#" a) `(card ,a)]
     [(list (? string? op) a) `(,(string->symbol op) ,a)]
     [(list a "." b) `(join ,a ,b)]
+    [(list a (list 'ArrowOp _) b) `(-> ,a ,b)]
     [(list a (? string? op) b) `(,(string->symbol op) ,a ,b)]
+    [(list a "[" (list 'ExprList bs ...) "]") 
+     (foldl (lambda (b acc) (list 'join b acc)) a bs)]
     [_ (cons 'Expr args)]
   )
 )
@@ -99,7 +116,6 @@
 (define (Mult . args) (cons 'Mult args))
 (define (Decl . args) (cons 'Decl args))
 (define (FactDecl . args) (cons 'FactDecl args))
-(define (FunDecl . args) (cons 'FunDecl args))
 (define (ParaDecls . args) (cons 'ParaDecls args))
 (define (AssertDecl . args) (cons 'AssertDecl args))
 (define (Scope . args) (cons 'Scope args))
