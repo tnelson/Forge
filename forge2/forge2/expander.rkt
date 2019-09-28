@@ -75,10 +75,19 @@
     [(list "#" a) `(card ,a)]
     [(list (? string? op) a) `(,(string->symbol op) ,a)]
     [(list a "." b) `(join ,a ,b)]
+    [(list a "implies" b) `(=> ,a ,b)]
     [(list a (list 'ArrowOp _) b) `(-> ,a ,b)]
     [(list a (? string? op) b) `(,(string->symbol op) ,a ,b)]
     [(list a "[" (list 'ExprList bs ...) "]") 
      (foldl (lambda (b acc) (list 'join b acc)) a bs)]
+    [(list (list 'Quant q) 
+           (list 'DeclList (list 'Decl (list 'NameList ns ...) ts) ...)
+           body)
+     (define bounds 
+      (apply append (map (lambda (ns t) (map (lambda (n) (list (string->symbol n) t)) ns)) 
+                         ns 
+                         ts)))
+     `(,(string->symbol q) ,bounds ,@body)]
     [_ (cons 'Expr args)]
   )
 )
@@ -107,6 +116,13 @@
 )
 (define (SexprDecl . args) args)
 (define (Sexpr arg) (read (open-input-string arg)))
+(define (AssertDecl . args) '())
+(define (BlockOrBar . args)
+  (match args
+    [(list "|" e) (list e)]
+    [(list (list 'Block es)) es]
+  )
+)
 
 
 ;;;;;;;;
@@ -117,7 +133,6 @@
 (define (Decl . args) (cons 'Decl args))
 (define (FactDecl . args) (cons 'FactDecl args))
 (define (ParaDecls . args) (cons 'ParaDecls args))
-(define (AssertDecl . args) (cons 'AssertDecl args))
 (define (Scope . args) (cons 'Scope args))
 (define (Typescope . args) (cons 'Typescope args))
 (define (UnOp . args) (cons 'UnOp args))
@@ -126,7 +141,7 @@
 (define (CompareOp . args) (cons 'CompareOp args))
 (define (LetDecl . args) (cons 'LetDecl args))
 (define (Block . args) (cons 'Block args))
-(define (BlockOrBar . args) (cons 'BlockOrBar args))
+; (define (BlockOrBar . args) (cons 'BlockOrBar args))
 (define (Quant . args) (cons 'Quant args))
 (define (Name . args) (cons 'Name args))
 (define (NameList . args) (cons 'NameList args))

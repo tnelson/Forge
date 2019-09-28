@@ -22,7 +22,7 @@ PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
 FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
 ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
-AssertDecl : ASSERT-TOK Name? Block
+AssertDecl : /ASSERT-TOK Name? Block
 CmdDecl : (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK)? (QualName | Block)? Scope?
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
       | /FOR-TOK @TypescopeList
