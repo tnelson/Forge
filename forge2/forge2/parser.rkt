@@ -4,16 +4,14 @@
 
 AlloyModule : ModuleDecl? Import* Paragraph*
 ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
-           | Sexpr
 Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
-       | Sexpr
 @Paragraph : SigDecl 
           | FactDecl 
           | PredDecl 
           | FunDecl 
           | AssertDecl 
           | CmdDecl
-          | Sexpr
+          | SexprDecl
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK DeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -72,8 +70,8 @@ Expr2  : @Expr3  | Expr2 IFF-TOK Expr3
 Expr3  : @Expr4  | Expr4 IMPLIES-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
 Expr4  : @Expr5  | Expr4 CONJ-TOK Expr5
 Expr5  : @Expr6  | NEG-TOK Expr5
-Expr6  : @Expr65 | Expr6 NEG-TOK? CompareOp Expr65
-Expr65 : @Expr7  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr7
+Expr6  : @Expr6a | Expr6 NEG-TOK? CompareOp Expr6a
+Expr6a : @Expr7  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr7
 Expr7  : @Expr8  | Expr7 (PLUS-TOK | MINUS-TOK) Expr8
 Expr8  : @Expr9  | HASH-TOK Expr8
 Expr9  : @Expr10 | Expr9 OVER-TOK Expr10
@@ -90,16 +88,20 @@ Expr16 : Const
        | /LEFT-CURLY-TOK DeclList BlockOrBar /RIGHT-CURLY-TOK
        | /LEFT-PAREN-TOK @Expr /RIGHT-PAREN-TOK 
        | Block
+       | Sexpr
 
 ;;;;;;;;
 
-Sexpr : LEFT-PAREN-TOK Sexpr* RIGHT-PAREN-TOK
-      | LEFT-SQUARE-TOK Sexpr* RIGHT-SQUARE-TOK
-      | Name
-      | Const
-      | UnOp
-      | BinOp
-      | CompareOp
-      | Quant
-      | KEYWORD-TOK
+SexprDecl : Sexpr
+Sexpr : SEXPR-TOK
+
+# Sexpr : LEFT-PAREN-TOK Sexpr* RIGHT-PAREN-TOK
+#       | LEFT-SQUARE-TOK Sexpr* RIGHT-SQUARE-TOK
+#       | Name
+#       | Const
+#       | UnOp
+#       | BinOp
+#       | CompareOp
+#       | Quant
+#       | KEYWORD-TOK
 

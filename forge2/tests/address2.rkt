@@ -4,9 +4,12 @@
   this file is just like address.rkt but 
   - modified to fit our constraints while satisfying Alloy syntax
   - modified for coverage of syntax cases
+  - showing S-expression escape hatch
 */
 
 module tour/addressBook1 
+
+/*$(declare-sig SexprExample)*/
 
 sig Name, Addr {}
 abstract one sig Book extends Name {addr: Name -> lone Addr}

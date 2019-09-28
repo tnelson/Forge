@@ -10,6 +10,12 @@
     (define forge-lexer
       (lexer
 
+       ;; sexprs
+       [(from/to "<$>" "</$>")
+        (token+ 'SEXPR-TOK "<$>" lexeme "</$>" lexeme-start lexeme-end)]
+       [(from/to "/*$" "*/")
+        (token+ 'SEXPR-TOK "/*$" lexeme "*/" lexeme-start lexeme-end)]
+
        ;; comments
        [(or (from/to "--" "\n") (from/to "//" "\n") (from/to "/*" "*/"))
         (next-token)]
