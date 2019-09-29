@@ -1,7 +1,6 @@
 #lang br/quicklang
 
 (require racket/pretty "../../forge/lang/ast.rkt" "../../forge/sigs.rkt")
-(require (rename-in "../../forge/forge.rkt" [#%module-begin forge-module-begin]))
 
 (provide (except-out (all-defined-out) forge2-module-begin)
          (rename-out [forge2-module-begin #%module-begin]))
@@ -9,12 +8,42 @@
 ;;;;;;;;
 
 (define-macro (forge2-module-begin MODULE)
-  #'(forge-module-begin 
-    ; (pretty-print 'MODULE)
-    ; (displayln "")
-    (pretty-print MODULE)
-    ; ,MODULE
-  ))
+  #'(#%module-begin MODULE)
+  )
+
+(define-syntax (AlloyModule stx) (datum->syntax #'0 `(begin ,@(cdr (syntax->datum stx)))))
+(define-syntax (ModuleDecl stx) #'(begin))
+(define-syntax (SexprDecl stx) (datum->syntax #'0 `(begin ,@(cdr (syntax->datum stx)))))
+(define-syntax (SigDecl stx) 
+  (define args (cdr (syntax->datum stx)))
+  (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
+  (for ([arg args])
+    (syntax-case arg (NameList Mult SigExt DeclList Block)
+      ["abstract" (set! abstract #t)]
+      [(Mult "one") (set! one #t)]
+      [(NameList ns ...) (set! names #'(ns ...))]
+      [(SigExt "extends" qn) (set! qualName #'qn)]
+      [(DeclList ds ...) (set! decls #'(ds ...))]
+      [(Block es ...) (set! exprs #'(es ...))]
+      [_ #f]
+    )
+  )
+  (set! names (map string->symbol (syntax->datum names)))
+  (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
+
+  (define op (if one 'declare-one-sig 'declare-sig))
+  (define ex (if qualName `(#:extends ,qualName) '()))
+  
+  (define ret (datum->syntax #'0 
+    (cons 'begin (map (lambda (name) `(,op ,name ,@ex)) names))))
+  ; (println ret)
+  ret
+)
+
+
+
+
+(define-syntax (Sexpr stx) #'(declare-sig Gumba))
 
 ;;;;;;;;
 
@@ -23,26 +52,7 @@
 ;; note: many of these are implemented by processing arguments while ignoring order
 ;;       this is mostly just for clarity, and lets us ignore syntax details
 (define Number string->number)  
-(define AlloyModule append)         ;; append list of lists
-(define (ModuleDecl . args) '())    ;; remove
-(define (Import . args) '())        ;; remove
-(define (SigDecl . args)
-  (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
-  (for ([arg args])
-    (match arg
-      ["abstract" (set! abstract #t)]
-      [(list 'Mult "one") (set! one #t)]
-      [(cons 'NameList ns) (set! names (map string->symbol ns))]
-      [(list 'SigExt "extends" (? symbol? qn)) (set! qualName qn)]
-      [(cons 'DeclList ds) (set! decls ds)]
-      [(cons 'Block es) (set! exprs es)]
-      [_ #f]
-    )
-  )
-  (define op (if one 'declare-sig-one 'declare-sig))
-  (define ex (if qualName `(#:extends ,qualName) '()))
-  (map (lambda (name) `(,op ,name ,@ex)) names)
-)
+(define (Import . args) '())
 (define (PredDecl . args) 
   (define-values (name paras block) (values #f '() #f))
   (for ([arg args])
@@ -115,8 +125,6 @@
   (if name #f (raise "please name your commands"))
   (list `(,cmd ,name (,@block) ,scope))
 )
-(define (SexprDecl . args) args)
-(define (Sexpr arg) (read (open-input-string arg)))
 (define (AssertDecl . args) '())
 (define (BlockOrBar . args)
   (match args

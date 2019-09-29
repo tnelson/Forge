@@ -13,8 +13,9 @@ module tour/addressBook1
 
 /*$(declare-sig SexprExample)*/
 
+
 sig Name, Addr {}
-abstract one sig Book extends Name {addr: Name -> lone Addr}
+/*abstract one sig Book extends Name {addr: Name -> lone Addr}
 
 pred show (b: Book, a: Addr) { 
   #b.addr > 1
@@ -50,3 +51,4 @@ assert addLocal {
   }
 
 addr3 : check {delUndoesAdd} for 10 Name, 10 Addr, exactly 3 Book
+*/
