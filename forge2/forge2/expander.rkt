@@ -13,7 +13,10 @@
 
 (define-syntax (AlloyModule stx) (datum->syntax #'0 `(begin ,@(cdr (syntax->datum stx)))))
 (define-syntax (ModuleDecl stx) #'(begin))
-(define-syntax (SexprDecl stx) (datum->syntax #'0 `(begin ,@(cdr (syntax->datum stx)))))
+(define-syntax (SexprDecl stx) 
+  (define datum (list 'begin (cadr (syntax->datum stx))))
+  (println datum)
+  (datum->syntax #'0 datum))
 (define-syntax (SigDecl stx) 
   (define args (cdr (syntax->datum stx)))
   (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
@@ -34,16 +37,19 @@
   (define op (if one 'declare-one-sig 'declare-sig))
   (define ex (if qualName `(#:extends ,qualName) '()))
   
-  (define ret (datum->syntax #'0 
-    (cons 'begin (map (lambda (name) `(,op ,name ,@ex)) names))))
-  ; (println ret)
-  ret
+  (define datum (cons 'begin (map (lambda (name) `(,op ,name ,@ex)) names)))
+  (println datum)
+  (datum->syntax #'0 datum)
 )
 
 
 
-
-(define-syntax (Sexpr stx) #'(declare-sig Gumba))
+;(read (open-input-string arg))
+(define-syntax (Sexpr stx) 
+  (define s (cadr (syntax->datum stx)))
+  (define datum (read (open-input-string s)))
+  (datum->syntax #'0 datum)
+  )
 
 ;;;;;;;;
 

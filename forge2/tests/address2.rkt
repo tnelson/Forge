@@ -15,8 +15,8 @@ module tour/addressBook1
 
 
 sig Name, Addr {}
-/*abstract one sig Book extends Name {addr: Name -> lone Addr}
-
+abstract sig Book {addr: Name -> lone Addr}
+/*
 pred show (b: Book, a: Addr) { 
   #b.addr > 1
   #Name.(b.addr) > 1
