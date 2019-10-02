@@ -1,6 +1,7 @@
 #lang br/quicklang
 
-(require racket/pretty "../../forge/lang/ast.rkt" "../../forge/sigs.rkt")
+(require racket/pretty)
+(require "../../forge/lang/ast.rkt" "../../forge/sigs.rkt")
 
 (provide (except-out (all-defined-out) forge2-module-begin)
          (rename-out [forge2-module-begin #%module-begin]))
@@ -41,19 +42,23 @@
   (println datum)
   (datum->syntax #'0 datum)
 )
-
-
-
-;(read (open-input-string arg))
 (define-syntax (Sexpr stx) 
   (define s (cadr (syntax->datum stx)))
   (define datum (read (open-input-string s)))
   (datum->syntax #'0 datum)
   )
 
-;;;;;;;;
 
-;; TODO: should I be using macros?
+
+
+; (define-syntax (declare-sig stx) #'"<declare-sig>")
+;   ; (define args (cdr (syntax->datum stx)))
+;   ; (println `(list 'declare-sig ,args))
+;   ; #'123)
+;   ; (datum->syntax #'0 `(list 'declare-sig ,args)))
+
+
+;;;;;;;;
 
 ;; note: many of these are implemented by processing arguments while ignoring order
 ;;       this is mostly just for clarity, and lets us ignore syntax details

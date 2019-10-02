@@ -1,4 +1,4 @@
-#lang forge2
+#lang forge
 
 /* 
   this file is just like address.rkt but 
@@ -9,14 +9,19 @@
   - showing S-expression escape hatch
 */
 
-module tour/addressBook1 
 
-/*$(declare-sig SexprExample)*/
+sig Blah {}
+blah : run {blah}
 
 
-sig Name, Addr {}
+//module tour/addressBook1 
+
+//*$(declare-sig blah1)*/
+
+
+/*sig Name, Addr {} 
 abstract sig Book {addr: Name -> lone Addr}
-/*
+
 pred show (b: Book, a: Addr) { 
   #b.addr > 1
   #Name.(b.addr) > 1

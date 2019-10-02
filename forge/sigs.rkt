@@ -262,3 +262,40 @@
 
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))
+
+
+;;;; FORGE 2 ;;;;
+
+(provide SigDecl CmdDecl)
+(define-syntax (SigDecl stx) #'(declare-sig animal))
+(define-syntax (CmdDecl stx) #'(run "run0" () ((animal 2 2))))
+
+
+; (provide AlloyModule ModuleDecl SexprDecl Sexpr SigDecl)
+
+; (define-syntax (AlloyModule stx)
+;   (define lines (cdr (syntax->datum stx)))
+;   (define datum (cons 'begin lines))
+;   (println datum)
+;   (datum->syntax #f datum))
+
+; (define-syntax (ModuleDecl stx) #'(declare-sig animal))
+;   ; (run "goatswolves" () ((animal 2 2)))
+; ; ))
+
+; ; (define-syntax (ModuleDecl stx) #'(begin))
+; (define-syntax (SexprDecl stx) 
+;   (define datum (list 'begin (cadr (syntax->datum stx))))
+;   (println datum)
+;   (datum->syntax #f datum))
+; (define-syntax (Sexpr stx) 
+;   (define s (cadr (syntax->datum stx)))
+;   (define datum (read (open-input-string s)))
+;   (println datum)
+;   (datum->syntax #f datum))
+
+
+; (define-syntax (SigDecl stx) #'(run "goatswolves" () ((animal 2 2))))
+;   ; (declare-sig animal)
+;   ; (run "goatswolves" () ((animal 2 2))) ;; (blah1 2 2) (blah2 2 2)
+; ; ))
