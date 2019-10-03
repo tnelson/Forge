@@ -10,24 +10,19 @@
 */
 
 
-sig Blah {}
-blah : run {blah}
+module tour/addressBook1 
 
+/*$(declare-sig animal) (declare-sig vehicle)*/
 
-//module tour/addressBook1 
-
-//*$(declare-sig blah1)*/
-
-
-/*sig Name, Addr {} 
-abstract sig Book {addr: Name -> lone Addr}
+sig Name, Addr {} 
+abstract sig Book extends Name {addr: Name -> lone Addr}
 
 pred show (b: Book, a: Addr) { 
   #b.addr > 1
   #Name.(b.addr) > 1
   }
-addr1 : run {show} for 3 Name, 3 Addr, exactly 1 Book
-
+// addr1 : run {show} for 3 Name, 3 Addr, exactly 1 Book
+/*
 pred add (b, b': Book, n: Name, a: Addr) {b'.addr = b.addr + n -> a} 
 pred del (b, b': Book, n: Name) {b'.addr = b.addr - n -> Addr}
 fun lookup (b: Book, n: Name): set Addr {n.(b.addr)}

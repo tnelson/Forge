@@ -263,39 +263,149 @@
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))
 
-
+;;;;;;;;;;;;;;;;;
 ;;;; FORGE 2 ;;;;
+;;;;;;;;;;;;;;;;;
 
-(provide SigDecl CmdDecl)
-(define-syntax (SigDecl stx) #'(declare-sig animal))
-(define-syntax (CmdDecl stx) #'(run "run0" () ((animal 2 2))))
+; (define-syntax (QQQQ stx) (map-stx (lambda (d) 
+;   d
+; ) stx))
+
+(require syntax/parse/define)
+(require (for-meta 1 racket/port racket/list))
+
+(provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl)
+
+;;;;
+
+(define-for-syntax (map-stx f stx) (datum->syntax stx (f (syntax->datum stx))))
+(define-for-syntax (replace-ints datum)
+  (cond
+    [(list? datum)
+     (if (equal? (car datum) 'run)
+         datum
+         (map replace-ints datum))]
+    [(integer? datum)
+     `(node/int/constant ,datum)]
+    [else datum]))
+
+(define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
+(define-syntax (SexprDecl stx) (map-stx cadr stx))
+(define-syntax (Sexpr stx) (map-stx (lambda (d) 
+  (replace-ints (cons 'begin (port->list read (open-input-string (cadr d))))) 
+) stx))
+(define-syntax (SigDecl stx) (map-stx (lambda (d) 
+  (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
+  (for ([arg (cdr d)])
+    (syntax-case arg (NameList Mult SigExt DeclList Block)
+      ["abstract" (set! abstract #t)]
+      [(Mult "one") (set! one #t)]
+      [(NameList ns ...) (set! names #'(ns ...))]
+      [(SigExt "extends" qn) (set! qualName #'qn)]
+      [(DeclList ds ...) (set! decls #'(ds ...))]
+      [(Block es ...) (set! exprs #'(es ...))]
+      [_ #f]
+    )
+  )
+  (set! names (map string->symbol (syntax->datum names)))
+  (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
+
+  (define op (if one 'declare-one-sig 'declare-sig))
+  (define ex (if qualName `(#:extends ,qualName) '()))
+  
+  (define datum (cons 'begin (map (lambda (name) `(,op ,name ,@ex)) names)))
+  ; (println datum)
+  datum
+) stx))
+
+; (define-syntax (CmdDecl stx) (datum->syntax stx '(run "goatswolves" () ((Name 2 2)))))
+
+(define-syntax (CmdDecl stx) (map-stx (lambda (d) 
+  (define-values (name cmd arg scope block) (values #f #f #f '() #f))
+  (define (make-typescope x)
+          (syntax-case x (Typescope)
+            [(Typescope "exactly" n things) #'(things n n)]
+            [(Typescope n things) #'(things 0 n)]))
+  (for ([arg (cdr d)])
+    (syntax-case arg (Name Typescope Block)
+      [(Name n) (set! name (syntax->datum #'n))]
+      ["run"   (set! cmd 'run)]
+      ["check" (set! cmd 'check)]
+      [(? symbol? s) (set! arg (string->symbol #'s))]
+      ; [(Scope s ...) (set! scope #'((make-typescope s) ...))]
+      [(Block bs ...) (set! block #'(bs ...))]
+      [_ #f]
+    )
+  )
+  (if name #f (raise "please name your commands"))
+  (define datum `(,cmd ,name (,@block) ,scope))
+  (println datum)
+  datum
+) stx))
 
 
-; (provide AlloyModule ModuleDecl SexprDecl Sexpr SigDecl)
-
-; (define-syntax (AlloyModule stx)
-;   (define lines (cdr (syntax->datum stx)))
-;   (define datum (cons 'begin lines))
-;   (println datum)
-;   (datum->syntax #f datum))
-
-; (define-syntax (ModuleDecl stx) #'(declare-sig animal))
-;   ; (run "goatswolves" () ((animal 2 2)))
-; ; ))
-
-; ; (define-syntax (ModuleDecl stx) #'(begin))
-; (define-syntax (SexprDecl stx) 
-;   (define datum (list 'begin (cadr (syntax->datum stx))))
-;   (println datum)
-;   (datum->syntax #f datum))
-; (define-syntax (Sexpr stx) 
-;   (define s (cadr (syntax->datum stx)))
-;   (define datum (read (open-input-string s)))
-;   (println datum)
-;   (datum->syntax #f datum))
+(define-syntax (PredDecl stx) (map-stx (lambda (d) 
+  (define-values (name paras block) (values #f '() '()))
+  ; (println d)
+  (for ([arg (cdr d)])
+    (syntax-case arg (Name ParaDecls Decl NameList Block)
+      [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
+      [(ParaDecls (Decl (NameList ps) _ ...) ...) 
+       (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
+      [(Block bs ...) (set! block #'(bs ...))]
+      [_ #f]
+    )
+  )
+  (define datum `(pred (,name ,@paras) (and ,@(syntax->datum block))))
+  ; (println datum)
+  datum
+) stx))
 
 
-; (define-syntax (SigDecl stx) #'(run "goatswolves" () ((animal 2 2))))
-;   ; (declare-sig animal)
-;   ; (run "goatswolves" () ((animal 2 2))) ;; (blah1 2 2) (blah2 2 2)
-; ; ))
+;;;;
+
+(provide Expr   Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr6a Expr7 
+         Expr8  Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16
+         QualName)
+
+(define-syntax (Expr stx)
+  ; (cadr d)
+  (define (get-bounds ns ts) 
+      (apply append (map (lambda (ns t) (map (lambda (n) (list (string->symbol n) t)) ns)) 
+                          ns 
+                          ts)))
+  (syntax-case stx (ArrowOp ExprList Quant DeclList Decl NameList)
+    [(_ "#" a) #'(card a)]
+    [(_ (? string? op) a) #'(,(string->symbol op) a)]
+    [(_ a "." b) #'(join a b)]
+    [(_ a (or "=>" "implies") b) #'(=> a b)]
+    [(_ a (ArrowOp _ ...) b) #'(-> a b)]
+    [(_ a (? string? op) b) #'(,(string->symbol op) a b)]
+    [(_ a "[" (ExprList bs ...) "]") 
+      (foldl (lambda (b acc) #'(join b acc)) #'a #'(bs ...))]
+    [((Quant q) (DeclList (Decl (NameList ns ...) ts) ...) body)
+      #'(,(string->symbol q) ,(get-bounds #'((ns ...) ...) #'(ts ...)) ,@body)]
+    [(_ a b ...) #'a]
+  )
+)
+
+(define-simple-macro (Expr1  args ...) (Expr args ...))
+(define-simple-macro (Expr2  args ...) (Expr args ...))
+(define-simple-macro (Expr3  args ...) (Expr args ...))
+(define-simple-macro (Expr4  args ...) (Expr args ...))
+(define-simple-macro (Expr5  args ...) (Expr args ...))
+(define-simple-macro (Expr6  args ...) (Expr args ...))
+(define-simple-macro (Expr6a args ...) (Expr args ...))
+(define-simple-macro (Expr7  args ...) (Expr args ...))
+(define-simple-macro (Expr8  args ...) (Expr args ...))
+(define-simple-macro (Expr9  args ...) (Expr args ...))
+(define-simple-macro (Expr10 args ...) (Expr args ...))
+(define-simple-macro (Expr11 args ...) (Expr args ...))
+(define-simple-macro (Expr12 args ...) (Expr args ...))
+(define-simple-macro (Expr13 args ...) (Expr args ...))
+(define-simple-macro (Expr14 args ...) (Expr args ...))
+(define-simple-macro (Expr15 args ...) (Expr args ...))
+(define-simple-macro (Expr16 args ...) (Expr args ...))
+
+
+(define-simple-macro (QualName args ...) (string->symbol args ...))

@@ -1,5 +1,6 @@
 #lang forge
 
+/*$
 ; TODO: abstractness optional
 (declare-sig Player)
 (declare-one-sig X #:extends Player)
@@ -95,3 +96,4 @@
 ;  RUN ONE AT A TIME
 ; functions
 ; type annotations? check for *use*?
+*/

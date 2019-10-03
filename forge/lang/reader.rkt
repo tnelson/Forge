@@ -21,33 +21,15 @@
 
 
 (define (read-syntax path port)
+  ; (define src-datum (port->list read port))
   (define parse-tree (parse path (make-tokenizer port)))
   (define src-datum (cdr (syntax->datum parse-tree)))
-  ; (define src-datum (port->list read port))
 
   ; don't use format-datums, because it's awful with quotes.
   (define transformed (replace-ints src-datum))
-  (map println transformed)
+
   (define module-datum `(module kkcli ,forge-path
                           ,@transformed))
   (datum->syntax #f module-datum))
 (provide read-syntax)
     
-
-; (define (read-syntax path port)
-;   (define parse-tree (parse path (make-tokenizer port)))
-;   (define src-datum (cdr (syntax->datum parse-tree)))
-;   ; (define src-datum (syntax->datum parse-tree))
-;   ; (define src-datum parse-tree)
-
-;   ; (define src-datum (port->list read port))
-
-;   ; don't use format-datums, because it's awful with quotes.
-;   (define transformed (replace-ints src-datum))
-;   (println transformed)
-;   (define module-datum `(module kkcli ,forge-path
-;                           ,@transformed))
-;   ; (define module-datum `(module kkcli ,forge-path
-;   ;                         ,transformed))
-;   (datum->syntax #f module-datum))
-; (provide read-syntax)

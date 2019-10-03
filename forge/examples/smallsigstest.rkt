@@ -1,5 +1,6 @@
 #lang forge
 
+/*$
 ; there is a sig node, with a field graph of type (set node). (we are not defaulting to one; might in fact later require explicit set/one)
 (declare-sig node ((graph node)))
 
@@ -17,4 +18,4 @@
 
 ; run command currently has "lower int bound"; anywhere from 5-6 nodes
 (run "DAG with path length >= 2" (some ([n1 node] [n2 node]) (in n1 (join n2 (^ graph)))) ((node 3 4)))
-
+*/

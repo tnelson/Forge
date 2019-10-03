@@ -1,5 +1,6 @@
 #lang forge
 
+/*$
 (declare-sig animal)
 
 (declare-sig goat #:extends animal)
@@ -93,3 +94,4 @@
                          (= (join e post) (join s next))))))))
 
 (run "goatswolves" (ordered state-constraints initial transition final trace) ((goat 2 2) (wolf 2 2) (state 6 6) (event 5 5)))
+*/
