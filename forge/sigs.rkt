@@ -302,7 +302,10 @@
       [(Mult "one") (set! one #t)]
       [(NameList ns ...) (set! names #'(ns ...))]
       [(SigExt "extends" qn) (set! qualName #'qn)]
-      [(DeclList ds ...) (set! decls #'(ds ...))]
+      [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...) 
+       (set! decls (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns)) 
+                                      (syntax->datum #'((nss ...) ...)) 
+                                      (syntax->datum #'(qs ...)))))]
       [(Block es ...) (set! exprs #'(es ...))]
       [_ #f]
     )
@@ -311,14 +314,19 @@
   (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
 
   (define op (if one 'declare-one-sig 'declare-sig))
-  (define ex (if qualName `(#:extends ,qualName) '()))
   
-  (define datum (cons 'begin (map (lambda (name) `(,op ,name ,@ex)) names)))
+  (define datum 
+    (if qualName
+      (if (= 0 (length decls))
+        (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
+        (raise "can't handle both decl fields and extension")
+      )
+      (if (= 0 (length decls))
+        (cons 'begin (map (lambda (name) `(,op ,name)) names))
+        (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
   ; (println datum)
   datum
 ) stx))
-
-; (define-syntax (CmdDecl stx) (datum->syntax stx '(run "goatswolves" () ((Name 2 2)))))
 
 (define-syntax (CmdDecl stx) (map-stx (lambda (d) 
   (define-values (name cmd arg scope block) (values #f #f #f '() #f))
@@ -327,19 +335,20 @@
             [(Typescope "exactly" n things) #'(things n n)]
             [(Typescope n things) #'(things 0 n)]))
   (for ([arg (cdr d)])
+    ; (println arg)
     (syntax-case arg (Name Typescope Block)
       [(Name n) (set! name (syntax->datum #'n))]
       ["run"   (set! cmd 'run)]
       ["check" (set! cmd 'check)]
-      [(? symbol? s) (set! arg (string->symbol #'s))]
+      ; [(? symbol? s) (set! arg (string->symbol #'s))]
       ; [(Scope s ...) (set! scope #'((make-typescope s) ...))]
-      [(Block bs ...) (set! block #'(bs ...))]
+      [(Block (Expr (QualName ns)) ...) (set! block (map string->symbol (syntax->datum #'(ns ...))))]
       [_ #f]
     )
   )
   (if name #f (raise "please name your commands"))
-  (define datum `(,cmd ,name (,@block) ,scope))
-  (println datum)
+  (define datum `(,cmd ,name ,block ,scope))
+  ; (println datum)
   datum
 ) stx))
 
@@ -361,6 +370,12 @@
   datum
 ) stx))
 
+
+; (define-syntax (Decl stx) (map-stx (lambda (d) 
+;   (syntax-case d (NameList Expr QualName)
+;     [(_ (NameList ns ...) (Expr (QualName qn))) ()]
+;     )
+; ) stx))
 
 ;;;;
 

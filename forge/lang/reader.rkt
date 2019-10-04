@@ -4,6 +4,8 @@
 
 (require "../../forge2/forge2/tokenizer.rkt" "../../forge2/forge2/parser.rkt")
 
+(require macro-debugger/syntax-browser)
+
 (define-runtime-path forge-path "../forge.rkt")
 
 ; this assumes that there's nothing sneakier than lists going on in the datum.
@@ -30,6 +32,8 @@
 
   (define module-datum `(module kkcli ,forge-path
                           ,@transformed))
-  (datum->syntax #f module-datum))
+  (define stx (datum->syntax #f module-datum))
+  ; (browse-syntax stx)
+  stx)
 (provide read-syntax)
     

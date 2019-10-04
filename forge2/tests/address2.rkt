@@ -21,7 +21,7 @@ pred show (b: Book, a: Addr) {
   #b.addr > 1
   #Name.(b.addr) > 1
   }
-// addr1 : run {show} for 3 Name, 3 Addr, exactly 1 Book
+addr1 : run {show} for 3 Name, 3 Addr, exactly 1 Book
 /*
 pred add (b, b': Book, n: Name, a: Addr) {b'.addr = b.addr + n -> a} 
 pred del (b, b': Book, n: Name) {b'.addr = b.addr - n -> Addr}
