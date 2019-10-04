@@ -1,6 +1,7 @@
 #lang forge
 
-sig animal {}
+// sig animal {}
+--$ (declare-sig animal)
 sig goat, wolf extends animal {}
 
 sig position {}
@@ -11,6 +12,8 @@ sig state {
     boat: position,
     near, far: animal
 }
+
+// pred noEating(zoo: animal) {}
 
 /*$
 

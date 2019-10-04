@@ -13,6 +13,10 @@
        ;; sexprs
        [(from/to "<$>" "</$>")
         (token+ 'SEXPR-TOK "<$>" lexeme "</$>" lexeme-start lexeme-end)]
+       [(from/to "--$" "\n")
+        (token+ 'SEXPR-TOK "--$" lexeme "\n" lexeme-start lexeme-end)]
+       [(from/to "//$" "\n")
+        (token+ 'SEXPR-TOK "//$" lexeme "\n" lexeme-start lexeme-end)]
        [(from/to "/*$" "*/")
         (token+ 'SEXPR-TOK "/*$" lexeme "*/" lexeme-start lexeme-end)]
 
