@@ -34,6 +34,7 @@
        ["->" (token+ 'ARROW-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["." (token+ 'DOT-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["=" (token+ 'EQ-TOK "" lexeme "" lexeme-start lexeme-end)]
+       ["==" (token+ 'EQUIV-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["|" (token+ 'BAR-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["-" (token+ 'MINUS-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["#" (token+ 'HASH-TOK "" lexeme "" lexeme-start lexeme-end)]

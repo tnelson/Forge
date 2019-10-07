@@ -34,12 +34,12 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
 # BinOp : DISJ-TOK | CONJ-TOK | IFF-TOK | IMP-TOK | AMP-TOK 
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
-CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK
+CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
 Quant : ALL-TOK | NO-TOK | SUM-TOK 
-      | Mult
+      | @Mult
 QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name
 
 
@@ -55,8 +55,8 @@ LetDeclList : LetDecl
             | LetDecl /COMMA-TOK @LetDeclList
 TypescopeList : Typescope
               | Typescope /COMMA-TOK @TypescopeList
-ExprList : @Expr
-         | @Expr /COMMA-TOK @ExprList
+ExprList : Expr
+         | Expr /COMMA-TOK @ExprList
 
 ;;;;;;;;
 

@@ -16,12 +16,6 @@ pred noEating(zoo: animal) {
     some zoo & goat => #(goat & zoo) >= #(wolf & zoo)
 }
 
-// pred state_constraints {
-//     all s: state {
-//         some s
-//     }
-// }
-
 pred state_constraints {
     all s: state {
         one s.boat
@@ -32,62 +26,65 @@ pred state_constraints {
     no near & far
 }
 
-/*$
+pred ordered {
+    all s: state {
+        lone s.next
+        s not in s.^next
+    }
+    one s: state | no s.next
+    one s: state | no next.s
+    no iden & next
+}
 
-(pred ordered (and
-               (all ([s state])
-                    (and
-                     (lone (join s next))
-                     (not (in s (join s (^ next))))))
-               (one ([s state]) (no (join s next)))
-               (one ([s state]) (no (join next s)))
-               (no (& iden next))))
+pred initial {
+    some first: state {
+        no next.first
+        no first.far
+        first.near = animal
+        first.boat = Near
+    }
+}
+pred final {
+    some last: state {
+        no last.next
+        animal = last.far
+    }
+}
 
-(pred initial (some ([first state])
-                    (and
-                     (no (join next first))
-                     (no (join first far))
-                     (= (join first near) animal)
-                     (= (join first boat) Near))))
+sig event {
+    pre, post: state,
+    toMove: animal
+}
 
-(pred final (some ([last state])
-                  (and
-                   (no (join last next))
-                   (= animal (join last far)))))
+pred transition {
+    all e: event {
+        some e.toMove
+        #(e.toMove) <= 2
+        e.pre.boat = Near => {
+            e.toMove in e.pre.near
+            e.post.near = e.pre.near - e.toMove
+            e.post.far  = e.pre.far  + e.toMove
+            e.post.boat = Far
+        } 
+        e.pre.boat = Far => {
+            e.toMove in e.pre.far
+            e.post.far  = e.pre.far  - e.toMove
+            e.post.near = e.pre.near + e.toMove
+            e.post.boat = Near
+        }
+    }
+}
 
-(declare-sig event ((pre state) (post state) (toMove animal)))
+pred trace {
+    some last: state {
+        no last.next
+        all s: state-last | some e: event {
+            e.pre  = s
+            e.post = s.next
+        }
+    }
+}
 
-(pred transition
-      (all ([e event])
-           (and
-            (some (join e toMove))
-            (or
-             (int= (card (join e toMove)) 2)
-             (< (card (join e toMove)) 2))
-            (=>
-             (= (join (join e pre) boat) Near)
-             (and
-              (in (join e toMove) (join (join e pre) near))
-              (= (join (join e post) near) (- (join (join e pre) near) (join e toMove)))
-              (= (join (join e post) far) (+ (join (join e pre) far) (join e toMove)))
-              (= (join (join e post) boat) Far)))
-            (=>
-             (= (join (join e pre) boat) Far)
-             (and
-              (in (join e toMove) (join (join e pre) far))
-              (= (join (join e post) far) (- (join (join e pre) far) (join e toMove)))
-              (= (join (join e post) near) (+ (join (join e pre) near) (join e toMove)))
-              (= (join (join e post) boat) Near))))))
-
-(pred trace
-      (some ([last state])
-            (and
-             (no (join last next))
-             (all ([s (- state last)])
-                  (some ([e event])
-                        (and
-                         (= (join e pre) s)
-                         (= (join e post) (join s next))))))))
-
-(run "goatswolves" (ordered state_constraints initial transition final trace) ((goat 2 2) (wolf 2 2) (state 6 6) (event 5 5)))
-*/
+goatswolves : run {
+    ordered state_constraints initial transition final trace
+} for exactly 2 goat, exactly 2 wolf, exactly 6 state, exactly 5 event
