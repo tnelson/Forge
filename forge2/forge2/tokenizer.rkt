@@ -43,7 +43,7 @@
        [">=" (token+ 'GEQ-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["<:" (token+ 'SUBT-TOK "" lexeme "" lexeme-start lexeme-end)]
        [":>" (token+ 'SUPT-TOK "" lexeme "" lexeme-start lexeme-end)]
-       ["++" (token+ 'OVER-TOK "" lexeme "" lexeme-start lexeme-end)]       
+       ["++" (token+ 'PPLUS-TOK "" lexeme "" lexeme-start lexeme-end)]       
        ["<" (token+ 'LT-TOK "" lexeme "" lexeme-start lexeme-end)]
        [">" (token+ 'GT-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["&" (token+ 'AMP-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -53,7 +53,7 @@
        [(or "||" "or") (token+ 'DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]
        [(or "&&" "and") (token+ 'DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]
        [(or "<=>" "iff") (token+ 'IFF-TOK "" lexeme "" lexeme-start lexeme-end)]
-       [(or "=>" "implies") (token+ 'IFF-TOK "" lexeme "" lexeme-start lexeme-end)]
+       [(or "=>" "implies") (token+ 'IMP-TOK "" lexeme "" lexeme-start lexeme-end)]
        
        
        
@@ -74,7 +74,7 @@
        ["fun"       (token+ `FUN-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]  
       ;  ["iff"       (token+ `IFF-TOK "" lexeme "" lexeme-start lexeme-end)]
-      ;  ["implies"   (token+ `IMPLIES-TOK "" lexeme "" lexeme-start lexeme-end)]    
+      ;  ["implies"   (token+ `IMP-TOK "" lexeme "" lexeme-start lexeme-end)]    
        ["in"        (token+ `IN-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["let"       (token+ `LET-TOK "" lexeme "" lexeme-start lexeme-end)]

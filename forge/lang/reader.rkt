@@ -26,7 +26,7 @@
   ; (define src-datum (port->list read port))
   (define parse-tree (parse path (make-tokenizer port)))
   (define src-datum (cdr (syntax->datum parse-tree)))
-
+  ; (println src-datum)
   ; don't use format-datums, because it's awful with quotes.
   (define transformed (replace-ints src-datum))
 

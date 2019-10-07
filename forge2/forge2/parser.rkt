@@ -29,12 +29,12 @@ Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)?
 Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
-UnOp : Mult
-     | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
-BinOp : DISJ-TOK | CONJ-TOK | IFF-TOK | IMPLIES-TOK | AMP-TOK 
-      | PLUS-TOK | MINUS-TOK | OVER-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
+# UnOp : Mult
+#      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
+# BinOp : DISJ-TOK | CONJ-TOK | IFF-TOK | IMP-TOK | AMP-TOK 
+#       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
-@CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK
+CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
@@ -67,21 +67,21 @@ Expr    : @Expr1
         | Quant DeclList BlockOrBar
 Expr1  : @Expr2  | Expr1 DISJ-TOK Expr2 
 Expr2  : @Expr3  | Expr2 IFF-TOK Expr3
-Expr3  : @Expr4  | Expr4 IMPLIES-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
+Expr3  : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
 Expr4  : @Expr5  | Expr4 CONJ-TOK Expr5
 Expr5  : @Expr6  | NEG-TOK Expr5
-Expr6  : @Expr6a | Expr6 NEG-TOK? CompareOp Expr6a
-Expr6a : @Expr7  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr7
-Expr7  : @Expr8  | Expr7 (PLUS-TOK | MINUS-TOK) Expr8
-Expr8  : @Expr9  | HASH-TOK Expr8
-Expr9  : @Expr10 | Expr9 OVER-TOK Expr10
-Expr10 : @Expr11 | Expr10 AMP-TOK Expr11
-Expr11 : @Expr12 | Expr11 ArrowOp Expr12
-Expr12 : @Expr13 | Expr12 (SUBT-TOK | SUPT-TOK) Expr13
-Expr13 : @Expr14 | Expr13 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
-Expr14 : @Expr15 | Expr14 DOT-TOK Expr15
-Expr15 : @Expr16 | (TILD-TOK | EXP-TOK | STAR-TOK) Expr15
-Expr16 : Const 
+Expr6  : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
+Expr7  : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr8
+Expr8  : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr9
+Expr9  : @Expr10 | HASH-TOK Expr9
+Expr10 : @Expr11 | Expr10 PPLUS-TOK Expr11
+Expr11 : @Expr12 | Expr11 AMP-TOK Expr12
+Expr12 : @Expr13 | Expr12 ArrowOp Expr13
+Expr13 : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
+Expr14 : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
+Expr15 : @Expr16 | Expr15 DOT-TOK Expr16
+Expr16 : @Expr17 | (TILDE-TOK | EXP-TOK | STAR-TOK) Expr16
+Expr17 : Const 
        | QualName 
        | AT-TOK Name 
        | THIS-TOK
@@ -94,14 +94,4 @@ Expr16 : Const
 
 SexprDecl : Sexpr
 Sexpr : SEXPR-TOK
-
-# Sexpr : LEFT-PAREN-TOK Sexpr* RIGHT-PAREN-TOK
-#       | LEFT-SQUARE-TOK Sexpr* RIGHT-SQUARE-TOK
-#       | Name
-#       | Const
-#       | UnOp
-#       | BinOp
-#       | CompareOp
-#       | Quant
-#       | KEYWORD-TOK
 

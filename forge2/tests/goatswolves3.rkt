@@ -1,7 +1,6 @@
 #lang forge
 
-// sig animal {}
---$ (declare-sig animal)
+sig animal {}
 sig goat, wolf extends animal {}
 
 sig position {}
@@ -13,34 +12,27 @@ sig state {
     near, far: animal
 }
 
-// pred noEating(zoo: animal) {}
+pred noEating(zoo: animal) {
+    some zoo & goat => #(goat & zoo) >= #(wolf & zoo)
+}
+
+// pred state_constraints {
+//     all s: state {
+//         some s
+//     }
+// }
+
+pred state_constraints {
+    all s: state {
+        one s.boat
+        all a: animal | a in s.near or a in s.far
+        noEating[s.near]
+        noEating[s.far]
+    }
+    no near & far
+}
 
 /*$
-
-(pred (noEating zoo)
-      (=>
-       (some (& zoo goat))
-       (or
-        (int=
-         (card (& goat zoo))
-         (card (& wolf zoo)))
-        (>
-         (card (& goat zoo))
-         (card (& wolf zoo))))))
-
-(pred state-constraints (and
-                         (all ([s state])
-                              (and
-                               (one (join s boat))
-                               (all ([a animal])
-                                    (or
-                                     (in a (join s near))
-                                     (in a (join s far))))
-                               (noEating (join s near))
-                               (noEating (join s far))))
-                         (no (& near far))))
-
-
 
 (pred ordered (and
                (all ([s state])
@@ -97,5 +89,5 @@ sig state {
                          (= (join e pre) s)
                          (= (join e post) (join s next))))))))
 
-(run "goatswolves" (ordered state-constraints initial transition final trace) ((goat 2 2) (wolf 2 2) (state 6 6) (event 5 5)))
+(run "goatswolves" (ordered state_constraints initial transition final trace) ((goat 2 2) (wolf 2 2) (state 6 6) (event 5 5)))
 */

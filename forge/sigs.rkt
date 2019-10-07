@@ -274,11 +274,11 @@
 (require syntax/parse/define)
 (require (for-meta 1 racket/port racket/list))
 
-(provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl)
+(provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar)
 
 ;;;;
 
-(define-for-syntax (map-stx f stx) (datum->syntax stx (f (syntax->datum stx))))
+(define-for-syntax (map-stx f . stx) (datum->syntax (car stx) (apply f (map syntax->datum stx))))
 (define-for-syntax (replace-ints datum)
   (cond
     [(list? datum)
@@ -288,6 +288,14 @@
     [(integer? datum)
      `(node/int/constant ,datum)]
     [else datum]))
+(define-for-syntax (process-DeclList d)
+  (syntax-case d (NameList Mult SigExt DeclList Block)  
+    [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...) 
+       (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns)) 
+                                      (syntax->datum #'((nss ...) ...)) 
+                                      (syntax->datum #'(qs ...))))]
+  )
+)
 
 (define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
 (define-syntax (SexprDecl stx) (map-stx cadr stx))
@@ -302,10 +310,7 @@
       [(Mult "one") (set! one #t)]
       [(NameList ns ...) (set! names #'(ns ...))]
       [(SigExt "extends" qn) (set! qualName #'qn)]
-      [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...) 
-       (set! decls (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns)) 
-                                      (syntax->datum #'((nss ...) ...)) 
-                                      (syntax->datum #'(qs ...)))))]
+      [(DeclList _ ...) (set! decls (process-DeclList arg))]
       [(Block es ...) (set! exprs #'(es ...))]
       [_ #f]
     )
@@ -371,17 +376,19 @@
 ) stx))
 
 
-; (define-syntax (Decl stx) (map-stx (lambda (d) 
-;   (syntax-case d (NameList Expr QualName)
-;     [(_ (NameList ns ...) (Expr (QualName qn))) ()]
-;     )
-; ) stx))
+(define-syntax (Block stx) (map-stx (lambda (d) 
+  `(and ,@(cdr d))
+) stx))
+(define-syntax (BlockOrBar stx) (map-stx (lambda (d) 
+  (syntax-case d (Block)
+    [(_ (Block a ...)) '(Block a ...)]
+    [(_ BAR-TOK e) 'e]
+  )
+) stx))
 
 ;;;;
 
-(provide Expr   Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr6a Expr7 
-         Expr8  Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16
-         QualName)
+(provide Expr Name QualName Number iff ifte >= <=)
 
 (define-syntax (Expr stx)
   ; (cadr d)
@@ -389,38 +396,90 @@
       (apply append (map (lambda (ns t) (map (lambda (n) (list (string->symbol n) t)) ns)) 
                           ns 
                           ts)))
-  (syntax-case stx (ArrowOp ExprList Quant DeclList Decl NameList)
-    [(_ "#" a) #'(card a)]
-    [(_ (? string? op) a) #'(,(string->symbol op) a)]
-    [(_ a "." b) #'(join a b)]
-    [(_ a (or "=>" "implies") b) #'(=> a b)]
-    [(_ a (ArrowOp _ ...) b) #'(-> a b)]
-    [(_ a (? string? op) b) #'(,(string->symbol op) a b)]
-    [(_ a "[" (ExprList bs ...) "]") 
-      (foldl (lambda (b acc) #'(join b acc)) #'a #'(bs ...))]
-    [((Quant q) (DeclList (Decl (NameList ns ...) ts) ...) body)
-      #'(,(string->symbol q) ,(get-bounds #'((ns ...) ...) #'(ts ...)) ,@body)]
-    [(_ a b ...) #'a]
+  (define ret
+    (syntax-case stx (Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
+                      Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17
+                      CompareOp ExprList)
+      ; [(_ "let" (LetDeclList _ ...) (BlockOrBar _ ...)) #f]         ;; TODO:
+      [(_ (Quant q) (DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...) e)           ;; TODO:
+        (datum->syntax stx 
+          `(,(string->symbol (syntax->datum #'q))
+            ,(apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns)) 
+                                      (syntax->datum #'((nss ...) ...)) 
+                                      (syntax->datum #'(qs ...)))) 
+            ,#'e))]
+
+      ;; Note: the QQQ-TOKs here are just match vars but offer clarity and mirror reader
+      [(_ (Expr1 a ...) DISJ-TOK (Expr2 b ...)) 
+        #'(or (Expr a ...) (Expr b ...))]
+      [(_ (Expr2 a ...) IFF-TOK (Expr3 b ...)) 
+        #'(iff (Expr a ...) (Expr b ...))]
+      [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...) ELSE-TOK (Expr3 c ...)) 
+        #'(ifte (Expr a ...) (Expr b ...) (Expr c ...))]
+      [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...)) 
+        #'(=> (Expr a ...) (Expr b ...))]
+      [(_ (Expr4 a ...) CONJ-TOK (Expr5 b ...)) 
+        #'(and (Expr a ...) (Expr b ...))]
+      [(_ NEG-TOK (Expr5 a ...)) #'(not (Expr a ...))]
+      [(_ (Expr6 a ...) NEG-TOK (CompareOp op) (Expr7 b ...)) 
+        #'(not (Expr (Expr6 a ...) (CompareOp op) (Expr7 b ...)))]
+      [(_ (Expr6 a ...) (CompareOp "=") (Expr7 b ...)) 
+        #'(int= (Expr a ...) (Expr b ...))]
+      [(_ (Expr6 a ...) (CompareOp op) (Expr7 b ...)) 
+        (datum->syntax stx `(,(string->symbol (syntax->datum #'op)) ,#'(Expr a ...) ,#'(Expr b ...)))]
+      [(_ quant (Expr8 a ...)) 
+        (datum->syntax stx `(,(string->symbol (syntax->datum #'quant)) ,#'(Expr a ...)))]
+      [(_ (Expr8 a ...) "+" (Expr9 b ...)) 
+        #'(+ (Expr a ...) (Expr b ...))]
+      [(_ (Expr8 a ...) "-" (Expr9 b ...)) 
+        #'(- (Expr a ...) (Expr b ...))]
+      [(_ HASH-TOK (Expr9 a ...)) 
+        #'(card (Expr a ...))]
+      [(_ (Expr10 a ...) PPLUS-TOK (Expr11 b ...)) 
+        #'(++ (Expr a ...) (Expr b ...))]
+      [(_ (Expr11 a ...) AMP-TOK (Expr12 b ...)) 
+        #'(& (Expr a ...) (Expr b ...))]
+      [(_ (Expr12 a ...) (ArrowOp _ ...) (Expr13 b ...))  ;; TODO:
+        #'(-> (Expr a ...) (Expr b ...))]
+      [(_ (Expr13 a ...) "<:" (Expr14 b ...)) 
+        #'(<: (Expr a ...) (Expr b ...))]
+      [(_ (Expr13 a ...) ":>" (Expr14 b ...)) 
+        #'(<: (Expr a ...) (Expr b ...))]
+      [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList) RIGHT-SQUARE-TOK) 
+        #'(Expr a ...)]
+      [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b c ...) RIGHT-SQUARE-TOK) 
+        #'(Expr (Expr14 (join b (Expr a ...))) LEFT-SQUARE-TOK (ExprList c ...) RIGHT-SQUARE-TOK)]
+      [(_ (Expr15 a ...) DOT-TOK (Expr16 b ...)) 
+        #'(join (Expr a ...) (Expr b ...))]
+      [(_ "~" (Expr16 a ...))
+        #'(~ (Expr a ...))]
+      [(_ "^" (Expr16 a ...))
+        #'(^ (Expr a ...))]
+      [(_ "*" (Expr16 a ...))
+        #'(* (Expr a ...))]
+
+      ; [(_ "@" name) #f]                                   ;; TODO:
+      ; [(_ "this") #f]                                     ;; TODO:
+      ; [(_ (DeclList _ ...) (BlockOrBar _ ...)) #f]        ;; TODO:
+      [(_ a) #'a]
+    )
   )
+  (displayln "--------")
+  (println (syntax->datum stx))
+  (println (syntax->datum ret))
+  (displayln "--------")
+  ret
 )
 
-(define-simple-macro (Expr1  args ...) (Expr args ...))
-(define-simple-macro (Expr2  args ...) (Expr args ...))
-(define-simple-macro (Expr3  args ...) (Expr args ...))
-(define-simple-macro (Expr4  args ...) (Expr args ...))
-(define-simple-macro (Expr5  args ...) (Expr args ...))
-(define-simple-macro (Expr6  args ...) (Expr args ...))
-(define-simple-macro (Expr6a args ...) (Expr args ...))
-(define-simple-macro (Expr7  args ...) (Expr args ...))
-(define-simple-macro (Expr8  args ...) (Expr args ...))
-(define-simple-macro (Expr9  args ...) (Expr args ...))
-(define-simple-macro (Expr10 args ...) (Expr args ...))
-(define-simple-macro (Expr11 args ...) (Expr args ...))
-(define-simple-macro (Expr12 args ...) (Expr args ...))
-(define-simple-macro (Expr13 args ...) (Expr args ...))
-(define-simple-macro (Expr14 args ...) (Expr args ...))
-(define-simple-macro (Expr15 args ...) (Expr args ...))
-(define-simple-macro (Expr16 args ...) (Expr args ...))
+
+(define-syntax (Name stx)     (map-stx (lambda (d) (string->symbol (cadr d))) stx))
+(define-syntax (QualName stx) (map-stx (lambda (d) (string->symbol (cadr d))) stx))
+(define-syntax (Number stx)   (map-stx (lambda (d) (string->number (cadr d))) stx))
+
+(define-simple-macro (iff a b) (and (=> a b) (=> b a)))
+(define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
+(define-simple-macro (>= a b) (or (> a b) (int= a b)))
+(define-simple-macro (<= a b) (or (< a b) (int= a b)))
 
 
-(define-simple-macro (QualName args ...) (string->symbol args ...))
+
