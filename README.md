@@ -9,7 +9,7 @@ Forge extends the Ocelot package to create first-order relational logic models. 
 - Built-in semantics for state (coming soon)
 - Additional teaching tools like language levels and different interaction modes (coming soon)
 
-## Language Goals (PLEASE EDIT)
+## Language Goals (PLEASE EDIT+REORDER)
 
 Forge aims to make formal methods more teachable by meeting the following design goals:
 - Built-in state/transition syntax+semantics
@@ -17,3 +17,11 @@ Forge aims to make formal methods more teachable by meeting the following design
 - Maintain compositionality
 - Allow for separation of concerns between objects (ex: States) and the relations/structure between then (ex: Transitions)
 - Avoidance of "global" values like facts
+- Encourage exploration
+- Provide reasonable error/type/lint messages
+- Familiar syntax/semantics
+- Enable testing specifications by running them against first-class models (which may be hidden from the student)
+- Enable controlled exposure to concepts via language levels
+
+Questions:
+- To what degree should we hide underlying concepts like relational representation from the user?
