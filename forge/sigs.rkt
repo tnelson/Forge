@@ -275,6 +275,7 @@
 (require (for-meta 1 racket/port racket/list))
 
 (provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
+         AssertDecl
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -356,7 +357,7 @@
       [_ #f]
     )
   )
-  (if name #f (raise "please name your commands"))
+  (if name #f (set! name (symbol->string (gensym))))
   (define datum `(,cmd ,name ,block ,scope))
   ; (displayln "--------")
   ; (println (syntax->datum stx))
@@ -382,6 +383,24 @@
   (define datum (if (empty? paras) 
                     `(pred ,name (and ,@(syntax->datum block)))
                     `(pred (,name ,@paras) (and ,@(syntax->datum block)))))
+  ; (println datum)
+  datum
+) stx))
+(define-syntax (AssertDecl stx) (map-stx (lambda (d) 
+  (define-values (name paras block) (values #f '() '()))
+  ; (println d)
+  (for ([arg (cdr d)])
+    (syntax-case arg (Name ParaDecls Decl NameList Block)
+      [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
+      [(ParaDecls (Decl (NameList ps) _ ...) ...) 
+       (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
+      [(Block bs ...) (set! block #'(bs ...))]
+      [_ #f]
+    )
+  )
+  (define datum (if (empty? paras) 
+                    `(assert ,name (and ,@(syntax->datum block)))
+                    `(assert (,name ,@paras) (and ,@(syntax->datum block)))))
   ; (println datum)
   datum
 ) stx))
