@@ -34,6 +34,7 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
 # BinOp : DISJ-TOK | CONJ-TOK | IFF-TOK | IMP-TOK | AMP-TOK 
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
+        | STAR-TOK
 CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
@@ -61,6 +62,7 @@ ExprList : Expr
 ;;;;;;;;
 
 ;; this mess is the only way I know of to do operator precedence well in brag
+;; goes from weakest to strongest binding
 ;; imagine a coin rolling over a coin sorter and falling into the first slot that fits
 Expr    : @Expr1  
         | LET-TOK LetDeclList BlockOrBar
@@ -76,7 +78,7 @@ Expr8  : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr9
 Expr9  : @Expr10 | HASH-TOK Expr9
 Expr10 : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11 : @Expr12 | Expr11 AMP-TOK Expr12
-Expr12 : @Expr13 | Expr12 ArrowOp Expr13
+Expr12 : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
 Expr13 : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14 : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15 : @Expr16 | Expr15 DOT-TOK Expr16

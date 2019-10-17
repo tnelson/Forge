@@ -478,7 +478,9 @@
         #'(++ (Expr a ...) (Expr b ...))]
       [(_ (Expr11 a ...) AMP-TOK (Expr12 b ...)) 
         #'(& (Expr a ...) (Expr b ...))]
-      [(_ (Expr12 a ...) (ArrowOp _ ...) (Expr13 b ...))  ;; TODO:
+      [(_ (Expr13 a ...) (ArrowOp "*") (Expr12 b ...))
+        #'(-> (Expr a ...) (Expr b ...))]
+      [(_ (Expr13 a ...) (ArrowOp _ ...) (Expr12 b ...))  ;; TODO: handle multiplicities
         #'(-> (Expr a ...) (Expr b ...))]
       [(_ (Expr13 a ...) "<:" (Expr14 b ...)) 
         #'(<: (Expr a ...) (Expr b ...))]
