@@ -353,6 +353,7 @@
       ; [(? symbol? s) (set! arg (string->symbol #'s))]
       [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
       [(Block (Expr (QualName ns)) ...) (set! block (map string->symbol (syntax->datum #'(ns ...))))]
+      [(QualName n) (set! block (list (string->symbol (syntax->datum #'n))))]
       ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
       [_ #f]
     )
