@@ -292,10 +292,14 @@
     [else datum]))
 (define-for-syntax (process-DeclList d)
   (syntax-case d (NameList Mult SigExt DeclList Block)  
-    [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...) 
-       (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns)) 
+    ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...) 
+    ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns)) 
+    ;                                   (syntax->datum #'((nss ...) ...)) 
+    ;                                   (syntax->datum #'(qs ...))))]
+    [(DeclList (_ (NameList nss ...) es) ...) 
+       (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns)) 
                                       (syntax->datum #'((nss ...) ...)) 
-                                      (syntax->datum #'(qs ...))))]
+                                      (syntax->datum #'(es ...))))]
   )
 )
 (define-for-syntax (use-ctxt stx1 stx2)
