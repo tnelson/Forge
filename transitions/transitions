@@ -1,0 +1,333 @@
+transitions
+
+
+transition[Board] move[r,c: Idx, p: Player] {	## ***
+	post.places := pre.places + r*c*p
+	no pre.places[r][c]
+}
+
+transition[Board] move[r,c: Idx, p: Player] {
+	state[1].places := state[0].places + r*c*p
+	no state[0].places[r][c]
+}
+
+
+## these appraoches depend on good let-expr support:
+
+## this approach puts in scope, for each field in Board:
+## 		field := 0->pre.<field> + 1->post.<field>
+transition[Board] move[r,c: Idx, p: Player] {	## ***
+	places[1] := places[0] + r*c*p
+	no places[0][r][c]
+	## if instead field := field + 0->pre.<field> + 1->post.<field>,
+	##		then we can access @field as just field
+}
+
+transition[Board] move[r,c: Idx, p: Player] {	## ***
+	places' = places + r*c*p
+	no places[r][c]
+	## access full places with @places
+}
+
+## this is confusing because it looks like y := y if done sequentially
+transition[Board] move[] {
+	x := y
+	y := x
+}
+
+## could have it actually behave sequentially by expanding to SSA
+transition[Board] move[] {
+	tmp := x
+	x := y
+	y := tmp
+}
+
+transition[Board] move[] {	## ***
+	x' = y
+	y' = x
+}
+
+transition[Board] move[] {
+	post.x := pre.y
+	post.y := pre.x
+}
+
+
+transition[Board] move[] {	## ***
+	post = pre 
+		++ x->pre[y] 
+		++ y->pre[x]
+}
+
+## treat the edges themselves as things, as in categories
+sig Move {	## ***
+	pre, post: Board
+	r, c: Idx
+	p: Player
+} {
+	post.places := pre.places + r*c*p
+	no pre.places[r][c]
+}
+
+sig Edge {
+	pre, post: Board
+}
+pred isMove[e: Edge] {
+	e.post.places := e.pre.places + r*c*p
+	no e.pre.places[r][c]
+}
+Move := {e: Edge | isMove[e]}
+
+
+abstract sig Move {	## ***
+	pre, post: Board
+}
+sig MoveNormal extends Move {
+	r, c: Idx
+	p: Player
+} {
+	post.places := pre.places + r*c*p
+	no pre.places[r][c]
+}
+sig MovePass extends Move {} {
+	post = pre
+}
+
+
+
+sig Board {
+    places: Blah
+    turn: Player
+} {                               ## sig facts ## like invariants
+    blah(places)
+} init constructor(p: Player) {        ## like constructors
+    turn = p
+} method move(r, c: Idx, p: Player) {    ## like methods
+    places' = places + r*c*p
+    no places[r][c]
+
+
+    this
+    this'
+    places ~> this.places
+    places' ~> this'.places
+    @places
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<{[(@"NOTES"@)]}>
+
+- Want to keep these concerns separate:
+	- states
+	- transitions
+	- specific transitions in a sequence
+- Using an approach with more general usage
+	- building off the object oriented "pun"
+	- I try to use Alloy lingo and give OOP lingo in comments
+- (I) Think of Foo[|...|] as a little parameterized module
+	- i.e. it hacks higher-order/polymorphic behavior at compile-time
+	- recently read about ML modules so those are on my mind
+
+
+<{[(@"MAIN"@)]}>
+
+CURRENT:
+SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK DeclList? /RIGHT-CURLY-TOK Block?
+
+NEW:
+SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK DeclList? /RIGHT-CURLY-TOK Block? SigPred* SigFun*
+SigPred : STATE-TOK 	  	Name ParaDecls? Block	## Object Predicate (pure)
+        | TRANSISTION-TOK	Name ParaDecls? Block	## Object Method    (mutative)
+SigFun  : FUN-TOK           Name ParaDecls? Block	## Object Method    (mutative)
+StatePred      : /STATE-TOK 	  [| Name |] Name ParaDecls? Block
+TransitionPred : /TRANSISTION-TOK [| Name |] Name ParaDecls? Block
+
+Within all SigPreds:
+- this
+- field	 ~~> this.field
+- @field ~~> field
+Within transition SigPreds:
+- this'
+- field' ~~> this'.field
+
+Want to be able to say things like
+- trace : Trace[|sig:Board, invariant:myInv, transition:myTrans, initial:myInit(p), terminal:myTerm|]
+- This says that trace has type Board*Board with the basic sequence constraints but also:
+	- all elements satisfy myInv
+	- all a->b satisfy myTrans
+	- the first element satisfies myInit(p)
+	- the last element satisfies myTerm
+- SigPreds are implicitly existentially quantified like in run commands 
+
+
+<{[(@"EXAMPLES"@)]}>
+
+sig Board {
+    places: Blah
+    turn: Player
+} {
+    blah(places)
+} state myInv {
+	foo(turn, places)
+} state myInit(p: Player) {
+    turn = p
+} state myTerm(winner: Player) {
+    ...winner...
+} transition move(r, c: Idx, p: Player) {
+    places' = places + r*c*p
+    no places[r][c]
+}
+
+~~>
+
+sig Board {
+    places: Blah
+    turn: Player
+}
+fact {
+	all b: Board | blah(b.places)
+}
+state[Board] myInv {
+	foo(turn, places)
+}
+state[Board] myInit(p: Player) {
+	turn = p
+}
+state[Board] myTerm(winner: Player) {
+	...winner...
+}
+transition[Board] move(r, c: Idx, p: Player) {
+    places' = places + r*c*p
+    no places[r][c]
+}
+
+~~>
+
+sig Board {
+    places: Blah
+    turn: Player
+}
+fact {
+	all b: Board | blah(b.places)
+}
+pred myInv(this: Board) {
+	foo(this.turn, this.places)
+}
+pred myInit(this: Board, p: Player) {
+	this.turn = p
+}
+pred myTerm(this: Board, winner: Player) {
+	...winner...
+}
+pred move(this, this': Board, r, c: Idx, p: Player) {
+    this'.places = this.places + r*c*p
+    no this.places[r][c]
+}
+
+########
+
+
+tr1 : Trace[|sig:Board, invariant:myInv, transition:(myTrans or myTrans2), initial:myInit(p), terminal:myTerm|]
+##  tr1 : Trace[|sig:Board, invariant:myInv, transition:myTrans, initial:myInit(p), terminal:myTerm|]
+
+
+~~>
+
+sig Trace_Board_0 {
+	states: set Board,
+	transitions: states * states
+} {
+	## normal sequence constraints
+	all s: states | myInv(s)
+	some i: states {
+		myInit(i, p)
+		no transitions.i
+		all s: states-i | one transitions.s
+	}
+	some t: states {
+		myTerm(t)
+		no t.transitions
+		all s: states-t | one s.transitions and myTrans(s, s.transitions)
+	}
+
+}
+
+~~> as in Alloy
+
+
+<{[(@"NOTES"@)]}>
+
+- This approach should allow generalizing to LTL stuff and more general frame relations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<{[(@"TODO"@)]}>
+- trace demo
+	- use invariant instead of sig fact
+- learn about 
+	- symmetry breaking
+	- sparse matrix representation?
+- want to compare (#variables, #clauses, time) for
+	- Alloy seq
+	- Alloy ordering
+	- Alloy proposed representation
+	- Kodkod custom
+
+
+<{[(@"NOTES"@)]}>
+- Naive approach leads to HOQ
+- Faster and smaller to build than util/ordering but way slower to solve
+- Using a pred invariant in the Trace vs a fact gives ~2* speedup
+- My proposal can be combined with seq
+
+
+
+
+
+
+
+
