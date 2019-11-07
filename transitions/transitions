@@ -306,14 +306,14 @@ sig Trace_Board_0 {
 
 
 <{[(@"TODO"@)]}>
-- trace demo
-	- use invariant instead of sig fact
 - learn about 
 	- symmetry breaking
 	- sparse matrix representation?
 - want to compare (#variables, #clauses, time) for
 	- Alloy seq
-	- Alloy ordering
+	- !! Macro-expand specific objects and transitions (State0, State1, ..., StateN)
+		- is this what util/ordering does? does it add preds or sigs or bounds?
+	- Alloy util/ordering
 	- Alloy proposed representation
 	- Kodkod custom
 
