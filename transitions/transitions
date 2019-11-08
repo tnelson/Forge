@@ -306,23 +306,25 @@ sig Trace_Board_0 {
 
 
 <{[(@"TODO"@)]}>
-- learn about 
-	- symmetry breaking
-	- sparse matrix representation?
-- want to compare (#variables, #clauses, time) for
-	- Alloy seq
-	- !! Macro-expand specific objects and transitions (State0, State1, ..., StateN)
-		- is this what util/ordering does? does it add preds or sigs or bounds?
-	- Alloy util/ordering
-	- Alloy proposed representation
-	- Kodkod custom
+- mess with bounds
+	- start as close to Kodkod as possible and then work up layers of abstraction
+	- play with kkcli-test.rkt
+		- try to listen in on what is being sent through the kkcli when given a simple trace problem
+			- then edit
+		- can bounds on the same relation be declared multiple times?
+			- ideally (rᵢ [L₁ :: U₁]) (rᵢ [L₂ :: U₂]) would give (rᵢ [L₁ ∪ L₂ :: U₁ ∩ U₂])
+	- then try to use forge1
+	- then try to extend forge2 to allow specifying kodkod bounds
 
 
-<{[(@"NOTES"@)]}>
-- Naive approach leads to HOQ
-- Faster and smaller to build than util/ordering but way slower to solve
-- Using a pred invariant in the Trace vs a fact gives ~2* speedup
-- My proposal can be combined with seq
+
+
+
+
+
+
+
+
 
 
 

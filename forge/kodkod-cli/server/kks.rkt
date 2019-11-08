@@ -12,6 +12,11 @@
   (parameterize ([kodkod-port port])
     expr ...
     (flush-output port)))
+;(define-syntax-rule (cmd [port] expr ...)
+;  (begin (display expr) ...
+;  (parameterize ([kodkod-port port])
+;    expr ...
+;    (flush-output port))))
 
 
 ; All command functions from this module (e.g., solve)

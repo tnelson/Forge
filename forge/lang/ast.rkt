@@ -46,7 +46,7 @@
       (for ([a (in-list args)])
         (unless (equal? (node/expr-arity a) arity)
           (raise-arguments-error op "arguments must have same arity"
-                                 "got" arity "and" (node/expr-arity a))))))
+                                 "got" arity "and" (node/expr-arity a) ":" a)))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
       (raise-arguments-error op "join would create a relation of arity 0")))
