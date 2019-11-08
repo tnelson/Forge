@@ -307,14 +307,10 @@ sig Trace_Board_0 {
 
 <{[(@"TODO"@)]}>
 - mess with bounds
-	- start as close to Kodkod as possible and then work up layers of abstraction
-	- play with kkcli-test.rkt
-		- try to listen in on what is being sent through the kkcli when given a simple trace problem
-			- then edit
-		- can bounds on the same relation be declared multiple times?
-			- ideally (rᵢ [L₁ :: U₁]) (rᵢ [L₂ :: U₂]) would give (rᵢ [L₁ ∪ L₂ :: U₁ ∩ U₂])
-	- then try to use forge1
-	- then try to extend forge2 to allow specifying kodkod bounds
+	- allow bounds on relation to be set twice:
+		- (rᵢ [L₁ :: U₁]) (rᵢ [L₂ :: U₂]) should give (rᵢ [L₁ ∪ L₂ :: U₁ ∩ U₂])
+	- add to sigs.rkt a method to add linearity bounds
+		- use by escaping to forge1? may not work
 
 
 <{[(@"NOTE"@)]}>
