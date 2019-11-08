@@ -1,17 +1,15 @@
 
 /*
-Single transition: warmup for using ADTs with traces.
-Preds like ex:sApBC would be generated to test membership in ex:A+B*C.
-Preds like ex:h would be generated from ex:f+g (approx).
-This lets the transition predicate remain very simple.
+Finding traces with mutliple transition types using ADTs.
+Double-dash comments show proposed syntax.
+Project over Solution.
+3 Solutions: 2+1, 1+2, 1+1+1.
 */
 
 sig S {	stuff: set univ }
 sig A {}
 sig B {}
 sig C {}
-
-// one sig U {} // used for arity alignment
 
 --------
 --------
@@ -55,16 +53,32 @@ pred myInv[s: S] {
 	s.stuff in (A+B+C)
 }
 
-pred transition[s, s': S, a: lone A, b: lone B, c: lone C] {
-	h[s, s', a, b, c]
-	initialState[s]
-	myInv[s]
-	myInv[s']
+one sig Solution {
+	state: set S,
+	init, term: state,
+	transition: (state-term) one->one (state-init),
+
+	-- args: (state-term) -> (A+B*C)
+	argA: (state-term) -> A,
+	argB: (state-term) -> B,
+	argC: (state-term) -> C,
+} {
+	all s: state | myInv[s]
+	initialState[init]
+	finalState[term]
+	all s: (state-term) {
+		-- (f+g)[s, s.transition, s.args]
+		-- h[s, s.transition, s.args]
+		h[s, s.transition, s.argA, s.argB, s.argC]
+	}
 }
-run transition for 2 but exactly 1 A, exactly 1 B, exactly 1 C
-
-
-
+pred neaten {
+	Solution.state = S
+	Solution.argA[S] = A
+	Solution.argB[S] = B
+	Solution.argC[S] = C
+}
+run neaten for 5
 
 
 
