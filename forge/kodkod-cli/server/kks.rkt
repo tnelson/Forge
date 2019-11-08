@@ -9,14 +9,10 @@
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
 (define-syntax-rule (cmd [port] expr ...)
+  (begin (display expr) ...
   (parameterize ([kodkod-port port])
     expr ...
-    (flush-output port)))
-;(define-syntax-rule (cmd [port] expr ...)
-;  (begin (display expr) ...
-;  (parameterize ([kodkod-port port])
-;    expr ...
-;    (flush-output port))))
+    (flush-output port))))
 
 
 ; All command functions from this module (e.g., solve)
@@ -137,5 +133,5 @@
      (for/hash ([r rid][tuples val]) (values r tuples))]
     [(list (== 'unsat) (== ':core) (list fid ...)) fid]
     [(list (== 'unsat)) '()]
-    ;['\#<eof> 'unsat]
+    [\#<eof> 'unsat]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))

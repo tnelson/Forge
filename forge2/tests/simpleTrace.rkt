@@ -10,17 +10,26 @@ pred myTrans[s: S, s': S, a: A] {
 }
 pred myTerm[s: S] { s.stuff = A }
 
-one sig Solution {
+one sig Sol {
     state: S,
-    init, term: state,
-    transition: (state-term) one->one (state-init), // one->one
-    argA: (state-term) -> A
-} {
+    init, term: S//,
+    //transition: S->S
+  //  argA: (state-term) -> A
+} /*{
     myInit[init]
     all s: (state-term) {
         myTrans[s, s.transition, s.argA]
     }
     myTerm[term]
+}*/
+
+pred facts {
+    Sol.init in Sol.state
+    Sol.term in Sol.state
+    //(state-term) one->one (state-init)
+    /*some transition: S->S {
+        some transition
+    }*/
 }
 
-run {} for 3 S, exactly 2 A
+run facts for 3 S, exactly 2 A

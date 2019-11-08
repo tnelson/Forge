@@ -317,6 +317,15 @@ sig Trace_Board_0 {
 	- then try to extend forge2 to allow specifying kodkod bounds
 
 
+<{[(@"NOTE"@)]}>
+- to get the kkcli code from a forge program:
+	- edit kks/cmd to display all passed exprs
+	- run forge program
+	- copy/paste output up to (solve) to new file
+	- prepend: #lang reader "kkcli-reader.rkt"
+	- remove #<void>s
+	!! replace ~s with ~~s
+
 
 
 
