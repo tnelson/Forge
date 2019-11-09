@@ -28,13 +28,13 @@
 (define bitwidth 4)
 
 
-(provide mark-total-order mark-irreflexive)
-;List of relations that are total orders
-(define total-orders '())
-(define (mark-total-order rel) (set! total-orders (cons rel total-orders)))
+(provide linear irref)
+;List of relations that are linear orders
+(define linear-rels '())
+(define (linear rel) (set! linear-rels (cons rel linear-rels)))
 ;List of relations that are irreflexive
-(define irreflexive-rels '())
-(define (mark-irreflexive rel) (set! irreflexive-rels (cons rel irreflexive-rels)))
+(define irref-rels '())
+(define (irref rel) (set! irref-rels (cons rel irref-rels)))
 
 
 (define (set-bitwidth i) (set! bitwidth i))
@@ -211,23 +211,30 @@
 
   ;; constrain bounds for symmetry-breaking optimizations and custom bounds
   (define (constrain-bound bound) 
-    (displayln bound)
-    (when (member (bound-relation bound) irreflexive-rels) (println "irreflexive!"))
+    (define rel (bound-relation bound))
+    (when (member rel irref-rels) 
+      (define ubound (filter-not (lambda (x) (equal? (first x) (second x)))
+                                 (bound-upper bound)))
+      (set! bound (make-bound rel (bound-lower bound) ubound))
+    )
+    (when (member rel linear-rels)
+      (println "linear")
+    )
     bound
   )
+  ;; I hook in bounds constraining here in case 
+  ;; other constraints have been made that must be considered
+  (set! total-bounds (map constrain-bound total-bounds))
       
-  (for ([key total-bounds])
-    ;; I hook in bounds constraining here in case 
-    ;; other constraints have been made that must be considered
-    (define ckey (constrain-bound key))
+  (for ([bound total-bounds])
     (cmd
      [stdin]
      (declare-rel
-      (r (index-of rels (bound-relation ckey)))
+      (r (index-of rels (bound-relation bound)))
       
-      (adj-bound-lower ckey)
+      (adj-bound-lower bound)
       (tupleset #:tuples (map (lambda (x) (map get-atom x))
-                              (bound-upper ckey))))))
+                              (bound-upper bound))))))
   (for ([c constraints] [i (range (length constraints))])
     (cmd 
      [stdin]

@@ -4,6 +4,8 @@ sig Node {
     edges: Node
 }
 
+/*$(irref edges)*/
+
 pred facts {
     some init: Node { some term: Node {
         edges in (Node-term) -> (Node-init)   // one->one
@@ -12,10 +14,5 @@ pred facts {
         init.*edges = Node
     }}
 }
-
-/*$
-(mark-irreflexive edges)
-*/
-
 
 query1 : run facts for exactly 5 Node
