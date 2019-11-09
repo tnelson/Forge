@@ -13,5 +13,9 @@ pred facts {
     }}
 }
 
+/*$
+(mark-irreflexive edges)
+*/
+
 
 query1 : run facts for exactly 5 Node

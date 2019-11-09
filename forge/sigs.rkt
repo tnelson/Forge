@@ -27,6 +27,16 @@
 ;Bitwidth
 (define bitwidth 4)
 
+
+(provide mark-total-order mark-irreflexive)
+;List of relations that are total orders
+(define total-orders '())
+(define (mark-total-order rel) (set! total-orders (cons rel total-orders)))
+;List of relations that are irreflexive
+(define irreflexive-rels '())
+(define (mark-irreflexive rel) (set! irreflexive-rels (cons rel irreflexive-rels)))
+
+
 (define (set-bitwidth i) (set! bitwidth i))
 
 (struct int-bound (lower upper) #:transparent)
@@ -192,22 +202,32 @@
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))
-
   #|(define (adj-bound-upper bound)
     (define int-atoms (map (lambda (x) (map get-atom x))
            (bound-upper key)))
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))|#
+
+  ;; constrain bounds for symmetry-breaking optimizations and custom bounds
+  (define (constrain-bound bound) 
+    (displayln bound)
+    (when (member (bound-relation bound) irreflexive-rels) (println "irreflexive!"))
+    bound
+  )
+      
   (for ([key total-bounds])
+    ;; I hook in bounds constraining here in case 
+    ;; other constraints have been made that must be considered
+    (define ckey (constrain-bound key))
     (cmd
      [stdin]
      (declare-rel
-      (r (index-of rels (bound-relation key)))
+      (r (index-of rels (bound-relation ckey)))
       
-      (adj-bound-lower key)
+      (adj-bound-lower ckey)
       (tupleset #:tuples (map (lambda (x) (map get-atom x))
-                              (bound-upper key))))))
+                              (bound-upper ckey))))))
   (for ([c constraints] [i (range (length constraints))])
     (cmd 
      [stdin]
