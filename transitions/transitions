@@ -306,11 +306,7 @@ sig Trace_Board_0 {
 
 
 <{[(@"TODO"@)]}>
-- mess with bounds
-	- allow bounds on relation to be set twice:
-		- (rᵢ [L₁ :: U₁]) (rᵢ [L₂ :: U₂]) should give (rᵢ [L₁ ∪ L₂ :: U₁ ∩ U₂])
-	- add to sigs.rkt a method to add linearity bounds
-		- use by escaping to forge1? may not work
+- naive implementation of linearity bound restriction
 
 
 <{[(@"NOTE"@)]}>

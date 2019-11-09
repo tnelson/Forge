@@ -218,7 +218,10 @@
       (set! bound (make-bound rel (bound-lower bound) ubound))
     )
     (when (member rel linear-rels)
-      (println "linear")
+      ; TODO: choose a hamiltonian path through upper bound containing lower bound      
+      (define atoms (hash-ref bounds-store (first (hash-ref relations-store rel))))
+      (define order (map list (drop-right atoms 1) (cdr atoms)))
+      (set! bound (make-bound rel order order))
     )
     bound
   )

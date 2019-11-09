@@ -4,7 +4,7 @@ sig Node {
     edges: Node
 }
 
-/*$(irref edges)*/
+/*$(linear edges)*/
 
 pred facts {
     some init: Node { some term: Node {
