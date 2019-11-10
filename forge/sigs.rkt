@@ -218,9 +218,10 @@
       (set! bound (make-bound rel (bound-lower bound) ubound))
     )
     (when (member rel linear-rels)
+      ; TODO: support higher arity relations like Solution->State->State
       ; TODO: choose a hamiltonian path through upper bound containing lower bound      
       (define atoms (hash-ref bounds-store (first (hash-ref relations-store rel))))
-      (define order (map list (drop-right atoms 1) (cdr atoms)))
+      (define order (map list (drop-right atoms 1) (cdr atoms)))  ;; map list = zip
       (set! bound (make-bound rel order order))
     )
     bound
