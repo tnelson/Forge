@@ -4,6 +4,14 @@ sig Node {
     edges: Node
 }
 
+/*
+without:
+    problem size: variables = 858, clauses = 1438, state = 35 bits
+    solving time (ms): total = 85, parsing = -1, translation = 73, SAT = 13
+with:
+    problem size: variables = 58, clauses = 63, state = 10 bits
+    solving time (ms): total = 45, parsing = -1, translation = 45, SAT = 1
+*/
 /*$(linear edges)*/
 
 // this is redundant when edges is declared linear:
