@@ -13,6 +13,7 @@ with:
     solving time (ms): total = 45, parsing = -1, translation = 45, SAT = 1
 */
 /*$(linear edges)*/
+/*$(break edges 'linear 'irref)*/
 
 // this is redundant when edges is declared linear:
 pred linear_edges {

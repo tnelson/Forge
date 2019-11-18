@@ -2,7 +2,10 @@
 
 (require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "server/forgeserver.rkt"
          "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
-         "kodkod-cli/server/server-common.rkt" "kodkod-translate.rkt" "kodkod-model-translate.rkt" racket/stxparam br/datum)
+         "kodkod-cli/server/server-common.rkt" "kodkod-translate.rkt" "kodkod-model-translate.rkt" racket/stxparam br/datum
+         "custom-bounds.rkt")
+
+(provide linear irref break quote)
 
 ;(require (only-in forged-ocelot relation-name))
 
@@ -26,16 +29,6 @@
 (define run-names '())
 ;Bitwidth
 (define bitwidth 4)
-
-
-(provide linear irref)
-;List of relations that are linear orders
-(define linear-rels '())
-(define (linear rel) (set! linear-rels (cons rel linear-rels)))
-;List of relations that are irreflexive
-(define irref-rels '())
-(define (irref rel) (set! irref-rels (cons rel irref-rels)))
-
 
 (define (set-bitwidth i) (set! bitwidth i))
 
@@ -209,26 +202,9 @@
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))|#
 
-  ;; constrain bounds for symmetry-breaking optimizations and custom bounds
-  (define (constrain-bound bound) 
-    (define rel (bound-relation bound))
-    (when (member rel irref-rels) 
-      (define ubound (filter-not (lambda (x) (equal? (first x) (second x)))
-                                 (bound-upper bound)))
-      (set! bound (make-bound rel (bound-lower bound) ubound))
-    )
-    (when (member rel linear-rels)
-      ; TODO: support higher arity relations like Solution->State->State
-      ; TODO: choose a hamiltonian path through upper bound containing lower bound      
-      (define atoms (hash-ref bounds-store (first (hash-ref relations-store rel))))
-      (define order (map list (drop-right atoms 1) (cdr atoms)))  ;; map list = zip
-      (set! bound (make-bound rel order order))
-    )
-    bound
-  )
   ;; I hook in bounds constraining here in case 
   ;; other constraints have been made that must be considered
-  (set! total-bounds (map constrain-bound total-bounds))
+  (set! total-bounds (constrain-bounds total-bounds bounds-store relations-store))
       
   (for ([bound total-bounds])
     (cmd
