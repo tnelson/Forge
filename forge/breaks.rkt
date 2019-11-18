@@ -82,7 +82,7 @@
 )
 
 (define rel-breaks (make-hash))
-(define (break-rel rel . breaks) 
+(define (break-rel rel . breaks) ; renamed-out to 'break for use in forge
     (for ([break breaks]) (hash-add! rel-breaks rel break)))
 
 (define (constrain-bound bound bounds-store relations-store)
@@ -124,16 +124,32 @@
     (define atoms (first atom-lists))
     (make-exact-break rel
                       (map list (drop-right atoms 1) (cdr atoms)))))
-(stricter 'linear 'irref)
+(add-breaker 'acyclic (λ (rel atom-lists)
+    (define atoms (first atom-lists))
+    (make-upper-break rel
+                      (for*/list ([i (length atoms)]
+                                  [j (length atoms)]
+                                  #:when (< i j))
+                            (list (list-ref atoms i) (list-ref atoms j))))))
+
+
+(stricter 'linear 'acyclic 'irref)
+(stricter 'acyclic 'irref)
+
+
+; use to prevent breaks
+(add-breaker 'none (λ (rel atom-lists) 
+    (make-upper-break rel (apply cartesian-product atom-lists))))
+
+
+
 
 
 #|
-
 ADDING BREAKS
 - add breaks here with using: add-breaker, equiv, stricter, weaker
 - note that your break can likely compose with either 'ref or 'irref because they don't break syms
     - so don't forget to declare that
-
 |#
 
 
