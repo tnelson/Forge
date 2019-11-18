@@ -3,9 +3,9 @@
 (require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "server/forgeserver.rkt"
          "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
          "kodkod-cli/server/server-common.rkt" "kodkod-translate.rkt" "kodkod-model-translate.rkt" racket/stxparam br/datum
-         "custom-bounds.rkt")
+         "breaks.rkt")
 
-(provide linear irref break quote)
+(provide break quote)
 
 ;(require (only-in forged-ocelot relation-name))
 
@@ -204,7 +204,8 @@
 
   ;; I hook in bounds constraining here in case 
   ;; other constraints have been made that must be considered
-  (set! total-bounds (constrain-bounds total-bounds bounds-store relations-store))
+  (constrain-bounds! total-bounds bounds-store relations-store)
+  ;(set! total-bounds (! total-bounds bounds-store relations-store))
       
   (for ([bound total-bounds])
     (cmd
