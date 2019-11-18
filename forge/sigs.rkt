@@ -204,8 +204,7 @@
 
   ;; I hook in bounds constraining here in case 
   ;; other constraints have been made that must be considered
-  (constrain-bounds! total-bounds bounds-store relations-store)
-  ;(set! total-bounds (! total-bounds bounds-store relations-store))
+  (set! total-bounds (constrain-bounds total-bounds bounds-store relations-store))
       
   (for ([bound total-bounds])
     (cmd

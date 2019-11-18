@@ -14,6 +14,9 @@ with:
 */
 /*$(break edges 'linear 'irref)*/
 
+/* try uncommenting the following for an error: */
+// /*$(break edges 'ref)*/
+
 // this is redundant when edges is declared linear:
 pred linear_edges {
     some init: Node { some term: Node {

@@ -1,9 +1,11 @@
 #lang racket
 
 (require "lang/bounds.rkt")
-(provide constrain-bounds! (rename-out [break-rel break]))
+(provide constrain-bounds (rename-out [break-rel break]))
 
-;;;;
+;;;;;;;;;;;;;;;;
+;;;; breaks ;;;;
+;;;;;;;;;;;;;;;;
 
 (struct sbound (relation lower upper) #:transparent)
 (define (make-sbound relation lower [upper false]) (sbound relation lower upper))
@@ -34,29 +36,34 @@
                 (apply set-union (map break-formulas breaks)))
 )
 
-;;;;
+(define (make-exact-break relation contents)
+  (make-break (make-sbound relation contents contents)))
+(define (make-upper-break relation contents)
+  (make-break (make-sbound relation (set) contents)))
+(define (make-lower-break relation contents atom-lists)
+  (make-break (make-sbound relation contents (apply cartesian-product atom-lists))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; methods for defining breaks ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (hash-add! h k v)
     (if (hash-has-key? h k)
         (set-add! (hash-ref h k) v)
         (hash-set! h k (mutable-set v))))
 
-;; structures/methods for defining breaks
-(define break-fns (make-hash))
+(define breakers (make-hash))
 (define compos (make-hash))
 
-(define (add-break a f) (hash-set! break-fns a f))
+(define (add-breaker a f) (hash-set! breakers a f))
 (define (equiv a . bs) 
     (hash-set! compos (apply set bs) a)
     ; if no fn defined for a, default to naively doing all bs
-    (unless (hash-has-key? break-fns a)
-            (hash-set! break-fns a (λ (atom-lists)
+    (unless (hash-has-key? breakers a)
+            (hash-set! breakers a (λ (rel atom-lists)
                 (apply break+ (for ([b bs]) 
-                    ((hash-ref break-fns b) atom-lists)
+                    ((hash-ref breakers b) atom-lists)
                 ))
-                #|(for ([b bs])
-                    ((hash-ref break-fns b) bound atom-list atom-lists)
-                )|#
             )))
 )
 (define (stricter a . bs) (for ([b bs]) (equiv a a b)))
@@ -74,91 +81,60 @@
     (when changed (min-breaks! breaks))
 )
 
-
 (define rel-breaks (make-hash))
 (define (break-rel rel . breaks) 
     (for ([break breaks]) (hash-add! rel-breaks rel break)))
 
-;; define allowed breaks and compositions
-(add-break 'irref (λ (atom-lists) 
-    (make-upper-break (filter-not (lambda (x) (equal? (first x) (second x)))
-                                  (apply cartesian-product atom-lists)))))
-(add-break 'ref (λ (atom-lists) 
-    (make-lower-break (filter     (lambda (x) (equal? (first x) (second x)))
-                                  (apply cartesian-product atom-list))
-                      atom-lists)))
-(add-break 'linear (λ (atom-lists)
-    (define atoms (first atom-list))
-    (make-exact-bound (map list (drop-right atoms 1) (cdr atoms)))))
-(stricter 'linear 'irref)
-
-#|(add-break 'irref (λ (atom-list) 
-    (make-upper-bound (filter-not (lambda (x) (equal? (first x) (second x)))
-                                  (apply cartesian-product atom-list)))))
-(add-break 'ref (λ (atom-list) 
-    (make-upper-bound (filter     (lambda (x) (equal? (first x) (second x)))
-                                  (apply cartesian-product atom-list)))))
-(add-break 'linear (λ (atom-list)
-    (define atoms (first atom-list))
-    (make-exact-bound (map list (drop-right atoms 1) (cdr atoms)))))
-(stricter 'linear 'irref)|#
-
-
-
-;; constrain bounds for symmetry-breaking optimizations and custom bounds
-#|(define (constrain-bound bound bounds-store relations-store) 
-    (println rel-breaks)
-    (define rel (bound-relation bound))
-    (when (member rel irref-rels) 
-        (define ubound (filter-not (lambda (x) (equal? (first x) (second x)))
-                                    (bound-upper bound)))
-        (set! bound (make-bound rel (bound-lower bound) ubound))
-    )
-    (when (member rel linear-rels)
-        ; TODO: support higher arity relations like Solution->State->State
-        ; TODO: choose a hamiltonian path through upper bound containing lower bound      
-        (define atoms (hash-ref bounds-store (first (hash-ref relations-store rel))))
-        (define order (map list (drop-right atoms 1) (cdr atoms)))  ;; map list = zip
-        (set! bound (make-bound rel order order))
-    )
-    bound
-)|#
-
-
-
-
-(define (constrain-bound! bound bounds-store relations-store)
+(define (constrain-bound bound bounds-store relations-store)
     (define rel (bound-relation bound))
     (define breaks (hash-ref rel-breaks rel (set)))
     (min-breaks! breaks)
     (define c (set-count breaks))
 
-
     (case (set-count breaks) 
         [(0) bound]
-        [(1) (define break-fn (hash-ref break-fns (set-first breaks)))
-             (define atom-lists
-                (for ([bound (hash-ref relations-store rel)]) (hash-ref bounds-store bound)))
-             ;(print "break-fn: " break-fn)
-             ;(print "atom-lists: " atom-lists)
-             (break-fn atom-lists)
+        [(1) (define breaker (hash-ref breakers (set-first breaks)))
+             (define rel-list (hash-ref relations-store rel))
+             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
+             (break-bound (breaker rel atom-lists))
         ]
-        [else (raise "can't compose breaks")] ; TODO: improve err msg
+        [else (error "can't compose breaks:" (set->list breaks))]
     )
-
-    bound
+)
+(define (constrain-bounds total-bounds bounds-store relations-store) 
+    (map (lambda (bound) 
+        (constrain-bound bound bounds-store relations-store)
+    ) total-bounds)
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; define breaks and compositions ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(add-breaker 'irref (λ (rel atom-lists) 
+    (make-upper-break rel
+                      (filter-not (lambda (x) (equal? (first x) (second x)))
+                                  (apply cartesian-product atom-lists)))))
+(add-breaker 'ref (λ (rel atom-lists) 
+    (make-lower-break rel
+                      (filter     (lambda (x) (equal? (first x) (second x)))
+                                  (apply cartesian-product atom-lists))
+                      atom-lists)))
+(add-breaker 'linear (λ (rel atom-lists)
+    (define atoms (first atom-lists))
+    (make-exact-break rel
+                      (map list (drop-right atoms 1) (cdr atoms)))))
+(stricter 'linear 'irref)
 
 
-(define (constrain-bounds! total-bounds bounds-store relations-store) 
-    ;(set! bounds-store bounds-stor)
-    ;(set! relations-store relations-stor)
-    ;(map (lambda (bound) (constrain-bound bound)) total-bounds)
-    (for ([bound total-bounds]) (constrain-bound! bound bounds-store relations-store))
-)
+#|
 
+ADDING BREAKS
+- add breaks here with using: add-breaker, equiv, stricter, weaker
+- note that your break can likely compose with either 'ref or 'irref because they don't break syms
+    - so don't forget to declare that
 
+|#
 
 
 
