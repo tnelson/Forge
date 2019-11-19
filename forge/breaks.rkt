@@ -109,7 +109,9 @@
 
 (define rel-breaks (make-hash))
 (define (break-rel rel . breaks) ; renamed-out to 'break for use in forge
-    (for ([break breaks]) (hash-add! rel-breaks rel break)))
+    (for ([break breaks]) 
+        (unless (hash-has-key? breakers break) (error "break not implemented:" break))
+        (hash-add! rel-breaks rel break)))
 
 (define (constrain-bound bound bounds-store relations-store)
     (define rel (bound-relation bound))
@@ -164,7 +166,7 @@
 
 
 ; use to prevent breaks
-(add-breaker 'none (λ (rel atom-lists) 
+(add-breaker 'default (λ (rel atom-lists) 
     (make-upper-break rel (apply cartesian-product atom-lists))))
 
 

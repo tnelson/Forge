@@ -12,6 +12,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | AssertDecl 
           | CmdDecl
           | SexprDecl
+          | BreakDecl
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK DeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -42,6 +43,8 @@ BlockOrBar : Block | BAR-TOK Expr
 Quant : ALL-TOK | NO-TOK | SUM-TOK 
       | @Mult
 QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name
+BreakDecl : /FACT-TOK /BREAK-TOK? Expr /COLON-TOK @NameList
+          | /BREAK-TOK Expr /COLON-TOK @NameList
 
 
 Name : IDENTIFIER-TOK

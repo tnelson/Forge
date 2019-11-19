@@ -8,19 +8,19 @@ sig Node {
 
 /* stats are for exactly 5 Node */
 
-///*$(break edges 'none)*/
+// fact edges: default
 /*  problem size: variables = 858, clauses = 1438, state = 35 bits
     solving time (ms): total = 85, parsing = -1, translation = 73, SAT = 13 */
 
-///*$(break edges 'irref)*/
+fact edges: irref
 /*  problem size: variables = 630, clauses = 1026, state = 30 bits
     solving time (ms): total = 76, parsing = -1, translation = 66, SAT = 11 */
 
-///*$(break edges 'acyclic)*/
+fact edges: acyclic
 /*  problem size: variables = 164, clauses = 236, state = 20 bits
     solving time (ms): total = 46, parsing = -1, translation = 45, SAT = 2 */
 
-/*$(break edges 'linear)*/
+fact edges: linear
 /*  problem size: variables = 58, clauses = 63, state = 10 bits
     solving time (ms): total = 40, parsing = -1, translation = 40, SAT = 1 */
 

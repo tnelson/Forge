@@ -94,14 +94,7 @@
        ["some"      (token+ `SOME-TOK "" lexeme "" lexeme-start lexeme-end)]  
        ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end)]
        ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]  
-      ;  [(or "abstract" "all" "and" "as" "assert"
-      ;       "but" "check" "disj" "else" "exactly"
-      ;       "extends" "fact" "for" "fun" "iden"
-      ;       "iff" "implies" "in" "Int" "let"
-      ;       "lone" "module" "no" "none" "not"
-      ;       "one" "open" "or" "pred" "run"
-      ;       "set" "sig" "some" "sum" "univ")
-      ;   (token+ 'KEYWORD-TOK "" lexeme "" lexeme-start lexeme-end)]
+       ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
        ;; punctuation
         ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]

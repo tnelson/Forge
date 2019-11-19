@@ -282,7 +282,7 @@
 (require (for-meta 1 racket/port racket/list))
 
 (provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
-         AssertDecl
+         AssertDecl BreakDecl
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -431,6 +431,8 @@
   ))
   ret
 )
+
+(define-syntax-rule (BreakDecl x ys ...) (break x (string->symbol ys) ...))
 
 ;;;;
 
