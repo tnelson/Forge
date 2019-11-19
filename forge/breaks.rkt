@@ -88,6 +88,13 @@
 (define (stricter a . bs) (for ([b bs]) (dominate a b)))
 (define (weaker a . bs) (for ([b bs]) (dominate b a)))
 
+;(define-syntax-rule (declare a > ))
+(define-syntax declare
+  (syntax-rules (> < =)
+    [(_ a > bs ...) (stricter a bs ...)]
+    [(_ a < bs ...) (weaker a bs ...)]
+    [(_ a = bs ...) (equiv a bs ...)]))
+
 
 (define (min-breaks! breaks)
     (define changed false)
@@ -152,8 +159,8 @@
                             (list (list-ref atoms i) (list-ref atoms j))))))
 
 
-(stricter 'linear 'acyclic)
-(stricter 'acyclic 'irref)
+(declare 'linear > 'acyclic)
+(declare 'acyclic > 'irref)
 
 
 ; use to prevent breaks
@@ -165,12 +172,17 @@
 
 #|
 ADDING BREAKS
-- add breaks here with using: add-breaker, equiv, stricter, weaker
+- add breaks here with using add-breaker and the declare forms:
+    - (declare a > bs ...)
+    - (declare a < bs ...)
+    - (declare a = bs ...)
 - note that your break can likely compose with either 'ref or 'irref because they don't break syms
     - so don't forget to declare that
 - declarations will be inferred automatically when possible:
     - a > b        |- a = a + b
     - a > b, b > c |- a > c
+- note, however:
+    - a = a + b   !|- a > b   
 |#
 
 
