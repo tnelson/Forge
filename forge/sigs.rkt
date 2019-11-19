@@ -202,9 +202,13 @@
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))|#
 
-  ;; I hook in bounds constraining here in case 
-  ;; other constraints have been made that must be considered
-  (set! total-bounds (constrain-bounds total-bounds bounds-store relations-store))
+  ;; symmetry breaking 
+  (define breaks (constrain-bounds total-bounds bounds-store relations-store))
+  (set! total-bounds (map break-bound breaks))
+  (for ([b breaks])
+    (define formulas (break-formulas b))
+    (unless (set-empty? formulas) (add-constraints (set->list formulas)))
+  )
       
   (for ([bound total-bounds])
     (cmd

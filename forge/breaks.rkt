@@ -1,7 +1,7 @@
 #lang racket
 
-(require "lang/bounds.rkt")
-(provide constrain-bounds (rename-out [break-rel break]))
+(require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
+(provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 
 ;;;;;;;;;;;;;;;;
 ;;;; breaks ;;;;
@@ -65,7 +65,7 @@
     (hash-set! compos (apply set bs) a)
     ; if no fn defined for a, default to naively doing all bs
     (unless (hash-has-key? breakers a)
-            (hash-set! breakers a (λ (rel atom-lists)
+            (hash-set! breakers a (λ (rel atom-lists rel-list)
                 (apply break+ (for ([b bs]) 
                     ((hash-ref breakers b) atom-lists)
                 ))
@@ -88,7 +88,7 @@
 (define (stricter a . bs) (for ([b bs]) (dominate a b)))
 (define (weaker a . bs) (for ([b bs]) (dominate b a)))
 
-;(define-syntax-rule (declare a > ))
+; TODO: allow syntax like (declare 'a 'b > 'c 'd > 'e 'f)
 (define-syntax declare
   (syntax-rules (> < =)
     [(_ a > bs ...) (stricter a bs ...)]
@@ -104,6 +104,7 @@
               (set-add! breaks v)
               (set! changed true))
     ))
+    ;(println breaks)
     (when changed (min-breaks! breaks))
 )
 
@@ -120,13 +121,16 @@
     (define c (set-count breaks))
 
     (case (set-count breaks) 
-        [(0) bound]
+        [(0) (bound->break bound)]
         [(1) (define breaker (hash-ref breakers (set-first breaks)))
              (define rel-list (hash-ref relations-store rel))
              (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
-             (break-bound (breaker rel atom-lists))
+             ;(define the-break (breaker rel atom-lists rel-list))
+             ;(println the-break)
+             ;(break-bound the-break)
+             (breaker rel atom-lists rel-list)
         ]
-        [else (error "can't compose breaks; either unsat or unimplemented:" (set->list breaks))]
+        [else (error "can't compose these breaks; either unsat or unimplemented:" (set->list breaks))]
     )
 )
 (define (constrain-bounds total-bounds bounds-store relations-store) 
@@ -139,37 +143,61 @@
 ;;;; define breaks and compositions ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(add-breaker 'irref (λ (rel atom-lists) 
+(add-breaker 'irref (λ (rel atom-lists rel-list) 
     (make-upper-break rel
                       (filter-not (lambda (x) (equal? (first x) (second x)))
                                   (apply cartesian-product atom-lists)))))
-(add-breaker 'ref (λ (rel atom-lists) 
+(add-breaker 'ref (λ (rel atom-lists rel-list) 
     (make-lower-break rel
                       (filter     (lambda (x) (equal? (first x) (second x)))
                                   (apply cartesian-product atom-lists))
                       atom-lists)))
-(add-breaker 'linear (λ (rel atom-lists)
+(add-breaker 'linear (λ (rel atom-lists rel-list)
     (define atoms (first atom-lists))
     (make-exact-break rel
                       (map list (drop-right atoms 1) (cdr atoms)))))
-(add-breaker 'acyclic (λ (rel atom-lists)
+(add-breaker 'acyclic (λ (rel atom-lists rel-list)
     (define atoms (first atom-lists))
     (make-upper-break rel
                       (for*/list ([i (length atoms)]
                                   [j (length atoms)]
                                   #:when (< i j))
                             (list (list-ref atoms i) (list-ref atoms j))))))
+(add-breaker 'tree (λ (rel atom-lists rel-list)
+    (define atoms (first atom-lists))
+    (define rel2 (first rel-list))
+    (make-break 
+        (bound->sbound (make-upper-bound rel
+                      (for*/list ([i (length atoms)]
+                                  [j (length atoms)]
+                                  #:when (< i j))
+                            (list (list-ref atoms i) (list-ref atoms j)))))
+        (set
+            (@some ([n rel2]) 
+                (@all ([m (@- rel2 n)]) 
+                    (@one (@join rel m))
+                )
+            )
+        )
+        #| ;can't identify specific atoms in kodkod formulas
+        (for/set ([atom (cdr atoms)]) 
+            (@one (@join rel (@node/expr/constant 1 atom)))
+        )|#
+    )))
 
 
-(declare 'linear > 'acyclic)
+(declare 'linear > 'tree)
+(declare 'tree > 'acyclic)
 (declare 'acyclic > 'irref)
 
 
+
 ; use to prevent breaks
-(add-breaker 'default (λ (rel atom-lists) 
+(add-breaker 'default (λ (rel atom-lists rel-list) 
     (make-upper-break rel (apply cartesian-product atom-lists))))
 
 
+;(println compos)
 
 
 #|
