@@ -54,8 +54,13 @@
 
 (define breakers (make-hash))
 (define compos (make-hash))
+(define upsets (make-hash))
+(define downsets (make-hash))
 
-(define (add-breaker a f) (hash-set! breakers a f))
+(define (add-breaker a f) 
+    (hash-set! breakers a f)
+    (hash-add! upsets a a)      ;; a > a
+    (hash-add! downsets a a))   ;; a < a
 (define (equiv a . bs) 
     (hash-set! compos (apply set bs) a)
     ; if no fn defined for a, default to naively doing all bs
@@ -66,8 +71,22 @@
                 ))
             )))
 )
-(define (stricter a . bs) (for ([b bs]) (equiv a a b)))
-(define (weaker a . bs) (for ([b bs]) (equiv b b a)))
+(define (dominate a b)  
+    (define upa (hash-ref upsets a))
+    (define downb (hash-ref downsets b))
+    (for ([x (in-set upa)])         ;; x > a
+        (hash-add! upsets b x)      ;; x > b
+        (hash-add! downsets x b)    ;; b < x
+        (equiv x x b)               ;; x = x + b
+    )
+    (for ([x (in-set downb)])       ;; x < b
+        (hash-add! downsets a x)    ;; x < a
+        (hash-add! upsets x a)      ;; a > x
+        (equiv a a x)               ;; a = a + x
+    )
+)
+(define (stricter a . bs) (for ([b bs]) (dominate a b)))
+(define (weaker a . bs) (for ([b bs]) (dominate b a)))
 
 
 (define (min-breaks! breaks)
@@ -98,7 +117,7 @@
              (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
              (break-bound (breaker rel atom-lists))
         ]
-        [else (error "can't compose breaks:" (set->list breaks))]
+        [else (error "can't compose breaks; either unsat or unimplemented:" (set->list breaks))]
     )
 )
 (define (constrain-bounds total-bounds bounds-store relations-store) 
@@ -133,7 +152,7 @@
                             (list (list-ref atoms i) (list-ref atoms j))))))
 
 
-(stricter 'linear 'acyclic 'irref)
+(stricter 'linear 'acyclic)
 (stricter 'acyclic 'irref)
 
 
@@ -144,12 +163,14 @@
 
 
 
-
 #|
 ADDING BREAKS
 - add breaks here with using: add-breaker, equiv, stricter, weaker
 - note that your break can likely compose with either 'ref or 'irref because they don't break syms
     - so don't forget to declare that
+- declarations will be inferred automatically when possible:
+    - a > b        |- a = a + b
+    - a > b, b > c |- a > c
 |#
 
 
