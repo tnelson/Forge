@@ -45,8 +45,9 @@
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
         (unless (equal? (node/expr-arity a) arity)
+          (printf "~a ~n" args)
           (raise-arguments-error op "arguments must have same arity"
-                                 "got" arity "and" (node/expr-arity a) ":" a)))))
+                                 "got" arity "and" (node/expr-arity a) ":" args)))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
       (raise-arguments-error op "join would create a relation of arity 0")))

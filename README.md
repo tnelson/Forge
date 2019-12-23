@@ -9,6 +9,13 @@ Forge extends the Ocelot package to create first-order relational logic models. 
 - Built-in semantics for state (coming soon)
 - Additional teaching tools like language levels and different interaction modes (coming soon)
 
+## Installation
+
+```
+$ cd [Path-To-Repo]/forge
+$ raco pkg install
+```
+
 ## Language Goals (PLEASE EDIT+REORDER)
 
 Forge aims to make formal methods more teachable by meeting the following design goals:

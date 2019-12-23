@@ -340,6 +340,8 @@
 
   (define op (if one 'declare-one-sig 'declare-sig))
   
+  ;(println decls)
+
   (define datum 
     (if qualName
       (if (= 0 (length decls))

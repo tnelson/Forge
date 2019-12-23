@@ -185,6 +185,15 @@
         )|#
     )))
 
+#| TODO 
+- loop
+- loops
+- unique init/term
+- unique init/term + acyclic
+- has init/term
+- co-everything
+|#
+
 
 (declare 'linear > 'tree)
 (declare 'tree > 'acyclic)
@@ -197,7 +206,8 @@
     (make-upper-break rel (apply cartesian-product atom-lists))))
 
 
-;(println compos)
+
+
 
 
 #|
