@@ -12,6 +12,11 @@
 (struct break (sbound formulas) #:transparent)
 (define (make-break sbound [formulas (set)]) (break sbound formulas))
 
+; get-broken-sigs   : rel |-> set<sig>
+; make-break        : (rel atom-lists rel-list) |-> break
+; make-formulas     : (rel atom-lists rel-list) |-> set<formula>
+(struct breaker (get-broken-sigs make-break make-formulas) #:transparent)
+
 (define (bound->sbound bound) 
     (make-sbound (bound-relation bound)
                 (list->set (bound-lower bound))
@@ -43,22 +48,44 @@
 (define (make-lower-break relation contents atom-lists)
   (make-break (make-sbound relation contents (apply cartesian-product atom-lists))))
 
+;;;;;;;;;;;;;;
+;;;; data ;;;;
+;;;;;;;;;;;;;;
+
+; symbol |-> (rel atom-lists rel-list) -> break
+(define breakers (make-hash))
+; compos[{a₀,...,aᵢ}] = b => a₀+...+aᵢ = b
+(define compos (make-hash))
+; a ∈ upsets[b] => a > b
+(define upsets (make-hash))
+; a ∈ downsets[b] => a < b
+(define downsets (make-hash))
+
+; a ∈ rel-breaks[r] => "user wants to break r with a"
+(define rel-breaks (make-hash))
+; rel-break-pri[r][a] = i => "breaking r with a has priority i"
+(define rel-break-pri (make-hash))
+; priority counter
+(define pri_c 0)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; methods for defining breaks ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; h : type(k) |-> set<type(v)>
 (define (hash-add! h k v)
     (if (hash-has-key? h k)
         (set-add! (hash-ref h k) v)
         (hash-set! h k (mutable-set v))))
 
-(define breakers (make-hash))
-(define compos (make-hash))
-(define upsets (make-hash))
-(define downsets (make-hash))
+; h : type(k1) |-> type(k2) |-> type(v)
+(define (hash-add-set! h k1 k2 v)
+    (unless (hash-has-key? h k1) (hash-set! h k1 (make-hash)))
+    (define h_k1 (hash-ref h k1))
+    (unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
 
-(define (add-breaker a f) 
-    (hash-set! breakers a f)
+(define (add-breaker a get-broken-sigs make-break make-formulas)
+    (hash-set! breakers a (breaker get-broken-sigs make-break make-formulas))
     (hash-add! upsets a a)      ;; a > a
     (hash-add! downsets a a))   ;; a < a
 (define (equiv a . bs) 
@@ -96,28 +123,37 @@
     [(_ a = bs ...) (equiv a bs ...)]))
 
 
-(define (min-breaks! breaks)
+(define (min-breaks! breaks break-pris)
     (define changed false)
     (hash-for-each compos (λ (k v)
         (when (subset? k breaks)
               (set-subtract! breaks k)
               (set-add! breaks v)
+              (define min-pri (apply min 
+                (map (lambda (s) (hash-ref break-pris s)) k)))
+              (hash-set! break-pris v min-pri)
               (set! changed true))
     ))
-    ;(println breaks)
     (when changed (min-breaks! breaks))
 )
 
-(define rel-breaks (make-hash))
 (define (break-rel rel . breaks) ; renamed-out to 'break for use in forge
     (for ([break breaks]) 
         (unless (hash-has-key? breakers break) (error "break not implemented:" break))
-        (hash-add! rel-breaks rel break)))
+        (hash-add! rel-breaks rel break)
+        (set! pri_c (add1 pri_c))
+        (hash-add-set! rel-break-pri rel break pri_c)))
 
-(define (constrain-bound bound bounds-store relations-store)
+; map from atom to set of consts it belongs to
+;(define atom2consts (make-hash))
+; inverse of the above
+;(define consts2atoms (make-hash))
+
+(define (constrain-bound bound sigs bounds-store relations-store extensions-store)
     (define rel (bound-relation bound))
     (define breaks (hash-ref rel-breaks rel (set)))
-    (min-breaks! breaks)
+    (define break-pris (hash-ref rel-break-pri rel (make-hash)))
+    (min-breaks! breaks break-pris)
     (define c (set-count breaks))
 
     (case (set-count breaks) 
@@ -128,14 +164,18 @@
              ;(define the-break (breaker rel atom-lists rel-list))
              ;(println the-break)
              ;(break-bound the-break)
-             (breaker rel atom-lists rel-list)
+             ((breaker-make-break breaker) rel atom-lists rel-list)
         ]
         [else (error "can't compose these breaks; either unsat or unimplemented:" (set->list breaks))]
     )
 )
-(define (constrain-bounds total-bounds bounds-store relations-store) 
+(define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
+    ;(for ([sig sigs])
+     ;   (define bound (hash-ref bounds-store sig))
+        
+    ;)
     (map (lambda (bound) 
-        (constrain-bound bound bounds-store relations-store)
+        (constrain-bound bound sigs bounds-store relations-store extensions-store)
     ) total-bounds)
 )
 
@@ -143,47 +183,58 @@
 ;;;; define breaks and compositions ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(add-breaker 'irref (λ (rel atom-lists rel-list) 
-    (make-upper-break rel
-                      (filter-not (lambda (x) (equal? (first x) (second x)))
-                                  (apply cartesian-product atom-lists)))))
-(add-breaker 'ref (λ (rel atom-lists rel-list) 
-    (make-lower-break rel
-                      (filter     (lambda (x) (equal? (first x) (second x)))
-                                  (apply cartesian-product atom-lists))
-                      atom-lists)))
-(add-breaker 'linear (λ (rel atom-lists rel-list)
-    (define atoms (first atom-lists))
-    (make-exact-break rel
-                      (map list (drop-right atoms 1) (cdr atoms)))))
-(add-breaker 'acyclic (λ (rel atom-lists rel-list)
-    (define atoms (first atom-lists))
-    (make-upper-break rel
-                      (for*/list ([i (length atoms)]
-                                  [j (length atoms)]
-                                  #:when (< i j))
-                            (list (list-ref atoms i) (list-ref atoms j))))))
-(add-breaker 'tree (λ (rel atom-lists rel-list)
-    (define atoms (first atom-lists))
-    (define rel2 (first rel-list))
-    (make-break 
-        (bound->sbound (make-upper-bound rel
-                      (for*/list ([i (length atoms)]
-                                  [j (length atoms)]
-                                  #:when (< i j))
-                            (list (list-ref atoms i) (list-ref atoms j)))))
-        (set
-            (@some ([n rel2]) 
-                (@all ([m (@- rel2 n)]) 
-                    (@one (@join rel m))
+(add-breaker 'irref 
+    (λ (rel) (set))
+    (λ (rel atom-lists rel-list) 
+        (make-upper-break rel
+                        (filter-not (lambda (x) (equal? (first x) (second x)))
+                                    (apply cartesian-product atom-lists))))
+    (λ (rel atom-lists rel-list) (set)) )
+(add-breaker 'ref 
+    (λ (rel) (set))
+    (λ (rel atom-lists rel-list) 
+        (make-lower-break rel
+                        (filter     (lambda (x) (equal? (first x) (second x)))
+                                    (apply cartesian-product atom-lists))
+                        atom-lists))
+    (λ (rel atom-lists rel-list) (set)) )
+(add-breaker 'linear 
+    (λ (rel) (set))
+    (λ (rel atom-lists rel-list)
+        (define atoms (first atom-lists))
+        (make-exact-break rel
+                        (map list (drop-right atoms 1) (cdr atoms))))
+    (λ (rel atom-lists rel-list) (set)) )
+(add-breaker 'acyclic 
+    (λ (rel) (set))
+    (λ (rel atom-lists rel-list)
+        (define atoms (first atom-lists))
+        (make-upper-break rel
+                        (for*/list ([i (length atoms)]
+                                    [j (length atoms)]
+                                    #:when (< i j))
+                                (list (list-ref atoms i) (list-ref atoms j)))))
+    (λ (rel atom-lists rel-list) (set)) )
+(add-breaker 'tree 
+    (λ (rel) (set))
+    (λ (rel atom-lists rel-list)
+        (define atoms (first atom-lists))
+        (define rel2 (first rel-list))
+        (make-break 
+            (bound->sbound (make-upper-bound rel
+                        (for*/list ([i (length atoms)]
+                                    [j (length atoms)]
+                                    #:when (< i j))
+                                (list (list-ref atoms i) (list-ref atoms j)))))
+            (set
+                (@some ([n rel2]) 
+                    (@all ([m (@- rel2 n)]) 
+                        (@one (@join rel m))
+                    )
                 )
-            )
-        )
-        #| ;can't identify specific atoms in kodkod formulas
-        (for/set ([atom (cdr atoms)]) 
-            (@one (@join rel (@node/expr/constant 1 atom)))
-        )|#
-    )))
+            )))
+    (λ (rel atom-lists rel-list) (set)) )
+
 
 #| TODO 
 - loop
@@ -202,8 +253,11 @@
 
 
 ; use to prevent breaks
-(add-breaker 'default (λ (rel atom-lists rel-list) 
-    (make-upper-break rel (apply cartesian-product atom-lists))))
+(add-breaker 'default 
+    (λ (rel) (set))
+    (λ (rel atom-lists rel-list) 
+        (make-upper-break rel (apply cartesian-product atom-lists)))
+    (λ (rel atom-lists rel-list) (set)) )
 
 
 
