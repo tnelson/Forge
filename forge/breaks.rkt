@@ -161,22 +161,20 @@
         [(1) (define breaker (hash-ref breakers (set-first breaks)))
              (define rel-list (hash-ref relations-store rel))
              (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
-             ;(define the-break (breaker rel atom-lists rel-list))
-             ;(println the-break)
-             ;(break-bound the-break)
              ((breaker-make-break breaker) rel atom-lists rel-list)
         ]
         [else (error "can't compose these breaks; either unsat or unimplemented:" (set->list breaks))]
     )
 )
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
-    ;(for ([sig sigs])
-     ;   (define bound (hash-ref bounds-store sig))
-        
-    ;)
-    (map (lambda (bound) 
-        (constrain-bound bound sigs bounds-store relations-store extensions-store)
-    ) total-bounds)
+    (define new-total-bounds (list))
+    (define formulas (list))
+
+    (for ([bound total-bounds])
+        (define break (constrain-bound bound sigs bounds-store relations-store extensions-store))
+        (set! new-total-bounds (cons (break-bound break) new-total-bounds))
+    )
+    (values new-total-bounds formulas)
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

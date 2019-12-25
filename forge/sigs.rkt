@@ -203,13 +203,10 @@
         (tupleset #:tuples int-atoms)))|#
 
   ;; symmetry breaking 
-  ;; TODO: the breaks module should just return the new total-bounds and a constraint set
-  (define breaks (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store))
-  (set! total-bounds (map break-bound breaks))
-  (for ([b breaks])
-    (define formulas (break-formulas b))
-    (unless (set-empty? formulas) (add-constraints (set->list formulas)))
-  )
+  (define-values (new-total-bounds new-formulas)
+    (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store))
+  (set! total-bounds new-total-bounds)
+  (add-constraints new-formulas)
       
   (for ([bound total-bounds])
     (cmd
