@@ -144,35 +144,31 @@
         (set! pri_c (add1 pri_c))
         (hash-add-set! rel-break-pri rel break pri_c)))
 
-; map from atom to set of consts it belongs to
-;(define atom2consts (make-hash))
-; inverse of the above
-;(define consts2atoms (make-hash))
-
-(define (constrain-bound bound sigs bounds-store relations-store extensions-store)
-    (define rel (bound-relation bound))
-    (define breaks (hash-ref rel-breaks rel (set)))
-    (define break-pris (hash-ref rel-break-pri rel (make-hash)))
-    (min-breaks! breaks break-pris)
-    (define c (set-count breaks))
-
-    (case (set-count breaks) 
-        [(0) (bound->break bound)]
-        [(1) (define breaker (hash-ref breakers (set-first breaks)))
-             (define rel-list (hash-ref relations-store rel))
-             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
-             ((breaker-make-break breaker) rel atom-lists rel-list)
-        ]
-        [else (error "can't compose these breaks; either unsat or unimplemented:" (set->list breaks))]
-    )
-)
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
     (define new-total-bounds (list))
     (define formulas (list))
 
     (for ([bound total-bounds])
-        (define break (constrain-bound bound sigs bounds-store relations-store extensions-store))
-        (set! new-total-bounds (cons (break-bound break) new-total-bounds))
+        ;(define break (constrain-bound bound sigs bounds-store relations-store extensions-store))
+        
+        (define rel (bound-relation bound))
+        (define breaks (hash-ref rel-breaks rel (set)))
+        (define break-pris (hash-ref rel-break-pri rel (make-hash)))
+        (min-breaks! breaks break-pris)
+        ;(define c (set-count breaks))
+
+        (cond
+            [(set-empty? breaks)
+                (set! new-total-bounds (cons bound new-total-bounds))]
+            [else
+                ; TODO: propose lowest pri breaker
+                (define breaker (hash-ref breakers (set-first breaks)))
+                (define rel-list (hash-ref relations-store rel))
+                (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
+                (define break ((breaker-make-break breaker) rel atom-lists rel-list))
+
+                (set! new-total-bounds (cons (break-bound break) new-total-bounds))
+            ])     
     )
     (values new-total-bounds formulas)
 )
