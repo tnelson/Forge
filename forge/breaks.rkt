@@ -3,6 +3,13 @@
 (require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 
+;;;;;;;;;;;;;;
+;;;; util ;;;;
+;;;;;;;;;;;;;;
+
+; TODO: use this
+(define-syntax-rule (set-cons! xs x) (set! xs (cons x xs)))
+
 ;;;;;;;;;;;;;;;;
 ;;;; breaks ;;;;
 ;;;;;;;;;;;;;;;;
@@ -148,8 +155,15 @@
         (hash-add-set! rel-break-pri rel break pri_c)))
 
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
+    ; returns (values new-total-bounds (set->list formulas))
     (define new-total-bounds (list))
-    (define formulas (list))
+    (define formulas (mutable-set))
+    ; unextended sets
+    (define leaf-sigs (list->mutable-set sigs))
+    (hash-for-each extensions-store (λ (k v) (set-remove! leaf-sigs v)))    
+
+    ; proposed breaks from each relation
+    (define candidates (list))
 
     (for ([bound total-bounds])
         ; get declared breaks for the relation associated with this bound        
@@ -159,28 +173,48 @@
         ; compose breaks while
         (min-breaks! breaks break-pris)
 
-        (cond
-            [(set-empty? breaks)
-                (set! new-total-bounds (cons bound new-total-bounds))]
-            [else
-                ; get highest priority composed break sym
-                (define sym (argmin (λ (sym) (hash-ref break-pris sym)) 
-                                    (set->list breaks)))
-                (define pri (hash-ref break-pris sym))
+        (cond [(set-empty? breaks)
+            (set-cons! new-total-bounds bound)]
+        [else
+            (define rel-list (hash-ref relations-store rel))
+            (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
 
-                ; propose a breaker for this relation
+            ; make breaker for all syms in breaks, sorted by priority
+            ; then loop through, proposing first one that breaks only leaf sigs
+            ; all the rest get broken the default way (with get-formulas)
+            (define syms (sort (set->list breaks)
+                                <
+                                #:key (λ (sym) (hash-ref break-pris sym))))
+            (define broken #f)
+            (for ([sym syms])
                 (define breaker-maker (hash-ref breakers sym))
-                (define rel-list (hash-ref relations-store rel))
-                (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
+                (define pri (hash-ref break-pris sym))
                 (define breaker (breaker-maker pri rel atom-lists rel-list))
-
-                ; break it right now by calling make-break suspension
-                ; FIXME: shouldn't break right now
-                (define break ((breaker-make-break breaker)))
-                (set! new-total-bounds (cons (break-bound break) new-total-bounds))
-            ])     
+                (cond [broken
+                    (set-union! formulas ((breaker-make-formulas breaker)))
+                ][else
+                    (define broken-sigs ((breaker-get-broken-sigs breaker)))
+                    (cond [(subset? broken-sigs leaf-sigs)
+                        (set-cons! candidates breaker)
+                        (set! broken #t)
+                    ][else
+                        (set-union! formulas ((breaker-make-formulas breaker)))
+                    ])
+                ])
+            )
+            (unless broken (set-cons! new-total-bounds bound))
+        ])     
     )
-    (values new-total-bounds formulas)
+
+    ; TODO: avoid double breaking a sig
+    ; TODO: enforce forest criteria
+    (for ([breaker candidates])
+        (define break ((breaker-make-break breaker)))
+        (set-cons! new-total-bounds (break-bound break))
+        (set-union! formulas (break-formulas break))
+    )
+
+    (values new-total-bounds (set->list formulas))
 )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
