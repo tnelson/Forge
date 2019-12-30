@@ -61,7 +61,7 @@
 ;;;;;;;;;;;;;;
 
 ; symbol |-> (rel atom-lists rel-list) -> break
-(define breakers (make-hash))
+(define strategies (make-hash))
 ; compos[{a₀,...,aᵢ}] = b => a₀+...+aᵢ = b
 (define compos (make-hash))
 ; a ∈ upsets[b] => a > b
@@ -92,18 +92,18 @@
     (define h_k1 (hash-ref h k1))
     (unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
 
-; breaker-maker :: () -> breaker
-(define (add-breaker a breaker-maker)
-    (hash-set! breakers a breaker-maker)
+; strategy :: () -> breaker
+(define (add-strategy a strategy)
+    (hash-set! strategies a strategy)
     (hash-add! upsets a a)      ;; a > a
     (hash-add! downsets a a))   ;; a < a
 (define (equiv a . bs) 
     (hash-set! compos (apply set bs) a)
     ; if no fn defined for a, default to naively doing all bs
-    (unless (hash-has-key? breakers a)
-            (hash-set! breakers a (λ (rel atom-lists rel-list)
+    (unless (hash-has-key? strategies a)
+            (hash-set! strategies a (λ (rel atom-lists rel-list)
                 (apply break+ (for ([b bs]) 
-                    ((hash-ref breakers b) atom-lists)
+                    ((hash-ref strategies b) atom-lists)
                 ))
             )))
 )
@@ -149,7 +149,7 @@
 
 (define (break-rel rel . breaks) ; renamed-out to 'break for use in forge
     (for ([break breaks]) 
-        (unless (hash-has-key? breakers break) (error "break not implemented:" break))
+        (unless (hash-has-key? strategies break) (error "break not implemented:" break))
         (hash-add! rel-breaks rel break)
         (set! pri_c (add1 pri_c))
         (hash-add-set! rel-break-pri rel break pri_c)))
@@ -170,7 +170,7 @@
         (define rel (bound-relation bound))
         (define breaks (hash-ref rel-breaks rel (set)))
         (define break-pris (hash-ref rel-break-pri rel (make-hash)))
-        ; compose breaks while
+        ; compose breaks
         (min-breaks! breaks break-pris)
 
         (cond [(set-empty? breaks)
@@ -179,17 +179,18 @@
             (define rel-list (hash-ref relations-store rel))
             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
 
-            ; make breaker for all syms in breaks, sorted by priority
-            ; then loop through, proposing first one that breaks only leaf sigs
-            ; all the rest get broken the default way (with get-formulas)
-            (define syms (sort (set->list breaks)
-                                <
-                                #:key (λ (sym) (hash-ref break-pris sym))))
-            (define broken #f)
-            (for ([sym syms])
-                (define breaker-maker (hash-ref breakers sym))
+            ; make all breakers
+            (define breakers (for/list ([sym (set->list breaks)]) 
+                (define strategy (hash-ref strategies sym))
                 (define pri (hash-ref break-pris sym))
-                (define breaker (breaker-maker pri rel atom-lists rel-list))
+                (strategy pri rel atom-lists rel-list)
+            ))
+            (set! breakers (sort breakers < #:key breaker-pri))
+
+            ; propose highest pri breaker that breaks only leaf sigs
+            ; break the rest the default way (with get-formulas)
+            (define broken #f)
+            (for ([breaker breakers])
                 (cond [broken
                     (set-union! formulas ((breaker-make-formulas breaker)))
                 ][else
@@ -221,7 +222,7 @@
 ;;;; define breaks and compositions ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(add-breaker 'irref (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'irref (λ (pri rel atom-lists rel-list) (breaker pri
     (λ () (set))
     (λ () 
         (make-upper-break rel
@@ -229,7 +230,7 @@
                                     (apply cartesian-product atom-lists))))
     (λ () (set))
 )))
-(add-breaker 'ref (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'ref (λ (pri rel atom-lists rel-list) (breaker pri
     (λ () (set))
     (λ () 
         (make-lower-break rel
@@ -238,7 +239,7 @@
                         atom-lists))
     (λ () (set))
 )))
-(add-breaker 'linear (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'linear (λ (pri rel atom-lists rel-list) (breaker pri
     (λ () (set))
     (λ ()
         (define atoms (first atom-lists))
@@ -246,7 +247,7 @@
                         (map list (drop-right atoms 1) (cdr atoms))))
     (λ () (set))
 )))
-(add-breaker 'acyclic (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'acyclic (λ (pri rel atom-lists rel-list) (breaker pri
     (λ () (set))
     (λ ()
         (define atoms (first atom-lists))
@@ -257,7 +258,7 @@
                                 (list (list-ref atoms i) (list-ref atoms j)))))
     (λ () (set))
 )))
-(add-breaker 'tree (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'tree (λ (pri rel atom-lists rel-list) (breaker pri
     (λ () (set))
     (λ ()
         (define atoms (first atom-lists))
@@ -296,7 +297,7 @@
 
 
 ; use to prevent breaks
-(add-breaker 'default (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'default (λ (pri rel atom-lists rel-list) (breaker pri
     (λ () (set))
     (λ () 
         (make-upper-break rel (apply cartesian-product atom-lists)))
@@ -310,7 +311,7 @@
 
 #|
 ADDING BREAKS
-- add breaks here with using add-breaker and the declare forms:
+- add breaks here with using add-strategy and the declare forms:
     - (declare a > bs ...)
     - (declare a < bs ...)
     - (declare a = bs ...)
