@@ -10,8 +10,8 @@
 ;;;; util ;;;;
 ;;;;;;;;;;;;;;
 
-; TODO: use this
-(define-syntax-rule (set-cons! xs x) (set! xs (cons x xs)))
+(define-syntax-rule (cons! xs x) (set! xs (cons x xs)))
+(define-syntax-rule (add1! x)    (set! x  (add1 x)))
 
 ;;;;;;;;;;;;;;;;
 ;;;; breaks ;;;;
@@ -205,7 +205,7 @@
         (min-breaks! breaks break-pris)
 
         (cond [(set-empty? breaks)
-            (set-cons! new-total-bounds bound)]
+            (cons! new-total-bounds bound)]
         [else
             (define rel-list (hash-ref relations-store rel))
             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
@@ -227,16 +227,15 @@
                 ][else
                     (define break-graph (breaker-break-graph breaker))
                     (define broken-sigs (break-graph-sigs break-graph))
-                    ; (define broken-sigs ((breaker-break-graph breaker)))
                     (cond [(subset? broken-sigs leaf-sigs)
-                        (set-cons! candidates breaker)
+                        (cons! candidates breaker)
                         (set! broken #t)
                     ][else
                         (set-union! formulas ((breaker-make-formulas breaker)))
                     ])
                 ])
             )
-            (unless broken (set-cons! new-total-bounds bound))
+            (unless broken (cons! new-total-bounds bound))
         ])     
     )
     (set! candidates (sort candidates < #:key breaker-pri))
@@ -263,33 +262,62 @@
         (define e-r-2 (make-eq-rel))
         (define canon2clocl (eq-rel-elem2class e-r-2))
         (define broken-clocls (eq-rel-broken e-r-2))
-        (hash-for-each sig2class (λ (sig class) 
-            (hash-set! canon2clocl (uf-find class) (uf-new class)))) 
+        (hash-for-each sig2class (λ (sig class) (when (equal? sig (uf-find class))
+            (hash-set! canon2clocl sig (uf-new sig)))))
+
+        (define acceptable #t)
 
         (for ([edge broken-edges])
             (define clocl #f)
             (define broken #f)
             (for ([sig edge])
-                (when (set-member? broken-sigs sig) (set! broken #t))
+                (when (set-member? broken-sigs sig) (set! broken #t)) ; this class is broken
 
                 (define class (hash-ref sig2class sig))
                 (define canon (uf-find class))
                 (define clocl2 (hash-ref canon2clocl canon))
-                (if clocl (e-r-union! clocl clocl2) (set! clocl clocl2))
+
+                (if clocl
+                    (if (uf-same-set? clocl clocl2) ; breaks loop criteria
+                        (set! acceptable #f)
+                        (e-r-union! e-r-2 clocl clocl2)) 
+                    (set! clocl clocl2))
                 (hash-set canon2clocl canon clocl)
             )
             (when broken (set-add! broken-clocls (uf-find clocl)))
         )
 
-        ; TODO: for each clocl, if >1 of {its classes} ∪ {it} are broken, abort.
-        ;       otherwise, apply the break and squash the classes.
-        ;       if exactly 1 of those is broken, set the squashed class as broken.
+        ; loop through all relevant clocls, once each:
+        (hash-for-each canon2clocl (λ (canon clocl) (when (equal? canon (uf-find clocl))
+            ; abort if >1 of {its classes} ∪ {it} are broken
+            (define count 0)
+            (when (set-member? broken-clocls clocl) (add1! count))
+            ; loop through all canons in this clocl:
+            (hash-for-each canon2clocl (λ (canon2 clocl2) (when (equal? clocl clocl2)
+                (when (set-member? broken-classes canon2) (add1! count))
+            )))
+            (when (> count 1) (set! acceptable #f))
+            (when (= count 1) (set-add! broken-clocls clocl))
+        )))
 
-        (define acceptable #t)
-
-        (define break ((breaker-make-break breaker)))
-        (set-cons! new-total-bounds (break-bound break))
-        (set-union! formulas (break-formulas break))
+        (cond [acceptable
+            (define break ((breaker-make-break breaker)))
+            (cons! new-total-bounds (break-bound break))
+            (set-union! formulas (break-formulas break))
+            ; squash the clocls
+            (hash-for-each canon2clocl (λ (canon clocl)
+                (define canon2 (uf-find clocl))
+                (define class  (hash-ref sig2class canon))
+                (define class2 (hash-ref sig2class canon2))
+                (uf-union! class class2)
+                ; make sure classes are broken properly
+                (when (set-member? broken-clocls clocl) 
+                    (set-add! broken-classes (uf-find class))
+                )
+            ))
+        ][else
+            (set-union! formulas ((breaker-make-formulas breaker)))
+        ])
     )
 
     (values new-total-bounds (set->list formulas))
