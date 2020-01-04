@@ -80,12 +80,12 @@
                 (apply set-union (map break-formulas breaks)))
 )
 
-(define (make-exact-break relation contents)
-  (make-break (make-sbound relation contents contents)))
-(define (make-upper-break relation contents)
-  (make-break (make-sbound relation (set) contents)))
-(define (make-lower-break relation contents atom-lists)
-  (make-break (make-sbound relation contents (apply cartesian-product atom-lists))))
+(define (make-exact-break relation contents [formulas (set)])
+  (break (sbound relation contents contents) formulas))
+(define (make-upper-break relation contents [formulas (set)])
+  (break (sbound relation (set) contents) formulas))
+(define (make-lower-break relation contents atom-lists [formulas (set)])
+  (break (sbound relation contents (apply cartesian-product atom-lists)) formulas))
 
 ;;;;;;;;;;;;;;
 ;;;; data ;;;;
@@ -327,6 +327,7 @@
 ;;;; define breaks and compositions ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; A->A Strategies ;;;
 (add-strategy 'irref (λ (pri rel atom-lists rel-list) (breaker pri
     (break-graph (set) (set))
     (λ () 
@@ -344,14 +345,15 @@
                         atom-lists))
     (λ () (set))
 )))
-(add-strategy 'linear (λ (pri rel atom-lists rel-list) (breaker pri
-    (break-graph (set) (set))
-    (λ ()
-        (define atoms (first atom-lists))
-        (make-exact-break rel
-                        (map list (drop-right atoms 1) (cdr atoms))))
-    (λ () (set))
-)))
+(add-strategy 'linear (λ (pri rel atom-lists rel-list) 
+    (define atoms (first atom-lists))
+    (define sig (first rel-list))
+    (breaker pri
+        (break-graph (set sig) (set))
+        (λ () (make-exact-break rel (map list (drop-right atoms 1) (cdr atoms))))
+        (λ () (set))
+    )
+))
 (add-strategy 'acyclic (λ (pri rel atom-lists rel-list) (breaker pri
     (break-graph (set) (set))
     (λ ()
@@ -384,21 +386,84 @@
     (λ () (set))
 )))
 
-
-#| TODO 
-- loop
-- loops
-- unique init/term
-- unique init/term + acyclic
-- has init/term
-- co-everything
-|#
-
-
-(declare 'linear > 'tree)
-(declare 'tree > 'acyclic)
-(declare 'acyclic > 'irref)
-
+;;; A->B Strategies ;;;
+(add-strategy 'func (λ (pri rel atom-lists rel-list) 
+    (define A (first rel-list))
+    (define B (second rel-list))
+    (define As (first atom-lists))
+    (define Bs (second atom-lists))  
+    (define formulas (set 
+        (@all ([a A]) (@one (@join a rel)))
+    ))
+    (breaker pri
+        (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+        (λ () 
+            ; assume wlog f(a) = b for some a in A, b in B
+            (break 
+                (sbound rel
+                    (set (list (car As) (car Bs)))
+                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                formulas))
+        (λ () formulas)
+    )
+))
+(add-strategy 'surj (λ (pri rel atom-lists rel-list) 
+    (define A (first rel-list))
+    (define B (second rel-list))
+    (define As (first atom-lists))
+    (define Bs (second atom-lists))  
+    (define formulas (set 
+        (@all ([a A]) (@one  (@join a rel)))
+        (@all ([b B]) (@some (@join rel b)))    ; @some
+    ))
+    (breaker pri
+        (break-graph (set) (set (set A B)))   ; breaks only {A,B}
+        (λ () 
+            ; assume wlog f(a) = b for some a in A, b in B
+            (break 
+                (sbound rel
+                    (set (list (car As) (car Bs)))
+                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                formulas))
+        (λ () formulas)
+    )
+))
+(add-strategy 'inj (λ (pri rel atom-lists rel-list) 
+    (define A (first rel-list))
+    (define B (second rel-list))
+    (define As (first atom-lists))
+    (define Bs (second atom-lists))  
+    (define formulas (set 
+        (@all ([a A]) (@one  (@join a rel)))
+        (@all ([b B]) (@lone (@join rel b)))    ; @lone
+    ))
+    (breaker pri
+        (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+        (λ () 
+            ; assume wlog f(a) = b for some a in A, b in B
+            (break 
+                (sbound rel
+                    (set (list (car As) (car Bs)))
+                    (set-add (cartesian-product (cdr As) (cdr Bs)) (list (car As) (car Bs))))
+                formulas))
+        (λ () formulas)
+    )
+))
+(add-strategy 'bij (λ (pri rel atom-lists rel-list) 
+    (define A (first rel-list))
+    (define B (second rel-list))
+    (define As (first atom-lists))
+    (define Bs (second atom-lists))  
+    (define formulas (set 
+        (@all ([a A]) (@one  (@join a rel)))
+        (@all ([b B]) (@one  (@join rel b)))    ; @one
+    ))
+    (breaker pri
+        (break-graph (set) (set (set A B)))   ; breaks only {A,B}
+        (λ () (make-exact-break rel (map list As Bs)))
+        (λ () formulas)
+    )
+))
 
 
 ; use to prevent breaks
@@ -410,6 +475,12 @@
 )))
 
 
+;;; Domination Order ;;;
+(declare 'linear > 'tree)
+(declare 'tree > 'acyclic)
+(declare 'acyclic > 'irref)
+(declare 'func < 'surj 'inj)
+(declare 'bij = 'surj 'inj)
 
 
 
@@ -427,6 +498,17 @@ ADDING BREAKS
     - a > b, b > c |- a > c
 - note, however:
     - a = a + b   !|- a > b   
+
+TODO
+- test sound strat composition with A->B strats
+- generalize strats to higher arities: A->B ==> S->A->B
+- co strategies for A->B strats
+- more strats
+    - loop
+    - loops
+    - unique init/term
+    - unique init/term + acyclic
+    - has init/term
 |#
 
 
