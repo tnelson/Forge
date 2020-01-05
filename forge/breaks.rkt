@@ -53,8 +53,8 @@
 ; pri               :: Nat
 ; break-graph       :: break-graph
 ; make-break        :: () -> break
-; make-formulas     :: () -> set<formula>
-(struct breaker (pri break-graph make-break make-formulas) #:transparent)
+; make-default      :: () -> break
+(struct breaker (pri break-graph make-break make-default) #:transparent)
 
 (define (bound->sbound bound) 
     (make-sbound (bound-relation bound)
@@ -91,7 +91,7 @@
 ;;;; data ;;;;
 ;;;;;;;;;;;;;;
 
-; symbol |-> (rel atom-lists rel-list) -> break
+; symbol |-> (pri rel bound atom-lists rel-list) -> breaker
 (define strategies (make-hash))
 ; compos[{a₀,...,aᵢ}] = b => a₀+...+aᵢ = b
 (define compos (make-hash))
@@ -215,7 +215,7 @@
             (define breakers (for/list ([sym (set->list breaks)]) 
                 (define strategy (hash-ref strategies sym))
                 (define pri (hash-ref break-pris sym))
-                (strategy pri rel atom-lists rel-list)
+                (strategy pri rel bound atom-lists rel-list)
             ))
             (set! breakers (sort breakers < #:key breaker-pri))
 
@@ -224,7 +224,8 @@
             (define broken #f)
             (for ([breaker breakers])
                 (cond [broken
-                    (set-union! formulas ((breaker-make-formulas breaker)))
+                    (define default ((breaker-make-default breaker)))
+                    (set-union! formulas (break-formulas default))
                 ][else
                     (define break-graph (breaker-break-graph breaker))
                     (define broken-sigs (break-graph-sigs break-graph))
@@ -232,7 +233,8 @@
                         (cons! candidates breaker)
                         (set! broken #t)
                     ][else
-                        (set-union! formulas ((breaker-make-formulas breaker)))
+                        (define default ((breaker-make-default breaker)))
+                        (set-union! formulas (break-formulas default))
                     ])
                 ])
             )
@@ -254,6 +256,9 @@
     (define broken-classes (eq-rel-broken e-r))
     (for ([sig sigs]) (hash-set! sig2class sig (uf-new sig)))
 
+    ; (println e-r)
+    ; (println broken-classes)
+    ; (println sig2class)
     (for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
         (define broken-sigs (break-graph-sigs break-graph))
@@ -292,15 +297,16 @@
         (hash-for-each canon2clocl (λ (canon clocl) (when (equal? canon (uf-find clocl))
             ; abort if >1 of {its classes} ∪ {it} are broken
             (define count 0)
-            (when (set-member? broken-clocls clocl) (add1! count))
+            (when (set-member? broken-clocls canon) (add1! count))
             ; loop through all canons in this clocl:
             (hash-for-each canon2clocl (λ (canon2 clocl2) (when (equal? clocl clocl2)
                 (when (set-member? broken-classes canon2) (add1! count))
             )))
             (when (> count 1) (set! acceptable #f))
-            (when (= count 1) (set-add! broken-clocls clocl))
+            (when (= count 1) (set-add! broken-clocls canon))
         )))
 
+        ;(set! acceptable #t)
         (cond [acceptable
             (define break ((breaker-make-break breaker)))
             (cons! new-total-bounds (break-bound break))
@@ -312,13 +318,18 @@
                 (define class2 (hash-ref sig2class canon2))
                 (uf-union! class class2)
                 ; make sure classes are broken properly
-                (when (set-member? broken-clocls clocl) 
-                    (set-add! broken-classes (uf-find class))
+                (when (set-member? broken-clocls canon2)
+                    (set-add! broken-classes (uf-find class))   
                 )
             ))
         ][else
-            (set-union! formulas ((breaker-make-formulas breaker)))
+            (define default ((breaker-make-default breaker)))
+            (cons! new-total-bounds (break-sbound default))
+            (set-union! formulas (break-formulas default))
         ])
+        ; (println e-r)
+        ; (println broken-classes)
+        ; (println sig2class)
     )
 
     (values new-total-bounds (set->list formulas))
@@ -329,33 +340,33 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; A->A Strategies ;;;
-(add-strategy 'irref (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'irref (λ (pri rel bound atom-lists rel-list) (breaker pri
     (break-graph (set) (set))
     (λ () 
         (make-upper-break rel
                         (filter-not (lambda (x) (equal? (first x) (second x)))
                                     (apply cartesian-product atom-lists))))
-    (λ () (set))
+    (λ () (break bound (set)))
 )))
-(add-strategy 'ref (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'ref (λ (pri rel bound atom-lists rel-list) (breaker pri
     (break-graph (set) (set))
     (λ () 
         (make-lower-break rel
                         (filter     (lambda (x) (equal? (first x) (second x)))
                                     (apply cartesian-product atom-lists))
                         atom-lists))
-    (λ () (set))
+    (λ () (break bound (set)))
 )))
-(add-strategy 'linear (λ (pri rel atom-lists rel-list) 
+(add-strategy 'linear (λ (pri rel bound atom-lists rel-list) 
     (define atoms (first atom-lists))
     (define sig (first rel-list))
     (breaker pri
         (break-graph (set sig) (set))
         (λ () (make-exact-break rel (map list (drop-right atoms 1) (cdr atoms))))
-        (λ () (set))
+        (λ () (break bound (set)))
     )
 ))
-(add-strategy 'acyclic (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'acyclic (λ (pri rel bound atom-lists rel-list) (breaker pri
     (break-graph (set) (set))
     (λ ()
         (define atoms (first atom-lists))
@@ -364,9 +375,9 @@
                                     [j (length atoms)]
                                     #:when (< i j))
                                 (list (list-ref atoms i) (list-ref atoms j)))))
-    (λ () (set))
+    (λ () (break bound (set)))
 )))
-(add-strategy 'tree (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'tree (λ (pri rel bound atom-lists rel-list) (breaker pri
     (break-graph (set) (set))
     (λ ()
         (define atoms (first atom-lists))
@@ -384,11 +395,11 @@
                     )
                 )
             )))
-    (λ () (set))
+    (λ () (break bound (set)))
 )))
 
 ;;; A->B Strategies ;;;
-(add-strategy 'func (λ (pri rel atom-lists rel-list) 
+(add-strategy 'func (λ (pri rel bound atom-lists rel-list) 
     (define A (first rel-list))
     (define B (second rel-list))
     (define As (first atom-lists))
@@ -405,10 +416,10 @@
                     (set (list (car As) (car Bs)))
                     (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
                 formulas))
-        (λ () formulas)
+        (λ () (break bound formulas))
     )
 ))
-(add-strategy 'surj (λ (pri rel atom-lists rel-list) 
+(add-strategy 'surj (λ (pri rel bound atom-lists rel-list) 
     (define A (first rel-list))
     (define B (second rel-list))
     (define As (first atom-lists))
@@ -426,10 +437,10 @@
                     (set (list (car As) (car Bs)))
                     (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
                 formulas))
-        (λ () formulas)
+        (λ () (break bound formulas))
     )
 ))
-(add-strategy 'inj (λ (pri rel atom-lists rel-list) 
+(add-strategy 'inj (λ (pri rel bound atom-lists rel-list) 
     (define A (first rel-list))
     (define B (second rel-list))
     (define As (first atom-lists))
@@ -447,10 +458,10 @@
                     (set (list (car As) (car Bs)))
                     (set-add (cartesian-product (cdr As) (cdr Bs)) (list (car As) (car Bs))))
                 formulas))
-        (λ () formulas)
+        (λ () (break bound formulas))
     )
 ))
-(add-strategy 'bij (λ (pri rel atom-lists rel-list) 
+(add-strategy 'bij (λ (pri rel bound atom-lists rel-list) 
     (define A (first rel-list))
     (define B (second rel-list))
     (define As (first atom-lists))
@@ -462,17 +473,17 @@
     (breaker pri
         (break-graph (set) (set (set A B)))   ; breaks only {A,B}
         (λ () (make-exact-break rel (map list As Bs)))
-        (λ () formulas)
+        (λ () (break bound formulas))
     )
 ))
 
 
 ; use to prevent breaks
-(add-strategy 'default (λ (pri rel atom-lists rel-list) (breaker pri
+(add-strategy 'default (λ (pri rel bound atom-lists rel-list) (breaker pri
     (break-graph (set) (set))
     (λ () 
         (make-upper-break rel (apply cartesian-product atom-lists)))
-    (λ () (set))
+    (λ () (break bound (set)))
 )))
 
 
@@ -502,7 +513,7 @@ ADDING BREAKS
 TODO
 - test sound strat composition with A->B strats
 - generalize strats to higher arities: A->B ==> S->A->B
-- co strategies for A->B strats
+- co- strategies
 - naive equiv strategies
 - more strats
     - loop
