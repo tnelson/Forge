@@ -130,26 +130,27 @@
     (hash-add! downsets a a))   ;; a < a
 (define (equiv a . bs) 
     (hash-set! compos (apply set bs) a)
-    ; if no fn defined for a, default to naively doing all bs
-    (unless (hash-has-key? strategies a)
+    (apply stricter a bs)
+    ; TODO: if no fn defined for a, default to naively doing all bs
+    #|(unless (hash-has-key? strategies a)
             (hash-set! strategies a (λ (rel atom-lists rel-list)
                 (apply break+ (for ([b bs]) 
                     ((hash-ref strategies b) atom-lists)
                 ))
-            )))
+            )))|#
 )
 (define (dominate a b)  
     (define upa (hash-ref upsets a))
     (define downb (hash-ref downsets b))
-    (for ([x (in-set upa)])         ;; x > a
-        (hash-add! upsets b x)      ;; x > b
-        (hash-add! downsets x b)    ;; b < x
-        (equiv x x b)               ;; x = x + b
+    (for ([x (in-set upa)])             ;; x > a
+        (hash-add! upsets b x)          ;; x > b
+        (hash-add! downsets x b)        ;; b < x
+        (hash-set! compos (set b x) x)  ;; x = x + b
     )
-    (for ([x (in-set downb)])       ;; x < b
-        (hash-add! downsets a x)    ;; x < a
-        (hash-add! upsets x a)      ;; a > x
-        (equiv a a x)               ;; a = a + x
+    (for ([x (in-set downb)])           ;; x < b
+        (hash-add! downsets a x)        ;; x < a
+        (hash-add! upsets x a)          ;; a > x
+        (hash-set! compos (set a x) a)  ;; a = a + x
     )
 )
 (define (stricter a . bs) (for ([b bs]) (dominate a b)))
@@ -171,11 +172,11 @@
               (set-add! breaks v)
               ; new break should have priority of highest priority component
               (define max-pri (apply min 
-                (map (lambda (s) (hash-ref break-pris s)) k)))
+                (set-map k (lambda (s) (hash-ref break-pris s)))))
               (hash-set! break-pris v max-pri)
               (set! changed true))
     ))
-    (when changed (min-breaks! breaks))
+    (when changed (min-breaks! breaks break-pris))
 )
 
 (define (break-rel rel . breaks) ; renamed-out to 'break for use in forge
@@ -282,7 +283,7 @@
                         (set! acceptable #f)
                         (e-r-union! e-r-2 clocl clocl2)) 
                     (set! clocl clocl2))
-                (hash-set canon2clocl canon clocl)
+                (hash-set! canon2clocl canon clocl)
             )
             (when broken (set-add! broken-clocls (uf-find clocl)))
         )
@@ -484,7 +485,6 @@
 
 
 
-
 #|
 ADDING BREAKS
 - add breaks here with using add-strategy and the declare forms:
@@ -503,6 +503,7 @@ TODO
 - test sound strat composition with A->B strats
 - generalize strats to higher arities: A->B ==> S->A->B
 - co strategies for A->B strats
+- naive equiv strategies
 - more strats
     - loop
     - loops
