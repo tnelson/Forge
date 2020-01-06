@@ -26,30 +26,6 @@
 ; edges :: set<set<sig>> ; technically hyperedges
 (struct break-graph (sigs edges) #:transparent)
 
-; elem2class    :: A |-> uf-set<A>
-; broken        :: mut-set<A> ; set of broken canonical elements
-(struct eq-rel (elem2class broken))
-(define (make-eq-rel) (eq-rel (make-hash) (mutable-set)))
-(define (in-broken? e-r x) 
-    (define elem2class (eq-rel-elem2class e-r))
-    (define broken (eq-rel-broken e-r))
-    (define class (hash-ref elem2class x))
-    (define canon (uf-find class))
-    (set-member? broken canon)
-)
-; union two classes and mark as broken if either is broken
-(define (e-r-union! e-r c1 c2)
-    (define broken (eq-rel-broken e-r))
-    (define canon1 (uf-find c1))
-    (define canon2 (uf-find c2))
-    (define is-broken (or (set-member? broken canon1)
-                          (set-member? broken canon2)))
-    (uf-union! c1 c2)
-    (define canon3 (uf-find c1))
-    (when is-broken (set-add! broken canon3))
-)
-; (define (compose ))
-
 ; pri               :: Nat
 ; break-graph       :: break-graph
 ; make-break        :: () -> break
@@ -191,8 +167,8 @@
     (define new-total-bounds (list))
     (define formulas (mutable-set))
     ; unextended sets
-    (define leaf-sigs (list->mutable-set sigs))
-    (hash-for-each extensions-store (λ (k v) (set-remove! leaf-sigs v)))    
+    (define unbroken-sigs (list->mutable-set sigs))
+    (hash-for-each extensions-store (λ (k v) (set-remove! unbroken-sigs v)))    
 
     ; proposed breaks from each relation
     (define candidates (list))
@@ -229,7 +205,7 @@
                 ][else
                     (define break-graph (breaker-break-graph breaker))
                     (define broken-sigs (break-graph-sigs break-graph))
-                    (cond [(subset? broken-sigs leaf-sigs)
+                    (cond [(subset? broken-sigs unbroken-sigs)
                         (cons! candidates breaker)
                         (set! broken #t)
                     ][else
@@ -245,68 +221,53 @@
 
     #|
         Now we try to use candidate breakers, starting with highest priority.
-        We maintain an equivalence class on sigs, with some classes being broken.
-        If applying a breaker would merge 2 broken classes or break a sig in a broken class,
+        We maintain an equivalence relation on sigs, with some sigs being broken.
+        If applying a breaker would create a loop or break a broken sig,
         the breaker isn't applied and the default formulas are used instead.
         Otherwise, we do the break and update the equivalence classes.
+
+        The approach used to check if a breaker would create a loop is a
+        generalization of the one used in Kruskal's MST algorithm. Instead of
+        checking a single candidate edge in each step, we must check a set of
+        candidate edges together. This requires the construction of an eqivalence
+        relation over the equivalence classes of sigs.
+        Consider: {(A,B),(C,D)} + {(A,C),(B,D)} creates a loop.
     |#
 
-    (define e-r (make-eq-rel))
-    (define sig2class (eq-rel-elem2class e-r))
-    (define broken-classes (eq-rel-broken e-r))
+    ; equivalence relation on sigs
+    (define sig2class (make-hash))
     (for ([sig sigs]) (hash-set! sig2class sig (uf-new sig)))
 
-    ; (println e-r)
-    ; (println broken-classes)
-    ; (println sig2class)
     (for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
         (define broken-sigs (break-graph-sigs break-graph))
         (define broken-edges (break-graph-edges break-graph))
 
-        ; equivalence relation on equivalnce classes
-        (define e-r-2 (make-eq-rel))
-        (define canon2clocl (eq-rel-elem2class e-r-2))
-        (define broken-clocls (eq-rel-broken e-r-2))
+        ; equivalence relation on equivalence classes
+        (define canon2clocl (make-hash))
         (hash-for-each sig2class (λ (sig class) (when (equal? sig (uf-find class))
             (hash-set! canon2clocl sig (uf-new sig)))))
 
-        (define acceptable #t)
+        (define acceptable (subset? broken-sigs unbroken-sigs))
 
-        (for ([edge broken-edges])
-            (define clocl #f)
-            (define broken #f)
-            (for ([sig edge])
-                (when (set-member? broken-sigs sig) (set! broken #t)) ; this class is broken
+        (when acceptable
+            (for ([edge broken-edges])
+                (define clocl #f)
+                (for ([sig edge])
+                    (define class (hash-ref sig2class sig))
+                    (define canon (uf-find class))
+                    (define clocl2 (hash-ref canon2clocl canon))
 
-                (define class (hash-ref sig2class sig))
-                (define canon (uf-find class))
-                (define clocl2 (hash-ref canon2clocl canon))
-
-                (if clocl
-                    (if (uf-same-set? clocl clocl2) ; breaks loop criteria
-                        (set! acceptable #f)
-                        (e-r-union! e-r-2 clocl clocl2)) 
-                    (set! clocl clocl2))
-                (hash-set! canon2clocl canon clocl)
+                    (if clocl
+                        (if (uf-same-set? clocl clocl2) ; breaks loop criteria
+                            (set! acceptable #f)
+                            (uf-union! clocl clocl2))
+                        (set! clocl clocl2))
+                    (hash-set! canon2clocl canon clocl)
+                )
             )
-            (when broken (set-add! broken-clocls (uf-find clocl)))
         )
 
-        ; loop through all relevant clocls, once each:
-        (hash-for-each canon2clocl (λ (canon clocl) (when (equal? canon (uf-find clocl))
-            ; abort if >1 of {its classes} ∪ {it} are broken
-            (define count 0)
-            (when (set-member? broken-clocls canon) (add1! count))
-            ; loop through all canons in this clocl:
-            (hash-for-each canon2clocl (λ (canon2 clocl2) (when (equal? clocl clocl2)
-                (when (set-member? broken-classes canon2) (add1! count))
-            )))
-            (when (> count 1) (set! acceptable #f))
-            (when (= count 1) (set-add! broken-clocls canon))
-        )))
-
-        ;(set! acceptable #t)
         (cond [acceptable
             (define break ((breaker-make-break breaker)))
             (cons! new-total-bounds (break-bound break))
@@ -317,19 +278,13 @@
                 (define class  (hash-ref sig2class canon))
                 (define class2 (hash-ref sig2class canon2))
                 (uf-union! class class2)
-                ; make sure classes are broken properly
-                (when (set-member? broken-clocls canon2)
-                    (set-add! broken-classes (uf-find class))   
-                )
             ))
+            (set-subtract! unbroken-sigs broken-sigs)
         ][else
             (define default ((breaker-make-default breaker)))
             (cons! new-total-bounds (break-sbound default))
             (set-union! formulas (break-formulas default))
         ])
-        ; (println e-r)
-        ; (println broken-classes)
-        ; (println sig2class)
     )
 
     (values new-total-bounds (set->list formulas))

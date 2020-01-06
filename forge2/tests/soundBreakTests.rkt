@@ -1,10 +1,27 @@
 #lang forge
 
+/*
+The 'surj symmetry-breaking strategy on X->Y breaks neither X nor Y.
+In this case:
+    - f: A->B
+    - g: B->C
+    - h: A->C 
+A loop is created, so one of the relations must default to formulas.
+This will be the break with the lowest priority, i.e. the one declared last.
+Forge should find two instances, corresponding respectively to:
+    - h == f.g
+    - h != f.g
+*/
+
 sig C {}
-sig A { f: C }
 sig B { g: C }
+sig A {
+    f: B,
+    h: C   
+}
 
-fact f: func
-fact g: func
+fact f: surj
+fact g: surj
+fact h: surj
 
-run {} for exactly 1 A, exactly 1 B, exactly 2 C
+run {} for exactly 2 A, exactly 2 B, exactly 2 C
