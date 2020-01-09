@@ -129,8 +129,11 @@
 ; instructed to provide cores; it will be empty otherwise.
 (define (read-solution port)
   (match (read port)
+    ; Produces a hap from relation id (rid) to tuple contents of that relation (val, or tuples)
     [(list (== 'sat) (== ':model) (list (list rid val) ...))
      (for/hash ([r rid][tuples val]) (values r tuples))]
+
+    ;TODO: make this function always return either a hash or list. Right now it can be either.
     [(list (== 'unsat) (== ':core) (list fid ...)) fid]
     [(list (== 'unsat)) '()]
     [\#<eof> 'unsat]

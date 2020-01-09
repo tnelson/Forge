@@ -2,7 +2,7 @@
 
 (require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "server/forgeserver.rkt"
          "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
-         "kodkod-cli/server/server-common.rkt" "kodkod-translate.rkt" "kodkod-model-translate.rkt" racket/stxparam br/datum
+         "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
 (provide break quote)
@@ -171,6 +171,7 @@
   (define allints (expt 2 bitwidth))
   (define inty-univ (append (range allints) working-universe))
   (define rels (append (hash-keys relations-store) sigs))
+  
   (define kks (new server% 
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
@@ -219,6 +220,7 @@
       (adj-bound-lower bound)
       (tupleset #:tuples (map (lambda (x) (map get-atom x))
                               (bound-upper bound))))))
+  
   (for ([c constraints] [i (range (length constraints))])
     (cmd 
      [stdin]
@@ -226,17 +228,10 @@
      (interpret-formula c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
-  ;(cmd [stdin] 
-  (cmd [stdin] (solve))
-
-  (define model (read-solution stdout))
-  (writeln model)
-  (define parsed-model (parse-kodkod model rels inty-univ))
   
   (define (get-next-model)
-    (cmd [stdin]
-         (solve))
-    (parse-kodkod (read-solution stdout) rels inty-univ))
+    (cmd [stdin] (solve))
+    (translate-from-kodkod-cli (read-solution stdout) rels inty-univ))
   
   (define non-abstract-sig-names
     (map
@@ -244,7 +239,8 @@
      (filter-not
       (lambda (y) (member y (hash-values extensions-store)))
       sigs)))
-  (display-model parsed-model non-abstract-sig-names name get-next-model))
+  
+  (display-model non-abstract-sig-names name get-next-model))
 
 (define-syntax (run stx)
   (syntax-case stx ()
