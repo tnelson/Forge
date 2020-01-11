@@ -23,7 +23,7 @@
 (define (make-break sbound [formulas (set)]) (break sbound formulas))
 
 ; sigs  :: set<sig>
-; edges :: set<set<sig>> ; technically hyperedges
+; edges :: set<set<sig>>
 (struct break-graph (sigs edges) #:transparent)
 
 ; pri               :: Nat
@@ -167,8 +167,8 @@
     (define new-total-bounds (list))
     (define formulas (mutable-set))
     ; unextended sets
-    (define unbroken-sigs (list->mutable-set sigs))
-    (hash-for-each extensions-store (λ (k v) (set-remove! unbroken-sigs v)))    
+    (set! sigs (list->mutable-set sigs))
+    (hash-for-each extensions-store (λ (k v) (set-remove! sigs v)))    
 
     ; proposed breaks from each relation
     (define candidates (list))
@@ -205,7 +205,7 @@
                 ][else
                     (define break-graph (breaker-break-graph breaker))
                     (define broken-sigs (break-graph-sigs break-graph))
-                    (cond [(subset? broken-sigs unbroken-sigs)
+                    (cond [(subset? broken-sigs sigs)
                         (cons! candidates breaker)
                         (set! broken #t)
                     ][else
@@ -221,66 +221,82 @@
 
     #|
         Now we try to use candidate breakers, starting with highest priority.
-        We maintain an equivalence relation on sigs, with some sigs being broken.
-        If applying a breaker would create a loop or break a broken sig,
-        the breaker isn't applied and the default formulas are used instead.
-        Otherwise, we do the break and update the equivalence classes.
 
-        The approach used to check if a breaker would create a loop is a
-        generalization of the one used in Kruskal's MST algorithm. Instead of
-        checking a single candidate edge in each step, we must check a set of
-        candidate edges together. This requires the construction of an eqivalence
-        relation over the equivalence classes of sigs.
-        Consider: {(A,B),(C,D)} + {(A,C),(B,D)} creates a loop.
+        We maintain a reachability relation. If applying a breaker would create a loop,
+        the breaker isn't applied and the default formulas are used instead.
+        Otherwise, we do the break and update the relation.
+
+        The implementation may seem wrong but the relation is intentionally non-transitive.
+        Consider: sig A { fs: B->C }, so that fs: A->B->C is a set of functions.
+        Information can flow between B<~>C and A<~>C, but not A<~>B!
+        This is important to get right because of our design principle of wrapping instances
+            (fs in this case) inside solution sigs (A in this case)
+
+        Paths between broken sigs can also break soundness.
+        Broken sigs are given an edge to a unique 'broken "sig", so we only need to check for loops.
     |#
 
-    ; equivalence relation on sigs
-    (define sig2class (make-hash))
-    (for ([sig sigs]) (hash-set! sig2class sig (uf-new sig)))
+    ; maintain non-transitive reachability relation 
+    (define reachable (make-hash))
+    (hash-set! reachable 'broken (mutable-set 'broken))
+    (for ([sig sigs]) (hash-set! reachable sig (mutable-set sig)))
 
     (for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
         (define broken-sigs (break-graph-sigs break-graph))
         (define broken-edges (break-graph-edges break-graph))
 
-        ; equivalence relation on equivalence classes
-        (define canon2clocl (make-hash))
-        (hash-for-each sig2class (λ (sig class) (when (equal? sig (uf-find class))
-            (hash-set! canon2clocl sig (uf-new sig)))))
-
-        (define acceptable (subset? broken-sigs unbroken-sigs))
-
-        (when acceptable
-            (for ([edge broken-edges])
-                (define clocl #f)
-                (for ([sig edge])
-                    (define class (hash-ref sig2class sig))
-                    (define canon (uf-find class))
-                    (define clocl2 (hash-ref canon2clocl canon))
-
-                    (if clocl
-                        (if (uf-same-set? clocl clocl2) ; breaks loop criteria
-                            (set! acceptable #f)
-                            (uf-union! clocl clocl2))
-                        (set! clocl clocl2))
-                    (hash-set! canon2clocl canon clocl)
-                )
+        (define edges (list))
+        ; reduce broken sigs to broken edges between those sigs and the auxiliary 'broken symbol
+        (for ([sig broken-sigs]) (cons! edges (cons sig 'broken)))
+        ; get all pairs from sets
+        (for ([edge broken-edges])
+            ; TODO: make functional
+            (set! edge (set->list edge))
+            (define L (length edge))
+            (for* ([i (in-range 0 (- L 1))]
+                   [j (in-range (+ i 1) L)])
+                (cons! edges (cons (list-ref edge i) (list-ref edge j)))
             )
         )
+    
+        ; acceptable :<-> doesn't create loops <-> no edges already exist
+        (define acceptable (for/and ([edge edges])
+            (define A (car edge))
+            (define B (cdr edge))
+            (not (set-member? (hash-ref reachable A) B))
+        ))
 
         (cond [acceptable
+            ; update reachability. do all edges in parallel
+            (define new-reachable (make-hash))
+            (for ([edge edges])
+                (define A (car edge))
+                (define B (cdr edge))
+                (when (not (hash-has-key? new-reachable A)) 
+                        (hash-set! new-reachable A (mutable-set)))
+                (when (not (hash-has-key? new-reachable B)) 
+                        (hash-set! new-reachable B (mutable-set)))
+                (set-union! (hash-ref new-reachable A) (hash-ref reachable B))
+                (set-union! (hash-ref new-reachable B) (hash-ref reachable A))
+            )
+            (hash-for-each new-reachable (λ (sig newset)
+                ; set new sigs reachable from sig and vice versa
+                (define oldset (hash-ref reachable sig))
+                (set-subtract! newset oldset)
+                (for ([sig2 newset])
+                    (define oldset2 (hash-ref reachable sig2))
+                    (set-add! oldset sig2)
+                    (set-add! oldset2 sig)
+                )
+            ))
+
+            ; do break
             (define break ((breaker-make-break breaker)))
             (cons! new-total-bounds (break-bound break))
             (set-union! formulas (break-formulas break))
-            ; squash the clocls
-            (hash-for-each canon2clocl (λ (canon clocl)
-                (define canon2 (uf-find clocl))
-                (define class  (hash-ref sig2class canon))
-                (define class2 (hash-ref sig2class canon2))
-                (uf-union! class class2)
-            ))
-            (set-subtract! unbroken-sigs broken-sigs)
         ][else
+            ; do default break
             (define default ((breaker-make-default breaker)))
             (cons! new-total-bounds (break-sbound default))
             (set-union! formulas (break-formulas default))
@@ -432,7 +448,6 @@
     )
 ))
 
-
 ; use to prevent breaks
 (add-strategy 'default (λ (pri rel bound atom-lists rel-list) (breaker pri
     (break-graph (set) (set))
@@ -440,6 +455,28 @@
         (make-upper-break rel (apply cartesian-product atom-lists)))
     (λ () (break bound (set)))
 )))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Strategy Combinators ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; turn a strategy on n-ary relations into one on arbitrary arity relations
+; ex: (f:B->C) => (g:A->B->C) where f is declared 'foo
+; we will declare with formulas that g[a] is 'foo for all a in A
+; but we will only enforce this with bounds for a single a in A
+#|(define (variadic n f)
+    (λ (pri rel bound atom-lists rel-list)
+        (define sub-breaker (f pri rel bound atom-lists rel-list))
+        
+        (define sub-break-graph (breaker-break-graph sub-breaker))
+        ; TODO: don't break any sigs in the prefix
+        ;       add broken edges from every prefix sig to every broken sig
+
+        (breaker pri
+            (break)
+        )
+    )
+)|#
 
 
 ;;; Domination Order ;;;
@@ -466,11 +503,12 @@ ADDING BREAKS
     - a = a + b   !|- a > b   
 
 TODO
-- test sound strat composition with A->B strats
-- generalize strats to higher arities: A->B ==> S->A->B
-- co- strategies
+- strategy combinators
+    - generalize strats to higher arities: A->B ==> S->A->B
+    - co- strategies
 - naive equiv strategies
 - more strats
+    - lasso
     - loop
     - loops
     - unique init/term
