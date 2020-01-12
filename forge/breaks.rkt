@@ -464,19 +464,88 @@
 ; ex: (f:B->C) => (g:A->B->C) where f is declared 'foo
 ; we will declare with formulas that g[a] is 'foo for all a in A
 ; but we will only enforce this with bounds for a single a in A
-#|(define (variadic n f)
+(define (variadic n f)
     (λ (pri rel bound atom-lists rel-list)
-        (define sub-breaker (f pri rel bound atom-lists rel-list))
-        
-        (define sub-break-graph (breaker-break-graph sub-breaker))
-        ; TODO: don't break any sigs in the prefix
-        ;       add broken edges from every prefix sig to every broken sig
+        (cond [(= (length rel-list) n)
+            (f pri rel bound atom-lists rel-list)
+        ][else
+            ; TODO: fix bound: map (take-right n _) over
+            ; TODO: fix rel: choose some representative of each prefix-list: a, b, ...
+            ;                replace rel with (rel[a][b]...)
+            (define sub-breaker (f pri rel bound (take-right atom-lists n) (take-right rel-list n)))
+            (define prefix (drop-right rel-list n))
+            (define prefix-lists (drop-right atom-lists n))
+            
+            (define sub-break-graph (breaker-break-graph sub-breaker))
+            (define sigs (break-graph-sigs sub-break-graph))
+            (define edges (break-graph-edges sub-break-graph))
+            (define new-break-graph (break-graph
+                sigs
+                (set-union edges (for/set ([sig sigs] [p prefix]) (set sig p)))
+            ))
 
+            (breaker pri
+                new-break-graph
+                (λ () 
+                    ; unpack results of sub-breaker
+                    (define sub-break ((breaker-make-break sub-breaker)))
+                    (define sub-formulas (break-formulas sub-break))
+                    (define sub-sbound (break-sbound sub-break))
+                    (define sub-lower (sbound-lower sub-sbound))
+                    (define sub-upper (sbound-upper sub-sbound))
+
+                    ; FIXME: this is wrong! only break a single instance, edit rel above
+                    ; new sbound is cartesian product of prefix lists with upper/lower bounds 
+                    (define cart-pref (apply cartesian-product prefix-lists))
+                    (define lower (for/set ([c cart-pref] [l sub-lower]) (append c l)))
+                    (define upper (for/set ([c cart-pref] [l sub-upper]) (append c l)))
+                    (define bound (sbound rel lower upper))
+                    ; wrap each formula in foralls for each prefix rel
+                    (define quants (for/list ([p prefix]) 
+                        (list (string->uninterned-symbol "v") p)
+                    ))
+                    (define formulas (for/set ([f sub-formulas])
+                        `(@all ,quants ,f)
+                    ))
+
+                    (break bound formulas)
+                )
+                (λ () 0) ; TODO:
+            )
+        ])
+    )
+)
+
+(define (co f)
+    (λ (pri rel bound atom-lists rel-list)
+        ; TODO: fix bound: reverse all tuples (make separate function: reverse bound)
+        (define sub-breaker (f pri (@~ rel) bound (reverse atom-lists) (reverse rel-list)))
         (breaker pri
-            (break)
+            (breaker-break-graph sub-breaker)
+            (λ () 
+                ; unpack results of sub-breaker
+                (define sub-break ((breaker-make-break sub-breaker)))
+                (define sub-formulas (break-formulas sub-break))
+                (define sub-sbound (break-sbound sub-break))
+                (define sub-lower (sbound-lower sub-sbound))
+                (define sub-upper (sbound-upper sub-sbound))
+                ; reverse all tuples in sbounds 
+                (define lower (for/set ([l sub-lower]) (reverse l)))
+                (define upper (for/set ([l sub-upper]) (reverse l)))
+                (define bound (sbound rel lower upper))
+
+                (break bound sub-formulas)
+            )
+            (λ () 0) ; TODO:
         )
     )
-)|#
+)
+
+(add-strategy 'varfunc (variadic 2 (hash-ref strategies 'func)))
+(add-strategy 'cotree (co (hash-ref strategies 'tree)))
+(add-strategy 'cofunc (co (hash-ref strategies 'func)))
+(add-strategy 'cosurj (co (hash-ref strategies 'surj)))
+(add-strategy 'coinj (co (hash-ref strategies 'inj)))
 
 
 ;;; Domination Order ;;;
@@ -506,6 +575,7 @@ TODO
 - strategy combinators
     - generalize strats to higher arities: A->B ==> S->A->B
     - co- strategies
+    - simplify interface for strategy writers and users
 - naive equiv strategies
 - more strats
     - lasso
