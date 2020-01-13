@@ -9,8 +9,7 @@ linearly order its Xs relative to the fixed A's, so we get 6 instances.
 */
 
 sig X {}
---sig A { r: X->X }
-/*$ (declare-sig A ((r X X))) */
+sig A { r: X->X }
 
 fact r: tree, cotree
 

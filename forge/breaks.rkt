@@ -685,7 +685,6 @@ ADDING BREAKS
     - a = a + b   !|- a > b   
 
 TODO:
-! fix syntax for >2-arity sigs
 ! use for sequence library
 - strategy combinators
     - naive equiv strategies
