@@ -469,12 +469,12 @@
         (cond [(= (length rel-list) n)
             (f pri rel bound atom-lists rel-list)
         ][else
-            ; TODO: fix bound: map (take-right n _) over
-            ; TODO: fix rel: choose some representative of each prefix-list: a, b, ...
-            ;                replace rel with (rel[a][b]...)
-            (define sub-breaker (f pri rel bound (take-right atom-lists n) (take-right rel-list n)))
             (define prefix (drop-right rel-list n))
             (define prefix-lists (drop-right atom-lists n))
+            (define vars (for/list ([p prefix]) (string->uninterned-symbol "v")))
+            (define new-rel (foldl @join rel prefix))   ; rel[a][b]...
+            (define sub-breaker 
+                (f pri new-rel bound (take-right atom-lists n) (take-right rel-list n)))
             
             (define sub-break-graph (breaker-break-graph sub-breaker))
             (define sigs (break-graph-sigs sub-break-graph))
@@ -496,21 +496,31 @@
 
                     ; FIXME: this is wrong! only break a single instance, edit rel above
                     ; new sbound is cartesian product of prefix lists with upper/lower bounds 
-                    (define cart-pref (apply cartesian-product prefix-lists))
+                    #|(define cart-pref (apply cartesian-product prefix-lists))
                     (define lower (for/set ([c cart-pref] [l sub-lower]) (append c l)))
                     (define upper (for/set ([c cart-pref] [l sub-upper]) (append c l)))
-                    (define bound (sbound rel lower upper))
-                    ; wrap each formula in foralls for each prefix rel
-                    (define quants (for/list ([p prefix]) 
-                        (list (string->uninterned-symbol "v") p)
+                    (define bound (sbound rel lower upper))|#
+
+                    ; just use the sub-bounds for a single selection of elements of the prefixes
+                    (define cars (map car prefix-lists))
+                    (define cdrs (map cdr prefix-lists))
+                    (define cart-cdrs (apply cartesian-product cdrs))
+                    (define lower (for/set ([l sub-lower]) (append cars l)))
+                    (define upper (set-union
+                        (for/set ([u sub-upper]) (append cars u))
+                        (for/set ([c cart-cdrs] [u sub-upper]) (append c u))
                     ))
+
+                    ; wrap each formula in foralls for each prefix rel
                     (define formulas (for/set ([f sub-formulas])
-                        `(@all ,quants ,f)
+                        `(@all ,(map list vars prefix) ,f)
                     ))
 
                     (break bound formulas)
                 )
-                (λ () 0) ; TODO:
+                (λ ()
+                    ((breaker-make-default sub-breaker))
+                )
             )
         ])
     )
@@ -518,7 +528,6 @@
 
 (define (co f)
     (λ (pri rel bound atom-lists rel-list)
-        ; TODO: fix bound: reverse all tuples (make separate function: reverse bound)
         (define sub-breaker (f pri (@~ rel) bound (reverse atom-lists) (reverse rel-list)))
         (breaker pri
             (breaker-break-graph sub-breaker)
@@ -536,7 +545,9 @@
 
                 (break bound sub-formulas)
             )
-            (λ () 0) ; TODO:
+            (λ ()
+                ((breaker-make-default sub-breaker))
+            )
         )
     )
 )

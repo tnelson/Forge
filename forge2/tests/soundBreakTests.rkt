@@ -13,17 +13,17 @@ Forge should find two instances, corresponding respectively to:
     - h != f.g
 */
 
---sig C {}
-sig B {} --g: C }
+sig C {}
+sig B { g: C }
 sig A {
-    --f: B,
-    --h: C
-    f: B
+    f: B,
+    h: C
+    --f: B
 }
 
-fact f: cofunc
---fact f: surj
---fact g: surj
---fact h: surj
+--fact f: cofunc
+fact f: cosurj
+fact g: cosurj
+fact h: cosurj
 
-run {} for exactly 2 A, exactly 2 B --, exactly 2 C
+run {} for exactly 2 A, exactly 2 B, exactly 2 C
