@@ -311,23 +311,37 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; A->A Strategies ;;;
-(add-strategy 'irref (λ (pri rel bound atom-lists rel-list) (breaker pri
-    (break-graph (set) (set))
-    (λ () 
-        (make-upper-break rel
-                        (filter-not (lambda (x) (equal? (first x) (second x)))
-                                    (apply cartesian-product atom-lists))))
-    (λ () (break bound (set)))
-)))
-(add-strategy 'ref (λ (pri rel bound atom-lists rel-list) (breaker pri
-    (break-graph (set) (set))
-    (λ () 
-        (make-lower-break rel
-                        (filter     (lambda (x) (equal? (first x) (second x)))
-                                    (apply cartesian-product atom-lists))
-                        atom-lists))
-    (λ () (break bound (set)))
-)))
+(add-strategy 'irref (λ (pri rel bound atom-lists rel-list) 
+    (define atoms (first atom-lists))
+    (define sig (first rel-list))
+    (breaker pri
+        (break-graph (set) (set))
+        (λ () 
+            (make-upper-break rel
+                            (filter-not (lambda (x) (equal? (first x) (second x)))
+                                        (apply cartesian-product atom-lists))))
+        (λ () (break bound (set
+            (@no (@& @iden rel))
+        )))
+    )
+))
+(add-strategy 'ref (λ (pri rel bound atom-lists rel-list) 
+    (define atoms (first atom-lists))
+    (define sig (first rel-list))
+    (breaker pri
+        (break-graph (set) (set))
+        (λ () 
+            (make-lower-break rel
+                            (filter     (lambda (x) (equal? (first x) (second x)))
+                                        (apply cartesian-product atom-lists))
+                            atom-lists))
+        (λ () (break bound (set
+            (@all ([x sig])
+                (@in x (@join sig rel))
+            )
+        )))
+    )
+))
 (add-strategy 'linear (λ (pri rel bound atom-lists rel-list) 
     (define atoms (first atom-lists))
     (define sig (first rel-list))
@@ -348,37 +362,53 @@
         )))
     )
 ))
-(add-strategy 'acyclic (λ (pri rel bound atom-lists rel-list) (breaker pri
-    (break-graph (set) (set))
-    (λ ()
-        (define atoms (first atom-lists))
-        (make-upper-break rel
-                        (for*/list ([i (length atoms)]
-                                    [j (length atoms)]
-                                    #:when (< i j))
-                                (list (list-ref atoms i) (list-ref atoms j)))))
-    (λ () (break bound (set)))
-)))
-(add-strategy 'tree (λ (pri rel bound atom-lists rel-list) (breaker pri
-    (break-graph (set) (set))
-    (λ ()
-        (define atoms (first atom-lists))
-        (define rel2 (first rel-list))
-        (make-break 
-            (bound->sbound (make-upper-bound rel
-                        (for*/list ([i (length atoms)]
-                                    [j (length atoms)]
-                                    #:when (< i j))
-                                (list (list-ref atoms i) (list-ref atoms j)))))
-            (set
-                (@some ([n rel2]) 
-                    (@all ([m (@- rel2 n)]) 
-                        (@one (@join rel m))
+(add-strategy 'acyclic (λ (pri rel bound atom-lists rel-list) 
+    (define atoms (first atom-lists))
+    (define sig (first rel-list))
+    (breaker pri
+        (break-graph (set) (set))
+        (λ ()
+            (make-upper-break rel
+                            (for*/list ([i (length atoms)]
+                                        [j (length atoms)]
+                                        #:when (< i j))
+                                    (list (list-ref atoms i) (list-ref atoms j)))))
+        (λ () (break bound (set
+            (@no ([x sig])
+                (@in x (@join x (@^ rel)))
+            )
+        )))
+    )
+))
+(add-strategy 'tree (λ (pri rel bound atom-lists rel-list) 
+    (define atoms (first atom-lists))
+    (define sig (first rel-list))
+    (breaker pri
+        (break-graph (set) (set))
+        (λ ()
+            (make-break 
+                (bound->sbound (make-upper-bound rel
+                            (for*/list ([i (length atoms)]
+                                        [j (length atoms)]
+                                        #:when (< i j))
+                                    (list (list-ref atoms i) (list-ref atoms j)))))
+                (set
+                    (@some ([n sig]) 
+                        (@all ([m (@- sig n)]) 
+                            (@one (@join rel m))
+                        )
                     )
+                )))
+        (λ () (break bound (set
+            (@some ([n sig]) (@and
+                (@no (@join rel n))
+                (@all ([m (@- sig n)]) 
+                    (@one (@join rel m))
                 )
-            )))
-    (λ () (break bound (set)))
-)))
+            ))
+        )))
+    )
+))
 
 ;;; A->B Strategies ;;;
 (add-strategy 'func (λ (pri rel bound atom-lists rel-list) 
@@ -510,7 +540,6 @@
 
                     
                     (cond [(set-empty? sigs)
-                        (println "HEYYY")
                         ; no sigs are broken, so use sub-bounds for ALL instances
                         (define cart-pref (apply cartesian-product prefix-lists))
                         (define lower (for*/set ([c cart-pref] [l sub-lower]) (append c l)))
@@ -598,6 +627,8 @@
 (declare 'acyclic > 'irref)
 (declare 'func < 'surj 'inj)
 (declare 'bij = 'surj 'inj)
+(declare 'linear = 'tree 'cotree)
+(declare 'bij = 'func 'cofunc)
 
 
 
@@ -616,11 +647,6 @@ ADDING BREAKS
     - a = a + b   !|- a > b   
 
 TODO:
-- add formulas for
-    - irref
-    - ref
-    - acyclic
-    - tree
 - fix syntax for >2-arity sigs
 - strategy combinators
     - naive equiv strategies
@@ -632,6 +658,8 @@ TODO:
             - are variadic
             - naively combine with ref/irref
         - export a co- and -+ lookup functions?
+- update declares with combinators
+    - ex: (declare 'linear = 'tree 'cotree)
 - more strats
     - lasso
     - loop
