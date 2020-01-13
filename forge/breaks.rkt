@@ -306,6 +306,121 @@
     (values new-total-bounds (set->list formulas))
 )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Strategy Combinators ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; turn a strategy on n-ary relations into one on arbitrary arity relations
+; ex: (f:B->C) => (g:A->B->C) where f is declared 'foo
+; we will declare with formulas that g[a] is 'foo for all a in A
+; but we will only enforce this with bounds for a single a in A
+(define (variadic n f)
+    (λ (pri rel bound atom-lists rel-list)
+        (cond [(= (length rel-list) n)
+            (f pri rel bound atom-lists rel-list)
+        ][else
+            (define prefix (drop-right rel-list n))
+            (define postfix (take-right rel-list n))
+            (define prefix-lists (drop-right atom-lists n))
+            (define postfix-lists (take-right atom-lists n))
+
+            (define vars (for/list ([p prefix]) 
+                (@node/expr/quantifier-var 1 (string->uninterned-symbol "v"))
+            ))
+            (define new-rel (foldl @join rel vars))   ; rel[a][b]...
+            (define sub-breaker (f pri new-rel bound postfix-lists postfix))
+            
+            (define sub-break-graph (breaker-break-graph sub-breaker))
+            (define sigs (break-graph-sigs sub-break-graph))
+            (define edges (break-graph-edges sub-break-graph))
+            (define new-break-graph (break-graph
+                sigs
+                (set-union edges (for/set ([sig sigs] [p prefix]) (set sig p)))
+            ))
+
+            (breaker pri
+                new-break-graph
+                (λ ()
+                    ; unpack results of sub-breaker
+                    (define sub-break ((breaker-make-break sub-breaker)))
+                    (define sub-sbound (break-sbound sub-break))
+                    (define sub-lower (sbound-lower sub-sbound))
+                    (define sub-upper (sbound-upper sub-sbound))
+
+                    
+                    (cond [(set-empty? sigs)
+                        ; no sigs are broken, so use sub-bounds for ALL instances
+                        (define cart-pref (apply cartesian-product prefix-lists))
+                        (define lower (for*/set ([c cart-pref] [l sub-lower]) (append c l)))
+                        (define upper (for*/set ([c cart-pref] [u sub-upper]) (append c u)))
+                        (define bound (sbound rel lower upper))
+
+                        (define sub-formulas (break-formulas sub-break))
+                        (define formulas (for/set ([f sub-formulas])
+                            ;(@all (map list vars prefix) f)
+                            (@quantified-formula 'all (map cons vars prefix) f)
+                        ))
+
+                        (break bound formulas)
+                    ][else
+                        ; just use the sub-bounds for a single instance of prefix
+                        (define cars (map car prefix-lists))
+                        (define cdrs (map cdr prefix-lists))
+                        (define lower (for/set ([l sub-lower]) (append cars l)))
+                        (define upper (set-union
+                            (for/set ([u sub-upper]) (append cars u))
+                            (list->set (apply cartesian-product (append cdrs postfix-lists)))
+                        ))
+                        (define bound (sbound rel lower upper))
+
+                        ; use default formulas unless single instance
+                        (define sub-formulas (if (> (apply * (map length prefix-lists)) 1)
+                            (break-formulas ((breaker-make-default sub-breaker)))
+                            (break-formulas sub-break)
+                        ))
+                        ; wrap each formula in foralls for each prefix rel
+                        (define formulas (for/set ([f sub-formulas])
+                            ;(@all (map list vars prefix) f)
+                            (@quantified-formula 'all (map cons vars prefix) f)
+                        ))
+
+                        (break bound formulas)
+                    ])
+                )
+                (λ ()
+                    ((breaker-make-default sub-breaker))
+                )
+            )
+        ])
+    )
+)
+
+(define (co f)
+    (λ (pri rel bound atom-lists rel-list)
+        (define sub-breaker (f pri (@~ rel) bound (reverse atom-lists) (reverse rel-list)))
+        (breaker pri
+            (breaker-break-graph sub-breaker)
+            (λ () 
+                ; unpack results of sub-breaker
+                (define sub-break ((breaker-make-break sub-breaker)))
+                (define sub-formulas (break-formulas sub-break))
+                (define sub-sbound (break-sbound sub-break))
+                (define sub-lower (sbound-lower sub-sbound))
+                (define sub-upper (sbound-upper sub-sbound))
+                ; reverse all tuples in sbounds 
+                (define lower (for/set ([l sub-lower]) (reverse l)))
+                (define upper (for/set ([l sub-upper]) (reverse l)))
+                (define bound (sbound rel lower upper))
+
+                (break bound sub-formulas)
+            )
+            (λ ()
+                ((breaker-make-default sub-breaker))
+            )
+        )
+    )
+)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; define breaks and compositions ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -525,128 +640,22 @@
     (λ () (break bound (set)))
 )))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Strategy Combinators ;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; turn a strategy on n-ary relations into one on arbitrary arity relations
-; ex: (f:B->C) => (g:A->B->C) where f is declared 'foo
-; we will declare with formulas that g[a] is 'foo for all a in A
-; but we will only enforce this with bounds for a single a in A
-(define (variadic n f)
-    (λ (pri rel bound atom-lists rel-list)
-        (cond [(= (length rel-list) n)
-            (f pri rel bound atom-lists rel-list)
-        ][else
-            (define prefix (drop-right rel-list n))
-            (define postfix (take-right rel-list n))
-            (define prefix-lists (drop-right atom-lists n))
-            (define postfix-lists (take-right atom-lists n))
 
-            (define vars (for/list ([p prefix]) 
-                (@node/expr/quantifier-var 1 (string->uninterned-symbol "v"))
-            ))
-            (define new-rel (foldl @join rel vars))   ; rel[a][b]...
-            (define sub-breaker (f pri new-rel bound postfix-lists postfix))
-            
-            (define sub-break-graph (breaker-break-graph sub-breaker))
-            (define sigs (break-graph-sigs sub-break-graph))
-            (define edges (break-graph-edges sub-break-graph))
-            (define new-break-graph (break-graph
-                sigs
-                (set-union edges (for/set ([sig sigs] [p prefix]) (set sig p)))
-            ))
+(add-strategy 'cotree (variadic 2 (co (hash-ref strategies 'tree))))
+(add-strategy 'cofunc (variadic 2 (co (hash-ref strategies 'func))))
+(add-strategy 'cosurj (variadic 2 (co (hash-ref strategies 'surj))))
+(add-strategy 'coinj (variadic 2 (co (hash-ref strategies 'inj))))
 
-            (breaker pri
-                new-break-graph
-                (λ ()
-                    ; unpack results of sub-breaker
-                    (define sub-break ((breaker-make-break sub-breaker)))
-                    (define sub-sbound (break-sbound sub-break))
-                    (define sub-lower (sbound-lower sub-sbound))
-                    (define sub-upper (sbound-upper sub-sbound))
-
-                    
-                    (cond [(set-empty? sigs)
-                        ; no sigs are broken, so use sub-bounds for ALL instances
-                        (define cart-pref (apply cartesian-product prefix-lists))
-                        (define lower (for*/set ([c cart-pref] [l sub-lower]) (append c l)))
-                        (define upper (for*/set ([c cart-pref] [u sub-upper]) (append c u)))
-                        (define bound (sbound rel lower upper))
-
-                        (define sub-formulas (break-formulas sub-break))
-                        (define formulas (for/set ([f sub-formulas])
-                            ;(@all (map list vars prefix) f)
-                            (@quantified-formula 'all (map cons vars prefix) f)
-                        ))
-
-                        (break bound formulas)
-                    ][else
-                        ; just use the sub-bounds for a single instance of prefix
-                        (define cars (map car prefix-lists))
-                        (define cdrs (map cdr prefix-lists))
-                        (define lower (for/set ([l sub-lower]) (append cars l)))
-                        (define upper (set-union
-                            (for/set ([u sub-upper]) (append cars u))
-                            (list->set (apply cartesian-product (append cdrs postfix-lists)))
-                        ))
-                        (define bound (sbound rel lower upper))
-
-                        ; use default formulas unless single instance
-                        (define sub-formulas (if (> (apply * (map length prefix-lists)) 1)
-                            (break-formulas ((breaker-make-default sub-breaker)))
-                            (break-formulas sub-break)
-                        ))
-                        ; wrap each formula in foralls for each prefix rel
-                        (define formulas (for/set ([f sub-formulas])
-                            ;(@all (map list vars prefix) f)
-                            (@quantified-formula 'all (map cons vars prefix) f)
-                        ))
-
-                        (break bound formulas)
-                    ])
-                )
-                (λ ()
-                    ((breaker-make-default sub-breaker))
-                )
-            )
-        ])
-    )
-)
-
-(define (co f)
-    (λ (pri rel bound atom-lists rel-list)
-        (define sub-breaker (f pri (@~ rel) bound (reverse atom-lists) (reverse rel-list)))
-        (breaker pri
-            (breaker-break-graph sub-breaker)
-            (λ () 
-                ; unpack results of sub-breaker
-                (define sub-break ((breaker-make-break sub-breaker)))
-                (define sub-formulas (break-formulas sub-break))
-                (define sub-sbound (break-sbound sub-break))
-                (define sub-lower (sbound-lower sub-sbound))
-                (define sub-upper (sbound-upper sub-sbound))
-                ; reverse all tuples in sbounds 
-                (define lower (for/set ([l sub-lower]) (reverse l)))
-                (define upper (for/set ([l sub-upper]) (reverse l)))
-                (define bound (sbound rel lower upper))
-
-                (break bound sub-formulas)
-            )
-            (λ ()
-                ((breaker-make-default sub-breaker))
-            )
-        )
-    )
-)
-
-(add-strategy 'varirref (variadic 2 (hash-ref strategies 'irref)))
-(add-strategy 'varlinear (variadic 2 (hash-ref strategies 'linear)))
-(add-strategy 'varfunc (variadic 2 (hash-ref strategies 'func)))
-(add-strategy 'cotree (co (hash-ref strategies 'tree)))
-(add-strategy 'cofunc (co (hash-ref strategies 'func)))
-(add-strategy 'cosurj (co (hash-ref strategies 'surj)))
-(add-strategy 'coinj (co (hash-ref strategies 'inj)))
+(add-strategy 'irref (variadic 2 (hash-ref strategies 'irref)))
+(add-strategy 'ref (variadic 2 (hash-ref strategies 'ref)))
+(add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
+(add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
+(add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
+(add-strategy 'func (variadic 2 (hash-ref strategies 'func)))
+(add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
+(add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
+(add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
 
 
 ;;; Domination Order ;;;
@@ -657,7 +666,8 @@
 (declare 'bij = 'surj 'inj)
 (declare 'linear = 'tree 'cotree)
 (declare 'bij = 'func 'cofunc)
-
+(declare 'cofunc < 'cosurj 'coinj)
+(declare 'bij = 'cosurj 'coinj)
 
 
 #|
@@ -675,20 +685,12 @@ ADDING BREAKS
     - a = a + b   !|- a > b   
 
 TODO:
+! fix syntax for >2-arity sigs
+! use for sequence library
 - strategy combinators
     - naive equiv strategies
         - can be used to combine many strats with ref/irref, even variadic ones
         - use in equiv if sum isn't defined
-    ! simplify interface for strategy writers and users
-        - change co to swap last 2 sigs, so it commutes with variadic?
-        - make 'blah+ versions of each strategy that
-            - are variadic
-            - naively combine with ref/irref
-        - export a co- and -+ lookup functions?
-    ! update declares with combinators
-        - ex: (declare 'linear = 'tree 'cotree)
-! fix syntax for >2-arity sigs
-! use for sequence library
 - more strats
     - lasso
     - loop

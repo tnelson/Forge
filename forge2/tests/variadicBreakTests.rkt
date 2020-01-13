@@ -12,6 +12,6 @@ sig X {}
 --sig A { r: X->X }
 /*$ (declare-sig A ((r X X))) */
 
-fact r: varlinear
+fact r: tree, cotree
 
 run {} for exactly 2 A, exactly 3 X
