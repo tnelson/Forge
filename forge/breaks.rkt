@@ -419,16 +419,23 @@
     (define formulas (set 
         (@all ([a A]) (@one (@join a rel)))
     ))
-    (breaker pri
-        (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-        (λ () 
-            ; assume wlog f(a) = b for some a in A, b in B
-            (break 
-                (sbound rel
-                    (set (list (car As) (car Bs)))
-                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-                formulas))
-        (λ () (break bound formulas))
+    (if (equal? A B)
+        (breaker pri
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break bound formulas))
+        )
+        (breaker pri
+            (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+            (λ () 
+                ; assume wlog f(a) = b for some a in A, b in B
+                (break 
+                    (sbound rel
+                        (set (list (car As) (car Bs)))
+                        (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                    formulas))
+            (λ () (break bound formulas))
+        )
     )
 ))
 (add-strategy 'surj (λ (pri rel bound atom-lists rel-list) 
@@ -440,16 +447,23 @@
         (@all ([a A]) (@one  (@join a rel)))
         (@all ([b B]) (@some (@join rel b)))    ; @some
     ))
-    (breaker pri
-        (break-graph (set) (set (set A B)))   ; breaks only {A,B}
-        (λ () 
-            ; assume wlog f(a) = b for some a in A, b in B
-            (break 
-                (sbound rel
-                    (set (list (car As) (car Bs)))
-                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-                formulas))
-        (λ () (break bound formulas))
+    (if (equal? A B)
+        (breaker pri
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break bound formulas))
+        )
+        (breaker pri
+            (break-graph (set) (set (set A B)))   ; breaks only {A,B}
+            (λ () 
+                ; assume wlog f(a) = b for some a in A, b in B
+                (break 
+                    (sbound rel
+                        (set (list (car As) (car Bs)))
+                        (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                    formulas))
+            (λ () (break bound formulas))
+        )
     )
 ))
 (add-strategy 'inj (λ (pri rel bound atom-lists rel-list) 
@@ -461,16 +475,23 @@
         (@all ([a A]) (@one  (@join a rel)))
         (@all ([b B]) (@lone (@join rel b)))    ; @lone
     ))
-    (breaker pri
-        (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-        (λ () 
-            ; assume wlog f(a) = b for some a in A, b in B
-            (break 
-                (sbound rel
-                    (set (list (car As) (car Bs)))
-                    (set-add (cartesian-product (cdr As) (cdr Bs)) (list (car As) (car Bs))))
-                formulas))
-        (λ () (break bound formulas))
+    (if (equal? A B)
+        (breaker pri
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break bound formulas))
+        )
+        (breaker pri
+            (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+            (λ () 
+                ; assume wlog f(a) = b for some a in A, b in B
+                (break 
+                    (sbound rel
+                        (set (list (car As) (car Bs)))
+                        (set-add (cartesian-product (cdr As) (cdr Bs)) (list (car As) (car Bs))))
+                    formulas))
+            (λ () (break bound formulas))
+        )
     )
 ))
 (add-strategy 'bij (λ (pri rel bound atom-lists rel-list) 
@@ -482,10 +503,17 @@
         (@all ([a A]) (@one  (@join a rel)))
         (@all ([b B]) (@one  (@join rel b)))    ; @one
     ))
-    (breaker pri
-        (break-graph (set) (set (set A B)))   ; breaks only {A,B}
-        (λ () (make-exact-break rel (map list As Bs)))
-        (λ () (break bound formulas))
+    (if (equal? A B)
+        (breaker pri
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break bound formulas))
+        )
+        (breaker pri
+            (break-graph (set) (set (set A B)))   ; breaks only {A,B}
+            (λ () (make-exact-break rel (map list As Bs)))
+            (λ () (break bound formulas))
+        )
     )
 ))
 
@@ -647,19 +675,20 @@ ADDING BREAKS
     - a = a + b   !|- a > b   
 
 TODO:
-- fix syntax for >2-arity sigs
 - strategy combinators
     - naive equiv strategies
         - can be used to combine many strats with ref/irref, even variadic ones
         - use in equiv if sum isn't defined
-    - simplify interface for strategy writers and users
+    ! simplify interface for strategy writers and users
         - change co to swap last 2 sigs, so it commutes with variadic?
         - make 'blah+ versions of each strategy that
             - are variadic
             - naively combine with ref/irref
         - export a co- and -+ lookup functions?
-- update declares with combinators
-    - ex: (declare 'linear = 'tree 'cotree)
+    ! update declares with combinators
+        - ex: (declare 'linear = 'tree 'cotree)
+! fix syntax for >2-arity sigs
+! use for sequence library
 - more strats
     - lasso
     - loop
