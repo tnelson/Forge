@@ -148,21 +148,23 @@
 
 ;; -- relations ----------------------------------------------------------------
 
-(struct node/expr/relation node/expr (name) #:transparent #:mutable
+(struct node/expr/relation node/expr (name typelist) #:transparent #:mutable
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/expr/relation arity name) self)
+     (match-define (node/expr/relation arity name typelist) self)
      (fprintf port "(relation ~a ~v)" arity name))])
 (define next-name 0)
-(define (declare-relation arity [name #f])
+(define (declare-relation typelist [name #f])
   (let ([name (if (false? name) 
                   (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))
                   name)])
-    (node/expr/relation arity name)))
+    (node/expr/relation (length typelist) name typelist)))
 (define (relation-arity rel)
   (node/expr-arity rel))
 (define (relation-name rel)
   (node/expr/relation-name rel))
+(define (relation-typelist rel)
+  (node/expr/relation-typelist rel))
 
 ;; -- constants ----------------------------------------------------------------
 

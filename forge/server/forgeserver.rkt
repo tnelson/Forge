@@ -44,7 +44,6 @@
                                      (ws-send! connection "pong")]
                                     [else
                                      (define nextmodel (get-next-model))
-                                     (display nextmodel)
                                      (ws-send! connection (model-to-XML-string (get-next-model) non-abstract-sig-names))])
                               (loop))))
                         #:port 3000))

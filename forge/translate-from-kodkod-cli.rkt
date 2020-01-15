@@ -50,17 +50,14 @@ This function just recreates the model, but using names instead of numbers.
 |#
 
 (define (translate-from-kodkod-cli model relation-names univ)
-  (display "\n")
-  (display model)
-  (display "\n")
-  (display univ)
-  (display "\n")
-  (display relation-names)
-  (define translated-model (make-hash))
-  (for ([relation-num (hash-keys model)])
-    (hash-set! translated-model
-               (list-ref relation-names (id-to-index relation-num))
-               (translate-kodkod-cli-relation univ (hash-ref model relation-num))))
-  translated-model)
+  (cond [(symbol? model)
+         model]
+        [else
+         (define translated-model (make-hash))
+         (for ([relation-num (hash-keys model)])
+           (hash-set! translated-model
+                      (list-ref relation-names (id-to-index relation-num))
+                      (translate-kodkod-cli-relation univ (hash-ref model relation-num))))
+         translated-model]))
     
 

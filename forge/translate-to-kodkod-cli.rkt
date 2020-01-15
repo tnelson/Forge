@@ -73,7 +73,7 @@
 
 (define (interpret-expr expr relations quantvars)
   (match expr
-    [(node/expr/relation arity name)
+    [(node/expr/relation arity name typelist)
      ( print-cmd-cont (format "r~a " (index-of relations expr)))]
     [(node/expr/constant arity type)
      ( print-cmd-cont (format "~a " type))]

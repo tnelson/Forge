@@ -6788,7 +6788,6 @@
                     break;
                 case 'XML:':
                     if (data.length) {
-						alert(data)
                         let instance = Instance.fromXML(data);
                         if (this._on_instance_cb)
                             this._on_instance_cb(instance);

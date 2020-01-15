@@ -35,7 +35,6 @@
 (struct int-bound (lower upper) #:transparent)
 
 (define (fact form)
-  ;(writeln form)
   (set! constraints (cons form constraints)))
 
 (provide declare-sig set-top-level-bound sigs run fact iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum) 
@@ -62,27 +61,27 @@
   (syntax-case stx ()
     [(_ name ((field r ...) ...))
      #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
+         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'name)))
          (add-sig (symbol->string 'name))
-         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (add-relation (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'field))) ...
+         (add-relation (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'field)) (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...)]
     [(_ name ((field r ...) ...) #:extends extends)
      #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
+         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'name)))
          (add-sig (symbol->string 'name))
-         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (add-relation (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'field))) ...
+         (add-relation (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'field)) (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
          (add-extension name extends)
          (add-constraint (cons (in name extends) constraints)))]
     [(_ name)
      #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
+         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'name)))
          (add-sig (symbol->string 'name)))]
     [(_ name #:extends extends)
      #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
+         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (add-extension name extends)
          (add-constraint (in name extends)))]))
@@ -91,37 +90,37 @@
   (syntax-case stx ()
     [(_ name ((field r ...) ...))
      #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
+         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'name)))
          (add-sig (symbol->string 'name))
-         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (add-relation (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'field))) ...
+         (add-relation (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'field)) (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
          (add-int-bound name (int-bound 1 1)))]
     [(_ name ((field r ...) ...) #:extends extends)
      #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
+         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'name)))
          (add-sig (symbol->string 'name))
-         (define field (declare-relation (length (list name r ...)) (symbol->string 'field))) ...
-         (add-relation (declare-relation (length (list name r ...)) (symbol->string 'field)) (list name r ...)) ...
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'field))) ...
+         (add-relation (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'field)) (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
          (add-int-bound name (int-bound 1 1))
          (add-extension name extends)
          (add-constraint (in name extends)))]
     [(_ name)
      #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
+         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (add-int-bound int-bounds-store name (int-bound 1 1)))]
     [(_ name #:extends extends)
      #'(begin
-         (define name (declare-relation 1 (symbol->string 'name)))
+         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'name)))
          (add-sig (symbol->string 'name))
          (add-int-bound name (int-bound 1 1))
          (add-extension name extends)
          (add-constraint (in name extends)))]))
 
 (define (add-sig name)
-  (set! sigs (cons (declare-relation 1 name) sigs)))
+  (set! sigs (cons (declare-relation (list name) name) sigs)))
 
 (define (set-top-level-bound b) (set! top-level-bound b))
 
@@ -269,6 +268,7 @@
 
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))
+
 
 ;;;;;;;;;;;;;;;;;
 ;;;; FORGE 2 ;;;;
@@ -536,6 +536,5 @@
 (define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
 (define-simple-macro (>= a b) (or (> a b) (int= a b)))
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
-
 
 
