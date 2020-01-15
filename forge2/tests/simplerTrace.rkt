@@ -4,6 +4,10 @@ sig Node {
     edges: Node
 }
 
+/*(declare-sig Node (
+    (edges Node)
+))*/
+
 
 
 /* stats are for exactly 5 Node * from least to most strict */
@@ -20,11 +24,11 @@ sig Node {
 /*  problem size: variables = 164, clauses = 236, state = 20 bits
     solving time (ms): total = 46, parsing = -1, translation = 45, SAT = 2 */
 
-fact edges: tree
+// fact edges: tree
 /*  problem size: variables = 185, clauses = 268, state = 25 bits
     solving time (ms): total = 52, parsing = -1, translation = 51, SAT = 2 */
 
-// fact edges: linear
+fact edges: linear
 /*  problem size: variables = 58, clauses = 63, state = 10 bits
     solving time (ms): total = 40, parsing = -1, translation = 40, SAT = 1 */
 

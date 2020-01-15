@@ -203,12 +203,10 @@
         (tupleset #:tuples int-atoms)))|#
 
   ;; symmetry breaking 
-  (define breaks (constrain-bounds total-bounds bounds-store relations-store))
-  (set! total-bounds (map break-bound breaks))
-  (for ([b breaks])
-    (define formulas (break-formulas b))
-    (unless (set-empty? formulas) (add-constraints (set->list formulas)))
-  )
+  (define-values (new-total-bounds new-formulas)
+    (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store))
+  (set! total-bounds new-total-bounds)
+  (add-constraints new-formulas)
       
   (for ([bound total-bounds])
     (cmd
@@ -282,7 +280,7 @@
 (require (for-meta 1 racket/port racket/list))
 
 (provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
-         AssertDecl BreakDecl
+         AssertDecl BreakDecl ;ArrowExpr
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -298,16 +296,22 @@
      `(node/int/constant ,datum)]
     [else datum]))
 (define-for-syntax (process-DeclList d)
-  (syntax-case d (NameList Mult SigExt DeclList Block)  
+  (define ret (syntax-case d (NameList Mult SigExt DeclList Block)  
     ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...) 
     ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns)) 
     ;                                   (syntax->datum #'((nss ...) ...)) 
     ;                                   (syntax->datum #'(qs ...))))]
+    [(DeclList (_ (NameList nss ...) (ArrowExpr ess ...)) ...)
+        (apply append (map (lambda (ns es) (map (lambda (n) `(,(string->symbol n) ,@es)) ns)) 
+                                      (syntax->datum #'((nss ...) ...)) 
+                                      (syntax->datum #'((ess ...) ...))))]
     [(DeclList (_ (NameList nss ...) es) ...) 
-       (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns)) 
+        (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns)) 
                                       (syntax->datum #'((nss ...) ...)) 
                                       (syntax->datum #'(es ...))))]
-  )
+  ))
+  ;(println ret)
+  ret
 )
 (define-for-syntax (use-ctxt stx1 stx2)
   (datum->syntax stx1 (syntax->datum stx2))
@@ -336,6 +340,8 @@
 
   (define op (if one 'declare-one-sig 'declare-sig))
   
+  ;(println decls)
+
   (define datum 
     (if qualName
       (if (= 0 (length decls))
@@ -345,7 +351,7 @@
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name)) names))
         (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-  ; (println datum)
+  ;(println datum)
   datum
 ) stx))
 
@@ -519,6 +525,14 @@
   ; (datum->syntax stx (syntax->datum ret))
   ret
 )
+
+;(define-syntax (ArrowExpr stx)
+;  (define ret (syntax-case stx ()
+;    [(_ (Block a ...)) #'(Block a ...)]
+;    [(_ BAR-TOK e) #'e]
+;  ))
+;  ret
+;)
 
 
 (define-syntax (Name stx)     (map-stx (lambda (d) (string->symbol (cadr d))) stx))
