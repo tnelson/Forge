@@ -2,11 +2,13 @@
 
 (require (only-in "../lang/ast.rkt" relation-name)
          "modelToXML.rkt" xml
-         net/sendurl net/rfc6455 web-server/http/request-structs)
+         net/sendurl net/rfc6455 web-server/http/request-structs racket/runtime-path)
 
 (provide display-model)
 
-;(define-runtime-path static-files "static")
+;(define sterling-path (resolved-module-path-name (make-resolved-module-path '../../sterling-static/index.html)))
+(define-runtime-path sterling-path "../../sterling-static/index.html")
+;(display sterling-path)
 
 #|(define (model-trim model)
   (define newmodel (make-hash))
@@ -37,14 +39,13 @@
                
                             ; The only thing we should be receiving is next-model requests, and pings.
                             (define m (ws-recv connection))
-                            (printf "RECEIVED: |~a|\n" m)
                
                             (unless (eof-object? m)
                               (cond [(equal? m "ping")
                                      (ws-send! connection "pong")]
                                     [else
                                      (define nextmodel (get-next-model))
-                                     (ws-send! connection (model-to-XML-string (get-next-model) non-abstract-sig-names))])
+                                     (ws-send! connection (model-to-XML-string nextmodel non-abstract-sig-names))])
                               (loop))))
                         #:port 3000))
   
@@ -52,7 +53,7 @@
   ; Constantly try to connect to it, from here, in a delayed loop.
   ; When successful, drop the connection and proceed to opening the browser.
   
-  (send-url/file "../../sterling-static/index.html")
-  (printf "Server running. Hit enter to stop service.\n")
+  (send-url/file sterling-path)
+  (printf "Sterling running. Hit enter to stop service.\n")
   (void (read-line))
   (stop-service))
