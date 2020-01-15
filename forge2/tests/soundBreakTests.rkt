@@ -21,9 +21,8 @@ sig A {
     --f: B
 }
 
---fact f: cofunc
-fact f: cosurj
-fact g: cosurj
-fact h: cosurj
+fact f: bij
+fact g: bij
+fact h: bij
 
 run {} for exactly 2 A, exactly 2 B, exactly 2 C

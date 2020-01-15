@@ -340,6 +340,7 @@
 
   (define op (if one 'declare-one-sig 'declare-sig))
   
+  (set! decls (for/list ([d decls]) (list (first d) (string->symbol (second (second d))))))
   ;(println decls)
 
   (define datum 
