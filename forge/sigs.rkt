@@ -37,7 +37,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum) 
+(provide declare-sig set-top-level-bound sigs run fact iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
 
 (define (add-relation rel types)
   (hash-set! relations-store rel types))
@@ -175,8 +175,8 @@
   (define allints (expt 2 bitwidth))
   (define inty-univ (append (range allints) working-universe))
   (define rels (append (hash-keys relations-store) sigs))
-  
-  (define kks (new server% 
+
+  (define kks (new server%
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
   (send kks initialize)
@@ -207,43 +207,41 @@
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))|#
 
-  ;; symmetry breaking 
-  (define breaks (constrain-bounds total-bounds bounds-store relations-store))
-  (set! total-bounds (map break-bound breaks))
-  (for ([b breaks])
-    (define formulas (break-formulas b))
-    (unless (set-empty? formulas) (add-constraints (set->list formulas)))
-    )
-      
+  ;; symmetry breaking
+  (define-values (new-total-bounds new-formulas)
+    (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store))
+  (set! total-bounds new-total-bounds)
+  (add-constraints new-formulas)
+
   (for ([bound total-bounds])
     (cmd
      [stdin]
      (declare-rel
       (r (index-of rels (bound-relation bound)))
-      
+
       (adj-bound-lower bound)
       (tupleset #:tuples (map (lambda (x) (map get-atom x))
                               (bound-upper bound))))))
-  
+
   (for ([c constraints] [i (range (length constraints))])
-    (cmd 
+    (cmd
      [stdin]
      (print-cmd-cont (format "(f~a" i))
      (interpret-formula c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
-  
+
   (define (get-next-model)
     (cmd [stdin] (solve))
     (translate-from-kodkod-cli (read-solution stdout) rels inty-univ))
-  
+
   (define non-abstract-sig-names
     (map
      (lambda (x) (relation-name x))
      (filter-not
       (lambda (y) (member y (hash-values extensions-store)))
       sigs)))
-  
+
   (display-model non-abstract-sig-names name get-next-model))
 
 (define-syntax (run stx)
@@ -279,7 +277,7 @@
 ;;;; FORGE 2 ;;;;
 ;;;;;;;;;;;;;;;;;
 
-; (define-syntax (QQQQ stx) (map-stx (lambda (d) 
+; (define-syntax (QQQQ stx) (map-stx (lambda (d)
 ;   d
 ; ) stx))
 
@@ -287,7 +285,7 @@
 (require (for-meta 1 racket/port racket/list))
 
 (provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
-         AssertDecl BreakDecl
+         AssertDecl BreakDecl ;ArrowExpr
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -303,27 +301,33 @@
      `(node/int/constant ,datum)]
     [else datum]))
 (define-for-syntax (process-DeclList d)
-  (syntax-case d (NameList Mult SigExt DeclList Block)  
-    ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...) 
-    ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns)) 
-    ;                                   (syntax->datum #'((nss ...) ...)) 
+  (define ret (syntax-case d (NameList Mult SigExt DeclList Block)
+    ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
+    ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
+    ;                                   (syntax->datum #'((nss ...) ...))
     ;                                   (syntax->datum #'(qs ...))))]
-    [(DeclList (_ (NameList nss ...) es) ...) 
-     (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns)) 
-                        (syntax->datum #'((nss ...) ...)) 
-                        (syntax->datum #'(es ...))))]
-    )
-  )
+    [(DeclList (_ (NameList nss ...) (ArrowExpr ess ...)) ...)
+        (apply append (map (lambda (ns es) (map (lambda (n) `(,(string->symbol n) ,@es)) ns))
+                                      (syntax->datum #'((nss ...) ...))
+                                      (syntax->datum #'((ess ...) ...))))]
+    [(DeclList (_ (NameList nss ...) es) ...)
+        (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns))
+                                      (syntax->datum #'((nss ...) ...))
+                                      (syntax->datum #'(es ...))))]
+  ))
+  ;(println ret)
+  ret
+)
 (define-for-syntax (use-ctxt stx1 stx2)
   (datum->syntax stx1 (syntax->datum stx2))
   )
 
 (define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
 (define-syntax (SexprDecl stx) (map-stx cadr stx))
-(define-syntax (Sexpr stx) (map-stx (lambda (d) 
-                                      (replace-ints (cons 'begin (port->list read (open-input-string (cadr d))))) 
+(define-syntax (Sexpr stx) (map-stx (lambda (d)
+                                      (replace-ints (cons 'begin (port->list read (open-input-string (cadr d)))))
                                       ) stx))
-(define-syntax (SigDecl stx) (map-stx (lambda (d) 
+(define-syntax (SigDecl stx) (map-stx (lambda (d)
                                         (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
                                         (for ([arg (cdr d)])
                                           (syntax-case arg (NameList Mult SigExt DeclList Block)
@@ -340,21 +344,24 @@
                                         (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
 
                                         (define op (if one 'declare-one-sig 'declare-sig))
-  
-                                        (define datum 
-                                          (if qualName
-                                              (if (= 0 (length decls))
-                                                  (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
-                                                  (raise "can't handle both decl fields and extension")
-                                                  )
-                                              (if (= 0 (length decls))
-                                                  (cons 'begin (map (lambda (name) `(,op ,name)) names))
-                                                  (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-                                        ; (println datum)
-                                        datum
-                                        ) stx))
 
-(define-syntax (CmdDecl stx) (map-stx (lambda (d) 
+  (set! decls (for/list ([d decls]) (list (first d) (string->symbol (second (second d))))))
+  ;(println decls)
+
+  (define datum
+    (if qualName
+      (if (= 0 (length decls))
+        (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
+        (raise "can't handle both decl fields and extension")
+      )
+      (if (= 0 (length decls))
+        (cons 'begin (map (lambda (name) `(,op ,name)) names))
+        (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
+  ;(println datum)
+  datum
+) stx))
+
+(define-syntax (CmdDecl stx) (map-stx (lambda (d)
                                         (define-values (name cmd arg scope block) (values #f #f #f '() #f))
                                         (define (make-typescope x)
                                           (syntax-case x (Typescope)
@@ -385,37 +392,37 @@
                                         ) stx))
 
 
-(define-syntax (PredDecl stx) (map-stx (lambda (d) 
+(define-syntax (PredDecl stx) (map-stx (lambda (d)
                                          (define-values (name paras block) (values #f '() '()))
                                          ; (println d)
                                          (for ([arg (cdr d)])
                                            (syntax-case arg (Name ParaDecls Decl NameList Block)
                                              [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
-                                             [(ParaDecls (Decl (NameList ps) _ ...) ...) 
+                                             [(ParaDecls (Decl (NameList ps) _ ...) ...)
                                               (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
                                              [(Block bs ...) (set! block #'(bs ...))]
                                              [_ #f]
                                              )
                                            )
-                                         (define datum (if (empty? paras) 
+                                         (define datum (if (empty? paras)
                                                            `(pred ,name (and ,@(syntax->datum block)))
                                                            `(pred (,name ,@paras) (and ,@(syntax->datum block)))))
                                          ; (println datum)
                                          datum
                                          ) stx))
-(define-syntax (AssertDecl stx) (map-stx (lambda (d) 
+(define-syntax (AssertDecl stx) (map-stx (lambda (d)
                                            (define-values (name paras block) (values #f '() '()))
                                            ; (println d)
                                            (for ([arg (cdr d)])
                                              (syntax-case arg (Name ParaDecls Decl NameList Block)
                                                [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
-                                               [(ParaDecls (Decl (NameList ps) _ ...) ...) 
+                                               [(ParaDecls (Decl (NameList ps) _ ...) ...)
                                                 (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
                                                [(Block bs ...) (set! block #'(bs ...))]
                                                [_ #f]
                                                )
                                              )
-                                           (define datum (if (empty? paras) 
+                                           (define datum (if (empty? paras)
                                                              `(assert ,name (and ,@(syntax->datum block)))
                                                              `(assert (,name ,@paras) (and ,@(syntax->datum block)))))
                                            ; (println datum)
@@ -443,70 +450,70 @@
 
 (define-syntax (Expr stx)
   ; (cadr d)
-  (define (get-bounds ns ts) 
-    (apply append (map (lambda (ns t) (map (lambda (n) (list (string->symbol n) t)) ns)) 
-                       ns 
+  (define (get-bounds ns ts)
+    (apply append (map (lambda (ns t) (map (lambda (n) (list (string->symbol n) t)) ns))
+                       ns
                        ts)))
   (define ret
     (syntax-case stx (Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
                              Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17
                              CompareOp ExprList Quant DeclList NameList Expr QualName)
       ; [(_ "let" (LetDeclList _ ...) (BlockOrBar _ ...)) #f]         ;; TODO:
-      [(_ (Quant q) (DeclList (_ (NameList nss ...) qs) ...) e)       
-       (datum->syntax stx 
+      [(_ (Quant q) (DeclList (_ (NameList nss ...) qs) ...) e)
+       (datum->syntax stx
                       `(,(string->symbol (syntax->datum #'q))
-                        ,(apply append (map (lambda (ns q) (map (lambda (n) `[,(string->symbol n) ,q]) ns)) 
-                                            (syntax->datum #'((nss ...) ...)) 
-                                            (syntax->datum #'(qs ...)))) 
+                        ,(apply append (map (lambda (ns q) (map (lambda (n) `[,(string->symbol n) ,q]) ns))
+                                            (syntax->datum #'((nss ...) ...))
+                                            (syntax->datum #'(qs ...))))
                         ,#'e))]
 
       ;; Note: the QQQ-TOKs here are just match vars but offer clarity and mirror reader
-      [(_ (Expr1 a ...) DISJ-TOK (Expr2 b ...)) 
+      [(_ (Expr1 a ...) DISJ-TOK (Expr2 b ...))
        #'(or (Expr a ...) (Expr b ...))]
-      [(_ (Expr2 a ...) IFF-TOK (Expr3 b ...)) 
+      [(_ (Expr2 a ...) IFF-TOK (Expr3 b ...))
        #'(iff (Expr a ...) (Expr b ...))]
-      [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...) ELSE-TOK (Expr3 c ...)) 
+      [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...) ELSE-TOK (Expr3 c ...))
        #'(ifte (Expr a ...) (Expr b ...) (Expr c ...))]
-      [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...)) 
+      [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...))
        #'(=> (Expr a ...) (Expr b ...))]
-      [(_ (Expr4 a ...) CONJ-TOK (Expr5 b ...)) 
+      [(_ (Expr4 a ...) CONJ-TOK (Expr5 b ...))
        #'(and (Expr a ...) (Expr b ...))]
       [(_ NEG-TOK (Expr5 a ...)) #'(not (Expr a ...))]
-      [(_ (Expr6 a ...) NEG-TOK (CompareOp op) (Expr7 b ...)) 
+      [(_ (Expr6 a ...) NEG-TOK (CompareOp op) (Expr7 b ...))
        #'(not (Expr (Expr6 a ...) (CompareOp op) (Expr7 b ...)))]
-      [(_ (Expr6 a ...) (CompareOp "=") (Expr7 b ...)) 
+      [(_ (Expr6 a ...) (CompareOp "=") (Expr7 b ...))
        #'(= (Expr a ...) (Expr b ...))]
-      ; [(_ (Expr6 a ...) (CompareOp "==") (Expr7 b ...)) 
+      ; [(_ (Expr6 a ...) (CompareOp "==") (Expr7 b ...))
       ;   #'(= (Expr a ...) (Expr b ...))]
-      [(_ (Expr6 a ...) (CompareOp op) (Expr7 b ...)) 
+      [(_ (Expr6 a ...) (CompareOp op) (Expr7 b ...))
        (datum->syntax stx `(,(string->symbol (syntax->datum #'op)) ,#'(Expr a ...) ,#'(Expr b ...)))]
-      [(_ quant (Expr8 a ...)) 
+      [(_ quant (Expr8 a ...))
        (datum->syntax stx `(,(string->symbol (syntax->datum #'quant)) ,#'(Expr a ...)))]
-      [(_ (Expr8 a ...) "+" (Expr9 b ...)) 
+      [(_ (Expr8 a ...) "+" (Expr9 b ...))
        #'(+ (Expr a ...) (Expr b ...))]
-      [(_ (Expr8 a ...) "-" (Expr9 b ...)) 
+      [(_ (Expr8 a ...) "-" (Expr9 b ...))
        #'(- (Expr a ...) (Expr b ...))]
-      [(_ HASH-TOK (Expr9 a ...)) 
+      [(_ HASH-TOK (Expr9 a ...))
        #'(card (Expr a ...))]
-      [(_ (Expr10 a ...) PPLUS-TOK (Expr11 b ...)) 
+      [(_ (Expr10 a ...) PPLUS-TOK (Expr11 b ...))
        #'(++ (Expr a ...) (Expr b ...))]
-      [(_ (Expr11 a ...) AMP-TOK (Expr12 b ...)) 
+      [(_ (Expr11 a ...) AMP-TOK (Expr12 b ...))
        #'(& (Expr a ...) (Expr b ...))]
       [(_ (Expr13 a ...) (ArrowOp "*") (Expr12 b ...))
        #'(-> (Expr a ...) (Expr b ...))]
       [(_ (Expr13 a ...) (ArrowOp _ ...) (Expr12 b ...))  ;; TODO: handle multiplicities
        #'(-> (Expr a ...) (Expr b ...))]
-      [(_ (Expr13 a ...) "<:" (Expr14 b ...)) 
+      [(_ (Expr13 a ...) "<:" (Expr14 b ...))
        #'(<: (Expr a ...) (Expr b ...))]
-      [(_ (Expr13 a ...) ":>" (Expr14 b ...)) 
+      [(_ (Expr13 a ...) ":>" (Expr14 b ...))
        #'(<: (Expr a ...) (Expr b ...))]
-      ; [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList) RIGHT-SQUARE-TOK) 
+      ; [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList) RIGHT-SQUARE-TOK)
       ;   #'(Expr a ...)]
-      ; [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b c ...) RIGHT-SQUARE-TOK) 
+      ; [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b c ...) RIGHT-SQUARE-TOK)
       ;   #'(Expr (Expr14 (join b (Expr a ...))) LEFT-SQUARE-TOK (ExprList c ...) RIGHT-SQUARE-TOK)]
-      [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b ...) RIGHT-SQUARE-TOK) 
+      [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b ...) RIGHT-SQUARE-TOK)
        #'((Expr a ...) b ...)]
-      [(_ (Expr15 a ...) DOT-TOK (Expr16 b ...)) 
+      [(_ (Expr15 a ...) DOT-TOK (Expr16 b ...))
        #'(join (Expr a ...) (Expr b ...))]
       [(_ "~" (Expr16 a ...))
        #'(~ (Expr a ...))]
@@ -525,11 +532,19 @@
   ret
   )
 
+;(define-syntax (ArrowExpr stx)
+;  (define ret (syntax-case stx ()
+;    [(_ (Block a ...)) #'(Block a ...)]
+;    [(_ BAR-TOK e) #'e]
+;  ))
+;  ret
+;)
+
 
 (define-syntax (Name stx)     (map-stx (lambda (d) (string->symbol (cadr d))) stx))
 (define-syntax (QualName stx) (map-stx (lambda (d) (string->symbol (cadr d))) stx))
 (define-syntax (Number stx)   (map-stx (lambda (d) (string->number (cadr d))) stx))
-(define-syntax (Const stx)    
+(define-syntax (Const stx)
   (syntax-case stx ()
     [(_ (Number n)) #'(node/int/constant (Number n))]
     [(_ "-" (Number n)) #'(node/int/constant (* -1 (Number n)))]
@@ -541,5 +556,3 @@
 (define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
 (define-simple-macro (>= a b) (or (> a b) (int= a b)))
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
-
-
