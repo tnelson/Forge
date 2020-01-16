@@ -38,8 +38,8 @@
   ; Maybe need to unfold one more time, just getting first element.
   (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (hash-ref modelhash sig-rel))))
 
-(define (sig-to-XML-string modelhash sig-rel sigID)
-  (string-append "<sig label=\"" (relation-name sig-rel) "\" ID=\"" (number->string sigID) "\" parentID=\"2\">\n"
+(define (sig-to-XML-string modelhash sig-rel sigID ID-hash)
+  (string-append "<sig label=\"" (relation-name sig-rel) "\" ID=\"" (number->string sigID) "\" parentID=\"" (number->string (hash-ref ID-hash (relation-parent sig-rel))) "\">\n"
                  (sig-contents-to-XML-string modelhash sig-rel)
                  "\n</sig>\n\n"))
 
@@ -69,6 +69,12 @@
                  
 
 (define (model-to-XML-string modelhash non-abstract-sig-names)
+  ; Ah figured it out. Abstract sigs can only have atoms not belonging to concrete child sigs.
+  ; Which means, every atom should appear only once.
+  ; How do I deal with that??? recursive shit probably.
+  ; Go through the list, build up list of atoms, remove them as u go.
+  ; OK 
+
   (define prologue #<<here-string-delimiter
 XML:
 <alloy builddate="2018-04-08T17:20:06.754Z">
@@ -90,10 +96,15 @@ here-string-delimiter
     )
   (cond [(equal? modelhash 'unsat)
          (string-append prologue
-                        "\n<sig label=\" \" ID=\"4\" parentID=\"2\"> <atom label=\"UNSAT\"/> </sig>\n"
-                        "<field label=\" \" ID=\"5\" parentID=\"4\">\n"
-                        "<tuple> <atom label=\"UNSAT\"/> </tuple>"
-                        "<types> <type ID=\"4\"/> </types>"
+                        "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
+                        "<atom label=\"UNSAT0\"/><atom label=\"UNSAT1\"/><atom label=\"UNSAT2\"/><atom label=\"UNSAT3\"/>"
+                        "</sig>\n"
+                        "<field label=\"UNSAT\" ID=\"5\" parentID=\"4\">\n"
+                        "<tuple> <atom label=\"UNSAT0\"/> <atom label=\"UNSAT0\"/> <atom label=\"UNSAT2\"/> </tuple>\n"
+                        "<tuple> <atom label=\"UNSAT0\"/> <atom label=\"UNSAT1\"/> <atom label=\"UNSAT2\"/> </tuple>\n"
+                        "<tuple> <atom label=\"UNSAT1\"/> <atom label=\"UNSAT2\"/> <atom label=\"UNSAT3\"/> </tuple>\n"
+                        "<tuple> <atom label=\"UNSAT3\"/> <atom label=\"UNSAT3\"/> <atom label=\"UNSAT3\"/> </tuple>\n"
+                        "<types> <type ID=\"4\"/>  <type ID=\"4\"/>  <type ID=\"4\"/> </types>"
                         "</field>"
                         "\n</instance>\n</alloy>")]
         [(equal? modelhash 'no-more-sat)
@@ -102,9 +113,26 @@ here-string-delimiter
                         "\n</instance>\n</alloy>")]
         [else
 
-         (define sigs (filter
-                       (λ (key) (equal? (relation-arity key) 1))
-                       (hash-keys modelhash)))
+         (define sigs-unsorted (filter
+                                (λ (key) (equal? (relation-arity key) 1))
+                                (hash-keys modelhash)))
+
+         ; Sort with children first.
+
+         ; Gotta pick available port
+         ; kill old server on 3000
+         
+         (define sigs-reversed (sort sigs-unsorted (λ (x y)
+                                            (equal? (relation-parent x) (relation-name y)))))
+
+         (define atom-tuples (mutable-set))
+         (define cleaned-model (make-hash (map (λ (x)
+                                      (begin0
+                                        (cons x (set-subtract (hash-ref modelhash x) (set->list atom-tuples)))
+                                        (set-union! atom-tuples (list->mutable-set (hash-ref modelhash x)))))
+                                      
+                                    sigs-reversed)))
+         (define sigs (reverse sigs-reversed))
   
          (define fields (filter-not
                          (λ (key) (equal? (relation-arity key) 1))
@@ -113,11 +141,17 @@ here-string-delimiter
          (define sigs# (length sigs))
 
          (define ID-hash (make-hash))
+         (hash-set! ID-hash "univ" 2)
+         (hash-set! ID-hash "Int" 0)
+         (hash-set! ID-hash "seq/Int" 1)
+         (hash-set! ID-hash "String" 3)
+
+         (display sigs)
 
          (define sig-strings (apply string-append (map
                                                    (λ (sig id)
                                                      (hash-set! ID-hash (relation-name sig) id)
-                                                     (sig-to-XML-string modelhash sig id))
+                                                     (sig-to-XML-string cleaned-model sig id ID-hash))
                                                    sigs
                                                    (range 4 (+ 4 sigs#)))))
   
