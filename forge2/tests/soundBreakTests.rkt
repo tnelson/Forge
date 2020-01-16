@@ -13,12 +13,12 @@ Forge should find two instances, corresponding respectively to:
     - h != f.g
 */
 
-sig C {}
-sig B { g: C }
 sig A {
     f: B,
     h: C
 }
+sig B { g: C }
+sig C {}
 
 fact f: bij
 fact g: bij
