@@ -5,7 +5,7 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
-(provide break quote begin println)
+(provide break instance quote begin println)
 
 ;(require (only-in forged-ocelot relation-name))
 
@@ -290,7 +290,7 @@
 ; ) stx))
 
 (require syntax/parse/define)
-(require (for-meta 1 racket/port racket/list (except-in xml attribute)))
+(require (for-meta 1 racket/port racket/list))
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl ;ArrowExpr
@@ -452,6 +452,7 @@
   )
 
 (define-syntax-rule (BreakDecl x ys ...) (break x (string->symbol ys) ...))
+(define-syntax-rule (InstanceDecl i) (instance i))
 
 ;;;;
 
@@ -546,13 +547,6 @@
 ;  ))
 ;  ret
 ;)
-
-
-(define-syntax (InstanceDecl stx) (map-stx (lambda (d) 
-  (define instance (read-xml (open-input-string (cadr d))))
-  (display-xml instance)
-) stx))
-
 
 (define-syntax (Name stx)     (map-stx (lambda (d) (string->symbol (cadr d))) stx))
 (define-syntax (QualName stx) (map-stx (lambda (d) (string->symbol (cadr d))) stx))

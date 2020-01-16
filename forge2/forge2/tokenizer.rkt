@@ -21,7 +21,7 @@
         (token+ 'SEXPR-TOK "/*$" lexeme "*/" lexeme-start lexeme-end)]
 
        ;; instances
-       [(from/to "<alloy" "</alloy>")
+       [(from/to "<instance" "</instance>")
         (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
         
        ;; comments
