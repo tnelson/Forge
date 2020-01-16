@@ -20,6 +20,10 @@
        [(from/to "/*$" "*/")
         (token+ 'SEXPR-TOK "/*$" lexeme "*/" lexeme-start lexeme-end)]
 
+       ;; instances
+       [(from/to "<alloy" "</alloy>")
+        (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+        
        ;; comments
        [(or (from/to "--" "\n") (from/to "//" "\n") (from/to "/*" "*/"))
         (next-token)]

@@ -2,7 +2,7 @@
 
 (require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
 (require predicates)
-(require data/union-find)
+;(require data/union-find)
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 

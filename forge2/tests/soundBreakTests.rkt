@@ -1,7 +1,7 @@
 #lang forge
 
 /*
-The 'surj symmetry-breaking strategy on X->Y breaks neither X nor Y.
+The 'bij symmetry-breaking strategy on X->Y breaks neither X nor Y.
 In this case:
     - f: A->B
     - g: B->C
@@ -18,7 +18,6 @@ sig B { g: C }
 sig A {
     f: B,
     h: C
-    --f: B
 }
 
 fact f: bij

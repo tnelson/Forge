@@ -5,7 +5,7 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
-(provide break quote)
+(provide break quote begin println)
 
 ;(require (only-in forged-ocelot relation-name))
 
@@ -277,10 +277,10 @@
 ; ) stx))
 
 (require syntax/parse/define)
-(require (for-meta 1 racket/port racket/list))
+(require (for-meta 1 racket/port racket/list (except-in xml attribute)))
 
-(provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
-         AssertDecl BreakDecl ;ArrowExpr
+(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
+         AssertDecl BreakDecl InstanceDecl ;ArrowExpr
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -340,7 +340,7 @@
 
   (define op (if one 'declare-one-sig 'declare-sig))
   
-  (set! decls (for/list ([d decls]) (list (first d) (string->symbol (second (second d))))))
+  (set! decls (for/list ([d decls]) (cons (car d) (map string->symbol (cdr (second d))))))
   ;(println decls)
 
   (define datum 
@@ -534,6 +534,12 @@
 ;  ))
 ;  ret
 ;)
+
+
+(define-syntax (InstanceDecl stx) (map-stx (lambda (d) 
+  (define instance (read-xml (open-input-string (cadr d))))
+  (display-xml instance)
+) stx))
 
 
 (define-syntax (Name stx)     (map-stx (lambda (d) (string->symbol (cadr d))) stx))
