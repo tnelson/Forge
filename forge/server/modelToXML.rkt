@@ -99,13 +99,11 @@ here-string-delimiter
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"UNSAT0\"/><atom label=\"UNSAT1\"/><atom label=\"UNSAT2\"/><atom label=\"UNSAT3\"/>"
                         "</sig>\n"
-                        "<field label=\"UNSAT\" ID=\"5\" parentID=\"4\">\n"
-                        "<tuple> <atom label=\"UNSAT0\"/> <atom label=\"UNSAT0\"/> <atom label=\"UNSAT2\"/> </tuple>\n"
-                        "<tuple> <atom label=\"UNSAT0\"/> <atom label=\"UNSAT1\"/> <atom label=\"UNSAT2\"/> </tuple>\n"
-                        "<tuple> <atom label=\"UNSAT1\"/> <atom label=\"UNSAT2\"/> <atom label=\"UNSAT3\"/> </tuple>\n"
-                        "<tuple> <atom label=\"UNSAT3\"/> <atom label=\"UNSAT3\"/> <atom label=\"UNSAT3\"/> </tuple>\n"
-                        "<types> <type ID=\"4\"/>  <type ID=\"4\"/>  <type ID=\"4\"/> </types>"
-                        "</field>"
+         (apply string-append (for/list ([i 20]) (string-append
+                        "<field label=\"r"(~v i)"\" ID=\""(~v (+ 5 i))"\" parentID=\"4\">\n"
+                        "<tuple> <atom label=\"UNSAT0\"/> <atom label=\"UNSAT0\"/> </tuple>\n"
+                        "<types> <type ID=\"4\"/>  <type ID=\"4\"/> </types>"
+                        "</field>")))
                         "\n</instance>\n</alloy>")]
         [(equal? modelhash 'no-more-sat)
          (string-append prologue
