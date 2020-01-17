@@ -36,4 +36,14 @@ fact r: func
     </field>
 </instance>
 
-run {} for exactly 10 A
+sig Query { 
+    self_looped: A,
+    leaf: A
+}
+pred query { 
+    Query.self_looped = (r & iden).A 
+    Query.leaf = A - A.r
+}
+    
+run {query} for exactly 10 A, exactly 1 Query
+

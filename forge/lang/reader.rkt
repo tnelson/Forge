@@ -2,7 +2,8 @@
 
 (require "ast.rkt" racket/runtime-path)
 
-(require "../../forge2/forge2/tokenizer.rkt" "../../forge2/forge2/parser.rkt")
+(require "alloy-syntax/tokenizer.rkt" "alloy-syntax/parser.rkt")
+(require (prefix-in @ racket))
 
 (require macro-debugger/syntax-browser)
 
@@ -25,7 +26,8 @@
 (define (is-sig-decl datum) (equal? (car datum) 'SigDecl)) 
 
 (define (pull-sigs datum)
-  (map (lambda (x) (string->symbol (car (cdr (second x)))))
+  (map (lambda (x)
+       (cons (string->symbol (car (cdr (second x)))) (if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)))
        (begin
          #|(println (filter is-sig-decl datum))|# (filter is-sig-decl datum))))
 
@@ -34,15 +36,16 @@
   ; (define src-datum (port->list read port))
   (define parse-tree (parse path (make-tokenizer port)))
 
-  
   (define src-datum (cdr (syntax->datum parse-tree)))
-  ; (println src-datum)
+  ;(println src-datum)
   ; don't use format-datums, because it's awful with quotes.
   (define transformed (replace-ints src-datum))
 
   ;(println transformed)
 
-  (define sig-inits (map (lambda (x) `(pre-declare-sig ,x)) (pull-sigs transformed)))
+  ;(println (pull-sigs transformed))
+
+  (define sig-inits (map (lambda (x) `(pre-declare-sig ,(car x) #:extends ,(cdr x))) (pull-sigs transformed)))
 
   ; Insert the filename of the running file into itself, to be shown in visualizer later,
   ; and used to extract source text.

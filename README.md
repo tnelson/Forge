@@ -16,6 +16,14 @@ $ cd [Path-To-Repo]/forge
 $ raco pkg install
 ```
 
+## Backwards Compatibility
+
+- You can wrap the entirety of a forge file with the old syntax in `/*$ ...decls... */` to get the exact same behavior. I call this escaping to s-expressions.
+- This can be used to wrap:
+    - A sequence of Decls like `/*$ (declare-sig ...) (run ...) */`
+    - A single expr like `pred blah { /*$(some foo)*/ }`
+- Can also use `//$ ...` or `--$ ...` to escape a single line.
+
 ## Language Goals (PLEASE EDIT+REORDER)
 
 Forge aims to make formal methods more teachable by meeting the following design goals:
