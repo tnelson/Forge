@@ -14,6 +14,23 @@
          (list (list "}"
                      (lambda (text event)
                        (send text insert #\} (send text get-start-position))
-                       (send text tabify))))]
+                       (send text tabify)))
+               (list "c:/"
+                     (lambda (text event)
+                       (define start-pos (send text get-start-position))
+                       (define end-pos (send text get-end-position))
+                       (define first-line (send text position-line start-pos))
+                       (define first-line-start-pos (send text line-start-position first-line))
+                       (define first-line-prefix
+                         (string-join (map (λ (pos) (string (send text get-character pos)))
+                                           (range first-line-start-pos (+ first-line-start-pos 2)))
+                                      ""))
+                       (cond
+                         ; uncomment
+                         [(or (equal? (substring first-line-prefix 0 2) "--")
+                              (equal?(substring first-line-prefix 0 2) "//"))
+                          (send text delete first-line-start-pos (+ first-line-start-pos 2))]
+                         ; comment
+                         [else (send text insert "--" (send text line-start-position first-line))]))))]
         [else default]))
     handle-query))

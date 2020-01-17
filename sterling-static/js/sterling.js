@@ -6730,7 +6730,7 @@
 
 			// CHANGED
             //this._ws = new WebSocket('ws://' + location.hostname + ':' + location.port + '/alloy');
-			this._ws = new WebSocket('ws://localhost:3000');
+			this._ws = new WebSocket('ws://localhost:' + window.location.search.slice(1));
 
             this._ws.onopen = this._on_open.bind(this);
             this._ws.onclose = this._on_close.bind(this);

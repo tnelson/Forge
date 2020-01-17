@@ -2,58 +2,52 @@
 
 (require (only-in "../lang/ast.rkt" relation-name)
          "modelToXML.rkt" xml
-         net/sendurl net/rfc6455 web-server/http/request-structs racket/runtime-path)
+         net/sendurl "../../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
+         racket/async-channel)
 
 (provide display-model)
 
-;(define sterling-path (resolved-module-path-name (make-resolved-module-path '../../sterling-static/index.html)))
 (define-runtime-path sterling-path "../../sterling-static/index.html")
-;(display sterling-path)
-
-#|(define (model-trim model)
-  (define newmodel (make-hash))
-  (if (hash? model)
-      (begin
-        (hash-map model (lambda (k v) (if
-                                       (not (equal? #\$ (string-ref (relation-name k) 0)))
-                                       (begin
-                                         (hash-set! newmodel k v)
-                                         v)
-                                       v)))
-        newmodel)
-      model))|#
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model non-abstract-sig-names name get-next-model)
+(define (display-model name get-next-model)
 
-  ; Start the websocket server. ws-serve returns the function that stops the server.
-  (define stop-service (ws-serve
-                        
-                        ; This is the connection handler function, it has total control over the connection
-                        ; from the time that conn-headers finishes responding to the connection request, to the time
-                        ; the connection closes. The server generates a new handler thread for this function
-                        ; every time a connection is initiated.
-                        (λ (connection _)
-                          (let loop ()
-               
-                            ; The only thing we should be receiving is next-model requests, and pings.
-                            (define m (ws-recv connection))
-               
-                            (unless (eof-object? m)
-                              (cond [(equal? m "ping")
-                                     (ws-send! connection "pong")]
-                                    [else
-                                     (define nextmodel (get-next-model))
-                                     (ws-send! connection (model-to-XML-string nextmodel non-abstract-sig-names))])
-                              (loop))))
-                        #:port 3000))
+  (define model (get-next-model))
+  (define chan (make-async-channel))
   
-  ; Possible way to wait for the server to be properly set up:
-  ; Constantly try to connect to it, from here, in a delayed loop.
-  ; When successful, drop the connection and proceed to opening the browser.
-  
-  (send-url/file sterling-path)
-  (printf "Sterling running. Hit enter to stop service.\n")
-  (void (read-line))
-  (stop-service))
+  (define stop-service
+    (ws-serve
+     ; This is the connection handler function, it has total control over the connection
+     ; from the time that conn-headers finishes responding to the connection request, to the time
+     ; the connection closes. The server generates a new handler thread for this function
+     ; every time a connection is initiated.
+     (λ (connection _)
+       (let loop ()
+               
+         ; The only thing we should be receiving is next-model requests, current requests (from a new connection), and pings.
+         (define m (ws-recv connection))
+               
+         (unless (eof-object? m)
+           (displayln m)
+           (cond [(equal? m "ping")
+                  (ws-send! connection "pong")]
+                 [(equal? m "current")
+                  (ws-send! connection (model-to-XML-string model))]
+                 [(equal? m "next")
+                  (set! model (get-next-model))
+                  (ws-send! connection (model-to-XML-string model))]
+                 [else
+                  (ws-send! "BAD REQUEST")])
+           (loop))))
+     #:port 0 #:confirmation-channel chan))
+
+  (define port (async-channel-get chan))
+
+  (cond [(string? port)
+         (displayln "NO PORTS AVAILABLE!!")]
+        [else
+         (send-url/file sterling-path #:query (number->string port))
+         (printf "Sterling running. Hit enter to stop service.\n")
+         (void (read-char))
+         (stop-service)]))
