@@ -1,6 +1,10 @@
 #lang forge
 
 /*$
+(pre-declare-sig abstract-cat)
+(pre-declare-sig kitty #:extends abstract-cat)
+(pre-declare-sig kittyBacon #:extends abstract-cat)
+
 (declare-sig abstract-cat ((friends abstract-cat)))
 
 (declare-sig kitty #:extends abstract-cat)

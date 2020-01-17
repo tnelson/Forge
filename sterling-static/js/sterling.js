@@ -6530,10 +6530,13 @@
             instance._signatures = Array.from(signatures.values());
             instance._fields = Array.from(fields.values());
             instance._skolem = Array.from(skolem.values());
+
+            console.log(doc.selectAll('source'));
             // Save model source
             doc.selectAll('source')
                 .each(function () {
                 let s = select(this), f = s.attr('filename'), c = s.attr('content');
+                console.log(c);
                 instance._sources.set(f, c);
             });
             return instance;

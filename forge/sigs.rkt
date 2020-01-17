@@ -5,7 +5,11 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
-(provide break instance quote begin println)
+(provide break instance quote begin println filepath set-path!)
+
+(define filepath #f)
+(define (set-path! path)
+  (set! filepath path))
 
 ;(require (only-in forged-ocelot relation-name))
 
@@ -181,7 +185,7 @@
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
 
-(define (run-spec name hashy)
+(define (run-spec hashy name command filepath)
   (append-run name)
   (define sig-bounds (bind-sigs hashy))
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
@@ -248,28 +252,29 @@
     (cmd [stdin] (solve))
     (translate-from-kodkod-cli (read-solution stdout) rels inty-univ))
 
-  (display-model name get-next-model))
+  (display-model get-next-model name command filepath bitwidth))
 
 (define-syntax (run stx)
+  (define command (format "~a" stx))
   (syntax-case stx ()
     [(_ name ((sig lower upper) ...))
-     #'(begin
+     #`(begin
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
-         (run-spec name hashy))]
+         (run-spec hashy name #,command filepath))]
     [(_ name (preds ...) ((sig lower upper) ...))
-     #'(begin
+     #`(begin
          (define hashy (make-hash))
          (hash-set! hashy sig (int-bound lower upper)) ...
          (add-constraint preds) ...
-         (run-spec name hashy))]
+         (run-spec hashy name #,command filepath))]
     [(_ name)
-     #'(begin
-         (run-spec name (make-hash)))]
+     #`(begin
+         (run-spec (make-hash) name #,command filepath))]
     [(_ name (preds ...))
-     #'(begin
+     #`(begin
          (add-constraint preds) ...
-         (run-spec name (make-hash)))]
+         (run-spec (make-hash) name #,command filepath))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
     [(_ pred) #'(error "Run statements require a unique name specification")]
     [(_) #'(error "Run statements require a unique name specification")]
