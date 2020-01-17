@@ -1,7 +1,7 @@
 #lang forge
 
 /*
-The 'surj symmetry-breaking strategy on X->Y breaks neither X nor Y.
+The 'bij symmetry-breaking strategy on X->Y breaks neither X nor Y.
 In this case:
     - f: A->B
     - g: B->C
@@ -13,13 +13,12 @@ Forge should find two instances, corresponding respectively to:
     - h != f.g
 */
 
-sig C {}
-sig B { g: C }
 sig A {
     f: B,
     h: C
-    --f: B
 }
+sig B { g: C }
+sig C {}
 
 fact f: bij
 fact g: bij

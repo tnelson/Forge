@@ -2,16 +2,17 @@
 
 (require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
 (require predicates)
-(require data/union-find)
+;(require data/union-find)
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
+(provide (rename-out [add-instance instance]))
 
 ;;;;;;;;;;;;;;
 ;;;; util ;;;;
 ;;;;;;;;;;;;;;
 
 (define-syntax-rule (cons! xs x) (set! xs (cons x xs)))
-(define-syntax-rule (add1! x)    (set! x  (add1 x)))
+(define-syntax-rule (add1! x)    (begin (set! x  (add1 x)) x))
 
 ;;;;;;;;;;;;;;;;
 ;;;; breaks ;;;;
@@ -19,6 +20,7 @@
 
 (struct sbound (relation lower upper) #:transparent)
 (define (make-sbound relation lower [upper false]) (sbound relation lower upper))
+(define (make-exact-sbound relation s) (sbound relation s s))
 (struct break (sbound formulas) #:transparent)
 (define (make-break sbound [formulas (set)]) (break sbound formulas))
 
@@ -76,6 +78,8 @@
 ; a ∈ downsets[b] => a < b
 (define downsets (make-hash))
 
+; list of partial instance breakers
+(define instances (list))
 ; a ∈ rel-breaks[r] => "user wants to break r with a"
 (define rel-breaks (make-hash))
 ; rel-break-pri[r][a] = i => "breaking r with a has priority i"
@@ -159,10 +163,13 @@
     (for ([break breaks]) 
         (unless (hash-has-key? strategies break) (error "break not implemented:" break))
         (hash-add! rel-breaks rel break)
-        (set! pri_c (add1 pri_c))
-        (hash-add-set! rel-break-pri rel break pri_c)))
+        (hash-add-set! rel-break-pri rel break (add1! pri_c))))
+(define (add-instance xml) (cons! instances xml))
 
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
+    (define name-to-rel (make-hash))
+    (hash-for-each relations-store (λ (k v) (hash-set! name-to-rel (@node/expr/relation-name k) k)))
+    (for ([s sigs]) (hash-set! name-to-rel (@node/expr/relation-name s) s))
     ; returns (values new-total-bounds (set->list formulas))
     (define new-total-bounds (list))
     (define formulas (mutable-set))
@@ -170,7 +177,19 @@
     (set! sigs (list->mutable-set sigs))
     (hash-for-each extensions-store (λ (k v) (set-remove! sigs v)))    
 
-    ; proposed breaks from each relation
+    ; First add all partial instances.
+    (define instance-bounds (append* (for/list ([i instances]) (xml->breakers i name-to-rel))))
+    (define defined (mutable-set))
+    (for ([b instance-bounds])
+        (println b)
+        (cons! new-total-bounds (sbound->bound b))
+        (define rel (sbound-relation b))
+        (set-add! defined rel)
+        (define typelist (@node/expr/relation-typelist rel))
+        (for ([t typelist]) (set-remove! sigs (hash-ref name-to-rel t)))
+    )
+
+    ; proposed breakers from each relation
     (define candidates (list))
 
     (for ([bound total-bounds])
@@ -181,7 +200,9 @@
         ; compose breaks
         (min-breaks! breaks break-pris)
 
-        (cond [(set-empty? breaks)
+        (cond [(set-member? defined rel)
+            ; noop
+        ][(set-empty? breaks)
             (cons! new-total-bounds bound)]
         [else
             (define rel-list (hash-ref relations-store rel))
@@ -217,8 +238,7 @@
             (unless broken (cons! new-total-bounds bound))
         ])     
     )
-    (set! candidates (sort candidates < #:key breaker-pri))
-
+    
     #|
         Now we try to use candidate breakers, starting with highest priority.
 
@@ -235,6 +255,8 @@
         Paths between broken sigs can also break soundness.
         Broken sigs are given an edge to a unique 'broken "sig", so we only need to check for loops.
     |#
+
+    (set! candidates (sort candidates < #:key breaker-pri))
 
     ; maintain non-transitive reachability relation 
     (define reachable (make-hash))
@@ -700,5 +722,36 @@ TODO:
 |#
 
 
-
-
+(require (except-in xml attribute))
+(define (xml->breakers xml name-to-rel)
+    (set! xml (xml->xexpr (document-element (read-xml (open-input-string xml)))))
+    (define (read-label info)
+        (define label #f)
+        (define builtin #f)
+        (for/list ([i info]) (match i
+            [(list 'label l) (set! label l)]
+            [(list 'builtin "yes") (set! builtin #t)]
+            [else #f]
+        ))
+        (if builtin #f (hash-ref name-to-rel label))
+    )
+    (define (read-atoms atoms) 
+        (filter identity (for/list ([a atoms]) (match a
+            [(list atom (list (list 'label l))) (string->symbol l)]
+            [else #f]
+        )))
+    )
+    (define (read-tuples tuples)
+        (list->set (filter identity (for/list ([t tuples]) (match t
+            [(list 'tuple atoms ...) (read-atoms atoms)]
+            [else #f]
+        ))))
+    )
+    (filter identity (for/list ([x xml]) (match x
+        [(list 'sig info atoms ...) 
+            (define sig (read-label info))
+            (if sig (make-exact-sbound sig (map list (read-atoms atoms))) #f)]
+        [(list 'field info tuples ...) (make-exact-sbound (read-label info) (read-tuples tuples))]
+        [else #f]
+    )))
+)

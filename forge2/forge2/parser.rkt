@@ -13,6 +13,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | CmdDecl
           | SexprDecl
           | BreakDecl
+          | InstanceDecl
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK DeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -103,4 +104,9 @@ ArrowExpr : QualName
 
 SexprDecl : Sexpr
 Sexpr : SEXPR-TOK
+
+;;;;;;;;
+
+InstanceDecl : INSTANCE-TOK
+
 

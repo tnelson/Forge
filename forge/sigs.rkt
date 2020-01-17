@@ -5,7 +5,7 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
-(provide break quote)
+(provide break instance quote begin println)
 
 ;(require (only-in forged-ocelot relation-name))
 
@@ -37,7 +37,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide declare-sig set-top-level-bound sigs run fact iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run fact iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
 
 (define (add-relation rel types)
   (hash-set! relations-store rel types))
@@ -56,20 +56,27 @@
 (define (add-int-bound rel int-bound)
   (hash-set! int-bounds-store rel int-bound))
 
+(define-syntax (pre-declare-sig stx)
+  (syntax-case stx ()
+    [(_ name)
+     #'(begin
+         (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
+         (add-sig (symbol->string 'name)))]))
+
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
   (syntax-case stx ()
     [(_ name ((field r ...) ...))
      #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
-         (add-sig (symbol->string 'name))
+         ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
+         ;(add-sig (symbol->string 'name))
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
          (add-relation field (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...)]
     [(_ name ((field r ...) ...) #:extends parent)
      #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
-         (add-sig (symbol->string 'name) (symbol->string 'parent))
+         ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
+         ;(add-sig (symbol->string 'name) (symbol->string 'parent))
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
          (add-relation field (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
@@ -77,12 +84,13 @@
          (add-constraint (cons (in name parent) constraints)))]
     [(_ name)
      #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
-         (add-sig (symbol->string 'name)))]
+         ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
+         ;(add-sig (symbol->string 'name))
+         )]
     [(_ name #:extends parent)
      #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
-         (add-sig (symbol->string 'name) (symbol->string 'parent))
+         ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
+         ;(add-sig (symbol->string 'name) (symbol->string 'parent))
          (add-extension name parent)
          (add-constraint (in name parent)))]))
 
@@ -90,8 +98,8 @@
   (syntax-case stx ()
     [(_ name ((field r ...) ...))
      #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
-         (add-sig (symbol->string 'name))
+         ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
+         ;(add-sig (symbol->string 'name))
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
          (add-relation field (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
@@ -100,8 +108,8 @@
     ; this should actually work! head template just gets mapped over every possible value for pattern var
     [(_ name ((field r ...) ...) #:extends parent)
      #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
-         (add-sig (symbol->string 'name) (symbol->string 'parent))
+         ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
+         ;(add-sig (symbol->string 'name) (symbol->string 'parent))
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
          (add-relation field (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
@@ -110,13 +118,13 @@
          (add-constraint (in name parent)))]
     [(_ name)
      #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
-         (add-sig (symbol->string 'name))
+         ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
+         ;(add-sig (symbol->string 'name))
          (add-int-bound int-bounds-store name (int-bound 1 1)))]
     [(_ name #:extends parent)
      #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
-         (add-sig (symbol->string 'name) (symbol->string 'parent))
+         ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
+         ;(add-sig (symbol->string 'name) (symbol->string 'parent))
          (add-int-bound name (int-bound 1 1))
          (add-extension name parent)
          (add-constraint (in name parent)))]))
@@ -277,8 +285,8 @@
 (require syntax/parse/define)
 (require (for-meta 1 racket/port racket/list))
 
-(provide begin node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
-         AssertDecl BreakDecl ;ArrowExpr
+(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
+         AssertDecl BreakDecl InstanceDecl ;ArrowExpr
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -336,9 +344,8 @@
                                         (set! names (map string->symbol (syntax->datum names)))
                                         (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
 
-                                        (define op (if one 'declare-one-sig 'declare-sig))
-
-  (set! decls (for/list ([d decls]) (list (first d) (string->symbol (second (second d))))))
+  (define op (if one 'declare-one-sig 'declare-sig))
+  (set! decls (for/list ([d decls]) (cons (car d) (map string->symbol (cdr (second d))))))
   ;(println decls)
 
   (define datum
@@ -438,6 +445,7 @@
   )
 
 (define-syntax-rule (BreakDecl x ys ...) (break x (string->symbol ys) ...))
+(define-syntax-rule (InstanceDecl i) (instance i))
 
 ;;;;
 
@@ -532,7 +540,6 @@
 ;  ))
 ;  ret
 ;)
-
 
 (define-syntax (Name stx)     (map-stx (lambda (d) (string->symbol (cadr d))) stx))
 (define-syntax (QualName stx) (map-stx (lambda (d) (string->symbol (cadr d))) stx))
