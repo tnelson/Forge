@@ -71,7 +71,12 @@
                  "\n</field>\n\n"))
 
 (define (clean str)
-  (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;"))
+  (string-replace (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;"))
+
+(define (agg-lines lines)
+  (if (empty? lines)
+      ""
+      (string-append (first lines) "\n" (agg-lines (rest lines)))))
                  
 
 (define (model-to-XML-string modelhash name command filepath bitwidth)
@@ -217,7 +222,8 @@ here-string-delimiter
          (define epilogue (string-append
                            "\n</instance>\n"
                            "<source filename=\"" filepath "\" content=\""
-                           (clean (port->string (open-input-file filepath #:mode 'text))) "\"/>\n"
+                           (clean (agg-lines (port->lines (open-input-file filepath))))
+                           "\"/>\n"
                            "</alloy>"))
                                            
 

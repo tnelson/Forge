@@ -2,8 +2,8 @@
 
 /*$
 (pre-declare-sig abstract-cat)
-(pre-declare-sig kitty)
-(pre-declare-sig kittyBacon)
+(pre-declare-sig kitty #:extends abstract-cat)
+(pre-declare-sig kittyBacon #:extends abstract-cat)
 
 (declare-sig abstract-cat ((friends abstract-cat)))
 
