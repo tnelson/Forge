@@ -1,7 +1,7 @@
 #lang br
 (require br/indent racket/contract racket/gui/base)
 
-(define indent-width 2)
+(define indent-width 4)
 (define (open? c) (member c (list #\{ #\|)))
 (define (close? c) (member c (list #\})))
 (define (monus x y) (max 0 (- x y)))
