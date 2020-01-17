@@ -11,7 +11,9 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model name get-next-model)
+(define (display-model get-next-model name command filepath bitwidth)
+
+  (displayln (find-system-path 'run-file))
 
   (define model (get-next-model))
   (define chan (make-async-channel))
@@ -33,10 +35,10 @@
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
                  [(equal? m "current")
-                  (ws-send! connection (model-to-XML-string model))]
+                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
                  [(equal? m "next")
                   (set! model (get-next-model))
-                  (ws-send! connection (model-to-XML-string model))]
+                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
                  [else
                   (ws-send! "BAD REQUEST")])
            (loop))))

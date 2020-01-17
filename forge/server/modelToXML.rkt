@@ -1,7 +1,10 @@
 #lang racket
 
-(require "../lang/ast.rkt")
-(require xml)
+(require "../lang/ast.rkt" racket/date xml)
+(require racket/string)
+
+  
+(provide model-to-XML-string)
 
 ; need ID associated with every sig, and list of ids associated with every relation. Or list of names?
 ; well, sig-names really is just a list of all sig names.
@@ -66,18 +69,16 @@
                  (relation-to-XML-string modelhash rel)
                  (types-to-XML-string rel ID-hash)
                  "\n</field>\n\n"))
+
+(define (clean str)
+  (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;"))
                  
 
-(define (model-to-XML-string modelhash)
-  ; Have to do a topsort on the modelhash...
-  ; do kahns algorithm
-  ; doing it without mutation will be hard though...
-
-  (define prologue #<<here-string-delimiter
-XML:
-<alloy builddate="2018-04-08T17:20:06.754Z">
-
-<instance bitwidth="4" maxseq="4" command="Run run$1 for 5" filename="/Applications/Untitled 1.als">
+(define (model-to-XML-string modelhash name command filepath bitwidth)
+  (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
+                                  "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
+                                  (clean command) "\" filename=\"" filepath "\">\n"
+                                  #<<here-string-delimiter
 
 <sig label="seq/Int" ID="0" parentID="1" builtin="yes">
 </sig>
@@ -91,7 +92,7 @@ XML:
 <sig label="univ" ID="2" builtin="yes">
 </sig>
 here-string-delimiter
-    )
+                                  ))
   (cond [(equal? modelhash 'unsat)
          (string-append prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
@@ -127,25 +128,28 @@ here-string-delimiter
            (make-hash (map
                        (λ (child)
                          (cons child (filter
-                                       (λ (parent) (equal? (relation-parent child) (relation-name parent)))
-                                       sigs-unsorted)))
+                                      (λ (parent) (equal? (relation-parent child) (relation-name parent)))
+                                      sigs-unsorted)))
                        sigs-unsorted)))
 
+         ; We start with leaf children signatures (children in the alloy sense)
+         ; So, all the signatures that are not extended by others.
          (define start (filter
-                    (λ (parent)
-                      (empty? (hash-ref childrenhash parent)))
-                    (hash-keys childrenhash)))
+                        (λ (parent)
+                          (empty? (hash-ref childrenhash parent)))
+                        (hash-keys childrenhash)))
+
+         (displayln "")
+         (displayln childrenhash)
+         (displayln "")
+         (displayln start)
+         (displayln "")
 
          (for ([key start])
            (hash-remove! childrenhash key))
 
          ; Sort with children first, then reverse later.
          (define sigs-r '())
-
-         ;(displayln parentshash)
-         ;(displayln start)
-         ;(displayln childrenhash)
-         ;(displayln (hash-keys childrenhash))
 
          (let loop ()
            (unless (empty? start)
@@ -155,29 +159,34 @@ here-string-delimiter
              ; This gets confusing. In a graph theory sense, the children of a node is everything the node points to.
              ; But in our case, the node points to the things it inherits from. So it points to its sig parents.
              (define graph-children (filter
-                               (λ (p2)
-                                 (member parent (hash-ref childrenhash p2)))
-                               (hash-keys childrenhash)))
+                                     (λ (p2)
+                                       (member parent (hash-ref childrenhash p2)))
+                                     (hash-keys childrenhash)))
              (for ([child graph-children])
                (hash-update! childrenhash child (λ (lst) (remove parent lst)))
                (when (empty? (hash-ref childrenhash child))
-                   (hash-remove! childrenhash child)
-                   (set! start (cons child start))))
+                 (hash-remove! childrenhash child)
+                 (set! start (cons child start))))
              (loop)))
-         
-         (displayln "")
-         (displayln childrenhash)
-         (displayln sigs-r)
 
          (unless (hash-empty? childrenhash)
-             (error "CYCLE IN INPUT SIGS"))
+           (error "CYCLE IN INPUT SIGS"))
+
+         (displayln "")
+         (displayln sigs-r)
+         (displayln "")
 
          (define atom-tuples (mutable-set))
          (define cleaned-model (make-hash (map (λ (x)
-                                      (begin0
-                                        (cons x (set-subtract (hash-ref modelhash x) (set->list atom-tuples)))
-                                        (set-union! atom-tuples (list->mutable-set (hash-ref modelhash x)))))
-                                    sigs-r)))
+                                                 (begin0
+                                                   (cons x (set-subtract (hash-ref modelhash x) (set->list atom-tuples)))
+                                                   (set-union! atom-tuples (list->mutable-set (hash-ref modelhash x)))))
+                                               sigs-r)))
+         (displayln "")
+         (displayln cleaned-model)
+         (displayln "")
+         (displayln modelhash)
+         (displayln "")
          
          (define sigs (reverse sigs-r))
          ; This is wrong!!! (displayln sigs)
@@ -194,8 +203,6 @@ here-string-delimiter
          (hash-set! ID-hash "seq/Int" 1)
          (hash-set! ID-hash "String" 3)
 
-         ;(display sigs)
-
          (define sig-strings (apply string-append (map
                                                    (λ (sig id)
                                                      (hash-set! ID-hash (relation-name sig) id)
@@ -209,10 +216,16 @@ here-string-delimiter
                                                      fields
                                                      (range (+ 4 sigs#) (+ 4 sigs# (length fields))))))
 
+         (define epilogue (string-append
+                           "\n</instance>\n"
+                           "<source filename=\"" filepath "\" content=\""
+                           (clean (port->string (open-input-file filepath #:mode 'text))) "\"/>\n"
+                           "</alloy>"))
+                                           
+
          (string-append prologue
                         "\n\n"
                         sig-strings
                         field-strings
-                        "\n</instance>\n</alloy>")]))
-  
-(provide model-to-XML-string)
+                        epilogue
+                        )]))

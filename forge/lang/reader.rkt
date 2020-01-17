@@ -44,9 +44,16 @@
 
   (define sig-inits (map (lambda (x) `(pre-declare-sig ,x)) (pull-sigs transformed)))
 
+  ; Insert the filename of the running file into itself, to be shown in visualizer later,
+  ; and used to extract source text.
+  (displayln path)
+  (define filename-definition (list
+                               `(set-path! (path->string ,path))
+                               '(displayln filepath)))
+
   ;(println sig-inits)
 
-  (define final `(,@(append sig-inits transformed)))
+  (define final `(,@(append filename-definition sig-inits transformed)))
 
   ;(println final)
 
