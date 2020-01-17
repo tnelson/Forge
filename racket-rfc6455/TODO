@@ -1,0 +1,6 @@
+To test:
+
+ - SSL service generally
+ - Safari (hybi-00) with an SSL service
+ - streaming of messages via input/output ports
+ - non-text payloads

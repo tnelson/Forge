@@ -68,12 +68,10 @@
                  "\n</field>\n\n"))
                  
 
-(define (model-to-XML-string modelhash non-abstract-sig-names)
-  ; Ah figured it out. Abstract sigs can only have atoms not belonging to concrete child sigs.
-  ; Which means, every atom should appear only once.
-  ; How do I deal with that??? recursive shit probably.
-  ; Go through the list, build up list of atoms, remove them as u go.
-  ; OK 
+(define (model-to-XML-string modelhash)
+  ; Have to do a topsort on the modelhash...
+  ; do kahns algorithm
+  ; doing it without mutation will be hard though...
 
   (define prologue #<<here-string-delimiter
 XML:
@@ -117,22 +115,72 @@ here-string-delimiter
                                 (λ (key) (equal? (relation-arity key) 1))
                                 (hash-keys modelhash)))
 
-         ; Sort with children first.
+         (define childrenhash
+           (make-hash (map
+                       (λ (parent)
+                         (cons parent (filter
+                                       (λ (child) (equal? (relation-parent child) (relation-name parent)))
+                                       sigs-unsorted)))
+                       sigs-unsorted)))
 
-         ; Gotta pick available port
-         ; kill old server on 3000
+         (define parentshash
+           (make-hash (map
+                       (λ (child)
+                         (cons child (filter
+                                       (λ (parent) (equal? (relation-parent child) (relation-name parent)))
+                                       sigs-unsorted)))
+                       sigs-unsorted)))
+
+         (define start (filter
+                    (λ (parent)
+                      (empty? (hash-ref childrenhash parent)))
+                    (hash-keys childrenhash)))
+
+         (for ([key start])
+           (hash-remove! childrenhash key))
+
+         ; Sort with children first, then reverse later.
+         (define sigs-r '())
+
+         ;(displayln parentshash)
+         ;(displayln start)
+         ;(displayln childrenhash)
+         ;(displayln (hash-keys childrenhash))
+
+         (let loop ()
+           (unless (empty? start)
+             (define parent (first start))
+             (set! start (rest start))
+             (set! sigs-r (append sigs-r (list parent)))
+             ; This gets confusing. In a graph theory sense, the children of a node is everything the node points to.
+             ; But in our case, the node points to the things it inherits from. So it points to its sig parents.
+             (define graph-children (filter
+                               (λ (p2)
+                                 (member parent (hash-ref childrenhash p2)))
+                               (hash-keys childrenhash)))
+             (for ([child graph-children])
+               (hash-update! childrenhash child (λ (lst) (remove parent lst)))
+               (when (empty? (hash-ref childrenhash child))
+                   (hash-remove! childrenhash child)
+                   (set! start (cons child start))))
+             (loop)))
          
-         (define sigs-reversed (sort sigs-unsorted (λ (x y)
-                                            (equal? (relation-parent x) (relation-name y)))))
+         (displayln "")
+         (displayln childrenhash)
+         (displayln sigs-r)
+
+         (unless (hash-empty? childrenhash)
+             (error "CYCLE IN INPUT SIGS"))
 
          (define atom-tuples (mutable-set))
          (define cleaned-model (make-hash (map (λ (x)
                                       (begin0
                                         (cons x (set-subtract (hash-ref modelhash x) (set->list atom-tuples)))
                                         (set-union! atom-tuples (list->mutable-set (hash-ref modelhash x)))))
-                                      
-                                    sigs-reversed)))
-         (define sigs (reverse sigs-reversed))
+                                    sigs-r)))
+         
+         (define sigs (reverse sigs-r))
+         ; This is wrong!!! (displayln sigs)
   
          (define fields (filter-not
                          (λ (key) (equal? (relation-arity key) 1))
@@ -146,7 +194,7 @@ here-string-delimiter
          (hash-set! ID-hash "seq/Int" 1)
          (hash-set! ID-hash "String" 3)
 
-         (display sigs)
+         ;(display sigs)
 
          (define sig-strings (apply string-append (map
                                                    (λ (sig id)

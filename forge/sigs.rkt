@@ -235,14 +235,7 @@
     (cmd [stdin] (solve))
     (translate-from-kodkod-cli (read-solution stdout) rels inty-univ))
 
-  (define non-abstract-sig-names
-    (map
-     (lambda (x) (relation-name x))
-     (filter-not
-      (lambda (y) (member y (hash-values extensions-store)))
-      sigs)))
-
-  (display-model non-abstract-sig-names name get-next-model))
+  (display-model name get-next-model))
 
 (define-syntax (run stx)
   (syntax-case stx ()
