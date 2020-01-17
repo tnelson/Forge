@@ -2,7 +2,7 @@
 
 (require "ast.rkt" racket/runtime-path)
 
-(require "../../forge2/forge2/tokenizer.rkt" "../../forge2/forge2/parser.rkt")
+(require "alloy-syntax/tokenizer.rkt" "alloy-syntax/parser.rkt")
 
 (require macro-debugger/syntax-browser)
 
