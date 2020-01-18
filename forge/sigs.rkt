@@ -129,7 +129,7 @@
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (add-int-bound int-bounds-store name (int-bound 1 1)))]
+         (add-int-bound name (int-bound 1 1)))]
     [(_ name #:extends parent)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
@@ -367,7 +367,7 @@
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name)) names))
         (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-  ;(println datum)
+  (println datum)
   datum
 ) stx))
 
