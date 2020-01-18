@@ -90,7 +90,7 @@
          (add-relation field (list name r ...)) ...
          (add-constraint (in field (-> name r ...))) ...
          (add-extension name parent)
-         (add-constraint (cons (in name parent) constraints)))]
+         (add-constraint (in name parent)))]
     [(_ name)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
@@ -362,7 +362,7 @@
     (if qualName
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
-        (raise "can't handle both decl fields and extension")
+        (cons 'begin (map (lambda (name) `(,op ,name ,decls #:extends ,qualName)) names))
       )
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name)) names))
