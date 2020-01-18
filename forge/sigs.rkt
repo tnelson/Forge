@@ -71,26 +71,44 @@
          (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          (add-sig (symbol->string 'name) (symbol->string 'parent)))]))
 
+(define-syntax (declare-field stx)
+  (syntax-case stx (set one lone)
+    [(_ set field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...))))]
+    [(_ one field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...)))
+         (add-int-bound field (int-bound 1 1)))]
+    [(_ lone field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...)))
+         (add-int-bound field (int-bound 0 1)))]))
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
   (syntax-case stx ()
-    [(_ name ((field r ...) ...))
+    [(_ name ((mult field r ...) ...))
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
+         #|(define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
          (add-relation field (list name r ...)) ...
-         (add-constraint (in field (-> name r ...))) ...)]
-    [(_ name ((field r ...) ...) #:extends parent)
+         (add-constraint (in field (-> name r ...)))|#
+         (declare-field mult field r ...) ...)]
+    [(_ name ((mult field r ...) ...) #:extends parent)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
-         (add-relation field (list name r ...)) ...
-         (add-constraint (in field (-> name r ...))) ...
+         (declare-field mult field r ...) ...
          (add-extension name parent)
-         (add-constraint (cons (in name parent) constraints)))]
+         (add-constraint (in name parent)))]
     [(_ name)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
@@ -105,23 +123,19 @@
 
 (define-syntax (declare-one-sig stx)
   (syntax-case stx ()
-    [(_ name ((field r ...) ...))
+    [(_ name ((mult field r ...) ...))
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
-         (add-relation field (list name r ...)) ...
-         (add-constraint (in field (-> name r ...))) ...
+         (declare-field mult field r ...) ...
          (add-int-bound name (int-bound 1 1)))]
 
     ; this should actually work! head template just gets mapped over every possible value for pattern var
-    [(_ name ((field r ...) ...) #:extends parent)
+    [(_ name ((mult field r ...) ...) #:extends parent)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
-         (add-relation field (list name r ...)) ...
-         (add-constraint (in field (-> name r ...))) ...
+         (declare-field mult field r ...) ...
          (add-int-bound name (int-bound 1 1))
          (add-extension name parent)
          (add-constraint (in name parent)))]
@@ -355,7 +369,7 @@
                                         (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
 
   (define op (if one 'declare-one-sig 'declare-sig))
-  (set! decls (for/list ([d decls]) (cons (car d) (map string->symbol (cdr (second d))))))
+  (set! decls (for/list ([d decls]) (cons 'set (cons (car d) (map string->symbol (cdr (second d)))))))
   ;(println decls)
 
   (define datum
