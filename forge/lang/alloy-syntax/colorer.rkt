@@ -19,12 +19,12 @@
        (match type
          ['COMMENT '(comment #f)]
          ['ERROR '(error #f)]
-         ['NUM-CONST-TOK '(symbol #f)]
+         ['NUM-CONST-TOK '(constant #f)]
          [else
           (match val
-            [(? keyword?) '(string #f)]
+            [(? keyword?) '(hash-colon-keyword #f)]
             [(? paren?) '(parenthesis (string->symbol val))]
-            [else '(no-color #f)])]))
+            [else '(symbol #f)])]))
      (values val cat paren start end)]))
 
 (provide color-forge)
