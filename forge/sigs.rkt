@@ -296,7 +296,7 @@
 (require (for-meta 1 racket/port racket/list))
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
-         AssertDecl BreakDecl InstanceDecl QueryDecl ;ArrowExpr
+         AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -312,14 +312,17 @@
      `(node/int/constant ,datum)]
     [else datum]))
 (define-for-syntax (process-DeclList d)
-  (define ret (syntax-case d (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block)
+  (define ret (syntax-case d 
+    (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block ArrowMult QualName)
     ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
     ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
     ;                                   (syntax->datum #'((nss ...) ...))
     ;                                   (syntax->datum #'(qs ...))))]
-    [(ArrowDeclList (_ (NameList nss ...) (ArrowExpr ess ...)) ...)
-        (apply append (map (lambda (ns es) (map (lambda (n) `(,(string->symbol n) ,@es)) ns))
+    [(ArrowDeclList (_ (NameList nss ...) (ArrowMult mults) (ArrowExpr (QualName ess) ...)) ...)
+        (apply append (map (lambda (ns m es) (map (lambda (n) 
+          `(,(string->symbol n) ,(string->symbol m) ,@(map string->symbol es))) ns))
                                       (syntax->datum #'((nss ...) ...))
+                                      (syntax->datum #'(mults ...))
                                       (syntax->datum #'((ess ...) ...))))]
     [(DeclList (_ (NameList nss ...) es) ...)
         (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns))
@@ -355,7 +358,9 @@
                                         (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
 
   (define op (if one 'declare-one-sig 'declare-sig))
-  (set! decls (for/list ([d decls]) (cons (car d) (map string->symbol (cdr (second d))))))
+  ;(println decls)
+  ;(set! decls (for/list ([d decls]) 
+  ;  (list* (first d) (second d) (for/list ([q (cddr d)]) (string->symbol (second q))))))
   ;(println decls)
 
   (define datum
@@ -367,7 +372,7 @@
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name)) names))
         (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-  ;(println datum)
+  (println datum)
   datum
 ) stx))
 
@@ -439,6 +444,25 @@
                                            datum
                                            ) stx))
 
+(define-syntax (FunDecl stx) (map-stx (lambda (d)
+  (define-values (name paras block) (values #f '() '()))
+  (println d)
+  (for ([arg (cdr d)])
+    (syntax-case arg (Name ParaDecls Decl NameList Block)
+      [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
+      [(ParaDecls (Decl (NameList ps) _ ...) ...)
+      (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
+      [(Block bs ...) (set! block #'(bs ...))]
+      [_ #f]
+      )
+    )
+    '(begin)
+  ;(define datum (if (empty? paras)
+  ;                  `(fun ,name (and ,@(syntax->datum block)))
+  ;                  `(fun (,name ,@paras) (and ,@(syntax->datum block)))))
+  ;(println datum)
+  ;datum
+  ) stx))
 
 (define-syntax (Block stx)
   (define ret (syntax-case stx ()
@@ -466,7 +490,7 @@
   (define rel-sym (string->symbol rel))
   (define datum `(begin 
     (pre-declare-sig ,name-sym)
-    (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) ,type)))
+    (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) (ArrowMult "set") ,type)))
     (fact (one ,name-sym))
     (fact (= (join ,name-sym ,rel-sym) ,expr))
   ))
