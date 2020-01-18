@@ -326,12 +326,12 @@
      `(node/int/constant ,datum)]
     [else datum]))
 (define-for-syntax (process-DeclList d)
-  (define ret (syntax-case d (NameList Mult SigExt DeclList Block)
+  (define ret (syntax-case d (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block)
     ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
     ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
     ;                                   (syntax->datum #'((nss ...) ...))
     ;                                   (syntax->datum #'(qs ...))))]
-    [(DeclList (_ (NameList nss ...) (ArrowExpr ess ...)) ...)
+    [(ArrowDeclList (_ (NameList nss ...) (ArrowExpr ess ...)) ...)
         (apply append (map (lambda (ns es) (map (lambda (n) `(,(string->symbol n) ,@es)) ns))
                                       (syntax->datum #'((nss ...) ...))
                                       (syntax->datum #'((ess ...) ...))))]
@@ -355,12 +355,12 @@
 (define-syntax (SigDecl stx) (map-stx (lambda (d)
                                         (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
                                         (for ([arg (cdr d)])
-                                          (syntax-case arg (NameList Mult SigExt DeclList Block)
+                                          (syntax-case arg (NameList Mult SigExt ArrowDeclList Block)
                                             ["abstract" (set! abstract #t)]
                                             [(Mult "one") (set! one #t)]
                                             [(NameList ns ...) (set! names #'(ns ...))]
                                             [(SigExt "extends" qn) (set! qualName #'qn)]
-                                            [(DeclList _ ...) (set! decls (process-DeclList arg))]
+                                            [(ArrowDeclList _ ...) (set! decls (process-DeclList arg))]
                                             [(Block es ...) (set! exprs #'(es ...))]
                                             [_ #f]
                                             )
@@ -376,12 +376,12 @@
     (if qualName
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
-        (raise "can't handle both decl fields and extension")
+        (cons 'begin (map (lambda (name) `(,op ,name ,decls #:extends ,qualName)) names))
       )
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name)) names))
         (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-  (println datum)
+  ;(println datum)
   datum
 ) stx))
 
@@ -480,11 +480,11 @@
   (define rel-sym (string->symbol rel))
   (define datum `(begin 
     (pre-declare-sig ,name-sym)
-    (SigDecl (NameList ,name) (DeclList (Decl (NameList ,rel) ,type)))
+    (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) ,type)))
     (fact (one ,name-sym))
     (fact (= (join ,name-sym ,rel-sym) ,expr))
   ))
-  (println datum)
+  ;(println datum)
   datum
 ) stx))
 
@@ -501,14 +501,9 @@
                              Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17
                              CompareOp ExprList Quant DeclList NameList Expr QualName)
       ; [(_ "let" (LetDeclList _ ...) (BlockOrBar _ ...)) #f]         ;; TODO:
-      [(_ (Quant q) (DeclList (_ (NameList nss ...) qs) ...) e)
-       (datum->syntax stx
-                      `(,(string->symbol (syntax->datum #'q))
-                        ,(apply append (map (lambda (ns q) (map (lambda (n) `[,(string->symbol n) ,q]) ns))
-                                            (syntax->datum #'((nss ...) ...))
-                                            (syntax->datum #'(qs ...))))
-                        ,#'e))]
-
+      [(_ (Quant q) dlist e) (datum->syntax stx
+        `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
+      )]
       ;; Note: the QQQ-TOKs here are just match vars but offer clarity and mirror reader
       [(_ (Expr1 a ...) DISJ-TOK (Expr2 b ...))
        #'(or (Expr a ...) (Expr b ...))]

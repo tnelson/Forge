@@ -104,7 +104,7 @@ here-string-delimiter
   (cond [(equal? modelhash 'unsat)
          (string-append prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
-                        "<atom label=\"UNSAT0\"/><atom label=\"UNSAT1\"/><atom label=\"UNSAT2\"/><atom label=\"UNSAT3\"/>"
+                        "<atom label=\"UNSAT0\"/>"
                         "</sig>\n"
          (apply string-append (for/list ([i 20]) (string-append
                         "<field label=\"r"(~v i)"\" ID=\""(~v (+ 5 i))"\" parentID=\"4\">\n"
