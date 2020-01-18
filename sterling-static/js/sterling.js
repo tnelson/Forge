@@ -8907,12 +8907,19 @@
             });
             // Build all edges by getting all tuples and projecting
             let edges = this._instance
-                .tuples()
-                .map(tuple => {
-                let atoms = tuple.atoms();
+            .tuples()
+            .map(t => {
+                let atoms = t.atoms();
                 this._projections.forEach((atom, signature) => {
                     atoms = project(atoms, atom, signature);
                 });
+                return {tuple: t, proj_atoms: atoms};
+            })
+            .filter(t => t.proj_atoms.length > 1)
+            .map(t => {
+                let atoms = t.proj_atoms;
+                let tuple = t.tuple;
+
                 return {
                     data: tuple,
                     source: atoms.length ? atoms[0] : null,
@@ -8920,9 +8927,9 @@
                     middle: atoms.length > 2 ? atoms.slice(1, atoms.length - 1) : []
                 };
             })
-                .filter(edge => edge.source !== null && edge.target !== null)
-                .filter(edge => !this._builtin || !edge_is_builtin(edge))
-                .filter(edge => !this._private || !edge_is_private(edge));
+            .filter(edge => edge.source !== null && edge.target !== null)
+            .filter(edge => !this._builtin || !edge_is_builtin(edge))
+            .filter(edge => !this._private || !edge_is_private(edge));
             // Determine the set of all nodes used in a relation
             let nodeset = new Set();
             edges.forEach(edge => edge.data.atoms().forEach(atom => nodeset.add(atom.id())));
@@ -8948,15 +8955,15 @@
                         });
                     }
                     // (Optionally) Remove atoms that are not part of a relation
-                    if (this._disconnected && node.children) {
-                        node.children = node.children.filter(child => {
-                            // If a child node is a signature, we always want to
-                            // include it.  If not, it is an atom and we only want
-                            // to include it if it is visible as part of an edge
-                            return child.data.expressionType() === 'signature'
-                                || visibleset.has(child.data.id());
-                        });
-                    }
+                    // if (this._disconnected && node.children) {
+                    //     node.children = node.children.filter(child => {
+                    //         // If a child node is a signature, we always want to
+                    //         // include it.  If not, it is an atom and we only want
+                    //         // to include it if it is visible as part of an edge
+                    //         return child.data.expressionType() === 'signature'
+                    //             || visibleset.has(child.data.id());
+                    //     });
+                    // }
                     // Remove atoms that are part of a projected signature
                     if (node.children) {
                         let sigs = Array.from(this._projections.keys());
