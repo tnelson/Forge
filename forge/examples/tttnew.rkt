@@ -5,7 +5,7 @@ sig Player {}
 sig X extends Player {}
 sig O extends Player {}
 
-sig Index {inverse: Index }
+sig Index {inverse: set Index }
 one sig A extends Index {}
 one sig B extends Index {}
 one sig C extends Index {}
@@ -16,7 +16,7 @@ pred fixInverses[] {
    inverse = A->C + B->B + C->A 
 }
 
-sig Board {places: Index -> Index -> Player}
+sig Board {places: set Index -> Index -> Player}
 
 
 pred xturn[b: Board] {
