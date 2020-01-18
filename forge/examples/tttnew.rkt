@@ -10,7 +10,7 @@ one sig A extends Index {}
 one sig B extends Index {}
 one sig C extends Index {}
 
-test : run {} for exactly 2 Player, exactly 3 Index
+--test : run {} for exactly 2 Player, exactly 3 Index
 
 pred fixInverses[] { 
    inverse = A->C + B->B + C->A 
@@ -20,20 +20,20 @@ sig Board {places: Index -> Index -> Player}
 
 
 pred xturn[b: Board] {
-  #b.places.X = #b.places.O
+  //#b.places.X = #b.places.O
+  b.places.X = b.places.O
 } 
- 
-pred oturn[b: Board] { 
-  subtract[#b.places.X,1] = #b.places.O
-}
-
 pred somexturn[] {
    some b: Board | xturn[b]
- //some b: Board | #(b.places.X) = #(b.places.O)
 }
 
 try_xturn : run somexturn for 2 Player, 3 Index, 1 Board
 
+
+/*
+pred oturn[b: Board] { 
+  subtract[#b.places.X,1] = #b.places.O
+}
 
 
        
@@ -63,20 +63,21 @@ pred winD[b: Board, p: Player] {
   or
   {all i: Index | p in b.places[i][i.inverse]}
 }
-
+*/
        
 
-diags_equiv : run {
-  at_most_one_mark_per_square
-  fix_inverses
+/*diags_equiv : run {
+  atMostOneMarkPerSquare
+  fixInverses
   --some b: Board | {
   --   {winD[b, O] and not winDBroken[b, O]}
   --   or
   --   {not winD[b, O] and winDBroken[b, O]}
   -- }
 } for 2 Player, 3 Index, 1 Board
+*/
 
-
+/*
 pred winning[b: Board, p: Player] {
   winH[b, p] or winV[b, p] or winD[b, p]
 }
@@ -84,5 +85,5 @@ pred winning[b: Board, p: Player] {
 
 pred valid_board[b: Board] {
   oturn[b] or xturn[b]
-}
+}*/
 
