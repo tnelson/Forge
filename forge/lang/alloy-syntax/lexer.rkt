@@ -19,8 +19,8 @@
     (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
         
    ;; comments
-   [(or (from/to "--" "\n") (from/to "//" "\n") (from/to "/*" "*/"))
-    (token lexeme #:skip? #t)]
+   [(or (from/stop-before "--" "\n") (from/stop-before "//" "\n") (from/to "/*" "*/"))
+    (token 'COMMENT #:skip? #t)]
 
    ;; reserved
    [(or "$" "%" "?")
