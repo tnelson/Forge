@@ -9,6 +9,9 @@
   (define (get-info port src-mod src-line src-col src-pos)
     (define (handle-query key default)
       (case key
+        [(color-lexer)
+         (dynamic-require 'forge/lang/alloy-syntax/colorer 'color-forge)]
+
         [(drracket:indentation)
          (dynamic-require 'forge/lang/alloy-syntax/indenter 'indent-forge)]
         [(drracket:keystrokes)

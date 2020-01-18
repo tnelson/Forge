@@ -20,7 +20,7 @@
         
    ;; comments
    [(or (from/stop-before "--" "\n") (from/stop-before "//" "\n") (from/to "/*" "*/"))
-    (token 'COMMENT #:skip? #t)]
+    (token+ 'COMMENT "" lexeme "" lexeme-start lexeme-end #t)]
 
    ;; reserved
    [(or "$" "%" "?")
@@ -57,7 +57,6 @@
    ;; keywords
    ["abstract"  (token+ `ABSTRACT-TOK "" lexeme "" lexeme-start lexeme-end)]      
    ["all"       (token+ `ALL-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ;  ["and"       (token+ `AND-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["as"        (token+ `AS-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["assert"    (token+ `ASSERT-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["but"       (token+ `BUT-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -69,9 +68,7 @@
    ["fact"      (token+ `FACT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["for"       (token+ `FOR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["fun"       (token+ `FUN-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ;  ["iff"       (token+ `IFF-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ;  ["implies"   (token+ `IMP-TOK "" lexeme "" lexeme-start lexeme-end)]    
+   ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]      
    ["in"        (token+ `IN-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["let"       (token+ `LET-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -79,10 +76,8 @@
    ["module"    (token+ `MODULE-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["no"        (token+ `NO-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["none"      (token+ `NONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ;  ["not"       (token+ `NOT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["one"       (token+ `ONE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["open"      (token+ `OPEN-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ;  ["or"        (token+ `OR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["pred"      (token+ `PRED-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["run"       (token+ `RUN-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["set"       (token+ `SET-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -110,16 +105,66 @@
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; otherwise
-   [whitespace (token lexeme #:skip? #t)]
+   [whitespace (token+ lexeme "" lexeme "" lexeme-start lexeme-end #t)]
    [any-char (error (format "unexpected char: ~a" lexeme))]))
 
-(define (token+ type left lex right lex-start lex-end)
+(define (keyword? str)
+  (member str
+          (list
+           "abstract"
+           "all"
+           "and"
+           "as"
+           "assert"
+           "but"
+           "check"
+           "disj"
+           "else"
+           "exactly"
+           "extends"
+           "fact"
+           "for"
+           "fun"
+           "iden"
+           "iff"
+           "implies"
+           "in"
+           "Int"
+           "let"
+           "lone"
+           "module"
+           "no"
+           "none"
+           "not"
+           "one"
+           "open"
+           "or"
+           "pred"
+           "run"
+           "set"
+           "sig"
+           "some"
+           "sum"
+           "univ"
+           "break")))
+
+(define (paren? str)
+  (member str
+          (list "("
+                ")"
+                "{"
+                "}"
+                "["
+                "]")))
+
+(define (token+ type left lex right lex-start lex-end [skip? #f])
   (let ([l0 (string-length left)] [l1 (string-length right)])
     (token type (trim-ends left lex right)
            #:position (+ (pos lex-start) l0)
            #:line (line lex-start)
            #:column (+ (col lex-start) l0)
            #:span (- (pos lex-end)
-                     (pos lex-start) l0 l1))))
+                     (pos lex-start) l0 l1)
+           #:skip? skip?)))
 
-(provide forge-lexer)
+(provide forge-lexer keyword? paren?)
