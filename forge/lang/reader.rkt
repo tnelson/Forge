@@ -15,9 +15,12 @@
 (define (replace-ints datum)
   (cond
     [(list? datum)
-     (if (equal? (car datum) 'run)
-         datum
-         (map replace-ints datum))]
+     (cond [(empty? datum)
+            '()]
+           [(equal? (car datum) 'run)
+            datum]
+           [else
+            (map replace-ints datum)])]
     [(integer? datum)
      `,(node/int/constant datum)]
     [else datum]))
@@ -27,7 +30,7 @@
 
 (define (pull-sigs datum)
   (map (lambda (x)
-       (cons (string->symbol (car (cdr (second x)))) (if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)))
+         (cons (string->symbol (car (cdr (second x)))) (if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)))
        (begin
          #|(println (filter is-sig-decl datum))|# (filter is-sig-decl datum))))
 
@@ -49,9 +52,8 @@
 
   ; Insert the filename of the running file into itself, to be shown in visualizer later,
   ; and used to extract source text.
-  (displayln path)
   (define filename-definition (list
-                               `(set-path! (path->string ,path))
+                               `(set-path! ,(format "~a" path))
                                '(displayln filepath)))
 
   ;(println sig-inits)
