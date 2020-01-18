@@ -4,6 +4,29 @@
     (global = global || self, factory(global.sterling = {}));
 }(this, function (exports) { 'use strict';
 
+    function convert_to_html_references(str){
+        return str
+        .replace(/&/g, "&amp;")
+        .replace(/>/g, "&gt;")
+        .replace(/</g, "&lt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function convert_from_html_references(str){
+        return str
+        .replace(/&amp;/g, "&")
+        .replace(/&gt;/g, ">")
+        .replace(/&lt;/g, "<")
+        .replace(/&quot;/g, "\"")
+        .replace(/&#039;/g, "'");
+    }
+
+    function restore_breaks(str){
+        return str
+        .replace(/&lt;br&gt;/g, "<br>");
+    }
+
     class Tuple {
         constructor(atoms) {
             this.expressionType = () => 'tuple';
@@ -6535,7 +6558,7 @@
             // Save model source
             doc.selectAll('source')
                 .each(function () {
-                let s = select(this), f = s.attr('filename'), c = s.attr('content');
+                let s = select(this), f = s.attr('filename'), c = restore_breaks(s.attr('content'));
                 console.log(c);
                 instance._sources.set(f, c);
             });
@@ -6893,7 +6916,7 @@
         }
         set_command(command) {
             if (this._command)
-                this._command.text('Command: ' + command);
+                this._command.text('Command: ' + convert_from_html_references(command));
         }
         set_connection_status(connection) {
             if (this._connection)
@@ -10081,8 +10104,9 @@
                     .selectAll('.file')
                     .classed('active', d => d === file);
                 // Set the editor text
+                console.log(file.text);
                 this._code
-                    .text(file.text);
+                    .html(file.text);
                 // Highlight the code
                 hljs.highlightBlock(this._code.node());
                 // Update line numbers
@@ -10149,7 +10173,7 @@
                 .style('display', 'none');
         }
         _update_line_numbers(file) {
-            let lines = file.text.match(/\r?\n/g);
+            let lines = file.text.match(/\<br\>/g);
             let numlines = lines ? lines.length + 1 : 2;
             let selection = this._gutter
                 .selectAll('pre')

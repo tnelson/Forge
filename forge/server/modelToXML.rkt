@@ -73,16 +73,19 @@
 (define (clean str)
   (string-replace (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;"))
 
+(define (clean-syntax str)
+  (substring str 9 (- (string-length str) 1)))
+
 (define (agg-lines lines)
   (if (empty? lines)
       ""
-      (string-append (first lines) "\n" (agg-lines (rest lines)))))
+      (string-append (first lines) "<br>" (agg-lines (rest lines)))))
                  
 
 (define (model-to-XML-string modelhash name command filepath bitwidth)
   (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
-                                  (clean command) "\" filename=\"" filepath "\">\n"
+                                  (clean (clean-syntax command)) "\" filename=\"" filepath "\">\n"
                                   #<<here-string-delimiter
 
 <sig label="seq/Int" ID="0" parentID="1" builtin="yes">
