@@ -296,7 +296,7 @@
 (require (for-meta 1 racket/port racket/list))
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
-         AssertDecl BreakDecl InstanceDecl ;ArrowExpr
+         AssertDecl BreakDecl InstanceDecl QueryDecl ;ArrowExpr
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -456,6 +456,23 @@
 
 (define-syntax-rule (BreakDecl x ys ...) (break x (string->symbol ys) ...))
 (define-syntax-rule (InstanceDecl i) (instance i))
+
+(define-syntax (QueryDecl stx) (map-stx (lambda (d)
+  (define name (second d))
+  (define type (third d))
+  (define expr (fourth d))
+  (define name-sym (string->symbol name))
+  (define rel (string-append "_" name))
+  (define rel-sym (string->symbol rel))
+  (define datum `(begin 
+    (pre-declare-sig ,name-sym)
+    (SigDecl (NameList ,name) (DeclList (Decl (NameList ,rel) ,type)))
+    (fact (one ,name-sym))
+    (fact (= (join ,name-sym ,rel-sym) ,expr))
+  ))
+  (println datum)
+  datum
+) stx))
 
 ;;;;
 
