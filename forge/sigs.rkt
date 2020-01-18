@@ -83,13 +83,13 @@
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
          (add-relation field (list name r ...))
          (add-constraint (in field (-> name r ...)))
-         (add-int-bound field (int-bound 1 1)))]
+         (add-constraint (all ([n name]) (one (join n field)))))]
     [(_ lone name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
          (add-relation field (list name r ...))
          (add-constraint (in field (-> name r ...)))
-         (add-int-bound field (int-bound 0 1)))]))
+         (add-constraint (all ([n name]) (lone (join n field)))))]))
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
