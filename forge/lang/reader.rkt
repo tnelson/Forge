@@ -15,9 +15,12 @@
 (define (replace-ints datum)
   (cond
     [(list? datum)
-     (if (equal? (car datum) 'run)
-         datum
-         (map replace-ints datum))]
+     (cond [(empty? datum)
+            '()]
+           [(equal? (car datum) 'run)
+            datum]
+           [else
+            (map replace-ints datum)])]
     [(integer? datum)
      `,(node/int/constant datum)]
     [else datum]))
@@ -51,9 +54,8 @@
 
   ; Insert the filename of the running file into itself, to be shown in visualizer later,
   ; and used to extract source text.
-  (displayln path)
   (define filename-definition (list
-                               `(set-path! (path->string ,path))
+                               `(set-path! ,(format "~a" path))
                                '(displayln filepath)))
 
   ;(println sig-inits)
@@ -64,7 +66,7 @@
 
   (define module-datum `(module kkcli ,forge-path
                           ,@final))
-  
+
   (define stx (datum->syntax #f module-datum))
   ; (browse-syntax stx)
   stx)
