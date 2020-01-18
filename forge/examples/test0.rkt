@@ -9,8 +9,8 @@ fun thrice[a: A] : A {
 }
 
 pred p {
-    #A >= 4
+    some A
     all a:A { thrice[a] = a }
 }
 
-run {p}
+run {p} for 3 A
