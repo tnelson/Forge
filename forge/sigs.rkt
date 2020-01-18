@@ -73,18 +73,18 @@
 
 (define-syntax (declare-field stx)
   (syntax-case stx (set one lone)
-    [(_ set field r ...)
+    [(_ set name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
          (add-relation field (list name r ...))
          (add-constraint (in field (-> name r ...))))]
-    [(_ one field r ...)
+    [(_ one name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
          (add-relation field (list name r ...))
          (add-constraint (in field (-> name r ...)))
          (add-int-bound field (int-bound 1 1)))]
-    [(_ lone field r ...)
+    [(_ lone name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
          (add-relation field (list name r ...))
@@ -101,12 +101,12 @@
          #|(define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
          (add-relation field (list name r ...)) ...
          (add-constraint (in field (-> name r ...)))|#
-         (declare-field mult field r ...) ...)]
+         (declare-field mult name field r ...) ...)]
     [(_ name ((mult field r ...) ...) #:extends parent)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
-         (declare-field mult field r ...) ...
+         (declare-field mult name field r ...) ...
          (add-extension name parent)
          (add-constraint (in name parent)))]
     [(_ name)
@@ -127,7 +127,7 @@
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (declare-field mult field r ...) ...
+         (declare-field mult name field r ...) ...
          (add-int-bound name (int-bound 1 1)))]
 
     ; this should actually work! head template just gets mapped over every possible value for pattern var
@@ -135,7 +135,7 @@
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
-         (declare-field mult field r ...) ...
+         (declare-field mult name field r ...) ...
          (add-int-bound name (int-bound 1 1))
          (add-extension name parent)
          (add-constraint (in name parent)))]
