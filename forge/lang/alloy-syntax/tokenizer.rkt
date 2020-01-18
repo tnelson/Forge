@@ -55,8 +55,8 @@
        ["+" (token+ 'PLUS-TOK "" lexeme "" lexeme-start lexeme-end)]
        [(or "<=" "=<") (token+ 'LEQ-TOK "" lexeme "" lexeme-start lexeme-end)]
        [(or "!" "not") (token+ 'NEG-TOK "" lexeme "" lexeme-start lexeme-end)]
-       [(or "||" "or") (token+ 'DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]
-       [(or "&&" "and") (token+ 'DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]
+       [(or "||" "or") (token+ 'OR-TOK "" lexeme "" lexeme-start lexeme-end)]
+       [(or "&&" "and") (token+ 'AND-TOK "" lexeme "" lexeme-start lexeme-end)]
        [(or "<=>" "iff") (token+ 'IFF-TOK "" lexeme "" lexeme-start lexeme-end)]
        [(or "=>" "implies") (token+ 'IMP-TOK "" lexeme "" lexeme-start lexeme-end)]
        

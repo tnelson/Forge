@@ -15,12 +15,12 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | BreakDecl
           | InstanceDecl
           | QueryDecl
-SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK DeclList? /RIGHT-CURLY-TOK Block?
+SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
 Mult : LONE-TOK | SOME-TOK | ONE-TOK
-# Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? Expr
-Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowExpr
+Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? Expr
+ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowExpr
 FactDecl : FACT-TOK Name? Block
 PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
 FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
@@ -58,6 +58,8 @@ QualNameList : @QualName
              | @QualName /COMMA-TOK @QualNameList
 DeclList : Decl
          | Decl /COMMA-TOK @DeclList
+ArrowDeclList : ArrowDecl
+              | ArrowDecl /COMMA-TOK @ArrowDeclList
 LetDeclList : LetDecl
             | LetDecl /COMMA-TOK @LetDeclList
 TypescopeList : Typescope
