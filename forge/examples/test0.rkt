@@ -1,11 +1,11 @@
 #lang forge
 
 sig A {
-    r: A
+    r: set A
 }
 
 sig B extends A {
-    s: B
+    s: set B
 }
 
 pred p {
@@ -15,10 +15,10 @@ pred p {
     }
 }
 
-/*$(define (f a1 a2) (+ a1 a2))*/
+/*(define (f a1 a2) (+ a1 a2))*/
 
-/*fun f[a1: A, a2: A] : A {
+fun f[a1: A, a2: A] : A {
     a1+a2
-}*/
+}
 
 run {p}

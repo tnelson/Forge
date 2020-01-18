@@ -19,11 +19,12 @@ SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDec
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
 Mult : LONE-TOK | SOME-TOK | ONE-TOK
+ArrowMult : LONE-TOK | SET-TOK | ONE-TOK
 Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? Expr
-ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowExpr
+ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
 FactDecl : FACT-TOK Name? Block
 PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
-FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
+FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
 AssertDecl : /ASSERT-TOK Name? Block

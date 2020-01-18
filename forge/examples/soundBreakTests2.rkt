@@ -1,6 +1,6 @@
 #lang forge
 
-sig A { r: A }
+sig A { r: set A }
 
 fact r: func
 
