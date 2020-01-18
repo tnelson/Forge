@@ -386,7 +386,7 @@
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name)) names))
         (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-  (println datum)
+  ;(println datum)
   datum
 ) stx))
 
@@ -460,7 +460,6 @@
 
 (define-syntax (FunDecl stx) (map-stx (lambda (d)
   (define-values (name paras block) (values #f '() '()))
-  (println d)
   (for ([arg (cdr d)])
     (syntax-case arg (Name ParaDecls Decl NameList Block)
       [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
@@ -468,14 +467,14 @@
       (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
       [(Block bs ...) (set! block #'(bs ...))]
       [_ #f]
-      )
     )
-    '(begin)
-  ;(define datum (if (empty? paras)
-  ;                  `(fun ,name (and ,@(syntax->datum block)))
-  ;                  `(fun (,name ,@paras) (and ,@(syntax->datum block)))))
+  )
+  
+  (define datum (if (empty? paras)
+                    `(define ,name (and ,@(syntax->datum block)))
+                    `(define (,name ,@paras) (and ,@(syntax->datum block)))))
   ;(println datum)
-  ;datum
+  datum
   ) stx))
 
 (define-syntax (Block stx)
