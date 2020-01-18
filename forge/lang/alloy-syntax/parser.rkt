@@ -35,7 +35,7 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
-# BinOp : DISJ-TOK | CONJ-TOK | IFF-TOK | IMP-TOK | AMP-TOK 
+# BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
         | STAR-TOK
@@ -75,10 +75,10 @@ ExprList : Expr
 Expr    : @Expr1  
         | LET-TOK LetDeclList BlockOrBar
         | Quant DeclList BlockOrBar
-Expr1  : @Expr2  | Expr1 DISJ-TOK Expr2 
+Expr1  : @Expr2  | Expr1 OR-TOK Expr2
 Expr2  : @Expr3  | Expr2 IFF-TOK Expr3
 Expr3  : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
-Expr4  : @Expr5  | Expr4 CONJ-TOK Expr5
+Expr4  : @Expr5  | Expr4 AND-TOK Expr5
 Expr5  : @Expr6  | NEG-TOK Expr5
 Expr6  : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
 Expr7  : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr8
