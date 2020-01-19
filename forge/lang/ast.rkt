@@ -262,7 +262,8 @@
        (define-formula-op id type? checks ... #:lift #f))]))
 
 (define-formula-op in node/expr? #:same-arity? #t #:max-length 2)
-(define-formula-op = node/expr? #:same-arity? #t #:max-length 2 #:lift @=)
+
+
 (define-formula-op ordered node/expr? #:max-length 2)
 
 (define-formula-op && node/formula? #:min-length 1 #:lift #f)
@@ -272,6 +273,9 @@
 (define-formula-op int> node/int? #:min-length 2 #:max-length 2)
 (define-formula-op int< node/int? #:min-length 2 #:max-length 2)
 (define-formula-op int= node/int? #:min-length 2 #:max-length 2)
+
+(define-formula-op = node/expr? #:same-arity? #t #:max-length 2 #:lift int=)
+
 (define not !)
 
 (define-syntax (@@and stx)
