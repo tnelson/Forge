@@ -42,4 +42,6 @@ public interface KodkodOutput {
 	 */
 	public abstract void writeSolution(Solution sol, KodkodProblem problem);
 
+    public abstract void writeUnsat(Solution sol, KodkodProblem problem);
+
  }

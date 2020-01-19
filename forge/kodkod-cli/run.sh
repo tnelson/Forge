@@ -1,3 +1,3 @@
 #!/bin/bash
 
-java -cp "jar/*" kodkod.cli.KodkodServer $1
+java -cp "jar/*" -Djava.library.path=./jar kodkod.cli.KodkodServer "$@"

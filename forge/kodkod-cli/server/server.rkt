@@ -37,10 +37,10 @@
 
     (if incremental?
         (subprocess #f #f #f
-                    java "-Xmx2G" "-cp" cp
+                    java "-Xmx2G" "-cp" cp (string-append "-Djava.library.path=" (path->string kodkod/jar))
                     "kodkod.cli.KodkodServer" "-incremental" "-error-out" error-out)
         (subprocess #f #f #f
-                    java "-Xmx2G" "-cp" cp
+                    java "-Xmx2G" "-cp" cp (string-append "-Djava.library.path=" (path->string kodkod/jar))
                     "kodkod.cli.KodkodServer" "-stepper" "-error-out" error-out))))
 
 (define (kodkod-stderr-handler src err)

@@ -1,49 +1,17 @@
 #lang racket
 
-(require "../lang/ast.rkt" racket/date xml)
-(require racket/string)
-
-  
+(require "../lang/ast.rkt" racket/date xml racket/string)
 (provide model-to-XML-string)
-
-; need ID associated with every sig, and list of ids associated with every relation. Or list of names?
-; well, sig-names really is just a list of all sig names.
-; And modelhash is what, sig names to atoms? no its relation objects to atoms.
-; OK perfect! I just need to have those relation objects store the types.
-; And I can get the types of sigs from the types of their single-column relations.
-; But how to actually increment numbers between sigs? that part is tricky...
-; Just have a universal counter.
-; wait, not only that, I need to know whose parents are whose.
-; well i can ignore that for now. In which case I don't even need a counter!!! Can assign those myself!!
-
-; ah shit still need the relation type info...
-; just make it string to string for the types.
-
-
-#|(define doc (list 'alloy
-                    (list (list 'builddate "2018-04-08T17:20:06.754Z"))
-                    (list 'instance
-                          (list (list 'bitwidth "1")
-                                (list 'maxseq "1")
-                                (list 'command "")
-                                (list 'filename ""))
-                        
-                          (list 'sig
-                                (list (list 'label "Int")
-                                      (list 'ID "0")
-                                      (list 'parentID "1")
-                                      (list 'builtin "yes"))))))|#
 
 (define (atom-to-XML-string atom)
   (string-append "<atom label=\"" (format "~a" atom) "\"/>"))
 
-(define (sig-contents-to-XML-string modelhash sig-rel)
-  ; Maybe need to unfold one more time, just getting first element.
-  (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (hash-ref modelhash sig-rel))))
+(define (sig-contents-to-XML-string data sig-rel)
+  (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (hash-ref data sig-rel))))
 
-(define (sig-to-XML-string modelhash sig-rel sigID ID-hash)
+(define (sig-to-XML-string data sig-rel sigID ID-hash)
   (string-append "<sig label=\"" (relation-name sig-rel) "\" ID=\"" (number->string sigID) "\" parentID=\"" (number->string (hash-ref ID-hash (relation-parent sig-rel))) "\">\n"
-                 (sig-contents-to-XML-string modelhash sig-rel)
+                 (sig-contents-to-XML-string data sig-rel)
                  "\n</sig>\n\n"))
 
 (define (tuple-to-XML-string tuple)
@@ -51,10 +19,8 @@
                  (apply string-append (map atom-to-XML-string tuple))
                  "</tuple>\n"))
 
-
-
-(define (relation-to-XML-string modelhash rel)
-  (apply string-append (map tuple-to-XML-string (hash-ref modelhash rel))))
+(define (relation-to-XML-string data rel)
+  (apply string-append (map tuple-to-XML-string (hash-ref data rel))))
 
 (define (type-to-XML-string typestring ID-hash)
   (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
@@ -64,9 +30,9 @@
                  (apply string-append (map (λ (x) (type-to-XML-string x ID-hash)) (relation-typelist rel)))
                  "</types>\n"))
 
-(define (field-to-XML-string modelhash rel fieldID ID-hash)
+(define (field-to-XML-string data rel fieldID ID-hash)
   (string-append "<field label=\"" (relation-name rel) "\" ID=\"" (number->string fieldID) "\" parentID=\"" (number->string (hash-ref ID-hash (first (relation-typelist rel)))) "\">\n"
-                 (relation-to-XML-string modelhash rel)
+                 (relation-to-XML-string data rel)
                  (types-to-XML-string rel ID-hash)
                  "\n</field>\n\n"))
 
@@ -82,7 +48,11 @@
       (string-append (first lines) "<br>" (agg-lines (rest lines)))))
                  
 
-(define (model-to-XML-string modelhash name command filepath bitwidth)
+(define (model-to-XML-string model name command filepath bitwidth)
+  
+  (define flag (car model))
+  (define data (cdr model))
+  
   (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
                                   (clean (clean-syntax command)) "\" filename=\"" filepath "\">\n"
@@ -94,33 +64,35 @@
 <sig label="Int" ID="1" parentID="2" builtin="yes">
 </sig>
 
-<sig label="String" ID="3" parentID="2" builtin="yes">
-</sig>
-
 <sig label="univ" ID="2" builtin="yes">
 </sig>
+
+<field label="no-field-guard" ID="3" parentID="2">
+<types> <type ID="2"/><type ID="2"/> </types>
+</field>
 here-string-delimiter
                                   ))
-  (cond [(equal? modelhash 'unsat)
+  (cond [(equal? flag 'unsat)
          (string-append prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"UNSAT0\"/><atom label=\"UNSAT1\"/><atom label=\"UNSAT2\"/><atom label=\"UNSAT3\"/>"
                         "</sig>\n"
-         (apply string-append (for/list ([i 20]) (string-append
-                        "<field label=\"r"(~v i)"\" ID=\""(~v (+ 5 i))"\" parentID=\"4\">\n"
-                        "<tuple> <atom label=\"UNSAT0\"/> <atom label=\"UNSAT0\"/> </tuple>\n"
-                        "<types> <type ID=\"4\"/>  <type ID=\"4\"/> </types>"
-                        "</field>")))
-                        "\n</instance>\n</alloy>")]
-        [(equal? modelhash 'no-more-sat)
+                        "\n</instance>\n"
+                        (when data
+                            "<source filename=\"Unsat Core\" content=\"" (format "~a" data) "\"/>\n")
+                        "</alloy>")]
+        [(equal? flag 'no-more-instances)
          (string-append prologue
-                        "<sig label=\"No more satisfying instances. Some equivalent instances may have been removed through symmetry breaking.\" ID=\"4\"></sig>\n"
-                        "\n</instance>\n</alloy>")]
+                        ;"\n<sig label=\"NO MORE INSTANCES\" ID=\"5\" parentID=\"2\"></sig>\n"
+                        "\n<sig label=\"No more instances! Some equivalent instances may have been removed through symmetry breaking.\" ID=\"4\" parentID=\"2\">\n"
+                        "<atom label=\"&#128557;\"/><atom label=\"&#128542;\"/><atom label=\"&#128546;\"/><atom label=\"&#128551;\"/><atom label=\"&#128558;\"/>\n"
+                        "</sig>\n"
+                        "</instance>\n</alloy>")]
         [else
 
          (define sigs-unsorted (filter
                                 (λ (key) (equal? (relation-arity key) 1))
-                                (hash-keys modelhash)))
+                                (hash-keys data)))
 
          (define childrenhash
            (make-hash (map
@@ -185,21 +157,15 @@ here-string-delimiter
          (define atom-tuples (mutable-set))
          (define cleaned-model (make-hash (map (λ (x)
                                                  (begin0
-                                                   (cons x (set-subtract (hash-ref modelhash x) (set->list atom-tuples)))
-                                                   (set-union! atom-tuples (list->mutable-set (hash-ref modelhash x)))))
+                                                   (cons x (set-subtract (hash-ref data x) (set->list atom-tuples)))
+                                                   (set-union! atom-tuples (list->mutable-set (hash-ref data x)))))
                                                sigs-r)))
-         (displayln "")
-         (displayln cleaned-model)
-         (displayln "")
-         (displayln modelhash)
-         (displayln "")
          
          (define sigs (reverse sigs-r))
-         ; This is wrong!!! (displayln sigs)
   
          (define fields (filter-not
                          (λ (key) (equal? (relation-arity key) 1))
-                         (hash-keys modelhash)))  
+                         (hash-keys data)))  
 
          (define sigs# (length sigs))
 
@@ -218,7 +184,7 @@ here-string-delimiter
   
          (define field-strings (apply string-append (map
                                                      (λ (field id)
-                                                       (field-to-XML-string modelhash field id ID-hash))
+                                                       (field-to-XML-string data field id ID-hash))
                                                      fields
                                                      (range (+ 4 sigs#) (+ 4 sigs# (length fields))))))
 

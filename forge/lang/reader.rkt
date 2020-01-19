@@ -36,18 +36,11 @@
 
 
 (define (read-syntax path port)
-  ; (define src-datum (port->list read port))
   (define parse-tree (parse path (make-tokenizer port)))
 
   (define src-datum (cdr (syntax->datum parse-tree)))
-  ;(println src-datum)
   ; don't use format-datums, because it's awful with quotes.
   (define transformed (replace-ints src-datum))
-
-  ;(println transformed)
-
-  ;(println (pull-sigs transformed))
-
   (define sig-inits (map (lambda (x) `(pre-declare-sig ,(car x) #:extends ,(cdr x))) (pull-sigs transformed)))
 
   ; Insert the filename of the running file into itself, to be shown in visualizer later,
@@ -55,17 +48,11 @@
   (define filename-definition (list
                                `(set-path! ,(format "~a" path))
                                '(displayln filepath)))
-
-  ;(println sig-inits)
-
   (define final `(,@(append filename-definition sig-inits transformed)))
-
-  ;(println final)
 
   (define module-datum `(module kkcli ,forge-path
                           ,@final))
   
   (define stx (datum->syntax #f module-datum))
-  ; (browse-syntax stx)
   stx)
 (provide read-syntax)

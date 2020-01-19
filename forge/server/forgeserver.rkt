@@ -31,7 +31,6 @@
          (define m (ws-recv connection))
                
          (unless (eof-object? m)
-           (displayln m)
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
                  [(equal? m "current")

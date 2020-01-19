@@ -78,6 +78,11 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	 */
 	StandardKodkodOutput() {  this(Logger.getGlobal()); }
 
+    public void writeUnsat(Solution sol, KodkodProblem problem) {
+        writeCore(sol.proof(), (Defs<Formula>) problem.env().defs('f'));
+        writeStats(problem, sol);
+    }
+
 	/**
 	 * {@inheritDoc}
 	 * @see kodkod.cli.KodkodOutput#writeSolution(kodkod.engine.Solution, kodkod.cli.KodkodProblem)
@@ -85,7 +90,7 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	@SuppressWarnings("unchecked")
 	public void writeSolution(Solution sol, KodkodProblem problem) {
 		if (sol.sat()) 	writeInstance(sol.instance(), (Defs<Relation>) problem.env().defs('r'));
-		else			writeCore(sol.proof(), (Defs<Formula>) problem.env().defs('f'));
+		else			System.out.println("(no-more-instances)");
 		writeStats(problem, sol);
 	}
 
@@ -144,7 +149,7 @@ public final class StandardKodkodOutput implements KodkodOutput {
 		System.out.println(str.toString());
 		if (!core.isEmpty()) {
 			Logger.getGlobal().warning(	"Returned minimal core is missing " + core.size() +
-										" formulas for which no definitions of the form (fi ...) were provided.");
+										" formulas for which no definitions of the form (fi ...) were provided.\n");
 		}
 	}
 

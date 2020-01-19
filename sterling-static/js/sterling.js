@@ -8816,25 +8816,28 @@
         }
         _make_voronoi() {
             let points = this._edge.points();
-            let delaunay = Delaunay
-                .from(points, d => d.x, d => d.y)
-                .voronoi(_padded_bbox(points, 20));
-            let paths = Array.from(delaunay.cellPolygons());
-            this._delaunaygroup
-                .attr('fill', 'transparent')
-                .attr('stroke', 'none')
-                .selectAll('path')
-                .data(paths)
-                .join('path')
-                .attr('d', line())
-                .on('mouseover', (d, i) => {
-                this._edge.highlight(points[i].element);
-            })
-                .on('mouseout', () => {
-                this._edge.highlight(null);
-            });
-            this._delaunaygroup
-                .raise();
+            if (points.length > 0){
+                let delaunay = Delaunay
+                    .from(points, d => d.x, d => d.y)
+                    .voronoi(_padded_bbox(points, 20));
+                let paths = Array.from(delaunay.cellPolygons());
+
+                this._delaunaygroup
+                    .attr('fill', 'transparent')
+                    .attr('stroke', 'none')
+                    .selectAll('path')
+                    .data(paths)
+                    .join('path')
+                    .attr('d', line())
+                    .on('mouseover', (d, i) => {
+                    this._edge.highlight(points[i].element);
+                })
+                    .on('mouseout', () => {
+                    this._edge.highlight(null);
+                });
+                this._delaunaygroup
+                    .raise();
+            }
         }
     }
     function _edge_label(edge) {

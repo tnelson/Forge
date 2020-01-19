@@ -561,6 +561,10 @@ import org.parboiled.errors.ActionException;
 		}
 	}
 
+    final void writeUnsat(KodkodOutput out, Solution sol){
+        out.writeUnsat(sol, this);
+    }
+
 
 	// TODO: allow multiple Stepper problems.
 	// possibly by having Solve() return a new Stepper? or maybe after clear...
@@ -572,7 +576,9 @@ import org.parboiled.errors.ActionException;
 	private static final class Stepper extends KodkodProblem {
 		private final Solver solver;
 		private boolean issolved = false;
-		private Solution lastUnsat;
+		private Solution lastSol;
+        private int iteration = -1;
+        private boolean unsat = false;
 
 		// Used to print new solutions from the first solved model.
 		private Iterator<Solution> solutions;
@@ -589,6 +595,7 @@ import org.parboiled.errors.ActionException;
 			this.solver = null;
 			this.issolved = true;
 			this.solutions = solutions;
+            assert (this.iteration == -1);
 		}
 
 		public boolean isIncremental() { return false; }
@@ -605,20 +612,44 @@ import org.parboiled.errors.ActionException;
 
 		public KodkodProblem solve(KodkodOutput out) {
 			if (isSolved()){
+                assert (this.iteration >= 0);
+                this.iteration++;
+
+                if (this.unsat){
+                    assert(lastSol != null);
+                    writeUnsat(out, lastSol);
+                    return this;
+                }
+
 				if (solutions.hasNext()){
 					Solution sol = solutions.next();
-					write(out, sol);
-					lastUnsat = sol;
-					return this;
-				} else {
-					assert(lastUnsat != null);
-					write(out, lastUnsat);
+
+                    // If our first solution is also our last, then the spec
+                    // is unsatisfiable, and we say so.
+                    if ((this.iteration == 0) && !(solutions.hasNext())){
+                        this.unsat = true;
+                        lastSol = sol;
+                        writeUnsat(out, lastSol);
+                        return this;
+                    } else {
+    					write(out, sol);
+    					lastSol = sol;
+    					return this;
+                    }
+				}
+
+                // If we finished our list of solutions, we just keep repeating the last solutions
+                // found, which will be no-more-instances.
+                else {
+					assert(lastSol != null);
+					write(out, lastSol);
 					return this;
 				}
 			}
 
 			try {
-				return new Stepper(this, solver.solveAll(asserts(), bounds())).solve(out);
+                Iterator<Solution> solved = solver.solveAll(asserts(), bounds());
+				return new Stepper(this, solved).solve(out);
 			} catch (RuntimeException ex){
 				throw new ActionException(ex.getMessage(), ex);
 			}
