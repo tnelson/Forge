@@ -78,8 +78,8 @@ here-string-delimiter
                         "<atom label=\"UNSAT0\"/>"
                         "</sig>\n"
                         "\n</instance>\n"
-                        (when data
-                            "<source filename=\"Unsat Core\" content=\"" (format "~a" data) "\"/>\n")
+                        (if data
+                            ("<source filename=\"Unsat Core\" content=\"" (format "~a" data) "\"/>\n") "")
                         "</alloy>")]
         [(equal? flag 'no-more-instances)
          (string-append prologue
