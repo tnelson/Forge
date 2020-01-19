@@ -70,7 +70,7 @@
    ["fun"       (token+ `FUN-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]      
    ["in"        (token+ `IN-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["let"       (token+ `LET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["lone"      (token+ `LONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["module"    (token+ `MODULE-TOK "" lexeme "" lexeme-start lexeme-end)]    
