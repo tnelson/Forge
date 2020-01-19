@@ -546,6 +546,37 @@
         )))
     )
 ))
+(add-strategy 'plinear (λ (pri rel bound atom-lists rel-list) 
+    (define atoms (first atom-lists))
+    (define sig (first rel-list))
+    (breaker pri
+        (break-graph (set sig) (set))
+        (λ () (break
+            (sbound rel 
+                (set (take atoms 2))
+                (map list (drop-right atoms 1) (cdr atoms))
+            )
+            (set
+                (@one ([init sig]) (@and
+                    (@no (@join rel init))
+                    (@some (@join init rel))
+                ))
+            )
+        ))
+        (λ () (break bound (set
+            (@some ([init sig]) (@and
+                (@no (@join rel init))
+                (@all ([x (@- sig init)]) (@one (@join rel x)))
+                (@= (@join init (@* rel)) sig)
+            ))
+            (@some ([term sig]) (@and
+                (@no (@join term rel))
+                (@all ([x (@- sig term)]) (@one (@join x rel)))
+                (@= (@join (@* rel) term) sig)
+            ))
+        )))
+    )
+))
 
 ;;; A->B Strategies ;;;
 (add-strategy 'func (λ (pri rel bound atom-lists rel-list) 
@@ -554,7 +585,7 @@
     (define As (first atom-lists))
     (define Bs (second atom-lists))  
     (define formulas (set 
-        (@all ([a A]) (@one (@join a rel)))
+        (@all ([a A]) (@one (@join a rel)))    ; @one
     ))
     (if (equal? A B)
         (breaker pri
@@ -581,7 +612,7 @@
     (define As (first atom-lists))
     (define Bs (second atom-lists))  
     (define formulas (set 
-        (@all ([a A]) (@one  (@join a rel)))
+        (@all ([a A]) (@one  (@join a rel)))    ; @one
         (@all ([b B]) (@some (@join rel b)))    ; @some
     ))
     (if (equal? A B)
@@ -609,7 +640,7 @@
     (define As (first atom-lists))
     (define Bs (second atom-lists))  
     (define formulas (set 
-        (@all ([a A]) (@one  (@join a rel)))
+        (@all ([a A]) (@one  (@join a rel)))    ; @one
         (@all ([b B]) (@lone (@join rel b)))    ; @lone
     ))
     (if (equal? A B)
@@ -637,7 +668,7 @@
     (define As (first atom-lists))
     (define Bs (second atom-lists))  
     (define formulas (set 
-        (@all ([a A]) (@one  (@join a rel)))
+        (@all ([a A]) (@one  (@join a rel)))    ; @one
         (@all ([b B]) (@one  (@join rel b)))    ; @one
     ))
     (if (equal? A B)
@@ -672,6 +703,7 @@
 (add-strategy 'irref (variadic 2 (hash-ref strategies 'irref)))
 (add-strategy 'ref (variadic 2 (hash-ref strategies 'ref)))
 (add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
+(add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
 (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
 (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
 (add-strategy 'func (variadic 2 (hash-ref strategies 'func)))
