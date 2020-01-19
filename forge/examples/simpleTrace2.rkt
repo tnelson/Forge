@@ -66,7 +66,12 @@ pred Sol_facts {
 
 /**********/
 
-run {Sol_facts} for exactly 3 S
+pred clean {
+    U = A+B+C
+    #U = 3
+}
+
+run {Sol_facts clean}
 
 
 
