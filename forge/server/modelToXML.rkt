@@ -75,7 +75,7 @@ here-string-delimiter
   (cond [(equal? flag 'unsat)
          (string-append prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
-                        "<atom label=\"UNSAT0\"/><atom label=\"UNSAT1\"/><atom label=\"UNSAT2\"/><atom label=\"UNSAT3\"/>"
+                        "<atom label=\"UNSAT0\"/>"
                         "</sig>\n"
                         "\n</instance>\n"
                         (when data

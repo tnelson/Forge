@@ -13,3 +13,8 @@ cytotestsite/cytotest.css
 cytotestsite/cytoscape.min.js
 local/
 .vscode/
+racket-rfc6455/compiled
+racket-rfc6455/net/compiled
+racket-rfc6455/net/doc
+racket-rfc6455/net/scribblings
+racket-rfc6455/net/rfc6455/doc

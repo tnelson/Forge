@@ -71,26 +71,44 @@
          (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          (add-sig (symbol->string 'name) (symbol->string 'parent)))]))
 
+(define-syntax (declare-field stx)
+  (syntax-case stx (set one lone)
+    [(_ set name field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...))))]
+    [(_ one name field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...)))
+         (add-constraint (all ([n name]) (one (join n field)))))]
+    [(_ lone name field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...)))
+         (add-constraint (all ([n name]) (lone (join n field)))))]))
 
 ;Extends does not work yet
 (define-syntax (declare-sig stx)
   (syntax-case stx ()
-    [(_ name ((field r ...) ...))
+    [(_ name ((field mult r ...) ...))
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
+         #|(define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
          (add-relation field (list name r ...)) ...
-         (add-constraint (in field (-> name r ...))) ...)]
-    [(_ name ((field r ...) ...) #:extends parent)
+         (add-constraint (in field (-> name r ...)))|#
+         (declare-field mult name field r ...) ...)]
+    [(_ name ((field mult r ...) ...) #:extends parent)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
-         (add-relation field (list name r ...)) ...
-         (add-constraint (in field (-> name r ...))) ...
+         (declare-field mult name field r ...) ...
          (add-extension name parent)
-         (add-constraint (cons (in name parent) constraints)))]
+         (add-constraint (in name parent)))]
     [(_ name)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
@@ -105,23 +123,19 @@
 
 (define-syntax (declare-one-sig stx)
   (syntax-case stx ()
-    [(_ name ((field r ...) ...))
+    [(_ name ((field mult r ...) ...))
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
-         (add-relation field (list name r ...)) ...
-         (add-constraint (in field (-> name r ...))) ...
+         (declare-field mult name field r ...) ...
          (add-int-bound name (int-bound 1 1)))]
 
     ; this should actually work! head template just gets mapped over every possible value for pattern var
-    [(_ name ((field r ...) ...) #:extends parent)
+    [(_ name ((field mult r ...) ...) #:extends parent)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field))) ...
-         (add-relation field (list name r ...)) ...
-         (add-constraint (in field (-> name r ...))) ...
+         (declare-field mult name field r ...) ...
          (add-int-bound name (int-bound 1 1))
          (add-extension name parent)
          (add-constraint (in name parent)))]
@@ -129,7 +143,7 @@
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (add-int-bound int-bounds-store name (int-bound 1 1)))]
+         (add-int-bound name (int-bound 1 1)))]
     [(_ name #:extends parent)
      #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
@@ -260,12 +274,12 @@
     [(_ name ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (hash-set! hashy sig (int-bound lower upper)) ...
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
          (run-spec hashy name #,command filepath))]
     [(_ name (preds ...) ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (hash-set! hashy sig (int-bound lower upper)) ...
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
          (add-constraint preds) ...
          (run-spec hashy name #,command filepath))]
     [(_ name)
@@ -296,7 +310,7 @@
 (require (for-meta 1 racket/port racket/list))
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
-         AssertDecl BreakDecl InstanceDecl QueryDecl ;ArrowExpr
+         AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -312,14 +326,17 @@
      `(node/int/constant ,datum)]
     [else datum]))
 (define-for-syntax (process-DeclList d)
-  (define ret (syntax-case d (NameList Mult SigExt DeclList Block)
+  (define ret (syntax-case d 
+    (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block ArrowMult QualName)
     ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
     ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
     ;                                   (syntax->datum #'((nss ...) ...))
     ;                                   (syntax->datum #'(qs ...))))]
-    [(DeclList (_ (NameList nss ...) (ArrowExpr ess ...)) ...)
-        (apply append (map (lambda (ns es) (map (lambda (n) `(,(string->symbol n) ,@es)) ns))
+    [(ArrowDeclList (_ (NameList nss ...) (ArrowMult mults) (ArrowExpr (QualName ess) ...)) ...)
+        (apply append (map (lambda (ns m es) (map (lambda (n) 
+          `(,(string->symbol n) ,(string->symbol m) ,@(map string->symbol es))) ns))
                                       (syntax->datum #'((nss ...) ...))
+                                      (syntax->datum #'(mults ...))
                                       (syntax->datum #'((ess ...) ...))))]
     [(DeclList (_ (NameList nss ...) es) ...)
         (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns))
@@ -341,12 +358,12 @@
 (define-syntax (SigDecl stx) (map-stx (lambda (d)
                                         (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
                                         (for ([arg (cdr d)])
-                                          (syntax-case arg (NameList Mult SigExt DeclList Block)
+                                          (syntax-case arg (NameList Mult SigExt ArrowDeclList Block)
                                             ["abstract" (set! abstract #t)]
                                             [(Mult "one") (set! one #t)]
                                             [(NameList ns ...) (set! names #'(ns ...))]
                                             [(SigExt "extends" qn) (set! qualName #'qn)]
-                                            [(DeclList _ ...) (set! decls (process-DeclList arg))]
+                                            [(ArrowDeclList _ ...) (set! decls (process-DeclList arg))]
                                             [(Block es ...) (set! exprs #'(es ...))]
                                             [_ #f]
                                             )
@@ -355,14 +372,16 @@
                                         (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
 
   (define op (if one 'declare-one-sig 'declare-sig))
-  (set! decls (for/list ([d decls]) (cons (car d) (map string->symbol (cdr (second d))))))
+  ;(println decls)
+  ;(set! decls (for/list ([d decls]) 
+  ;  (list* (first d) (second d) (for/list ([q (cddr d)]) (string->symbol (second q))))))
   ;(println decls)
 
   (define datum
     (if qualName
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
-        (raise "can't handle both decl fields and extension")
+        (cons 'begin (map (lambda (name) `(,op ,name ,decls #:extends ,qualName)) names))
       )
       (if (= 0 (length decls))
         (cons 'begin (map (lambda (name) `(,op ,name)) names))
@@ -439,6 +458,24 @@
                                            datum
                                            ) stx))
 
+(define-syntax (FunDecl stx) (map-stx (lambda (d)
+  (define-values (name paras block) (values #f '() '()))
+  (for ([arg (cdr d)])
+    (syntax-case arg (Name ParaDecls Decl NameList Block)
+      [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
+      [(ParaDecls (Decl (NameList ps) _ ...) ...)
+      (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
+      [(Block bs ...) (set! block #'(bs ...))]
+      [_ #f]
+    )
+  )
+  
+  (define datum (if (empty? paras)
+                    `(define ,name (and ,@(syntax->datum block)))
+                    `(define (,name ,@paras) (and ,@(syntax->datum block)))))
+  ;(println datum)
+  datum
+  ) stx))
 
 (define-syntax (Block stx)
   (define ret (syntax-case stx ()
@@ -466,11 +503,11 @@
   (define rel-sym (string->symbol rel))
   (define datum `(begin 
     (pre-declare-sig ,name-sym)
-    (SigDecl (NameList ,name) (DeclList (Decl (NameList ,rel) ,type)))
+    (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) (ArrowMult "set") ,type)))
     (fact (one ,name-sym))
     (fact (= (join ,name-sym ,rel-sym) ,expr))
   ))
-  (println datum)
+  ;(println datum)
   datum
 ) stx))
 
@@ -487,14 +524,9 @@
                              Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17
                              CompareOp ExprList Quant DeclList NameList Expr QualName)
       ; [(_ "let" (LetDeclList _ ...) (BlockOrBar _ ...)) #f]         ;; TODO:
-      [(_ (Quant q) (DeclList (_ (NameList nss ...) qs) ...) e)
-       (datum->syntax stx
-                      `(,(string->symbol (syntax->datum #'q))
-                        ,(apply append (map (lambda (ns q) (map (lambda (n) `[,(string->symbol n) ,q]) ns))
-                                            (syntax->datum #'((nss ...) ...))
-                                            (syntax->datum #'(qs ...))))
-                        ,#'e))]
-
+      [(_ (Quant q) dlist e) (datum->syntax stx
+        `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
+      )]
       ;; Note: the QQQ-TOKs here are just match vars but offer clarity and mirror reader
       [(_ (Expr1 a ...) DISJ-TOK (Expr2 b ...))
        #'(or (Expr a ...) (Expr b ...))]

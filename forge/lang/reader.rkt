@@ -26,11 +26,13 @@
     [else datum]))
 
 ; find all the sig declarations and lift their binding to the top level.
-(define (is-sig-decl datum) (equal? (car datum) 'SigDecl)) 
+(define (is-sig-decl datum) (equal? (car datum) 'SigDecl))
+
+(define (get-sig-name datum) #|(println datum)|# (if (@and (pair? (first datum)) (equal? (first (first datum)) 'NameList)) (second (first datum)) (get-sig-name (rest datum))))
 
 (define (pull-sigs datum)
   (map (lambda (x)
-         (cons (string->symbol (car (cdr (second x)))) (if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)))
+       (cons (string->symbol (get-sig-name x) #|(car (cdr (second x)))|#) (if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)))
        (begin
          #|(println (filter is-sig-decl datum))|# (filter is-sig-decl datum))))
 
@@ -52,7 +54,7 @@
 
   (define module-datum `(module kkcli ,forge-path
                           ,@final))
-  
+
   (define stx (datum->syntax #f module-datum))
   stx)
 (provide read-syntax)
