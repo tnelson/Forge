@@ -5,6 +5,8 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
+(require (for-syntax racket/syntax))
+
 (provide break instance quote begin println filepath set-path!)
 
 (define filepath #f)
@@ -23,6 +25,8 @@
 (define relations-store (make-hash))
 ;Map from sigs to sigs to track hierarchy
 (define extensions-store (make-hash))
+;Opposite direction of extensions-store
+(define parents (make-hash))
 ;Map from relations to explicit bounds
 (define bounds-store (make-hash))
 ;Map from relations to int bounds
@@ -55,13 +59,18 @@
 (define (add-constraints cs) (set! constraints (append cs constraints)))
 
 (define (add-extension child parent)
+  (if (equal? parent univ)
+      #f
+      (if (hash-has-key? parents parent)
+          (hash-set! parents parent (cons child (hash-ref parents parent)))
+          (hash-set! parents parent (list child))))
   (hash-set! extensions-store child parent))
 
 (define (add-int-bound rel int-bound)
   (hash-set! int-bounds-store rel int-bound))
 
 (define-syntax (pre-declare-sig stx)
-  (syntax-case stx ()
+  (syntax-case stx ($remainder-sig$)
     [(_ name)
      #'(begin
          (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
@@ -163,11 +172,38 @@
 
   ; OK I need to know how this works, that's my priority.
   ; Ultimately, the problem is that abstract-cat isn't getting into the bounds store...
+  #'(append
+     (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
+                          (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
+          (filter (lambda (x) (@not (member x (hash-values extensions-store)))) sigs)) ; Filter out all parent sigs
+     (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (filter (lambda (x) (member x (hash-values extensions-store))) sigs)))
+
+
+  
+  (println "parents:")
+  (println parents)
+
+  ; Create remainder sigs
+  (for ([par (hash-keys parents)])
+    (define remainder-name (format "remainder-~a" (relation-name par)))
+    (define remainder (declare-relation (list remainder-name) (format "~a" (relation-name par)) remainder-name))
+    (add-sig remainder-name (relation-name par))
+    (add-extension remainder par)
+    (add-constraint (in remainder par))
+    (add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) (println lst) lst))))
+
+
+  (println sigs)
+
+  
   (append
-   (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
-                        (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
-        (filter (lambda (x) (@not (member x (hash-values extensions-store)))) sigs)) ; Filter out all parent sigs
-   (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (filter (lambda (x) (member x (hash-values extensions-store))) sigs))))
+   ; For all leaf sigs, get their bounds and populate them
+   (map
+    (lambda (sig)
+      (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
+        (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
+    (filter (lambda (x) (@not (member x (hash-keys parents)))) sigs))
+   (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (hash-keys parents))))
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
 (define (get-bound sig hashy-bounds)
@@ -327,25 +363,25 @@
     [else datum]))
 (define-for-syntax (process-DeclList d)
   (define ret (syntax-case d 
-    (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block ArrowMult QualName)
-    ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
-    ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
-    ;                                   (syntax->datum #'((nss ...) ...))
-    ;                                   (syntax->datum #'(qs ...))))]
-    [(ArrowDeclList (_ (NameList nss ...) (ArrowMult mults) (ArrowExpr (QualName ess) ...)) ...)
-        (apply append (map (lambda (ns m es) (map (lambda (n) 
-          `(,(string->symbol n) ,(string->symbol m) ,@(map string->symbol es))) ns))
-                                      (syntax->datum #'((nss ...) ...))
-                                      (syntax->datum #'(mults ...))
-                                      (syntax->datum #'((ess ...) ...))))]
-    [(DeclList (_ (NameList nss ...) es) ...)
-        (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns))
-                                      (syntax->datum #'((nss ...) ...))
-                                      (syntax->datum #'(es ...))))]
-  ))
+                (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block ArrowMult QualName)
+                ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
+                ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
+                ;                                   (syntax->datum #'((nss ...) ...))
+                ;                                   (syntax->datum #'(qs ...))))]
+                [(ArrowDeclList (_ (NameList nss ...) (ArrowMult mults) (ArrowExpr (QualName ess) ...)) ...)
+                 (apply append (map (lambda (ns m es) (map (lambda (n) 
+                                                             `(,(string->symbol n) ,(string->symbol m) ,@(map string->symbol es))) ns))
+                                    (syntax->datum #'((nss ...) ...))
+                                    (syntax->datum #'(mults ...))
+                                    (syntax->datum #'((ess ...) ...))))]
+                [(DeclList (_ (NameList nss ...) es) ...)
+                 (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns))
+                                    (syntax->datum #'((nss ...) ...))
+                                    (syntax->datum #'(es ...))))]
+                ))
   ;(println ret)
   ret
-)
+  )
 (define-for-syntax (use-ctxt stx1 stx2)
   (datum->syntax stx1 (syntax->datum stx2))
   )
@@ -371,24 +407,24 @@
                                         (set! names (map string->symbol (syntax->datum names)))
                                         (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
 
-  (define op (if one 'declare-one-sig 'declare-sig))
-  ;(println decls)
-  ;(set! decls (for/list ([d decls]) 
-  ;  (list* (first d) (second d) (for/list ([q (cddr d)]) (string->symbol (second q))))))
-  ;(println decls)
+                                        (define op (if one 'declare-one-sig 'declare-sig))
+                                        ;(println decls)
+                                        ;(set! decls (for/list ([d decls]) 
+                                        ;  (list* (first d) (second d) (for/list ([q (cddr d)]) (string->symbol (second q))))))
+                                        ;(println decls)
 
-  (define datum
-    (if qualName
-      (if (= 0 (length decls))
-        (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
-        (cons 'begin (map (lambda (name) `(,op ,name ,decls #:extends ,qualName)) names))
-      )
-      (if (= 0 (length decls))
-        (cons 'begin (map (lambda (name) `(,op ,name)) names))
-        (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-  ;(println datum)
-  datum
-) stx))
+                                        (define datum
+                                          (if qualName
+                                              (if (= 0 (length decls))
+                                                  (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
+                                                  (cons 'begin (map (lambda (name) `(,op ,name ,decls #:extends ,qualName)) names))
+                                                  )
+                                              (if (= 0 (length decls))
+                                                  (cons 'begin (map (lambda (name) `(,op ,name)) names))
+                                                  (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
+                                        ;(println datum)
+                                        datum
+                                        ) stx))
 
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
                                         (define-values (name cmd arg scope block) (values #f #f #f '() #f))
@@ -459,23 +495,23 @@
                                            ) stx))
 
 (define-syntax (FunDecl stx) (map-stx (lambda (d)
-  (define-values (name paras block) (values #f '() '()))
-  (for ([arg (cdr d)])
-    (syntax-case arg (Name ParaDecls Decl NameList Block)
-      [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
-      [(ParaDecls (Decl (NameList ps) _ ...) ...)
-      (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
-      [(Block bs ...) (set! block #'(bs ...))]
-      [_ #f]
-    )
-  )
+                                        (define-values (name paras block) (values #f '() '()))
+                                        (for ([arg (cdr d)])
+                                          (syntax-case arg (Name ParaDecls Decl NameList Block)
+                                            [(Name n) (set! name (string->symbol (syntax->datum #'n)))]
+                                            [(ParaDecls (Decl (NameList ps) _ ...) ...)
+                                             (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
+                                            [(Block bs ...) (set! block #'(bs ...))]
+                                            [_ #f]
+                                            )
+                                          )
   
-  (define datum (if (empty? paras)
-                    `(define ,name (and ,@(syntax->datum block)))
-                    `(define (,name ,@paras) (and ,@(syntax->datum block)))))
-  ;(println datum)
-  datum
-  ) stx))
+                                        (define datum (if (empty? paras)
+                                                          `(define ,name (and ,@(syntax->datum block)))
+                                                          `(define (,name ,@paras) (and ,@(syntax->datum block)))))
+                                        ;(println datum)
+                                        datum
+                                        ) stx))
 
 (define-syntax (Block stx)
   (define ret (syntax-case stx ()
@@ -495,21 +531,21 @@
 (define-syntax-rule (InstanceDecl i) (instance i))
 
 (define-syntax (QueryDecl stx) (map-stx (lambda (d)
-  (define name (second d))
-  (define type (third d))
-  (define expr (fourth d))
-  (define name-sym (string->symbol name))
-  (define rel (string-append "_" name))
-  (define rel-sym (string->symbol rel))
-  (define datum `(begin 
-    (pre-declare-sig ,name-sym)
-    (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) (ArrowMult "set") ,type)))
-    (fact (one ,name-sym))
-    (fact (= (join ,name-sym ,rel-sym) ,expr))
-  ))
-  ;(println datum)
-  datum
-) stx))
+                                          (define name (second d))
+                                          (define type (third d))
+                                          (define expr (fourth d))
+                                          (define name-sym (string->symbol name))
+                                          (define rel (string-append "_" name))
+                                          (define rel-sym (string->symbol rel))
+                                          (define datum `(begin 
+                                                           (pre-declare-sig ,name-sym)
+                                                           (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) (ArrowMult "set") ,type)))
+                                                           (fact (one ,name-sym))
+                                                           (fact (= (join ,name-sym ,rel-sym) ,expr))
+                                                           ))
+                                          ;(println datum)
+                                          datum
+                                          ) stx))
 
 ;;;;
 
@@ -525,8 +561,8 @@
                              CompareOp ExprList Quant DeclList NameList Expr QualName)
       ; [(_ "let" (LetDeclList _ ...) (BlockOrBar _ ...)) #f]         ;; TODO:
       [(_ (Quant q) dlist e) (datum->syntax stx
-        `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
-      )]
+                                            `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
+                                            )]
       ;; Note: the QQQ-TOKs here are just match vars but offer clarity and mirror reader
       [(_ (Expr1 a ...) DISJ-TOK (Expr2 b ...))
        #'(or (Expr a ...) (Expr b ...))]

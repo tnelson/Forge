@@ -32,9 +32,17 @@
 
 (define (pull-sigs datum)
   (map (lambda (x)
-       (cons (string->symbol (get-sig-name x) #|(car (cdr (second x)))|#) (if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)))
+       (cons (string->symbol (get-sig-name x) #|(car (cdr (second x)))|#) #|(if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)|#
+             (grab-extension x)))
        (begin
          #|(println (filter is-sig-decl datum))|# (filter is-sig-decl datum))))
+
+(define (grab-extension datum)
+  (if (equal? 0 (length datum))
+      'univ
+      (if (@and (pair? (first datum)) (equal? (first (first datum)) 'SigExt))
+          (string->symbol (second (third (first datum))))
+          (grab-extension (rest datum)))))
 
 
 (define (read-syntax path port)
@@ -43,7 +51,11 @@
   (define src-datum (cdr (syntax->datum parse-tree)))
   ; don't use format-datums, because it's awful with quotes.
   (define transformed (replace-ints src-datum))
+  (println "hereherehere")
+  (println transformed)
   (define sig-inits (map (lambda (x) `(pre-declare-sig ,(car x) #:extends ,(cdr x))) (pull-sigs transformed)))
+  (println "inits")
+  (println sig-inits)
 
   ; Insert the filename of the running file into itself, to be shown in visualizer later,
   ; and used to extract source text.
