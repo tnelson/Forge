@@ -45,11 +45,10 @@
 (define (agg-lines lines)
   (if (empty? lines)
       ""
-      (string-append (first lines) "\n" (agg-lines (rest lines)))))
+      (string-append (first lines) "\r\n" (agg-lines (rest lines)))))
                  
 
 (define (model-to-XML-string model name command filepath bitwidth)
-  
   (define flag (car model))
   (define data (cdr model))
   
@@ -117,12 +116,6 @@ here-string-delimiter
                           (empty? (hash-ref childrenhash parent)))
                         (hash-keys childrenhash)))
 
-         (displayln "")
-         (displayln childrenhash)
-         (displayln "")
-         (displayln start)
-         (displayln "")
-
          (for ([key start])
            (hash-remove! childrenhash key))
 
@@ -149,10 +142,6 @@ here-string-delimiter
 
          (unless (hash-empty? childrenhash)
            (error "CYCLE IN INPUT SIGS"))
-
-         (displayln "")
-         (displayln sigs-r)
-         (displayln "")
 
          (define atom-tuples (mutable-set))
          (define cleaned-model (make-hash (map (λ (x)
@@ -188,16 +177,12 @@ here-string-delimiter
                                                      fields
                                                      (range (+ 4 sigs#) (+ 4 sigs# (length fields))))))
 
-         (define (pprinter x)
-           (displayln x)
-           x)
-
          (define epilogue (string-append
                            "\n</instance>\n"
                            "<source filename=\"" filepath "\">"
                            (with-handlers ([exn:fail:filesystem:errno?
                                             (λ (exn) "// Couldn't open source file! Maybe you forgot to save it?")])
-                             (pprinter (clean (agg-lines (port->lines (open-input-file filepath))))))
+                             (clean (agg-lines (port->lines (open-input-file filepath)))))
                            "</source>\n"
                            "</alloy>"))
                                            

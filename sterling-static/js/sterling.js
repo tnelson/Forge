@@ -6914,7 +6914,7 @@
         }
         set_command(command) {
             if (this._command)
-                this._command.text('Command: ' + convert_from_html_references(command));
+                this._command.html('Command: ' + command);
         }
         set_connection_status(connection) {
             if (this._connection)
