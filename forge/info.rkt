@@ -1,7 +1,7 @@
 #lang info
 (define collection "forge")
 
-(define deps '("beautiful-racket" "rfc6455" "predicates"))
+(define deps '("beautiful-racket" "predicates"))
 
 (define scribblings '(("doc/quickstart.scrbl" ())))
 

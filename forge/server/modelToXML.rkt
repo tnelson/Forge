@@ -45,11 +45,10 @@
 (define (agg-lines lines)
   (if (empty? lines)
       ""
-      (string-append (first lines) "<br>" (agg-lines (rest lines)))))
+      (string-append (first lines) "\r\n" (agg-lines (rest lines)))))
                  
 
 (define (model-to-XML-string model name command filepath bitwidth)
-  
   (define flag (car model))
   (define data (cdr model))
   
@@ -78,8 +77,8 @@ here-string-delimiter
                         "<atom label=\"UNSAT0\"/>"
                         "</sig>\n"
                         "\n</instance>\n"
-                        (when data
-                            "<source filename=\"Unsat Core\" content=\"" (format "~a" data) "\"/>\n")
+                        (if data
+                            (string-append "<source filename=\"Unsat Core\">" (format "~a" data) "</source>\n") "")
                         "</alloy>")]
         [(equal? flag 'no-more-instances)
          (string-append prologue
@@ -117,12 +116,6 @@ here-string-delimiter
                           (empty? (hash-ref childrenhash parent)))
                         (hash-keys childrenhash)))
 
-         (displayln "")
-         (displayln childrenhash)
-         (displayln "")
-         (displayln start)
-         (displayln "")
-
          (for ([key start])
            (hash-remove! childrenhash key))
 
@@ -149,10 +142,6 @@ here-string-delimiter
 
          (unless (hash-empty? childrenhash)
            (error "CYCLE IN INPUT SIGS"))
-
-         (displayln "")
-         (displayln sigs-r)
-         (displayln "")
 
          (define atom-tuples (mutable-set))
          (define cleaned-model (make-hash (map (λ (x)
@@ -190,11 +179,11 @@ here-string-delimiter
 
          (define epilogue (string-append
                            "\n</instance>\n"
-                           "<source filename=\"" filepath "\" content=\""
+                           "<source filename=\"" filepath "\">"
                            (with-handlers ([exn:fail:filesystem:errno?
                                             (λ (exn) "// Couldn't open source file! Maybe you forgot to save it?")])
                              (clean (agg-lines (port->lines (open-input-file filepath)))))
-                           "\"/>\n"
+                           "</source>\n"
                            "</alloy>"))
                                            
 
