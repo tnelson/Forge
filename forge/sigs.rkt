@@ -204,6 +204,7 @@
       (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
         (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
     (filter (lambda (x) (@not (member x (hash-keys parents)))) sigs))
+   ; For all non-leaf sigs, get their bounds
    (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (hash-keys parents))))
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
@@ -216,8 +217,12 @@
     [else
      (int-bound 0 top-level-bound)]))
 
+(define (strip-remainder str)
+  (if (@< (string-length str) 10) str
+  (if (equal? (substring str 0 10) "remainder-") (substring str 10) str)))
+
 (define (populate-sig sig bound)
-  (define atoms (map (lambda (n) (string-append (relation-name sig) (number->string n))) (range bound)))
+  (define atoms (map (lambda (n) (string-append (strip-remainder (relation-name sig)) (number->string n))) (range bound)))
   (define sym-atoms (map string->symbol atoms))
   (set! working-universe (append sym-atoms working-universe))
   (hash-set! bounds-store sig sym-atoms)
