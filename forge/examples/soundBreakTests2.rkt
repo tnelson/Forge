@@ -2,7 +2,7 @@
 
 sig A { r: set A }
 
-fact r: func
+--fact r: func
 
 <instance bitwidth="4" maxseq="4" command="Run run$1 for 5" filename="/Applications/Untitled 1.als">
     <sig label="seq/Int" ID="0" parentID="1" builtin="yes"></sig>
@@ -36,8 +36,8 @@ fact r: func
     </field>
 </instance>
 
-leaf: A = A-A.r
-fixp: A = (r & iden).A
+--leaf: A = A-A.r
+--fixp: A = (r & iden).A
     
 run {} for exactly 10 A
 
