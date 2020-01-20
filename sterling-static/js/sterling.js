@@ -10238,6 +10238,12 @@
             this._table_view = null;
             this._tree_view = null;
             this._source_view = null;
+
+            document.onkeydown = (e) => {
+                if ([32, 39, 78].includes(e.keyCode)) {    // [space, right, n]
+                    this._alloy.request_next();
+                }
+            };
         }
         // Initializers
         connect() {

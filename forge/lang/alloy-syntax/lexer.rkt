@@ -103,6 +103,8 @@
    ;; identifiers
    [(: alphabetic (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
+   [(* (char-set "➡️"))   ;; "’" "”"
+    (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; otherwise
    [whitespace (token+ lexeme "" lexeme "" lexeme-start lexeme-end #t)]

@@ -5,9 +5,10 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
+
 (require (for-syntax racket/syntax))
 
-(provide break instance quote begin println filepath set-path!)
+(provide break instance quote begin println filepath set-path! let)
 
 (define filepath #f)
 (define (set-path! path)
@@ -179,7 +180,7 @@
      (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (filter (lambda (x) (member x (hash-values extensions-store))) sigs)))
 
 
-  
+
   (println "parents:")
   (println parents)
 
@@ -195,7 +196,7 @@
 
   (println sigs)
 
-  
+
   (append
    ; For all leaf sigs, get their bounds and populate them
    (map
@@ -362,14 +363,14 @@
      `(node/int/constant ,datum)]
     [else datum]))
 (define-for-syntax (process-DeclList d)
-  (define ret (syntax-case d 
+  (define ret (syntax-case d
                 (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block ArrowMult QualName)
                 ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
                 ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
                 ;                                   (syntax->datum #'((nss ...) ...))
                 ;                                   (syntax->datum #'(qs ...))))]
                 [(ArrowDeclList (_ (NameList nss ...) (ArrowMult mults) (ArrowExpr (QualName ess) ...)) ...)
-                 (apply append (map (lambda (ns m es) (map (lambda (n) 
+                 (apply append (map (lambda (ns m es) (map (lambda (n)
                                                              `(,(string->symbol n) ,(string->symbol m) ,@(map string->symbol es))) ns))
                                     (syntax->datum #'((nss ...) ...))
                                     (syntax->datum #'(mults ...))
@@ -409,7 +410,7 @@
 
                                         (define op (if one 'declare-one-sig 'declare-sig))
                                         ;(println decls)
-                                        ;(set! decls (for/list ([d decls]) 
+                                        ;(set! decls (for/list ([d decls])
                                         ;  (list* (first d) (second d) (for/list ([q (cddr d)]) (string->symbol (second q))))))
                                         ;(println decls)
 
@@ -505,7 +506,7 @@
                                             [_ #f]
                                             )
                                           )
-  
+
                                         (define datum (if (empty? paras)
                                                           `(define ,name (and ,@(syntax->datum block)))
                                                           `(define (,name ,@paras) (and ,@(syntax->datum block)))))
@@ -537,7 +538,7 @@
                                           (define name-sym (string->symbol name))
                                           (define rel (string-append "_" name))
                                           (define rel-sym (string->symbol rel))
-                                          (define datum `(begin 
+                                          (define datum `(begin
                                                            (pre-declare-sig ,name-sym)
                                                            (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) (ArrowMult "set") ,type)))
                                                            (fact (one ,name-sym))
@@ -558,8 +559,11 @@
   (define ret
     (syntax-case stx (Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
                              Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17
-                             CompareOp ExprList Quant DeclList NameList Expr QualName)
-      ; [(_ "let" (LetDeclList _ ...) (BlockOrBar _ ...)) #f]         ;; TODO:
+                             CompareOp ExprList Quant DeclList NameList Expr QualName
+                             LetDecl LetDeclList)
+      [(_ "let" (LetDeclList (LetDecl name value)) block) (datum->syntax stx
+        `(let ([,(string->symbol (syntax->datum #'name)) ,#'value]) ,#'block)
+      )]
       [(_ (Quant q) dlist e) (datum->syntax stx
                                             `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
                                             )]
@@ -625,6 +629,7 @@
       )
     )
   ; (datum->syntax stx (syntax->datum ret))
+  ;(println ret)
   ret
   )
 
