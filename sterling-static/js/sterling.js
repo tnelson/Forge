@@ -6554,12 +6554,10 @@
             instance._fields = Array.from(fields.values());
             instance._skolem = Array.from(skolem.values());
 
-            console.log(doc.selectAll('source'));
             // Save model source
             doc.selectAll('source')
                 .each(function () {
-                let s = select(this), f = s.attr('filename'), c = restore_breaks(s.attr('content'));
-                console.log(c);
+                let s = select(this), f = s.attr('filename'), c = s.text();
                 instance._sources.set(f, c);
             });
             return instance;
@@ -6813,7 +6811,6 @@
                     this._heartbeat_count += 1;
                     break;
                 case 'XML:':
-					console.log(data);
                     if (data.length) {
                         let instance = Instance.fromXML(data);
                         if (this._on_instance_cb)
@@ -10107,9 +10104,8 @@
                     .selectAll('.file')
                     .classed('active', d => d === file);
                 // Set the editor text
-                console.log(file.text);
                 this._code
-                    .html(file.text);
+                    .text(file.text);
                 // Highlight the code
                 hljs.highlightBlock(this._code.node());
                 // Update line numbers
@@ -10176,7 +10172,7 @@
                 .style('display', 'none');
         }
         _update_line_numbers(file) {
-            let lines = file.text.match(/\<br\>/g);
+            let lines = file.text.match(/\r?\n/g);
             let numlines = lines ? lines.length + 1 : 2;
             let selection = this._gutter
                 .selectAll('pre')
@@ -10231,7 +10227,7 @@
             this._table_view = null;
             this._tree_view = null;
             this._source_view = null;
-            
+
             document.onkeydown = (e) => {
                 if ([32, 39, 78].includes(e.keyCode)) {    // [space, right, n]
                     this._alloy.request_next();
