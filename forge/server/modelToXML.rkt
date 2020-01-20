@@ -78,7 +78,7 @@ here-string-delimiter
                         "</sig>\n"
                         "\n</instance>\n"
                         (if data
-                            ("<source filename=\"Unsat Core\">" (format "~a" data) "</source>\n") "")
+                            (string-append "<source filename=\"Unsat Core\">" (format "~a" data) "</source>\n") "")
                         "</alloy>")]
         [(equal? flag 'no-more-instances)
          (string-append prologue
