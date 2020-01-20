@@ -391,34 +391,31 @@
 ) stx))
 
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
-                                        (define-values (name cmd arg scope block) (values #f #f #f '() #f))
-                                        (define (make-typescope x)
-                                          (syntax-case x (Typescope)
-                                            [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
-                                            [(Typescope n things) (syntax->datum #'(things 0 n))]))
-                                        (for ([arg (cdr d)])
-                                          ; (println arg)
-                                          (syntax-case arg (Name Typescope Scope Block)
-                                            [(Name n) (set! name (syntax->datum #'n))]
-                                            ["run"   (set! cmd 'run)]
-                                            ["check" (set! cmd 'check)]
-                                            ; [(? symbol? s) (set! arg (string->symbol #'s))]
-                                            [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
-                                            [(Block (Expr (QualName ns)) ...) (set! block (map string->symbol (syntax->datum #'(ns ...))))]
-                                            [(QualName n) (set! block (list (string->symbol (syntax->datum #'n))))]
-                                            ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
-                                            [_ #f]
-                                            )
-                                          )
-                                        (if name #f (set! name (symbol->string (gensym))))
-                                        (define datum `(,cmd ,name ,block ,scope))
-                                        ; (displayln "--------")
-                                        ; (println (syntax->datum stx))
-                                        ; (println datum)
-                                        ; (displayln "--------")
-                                        ; (println datum)
-                                        datum
-                                        ) stx))
+  (define-values (name cmd arg scope block) (values #f #f #f '() #f))
+  (define (make-typescope x)
+    (syntax-case x (Typescope)
+      [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
+      [(Typescope n things) (syntax->datum #'(things 0 n))]))
+  (for ([arg (cdr d)])
+    ; (println arg)
+    (syntax-case arg (Name Typescope Scope Block QualName)
+      [(Name n) (set! name (syntax->datum #'n))]
+      ["run"   (set! cmd 'run)]
+      ["check" (set! cmd 'check)]
+      ; [(? symbol? s) (set! arg (string->symbol #'s))]
+      [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
+      [(Block (Expr (QualName ns)) ...) (set! block (map string->symbol (syntax->datum #'(ns ...))))]
+      [(Block b ...) (set! block (syntax->datum #'(b ...)))]
+      [(QualName n) (set! block (list (string->symbol (syntax->datum #'n))))]
+      ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [_ #f]
+    )
+  )
+  (if name #f (set! name (symbol->string (gensym))))
+  (define datum `(,cmd ,name ,block ,scope))
+  ; (println datum)
+  datum
+) stx))
 
 
 (define-syntax (PredDecl stx) (map-stx (lambda (d)

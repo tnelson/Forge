@@ -6,11 +6,11 @@ sig A {
 
 fact r: func
 
-pred p {
-    all a:A { }
-}
-
-run p for 16 A
+run {
+    no r & iden
+    some A
+    all a:A {}
+} for 16 A
 
 --fun arrr[a: A] : A {
 --    a.r.r.r
