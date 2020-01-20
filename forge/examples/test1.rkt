@@ -21,7 +21,7 @@ pred matchSetup {
 //run matchSetup for 4 Person, 4 Company, 4 Match
 ---------------------- pairing -------------------------
 pred stableMatching {
-    no m1: Match| all m2: Match - m1 | {
+    no m1: Match | no m2: Match - m1 | {
         -- company in m1 prefers person in m2
         m2.person in m1.company.^~(m1.company.cPrefs)
         -- person in m2 prefers company in m1

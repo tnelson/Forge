@@ -5,7 +5,12 @@ sig A {
 }
 
 fact r: func
-run {} for 16 A
+
+pred p {
+    all a:A { }
+}
+
+run p for 16 A
 
 --fun arrr[a: A] : A {
 --    a.r.r.r

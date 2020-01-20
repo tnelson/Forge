@@ -27,6 +27,7 @@
        ( print-cmd-cont "]) ")
        (interpret-formula form relations quantvars)
        ( print-cmd-cont ")"))]
+    [#t ( print-cmd-cont "true ")]
     ))
 
 (define (interpret-formula-op formula relations quantvars args)
