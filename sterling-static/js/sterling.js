@@ -8821,7 +8821,6 @@
                     .from(points, d => d.x, d => d.y)
                     .voronoi(_padded_bbox(points, 20));
                 let paths = Array.from(delaunay.cellPolygons());
-
                 this._delaunaygroup
                     .attr('fill', 'transparent')
                     .attr('stroke', 'none')
@@ -8908,25 +8907,19 @@
                 if (d.expressionType() === 'signature')
                     return d.signatures().concat(d.atoms());
             });
+
             // Build all edges by getting all tuples and projecting
             let edges = this._instance
-            .tuples()
-            .map(t => {
-                let atoms = t.atoms();
+                .tuples()
+                .map(tuple => {
+                let atoms = tuple.atoms();
                 this._projections.forEach((atom, signature) => {
                     atoms = project(atoms, atom, signature);
                 });
-                return {tuple: t, proj_atoms: atoms};
-            })
-            .filter(t => t.proj_atoms.length > 1)
-            .map(t => {
-                let atoms = t.proj_atoms;
-                let tuple = t.tuple;
-
                 return {
                     data: tuple,
-                    source: atoms.length ? atoms[0] : null,
-                    target: atoms.length ? atoms[atoms.length - 1] : null,
+                    source: atoms.length >= 2 ? atoms[0] : null,
+                    target: atoms.length >= 2 ? atoms[atoms.length - 1] : null,
                     middle: atoms.length > 2 ? atoms.slice(1, atoms.length - 1) : []
                 };
             })
@@ -10238,7 +10231,7 @@
             this._table_view = null;
             this._tree_view = null;
             this._source_view = null;
-
+            
             document.onkeydown = (e) => {
                 if ([32, 39, 78].includes(e.keyCode)) {    // [space, right, n]
                     this._alloy.request_next();
