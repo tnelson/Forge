@@ -48,7 +48,7 @@
   (cond [(string? port)
          (displayln "NO PORTS AVAILABLE!!")]
         [else
-         (send-url/file sterling-path #:query (number->string port))
+         (send-url/file sterling-path #f #:query (number->string port))
          (printf "Sterling running. Hit enter to stop service.\n")
          (void (read-char))
          (stop-service)]))
