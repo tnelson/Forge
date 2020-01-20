@@ -5,7 +5,7 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
-(provide break instance quote begin println filepath set-path!)
+(provide break instance quote begin println filepath set-path! let)
 
 (define filepath #f)
 (define (set-path! path)
@@ -522,8 +522,11 @@
   (define ret
     (syntax-case stx (Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
                              Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17
-                             CompareOp ExprList Quant DeclList NameList Expr QualName)
-      ; [(_ "let" (LetDeclList _ ...) (BlockOrBar _ ...)) #f]         ;; TODO:
+                             CompareOp ExprList Quant DeclList NameList Expr QualName
+                             LetDecl LetDeclList)
+      [(_ "let" (LetDeclList (LetDecl name value)) block) (datum->syntax stx 
+        `(let ([,(string->symbol (syntax->datum #'name)) ,#'value]) ,#'block)
+      )]
       [(_ (Quant q) dlist e) (datum->syntax stx
         `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
       )]
@@ -589,6 +592,7 @@
       )
     )
   ; (datum->syntax stx (syntax->datum ret))
+  ;(println ret)
   ret
   )
 
