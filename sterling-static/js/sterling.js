@@ -6811,6 +6811,7 @@
                     this._heartbeat_count += 1;
                     break;
                 case 'XML:':
+                    console.log(data);
                     if (data.length) {
                         let instance = Instance.fromXML(data);
                         if (this._on_instance_cb)
@@ -10105,7 +10106,7 @@
                     .classed('active', d => d === file);
                 // Set the editor text
                 this._code
-                    .text(file.text);
+                    .html(file.text);
                 // Highlight the code
                 hljs.highlightBlock(this._code.node());
                 // Update line numbers
