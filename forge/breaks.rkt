@@ -786,6 +786,10 @@ TODO:
             [else #f]
         ))))
     )
+    (when (equal? (first xml) 'alloy) (for ([x xml]) (match x
+        [(list 'instance _ ...) (set! xml x)]
+        [else #f]
+    )))
     (filter identity (for/list ([x xml]) (match x
         [(list 'sig info atoms ...) 
             (define sig (read-label info))

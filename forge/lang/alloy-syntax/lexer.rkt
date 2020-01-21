@@ -17,6 +17,8 @@
    ;; instances
    [(from/to "<instance" "</instance>")
     (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   [(from/to "<alloy" "</alloy>")
+    (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
         
    ;; comments
    [(or (from/stop-before "--" "\n") (from/stop-before "//" "\n") (from/to "/*" "*/"))
