@@ -1,4 +1,4 @@
-(configure :bitwidth 4 :produce-cores true :solver MiniSatProver :max-solutions 100 :verbosity 3)
+(configure :bitwidth 4 :produce-cores true :solver MiniSatProver :max-solutions 100 :verbosity 8)
 (univ 33) 
 (ints [
 (0 0)

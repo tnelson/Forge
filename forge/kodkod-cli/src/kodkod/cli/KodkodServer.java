@@ -376,7 +376,7 @@ public final class KodkodServer {
 					usage(1);
 				} else {
 					// Can't use a stepper problem when running kodkod on a file.
-					(new KodkodServer(incremental, false, fastParsing, errorOut)).serve(new File(args[i]));
+					(new KodkodServer(incremental, stepper, fastParsing, errorOut)).serve(new File(args[i]));
 					System.exit(0);
 				}
 			}
@@ -388,7 +388,7 @@ public final class KodkodServer {
         }
 
         System.err.println("Hey, no minisatprover error!");
-        
+
 		KodkodServer server = new KodkodServer(incremental, stepper, fastParsing, errorOut);
 		server.serve();
 	}
