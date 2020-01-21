@@ -5,7 +5,12 @@ sig A {
 }
 
 fact r: func
-run {} for 16 A
+
+run {
+    no r & iden
+    some A
+    all a:A {}
+} for 16 A
 
 --fun arrr[a: A] : A {
 --    a.r.r.r
