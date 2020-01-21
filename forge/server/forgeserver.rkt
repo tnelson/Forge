@@ -2,12 +2,12 @@
 
 (require (only-in "../lang/ast.rkt" relation-name)
          "modelToXML.rkt" xml
-         net/sendurl "../../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
+         net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel)
 
 (provide display-model)
 
-(define-runtime-path sterling-path "../../sterling-static/index.html")
+(define-runtime-path sterling-path "../sterling-static/index.html")
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
