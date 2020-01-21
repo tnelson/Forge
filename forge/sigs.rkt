@@ -167,6 +167,12 @@
 
 (define (set-top-level-bound b) (set! top-level-bound b))
 
+(define (disjoint-list sigs)
+  (define straints true)
+  (for ([s1 sigs])
+    (for ([s2 sigs])
+      (if (equal? s1 s2) void (set! straints (and (no (& s1 s2)) straints))))))
+
 ; Populates the universe with atoms according to the bounds specified by a run statement
 ; Returns a list of bounds objects
 (define (bind-sigs hashy-bounds)
@@ -181,8 +187,8 @@
 
 
 
-  (println "parents:")
-  (println parents)
+  ;(println "parents:")
+  ;(println parents)
 
   ; Create remainder sigs
   (for ([par (hash-keys parents)])
@@ -191,10 +197,13 @@
     (add-sig remainder-name (relation-name par))
     (add-extension remainder par)
     (add-constraint (in remainder par))
+    (add-constraint (disjoint-list (hash-ref parents par)))
     (add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) (println lst) lst))))
 
+  ;(println sigs)
 
-  (println sigs)
+  ;(println int-bounds-store)
+  ;(println hashy-bounds)
 
 
   (append
