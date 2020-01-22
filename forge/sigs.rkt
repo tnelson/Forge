@@ -116,6 +116,7 @@
          (add-extension name parent)
          (add-constraint (in name parent)))]
     [(_ name)
+      (hash-set! sig-to-fields (syntax->datum #'name) (list))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
@@ -152,6 +153,7 @@
          (add-extension name parent)
          (add-constraint (in name parent)))]
     [(_ name)
+      (hash-set! sig-to-fields (syntax->datum #'name) (list))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
@@ -526,8 +528,8 @@
     )
   )
 
-  ; TODO: bind: this, this', @field, ...
   ; TODO: check that all fields are present in block
+  ; TODO: simplify syntax even further: automatically create Solution sig 
 
   (define fields (hash-ref sig-to-fields sig))
   (define (post f) (string->symbol (string-append (symbol->string f) "'")))
@@ -577,88 +579,76 @@
 
 ;;;;
 
-(define-syntax (Expr stx)
-  ; (cadr d)
-  (define (get-bounds ns ts)
-    (apply append (map (lambda (ns t) (map (lambda (n) (list (string->symbol n) t)) ns))
-                       ns
-                       ts)))
-  (define ret
-    (syntax-case stx (Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
-                             Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17
-                             CompareOp ExprList Quant DeclList NameList Expr QualName
-                             LetDecl LetDeclList)
-      [(_ "let" (LetDeclList (LetDecl name value)) block) (datum->syntax stx 
-        `(let ([,(string->symbol (syntax->datum #'name)) ,#'value]) ,#'block)
-      )]
-      [(_ (Quant q) dlist e) (datum->syntax stx
-        `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
-      )]
-      ;; Note: the QQQ-TOKs here are just match vars but offer clarity and mirror reader
-      [(_ (Expr1 a ...) DISJ-TOK (Expr2 b ...))
-       #'(or (Expr a ...) (Expr b ...))]
-      [(_ (Expr2 a ...) IFF-TOK (Expr3 b ...))
-       #'(iff (Expr a ...) (Expr b ...))]
-      [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...) ELSE-TOK (Expr3 c ...))
-       #'(ifte (Expr a ...) (Expr b ...) (Expr c ...))]
-      [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...))
-       #'(=> (Expr a ...) (Expr b ...))]
-      [(_ (Expr4 a ...) CONJ-TOK (Expr5 b ...))
-       #'(and (Expr a ...) (Expr b ...))]
-      [(_ NEG-TOK (Expr5 a ...)) #'(not (Expr a ...))]
-      [(_ (Expr6 a ...) NEG-TOK (CompareOp op) (Expr7 b ...))
-       #'(not (Expr (Expr6 a ...) (CompareOp op) (Expr7 b ...)))]
-      [(_ (Expr6 a ...) (CompareOp "=") (Expr7 b ...))
-       #'(= (Expr a ...) (Expr b ...))]
-      ; [(_ (Expr6 a ...) (CompareOp "==") (Expr7 b ...))
-      ;   #'(= (Expr a ...) (Expr b ...))]
-      [(_ (Expr6 a ...) (CompareOp op) (Expr7 b ...))
-       (datum->syntax stx `(,(string->symbol (syntax->datum #'op)) ,#'(Expr a ...) ,#'(Expr b ...)))]
-      [(_ quant (Expr8 a ...))
-       (datum->syntax stx `(,(string->symbol (syntax->datum #'quant)) ,#'(Expr a ...)))]
-      [(_ (Expr8 a ...) "+" (Expr9 b ...))
-       #'(+ (Expr a ...) (Expr b ...))]
-      [(_ (Expr8 a ...) "-" (Expr9 b ...))
-       #'(- (Expr a ...) (Expr b ...))]
-      [(_ HASH-TOK (Expr9 a ...))
-       #'(card (Expr a ...))]
-      [(_ (Expr10 a ...) PPLUS-TOK (Expr11 b ...))
-       #'(++ (Expr a ...) (Expr b ...))]
-      [(_ (Expr11 a ...) AMP-TOK (Expr12 b ...))
-       #'(& (Expr a ...) (Expr b ...))]
-      [(_ (Expr13 a ...) (ArrowOp "*") (Expr12 b ...))
-       #'(-> (Expr a ...) (Expr b ...))]
-      [(_ (Expr13 a ...) (ArrowOp _ ...) (Expr12 b ...))  ;; TODO: handle multiplicities
-       #'(-> (Expr a ...) (Expr b ...))]
-      [(_ (Expr13 a ...) "<:" (Expr14 b ...))
-       #'(<: (Expr a ...) (Expr b ...))]
-      [(_ (Expr13 a ...) ":>" (Expr14 b ...))
-       #'(<: (Expr a ...) (Expr b ...))]
-      ; [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList) RIGHT-SQUARE-TOK)
-      ;   #'(Expr a ...)]
-      ; [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b c ...) RIGHT-SQUARE-TOK)
-      ;   #'(Expr (Expr14 (join b (Expr a ...))) LEFT-SQUARE-TOK (ExprList c ...) RIGHT-SQUARE-TOK)]
-      [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b ...) RIGHT-SQUARE-TOK)
-       #'((Expr a ...) b ...)]
-      [(_ (Expr15 a ...) DOT-TOK (Expr16 b ...))
-       #'(join (Expr a ...) (Expr b ...))]
-      [(_ "~" (Expr16 a ...))
-       #'(~ (Expr a ...))]
-      [(_ "^" (Expr16 a ...))
-       #'(^ (Expr a ...))]
-      [(_ "*" (Expr16 a ...))
-       #'(* (Expr a ...))]
-
-      ; [(_ "@" name) #f]                                   ;; TODO:
-      ; [(_ "this") #f]                                     ;; TODO:
-      ; [(_ (DeclList _ ...) (BlockOrBar _ ...)) #f]        ;; TODO:
-      [(_ a) #'a]
-      )
-    )
-  ; (datum->syntax stx (syntax->datum ret))
-  ;(println ret)
-  ret
+(define-syntax (Expr stx) (map-stx (lambda (d)
+  (syntax-case stx (Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
+                            Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17
+                            CompareOp ExprList Quant DeclList NameList Expr QualName
+                            LetDecl LetDeclList)
+    [(_ "let" (LetDeclList (LetDecl name value)) block)
+      `(let ([,(string->symbol (syntax->datum #'name)) ,#'value]) ,#'block)
+    ]
+    [(_ (Quant q) dlist e)
+      `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
+    ]
+    ;; Note: the QQQ-TOKs here are just match vars but offer clarity and mirror reader
+    [(_ (Expr1 a ...) OR-TOK (Expr2 b ...))
+      `(or (Expr ,@#'(a ...)) (Expr ,@#'(b ...)))]
+    [(_ (Expr2 a ...) IFF-TOK (Expr3 b ...))
+      `(iff (Expr ,@#'(a ...)) (Expr ,@#'(b ...)))]
+    [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...) ELSE-TOK (Expr3 c ...))
+      `(ifte (Expr ,@#'(a ...)) (Expr ,@#'(b ...)) (Expr c ...))]
+    [(_ (Expr4 a ...) IMP-TOK (Expr3 b ...))
+      `(=> (Expr ,@#'(a ...)) (Expr ,@#'(b ...)))]
+    [(_ (Expr4 a ...) AND-TOK (Expr5 b ...))
+      `(and (Expr ,@#'(a ...)) (Expr ,@#'(b ...)))]
+    [(_ NEG-TOK (Expr5 a ...)) 
+      `(not (Expr ,@#'(a ...)))]
+    [(_ (Expr6 a ...) NEG-TOK (CompareOp op) (Expr7 b ...))
+      #'(not (Expr (Expr6 a ...) (CompareOp op) (Expr7 b ...)))]
+    [(_ (Expr6 a ...) (CompareOp "=") (Expr7 b ...))
+      #'(= (Expr a ...) (Expr b ...))]
+    ; [(_ (Expr6 a ...) (CompareOp "==") (Expr7 b ...))
+    ;   #'(= (Expr a ...) (Expr b ...))]
+    [(_ (Expr6 a ...) (CompareOp op) (Expr7 b ...))
+      `(,(string->symbol (syntax->datum #'op)) ,#'(Expr a ...) ,#'(Expr b ...))]
+    [(_ quant (Expr8 a ...))
+      `(,(string->symbol (syntax->datum #'quant)) ,#'(Expr a ...))]
+    [(_ (Expr8 a ...) "+" (Expr9 b ...))
+      #'(+ (Expr a ...) (Expr b ...))]
+    [(_ (Expr8 a ...) "-" (Expr9 b ...))
+      #'(- (Expr a ...) (Expr b ...))]
+    [(_ HASH-TOK (Expr9 a ...))
+      #'(card (Expr a ...))]
+    [(_ (Expr10 a ...) PPLUS-TOK (Expr11 b ...))
+      #'(++ (Expr a ...) (Expr b ...))]
+    [(_ (Expr11 a ...) AMP-TOK (Expr12 b ...))
+      #'(& (Expr a ...) (Expr b ...))]
+    [(_ (Expr13 a ...) (ArrowOp "*") (Expr12 b ...))
+      #'(-> (Expr a ...) (Expr b ...))]
+    [(_ (Expr13 a ...) (ArrowOp _ ...) (Expr12 b ...))  ;; TODO: handle multiplicities
+      #'(-> (Expr a ...) (Expr b ...))]
+    [(_ (Expr13 a ...) "<:" (Expr14 b ...))
+      #'(<: (Expr a ...) (Expr b ...))]
+    [(_ (Expr13 a ...) ":>" (Expr14 b ...))
+      #'(<: (Expr a ...) (Expr b ...))]
+    ; [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList) RIGHT-SQUARE-TOK)
+    ;   #'(Expr a ...)]
+    ; [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b c ...) RIGHT-SQUARE-TOK)
+    ;   #'(Expr (Expr14 (join b (Expr a ...))) LEFT-SQUARE-TOK (ExprList c ...) RIGHT-SQUARE-TOK)]
+    [(_ (Expr14 a ...) LEFT-SQUARE-TOK (ExprList b ...) RIGHT-SQUARE-TOK)
+      #'((Expr a ...) b ...)]
+    [(_ (Expr15 a ...) DOT-TOK (Expr16 b ...))
+      #'(join (Expr a ...) (Expr b ...))]
+    [(_ "~" (Expr16 a ...))
+      #'(~ (Expr a ...))]
+    [(_ "^" (Expr16 a ...))
+      #'(^ (Expr a ...))]
+    [(_ "*" (Expr16 a ...))
+      #'(* (Expr a ...))]
+    ; [(_ (DeclList _ ...) (BlockOrBar _ ...)) #f]        ;; TODO:
+    [(_ a) #'a]
   )
+) stx))
 
 ;(define-syntax (ArrowExpr stx)
 ;  (define ret (syntax-case stx ()

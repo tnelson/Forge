@@ -7,7 +7,7 @@ sig State {
 one sig Sol {
     r: set State->State
 }
-fact r: linear
+fact r: tree
 
 state[State] inv {
 --    this.@stuff = stuff
@@ -20,14 +20,14 @@ transition[State] tran {
     one stuff'-stuff
 }
 
-loner: A = A-Sol.r.State.stuff
+--loner: A = A-Sol.r.State.stuff
 
 run {
     all s: State {
         inv[s]
         all s': s.(Sol.r) | tran[s, s']
     }
-}
+} for exactly 6 State
 
 
 

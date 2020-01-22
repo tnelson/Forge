@@ -93,7 +93,8 @@
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
-   ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
    ;; punctuation
