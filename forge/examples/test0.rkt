@@ -1,16 +1,39 @@
 #lang forge
 
-sig A {
-    r: set A
+sig A {}
+sig State {
+    stuff: set A
+}
+one sig Sol {
+    r: set State->State
+}
+fact r: linear
+
+state[State] inv {
+    some stuff
+}
+transition[State] tran {
+    stuff in stuff'
+    one stuff'-stuff
 }
 
-fact r: func
-
 run {
-    no r & iden
-    some A
-    all a:A {}
-} for 16 A
+    all s: State {
+        inv[s]
+        all s': s.(Sol.r) | tran[s, s']
+    }
+}
+
+
+
+
+
+--fact r: func
+--run {
+--    no r & iden
+--    some A
+--    all a:A {}
+--} for 16 A
 
 --fun arrr[a: A] : A {
 --    a.r.r.r
