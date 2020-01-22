@@ -215,7 +215,7 @@
   (define stdout (send kks stdout))
   (cmd
    [stdin]
-   (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 999 :verbosity 3" bitwidth))
+   (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 999 :verbosity 8" bitwidth))
    (declare-univ (length inty-univ))
    (declare-ints (range allints) (range allints)))
   (define (get-atom atom) (index-of inty-univ atom))

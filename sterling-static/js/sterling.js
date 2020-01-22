@@ -4,29 +4,6 @@
     (global = global || self, factory(global.sterling = {}));
 }(this, function (exports) { 'use strict';
 
-    function convert_to_html_references(str){
-        return str
-        .replace(/&/g, "&amp;")
-        .replace(/>/g, "&gt;")
-        .replace(/</g, "&lt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    function convert_from_html_references(str){
-        return str
-        .replace(/&amp;/g, "&")
-        .replace(/&gt;/g, ">")
-        .replace(/&lt;/g, "<")
-        .replace(/&quot;/g, "\"")
-        .replace(/&#039;/g, "'");
-    }
-
-    function restore_breaks(str){
-        return str
-        .replace(/&lt;br&gt;/g, "<br>");
-    }
-
     class Tuple {
         constructor(atoms) {
             this.expressionType = () => 'tuple';
