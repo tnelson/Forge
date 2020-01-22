@@ -528,17 +528,41 @@
     )
   )
 
-  ; TODO: check that all fields are present in block
-  ; TODO: simplify syntax even further: automatically create Solution sig 
-
   (define fields (hash-ref sig-to-fields sig))
   (define (post f) (string->symbol (string-append (symbol->string f) "'")))
   (define (at f) (string->symbol (string-append "@" (symbol->string f))))
-  (define lets (append
-    (for/list ([f fields]) `[,f        (join  this   ,f)])
-    (for/list ([f fields]) `[,(post f) (join |this'| ,f)])
-    (for/list ([f fields]) `[,(at f) ,f])))
+  (define posts (map post fields))
+  (define lets (append* (for/list ([f fields] [p posts]) (list
+    `[,f (join  this   ,f)]
+    `[,p (join |this'| ,f)]
+    `[,(at f) ,f]
+  ))))
   (define datum `(pred (,name this |this'| ,@paras) (let ,lets (and ,@block))))
+
+  ; require either this' or all f', g', ... to be used in block
+  ; TODO: this is bad
+  (define (find-syms term)
+    (define syms (list))
+    (define (find-syms b) (syntax-case b (QualName)
+      [(QualName n) (set! syms (cons (string->symbol (syntax->datum #'n)) syms))]
+      [(_ ...) (map find-syms b)]
+      [_ #f]
+    ))
+    (find-syms term)
+    syms
+  )
+  (define syms (find-syms block))
+  (unless (or (member '|this'| syms) 
+              (foldl (λ (x y) (and x y)) #t (for/list ([f posts]) (member f syms))))
+          (raise (string-append "Underspecified transition predicate: " (symbol->string name))))
+  (for ([clause block]) 
+    (define syms (find-syms clause))
+    (unless (or (member '|this'| syms) 
+                (foldl (λ (x y) (or x y)) #f (for/list ([s syms]) 
+                  (or (member s posts) (member s paras)))))
+            (raise (string-append "Irrelevant clause in: " (symbol->string name))))
+  )
+
   ;(println datum)
   datum
 ) stx))

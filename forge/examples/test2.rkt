@@ -40,6 +40,13 @@ facts[T] T_facts {
     }
 }
 
+/* TODO: implement this proposed syntax: */
+--trace[S, linear]{
+--    init: S_init,
+--    tran: S_tran,
+--    term: S_term
+--}
+
 /**********/
 
 pred clean {
