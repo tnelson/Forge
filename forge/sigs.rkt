@@ -497,15 +497,18 @@
       [(QualName n) (set! sig (string->symbol (syntax->datum #'n)))]
       [(ParaDecls (Decl (NameList ps) _ ...) ...)
       (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
-      [(Block bs ...) (set! block #'(bs ...))]
+      [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
       [_ #f]
     )
   )
-  (define elem (gensym))
+  
   (define fields (hash-ref sig-to-fields sig))
-  (define lets (for/list ([f fields]) `[,f (join ,elem ,f)]))
-  ;`(pred (,name ,@paras) (all ([,elem ,sig]) (let ,lets (and ,@(syntax->datum block)))))))
-  (define datum `(pred (,name ,elem ,@paras) (let ,lets (and ,@(syntax->datum block)))))
+  (define (at f) (string->symbol (string-append "@" (symbol->string f))))
+  (define lets (append 
+    (for/list ([f fields]) `[,f (join this ,f)]) 
+    (for/list ([f fields]) `[,(at f) ,f])))
+  ;`(pred (,name ,@paras) (all ([this ,sig]) (let ,lets (and ,@(syntax->datum block)))))))
+  (define datum `(pred (,name this ,@paras) (let ,lets (and ,@block))))
   ;(println datum)
   datum
 ) stx))
@@ -518,19 +521,22 @@
       [(QualName n) (set! sig (string->symbol (syntax->datum #'n)))]
       [(ParaDecls (Decl (NameList ps) _ ...) ...)
       (set! paras (map string->symbol (flatten (syntax->datum #'(ps ...)))))]
-      [(Block bs ...) (set! block #'(bs ...))]
+      [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
       [_ #f]
     )
   )
-  (define (post f) (string->symbol (string-append (symbol->string f) "'")))
-  (define elem (gensym))
-  (define post-elem (post elem))
+
+  ; TODO: bind: this, this', @field, ...
+  ; TODO: check that all fields are present in block
+
   (define fields (hash-ref sig-to-fields sig))
+  (define (post f) (string->symbol (string-append (symbol->string f) "'")))
+  (define (at f) (string->symbol (string-append "@" (symbol->string f))))
   (define lets (append
-    (for/list ([f fields]) `[,f        (join ,elem      ,f)])
-    (for/list ([f fields]) `[,(post f) (join ,post-elem ,f)])))
-  (define datum `(pred (,name ,elem ,post-elem ,@paras) 
-    (let ,lets (and ,@(syntax->datum block)))))
+    (for/list ([f fields]) `[,f        (join  this   ,f)])
+    (for/list ([f fields]) `[,(post f) (join |this'| ,f)])
+    (for/list ([f fields]) `[,(at f) ,f])))
+  (define datum `(pred (,name this |this'| ,@paras) (let ,lets (and ,@block))))
   ;(println datum)
   datum
 ) stx))

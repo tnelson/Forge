@@ -10,12 +10,17 @@ one sig Sol {
 fact r: linear
 
 state[State] inv {
+--    this.@stuff = stuff
     some stuff
 }
 transition[State] tran {
+--    this.@stuff = stuff
+--    this'.@stuff = stuff'
     stuff in stuff'
     one stuff'-stuff
 }
+
+loner: A = A-Sol.r.State.stuff
 
 run {
     all s: State {
