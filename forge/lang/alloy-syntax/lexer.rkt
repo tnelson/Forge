@@ -17,6 +17,12 @@
    ;; instances
    [(from/to "<instance" "</instance>")
     (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   [(from/to "<alloy" "</alloy>")
+    (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   [(from/to "<sig" "</sig>")
+    (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   [(from/to "<field" "</field>")
+    (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
         
    ;; comments
    [(or (from/stop-before "--" "\n") (from/stop-before "//" "\n") (from/to "/*" "*/"))
@@ -87,6 +93,9 @@
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
+   ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)]  
+
    ;; punctuation
    ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
    [")" (token+ 'RIGHT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -98,10 +107,10 @@
    [";" (token+ 'SEMICOLON-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["/" (token+ 'SLASH-TOK "" lexeme "" lexeme-start lexeme-end)]
    [":" (token+ 'COLON-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["@" (token+ 'AT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["@" (token+ 'AT-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; identifiers
-   [(: alphabetic (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
+   [(: (or alphabetic "@") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]

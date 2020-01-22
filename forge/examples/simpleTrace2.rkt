@@ -37,6 +37,10 @@ pred pBC[b:B, c:C] {
 
 pred myInit[s:S] { no s.stuff }
 pred myTran[s:S, s':S, a:A, b:B, c:C] { h[s, s', a, b, c] }
+--pred myTran[s:S, s':S] {
+--   some a: A { f[s, s', a] } or
+--   some b: B | some c: C { g[s, s', b, c] }
+--}
 pred myTerm[s:S] { s.stuff = U }
 
 one sig Sol {
@@ -62,6 +66,9 @@ pred Sol_facts {
     all s: S-(Sol.term) {
         myTran[s, s.(Sol.tran), s.(Sol.argA), s.(Sol.argB), s.(Sol.argC)]
     }
+--    all s: S-(Sol.term) | all s': s.(Sol.tran) {
+--        myTran[s, s']
+--    }
 }
 
 /**********/
