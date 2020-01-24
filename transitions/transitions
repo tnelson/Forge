@@ -321,6 +321,27 @@ sig Trace_Board_0 {
 
 
 
+sig Board {
+    places: Blah
+    turn: Player
+}
+fact {
+	all b: Board | blah(b.places)
+}
+state[Board] myInv {
+	foo(turn, places)
+}
+state[Board] myInit(p: Player) {
+	turn = p
+}
+state[Board] myTerm(winner: Player) {
+	...winner...
+}
+transition[Board] move(r, c: Idx, p: Player) {
+    places' = places + r*c*p
+    no places[r][c]
+}
+
 
 
 

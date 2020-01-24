@@ -49,6 +49,7 @@
                  
 
 (define (model-to-XML-string model name command filepath bitwidth)
+  (displayln (current-inexact-milliseconds))
   (define flag (car model))
   (define data (cdr model))
   
@@ -71,6 +72,7 @@
 </field>
 here-string-delimiter
                                   ))
+  (displayln data)
   (cond [(equal? flag 'unsat)
          (string-append prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
@@ -78,7 +80,11 @@ here-string-delimiter
                         "</sig>\n"
                         "\n</instance>\n"
                         (if data
-                            (string-append "<source filename=\"Unsat Core\">" (format "~a" data) "</source>\n") "")
+                            (string-append "<source filename=\"Unsat Core\">"
+                                           (agg-lines
+                                            (map (lambda (x) (clean (keyword-apply ~a '(#:separator) '(" ") x)))
+                                                 data))
+                                           "</source>\n") "")
                         "</alloy>")]
         [(equal? flag 'no-more-instances)
          (string-append prologue
@@ -187,6 +193,7 @@ here-string-delimiter
                            "</alloy>"))
                                            
 
+         (displayln (current-inexact-milliseconds))
          (string-append prologue
                         "\n\n"
                         sig-strings

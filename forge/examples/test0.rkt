@@ -1,16 +1,44 @@
 #lang forge
 
-sig A {
-    r: set A
+sig A {}
+sig State {
+    stuff: set A
+}
+one sig Sol {
+    r: set State->State
+}
+fact r: tree
+
+state[State] inv {
+--    this.@stuff = stuff
+    some stuff
+}
+transition[State] tran {
+--    this.@stuff = stuff
+--    this'.@stuff = stuff'
+    stuff in stuff'
+    one stuff'-stuff
 }
 
-fact r: func
+--loner: A = A-Sol.r.State.stuff
 
 run {
-    no r & iden
-    some A
-    all a:A {}
-} for 16 A
+    all s: State {
+        inv[s]
+        all s': s.(Sol.r) | tran[s, s']
+    }
+} for exactly 6 State
+
+
+
+
+
+--fact r: func
+--run {
+--    no r & iden
+--    some A
+--    all a:A {}
+--} for 16 A
 
 --fun arrr[a: A] : A {
 --    a.r.r.r

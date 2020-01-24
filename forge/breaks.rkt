@@ -786,15 +786,20 @@ TODO:
             [else #f]
         ))))
     )
-    (when (equal? (first xml) 'alloy) (for ([x xml]) (match x
-        [(list 'instance _ ...) (set! xml x)]
-        [else #f]
-    )))
-    (filter identity (for/list ([x xml]) (match x
+    (define (read-rel x) (match x
         [(list 'sig info atoms ...) 
             (define sig (read-label info))
             (if sig (make-exact-sbound sig (map list (read-atoms atoms))) #f)]
         [(list 'field info tuples ...) (make-exact-sbound (read-label info) (read-tuples tuples))]
         [else #f]
+    ))
+
+    (when (equal? (first xml) 'alloy) (for ([x xml]) (match x
+        [(list 'instance _ ...) (set! xml x)]
+        [else #f]
     )))
+    (match xml
+        [(list 'instance _ ...)  (filter identity (for/list ([x xml]) (read-rel x)))]
+        [else (list (read-rel xml))]
+    )
 )

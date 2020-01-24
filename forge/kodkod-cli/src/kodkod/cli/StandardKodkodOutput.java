@@ -138,8 +138,9 @@ public final class StandardKodkodOutput implements KodkodOutput {
         } else {
             str.append(" :core ( ");
             for (Node form : proof.highLevelCore().values()) {
+                str.append("(");
                 str.append(form);
-                str.append(" ");
+                str.append(") ");
             }
             str.append("))");
         }

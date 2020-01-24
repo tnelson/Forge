@@ -5,12 +5,10 @@
 
 (provide kodkod-initializer kodkod-stderr-handler server%)
 
-;(define-runtime-path kodkod (build-path ".." ".." ".." "bin" "kodkod"))
 (define-runtime-path kodkod (build-path ".."))
 
 (define (kodkod-initializer incremental?)
   (let* ([kodkod/jar (build-path kodkod "jar")]
-         ;[kodkod/jni (build-path kodkod "jni")]
          [jars (map (curry build-path kodkod/jar)
                     (filter (curry regexp-match #rx".+\\.jar")
                             (directory-list kodkod/jar)))]
