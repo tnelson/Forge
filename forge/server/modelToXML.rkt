@@ -82,8 +82,7 @@ here-string-delimiter
                         (if data
                             (string-append "<source filename=\"Unsat Core\">"
                                            (agg-lines
-                                            (map (lambda (x) (clean (keyword-apply ~a '(#:separator) '(" ") x)))
-                                                 data))
+                                            (map clean data))
                                            "</source>\n") "")
                         "</alloy>")]
         [(equal? flag 'no-more-instances)

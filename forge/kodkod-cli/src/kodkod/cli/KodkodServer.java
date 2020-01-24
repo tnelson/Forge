@@ -381,13 +381,13 @@ public final class KodkodServer {
 				}
 			}
 		}
-        try {
-            System.loadLibrary("minisatprover");
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-
-        System.err.println("Hey, no minisatprover error!");
+        // try {
+        //     System.loadLibrary("minisatprover");
+        // } catch (Exception e){
+        //     e.printStackTrace();
+        // }
+        //
+        // System.err.println("Hey, no minisatprover error!");
 
 		KodkodServer server = new KodkodServer(incremental, stepper, fastParsing, errorOut);
 		server.serve();

@@ -136,8 +136,8 @@
     [(list (== 'sat) (== ':model) (list (list rid val) ...))
      ; We do this because our "pairs" are actually little lists, so we can't use make-hash directly.
     (cons 'sat (for/hash ([r rid][tuples val]) (values r tuples)))]
-    [(list (== 'unsat) (== ':core) (list fid ...))
-     (cons 'unsat fid)]
+    [(list (== 'unsat) (== ':core) (list sid ...))
+     (cons 'unsat sid)]
     [(list (== 'unsat))
      (cons 'unsat #f)]
     [(list (== 'no-more-instances))
