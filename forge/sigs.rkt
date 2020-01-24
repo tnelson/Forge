@@ -44,6 +44,7 @@
   (set! constraints (cons form constraints)))
 
 (provide pre-declare-sig declare-sig set-top-level-bound sigs run fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
+(provide add-relation)
 
 (define (add-relation rel types)
   (hash-set! relations-store rel types))
@@ -327,7 +328,7 @@
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
-         StateDecl TransitionDecl
+         StateDecl TransitionDecl RelDecl
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -566,6 +567,34 @@
   ;(println datum)
   datum
 ) stx))
+
+(define-syntax (RelDecl stx)
+  (println stx)
+  (define ret (syntax-case stx (set one lone ArrowDecl NameList ArrowMult)
+    [(_ (ArrowDecl (NameList name) (ArrowMult "set") (ArrowExpr r ...)))
+      #`(begin 
+        (define rel (declare-relation (list r ...) "univ" name))
+        (add-relation rel (list r ...))
+      )
+    ]
+    [(_ (ArrowDecl (NameList name) (ArrowMult "one") (ArrowExpr r ...)))
+      #`(begin 
+        (define rel (declare-relation (list r ...) "univ" name))
+        (add-relation rel (list r ...))
+        (add-constraint (one rel))
+      )
+    ]
+    [(_ (ArrowDecl (NameList name) (ArrowMult "lone") (ArrowExpr r ...)))
+      #`(begin 
+        (define rel (declare-relation (list r ...) "univ" name))
+        (add-relation rel (list r ...))
+        (add-constraint (lone rel))
+      )
+    ]
+  ))
+  (println ret)
+  ret
+)
 
 (define-syntax (Block stx)
   (define ret (syntax-case stx ()

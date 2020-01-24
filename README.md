@@ -42,4 +42,3 @@ Forge aims to make formal methods more teachable by meeting the following design
 - Other ideas
   - Hide underlying concepts like relational representation from the user?
   - In general, separate semantic/ontological concerns from bound-related concerns
-  - In particular, bounds should be invariant under marco-expansion and other ontology-preserving code transformations

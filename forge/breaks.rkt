@@ -756,6 +756,7 @@ TODO:
     - has init/term
 - major work
     - allow arbitrary terms to be passed into strategies, not just relations
+        - lenses!
         - use combinators: (tree ~r) should do (cotree r), etc.
     - allow strategies to be passed multiple values, return values, split sigs
 |#
