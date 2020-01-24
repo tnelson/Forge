@@ -142,6 +142,6 @@
      (cons 'unsat #f)]
     [(list (== 'no-more-instances))
      (cons 'no-more-instances #f)]
-    [#\uFFFF
+    [(== eof)
      (error "Kodkod CLI shut down unexpectedly!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
