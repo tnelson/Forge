@@ -3,6 +3,7 @@
 *.zo
 *.dep
 *.rkt~
+*.bak
 .genIntSpec.py.swp
 *.swp
 kodkod-cli/docs/
