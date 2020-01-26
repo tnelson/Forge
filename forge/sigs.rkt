@@ -168,10 +168,10 @@
 (define (set-top-level-bound b) (set! top-level-bound b))
 
 (define (disjoint-list sigs)
-  (define straints true)
-  (for ([s1 sigs])
-    (for ([s2 sigs])
-      (if (equal? s1 s2) void (set! straints (and (no (& s1 s2)) straints))))))
+  (if (empty? sigs) (list true) (append (disjoint-one-list (first sigs) (rest sigs)) (disjoint-list (rest sigs)))))
+
+(define (disjoint-one-list sig sigs)
+  (if (empty? sigs) (list true) (cons (no (& sig (first sigs))) (disjoint-one-list (first sigs) (rest sigs)))))
 
 ; Populates the universe with atoms according to the bounds specified by a run statement
 ; Returns a list of bounds objects
@@ -197,8 +197,11 @@
     (add-sig remainder-name (relation-name par))
     (add-extension remainder par)
     (add-constraint (in remainder par))
-    (add-constraint (disjoint-list (hash-ref parents par)))
+    (map add-constraint (disjoint-list (hash-ref parents par)))
     (add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) (println lst) lst))))
+
+  #'(for ([par (hash-keys parents)])
+    (make-upper-bound par (map (lambda (x) (list x)) (hash-ref bounds-store sig))))
 
   ;(println sigs)
 
@@ -206,7 +209,7 @@
   ;(println hashy-bounds)
 
 
-  (append
+  (define output-bounds (append
    ; For all leaf sigs, get their bounds and populate them
    (map
     (lambda (sig)
@@ -215,6 +218,10 @@
     (filter (lambda (x) (@not (member x (hash-keys parents)))) sigs))
    ; For all non-leaf sigs, get their bounds
    (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (hash-keys parents))))
+
+  output-bounds
+
+  )
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
 (define (get-bound sig hashy-bounds)
@@ -253,9 +260,11 @@
 (define (run-spec hashy name command filepath)
   (append-run name)
   (define sig-bounds (bind-sigs hashy))
+  (println sig-bounds)
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define allints (expt 2 bitwidth))
   (define inty-univ (append (range allints) working-universe))
+  (println inty-univ)
   (define rels (append (hash-keys relations-store) sigs))
 
   (define kks (new server%

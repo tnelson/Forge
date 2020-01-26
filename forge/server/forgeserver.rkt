@@ -13,9 +13,10 @@
 ; get-next-model returns the next model each time it is called, or #f.
 (define (display-model get-next-model name command filepath bitwidth)
 
-  (displayln (find-system-path 'run-file))
+  ;(displayln (find-system-path 'run-file))
 
   (define model (get-next-model))
+  ;(println model)
   (define chan (make-async-channel))
   
   (define stop-service
