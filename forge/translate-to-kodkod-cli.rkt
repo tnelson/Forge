@@ -76,6 +76,8 @@
   (match expr
     [(node/expr/relation arity name typelist parent)
      ( print-cmd-cont (format "r~a " (index-of relations expr)))]
+    [(node/expr/constant 1 'Int)
+     ( print-cmd-cont "ints ")]
     [(node/expr/constant arity type)
      ( print-cmd-cont (format "~a " type))]
     [(node/expr/op arity args)
@@ -130,7 +132,7 @@
 (define (interpret-int expr relations quantvars)
   (match expr
     [(node/int/constant value)
-     ( print-cmd-cont (number->string value))]
+     ( print-cmd-cont (format "~a " value))]
     [(node/int/op args)
      (interpret-int-op expr relations quantvars args)]))
 

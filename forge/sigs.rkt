@@ -218,10 +218,12 @@
 
 (define (run-spec hashy name command filepath)
   (append-run name)
-  (define sig-bounds (bind-sigs hashy))
-  (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define allints (expt 2 bitwidth))
-  (define inty-univ (append (range allints) working-universe))
+  (define int-atoms (range allints))
+  (hash-set! bounds-store Int int-atoms)
+  (define sig-bounds (bind-sigs hashy))
+  (define inty-univ (append int-atoms working-universe))
+  (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
 
   (define kks (new server%
