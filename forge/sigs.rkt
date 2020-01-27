@@ -231,7 +231,7 @@
 ; needs to be called after compute-lower-bound :(
 (define (fill-leftovers sig hashy-bounds)
   (if (hash-has-key? top-level-leftovers sig) (hash-ref top-level-leftovers sig)
-      ; If the sig is not top-level, get the leftovers for its parent and mooch of of them.
+      ; If the sig is not top-level, get the leftovers for its parent and mooch off of them.
       ; If the sig is top-level, add atoms to the universe to represent its leftovers
       (if (hash-has-key? extensions-store sig)
           (let ([parent-leftovers (fill-leftovers (hash-ref extensions-store sig) hashy-bounds)]
@@ -249,16 +249,19 @@
 
 ; Populates the universe with atoms according to the bounds specified by a run statement
 ; Returns a list of bounds objects
+; This is pre-erasure of unused atoms
 (define (bind-sigs hashy-bounds)
 
   (define out-bounds '())
   (define roots (filter (lambda (x) (@not (hash-has-key? extensions-store x))) sigs))
   (for ([root roots]) (compute-lower-bound root hashy-bounds))
 
-  (println lower-bounds)
+  (printf "Starting lower bounds: ~a~n" lower-bounds)
+  (printf "Starting upper bounds: ~a~n" upper-bounds)
 
   (for ([sig sigs])
-    (fill-leftovers sig hashy-bounds)
+    (fill-leftovers sig hashy-bounds) ; mutation!
+    ;(printf "After filling for ~a, new upper bounds: ~a~n" sig upper-bounds)
     (set! out-bounds (cons (make-bound sig (map (lambda (x) (list x)) (hash-ref lower-bounds sig)) (map (lambda (x) (list x)) (hash-ref upper-bounds sig))) out-bounds)))
 
   ; Create remainder sigs
@@ -272,6 +275,7 @@
       (map add-constraint (disjoint-list (hash-ref parents par)))
       (add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst))))
 
+  (printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
   out-bounds)
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
@@ -314,13 +318,16 @@
   (define allints (expt 2 bitwidth))
   (define int-atoms (range allints))
   (hash-set! bounds-store Int int-atoms)
+  
+  ; hashy contains int-bounds; convert them to sig bounds
   (define sig-bounds (bind-sigs hashy))
   (define inty-univ (append int-atoms working-universe))
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
 
   (println "--------------------------------------------")
-  (println sig-bounds)
+  (printf "Working universe: ~a~n" working-universe) ; atoms that we keep
+  (printf "Sig bounds: ~a~n" sig-bounds)             ; pre-erasing unused atoms
   (println "--------------------------------------------")
 
   (define kks (new server%
