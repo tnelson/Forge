@@ -4,8 +4,12 @@
          "modelToXML.rkt" xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel)
+(require "eval-model.rkt")
+; TODO: remove this once evaluator is in; just want to show we can evaluate something
+(require (only-in "../lang/ast.rkt" univ))
 
 (provide display-model)
+
 
 (define-runtime-path sterling-path "../sterling-static/index.html")
 
@@ -35,6 +39,20 @@
                  [(equal? m "next")
                   (set! model (get-next-model))
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
+                 [(equal? m "eval-exp")
+                  ; TODO: receive the expression as a string
+                  (define stringPortFromEvaluator (open-input-string "edges"))
+                  ; TODO: entry point for expressions / fmlas in parser
+                  ;(define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
+                  ; TODO: convert via Expr macro
+                  ; faking it to make progress
+                  (define exp univ)
+                  (define maxint 8)
+                  ; TODO: use eval-form if formula
+                  (define result (eval-exp exp (model->binding model) maxint))
+                  (printf "result: ~a~n" result)
+                  ; From JS console, run this to manually invoke: ui._alloy._ws.send("eval-exp")
+                  (ws-send! connection "FILL")] 
                  [else
                   (ws-send! "BAD REQUEST")])
            (loop))))
