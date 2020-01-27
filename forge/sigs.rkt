@@ -373,7 +373,7 @@
   (for ([c constraints] [i (range (length constraints))])
     (cmd
      [stdin]
-     (print-cmd-cont (format "(f~a" i))
+     (print-cmd-cont (format "(f~a " i))
      (interpret-formula c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
