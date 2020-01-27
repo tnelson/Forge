@@ -16,6 +16,9 @@
 
 ;(require (only-in forged-ocelot relation-name))
 
+(define lower-bounds (make-hash))
+(define upper-bounds (make-hash))
+(define top-level-leftovers (make-hash))
 ;Default bound
 (define top-level-bound 4)
 ;Track what sigs exist in the universe
@@ -75,11 +78,11 @@
     [(_ name)
      #'(begin
          (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
-         (add-sig (symbol->string 'name)))]
+         (add-sig #|(symbol->string 'name) |# name))]
     [(_ name #:extends parent)
      #'(begin
          (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
-         (add-sig (symbol->string 'name) (symbol->string 'parent)))]))
+         (add-sig #|(symbol->string 'name)|# name (symbol->string 'parent)))]))
 
 (define-syntax (declare-field stx)
   (syntax-case stx (set one lone)
@@ -163,7 +166,8 @@
          (add-constraint (in name parent)))]))
 
 (define (add-sig name [parent "univ"])
-  (set! sigs (cons (declare-relation (list name) parent name) sigs)))
+  #| (set! sigs (cons (declare-relation (list name) parent name) sigs)|#
+  (set! sigs (cons name sigs)))
 
 (define (set-top-level-bound b) (set! top-level-bound b))
 
@@ -173,55 +177,83 @@
 (define (disjoint-one-list sig sigs)
   (if (empty? sigs) (list true) (cons (no (& sig (first sigs))) (disjoint-one-list (first sigs) (rest sigs)))))
 
+
+(define (generate-atoms sig lower upper)
+  (map
+   (lambda (n) (string->symbol (string-append (relation-name sig) (number->string n))))
+   (range lower upper)))
+
+; Returns a list of symbols representing atoms
+(define (compute-lower-bound parent-sig hashy-bounds)
+  (if (hash-has-key? lower-bounds parent-sig) (hash-ref lower-bounds parent-sig)
+      (let ()
+        (define lower-bound '())
+        (if (hash-has-key? parents parent-sig)
+            ; If the sig is not a leaf sig, figure out all the atoms that must be in a child sig
+            (begin 
+              (for ([child (hash-ref parents parent-sig)])
+                (set! lower-bound (append (compute-lower-bound child hashy-bounds) lower-bound)))
+              (let ([additional-lower-bound (int-bound-lower (get-bound parent-sig hashy-bounds))])
+                (when (@> additional-lower-bound (length lower-bound))
+                  (let ([extras (generate-atoms parent-sig (length lower-bound) additional-lower-bound)])
+                    (set! lower-bound (append extras lower-bound))
+                    (set! working-universe (append extras working-universe)))))
+              (hash-set! lower-bounds parent-sig lower-bound)
+              lower-bound)
+            ; Otherwise, return the lower bounds for this sig
+            (begin
+              (set! lower-bound (generate-atoms parent-sig 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
+              (set! working-universe (append lower-bound working-universe))
+              (hash-set! lower-bounds parent-sig lower-bound)
+              lower-bound)))))
+
+; Populates the universe with atoms up to each sig's upper bound.
+; Because of the nasty stateful nature of this implementation, this
+; needs to be called after compute-lower-bound :(
+(define (fill-leftovers sig hashy-bounds)
+  (if (hash-has-key? top-level-leftovers sig) (hash-ref top-level-leftovers sig)
+      ; If the sig is not top-level, get the leftovers for its parent and mooch of of them.
+      ; If the sig is top-level, add atoms to the universe to represent its leftovers
+      (if (hash-has-key? extensions-store sig)
+          (let ([parent-leftovers (fill-leftovers (hash-ref extensions-store sig) hashy-bounds)]
+                [how-many (@- (int-bound-upper (get-bound sig hashy-bounds)) (int-bound-lower (get-bound sig hashy-bounds)))])
+            (define atoms parent-leftovers)
+            (when (@> (length atoms) how-many) (set! atoms (take atoms how-many)))
+            (hash-set! top-level-leftovers sig atoms)
+            (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
+            atoms)
+          (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (int-bound-lower (get-bound sig hashy-bounds))])
+            (define leftovers (generate-atoms sig lower upper))
+            (hash-set! top-level-leftovers sig leftovers)
+            (hash-set! upper-bounds sig (append (hash-ref lower-bounds sig) leftovers))
+            leftovers))))
+
 ; Populates the universe with atoms according to the bounds specified by a run statement
 ; Returns a list of bounds objects
 (define (bind-sigs hashy-bounds)
 
-  ; OK I need to know how this works, that's my priority.
-  ; Ultimately, the problem is that abstract-cat isn't getting into the bounds store...
-  #'(append
-     (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
-                          (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
-          (filter (lambda (x) (@not (member x (hash-values extensions-store)))) sigs)) ; Filter out all parent sigs
-     (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (filter (lambda (x) (member x (hash-values extensions-store))) sigs)))
+  (define out-bounds '())
+  (define roots (filter (lambda (x) (@not (hash-has-key? extensions-store x))) sigs))
+  (for ([root roots]) (compute-lower-bound root hashy-bounds))
 
-
-
-  ;(println "parents:")
-  ;(println parents)
-
+  (println lower-bounds)
+  
+  (for ([sig sigs])
+    (fill-leftovers sig hashy-bounds)
+    (set! out-bounds (cons (make-bound sig (map (lambda (x) (list x)) (hash-ref lower-bounds sig)) (map (lambda (x) (list x)) (hash-ref upper-bounds sig))) out-bounds)))
+  
   ; Create remainder sigs
+  ; Add disjunction constraints
   (for ([par (hash-keys parents)])
-    (define remainder-name (format "remainder-~a" (relation-name par)))
-    (define remainder (declare-relation (list remainder-name) (format "~a" (relation-name par)) remainder-name))
-    (add-sig remainder-name (relation-name par))
-    (add-extension remainder par)
-    (add-constraint (in remainder par))
-    (map add-constraint (disjoint-list (hash-ref parents par)))
-    (add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) (println lst) lst))))
-
-  #'(for ([par (hash-keys parents)])
-    (make-upper-bound par (map (lambda (x) (list x)) (hash-ref bounds-store sig))))
-
-  ;(println sigs)
-
-  ;(println int-bounds-store)
-  ;(println hashy-bounds)
-
-
-  (define output-bounds (append
-   ; For all leaf sigs, get their bounds and populate them
-   (map
-    (lambda (sig)
-      (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
-        (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
-    (filter (lambda (x) (@not (member x (hash-keys parents)))) sigs))
-   ; For all non-leaf sigs, get their bounds
-   (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (hash-keys parents))))
-
-  output-bounds
-
-  )
+      ;(define remainder-name (format "remainder-~a" (relation-name par)))
+      ;(define remainder (declare-relation (list remainder-name) (format "~a" (relation-name par)) remainder-name))
+      ;(add-sig remainder-name (relation-name par))
+      ;(add-extension remainder par)
+      ;(add-constraint (in remainder par))
+      (map add-constraint (disjoint-list (hash-ref parents par)))
+      (add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst))))
+  
+  out-bounds)
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
 (define (get-bound sig hashy-bounds)
@@ -235,13 +267,14 @@
 
 (define (strip-remainder str)
   (if (@< (string-length str) 10) str
-  (if (equal? (substring str 0 10) "remainder-") (substring str 10) str)))
+      (if (equal? (substring str 0 10) "remainder-") (substring str 10) str)))
 
+; Depracated
 (define (populate-sig sig bound)
   (define atoms (map (lambda (n) (string-append (strip-remainder (relation-name sig)) (number->string n))) (range bound)))
   (define sym-atoms (map string->symbol atoms))
   (set! working-universe (append sym-atoms working-universe))
-  (hash-set! bounds-store sig sym-atoms)
+  ;(hash-set! bounds-store sig sym-atoms)
   (define out (map (lambda (x) (list x)) sym-atoms))
   (if (hash-has-key? extensions-store sig)
       (let ([parent (hash-ref extensions-store sig)])
@@ -260,11 +293,12 @@
 (define (run-spec hashy name command filepath)
   (append-run name)
   (define sig-bounds (bind-sigs hashy))
-  (println sig-bounds)
+  ;(println sig-bounds)
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
+  (println "here")
   (define allints (expt 2 bitwidth))
   (define inty-univ (append (range allints) working-universe))
-  (println inty-univ)
+  ;(println inty-univ)
   (define rels (append (hash-keys relations-store) sigs))
 
   (define kks (new server%
@@ -355,7 +389,7 @@
     [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
 
 (define (relation->bounds rel)
-  (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))
+  (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref upper-bounds x)) (hash-ref relations-store rel)))))
 
 
 ;;;;;;;;;;;;;;;;;
@@ -585,8 +619,8 @@
                              CompareOp ExprList Quant DeclList NameList Expr QualName
                              LetDecl LetDeclList)
       [(_ "let" (LetDeclList (LetDecl name value)) block) (datum->syntax stx
-        `(let ([,(string->symbol (syntax->datum #'name)) ,#'value]) ,#'block)
-      )]
+                                                                         `(let ([,(string->symbol (syntax->datum #'name)) ,#'value]) ,#'block)
+                                                                         )]
       [(_ (Quant q) dlist e) (datum->syntax stx
                                             `(,(string->symbol (syntax->datum #'q)) ,(process-DeclList #'dlist) ,#'e)
                                             )]
