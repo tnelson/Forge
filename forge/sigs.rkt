@@ -241,8 +241,10 @@
             (hash-set! top-level-leftovers sig atoms)
             (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
             atoms)
-          (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (int-bound-lower (get-bound sig hashy-bounds))])
-            (define leftovers (generate-atoms sig lower upper))
+          (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))]
+            (define leftovers '())
+            (when (@> upper lower) (set! leftovers (generate-atoms sig lower upper)))
+            (set! working-universe (append leftovers working-universe))
             (hash-set! top-level-leftovers sig leftovers)
             (hash-set! upper-bounds sig (append (hash-ref lower-bounds sig) leftovers))
             leftovers))))
@@ -273,7 +275,7 @@
       ;(add-extension remainder par)
       ;(add-constraint (in remainder par))
       (map add-constraint (disjoint-list (hash-ref parents par)))
-      (add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst))))
+      #'(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst))))
 
   (printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
   out-bounds)
