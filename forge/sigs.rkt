@@ -319,6 +319,10 @@
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
 
+  (println "--------------------------------------------")
+  (println sig-bounds)
+  (println "--------------------------------------------")
+
   (define kks (new server%
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
