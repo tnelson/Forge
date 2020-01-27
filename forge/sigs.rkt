@@ -241,7 +241,7 @@
             (hash-set! top-level-leftovers sig atoms)
             (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
             atoms)
-          (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))]
+          (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
             (define leftovers '())
             (when (@> upper lower) (set! leftovers (generate-atoms sig lower upper)))
             (set! working-universe (append leftovers working-universe))
