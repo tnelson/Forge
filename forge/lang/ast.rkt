@@ -319,7 +319,7 @@
       (raise-argument-error quantifier "expr?" e))
     (unless (equal? (node/expr-arity e) 1)
       (raise-argument-error quantifier "decl of arity 1" e)))
-  (unless (node/formula? formula)
+  (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified quantifier decls formula))
 

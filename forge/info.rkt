@@ -3,6 +3,6 @@
 
 (define deps '("beautiful-racket" "predicates"))
 
-(define scribblings '(("doc/quickstart.scrbl" ())))
+;(define scribblings '(("doc/quickstart.scrbl" ())))
 
 (define compile-omit-paths '("examples" "doc"))

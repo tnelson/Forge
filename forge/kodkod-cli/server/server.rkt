@@ -5,12 +5,10 @@
 
 (provide kodkod-initializer kodkod-stderr-handler server%)
 
-;(define-runtime-path kodkod (build-path ".." ".." ".." "bin" "kodkod"))
 (define-runtime-path kodkod (build-path ".."))
 
 (define (kodkod-initializer incremental?)
   (let* ([kodkod/jar (build-path kodkod "jar")]
-         ;[kodkod/jni (build-path kodkod "jni")]
          [jars (map (curry build-path kodkod/jar)
                     (filter (curry regexp-match #rx".+\\.jar")
                             (directory-list kodkod/jar)))]
@@ -24,15 +22,6 @@
                                                      ;[(windows) "win_x86_64"])))]
          ;[-Djava.library.path (string-append "-Djava.library.path=" lib)]
          [error-out (build-path (find-system-path 'home-dir) "error-output.txt")])
-
-    #|
-    (if incremental?
-        (subprocess #f #f #f
-                    java "-Xmx2G" "-cp" cp -Djava.library.path
-                    "kodkod.cli.KodkodServer" "-fast-parsing" "-incremental" "-error-out" error-out)
-        (subprocess #f #f #f
-                    java "-Xmx2G" "-cp" cp -Djava.library.path
-                    "kodkod.cli.KodkodServer" "-fast-parsing" "-error-out" error-out))))|#
 
 
     (if incremental?
@@ -50,21 +39,3 @@
     [(pregexp #px"\\s*\\[SEVERE\\]\\s*(.+)" (list _ severe)) (log-error [src] severe)]
     [(? eof-object?) (void)]
     [line (log-debug [src] line)]))
-
-;(define-values (proc stdin stdout stderr) (kodkod-initializer #f))
-;(define kks (new server% (initializer (thunk (kodkod-initializer #f))) (stderr-handler (curry kodkod-stderr-handler "blank"))))
-;(define kks (new server%
-;                               [initializer (thunk (kodkod-initializer #f))]
-;                               [stderr-handler (curry kodkod-stderr-handler "blank")]))
-;(send kks initialize)
-;(define stdin (send kks stdin))
-;(define stdout (send kks stdout))
-
-;(cmd [stdin]
-;     (configure ":bitwidth" "4" ":produce-cores" "false" ":solver" "SAT4J" ":verbosity" "3")
-;     (declare-univ 4)
-;     (declare-rel (r '0) (tupleset (tuple 0) (tuple 1) (tuple 2) (tuple 3)))
-;     (declare (f '0) (some (r '0)))
-;     (assert (f '0))
-;     (solve))
-;(define out (read-solution stdout))

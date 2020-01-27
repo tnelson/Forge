@@ -347,7 +347,7 @@
             (define postfix-lists (take-right atom-lists n))
 
             (define vars (for/list ([p prefix]) 
-                (@node/expr/quantifier-var 1 (string->uninterned-symbol "v"))
+                (@node/expr/quantifier-var 1 (gensym "v"))
             ))
             (define new-rel (foldl @join rel vars))   ; rel[a][b]...
             (define sub-breaker (f pri new-rel bound postfix-lists postfix))
@@ -369,7 +369,6 @@
                     (define sub-lower (sbound-lower sub-sbound))
                     (define sub-upper (sbound-upper sub-sbound))
 
-                    
                     (cond [(set-empty? sigs)
                         ; no sigs are broken, so use sub-bounds for ALL instances
                         (define cart-pref (apply cartesian-product prefix-lists))
@@ -379,7 +378,6 @@
 
                         (define sub-formulas (break-formulas sub-break))
                         (define formulas (for/set ([f sub-formulas])
-                            ;(@all (map list vars prefix) f)
                             (@quantified-formula 'all (map cons vars prefix) f)
                         ))
 
@@ -402,7 +400,6 @@
                         ))
                         ; wrap each formula in foralls for each prefix rel
                         (define formulas (for/set ([f sub-formulas])
-                            ;(@all (map list vars prefix) f)
                             (@quantified-formula 'all (map cons vars prefix) f)
                         ))
 
@@ -410,7 +407,12 @@
                     ])
                 )
                 (λ ()
-                    ((breaker-make-default sub-breaker))
+                    (define sub-break ((breaker-make-default sub-breaker)));
+                    (define sub-formulas (break-formulas sub-break))
+                    (define formulas (for/set ([f sub-formulas])
+                        (@quantified-formula 'all (map cons vars prefix) f)
+                    ))
+                    (break bound formulas)
                 )
             )
         ])
@@ -740,6 +742,7 @@ ADDING BREAKS
 
 TODO:
 ! use for sequence library
+- add extra formulas to further break symmetries because kodkod can't once we've broken bounds
 - strategy combinators
     - naive equiv strategies
         - can be used to combine many strats with ref/irref, even variadic ones
@@ -751,6 +754,11 @@ TODO:
     - unique init/term
     - unique init/term + acyclic
     - has init/term
+- major work
+    - allow arbitrary terms to be passed into strategies, not just relations
+        - lenses!
+        - use combinators: (tree ~r) should do (cotree r), etc.
+    - allow strategies to be passed multiple values, return values, split sigs
 |#
 
 
@@ -779,11 +787,20 @@ TODO:
             [else #f]
         ))))
     )
-    (filter identity (for/list ([x xml]) (match x
+    (define (read-rel x) (match x
         [(list 'sig info atoms ...) 
             (define sig (read-label info))
             (if sig (make-exact-sbound sig (map list (read-atoms atoms))) #f)]
         [(list 'field info tuples ...) (make-exact-sbound (read-label info) (read-tuples tuples))]
         [else #f]
+    ))
+
+    (when (equal? (first xml) 'alloy) (for ([x xml]) (match x
+        [(list 'instance _ ...) (set! xml x)]
+        [else #f]
     )))
+    (match xml
+        [(list 'instance _ ...)  (filter identity (for/list ([x xml]) (read-rel x)))]
+        [else (list (read-rel xml))]
+    )
 )

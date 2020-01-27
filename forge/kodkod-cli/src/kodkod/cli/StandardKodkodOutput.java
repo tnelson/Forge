@@ -35,6 +35,7 @@ import kodkod.engine.Statistics;
 import kodkod.instance.Instance;
 import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
+import java.util.Map;
 
 /**
  * An implementation of the  {@link KodkodOutput} interface that writes solutions provided to it
@@ -131,27 +132,48 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	public void writeCore(Proof proof, Defs<Formula> defs) {
 		final StringBuilder str = new StringBuilder();
 		str.append("(unsat");
-		final Set<Node> core;
-		if (proof == null) {
-			core = Collections.emptySet();
-		} else {
-			core = new LinkedHashSet<Node>(proof.highLevelCore().values());
-			str.append(" :core (");
-			for (int i = 0, max = defs.maxIndex(); i <= max; i++) {
-				if (core.remove(defs.use(i)))
-					str.append('f').append(i).append(" ");
-			}
-			if (str.charAt(str.length()-1)==' ')
-				str.deleteCharAt(str.length()-1);
-			str.append(")");
-		}
-		str.append(")");
-		System.out.println(str.toString());
-		if (!core.isEmpty()) {
-			Logger.getGlobal().warning(	"Returned minimal core is missing " + core.size() +
-										" formulas for which no definitions of the form (fi ...) were provided.\n");
-		}
-	}
+
+        if (proof == null){
+            str.append(")");
+        } else {
+            str.append(" :core ( ");
+            for (Node form : proof.highLevelCore().values()) {
+                str.append("\"");
+                str.append(form);
+                str.append("\" ");
+            }
+            str.append("))");
+        }
+
+        System.out.println(str.toString());
+    }
+    // ...
+// }
+		// final Set<Node> core;
+		// if (proof == null) {
+		// 	core = Collections.emptySet();
+		// } else {
+        //     core =
+		// 	core = new LinkedHashSet<Node>(proof.highLevelCore().values());
+		// 	str.append(" :core (");
+		// 	for (int i = 0, max = defs.maxIndex(); i <= max; i++) {
+		// 		if (core.remove(defs.use(i)))
+		// 			str.append('f').append(i).append(" ");
+		// 	}
+		// 	if (str.charAt(str.length()-1)==' ')
+		// 		str.deleteCharAt(str.length()-1);
+		// 	str.append(")");
+		// }
+		// str.append(")");
+		// System.out.println(str.toString());
+		// if (!core.isEmpty()) {
+		// 	Logger.getGlobal().warning(	"Returned minimal core is missing " + core.size() +
+		// 								" formulas for which no definitions of the form (fi ...) were provided.\n");
+        //     for (Iterator i = core.iterator(); i.hasNext(); ){
+        //         Logger.getGlobal().warning("Core contains: " + i.next().toString() + "\n");
+        //     }
+		// }
+	// }
 
 	/**
 	 * Logs the given solution and problem statistics to {@code this.logger} as info messages.

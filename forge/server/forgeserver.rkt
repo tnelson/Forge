@@ -2,23 +2,24 @@
 
 (require (only-in "../lang/ast.rkt" relation-name)
          "modelToXML.rkt" xml
-         net/sendurl "../../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
+         net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel)
+(require "eval-model.rkt")
+; TODO: remove this once evaluator is in; just want to show we can evaluate something
+(require (only-in "../lang/ast.rkt" univ))
 
 (provide display-model)
 
-(define-runtime-path sterling-path "../../sterling-static/index.html")
+
+(define-runtime-path sterling-path "../sterling-static/index.html")
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
 (define (display-model get-next-model name command filepath bitwidth)
-
-  ;(displayln (find-system-path 'run-file))
-
   (define model (get-next-model))
   ;(println model)
   (define chan (make-async-channel))
-  
+
   (define stop-service
     (ws-serve
      ; This is the connection handler function, it has total control over the connection
@@ -27,10 +28,10 @@
      ; every time a connection is initiated.
      (λ (connection _)
        (let loop ()
-               
+
          ; The only thing we should be receiving is next-model requests, current requests (from a new connection), and pings.
          (define m (ws-recv connection))
-               
+
          (unless (eof-object? m)
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
@@ -39,6 +40,20 @@
                  [(equal? m "next")
                   (set! model (get-next-model))
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
+                 [(equal? m "eval-exp")
+                  ; TODO: receive the expression as a string
+                  (define stringPortFromEvaluator (open-input-string "edges"))
+                  ; TODO: entry point for expressions / fmlas in parser
+                  ;(define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
+                  ; TODO: convert via Expr macro
+                  ; faking it to make progress
+                  (define exp univ)
+                  (define maxint 8)
+                  ; TODO: use eval-form if formula
+                  (define result (eval-exp exp (model->binding model) maxint))
+                  (printf "result: ~a~n" result)
+                  ; From JS console, run this to manually invoke: ui._alloy._ws.send("eval-exp")
+                  (ws-send! connection "FILL")]
                  [else
                   (ws-send! "BAD REQUEST")])
            (loop))))
@@ -49,7 +64,7 @@
   (cond [(string? port)
          (displayln "NO PORTS AVAILABLE!!")]
         [else
-         (send-url/file sterling-path #:query (number->string port))
+         (send-url/file sterling-path #f #:query (number->string port))
          (printf "Sterling running. Hit enter to stop service.\n")
          (void (read-char))
          (stop-service)]))

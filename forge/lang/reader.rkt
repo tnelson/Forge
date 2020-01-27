@@ -64,6 +64,8 @@
                                '(displayln filepath)))
   (define final `(,@(append filename-definition sig-inits transformed)))
 
+  ;(map println final)
+
   (define module-datum `(module kkcli ,forge-path
                           ,@final))
 

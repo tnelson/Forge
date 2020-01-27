@@ -9,10 +9,9 @@
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
 (define-syntax-rule (cmd [port] expr ...)
-  (begin (display expr) ...
   (parameterize ([kodkod-port port])
     expr ...
-    (flush-output port))))
+    (flush-output port)))
 
 
 ; All command functions from this module (e.g., solve)
@@ -24,31 +23,34 @@
                       (error 'kodkod-port "expected an output-port?, given ~a" port))
                     port)))
 
+(define-syntax-rule (kodkod-display arg)
+  (begin
+    (display arg)
+    (display arg [kodkod-port])))
+
 ; Prints the given command string to the kodkod-port.
 (define-syntax-rule (print-cmd arg ...)
   (begin
-    ;(printf  arg ...) (newline)
-    (fprintf (kodkod-port) arg ...)
-    (newline (kodkod-port))))
+    (kodkod-display (format arg ...))
+    (kodkod-display #\newline)))
 
 (define-syntax-rule (print-cmd-cont arg ...)
-  (begin
-    (fprintf (kodkod-port) arg ...)))
-
-(define-syntax-rule (print-cmd-nofmt arg ...)
-  (begin
-    ;(printf  arg ...) (newline)
-    (printf (kodkod-port) arg ...)
-    (newline (kodkod-port))))
+    (kodkod-display (format arg ...)))
 
 (define (print-eof)
-  (display #\uFFFF (kodkod-port)))
+  (kodkod-display #\uFFFF))
 
 ; Commands
-(define (configure . kvs) (print-cmd "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs)))
+(define (configure . kvs)
+  (print-cmd "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs)))
+
 (define (assert val)      (print-cmd "(assert ~a)" val))
-(define (solve)           (print-cmd "(solve)") (print-eof))
-(define (clear)           (print-cmd "(clear)") (print-eof))
+(define (solve)
+  (print-cmd "(solve)")
+  (print-eof))
+(define (clear)
+  (print-cmd "(clear)")
+  (print-eof))
 
 ;; Declarations and definitions
 (define (define-const id val) (print-cmd "(~a ~a)" id val))
@@ -128,16 +130,18 @@
 ; list will be non-empty if the underlying solver was
 ; instructed to provide cores; it will be empty otherwise.
 (define (read-solution port)
-  (match (read port)
+  (define result (read port))
+  (writeln result)
+  (match result
     [(list (== 'sat) (== ':model) (list (list rid val) ...))
      ; We do this because our "pairs" are actually little lists, so we can't use make-hash directly.
     (cons 'sat (for/hash ([r rid][tuples val]) (values r tuples)))]
-    [(list (== 'unsat) (== ':core) (list fid ...))
-     (cons 'unsat fid)]
+    [(list (== 'unsat) (== ':core) (list sid ...))
+     (cons 'unsat sid)]
     [(list (== 'unsat))
      (cons 'unsat #f)]
     [(list (== 'no-more-instances))
      (cons 'no-more-instances #f)]
-    [\#<eof>
+    [(== eof)
      (error "Kodkod CLI shut down unexpectedly!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))

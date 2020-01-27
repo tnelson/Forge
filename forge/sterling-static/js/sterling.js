@@ -4,29 +4,6 @@
     (global = global || self, factory(global.sterling = {}));
 }(this, function (exports) { 'use strict';
 
-    function convert_to_html_references(str){
-        return str
-        .replace(/&/g, "&amp;")
-        .replace(/>/g, "&gt;")
-        .replace(/</g, "&lt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    function convert_from_html_references(str){
-        return str
-        .replace(/&amp;/g, "&")
-        .replace(/&gt;/g, ">")
-        .replace(/&lt;/g, "<")
-        .replace(/&quot;/g, "\"")
-        .replace(/&#039;/g, "'");
-    }
-
-    function restore_breaks(str){
-        return str
-        .replace(/&lt;br&gt;/g, "<br>");
-    }
-
     class Tuple {
         constructor(atoms) {
             this.expressionType = () => 'tuple';
@@ -6554,12 +6531,10 @@
             instance._fields = Array.from(fields.values());
             instance._skolem = Array.from(skolem.values());
 
-            console.log(doc.selectAll('source'));
             // Save model source
             doc.selectAll('source')
                 .each(function () {
-                let s = select(this), f = s.attr('filename'), c = restore_breaks(s.attr('content'));
-                console.log(c);
+                let s = select(this), f = s.attr('filename'), c = s.text();
                 instance._sources.set(f, c);
             });
             return instance;
@@ -6813,7 +6788,7 @@
                     this._heartbeat_count += 1;
                     break;
                 case 'XML:':
-					console.log(data);
+                    console.log(data);
                     if (data.length) {
                         let instance = Instance.fromXML(data);
                         if (this._on_instance_cb)
@@ -6916,7 +6891,7 @@
         }
         set_command(command) {
             if (this._command)
-                this._command.text('Command: ' + convert_from_html_references(command));
+                this._command.html('Command: ' + command);
         }
         set_connection_status(connection) {
             if (this._connection)
@@ -8821,7 +8796,6 @@
                     .from(points, d => d.x, d => d.y)
                     .voronoi(_padded_bbox(points, 20));
                 let paths = Array.from(delaunay.cellPolygons());
-
                 this._delaunaygroup
                     .attr('fill', 'transparent')
                     .attr('stroke', 'none')
@@ -8908,25 +8882,19 @@
                 if (d.expressionType() === 'signature')
                     return d.signatures().concat(d.atoms());
             });
+
             // Build all edges by getting all tuples and projecting
             let edges = this._instance
-            .tuples()
-            .map(t => {
-                let atoms = t.atoms();
+                .tuples()
+                .map(tuple => {
+                let atoms = tuple.atoms();
                 this._projections.forEach((atom, signature) => {
                     atoms = project(atoms, atom, signature);
                 });
-                return {tuple: t, proj_atoms: atoms};
-            })
-            .filter(t => t.proj_atoms.length > 1)
-            .map(t => {
-                let atoms = t.proj_atoms;
-                let tuple = t.tuple;
-
                 return {
                     data: tuple,
-                    source: atoms.length ? atoms[0] : null,
-                    target: atoms.length ? atoms[atoms.length - 1] : null,
+                    source: atoms.length >= 2 ? atoms[0] : null,
+                    target: atoms.length >= 2 ? atoms[atoms.length - 1] : null,
                     middle: atoms.length > 2 ? atoms.slice(1, atoms.length - 1) : []
                 };
             })
@@ -10114,7 +10082,6 @@
                     .selectAll('.file')
                     .classed('active', d => d === file);
                 // Set the editor text
-                console.log(file.text);
                 this._code
                     .html(file.text);
                 // Highlight the code
@@ -10183,7 +10150,7 @@
                 .style('display', 'none');
         }
         _update_line_numbers(file) {
-            let lines = file.text.match(/\<br\>/g);
+            let lines = file.text.match(/\r?\n/g);
             let numlines = lines ? lines.length + 1 : 2;
             let selection = this._gutter
                 .selectAll('pre')
