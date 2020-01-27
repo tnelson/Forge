@@ -17,7 +17,7 @@ one sig Sol {
 }
 
 fact tran: plinear
-pred facts {
+pred faccs {
     myInit[Sol.init]
     no (Sol.tran).(Sol.init)
     myTerm[Sol.term]
@@ -30,5 +30,5 @@ pred facts {
     }
 }
 
-run facts
+run faccs
 

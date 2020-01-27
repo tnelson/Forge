@@ -31,7 +31,7 @@ relation-names is the same, a list of all relation names ordered as they are in 
 This function just recreates the model, but using names instead of numbers.
 |#
 
-(define (translate-from-kodkod-cli model relation-names univ)
+(define (translate-from-kodkod-cli model relation-names inty-univ)
   (define flag (car model))
   (define data (cdr model))
   
@@ -46,6 +46,6 @@ This function just recreates the model, but using names instead of numbers.
          (for ([relation-num (hash-keys data)])
            (hash-set! translated-model
                       (list-ref relation-names (id-to-index relation-num))
-                      (translate-kodkod-cli-relation univ (hash-ref data relation-num))))
+                      (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num))))
          (cons 'sat translated-model)]))
 

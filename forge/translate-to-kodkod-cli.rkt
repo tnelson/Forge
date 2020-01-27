@@ -1,11 +1,18 @@
 #lang racket
 
 (require "lang/ast.rkt" "kodkod-cli/server/kks.rkt")
+(require (only-in racket/base [+ @+] [- @-] [< @<] [>= @>=] [or @or]))
 
-(provide interpret-formula)
+(provide translate-to-kodkod-cli)
 
 (define (get-var-idx var quantvars)
   (- (length quantvars) (index-of quantvars var)))
+
+(define bitwidth #f)
+
+(define (translate-to-kodkod-cli formula relations quantvars bw)
+  (set! bitwidth bw)
+  (interpret-formula formula relations quantvars))
 
 ; quantvars should start at -1
 (define (interpret-formula formula relations quantvars)
@@ -132,7 +139,12 @@
 (define (interpret-int expr relations quantvars)
   (match expr
     [(node/int/constant value)
-     ( print-cmd-cont (format "~a " value))]
+     (define intmax (expt 2 (sub1 bitwidth)))
+     (define intmin (@- intmax))
+     (when (@or (@< value intmin) (@>= value intmax))
+       (error "Integer literal out of range given current bitwidth!"))
+     ; Kodkod-cli allows negative integers, but represents them only with positive atoms
+     (print-cmd-cont (format "~a " (@+ value intmax)))]
     [(node/int/op args)
      (interpret-int-op expr relations quantvars args)]))
 

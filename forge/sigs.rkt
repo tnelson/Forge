@@ -177,9 +177,6 @@
 ; Populates the universe with atoms according to the bounds specified by a run statement
 ; Returns a list of bounds objects
 (define (bind-sigs hashy-bounds)
-
-  ; OK I need to know how this works, that's my priority.
-  ; Ultimately, the problem is that abstract-cat isn't getting into the bounds store...
   (append
    (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
                         (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
@@ -216,27 +213,34 @@
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
 
+
 (define (run-spec hashy name command filepath)
   (append-run name)
-  (define allints (expt 2 bitwidth))
-  (define int-atoms (range allints))
-  (hash-set! bounds-store Int int-atoms)
+
+  (define intmax (expt 2 (sub1 bitwidth)))
+  (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
+  (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
+  
+  (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
   (define sig-bounds (bind-sigs hashy))
-  (define inty-univ (append int-atoms working-universe))
+  (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
 
+  ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define kks (new server%
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
   (send kks initialize)
   (define stdin (send kks stdin))
   (define stdout (send kks stdout))
+  
   (cmd
    [stdin]
-   (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 999 :verbosity 8" bitwidth))
+   ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
+   (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 1 :verbosity 7" bitwidth))
    (declare-univ (length inty-univ))
-   (declare-ints (range allints) (range allints)))
+   (declare-ints int-range int-indices))
   (define (get-atom atom) (index-of inty-univ atom))
   (define (n-arity-none arity)
     (cond
@@ -277,7 +281,7 @@
     (cmd
      [stdin]
      (print-cmd-cont (format "(f~a" i))
-     (interpret-formula c rels '())
+     (translate-to-kodkod-cli c rels '() bitwidth)
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
 
