@@ -281,7 +281,7 @@
     (cmd
      [stdin]
      (print-cmd-cont (format "(f~a" i))
-     (translate-to-kodkod-cli c rels '() bitwidth)
+     (translate-to-kodkod-cli c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
 
