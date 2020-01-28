@@ -45,19 +45,27 @@
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
-                  (define stringPortFromEvaluator (open-input-string (string-append "eval " command)))
-                  (define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
 
-                  (println (last (syntax->datum stxFromEvaluator)))
+                  ;(define stringPortFromEvaluator (open-input-string (string-append "eval " command)))
+                  ;(define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
+                  ;(println (eval (last (syntax->datum stxFromEvaluator))))
+                  ;(dynamic-require 'kkcli #f)
+                  
+                  (define stringPortFromEvaluator (open-input-string command))
+                  (define stxFromEvaluator (read stringPortFromEvaluator))
+                  ;(println stxFromEvaluator)
+
                   ; TODO: convert via Expr macro
                   ; faking it to make progress
                   ;(define exp univ)
-                  ;(define maxint 8)
+                  (define maxint 8)
                   ; TODO: use eval-form if formula
                   ;(define result (eval-exp exp (model->binding model) maxint))
+                  (define result (eval-exp stxFromEvaluator (model->binding (cdr model)) maxint))
+                  ;(println result)
                   ;(printf "result: ~a~n" result)
                   
-                  (ws-send! connection (format "EVL:~a:~a" (second parts) command))] 
+                  (ws-send! connection (format "EVL:~a:~a" (second parts) result))] 
                  [else
                   (ws-send! "BAD REQUEST")])
            (loop))))
