@@ -11,7 +11,8 @@
 (provide display-model)
 
 
-(define-runtime-path sterling-path "../sterling-static/index.html")
+;(define-runtime-path sterling-path "../sterling-static/index.html")
+(define-runtime-path sterling-path "../sterling/src/main/resources/public/index.html")
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
