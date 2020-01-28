@@ -12,7 +12,8 @@
 (define (model->binding model)
   (define out-bind (make-hash))
   (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (relation-name k)) v)))
-  out-bind)
+  (make-immutable-hash (hash->list out-bind))
+  )
 
 ; Interpreter for evaluating an eval query for an expression in a model
 ; context
@@ -100,12 +101,13 @@
     [`(some ,exp) (not (empty? (eval-exp exp bind maxint)))]
     [`(one ,exp) (let [(const (eval-exp exp bind maxint))] (and (not (empty? const))) (empty? (cdr const)))]
     [`(in ,exp-1 ,exp-2) (subset? (eval-exp exp-1 bind maxint) (eval-exp exp-2 bind maxint))]
-    [`(and ,form-1 ,form-2) (and (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(or ,form-1 ,form-2) (or (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(implies ,form-1 ,form-2) (implies (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(iff ,form-1 ,form-2) (equal? (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
+    [`(and ,form-1 ,form-2) (and (eval-form form-1 bind maxint) (eval-form form-2 bind maxint))]
+    [`(or ,form-1 ,form-2) (or (eval-form form-1 bind maxint) (eval-form form-2 bind maxint))]
+    [`(implies ,form-1 ,form-2) (implies (eval-form form-1 bind maxint) (eval-form form-2 bind maxint))]
+    [`(iff ,form-1 ,form-2) (equal? (eval-form form-1 bind maxint) (eval-form form-2 bind maxint))]
     [`(all ,var ,lst ,f) (andmap (lambda (x) (eval-form f (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
     [`(some ,var ,lst ,f) (ormap (lambda (x) (eval-form f (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind maxint) (eval-exp var-2 bind maxint))]
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
-    [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]))
+    [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
+    [exp (eval-exp exp bind maxint)]))

@@ -52,19 +52,28 @@
                   ;(dynamic-require 'kkcli #f)
                   
                   (define stringPortFromEvaluator (open-input-string command))
-                  (define stxFromEvaluator (read stringPortFromEvaluator))
-                  ;(println stxFromEvaluator)
-
-                  ; TODO: convert via Expr macro
-                  ; faking it to make progress
-                  ;(define exp univ)
-                  (define maxint 8)
-                  ; TODO: use eval-form if formula
-                  ;(define result (eval-exp exp (model->binding model) maxint))
-                  (define result (eval-exp stxFromEvaluator (model->binding (cdr model)) maxint))
-                  ;(println result)
-                  ;(printf "result: ~a~n" result)
                   
+                  ;(println stxFromEvaluator)
+                  (define maxint 8)
+                  (define result 
+                    (with-handlers (
+                        [exn:fail:read? (λ (exn) (println exn) "syntax error")]
+                        [exn:fail:contract? (λ (exn) (println exn) "error")]
+                        [exn:fail? (λ (exn) (println exn) "error")]
+                      )
+                      (define stxFromEvaluator (read stringPortFromEvaluator))
+                      (define lists (eval-form stxFromEvaluator (model->binding (cdr model)) maxint))
+                      (if (list? lists)
+                          (string-join (for/list ([l lists]) 
+                              (string-join (for/list ([atom l])
+                                (if (number? atom)
+                                    (string-append (format "~a" atom))
+                                    (symbol->string atom))
+                              ) "->")
+                              ) " + ")
+                          lists)
+                      ))
+                  ;(println result)                  
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))] 
                  [else
                   (ws-send! "BAD REQUEST")])
