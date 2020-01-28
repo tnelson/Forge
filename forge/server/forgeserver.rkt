@@ -11,8 +11,7 @@
 (provide display-model)
 
 
-;(define-runtime-path sterling-path "../sterling-static/index.html")
-(define-runtime-path sterling-path "../sterling/src/main/resources/public/index.html")
+(define-runtime-path sterling-path "../sterling-js/dist/index.html")
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
@@ -33,6 +32,7 @@
          (define m (ws-recv connection))
                
          (unless (eof-object? m)
+           ;(println m)
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
                  [(equal? m "current")
@@ -40,20 +40,24 @@
                  [(equal? m "next")
                   (set! model (get-next-model))
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
-                 [(equal? m "eval-exp")
-                  ; TODO: receive the expression as a string
-                  (define stringPortFromEvaluator (open-input-string "edges"))
-                  ; TODO: entry point for expressions / fmlas in parser
-                  ;(define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
-                  ; TODO: convert via Expr macro
-                  ; faking it to make progress
-                  (define exp univ)
-                  (define maxint 8)
-                  ; TODO: use eval-form if formula
-                  (define result (eval-exp exp (model->binding model) maxint))
-                  (printf "result: ~a~n" result)
-                  ; From JS console, run this to manually invoke: ui._alloy._ws.send("eval-exp")
-                  (ws-send! connection "FILL")] 
+                 [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
+                  (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
+                  (define command (third parts))
+                  ;; TODO: receive the expression as a string
+                  ;(define stringPortFromEvaluator (open-input-string "edges"))
+                  ;; TODO: entry point for expressions / fmlas in parser
+                  ;;(define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
+                  ;; TODO: convert via Expr macro
+                  ;; faking it to make progress
+                  ;(define exp univ)
+                  ;(define maxint 8)
+                  ;; TODO: use eval-form if formula
+                  ;(define result (eval-exp exp (model->binding model) maxint))
+                  ;(printf "result: ~a~n" result)
+                  ;; From JS console, run this to manually invoke: ui._alloy._ws.send("eval-exp")
+                  ;(ws-send! connection "FILL")
+                  
+                  (ws-send! connection (format "EVL:~a:~a" (second parts) command))] 
                  [else
                   (ws-send! "BAD REQUEST")])
            (loop))))
