@@ -8,6 +8,8 @@
 ; TODO: remove this once evaluator is in; just want to show we can evaluate something
 (require (only-in "../lang/ast.rkt" univ))
 
+(require "../lang/reader.rkt")
+
 (provide display-model)
 
 
@@ -43,19 +45,17 @@
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
-                  ;; TODO: receive the expression as a string
-                  ;(define stringPortFromEvaluator (open-input-string "edges"))
-                  ;; TODO: entry point for expressions / fmlas in parser
-                  ;;(define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
-                  ;; TODO: convert via Expr macro
-                  ;; faking it to make progress
+                  (define stringPortFromEvaluator (open-input-string (string-append "eval " command)))
+                  (define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
+
+                  (println (last (syntax->datum stxFromEvaluator)))
+                  ; TODO: convert via Expr macro
+                  ; faking it to make progress
                   ;(define exp univ)
                   ;(define maxint 8)
-                  ;; TODO: use eval-form if formula
+                  ; TODO: use eval-form if formula
                   ;(define result (eval-exp exp (model->binding model) maxint))
                   ;(printf "result: ~a~n" result)
-                  ;; From JS console, run this to manually invoke: ui._alloy._ws.send("eval-exp")
-                  ;(ws-send! connection "FILL")
                   
                   (ws-send! connection (format "EVL:~a:~a" (second parts) command))] 
                  [else
