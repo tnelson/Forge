@@ -1,7 +1,5 @@
 #lang forge
 
--- TODO All sigs are abstract seems to be assumed still.
-
 sig School {}
 one sig Brown extends School {}
 one sig Harvale extends School {}
@@ -20,10 +18,8 @@ pred known {
     Charlie->Brown not in school
 }
 
---known : run known for exactly 3 Person, exactly 2 School
-
--- TODO bounds only correct for "exact", hence all run commands except this one changed to "exactly"
---known : run known for 3 Person, 3 School
+--known : run known for 3 Person, 2 School
+known : run known for 3 Person, 3 School
 --------------------------------------------------------
 
 pred somebody {
@@ -38,4 +34,4 @@ pred nobody { not somebody }
 -- Reverse!
 revpuzzle : run {known somebody} for exactly 3 Person, exactly 2 School
 -- Actual puzzle (expect unsat)
--- puzzle : run {known nobody} for exactly 3 Person, exactly 2 School
+--puzzle : run {known nobody} for exactly 3 Person, exactly 2 School
