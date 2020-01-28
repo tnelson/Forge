@@ -19,6 +19,7 @@
 (define lower-bounds (make-hash))
 (define upper-bounds (make-hash))
 (define top-level-leftovers (make-hash))
+(define top-extras (make-hash))
 
 (define-for-syntax sig-to-fields (make-hash))
 
@@ -213,15 +214,20 @@
               (for ([child (hash-ref parents parent-sig)])
                 (set! lower-bound (append (compute-lower-bound child hashy-bounds) lower-bound)))
               (let ([additional-lower-bound (int-bound-lower (get-bound parent-sig hashy-bounds))])
+                (hash-set! top-extras parent-sig '())
                 (when (@> additional-lower-bound (length lower-bound))
                   (let ([extras (generate-atoms parent-sig (length lower-bound) additional-lower-bound)])
+                    (hash-set! top-extras parent-sig extras)
                     (set! lower-bound (append extras lower-bound))
                     (set! working-universe (append extras working-universe)))))
               (hash-set! lower-bounds parent-sig lower-bound)
               lower-bound)
             ; Otherwise, return the lower bounds for this sig
             (begin
+              (hash-set! top-extras parent-sig '())
               (set! lower-bound (generate-atoms parent-sig 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
+              (printf "~a:~a" parent-sig lower-bound)
+              (println "")
               (set! working-universe (append lower-bound working-universe))
               (hash-set! lower-bounds parent-sig lower-bound)
               lower-bound)))))
@@ -247,7 +253,7 @@
             (set! working-universe (append leftovers working-universe))
             (hash-set! top-level-leftovers sig leftovers)
             (hash-set! upper-bounds sig (append (hash-ref lower-bounds sig) leftovers))
-            leftovers))))
+            (append (hash-ref top-extras sig) leftovers)))))
 
 ; Populates the universe with atoms according to the bounds specified by a run statement
 ; Returns a list of bounds objects

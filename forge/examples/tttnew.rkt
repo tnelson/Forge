@@ -10,7 +10,7 @@ one sig A extends Index {}
 one sig B extends Index {}
 one sig C extends Index {}
 
---test : run {} for exactly 2 Player, exactly 3 Index
+-- test : run {} for exactly 2 Player, exactly 3 Index
 
 pred fixInverses[] { 
    inverse = A->C + B->B + C->A 
@@ -21,13 +21,14 @@ sig Board {places: set Index -> Index -> Player}
 
 pred xturn[b: Board] {
   //#b.places.X = #b.places.O
+  some X
   b.places.X = b.places.O
 } 
 pred somexturn[] {
    some b: Board | xturn[b]
 }
 
-try_xturn : run somexturn for 2 Player, 3 Index, 1 Board
+try_xturn : run somexturn for exactly 2 Player, 3 Index, 1 Board
 
 
 /*
