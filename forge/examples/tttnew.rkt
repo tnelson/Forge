@@ -21,7 +21,7 @@ sig Board {places: set Index -> Index -> Player}
 
 pred xturn[b: Board] {
   //#b.places.X = #b.places.O
-  some X
+  //some X
   b.places.X = b.places.O
 } 
 pred somexturn[] {
@@ -29,6 +29,8 @@ pred somexturn[] {
 }
 
 try_xturn : run somexturn for exactly 2 Player, 3 Index, 1 Board
+
+-- hello : run {some X some O} for ex Player, 3 Index, 1 Board
 
 
 /*
