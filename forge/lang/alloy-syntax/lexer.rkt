@@ -69,7 +69,6 @@
    ["check"     (token+ `CHECK-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["disj"      (token+ `DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["else"      (token+ `ELSE-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["extends"   (token+ `EXTENDS-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["fact"      (token+ `FACT-TOK "" lexeme "" lexeme-start lexeme-end)]  

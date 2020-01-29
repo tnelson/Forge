@@ -6,13 +6,12 @@
          racket/async-channel)
 (require "eval-model.rkt")
 ; TODO: remove this once evaluator is in; just want to show we can evaluate something
-
-(require "../lang/reader.rkt")
+(require (only-in "../lang/ast.rkt" univ))
 
 (provide display-model)
 
 
-(define-runtime-path sterling-path "../sterling-js/dist/index.html")
+(define-runtime-path sterling-path "../sterling-static/index.html")
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
@@ -34,7 +33,6 @@
          (define m (ws-recv connection))
 
          (unless (eof-object? m)
-           ;(println m)
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
                  [(equal? m "current")
@@ -42,40 +40,20 @@
                  [(equal? m "next")
                   (set! model (get-next-model))
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
-                 [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
-                  (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
-                  (define command (third parts))
-
-                  (define port (open-input-string (string-append "eval " command)))
-
-                  (define maxint 8) ; TODO: get maxint
-                  (define result
-                    (with-handlers (
-                        ;[exn:fail:read? (λ (exn) (println exn) "syntax error")]
-                        ;[exn:fail:parsing? (λ (exn) (println exn) "syntax error")]
-                        [exn:fail:contract? (λ (exn) (println exn) "error")]
-                        [exn:fail? (λ (exn) (println exn) "syntax error")]
-                      )
-
-                      (define stxFromEvaluator (read-syntax 'Evaluator port))
-                      (define alloy (third (last (syntax->datum stxFromEvaluator))))
-                      ;(println alloy)
-                      (define kodkod (alloy->kodkod alloy))
-                      ;(println kodkod)
-                      (define lists (eval-form kodkod (model->binding (cdr model)) maxint))
-
-                      (if (list? lists)
-                          (string-join (for/list ([l lists])
-                              (string-join (for/list ([atom l])
-                                (if (number? atom)
-                                    (string-append (format "~a" atom))
-                                    (symbol->string atom))
-                              ) "->")
-                              ) " + ")
-                          lists)
-                      ))
-                  ;(println result)
-                  (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
+                 [(equal? m "eval-exp")
+                  ; TODO: receive the expression as a string
+                  (define stringPortFromEvaluator (open-input-string "edges"))
+                  ; TODO: entry point for expressions / fmlas in parser
+                  ;(define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
+                  ; TODO: convert via Expr macro
+                  ; faking it to make progress
+                  (define exp univ)
+                  (define maxint 8)
+                  ; TODO: use eval-form if formula
+                  (define result (eval-exp exp (model->binding model) maxint))
+                  (printf "result: ~a~n" result)
+                  ; From JS console, run this to manually invoke: ui._alloy._ws.send("eval-exp")
+                  (ws-send! connection "FILL")]
                  [else
                   (ws-send! "BAD REQUEST")])
            (loop))))

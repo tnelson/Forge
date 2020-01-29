@@ -3,7 +3,6 @@
 ;; reference: http://alloytools.org/download/alloy-language-reference.pdf
 
 AlloyModule : ModuleDecl? Import* Paragraph*
-            | EvalDecl*
 ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
 Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
 @Paragraph : SigDecl 
@@ -126,5 +125,3 @@ TransitionDecl : TRANSITION-TOK /LEFT-SQUARE-TOK QualName /RIGHT-SQUARE-TOK
     (QualName DOT-TOK)? Name ParaDecls? Block
 
 RelDecl : ArrowDecl
-
-EvalDecl : EVAL-TOK Expr
