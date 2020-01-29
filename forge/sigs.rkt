@@ -43,7 +43,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run check fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
 (provide add-relation)
 
 (define (add-relation rel types)
@@ -316,6 +316,34 @@
     [(_ pred) #'(error "Run statements require a unique name specification")]
     [(_) #'(error "Run statements require a unique name specification")]
     [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
+
+
+(define-syntax (check stx)
+  (define command (format "~a" stx))
+  (syntax-case stx ()
+    [(_ name ((sig lower upper) ...))
+     #`(begin
+         (define hashy (make-hash))
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (run-spec hashy name #,command filepath))]
+    [(_ name (preds ...) ((sig lower upper) ...))
+     #`(begin
+         (define hashy (make-hash))
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (add-constraint (not preds)) ...
+         (run-spec hashy name #,command filepath))]
+    [(_ name)
+     #`(begin
+         (run-spec (make-hash) name #,command filepath))]
+    [(_ name (preds ...))
+     #`(begin
+         (add-constraint (not preds)) ...
+         (r-spec (make-hash) name #,command filepath))]
+    [(_ pred ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]
+    [(_ pred) #'(error "Check statements require a unique name specification")]
+    [(_) #'(error "Check statements require a unique name specification")]
+    [(_ ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]))
+
 
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))
