@@ -138,7 +138,10 @@
       [`(,_ ,a (ArrowOp ,_ ...) ,b) `(-> ,(f a) ,(f b))]
       [`(,_ ,a "<:" ,b) `(<: ,(f a) ,(f b))]
       [`(,_ ,a ":>" ,b) `(<: ,(f b) ,(f a))]
-      [`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
+      ;[`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
+      [`(,_ ,a "[" (ExprList ,b) "]") `(join ,(f b) ,(f a))]
+      [`(,_ ,a "[" (ExprList ,b ,bs ...) "]") 
+        (f `(Expr (join ,(f b) ,(f a)) "[" (ExprList ,@bs) "]"))]
       [`(,_ ,a "." ,b) `(join ,(f a) ,(f b))]
       [`(,_ "~" ,a) `(~ ,(f a))]
       [`(,_ "^" ,a) `(^ ,(f a))]
