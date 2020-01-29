@@ -3,7 +3,7 @@
 -- SUDOKU
 -- Find me unique-solution boards
 
-sig N {}
+sig N {neighbors: set N}
 one sig N1 extends N {}
 one sig N2 extends N {}
 one sig N3 extends N {}
@@ -37,8 +37,20 @@ pred intbounds {
 -- 5 int = [-16, 15]
 --run {intbounds} for 2 Board, 5 Int
 
-pred loneNumberPerCell {
+pred structural {
+  -- lone number per cell
   all b: Board | all i: N | all j: N | lone i.(j.(b.places))
+
+  -- neighbors
+  N1.neighbors = N1+N2+N3
+  N2.neighbors = N1+N2+N3
+  N3.neighbors = N1+N2+N3
+  N4.neighbors = N4+N5+N6
+  N5.neighbors = N4+N5+N6
+  N6.neighbors = N4+N5+N6
+  N7.neighbors = N7+N8+N9
+  N8.neighbors = N7+N8+N9
+  N9.neighbors = N7+N8+N9
 }
 
 pred filled[b: Board, n: Int] {
@@ -47,14 +59,31 @@ pred filled[b: Board, n: Int] {
 pred tenFilled {
   some b: Board | filled[b, 10]  
 }
-pred solved {
-  some b: Board | {
-    all i: N | i.(b.places) = N
-    all i: N | {x : N | some j : N | j->i->x in b.places} = N
-    ^ // bad syntax???
+pred solved[b: Board] {  
+    all i: N | N.(i.(b.places)) = N // every row, taking all columns
+    all i: N | i.(N.(b.places)) = N // every column, taking all rows  //N in {x : N | some j : N | j->i->x in b.places } 
+    // and every sub-block (inefficient way of phrasing it)
+    all i: N | all j: N | (j.neighbors).((i.neighbors).(b.places)) = N
+}
+pred someSolved {
+  some b: Board | solved[b]
+}
+--base: run {structural} for 2 Board, 9 N
+-- tenfilled: run {tenFilled structural} for 2 Board, 9 N, 8 Int
+--solved: run {someSolved structural} for 2 Board, 9 N, 8 Int
+
+pred generatePuzzle {
+  structural
+  some init: Board |
+  some final: Board | {
+      -- lesson on performance: try commenting this out...
+    init != final -- massively helpful, even if it's a consequence of the other constraints
+    -- ? maybe even faster if we constrain init to be pre-valid? not =N, but no dupes?    
+    filled[init, 10]
+    init.places in final.places
+    solved[final]     
   }
 }
+run {generatePuzzle} for 2 Board, 9 N, 8 Int
 
---base: run {oneNumberPerCell} for 2 Board, 9 N
--- tenfilled: run {tenFilled loneNumberPerCell} for 2 Board, 9 N, 8 Int
-solved: run {solved loneNumberPerCell} for 2 Board, 9 N, 8 Int
+-- Finding a VALID puzzle would be awesome (unique solution up to isomorphism) but that seems to require 2nd order logic + cleverness around isomorphism
