@@ -49,6 +49,7 @@
                  
 
 (define (model-to-XML-string model name command filepath bitwidth)
+  (displayln (current-inexact-milliseconds))
   (define flag (car model))
   (define data (cdr model))
   
@@ -71,6 +72,7 @@
 </field>
 here-string-delimiter
                                   ))
+  (displayln data)
   (cond [(equal? flag 'unsat)
          (string-append prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
@@ -163,8 +165,8 @@ here-string-delimiter
 
          (define ID-hash (make-hash))
          (hash-set! ID-hash "univ" 2)
-         (hash-set! ID-hash "Int" 1)
-         (hash-set! ID-hash "seq/Int" 0)
+         (hash-set! ID-hash "Int" 0)
+         (hash-set! ID-hash "seq/Int" 1)
          (hash-set! ID-hash "String" 3)
 
          (define sig-strings (apply string-append (map
@@ -189,6 +191,8 @@ here-string-delimiter
                            "</source>\n"
                            "</alloy>"))
                                            
+
+         (displayln (current-inexact-milliseconds))
          (string-append prologue
                         "\n\n"
                         sig-strings

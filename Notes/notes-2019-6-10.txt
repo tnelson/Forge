@@ -1,0 +1,45 @@
+next goals:
+
+transitive closure / union on sets using functions
+but also a repl, reasonable error messages
+language levels
+Looking for overconstraint? Did we ever see this sort of thing in a model, basically.
+
+
+
+Probably never gonna gonna use cvc4. But could experiment with it! Not married to either z3 or cvc4
+
+Could try modifying the z3 smt repl to include transitive closure     
+
+
+
+
+
+
+
+
+We're gonna be using racket no matter what. Cuz Shriram has pull, cuz it's easy to extend, cuz we can pivot to ocelot, a dozen reasons.
+
+Investigate furtehr how the rosette repl is working. Cuz then we don't have to do z3py bullshit.
+
+Tim's gonna post on github about transitive closure repl
+
+
+
+Pivot to trying to understand rosette repl, cuz that obviously works
+
+
+
+essential questions: can transitive closure be used outside of z3 interface
+whats up with push? why does it mess with transitive closure?                                                                                                                        
+
+
+
+
+
+Modes for Forge:
+Alloy: build model, get repl
+Check expec: provide examples for their predicates
+Diff: see differences between your models and the correct moels
+Test: you provide the predicates for check expec
+~                                                                

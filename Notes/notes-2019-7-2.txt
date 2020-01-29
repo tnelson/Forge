@@ -1,0 +1,5 @@
+Graphviz is not a great option, because it's becoming abandonware it seems like.
+Nor can I find any well-supported javascript libraries to interpret DOT files.
+Visjs sorta works, but fails on many outputs of graphviz from the graph racket library.
+
+So a fully js alternative may be best: D3, cytoscape, or plotly.

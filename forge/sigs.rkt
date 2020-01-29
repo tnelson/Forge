@@ -269,7 +269,7 @@
 
   (printf "Roots: ~a~n" roots)
   (printf "Parents: ~a~n" parents)
-
+  
   (for ([root roots]) (compute-lower-bound root hashy-bounds))
 
 
@@ -330,34 +330,34 @@
 (define (append-run name)
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
 
-
 (define (run-spec hashy name command filepath)
   (append-run name)
-
-  (define intmax (expt 2 (sub1 bitwidth)))
-  (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
-  (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
-
-  (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
+  (define allints (expt 2 bitwidth))
+  (define int-atoms (range allints))
+  (hash-set! bounds-store Int int-atoms)
+  
+  ; hashy contains int-bounds; convert them to sig bounds
   (define sig-bounds (bind-sigs hashy))
-  (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
+  (define inty-univ (append int-atoms working-universe))
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
 
-  ; Initializing our kodkod-cli process, and getting ports for communication with it
+  (println "--------------------------------------------")
+  (printf "Working universe: ~a~n" working-universe) ; atoms that we keep
+  (printf "Sig bounds: ~a~n" sig-bounds)             ; pre-erasing unused atoms
+  (println "--------------------------------------------")
+
   (define kks (new server%
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
   (send kks initialize)
   (define stdin (send kks stdin))
   (define stdout (send kks stdout))
-
   (cmd
    [stdin]
-   ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
-   (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 1 :verbosity 7" bitwidth))
+   (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 999 :verbosity 8" bitwidth))
    (declare-univ (length inty-univ))
-   (declare-ints int-range int-indices))
+   (declare-ints (range allints) (range allints)))
   (define (get-atom atom) (index-of inty-univ atom))
   (define (n-arity-none arity)
     (cond
@@ -397,8 +397,8 @@
   (for ([c constraints] [i (range (length constraints))])
     (cmd
      [stdin]
-     (print-cmd-cont (format "(f~a" i))
-     (translate-to-kodkod-cli c rels '())
+     (print-cmd-cont (format "(f~a " i))
+     (interpret-formula c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
 

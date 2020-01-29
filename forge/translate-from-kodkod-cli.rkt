@@ -56,13 +56,13 @@ relation-names is the same, a list of all relation names ordered as they are in 
 This function just recreates the model, but using names instead of numbers.
 |#
 
-(define (translate-from-kodkod-cli model relation-names inty-univ)
+(define (translate-from-kodkod-cli model relation-names univ)
   (define flag (car model))
   (define data (cdr model))
 
   (printf "Data: ~a~n" data)
   (printf "Relation-names: ~a~n" relation-names)
-
+  
   (cond [(and (equal? 'unsat flag) data)
          (cons 'unsat data)]
         [(and (equal? 'unsat flag) (not data))
@@ -76,11 +76,13 @@ This function just recreates the model, but using names instead of numbers.
            (hash-set! initial-mapping
                       (list-ref relation-names (id-to-index relation-num))
                       (translate-kodkod-cli-relation univ (hash-ref data relation-num) (id-to-index relation-num) parents)))|#
-
-
-
+         
+         
+         
          (for ([relation-num (hash-keys data)])
            (hash-set! translated-model
                       (list-ref relation-names (id-to-index relation-num))
-                      (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num))))
+                      (translate-kodkod-cli-relation univ (hash-ref data relation-num) (id-to-index relation-num))))
+         (printf "translated-model: ~a~n" translated-model)
          (cons 'sat translated-model)]))
+

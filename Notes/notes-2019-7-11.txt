@@ -1,0 +1,120 @@
+// Problem: to project over a type, we would need to do callbacks
+// Here, we can project over a specific node, but that's it.
+// What do we actually expect when we project over something?
+// We don't want to see those things anymore. Well, maybe we do, but not as parts of edges.
+// It may make more sense to request that specific relations are projected? Then we have guarantees of same arity.
+
+// that would be quite handy... How would I handle that?
+// I could say that you only join out the leftmost column or something. But what if you wanted to do the middle?
+// Ok, you specify the relation, and you specify the column to join over.
+// So really it's a specific join. That seems more useful.
+
+// Do I want to look at specific atoms? Or is there a better way to show where
+// tuples came from?
+// bilkent can do the compound demo!
+// But that wouldn't show which column they were taken from.
+
+// How else can I solve this? What is the real purpose of the individual atom thing?
+// Consider state. It's really for something like state. But i need to clarify what it means.
+
+// OK, what is state doing?
+
+// The thing is, you really want to know which state connects to what, right?
+// What is the point?
+
+// The real point is that without projection, those views are unintelligible.
+// But how do you make them intelligible? Is there a single fundamental problem with views?
+
+// OK so there's the specific problem of state. But the question is, is that problem universal?
+// And what about state/event problems?
+
+// look for examples that require projection but don't involve state.
+
+// there's messaging, that's a good start. Farmer is a good example of pure state.
+// There are frequently examples of multiple-state problems. some ringleader is an excellent example
+// firewire also good example of single state
+
+// yeah I can't find any example. So state is the only thing that we will ever use projection for.
+// What does that imply for me? I only need to consider projection for state-like problems.
+
+// Questions: multiple state objects in one tuple? multiple state types? multiple relations?
+// uninvolved relations? representation?
+
+// Do this now? It's the biggest unsovled problem, yeah. Do this now.
+
+
+// I can imagine having multiple states in the same tuple.
+// What should I do then?
+
+// If I had just State->State, then I just shouldn't see it, cuz that's sorta pointless I feel like.
+// If I had A->State->B->State->C, what then?
+// And I can sorta see that happening. It's conceivable.
+
+// So what would I want to see in that situation?
+// I feel that the best option is to projection over a specific relation.
+// Then, if there are multiple columns of the same type, you choose which to project over.
+// And you can do that multiple times. Then you can advance nodes through each column.
+
+// Say you don't have an independent advancer for each column, and there were two columns in your relation:
+// What happens when you project? Say you only project over one column. That's fucking dumb, no.
+// Say you just project the whole type over the whole tuple, but have only one advancer.
+// Which thing are you advancing? Are you saying both have to be that, or only one? Also dumb, no.
+
+// And you can also project with multiple types, and you get at least one independent advancer per type.
+// What to do with uninvolved relations? And how to represent?
+// Uninvolved relations mean things with nothing taken out.
+// What if there's overlap? Like there was A->B, A->Node->B?
+
+// Or if theres A->Node->B, A->Obj->B? I think those should be distinguished, at least optionally.
+// How to encapsulate those? cuz, fuck, I can't make them into a compound node.
+
+
+
+// OH WAIT. HOLD ON A SEC. AS LONG AS WE JUST PUT MIDDLE ATOMS IN THE LABEL,
+// PROJECTION DOESN'T EVEN HELP REALLY... MM not true, nvm. OK there's a distinction there.
+// Say we have A->N0->B, 
+// projection over Node doesn't change appearance. HOWEVER, lets u iterate, and changes similarity to other tuples.
+// should we keep node markers in projectio nview? implies no change to tuples...
+
+
+// The problem is partly one of presentation: we say that if you want to make stuff clearner, you project.
+// false. You only use it for state, here's exactly how
+
+
+
+
+Pause on projection for now. How we do projection may be heavily dependent on our semantics,
+our semantic priming. Because there are some fundamental questions here, but a LOT of style questions.
+So wait until forge is more fleshed out.
+
+
+What to do:
+
+A menu of a big collection of basic theming options!!!!!!
+maybe custom function for adjusting graph that is displayed, styling. which is really everything
+we're talking about how to clean your visualization, that's the key.
+
+
+
+visual evaluator: few extra features, looks different.
+instead of just getting textual output from evaluator, you submit query, and it adds the result of that query to a visualization.
+with each query, it builds up a visualization.
+
+So, to see a transitive closure, you can just say ^edges, it shows up in teh graph.
+analog for formulas? tag all nodes or all edges.
+What about predicates of higher arity?
+
+Could restrict prediates to arity 1: only take one relation, so tagging makes sense
+
+
+
+
+DOCUMENTATION AND TESTING!!!!!
+Think about what a student would want. How to do things?
+Describe how things are visualized, how nodes/edges appear
+sparse documentation much better than none
+
+For me (luke): visualizer docs, test conversion of ocelot model to json, test conversion of json to cytoscape, conversion of cytoscape to smaller cytoscape models with the menu options
+
+
+two goals: Forge MVP, letting James get started on KodCelot (KodLot? OKod? OcKod? OceKod?)
