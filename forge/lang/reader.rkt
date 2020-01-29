@@ -44,7 +44,6 @@
           (string->symbol (second (third (first datum))))
           (grab-extension (rest datum)))))
 
-
 (define (read-syntax path port)
   (define parse-tree (parse path (make-tokenizer port)))
 

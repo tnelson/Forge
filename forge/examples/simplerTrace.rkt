@@ -1,7 +1,7 @@
 #lang forge
 
 sig Node {
-    edges: Node
+    edges: set Node
 }
 
 /*(declare-sig Node (
