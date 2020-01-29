@@ -2,7 +2,7 @@
 
 (require racket/match (only-in "../lang/ast.rkt" relation-name))
 
-(provide eval-exp eval-form model->binding)
+(provide eval-exp eval-form model->binding alloy->kodkod)
 
 (require rackunit)
 
@@ -12,7 +12,8 @@
 (define (model->binding model)
   (define out-bind (make-hash))
   (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (relation-name k)) v)))
-  out-bind)
+  (make-immutable-hash (hash->list out-bind))
+  )
 
 ; Interpreter for evaluating an eval query for an expression in a model
 ; context
@@ -44,7 +45,7 @@
                                                              (eval-exp exp-1 bind maxint)))]
                    ; Unary set operations
                    [`(^ ,lst) (tc (eval-exp lst bind maxint))]
-                   [`(~ ,new-exp) (map reverse (eval-exp new-exp bind))]
+                   [`(~ ,new-exp) (map reverse (eval-exp new-exp bind maxint))]
                    ; Arithmetic
                    [`(plus ,val-1 ,val-2) (modulo (perform-op + (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
                    [`(minus ,val-1 ,val-2) (modulo (perform-op - (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
@@ -100,12 +101,54 @@
     [`(some ,exp) (not (empty? (eval-exp exp bind maxint)))]
     [`(one ,exp) (let [(const (eval-exp exp bind maxint))] (and (not (empty? const))) (empty? (cdr const)))]
     [`(in ,exp-1 ,exp-2) (subset? (eval-exp exp-1 bind maxint) (eval-exp exp-2 bind maxint))]
-    [`(and ,form-1 ,form-2) (and (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(or ,form-1 ,form-2) (or (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(implies ,form-1 ,form-2) (implies (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(iff ,form-1 ,form-2) (equal? (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
+    [`(and ,form ...) (for/and ([f form]) (eval-form f bind maxint))]
+    [`(or ,form ...) (for/or ([f form]) (eval-form f bind maxint))]
+    [`(implies ,form-1 ,form-2) (implies (eval-form form-1 bind maxint) (eval-form form-2 bind maxint))]
+    [`(iff ,form-1 ,form-2) (equal? (eval-form form-1 bind maxint) (eval-form form-2 bind maxint))]
     [`(all ,var ,lst ,f) (andmap (lambda (x) (eval-form f (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
     [`(some ,var ,lst ,f) (ormap (lambda (x) (eval-form f (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind maxint) (eval-exp var-2 bind maxint))]
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
-    [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]))
+    [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
+    [exp (eval-exp exp bind maxint)]))
+
+(define (alloy->kodkod e)
+  (define (f e)
+    (match e
+      ;[`(,_ "let" (LetDeclList (LetDecl name value)) ,block) ??]
+      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n) ,e)) ,a)
+        `(,(f q) ,(f n) ,(f e) ,(f a))]
+      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n) ,e) ,ds ...) ,a)
+        `(,(f q) ,(f n) ,(f e) ,(f `(Expr (Quant ,q) (DeclList ,@ds) ,a)))]
+      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n ,ns ...) ,e) ,ds ...) ,a)
+        `(,(f q) ,(f n) ,(f e) ,(f `(Expr (Quant ,q) (DeclList (Decl (NameList ,@ns) ,e) ,@ds) ,a)))]
+      [`(,_ ,a "or" ,b) `(or ,(f a) ,(f b))]
+      [`(,_ ,a "iff" ,b) `(iff ,(f a) ,(f b))]
+      [`(,_ ,a "implies" ,b) `(implies ,(f a) ,(f b))]
+      [`(,_ ,a "and" ,b) `(and ,(f a) ,(f b))]
+      [`(,_ "!" ,a) `(! ,(f a))]
+      [`(,_ ,a "!" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
+      [`(,_ ,a (CompareOp ,op) ,b) `(,(f op) ,(f a) ,(f b))]
+      [`(,_ ,quant (Expr8 ,a)) `(,(f quant) ,(f a))]
+      [`(,_ ,a "+" ,b) `(+ ,(f a) ,(f b))]
+      [`(,_ ,a "-" ,b) `(- ,(f a) ,(f b))]
+      [`(,_ "#" ,a) `(card ,(f a))]
+      [`(,_ ,a "++" ,b) `(++ ,(f a) ,(f b))]
+      [`(,_ ,a "&" ,b) `(& ,(f a) ,(f b))]
+      [`(,_ ,a (ArrowOp ,_ ...) ,b) `(-> ,(f a) ,(f b))]
+      [`(,_ ,a "<:" ,b) `(<: ,(f a) ,(f b))]
+      [`(,_ ,a ":>" ,b) `(<: ,(f b) ,(f a))]
+      [`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
+      [`(,_ ,a "." ,b) `(join ,(f a) ,(f b))]
+      [`(,_ "~" ,a) `(~ ,(f a))]
+      [`(,_ "^" ,a) `(^ ,(f a))]
+      [`(,_ "*" ,a) `(* ,(f a))]
+      [`(BlockOrBar (Block ,a ...)) `(and ,@(map f a))]
+      [`(BlockOrBar "|" ,a) (f a)]
+      [`(,_ ,a) (f a)]
+      [(? string?) (string->symbol e)]
+      [else e]
+    )
+  )
+  (f e)
+)

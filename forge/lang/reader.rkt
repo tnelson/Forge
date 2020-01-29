@@ -49,19 +49,15 @@
 
   (define src-datum (cdr (syntax->datum parse-tree)))
   ; don't use format-datums, because it's awful with quotes.
-  (define transformed (replace-ints src-datum))
-  ;(println "hereherehere")
-  ;(println transformed)
-  (define sig-inits (map (lambda (x) `(pre-declare-sig ,(car x) #:extends ,(cdr x))) (pull-sigs transformed)))
-  ;(println "inits")
-  ;(println sig-inits)
+  ;(define transformed (replace-ints src-datum))
+  (define sig-inits (map (lambda (x) `(pre-declare-sig ,(car x) #:extends ,(cdr x))) (pull-sigs src-datum)))
 
   ; Insert the filename of the running file into itself, to be shown in visualizer later,
   ; and used to extract source text.
   (define filename-definition (list
                                `(set-path! ,(format "~a" path))
                                '(displayln filepath)))
-  (define final `(,@(append filename-definition sig-inits transformed)))
+  (define final `(,@(append filename-definition sig-inits src-datum)))
 
   ;(map println final)
 
