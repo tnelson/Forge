@@ -330,14 +330,16 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-         (add-constraint (not preds)) ...
+         (add-constraint (or (not preds) ...))
+         (printf "Added check predicates! 1")
          (run-spec hashy name #,command filepath))]
     [(_ name)
      #`(begin
          (run-spec (make-hash) name #,command filepath))]
     [(_ name (preds ...))
      #`(begin
-         (add-constraint (not preds)) ...
+         (add-constraint (or (not preds) ...))
+         (printf "Added check predicates! 2") 
          (r-spec (make-hash) name #,command filepath))]
     [(_ pred ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]
     [(_ pred) #'(error "Check statements require a unique name specification")]
