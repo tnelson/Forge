@@ -6,7 +6,6 @@
          racket/async-channel)
 (require "eval-model.rkt")
 ; TODO: remove this once evaluator is in; just want to show we can evaluate something
-(require (only-in "../lang/ast.rkt" univ))
 
 (require "../lang/reader.rkt")
 
@@ -46,23 +45,24 @@
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
 
-                  ;(define stringPortFromEvaluator (open-input-string (string-append "eval " command)))
-                  ;(define stxFromEvaluator (read-syntax 'Evaluator stringPortFromEvaluator))
-                  ;(println (eval (last (syntax->datum stxFromEvaluator))))
-                  ;(dynamic-require 'kkcli #f)
+                  (define port (open-input-string (string-append "eval " command)))  
                   
-                  (define stringPortFromEvaluator (open-input-string command))
-                  
-                  ;(println stxFromEvaluator)
-                  (define maxint 8)
+                  (define maxint 8) ; TODO: get maxint
                   (define result 
                     (with-handlers (
-                        [exn:fail:read? (λ (exn) (println exn) "syntax error")]
+                        ;[exn:fail:read? (λ (exn) (println exn) "syntax error")]
+                        ;[exn:fail:parsing? (λ (exn) (println exn) "syntax error")]
                         [exn:fail:contract? (λ (exn) (println exn) "error")]
-                        [exn:fail? (λ (exn) (println exn) "error")]
+                        [exn:fail? (λ (exn) (println exn) "syntax error")]
                       )
-                      (define stxFromEvaluator (read stringPortFromEvaluator))
-                      (define lists (eval-form stxFromEvaluator (model->binding (cdr model)) maxint))
+
+                      (define stxFromEvaluator (read-syntax 'Evaluator port))
+                      (define alloy (third (last (syntax->datum stxFromEvaluator))))
+                      ;(println alloy)
+                      (define kodkod (alloy->kodkod alloy))
+                      ;(println kodkod)
+                      (define lists (eval-form kodkod (model->binding (cdr model)) maxint))
+
                       (if (list? lists)
                           (string-join (for/list ([l lists]) 
                               (string-join (for/list ([atom l])
