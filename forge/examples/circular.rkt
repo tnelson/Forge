@@ -1,7 +1,7 @@
 #lang forge
 
 sig B { }
-sig A { b: B }
+sig A { b: set B }
 
 
 pred main { some A }

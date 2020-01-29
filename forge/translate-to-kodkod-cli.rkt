@@ -2,10 +2,13 @@
 
 (require "lang/ast.rkt" "kodkod-cli/server/kks.rkt")
 
-(provide interpret-formula)
+(provide translate-to-kodkod-cli)
 
 (define (get-var-idx var quantvars)
   (- (length quantvars) (index-of quantvars var)))
+
+(define (translate-to-kodkod-cli formula relations quantvars)
+  (interpret-formula formula relations quantvars))
 
 ; quantvars should start at -1
 (define (interpret-formula formula relations quantvars)
@@ -132,7 +135,7 @@
 (define (interpret-int expr relations quantvars)
   (match expr
     [(node/int/constant value)
-     ( print-cmd-cont (format "~a " value))]
+     (print-cmd-cont (format "~a " value))]
     [(node/int/op args)
      (interpret-int-op expr relations quantvars args)]))
 
