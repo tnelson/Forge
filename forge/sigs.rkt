@@ -216,7 +216,7 @@
               (let ([additional-lower-bound (int-bound-lower (get-bound parent-sig hashy-bounds))])
                 (hash-set! top-extras parent-sig '())
                 (when (@> additional-lower-bound (length lower-bound))
-                  (let ([extras (generate-atoms parent-sig (length lower-bound) additional-lower-bound)])
+                  (let* ([extras (generate-atoms parent-sig (length lower-bound) additional-lower-bound)])
                     (hash-set! top-extras parent-sig extras)
                     (set! lower-bound (append extras lower-bound))
                     (set! working-universe (append extras working-universe)))))
@@ -226,7 +226,7 @@
             (begin
               (hash-set! top-extras parent-sig '())
               (set! lower-bound (generate-atoms parent-sig 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
-              (printf "~a:~a" parent-sig lower-bound)
+              (printf "lb: ~a:~a" parent-sig lower-bound)
               (println "")
               (set! working-universe (append lower-bound working-universe))
               (hash-set! lower-bounds parent-sig lower-bound)
@@ -236,18 +236,22 @@
 ; Because of the nasty stateful nature of this implementation, this
 ; needs to be called after compute-lower-bound :(
 (define (fill-leftovers sig hashy-bounds)
-  (if (hash-has-key? top-level-leftovers sig) (hash-ref top-level-leftovers sig)
+  (if (hash-has-key? top-level-leftovers sig) (append (hash-ref top-extras sig) (hash-ref top-level-leftovers sig))
       ; If the sig is not top-level, get the leftovers for its parent and mooch off of them.
       ; If the sig is top-level, add atoms to the universe to represent its leftovers
       (if (hash-has-key? extensions-store sig)
           (let ([parent-leftovers (fill-leftovers (hash-ref extensions-store sig) hashy-bounds)]
-                [how-many (@- (int-bound-upper (get-bound sig hashy-bounds)) (int-bound-lower (get-bound sig hashy-bounds)))])
+                ;[how-many (@- (int-bound-upper (get-bound sig hashy-bounds)) (int-bound-lower (get-bound sig hashy-bounds)))]
+                [int-upper (int-bound-upper (get-bound sig hashy-bounds))])
             (define atoms parent-leftovers)
-            (when (@> (length atoms) how-many) (set! atoms (take atoms how-many)))
+            ;(when (@> (length atoms) how-many) (set! atoms (take atoms how-many)))
             (hash-set! top-level-leftovers sig atoms)
+            (printf "upper-bounding sig: ~a with atoms: ~a~n" sig atoms)
+            (add-constraint (<= (card sig) (node/int/constant int-upper)))
             (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
             atoms)
           (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
+            (printf "upper-bounding sig: ~a~n" sig)
             (define leftovers '())
             (when (@> upper lower) (set! leftovers (generate-atoms sig lower upper)))
             (set! working-universe (append leftovers working-universe))
@@ -262,7 +266,12 @@
 
   (define out-bounds '())
   (define roots (filter (lambda (x) (@not (hash-has-key? extensions-store x))) sigs))
+
+  (printf "Roots: ~a~n" roots)
+  (printf "Parents: ~a~n" parents)
+  
   (for ([root roots]) (compute-lower-bound root hashy-bounds))
+
 
   (printf "Starting lower bounds: ~a~n" lower-bounds)
   (printf "Starting upper bounds: ~a~n" upper-bounds)
