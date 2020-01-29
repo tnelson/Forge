@@ -31,14 +31,18 @@ relation-names is the same, a list of all relation names ordered as they are in 
 This function just recreates the model, but using names instead of numbers.
 |#
 
-(define (translate-from-kodkod-cli model relation-names inty-univ)
+(define (translate-from-kodkod-cli runtype model relation-names inty-univ)
   (define flag (car model))
   (define data (cdr model))
   
-  (cond [(and (equal? 'unsat flag) data)
+  (cond [(and (equal? 'unsat flag) (equal? runtype 'run) data)
          (cons 'unsat data)]
-        [(and (equal? 'unsat flag) (not data))
+        [(and (equal? 'unsat flag) (equal? runtype 'run) (not data))
          (cons 'unsat #f)]
+        [(and (equal? 'unsat flag) (equal? runtype 'check) data)
+          (cons 'no-counterexample data)]
+        [(and (equal? 'unsat flag) (equal? runtype 'check) (not data))
+          (cons 'no-counterexample #f)]
         [(equal? 'no-more-instances flag)
          (cons 'no-more-instances #f)]
         [(equal? 'sat flag)
