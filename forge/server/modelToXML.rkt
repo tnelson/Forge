@@ -90,6 +90,12 @@ here-string-delimiter
                         "<atom label=\"&#128557;\"/><atom label=\"&#128542;\"/><atom label=\"&#128546;\"/><atom label=\"&#128551;\"/><atom label=\"&#128558;\"/>\n"
                         "</sig>\n"
                         "</instance>\n</alloy>")]
+        [(equal? flag 'no-counterexample) 
+          (string-append prologue
+                        "\n<sig label=\"No counterexample found. Assertion may be valid.\" ID=\"4\" parentID=\"2\">\n"
+                        "<atom label=\"&#129395;\"/><atom label=\"&#127881;\"/><atom label=\"&#127882;\"/>\n"
+                        "</sig>\n"
+                        "</instance>\n</alloy>")]
         [else
 
          (define sigs-unsorted (filter

@@ -43,7 +43,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run check fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
 (provide add-relation)
 
 (define (add-relation rel types)
@@ -214,7 +214,7 @@
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
 
 
-(define (run-spec hashy name command filepath)
+(define (run-spec hashy name command filepath runtype)
   (append-run name)
 
   (define intmax (expt 2 (sub1 bitwidth)))
@@ -287,7 +287,7 @@
 
   (define (get-next-model)
     (cmd [stdin] (solve))
-    (translate-from-kodkod-cli (read-solution stdout) rels inty-univ))
+    (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
 
   (display-model get-next-model name command filepath bitwidth))
 
@@ -298,24 +298,54 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-         (run-spec hashy name #,command filepath))]
+         (run-spec hashy name #,command filepath 'run))]
     [(_ name (preds ...) ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
          (add-constraint preds) ...
-         (run-spec hashy name #,command filepath))]
+         (run-spec hashy name #,command filepath 'run))]
     [(_ name)
      #`(begin
-         (run-spec (make-hash) name #,command filepath))]
+         (run-spec (make-hash) name #,command filepath 'run))]
     [(_ name (preds ...))
      #`(begin
          (add-constraint preds) ...
-         (run-spec (make-hash) name #,command filepath))]
+         (run-spec (make-hash) name #,command filepath 'run))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
     [(_ pred) #'(error "Run statements require a unique name specification")]
     [(_) #'(error "Run statements require a unique name specification")]
     [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
+
+
+(define-syntax (check stx)
+  (define command (format "~a" stx))
+  (syntax-case stx ()
+    [(_ name ((sig lower upper) ...))
+     #`(begin
+         (define hashy (make-hash))
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (run-spec hashy name #,command filepath 'check))]
+    [(_ name (preds ...) ((sig lower upper) ...))
+     #`(begin
+         (define hashy (make-hash))
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (add-constraint (or (not preds) ...))
+         (printf "Added check predicates! 1")
+         (run-spec hashy name #,command filepath 'check))]
+    [(_ name)
+     #`(begin
+         (run-spec (make-hash) name #,command filepath 'check))]
+    [(_ name (preds ...))
+     #`(begin
+         (add-constraint (or (not preds) ...))
+         (printf "Added check predicates! 2") 
+         (r-spec (make-hash) name #,command filepath 'check))]
+    [(_ pred ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]
+    [(_ pred) #'(error "Check statements require a unique name specification")]
+    [(_) #'(error "Check statements require a unique name specification")]
+    [(_ ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]))
+
 
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))
