@@ -55,14 +55,34 @@
                    [`(card ,lst) (length (eval-exp lst bind maxint))]
                    ; Set comprehension
                    [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
+                   ; Constants
+                   [`none empty]
+                   [`univ (build-univ bind)]
+                   [`iden (build-iden bind)]
+                   ;[`Int (build-ints bind)]
                    ; Base case - implicit set comprehension, ids, integers
                    [id
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]
                       [(integer? id) (list (list (modulo id maxint)))]
-                      [else (hash-ref bind id)])]))
-  ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
+                      ; relation name
+                      [(hash-has-key? bind id) (hash-ref bind id)]
+                      ; atom name (assumed by default)
+                      [else id])]))
+  ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination  
   (if (not (list? result)) (list (list result)) (remove-duplicates result)))
+
+; extract list of all atoms used across all relations
+; do so by taking union of contents of all relations (since this will include all top-level sigs)
+; TODO: include ints?
+(define (build-univ bind)
+  (map (lambda (x) (list x))
+       (remove-duplicates (flatten (hash-map bind (lambda (k v) v))))))
+
+(define (build-iden bind)
+  (define universe (build-univ bind))
+  (map (lambda (x) (apply append x)) ; convert list of eles like ((1)(2)) into list of eles like (1 2)
+       (apply cartesian-product (list universe universe))))
 
 ; Explicitly finds the transitive closure of a relation
 (define (tc lst)
