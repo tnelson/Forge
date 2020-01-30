@@ -380,7 +380,7 @@
 
   ;; symmetry breaking
   (define-values (new-total-bounds new-formulas)
-    (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store))
+    (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
   (add-constraints new-formulas)
 
