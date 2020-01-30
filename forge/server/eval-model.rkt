@@ -69,8 +69,11 @@
                       [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name (assumed by default)
                       [else id])]))
-  ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination  
-  (if (not (list? result)) (list (list result)) (remove-duplicates result)))
+  ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
+  ; Also canonicalize so that if we compare relational constants, a list-based representation is OK
+  (if (not (list? result))
+      (canonicalize-result (list (list result)))
+      (canonicalize-result (remove-duplicates result))))
 
 ; extract list of all atoms used across all relations
 ; do so by taking union of contents of all relations (since this will include all top-level sigs)
@@ -84,6 +87,25 @@
   (map (lambda (x) (apply append x)) ; convert list of eles like ((1)(2)) into list of eles like (1 2)
        (apply cartesian-product (list universe universe))))
 
+; Sort an evaluation result lexicographically
+(define (canonicalize-result l)
+  (sort l tuple<?))
+
+; is t1 < t2?
+; Note: weird 3-valued logic being folded here due to need to represent "equal...so far"
+(define (tuple<? t1 t2)    
+  (define result
+    (foldl (lambda (p acc)  
+             (cond [(eq? acc #t) #t] ; already known (some prior component was <)
+                   [(eq? acc #f) #f] ; already known (some prior component was >)
+                   [(string=? (symbol->string (first p)) (symbol->string (second p))) 0] ; don't know yet
+                   [else (string<? (symbol->string (first p)) (symbol->string (second p)))]))
+           ; assume same to start
+           0
+           (map list t1 t2)))
+  (cond [(eq? 0 result) #f]
+        [else result]))
+    
 ; Explicitly finds the transitive closure of a relation
 (define (tc lst)
   (define startlen (length lst))
