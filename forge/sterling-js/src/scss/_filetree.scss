@@ -1,0 +1,42 @@
+@import "variables";
+@import "properties";
+
+.filetree {
+  @extend %user-select-none;
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-width: $filetree-minwidth;
+  max-width: $filetree-maxwidth;
+  border-right: 1px solid $color-bg-dark;
+  border-left: 1px solid $color-bg-dark;
+  background-color: $color-bg-light;
+
+  .file {
+    height: $filetree-file-height;
+    display: flex;
+    align-items: center;
+    padding: 0 1em;
+    overflow: hidden;
+    .icon {
+      color: $color-primary-dark;
+      padding-right: 0.25em;
+    }
+    .filename {
+      flex: 1 0 auto;
+      color: $color-primary-dark;
+      padding-left: 0.25em;
+    }
+    &.active {
+      background-color: $color-bg-dark;
+    }
+    &:hover {
+      cursor: pointer;
+      background-color: $color-primary;
+      .icon, .filename {
+        color: $color-primary-text;
+      }
+    }
+  }
+
+}

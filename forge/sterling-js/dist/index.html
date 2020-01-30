@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang='en'>
+    <head>
+        <meta charset='UTF-8'>
+        <title>Sterling</title>
+
+        <script src='js/highlight.js'></script>
+        <script src='js/sterling.js'></script>
+        <script src='js/dagre.js'></script>
+
+        <link rel='stylesheet' href='css/github-gist.css'>
+        <link rel='stylesheet' href='css/index.css'>
+
+    </head>
+    <body>
+        <div id='nav-bar' class='nav'>
+            <div class='nav-body'>
+                <div class='nav-header'>
+                    Sterling
+                </div>
+                <div id='nav-graph' class='nav-icon-button'>
+                    <i class='nav-icon fas fa-project-diagram'></i>
+                    Graph
+                </div>
+                <div id='nav-table' class='nav-icon-button'>
+                    <i class='nav-icon fas fa-table'></i>
+                    Table
+                </div>
+                <div id='nav-tree' class='nav-icon-button'>
+                    <i class='nav-icon fas fa-sitemap'></i>
+                    Tree
+                </div>
+                <div id='nav-eval' class='nav-icon-button'>
+                    <i class="nav-icon fas fa-terminal"></i>
+                    Evaluator
+                </div>
+                <div id='nav-source' class='nav-icon-button active'>
+                    <i class='nav-icon fas fa-file-alt'></i>
+                    Source
+                </div>
+                <div id='nav-next' class='nav-icon-button right'>
+                    <i class="nav-icon fas fa-arrow-alt-circle-right"></i>
+                    Next
+                </div>
+            </div>
+        </div>
+        <div id='status-bar' class='status'>
+            <div class='status-body'>
+                <div id='command-status' class='status-item'>Command: run Show
+                    for 6 expect
+                    1</div>
+                <div id='connection-status' class='right status-item'>Status:
+                    Connected</div>
+            </div>
+        </div>
+
+        <div id='graph-view' class='body-full'>
+            <div id='options-bar' class='options-bar'>
+                <div class='options-bar-body'>
+                    <div id='projections-bar' class='options-bar-body'>
+                        <div class='label'>
+                            Projections:
+                        </div>
+                        <div id='add-projection' class='icon-button dropdown'>
+                            <div class='icon'>
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <div class='dropdown-content'>
+                                <!--Dropdown items added using js-->
+                            </div>
+                        </div>
+                        <div id='projections-list' class='options-bar-body'>
+                            <!--<div class='combo-button dropdown'>-->
+                                <!--<div class='icon'>-->
+                                    <!--<i class="fas fa-chevron-left"></i>-->
+                                <!--</div>-->
+                                <!--<div class='text'>-->
+                                    <!--State$0-->
+                                <!--</div>-->
+                                <!--<div class='icon'>-->
+                                    <!--<i class="fas fa-chevron-right"></i>-->
+                                <!--</div>-->
+                                <!--<div class='icon separated'>-->
+                                    <!--<i class='fas fa-times'></i>-->
+                                <!--</div>-->
+                                <!--<div class='dropdown-content' style='display:flex'>-->
+                                    <!--<div class='dropdown-item'>-->
+                                        <!--State$1-->
+                                    <!--</div>-->
+                                <!--</div>-->
+                            <!--</div>-->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <svg id='graph' class='graph-view'></svg>
+        </div>
+        <div id='table-view' class='body-full'>
+            <div class='options-bar'>
+                <div class='options-bar-body'>
+                    <div id='table-compact-view' class='text-icon-button'>
+                        <div class='icon'>
+                            <i class="fas fa-compress-arrows-alt"></i>
+                        </div>
+                        <div class='text'>
+                            Compact View
+                        </div>
+                    </div>
+                    <div id='table-built-ins' class='text-icon-button'>
+                        <div class='icon'>
+                            <i class="far fa-eye"></i>
+                        </div>
+                        <div class='text'>
+                            Show Built-in Signatures
+                        </div>
+                    </div>
+                    <div id='table-emptys' class='text-icon-button'>
+                        <div class='icon'>
+                            <i class="far fa-eye"></i>
+                        </div>
+                        <div class='text'>
+                            Show Empty Tables
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id='tables' class='table-container'></div>
+        </div>
+        <div id='tree-view' class='body-full'>
+            <div class='options-bar'></div>
+            <svg class='treeview' id='tree'></svg>
+        </div>
+        <div id='eval-view' class='body-full'>
+            <div class='eval'>
+                <div id='eval-editor' class='eval-editor'>
+                    <div id='eval-output' class='eval-output'></div>
+                    <div id='eval-console' class='eval-input'>
+                        <textarea id='eval-input'
+                                  autocomplete='off'
+                                  placeholder='Enter an expression...'></textarea>
+                    </div>
+                </div>
+                <div id='eval-display' class='eval-display'></div>
+                <div id='eval-settings' class='eval-settings'>
+                    <div id='settings-tabs' class='eval-tabs'>
+                        <div id='expressions-button' class='active'>Expressions</div>
+                        <div id='styling-button'>Styling</div>
+                    </div>
+                    <div id='eval-expressions' class='eval-expressions'></div>
+                    <div id='eval-styles' class='eval-styles'></div>
+                </div>
+            </div>
+        </div>
+        <div id='source-view' class='body'>
+            <div class='filetree'></div>
+            <div class='fileview'>
+                <div class='gutter'></div>
+                <div class='editor'></div>
+            </div>
+        </div>
+        <script>
+            let ui = new sterling.UI()
+                .nav_bar('#nav-bar')
+                .status_bar('#status-bar')
+                .eval_view('#eval-view')
+                .graph_view('#graph-view')
+                .table_view('#table-view')
+                .tree_view('#tree-view')
+                .source_view('#source-view')
+                .connect();
+            // ui.show_eval();
+            ui.show_graph();
+        </script>
+    </body>
+</html>

@@ -1,0 +1,20 @@
+@import "variables";
+
+.body {
+  display: flex;
+  flex: 1 0 auto;
+  height: calc(100vh - #{$nav-height} - #{$status-bar-height});
+  overflow: hidden;
+  margin: 0 auto;
+  width: $body-width;
+}
+
+.body-full {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  height: calc(100vh - #{$nav-height} - #{$status-bar-height});
+  //overflow: hidden;
+  margin: 0;
+  width: 100%;
+}
