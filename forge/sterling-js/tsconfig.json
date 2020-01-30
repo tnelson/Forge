@@ -1,0 +1,12 @@
+{
+    "include": ["src/ts/**/*"],
+    "compilerOptions": {
+        "outDir": "build/js",
+        "module": "es6",
+        "target": "es6",
+        "moduleResolution": "node",
+        "downlevelIteration": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true
+    }
+}

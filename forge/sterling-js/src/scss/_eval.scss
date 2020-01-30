@@ -1,0 +1,217 @@
+@import "variables";
+
+.eval {
+
+  display: flex;
+  flex: 1 0 auto;
+  min-height: 0;
+  max-height: 100%;
+
+  .eval-editor {
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    .eval-output {
+
+      flex: 0 1 auto;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      margin-bottom: 0.5em;
+
+      .output {
+
+        display: flex;
+        flex-direction: column;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.9em;
+        border: 1px solid $color-bg-dark;
+        border-radius: 4px 4px 0 0;
+        margin: 0.5em;
+
+        &.active {
+
+          border: 1px solid $color-primary-light;
+
+          .expression {
+            padding: 0.5em;
+            background-color: $color-primary-light;
+            color: $color-primary-text;
+          }
+
+          .result {
+            min-height: 1em;
+            padding: 0.5em;
+            color: $color-primary-text-dark;
+
+          }
+
+        }
+
+        .expression {
+          padding: 0.5em;
+          background-color: $color-bg-light;
+          color: $color-primary-text-dark;
+          overflow-wrap: break-word;
+        }
+
+        .result {
+
+          &:not(.expanded) {
+            display: none;
+          }
+
+          min-height: 1em;
+          padding: 0.5em;
+          color: $color-primary-light;
+          overflow-wrap: break-word;
+
+          &.error {
+            color: crimson;
+          }
+
+        }
+
+      }
+
+    }
+
+    .eval-input {
+
+      display: flex;
+      align-items: stretch;
+
+      textarea {
+        font-family: 'Fira Code', monospace;
+        font-size: 0.9em;
+        outline: none;
+        border: none;
+        flex: 1 1 auto;
+        resize: none;
+        padding: 0.75em;
+        overflow-wrap: break-word;
+      }
+
+    }
+
+  }
+
+  .eval-display {
+
+    flex: 1 0 auto;
+    display: flex;
+
+    svg, canvas {
+      flex: 1 1 auto;
+    }
+
+  }
+
+  .eval-settings {
+
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    overflow-y: auto;
+
+    .eval-tabs {
+
+      display: flex;
+      border-bottom: 1px solid $color-primary-light;
+
+      div {
+        padding: 5px;
+        cursor: pointer;
+        flex: 1 1 auto;
+        display: flex;
+        justify-content: center;
+      }
+      .active {
+        background-color: $color-primary-light;
+        color: $color-primary-text;
+      }
+
+    }
+
+    .eval-expressions {
+
+      flex: 1 0 auto;
+
+      .expression {
+
+        font-family: "Fira Code", monospace;
+        font-size: 0.9em;
+        padding: 4px;
+
+        cursor: pointer;
+
+        &.graphed {
+          color: $color-primary-text;
+          background-color: $color-primary-light;
+        }
+
+        &:hover {
+          background-color: $color-primary;
+          color: $color-primary-text;
+        }
+
+      }
+
+    }
+
+    .eval-styles {
+
+      display: flex;
+      flex-direction: column;
+      padding: 5px;
+
+      div {
+        padding: 5px;
+        display: flex;
+        align-items: center;
+        input[type=number] {
+          width: 50px;
+        }
+        label {
+          padding-left: 0.5em;
+        }
+      }
+
+      .sigColors {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        .sigColor {
+          flex: 1 0 auto;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          .title {
+            border-bottom: 1px solid $color-primary-light;
+          }
+          .picker {
+            display: flex;
+          }
+        }
+      }
+
+    }
+
+  }
+
+}
+
+.gutter {
+  background-color: $color-primary-light;
+}
+
+.gutter.gutter-horizontal {
+  cursor: col-resize;
+}
+
+.gutter.gutter-vertical {
+  cursor: row-resize;
+}
+

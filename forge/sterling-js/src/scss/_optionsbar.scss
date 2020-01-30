@@ -1,0 +1,206 @@
+@import "variables";
+@import "properties";
+
+.no-options-bar {
+  height: 10px;
+  box-shadow: 0 2px 4px $color-primary-light;
+  z-index: 20;
+}
+
+.options-bar {
+
+  display: flex;
+  z-index: 20;
+
+  width: 100%;
+  min-height: $options-bar-height;
+  max-height: $options-bar-height;
+  margin: 0;
+  padding: 0;
+  box-shadow: 0 2px 4px $color-primary-light;
+
+  .options-bar-body {
+
+    display: flex;
+
+    //width: $body-width;
+    //margin: 0 auto;
+
+    .button {
+
+      @extend %user-select-none;
+      @extend %flex-center-h;
+
+      color: $color-primary-text-dark;
+
+      min-width: $options-bar-button-min-width;
+      border: 1px solid $color-primary-light;
+      padding: 0.5em 0.75em;
+      margin: 0.5em 0.25em;
+      cursor: pointer;
+
+      &:hover {
+        background-color: $color-primary-light;
+        color: $color-primary-text;
+      }
+
+      &.selected {
+        background-color: $color-primary;
+        color: $color-primary-text;
+      }
+
+    }
+
+    .text-icon-button {
+
+      @extend %user-select-none;
+      display: flex;
+
+      color: $color-primary-text-dark;
+
+      min-width: $options-bar-button-min-width;
+      border: 1px solid $color-primary-light;
+      margin: 0.5em 0.25em;
+      cursor: pointer;
+
+      .icon {
+        @extend %flex-center-v;
+        min-width: 1.5em;
+        background-color: $color-primary-light;
+        color: $color-primary-text;
+        padding: 0.5em;
+      }
+
+      .text {
+        @extend %flex-center-v;
+        padding: 0.5em 0.75em;
+      }
+
+      &:hover {
+        background-color: $color-primary-light;
+        color: $color-primary-text;
+      }
+
+    }
+
+    .text-icon-button-inv {
+
+      @extend %user-select-none;
+      display: flex;
+
+      background-color: $color-primary-light;
+      color: $color-primary-text;
+
+      min-width: $options-bar-button-min-width;
+      border: 1px solid $color-primary-light;
+      margin: 0.5em 0.25em;
+      cursor: pointer;
+
+      .icon {
+        @extend %flex-center-v;
+        min-width: 1.5em;
+        color: $color-primary-light;
+        background-color: $color-primary-text;
+        padding: 0.5em;
+
+        &:hover {
+          background-color: $color-primary-light;
+          color: $color-primary-text;
+        }
+      }
+
+      .text {
+        @extend %flex-center-v;
+        padding: 0.5em 0.75em;
+      }
+
+    }
+
+    .combo-button {
+
+      @extend %user-select-none;
+      display: flex;
+
+      color: $color-primary-text-dark;
+
+      min-width: $options-bar-button-min-width;
+      border: 1px solid $color-primary-light;
+      margin: 0.5em 0.25em;
+      cursor: pointer;
+
+      .icon {
+        @extend %flex-center-v;
+        min-width: 1.5em;
+        color: $color-primary-text-dark;
+        background-color: $color-primary-text;
+        padding: 0.5em;
+
+        &.inactive {
+          color: $color-primary-text-light;
+          background-color: $color-primary-text;
+        }
+
+        &:hover:not(.inactive) {
+          background-color: $color-primary-light;
+          color: $color-primary-text;
+        }
+
+        &.separated {
+          border-left: 1px solid $color-primary-light;
+        }
+      }
+
+      .text {
+        @extend %flex-center-v;
+        padding: 0.5em 0.75em;
+
+        &.inactive {
+          color: $color-primary-text-light;
+          background-color: $color-primary-text;
+        }
+
+        &:hover:not(.inactive) {
+          background-color: $color-primary-light;
+          color: $color-primary-text;
+        }
+      }
+
+    }
+
+    .icon-button {
+
+      @extend %user-select-none;
+      display: flex;
+
+      border: 1px solid $color-primary-light;
+      margin: 0.5em 0.25em;
+      cursor: pointer;
+      color: $color-primary-text-dark;
+
+      .icon {
+        @extend %flex-center-v;
+        min-width: 1.5em;
+        padding: 0.5em;
+      }
+
+      &:hover {
+        background-color: $color-primary-light;
+        color: $color-primary-text;
+      }
+
+    }
+
+    .label {
+
+      @extend %user-select-none;
+      @extend %flex-center-v;
+
+      padding: 0.5em 0.75em;
+      margin: 0.5em 0.25em;
+      color: $color-primary-text-dark;
+
+    }
+
+  }
+
+}

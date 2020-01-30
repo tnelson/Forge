@@ -2,7 +2,7 @@
 
 (require racket/match (only-in "../lang/ast.rkt" relation-name))
 
-(provide eval-exp eval-form model->binding)
+(provide eval-exp eval-form model->binding alloy->kodkod)
 
 (require rackunit)
 
@@ -12,7 +12,8 @@
 (define (model->binding model)
   (define out-bind (make-hash))
   (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (relation-name k)) v)))
-  out-bind)
+  (make-immutable-hash (hash->list out-bind))
+  )
 
 ; Interpreter for evaluating an eval query for an expression in a model
 ; context
@@ -44,7 +45,7 @@
                                                              (eval-exp exp-1 bind maxint)))]
                    ; Unary set operations
                    [`(^ ,lst) (tc (eval-exp lst bind maxint))]
-                   [`(~ ,new-exp) (map reverse (eval-exp new-exp bind))]
+                   [`(~ ,new-exp) (map reverse (eval-exp new-exp bind maxint))]
                    ; Arithmetic
                    [`(plus ,val-1 ,val-2) (modulo (perform-op + (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
                    [`(minus ,val-1 ,val-2) (modulo (perform-op - (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
@@ -54,15 +55,57 @@
                    [`(card ,lst) (length (eval-exp lst bind maxint))]
                    ; Set comprehension
                    [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
+                   ; Constants
+                   [`none empty]
+                   [`univ (build-univ bind)]
+                   [`iden (build-iden bind)]
+                   ;[`Int (build-ints bind)]
                    ; Base case - implicit set comprehension, ids, integers
                    [id
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]
                       [(integer? id) (list (list (modulo id maxint)))]
-                      [else (hash-ref bind id)])]))
+                      ; relation name
+                      [(hash-has-key? bind id) (hash-ref bind id)]
+                      ; atom name (assumed by default)
+                      [else id])]))
   ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
-  (if (not (list? result)) (list (list result)) (remove-duplicates result)))
+  ; Also canonicalize so that if we compare relational constants, a list-based representation is OK
+  (if (not (list? result))
+      (canonicalize-result (list (list result)))
+      (canonicalize-result (remove-duplicates result))))
 
+; extract list of all atoms used across all relations
+; do so by taking union of contents of all relations (since this will include all top-level sigs)
+; TODO: include ints?
+(define (build-univ bind)
+  (map (lambda (x) (list x))
+       (remove-duplicates (flatten (hash-map bind (lambda (k v) v))))))
+
+(define (build-iden bind)
+  (define universe (build-univ bind))
+  (map (lambda (x) (apply append x)) ; convert list of eles like ((1)(2)) into list of eles like (1 2)
+       (apply cartesian-product (list universe universe))))
+
+; Sort an evaluation result lexicographically
+(define (canonicalize-result l)
+  (sort l tuple<?))
+
+; is t1 < t2?
+; Note: weird 3-valued logic being folded here due to need to represent "equal...so far"
+(define (tuple<? t1 t2)    
+  (define result
+    (foldl (lambda (p acc)  
+             (cond [(eq? acc #t) #t] ; already known (some prior component was <)
+                   [(eq? acc #f) #f] ; already known (some prior component was >)
+                   [(string=? (symbol->string (first p)) (symbol->string (second p))) 0] ; don't know yet
+                   [else (string<? (symbol->string (first p)) (symbol->string (second p)))]))
+           ; assume same to start
+           0
+           (map list t1 t2)))
+  (cond [(eq? 0 result) #f]
+        [else result]))
+    
 ; Explicitly finds the transitive closure of a relation
 (define (tc lst)
   (define startlen (length lst))
@@ -100,12 +143,57 @@
     [`(some ,exp) (not (empty? (eval-exp exp bind maxint)))]
     [`(one ,exp) (let [(const (eval-exp exp bind maxint))] (and (not (empty? const))) (empty? (cdr const)))]
     [`(in ,exp-1 ,exp-2) (subset? (eval-exp exp-1 bind maxint) (eval-exp exp-2 bind maxint))]
-    [`(and ,form-1 ,form-2) (and (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(or ,form-1 ,form-2) (or (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(implies ,form-1 ,form-2) (implies (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
-    [`(iff ,form-1 ,form-2) (equal? (eval-form form-1 bind maxint) (eval-form form-1 bind maxint))]
+    [`(and ,form ...) (for/and ([f form]) (eval-form f bind maxint))]
+    [`(or ,form ...) (for/or ([f form]) (eval-form f bind maxint))]
+    [`(implies ,form-1 ,form-2) (implies (eval-form form-1 bind maxint) (eval-form form-2 bind maxint))]
+    [`(iff ,form-1 ,form-2) (equal? (eval-form form-1 bind maxint) (eval-form form-2 bind maxint))]
     [`(all ,var ,lst ,f) (andmap (lambda (x) (eval-form f (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
     [`(some ,var ,lst ,f) (ormap (lambda (x) (eval-form f (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind maxint) (eval-exp var-2 bind maxint))]
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
-    [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]))
+    [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
+    [exp (eval-exp exp bind maxint)]))
+
+(define (alloy->kodkod e)
+  (define (f e)
+    (match e
+      ;[`(,_ "let" (LetDeclList (LetDecl name value)) ,block) ??]
+      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n) ,e)) ,a)
+        `(,(f q) ,(f n) ,(f e) ,(f a))]
+      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n) ,e) ,ds ...) ,a)
+        `(,(f q) ,(f n) ,(f e) ,(f `(Expr (Quant ,q) (DeclList ,@ds) ,a)))]
+      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n ,ns ...) ,e) ,ds ...) ,a)
+        `(,(f q) ,(f n) ,(f e) ,(f `(Expr (Quant ,q) (DeclList (Decl (NameList ,@ns) ,e) ,@ds) ,a)))]
+      [`(,_ ,a "or" ,b) `(or ,(f a) ,(f b))]
+      [`(,_ ,a "iff" ,b) `(iff ,(f a) ,(f b))]
+      [`(,_ ,a "implies" ,b) `(implies ,(f a) ,(f b))]
+      [`(,_ ,a "and" ,b) `(and ,(f a) ,(f b))]
+      [`(,_ "!" ,a) `(! ,(f a))]
+      [`(,_ ,a "!" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
+      [`(,_ ,a (CompareOp ,op) ,b) `(,(f op) ,(f a) ,(f b))]
+      [`(,_ ,quant (Expr8 ,a)) `(,(f quant) ,(f a))]
+      [`(,_ ,a "+" ,b) `(+ ,(f a) ,(f b))]
+      [`(,_ ,a "-" ,b) `(- ,(f a) ,(f b))]
+      [`(,_ "#" ,a) `(card ,(f a))]
+      [`(,_ ,a "++" ,b) `(++ ,(f a) ,(f b))]
+      [`(,_ ,a "&" ,b) `(& ,(f a) ,(f b))]
+      [`(,_ ,a (ArrowOp ,_ ...) ,b) `(-> ,(f a) ,(f b))]
+      [`(,_ ,a "<:" ,b) `(<: ,(f a) ,(f b))]
+      [`(,_ ,a ":>" ,b) `(<: ,(f b) ,(f a))]
+      ;[`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
+      [`(,_ ,a "[" (ExprList ,b) "]") `(join ,(f b) ,(f a))]
+      [`(,_ ,a "[" (ExprList ,b ,bs ...) "]") 
+        (f `(Expr (join ,(f b) ,(f a)) "[" (ExprList ,@bs) "]"))]
+      [`(,_ ,a "." ,b) `(join ,(f a) ,(f b))]
+      [`(,_ "~" ,a) `(~ ,(f a))]
+      [`(,_ "^" ,a) `(^ ,(f a))]
+      [`(,_ "*" ,a) `(* ,(f a))]
+      [`(BlockOrBar (Block ,a ...)) `(and ,@(map f a))]
+      [`(BlockOrBar "|" ,a) (f a)]
+      [`(,_ ,a) (f a)]
+      [(? string?) (string->symbol e)]
+      [else e]
+    )
+  )
+  (f e)
+)
