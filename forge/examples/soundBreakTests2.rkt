@@ -3,7 +3,7 @@
 sig A { r: set A }
 --fact r: func
 
-/*<sig label="A" ID="4" parentID="2">
+<sig label="A" ID="4" parentID="2">
     <atom label="A0"/><atom label="A1"/><atom label="A2"/><atom label="A3"/>
     <atom label="A4"/><atom label="A5"/><atom label="A6"/><atom label="A7"/>
     <atom label="A8"/><atom label="A9"/>
@@ -19,7 +19,7 @@ sig A { r: set A }
     <tuple><atom label="A7"/><atom label="A9"/></tuple>
     <tuple><atom label="A8"/><atom label="A8"/></tuple>
     <tuple><atom label="A9"/><atom label="A7"/></tuple>
-</field>*/
+</field>
 
 leaf: A = A-A.r
 fixp: A = (r & iden).A

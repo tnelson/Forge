@@ -100,7 +100,7 @@ Expr17 : Const
        | QualName 
        | AT-TOK Name 
        | THIS-TOK
-       | /LEFT-CURLY-TOK DeclList BlockOrBar /RIGHT-CURLY-TOK
+       | LEFT-CURLY-TOK DeclList BlockOrBar RIGHT-CURLY-TOK
        | /LEFT-PAREN-TOK @Expr /RIGHT-PAREN-TOK 
        | Block
        | Sexpr

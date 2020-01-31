@@ -4,8 +4,14 @@ sig A {
     r: set A,
     s: set A
 }
+sig B {}
+
+one sig C { t: set A->B }
+
 check {
 --    A.(r+s) = A.r + A.s
 --    A.(r-s) = A.r - A.s
-    A.(r&s) = A.r & A.s
+--    A.(r&s) = A.r & A.s
+    all a1, a2: A, b1, b2: B | let x = a1, y = a2 | x != b1 and y != b2
+    A = {a: A | some a}
 }

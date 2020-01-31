@@ -152,12 +152,20 @@
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind maxint) (eval-exp var-2 bind maxint))]
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
+    [`(let ([,n ,e]) ,block) 
+      (println n)
+      (println (eval-exp e bind maxint))
+      (println (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint))
+      (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint)]
     [exp (eval-exp exp bind maxint)]))
 
 (define (alloy->kodkod e)
   (define (f e)
     (match e
-      ;[`(,_ "let" (LetDeclList (LetDecl name value)) ,block) ??]
+      [`(,_ "let" (LetDeclList (LetDecl ,n ,e)) ,block) 
+        `(let ([,n ,(f e)]) ,(f block))]
+      [`(,_ "{" (DeclList (Decl (NameList ,n) ,e)) ,block "}") 
+        `(set ,n ,(f e) ,(f block))]
       [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n) ,e)) ,a)
         `(,(f q) ,(f n) ,(f e) ,(f a))]
       [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n) ,e) ,ds ...) ,a)

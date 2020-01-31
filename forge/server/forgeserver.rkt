@@ -59,11 +59,11 @@
 
                       (define stxFromEvaluator (read-syntax 'Evaluator port))
                       (define alloy (third (last (syntax->datum stxFromEvaluator))))
-                      ;(println alloy)
+                      (println alloy)
                       (define kodkod (alloy->kodkod alloy))
-                      ;(println kodkod)
+                      (println kodkod)
                       (define lists (eval-form kodkod (model->binding (cdr model)) maxint))
-
+                      (println lists)
                       (if (list? lists)
                           (string-join (for/list ([l lists])
                               (string-join (for/list ([atom l])
