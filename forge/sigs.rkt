@@ -5,6 +5,9 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
+
+(require (for-syntax racket/syntax))
+
 (provide break instance quote begin println filepath set-path! let)
 
 (define filepath #f)
@@ -13,7 +16,13 @@
 
 ;(require (only-in forged-ocelot relation-name))
 
+(define lower-bounds (make-hash))
+(define upper-bounds (make-hash))
+(define top-level-leftovers (make-hash))
+(define top-extras (make-hash))
+
 (define-for-syntax sig-to-fields (make-hash))
+
 
 ;Default bound
 (define top-level-bound 4)
@@ -25,6 +34,8 @@
 (define relations-store (make-hash))
 ;Map from sigs to sigs to track hierarchy
 (define extensions-store (make-hash))
+;Opposite direction of extensions-store
+(define parents (make-hash))
 ;Map from relations to explicit bounds
 (define bounds-store (make-hash))
 ;Map from relations to int bounds
@@ -58,21 +69,26 @@
 (define (add-constraints cs) (set! constraints (append cs constraints)))
 
 (define (add-extension child parent)
+  (if (equal? parent univ)
+      #f
+      (if (hash-has-key? parents parent)
+          (hash-set! parents parent (cons child (hash-ref parents parent)))
+          (hash-set! parents parent (list child))))
   (hash-set! extensions-store child parent))
 
 (define (add-int-bound rel int-bound)
   (hash-set! int-bounds-store rel int-bound))
 
 (define-syntax (pre-declare-sig stx)
-  (syntax-case stx ()
+  (syntax-case stx ($remainder-sig$)
     [(_ name)
      #'(begin
          (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
-         (add-sig (symbol->string 'name)))]
+         (add-sig #|(symbol->string 'name) |# name))]
     [(_ name #:extends parent)
      #'(begin
          (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
-         (add-sig (symbol->string 'name) (symbol->string 'parent)))]))
+         (add-sig #|(symbol->string 'name)|# name (symbol->string 'parent)))]))
 
 (define-syntax (declare-field stx)
   (syntax-case stx (set one lone)
@@ -98,7 +114,7 @@
 (define-syntax (declare-sig stx)
   (syntax-case stx ()
     [(_ name ((field mult r ...) ...))
-      (hash-set! sig-to-fields (syntax->datum #'name) 
+      (hash-set! sig-to-fields (syntax->datum #'name)
         (syntax->datum #'(field ...)))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
@@ -108,7 +124,7 @@
          (add-constraint (in field (-> name r ...)))|#
          (declare-field mult name field r ...) ...)]
     [(_ name ((field mult r ...) ...) #:extends parent)
-      (hash-set! sig-to-fields (syntax->datum #'name) 
+      (hash-set! sig-to-fields (syntax->datum #'name)
         (append (syntax->datum #'(field ...)) (hash-ref sig-to-fields (syntax->datum #'parent))))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
@@ -123,7 +139,7 @@
          ;(add-sig (symbol->string 'name))
          )]
     [(_ name #:extends parent)
-      (hash-set! sig-to-fields (syntax->datum #'name) 
+      (hash-set! sig-to-fields (syntax->datum #'name)
         (hash-ref sig-to-fields (syntax->datum #'parent)))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
@@ -134,7 +150,7 @@
 (define-syntax (declare-one-sig stx)
   (syntax-case stx ()
     [(_ name ((field mult r ...) ...))
-      (hash-set! sig-to-fields (syntax->datum #'name) 
+      (hash-set! sig-to-fields (syntax->datum #'name)
         (syntax->datum #'(field ...)))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
@@ -144,7 +160,7 @@
 
     ; this should actually work! head template just gets mapped over every possible value for pattern var
     [(_ name ((field mult r ...) ...) #:extends parent)
-      (hash-set! sig-to-fields (syntax->datum #'name) 
+      (hash-set! sig-to-fields (syntax->datum #'name)
         (append (syntax->datum #'(field ...)) (hash-ref sig-to-fields (syntax->datum #'parent))))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
@@ -160,7 +176,7 @@
          ;(add-sig (symbol->string 'name))
          (add-int-bound name (int-bound 1 1)))]
     [(_ name #:extends parent)
-      (hash-set! sig-to-fields (syntax->datum #'name) 
+      (hash-set! sig-to-fields (syntax->datum #'name)
         (hash-ref sig-to-fields (syntax->datum #'parent)))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
@@ -170,18 +186,114 @@
          (add-constraint (in name parent)))]))
 
 (define (add-sig name [parent "univ"])
-  (set! sigs (cons (declare-relation (list name) parent name) sigs)))
+  #| (set! sigs (cons (declare-relation (list name) parent name) sigs)|#
+  (set! sigs (cons name sigs)))
 
 (define (set-top-level-bound b) (set! top-level-bound b))
 
+(define (disjoint-list sigs)
+  (if (empty? sigs) (list true) (append (disjoint-one-list (first sigs) (rest sigs)) (disjoint-list (rest sigs)))))
+
+(define (disjoint-one-list sig sigs)
+  (if (empty? sigs) (list true) (cons (no (& sig (first sigs))) (disjoint-one-list (first sigs) (rest sigs)))))
+
+
+(define (generate-atoms sig lower upper)
+  (map
+   (lambda (n) (string->symbol (string-append (relation-name sig) (number->string n))))
+   (range lower upper)))
+
+; Returns a list of symbols representing atoms
+(define (compute-lower-bound parent-sig hashy-bounds)
+  (if (hash-has-key? lower-bounds parent-sig) (hash-ref lower-bounds parent-sig)
+      (let ()
+        (define lower-bound '())
+        (if (hash-has-key? parents parent-sig)
+            ; If the sig is not a leaf sig, figure out all the atoms that must be in a child sig
+            (begin
+              (for ([child (hash-ref parents parent-sig)])
+                (set! lower-bound (append (compute-lower-bound child hashy-bounds) lower-bound)))
+              (let ([additional-lower-bound (int-bound-lower (get-bound parent-sig hashy-bounds))])
+                (hash-set! top-extras parent-sig '())
+                (when (@> additional-lower-bound (length lower-bound))
+                  (let* ([extras (generate-atoms parent-sig (length lower-bound) additional-lower-bound)])
+                    (hash-set! top-extras parent-sig extras)
+                    (set! lower-bound (append extras lower-bound))
+                    (set! working-universe (append extras working-universe)))))
+              (hash-set! lower-bounds parent-sig lower-bound)
+              lower-bound)
+            ; Otherwise, return the lower bounds for this sig
+            (begin
+              (hash-set! top-extras parent-sig '())
+              (set! lower-bound (generate-atoms parent-sig 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
+              (printf "lb: ~a:~a" parent-sig lower-bound)
+              (println "")
+              (set! working-universe (append lower-bound working-universe))
+              (hash-set! lower-bounds parent-sig lower-bound)
+              lower-bound)))))
+
+; Populates the universe with atoms up to each sig's upper bound.
+; Because of the nasty stateful nature of this implementation, this
+; needs to be called after compute-lower-bound :(
+(define (fill-leftovers sig hashy-bounds)
+  (if (hash-has-key? top-level-leftovers sig) (append (hash-ref top-extras sig) (hash-ref top-level-leftovers sig))
+      ; If the sig is not top-level, get the leftovers for its parent and mooch off of them.
+      ; If the sig is top-level, add atoms to the universe to represent its leftovers
+      (if (hash-has-key? extensions-store sig)
+          (let ([parent-leftovers (fill-leftovers (hash-ref extensions-store sig) hashy-bounds)]
+                ;[how-many (@- (int-bound-upper (get-bound sig hashy-bounds)) (int-bound-lower (get-bound sig hashy-bounds)))]
+                [int-upper (int-bound-upper (get-bound sig hashy-bounds))])
+            (define atoms parent-leftovers)
+            ;(when (@> (length atoms) how-many) (set! atoms (take atoms how-many)))
+            (hash-set! top-level-leftovers sig atoms)
+            (printf "upper-bounding sig: ~a with atoms: ~a~n" sig atoms)
+            (add-constraint (<= (card sig) (node/int/constant int-upper)))
+            (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
+            atoms)
+          (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
+            (printf "upper-bounding sig: ~a~n" sig)
+            (define leftovers '())
+            (when (@> upper lower) (set! leftovers (generate-atoms sig lower upper)))
+            (set! working-universe (append leftovers working-universe))
+            (hash-set! top-level-leftovers sig leftovers)
+            (hash-set! upper-bounds sig (append (hash-ref lower-bounds sig) leftovers))
+            (append (hash-ref top-extras sig) leftovers)))))
+
 ; Populates the universe with atoms according to the bounds specified by a run statement
 ; Returns a list of bounds objects
+; This is pre-erasure of unused atoms
 (define (bind-sigs hashy-bounds)
-  (append
-   (map (lambda (sig) (let* ([this-bounds (get-bound sig hashy-bounds)] [atoms (populate-sig sig (int-bound-upper this-bounds))])
-                        (make-bound sig (take atoms (int-bound-lower this-bounds)) atoms)))
-        (filter (lambda (x) (@not (member x (hash-values extensions-store)))) sigs)) ; Filter out all parent sigs
-   (map (lambda (sig) (make-upper-bound sig (map (lambda (x) (list x)) (hash-ref bounds-store sig)))) (filter (lambda (x) (member x (hash-values extensions-store))) sigs))))
+
+  (define out-bounds '())
+  (define roots (filter (lambda (x) (@not (hash-has-key? extensions-store x))) sigs))
+
+  (printf "Roots: ~a~n" roots)
+  (printf "Parents: ~a~n" parents)
+
+  (for ([root roots]) (compute-lower-bound root hashy-bounds))
+
+
+  (printf "Starting lower bounds: ~a~n" lower-bounds)
+  (printf "Starting upper bounds: ~a~n" upper-bounds)
+
+  (for ([sig sigs])
+    (fill-leftovers sig hashy-bounds) ; mutation!
+    ;(printf "After filling for ~a, new upper bounds: ~a~n" sig upper-bounds)
+    (set! out-bounds (cons (make-bound sig (map (lambda (x) (list x)) (hash-ref lower-bounds sig)) (map (lambda (x) (list x)) (hash-ref upper-bounds sig))) out-bounds)))
+
+  ; Create remainder sigs
+  ; Add disjunction constraints
+  (for ([par (hash-keys parents)])
+      ;(define remainder-name (format "remainder-~a" (relation-name par)))
+      ;(define remainder (declare-relation (list remainder-name) (format "~a" (relation-name par)) remainder-name))
+      ;(add-sig remainder-name (relation-name par))
+      ;(add-extension remainder par)
+      ;(add-constraint (in remainder par))
+      (map add-constraint (disjoint-list (hash-ref parents par)))
+      #'(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst))))
+
+  (printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
+  out-bounds)
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
 (define (get-bound sig hashy-bounds)
@@ -193,11 +305,16 @@
     [else
      (int-bound 0 top-level-bound)]))
 
+(define (strip-remainder str)
+  (if (@< (string-length str) 10) str
+      (if (equal? (substring str 0 10) "remainder-") (substring str 10) str)))
+
+; Depracated
 (define (populate-sig sig bound)
-  (define atoms (map (lambda (n) (string-append (relation-name sig) (number->string n))) (range bound)))
+  (define atoms (map (lambda (n) (string-append (strip-remainder (relation-name sig)) (number->string n))) (range bound)))
   (define sym-atoms (map string->symbol atoms))
   (set! working-universe (append sym-atoms working-universe))
-  (hash-set! bounds-store sig sym-atoms)
+  ;(hash-set! bounds-store sig sym-atoms)
   (define out (map (lambda (x) (list x)) sym-atoms))
   (if (hash-has-key? extensions-store sig)
       (let ([parent (hash-ref extensions-store sig)])
@@ -220,7 +337,7 @@
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
-  
+
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
   (define sig-bounds (bind-sigs hashy))
   (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
@@ -234,7 +351,7 @@
   (send kks initialize)
   (define stdin (send kks stdin))
   (define stdout (send kks stdout))
-  
+
   (cmd
    [stdin]
    ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
@@ -263,7 +380,7 @@
 
   ;; symmetry breaking
   (define-values (new-total-bounds new-formulas)
-    (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store))
+    (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
   (add-constraints new-formulas)
 
@@ -348,7 +465,7 @@
 
 
 (define (relation->bounds rel)
-  (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref bounds-store x)) (hash-ref relations-store rel)))))
+  (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref upper-bounds x)) (hash-ref relations-store rel)))))
 
 
 ;;;;;;;;;;;;;;;;;
@@ -380,26 +497,26 @@
      `(node/int/constant ,datum)]
     [else datum]))
 (define-for-syntax (process-DeclList d)
-  (define ret (syntax-case d 
-    (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block ArrowMult QualName)
-    ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
-    ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
-    ;                                   (syntax->datum #'((nss ...) ...))
-    ;                                   (syntax->datum #'(qs ...))))]
-    [(ArrowDeclList (_ (NameList nss ...) (ArrowMult mults) (ArrowExpr (QualName ess) ...)) ...)
-        (apply append (map (lambda (ns m es) (map (lambda (n) 
-          `(,(string->symbol n) ,(string->symbol m) ,@(map string->symbol es))) ns))
-                                      (syntax->datum #'((nss ...) ...))
-                                      (syntax->datum #'(mults ...))
-                                      (syntax->datum #'((ess ...) ...))))]
-    [(DeclList (_ (NameList nss ...) es) ...)
-        (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns))
-                                      (syntax->datum #'((nss ...) ...))
-                                      (syntax->datum #'(es ...))))]
-  ))
+  (define ret (syntax-case d
+                (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block ArrowMult QualName)
+                ; [(DeclList (_ (NameList nss ...) (Expr (QualName qs))) ...)
+                ;    (apply append (map (lambda (ns q) (map (lambda (n) `(,(string->symbol n) ,(string->symbol q))) ns))
+                ;                                   (syntax->datum #'((nss ...) ...))
+                ;                                   (syntax->datum #'(qs ...))))]
+                [(ArrowDeclList (_ (NameList nss ...) (ArrowMult mults) (ArrowExpr (QualName ess) ...)) ...)
+                 (apply append (map (lambda (ns m es) (map (lambda (n)
+                                                             `(,(string->symbol n) ,(string->symbol m) ,@(map string->symbol es))) ns))
+                                    (syntax->datum #'((nss ...) ...))
+                                    (syntax->datum #'(mults ...))
+                                    (syntax->datum #'((ess ...) ...))))]
+                [(DeclList (_ (NameList nss ...) es) ...)
+                 (apply append (map (lambda (ns e) (map (lambda (n) `(,(string->symbol n) ,e)) ns))
+                                    (syntax->datum #'((nss ...) ...))
+                                    (syntax->datum #'(es ...))))]
+                ))
   ;(println ret)
   ret
-)
+  )
 (define-for-syntax (use-ctxt stx1 stx2)
   (datum->syntax stx1 (syntax->datum stx2))
   )
@@ -425,24 +542,24 @@
                                         (set! names (map string->symbol (syntax->datum names)))
                                         (if qualName (set! qualName (string->symbol (cadr (syntax->datum qualName)))) #f)
 
-  (define op (if one 'declare-one-sig 'declare-sig))
-  ;(println decls)
-  ;(set! decls (for/list ([d decls]) 
-  ;  (list* (first d) (second d) (for/list ([q (cddr d)]) (string->symbol (second q))))))
-  ;(println decls)
+                                        (define op (if one 'declare-one-sig 'declare-sig))
+                                        ;(println decls)
+                                        ;(set! decls (for/list ([d decls])
+                                        ;  (list* (first d) (second d) (for/list ([q (cddr d)]) (string->symbol (second q))))))
+                                        ;(println decls)
 
-  (define datum
-    (if qualName
-      (if (= 0 (length decls))
-        (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
-        (cons 'begin (map (lambda (name) `(,op ,name ,decls #:extends ,qualName)) names))
-      )
-      (if (= 0 (length decls))
-        (cons 'begin (map (lambda (name) `(,op ,name)) names))
-        (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-  ;(println datum)
-  datum
-) stx))
+                                        (define datum
+                                          (if qualName
+                                              (if (= 0 (length decls))
+                                                  (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
+                                                  (cons 'begin (map (lambda (name) `(,op ,name ,decls #:extends ,qualName)) names))
+                                                  )
+                                              (if (= 0 (length decls))
+                                                  (cons 'begin (map (lambda (name) `(,op ,name)) names))
+                                                  (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
+                                        ;(println datum)
+                                        datum
+                                        ) stx))
 
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
   (define-values (name cmd arg scope block) (values #f #f #f '() #f))
@@ -520,7 +637,7 @@
       [_ #f]
     )
   )
-  
+
   (define datum (if (empty? paras)
                     `(define ,name           (and ,@(syntax->datum block)))
                     `(define (,name ,@paras) (and ,@(syntax->datum block)))))
@@ -540,11 +657,11 @@
       [_ #f]
     )
   )
-  
+
   (define fields (hash-ref sig-to-fields sig))
   (define (at f) (string->symbol (string-append "@" (symbol->string f))))
-  (define lets (append 
-    (for/list ([f fields]) `[,f (join this ,f)]) 
+  (define lets (append
+    (for/list ([f fields]) `[,f (join this ,f)])
     (for/list ([f fields]) `[,(at f) ,f])))
   ;`(pred (,name ,@paras) (all ([this ,sig]) (let ,lets (and ,@(syntax->datum block)))))))
   (define datum `(pred (,name this ,@paras) (let ,lets (and ,@block))))
@@ -589,13 +706,13 @@
     syms
   )
   (define syms (find-syms block))
-  (unless (or (member '|this'| syms) 
+  (unless (or (member '|this'| syms)
               (foldl (λ (x y) (and x y)) #t (for/list ([f posts]) (member f syms))))
           (raise (string-append "Underspecified transition predicate: " (symbol->string name))))
-  (for ([clause block]) 
+  (for ([clause block])
     (define syms (find-syms clause))
-    (unless (or (member '|this'| syms) 
-                (foldl (λ (x y) (or x y)) #f (for/list ([s syms]) 
+    (unless (or (member '|this'| syms)
+                (foldl (λ (x y) (or x y)) #f (for/list ([s syms])
                   (or (member s posts) (member s paras)))))
             (raise (string-append "Irrelevant clause in: " (symbol->string name))))
   )
@@ -608,20 +725,20 @@
   (println stx)
   (define ret (syntax-case stx (set one lone ArrowDecl NameList ArrowMult)
     [(_ (ArrowDecl (NameList name) (ArrowMult "set") (ArrowExpr r ...)))
-      #`(begin 
+      #`(begin
         (define rel (declare-relation (list r ...) "univ" name))
         (add-relation rel (list r ...))
       )
     ]
     [(_ (ArrowDecl (NameList name) (ArrowMult "one") (ArrowExpr r ...)))
-      #`(begin 
+      #`(begin
         (define rel (declare-relation (list r ...) "univ" name))
         (add-relation rel (list r ...))
         (add-constraint (one rel))
       )
     ]
     [(_ (ArrowDecl (NameList name) (ArrowMult "lone") (ArrowExpr r ...)))
-      #`(begin 
+      #`(begin
         (define rel (declare-relation (list r ...) "univ" name))
         (add-relation rel (list r ...))
         (add-constraint (lone rel))
@@ -650,21 +767,21 @@
 (define-syntax-rule (InstanceDecl i) (instance i))
 
 (define-syntax (QueryDecl stx) (map-stx (lambda (d)
-  (define name (second d))
-  (define type (third d))
-  (define expr (fourth d))
-  (define name-sym (string->symbol name))
-  (define rel (string-append "_" name))
-  (define rel-sym (string->symbol rel))
-  (define datum `(begin 
-    (pre-declare-sig ,name-sym)
-    (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) (ArrowMult "set") ,type)))
-    (fact (one ,name-sym))
-    (fact (= (join ,name-sym ,rel-sym) ,expr))
-  ))
-  ;(println datum)
-  datum
-) stx))
+                                          (define name (second d))
+                                          (define type (third d))
+                                          (define expr (fourth d))
+                                          (define name-sym (string->symbol name))
+                                          (define rel (string-append "_" name))
+                                          (define rel-sym (string->symbol rel))
+                                          (define datum `(begin
+                                                           (pre-declare-sig ,name-sym)
+                                                           (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) (ArrowMult "set") ,type)))
+                                                           (fact (one ,name-sym))
+                                                           (fact (= (join ,name-sym ,rel-sym) ,expr))
+                                                           ))
+                                          ;(println datum)
+                                          datum
+                                          ) stx))
 
 ;;;;
 

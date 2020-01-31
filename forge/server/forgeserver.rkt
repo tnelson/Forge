@@ -18,8 +18,9 @@
 ; get-next-model returns the next model each time it is called, or #f.
 (define (display-model get-next-model name command filepath bitwidth)
   (define model (get-next-model))
+  ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
-  
+
   (define stop-service
     (ws-serve
      ; This is the connection handler function, it has total control over the connection
@@ -28,10 +29,10 @@
      ; every time a connection is initiated.
      (λ (connection _)
        (let loop ()
-               
+
          ; The only thing we should be receiving is next-model requests, current requests (from a new connection), and pings.
          (define m (ws-recv connection))
-               
+
          (unless (eof-object? m)
            ;(println m)
            (cond [(equal? m "ping")
@@ -45,10 +46,10 @@
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
 
-                  (define port (open-input-string (string-append "eval " command)))  
-                  
+                  (define port (open-input-string (string-append "eval " command)))
+
                   (define maxint 8) ; TODO: get maxint
-                  (define result 
+                  (define result
                     (with-handlers (
                         ;[exn:fail:read? (λ (exn) (println exn) "syntax error")]
                         ;[exn:fail:parsing? (λ (exn) (println exn) "syntax error")]
@@ -64,7 +65,7 @@
                       (define lists (eval-form kodkod (model->binding (cdr model)) maxint))
 
                       (if (list? lists)
-                          (string-join (for/list ([l lists]) 
+                          (string-join (for/list ([l lists])
                               (string-join (for/list ([atom l])
                                 (if (number? atom)
                                     (string-append (format "~a" atom))
@@ -73,8 +74,8 @@
                               ) " + ")
                           lists)
                       ))
-                  ;(println result)                  
-                  (ws-send! connection (format "EVL:~a:~a" (second parts) result))] 
+                  ;(println result)
+                  (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else
                   (ws-send! "BAD REQUEST")])
            (loop))))
