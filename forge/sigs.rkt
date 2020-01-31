@@ -226,8 +226,8 @@
             (begin
               (hash-set! top-extras parent-sig '())
               (set! lower-bound (generate-atoms parent-sig 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
-              (printf "lb: ~a:~a" parent-sig lower-bound)
-              (println "")
+              ;(printf "lb: ~a:~a" parent-sig lower-bound)
+              ;(println "")
               (set! working-universe (append lower-bound working-universe))
               (hash-set! lower-bounds parent-sig lower-bound)
               lower-bound)))))
@@ -246,12 +246,12 @@
             (define atoms parent-leftovers)
             ;(when (@> (length atoms) how-many) (set! atoms (take atoms how-many)))
             (hash-set! top-level-leftovers sig atoms)
-            (printf "upper-bounding sig: ~a with atoms: ~a~n" sig atoms)
+            ;(printf "upper-bounding sig: ~a with atoms: ~a~n" sig atoms)
             (add-constraint (<= (card sig) (node/int/constant int-upper)))
             (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
             atoms)
           (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
-            (printf "upper-bounding sig: ~a~n" sig)
+            ;(printf "upper-bounding sig: ~a~n" sig)
             (define leftovers '())
             (when (@> upper lower) (set! leftovers (generate-atoms sig lower upper)))
             (set! working-universe (append leftovers working-universe))
@@ -267,14 +267,14 @@
   (define out-bounds '())
   (define roots (filter (lambda (x) (@not (hash-has-key? extensions-store x))) sigs))
 
-  (printf "Roots: ~a~n" roots)
-  (printf "Parents: ~a~n" parents)
+  ;(printf "Roots: ~a~n" roots)
+  ;(printf "Parents: ~a~n" parents)
 
   (for ([root roots]) (compute-lower-bound root hashy-bounds))
 
 
-  (printf "Starting lower bounds: ~a~n" lower-bounds)
-  (printf "Starting upper bounds: ~a~n" upper-bounds)
+  ;(printf "Starting lower bounds: ~a~n" lower-bounds)
+  ;(printf "Starting upper bounds: ~a~n" upper-bounds)
 
   (for ([sig sigs])
     (fill-leftovers sig hashy-bounds) ; mutation!
@@ -292,7 +292,7 @@
       (map add-constraint (disjoint-list (hash-ref parents par)))
       #'(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst))))
 
-  (printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
+  ;(printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
   out-bounds)
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
@@ -448,7 +448,7 @@
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
          (add-constraint (or (not preds) ...))
-         (printf "Added check predicates! 1")
+         ;(printf "Added check predicates! 1")
          (run-spec hashy name #,command filepath 'check))]
     [(_ name)
      #`(begin
@@ -456,7 +456,7 @@
     [(_ name (preds ...))
      #`(begin
          (add-constraint (or (not preds) ...))
-         (printf "Added check predicates! 2") 
+         ;(printf "Added check predicates! 2") 
          (r-spec (make-hash) name #,command filepath 'check))]
     [(_ pred ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]
     [(_ pred) #'(error "Check statements require a unique name specification")]
@@ -722,7 +722,7 @@
 ) stx))
 
 (define-syntax (RelDecl stx)
-  (println stx)
+  ;(println stx)
   (define ret (syntax-case stx (set one lone ArrowDecl NameList ArrowMult)
     [(_ (ArrowDecl (NameList name) (ArrowMult "set") (ArrowExpr r ...)))
       #`(begin
@@ -745,7 +745,7 @@
       )
     ]
   ))
-  (println ret)
+  ;(println ret)
   ret
 )
 
