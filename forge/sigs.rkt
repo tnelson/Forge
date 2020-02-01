@@ -795,6 +795,8 @@
     [(_ "lone" n e a) #`(lone ([n e]) a)]
     [(_ "some" n e a) #`(some ([n e]) a)]
     [(_ "one" n e a) #`(one ([n e]) a)]
+    [(_ q n "set" e a) 
+      #'(raise (format "higher-order quantification not supported: ~a ~a: set ..." 'q 'n))]
   ))
   ;(println ret)
   ret
@@ -806,12 +808,12 @@
     [(_ "let" (LetDeclList (LetDecl n e) ...) block) #`(let ([n e] ...) block)]
     [(_ "{" (DeclList (Decl (NameList n) e) ...) block "}") #`(set ([n e] ...) block)]
 
-    [(_ (Quant q) (DeclList (Decl (NameList n) e)) a) 
-      #`(Q q n e a)]
-    [(_ (Quant q) (DeclList (Decl (NameList n) e) ds ...) a)
-      #`(Q q n e (Expr (Quant q) (DeclList ds ...) a))]
-    [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e) ds ...) a)
-      #`(Q q n e (Expr (Quant q) (DeclList (Decl (NameList ns ...) e) ds ...) a))]
+    [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a) 
+      #`(Q q n e ... a)]
+    [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a)
+      #`(Q q n e ... (Expr (Quant q) (DeclList ds ...) a))]
+    [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a)
+      #`(Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a))]
 
     [(_ a "or" b) #'(or a b)]
     [(_ a "||" b) #'(or a b)]
