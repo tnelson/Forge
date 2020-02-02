@@ -85,7 +85,7 @@
 (define (build-iden bind)
   (define universe (build-univ bind))
   (map (lambda (x) (apply append x)) ; convert list of eles like ((1)(2)) into list of eles like (1 2)
-       (map list universe universe)))
+       (apply cartesian-product (list universe universe))))
 
 ; Sort an evaluation result lexicographically
 (define (canonicalize-result l)
@@ -152,11 +152,7 @@
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind maxint) (eval-exp var-2 bind maxint))]
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
-    [`(let ([,n ,e]) ,block) 
-      (println n)
-      (println (eval-exp e bind maxint))
-      (println (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint))
-      (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint)]
+    [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint)]
     [exp (eval-exp exp bind maxint)]))
 
 (define (alloy->kodkod e)
@@ -179,7 +175,7 @@
       [`(,_ "!" ,a) `(! ,(f a))]
       [`(,_ ,a "!" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
       [`(,_ ,a (CompareOp ,op) ,b) `(,(f op) ,(f a) ,(f b))]
-      [`(,_ ,quant (Expr8 ,a)) `(,(f quant) ,(f a))]
+      [`(,_ ,quant (Expr8 ,a ...)) `(,(f quant) ,(f `(Expr8 ,@a)))]
       [`(,_ ,a "+" ,b) `(+ ,(f a) ,(f b))]
       [`(,_ ,a "-" ,b) `(- ,(f a) ,(f b))]
       [`(,_ "#" ,a) `(card ,(f a))]
