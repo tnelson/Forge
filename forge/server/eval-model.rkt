@@ -85,7 +85,7 @@
 (define (build-iden bind)
   (define universe (build-univ bind))
   (map (lambda (x) (apply append x)) ; convert list of eles like ((1)(2)) into list of eles like (1 2)
-       (apply cartesian-product (list universe universe))))
+       (map list universe universe)))
 
 ; Sort an evaluation result lexicographically
 (define (canonicalize-result l)
