@@ -150,6 +150,7 @@
 ;; -- relations ----------------------------------------------------------------
 
 (struct node/expr/relation node/expr (name typelist parent) #:transparent #:mutable
+  #:property prop:procedure (lambda (r . sigs) (foldl join r sigs))
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/expr/relation arity name typelist parent) self)

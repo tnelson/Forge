@@ -16,7 +16,7 @@ one sig C { t: set A->B }
 --    A = {a: A | some a}
 --}
 
-run {}
+check { t[C,A] = A.(C.t) }
 
 
 --sig Atom {}
