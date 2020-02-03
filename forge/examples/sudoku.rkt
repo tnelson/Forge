@@ -39,8 +39,9 @@ pred intbounds {
 
 pred structural {
   -- lone number per cell
-  all b: Board | all i: N | all j: N | lone i.(j.(b.places))
-
+   --all b: Board | all i: N | all j: N | lone j.(i.(b.places))
+  all b: Board | all i: N | all j: N | lone (b.places)[i][j]
+                 
   -- neighbors
   N1.neighbors = N1+N2+N3
   N2.neighbors = N1+N2+N3
