@@ -39,8 +39,7 @@ pred intbounds {
 
 pred structural {
   -- lone number per cell
-   --all b: Board | all i: N | all j: N | lone j.(i.(b.places))
-  all b: Board | all i: N | all j: N | lone (b.places)[i][j]
+  all b: Board | all i: N | all j: N | lone b.places[i, j]
                  
   -- neighbors
   N1.neighbors = N1+N2+N3
@@ -61,10 +60,10 @@ pred tenFilled {
   some b: Board | filled[b, 10]  
 }
 pred solved[b: Board] {  
-    all i: N | N.(i.(b.places)) = N // every row, taking all columns
-    all i: N | i.(N.(b.places)) = N // every column, taking all rows  //N in {x : N | some j : N | j->i->x in b.places } 
+    all i: N | b.places[i, N] = N // every row, taking all columns
+    all i: N | b.places[N, i] = N // every column, taking all rows  //N in {x : N | some j : N | j->i->x in b.places } 
     // and every sub-block (inefficient way of phrasing it)
-    all i: N | all j: N | (j.neighbors).((i.neighbors).(b.places)) = N
+    all i: N | all j: N | b.places[i.neighbors, j.neighbors] = N
 }
 pred someSolved {
   some b: Board | solved[b]
