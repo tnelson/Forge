@@ -590,12 +590,19 @@
         (@all ([a A]) (@one (@join a rel)))    ; @one
     ))
     (if (equal? A B)
-        (breaker pri
-            (break-graph (set) (set))
-            (λ () (break (bound->sbound bound) formulas))
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set A) (set))
+            (λ () (break ;(bound->sbound bound) formulas))
+                (sbound rel
+                    (set)
+                    ;(for*/set ([a (length As)]
+                    ;           [b (length Bs)] #:when (<= b (+ a 1)))
+                    ;    (list (list-ref As a) (list-ref Bs b))))
+                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
             (λ () 
                 ; assume wlog f(a) = b for some a in A, b in B
@@ -618,12 +625,12 @@
         (@all ([b B]) (@some (@join rel b)))    ; @some
     ))
     (if (equal? A B)
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set (set A B)))   ; breaks only {A,B}
             (λ () 
                 ; assume wlog f(a) = b for some a in A, b in B
@@ -646,12 +653,12 @@
         (@all ([b B]) (@lone (@join rel b)))    ; @lone
     ))
     (if (equal? A B)
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
             (λ () 
                 ; assume wlog f(a) = b for some a in A, b in B
@@ -674,12 +681,12 @@
         (@all ([b B]) (@one  (@join rel b)))    ; @one
     ))
     (if (equal? A B)
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set (set A B)))   ; breaks only {A,B}
             (λ () (make-exact-break rel (map list As Bs)))
             (λ () (break bound formulas))
@@ -741,8 +748,8 @@ ADDING BREAKS
     - a = a + b   !|- a > b   
 
 TODO:
-! use for sequence library
 - add extra formulas to further break symmetries because kodkod can't once we've broken bounds
+    - improve all functional strategies (see func A->A case for commented working example)
 - strategy combinators
     - naive equiv strategies
         - can be used to combine many strats with ref/irref, even variadic ones
