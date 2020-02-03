@@ -73,7 +73,7 @@ pred someSolved {
   some b: Board | solved[b]
 }
 --base: run {structural} for 2 Board, 9 N
--- tenfilled: run {tenFilled structural} for 2 Board, 9 N, 8 Int
+tenfilled: run {tenFilled structural} for 2 Board, 9 N, 8 Int
 --solved: run {someSolved structural} for 2 Board, 9 N, 8 Int
 
 pred generatePuzzle {
@@ -88,4 +88,4 @@ pred generatePuzzle {
     solved[final]     
   }
 }
-run {generatePuzzle} for 2 Board, 9 N, 8 Int
+--run {generatePuzzle} for 2 Board, 9 N, 8 Int
