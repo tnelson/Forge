@@ -1,5 +1,7 @@
 #lang forge
 
+#lang banana
+
 sig A {}
 sig S { stuff: set A }
 

@@ -27,6 +27,8 @@
    ;; comments
    [(or (from/stop-before "--" "\n") (from/stop-before "//" "\n") (from/to "/*" "*/"))
     (token+ 'COMMENT "" lexeme "" lexeme-start lexeme-end #t)]
+   [(from/stop-before "#lang" "\n")
+    (token+ 'COMMENT "" lexeme "" lexeme-start lexeme-end #t)]
 
    ;; reserved
    [(or "$" "%" "?")
