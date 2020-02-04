@@ -54,7 +54,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run check fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
 (provide add-relation)
 
 (define (add-relation rel types)
@@ -402,11 +402,15 @@
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
 
-  (define (get-next-model)
-    (cmd [stdin] (solve))
-    (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
-
-  (display-model get-next-model name command filepath bitwidth))
+  (match runtype
+    ['test
+     (cmd [stdin] (solve))
+     (car (read-solution stdout))]
+    [_
+     (define (get-next-model)
+       (cmd [stdin] (solve))
+       (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
+     (display-model get-next-model name command filepath bitwidth)]))
 
 (define-syntax (run stx)
   (define command (format "~a" stx))
@@ -463,6 +467,40 @@
     [(_) #'(error "Check statements require a unique name specification")]
     [(_ ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]))
 
+(define-syntax (test stx)
+  (define command (format "~a" stx))
+  (syntax-case stx ()
+    [(_ name ((sig lower upper) ...) expect)
+     #`(begin
+         (define hashy (make-hash))
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (define res (run-spec hashy name #,command filepath 'test))
+         (unless (equal? res expect)
+           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n ~a" expect res #,command))))]
+    [(_ name (preds ...) ((sig lower upper) ...) expect)
+     #`(begin
+         (define hashy (make-hash))
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (add-constraint preds) ...
+         (define res (run-spec hashy name #,command filepath 'test))
+         (unless (equal? res expect)
+           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n~a" expect res #,command))))]
+    [(_ name expect)
+     #`(begin
+         (define res (run-spec (make-hash) name #,command filepath 'test))
+         (unless (equal? res expect)
+           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n~a" expect res #,command))))]
+    [(_ name (preds ...) expect)
+     #`(begin
+         (add-constraint preds) ...
+         (define res (run-spec (make-hash) name #,command filepath 'test))
+         (unless (equal? res expect)
+           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in ~a" expect res #,command))))]
+    [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
+    [(_ pred) #'(error "Run statements require a unique name specification")]
+    [(_) #'(error "Run statements require a unique name specification")]
+    [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
+
 
 (define (relation->bounds rel)
   (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref upper-bounds x)) (hash-ref relations-store rel)))))
@@ -479,7 +517,7 @@
 (require syntax/parse/define)
 (require (for-meta 1 racket/port racket/list))
 
-(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
+(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestDecl PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
          StateDecl TransitionDecl RelDecl
          Expr Name QualName Const Number iff ifte >= <=)
@@ -584,6 +622,34 @@
   )
   (if name #f (set! name (symbol->string (gensym))))
   (define datum `(,cmd ,name ,block ,scope))
+  ; (println datum)
+  datum
+) stx))
+
+(define-syntax (TestDecl stx) (map-stx (lambda (d)
+  (define-values (name cmd arg scope block expect) (values #f #f #f '() #f #f))
+  (define (make-typescope x)
+    (syntax-case x (Typescope)
+      [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
+      [(Typescope n things) (syntax->datum #'(things 0 n))]))
+  (for ([arg (cdr d)])
+    ; (println arg)
+    (syntax-case arg (Name Typescope Scope Block QualName)
+      [(Name n) (set! name (syntax->datum #'n))]
+      ["test" (set! cmd 'test)]
+      ["sat" (set! expect 'sat)]
+      ["unsat" (set! expect 'unsat)]
+      ; [(? symbol? s) (set! arg (string->symbol #'s))]
+      [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
+      [(Block (Expr (QualName ns)) ...) (set! block (map string->symbol (syntax->datum #'(ns ...))))]
+      [(Block b ...) (set! block (syntax->datum #'(b ...)))]
+      [(QualName n) (set! block (list (string->symbol (syntax->datum #'n))))]
+      ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [_ #f]
+    )
+  )
+  (if name #f (set! name (symbol->string (gensym))))
+  (define datum `(,cmd ,name ,block ,scope ',expect))
   ; (println datum)
   datum
 ) stx))

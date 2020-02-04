@@ -12,6 +12,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | FunDecl 
           | AssertDecl 
           | CmdDecl
+          | TestDecl
           | SexprDecl
           | BreakDecl
           | InstanceDecl
@@ -33,6 +34,7 @@ ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
 AssertDecl : /ASSERT-TOK Name? Block
 CmdDecl : (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK)? (QualName | Block)? Scope?
+TestDecl : (Name /COLON-TOK)? TEST-TOK (QualName | Block)? Scope? /EXPECT-TOK (SAT-TOK | UNSAT-TOK)
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
       | /FOR-TOK @TypescopeList
 Typescope : EXACTLY-TOK? Number QualName
