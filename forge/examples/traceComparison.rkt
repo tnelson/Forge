@@ -34,9 +34,9 @@ one sig T {
 fact tran: linear
 facts[T] T_facts {
     all s: S {
-        (no tran.s) => S_init[s]
+        no tran.s => S_init[s]
         all s': s.tran | some a: A | S_tran[s, s', a]    --DIFF
-        (no s.tran) => S_term[s]
+        no s.tran => S_term[s]
     }
 }
 

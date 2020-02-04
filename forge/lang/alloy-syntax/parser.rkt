@@ -24,7 +24,7 @@ SigExt : EXTENDS-TOK QualName
        | IN-TOK QualName (PLUS-TOK QualName)*
 Mult : LONE-TOK | SOME-TOK | ONE-TOK
 ArrowMult : LONE-TOK | SET-TOK | ONE-TOK
-Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? Expr
+Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
 ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
 FactDecl : FACT-TOK Name? Block
 PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
@@ -100,7 +100,7 @@ Expr17 : Const
        | QualName 
        | AT-TOK Name 
        | THIS-TOK
-       | /LEFT-CURLY-TOK DeclList BlockOrBar /RIGHT-CURLY-TOK
+       | LEFT-CURLY-TOK DeclList BlockOrBar RIGHT-CURLY-TOK
        | /LEFT-PAREN-TOK @Expr /RIGHT-PAREN-TOK 
        | Block
        | Sexpr

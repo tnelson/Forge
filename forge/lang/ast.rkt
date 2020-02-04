@@ -61,7 +61,9 @@
 
 ;; EXPRESSIONS -----------------------------------------------------------------
 
-(struct node/expr (arity) #:transparent)
+(struct node/expr (arity) #:transparent
+  #:property prop:procedure (λ (r . sigs) (foldl join r sigs))
+)
 
 ;; -- operators ----------------------------------------------------------------
 

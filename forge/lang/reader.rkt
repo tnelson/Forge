@@ -32,7 +32,7 @@
 
 (define (pull-sigs datum)
   (map (lambda (x)
-       (cons (string->symbol (get-sig-name x) #|(car (cdr (second x)))|#) #|(if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)|#
+       (cons (get-sig-name x) #|(car (cdr (second x)))|# #|(if (@and (@> (length x) 2) (equal? (car (third x)) 'SigExt)) (string->symbol (second (third (third x)))) 'univ)|#
              (grab-extension x)))
        (begin
          #|(println (filter is-sig-decl datum))|# (filter is-sig-decl datum))))
@@ -41,7 +41,7 @@
   (if (equal? 0 (length datum))
       'univ
       (if (@and (pair? (first datum)) (equal? (first (first datum)) 'SigExt))
-          (string->symbol (second (third (first datum))))
+          (second (third (first datum)))
           (grab-extension (rest datum)))))
 
 (define (read-syntax path port)

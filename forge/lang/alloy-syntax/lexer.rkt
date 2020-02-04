@@ -113,7 +113,7 @@
 
    ;; identifiers
    [(: (or alphabetic "@") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
-    (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
+    (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
 
@@ -170,9 +170,11 @@
                 "["
                 "]")))
 
-(define (token+ type left lex right lex-start lex-end [skip? #f])
-  (let ([l0 (string-length left)] [l1 (string-length right)])
-    (token type (trim-ends left lex right)
+(define (token+ type left lex right lex-start lex-end [skip? #f] [sym? #f])
+  (let ([l0 (string-length left)] 
+        [l1 (string-length right)]
+        [trimmed (trim-ends left lex right)])
+    (token type (if sym? (string->symbol trimmed) trimmed)
            #:position (+ (pos lex-start) l0)
            #:line (line lex-start)
            #:column (+ (col lex-start) l0)
