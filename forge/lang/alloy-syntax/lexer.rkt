@@ -72,7 +72,8 @@
    ["disj"      (token+ `DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["else"      (token+ `ELSE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)]    
+   ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)]   
+   ["expect"    (token+ `EXPECT-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["extends"   (token+ `EXTENDS-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["fact"      (token+ `FACT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["for"       (token+ `FOR-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -89,11 +90,14 @@
    ["open"      (token+ `OPEN-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["pred"      (token+ `PRED-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["run"       (token+ `RUN-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["sat"       (token+ `SAT-TOK "" lexeme "" lexeme-start lexeme-end)] 
    ["set"       (token+ `SET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["sig"       (token+ `SIG-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["some"      (token+ `SOME-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["test"      (token+ `TEST-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
    ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -160,6 +164,10 @@
            "sig"
            "some"
            "sum"
+           "test"
+           "expect"
+           "sat"
+           "unsat"
            "univ"
            "break")))
 
