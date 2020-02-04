@@ -2,7 +2,7 @@
 
 (require racket/match (only-in "../lang/ast.rkt" relation-name))
 
-(provide eval-exp eval-form model->binding alloy->kodkod)
+(provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
 
 (require rackunit)
 
@@ -15,6 +15,19 @@
   (make-immutable-hash (hash->list out-bind))
   )
 
+; For use by the Sterling evaluator, when we don't know immediately
+; whether it's a formula or an expression. Try eval-form first. If it
+; fails, try eval-exp. If that fails, throw a user error.
+(define (eval-unknown thing bind maxint)
+  (with-handlers
+      ([exn:fail?
+        (lambda (v)
+          (with-handlers
+              ([exn:fail?
+                (lambda (v2) (raise-user-error "Not a formula or expression" thing))])
+            (eval-exp thing bind maxint)))])
+        (eval-form thing bind maxint)))
+
 ; Interpreter for evaluating an eval query for an expression in a model
 ; context
 ; Each query raturns a list of tuples representing a set.  For example,
@@ -23,9 +36,9 @@
 (define (eval-exp exp bind maxint)
   (define result (match exp
                    ; Binary set operations
-                   [`(+ ,exp-1 ,exp-2) (append
-                                        (eval-exp exp-1 bind maxint)
-                                        (eval-exp exp-2 bind maxint))]
+                   [`(+ ,exp-1 ,exp-2) (append                                        
+                                         (eval-exp exp-1 bind maxint)
+                                         (eval-exp exp-2 bind maxint))]
                    [`(- ,exp-1 ,exp-2) (set->list (set-subtract
                                                    (list->set (eval-exp exp-1 bind maxint))
                                                    (list->set (eval-exp exp-2 bind maxint))))]
@@ -45,6 +58,7 @@
                                                              (eval-exp exp-1 bind maxint)))]
                    ; Unary set operations
                    [`(^ ,lst) (tc (eval-exp lst bind maxint))]
+                   [`(* ,lst) (append (build-iden bind) (tc (eval-exp lst bind maxint)))]
                    [`(~ ,new-exp) (map reverse (eval-exp new-exp bind maxint))]
                    ; Arithmetic
                    [`(plus ,val-1 ,val-2) (modulo (perform-op + (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
@@ -67,8 +81,11 @@
                       [(integer? id) (list (list (modulo id maxint)))]
                       ; relation name
                       [(hash-has-key? bind id) (hash-ref bind id)]
-                      ; atom name (assumed by default)
-                      [else id])]))
+                      ; atom name
+                      [(member id (flatten (build-univ bind))) id]
+                      ; oops
+                      [else (raise-user-error "Not an expression" id)])]))
+  
   ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
   ; Also canonicalize so that if we compare relational constants, a list-based representation is OK
   (if (not (list? result))
@@ -153,7 +170,7 @@
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint)]
-    [exp (eval-exp exp bind maxint)]))
+    [exp (raise-user-error "Not a formula" exp)]))
 
 (define (alloy->kodkod e)
   (define (f e)

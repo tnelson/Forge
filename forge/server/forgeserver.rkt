@@ -62,7 +62,7 @@
                       ;(printf "alloy: ~a~n" alloy)
                       (define kodkod (alloy->kodkod alloy))
                       ;(printf "kodkod: ~a~n" kodkod)
-                      (define lists (eval-form kodkod (model->binding (cdr model)) maxint))
+                      (define lists (eval-unknown kodkod (model->binding (cdr model)) maxint))
                       ;(printf "lists: ~a~n" lists)
                       (if (list? lists)
                           (string-join (for/list ([l lists])
