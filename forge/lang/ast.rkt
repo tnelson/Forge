@@ -146,7 +146,7 @@
   (syntax-case stx ()
     [(_ ([r0 e0] ...) pred)
      (syntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var 1 'r0)] ... )
+       (let* ([r0 (node/expr/quantifier-var (node/expr-arity e0) 'r0)] ... )
          (comprehension (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
@@ -319,11 +319,14 @@
     ;(writeln e)
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
-    (unless (equal? (node/expr-arity e) 1)
+    #'(unless (equal? (node/expr-arity e) 1)
       (raise-argument-error quantifier "decl of arity 1" e)))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified quantifier decls formula))
+
+
+;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
 
 ;; -- multiplicities -----------------------------------------------------------
 
@@ -362,7 +365,7 @@
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax????
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))
 
 #|(define-syntax (one stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
@@ -379,7 +382,7 @@
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'some (list (cons v0 e0) ...) pred)))]
     [(_ expr)
      (syntax/loc stx
@@ -389,7 +392,7 @@
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (! (quantified-formula 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
      (syntax/loc stx

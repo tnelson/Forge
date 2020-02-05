@@ -1,6 +1,6 @@
 #lang racket
 
-(require "lang/ast.rkt" "kodkod-cli/server/kks.rkt")
+(require "lang/ast.rkt" "kodkod-cli/server/kks.rkt" (prefix-in @ racket))
 
 (provide translate-to-kodkod-cli)
 
@@ -25,7 +25,7 @@
      ;(writeln formula)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ( print-cmd-cont (format "(~a ([~a : one " quantifier (v (get-var-idx var quantvars))))
+       ( print-cmd-cont (format "(~a ([~a : ~a " quantifier (v (get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
        (interpret-expr (cdr (car decls)) relations quantvars)
        ( print-cmd-cont "]) ")
        (interpret-formula form relations quantvars)
