@@ -191,11 +191,13 @@
 
 (define (set-top-level-bound b) (set! top-level-bound b))
 
+; Produce a list of constraints enforcing that <sigs> is pairwise disjoint
 (define (disjoint-list sigs)
   (if (empty? sigs) (list true) (append (disjoint-one-list (first sigs) (rest sigs)) (disjoint-list (rest sigs)))))
 
+; Produce a list of constraints enforcing that <sig> is disjoint from everything in <sigs>
 (define (disjoint-one-list sig sigs)
-  (if (empty? sigs) (list true) (cons (no (& sig (first sigs))) (disjoint-one-list (first sigs) (rest sigs)))))
+  (if (empty? sigs) (list true) (cons (no (& sig (first sigs))) (disjoint-one-list sig (rest sigs)))))
 
 
 (define (generate-atoms sig lower upper)
