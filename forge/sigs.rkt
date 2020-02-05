@@ -285,17 +285,18 @@
 
   ; Create remainder sigs
   ; Add disjunction constraints
-  (for ([par (hash-keys parents)])
+  (define disj-cs
+    (for/fold ([cs '()]) ([par (hash-keys parents)])
       ;(define remainder-name (format "remainder-~a" (relation-name par)))
       ;(define remainder (declare-relation (list remainder-name) (format "~a" (relation-name par)) remainder-name))
       ;(add-sig remainder-name (relation-name par))
       ;(add-extension remainder par)
       ;(add-constraint (in remainder par))
-      (map add-constraint (disjoint-list (hash-ref parents par)))
-      #'(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst))))
+      (cons (disjoint-list (hash-ref parents par) cs))
+      #;(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst)))))
 
   ;(printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
-  out-bounds)
+  (cons out-bounds disj-cs))
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
 (define (get-bound sig hashy-bounds)
@@ -333,15 +334,16 @@
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
 
 
-(define (run-spec hashy name command filepath runtype)
+(define (run-spec hashy name command filepath runtype . assumptions)
   (append-run name)
-
+  (define run-constraints (append constraints assumptions))
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
 
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
-  (define sig-bounds (bind-sigs hashy))
+  (match-define (cons sig-bounds disj-cs) (bind-sigs hashy))
+  (set! run-constraints (append run-constraints disj-cs))
   (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
@@ -384,7 +386,7 @@
   (define-values (new-total-bounds new-formulas)
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
-  (add-constraints new-formulas)
+  (set! run-constraints (append run-constraints new-formulas))
 
   (for ([bound total-bounds])
     (cmd
@@ -396,7 +398,7 @@
       (tupleset #:tuples (map (lambda (x) (map get-atom x))
                               (bound-upper bound))))))
 
-  (for ([c constraints] [i (range (length constraints))])
+  (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
      [stdin]
      (print-cmd-cont (format "(f~a" i))
@@ -426,15 +428,15 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-         (add-constraint preds) ...
-         (run-spec hashy name #,command filepath 'run))]
+         ; (add-constraint preds) ...
+         (run-spec hashy name #,command filepath 'run preds ...))]
     [(_ name)
      #`(begin
          (run-spec (make-hash) name #,command filepath 'run))]
     [(_ name (preds ...))
      #`(begin
-         (add-constraint preds) ...
-         (run-spec (make-hash) name #,command filepath 'run))]
+         ;(add-constraint preds) ...
+         (run-spec (make-hash) name #,command filepath 'run preds ...))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
     [(_ pred) #'(error "Run statements require a unique name specification")]
     [(_) #'(error "Run statements require a unique name specification")]
@@ -453,17 +455,17 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-         (add-constraint (or (not preds) ...))
+         ; (add-constraint (or (not preds) ...))
          ;(printf "Added check predicates! 1")
-         (run-spec hashy name #,command filepath 'check))]
+         (run-spec hashy name #,command filepath 'check (or (not preds) ...)))]
     [(_ name)
      #`(begin
          (run-spec (make-hash) name #,command filepath 'check))]
     [(_ name (preds ...))
      #`(begin
-         (add-constraint (or (not preds) ...))
+         ; (add-constraint (or (not preds) ...))
          ;(printf "Added check predicates! 2") 
-         (r-spec (make-hash) name #,command filepath 'check))]
+         (r-spec (make-hash) name #,command filepath 'check (or (not preds) ...)))]
     [(_ pred ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]
     [(_ pred) #'(error "Check statements require a unique name specification")]
     [(_) #'(error "Check statements require a unique name specification")]
@@ -483,8 +485,8 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-         (add-constraint preds) ...
-         (define res (run-spec hashy name #,command filepath 'test))
+         ; (add-constraint preds) ...
+         (define res (run-spec hashy name #,command filepath 'test preds ...))
          (unless (equal? res expect)
            (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n~a" expect res #,command))))]
     [(_ name expect)
@@ -494,8 +496,8 @@
            (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n~a" expect res #,command))))]
     [(_ name (preds ...) expect)
      #`(begin
-         (add-constraint preds) ...
-         (define res (run-spec (make-hash) name #,command filepath 'test))
+         ; (add-constraint preds) ...
+         (define res (run-spec (make-hash) name #,command filepath 'test preds ...))
          (unless (equal? res expect)
            (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in ~a" expect res #,command))))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
