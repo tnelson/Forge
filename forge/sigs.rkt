@@ -296,9 +296,12 @@
       ;(add-sig remainder-name (relation-name par))
       ;(add-extension remainder par)
       ;(add-constraint (in remainder par))
-      (cons (disjoint-list (hash-ref parents par) cs))
-      #;(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst)))))
+      ; disjoint-list returns a list of constraints; combine all such
+      (append (disjoint-list (hash-ref parents par)) cs) 
+      #;(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst)))
+      ))
 
+  ;(printf "disj-cs: ~a~n" disj-cs)
   ;(printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
   (cons out-bounds disj-cs))
 
