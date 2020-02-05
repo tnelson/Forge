@@ -646,9 +646,9 @@
       ["unsat" (set! expect 'unsat)]
       ; [(? symbol? s) (set! arg (string->symbol #'s))]
       [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
-      [(Block (Expr (QualName ns)) ...) (set! block (map string->symbol (syntax->datum #'(ns ...))))]
+      [(Block (Expr (QualName ns)) ...) (set! block (syntax->datum #'(ns ...)))]
       [(Block b ...) (set! block (syntax->datum #'(b ...)))]
-      [(QualName n) (set! block (list (string->symbol (syntax->datum #'n))))]
+      [(QualName n) (set! block (list (syntax->datum #'n)))]
       ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
       [_ #f]
     )
