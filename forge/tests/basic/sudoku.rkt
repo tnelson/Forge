@@ -22,26 +22,9 @@ one sig N9 extends N {}
 
 
 sig Board {
-  --places: set Int -> Int -> Int
+
   places: set N -> N -> N
 }
-
-/*
-pred intbounds {
-  all b: Board | all i: Int | all j: Int | all k: Int | i->j->k in b.places implies {
-    i > 0
-    j > 0
-    k > 0
-    i <= 9
-    j <= 9
-    k <= 9
-  }
-}*/
-
--- 3 int = [-4, 3]
--- 4 int = [-8, 7]
--- 5 int = [-16, 15]
---run {intbounds} for 2 Board, 5 Int
 
 pred structural {
   -- lone number per cell
@@ -74,9 +57,9 @@ pred solved[b: Board] {
 pred someSolved {
   some b: Board | solved[b]
 }
---base: run {structural} for 2 Board, 9 N
---tenfilled: run {tenFilled structural} for 2 Board, 9 N, 8 Int
---solved: run {someSolved structural} for 2 Board, 9 N, 8 Int
+test {structural} for 2 Board, 9 N expect sat
+test {tenFilled structural} for 2 Board, 9 N, 8 Int expect sat
+test {someSolved structural} for 2 Board, 9 N, 8 Int expect sat
 
 pred generatePuzzle {
   structural
@@ -89,5 +72,5 @@ pred generatePuzzle {
     init.places in final.places
     solved[final]     
   }
-}
-run {generatePuzzle} for 2 Board, 9 N, 8 Int
+} 
+test {generatePuzzle} for 2 Board, 9 N, 8 Int expect sat
