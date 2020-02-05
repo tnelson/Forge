@@ -266,6 +266,10 @@
 ; This is pre-erasure of unused atoms
 (define (bind-sigs hashy-bounds)
 
+  (set! lower-bounds (make-hash))
+  (set! upper-bounds (make-hash))
+  (set! top-level-leftovers (make-hash))
+
   (define out-bounds '())
   (define roots (filter (lambda (x) (@not (hash-has-key? extensions-store x))) sigs))
 
