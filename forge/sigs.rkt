@@ -54,7 +54,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run check fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
 (provide add-relation)
 
 (define (add-relation rel types)
@@ -228,8 +228,8 @@
             (begin
               (hash-set! top-extras parent-sig '())
               (set! lower-bound (generate-atoms parent-sig 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
-              (printf "lb: ~a:~a" parent-sig lower-bound)
-              (println "")
+              ;(printf "lb: ~a:~a" parent-sig lower-bound)
+              ;(println "")
               (set! working-universe (append lower-bound working-universe))
               (hash-set! lower-bounds parent-sig lower-bound)
               lower-bound)))))
@@ -248,12 +248,12 @@
             (define atoms parent-leftovers)
             ;(when (@> (length atoms) how-many) (set! atoms (take atoms how-many)))
             (hash-set! top-level-leftovers sig atoms)
-            (printf "upper-bounding sig: ~a with atoms: ~a~n" sig atoms)
+            ;(printf "upper-bounding sig: ~a with atoms: ~a~n" sig atoms)
             (add-constraint (<= (card sig) (node/int/constant int-upper)))
             (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
             atoms)
           (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
-            (printf "upper-bounding sig: ~a~n" sig)
+            ;(printf "upper-bounding sig: ~a~n" sig)
             (define leftovers '())
             (when (@> upper lower) (set! leftovers (generate-atoms sig lower upper)))
             (set! working-universe (append leftovers working-universe))
@@ -269,14 +269,14 @@
   (define out-bounds '())
   (define roots (filter (lambda (x) (@not (hash-has-key? extensions-store x))) sigs))
 
-  (printf "Roots: ~a~n" roots)
-  (printf "Parents: ~a~n" parents)
+  ;(printf "Roots: ~a~n" roots)
+  ;(printf "Parents: ~a~n" parents)
 
   (for ([root roots]) (compute-lower-bound root hashy-bounds))
 
 
-  (printf "Starting lower bounds: ~a~n" lower-bounds)
-  (printf "Starting upper bounds: ~a~n" upper-bounds)
+  ;(printf "Starting lower bounds: ~a~n" lower-bounds)
+  ;(printf "Starting upper bounds: ~a~n" upper-bounds)
 
   (for ([sig sigs])
     (fill-leftovers sig hashy-bounds) ; mutation!
@@ -285,17 +285,18 @@
 
   ; Create remainder sigs
   ; Add disjunction constraints
-  (for ([par (hash-keys parents)])
+  (define disj-cs
+    (for/fold ([cs '()]) ([par (hash-keys parents)])
       ;(define remainder-name (format "remainder-~a" (relation-name par)))
       ;(define remainder (declare-relation (list remainder-name) (format "~a" (relation-name par)) remainder-name))
       ;(add-sig remainder-name (relation-name par))
       ;(add-extension remainder par)
       ;(add-constraint (in remainder par))
-      (map add-constraint (disjoint-list (hash-ref parents par)))
-      #'(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst))))
+      (cons (disjoint-list (hash-ref parents par) cs))
+      #;(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst)))))
 
-  (printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
-  out-bounds)
+  ;(printf "Returning out-bounds (pre-erasure): ~a~n" upper-bounds)
+  (cons out-bounds disj-cs))
 
 ; Finds and returns the specified or implicit int-bounds object for the given sig
 (define (get-bound sig hashy-bounds)
@@ -333,15 +334,16 @@
   (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
 
 
-(define (run-spec hashy name command filepath runtype)
+(define (run-spec hashy name command filepath runtype . assumptions)
   (append-run name)
-
+  (define run-constraints (append constraints assumptions))
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
 
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
-  (define sig-bounds (bind-sigs hashy))
+  (match-define (cons sig-bounds disj-cs) (bind-sigs hashy))
+  (set! run-constraints (append run-constraints disj-cs))
   (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
@@ -384,7 +386,7 @@
   (define-values (new-total-bounds new-formulas)
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
-  (add-constraints new-formulas)
+  (set! run-constraints (append run-constraints new-formulas))
 
   (for ([bound total-bounds])
     (cmd
@@ -396,7 +398,7 @@
       (tupleset #:tuples (map (lambda (x) (map get-atom x))
                               (bound-upper bound))))))
 
-  (for ([c constraints] [i (range (length constraints))])
+  (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
      [stdin]
      (print-cmd-cont (format "(f~a" i))
@@ -404,11 +406,15 @@
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
 
-  (define (get-next-model)
-    (cmd [stdin] (solve))
-    (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
-
-  (display-model get-next-model name command filepath bitwidth))
+  (match runtype
+    ['test
+     (cmd [stdin] (solve))
+     (car (read-solution stdout))]
+    [_
+     (define (get-next-model)
+       (cmd [stdin] (solve))
+       (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
+     (display-model get-next-model name command filepath bitwidth)]))
 
 (define-syntax (run stx)
   (define command (format "~a" stx))
@@ -422,15 +428,15 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-         (add-constraint preds) ...
-         (run-spec hashy name #,command filepath 'run))]
+         ; (add-constraint preds) ...
+         (run-spec hashy name #,command filepath 'run preds ...))]
     [(_ name)
      #`(begin
          (run-spec (make-hash) name #,command filepath 'run))]
     [(_ name (preds ...))
      #`(begin
-         (add-constraint preds) ...
-         (run-spec (make-hash) name #,command filepath 'run))]
+         ;(add-constraint preds) ...
+         (run-spec (make-hash) name #,command filepath 'run preds ...))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
     [(_ pred) #'(error "Run statements require a unique name specification")]
     [(_) #'(error "Run statements require a unique name specification")]
@@ -449,21 +455,55 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-         (add-constraint (or (not preds) ...))
-         (printf "Added check predicates! 1")
-         (run-spec hashy name #,command filepath 'check))]
+         ; (add-constraint (or (not preds) ...))
+         ;(printf "Added check predicates! 1")
+         (run-spec hashy name #,command filepath 'check (or (not preds) ...)))]
     [(_ name)
      #`(begin
          (run-spec (make-hash) name #,command filepath 'check))]
     [(_ name (preds ...))
      #`(begin
-         (add-constraint (or (not preds) ...))
-         (printf "Added check predicates! 2") 
-         (r-spec (make-hash) name #,command filepath 'check))]
+         ; (add-constraint (or (not preds) ...))
+         ;(printf "Added check predicates! 2") 
+         (r-spec (make-hash) name #,command filepath 'check (or (not preds) ...)))]
     [(_ pred ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]
     [(_ pred) #'(error "Check statements require a unique name specification")]
     [(_) #'(error "Check statements require a unique name specification")]
     [(_ ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]))
+
+(define-syntax (test stx)
+  (define command (format "~a" stx))
+  (syntax-case stx ()
+    [(_ name ((sig lower upper) ...) expect)
+     #`(begin
+         (define hashy (make-hash))
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (define res (run-spec hashy name #,command filepath 'test))
+         (unless (equal? res expect)
+           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n ~a" expect res #,command))))]
+    [(_ name (preds ...) ((sig lower upper) ...) expect)
+     #`(begin
+         (define hashy (make-hash))
+         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         ; (add-constraint preds) ...
+         (define res (run-spec hashy name #,command filepath 'test preds ...))
+         (unless (equal? res expect)
+           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n~a" expect res #,command))))]
+    [(_ name expect)
+     #`(begin
+         (define res (run-spec (make-hash) name #,command filepath 'test))
+         (unless (equal? res expect)
+           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n~a" expect res #,command))))]
+    [(_ name (preds ...) expect)
+     #`(begin
+         ; (add-constraint preds) ...
+         (define res (run-spec (make-hash) name #,command filepath 'test preds ...))
+         (unless (equal? res expect)
+           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in ~a" expect res #,command))))]
+    [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
+    [(_ pred) #'(error "Run statements require a unique name specification")]
+    [(_) #'(error "Run statements require a unique name specification")]
+    [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
 
 
 (define (relation->bounds rel)
@@ -481,7 +521,7 @@
 (require syntax/parse/define)
 (require (for-meta 1 racket/port racket/list))
 
-(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl PredDecl Block BlockOrBar
+(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestDecl PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
          StateDecl TransitionDecl RelDecl
          Expr Name QualName Const Number iff ifte >= <=)
@@ -587,6 +627,34 @@
   )
   (if name #f (set! name (symbol->string (gensym))))
   (define datum `(,cmd ,name ,block ,scope))
+  ; (println datum)
+  datum
+) stx))
+
+(define-syntax (TestDecl stx) (map-stx (lambda (d)
+  (define-values (name cmd arg scope block expect) (values #f #f #f '() #f #f))
+  (define (make-typescope x)
+    (syntax-case x (Typescope)
+      [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
+      [(Typescope n things) (syntax->datum #'(things 0 n))]))
+  (for ([arg (cdr d)])
+    ; (println arg)
+    (syntax-case arg (Name Typescope Scope Block QualName)
+      [(Name n) (set! name (syntax->datum #'n))]
+      ["test" (set! cmd 'test)]
+      ["sat" (set! expect 'sat)]
+      ["unsat" (set! expect 'unsat)]
+      ; [(? symbol? s) (set! arg (string->symbol #'s))]
+      [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
+      [(Block (Expr (QualName ns)) ...) (set! block (map string->symbol (syntax->datum #'(ns ...))))]
+      [(Block b ...) (set! block (syntax->datum #'(b ...)))]
+      [(QualName n) (set! block (list (string->symbol (syntax->datum #'n))))]
+      ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [_ #f]
+    )
+  )
+  (if name #f (set! name (symbol->string (gensym))))
+  (define datum `(,cmd ,name ,block ,scope ',expect))
   ; (println datum)
   datum
 ) stx))
@@ -727,7 +795,7 @@
 ) stx))
 
 (define-syntax (RelDecl stx)
-  (println stx)
+  ;(println stx)
   (define ret (syntax-case stx (set one lone ArrowDecl NameList ArrowMult)
     [(_ (ArrowDecl (NameList name) (ArrowMult "set") (ArrowExpr r ...)))
       #`(begin
@@ -750,7 +818,7 @@
       )
     ]
   ))
-  (println ret)
+  ;(println ret)
   ret
 )
 
