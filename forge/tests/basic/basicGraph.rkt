@@ -16,7 +16,7 @@ pred inNexus {
 
 
 test expect {
- {inNexus} for exactly 5 Node is sat
+ first : {inNexus} for exactly 5 Node is unsat
  {} for 5 Node is sat
  {~edges != ~(~edges)} for 5 Node is sat -- FLIP EXPECTATION TO GET PATTERN ERROR 
  {edges != ~(~edges)} for 5 Node is unsat

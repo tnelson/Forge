@@ -620,7 +620,7 @@
   (for ([arg (cdr d)])
     ; (println arg)
     (syntax-case arg (Name Typescope Scope Block QualName)
-      [(Name n) (set! name (syntax->datum #'n))]
+      [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
       ["run"   (set! cmd 'run)]
       ["check" (set! cmd 'check)]
       ; [(? symbol? s) (set! arg (string->symbol #'s))]
@@ -647,7 +647,7 @@
   (for ([arg (cdr d)])
     ; (println arg)
     (syntax-case arg (Name Typescope Scope Block QualName)
-      [(Name n) (set! name (syntax->datum #'n))]
+      [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
       ["sat" (set! expect 'sat)]
       ["unsat" (set! expect 'unsat)]
       ; [(? symbol? s) (set! arg (string->symbol #'s))]
@@ -670,7 +670,7 @@
   (for ([arg (cdr d)])
     ; (println arg)
     (syntax-case arg (Name TestBlock)
-      [(Name n) (set! name (syntax->datum #'n))]
+      [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
       ["test" (set! active? #t)]
       [(TestBlock bs ...) (set! block #'(bs ...))]
       [_ #f]
