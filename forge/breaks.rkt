@@ -6,6 +6,7 @@
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 (provide (rename-out [add-instance instance]))
+(provide make-exact-sbound)
 
 ;;;;;;;;;;;;;;
 ;;;; util ;;;;
@@ -164,7 +165,7 @@
         (unless (hash-has-key? strategies break) (error "break not implemented:" break))
         (hash-add! rel-breaks rel break)
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
-(define (add-instance xml) (cons! instances xml))
+(define (add-instance i) (cons! instances i))
 
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
@@ -178,7 +179,8 @@
     (hash-for-each extensions-store (λ (k v) (set-remove! sigs v)))    
 
     ; First add all partial instances.
-    (define instance-bounds (append* (for/list ([i instances]) (xml->breakers i name-to-rel))))
+    (define instance-bounds (append* (for/list ([i instances]) 
+        (if (sbound? i) (list i) (xml->breakers i name-to-rel)))))
     (define defined (mutable-set))
     (for ([b instance-bounds])
         (println b)

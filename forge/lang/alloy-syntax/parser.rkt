@@ -81,6 +81,7 @@ ExprList : Expr
 ;; imagine a coin rolling over a coin sorter and falling into the first slot that fits
 Expr    : @Expr1  
         | LET-TOK LetDeclList BlockOrBar
+        | BIND-TOK LetDeclList BlockOrBar
         | Quant DeclList BlockOrBar
 Expr1  : @Expr2  | Expr1 OR-TOK Expr2
 Expr2  : @Expr3  | Expr2 IFF-TOK Expr3

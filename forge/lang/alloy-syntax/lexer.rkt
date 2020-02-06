@@ -102,7 +102,8 @@
 
    ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
+   ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
    ;; punctuation
    ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -169,7 +170,13 @@
            "sat"
            "unsat"
            "univ"
-           "break")))
+           "break"
+           
+           "state"
+           "facts"
+           "transition"
+           "bind"
+)))
 
 (define (paren? str)
   (member str

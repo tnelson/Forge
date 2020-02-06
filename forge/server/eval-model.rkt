@@ -83,6 +83,7 @@
                       [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name
                       [(member id (flatten (build-univ bind))) id]
+                      [id id] ; TODO: I shouldn't have done this
                       ; oops
                       [else (raise-user-error "Not an expression" id)])]))
   

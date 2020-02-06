@@ -883,6 +883,7 @@
   (define ret (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp ExprList QualName
                                 LetDeclList LetDecl)
     [(_ "let" (LetDeclList (LetDecl n e) ...) block) #`(let ([n e] ...) block)]
+    [(_ "bind" (LetDeclList (LetDecl n e) ...) block) #`(bind ([n e] ...) block)]
     [(_ "{" (DeclList (Decl (NameList n) e) ...) block "}") #`(set ([n e] ...) block)]
 
     [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a) 
@@ -968,3 +969,13 @@
 (define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
 (define-simple-macro (>= a b) (or (> a b) (int= a b)))
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
+
+(require "server/eval-model.rkt")
+(provide make-exact-sbound)
+(define-syntax-rule (bind ([rel expr] ...) block)
+  (begin
+    (instance (make-exact-sbound rel (eval-exp (alloy->kodkod 'expr) (make-hash) 8))) ...
+    ;(print 'block)
+    block
+  )
+)
