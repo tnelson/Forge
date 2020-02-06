@@ -57,9 +57,11 @@ pred solved[b: Board] {
 pred someSolved {
   some b: Board | solved[b]
 }
-test {structural} for 2 Board, 9 N expect sat
-test {tenFilled structural} for 2 Board, 9 N, 8 Int expect sat
-test {someSolved structural} for 2 Board, 9 N, 8 Int expect sat
+test expect {
+ {structural} for 2 Board, 9 N is sat
+ {tenFilled structural} for 2 Board, 9 N, 8 Int is sat
+ {someSolved structural} for 2 Board, 9 N, 8 Int is sat
+}
 
 pred generatePuzzle {
   structural
@@ -73,4 +75,6 @@ pred generatePuzzle {
     solved[final]     
   }
 } 
-test {generatePuzzle} for 2 Board, 9 N, 8 Int expect sat
+test expect {
+  generatePuzzle for 2 Board, 9 N, 8 Int is sat
+}

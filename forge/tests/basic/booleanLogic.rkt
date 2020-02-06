@@ -54,11 +54,14 @@ pred GiveMeABigFormula {
   }
 }
 
+test expect gimme_big {
+ GiveMeABigFormula for 8 Formula, 2 Instance is sat
+ GiveMeABigFormula for 8 Formula, 1 Instance is unsat
+}
 
-test GiveMeABigFormula for 8 Formula, 2 Instance expect sat
-test GiveMeABigFormula for 8 Formula, 1 Instance expect unsat
-
-test {some f: Formula | f in Var and f in And} expect unsat
-test {some x: univ | x in Formula and x in Instance} expect unsat
-test {some oleft & aleft} expect unsat
-test {semantics and {some n: Not, i: Instance | i in n.truth and i in n.child.truth }} for 8 Formula, 1 Instance expect unsat
+test expect {
+ {some f: Formula | f in Var and f in And} is unsat
+ {some x: univ | x in Formula and x in Instance} is unsat
+ {some oleft & aleft} is unsat
+ {semantics and {some n: Not, i: Instance | i in n.truth and i in n.child.truth }} for 8 Formula, 1 Instance is unsat
+}
