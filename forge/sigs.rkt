@@ -993,9 +993,11 @@
 (require "server/eval-model.rkt")
 (provide make-exact-sbound)
 (define-syntax-rule (bind ([rel expr] ...) block)
-  (begin
-    (instance (make-exact-sbound rel (eval-exp (alloy->kodkod 'expr) (make-hash) 8))) ...
-    ;(print 'block)
+  (let ([bind (make-hash)])
+    (let ([tups (eval-exp (alloy->kodkod 'expr) bind 8 #f)])
+      (instance (make-exact-sbound rel tups))
+      (hash-set! bind 'rel tups)
+     ) ...
     block
   )
 )
