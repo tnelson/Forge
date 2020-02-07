@@ -65,3 +65,9 @@ test expect {
  {some oleft & aleft} is unsat
  {semantics and {some n: Not, i: Instance | i in n.truth and i in n.child.truth }} for 8 Formula, 1 Instance is unsat
 }
+
+-- #f in bounds issue; not "test" yet
+expect instances {
+  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 5 } is sat
+  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 4 } is unsat
+}
