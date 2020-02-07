@@ -15,7 +15,6 @@
 
     .eval-output {
 
-      flex: 0 1 auto;
       display: flex;
       flex-direction: column;
       overflow-y: auto;
@@ -24,16 +23,17 @@
       .output {
 
         display: flex;
+        flex: 1 0 auto;
         flex-direction: column;
         font-family: 'Fira Code', monospace;
         font-size: 0.9em;
-        border: 1px solid $color-bg-dark;
+        //border: 1px solid $color-bg-dark;
         border-radius: 4px 4px 0 0;
         margin: 0.5em;
 
         &.active {
 
-          border: 1px solid $color-primary-light;
+          //border: 1px solid $color-primary-light;
 
           .expression {
             padding: 0.5em;
@@ -45,19 +45,22 @@
             min-height: 1em;
             padding: 0.5em;
             color: $color-primary-text-dark;
-
           }
 
         }
 
         .expression {
+
           padding: 0.5em;
           background-color: $color-bg-light;
           color: $color-primary-text-dark;
           overflow-wrap: break-word;
+
         }
 
         .result {
+
+          flex: 1 0 auto;
 
           &:not(.expanded) {
             display: none;
