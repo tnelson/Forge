@@ -528,7 +528,7 @@
 (require syntax/parse/define)
 (require (for-meta 1 racket/port racket/list))
 
-(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestDecl PredDecl Block BlockOrBar
+(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestExpectDecl TestDecl TestBlock PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
          StateDecl TransitionDecl RelDecl
          Expr Name QualName Const Number iff ifte >= <=)
@@ -620,7 +620,7 @@
   (for ([arg (cdr d)])
     ; (println arg)
     (syntax-case arg (Name Typescope Scope Block QualName)
-      [(Name n) (set! name (syntax->datum #'n))]
+      [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
       ["run"   (set! cmd 'run)]
       ["check" (set! cmd 'check)]
       ; [(? symbol? s) (set! arg (string->symbol #'s))]
@@ -639,7 +639,7 @@
 ) stx))
 
 (define-syntax (TestDecl stx) (map-stx (lambda (d)
-  (define-values (name cmd arg scope block expect) (values #f #f #f '() #f #f))
+  (define-values (name cmd arg scope block expect) (values #f 'test #f '() #f #f))
   (define (make-typescope x)
     (syntax-case x (Typescope)
       [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
@@ -647,8 +647,7 @@
   (for ([arg (cdr d)])
     ; (println arg)
     (syntax-case arg (Name Typescope Scope Block QualName)
-      [(Name n) (set! name (syntax->datum #'n))]
-      ["test" (set! cmd 'test)]
+      [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
       ["sat" (set! expect 'sat)]
       ["unsat" (set! expect 'unsat)]
       ; [(? symbol? s) (set! arg (string->symbol #'s))]
@@ -666,6 +665,22 @@
   datum
 ) stx))
 
+(define-syntax (TestExpectDecl stx) (map-stx (lambda (d)
+  (define-values (name active? block) (values #f #f '()))
+  (for ([arg (cdr d)])
+    ; (println arg)
+    (syntax-case arg (Name TestBlock)
+      [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
+      ["test" (set! active? #t)]
+      [(TestBlock bs ...) (set! block #'(bs ...))]
+      [_ #f]
+    )
+  )
+  (if name #f (set! name (symbol->string (gensym))))
+  (when active?
+    (define datum `(begin ,@(syntax->datum block)))
+    datum)
+) stx))
 
 (define-syntax (PredDecl stx) (map-stx (lambda (d)
   (define-values (name paras block) (values #f '() '()))
@@ -828,6 +843,11 @@
   ;(println ret)
   ret
 )
+
+(define-syntax (TestBlock stx)
+  (define ret (syntax-case stx ()
+                [(_ b ...) #'(begin b ...)]))
+  ret)
 
 (define-syntax (Block stx)
   (define ret (syntax-case stx ()

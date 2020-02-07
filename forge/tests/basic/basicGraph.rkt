@@ -15,32 +15,40 @@ pred inNexus {
 }
 
 
-test {inNexus} for exactly 5 Node expect sat
-test {} for 5 Node expect sat
-test {~edges != ~(~edges)} for 5 Node expect sat -- FLIP EXPECTATION TO GET PATTERN ERROR 
-test {edges != ~(~edges)} for 5 Node expect unsat
-test {edges = ^edges} for 5 Node expect sat
-test {outNexus and not inNexus} for 5 Node expect sat
-test {#Node = 4} for exactly 5 Node expect unsat
-test {#Node = 4} for 5 Node expect sat
-test {*edges != ^edges + iden} for 5 Node expect unsat
-test {edges - (edges.edges + edges.edges.edges) != edges - edges.edges - edges.edges.edges} for 7 Node expect unsat
-test {some edges - univ->univ} for 5 Node expect unsat
-test {#edges = 0} for 3 Node expect sat
-test {lone edges and no edges} for 3 Node expect sat
-test {#edges = 1} for 3 Node expect sat
-test {lone edges and one edges} for 3 Node expect sat
-test {#edges = 2} for 3 Node expect sat
-test {#edges = 3} for 3 Node expect sat
-test {#edges = 4} for 3 Node expect sat
-test {#edges = 5} for 3 Node expect sat
-test {#edges = 6} for 3 Node expect sat
-test {#edges = 7} for 3 Node expect sat
-test {#edges = 8} for 3 Node, 5 Int expect sat
-test {#edges = 9} for 3 Node, 5 Int expect sat
-test {#edges = 10} for 3 Node, 5 Int expect unsat
-test {edges = Node->Node} for 3 Node expect sat
-test {edges = iden} for 3 Node expect unsat -- because iden contains ints as well
-test {edges = iden & Node->Node} for 3 Node expect sat -- restrict to only iden on Nodes
-test {edges = iden & Node->Node and #edges != 3} for exactly 3 Node expect unsat 
+test expect {
+ first : {inNexus} for exactly 5 Node is unsat
+ {} for 5 Node is sat
+ {~edges != ~(~edges)} for 5 Node is sat -- FLIP EXPECTATION TO GET PATTERN ERROR 
+ {edges != ~(~edges)} for 5 Node is unsat
+ {edges = ^edges} for 5 Node is sat
+ {outNexus and not inNexus} for 5 Node is sat
+ {*edges != ^edges + iden} for 5 Node is unsat
+ {edges - (edges.edges + edges.edges.edges) != edges - edges.edges - edges.edges.edges} for 7 Node is unsat
+ {some edges - univ->univ} for 5 Node is unsat
+ {#edges = 0} for 3 Node is sat
+ {lone edges and no edges} for 3 Node is sat
+ {#edges = 1} for 3 Node is sat
+ {lone edges and one edges} for 3 Node is sat
+ {edges = Node->Node} for 3 Node is sat
+ {edges = iden} for 3 Node is unsat -- because iden contains ints as well
+ {edges = iden & Node->Node} for 3 Node is sat -- restrict to only iden on Nodes
+ {edges = iden & Node->Node and #edges != 3} for exactly 3 Node is unsat
+}
+
+test expect node_cardinality {
+ {#Node = 4} for exactly 5 Node is unsat
+ {#Node = 4} for 5 Node is sat
+}
+
+test expect edges_cardinality {
+ {#edges = 2} for 3 Node is sat
+ {#edges = 3} for 3 Node is sat
+ {#edges = 4} for 3 Node is sat
+ {#edges = 5} for 3 Node is sat
+ {#edges = 6} for 3 Node is sat
+ {#edges = 7} for 3 Node is sat
+ {#edges = 8} for 3 Node, 5 Int is sat
+ {#edges = 9} for 3 Node, 5 Int is sat
+ {#edges = 10} for 3 Node, 5 Int is unsat
+} 
 
