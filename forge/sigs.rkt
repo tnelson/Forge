@@ -369,7 +369,10 @@
    (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 1 :verbosity 7" bitwidth))
    (declare-univ (length inty-univ))
    (declare-ints int-range int-indices))
-  (define (get-atom atom) (index-of inty-univ atom))
+  (define (get-atom atom)
+    (define result (index-of inty-univ atom))
+    (cond [result result]
+          [else (error (format "Error: reference to unknown atom: ~a. Known atoms were: ~a" atom inty-univ))]))
   (define (n-arity-none arity)
     (cond
       [(equal? arity 1) 'none]
@@ -388,13 +391,13 @@
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))|#
-
+  
   ;; symmetry breaking
   (define-values (new-total-bounds new-formulas)
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
   (set! run-constraints (append run-constraints new-formulas))
-
+  
   (for ([bound total-bounds])
     (cmd
      [stdin]
@@ -408,7 +411,7 @@
   (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
      [stdin]
-     (print-cmd-cont (format "(f~a" i))
+     (print-cmd-cont (format "(f~a " i)) ; extra space in case forthcoming formula is "true" with no leading space
      (translate-to-kodkod-cli c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
@@ -612,7 +615,7 @@
                                         ) stx))
 
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
-  (define-values (name cmd arg scope block) (values #f #f #f '() #f))
+  (define-values (name cmd arg scope block bounds) (values #f #f #f '() #f #f))
   (define (make-typescope x)
     (syntax-case x (Typescope)
       [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
@@ -629,12 +632,18 @@
       [(Block b ...) (set! block (syntax->datum #'(b ...)))]
       [(QualName n) (set! block (list (syntax->datum #'n)))]
       ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [(Bounds _ ...) (set! bounds arg)]
       [_ #f]
     )
   )
   (if name #f (set! name (symbol->string (gensym))))
-  (define datum `(,cmd ,name ,block ,scope))
-  ; (println datum)
+  (define datum (if bounds 
+    `(begin 
+      ;(let ([bnd (make-hash)]) (println bnd) ,bounds)
+      ,bounds
+      (,cmd ,name ,block ,scope))
+    `(,cmd ,name ,block ,scope)))
+  ;(printf "CmdDecl: ~a~n" datum)
   datum
 ) stx))
 
@@ -991,7 +1000,7 @@
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
 
 (require "server/eval-model.rkt")
-(provide make-exact-sbound)
+(provide make-exact-sbound Bounds make-hash printf)
 (define-syntax-rule (bind ([rel expr] ...) block)
   (let ([bind (make-hash)])
     (let ([tups (eval-exp (alloy->kodkod 'expr) bind 8 #f)])
@@ -1000,4 +1009,35 @@
      ) ...
     block
   )
+)
+
+(require racket/stxparam)
+(define-syntax-parameter bindings (lambda (stx)
+  (raise-syntax-error (syntax-e stx) "can only be used inside Bounds")))
+(define-syntax-rule (Bounds lines ...)
+  (let ([B (make-hash)]) 
+    (syntax-parameterize ([bindings (make-rename-transformer #'B)])
+      (Bind lines) ...
+    )
+  )
+)
+(define-syntax (Bind stx)
+  (define datum (syntax-case stx (CompareOp QualName Const)
+    [(_ (_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))) 
+      #'(add-int-bound rel (int-bound exact exact))]
+    [(_ (_ (_ "#" rel) (CompareOp "<") (_ (Const upper)))) 
+      #'(add-int-bound rel (int-bound 0 upper))]
+    [(_ (_ (_ (_ (Const lower)) (CompareOp "<") (_ "#" rel)) (CompareOp "<") (_ (Const upper)))) 
+      #'(add-int-bound rel (int-bound lower upper))]
+    [(_ (_ rel (CompareOp "in") (_ (QualName strat)))) 
+      #'(break rel 'strat)]
+    [(_ (_ (_ (QualName rel)) (CompareOp "=") expr)) 
+      #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+        (instance (make-exact-sbound rel tups))
+        (hash-set! bindings 'rel tups)
+      )]
+    [x #'(error (format "Unrecognized bounds constraint: ~a~n" 'x))]
+  ))
+  ;(printf "Bounds: ~a~n" (syntax->datum datum))
+  datum
 )

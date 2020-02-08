@@ -54,12 +54,12 @@ pred GiveMeABigFormula {
   }
 }
 
-test expect gimme_big {
+expect gimme_big {
  GiveMeABigFormula for 8 Formula, 2 Instance is sat
  GiveMeABigFormula for 8 Formula, 1 Instance is unsat
 }
 
-test expect {
+expect {
  {some f: Formula | f in Var and f in And} is unsat
  {some x: univ | x in Formula and x in Instance} is unsat
  {some oleft & aleft} is unsat
@@ -67,7 +67,28 @@ test expect {
 }
 
 -- #f in bounds issue; not "test" yet
-expect instances {
-  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 5 } is sat
-  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 4 } is unsat
-}
+--expect instances {
+--  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 5 } is sat
+--  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 4 } is unsat
+--}
+
+run {
+    --GiveMeABigFormula
+    some Formula
+} for {
+    -- ISSUE: how do I increase the number of available atoms or auto-detect from use in this block?
+    Var = Formula0 
+    Not = Formula1
+    And = Formula2
+    Or =  Formula3
+
+    Formula = Formula0 + Formula1 + Formula2 + Formula3
+    Instance = none
+    -- ISSUE: incorrect arity; we're not passing right arity of emptyset
+    --child = none->none
+    child = Formula1->Formula2
+    oleft = Formula3->Formula0
+    oright = Formula3->Formula0
+    aleft = Formula2->Formula0
+    aright = Formula2->Formula0
+} 

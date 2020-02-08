@@ -6321,7 +6321,6 @@ code {
   justify-content: space-between;
 }
 .eval .eval-editor .eval-output {
-  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -6329,15 +6328,12 @@ code {
 }
 .eval .eval-editor .eval-output .output {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
   font-family: "Fira Code", monospace;
   font-size: 0.9em;
-  border: 1px solid #e1e2e1;
   border-radius: 4px 4px 0 0;
   margin: 0.5em;
-}
-.eval .eval-editor .eval-output .output.active {
-  border: 1px solid #708690;
 }
 .eval .eval-editor .eval-output .output.active .expression {
   padding: 0.5em;
@@ -6356,6 +6352,7 @@ code {
   overflow-wrap: break-word;
 }
 .eval .eval-editor .eval-output .output .result {
+  flex: 1 0 auto;
   min-height: 1em;
   padding: 0.5em;
   color: #708690;
