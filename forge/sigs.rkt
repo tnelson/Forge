@@ -1008,30 +1008,32 @@
   )
 )
 
-
+(require racket/stxparam)
+(define-syntax-parameter bindings (lambda (stx)
+  (raise-syntax-error (syntax-e stx) "can only be used inside Bounds")))
 (define-syntax-rule (Bounds lines ...)
-  (let ([B (make-hash)]) (Bind lines) ...)
+  (let ([B (make-hash)]) 
+    (syntax-parameterize ([bindings (make-rename-transformer #'B)])
+      (Bind lines) ...
+    )
+  )
 )
 (define-syntax (Bind stx)
-  (define datum (syntax-case stx (CompareOp QualName)
-    [(_ (_ (_ "#" rel) (CompareOp "=") exact)) 
-      #'(printf "BOUNDS(#=): ~a = ~a~n" rel exact)]
-    [(_ (_ (_ "#" rel) (CompareOp "<") upper)) 
-      #'(printf "BOUNDS(#<): ~a < ~a~n" rel upper)]
-    [(_ (_ (_ lower (CompareOp "<") (_ "#" rel)) (CompareOp "<") upper)) 
-      #'(printf "BOUNDS(<#<): ~a < ~a < ~a~n" lower rel upper)]
+  (define datum (syntax-case stx (CompareOp QualName Const)
+    [(_ (_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))) 
+      #'(add-int-bound rel (int-bound exact exact))]
+    [(_ (_ (_ "#" rel) (CompareOp "<") (_ (Const upper)))) 
+      #'(add-int-bound rel (int-bound 0 upper))]
+    [(_ (_ (_ (_ (Const lower)) (CompareOp "<") (_ "#" rel)) (CompareOp "<") (_ (Const upper)))) 
+      #'(add-int-bound rel (int-bound lower upper))]
     [(_ (_ rel (CompareOp "in") (_ (QualName strat)))) 
-      #'(printf "BOUNDS(in): ~a in ~a~n" rel 'strat)]
+      #'(break rel 'strat)]
     [(_ (_ (_ (QualName rel)) (CompareOp "=") expr)) 
-      ;#'(let ([tups (eval-exp (alloy->kodkod 'expr) B 8 #f)])
-      ;  (instance (make-exact-sbound rel tups))
-      ;  (println B)
-      ;  (hash-set! B 'rel tups)
-      ;  (println B)
-      ;)]
-      #'(printf "BOUNDS(=): ~a = ~a~n" 'rel 'expr)]  
-    [x 
-      #'(printf "BOUNDS(other): ~a~n" 'x)]
+      #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+        (instance (make-exact-sbound rel tups))
+        (hash-set! bindings 'rel tups)
+      )]
+    [x #'(error (format "Unrecognized bounds constraint: ~a~n" 'x))]
   ))
   ;(printf "Bounds: ~a~n" (syntax->datum datum))
   datum
