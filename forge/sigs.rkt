@@ -369,7 +369,10 @@
    (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 1 :verbosity 7" bitwidth))
    (declare-univ (length inty-univ))
    (declare-ints int-range int-indices))
-  (define (get-atom atom) (index-of inty-univ atom))
+  (define (get-atom atom)
+    (define result (index-of inty-univ atom))
+    (cond [result result]
+          [else (error (format "Error: reference to unknown atom: ~a. Known atoms were: ~a" atom inty-univ))]))
   (define (n-arity-none arity)
     (cond
       [(equal? arity 1) 'none]
@@ -388,13 +391,13 @@
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))|#
-
+  
   ;; symmetry breaking
   (define-values (new-total-bounds new-formulas)
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
   (set! run-constraints (append run-constraints new-formulas))
-
+  
   (for ([bound total-bounds])
     (cmd
      [stdin]
@@ -408,7 +411,7 @@
   (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
      [stdin]
-     (print-cmd-cont (format "(f~a" i))
+     (print-cmd-cont (format "(f~a " i)) ; extra space in case forthcoming formula is "true" with no leading space
      (translate-to-kodkod-cli c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
