@@ -4,9 +4,6 @@
 
 (provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
 
-(require rackunit)
-
-
 ; Consumes a model and produces a binding, which acts as an environment
 ; for interpreting eval queries
 (define (model->binding model)
