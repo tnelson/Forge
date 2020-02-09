@@ -72,6 +72,19 @@ expect {
 --  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 4 } is unsat
 --}
 
+pred localTautology[f: Formula] {
+  -- true in all instances that Forge bothered to create
+  all i: Instance | i in f.truth
+}
+
+pred generateInstances {
+  -- force the existence of all instances needed
+  all i: Instance | all v: Var |
+      some i': Instance-i | v in i.trueVars => i'.trueVars = i.trueVars - v else i'.trueVars = i.trueVars + v 
+}
+
+
+
 test expect fancyBoundsExpectBlockName {
 -- TODO: auto-detect increase in scope?
 
@@ -154,5 +167,85 @@ test expect fancyBoundsExpectBlockName {
         aleft = Formula2->Formula0
         aright = Formula2->Formula0
     } is sat
+
+    semanticsFancyBounds: { semantics wellFormed no truth}
+    for 4 Formula
+    for {    
+        Var = Formula0
+        Not = Formula1
+        And = Formula2
+        Or =  Formula3
+        Formula = Formula0 + Formula1 + Formula2 + Formula3
+        Instance = Instance0
+        child = Formula1->Formula0
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is unsat
+
+    localTautologyFancyBounds: { semantics wellFormed some f: Formula | localTautology[f]}
+    for 4 Formula
+    for {    
+        Var = Formula0
+        Not = Formula1
+        And = Formula2
+        Or =  Formula3
+        Formula = Formula0 + Formula1 + Formula2 + Formula3
+        Instance = Instance0
+        child = Formula1->Formula0
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is sat
+
+    generateNotEnough: { semantics wellFormed generateInstances }
+    for 4 Formula
+    for {    
+        Var = Formula0
+        Not = Formula1
+        And = Formula2
+        Or =  Formula3
+        Formula = Formula0 + Formula1 + Formula2 + Formula3
+        Instance = Instance0
+        child = Formula1->Formula0
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is unsat
+
+    generateEnough: { semantics wellFormed generateInstances }
+    for 4 Formula
+    for {    
+        Var = Formula0
+        Not = Formula1
+        And = Formula2
+        Or =  Formula3
+        Formula = Formula0 + Formula1 + Formula2 + Formula3
+        Instance = Instance0 + Instance1
+        child = Formula1->Formula0
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is sat
+
+    generateEnoughAndSomeTautology: { semantics wellFormed generateInstances some f: Formula | localTautology[f] }
+    for 5 Formula -- note 5 formula! also different instance than above (change p /\ p to p /\ q)
+    for {    
+        Var = Formula0 + Formula4
+        Not = Formula1
+        And = Formula2
+        Or =  Formula3
+        Formula = Formula0 + Formula1 + Formula2 + Formula3 + Formula4
+        Instance = Instance0 + Instance1
+        child = Formula1->Formula0
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula4
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula4
+    } is unsat
 
 } 

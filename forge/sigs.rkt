@@ -330,25 +330,25 @@
       (if (equal? (substring str 0 10) "remainder-") (substring str 10) str)))
 
 ; Depracated
-(define (populate-sig sig bound)
-  (define atoms (map (lambda (n) (string-append (strip-remainder (relation-name sig)) (number->string n))) (range bound)))
-  (define sym-atoms (map string->symbol atoms))
-  (set! working-universe (append sym-atoms working-universe))
-  ;(hash-set! bounds-store sig sym-atoms)
-  (define out (map (lambda (x) (list x)) sym-atoms))
-  (if (hash-has-key? extensions-store sig)
-      (let ([parent (hash-ref extensions-store sig)])
-        (begin
-          (if (hash-has-key? bounds-store parent)
-              (hash-set! bounds-store parent (append sym-atoms (hash-ref bounds-store parent)))
-              (hash-set! bounds-store parent sym-atoms))
-          out))
-      out))
+;(define (populate-sig sig bound)
+;  (define atoms (map (lambda (n) (string-append (strip-remainder (relation-name sig)) (number->string n))) (range bound)))
+;  (define sym-atoms (map string->symbol atoms))
+;  (set! working-universe (append sym-atoms working-universe))
+;  ;(hash-set! bounds-store sig sym-atoms)
+;  (define out (map (lambda (x) (list x)) sym-atoms))
+;  (if (hash-has-key? extensions-store sig)
+;      (let ([parent (hash-ref extensions-store sig)])
+;        (begin
+;          (if (hash-has-key? bounds-store parent)
+;              (hash-set! bounds-store parent (append sym-atoms (hash-ref bounds-store parent)))
+;              (hash-set! bounds-store parent sym-atoms))
+;          out))
+;      out))
 ;(define (up-to n)
 ; (if (@= n 1) (list n) (cons n (up-to (@- n 1)))))
 
 (define (append-run name)
-  (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
+  (if (member name run-names) (error (format "Non-unique run name specified: ~a" name)) (set! run-names (cons name run-names))))
 
 
 (define (run-spec hashy name command filepath runtype . assumptions)
@@ -357,7 +357,7 @@
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
-
+  
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
   (match-define (cons sig-bounds disj-cs) (bind-sigs hashy))
   (set! run-constraints (append run-constraints disj-cs))
@@ -372,7 +372,7 @@
   (send kks initialize)
   (define stdin (send kks stdin))
   (define stdout (send kks stdout))
-
+    
   (cmd
    [stdin]
    ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
@@ -413,7 +413,10 @@
 
       (adj-bound bound-lower bound)  ; if empty, need to give proper arity emptiness
       (adj-bound bound-upper bound))))
-      
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;; 
+  (clear-breaker-instances) ; breakers has done its job if this command had fancy-bounds; clean for next command  
+  (set! working-universe empty) ; clear out the working universe for next command or else "(univ X)" will grow in kk
 
   (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd

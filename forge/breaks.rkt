@@ -5,7 +5,8 @@
 ;(require data/union-find)
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
-(provide (rename-out [add-instance instance]))
+(provide (rename-out [add-instance instance])
+         (rename-out [clear-instances clear-breaker-instances]))
 (provide make-exact-sbound)
 
 ;;;;;;;;;;;;;;
@@ -166,6 +167,7 @@
         (hash-add! rel-breaks rel break)
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
 (define (add-instance i) (cons! instances i))
+(define (clear-instances) (set! instances empty))
 
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
@@ -183,7 +185,7 @@
         (if (sbound? i) (list i) (xml->breakers i name-to-rel)))))
     (define defined (mutable-set))
     (for ([b instance-bounds])
-        (println b)
+        (printf "constraining bounds: ~v~n" b)
         (cons! new-total-bounds (sbound->bound b))
         (define rel (sbound-relation b))
         (set-add! defined rel)

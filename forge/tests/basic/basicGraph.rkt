@@ -40,6 +40,11 @@ test expect {
  testzeroscope2: {#Node = 1} for 0 Node is unsat
 }
 
+test expect ifte {
+    ifte1: {#Node > 1 => some edges else no edges} for exactly 2 Node is sat
+    ifte2: {some edges and (#Node > 1 => some edges else no edges)} for exactly 1 Node is unsat
+}
+
 test expect node_cardinality {
  {#Node = 4} for exactly 5 Node is unsat
  {#Node = 4} for 5 Node is sat
@@ -55,5 +60,5 @@ test expect edges_cardinality {
  {#edges = 8} for 3 Node, 5 Int is sat
  {#edges = 9} for 3 Node, 5 Int is sat
  {#edges = 10} for 3 Node, 5 Int is unsat
-} 
+}
 
