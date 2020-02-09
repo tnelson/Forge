@@ -21,6 +21,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | TransitionDecl
           | RelDecl
           | OptionDecl
+          | InstDecl
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -34,7 +35,7 @@ FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
 AssertDecl : /ASSERT-TOK Name? Block
-CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK)? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
+CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 TestDecl : (Name /COLON-TOK)? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
@@ -122,7 +123,10 @@ SexprDecl : Sexpr
 Sexpr : SEXPR-TOK
 
 ;;;;;;;;
-
+; Note: making a distinction for now so we don't lose the XML functionality
+; InstDecl = "myName : inst {bounds}"
+; InstanceDecl = XML...
+InstDecl : /INST-TOK Name Bounds Scope?
 InstanceDecl : INSTANCE-TOK
 QueryDecl : @Name /COLON-TOK ArrowExpr /EQ-TOK Expr
 

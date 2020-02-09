@@ -43,6 +43,9 @@
 (define int-bounds-store (make-hash))
 ;Extra constraints on the model (e.g. facts, relation constraints, etc.)
 (define constraints '())
+; "inst" definitions 
+(define constant-instance-bounds (make-hash))
+(define constant-instance-scope (make-hash))
 ;Run names
 (define run-names '())
 ;Bitwidth
@@ -51,10 +54,17 @@
 ; ^ Except that MiniSat isn't built for 64 bit windows, so maximize chances of working
 (define solveroption 'SAT4J)
 
+; Level of output when running specs
+(define VERBOSITY_LOW 1)
+(define VERBOSITY_HIGH 5)
+(define VERBOSITY_DEBUG 10)
+(define verbosityoption VERBOSITY_LOW)
+
 ; Filter options to prevent user from rewriting any global
 (define (set-option key val)
   (match key
     ['solver (set! solveroption val)]
+    ['verbosity (set! verbosityoption val)]
     [else (error (format "Invalid option key: ~a" key))]))
 
 (define (set-bitwidth i) (set! bitwidth i))
@@ -64,11 +74,22 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum inst)
 (provide add-relation set-option)
 
 (define (add-relation rel types)
   (hash-set! relations-store rel types))
+
+(define (add-named-bound name bound scope)  
+  (when (hash-has-key? constant-instance-bounds name)
+    (error (format "Already an instance definition named: ~a" name)))
+  (hash-set! constant-instance-bounds name bounds)
+  (hash-set! constant-instance-scope name scope))
+
+(define-syntax (inst stx)
+  (syntax-case stx ()    
+    [(_ name bounds scope)     
+     #'(add-named-bound name bounds scope)]))
 
 (define-syntax (pred stx)
   (syntax-case stx ()
@@ -351,7 +372,9 @@
   (if (member name run-names) (error (format "Non-unique run name specified: ~a" name)) (set! run-names (cons name run-names))))
 
 
-(define (run-spec hashy name command filepath runtype . assumptions)
+(define (run-spec hashy name command filepath runtype . assumptions)  
+  (when (@>= verbosityoption VERBOSITY_HIGH) ; Racket >=
+    (printf "Concrete instances defined: ~a~n" (hash-keys constant-instance-bounds)))
   (append-run name)
   (define run-constraints (append constraints assumptions))
   (define intmax (expt 2 (sub1 bitwidth)))
@@ -376,6 +399,7 @@
   (cmd
    [stdin]
    ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
+   ; TODO: use our verbosity setting? (unclear how kodkod differs by verbosity)
    (configure (format ":bitwidth ~a :produce-cores true :solver ~a :max-solutions 1 :verbosity 7"
                       bitwidth
                       solveroption))
@@ -543,7 +567,7 @@
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestExpectDecl TestDecl TestBlock PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
-         StateDecl TransitionDecl RelDecl OptionDecl
+         StateDecl TransitionDecl RelDecl OptionDecl InstDecl
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -585,9 +609,14 @@
   )
 
 (define-syntax (OptionDecl stx) (map-stx (lambda (d)
-                                           (define key (syntax-case (first (rest d)) () [(QualName n) #'n] [(Number n) #'n]))
-                                           (define val (syntax-case (second (rest d)) () [(QualName n) #'n] [(Number n) #'n]))
-                                           `(set-option ',key ',val)) stx))
+                                           (define key (syntax-case (first (rest d)) (QualName)
+                                                         [(QualName n) #''n]))
+                                           (define val (syntax-case (second (rest d)) (QualName Number)
+                                                         [(QualName n) #''n]
+                                                         [(Number n) #'(string->number n)]
+                                                         ))
+                                           ;(printf "setting option: ~a to ~a~n" key val)
+                                           `(set-option ,key ,val)) stx))
 
 (define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
 (define-syntax (SexprDecl stx) (map-stx cadr stx))
@@ -628,6 +657,32 @@
                                         ;(println datum)
                                         datum
                                         ) stx))
+
+; See note in parser.rkt about difference between InstanceDecl and InstDecl
+(define-syntax-rule (InstanceDecl i) (instance i))
+
+(define-syntax (InstDecl stx)  
+  (map-stx (lambda (d)
+  (define-values (name scope bounds) (values #f #f #f))
+  (define (make-typescope x)
+    (syntax-case x (Typescope)
+      [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
+      [(Typescope n things) (syntax->datum #'(things 0 n))]))
+  (for ([arg (cdr d)])
+     ;(println arg)
+    (syntax-case arg (Name Typescope Scope Block QualName)
+      [(Name n) (set! name (symbol->string (syntax->datum #'n)))]      
+      [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
+      ;[(QualName n) (set! block (list (syntax->datum #'n)))]
+      ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [(Bounds _ ...) (set! bounds arg)]
+      [_ #f]
+    )
+  )
+  (if name #f (set! name (symbol->string (gensym))))
+  (define datum `(inst ,name ,bounds ',scope))
+  (printf "InstDecl: ~a~n" datum)
+  datum) stx))  
 
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
   (define-values (name cmd arg scope block bounds) (values #f #f #f '() #f #f))
@@ -895,7 +950,6 @@
   )
 
 (define-syntax-rule (BreakDecl x ys ...) (break x 'ys ...))
-(define-syntax-rule (InstanceDecl i) (instance i))
 
 (define-syntax (QueryDecl stx) (map-stx (lambda (d)
                                           (define name (second d))

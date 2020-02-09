@@ -106,7 +106,8 @@
    ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
    ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
-   ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)] 
+   ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ;; punctuation
    ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -182,6 +183,7 @@
            "bind"
 
            "option"
+           "inst"
 )))
 
 (define (paren? str)
