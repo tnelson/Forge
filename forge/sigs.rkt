@@ -47,6 +47,15 @@
 (define run-names '())
 ;Bitwidth
 (define bitwidth 4)
+;Solver choice: default to MiniSat (no cores, so no proof overhead, faster than SAT4J)
+; ^ Except that MiniSat isn't built for 64 bit windows, so maximize chances of working
+(define solveroption 'SAT4J)
+
+; Filter options to prevent user from rewriting any global
+(define (set-option key val)
+  (match key
+    ['solver (set! solveroption val)]
+    [else (error (format "Invalid option key: ~a" key))]))
 
 (define (set-bitwidth i) (set! bitwidth i))
 
@@ -56,7 +65,7 @@
   (set! constraints (cons form constraints)))
 
 (provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
-(provide add-relation)
+(provide add-relation set-option)
 
 (define (add-relation rel types)
   (hash-set! relations-store rel types))
@@ -367,7 +376,9 @@
   (cmd
    [stdin]
    ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
-   (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 1 :verbosity 7" bitwidth))
+   (configure (format ":bitwidth ~a :produce-cores true :solver ~a :max-solutions 1 :verbosity 7"
+                      bitwidth
+                      solveroption))
    (declare-univ (length inty-univ))
    (declare-ints int-range int-indices))
   (define (get-atom atom)
@@ -529,7 +540,7 @@
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestExpectDecl TestDecl TestBlock PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
-         StateDecl TransitionDecl RelDecl
+         StateDecl TransitionDecl RelDecl OptionDecl
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -569,6 +580,11 @@
 (define-for-syntax (use-ctxt stx1 stx2)
   (datum->syntax stx1 (syntax->datum stx2))
   )
+
+(define-syntax (OptionDecl stx) (map-stx (lambda (d)
+                                           (define key (syntax-case (first (rest d)) () [(QualName n) #'n] [(Number n) #'n]))
+                                           (define val (syntax-case (second (rest d)) () [(QualName n) #'n] [(Number n) #'n]))
+                                           `(set-option ',key ',val)) stx))
 
 (define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
 (define-syntax (SexprDecl stx) (map-stx cadr stx))

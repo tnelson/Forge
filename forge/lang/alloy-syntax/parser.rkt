@@ -20,6 +20,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | StateDecl
           | TransitionDecl
           | RelDecl
+          | OptionDecl
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -59,6 +60,7 @@ QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name
 BreakDecl : /FACT-TOK /BREAK-TOK? Expr /COLON-TOK @NameList
           | /BREAK-TOK Expr /COLON-TOK @NameList
 
+OptionDecl : /OPTION-TOK QualName (QualName | Number)
 
 Name : IDENTIFIER-TOK
 Number : NUM-CONST-TOK
