@@ -72,21 +72,20 @@ expect {
 --  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 4 } is unsat
 --}
 
-run {
-    --GiveMeABigFormula
+run {    
     some Formula
-} for {
-    -- ISSUE: how do I increase the number of available atoms or auto-detect from use in this block?
-    Var = Formula0 
-    Not = Formula1
+} for 5 Formula for {
+    
+    Var = Formula0 + Formula1 + Formula4
+    Not = none
     And = Formula2
     Or =  Formula3
 
-    Formula = Formula0 + Formula1 + Formula2 + Formula3
+    -- TODO: auto-detect increase in scope?
+
+    Formula = Formula0 + Formula1 + Formula2 + Formula3 + Formula4
     Instance = none
-    -- ISSUE: incorrect arity; we're not passing right arity of emptyset
-    --child = none->none
-    child = Formula1->Formula2
+    child = none->none    
     oleft = Formula3->Formula0
     oright = Formula3->Formula0
     aleft = Formula2->Formula0

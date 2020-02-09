@@ -16,19 +16,19 @@ pred inNexus {
 
 
 test expect {
- first : {inNexus} for exactly 5 Node is unsat
- {} for 5 Node is sat
- {~edges != ~(~edges)} for 5 Node is sat -- FLIP EXPECTATION TO GET PATTERN ERROR 
- {edges != ~(~edges)} for 5 Node is unsat
- {edges = ^edges} for 5 Node is sat
- {outNexus and not inNexus} for 5 Node is sat
- {*edges != ^edges + iden} for 5 Node is unsat
- {edges - (edges.edges + edges.edges.edges) != edges - edges.edges - edges.edges.edges} for 7 Node is unsat
- {some edges - univ->univ} for 5 Node is unsat
- {#edges = 0} for 3 Node is sat
- {lone edges and no edges} for 3 Node is sat
- {#edges = 1} for 3 Node is sat
- {lone edges and one edges} for 3 Node is sat
+ first : {inNexus} for exactly 5 Node is sat
+ trivial: {} for 5 Node is sat
+ transpose1: {~edges != ~(~edges)} for 5 Node is sat 
+ transpose2: {edges != ~(~edges)} for 5 Node is unsat
+ tcall: {edges = ^edges} for 5 Node is sat
+ preds: {outNexus and not inNexus} for 5 Node is sat
+ rtc: {*edges != ^edges + iden} for 5 Node is unsat
+ dotminus : {edges - (edges.edges + edges.edges.edges) != edges - edges.edges - edges.edges.edges} for 7 Node is unsat
+ testuniv: {some edges - univ->univ} for 5 Node is unsat
+ testcardzero: {#edges = 0} for 3 Node is sat
+ testloneno: {lone edges and no edges} for 3 Node is sat
+ testcardone: {#edges = 1} for 3 Node is sat
+ testloneone: {lone edges and one edges} for 3 Node is sat
  {edges = Node->Node} for 3 Node is sat
  {edges = iden} for 3 Node is unsat -- because iden contains ints as well
  {edges = iden & Node->Node} for 3 Node is sat -- restrict to only iden on Nodes

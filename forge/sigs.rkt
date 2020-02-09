@@ -5,8 +5,9 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
-
-(require (for-syntax racket/syntax))
+; racket/string needed for replacing transpose operator (~) with escaped version in error messages
+(require (for-syntax racket/syntax)
+         (for-syntax racket/string))
 
 (provide break instance quote begin println filepath set-path! let)
 
@@ -379,18 +380,13 @@
       [(@> arity 0) (product 'none (n-arity-none (@- arity 1)))]
       [else (error "Error: Relation with negative or 0 arity specified.")]))
 
-  (define (adj-bound-lower bound)
+  (define (adj-bound accessor bound)
+    ; "int-atoms" here means the int representations at the kodkod level, not Int/int integers
     (define int-atoms (map (lambda (x) (map get-atom x))
-                           (bound-lower bound)))
+                           (accessor bound)))
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
-        (tupleset #:tuples int-atoms)))
-  #|(define (adj-bound-upper bound)
-    (define int-atoms (map (lambda (x) (map get-atom x))
-           (bound-upper key)))
-    (if (empty? int-atoms)
-        (n-arity-none (relation-arity (bound-relation bound)))
-        (tupleset #:tuples int-atoms)))|#
+        (tupleset #:tuples int-atoms)))  
   
   ;; symmetry breaking
   (define-values (new-total-bounds new-formulas)
@@ -404,9 +400,9 @@
      (declare-rel
       (r (index-of rels (bound-relation bound)))
 
-      (adj-bound-lower bound)
-      (tupleset #:tuples (map (lambda (x) (map get-atom x))
-                              (bound-upper bound))))))
+      (adj-bound bound-lower bound)  ; if empty, need to give proper arity emptiness
+      (adj-bound bound-upper bound))))
+      
 
   (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
@@ -482,7 +478,7 @@
     [(_ ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]))
 
 (define-syntax (test stx)
-  (define command (format "~a" stx))
+  (define command (string-replace (format "~a" stx) "~" "~~" #:all? #t))
   (syntax-case stx ()
     [(_ name ((sig lower upper) ...) expect)
      #`(begin
