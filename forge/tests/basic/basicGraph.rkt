@@ -33,6 +33,8 @@ test expect {
  {edges = iden} for 3 Node is unsat -- because iden contains ints as well
  {edges = iden & Node->Node} for 3 Node is sat -- restrict to only iden on Nodes
  {edges = iden & Node->Node and #edges != 3} for exactly 3 Node is unsat
+ {#Node = 0} for 0 Node is sat
+ {#Node = 1} for 0 Node is unsat
 }
 
 test expect node_cardinality {
