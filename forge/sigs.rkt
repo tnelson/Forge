@@ -660,7 +660,7 @@
 ) stx))
 
 (define-syntax (TestDecl stx) (map-stx (lambda (d)
-  (define-values (name cmd arg scope block expect) (values #f 'test #f '() #f #f))
+  (define-values (name cmd arg scope block bounds expect) (values #f 'test #f '() #f #f #f))
   (define (make-typescope x)
     (syntax-case x (Typescope)
       [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
@@ -677,11 +677,18 @@
       [(Block b ...) (set! block (syntax->datum #'(b ...)))]
       [(QualName n) (set! block (list (syntax->datum #'n)))]
       ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [(Bounds _ ...) (set! bounds arg)]
       [_ #f]
     )
   )
   (if name #f (set! name (symbol->string (gensym))))
-  (define datum `(,cmd ,name ,block ,scope ',expect))
+  ;(define datum `(,cmd ,name ,block ,scope ',expect)) ; replaced to support fancy bounds
+  (define datum (if bounds  ; copied from CmdDecl
+    `(begin 
+      ;(let ([bnd (make-hash)]) (println bnd) ,bounds)
+      ,bounds
+      (,cmd ,name ,block ,scope ',expect))
+    `(,cmd ,name ,block ,scope ',expect)))
   ; (println datum)
   datum
 ) stx))

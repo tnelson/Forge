@@ -72,22 +72,87 @@ expect {
 --  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 4 } is unsat
 --}
 
-run {    
-    some Formula
-} for 5 Formula for {
-    
-    Var = Formula0 + Formula1 + Formula4
-    Not = none
-    And = Formula2
-    Or =  Formula3
+test expect fancyBoundsExpectBlockName {
+-- TODO: auto-detect increase in scope?
 
-    -- TODO: auto-detect increase in scope?
+    initialFancyBounds: { some Formula }
+    for 5 Formula
+    for {    
+        Var = Formula0 + Formula1 + Formula4
+        Not = none
+        And = Formula2
+        Or =  Formula3        
+        Formula = Formula0 + Formula1 + Formula2 + Formula3 + Formula4
+        Instance = none
+        child = none->none    
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is sat
 
-    Formula = Formula0 + Formula1 + Formula2 + Formula3 + Formula4
-    Instance = none
-    child = none->none    
-    oleft = Formula3->Formula0
-    oright = Formula3->Formula0
-    aleft = Formula2->Formula0
-    aright = Formula2->Formula0
+    initialContradictoryFancyBounds: { some Formula }
+    for 5 Formula
+    for {    
+        Var = Formula0 + Formula1 + Formula4
+        Not = Formula0 -- should contradict axioms
+        And = Formula2
+        Or =  Formula3        
+        Formula = Formula0 + Formula1 + Formula2 + Formula3 + Formula4
+        Instance = none
+        child = none->none    
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is unsat
+
+    initialFancyBoundsWithWrongCount: { #Formula != 5 }
+    for 5 Formula
+    for {    
+        Var = Formula0 + Formula1 + Formula4
+        Not = none
+        And = Formula2
+        Or =  Formula3        
+        Formula = Formula0 + Formula1 + Formula2 + Formula3 + Formula4
+        Instance = none
+        child = none->none    
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is unsat
+
+    fewerFormulasFancyBounds: { some Formula }
+    for 4 Formula
+    for {    
+        Var = Formula0 + Formula1
+        Not = none
+        And = Formula2
+        Or =  Formula3
+        Formula = Formula0 + Formula1 + Formula2 + Formula3
+        Instance = none
+        child = none->none    
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is sat
+
+    useANotFancyBounds: { some Formula }
+    for 4 Formula
+    for {    
+        Var = Formula0
+        Not = Formula1
+        And = Formula2
+        Or =  Formula3
+        Formula = Formula0 + Formula1 + Formula2 + Formula3
+        Instance = none
+        child = Formula1->Formula0
+        oleft = Formula3->Formula0
+        oright = Formula3->Formula0
+        aleft = Formula2->Formula0
+        aright = Formula2->Formula0
+    } is sat
+
 } 
