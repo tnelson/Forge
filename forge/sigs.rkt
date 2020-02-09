@@ -1047,9 +1047,9 @@
   (define datum (syntax-case stx (CompareOp QualName Const)
     [(_ (_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))) 
       #'(add-int-bound rel (int-bound exact exact))]
-    [(_ (_ (_ "#" rel) (CompareOp "<") (_ (Const upper)))) 
+    [(_ (_ (_ "#" rel) (CompareOp "<=") (_ (Const upper)))) 
       #'(add-int-bound rel (int-bound 0 upper))]
-    [(_ (_ (_ (_ (Const lower)) (CompareOp "<") (_ "#" rel)) (CompareOp "<") (_ (Const upper)))) 
+    [(_ (_ (_ (_ (Const lower)) (CompareOp "<=") (_ "#" rel)) (CompareOp "<=") (_ (Const upper)))) 
       #'(add-int-bound rel (int-bound lower upper))]
     [(_ (_ rel (CompareOp "in") (_ (QualName strat)))) 
       #'(break rel 'strat)]
