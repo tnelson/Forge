@@ -439,7 +439,7 @@
       (adj-bound bound-upper bound))))
 
   ;;;;;;;;;;;;;;;;;;;;;;;;; 
-  (clear-breaker-instances) ; breakers has done its job if this command had fancy-bounds; clean for next command  
+  (clear-breaker-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
   (set! working-universe empty) ; clear out the working universe for next command or else "(univ X)" will grow in kk
 
   (for ([c run-constraints] [i (range (length run-constraints))])

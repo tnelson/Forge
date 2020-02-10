@@ -13,4 +13,9 @@ inst myInst {
     define_s        -- call define_s
 }
 
-run { some r } for myInst, 3 <= #A <= 4
+test expect foo {
+    t0: { some r } for exactly myInst, #A = 4 is sat
+    t1: { some r } for exactly myInst, #A = 4, s in linear is unsat
+}
+
+run { some r } for myInst, 3 <= #A <= 4  -- s linearity contraint gone

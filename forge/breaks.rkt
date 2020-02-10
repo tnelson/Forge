@@ -5,8 +5,7 @@
 ;(require data/union-find)
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
-(provide (rename-out [add-instance instance])
-         (rename-out [clear-instances clear-breaker-instances]))
+(provide (rename-out [add-instance instance]) clear-breaker-state)
 (provide make-exact-sbound)
 
 ;;;;;;;;;;;;;;
@@ -89,6 +88,14 @@
 ; priority counter
 (define pri_c 0)
 
+; clear all state
+(define (clear-breaker-state)
+    (set! instances empty)
+    (set! rel-breaks (make-hash))
+    (set! rel-break-pri (make-hash))
+    (set! pri_c 0)
+)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; methods for defining breaks ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -167,7 +174,6 @@
         (hash-add! rel-breaks rel break)
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
 (define (add-instance i) (cons! instances i))
-(define (clear-instances) (set! instances empty))
 
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
@@ -183,12 +189,12 @@
     ; First add all partial instances.
     (define instance-bounds (append* (for/list ([i instances]) 
         (if (sbound? i) (list i) (xml->breakers i name-to-rel)))))
-    (define defined (mutable-set))
+    (define defined-relations (mutable-set))
     (for ([b instance-bounds])
-        (printf "constraining bounds: ~v~n" b)
+        ;(printf "constraining bounds: ~v~n" b)
         (cons! new-total-bounds (sbound->bound b))
         (define rel (sbound-relation b))
-        (set-add! defined rel)
+        (set-add! defined-relations rel)
         (define typelist (@node/expr/relation-typelist rel))
         (for ([t typelist]) (set-remove! sigs (hash-ref name-to-rel t)))
     )
@@ -204,11 +210,10 @@
         ; compose breaks
         (min-breaks! breaks break-pris)
 
-        (cond [(set-member? defined rel)
-            ; noop
-        ][(set-empty? breaks)
-            (cons! new-total-bounds bound)]
-        [else
+        (define defined (set-member? defined-relations rel))
+        (cond [(set-empty? breaks)
+            (unless defined (cons! new-total-bounds bound))
+        ][else
             (define rel-list (hash-ref relations-store rel))
             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
 
@@ -222,7 +227,7 @@
 
             ; propose highest pri breaker that breaks only leaf sigs
             ; break the rest the default way (with get-formulas)
-            (define broken #f)
+            (define broken defined)
             (for ([breaker breakers])
                 (cond [broken
                     (define default ((breaker-make-default breaker)))
@@ -239,7 +244,7 @@
                     ])
                 ])
             )
-            (unless broken (cons! new-total-bounds bound))
+            (unless (or broken defined) (cons! new-total-bounds bound))
         ])     
     )
     
