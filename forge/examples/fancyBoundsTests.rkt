@@ -20,6 +20,9 @@ test expect foo {
     t2: { some B } for exactly #B = 0 is unsat
 }
 
---run { some r } for myInst, 3 <= #A <= 4  -- s linearity contraint gone
+run { some r } for myInst, 3 <= #A <= 4  -- s linearity contraint gone
 
-run { some B and some C }  -- #B = 0 constraint gone, C still one
+--run { some B and some C }  -- #B = 0 constraint gone, C still one
+
+--run {} for exactly #B = 3, #B = 4 -- conflicting int-bounds: no [3, 3] & [4, 4]
+--run {} for exactly B=B0+B1+B2, #B = 4 -- conflicting int-bounds: no [3, 3] & [4, 4]

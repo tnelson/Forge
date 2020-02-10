@@ -109,8 +109,19 @@
           (hash-set! parents parent (list child))))
   (hash-set! extensions-store child parent))
 
-(define (add-int-bound rel int-bound)
-  (hash-set! int-bounds-store rel int-bound))
+(define (add-int-bound rel new)
+  ; if int-bounds are already defined, intersect the old/new intervals
+  (cond [(hash-has-key? int-bounds-store rel)
+    (define old (hash-ref int-bounds-store rel))
+    (define lower (max (int-bound-lower old) (int-bound-lower new)))
+    (define upper (min (int-bound-upper old) (int-bound-upper new)))
+    (when (@> lower upper) (error (format "conflicting int-bounds: no [~a, ~a] & [~a, ~a]" 
+      (int-bound-lower old) (int-bound-upper old) (int-bound-lower new) (int-bound-upper new))))
+    (hash-set! int-bounds-store rel (int-bound lower upper))
+  ][else
+    (hash-set! int-bounds-store rel new)
+  ])
+)
 
 (define-syntax (pre-declare-sig stx)
   (syntax-case stx ($remainder-sig$)
@@ -384,6 +395,7 @@
   (append-run name)
 
   (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
+  (printf "int-bounds-store: ~a~n" int-bounds-store)
 
   (define run-constraints (append constraints assumptions))
   (define intmax (expt 2 (sub1 bitwidth)))
@@ -1127,6 +1139,8 @@
     [(_ (_ (QualName rel)) (CompareOp "=") expr)  
       #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
         (instance (make-exact-sbound rel tups))
+        (when (equal? (relation-arity rel) 1) (let ([exact (length tups)])
+          (add-int-bound rel (int-bound exact exact))))
         (hash-set! bindings 'rel tups)
       )]
     [x #'(error (format "Unrecognized bounds constraint: ~a~n" 'x))]
