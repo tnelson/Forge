@@ -60,6 +60,8 @@
 ; is the current command using exactly
 (define is-exact #f)
 (define (set-is-exact) (set! is-exact #t))
+; user defined bindings
+(define bindings (make-hash))
 
 (define (clear-state)
   (clear-breaker-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
@@ -73,6 +75,7 @@
   (set! constant-instance-bounds (make-hash))
   (set! constant-instance-scope (make-hash))
   (set! constraints '())
+  (set! bindings (make-hash))
 )
 
 ; Level of output when running specs
@@ -80,7 +83,7 @@
 (define VERBOSITY_HIGH 5)
 (define VERBOSITY_DEBUG 10)
 (define verbosityoption VERBOSITY_LOW)
-(define-syntax-rule (debug name) (printf "~a: ~a~n" 'name name))
+(define-syntax-rule (debug x) (begin (printf "~a: ~a~n" 'x x) x))
 
 ; Filter options to prevent user from rewriting any global
 (define (set-option key val)
@@ -271,8 +274,18 @@
 
 
 (define (generate-atoms sig lower upper)
+  (define sig-name (string->symbol (relation-name sig)))
+  (define syms (if (hash-has-key? bindings sig-name) 
+    (map first (hash-ref bindings sig-name))
+    (list)))
+  ;(debug sig-name)
+  ;(debug syms)
   (map
-   (lambda (n) (string->symbol (string-append (relation-name sig) (number->string n))))
+   (lambda (n) 
+    ;(string->symbol (string-append (relation-name sig) (number->string n))))
+    (if (@< n (length syms)) 
+      (list-ref syms n)
+      (string->symbol (string-append (relation-name sig) (number->string n)))))
    (range lower upper)))
 
 ; Returns a list of symbols representing atoms
@@ -1119,33 +1132,22 @@
   )
 )
 
-(require racket/stxparam)
-(define-syntax-parameter bindings (lambda (stx)
-  (raise-syntax-error (syntax-e stx) "can only be used inside Bounds")))
 (define-syntax (Bounds stx)
   (define datum (syntax-case stx ()
     [(_ "exactly" lines ...)
-      #'(let ([B (make-hash)]) 
-        (syntax-parameterize ([bindings (make-rename-transformer #'B)])
-          (Bind lines) ...
-        )
+      #'(begin
+        (Bind lines) ...
         (set-is-exact)
       )]
     [(_ lines ...)
-      #'(let ([B (make-hash)]) 
-        (syntax-parameterize ([bindings (make-rename-transformer #'B)])
-          (Bind lines) ...
-        )
-      )]
+      #'(begin (Bind lines) ...)]
   ))
   ;(printf "Bounds: ~a~n" (syntax->datum datum))
   datum
 )
 (define-syntax-rule (InstDecl (Name name) (Bounds lines ...))
   (define (name B) 
-    (syntax-parameterize ([bindings (make-rename-transformer #'B)])
       (Bind lines) ...
-    )
   )
 )
 (define-syntax (Bind stx)

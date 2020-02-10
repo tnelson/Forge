@@ -6,11 +6,11 @@ sig B { s: set B }
 one sig C {}
 
 inst define_s {
-    s = B->(B0+B1)  -- sees the B already defined
+    s = B->(Bob+Bill)  -- sees the B already defined
 }
 inst myInst {
     r is cotree
-    B = B0+B1+B2
+    B = Bob+Bill+Ben
     define_s        -- call define_s
 }
 inst rlin {
