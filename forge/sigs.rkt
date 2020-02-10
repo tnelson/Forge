@@ -72,9 +72,9 @@
   (set! upper-bounds (make-hash))
   (set! top-level-leftovers (make-hash))
   (set! top-extras (make-hash))
-  (set! constant-instance-bounds (make-hash))
-  (set! constant-instance-scope (make-hash))
-  (set! constraints '())
+  ;(set! constant-instance-bounds (make-hash))  ; TODO: I don't think this is used any more
+  ;(set! constant-instance-scope (make-hash))
+  (set! run-constraints '())
   (set! bindings (make-hash))
 )
 
@@ -508,8 +508,6 @@
 
   ;;;;;;;;;;;;;;;;;;;;;;;;; 
   
-  (clear-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
-
   (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
      [stdin]
@@ -517,6 +515,8 @@
      (translate-to-kodkod-cli c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
+
+  (clear-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
 
   (match runtype
     ['test
