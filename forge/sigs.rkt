@@ -43,6 +43,7 @@
 (define int-bounds-store (make-hash))
 ;Extra constraints on the model (e.g. facts, relation constraints, etc.)
 (define constraints '())
+(define run-constraints '())  ; just for a single run
 ; "inst" definitions 
 (define constant-instance-bounds (make-hash))
 (define constant-instance-scope (make-hash))
@@ -64,6 +65,13 @@
   (set! working-universe empty) ; clear out the working universe for next command or else "(univ X)" will grow in kk
   (set! int-bounds-store (make-hash))
   (set! is-exact #f)
+  (set! lower-bounds (make-hash))
+  (set! upper-bounds (make-hash))
+  (set! top-level-leftovers (make-hash))
+  (set! top-extras (make-hash))
+  (set! constant-instance-bounds (make-hash))
+  (set! constant-instance-scope (make-hash))
+  (set! constraints '())
 )
 
 ; Level of output when running specs
@@ -110,6 +118,8 @@
 
 (define (add-constraint c) (set! constraints (cons c constraints)))
 (define (add-constraints cs) (set! constraints (append cs constraints)))
+(define (add-run-constraint c) (set! run-constraints (cons c run-constraints)))
+(define (add-run-constraints cs) (set! run-constraints (append cs run-constraints)))
 
 (define (add-extension child parent)
   (if (equal? parent univ)
@@ -307,7 +317,7 @@
             ;(when (@> (length atoms) how-many) (set! atoms (take atoms how-many)))
             (hash-set! top-level-leftovers sig atoms)
             ;(printf "upper-bounding sig: ~a with atoms: ~a~n" sig atoms)
-            (add-constraint (<= (card sig) (node/int/constant int-upper)))
+            (add-run-constraint (<= (card sig) (node/int/constant int-upper)))
             (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
             atoms)
           (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
@@ -356,7 +366,7 @@
       ;(add-constraint (in remainder par))
       ; disjoint-list returns a list of constraints; combine all such
       (append (disjoint-list (hash-ref parents par)) cs) 
-      #;(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst)))
+      #;(add-run-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst)))
       ))
 
   ;(printf "disj-cs: ~a~n" disj-cs)
@@ -406,8 +416,9 @@
 
   (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
   ;(printf "int-bounds-store: ~a~n" int-bounds-store)
+  ;(printf "constraints: ~a~n" constraints)
 
-  (define run-constraints (append constraints assumptions))
+  (set! run-constraints (append constraints assumptions))
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
@@ -1150,6 +1161,7 @@
       #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
         (instance (make-exact-sbound rel tups))
         (when (equal? (relation-arity rel) 1) (let ([exact (length tups)])
+          ;(printf "XXXX Inferring exact bounds: #~a = ~a~n" (relation-name rel) exact)
           (add-int-bound rel (int-bound exact exact))))
         (hash-set! bindings 'rel tups)
       )]
