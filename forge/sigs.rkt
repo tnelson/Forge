@@ -55,8 +55,9 @@
 ; ^ Except that MiniSat isn't built for 64 bit windows, so maximize chances of working
 (define solveroption 'SAT4J)
 
+; set of one sigs
 (define one-sigs (mutable-set))
-
+; is the current command using exactly
 (define is-exact #f)
 (define (set-is-exact) (set! is-exact #t))
 
@@ -79,6 +80,7 @@
 (define VERBOSITY_HIGH 5)
 (define VERBOSITY_DEBUG 10)
 (define verbosityoption VERBOSITY_LOW)
+(define-syntax-rule (debug name) (printf "~a: ~a~n" 'name name))
 
 ; Filter options to prevent user from rewriting any global
 (define (set-option key val)
@@ -174,7 +176,7 @@
          (add-constraint (in field (-> name r ...)))
          (add-constraint (all ([n name]) (lone (join n field)))))]))
 
-;Extends does not work yet
+;Extends does not work yet (o rly?)
 (define-syntax (declare-sig stx)
   (syntax-case stx ()
     [(_ name ((field mult r ...) ...))
@@ -353,7 +355,11 @@
   (for ([sig sigs])
     (fill-leftovers sig hashy-bounds) ; mutation!
     ;(printf "After filling for ~a, new upper bounds: ~a~n" sig upper-bounds)
-    (set! out-bounds (cons (make-bound sig (map (lambda (x) (list x)) (hash-ref lower-bounds sig)) (map (lambda (x) (list x)) (hash-ref upper-bounds sig))) out-bounds)))
+    (set! out-bounds (cons 
+      (make-bound sig 
+        (map (lambda (x) (list x)) (hash-ref lower-bounds sig)) 
+        (map (lambda (x) (list x)) (hash-ref upper-bounds sig))) 
+      out-bounds)))
 
   ; Create remainder sigs
   ; Add disjunction constraints
@@ -1146,7 +1152,8 @@
   ;(printf "REL: ~a~n" rel)
   (define datum (syntax-case (second (syntax-e stx)) (CompareOp QualName Const)
     [(_ "no" rel) #'(Bind (Expr rel (CompareOp "=") none))]
-    [(_ "one" rel) #'(add-int-bound rel (int-bound 1 1))]
+    [(_ "one" (_ (QualName rel))) #`(Bind (Expr (Expr (QualName rel)) (CompareOp "=") (QualName
+      #,(string->symbol (string-append (symbol->string (syntax->datum #'rel)) "0")))))]
     [(_ "lone" rel) #'(add-int-bound rel (int-bound 0 1))]
     [(_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))  
       #'(add-int-bound rel (int-bound exact exact))]

@@ -19,5 +19,6 @@ test expect foo {
     blah: { some r } for exactly myInst, #A = 4 is sat
 }
 
+run {} for one A, r=A->A
 
 

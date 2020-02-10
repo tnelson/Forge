@@ -28,7 +28,7 @@ test expect foo {
 }
 
 --- WORKING ---
---run { some r } for myInst, 3 <= #A <= 4  -- s linearity contraint gone
+run { some r } for myInst, 3 <= #A <= 4  -- s linearity contraint gone
 --run { some B and some C }  -- #B = 0 constraint gone, C still one
 
 --- ERRORS ---
