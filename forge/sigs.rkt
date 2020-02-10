@@ -661,29 +661,6 @@
 ; See note in parser.rkt about difference between InstanceDecl and InstDecl
 (define-syntax-rule (InstanceDecl i) (instance i))
 
-(define-syntax (InstDecl stx)  
-  (map-stx (lambda (d)
-  (define-values (name scope bounds) (values #f #f #f))
-  (define (make-typescope x)
-    (syntax-case x (Typescope)
-      [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
-      [(Typescope n things) (syntax->datum #'(things 0 n))]))
-  (for ([arg (cdr d)])
-     ;(println arg)
-    (syntax-case arg (Name Typescope Scope Block QualName)
-      [(Name n) (set! name (symbol->string (syntax->datum #'n)))]      
-      [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
-      ;[(QualName n) (set! block (list (syntax->datum #'n)))]
-      ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
-      [(Bounds _ ...) (set! bounds arg)]
-      [_ #f]
-    )
-  )
-  (if name #f (set! name (symbol->string (gensym))))
-  (define datum `(inst ,name ,bounds ',scope))
-  (printf "InstDecl: ~a~n" datum)
-  datum) stx))  
-
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
   (define-values (name cmd arg scope block bounds) (values #f #f #f '() #f #f))
   (define (make-typescope x)
@@ -1097,17 +1074,26 @@
     )
   )
 )
+(define-syntax-rule (InstDecl (Name name) (Bounds lines ...))
+  (define (name B) 
+    (syntax-parameterize ([bindings (make-rename-transformer #'B)])
+      (Bind lines) ...
+    )
+  )
+)
 (define-syntax (Bind stx)
-  (define datum (syntax-case stx (CompareOp QualName Const)
-    [(_ (_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))) 
+  (define datum (syntax-case (second (syntax-e stx)) (CompareOp QualName Const)
+    [(_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))  
       #'(add-int-bound rel (int-bound exact exact))]
-    [(_ (_ (_ "#" rel) (CompareOp "<=") (_ (Const upper)))) 
+    [(_ (_ "#" rel) (CompareOp "<=") (_ (Const upper)))  
       #'(add-int-bound rel (int-bound 0 upper))]
-    [(_ (_ (_ (_ (Const lower)) (CompareOp "<=") (_ "#" rel)) (CompareOp "<=") (_ (Const upper)))) 
+    [(_ (_ (_ (Const lower)) (CompareOp "<=") (_ "#" rel)) (CompareOp "<=") (_ (Const upper)))  
       #'(add-int-bound rel (int-bound lower upper))]
-    [(_ (_ rel (CompareOp "in") (_ (QualName strat)))) 
+    [(_ rel (CompareOp "in") (_ (QualName strat)))  
       #'(break rel 'strat)]
-    [(_ (_ (_ (QualName rel)) (CompareOp "=") expr)) 
+    [(_ (QualName f)) 
+      #'(f bindings)]
+    [(_ (_ (QualName rel)) (CompareOp "=") expr)  
       #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
         (instance (make-exact-sbound rel tups))
         (hash-set! bindings 'rel tups)

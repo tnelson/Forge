@@ -4,11 +4,13 @@
 sig A { r: set A }
 sig B { s: set B }
 
-run {
-    some r
-} for {
-    3 <= #A <= 4
+inst define_s {
+    s = B->(B0+B1)  -- sees the B already defined
+}
+inst myInst {
     r in cotree
     B = B0+B1+B2
-    s = B->(B0+B1)
+    define_s        -- call define_s
 }
+
+run { some r } for myInst, 3 <= #A <= 4
