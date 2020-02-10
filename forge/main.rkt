@@ -9,11 +9,15 @@
   (define (get-info port src-mod src-line src-col src-pos)
     (define (handle-query key default)
       (case key
+        [(drracket:opt-out-toolbar-buttons)
+            '(debug-tool macro-stepper drracket:syncheck)]
+        
         [(color-lexer)
          (dynamic-require 'forge/lang/alloy-syntax/colorer 'color-forge)]
 
         [(drracket:indentation)
          (dynamic-require 'forge/lang/alloy-syntax/indenter 'indent-forge)]
+
         [(drracket:keystrokes)
          (list 
                (list "}"

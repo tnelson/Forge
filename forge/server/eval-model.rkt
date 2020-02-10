@@ -4,9 +4,6 @@
 
 (provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
 
-(require rackunit)
-
-
 ; Consumes a model and produces a binding, which acts as an environment
 ; for interpreting eval queries
 (define (model->binding model)
@@ -33,42 +30,42 @@
 ; Each query raturns a list of tuples representing a set.  For example,
 ; ((a) (b) (c)) represents the set {a b c}, and ((a b) (b c)) represents
 ; the relation {(a b) (b c)}
-(define (eval-exp exp bind maxint)
+(define (eval-exp exp bind maxint [safe #t])
   (define result (match exp
                    ; Binary set operations
                    [`(+ ,exp-1 ,exp-2) (append                                        
-                                         (eval-exp exp-1 bind maxint)
-                                         (eval-exp exp-2 bind maxint))]
+                                         (eval-exp exp-1 bind maxint safe)
+                                         (eval-exp exp-2 bind maxint safe))]
                    [`(- ,exp-1 ,exp-2) (set->list (set-subtract
-                                                   (list->set (eval-exp exp-1 bind maxint))
-                                                   (list->set (eval-exp exp-2 bind maxint))))]
+                                                   (list->set (eval-exp exp-1 bind maxint safe))
+                                                   (list->set (eval-exp exp-2 bind maxint safe))))]
                    [`(& ,exp-1 ,exp-2) (set->list (set-intersect
-                                                   (list->set (eval-exp exp-1 bind maxint))
-                                                   (list->set (eval-exp exp-2 bind maxint))))]
+                                                   (list->set (eval-exp exp-1 bind maxint safe))
+                                                   (list->set (eval-exp exp-2 bind maxint safe))))]
                    [`(-> ,exp-1 ,exp-2) (map flatten (foldl append '()
                                                             (map (lambda (x)
                                                                    (map (lambda (y) `(,x ,y))
-                                                                        (eval-exp exp-2 bind maxint))) (eval-exp exp-1 bind maxint))))]
+                                                                        (eval-exp exp-2 bind maxint safe))) (eval-exp exp-1 bind maxint safe))))]
                    [`(join ,exp-1 ,exp-2) (foldl append '() (map
                                                              (lambda (x) (map
                                                                           (lambda (y) (append (reverse (rest (reverse x))) (rest y)))
                                                                           (filter
                                                                            (lambda (z) (eq? (car (reverse x)) (car z)))
-                                                                           (eval-exp exp-2 bind maxint))))
-                                                             (eval-exp exp-1 bind maxint)))]
+                                                                           (eval-exp exp-2 bind maxint safe))))
+                                                             (eval-exp exp-1 bind maxint safe)))]
                    ; Unary set operations
-                   [`(^ ,lst) (tc (eval-exp lst bind maxint))]
-                   [`(* ,lst) (append (build-iden bind) (tc (eval-exp lst bind maxint)))]
-                   [`(~ ,new-exp) (map reverse (eval-exp new-exp bind maxint))]
+                   [`(^ ,lst) (tc (eval-exp lst bind maxint safe))]
+                   [`(* ,lst) (append (build-iden bind) (tc (eval-exp lst bind maxint safe)))]
+                   [`(~ ,new-exp) (map reverse (eval-exp new-exp bind maxint safe))]
                    ; Arithmetic
-                   [`(plus ,val-1 ,val-2) (modulo (perform-op + (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
-                   [`(minus ,val-1 ,val-2) (modulo (perform-op - (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
-                   [`(mult ,val-1 ,val-2) (modulo (perform-op * (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
-                   [`(divide ,val-1 ,val-2) (modulo (perform-op / (eval-exp `(sum ,val-1) bind maxint) (eval-exp `(sum ,val-2) bind maxint)) maxint)]
-                   [`(sum ,lst) (list (list (foldl (lambda (x init) (foldl + init x)) 0 (eval-exp lst bind maxint))))]
-                   [`(card ,lst) (length (eval-exp lst bind maxint))]
+                   [`(plus ,val-1 ,val-2) (modulo (perform-op + (eval-exp `(sum ,val-1) bind maxint safe) (eval-exp `(sum ,val-2) bind maxint safe)) maxint safe)]
+                   [`(minus ,val-1 ,val-2) (modulo (perform-op - (eval-exp `(sum ,val-1) bind maxint safe) (eval-exp `(sum ,val-2) bind maxint safe)) maxint safe)]
+                   [`(mult ,val-1 ,val-2) (modulo (perform-op * (eval-exp `(sum ,val-1) bind maxint safe) (eval-exp `(sum ,val-2) bind maxint safe)) maxint safe)]
+                   [`(divide ,val-1 ,val-2) (modulo (perform-op / (eval-exp `(sum ,val-1) bind maxint safe) (eval-exp `(sum ,val-2) bind maxint safe)) maxint safe)]
+                   [`(sum ,lst) (list (list (foldl (lambda (x init) (foldl + init x)) 0 (eval-exp lst bind maxint safe))))]
+                   [`(card ,lst) (length (eval-exp lst bind maxint safe))]
                    ; Set comprehension
-                   [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) maxint)) (eval-exp lst bind maxint))]
+                   [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) maxint safe)) (eval-exp lst bind maxint safe))]
                    ; Constants
                    [`none empty]
                    [`univ (build-univ bind)]
@@ -78,11 +75,12 @@
                    [id
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]
-                      [(integer? id) (list (list (modulo id maxint)))]
+                      [(integer? id) (list (list (modulo id maxint safe)))]
                       ; relation name
                       [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name
                       [(member id (flatten (build-univ bind))) id]
+                      [(not safe) id]
                       ; oops
                       [else (raise-user-error "Not an expression" id)])]))
   

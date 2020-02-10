@@ -1,8 +1,11 @@
 #lang racket
 
+
+
 ; Thanks to Jay:
 ; https://github.com/racket/datalog/blob/master/tests/eval.rkt
 ; There's a lot more testing infrastructure there we might lean on
+; The problem is that we can't safely run all the files...
 
 (require rackunit
          racket/runtime-path)
@@ -23,11 +26,25 @@
     ;             (file->lines test-txt)))
 
     ; For now, just make sure that we can run the module without crashing.
-    ;; TODO: have to hit enter / close Sterling manually...
-    (check-not-exn (lambda () (with-input-from-string
-                     (with-output-to-string
-                         (lambda () (dynamic-require test-rkt #f)))
-                   port->lines)) t))    
+    ; Don't make a formal test case with check-not-exn, because that hides the actual exception
+    
+  ;  (check-not-exn (lambda () (with-input-from-string
+  ;                   (with-output-to-string
+  ;                       (lambda () (dynamic-require test-rkt #f)))
+  ;                 port->lines)) t)    
+
+
+   ; ****************************
+; We cannot safely do this. The definitions from all previous modules remain!
+    ; Universe size gets large quickly.
+       ; ****************************
+    (parameterize ([current-namespace (make-base-namespace)])
+      (define result (with-input-from-string
+                         (with-output-to-string
+                           (lambda () (dynamic-require test-rkt #f)))
+                       port->lines))
+      (printf "~a~n" result)
+      ))
   
   (define (test-files d)
     (for ([f (in-list (directory-list d))]
@@ -41,10 +58,11 @@
 
 (define eval-tests
   (test-suite
-   "eval"
+   "sat-or-unsat"
    
    (test-examples (build-path here "basic"))
-   ;(test-examples (build-path here "paren-examples"))
+   ;(test-examples (build-path here "integers"))
+   ;(test-examples (build-path here "state"))
    ))
 
 ; (run-test eval-tests)
