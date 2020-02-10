@@ -4,6 +4,8 @@
 
 ;(provide (except-out (all-defined-out) kodkod-port define-ops))
 
+(require "../../shared.rkt")
+
 (provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
 
 ; Prints all Kodkod commands issued during the dynamic
@@ -25,7 +27,8 @@
 
 (define-syntax-rule (kodkod-display arg)
   (begin
-    (display arg)
+    (when (>= (get-verbosity) 5)
+      (display arg))
     (display arg [kodkod-port])))
 
 ; Prints the given command string to the kodkod-port.

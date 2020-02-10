@@ -44,9 +44,6 @@
 ;Extra constraints on the model (e.g. facts, relation constraints, etc.)
 (define constraints '())
 (define run-constraints '())  ; just for a single run
-; "inst" definitions 
-(define constant-instance-bounds (make-hash))
-(define constant-instance-scope (make-hash))
 ;Run names
 (define run-names '())
 ;Bitwidth
@@ -72,24 +69,20 @@
   (set! upper-bounds (make-hash))
   (set! top-level-leftovers (make-hash))
   (set! top-extras (make-hash))
-  ;(set! constant-instance-bounds (make-hash))  ; TODO: I don't think this is used any more
-  ;(set! constant-instance-scope (make-hash))
   (set! run-constraints '())
   (set! bindings (make-hash))
 )
 
-; Level of output when running specs
-(define VERBOSITY_LOW 1)
-(define VERBOSITY_HIGH 5)
-(define VERBOSITY_DEBUG 10)
-(define verbosityoption VERBOSITY_LOW)
+; For verbosity, etc. that must be shared without cyclic dependency
+(require "shared.rkt")
+
 (define-syntax-rule (debug x) (begin (printf "~a: ~a~n" 'x x) x))
 
 ; Filter options to prevent user from rewriting any global
 (define (set-option key val)
   (match key
     ['solver (set! solveroption val)]
-    ['verbosity (set! verbosityoption val)]
+    ['verbosity (set-verbosity val)]
     [else (error (format "Invalid option key: ~a" key))]))
 
 (define (set-bitwidth i) (set! bitwidth i))
@@ -99,22 +92,11 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum inst)
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum )
 (provide add-relation set-option)
 
 (define (add-relation rel types)
   (hash-set! relations-store rel types))
-
-(define (add-named-bound name bound scope)  
-  (when (hash-has-key? constant-instance-bounds name)
-    (error (format "Already an instance definition named: ~a" name)))
-  (hash-set! constant-instance-bounds name bounds)
-  (hash-set! constant-instance-scope name scope))
-
-(define-syntax (inst stx)
-  (syntax-case stx ()    
-    [(_ name bounds scope)     
-     #'(add-named-bound name bounds scope)]))
 
 (define-syntax (pred stx)
   (syntax-case stx ()
@@ -217,8 +199,9 @@
          (add-constraint (in name parent)))]))
 
 (define-syntax (declare-one-sig stx)
+  (define result
   (syntax-case stx ()
-    [(_ name ((field mult r ...) ...))
+    [(_ name ((field mult r ...) ...))     
       (hash-set! sig-to-fields (syntax->datum #'name)
         (syntax->datum #'(field ...)))
       #'(begin
@@ -247,7 +230,7 @@
          ;(add-sig (symbol->string 'name))
          ;(add-int-bound name (int-bound 1 1))
          (set-add! one-sigs name))]
-    [(_ name #:extends parent)
+    [(_ name #:extends parent)     
       (hash-set! sig-to-fields (syntax->datum #'name)
         (hash-ref sig-to-fields (syntax->datum #'parent)))
       #'(begin
@@ -257,6 +240,8 @@
          (set-add! one-sigs name)
          (add-extension name parent)
          (add-constraint (in name parent)))]))
+  ;(printf "one sig: ~a~n" result)
+  result)
 
 (define (add-sig name [parent "univ"])
   #| (set! sigs (cons (declare-relation (list name) parent name) sigs)|#
@@ -429,8 +414,8 @@
 
 
 (define (run-spec hashy name command filepath runtype . assumptions)  
-  (when (@>= verbosityoption VERBOSITY_HIGH) ; Racket >=
-    (printf "Concrete instances defined: ~a~n" (hash-keys constant-instance-bounds)))
+  (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
+    (printf "ONE sigs known: ~a~n" one-sigs))
   (append-run name)
 
   (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
