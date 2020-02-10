@@ -41,7 +41,6 @@ TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
       | /FOR-TOK @TypescopeList
-#      | /FOR-TOK Bounds
 Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
@@ -141,5 +140,5 @@ RelDecl : ArrowDecl
 
 EvalDecl : EVAL-TOK Expr
 
-Bounds : @ExprList
-       | @Block
+Bounds : EXACTLY-TOK? @ExprList
+       | EXACTLY-TOK? @Block

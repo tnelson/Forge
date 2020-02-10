@@ -1067,12 +1067,33 @@
 (require racket/stxparam)
 (define-syntax-parameter bindings (lambda (stx)
   (raise-syntax-error (syntax-e stx) "can only be used inside Bounds")))
-(define-syntax-rule (Bounds lines ...)
-  (let ([B (make-hash)]) 
-    (syntax-parameterize ([bindings (make-rename-transformer #'B)])
-      (Bind lines) ...
-    )
-  )
+(define-syntax (Bounds stx)
+  (define datum (syntax-case stx ()
+    [(_ "exactly" lines ...)
+      #'(let ([B (make-hash)]) 
+        (syntax-parameterize ([bindings (make-rename-transformer #'B)])
+          (Bind lines) ...
+        )
+        (println "MAKE SURE YOUR INSTANCE IS EXACT!")
+        ;(printf "BINDINGS: ~a~n" B)
+        ;(printf "BINDINGS: ~a~n" bounds-store)
+        ;(println relations-store)
+        ;(for ([(rel v) (in-hash relations-store)]) 
+        ;  (define name (string->symbol (node/expr/relation-name rel)))
+        ;  (printf "~a: ~a~n" name v)
+        ;  (println (hash-has-key? bounds-store rel))
+        ;)
+      )]
+    [(_ lines ...)
+      #'(let ([B (make-hash)]) 
+        (syntax-parameterize ([bindings (make-rename-transformer #'B)])
+          (Bind lines) ...
+        )
+      )]
+    
+  ))
+  ;(printf "Bounds: ~a~n" (syntax->datum datum))
+  datum
 )
 (define-syntax-rule (InstDecl (Name name) (Bounds lines ...))
   (define (name B) 
@@ -1100,6 +1121,6 @@
       )]
     [x #'(error (format "Unrecognized bounds constraint: ~a~n" 'x))]
   ))
-  ;(printf "Bounds: ~a~n" (syntax->datum datum))
+  ;(printf "Bind: ~a~n" (syntax->datum datum))
   datum
 )
