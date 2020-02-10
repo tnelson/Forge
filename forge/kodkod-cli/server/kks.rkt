@@ -57,9 +57,9 @@
 (define (declare-univ size)   (print-cmd "(univ ~a)" size))
 
 (define (declare-ints ints idxs)
-  (print-cmd "(ints [")
+  (print-cmd-cont "(ints [")
   (for ([int ints][idx idxs])
-    (print-cmd "(~a ~a)" int idx))
+    (print-cmd-cont "(~a ~a)" int idx))
   (print-cmd "])"))
 
 (define declare-rel

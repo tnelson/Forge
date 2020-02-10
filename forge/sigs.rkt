@@ -56,6 +56,16 @@
 
 (define one-sigs (mutable-set))
 
+(define is-exact #f)
+(define (set-is-exact) (set! is-exact #t))
+
+(define (clear-state)
+  (clear-breaker-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
+  (set! working-universe empty) ; clear out the working universe for next command or else "(univ X)" will grow in kk
+  (set! int-bounds-store (make-hash))
+  (set! is-exact #f)
+)
+
 ; Level of output when running specs
 (define VERBOSITY_LOW 1)
 (define VERBOSITY_HIGH 5)
@@ -395,7 +405,7 @@
   (append-run name)
 
   (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
-  (printf "int-bounds-store: ~a~n" int-bounds-store)
+  ;(printf "int-bounds-store: ~a~n" int-bounds-store)
 
   (define run-constraints (append constraints assumptions))
   (define intmax (expt 2 (sub1 bitwidth)))
@@ -449,6 +459,13 @@
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
   (set! run-constraints (append run-constraints new-formulas))
+
+  (when is-exact
+    (for ([b total-bounds]) 
+      (unless (exact-bound? b) (error (format "bounds declared exactly but ~a not exact" 
+        (relation-name (bound-relation b)))))
+    )
+  )
   
   (for ([bound total-bounds])
     (cmd
@@ -460,9 +477,8 @@
       (adj-bound bound-upper bound))))
 
   ;;;;;;;;;;;;;;;;;;;;;;;;; 
-  (clear-breaker-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
-  (set! working-universe empty) ; clear out the working universe for next command or else "(univ X)" will grow in kk
-  (set! int-bounds-store (make-hash))
+  
+  (clear-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
 
   (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
@@ -1096,15 +1112,7 @@
         (syntax-parameterize ([bindings (make-rename-transformer #'B)])
           (Bind lines) ...
         )
-        (println "MAKE SURE YOUR INSTANCE IS EXACT!")
-        ;(printf "BINDINGS: ~a~n" B)
-        ;(printf "BINDINGS: ~a~n" bounds-store)
-        ;(println relations-store)
-        ;(for ([(rel v) (in-hash relations-store)]) 
-        ;  (define name (string->symbol (node/expr/relation-name rel)))
-        ;  (printf "~a: ~a~n" name v)
-        ;  (println (hash-has-key? bounds-store rel))
-        ;)
+        (set-is-exact)
       )]
     [(_ lines ...)
       #'(let ([B (make-hash)]) 
@@ -1112,7 +1120,6 @@
           (Bind lines) ...
         )
       )]
-    
   ))
   ;(printf "Bounds: ~a~n" (syntax->datum datum))
   datum
@@ -1125,25 +1132,29 @@
   )
 )
 (define-syntax (Bind stx)
+  ;(printf "REL: ~a~n" rel)
   (define datum (syntax-case (second (syntax-e stx)) (CompareOp QualName Const)
+    [(_ "no" rel) #'(Bind (Expr rel (CompareOp "=") none))]
+    [(_ "one" rel) #'(add-int-bound rel (int-bound 1 1))]
+    [(_ "lone" rel) #'(add-int-bound rel (int-bound 0 1))]
     [(_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))  
       #'(add-int-bound rel (int-bound exact exact))]
     [(_ (_ "#" rel) (CompareOp "<=") (_ (Const upper)))  
       #'(add-int-bound rel (int-bound 0 upper))]
     [(_ (_ (_ (Const lower)) (CompareOp "<=") (_ "#" rel)) (CompareOp "<=") (_ (Const upper)))  
       #'(add-int-bound rel (int-bound lower upper))]
-    [(_ rel (CompareOp "in") (_ (QualName strat)))  
-      #'(break rel 'strat)]
-    [(_ (QualName f)) 
-      #'(f bindings)]
-    [(_ (_ (QualName rel)) (CompareOp "=") expr)  
+    [(_ rel (CompareOp "in") (_ (QualName strat))) #'(break rel 'strat)]
+    [(_ rel (CompareOp "is") (_ (QualName strat))) #'(break rel 'strat)]
+    [(_ (QualName f)) #'(f bindings)]
+    [(_ (_ (QualName rel)) (CompareOp "=") expr)
       #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
         (instance (make-exact-sbound rel tups))
         (when (equal? (relation-arity rel) 1) (let ([exact (length tups)])
           (add-int-bound rel (int-bound exact exact))))
         (hash-set! bindings 'rel tups)
       )]
-    [x #'(error (format "Unrecognized bounds constraint: ~a~n" 'x))]
+    [(_ a "and" b) #'(begin (Bind a) (Bind b))]
+    [x #'(error (format "Not allowed in bounds constraint: ~a~n" 'x))]
   ))
   ;(printf "Bind: ~a~n" (syntax->datum datum))
   datum
