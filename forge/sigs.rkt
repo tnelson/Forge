@@ -54,6 +54,8 @@
 ; ^ Except that MiniSat isn't built for 64 bit windows, so maximize chances of working
 (define solveroption 'SAT4J)
 
+(define one-sigs (mutable-set))
+
 ; Level of output when running specs
 (define VERBOSITY_LOW 1)
 (define VERBOSITY_HIGH 5)
@@ -187,7 +189,8 @@
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
          (declare-field mult name field r ...) ...
-         (add-int-bound name (int-bound 1 1)))]
+         ;(add-int-bound name (int-bound 1 1))
+         (set-add! one-sigs name))]
 
     ; this should actually work! head template just gets mapped over every possible value for pattern var
     [(_ name ((field mult r ...) ...) #:extends parent)
@@ -197,7 +200,8 @@
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
          (declare-field mult name field r ...) ...
-         (add-int-bound name (int-bound 1 1))
+         ;(add-int-bound name (int-bound 1 1))
+         (set-add! one-sigs name)
          (add-extension name parent)
          (add-constraint (in name parent)))]
     [(_ name)
@@ -205,14 +209,16 @@
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (add-int-bound name (int-bound 1 1)))]
+         ;(add-int-bound name (int-bound 1 1))
+         (set-add! one-sigs name))]
     [(_ name #:extends parent)
       (hash-set! sig-to-fields (syntax->datum #'name)
         (hash-ref sig-to-fields (syntax->datum #'parent)))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
-         (add-int-bound name (int-bound 1 1))
+         ;(add-int-bound name (int-bound 1 1))
+         (set-add! one-sigs name)
          (add-extension name parent)
          (add-constraint (in name parent)))]))
 
@@ -376,6 +382,9 @@
   (when (@>= verbosityoption VERBOSITY_HIGH) ; Racket >=
     (printf "Concrete instances defined: ~a~n" (hash-keys constant-instance-bounds)))
   (append-run name)
+
+  (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
+
   (define run-constraints (append constraints assumptions))
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
@@ -441,6 +450,7 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;; 
   (clear-breaker-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
   (set! working-universe empty) ; clear out the working universe for next command or else "(univ X)" will grow in kk
+  (set! int-bounds-store (make-hash))
 
   (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
