@@ -55,7 +55,7 @@ LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
 Quant : ALL-TOK | NO-TOK | @Mult
-QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name
+QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK
 BreakDecl : /FACT-TOK /BREAK-TOK? Expr /COLON-TOK @NameList
           | /BREAK-TOK Expr /COLON-TOK @NameList
 
@@ -93,7 +93,7 @@ Expr4  : @Expr5  | Expr4 AND-TOK Expr5
 Expr5  : @Expr6  | NEG-TOK Expr5
 Expr6  : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
 Expr7  : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr8
-Expr8  : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr9
+Expr8  : @Expr10 | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
 ;Expr9  : @Expr10 | HASH-TOK Expr9
 Expr10 : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11 : @Expr12 | Expr11 AMP-TOK Expr12
@@ -155,3 +155,4 @@ Number : NUM-CONST-TOK
        | MAX-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
        | MIN-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
        | CARD-TOK Expr
+

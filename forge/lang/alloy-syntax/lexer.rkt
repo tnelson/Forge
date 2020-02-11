@@ -106,7 +106,7 @@
    ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; int stuff
-   ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["sing"      (token+ `SING-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["add"       (token+ `ADD-TOK "" lexeme "" lexeme-start lexeme-end)]
