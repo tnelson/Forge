@@ -7313,6 +7313,8 @@
     class NavBar {
         constructor(selection) {
             this._navbar = selection;
+            this._next = selection.select('#nav-next');
+            this._next_enabled = false;
             selection.select('#nav-eval')
                 .on('click', () => {
                 if (this._on_click_eval)
@@ -7322,11 +7324,6 @@
                 .on('click', () => {
                 if (this._on_click_graph)
                     this._on_click_graph();
-            });
-            selection.select('#nav-next')
-                .on('click', () => {
-                if (this._on_click_next)
-                    this._on_click_next();
             });
             selection.select('#nav-source')
                 .on('click', () => {
@@ -7343,6 +7340,19 @@
                 if (this._on_click_tree)
                     this._on_click_tree();
             });
+            this._next
+                .on('click', () => {
+                if (this._on_click_next && this._next_enabled)
+                    this._on_click_next();
+            });
+        }
+        enable_next() {
+            this._next_enabled = true;
+            return this;
+        }
+        disable_next() {
+            this._next_enabled = false;
+            return this;
         }
         on_eval(callback) {
             this._on_click_eval = callback;
@@ -10677,6 +10687,8 @@
             .x(d => d.x)
             .y(d => d.y)
             .curve(basis);
+        // Font properties
+        let _fontsize = 16;
         function _function(selection) {
             // Add new groups
             let enter = selection
@@ -10709,12 +10721,19 @@
             return _selection;
         }
         const _edge = Object.assign(_function, {
+            fontSize,
             highlight,
             points,
             scheme,
             transition: transition$1
         });
         return _edge;
+        function fontSize(size) {
+            if (!arguments.length)
+                return _fontsize;
+            _fontsize = size;
+            return _edge;
+        }
         function highlight(edge) {
             // Bring the supplied edge to the top
             let e = select(edge);
@@ -10802,6 +10821,7 @@
                 .attr('text-anchor', 'middle')
                 .attr('dy', '0.31em')
                 .attr('fill', _stroke_color)
+                .attr('font-size', `${_fontsize}px`)
                 .text(d => d.label);
         }
         function _enter_paths(enter) {
@@ -10847,6 +10867,7 @@
                 .attr('x', d => d.x)
                 .attr('y', d => d.y)
                 .attr('fill', _stroke_color)
+                .attr('font-size', `${_fontsize}px`)
                 .text(d => d.label);
         }
         function _update_paths(update) {
@@ -10954,6 +10975,7 @@
     }
 
     function node() {
+        let _fontsize = 16;
         let _selection = null;
         let _scheme = null;
         let _transition = transition().duration(0);
@@ -10990,10 +11012,17 @@
             return _selection;
         }
         const _node = Object.assign(_function, {
+            fontSize,
             scheme,
             transition: transition$1
         });
         return _node;
+        function fontSize(size) {
+            if (!arguments.length)
+                return _fontsize;
+            _fontsize = size;
+            return _node;
+        }
         function scheme(scheme) {
             if (!arguments.length)
                 return _scheme;
@@ -11014,8 +11043,8 @@
                 .attr('dy', '0.31em')
                 .attr('stroke', 'none')
                 .attr('fill', d => d.color ? text_color(d.color) : 'black')
-                .attr('font-size', '16px')
                 .attr('font-weight', 'bold')
+                .attr('font-size', `${_fontsize}px`)
                 .text(d => d.data);
         }
         function _enter_rects(enter) {
@@ -11032,6 +11061,7 @@
                 .attr('fill', _bg_color);
         }
         function _update_labels(update) {
+            update.attr('font-size', `${_fontsize}px`);
         }
         function _update_rects(update) {
             update
@@ -11059,6 +11089,9 @@
             this._rank_sep = 100;
             this._node_width = 150;
             this._node_height = 50;
+            this._sig_font_size = 16;
+            this._atom_font_size = 16;
+            this._edge_font_size = 12;
             this._svg = svg;
             this._svg_width = parseInt(this._svg.style('width'));
             this._svg_height = parseInt(this._svg.style('height'));
@@ -11083,7 +11116,7 @@
         }
         layout(graph) {
             let { tree, edges } = graph.graph();
-            let transition = this._svg.transition().duration(500);
+            let transition = this._svg.transition().duration(250);
             this._sig_rect.transition(transition);
             this._sig_label.transition(transition);
             this._position_compound_graph(tree, edges);
@@ -11092,6 +11125,8 @@
             let scheme = this._style_graph(tree, edges);
             this._node.scheme(scheme);
             this._edge.scheme(scheme);
+            this._node.fontSize(this._atom_font_size);
+            this._edge.fontSize(this._edge_font_size);
             this._sig_group = this._svg
                 .selectAll('g.signatures')
                 .data([signatures])
@@ -11144,6 +11179,20 @@
                 .style('display', 'none');
             transition.on('end', this._make_voronoi.bind(this));
         }
+        set_edge_text_size(size) {
+            this._edge_font_size = size;
+            this._edge.fontSize(size);
+            this._edge_group
+                .selectAll('.label')
+                .attr('font-size', `${size}px`);
+        }
+        set_node_text_size(size) {
+            this._atom_font_size = size;
+            this._node.fontSize(size);
+            this._atom_group
+                .selectAll('.label')
+                .attr('font-size', `${size}px`);
+        }
         width() {
             return this._props ? this._props.width : 0;
         }
@@ -11158,10 +11207,11 @@
                 .style('stroke', '#999');
             this._sig_label = node_label()
                 .placement('tl')
-                .style('font-size', '16px')
+                .style('font-size', `${this._sig_font_size}px`)
                 .style('fill', '#999');
             this._edge = edge();
-            this._node = node();
+            this._node = node()
+                .fontSize(this._atom_font_size);
         }
         _position_compound_graph(tree, edges) {
             let graph = new dagre.graphlib.Graph({ multigraph: true, compound: true });
@@ -11454,8 +11504,7 @@
         constructor(selection) {
             this._svg = selection
                 .style('user-select', 'none')
-                .style('font-family', 'monospace')
-                .style('font-size', '10px');
+                .style('font-family', 'monospace');
             this._dagre = new DagreLayout(this._svg);
             this._graph = null;
         }
@@ -11471,6 +11520,12 @@
             if (this._graph)
                 this._graph.projections(projections);
             this._dagre.layout(this._graph);
+        }
+        set_edge_font_size(size) {
+            this._dagre.set_edge_text_size(size);
+        }
+        set_node_font_size(size) {
+            this._dagre.set_node_text_size(size);
         }
     }
 
@@ -11726,6 +11781,7 @@
             this._projections_bar = new ProjectionsBar(selection.select('#projections-bar'));
             window.addEventListener('resize', this._layout.resize.bind(this._layout));
             this._projections_bar.on_update(this._on_projections.bind(this));
+            this._initialize_font_sizes(selection);
         }
         set_instance(instance) {
             this._projections_bar.set_instance(instance);
@@ -11751,6 +11807,71 @@
         }
         _on_hide() {
             this._is_visible = false;
+        }
+        _initialize_font_sizes(selection) {
+            const overlay = selection
+                .append('div')
+                .attr('class', 'overlay');
+            const node = overlay.append('div')
+                .attr('class', 'row');
+            node.append('div')
+                .attr('class', 'text')
+                .text('Node Font Size:');
+            const nodepicker = node.append('div')
+                .attr('class', 'number-picker');
+            const nodesmaller = nodepicker.append('div')
+                .attr('class', 'icon');
+            nodesmaller
+                .append('i')
+                .attr('class', 'fas fa-minus');
+            const nodesize = nodepicker.append('div')
+                .attr('class', 'text')
+                .text('16');
+            const nodelarger = nodepicker.append('div')
+                .attr('class', 'icon');
+            nodelarger
+                .append('i')
+                .attr('class', 'fas fa-plus');
+            const edge = overlay.append('div')
+                .attr('class', 'row');
+            edge.append('div')
+                .attr('class', 'text')
+                .text('Edge Font Size:');
+            const edgepicker = edge.append('div')
+                .attr('class', 'number-picker');
+            const edgesmaller = edgepicker.append('div')
+                .attr('class', 'icon');
+            edgesmaller
+                .append('i')
+                .attr('class', 'fas fa-minus');
+            const edgesize = edgepicker.append('div')
+                .attr('class', 'text')
+                .text('12');
+            const edgelarger = edgepicker.append('div')
+                .attr('class', 'icon');
+            edgelarger
+                .append('i')
+                .attr('class', 'fas fa-plus');
+            nodesmaller.on('click', () => {
+                const next = +nodesize.text() - 1;
+                this._layout.set_node_font_size(next);
+                nodesize.text(next);
+            });
+            nodelarger.on('click', () => {
+                const next = +nodesize.text() + 1;
+                this._layout.set_node_font_size(next);
+                nodesize.text(next);
+            });
+            edgesmaller.on('click', () => {
+                const next = +edgesize.text() - 1;
+                this._layout.set_edge_font_size(next);
+                edgesize.text(next);
+            });
+            edgelarger.on('click', () => {
+                const next = +edgesize.text() + 1;
+                this._layout.set_edge_font_size(next);
+                edgesize.text(next);
+            });
         }
     }
 
@@ -12668,10 +12789,13 @@
             // Register events
             this._nav_bar.on_eval(this.show_eval.bind(this));
             this._nav_bar.on_graph(this.show_graph.bind(this));
-            this._nav_bar.on_next(this._alloy.request_next.bind(this._alloy));
             this._nav_bar.on_source(this.show_source.bind(this));
             this._nav_bar.on_table(this.show_table.bind(this));
             this._nav_bar.on_tree(this.show_tree.bind(this));
+            this._nav_bar.on_next(() => {
+                this._nav_bar.disable_next();
+                this._alloy.request_next();
+            });
             return this;
         }
         source_view(selector) {
@@ -12786,10 +12910,14 @@
                 this._alloy.request_current();
             });
             this._alloy.on_disconnected(() => {
+                this._nav_bar.disable_next();
                 if (this._status_bar)
                     this._status_bar.set_connection_status('Disconnected');
             });
-            this._alloy.on_instance(this.set_instance.bind(this));
+            this._alloy.on_instance(instance => {
+                this.set_instance(instance);
+                this._nav_bar.enable_next();
+            });
         }
     }
 

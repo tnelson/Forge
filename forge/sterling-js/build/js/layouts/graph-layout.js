@@ -4,8 +4,7 @@ export class GraphLayout {
     constructor(selection) {
         this._svg = selection
             .style('user-select', 'none')
-            .style('font-family', 'monospace')
-            .style('font-size', '10px');
+            .style('font-family', 'monospace');
         this._dagre = new DagreLayout(this._svg);
         this._graph = null;
     }
@@ -21,5 +20,11 @@ export class GraphLayout {
         if (this._graph)
             this._graph.projections(projections);
         this._dagre.layout(this._graph);
+    }
+    set_edge_font_size(size) {
+        this._dagre.set_edge_text_size(size);
+    }
+    set_node_font_size(size) {
+        this._dagre.set_node_text_size(size);
     }
 }

@@ -76,10 +76,14 @@ export class UI {
         // Register events
         this._nav_bar.on_eval(this.show_eval.bind(this));
         this._nav_bar.on_graph(this.show_graph.bind(this));
-        this._nav_bar.on_next(this._alloy.request_next.bind(this._alloy));
         this._nav_bar.on_source(this.show_source.bind(this));
         this._nav_bar.on_table(this.show_table.bind(this));
         this._nav_bar.on_tree(this.show_tree.bind(this));
+
+        this._nav_bar.on_next(() => {
+            this._nav_bar.disable_next();
+            this._alloy.request_next();
+        });
 
         return this;
     }
@@ -201,11 +205,15 @@ export class UI {
         });
 
         this._alloy.on_disconnected(() => {
+            this._nav_bar.disable_next();
             if (this._status_bar)
                 this._status_bar.set_connection_status('Disconnected');
         });
 
-        this._alloy.on_instance(this.set_instance.bind(this));
+        this._alloy.on_instance(instance => {
+            this.set_instance(instance);
+            this._nav_bar.enable_next();
+        });
 
     }
 
