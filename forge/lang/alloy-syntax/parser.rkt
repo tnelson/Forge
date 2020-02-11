@@ -41,7 +41,7 @@ Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)?
       | /FOR-TOK @TypescopeList
 #      | /FOR-TOK Bounds
 Typescope : EXACTLY-TOK? Number QualName
-Const : NONE-TOK | UNIV-TOK | IDEN-TOK
+Const : NONE-TOK | UNIV-TOK | IDEN-TOK | INT-TOK
       | MINUS-TOK? Number 
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
@@ -53,15 +53,13 @@ CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
-Quant : ALL-TOK | NO-TOK | SUM-TOK 
-      | @Mult
+Quant : ALL-TOK | NO-TOK | @Mult
 QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name
 BreakDecl : /FACT-TOK /BREAK-TOK? Expr /COLON-TOK @NameList
           | /BREAK-TOK Expr /COLON-TOK @NameList
 
 
 Name : IDENTIFIER-TOK
-Number : NUM-CONST-TOK
 NameList : @Name
          | @Name /COMMA-TOK @NameList
 QualNameList : @QualName
@@ -94,12 +92,13 @@ Expr5  : @Expr6  | NEG-TOK Expr5
 Expr6  : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
 Expr7  : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr8
 Expr8  : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr9
-Expr9  : @Expr10 | HASH-TOK Expr9
+;Expr9  : @Expr10 | HASH-TOK Expr9
 Expr10 : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11 : @Expr12 | Expr11 AMP-TOK Expr12
 Expr12 : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
 Expr13 : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
-Expr14 : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
+Expr14 : @Expr18 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
+Expr18 : @Expr15 | SING-TOK LEFT-SQUARE-TOK Number RIGHT-SQUARE-TOK
 Expr15 : @Expr16 | Expr15 DOT-TOK Expr16
 Expr16 : @Expr17 | (TILDE-TOK | EXP-TOK | STAR-TOK) Expr16
 Expr17 : Const 
@@ -113,6 +112,7 @@ Expr17 : Const
 
 ArrowExpr : QualName
           | QualName /ARROW-TOK @ArrowExpr
+
 
 ;;;;;;;;
 
@@ -137,3 +137,16 @@ EvalDecl : EVAL-TOK Expr
 
 Bounds : @ExprList
        | @Block
+
+;;;;;;;;;
+; Ints
+NumberList : Number
+           | Number /COMMA-TOK @NumberList
+
+Number : NUM-CONST-TOK
+       | SUM-TOK /LEFT-SQUARE-TOK Expr /RIGHT-SQUARE-TOK
+       | ADD-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+       | SUB-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+       | MAX-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+       | MIN-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+       | CARD-TOK Expr
