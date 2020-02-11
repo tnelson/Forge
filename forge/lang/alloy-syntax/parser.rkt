@@ -20,6 +20,8 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | StateDecl
           | TransitionDecl
           | RelDecl
+          | OptionDecl
+          | InstDecl
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -33,13 +35,12 @@ FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
 AssertDecl : /ASSERT-TOK Name? Block
-CmdDecl : (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK)? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
-TestDecl : (Name /COLON-TOK)? (QualName | Block)? Scope? /IS-TOK (SAT-TOK | UNSAT-TOK)
+CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
+TestDecl : (Name /COLON-TOK)? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
       | /FOR-TOK @TypescopeList
-#      | /FOR-TOK Bounds
 Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK | INT-TOK
       | MINUS-TOK? Number 
@@ -49,7 +50,7 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK | INT-TOK
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
         | STAR-TOK
-CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK
+CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
@@ -58,6 +59,7 @@ QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name
 BreakDecl : /FACT-TOK /BREAK-TOK? Expr /COLON-TOK @NameList
           | /BREAK-TOK Expr /COLON-TOK @NameList
 
+OptionDecl : /OPTION-TOK QualName (QualName | Number)
 
 Name : IDENTIFIER-TOK
 NameList : @Name
@@ -120,7 +122,10 @@ SexprDecl : Sexpr
 Sexpr : SEXPR-TOK
 
 ;;;;;;;;
-
+; Note: making a distinction for now so we don't lose the XML functionality
+; InstDecl = "myName : inst {bounds}"
+; InstanceDecl = XML...
+InstDecl : /INST-TOK Name Bounds Scope?
 InstanceDecl : INSTANCE-TOK
 QueryDecl : @Name /COLON-TOK ArrowExpr /EQ-TOK Expr
 
@@ -135,8 +140,8 @@ RelDecl : ArrowDecl
 
 EvalDecl : EVAL-TOK Expr
 
-Bounds : @ExprList
-       | @Block
+Bounds : EXACTLY-TOK? @ExprList
+       | EXACTLY-TOK? @Block
 
 ;;;;;;;;;
 ; Ints

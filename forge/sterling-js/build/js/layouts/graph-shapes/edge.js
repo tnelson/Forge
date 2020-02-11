@@ -10,6 +10,8 @@ function edge() {
         .x(d => d.x)
         .y(d => d.y)
         .curve(d3.curveBasis);
+    // Font properties
+    let _fontsize = 16;
     function _function(selection) {
         // Add new groups
         let enter = selection
@@ -42,12 +44,19 @@ function edge() {
         return _selection;
     }
     const _edge = Object.assign(_function, {
+        fontSize,
         highlight,
         points,
         scheme,
         transition
     });
     return _edge;
+    function fontSize(size) {
+        if (!arguments.length)
+            return _fontsize;
+        _fontsize = size;
+        return _edge;
+    }
     function highlight(edge) {
         // Bring the supplied edge to the top
         let e = d3.select(edge);
@@ -135,6 +144,7 @@ function edge() {
             .attr('text-anchor', 'middle')
             .attr('dy', '0.31em')
             .attr('fill', _stroke_color)
+            .attr('font-size', `${_fontsize}px`)
             .text(d => d.label);
     }
     function _enter_paths(enter) {
@@ -180,6 +190,7 @@ function edge() {
             .attr('x', d => d.x)
             .attr('y', d => d.y)
             .attr('fill', _stroke_color)
+            .attr('font-size', `${_fontsize}px`)
             .text(d => d.label);
     }
     function _update_paths(update) {

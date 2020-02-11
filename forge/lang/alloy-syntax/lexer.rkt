@@ -101,7 +101,9 @@
    ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
-   ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)] 
+   ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; int stuff
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -112,8 +114,7 @@
    ["max"       (token+ `MAX-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["min"       (token+ `MIN-TOK "" lexeme "" lexeme-start lexeme-start)]
    ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
-
-
+   
    ;; punctuation
    ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
    [")" (token+ 'RIGHT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -160,9 +161,6 @@
            "in"
            "is"
 
-           "Int"
-           ""
-
            "let"
            "lone"
            "module"
@@ -189,6 +187,8 @@
            "facts"
            "transition"
            "bind"
+           "option"
+           "inst"
 
            "Int"
            "sum"

@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 
 interface EdgeFunction {
+    fontSize: Function,
     highlight: Function,
     points: Function,
     scheme: Function,
@@ -23,6 +24,9 @@ function edge (): EdgeFunction {
         .x(d => (d as any).x)
         .y(d => (d as any).y)
         .curve(d3.curveBasis);
+
+    // Font properties
+    let _fontsize = 16;
 
     function _function (selection) {
 
@@ -65,6 +69,7 @@ function edge (): EdgeFunction {
     }
 
     const _edge = Object.assign(_function, {
+        fontSize,
         highlight,
         points,
         scheme,
@@ -72,6 +77,12 @@ function edge (): EdgeFunction {
     });
 
     return _edge;
+
+    function fontSize (size?) {
+        if (!arguments.length) return _fontsize;
+        _fontsize = size;
+        return _edge;
+    }
 
     function highlight (edge) {
 
@@ -180,6 +191,7 @@ function edge (): EdgeFunction {
             .attr('text-anchor', 'middle')
             .attr('dy', '0.31em')
             .attr('fill', _stroke_color)
+            .attr('font-size', `${_fontsize}px`)
             .text(d => d.label);
 
     }
@@ -238,6 +250,7 @@ function edge (): EdgeFunction {
             .attr('x', d => d.x)
             .attr('y', d => d.y)
             .attr('fill', _stroke_color)
+            .attr('font-size', `${_fontsize}px`)
             .text(d => d.label);
 
     }

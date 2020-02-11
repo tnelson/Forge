@@ -72,23 +72,180 @@ expect {
 --  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 4 } is unsat
 --}
 
-run {
-    --GiveMeABigFormula
-    some Formula
-} for {
-    -- ISSUE: how do I increase the number of available atoms or auto-detect from use in this block?
-    Var = Formula0 
-    Not = Formula1
-    And = Formula2
-    Or =  Formula3
+pred localTautology[f: Formula] {
+  -- true in all instances that Forge bothered to create
+  all i: Instance | i in f.truth
+}
 
-    Formula = Formula0 + Formula1 + Formula2 + Formula3
-    Instance = none
-    -- ISSUE: incorrect arity; we're not passing right arity of emptyset
-    --child = none->none
-    child = Formula1->Formula2
-    oleft = Formula3->Formula0
-    oright = Formula3->Formula0
-    aleft = Formula2->Formula0
-    aright = Formula2->Formula0
+pred generateInstances {
+  -- force the existence of all instances needed
+  all i: Instance | all v: Var |
+      some i': Instance-i | v in i.trueVars => i'.trueVars = i.trueVars - v else i'.trueVars = i.trueVars + v 
+}
+
+
+
+test expect fancyBoundsExpectBlockName {
+-- TODO: auto-detect increase in scope?
+
+    initialFancyBounds: { some Formula }
+    for 5 Formula
+    for {    
+        Var = Var0 + Var1 + Var2
+        Not = none
+        And = And0
+        Or =  Or0        
+        Formula = Var0 + Var1 + And0 + Or0 + Var2
+        Instance = none
+        child = none->none    
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is sat
+
+    initialContradictoryFancyBounds: { some Formula }
+    for 5 Formula
+    for {    
+        Var = Var0 + Var1 + Var2
+        Not = Var0 -- should contradict axioms
+        And = And0
+        Or =  Or0        
+        Formula = Var0 + Var1 + And0 + Or0 + Var2
+        Instance = none
+        child = none->none    
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is unsat
+
+    initialFancyBoundsWithWrongCount: { #Formula != 5 }
+    for 5 Formula
+    for {    
+        Var = Var0 + Var1 + Var2
+        Not = none
+        And = And0
+        Or =  Or0        
+        Formula = Var0 + Var1 + And0 + Or0 + Var2
+        Instance = none
+        child = none->none    
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is unsat
+
+    fewerFormulasFancyBounds: { some Formula }
+    for 4 Formula
+    for {    
+        Var = Var0 + Var1
+        Not = none
+        And = And0
+        Or =  Or0
+        Formula = Var0 + Var1 + And0 + Or0
+        Instance = none
+        child = none->none    
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is sat
+
+    useANotFancyBounds: { some Formula }
+    for 4 Formula
+    for {    
+        Var = Var0
+        Not = Not0
+        And = And0
+        Or =  Or0
+        Formula = Var0 + Not0 + And0 + Or0
+        Instance = none
+        child = Not0->Var0
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is sat
+
+    semanticsFancyBounds: { semantics wellFormed no truth}
+    for 4 Formula
+    for {    
+        Var = Var0
+        Not = Not0
+        And = And0
+        Or =  Or0
+        Formula = Var0 + Not0 + And0 + Or0
+        Instance = Instance0
+        child = Not0->Var0
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is unsat
+
+    localTautologyFancyBounds: { semantics wellFormed some f: Formula | localTautology[f]}
+    for 4 Formula
+    for {    
+        Var = Var0
+        Not = Not0
+        And = And0
+        Or =  Or0
+        Formula = Var0 + Not0 + And0 + Or0
+        Instance = Instance0
+        child = Not0->Var0
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is sat
+
+    generateNotEnough: { semantics wellFormed generateInstances }
+    for 4 Formula
+    for {    
+        Var = Var0
+        Not = Not0
+        And = And0
+        Or =  Or0
+        Formula = Var0 + Not0 + And0 + Or0
+        Instance = Instance0
+        child = Not0->Var0
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is unsat
+
+    generateEnough: { semantics wellFormed generateInstances }
+    for 4 Formula
+    for {    
+        Var = Var0
+        Not = Not0
+        And = And0
+        Or =  Or0
+        Formula = Var0 + Not0 + And0 + Or0
+        Instance = Instance0 + Instance1
+        child = Not0->Var0
+        oleft = Or0->Var0
+        oright = Or0->Var0
+        aleft = And0->Var0
+        aright = And0->Var0
+    } is sat
+
+    generateEnoughAndSomeTautology: { semantics wellFormed generateInstances some f: Formula | localTautology[f] }
+    for 5 Formula -- note 5 formula! also different instance than above (change p /\ p to p /\ q)
+    for {    
+        Var = Var0 + Var1
+        Not = Not0
+        And = And0
+        Or =  Or0
+        Formula = Var0 + Not0 + And0 + Or0 + Var1
+        Instance = Instance0 + Instance1
+        child = Not0->Var0
+        oleft = Or0->Var0
+        oright = Or0->Var1
+        aleft = And0->Var0
+        aright = And0->Var1
+    } is unsat
+
 } 

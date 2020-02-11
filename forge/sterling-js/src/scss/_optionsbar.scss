@@ -22,6 +22,7 @@
   .options-bar-body {
 
     display: flex;
+    flex: 1 0 auto;
 
     //width: $body-width;
     //margin: 0 auto;
@@ -199,6 +200,10 @@
       margin: 0.5em 0.25em;
       color: $color-primary-text-dark;
 
+    }
+
+    .spring {
+      flex: 1 0 auto;
     }
 
   }

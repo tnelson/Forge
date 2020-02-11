@@ -5,8 +5,9 @@
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt")
 
-
-(require (for-syntax racket/syntax))
+; racket/string needed for replacing transpose operator (~) with escaped version in error messages
+(require (for-syntax racket/syntax)
+         (for-syntax racket/string))
 
 (provide break instance quote begin println filepath set-path! let)
 
@@ -42,10 +43,47 @@
 (define int-bounds-store (make-hash))
 ;Extra constraints on the model (e.g. facts, relation constraints, etc.)
 (define constraints '())
+(define run-constraints '())  ; just for a single run
 ;Run names
 (define run-names '())
 ;Bitwidth
 (define bitwidth 4)
+;Solver choice: default to MiniSat (no cores, so no proof overhead, faster than SAT4J)
+; ^ Except that MiniSat isn't built for 64 bit windows, so maximize chances of working
+(define solveroption 'SAT4J)
+
+; set of one sigs
+(define one-sigs (mutable-set))
+; is the current command using exactly
+(define is-exact #f)
+(define (set-is-exact) (set! is-exact #t))
+; user defined bindings
+(define bindings (make-hash))
+
+(define (clear-state)
+  (clear-breaker-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
+  (set! working-universe empty) ; clear out the working universe for next command or else "(univ X)" will grow in kk
+  (set! int-bounds-store (make-hash))
+  (set! is-exact #f)
+  (set! lower-bounds (make-hash))
+  (set! upper-bounds (make-hash))
+  (set! top-level-leftovers (make-hash))
+  (set! top-extras (make-hash))
+  (set! run-constraints '())
+  (set! bindings (make-hash))
+)
+
+; For verbosity, etc. that must be shared without cyclic dependency
+(require "shared.rkt")
+
+(define-syntax-rule (debug x) (begin (printf "~a: ~a~n" 'x x) x))
+
+; Filter options to prevent user from rewriting any global
+(define (set-option key val)
+  (match key
+    ['solver (set! solveroption val)]
+    ['verbosity (set-verbosity val)]
+    [else (error (format "Invalid option key: ~a" key))]))
 
 (define (set-bitwidth i) (set! bitwidth i))
 
@@ -54,8 +92,8 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum)
-(provide add-relation)
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum )
+(provide add-relation set-option)
 
 (define (add-relation rel types)
   (hash-set! relations-store rel types))
@@ -67,6 +105,8 @@
 
 (define (add-constraint c) (set! constraints (cons c constraints)))
 (define (add-constraints cs) (set! constraints (append cs constraints)))
+(define (add-run-constraint c) (set! run-constraints (cons c run-constraints)))
+(define (add-run-constraints cs) (set! run-constraints (append cs run-constraints)))
 
 (define (add-extension child parent)
   (if (equal? parent univ)
@@ -76,8 +116,19 @@
           (hash-set! parents parent (list child))))
   (hash-set! extensions-store child parent))
 
-(define (add-int-bound rel int-bound)
-  (hash-set! int-bounds-store rel int-bound))
+(define (add-int-bound rel new)
+  ; if int-bounds are already defined, intersect the old/new intervals
+  (cond [(hash-has-key? int-bounds-store rel)
+    (define old (hash-ref int-bounds-store rel))
+    (define lower (max (int-bound-lower old) (int-bound-lower new)))
+    (define upper (min (int-bound-upper old) (int-bound-upper new)))
+    (when (@> lower upper) (error (format "conflicting int-bounds: no [~a, ~a] & [~a, ~a]" 
+      (int-bound-lower old) (int-bound-upper old) (int-bound-lower new) (int-bound-upper new))))
+    (hash-set! int-bounds-store rel (int-bound lower upper))
+  ][else
+    (hash-set! int-bounds-store rel new)
+  ])
+)
 
 (define-syntax (pre-declare-sig stx)
   (syntax-case stx ($remainder-sig$)
@@ -110,7 +161,7 @@
          (add-constraint (in field (-> name r ...)))
          (add-constraint (all ([n name]) (lone (join n field)))))]))
 
-;Extends does not work yet
+;Extends does not work yet (o rly?)
 (define-syntax (declare-sig stx)
   (syntax-case stx ()
     [(_ name ((field mult r ...) ...))
@@ -148,15 +199,17 @@
          (add-constraint (in name parent)))]))
 
 (define-syntax (declare-one-sig stx)
+  (define result
   (syntax-case stx ()
-    [(_ name ((field mult r ...) ...))
+    [(_ name ((field mult r ...) ...))     
       (hash-set! sig-to-fields (syntax->datum #'name)
         (syntax->datum #'(field ...)))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
          (declare-field mult name field r ...) ...
-         (add-int-bound name (int-bound 1 1)))]
+         ;(add-int-bound name (int-bound 1 1))
+         (set-add! one-sigs name))]
 
     ; this should actually work! head template just gets mapped over every possible value for pattern var
     [(_ name ((field mult r ...) ...) #:extends parent)
@@ -166,7 +219,8 @@
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
          (declare-field mult name field r ...) ...
-         (add-int-bound name (int-bound 1 1))
+         ;(add-int-bound name (int-bound 1 1))
+         (set-add! one-sigs name)
          (add-extension name parent)
          (add-constraint (in name parent)))]
     [(_ name)
@@ -174,16 +228,20 @@
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
          ;(add-sig (symbol->string 'name))
-         (add-int-bound name (int-bound 1 1)))]
-    [(_ name #:extends parent)
+         ;(add-int-bound name (int-bound 1 1))
+         (set-add! one-sigs name))]
+    [(_ name #:extends parent)     
       (hash-set! sig-to-fields (syntax->datum #'name)
         (hash-ref sig-to-fields (syntax->datum #'parent)))
       #'(begin
          ;(define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
          ;(add-sig (symbol->string 'name) (symbol->string 'parent))
-         (add-int-bound name (int-bound 1 1))
+         ;(add-int-bound name (int-bound 1 1))
+         (set-add! one-sigs name)
          (add-extension name parent)
          (add-constraint (in name parent)))]))
+  ;(printf "one sig: ~a~n" result)
+  result)
 
 (define (add-sig name [parent "univ"])
   #| (set! sigs (cons (declare-relation (list name) parent name) sigs)|#
@@ -201,8 +259,18 @@
 
 
 (define (generate-atoms sig lower upper)
+  (define sig-name (string->symbol (relation-name sig)))
+  (define syms (if (hash-has-key? bindings sig-name) 
+    (map first (hash-ref bindings sig-name))
+    (list)))
+  ;(debug sig-name)
+  ;(debug syms)
   (map
-   (lambda (n) (string->symbol (string-append (relation-name sig) (number->string n))))
+   (lambda (n) 
+    ;(string->symbol (string-append (relation-name sig) (number->string n))))
+    (if (@< n (length syms)) 
+      (list-ref syms n)
+      (string->symbol (string-append (relation-name sig) (number->string n)))))
    (range lower upper)))
 
 ; Returns a list of symbols representing atoms
@@ -249,7 +317,7 @@
             ;(when (@> (length atoms) how-many) (set! atoms (take atoms how-many)))
             (hash-set! top-level-leftovers sig atoms)
             ;(printf "upper-bounding sig: ~a with atoms: ~a~n" sig atoms)
-            (add-constraint (<= (card sig) (node/int/constant int-upper)))
+            (add-run-constraint (<= (card sig) (node/int/constant int-upper)))
             (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
             atoms)
           (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
@@ -285,7 +353,11 @@
   (for ([sig sigs])
     (fill-leftovers sig hashy-bounds) ; mutation!
     ;(printf "After filling for ~a, new upper bounds: ~a~n" sig upper-bounds)
-    (set! out-bounds (cons (make-bound sig (map (lambda (x) (list x)) (hash-ref lower-bounds sig)) (map (lambda (x) (list x)) (hash-ref upper-bounds sig))) out-bounds)))
+    (set! out-bounds (cons 
+      (make-bound sig 
+        (map (lambda (x) (list x)) (hash-ref lower-bounds sig)) 
+        (map (lambda (x) (list x)) (hash-ref upper-bounds sig))) 
+      out-bounds)))
 
   ; Create remainder sigs
   ; Add disjunction constraints
@@ -298,7 +370,7 @@
       ;(add-constraint (in remainder par))
       ; disjoint-list returns a list of constraints; combine all such
       (append (disjoint-list (hash-ref parents par)) cs) 
-      #;(add-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst)))
+      #;(add-run-constraint (= par (let ([lst (foldl + none (hash-ref parents par))]) #| (println lst) |# lst)))
       ))
 
   ;(printf "disj-cs: ~a~n" disj-cs)
@@ -320,34 +392,41 @@
       (if (equal? (substring str 0 10) "remainder-") (substring str 10) str)))
 
 ; Depracated
-(define (populate-sig sig bound)
-  (define atoms (map (lambda (n) (string-append (strip-remainder (relation-name sig)) (number->string n))) (range bound)))
-  (define sym-atoms (map string->symbol atoms))
-  (set! working-universe (append sym-atoms working-universe))
-  ;(hash-set! bounds-store sig sym-atoms)
-  (define out (map (lambda (x) (list x)) sym-atoms))
-  (if (hash-has-key? extensions-store sig)
-      (let ([parent (hash-ref extensions-store sig)])
-        (begin
-          (if (hash-has-key? bounds-store parent)
-              (hash-set! bounds-store parent (append sym-atoms (hash-ref bounds-store parent)))
-              (hash-set! bounds-store parent sym-atoms))
-          out))
-      out))
+;(define (populate-sig sig bound)
+;  (define atoms (map (lambda (n) (string-append (strip-remainder (relation-name sig)) (number->string n))) (range bound)))
+;  (define sym-atoms (map string->symbol atoms))
+;  (set! working-universe (append sym-atoms working-universe))
+;  ;(hash-set! bounds-store sig sym-atoms)
+;  (define out (map (lambda (x) (list x)) sym-atoms))
+;  (if (hash-has-key? extensions-store sig)
+;      (let ([parent (hash-ref extensions-store sig)])
+;        (begin
+;          (if (hash-has-key? bounds-store parent)
+;              (hash-set! bounds-store parent (append sym-atoms (hash-ref bounds-store parent)))
+;              (hash-set! bounds-store parent sym-atoms))
+;          out))
+;      out))
 ;(define (up-to n)
 ; (if (@= n 1) (list n) (cons n (up-to (@- n 1)))))
 
 (define (append-run name)
-  (if (member name run-names) (error "Non-unique run name specified") (set! run-names (cons name run-names))))
+  (if (member name run-names) (error (format "Non-unique run name specified: ~a" name)) (set! run-names (cons name run-names))))
 
 
-(define (run-spec hashy name command filepath runtype . assumptions)
+(define (run-spec hashy name command filepath runtype . assumptions)  
+  (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
+    (printf "ONE sigs known: ~a~n" one-sigs))
   (append-run name)
-  (define run-constraints (append constraints assumptions))
+
+  (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
+  ;(printf "int-bounds-store: ~a~n" int-bounds-store)
+  ;(printf "constraints: ~a~n" constraints)
+
+  (set! run-constraints (append constraints assumptions))
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
-
+  
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
   (match-define (cons sig-bounds disj-cs) (bind-sigs hashy))
   (set! run-constraints (append run-constraints disj-cs))
@@ -362,11 +441,14 @@
   (send kks initialize)
   (define stdin (send kks stdin))
   (define stdout (send kks stdout))
-
+    
   (cmd
    [stdin]
    ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
-   (configure (format ":bitwidth ~a :produce-cores true :solver MiniSatProver :max-solutions 1 :verbosity 7" bitwidth))
+   ; TODO: use our verbosity setting? (unclear how kodkod differs by verbosity)
+   (configure (format ":bitwidth ~a :produce-cores true :solver ~a :max-solutions 1 :verbosity 7"
+                      bitwidth
+                      solveroption))
    (declare-univ (length inty-univ))
    (declare-ints int-range int-indices))
   (define (get-atom atom)
@@ -379,24 +461,26 @@
       [(@> arity 0) (product 'none (n-arity-none (@- arity 1)))]
       [else (error "Error: Relation with negative or 0 arity specified.")]))
 
-  (define (adj-bound-lower bound)
+  (define (adj-bound accessor bound)
+    ; "int-atoms" here means the int representations at the kodkod level, not Int/int integers
     (define int-atoms (map (lambda (x) (map get-atom x))
-                           (bound-lower bound)))
+                           (accessor bound)))
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
-        (tupleset #:tuples int-atoms)))
-  #|(define (adj-bound-upper bound)
-    (define int-atoms (map (lambda (x) (map get-atom x))
-           (bound-upper key)))
-    (if (empty? int-atoms)
-        (n-arity-none (relation-arity (bound-relation bound)))
-        (tupleset #:tuples int-atoms)))|#
+        (tupleset #:tuples int-atoms)))  
   
   ;; symmetry breaking
   (define-values (new-total-bounds new-formulas)
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
   (set! run-constraints (append run-constraints new-formulas))
+
+  (when is-exact
+    (for ([b total-bounds]) 
+      (unless (exact-bound? b) (error (format "bounds declared exactly but ~a not exact" 
+        (relation-name (bound-relation b)))))
+    )
+  )
   
   (for ([bound total-bounds])
     (cmd
@@ -404,10 +488,11 @@
      (declare-rel
       (r (index-of rels (bound-relation bound)))
 
-      (adj-bound-lower bound)
-      (tupleset #:tuples (map (lambda (x) (map get-atom x))
-                              (bound-upper bound))))))
+      (adj-bound bound-lower bound)  ; if empty, need to give proper arity emptiness
+      (adj-bound bound-upper bound))))
 
+  ;;;;;;;;;;;;;;;;;;;;;;;;; 
+  
   (for ([c run-constraints] [i (range (length run-constraints))])
     (cmd
      [stdin]
@@ -415,6 +500,8 @@
      (translate-to-kodkod-cli c rels '())
      (print-cmd ")")
      (print-cmd (format "(assert f~a)" i))))
+
+  (clear-state) ; breakers has done its job if this command had fancy-bounds; clean for next command  
 
   (match runtype
     ['test
@@ -482,7 +569,7 @@
     [(_ ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]))
 
 (define-syntax (test stx)
-  (define command (format "~a" stx))
+  (define command (string-replace (format "~a" stx) "~" "~~" #:all? #t))
   (syntax-case stx ()
     [(_ name ((sig lower upper) ...) expect)
      #`(begin
@@ -533,7 +620,7 @@
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestExpectDecl TestDecl TestBlock PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
-         StateDecl TransitionDecl RelDecl
+         StateDecl TransitionDecl RelDecl OptionDecl InstDecl
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -573,6 +660,16 @@
 (define-for-syntax (use-ctxt stx1 stx2)
   (datum->syntax stx1 (syntax->datum stx2))
   )
+
+(define-syntax (OptionDecl stx) (map-stx (lambda (d)
+                                           (define key (syntax-case (first (rest d)) (QualName)
+                                                         [(QualName n) #''n]))
+                                           (define val (syntax-case (second (rest d)) (QualName Number)
+                                                         [(QualName n) #''n]
+                                                         [(Number n) #'(string->number n)]
+                                                         ))
+                                           ;(printf "setting option: ~a to ~a~n" key val)
+                                           `(set-option ,key ,val)) stx))
 
 (define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
 (define-syntax (SexprDecl stx) (map-stx cadr stx))
@@ -614,6 +711,9 @@
                                         datum
                                         ) stx))
 
+; See note in parser.rkt about difference between InstanceDecl and InstDecl
+(define-syntax-rule (InstanceDecl i) (instance i))
+
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
   (define-values (name cmd arg scope block bounds) (values #f #f #f '() #f #f))
   (define (make-typescope x)
@@ -648,7 +748,7 @@
 ) stx))
 
 (define-syntax (TestDecl stx) (map-stx (lambda (d)
-  (define-values (name cmd arg scope block expect) (values #f 'test #f '() #f #f))
+  (define-values (name cmd arg scope block bounds expect) (values #f 'test #f '() #f #f #f))
   (define (make-typescope x)
     (syntax-case x (Typescope)
       [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
@@ -665,11 +765,18 @@
       [(Block b ...) (set! block (syntax->datum #'(b ...)))]
       [(QualName n) (set! block (list (syntax->datum #'n)))]
       ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [(Bounds _ ...) (set! bounds arg)]
       [_ #f]
     )
   )
   (if name #f (set! name (symbol->string (gensym))))
-  (define datum `(,cmd ,name ,block ,scope ',expect))
+  ;(define datum `(,cmd ,name ,block ,scope ',expect)) ; replaced to support fancy bounds
+  (define datum (if bounds  ; copied from CmdDecl
+    `(begin 
+      ;(let ([bnd (make-hash)]) (println bnd) ,bounds)
+      ,bounds
+      (,cmd ,name ,block ,scope ',expect))
+    `(,cmd ,name ,block ,scope ',expect)))
   ; (println datum)
   datum
 ) stx))
@@ -873,7 +980,6 @@
   )
 
 (define-syntax-rule (BreakDecl x ys ...) (break x 'ys ...))
-(define-syntax-rule (InstanceDecl i) (instance i))
 
 (define-syntax (QueryDecl stx) (map-stx (lambda (d)
                                           (define name (second d))
@@ -1011,33 +1117,51 @@
   )
 )
 
-(require racket/stxparam)
-(define-syntax-parameter bindings (lambda (stx)
-  (raise-syntax-error (syntax-e stx) "can only be used inside Bounds")))
-(define-syntax-rule (Bounds lines ...)
-  (let ([B (make-hash)]) 
-    (syntax-parameterize ([bindings (make-rename-transformer #'B)])
+(define-syntax (Bounds stx)
+  (define datum (syntax-case stx ()
+    [(_ "exactly" lines ...)
+      #'(begin
+        (Bind lines) ...
+        (set-is-exact)
+      )]
+    [(_ lines ...)
+      #'(begin (Bind lines) ...)]
+  ))
+  ;(printf "Bounds: ~a~n" (syntax->datum datum))
+  datum
+)
+(define-syntax-rule (InstDecl (Name name) (Bounds lines ...))
+  (define (name B) 
       (Bind lines) ...
-    )
   )
 )
 (define-syntax (Bind stx)
-  (define datum (syntax-case stx (CompareOp QualName Const)
-    [(_ (_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))) 
+  ;(printf "REL: ~a~n" rel)
+  (define datum (syntax-case (second (syntax-e stx)) (CompareOp QualName Const)
+    [(_ "no" rel) #'(Bind (Expr rel (CompareOp "=") none))]
+    [(_ "one" (_ (QualName rel))) #`(Bind (Expr (Expr (QualName rel)) (CompareOp "=") (QualName
+      #,(string->symbol (string-append (symbol->string (syntax->datum #'rel)) "0")))))]
+    [(_ "lone" rel) #'(add-int-bound rel (int-bound 0 1))]
+    [(_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))  
       #'(add-int-bound rel (int-bound exact exact))]
-    [(_ (_ (_ "#" rel) (CompareOp "<") (_ (Const upper)))) 
+    [(_ (_ "#" rel) (CompareOp "<=") (_ (Const upper)))  
       #'(add-int-bound rel (int-bound 0 upper))]
-    [(_ (_ (_ (_ (Const lower)) (CompareOp "<") (_ "#" rel)) (CompareOp "<") (_ (Const upper)))) 
+    [(_ (_ (_ (Const lower)) (CompareOp "<=") (_ "#" rel)) (CompareOp "<=") (_ (Const upper)))  
       #'(add-int-bound rel (int-bound lower upper))]
-    [(_ (_ rel (CompareOp "in") (_ (QualName strat)))) 
-      #'(break rel 'strat)]
-    [(_ (_ (_ (QualName rel)) (CompareOp "=") expr)) 
+    [(_ rel (CompareOp "in") (_ (QualName strat))) #'(break rel 'strat)]
+    [(_ rel (CompareOp "is") (_ (QualName strat))) #'(break rel 'strat)]
+    [(_ (QualName f)) #'(f bindings)]
+    [(_ (_ (QualName rel)) (CompareOp "=") expr)
       #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
         (instance (make-exact-sbound rel tups))
+        (when (equal? (relation-arity rel) 1) (let ([exact (length tups)])
+          ;(printf "XXXX Inferring exact bounds: #~a = ~a~n" (relation-name rel) exact)
+          (add-int-bound rel (int-bound exact exact))))
         (hash-set! bindings 'rel tups)
       )]
-    [x #'(error (format "Unrecognized bounds constraint: ~a~n" 'x))]
+    [(_ a "and" b) #'(begin (Bind a) (Bind b))]
+    [x #'(error (format "Not allowed in bounds constraint: ~a~n" 'x))]
   ))
-  ;(printf "Bounds: ~a~n" (syntax->datum datum))
+  ;(printf "Bind: ~a~n" (syntax->datum datum))
   datum
 )

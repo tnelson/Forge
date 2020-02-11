@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 function node() {
+    let _fontsize = 16;
     let _selection = null;
     let _scheme = null;
     let _transition = d3.transition().duration(0);
@@ -36,10 +37,17 @@ function node() {
         return _selection;
     }
     const _node = Object.assign(_function, {
+        fontSize,
         scheme,
         transition
     });
     return _node;
+    function fontSize(size) {
+        if (!arguments.length)
+            return _fontsize;
+        _fontsize = size;
+        return _node;
+    }
     function scheme(scheme) {
         if (!arguments.length)
             return _scheme;
@@ -60,8 +68,8 @@ function node() {
             .attr('dy', '0.31em')
             .attr('stroke', 'none')
             .attr('fill', d => d.color ? text_color(d.color) : 'black')
-            .attr('font-size', '16px')
             .attr('font-weight', 'bold')
+            .attr('font-size', `${_fontsize}px`)
             .text(d => d.data);
     }
     function _enter_rects(enter) {
@@ -78,6 +86,7 @@ function node() {
             .attr('fill', _bg_color);
     }
     function _update_labels(update) {
+        update.attr('font-size', `${_fontsize}px`);
     }
     function _update_rects(update) {
         update

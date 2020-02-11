@@ -21,6 +21,7 @@
 
 (define (make-exact-bound relation contents)
   (make-bound relation contents contents))
+(define (exact-bound? b) (equal? (bound-lower b) (bound-upper b)))
 
 (define (make-upper-bound relation contents)
   (make-bound relation '() contents))
