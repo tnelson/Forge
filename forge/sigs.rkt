@@ -439,20 +439,6 @@
   (hash-set! upper-bounds Int int-range)
   (hash-set! lower-bounds Int int-range)
 
-  ;(hash-set!
-  ;(println sigs)
-  (newline)
-  (println "LINE 435")
-  (println sig-bounds)
-  (println bounds-store)
-  (println upper-bounds)
-  (println lower-bounds)
-  (println (hash-keys relations-store))
-  (newline)
-
-
-
-
   ; Int needs to be in upper-bounds, lower-bounds, and sig-bounds
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs (list Int)))
