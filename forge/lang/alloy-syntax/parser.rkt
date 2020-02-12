@@ -54,16 +54,14 @@ CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | 
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
-Quant : ALL-TOK | NO-TOK | SUM-TOK 
-      | @Mult
-QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name
+Quant : ALL-TOK | NO-TOK | @Mult
+QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK
 BreakDecl : /FACT-TOK /BREAK-TOK? Expr /COLON-TOK @NameList
           | /BREAK-TOK Expr /COLON-TOK @NameList
 
 OptionDecl : /OPTION-TOK QualName (QualName | Number)
 
 Name : IDENTIFIER-TOK
-Number : NUM-CONST-TOK
 NameList : @Name
          | @Name /COMMA-TOK @NameList
 QualNameList : @QualName
@@ -95,8 +93,8 @@ Expr4  : @Expr5  | Expr4 AND-TOK Expr5
 Expr5  : @Expr6  | NEG-TOK Expr5
 Expr6  : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
 Expr7  : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr8
-Expr8  : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr9
-Expr9  : @Expr10 | HASH-TOK Expr9
+Expr8  : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
+Expr9  : @Expr10 | CARD-TOK Expr9
 Expr10 : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11 : @Expr12 | Expr11 AMP-TOK Expr12
 Expr12 : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
@@ -115,6 +113,7 @@ Expr17 : Const
 
 ArrowExpr : QualName
           | QualName /ARROW-TOK @ArrowExpr
+
 
 ;;;;;;;;
 
@@ -142,3 +141,10 @@ EvalDecl : EVAL-TOK Expr
 
 Bounds : EXACTLY-TOK? @ExprList
        | EXACTLY-TOK? @Block
+
+;;;;;;;;;
+; Ints
+NumberList : Number
+           | Number /COMMA-TOK @NumberList
+
+Number : NUM-CONST-TOK

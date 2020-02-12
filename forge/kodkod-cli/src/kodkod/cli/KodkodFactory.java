@@ -69,10 +69,11 @@ public final class KodkodFactory {
 	 * @return some o: Options | o.reporter.logger = Logger.getGlobal() && o.reporter.logger.level = Level.SEVERE
 	 */
 	public static final Options baseOptions() {
-		final Options opts = new Options();
+		Options opts = new Options();
 		final KodkodReporter r = new KodkodReporter();
 		r.logger().setLevel(Level.SEVERE);
 		opts.setReporter(r);
+        opts.setSymmetryBreaking(0);
 		return opts;
 	}
 

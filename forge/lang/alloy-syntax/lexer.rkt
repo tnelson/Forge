@@ -43,7 +43,6 @@
    ["==" (token+ 'EQUIV-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["|" (token+ 'BAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["-" (token+ 'MINUS-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["#" (token+ 'HASH-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["~" (token+ 'TILDE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["*" (token+ 'STAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["^" (token+ 'EXP-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -81,7 +80,6 @@
    ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]      
    ["in"        (token+ `IN-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["is"        (token+ `IS-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ;["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["let"       (token+ `LET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["lone"      (token+ `LONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["module"    (token+ `MODULE-TOK "" lexeme "" lexeme-start lexeme-end)]    
@@ -95,7 +93,6 @@
    ["set"       (token+ `SET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["sig"       (token+ `SIG-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["some"      (token+ `SOME-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["test"      (token+ `TEST-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
@@ -104,10 +101,13 @@
    ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
-   ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)]  
-
+   ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
+
+   ;; int stuff
+   ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
+   ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ;; punctuation
    ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -154,7 +154,7 @@
            "implies"
            "in"
            "is"
-           "Int"
+
            "let"
            "lone"
            "module"
@@ -181,9 +181,19 @@
            "facts"
            "transition"
            "bind"
-
            "option"
            "inst"
+
+           'Int
+           'sum
+           'sing
+           'add
+           'subtract
+           'multiply
+           'divide
+           'max
+           'min
+           "#"
 )))
 
 (define (paren? str)
