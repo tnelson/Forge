@@ -426,13 +426,35 @@
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
-  
-  (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
+  (define int-range-singletons (map list int-range))
+ 
+
   (match-define (cons sig-bounds disj-cs) (bind-sigs hashy)) ; TODO: look here!!!!!!!!!!!!!!!
   (set! run-constraints (append run-constraints disj-cs))
   (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
+
+  
+  (set! sig-bounds (cons (bound Int int-range-singletons int-range-singletons) sig-bounds))
+  (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
+  (hash-set! upper-bounds Int int-range)
+  (hash-set! lower-bounds Int int-range)
+  (set! sigs (cons Int sigs))
+  
+  ;(hash-set!
   ;(println sigs)
-  ;(println relations-store)
+  (newline)
+  (println "LINE 435")
+  (println sig-bounds)
+  (println bounds-store)
+  (println upper-bounds)
+  (println lower-bounds)
+  (println (hash-keys relations-store))
+  (newline)
+
+
+  
+
+  ; Int needs to be in upper-bounds, lower-bounds, and sig-bounds
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
 
@@ -469,14 +491,48 @@
                            (accessor bound)))
     (if (empty? int-atoms)
         (n-arity-none (relation-arity (bound-relation bound)))
-        (tupleset #:tuples int-atoms)))  
+        (tupleset #:tuples int-atoms)))
+
+  (println "LINE 487")
+  (writeln total-bounds)
+  (newline)
+  (writeln sigs)(newline)
+  (writeln upper-bounds)(newline)
+  (writeln relations-store)(newline)
+  (writeln extensions-store)(newline)
+
+  #|
+  ; remove all traces of Ints from total-bounds, sigs, and relations-store
+  (define-values (Int-bound non-Int-bounds)
+    (partition (λ (x)
+                 (equal? (relation-name (bound-relation x)) "Int"))
+               total-bounds))
+
+  (define-values (Int-sig non-Int-sigs)
+    (partition (λ (x)
+                 (equal? (relation-name x) "Int"))
+               sigs))
+
+  (define-values (Int-rels0 non-Int-rels0)
+         (partition (λ (pair) (member "Int" (relation-typelist (car pair))))
+                    (hash->list relations-store)))
+  (define-values (Int-rels non-Int-rels) (values (make-hash Int-rels0) (make-hash non-Int-rels0)))
   
   ;; symmetry breaking
   (define-values (new-total-bounds new-formulas)
+<<<<<<< HEAD
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   ;; add ints to total-bounds, upper-boudsn, relations-store here potentially after symmetry breaking
   (set! total-bounds new-total-bounds)
+=======
+    (constrain-bounds non-Int-bounds non-Int-sigs upper-bounds non-Int-rels extensions-store))
+  (set! total-bounds (append Int-bound new-total-bounds))
+>>>>>>> 634637f289a35d16673a9844902881f1327df760
   (set! run-constraints (append run-constraints new-formulas))
+
+  (println "AFTER SYMMETRY BREAKING")
+  (println new-total-bounds)
+  (println new-formulas)|#
 
   (when is-exact
     (for ([b total-bounds]) 
@@ -523,40 +579,18 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-
-         #|(define int-rel (declare-relation (list r ...) "univ" name))
-         (add-relation int-rel (list r ...))
-         (hash-set! hashy int-rel (int-bound (expt 2 (sub1 bitwidth)) (expt 2 (sub1 bitwidth))))|#
-         (define int-sig (declare-relation '("Int") "univ" "Int"))
-         (add-sig int-sig)
-         (hash-set! hashy int-sig (int-bound (expt 2 bitwidth) (expt 2 bitwidth)))
-
          (run-spec hashy name #,command filepath 'run))]
     [(_ name (preds ...) ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
-         ;(hash-set! hashy 'Int (int-bound (expt 2 (sub1 bitwidth)) (expt 2 (sub1 bitwidth))))
-         ; (add-constraint preds) ...
-         (define int-sig (declare-relation '("Int") "univ" "Int"))
-         (add-sig int-sig)
-         (hash-set! hashy int-sig (int-bound (expt 2 bitwidth) (expt 2 bitwidth)))
-
          (run-spec hashy name #,command filepath 'run preds ...))]
     [(_ name)
-     #`(
-         (define int-sig (declare-relation '("Int") "univ" "Int"))
-         (add-sig int-sig)
-         (hash-set! hashy int-sig (int-bound (expt 2 bitwidth) (expt 2 bitwidth)))
-
+     #`(begin
          (run-spec (make-hash) name #,command filepath 'run))]
     [(_ name (preds ...))
      #`(begin
          ;(add-constraint preds) ...
-         (define int-sig (declare-relation '("Int") "univ" "Int"))
-         (add-sig int-sig)
-         (hash-set! hashy int-sig (int-bound (expt 2 bitwidth) (expt 2 bitwidth)))
-
          (run-spec (make-hash) name #,command filepath 'run preds ...))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
     [(_ pred) #'(error "Run statements require a unique name specification")]
@@ -628,11 +662,7 @@
 
 
 (define (relation->bounds rel)
-  (println "")
-  (println upper-bounds)
-  (println "")
-  (println (hash-ref upper-bounds (node/expr/relation 1 "Int" (Int) univ)))
-  (make-bound rel '() (apply cartesian-product (map (lambda (x) (begin (hash-ref upper-bounds x))) (hash-ref relations-store rel)))))
+  (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref upper-bounds x)) (hash-ref relations-store rel)))))
 
 
 ;;;;;;;;;;;;;;;;;
