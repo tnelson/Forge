@@ -54,23 +54,17 @@ pred GiveMeABigFormula {
   }
 }
 
-expect gimme_big {
+test expect gimme_big {
  GiveMeABigFormula for 8 Formula, 2 Instance is sat
  GiveMeABigFormula for 8 Formula, 1 Instance is unsat
 }
 
-expect {
+test expect {
  {some f: Formula | f in Var and f in And} is unsat
  {some x: univ | x in Formula and x in Instance} is unsat
  {some oleft & aleft} is unsat
  {semantics and {some n: Not, i: Instance | i in n.truth and i in n.child.truth }} for 8 Formula, 1 Instance is unsat
 }
-
--- #f in bounds issue; not "test" yet
---expect instances {
---  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 5 } is sat
---  {bind Var = V1 + V2 + V3 + V4 + V5 | #Var = 4 } is unsat
---}
 
 pred localTautology[f: Formula] {
   -- true in all instances that Forge bothered to create

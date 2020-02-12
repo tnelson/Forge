@@ -1,6 +1,7 @@
 #lang racket
 
-(require (only-in "lang/ast.rkt" relation-name))
+(require (only-in "lang/ast.rkt" relation-name)
+         (only-in "lang/ast.rkt" univ declare-relation))
 (provide translate-from-kodkod-cli)
 
 #|
@@ -8,7 +9,8 @@ The kodkod cli only numbers relations and atoms, it doesn't give them names. Thi
 we convert from the numbering scheme to the naming scheme.
 |#
 
-(define (id-to-index id)
+; returns #f if the substring is not numeric
+(define (id-to-index id) 
   (string->number (substring (symbol->string id) 1)))
 
 (define (translate-kodkod-cli-atom univ atom)
@@ -79,9 +81,21 @@ This function just recreates the model, but using names instead of numbers.
                       (translate-kodkod-cli-relation univ (hash-ref data relation-num) (id-to-index relation-num) parents)))|#
 
 
-
          (for ([relation-num (hash-keys data)])
-           (hash-set! translated-model
-                      (list-ref relation-names (id-to-index relation-num))
-                      (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num))))
+           (cond [(id-to-index relation-num)
+                  ; A declared relation
+                  (hash-set! translated-model
+                             (list-ref relation-names (id-to-index relation-num))
+                             (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num)))]
+                 [else
+                  ; Likely a Skolem relation. Infer arity from contents                  
+                  (define tuples (hash-ref data relation-num))
+                  (define arity (if (empty? tuples) 0 (length (first tuples))))
+                  (define arity-types (build-list arity (lambda (x) "univ")))
+                  (define translated-tuples (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num)))
+                  (printf "Skolem ~a: ~a~n" relation-num translated-tuples)
+                  (hash-set! translated-model
+                             (declare-relation arity-types "univ" (symbol->string relation-num))
+                             translated-tuples)]))
+         ;(printf "Translated model: ~a~n" translated-model)
          (cons 'sat translated-model)]))

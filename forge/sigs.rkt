@@ -15,8 +15,6 @@
 (define (set-path! path)
   (set! filepath path))
 
-;(require (only-in forged-ocelot relation-name))
-
 (define lower-bounds (make-hash))
 (define upper-bounds (make-hash))
 (define top-level-leftovers (make-hash))
@@ -48,9 +46,15 @@
 (define run-names '())
 ;Bitwidth
 (define bitwidth 4)
+
 ;Solver choice: default to MiniSat (no cores, so no proof overhead, faster than SAT4J)
 ; ^ Except that MiniSat isn't built for 64 bit windows, so maximize chances of working
 (define solveroption 'SAT4J)
+; max symmetry-breaking predicate size. Alloy's default was 20; set to 0 to disable SB
+(define sboption 20)
+; core granularity and log translation --- affect core quality (see kodkod docs)
+(define coregranoption 0)
+(define logtransoption 1)
 
 ; set of one sigs
 (define one-sigs (mutable-set))
@@ -79,10 +83,15 @@
 (define-syntax-rule (debug x) (begin (printf "~a: ~a~n" 'x x) x))
 
 ; Filter options to prevent user from rewriting any global
+; Note that we cannot use dash in option names
 (define (set-option key val)
   (match key
     ['solver (set! solveroption val)]
     ['verbosity (set-verbosity val)]
+    ['verbose (set-verbosity val)]
+    ['coregranularity (set! coregranoption val)]
+    ['sb (set! sboption val)]
+    ['logtranslation (set! logtransoption val)]
     [else (error (format "Invalid option key: ~a" key))]))
 
 (define (set-bitwidth i) (set! bitwidth i))
@@ -446,9 +455,8 @@
    [stdin]
    ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
    ; TODO: use our verbosity setting? (unclear how kodkod differs by verbosity)
-   (configure (format ":bitwidth ~a :produce-cores true :solver ~a :max-solutions 1 :verbosity 7"
-                      bitwidth
-                      solveroption))
+   (configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
+                      bitwidth solveroption sboption coregranoption logtransoption))
    (declare-univ (length inty-univ))
    (declare-ints int-range int-indices))
   (define (get-atom atom)

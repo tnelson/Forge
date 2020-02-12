@@ -365,7 +365,42 @@ import org.parboiled.errors.ActionException;
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
-	};
+	}
+
+	boolean setSB(int sb) {
+		try {
+			options.setSymmetryBreaking(sb);
+		} catch (IllegalArgumentException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
+
+	boolean setSkolemDepth(int sd) {
+		try {
+			options.setSkolemDepth(sd);
+		} catch (IllegalArgumentException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
+	boolean setCoreGranularity(int gran) {
+		try {
+			options.setCoreGranularity(gran);
+		} catch (IllegalArgumentException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
+	boolean setLogTranslation(int lt) {
+		try {
+			options.setLogTranslation(lt);
+		} catch (IllegalArgumentException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
+
 
 	/**
 	 * Sets {@code this.options.solver} to the specified solver factory.
@@ -395,6 +430,8 @@ import org.parboiled.errors.ActionException;
 	 * 				 this.ooptions.setSolver(SATFactory.MiniSatProver)) else
 	 *              (this.options.setLogTranslation(0) && this.options.setCoreGranularity(0))
 	 **/
+	// Just set solver, LT, and CG separately.
+	@Deprecated
 	boolean setCoreExtraction(boolean enable) {
 		try {
 			if (enable) {
@@ -413,6 +450,7 @@ import org.parboiled.errors.ActionException;
 		}
 		return true;
 	}
+
 
 	/**
 	 * Sets {@code this.bounds} to an empty {@link Bounds} over a freshly

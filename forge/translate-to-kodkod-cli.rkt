@@ -76,7 +76,7 @@
      (map (lambda (x) (interpret-int x relations quantvars)) args)
      ( print-cmd-cont ")")]))
 
-(define (interpret-expr expr relations quantvars)
+(define (interpret-expr expr relations quantvars)  
   (match expr
     [(node/expr/relation arity name typelist parent)
      ( print-cmd-cont (format "r~a " (index-of relations expr)))]
@@ -86,15 +86,20 @@
      ( print-cmd-cont (format "~a " type))]
     [(node/expr/op arity args)
      (interpret-expr-op expr relations quantvars args)]
-    [(node/expr/quantifier-var arity sym)
+    [(node/expr/quantifier-var arity sym)     
      (print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
      (print-cmd-cont " ")]
-    [(node/expr/comprehension len decls form)
-     (define var (car (car decls)))
-     (let ([quantvars (cons var quantvars)])
-       ( print-cmd-cont (format "{([~a : " (v (get-var-idx var quantvars))))
-       (interpret-expr (cdr (car decls)) relations quantvars)
-       ( print-cmd-cont "]) ")
+    [(node/expr/comprehension len decls form)     
+     (define vars (map car decls)) ; account for multiple variables
+     ;(define var (car (car decls)))     
+     (let ([quantvars (append vars quantvars)])       
+       ( print-cmd-cont "{(") ; start comprehension, start decls
+       (for-each (lambda (d) ; each declaration
+                   (print-cmd-cont (format "[~a : " (v (get-var-idx (car d) quantvars))))
+                   (interpret-expr (cdr d) relations quantvars)
+                   (print-cmd-cont "]"))
+                 decls)
+       ( print-cmd-cont ") ") ; end decls
        (interpret-formula form relations quantvars)
        ( print-cmd-cont "}"))]))
 

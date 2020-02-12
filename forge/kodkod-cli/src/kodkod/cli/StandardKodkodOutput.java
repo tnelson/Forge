@@ -21,9 +21,7 @@
  */
 package kodkod.cli;
 
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 
 import kodkod.ast.Formula;
@@ -35,7 +33,6 @@ import kodkod.engine.Statistics;
 import kodkod.instance.Instance;
 import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
-import java.util.Map;
 
 /**
  * An implementation of the  {@link KodkodOutput} interface that writes solutions provided to it
@@ -103,26 +100,40 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	 **/
 	public void writeInstance(Instance inst, Defs<Relation> defs) {
 		final StringBuilder str = new StringBuilder();
+		Set<Relation> written = new HashSet<>();
 		str.append("(sat :model (");
 		for (int i = 0, max = defs.maxIndex(); i <= max; i++) {
 			final Relation r = defs.use(i);
 			if (r==null) continue;
 			final TupleSet ts = inst.tuples(r);
 			assert ts != null;
-			str.append("[").append(r).append(" {");
-			final int arity = ts.arity();
-			for(Tuple t : ts) {
-				str.append("(");
-				str.append(t.atomIndex(0));
-				for(int idx = 1; idx < arity; idx++) {
-					str.append(" ").append(t.atomIndex(idx));
-				}
-				str.append(")");
+			appendRelation(r, ts, str);
+			written.add(r);
+		}
+		// Write out Skolem relations as well. Client will need to be ready for non-numeric label.
+		for(Relation r : inst.relations()) {
+			if(!written.contains(r) && r.name().startsWith("$")) {
+				final TupleSet ts = inst.tuples(r);
+				assert ts != null;
+				appendRelation(r, ts, str);
 			}
-			str.append("}]");
 		}
 		str.append("))");
 		System.out.println(str);
+	}
+
+	private void appendRelation(Relation r, TupleSet ts, StringBuilder str) {
+		str.append("[").append(r).append(" {");
+		final int arity = ts.arity();
+		for(Tuple t : ts) {
+			str.append("(");
+			str.append(t.atomIndex(0));
+			for(int idx = 1; idx < arity; idx++) {
+				str.append(" ").append(t.atomIndex(idx));
+			}
+			str.append(")");
+		}
+		str.append("}]");
 	}
 
 	/**
