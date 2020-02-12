@@ -1107,6 +1107,7 @@
     [(_ a "+" b) #'(+ a b)]
     [(_ a "-" b) #'(- a b)]
     [(_ "#" a) #'(card a)]
+    ;[(_ "add" a) #']
     [(_ a "++" b) #'(++ a b)]
     [(_ a "&" b) #'(& a b)]
     [(_ a (ArrowOp _ ...) b) #'(-> a b)]
@@ -1149,15 +1150,7 @@
 (define-syntax-rule (QualName n) n)
 (define-syntax (Number stx)
   (syntax-case stx ()
-    [(_ "sum" expr) (sum expr)]
-    [(_ "add" expr-list) (add expr-list)]
-    [(_ "sub" expr-list) (subtrace expr-list)]
-    [(_ "mult" expr-list) (multiply expr-list)]
-    [(_ "div" expr-list) (divide expr-list)]
-    ;[(_ "max" expr) ---------]
-    ;[(_ "min" expr) --------]
-    [(_ "#" expr) (card expr)]
-    [(_ n) (string->number (cadr m))])) ;(map-stx (lambda (d) (string->number (cadr d))) stx))
+    [(_ n) (map-stx (lambda (d) (string->number (cadr d))) stx)]))
 (define-syntax (Const stx)
   (syntax-case stx ()
     [(_ (Number n)) #'(node/int/constant (Number n))]

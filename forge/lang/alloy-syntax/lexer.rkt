@@ -107,14 +107,14 @@
 
    ;; int stuff
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
-   ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["sing"      (token+ `SING-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["add"       (token+ `ADD-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["sub"       (token+ `SUB-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["mult"      (token+ `MULT-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["div"       (token+ `DIV-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["max"       (token+ `MAX-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["min"       (token+ `MIN-TOK "" lexeme "" lexeme-start lexeme-start)]
+   ;["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["sing"      (token+ `SING-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["add"       (token+ `ADD-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["sub"       (token+ `SUB-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["mult"      (token+ `MULT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["div"       (token+ `DIV-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["max"       (token+ `MAX-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["min"       (token+ `MIN-TOK "" lexeme "" lexeme-start lexeme-start)]
    ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ;; punctuation

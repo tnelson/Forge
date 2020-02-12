@@ -93,8 +93,8 @@ Expr4  : @Expr5  | Expr4 AND-TOK Expr5
 Expr5  : @Expr6  | NEG-TOK Expr5
 Expr6  : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
 Expr7  : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr8
-Expr8  : @Expr10 | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
-;Expr9  : @Expr10 | HASH-TOK Expr9
+Expr8  : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
+Expr9  : @Expr10 | CARD-TOK Expr9
 Expr10 : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11 : @Expr12 | Expr11 AMP-TOK Expr12
 Expr12 : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
@@ -149,12 +149,12 @@ NumberList : Number
            | Number /COMMA-TOK @NumberList
 
 Number : NUM-CONST-TOK
-       | SUM-TOK /LEFT-SQUARE-TOK Expr /RIGHT-SQUARE-TOK
-       | ADD-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-       | SUB-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-       | MULT-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-       | DIV-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-       | MAX-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-       | MIN-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-       | CARD-TOK Expr
+;       | SUM-TOK /LEFT-SQUARE-TOK Expr /RIGHT-SQUARE-TOK
+;       | ADD-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+;       | SUB-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+;       | MULT-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+;       | DIV-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+;       | MAX-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+;       | MIN-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
+;       | CARD-TOK Expr
 
