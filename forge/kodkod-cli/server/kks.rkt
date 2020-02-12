@@ -27,8 +27,8 @@
 
 (define-syntax-rule (kodkod-display arg)
   (begin
-    ;(when (>= (get-verbosity) 5)
-      (display arg);)
+    (when (>= (get-verbosity) 5)
+      (display arg))
     (display arg [kodkod-port])))
 
 ; Prints the given command string to the kodkod-port.

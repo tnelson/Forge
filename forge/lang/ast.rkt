@@ -82,7 +82,6 @@
                (if ($and @op (for/and ([a (in-list e)]) ($not (node/expr? a))))
                    (apply @op e)
                    (begin
-                     (displayln e)
                      (check-args 'id e childtype checks ...)
                      (if arity
                          (let ([arities (for/list ([a (in-list e)]) (node/expr-arity a))])
