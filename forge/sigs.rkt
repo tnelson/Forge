@@ -492,44 +492,11 @@
         (n-arity-none (relation-arity (bound-relation bound)))
         (tupleset #:tuples int-atoms)))
 
-  (println "LINE 487")
-  (writeln total-bounds)
-  (newline)
-  (writeln sigs)(newline)
-  (writeln upper-bounds)(newline)
-  (writeln relations-store)(newline)
-  (writeln extensions-store)(newline)
-
- #| ; remove all traces of Ints from total-bounds, sigs, and relations-store
-  (define-values (Int-bound non-Int-bounds)
-    (partition (λ (x)
-                 (equal? (relation-name (bound-relation x)) "Int"))
-               total-bounds))
-
-  (define-values (Int-sig non-Int-sigs)
-    (partition (λ (x)
-                 (equal? (relation-name x) "Int"))
-               sigs))
-
-  (define-values (Int-rels0 non-Int-rels0)
-         (partition (λ (pair) (member "Int" (relation-typelist (car pair))))
-                    (hash->list relations-store)))
-  (define-values (Int-rels non-Int-rels) (values (make-hash Int-rels0) (make-hash non-Int-rels0)))
-
-  ;; symmetry breaking
-  (define-values (new-total-bounds new-formulas)
-    (constrain-bounds non-Int-bounds non-Int-sigs upper-bounds non-Int-rels extensions-store))
-  (set! total-bounds (append Int-bound new-total-bounds))
-  (set! run-constraints (append run-constraints new-formulas))|#
 
   (define-values (new-total-bounds new-formulas)
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
   (set! total-bounds new-total-bounds)
   (set! run-constraints (append run-constraints new-formulas))
-
-  (println "AFTER SYMMETRY BREAKING")
-  (println new-total-bounds)
-  (println new-formulas)
 
   (when is-exact
     (for ([b total-bounds])
