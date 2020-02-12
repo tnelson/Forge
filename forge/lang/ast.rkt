@@ -182,7 +182,7 @@
 (define none (node/expr/constant 1 'none))
 (define univ (node/expr/constant 1 'univ))
 (define iden (node/expr/constant 2 'iden))
-(define Int (node/expr/constant 1 'Int))
+(define Int (node/expr/relation 1 "Int" '(Int) "univ"))
 
 ;; INTS ------------------------------------------------------------------------
 
