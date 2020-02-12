@@ -69,9 +69,10 @@
 
 (struct node/expr/op node/expr (children) #:transparent)
 
+; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-expr-op stx)
   (syntax-case stx ()
-    [(_ id arity checks ... #:lift @op)
+    [(_ id arity checks ... #:lift @op #:type childtype)
      (with-syntax ([name (format-id #'id "node/expr/op/~a" #'id)])
        (syntax/loc stx
          (begin
@@ -81,9 +82,18 @@
                (if ($and @op (for/and ([a (in-list e)]) ($not (node/expr? a))))
                    (apply @op e)
                    (begin
-                     (check-args 'id e node/expr? checks ...)
-                     (let ([arities (for/list ([a (in-list e)]) (node/expr-arity a))])
-                       (name (apply arity arities) e)))))))))]
+                     (displayln e)
+                     (check-args 'id e childtype checks ...)
+                     (if arity
+                         (let ([arities (for/list ([a (in-list e)]) (node/expr-arity a))])
+                           (name (apply arity arities) e))
+                         (name 1 e)))))))))] ; If arity is #f, assumed to be const 1
+    [(_ id arity checks ... #:lift @op)
+     (syntax/loc stx
+       (define-expr-op id arity checks ... #:lift @op #:type node/expr?))]
+    [(_ id arity checks ... #:type childtype)
+     (syntax/loc stx
+       (define-expr-op id arity checks ... #:lift #f #:type childtype))]
     [(_ id arity checks ...)
      (syntax/loc stx
        (define-expr-op id arity checks ... #:lift #f))]))
@@ -113,6 +123,7 @@
 
 (define-expr-op <: get-second #:max-length 2 #:domain? #t)
 (define-expr-op :> get-first  #:max-length 2 #:range? #t)
+(define-expr-op sing #f #:min-length 1 #:max-length 1 #:type node/int?)
 
 (define-syntax-rule (define-op/closure id @op)
   (define-expr-op id (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:lift @op))
@@ -218,6 +229,13 @@
 (define-int-op card node/expr? #:min-length 1 #:max-length 1)
 (define-int-op sum node/expr? #:min-length 1 #:max-length 1)
 
+(define-int-op remainder node/int? #:min-length 2 #:max-length 2)
+(define-int-op absolute node/int? #:min-length 1 #:max-length 1)
+(define-int-op sign node/int? #:min-length 1 #:max-length 1)
+
+;(define-int-op max node/expr? #:min-length 1 #:max-length 1)
+;(define-int-op min node/expr? #:min-length 1 #:max-length 1)
+
 ;; -- constants ----------------------------------------------------------------
 
 (struct node/int/constant node/int (value) #:transparent
@@ -310,13 +328,6 @@
 
 (define (quantified-formula quantifier decls formula)
   (for ([e (in-list (map cdr decls))])
-    ; (writeln decls)
-    ;(writeln (map cdr decls))
-    ;(writeln (cdr (car decls)))
-    ;(writeln (car decls))
-    ;(writeln (car (car decls)))
-    ;(writeln (cdr (car decls)))
-    ;(writeln e)
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
     #'(unless (equal? (node/expr-arity e) 1)
@@ -424,10 +435,13 @@
   (@or (node/expr/op/~? op)
        (node/expr/op/^? op)
        (node/expr/op/*? op)
+       (node/expr/op/sing? op)
        (node/formula/op/!? op)
        (node/int/op/sum? op)
        (node/int/op/card? op)
-       (@member op (list ~ ^ * ! not))))
+       (node/int/op/absolute? op)
+       (node/int/op/sign? op)
+       (@member op (list ~ ^ * sing ! not sum card absolute sign)))) ; These are just aliases for the expanded names
 (define (binary-op? op)
   (@member op (list <: :> in = => int= int> int<)))
 (define (nary-op? op)

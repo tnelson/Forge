@@ -10,6 +10,9 @@
 (define (translate-to-kodkod-cli formula relations quantvars)
   (interpret-formula formula relations quantvars))
 
+; How to refactor? Instead of printing in many small pieces, accumulate a string and just print that.
+; with maybe a formatting function?
+
 ; quantvars should start at -1
 (define (interpret-formula formula relations quantvars)
   (match formula
@@ -129,9 +132,14 @@
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
      (print-cmd-cont ")")]
     [(? node/expr/op/~?)
-     (print-cmd-cont "(~a " '~)
+     (print-cmd-cont "(~a " '~) ;WHY IS THIS ONE DIFFERENT
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
-     (print-cmd-cont ")")]))
+     (print-cmd-cont ")")]
+    [(? node/expr/op/sing?)
+     (print-cmd-cont "(lone ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     (print-cmd-cont ")")
+     ]))
 
 (define (interpret-int expr relations quantvars)
   (match expr
@@ -165,4 +173,17 @@
     [(? node/int/op/card?)
      ( print-cmd-cont "(# ")
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
-     ( print-cmd-cont ")")]))
+     ( print-cmd-cont ")")]
+    [(? node/int/op/remainder?)
+     ( print-cmd-cont "(% ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/int/op/absolute?)
+     ( print-cmd-cont "(abs ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/int/op/sign?)
+     ( print-cmd-cont "(sgn ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
+    ))
