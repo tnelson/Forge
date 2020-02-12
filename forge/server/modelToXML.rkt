@@ -52,6 +52,7 @@
   (define flag (car model))
   (define data (cdr model))
   
+  
   (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
                                   (clean (clean-syntax command)) "\" filename=\"" filepath "\">\n"
@@ -85,7 +86,6 @@ here-string-delimiter
                         "</alloy>")]
         [(equal? flag 'no-more-instances)
          (string-append prologue
-                        ;"\n<sig label=\"NO MORE INSTANCES\" ID=\"5\" parentID=\"2\"></sig>\n"
                         "\n<sig label=\"No more instances! Some equivalent instances may have been removed through symmetry breaking.\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"&#128557;\"/><atom label=\"&#128542;\"/><atom label=\"&#128546;\"/><atom label=\"&#128551;\"/><atom label=\"&#128558;\"/>\n"
                         "</sig>\n"
@@ -97,6 +97,8 @@ here-string-delimiter
                         "</sig>\n"
                         "</instance>\n</alloy>")]
         [else
+
+         (hash-remove! data Int)
 
          (define sigs-unsorted (filter
                                 (λ (key) (equal? (relation-arity key) 1))

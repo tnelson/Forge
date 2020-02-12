@@ -443,7 +443,7 @@
        (node/int/op/sign? op)
        (@member op (list ~ ^ * sing ! not sum card absolute sign)))) ; These are just aliases for the expanded names
 (define (binary-op? op)
-  (@member op (list <: :> in = => int= int> int<)))
+  (@member op (list <: :> in = => int= int> int< remainder)))
 (define (nary-op? op)
   (@member op (list + - & -> join && || add subtract multiply divide)))
 
