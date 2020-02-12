@@ -1106,8 +1106,19 @@
     [(_ "set" a) #'(set a)]
     [(_ a "+" b) #'(+ a b)]
     [(_ a "-" b) #'(- a b)]
+
+    [(_ "add" n1 n2 ...) #'(add n1 n2 ...)]
+    [(_ "subtract" n1 n2 ...) #'(subtract n1 n2 ...)]
+    [(_ "multiply" n1 n2 ...) #'(multiply n1 n2 ...)]
+    [(_ "divide" n1 n2 ...) #'(divide n1 n2 ...)]
+    [(_ "remainder" n1 n2) #'(remainder n1 n2)]
+    [(_ "abs" n) #'(absolute n)]
+    [(_ "sign" n) #'(sign n)]
+    [(_ "sum" a) #'(sum a)]
     [(_ "#" a) #'(card a)]
-    ;[(_ "add" a) #']
+
+    [(_ "sing" a) #'(sing a)]
+
     [(_ a "++" b) #'(++ a b)]
     [(_ a "&" b) #'(& a b)]
     [(_ a (ArrowOp _ ...) b) #'(-> a b)]
