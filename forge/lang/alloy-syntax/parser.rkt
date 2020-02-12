@@ -42,7 +42,7 @@ TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
       | /FOR-TOK @TypescopeList
 Typescope : EXACTLY-TOK? Number QualName
-Const : NONE-TOK | UNIV-TOK | IDEN-TOK | INT-TOK
+Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
@@ -100,7 +100,6 @@ Expr11 : @Expr12 | Expr11 AMP-TOK Expr12
 Expr12 : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
 Expr13 : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14 : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
-;Expr18 : @Expr15 | SING-TOK LEFT-SQUARE-TOK Number RIGHT-SQUARE-TOK
 Expr15 : @Expr16 | Expr15 DOT-TOK Expr16
 Expr16 : @Expr17 | (TILDE-TOK | EXP-TOK | STAR-TOK) Expr16
 Expr17 : Const 
@@ -149,12 +148,3 @@ NumberList : Number
            | Number /COMMA-TOK @NumberList
 
 Number : NUM-CONST-TOK
-;       | SUM-TOK /LEFT-SQUARE-TOK Expr /RIGHT-SQUARE-TOK
-;       | ADD-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-;       | SUB-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-;       | MULT-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-;       | DIV-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-;       | MAX-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-;       | MIN-TOK /LEFT-SQUARE-TOK Number /COMMA-TOK @NumberList /RIGHT-SQUARE-TOK
-;       | CARD-TOK Expr
-

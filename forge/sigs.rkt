@@ -1119,7 +1119,7 @@
     [(_ "*" a) #'(* a)]
     [(_ a) #'a]
   ))
-  (println (syntax->datum ret))
+  ;(println (syntax->datum ret))
   ret
 )
 
