@@ -111,6 +111,8 @@
    ["sing"      (token+ `SING-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["add"       (token+ `ADD-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["sub"       (token+ `SUB-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["mult"      (token+ `MULT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["div"       (token+ `DIV-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["max"       (token+ `MAX-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["min"       (token+ `MIN-TOK "" lexeme "" lexeme-start lexeme-start)]
    ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
