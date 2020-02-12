@@ -9,6 +9,11 @@
 
 (require "../lang/reader.rkt")
 
+(require setup/getinfo)
+(define info (get-info/full ".."))
+(define forge-version (if info (info 'version) "pls.save.file"))
+(printf "Forge Version: ~a~n" forge-version)
+
 (provide display-model)
 
 
@@ -38,31 +43,34 @@
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
                  [(equal? m "current")
-                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
+                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
                  [(equal? m "next")
                   (set! model (get-next-model))
-                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
+                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
-
-                  (define port (open-input-string (string-append "eval " command)))
-
-                  (define maxint 8) ; TODO: get maxint
-                  (define result
-                    (with-handlers (
+                  
+                  (define result (case command 
+                    [("--version" "-v") forge-version]
+                    [("--file" "-f") filepath]
+                    [else (with-handlers (
                         ;[exn:fail:read? (λ (exn) (println exn) "syntax error")]
                         ;[exn:fail:parsing? (λ (exn) (println exn) "syntax error")]
                         [exn:fail:contract? (λ (exn) (println exn) "error")]
                         [exn:fail? (λ (exn) (println exn) "syntax error")]
                       )
 
+                      (define maxint 8) ; TODO: get maxint
+                      (define port (open-input-string (string-append "eval " command)))
                       (define stxFromEvaluator (read-syntax 'Evaluator port))
                       (define alloy (third (last (syntax->datum stxFromEvaluator))))
                       ;(printf "alloy: ~a~n" alloy)
                       (define kodkod (alloy->kodkod alloy))
                       ;(printf "kodkod: ~a~n" kodkod)
-                      (define lists (eval-unknown kodkod (model->binding (cdr model)) maxint))
+                      (define binding (model->binding (cdr model)))
+                      ;(printf "binding: ~a~n" binding)
+                      (define lists (eval-unknown kodkod binding maxint))
                       ;(printf "lists: ~a~n" lists)
                       (if (list? lists)
                           (string-join (for/list ([l lists])
@@ -73,7 +81,8 @@
                               ) "->")
                               ) " + ")
                           lists)
-                      ))
+                      )]
+                    ))
                   ;(println result)
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else
