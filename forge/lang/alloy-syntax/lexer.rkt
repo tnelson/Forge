@@ -196,7 +196,7 @@
            "sum"
            "sing"
            "add"
-           "sub"
+           "subtract"
            "max"
            "min"
            "#"

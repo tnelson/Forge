@@ -93,7 +93,7 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum )
+(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum sing)
 (provide add-relation set-option)
 
 (define (add-relation rel types)
@@ -1106,26 +1106,12 @@
     [(_ "set" a) #'(set a)]
     [(_ a "+" b) #'(+ a b)]
     [(_ a "-" b) #'(- a b)]
-
-    [(_ "add" n1 n2 ...) #'(add n1 n2 ...)]
-    [(_ "subtract" n1 n2 ...) #'(subtract n1 n2 ...)]
-    [(_ "multiply" n1 n2 ...) #'(multiply n1 n2 ...)]
-    [(_ "divide" n1 n2 ...) #'(divide n1 n2 ...)]
-    [(_ "remainder" n1 n2) #'(remainder n1 n2)]
-    [(_ "abs" n) #'(absolute n)]
-    [(_ "sign" n) #'(sign n)]
-    [(_ "sum" a) #'(sum a)]
     [(_ "#" a) #'(card a)]
-
-    [(_ "sing" a) #'(sing a)]
-
     [(_ a "++" b) #'(++ a b)]
     [(_ a "&" b) #'(& a b)]
     [(_ a (ArrowOp _ ...) b) #'(-> a b)]
     [(_ a "<:" b) #'(<: a b)]
     [(_ a ":>" b) #'(<: b a)]
-    ;[(_ a "[" (ExprList b) "]") #'(join b a)]
-    ;[(_ a "[" (ExprList b bs ...) "]") #'(Expr (join b a) "[" (ExprList bs ...) "]")]
     [(_ a "[" (ExprList bs ...) "]") #'(a bs ...)]
     [(_ a "." b) #'(join a b)]
     [(_ "~" a) #'(~ a)]
@@ -1133,7 +1119,7 @@
     [(_ "*" a) #'(* a)]
     [(_ a) #'a]
   ))
-  ;(println (syntax->datum ret))
+  (println (syntax->datum ret))
   ret
 )
 
