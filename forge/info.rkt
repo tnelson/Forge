@@ -1,5 +1,8 @@
 #lang info
+
 (define collection "forge")
+
+(define version "0.0.0")
 
 (define deps '("beautiful-racket" "predicates"))
 
