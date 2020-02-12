@@ -94,7 +94,7 @@ import org.parboiled.errors.ActionException;
  */
  public abstract class KodkodProblem {
 	private long buildTimeMillis = -1, coreTimeMillis = -1, maxSolutions = 1;
-	private final Options options;
+	private Options options;
 	private final DefEnv env;
 	private final List<Formula> asserts;
 	private Bounds bounds;
@@ -108,6 +108,9 @@ import org.parboiled.errors.ActionException;
 		this.env = env;
 		this.bounds = bounds;
 		this.options = options;
+        // System.out.println("HERE");
+        // this.options.setSymmetryBreaking(20);
+        // System.out.println("HERE2");
 		this.asserts = new ArrayList<>();
 		this.maxSolutions = maxSolutions;
 	}
@@ -585,6 +588,7 @@ import org.parboiled.errors.ActionException;
 
 		Stepper() {
 			this.solver = new Solver(super.options);
+                // System.err.println(super.options);
 			super.maxSolutions = -1;	// maxSolutions has no meaning for Steppers.
 		}
 
