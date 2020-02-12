@@ -1157,7 +1157,7 @@
     ;[(_ "max" expr) ---------]
     ;[(_ "min" expr) --------]
     [(_ "#" expr) (card expr)]
-    [(_ n) (string->number (cadr m))] ;(map-stx (lambda (d) (string->number (cadr d))) stx))
+    [(_ n) (string->number (cadr m))])) ;(map-stx (lambda (d) (string->number (cadr d))) stx))
 (define-syntax (Const stx)
   (syntax-case stx ()
     [(_ (Number n)) #'(node/int/constant (Number n))]
