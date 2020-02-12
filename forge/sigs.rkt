@@ -8,6 +8,7 @@
 ; racket/string needed for replacing transpose operator (~) with escaped version in error messages
 (require (for-syntax racket/syntax)
          (for-syntax racket/string))
+(require racket/trace)
 
 (provide break instance quote begin println filepath set-path! let)
 
@@ -27,7 +28,7 @@
 
 ;Default bound
 (define top-level-bound 4)
-;Track what sigs exist in the universe
+;Track what sigs exist in the universe (ints always do)
 (define sigs '())
 ;Track singletons to instantiate an ocelot universe
 (define working-universe '())
@@ -333,7 +334,6 @@
 ; Returns a list of bounds objects
 ; This is pre-erasure of unused atoms
 (define (bind-sigs hashy-bounds)
-
   (set! lower-bounds (make-hash))
   (set! upper-bounds (make-hash))
   (set! top-level-leftovers (make-hash))
@@ -428,9 +428,11 @@
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
   
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
-  (match-define (cons sig-bounds disj-cs) (bind-sigs hashy))
+  (match-define (cons sig-bounds disj-cs) (bind-sigs hashy)) ; TODO: look here!!!!!!!!!!!!!!!
   (set! run-constraints (append run-constraints disj-cs))
   (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
+  ;(println sigs)
+  ;(println relations-store)
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs))
 
@@ -520,19 +522,40 @@
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+
+         #|(define int-rel (declare-relation (list r ...) "univ" name))
+         (add-relation int-rel (list r ...))
+         (hash-set! hashy int-rel (int-bound (expt 2 (sub1 bitwidth)) (expt 2 (sub1 bitwidth))))|#
+         (define int-sig (declare-relation '("Int") "univ" "Int"))
+         (add-sig int-sig)
+         (hash-set! hashy int-sig (int-bound (expt 2 bitwidth) (expt 2 bitwidth)))
+
          (run-spec hashy name #,command filepath 'run))]
     [(_ name (preds ...) ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
          (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         ;(hash-set! hashy 'Int (int-bound (expt 2 (sub1 bitwidth)) (expt 2 (sub1 bitwidth))))
          ; (add-constraint preds) ...
+         (define int-sig (declare-relation '("Int") "univ" "Int"))
+         (add-sig int-sig)
+         (hash-set! hashy int-sig (int-bound (expt 2 bitwidth) (expt 2 bitwidth)))
+
          (run-spec hashy name #,command filepath 'run preds ...))]
     [(_ name)
-     #`(begin
+     #`(
+         (define int-sig (declare-relation '("Int") "univ" "Int"))
+         (add-sig int-sig)
+         (hash-set! hashy int-sig (int-bound (expt 2 bitwidth) (expt 2 bitwidth)))
+
          (run-spec (make-hash) name #,command filepath 'run))]
     [(_ name (preds ...))
      #`(begin
          ;(add-constraint preds) ...
+         (define int-sig (declare-relation '("Int") "univ" "Int"))
+         (add-sig int-sig)
+         (hash-set! hashy int-sig (int-bound (expt 2 bitwidth) (expt 2 bitwidth)))
+
          (run-spec (make-hash) name #,command filepath 'run preds ...))]
     [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
     [(_ pred) #'(error "Run statements require a unique name specification")]
@@ -604,7 +627,11 @@
 
 
 (define (relation->bounds rel)
-  (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref upper-bounds x)) (hash-ref relations-store rel)))))
+  (println "")
+  (println upper-bounds)
+  (println "")
+  (println (hash-ref upper-bounds (node/expr/relation 1 "Int" (Int) univ)))
+  (make-bound rel '() (apply cartesian-product (map (lambda (x) (begin (hash-ref upper-bounds x))) (hash-ref relations-store rel)))))
 
 
 ;;;;;;;;;;;;;;;;;
