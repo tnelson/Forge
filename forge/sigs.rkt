@@ -474,6 +474,7 @@
   ;; symmetry breaking
   (define-values (new-total-bounds new-formulas)
     (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
+  ;; add ints to total-bounds, upper-boudsn, relations-store here potentially after symmetry breaking
   (set! total-bounds new-total-bounds)
   (set! run-constraints (append run-constraints new-formulas))
 
@@ -1118,7 +1119,17 @@
 
 (define-syntax-rule (Name n) n)
 (define-syntax-rule (QualName n) n)
-(define-syntax (Number stx)   (map-stx (lambda (d) (string->number (cadr d))) stx))
+(define-syntax (Number stx)   
+  (syntax-case stx ()
+    [(_ "sum" expr) (sum expr)]
+    [(_ "add" expr-list) (add expr-list)]
+    [(_ "sub" expr-list) (subtrace expr-list)]
+    [(_ "mult" expr-list) (multiply expr-list)]
+    [(_ "div" expr-list) (divide expr-list)]
+    ;[(_ "max" expr) ---------]
+    ;[(_ "min" expr) --------]
+    [(_ "#" expr) (card expr)]
+    [(_ n) (string->number (cadr m))] ;(map-stx (lambda (d) (string->number (cadr d))) stx))
 (define-syntax (Const stx)
   (syntax-case stx ()
     [(_ (Number n)) #'(node/int/constant (Number n))]
