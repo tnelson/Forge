@@ -438,7 +438,6 @@
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
   (hash-set! upper-bounds Int int-range)
   (hash-set! lower-bounds Int int-range)
-  (set! sigs (cons Int sigs))
 
   ;(hash-set!
   ;(println sigs)
@@ -456,7 +455,7 @@
 
   ; Int needs to be in upper-bounds, lower-bounds, and sig-bounds
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
-  (define rels (append (hash-keys relations-store) sigs))
+  (define rels (append (hash-keys relations-store) sigs (list Int)))
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define kks (new server%
