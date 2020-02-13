@@ -2,18 +2,22 @@
 
 ## Table of Contents
  - [Installation](#installation)
+ - [Sigs](#sigs)
  - [Logical operators](#logical-operators)
  - [Relational operators](#relational-operators)
  - [Quantifiers](#quantifiers)
  - [Constants](#constants)
  - [Integers](#integers)
  - [Running your spec](#running-your-spec)
+ - [Bounds](#bounds)
  - [Testing your spec](#testing-your-spec)
  - [Sterling visualizer](#sterling-visualizer)
 
 
 ## Installation
 To run Forge, you will need to have DrRacket version 7.4 or greater. You can download it [here](https://download.racket-lang.org/). To install Forge from DrRacket, you can go to _File > Install Package_. Type _forge_ as the package name and choose **Install** (if it's already installed, it'll be an **Update** button).
+
+## Sigs
 
 ## Logical Operators
 For the following "expr" means an expression that evaluates to true/false. The alternate symbols given are the symbols you can use instead of the keywords.
@@ -66,7 +70,18 @@ Forge has a few constants that it provides:
 ## Running your Spec
 
 
+## Bounds
+
+
 ## Testing your Spec
 
 
 ## Sterling Visualizer
+When you [run](#running-your-spec) your spec, depending on the type of run you use, Forge will either look for instances that satisfy the predicates you wrote, or look for counterexamples to the assertion you wrote. When it finds them (or doesn't) it launches a window in your browser that displays the instances.
+
+The basic representation of the visualization is a graph showing all the atoms in that instance and the relations between them. You can also view an alternate depiction of the instance in the table view tab. To keep visualizations neat, Sterling will not show you any [Int](#integers) atoms that are not in use in that instance.
+
+### Evaluator
+
+### Projection
+
