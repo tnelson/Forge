@@ -429,7 +429,9 @@
 
 (define (run-spec hashy name command filepath runtype . assumptions)
   (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
-    (printf "ONE sigs known: ~a~n" one-sigs))
+    (printf "Running: ~a~n" name))
+  (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
+    (printf "ONE sigs known: ~a~n" one-sigs))  
   (append-run name)
 
   (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))

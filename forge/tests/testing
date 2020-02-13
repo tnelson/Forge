@@ -1,0 +1,8 @@
+racket basic/booleanLogic.rkt
+racket basic/basicGraph.rkt
+racket basic/sudoku.rkt
+racket basic/instances.rkt
+racket basic/skolemOptions.rkt
+racket basic/sigMultiplicities.rkt
+
+racket ints/intConversion.rkt
