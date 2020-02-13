@@ -38,7 +38,7 @@ For the following "expr" means an expression that evaluates to true/false. The a
  - `<expr-a> and <expr-b>`: true when both expr-a and expr-b are true. alt: `&&`
  - `<expr-a> or <expr-b>`: true when either expr-a is true or expr-b is true. alt: `||`
  - `<expr-a> implies <expr-b>`: true when either expr-a is false or both expr-a and expr-b are true. alt: `=>`
- - `<expr-a> iff <expr-b>`: true when expr-a is true exactly when expr-b is true and false exactly when expr-b is false. alt: `<=>`
+ - `<expr-a> iff <expr-b>`: true when expr-a is true exactly when expr-b is true. alt: `<=>`
 
 ## Relational Operators
 You can think of a set as a 1-column relation. In the following docs, "relation" means set or relation.
