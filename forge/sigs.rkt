@@ -64,6 +64,8 @@
 (define (set-is-exact) (set! is-exact #t))
 ; user defined bindings
 (define bindings (make-hash))
+; function and predicate datums for evaluator
+(define funs-n-preds (make-hash))
 
 (define (clear-state)
   (clear-breaker-state) ; breakers has done its job if this command had fancy-bounds; clean for next command
@@ -77,6 +79,9 @@
   (set! run-constraints '())
   (set! bindings (make-hash))
 )
+
+(provide define-for-evaluator)
+(define (define-for-evaluator name args block) (hash-set! funs-n-preds name (list args block)))
 
 ; For verbosity, etc. that must be shared without cyclic dependency
 (require "shared.rkt")
@@ -528,7 +533,7 @@
      (define (get-next-model)
        (cmd [stdin] (solve))
        (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
-     (display-model get-next-model name command filepath bitwidth)]))
+     (display-model get-next-model name command filepath bitwidth funs-n-preds)]))
 
 (define-syntax (run stx)
   (define command (format "~a" stx))
@@ -827,11 +832,20 @@
       )
     )
   (define datum (if (empty? paras)
-                    `(pred ,name           (and ,@(syntax->datum block)))
-                    `(pred (,name ,@paras) (and ,@(syntax->datum block)))))
-  ; (println datum)
+    `(begin 
+        (pred ,name (and ,@(syntax->datum block)))
+        (define-for-evaluator ',name '() '(Block ,@(syntax->datum block)))
+    )
+    `(begin
+        (pred (,name ,@paras) (and ,@(syntax->datum block)))
+        (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block)))
+      )
+  ))
+
+  ;(printf "PredDecl: ~a~n" datum)
   datum
 ) stx))
+
 (define-syntax (AssertDecl stx) (map-stx (lambda (d)
   (define-values (name paras block) (values #f '() '()))
   ; (println d)

@@ -3,7 +3,8 @@
 (require (only-in "../lang/ast.rkt" relation-name)
          "modelToXML.rkt" xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
-         racket/async-channel)
+         racket/async-channel
+         racket/hash)
 (require "eval-model.rkt")
 ; TODO: remove this once evaluator is in; just want to show we can evaluate something
 
@@ -25,7 +26,7 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-model name command filepath bitwidth)
+(define (display-model get-next-model name command filepath bitwidth funs-n-preds)
   (define model (get-next-model))
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -73,6 +74,7 @@
                       (define kodkod (alloy->kodkod alloy))
                       ;(printf "kodkod: ~a~n" kodkod)
                       (define binding (model->binding (cdr model)))
+                      (set! binding (hash-union binding funs-n-preds))
                       ;(printf "binding: ~a~n" binding)
                       (define lists (eval-unknown kodkod binding maxint))
                       ;(printf "lists: ~a~n" lists)

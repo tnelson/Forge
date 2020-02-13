@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/match (only-in "../lang/ast.rkt" relation-name))
+(require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
 
 (provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
 
@@ -18,10 +18,10 @@
 (define (eval-unknown thing bind maxint)
   (with-handlers
       ([exn:fail?
-        (lambda (v)
+        (lambda (v) (println v)
           (with-handlers
               ([exn:fail?
-                (lambda (v2) (raise-user-error "Not a formula or expression" thing))])
+                (lambda (v2) (println v2) (raise-user-error "Not a formula or expression" thing))])
             (eval-exp thing bind maxint)))])
         (eval-form thing bind maxint)))
 
@@ -168,6 +168,22 @@
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint)]
+    [`(,p ,vals ...) #:when (hash-has-key? bind p)
+      (match-define (list args alloy) (hash-ref bind p))
+      (define bind2 (hash-union bind (make-hash (map list args vals))))
+      ;(printf "--- alloy: ~a~n" alloy)
+      (define kodkod (alloy->kodkod alloy))
+      ;(printf "--- kodkod: ~a~n" kodkod)
+      (eval-form kodkod bind2 maxint)
+    ]
+    [p #:when (hash-has-key? bind p)
+      (match-define (list args alloy) (hash-ref bind p))
+      ;(define bind2 (hash-union bind (make-hash (map list args vals))))
+      ;(printf "--- alloy: ~a~n" alloy)
+      (define kodkod (alloy->kodkod alloy))
+      ;(printf "--- kodkod: ~a~n" kodkod)
+      (eval-form kodkod bind maxint)
+    ]
     [exp (raise-user-error "Not a formula" exp)]))
 
 (define (alloy->kodkod e)
@@ -184,11 +200,17 @@
       [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n ,ns ...) ,e) ,ds ...) ,a)
         `(,(f q) ,(f n) ,(f e) ,(f `(Expr (Quant ,q) (DeclList (Decl (NameList ,@ns) ,e) ,@ds) ,a)))]
       [`(,_ ,a "or" ,b) `(or ,(f a) ,(f b))]
+      [`(,_ ,a "||" ,b) `(or ,(f a) ,(f b))]
       [`(,_ ,a "iff" ,b) `(iff ,(f a) ,(f b))]
+      [`(,_ ,a "<=>" ,b) `(iff ,(f a) ,(f b))]
       [`(,_ ,a "implies" ,b) `(implies ,(f a) ,(f b))]
+      [`(,_ ,a "=>" ,b) `(implies ,(f a) ,(f b))]
       [`(,_ ,a "and" ,b) `(and ,(f a) ,(f b))]
+      [`(,_ ,a "&&" ,b) `(and ,(f a) ,(f b))]
       [`(,_ "!" ,a) `(! ,(f a))]
+      [`(,_ "not" ,a) `(! ,(f a))]
       [`(,_ ,a "!" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
+      [`(,_ ,a "not" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
       [`(,_ ,a (CompareOp ,op) ,b) `(,(f op) ,(f a) ,(f b))]
       [`(,_ ,quant (Expr8 ,a ...)) `(,(f quant) ,(f `(Expr8 ,@a)))]
       [`(,_ ,a "+" ,b) `(+ ,(f a) ,(f b))]
@@ -199,16 +221,17 @@
       [`(,_ ,a (ArrowOp ,_ ...) ,b) `(-> ,(f a) ,(f b))]
       [`(,_ ,a "<:" ,b) `(<: ,(f a) ,(f b))]
       [`(,_ ,a ":>" ,b) `(<: ,(f b) ,(f a))]
-      ;[`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
-      [`(,_ ,a "[" (ExprList ,b) "]") `(join ,(f b) ,(f a))]
-      [`(,_ ,a "[" (ExprList ,b ,bs ...) "]") 
-        (f `(Expr (join ,(f b) ,(f a)) "[" (ExprList ,@bs) "]"))]
+      [`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
+      ;[`(,_ ,a "[" (ExprList ,b) "]") `(join ,(f b) ,(f a))]
+      ;[`(,_ ,a "[" (ExprList ,b ,bs ...) "]") 
+      ;  (f `(Expr (join ,(f b) ,(f a)) "[" (ExprList ,@bs) "]"))]
       [`(,_ ,a "." ,b) `(join ,(f a) ,(f b))]
       [`(,_ "~" ,a) `(~ ,(f a))]
       [`(,_ "^" ,a) `(^ ,(f a))]
       [`(,_ "*" ,a) `(* ,(f a))]
       [`(BlockOrBar (Block ,a ...)) `(and ,@(map f a))]
       [`(BlockOrBar "|" ,a) (f a)]
+      [`(Block ,a ...) `(and ,@(map f a))]
       [`(,_ ,a) (f a)]
       [(? string?) (string->symbol e)]
       [else e]
