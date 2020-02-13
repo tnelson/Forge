@@ -18,6 +18,19 @@
 To run Forge, you will need to have DrRacket version 7.4 or greater. You can download it [here](https://download.racket-lang.org/). To install Forge from DrRacket, you can go to _File > Install Package_. Type _forge_ as the package name and choose **Install** (if it's already installed, it'll be an **Update** button).
 
 ## Sigs
+Sigs are the basic building block of any model in Forge. You can declare a sig in the following way:
+```alloy
+sig <name> {
+    <field>,
+    <field> ...
+}
+```
+
+### Fields
+
+### Extending
+
+### Bounds on sigss
 
 ## Logical Operators
 For the following "expr" means an expression that evaluates to true/false. The alternate symbols given are the symbols you can use instead of the keywords.
@@ -92,13 +105,15 @@ Note that the run-name is optional to provide, but is helpful to distinguish wha
 
 When using the run command, Forge will display possible worlds (instances) where the predicates or expressions you specified evaluate to true, within the given bounds. Instances are displayed in [Sterling](#sterling-visualizer). If no such instances are found, "UNSAT" is displayed.
 
+When no more satisfying instances can be found, Sterling displays "No more instances found".
+
 ### Check
 The check command is used to ask Forge to look for counterexamples to a given set of predicates, i.e. instances where the predicate or expression evaluates to false. The syntax is the same as for the run command, just with the keyword `check` instead:
 ```
 <check-name>: check <pred> for <bounds>
 <check-name>: check { <expr> } for <bounds>
 ```
-If no counterexamples are found, Sterling displays "No counterexamples found. Assertion may be valid".
+If no counterexamples are found, Sterling displays "No counterexamples found. Assertion may be valid". When no more counterexamples can be found, Sterling displays "No more instances found".
 
 ## Bounds
 
@@ -107,7 +122,7 @@ If no counterexamples are found, Sterling displays "No counterexamples found. As
 
 
 ## Sterling Visualizer
-When you [run](#running-your-spec) your spec, depending on the type of run you use, Forge will either look for instances that satisfy the predicates you wrote, or look for counterexamples to the assertion you wrote. When it finds them (or doesn't) it launches a window in your browser that displays the instances.
+When you [run](#running-your-spec) your spec, depending on the type of run you use, Forge will either look for instances that satisfy the predicates you wrote, or look for counterexamples to the assertion you wrote. When it finds them (or doesn't) it launches a window in your browser that displays the instances. See the [run](#run) and [check](#check) sections for the different displays Sterling has in various scenarios.
 
 The basic representation of the visualization is a graph showing all the atoms in that instance and the relations between them. You can also view an alternate depiction of the instance in the table view tab. To keep visualizations neat, Sterling will not show you any [Int](#integers) atoms that are not in any relation in that instance.
 
