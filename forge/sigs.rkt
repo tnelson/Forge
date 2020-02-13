@@ -834,12 +834,10 @@
   (define datum (if (empty? paras)
     `(begin 
         (pred ,name (and ,@(syntax->datum block)))
-        (define-for-evaluator ',name '() '(Block ,@(syntax->datum block)))
-    )
+        (define-for-evaluator ',name '() '(Block ,@(syntax->datum block))))
     `(begin
         (pred (,name ,@paras) (and ,@(syntax->datum block)))
-        (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block)))
-      )
+        (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block))))
   ))
 
   ;(printf "PredDecl: ~a~n" datum)
@@ -878,9 +876,14 @@
   )
 
   (define datum (if (empty? paras)
-                    `(define ,name           (and ,@(syntax->datum block)))
-                    `(define (,name ,@paras) (and ,@(syntax->datum block)))))
-  ;(println datum)
+    `(begin 
+        (pred ,name (and ,@(syntax->datum block)))
+        (define-for-evaluator ',name '() ',(car (syntax->datum block))))
+    `(begin
+        (pred (,name ,@paras) (and ,@(syntax->datum block)))
+        (define-for-evaluator ',name ',paras ',(car (syntax->datum block))))
+  ))
+  ;(printf "FunDecl: ~a~n" datum)
   datum
   ) stx))
 

@@ -71,11 +71,18 @@
                    [`univ (build-univ bind)]
                    [`iden (build-iden bind)]
                    ;[`Int (build-ints bind)]
+                   [`(,p ,vals ...) #:when (hash-has-key? bind p)
+                      (match-define (list args alloy) (hash-ref bind p))
+                      (set! vals (for/list ([val vals]) (eval-exp val bind maxint)))
+                      (define bind2 (hash-union bind (for/hash ([a args][v vals]) (values a v)) #:combine/key (lambda (k v1 v2) v2)))
+                      (define kodkod (alloy->kodkod alloy))
+                      (eval-exp kodkod bind2 maxint)
+                   ]
                    ; Base case - implicit set comprehension, ids, integers
                    [id
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]
-                      [(integer? id) (list (list (modulo id maxint safe)))]
+                      [(integer? id) (list (list (modulo id maxint)))]
                       ; relation name
                       [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name
@@ -170,18 +177,14 @@
     [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint)]
     [`(,p ,vals ...) #:when (hash-has-key? bind p)
       (match-define (list args alloy) (hash-ref bind p))
-      (define bind2 (hash-union bind (make-hash (map list args vals))))
-      ;(printf "--- alloy: ~a~n" alloy)
+      (set! vals (for/list ([val vals]) (eval-exp val bind maxint)))
+      (define bind2 (hash-union bind (make-hash (map list args vals)) #:combine/key (lambda (k v1 v2) v2)))
       (define kodkod (alloy->kodkod alloy))
-      ;(printf "--- kodkod: ~a~n" kodkod)
       (eval-form kodkod bind2 maxint)
     ]
     [p #:when (hash-has-key? bind p)
       (match-define (list args alloy) (hash-ref bind p))
-      ;(define bind2 (hash-union bind (make-hash (map list args vals))))
-      ;(printf "--- alloy: ~a~n" alloy)
       (define kodkod (alloy->kodkod alloy))
-      ;(printf "--- kodkod: ~a~n" kodkod)
       (eval-form kodkod bind maxint)
     ]
     [exp (raise-user-error "Not a formula" exp)]))
@@ -222,9 +225,6 @@
       [`(,_ ,a "<:" ,b) `(<: ,(f a) ,(f b))]
       [`(,_ ,a ":>" ,b) `(<: ,(f b) ,(f a))]
       [`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
-      ;[`(,_ ,a "[" (ExprList ,b) "]") `(join ,(f b) ,(f a))]
-      ;[`(,_ ,a "[" (ExprList ,b ,bs ...) "]") 
-      ;  (f `(Expr (join ,(f b) ,(f a)) "[" (ExprList ,@bs) "]"))]
       [`(,_ ,a "." ,b) `(join ,(f a) ,(f b))]
       [`(,_ "~" ,a) `(~ ,(f a))]
       [`(,_ "^" ,a) `(^ ,(f a))]
@@ -233,7 +233,9 @@
       [`(BlockOrBar "|" ,a) (f a)]
       [`(Block ,a ...) `(and ,@(map f a))]
       [`(,_ ,a) (f a)]
-      [(? string?) (string->symbol e)]
+      [(? string?) (with-handlers ([exn:fail? (λ (exn) (string->symbol e))]) 
+        (define n (string->number e))
+        (if (integer? n) n (string->symbol e)))]
       [else e]
     )
   )
