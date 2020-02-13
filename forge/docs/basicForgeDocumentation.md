@@ -65,7 +65,19 @@ Forge has a few constants that it provides:
  - `Int`: a set of integers that Forge provides. By default it has -8 to 7 inclusive. See [Integers](#integers) for more information.
 
 ## Integers
+Forge provides you some integers by default to work with in your spec as well as operators on those integers. There are two types of integers in Forge: integer **values** (e.g. 4) and integer **atoms** (e.g. the atom representing 4).
 
+In the following, "atoms" is a set of integer atoms and "value" is an integer value. The following operators operate on integer values:
+ - `add[<value-a>, <value-b> ...]`: returns the value of the sum value-a + value-b + ...
+ - `subtract[<value-a>, <value-a> ...]`: returns the value of the difference value-a - value-b - ...
+ - `multiply[<value-a>, <value-b> ...]`: returns the value of the product value-a * value-b * ...
+ - `divide[<value-a>, <value-b> ...]`: returns the value of the left-associative quotient (value-a / value-b) / ...
+ - `absolute[<value>]`: __DOESN'T WORK YET__
+ - `sign[<value>]`: __DOESN'T WORK YET__
+ 
+To convert between sets of integer atoms and integer values there are the following operations:
+ - `sing[<value>]`: returns a set containing the integer atom that represents the given value
+ - `sum[<atoms>]`: returns the sum of the values that are represented by each of the atoms in the set
 
 ## Running your Spec
 
