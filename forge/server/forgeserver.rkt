@@ -9,9 +9,13 @@
 
 (require "../lang/reader.rkt")
 
-(require setup/getinfo)
-(define info (get-info/full ".."))
-(define forge-version (if info (info 'version) "pls.save.file"))
+(define-runtime-path info-path "../info.rkt")
+(define forge-version "x.x.x")
+(with-handlers ([exn:fail? (λ (exn) (println exn))])
+  (define info-str (file->string info-path))
+  (define parts (regexp-match #px"define\\s+version\\s+\"(\\S+)\"" info-str))
+  (set! forge-version (second parts))
+)
 (printf "Forge Version: ~a~n" forge-version)
 
 (provide display-model)
