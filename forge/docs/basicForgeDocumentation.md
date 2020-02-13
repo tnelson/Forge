@@ -80,7 +80,25 @@ To convert between sets of integer atoms and integer values there are the follow
  - `sum[<atoms>]`: returns the sum of the values that are represented by each of the atoms in the set
 
 ## Running your Spec
+There are two primary ways of running your spec. You can either as Forge to show you instances that satisfy a predicate you wrote with the [run](#run) command, or ask Forge to look for counterexamples to a predicate you wrote with the [check](#check) command
 
+### Run
+The run command can be used in a few different ways, show below:
+```
+<run-name>: run <pred> for <bounds>
+<run-name>: run { <expr> } for <bounds>
+```
+Note that the run-name is optional to provide, but is helpful to distinguish what different run commands are showing.
+
+When using the run command, Forge will display possible worlds (instances) where the predicates or expressions you specified evaluate to true, within the given bounds. Instances are displayed in [Sterling](#sterling-visualizer). If no such instances are found, "UNSAT" is displayed.
+
+### Check
+The check command is used to ask Forge to look for counterexamples to a given set of predicates, i.e. instances where the predicate or expression evaluates to false. The syntax is the same as for the run command, just with the keyword `check` instead:
+```
+<check-name>: check <pred> for <bounds>
+<check-name>: check { <expr> } for <bounds>
+```
+If no counterexamples are found, Sterling displays "No counterexamples found. Assertion may be valid".
 
 ## Bounds
 
@@ -91,7 +109,7 @@ To convert between sets of integer atoms and integer values there are the follow
 ## Sterling Visualizer
 When you [run](#running-your-spec) your spec, depending on the type of run you use, Forge will either look for instances that satisfy the predicates you wrote, or look for counterexamples to the assertion you wrote. When it finds them (or doesn't) it launches a window in your browser that displays the instances.
 
-The basic representation of the visualization is a graph showing all the atoms in that instance and the relations between them. You can also view an alternate depiction of the instance in the table view tab. To keep visualizations neat, Sterling will not show you any [Int](#integers) atoms that are not in use in that instance.
+The basic representation of the visualization is a graph showing all the atoms in that instance and the relations between them. You can also view an alternate depiction of the instance in the table view tab. To keep visualizations neat, Sterling will not show you any [Int](#integers) atoms that are not in any relation in that instance.
 
 ### Evaluator
 
