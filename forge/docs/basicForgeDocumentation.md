@@ -84,13 +84,15 @@ In the following, "atoms" is a set of integer atoms and "value" is an integer va
  - `add[<value-a>, <value-b> ...]`: returns the value of the sum value-a + value-b + ...
  - `subtract[<value-a>, <value-a> ...]`: returns the value of the difference value-a - value-b - ...
  - `multiply[<value-a>, <value-b> ...]`: returns the value of the product value-a * value-b * ...
- - `divide[<value-a>, <value-b> ...]`: returns the value of the left-associative quotient (value-a / value-b) / ...
+ - `divide[<value-a>, <value-b> ...]`: returns the value of the left-associative integer quotient (value-a / value-b) / ...
  - `absolute[<value>]`: __DOESN'T WORK YET__
  - `sign[<value>]`: __DOESN'T WORK YET__
  
 To convert between sets of integer atoms and integer values there are the following operations:
  - `sing[<value>]`: returns a set containing the integer atom that represents the given value
  - `sum[<atoms>]`: returns the sum of the values that are represented by each of the atoms in the set
+ 
+Note that overflows in Forge are treated as wrapping around. In other words, `add[7, 1]` evaluates to `-8` and similarly for other operations.
 
 ## Running your Spec
 There are two primary ways of running your spec. You can either as Forge to show you instances that satisfy a predicate you wrote with the [run](#run) command, or ask Forge to look for counterexamples to a predicate you wrote with the [check](#check) command
@@ -116,7 +118,7 @@ The check command is used to ask Forge to look for counterexamples to a given se
 If no counterexamples are found, Sterling displays "No counterexamples found. Assertion may be valid". When no more counterexamples can be found, Sterling displays "No more instances found".
 
 ## Bounds
-
+Forge is a _bounded_ model finder, meaning it can only look for instances up to a certain bound.
 
 ## Testing your Spec
 
