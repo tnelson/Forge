@@ -31,10 +31,42 @@ sig <name> {
 ```
 
 ### Fields
+Each field in a sig is declared using a name, the multiplicity (`set`, `one`, `lone`), and the type of the field, e.g. `myField: set Atom`. Each field is a relation where it is implicitly a cross-product between the sig and the type of the field. So,
+```alloy
+sig Atom {
+    myField: set Node -> Atom
+}
+```
+makes a relation named `myField` that looks like `Atom -> Node -> Atom`.
+
+The multiplicity of the field (`set`, `one`, or `lone`) lets you specify how many elements should be in each atom's field.
+ - `set`: a set of things - can have zero or more elements in it
+ - `one`: each atom will have only one element in it. This is the same as specifying `all a: Atom | one a.myField`
+ - `lone`: each atom will have zero or one elements in it. This is the same as specifying `all a: Atom | lone a.myField`
 
 ### Extending
+You can also extend sigs using the following syntax:
+```alloy
+sig Cat {}
+sig ActorCat extends Cat {}
+sig ProgrammerCat extends Cat {}
+```
 
-### Bounds on sigss
+This means that any atom that is a KittyBacon is also a Cat, so the `Cat` set includes all atoms of ActorCats, but the set `ActorCat` only contains ActorCats.
+
+Extending also has an effect on bounds, in that atoms of ProgrammerCat will count as Cats as well in the bound. So, if we run the following:
+```alloy
+run {} for 5 Cat, exactly 2 ActorCat, 2 ProgrammerCat
+```
+we expect to get instances with up to 5 Cats total, where 2 of them will always be ActorCats and 0-2 will be ProgrammerCats.
+
+### Bounds on sigs
+You can set some bounds on sigs immediately when defining them by doing the following:
+```alloy
+one sig LonelyAtom {}
+lone sig MaybeNotThereAtom {}
+```
+This enforces that there is the specified multiplicity of those atoms in the universe.
 
 ## Logical Operators
 For the following "expr" means an expression that evaluates to true/false. The alternate symbols given are the symbols you can use instead of the keywords.
