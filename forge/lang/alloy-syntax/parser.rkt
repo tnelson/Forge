@@ -22,6 +22,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | RelDecl
           | OptionDecl
           | InstDecl
+          | TraceDecl
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -35,7 +36,7 @@ FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
 AssertDecl : /ASSERT-TOK Name? Block
-CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
+CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 TestDecl : (Name /COLON-TOK)? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
@@ -134,6 +135,11 @@ StateDecl : STATE-TOK /LEFT-SQUARE-TOK QualName /RIGHT-SQUARE-TOK
     (QualName DOT-TOK)? Name ParaDecls? Block
 TransitionDecl : TRANSITION-TOK /LEFT-SQUARE-TOK QualName /RIGHT-SQUARE-TOK 
     (QualName DOT-TOK)? Name ParaDecls? Block
+TraceDecl : TRACE-TOK Parameters
+    (QualName DOT-TOK)? Name ParaDecls? (/COLON-TOK Expr)? Block
+Parameters : /LeftAngle @QualNameList /RightAngle 
+LeftAngle : LT-TOK | LEFT-TRIANGLE-TOK
+RightAngle: GT-TOK | RIGHT-TRIANGLE-TOK
 
 RelDecl : ArrowDecl
 

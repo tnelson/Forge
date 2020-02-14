@@ -564,17 +564,17 @@
         (break-graph (set sig) (set))
         (λ () (break
             (sbound rel 
-                (set (take atoms 2))
+                (set) ;(set (take atoms 2))
                 (map list (drop-right atoms 1) (cdr atoms))
             )
             (set
-                (@one ([init sig]) (@and
+                (@lone ([init sig]) (@and
                     (@no (@join rel init))
                     (@some (@join init rel))
                 ))
             )
         ))
-        (λ () (break bound (set
+        (λ () (break bound (set  ; FIXME: this doesn't allow empty relation
             (@some ([init sig]) (@and
                 (@no (@join rel init))
                 (@all ([x (@- sig init)]) (@one (@join rel x)))

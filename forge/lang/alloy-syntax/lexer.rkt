@@ -101,6 +101,7 @@
    ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
+   ["trace"      (token+ `TRACE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -116,6 +117,8 @@
    ["}" (token+ 'RIGHT-CURLY-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["[" (token+ 'LEFT-SQUARE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["]" (token+ 'RIGHT-SQUARE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["<|" (token+ 'LEFT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["|>" (token+ 'RIGHT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["," (token+ 'COMMA-TOK "" lexeme "" lexeme-start lexeme-end)]
    [";" (token+ 'SEMICOLON-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["/" (token+ 'SLASH-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -180,6 +183,7 @@
            "state"
            "facts"
            "transition"
+           "trace"
            "bind"
            "option"
            "inst"
@@ -203,7 +207,9 @@
                 "{"
                 "}"
                 "["
-                "]")))
+                "]"
+                "<|"
+                "|>")))
 
 (define (token+ type left lex right lex-start lex-end [skip? #f] [sym? #f])
   (let ([l0 (string-length left)] 

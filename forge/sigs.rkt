@@ -643,7 +643,7 @@
 
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestExpectDecl TestDecl TestBlock PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
-         StateDecl TransitionDecl RelDecl OptionDecl InstDecl
+         StateDecl TransitionDecl RelDecl OptionDecl InstDecl TraceDecl
          Expr Name QualName Const Number iff ifte >= <=)
 
 ;;;;
@@ -738,14 +738,14 @@
 (define-syntax-rule (InstanceDecl i) (instance i))
 
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
-  (define-values (name cmd arg scope block bounds) (values #f #f #f '() #f #f))
+  (define-values (name cmd arg scope block bounds params) (values #f #f #f '() '() '(Bounds) '()))
   (define (make-typescope x)
     (syntax-case x (Typescope)
       [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
       [(Typescope n things) (syntax->datum #'(things 0 n))]))
   (for ([arg (cdr d)])
     ; (println arg)
-    (syntax-case arg (Name Typescope Scope Block QualName)
+    (syntax-case arg (Name Typescope Scope Block QualName Parameters)
       [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
       ["run"   (set! cmd 'run)]
       ["check" (set! cmd 'check)]
@@ -755,18 +755,27 @@
       [(Block b ...) (set! block (syntax->datum #'(b ...)))]
       [(QualName n) (set! block (list (syntax->datum #'n)))]
       ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [(Parameters ps ...) (set! params #'(ps ...))]
       [(Bounds _ ...) (set! bounds arg)]
       [_ #f]
     )
   )
+  ;(printf "params : ~a~n" params)
+  (define param-facts (for/list ([p (syntax->datum params)]) 
+    `(Expr (QualName ,(string->symbol (format "~a_fact" p))))))
+  (define param-insts (for/list ([p (syntax->datum params)]) 
+    `(Expr (QualName ,(string->symbol (format "~a_inst" p))))))
+  ;(printf "param-facts : ~a~n" param-facts)
+  ;(printf "param-insts : ~a~n" param-insts)
+  (set! block (append block param-facts))
+  (set! bounds (append bounds param-insts))
+  ;(printf "block : ~v~n" block)
+
   (if name #f (set! name (symbol->string (gensym))))
-  (define datum (if bounds
-    `(begin
-      ;(let ([bnd (make-hash)]) (println bnd) ,bounds)
-      ,bounds
-      (,cmd ,name ,block ,scope))
-    `(,cmd ,name ,block ,scope)))
-  ;(printf "CmdDecl: ~a~n" datum)
+  (define datum `(begin
+    ,bounds
+    (,cmd ,name ,block ,scope)
+  ))
   datum
 ) stx))
 
@@ -964,6 +973,43 @@
   )
 
   ;(println datum)
+  datum
+) stx))
+
+(define-syntax (TraceDecl stx) (map-stx (lambda (d)
+  (define-values (name paras block sig params) (values #f '() '() #f #f))
+  (for ([arg (cdr d)])
+    (syntax-case arg (Name ParaDecls Decl NameList Block QualName Parameters)
+      [(Name n) (set! name (syntax->datum #'n))]
+      [(QualName n) (set! sig (syntax->datum #'n))]
+      [(ParaDecls (Decl (NameList ps) _ ...) ...)
+        (set! paras (flatten (syntax->datum #'(ps ...))))]
+      [(Parameters ps ...) (set! params #'(ps ...))]
+      [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+      [_ #f]
+    )
+  )
+  ;(printf "d: ~a~n" d)
+  ;(printf "params: ~a~n" params)
+  ;(define datum '(println 123))
+
+  (define datum '(begin
+    (pre-declare-sig T #:extends univ)
+    (SigDecl (Mult "one") (NameList T) (ArrowDeclList 
+      (ArrowDecl (NameList init) (ArrowMult "set") (ArrowExpr (QualName S))) 
+      (ArrowDecl (NameList tran) (ArrowMult "set") (ArrowExpr (QualName S) (QualName S))) 
+      (ArrowDecl (NameList term) (ArrowMult "set") (ArrowExpr (QualName S)))))
+  ))
+
+  ;(define fields (hash-ref sig-to-fields sig))
+  ;(define (at f) (string->symbol (string-append "@" (symbol->string f))))
+  ;(define lets (append
+  ;  (for/list ([f fields]) `[,f (join this ,f)])
+  ;  (for/list ([f fields]) `[,(at f) ,f])))
+  ;;`(pred (,name ,@paras) (all ([this ,sig]) (let ,lets (and ,@(syntax->datum block)))))))
+  ;(define datum `(pred (,name this ,@paras) (let ,lets (and ,@block))))
+
+  (printf "PredDecl: ~a~n" datum)
   datum
 ) stx))
 
