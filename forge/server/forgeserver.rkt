@@ -74,6 +74,7 @@
                       (define kodkod (alloy->kodkod alloy))
                       ;(printf "kodkod: ~a~n" kodkod)
                       (define binding (model->binding (cdr model)))
+                      ;(printf "funs-n-preds : ~a~n" funs-n-preds)
                       (set! binding (hash-union binding funs-n-preds))
                       ;(printf "binding: ~a~n" binding)
                       (define lists (eval-unknown kodkod binding maxint))

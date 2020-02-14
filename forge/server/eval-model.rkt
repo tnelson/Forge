@@ -31,6 +31,7 @@
 ; ((a) (b) (c)) represents the set {a b c}, and ((a b) (b c)) represents
 ; the relation {(a b) (b c)}
 (define (eval-exp exp bind maxint [safe #t])
+  ;(printf "exp : ~v~n" exp)
   (define result (match exp
                    ; Binary set operations
                    [`(+ ,exp-1 ,exp-2) (append                                        
@@ -71,14 +72,18 @@
                    [`univ (build-univ bind)]
                    [`iden (build-iden bind)]
                    ;[`Int (build-ints bind)]
-                   [`(,p ,vals ...) #:when (hash-has-key? bind p)
+                   [`(,p ,vals ...) ;#:when (hash-has-key? bind p)
+                    (with-handlers ([exn:fail? (λ (exn) 
+                      (define joined (foldl (λ (x y) `(join ,x ,y)) p vals))
+                      (eval-exp joined bind maxint safe)
+                    )])
                       (match-define (list args alloy) (hash-ref bind p))
                       (set! vals (for/list ([val vals]) (eval-exp val bind maxint)))
                       (define bind2 (hash-union bind (for/hash ([a args][v vals]) (values a v)) #:combine/key (lambda (k v1 v2) v2)))
                       (define kodkod (alloy->kodkod alloy))
                       (eval-exp kodkod bind2 maxint)
+                    )
                    ]
-                   ; Base case - implicit set comprehension, ids, integers
                    [id
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]
@@ -159,6 +164,7 @@
 ; Interpreter for evaluating an eval query for a formula in a model
 ; context
 (define (eval-form form bind maxint)
+  ;(printf "form : ~v~n" form)
   (match form
     [`(! ,f) (not (eval-form f bind maxint))]
     [`(no ,exp) (empty? (eval-exp exp bind maxint))]
