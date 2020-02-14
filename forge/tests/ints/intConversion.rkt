@@ -27,7 +27,7 @@ test expect operators {
     minus1: { some i1, i2, i3: Int | subtract[sum[i1], sum[i2]] = sum[i3] } for exactly 0 A is sat
     mult1: { some i1, i2, i3: Int | multiply[sum[i1], sum[i2]] = sum[i3] } for exactly 0 A is sat
     div1: { some i1, i2, i3: Int | divide[sum[i1], sum[i2]] = sum[i3] } for exactly 0 A is sat
-    divzero: { some i1, i3: Int | divide[sum[i1], 0] = sum[i3] } for exactly 0 A is unsat
+
 }
 
 
@@ -43,5 +43,6 @@ expect unexpected {
 
   -- Alloy produces "unsat" for both of these (0-variable trivial) with and without the sum operators
   divzero: { some i1, i3: Int | divide[sum[i1], 0] = sum[i3] } for exactly 0 A is unsat
+ 
   div2: { some i1: Int | divide[sum[i1], sum[i1]] != 1 } for exactly 0 A is unsat
 }
