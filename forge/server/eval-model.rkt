@@ -79,7 +79,9 @@
                     )])
                       (match-define (list args alloy) (hash-ref bind p))
                       (set! vals (for/list ([val vals]) (eval-exp val bind maxint)))
-                      (define bind2 (hash-union bind (for/hash ([a args][v vals]) (values a v)) #:combine/key (lambda (k v1 v2) v2)))
+                      ; (make-hash (map cons args vals))
+                      ; (for/hash ([a args][v vals]) (values a v))
+                      (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
                       (define kodkod (alloy->kodkod alloy))
                       (eval-exp kodkod bind2 maxint)
                     )
@@ -95,12 +97,14 @@
                       [(not safe) id]
                       ; oops
                       [else (raise-user-error "Not an expression" id)])]))
-  
   ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
   ; Also canonicalize so that if we compare relational constants, a list-based representation is OK
-  (if (not (list? result))
+  (define ret (if (not (list? result))
       (canonicalize-result (list (list result)))
       (canonicalize-result (remove-duplicates result))))
+  
+  ;(printf "exp : ~v = ~v~n" exp ret) 
+  ret)
 
 ; extract list of all atoms used across all relations
 ; do so by taking union of contents of all relations (since this will include all top-level sigs)
@@ -165,7 +169,7 @@
 ; context
 (define (eval-form form bind maxint)
   ;(printf "form : ~v~n" form)
-  (match form
+  (define ret (match form
     [`(! ,f) (not (eval-form f bind maxint))]
     [`(no ,exp) (empty? (eval-exp exp bind maxint))]
     [`(some ,exp) (not (empty? (eval-exp exp bind maxint)))]
@@ -184,7 +188,7 @@
     [`(,p ,vals ...) #:when (hash-has-key? bind p)
       (match-define (list args alloy) (hash-ref bind p))
       (set! vals (for/list ([val vals]) (eval-exp val bind maxint)))
-      (define bind2 (hash-union bind (make-hash (map list args vals)) #:combine/key (lambda (k v1 v2) v2)))
+      (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
       (define kodkod (alloy->kodkod alloy))
       (eval-form kodkod bind2 maxint)
     ]
@@ -194,6 +198,8 @@
       (eval-form kodkod bind maxint)
     ]
     [exp (raise-user-error "Not a formula" exp)]))
+  ;(printf "form : ~v = ~v~n" form ret) 
+  ret)
 
 (define (alloy->kodkod e)
   (define (f e)
