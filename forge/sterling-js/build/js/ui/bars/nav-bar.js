@@ -2,6 +2,8 @@ import * as d3 from 'd3';
 export class NavBar {
     constructor(selection) {
         this._navbar = selection;
+        this._next = selection.select('#nav-next');
+        this._next_enabled = false;
         selection.select('#nav-eval')
             .on('click', () => {
             if (this._on_click_eval)
@@ -11,11 +13,6 @@ export class NavBar {
             .on('click', () => {
             if (this._on_click_graph)
                 this._on_click_graph();
-        });
-        selection.select('#nav-next')
-            .on('click', () => {
-            if (this._on_click_next)
-                this._on_click_next();
         });
         selection.select('#nav-source')
             .on('click', () => {
@@ -32,6 +29,19 @@ export class NavBar {
             if (this._on_click_tree)
                 this._on_click_tree();
         });
+        this._next
+            .on('click', () => {
+            if (this._on_click_next && this._next_enabled)
+                this._on_click_next();
+        });
+    }
+    enable_next() {
+        this._next_enabled = true;
+        return this;
+    }
+    disable_next() {
+        this._next_enabled = false;
+        return this;
     }
     on_eval(callback) {
         this._on_click_eval = callback;

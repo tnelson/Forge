@@ -29,7 +29,7 @@ pred wellformed {
   }
 }
 
---run {wellformed} for 2 Player, 3 Index, 1 Board
+run {wellformed} for 2 Player, 3 Index, 1 Board
 
 
 
@@ -157,4 +157,4 @@ test expect {
     part1_nobodywinning: {no p: Player | winning[Board, p]} for exactly partGame1 is sat -- note sat = true with total insts
 }
 
-run {wellformed} for 2 Player, 3 Index, 1 Board
+--run {wellformed} for 2 Player, 3 Index, 1 Board

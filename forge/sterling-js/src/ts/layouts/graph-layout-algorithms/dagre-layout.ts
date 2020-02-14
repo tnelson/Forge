@@ -37,6 +37,10 @@ export class DagreLayout {
     _node_width: number = 150;
     _node_height: number = 50;
 
+    _sig_font_size: number = 16;
+    _atom_font_size: number = 16;
+    _edge_font_size: number = 12;
+
     constructor (svg) {
 
         this._svg = svg;
@@ -66,7 +70,7 @@ export class DagreLayout {
 
         let { tree, edges } = graph.graph();
 
-        let transition = this._svg.transition().duration(500);
+        let transition = this._svg.transition().duration(250);
         this._sig_rect.transition(transition);
         this._sig_label.transition(transition);
 
@@ -78,6 +82,8 @@ export class DagreLayout {
         let scheme = this._style_graph(tree, edges);
         this._node.scheme(scheme);
         this._edge.scheme(scheme);
+        this._node.fontSize(this._atom_font_size);
+        this._edge.fontSize(this._edge_font_size);
 
         this._sig_group = this._svg
             .selectAll('g.signatures')
@@ -150,6 +156,28 @@ export class DagreLayout {
 
     }
 
+    set_edge_text_size (size) {
+
+        this._edge_font_size = size;
+        this._edge.fontSize(size);
+
+        this._edge_group
+            .selectAll('.label')
+            .attr('font-size', `${size}px`);
+
+    }
+
+    set_node_text_size (size) {
+
+        this._atom_font_size = size;
+        this._node.fontSize(size);
+
+        this._atom_group
+            .selectAll('.label')
+            .attr('font-size', `${size}px`);
+
+    }
+
     width () {
         return this._props ? this._props.width : 0;
     }
@@ -165,13 +193,15 @@ export class DagreLayout {
         this._sig_rect = rectangle()
             .attr('rx', 2)
             .style('stroke', '#999');
+
         this._sig_label = node_label()
             .placement('tl')
-            .style('font-size', '16px')
+            .style('font-size', `${this._sig_font_size}px`)
             .style('fill', '#999');
 
         this._edge = edge();
-        this._node = node();
+        this._node = node()
+            .fontSize(this._atom_font_size);
 
     }
 

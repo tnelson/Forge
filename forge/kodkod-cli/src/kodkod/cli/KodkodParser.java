@@ -199,8 +199,12 @@ public class KodkodParser extends BaseParser<Object> {
 							FirstOf(
 								Sequence(Keyword("solver"), 		Solver(), 		problem.setSolver((SATFactory)pop())),
 								Sequence(Keyword("bitwidth"),		NatLiteral(), 	problem.setBitwidth(popInt())),
-								Sequence(Keyword("produce-cores"), 	BoolLiteral(), 	problem.setCoreExtraction(popBool())),
+								//Sequence(Keyword("produce-cores"), 	BoolLiteral(), 	problem.setCoreExtraction(popBool())),
+								Sequence(Keyword("log-trans"),   	NatLiteral(), 	problem.setLogTranslation(popInt())),
+								Sequence(Keyword("core-gran"),   	NatLiteral(), 	problem.setCoreGranularity(popInt())),
 								Sequence(Keyword("verbosity"),		NatLiteral(),	problem.setVerbosity(level(popInt()))),
+								Sequence(Keyword("sb"),		        NatLiteral(),	problem.setSB(popInt())),
+								Sequence(Keyword("skolem-depth"),   NatLiteral(),	problem.setSkolemDepth(popInt())),
 								Sequence(Keyword("max-solutions"), 	NatLiteral(),	problem.setMaxSolutions(popInt())))),
 					RPAR);
 	}

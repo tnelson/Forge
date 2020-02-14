@@ -10,6 +10,9 @@
 (define (translate-to-kodkod-cli formula relations quantvars)
   (interpret-formula formula relations quantvars))
 
+; How to refactor? Instead of printing in many small pieces, accumulate a string and just print that.
+; with maybe a formatting function?
+
 ; quantvars should start at -1
 (define (interpret-formula formula relations quantvars)
   (match formula
@@ -76,7 +79,7 @@
      (map (lambda (x) (interpret-int x relations quantvars)) args)
      ( print-cmd-cont ")")]))
 
-(define (interpret-expr expr relations quantvars)
+(define (interpret-expr expr relations quantvars)  
   (match expr
     [(node/expr/relation arity name typelist parent)
      ( print-cmd-cont (format "r~a " (index-of relations expr)))]
@@ -86,15 +89,20 @@
      ( print-cmd-cont (format "~a " type))]
     [(node/expr/op arity args)
      (interpret-expr-op expr relations quantvars args)]
-    [(node/expr/quantifier-var arity sym)
+    [(node/expr/quantifier-var arity sym)     
      (print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
      (print-cmd-cont " ")]
-    [(node/expr/comprehension len decls form)
-     (define var (car (car decls)))
-     (let ([quantvars (cons var quantvars)])
-       ( print-cmd-cont (format "{([~a : " (v (get-var-idx var quantvars))))
-       (interpret-expr (cdr (car decls)) relations quantvars)
-       ( print-cmd-cont "]) ")
+    [(node/expr/comprehension len decls form)     
+     (define vars (map car decls)) ; account for multiple variables
+     ;(define var (car (car decls)))     
+     (let ([quantvars (append vars quantvars)])       
+       ( print-cmd-cont "{(") ; start comprehension, start decls
+       (for-each (lambda (d) ; each declaration
+                   (print-cmd-cont (format "[~a : " (v (get-var-idx (car d) quantvars))))
+                   (interpret-expr (cdr d) relations quantvars)
+                   (print-cmd-cont "]"))
+                 decls)
+       ( print-cmd-cont ") ") ; end decls
        (interpret-formula form relations quantvars)
        ( print-cmd-cont "}"))]))
 
@@ -129,9 +137,14 @@
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
      (print-cmd-cont ")")]
     [(? node/expr/op/~?)
-     (print-cmd-cont "(~a " '~)
+     (print-cmd-cont "(~a " '~) ;WHY IS THIS ONE DIFFERENT
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
-     (print-cmd-cont ")")]))
+     (print-cmd-cont ")")]
+    [(? node/expr/op/sing?)
+     (print-cmd-cont "(lone ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     (print-cmd-cont ")")
+     ]))
 
 (define (interpret-int expr relations quantvars)
   (match expr
@@ -165,4 +178,17 @@
     [(? node/int/op/card?)
      ( print-cmd-cont "(# ")
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
-     ( print-cmd-cont ")")]))
+     ( print-cmd-cont ")")]
+    [(? node/int/op/remainder?)
+     ( print-cmd-cont "(% ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/int/op/absolute?)
+     ( print-cmd-cont "(abs ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/int/op/sign?)
+     ( print-cmd-cont "(sgn ")
+     (map (lambda (x) (interpret-int x relations quantvars)) args)
+     ( print-cmd-cont ")")]
+    ))

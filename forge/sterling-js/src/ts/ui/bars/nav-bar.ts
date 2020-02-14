@@ -11,9 +11,14 @@ export class NavBar {
     _on_click_table: Function;
     _on_click_tree: Function;
 
+    _next;
+    _next_enabled: boolean;
+
     constructor (selection) {
 
         this._navbar = selection;
+        this._next = selection.select('#nav-next');
+        this._next_enabled = false;
 
         selection.select('#nav-eval')
             .on('click', () => {
@@ -23,11 +28,6 @@ export class NavBar {
         selection.select('#nav-graph')
             .on('click', () => {
                 if (this._on_click_graph) this._on_click_graph();
-            });
-
-        selection.select('#nav-next')
-            .on('click', () => {
-                if (this._on_click_next) this._on_click_next();
             });
 
         selection.select('#nav-source')
@@ -40,39 +40,56 @@ export class NavBar {
                 if (this._on_click_table) this._on_click_table();
             });
 
+
         selection.select('#nav-tree')
             .on('click', () => {
                 if (this._on_click_tree) this._on_click_tree();
             });
 
+        this._next
+            .on('click', () => {
+                if (this._on_click_next && this._next_enabled)
+                    this._on_click_next();
+            });
+
     }
 
-    on_eval (callback: Function): NavBar {
+    enable_next (): this {
+        this._next_enabled = true;
+        return this;
+    }
+
+    disable_next (): this {
+        this._next_enabled = false;
+        return this;
+    }
+
+    on_eval (callback: Function): this {
         this._on_click_eval = callback;
         return this;
     }
 
-    on_graph (callback: Function): NavBar {
+    on_graph (callback: Function): this {
         this._on_click_graph = callback;
         return this;
     }
 
-    on_next (callback: Function): NavBar {
+    on_next (callback: Function): this {
         this._on_click_next = callback;
         return this;
     }
 
-    on_source (callback: Function): NavBar {
+    on_source (callback: Function): this {
         this._on_click_source = callback;
         return this;
     }
 
-    on_table (callback: Function): NavBar {
+    on_table (callback: Function): this {
         this._on_click_table = callback;
         return this;
     }
 
-    on_tree (callback: Function): NavBar {
+    on_tree (callback: Function): this {
         this._on_click_tree = callback;
         return this;
     }

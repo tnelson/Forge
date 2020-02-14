@@ -3,11 +3,21 @@
 (require (only-in "../lang/ast.rkt" relation-name)
          "modelToXML.rkt" xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
-         racket/async-channel)
+         racket/async-channel
+         racket/hash)
 (require "eval-model.rkt")
 ; TODO: remove this once evaluator is in; just want to show we can evaluate something
 
 (require "../lang/reader.rkt")
+
+(define-runtime-path info-path "../info.rkt")
+(define forge-version "x.x.x")
+(with-handlers ([exn:fail? (λ (exn) (println exn))])
+  (define info-str (file->string info-path))
+  (define parts (regexp-match #px"define\\s+version\\s+\"(\\S+)\"" info-str))
+  (set! forge-version (second parts))
+)
+(printf "Forge Version: ~a~n" forge-version)
 
 (provide display-model)
 
@@ -16,7 +26,7 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-model name command filepath bitwidth)
+(define (display-model get-next-model name command filepath bitwidth funs-n-preds)
   (define model (get-next-model))
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -38,31 +48,36 @@
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
                  [(equal? m "current")
-                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
+                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
                  [(equal? m "next")
                   (set! model (get-next-model))
-                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth))]
+                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
-
-                  (define port (open-input-string (string-append "eval " command)))
-
-                  (define maxint 8) ; TODO: get maxint
-                  (define result
-                    (with-handlers (
+                  
+                  (define result (case command 
+                    [("--version" "-v") forge-version]
+                    [("--file" "-f") filepath]
+                    [else (with-handlers (
                         ;[exn:fail:read? (λ (exn) (println exn) "syntax error")]
                         ;[exn:fail:parsing? (λ (exn) (println exn) "syntax error")]
                         [exn:fail:contract? (λ (exn) (println exn) "error")]
                         [exn:fail? (λ (exn) (println exn) "syntax error")]
                       )
 
+                      (define maxint 8) ; TODO: get maxint
+                      (define port (open-input-string (string-append "eval " command)))
                       (define stxFromEvaluator (read-syntax 'Evaluator port))
                       (define alloy (third (last (syntax->datum stxFromEvaluator))))
                       ;(printf "alloy: ~a~n" alloy)
                       (define kodkod (alloy->kodkod alloy))
                       ;(printf "kodkod: ~a~n" kodkod)
-                      (define lists (eval-unknown kodkod (model->binding (cdr model)) maxint))
+                      (define binding (model->binding (cdr model)))
+                      ;(printf "funs-n-preds : ~a~n" funs-n-preds)
+                      (set! binding (hash-union binding funs-n-preds))
+                      ;(printf "binding: ~a~n" binding)
+                      (define lists (eval-unknown kodkod binding maxint))
                       ;(printf "lists: ~a~n" lists)
                       (if (list? lists)
                           (string-join (for/list ([l lists])
@@ -73,7 +88,8 @@
                               ) "->")
                               ) " + ")
                           lists)
-                      ))
+                      )]
+                    ))
                   ;(println result)
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else

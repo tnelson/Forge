@@ -4,6 +4,7 @@
 
 -- Test the option command to switch to core-generating solver
 option solver MiniSatProver
+option verbosity 2
 
 sig Node {
   edges: set Node
@@ -38,11 +39,20 @@ test expect {
  {edges = iden & Node->Node and #edges != 3} for exactly 3 Node is unsat
  testzeroscope1: {#Node = 0} for 0 Node is sat
  testzeroscope2: {#Node = 1} for 0 Node is unsat
+ testboxjoin: {edges[Node] in Node} is sat
+ testboxjoinnone: {some edges[none]} is unsat 
 }
 
 test expect ifte {
     ifte1: {#Node > 1 => some edges else no edges} for exactly 2 Node is sat
     ifte2: {some edges and (#Node > 1 => some edges else no edges)} for exactly 1 Node is unsat
+}
+
+test expect comprehension {
+    comp1: { some {n: Node | some n.edges} } is sat
+    comp2: { some {n: Node, m: Node-n | n->m in edges} } is sat
+    comp3: { some {n: Node, m: univ-Node | n->m in edges} } is unsat
+    comp4: { {n: Node, m: Node | n->m in edges} != edges} is unsat -- ordering    
 }
 
 test expect node_cardinality {

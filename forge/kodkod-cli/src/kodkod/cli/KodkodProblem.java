@@ -94,7 +94,7 @@ import org.parboiled.errors.ActionException;
  */
  public abstract class KodkodProblem {
 	private long buildTimeMillis = -1, coreTimeMillis = -1, maxSolutions = 1;
-	private final Options options;
+	private Options options;
 	private final DefEnv env;
 	private final List<Formula> asserts;
 	private Bounds bounds;
@@ -108,6 +108,9 @@ import org.parboiled.errors.ActionException;
 		this.env = env;
 		this.bounds = bounds;
 		this.options = options;
+        // System.out.println("HERE");
+        // this.options.setSymmetryBreaking(20);
+        // System.out.println("HERE2");
 		this.asserts = new ArrayList<>();
 		this.maxSolutions = maxSolutions;
 	}
@@ -365,7 +368,42 @@ import org.parboiled.errors.ActionException;
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
-	};
+	}
+
+	boolean setSB(int sb) {
+		try {
+			options.setSymmetryBreaking(sb);
+		} catch (IllegalArgumentException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
+
+	boolean setSkolemDepth(int sd) {
+		try {
+			options.setSkolemDepth(sd);
+		} catch (IllegalArgumentException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
+	boolean setCoreGranularity(int gran) {
+		try {
+			options.setCoreGranularity(gran);
+		} catch (IllegalArgumentException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
+	boolean setLogTranslation(int lt) {
+		try {
+			options.setLogTranslation(lt);
+		} catch (IllegalArgumentException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
+
 
 	/**
 	 * Sets {@code this.options.solver} to the specified solver factory.
@@ -395,6 +433,8 @@ import org.parboiled.errors.ActionException;
 	 * 				 this.ooptions.setSolver(SATFactory.MiniSatProver)) else
 	 *              (this.options.setLogTranslation(0) && this.options.setCoreGranularity(0))
 	 **/
+	// Just set solver, LT, and CG separately.
+	@Deprecated
 	boolean setCoreExtraction(boolean enable) {
 		try {
 			if (enable) {
@@ -413,6 +453,7 @@ import org.parboiled.errors.ActionException;
 		}
 		return true;
 	}
+
 
 	/**
 	 * Sets {@code this.bounds} to an empty {@link Bounds} over a freshly
@@ -585,6 +626,7 @@ import org.parboiled.errors.ActionException;
 
 		Stepper() {
 			this.solver = new Solver(super.options);
+                // System.err.println(super.options);
 			super.maxSolutions = -1;	// maxSolutions has no meaning for Steppers.
 		}
 

@@ -34,7 +34,7 @@ export class ProjectionsBar {
         this._on_update = () => {};
 
         d3.select('body')
-            .on('click', this._on_click.bind(this))
+            .on('click', this._on_click.bind(this));
 
     }
 

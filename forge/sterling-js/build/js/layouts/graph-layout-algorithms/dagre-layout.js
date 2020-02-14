@@ -10,6 +10,9 @@ export class DagreLayout {
         this._rank_sep = 100;
         this._node_width = 150;
         this._node_height = 50;
+        this._sig_font_size = 16;
+        this._atom_font_size = 16;
+        this._edge_font_size = 12;
         this._svg = svg;
         this._svg_width = parseInt(this._svg.style('width'));
         this._svg_height = parseInt(this._svg.style('height'));
@@ -34,7 +37,7 @@ export class DagreLayout {
     }
     layout(graph) {
         let { tree, edges } = graph.graph();
-        let transition = this._svg.transition().duration(500);
+        let transition = this._svg.transition().duration(250);
         this._sig_rect.transition(transition);
         this._sig_label.transition(transition);
         this._position_compound_graph(tree, edges);
@@ -43,6 +46,8 @@ export class DagreLayout {
         let scheme = this._style_graph(tree, edges);
         this._node.scheme(scheme);
         this._edge.scheme(scheme);
+        this._node.fontSize(this._atom_font_size);
+        this._edge.fontSize(this._edge_font_size);
         this._sig_group = this._svg
             .selectAll('g.signatures')
             .data([signatures])
@@ -95,6 +100,20 @@ export class DagreLayout {
             .style('display', 'none');
         transition.on('end', this._make_voronoi.bind(this));
     }
+    set_edge_text_size(size) {
+        this._edge_font_size = size;
+        this._edge.fontSize(size);
+        this._edge_group
+            .selectAll('.label')
+            .attr('font-size', `${size}px`);
+    }
+    set_node_text_size(size) {
+        this._atom_font_size = size;
+        this._node.fontSize(size);
+        this._atom_group
+            .selectAll('.label')
+            .attr('font-size', `${size}px`);
+    }
     width() {
         return this._props ? this._props.width : 0;
     }
@@ -109,10 +128,11 @@ export class DagreLayout {
             .style('stroke', '#999');
         this._sig_label = node_label()
             .placement('tl')
-            .style('font-size', '16px')
+            .style('font-size', `${this._sig_font_size}px`)
             .style('fill', '#999');
         this._edge = edge();
-        this._node = node();
+        this._node = node()
+            .fontSize(this._atom_font_size);
     }
     _position_compound_graph(tree, edges) {
         let graph = new dagre.graphlib.Graph({ multigraph: true, compound: true });

@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/match (only-in "../lang/ast.rkt" relation-name))
+(require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
 
 (provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
 
@@ -18,10 +18,10 @@
 (define (eval-unknown thing bind maxint)
   (with-handlers
       ([exn:fail?
-        (lambda (v)
+        (lambda (v) (println v)
           (with-handlers
               ([exn:fail?
-                (lambda (v2) (raise-user-error "Not a formula or expression" thing))])
+                (lambda (v2) (println v2) (raise-user-error "Not a formula or expression" thing))])
             (eval-exp thing bind maxint)))])
         (eval-form thing bind maxint)))
 
@@ -31,6 +31,7 @@
 ; ((a) (b) (c)) represents the set {a b c}, and ((a b) (b c)) represents
 ; the relation {(a b) (b c)}
 (define (eval-exp exp bind maxint [safe #t])
+  ;(printf "exp : ~v~n" exp)
   (define result (match exp
                    ; Binary set operations
                    [`(+ ,exp-1 ,exp-2) (append                                        
@@ -71,11 +72,24 @@
                    [`univ (build-univ bind)]
                    [`iden (build-iden bind)]
                    ;[`Int (build-ints bind)]
-                   ; Base case - implicit set comprehension, ids, integers
+                   [`(,p ,vals ...) ;#:when (hash-has-key? bind p)
+                    (with-handlers ([exn:fail? (λ (exn) 
+                      (define joined (foldl (λ (x y) `(join ,x ,y)) p vals))
+                      (eval-exp joined bind maxint safe)
+                    )])
+                      (match-define (list args alloy) (hash-ref bind p))
+                      (set! vals (for/list ([val vals]) (eval-exp val bind maxint)))
+                      ; (make-hash (map cons args vals))
+                      ; (for/hash ([a args][v vals]) (values a v))
+                      (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
+                      (define kodkod (alloy->kodkod alloy))
+                      (eval-exp kodkod bind2 maxint)
+                    )
+                   ]
                    [id
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]
-                      [(integer? id) (list (list (modulo id maxint safe)))]
+                      [(integer? id) (list (list (modulo id maxint)))]
                       ; relation name
                       [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name
@@ -83,12 +97,14 @@
                       [(not safe) id]
                       ; oops
                       [else (raise-user-error "Not an expression" id)])]))
-  
   ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
   ; Also canonicalize so that if we compare relational constants, a list-based representation is OK
-  (if (not (list? result))
+  (define ret (if (not (list? result))
       (canonicalize-result (list (list result)))
       (canonicalize-result (remove-duplicates result))))
+  
+  ;(printf "exp : ~v = ~v~n" exp ret) 
+  ret)
 
 ; extract list of all atoms used across all relations
 ; do so by taking union of contents of all relations (since this will include all top-level sigs)
@@ -152,7 +168,8 @@
 ; Interpreter for evaluating an eval query for a formula in a model
 ; context
 (define (eval-form form bind maxint)
-  (match form
+  ;(printf "form : ~v~n" form)
+  (define ret (match form
     [`(! ,f) (not (eval-form f bind maxint))]
     [`(no ,exp) (empty? (eval-exp exp bind maxint))]
     [`(some ,exp) (not (empty? (eval-exp exp bind maxint)))]
@@ -168,7 +185,21 @@
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind maxint) (eval-exp int2 bind maxint))]
     [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (list (eval-exp e bind maxint))) maxint)]
+    [`(,p ,vals ...) #:when (hash-has-key? bind p)
+      (match-define (list args alloy) (hash-ref bind p))
+      (set! vals (for/list ([val vals]) (eval-exp val bind maxint)))
+      (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
+      (define kodkod (alloy->kodkod alloy))
+      (eval-form kodkod bind2 maxint)
+    ]
+    [p #:when (hash-has-key? bind p)
+      (match-define (list args alloy) (hash-ref bind p))
+      (define kodkod (alloy->kodkod alloy))
+      (eval-form kodkod bind maxint)
+    ]
     [exp (raise-user-error "Not a formula" exp)]))
+  ;(printf "form : ~v = ~v~n" form ret) 
+  ret)
 
 (define (alloy->kodkod e)
   (define (f e)
@@ -184,11 +215,17 @@
       [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n ,ns ...) ,e) ,ds ...) ,a)
         `(,(f q) ,(f n) ,(f e) ,(f `(Expr (Quant ,q) (DeclList (Decl (NameList ,@ns) ,e) ,@ds) ,a)))]
       [`(,_ ,a "or" ,b) `(or ,(f a) ,(f b))]
+      [`(,_ ,a "||" ,b) `(or ,(f a) ,(f b))]
       [`(,_ ,a "iff" ,b) `(iff ,(f a) ,(f b))]
+      [`(,_ ,a "<=>" ,b) `(iff ,(f a) ,(f b))]
       [`(,_ ,a "implies" ,b) `(implies ,(f a) ,(f b))]
+      [`(,_ ,a "=>" ,b) `(implies ,(f a) ,(f b))]
       [`(,_ ,a "and" ,b) `(and ,(f a) ,(f b))]
+      [`(,_ ,a "&&" ,b) `(and ,(f a) ,(f b))]
       [`(,_ "!" ,a) `(! ,(f a))]
+      [`(,_ "not" ,a) `(! ,(f a))]
       [`(,_ ,a "!" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
+      [`(,_ ,a "not" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
       [`(,_ ,a (CompareOp ,op) ,b) `(,(f op) ,(f a) ,(f b))]
       [`(,_ ,quant (Expr8 ,a ...)) `(,(f quant) ,(f `(Expr8 ,@a)))]
       [`(,_ ,a "+" ,b) `(+ ,(f a) ,(f b))]
@@ -199,18 +236,18 @@
       [`(,_ ,a (ArrowOp ,_ ...) ,b) `(-> ,(f a) ,(f b))]
       [`(,_ ,a "<:" ,b) `(<: ,(f a) ,(f b))]
       [`(,_ ,a ":>" ,b) `(<: ,(f b) ,(f a))]
-      ;[`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
-      [`(,_ ,a "[" (ExprList ,b) "]") `(join ,(f b) ,(f a))]
-      [`(,_ ,a "[" (ExprList ,b ,bs ...) "]") 
-        (f `(Expr (join ,(f b) ,(f a)) "[" (ExprList ,@bs) "]"))]
+      [`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
       [`(,_ ,a "." ,b) `(join ,(f a) ,(f b))]
       [`(,_ "~" ,a) `(~ ,(f a))]
       [`(,_ "^" ,a) `(^ ,(f a))]
       [`(,_ "*" ,a) `(* ,(f a))]
       [`(BlockOrBar (Block ,a ...)) `(and ,@(map f a))]
       [`(BlockOrBar "|" ,a) (f a)]
+      [`(Block ,a ...) `(and ,@(map f a))]
       [`(,_ ,a) (f a)]
-      [(? string?) (string->symbol e)]
+      [(? string?) (with-handlers ([exn:fail? (λ (exn) (string->symbol e))]) 
+        (define n (string->number e))
+        (if (integer? n) n (string->symbol e)))]
       [else e]
     )
   )
