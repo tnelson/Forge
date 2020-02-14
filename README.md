@@ -1,15 +1,15 @@
 # Forge
 
-Welcome to Forge! Forge is a language built for teaching formal methods and model checking. Forge is very much a work in progress, and is notably missing both integers and type hierarchy for sigs - rest assured, these features, and many more, are on their way!
+Welcome to Forge! Forge is a language built for teaching formal methods and model checking.
 
 Forge extends the Ocelot package to create first-order relational logic models. Forge differs from Ocelot in that it provides:
 - Alloy-like semantics for universe declaration (i.e. implicitly defining a universe of discourse in terms of sigs and bounds)
 - A built-in visualizer and evaluator
-- Support for KodKod integers (coming soon)
-- Built-in semantics for state (coming soon)
+- Support for KodKod integers
+- Built-in semantics for state
 - Additional teaching tools like language levels and different interaction modes (coming soon)
 
-## Installation
+<!-- ## Installation
 
 ```
 $ cd [Path-To-Repo]/forge
@@ -41,4 +41,4 @@ Forge aims to make formal methods more teachable by meeting the following design
   - Enable controlled exposure to concepts via language levels
 - Other ideas
   - Hide underlying concepts like relational representation from the user?
-  - In general, separate semantic/ontological concerns from bound-related concerns
+  - In general, separate semantic/ontological concerns from bound-related concerns -->
