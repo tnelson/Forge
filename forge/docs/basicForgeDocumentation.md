@@ -125,9 +125,29 @@ transition[MyState] myTransition { ... }
 Within the state predicate, you can specify what must hold about a specific state (e.g. the initial or final state). Within the transition predicate, you can specify what must be true of the prestate for a transition to occur, and how the poststate must relate to the prestate for the transition to be valid.
 
 ### Transition Predicates
-Within state predicates, you can access fields of the specified state sig without using the join `.` operator. Within transition predicates, you can access fields of the prestate by simply using the names of the fields, and fields of the poststate by adding a `'` to the name of the field (so to access `myField` of the poststate, use `myField'`). You can also refer to the prestate directly by using `this` and the poststated by using `this'`.
+Within state predicates, you can access fields of the specified state sig without using the join `.` operator. Within transition predicates, you can access fields of the prestate by simply using the names of the fields, and fields of the poststate by adding a `'` to the name of the field (so to access `myField` of the poststate, use `myField'`). You can also refer to the prestate directly by using `this` and the poststate by using `this'`.
+
+Transition predicates can also take arguments as in the following:
+```
+transition[MyState] myTransition[a: MySig1, b: MySig2] { ... }
+```
 
 ### Combining it into a trace
+To tell Forge to use the given predicates to give you a system trace, you can use the `trace` predicate to combine your initial state, transition, and final state predicates. To use it, pass it your State sig, initial state predicate, transition predicate, and final state predicate.
+```
+trace<|MyState, myInitState, myTransition, myFinalState|> myTrace {}
+```
+Note that all of the predicates specified in `trace` must not take any arguments.
+
+If you want to omit one of the predicates, you can also write:
+```
+trace<|MyState, myInitState, myTransition, _|> myTrace {}  -- any final state is valid
+```
+
+To run the trace, you simply add the trace to end of the run keyword as shown below and the rest is as defined in the [run](#running-your-spec) section.
+```
+run<|myTrace|> { ... }
+```
 
 ## Constants
 Forge has a few constants that it provides:
@@ -154,7 +174,7 @@ To convert between sets of integer atoms and integer values there are the follow
 Note that overflows in Forge are treated as wrapping around. In other words, `add[7, 1]` evaluates to `-8` and similarly for other operations.
 
 ## Running your Spec
-There are two primary ways of running your spec. You can either as Forge to show you instances that satisfy a predicate you wrote with the [run](#run) command, or ask Forge to look for counterexamples to a predicate you wrote with the [check](#check) command
+There are two primary ways of running your spec. You can either as Forge to show you instances that satisfy a predicate you wrote with the [run](#run) command, or ask Forge to look for counterexamples to a predicate you wrote with the [check](#check) command.
 
 ### Run
 The run command can be used in a few different ways, show below:
