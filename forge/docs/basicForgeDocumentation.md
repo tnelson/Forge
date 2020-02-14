@@ -107,7 +107,27 @@ In the following, "x" is a variable, "relation" is a set or relation, and "expr"
   Sometimes, it might be useful to try to quantify over all pairs of atoms, where the two in the pair are distinct atoms. You can do that using set difference in the following way: `some x: Atom, y: Atom - x | { <expr> }`
   
 ## State-Transition
+We often want to reason about a trace of a system such as when modeling an algorithm. Forge provides a convenient syntax to do this. You should first add a sig that denotes the "states" you want to model.
+```alloy
+sig MyState {
+    field1: ...
+    field2: ...
+}
+```
 
+You can then define the following special predicates:
+```
+state[MyState] myInitState { ... }
+transition[MyState] myTransition { ... }
+```
+
+### State Predicates
+Within the state predicate, you can specify what must hold about a specific state (e.g. the initial or final state). Within the transition predicate, you can specify what must be true of the prestate for a transition to occur, and how the poststate must relate to the prestate for the transition to be valid.
+
+### Transition Predicates
+Within state predicates, you can access fields of the specified state sig without using the join `.` operator. Within transition predicates, you can access fields of the prestate by simply using the names of the fields, and fields of the poststate by adding a `'` to the name of the field (so to access `myField` of the poststate, use `myField'`). You can also refer to the prestate directly by using `this` and the poststated by using `this'`.
+
+### Combining it into a trace
 
 ## Constants
 Forge has a few constants that it provides:
