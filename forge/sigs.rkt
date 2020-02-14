@@ -738,7 +738,7 @@
 (define-syntax-rule (InstanceDecl i) (instance i))
 
 (define-syntax (CmdDecl stx) (map-stx (lambda (d)
-  (define-values (name cmd arg scope block bounds params) (values #f #f #f '() '() '(Bounds) '()))
+  (define-values (name cmd arg scope block bounds params) (values #f #f #f '() '() '(Bounds) #'()))
   (define (make-typescope x)
     (syntax-case x (Typescope)
       [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
