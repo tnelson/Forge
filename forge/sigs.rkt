@@ -996,17 +996,18 @@
   (define S_tran (if (> L 2) (list-ref params 2) '_))
   (define S_term (if (> L 3) (list-ref params 3) '_))
 
+  (define T name)
   (define T_pred (string->symbol (format "~a_pred" name)))
   (define T_fact (string->symbol (format "~a_fact" name)))
   (define T_inst (string->symbol (format "~a_inst" name)))
 
   (define datum `(begin
-    (pre-declare-sig T #:extends univ)
-    (SigDecl (Mult "one") (NameList T) (ArrowDeclList 
+    (pre-declare-sig ,T #:extends univ)
+    (SigDecl (Mult "one") (NameList ,T) (ArrowDeclList 
       (ArrowDecl (NameList init) (ArrowMult "set") (ArrowExpr (QualName ,S))) 
       (ArrowDecl (NameList tran) (ArrowMult "set") (ArrowExpr (QualName ,S) (QualName ,S))) 
       (ArrowDecl (NameList term) (ArrowMult "set") (ArrowExpr (QualName ,S)))))
-    (StateDecl "facts" (QualName T) (Name ,T_pred) (Block 
+    (StateDecl "facts" (QualName ,T) (Name ,T_pred) (Block 
       (Expr (Expr4 "some" (Expr8 (QualName tran))) 
         "=>" (Expr3 (Block 
           (Expr (Expr6 (QualName ,S)) (CompareOp "=") 
@@ -1037,7 +1038,7 @@
           (BlockOrBar "|" (Expr (Expr14 (QualName ,S_term)) 
             "[" (ExprList (Expr (QualName s))) "]")))))))
     (PredDecl (Name ,T_fact) (Block 
-    (Expr (Quant "all") (DeclList (Decl (NameList t) (Expr (QualName T)))) 
+    (Expr (Quant "all") (DeclList (Decl (NameList t) (Expr (QualName ,T)))) 
       (BlockOrBar "|" (Expr (Expr14 (QualName ,T_pred)) 
         "[" (ExprList (Expr (QualName t))) "]")))))
     (InstDecl (Name ,T_inst) (Bounds 
