@@ -124,9 +124,10 @@
    ["/" (token+ 'SLASH-TOK "" lexeme "" lexeme-start lexeme-end)]
    [":" (token+ 'COLON-TOK "" lexeme "" lexeme-start lexeme-end)]
    ;["@" (token+ 'AT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["_" (token+ 'UNDERSCORE-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; identifiers
-   [(: (or alphabetic "@") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
+   [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -198,6 +199,8 @@
            'max
            'min
            "#"
+
+           '_
 )))
 
 (define (paren? str)

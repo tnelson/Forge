@@ -760,16 +760,13 @@
       [_ #f]
     )
   )
-  ;(printf "params : ~a~n" params)
+
   (define param-facts (for/list ([p (syntax->datum params)]) 
     `(Expr (QualName ,(string->symbol (format "~a_fact" p))))))
   (define param-insts (for/list ([p (syntax->datum params)]) 
     `(Expr (QualName ,(string->symbol (format "~a_inst" p))))))
-  ;(printf "param-facts : ~a~n" param-facts)
-  ;(printf "param-insts : ~a~n" param-insts)
   (set! block (append block param-facts))
   (set! bounds (append bounds param-insts))
-  ;(printf "block : ~v~n" block)
 
   (if name #f (set! name (symbol->string (gensym))))
   (define datum `(begin
@@ -977,28 +974,74 @@
 ) stx))
 
 (define-syntax (TraceDecl stx) (map-stx (lambda (d)
-  (define-values (name paras block sig params) (values #f '() '() #f #f))
+  (define-values (name paras block sig params strat) (values #f '() '() #f #f 'plinear))
   (for ([arg (cdr d)])
-    (syntax-case arg (Name ParaDecls Decl NameList Block QualName Parameters)
+    (syntax-case arg (Name ParaDecls Decl NameList Block QualName Parameters Expr)
       [(Name n) (set! name (syntax->datum #'n))]
       [(QualName n) (set! sig (syntax->datum #'n))]
       [(ParaDecls (Decl (NameList ps) _ ...) ...)
         (set! paras (flatten (syntax->datum #'(ps ...))))]
-      [(Parameters ps ...) (set! params #'(ps ...))]
+      [(Parameters ps ...) (set! params (syntax->datum #'(ps ...)))]
       [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+      [(Expr (QualName s)) (set! strat (syntax->datum #'s))]
       [_ #f]
     )
   )
-  ;(printf "d: ~a~n" d)
-  ;(printf "params: ~a~n" params)
-  ;(define datum '(println 123))
 
-  (define datum '(begin
+  ;(printf "params : ~v~n" params)
+  ;(printf "strat : ~v~n" strat)
+  (define L (length params))
+  (define S      (if (> L 0) (list-ref params 0) (error 'trace "no state sig specified for ~a" name)))
+  (define S_init (if (> L 1) (list-ref params 1) '_))
+  (define S_tran (if (> L 2) (list-ref params 2) '_))
+  (define S_term (if (> L 3) (list-ref params 3) '_))
+
+  (define T_pred (string->symbol (format "~a_pred" name)))
+  (define T_fact (string->symbol (format "~a_fact" name)))
+  (define T_inst (string->symbol (format "~a_inst" name)))
+
+  (define datum `(begin
     (pre-declare-sig T #:extends univ)
     (SigDecl (Mult "one") (NameList T) (ArrowDeclList 
-      (ArrowDecl (NameList init) (ArrowMult "set") (ArrowExpr (QualName S))) 
-      (ArrowDecl (NameList tran) (ArrowMult "set") (ArrowExpr (QualName S) (QualName S))) 
-      (ArrowDecl (NameList term) (ArrowMult "set") (ArrowExpr (QualName S)))))
+      (ArrowDecl (NameList init) (ArrowMult "set") (ArrowExpr (QualName ,S))) 
+      (ArrowDecl (NameList tran) (ArrowMult "set") (ArrowExpr (QualName ,S) (QualName ,S))) 
+      (ArrowDecl (NameList term) (ArrowMult "set") (ArrowExpr (QualName ,S)))))
+    (StateDecl "facts" (QualName T) (Name ,T_pred) (Block 
+      (Expr (Expr4 "some" (Expr8 (QualName tran))) 
+        "=>" (Expr3 (Block 
+          (Expr (Expr6 (QualName ,S)) (CompareOp "=") 
+            (Expr7 (Expr8 (Expr15 (QualName tran)) "." (Expr16 (QualName ,S))) "+" 
+            (Expr10 (Expr15 (QualName ,S)) "." (Expr16 (QualName tran))))) 
+          (Expr (Expr6 (QualName init)) (CompareOp "=") 
+            (Expr7 (Expr8 (Expr15 (QualName tran)) "." (Expr16 (QualName ,S))) "-" 
+            (Expr10 (Expr15 (QualName ,S)) "." (Expr16 (QualName tran))))) 
+          (Expr (Expr6 (QualName term)) (CompareOp "=") 
+            (Expr7 (Expr8 (Expr15 (QualName ,S)) "." (Expr16 (QualName tran))) "-" 
+            (Expr10 (Expr15 (QualName tran)) "." (Expr16 (QualName ,S))))))) 
+        "else" (Expr3 (Block 
+          (Expr "one" (Expr8 (QualName ,S))) 
+          (Expr (Expr6 (QualName init)) (CompareOp "=") (Expr7 (QualName ,S))) 
+          (Expr (Expr6 (QualName term)) (CompareOp "=") (Expr7 (QualName ,S)))))) 
+      ,@(if (equal? S_init '_) '()
+        `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName init)))) 
+          (BlockOrBar "|" (Expr (Expr14 (QualName ,S_init)) 
+            "[" (ExprList (Expr (QualName s))) "]"))))) 
+      ,@(if (equal? S_tran '_) '()
+        `((Expr (Quant "all") (DeclList 
+            (Decl (NameList s) (Expr (QualName ,S))) 
+            (Decl (NameList |s'|) (Expr (Expr15 (QualName s)) "." (Expr16 (QualName tran))))) 
+          (BlockOrBar "|" (Expr (Expr14 (QualName ,S_tran)) 
+            "[" (ExprList (Expr (QualName s)) (Expr (QualName |s'|))) "]")))))
+      ,@(if (equal? S_term '_) '()
+        `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName term)))) 
+          (BlockOrBar "|" (Expr (Expr14 (QualName ,S_term)) 
+            "[" (ExprList (Expr (QualName s))) "]")))))))
+    (PredDecl (Name ,T_fact) (Block 
+    (Expr (Quant "all") (DeclList (Decl (NameList t) (Expr (QualName T)))) 
+      (BlockOrBar "|" (Expr (Expr14 (QualName ,T_pred)) 
+        "[" (ExprList (Expr (QualName t))) "]")))))
+    (InstDecl (Name ,T_inst) (Bounds 
+      (Expr (Expr6 (QualName tran)) (CompareOp "is") (Expr7 (QualName ,strat)))))
   ))
 
   ;(define fields (hash-ref sig-to-fields sig))
@@ -1009,7 +1052,8 @@
   ;;`(pred (,name ,@paras) (all ([this ,sig]) (let ,lets (and ,@(syntax->datum block)))))))
   ;(define datum `(pred (,name this ,@paras) (let ,lets (and ,@block))))
 
-  (printf "PredDecl: ~a~n" datum)
+  ;(println "TraceDecl") (for ([l (cdr datum)]) (printf " + ~a~n" l))
+  ;(printf "TraceDecl: ~a~n" datum)
   datum
 ) stx))
 
