@@ -3,15 +3,19 @@
 ## Table of Contents
  - [Installation](#installation)
  - [Sigs](#sigs)
- - [Logical operators](#logical-operators)
- - [Relational operators](#relational-operators)
- - [Quantifiers](#quantifiers)
- - [Constants](#constants)
- - [Integers](#integers)
- - [Running your spec](#running-your-spec)
- - [Bounds](#bounds)
- - [Testing your spec](#testing-your-spec)
- - [Sterling visualizer](#sterling-visualizer)
+ - Operators
+   - [Logical operators](#logical-operators)
+   - [Relational operators](#relational-operators)
+   - [Quantifiers](#quantifiers)
+ - [State transition](#state-transition)
+ - Built-in sets & constants
+   - [Constants](#constants)
+   - [Integers](#integers)
+ - Running your model
+   - [Running your spec](#running-your-spec)
+   - [Bounds](#bounds)
+   - [Testing your spec](#testing-your-spec)
+   - [Sterling visualizer](#sterling-visualizer)
 
 
 ## Installation
@@ -69,6 +73,9 @@ In the following, "x" is a variable, "relation" is a set or relation, and "expr"
   - `some <x>, <y>: <relation> | { <expr> }`
   
   Sometimes, it might be useful to try to quantify over all pairs of atoms, where the two in the pair are distinct atoms. You can do that using set difference in the following way: `some x: Atom, y: Atom - x | { <expr> }`
+  
+## State-Transition
+
 
 ## Constants
 Forge has a few constants that it provides:
@@ -118,7 +125,38 @@ The check command is used to ask Forge to look for counterexamples to a given se
 If no counterexamples are found, Sterling displays "No counterexamples found. Assertion may be valid". When no more counterexamples can be found, Sterling displays "No more instances found".
 
 ## Bounds
-Forge is a _bounded_ model finder, meaning it can only look for instances up to a certain bound.
+Forge is a _bounded_ model finder, meaning it can only look for instances up to a certain bound. You can specify bounds in two seperate ways in Forge: using [numeric bounds](#numeric-bounds) or [instance bounds](#instance-bounds).
+
+### Numeric bounds
+The most basic way of specifying bounds in Forge is using the max set size for each sig. If no bound is specified, Forge defaults to allowing up to 4 of each atom (except for [Ints](#integers), where the bound specifies the bitwidth). To add a bound to a run/check statement in a model with an Atom and Node set, you can do:
+```
+run <pred> for 5 Atom
+run <pred> for 5 Atom, 4 Node
+```
+Note that this sets an upper bound on the instances Forge will show you. In other words, Forge will show you instances satisfying the predicate with **up to** the bound you specify (except Ints, where bounds are always exact). If you instead want to set an **exact** bound, you can do:
+```
+run <pred> for exactly 5 Atom
+run <pred> for exactly 5 Atom, exactly 4 Node
+```
+You can also mix-and-match exact and upper bounds as follows:
+```
+run <pred> for 5 Atom, exactly 4 Node  -- up to 5 Atom, but exactly 4 Node
+```
+
+### Instance bounds
+Instance bounds allow you to encode specific instances that you want Forge to run on. When creating an instance bound, you specify what each set and relation should look like, which then allows you to [test](#testing-your-spec) your predicates on that specific instance. The syntax for defining an instance bound is show below for a model with an Atom set and relation from Atoms to Atoms.
+```
+inst myAtomWorld {
+    Atom = Atom0 + Atom1 + Atom2
+    rel = Atom0->Atom1 + Atom1->Atom2 + Atom2->Atom1
+}
+```
+To run or check using this as a bound, you can simply do:
+```
+run <pred> for myAtomWorld
+check <pred> for myAtomWorld
+```
+See the [run](#running-your-spec) section for more information on how to write run and check statements.
 
 ## Testing your Spec
 
