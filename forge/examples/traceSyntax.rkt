@@ -4,11 +4,12 @@ sig A {}
 sig S { stuff: set A }
 
 state[S] S_init { no stuff }
+transition[S] add_A[a:A] {
+    stuff' = stuff+a
+    a not in stuff
+}
 transition[S] S_tran {
-    some a: A {
-        stuff' = stuff+a
-        a not in stuff
-    }
+    some a: A | add_A[this, this', a]
 }
 state[S] S_term { #stuff = 3 }
 

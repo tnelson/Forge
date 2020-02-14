@@ -201,6 +201,8 @@
            "#"
 
            '_
+           'this
+           '|this'|
 )))
 
 (define (paren? str)
