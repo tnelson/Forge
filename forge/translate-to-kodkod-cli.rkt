@@ -183,7 +183,7 @@
      ( print-cmd-cont "(% ")
      (map (lambda (x) (interpret-int x relations quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/absolute?)
+    [(? node/int/op/abs?)
      ( print-cmd-cont "(abs ")
      (map (lambda (x) (interpret-int x relations quantvars)) args)
      ( print-cmd-cont ")")]
