@@ -107,7 +107,18 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum sing)
+
+(provide pre-declare-sig declare-one-sig declare-sig set-top-level-bound sigs pred)
+(provide run check test fact)
+(provide Int iden univ none)
+(provide no some one lone all)
+(provide + - ^ & ~ join !)
+(provide set in )
+(provide = -> * => not and or)
+(provide set-bitwidth)
+(provide < > int=)
+(provide add subtract multiply divide sign abs)
+(provide card sum sing succ max min)
 (provide add-relation set-option)
 
 (define (add-relation rel types)
