@@ -193,6 +193,7 @@
 (define univ (node/expr/constant 1 'univ))
 (define iden (node/expr/constant 2 'iden))
 (define Int (node/expr/relation 1 "Int" '(Int) "univ"))
+(define succ (node/expr/relation 2 "succ" '(Int Int) "CharlieSaysWhatever"))
 
 ;; INTS ------------------------------------------------------------------------
 

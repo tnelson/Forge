@@ -449,7 +449,7 @@
   (set! run-constraints (append run-constraints disj-cs))
   (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
 
-
+  ; Add integer atoms forcefully because they always exist
   (set! sig-bounds (cons (bound Int int-range-singletons int-range-singletons) sig-bounds))
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
   (hash-set! upper-bounds Int int-range)
@@ -458,6 +458,11 @@
   ; Int needs to be in upper-bounds, lower-bounds, and sig-bounds
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs (list Int)))
+
+  ; Add the successor relation on integers (and it's exact)
+  (define successor-rel (map list (take int-range (sub1 (length int-range))) (rest int-range)))
+  (set! total-bounds (append total-bounds (list (bound succ successor-rel successor-rel))))
+  (set! rels (append rels (list succ)))
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define kks (new server%
