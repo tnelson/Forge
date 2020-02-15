@@ -164,14 +164,20 @@ In the following, "atoms" is a set of integer atoms and "value" is an integer va
  - `subtract[<value-a>, <value-a> ...]`: returns the value of the difference value-a - value-b - ...
  - `multiply[<value-a>, <value-b> ...]`: returns the value of the product value-a * value-b * ...
  - `divide[<value-a>, <value-b> ...]`: returns the value of the left-associative integer quotient (value-a / value-b) / ...
- - `absolute[<value>]`: __DOESN'T WORK YET__
- - `sign[<value>]`: __DOESN'T WORK YET__
+ - `abs[<value>]`: returns the absolute value of value
+ - `sign[<value>]`: returns 1 if value is > 0, 0 if value is 0, and -1 if value is < 0
  
 To convert between sets of integer atoms and integer values there are the following operations:
- - `sing[<value>]`: returns a set containing the integer atom that represents the given value
- - `sum[<atoms>]`: returns the sum of the values that are represented by each of the atoms in the set
- 
+ - `sing[<value>]`: returns a set containing the int atom that represents the given value
+ - `sum[<atoms>]`: returns the sum of the values that are represented by each of the int atoms in the set
+ - `max[<atoms>]`: returns the maximum of all the values represented by the int atoms in the set
+ - `min[<atoms>]`: returns the minimum of all the values represented by the int atoms in the set
+
+Forge also exposes the `succ` relation (`Int -> Int`) where each int atom points to its successor (e.g. the int atom 4 points to 5). The maximum int atom does not point to anything.
+
 Note that overflows in Forge are treated as wrapping around. In other words, `add[7, 1]` evaluates to `-8` and similarly for other operations.
+
+[Bounds](#bounds) on Integers are specified using a bitwidth (so specifying 7 Int gives you -64 to 63) instead of the number of ints.
 
 ## Running your Spec
 There are two primary ways of running your spec. You can either as Forge to show you instances that satisfy a predicate you wrote with the [run](#run) command, or ask Forge to look for counterexamples to a predicate you wrote with the [check](#check) command.
