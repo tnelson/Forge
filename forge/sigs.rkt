@@ -559,12 +559,16 @@
     [(_ name ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          (run-spec hashy name #,command filepath 'run))]
     [(_ name (preds ...) ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          (run-spec hashy name #,command filepath 'run preds ...))]
     [(_ name)
      #`(begin
@@ -585,12 +589,16 @@
     [(_ name ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          (run-spec hashy name #,command filepath 'check))]
     [(_ name (preds ...) ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          ; (add-constraint (or (not preds) ...))
          ;(printf "Added check predicates! 1")
          (run-spec hashy name #,command filepath 'check (or (not preds) ...)))]
@@ -613,14 +621,18 @@
     [(_ name ((sig lower upper) ...) expect)
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          (define res (run-spec hashy name #,command filepath 'test))
          (unless (equal? res expect)
            (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n ~a" expect res #,command))))]
     [(_ name (preds ...) ((sig lower upper) ...) expect)
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          ; (add-constraint preds) ...
          (define res (run-spec hashy name #,command filepath 'test preds ...))
          (unless (equal? res expect)
