@@ -196,6 +196,8 @@
            'subtract
            'multiply
            'divide
+           'abs
+           'sign
            'max
            'min
            "#"
