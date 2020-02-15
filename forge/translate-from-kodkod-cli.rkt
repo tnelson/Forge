@@ -61,7 +61,7 @@ This function just recreates the model, but using names instead of numbers.
 (define (translate-from-kodkod-cli runtype model relation-names inty-univ)
   (define flag (car model))
   (define data (cdr model))
-  
+
   (cond [(and (equal? 'unsat flag) (equal? runtype 'run) data)
          (cons 'unsat data)]
         [(and (equal? 'unsat flag) (equal? runtype 'run) (not data))
@@ -83,10 +83,12 @@ This function just recreates the model, but using names instead of numbers.
 
          (for ([relation-num (hash-keys data)])
            (cond [(id-to-index relation-num)
-                  ; A declared relation
-                  (hash-set! translated-model
+                  (let ([idx (id-to-index relation-num)])
+                    (unless (string=? "succ" (relation-name (list-ref relation-names idx)))
+                      ; A declared relation
+                      (hash-set! translated-model
                              (list-ref relation-names (id-to-index relation-num))
-                             (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num)))]
+                             (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num)))))]
                  [else
                   ; Likely a Skolem relation. Infer arity from contents                  
                   (define tuples (hash-ref data relation-num))

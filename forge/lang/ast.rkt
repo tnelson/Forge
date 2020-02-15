@@ -193,6 +193,7 @@
 (define univ (node/expr/constant 1 'univ))
 (define iden (node/expr/constant 2 'iden))
 (define Int (node/expr/relation 1 "Int" '(Int) "univ"))
+(define succ (node/expr/relation 2 "succ" '(Int Int) "CharlieSaysWhatever"))
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -229,8 +230,13 @@
 (define-int-op sum node/expr? #:min-length 1 #:max-length 1)
 
 (define-int-op remainder node/int? #:min-length 2 #:max-length 2)
-(define-int-op absolute node/int? #:min-length 1 #:max-length 1)
+(define-int-op abs node/int? #:min-length 1 #:max-length 1)
 (define-int-op sign node/int? #:min-length 1 #:max-length 1)
+
+(define (max s-int)
+  (sum (- s-int (join (^ succ) s-int))))
+(define (min s-int)
+  (sum (- s-int (join s-int (^ succ)))))
 
 ;(define-int-op max node/expr? #:min-length 1 #:max-length 1)
 ;(define-int-op min node/expr? #:min-length 1 #:max-length 1)
@@ -438,9 +444,9 @@
        (node/formula/op/!? op)
        (node/int/op/sum? op)
        (node/int/op/card? op)
-       (node/int/op/absolute? op)
+       (node/int/op/abs? op)
        (node/int/op/sign? op)
-       (@member op (list ~ ^ * sing ! not sum card absolute sign)))) ; These are just aliases for the expanded names
+       (@member op (list ~ ^ * sing ! not sum card abs sign)))) ; These are just aliases for the expanded names
 (define (binary-op? op)
   (@member op (list <: :> in = => int= int> int< remainder)))
 (define (nary-op? op)

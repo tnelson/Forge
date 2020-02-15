@@ -107,7 +107,18 @@
 (define (fact form)
   (set! constraints (cons form constraints)))
 
-(provide pre-declare-sig declare-sig set-top-level-bound sigs run check test fact Int iden univ none no some one lone all + - ^ & ~ join ! set in declare-one-sig pred = -> * => not and or set-bitwidth < > add subtract multiply divide int= card sum sing)
+
+(provide pre-declare-sig declare-one-sig declare-sig set-top-level-bound sigs pred)
+(provide run check test fact)
+(provide Int iden univ none)
+(provide no some one lone all)
+(provide + - ^ & ~ join !)
+(provide set in )
+(provide = -> * => not and or)
+(provide set-bitwidth)
+(provide < > int=)
+(provide add subtract multiply divide sign abs)
+(provide card sum sing succ max min)
 (provide add-relation set-option)
 
 (define (add-relation rel types)
@@ -449,7 +460,7 @@
   (set! run-constraints (append run-constraints disj-cs))
   (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
 
-
+  ; Add integer atoms forcefully because they always exist
   (set! sig-bounds (cons (bound Int int-range-singletons int-range-singletons) sig-bounds))
   (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
   (hash-set! upper-bounds Int int-range)
@@ -458,6 +469,11 @@
   ; Int needs to be in upper-bounds, lower-bounds, and sig-bounds
   (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
   (define rels (append (hash-keys relations-store) sigs (list Int)))
+
+  ; Add the successor relation on integers (and it's exact)
+  (define successor-rel (map list (take int-range (sub1 (length int-range))) (rest int-range)))
+  (set! total-bounds (append total-bounds (list (bound succ successor-rel successor-rel))))
+  (set! rels (append rels (list succ)))
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define kks (new server%
@@ -543,12 +559,16 @@
     [(_ name ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          (run-spec hashy name #,command filepath 'run))]
     [(_ name (preds ...) ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          (run-spec hashy name #,command filepath 'run preds ...))]
     [(_ name)
      #`(begin
@@ -569,12 +589,16 @@
     [(_ name ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          (run-spec hashy name #,command filepath 'check))]
     [(_ name (preds ...) ((sig lower upper) ...))
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          ; (add-constraint (or (not preds) ...))
          ;(printf "Added check predicates! 1")
          (run-spec hashy name #,command filepath 'check (or (not preds) ...)))]
@@ -597,14 +621,18 @@
     [(_ name ((sig lower upper) ...) expect)
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          (define res (run-spec hashy name #,command filepath 'test))
          (unless (equal? res expect)
            (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n ~a" expect res #,command))))]
     [(_ name (preds ...) ((sig lower upper) ...) expect)
      #`(begin
          (define hashy (make-hash))
-         (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))) ...
+         (if (equal? sig Int)
+           (set-bitwidth upper)
+           (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
          ; (add-constraint preds) ...
          (define res (run-spec hashy name #,command filepath 'test preds ...))
          (unless (equal? res expect)
