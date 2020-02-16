@@ -3,7 +3,15 @@
 (require rackunit)
 (require "../server/eval-model.rkt")
 
-(define binding1 (make-hash '(
+(define (relation-eq? things relation)
+  (equal? (list->set things) (list->set relation)))
+
+(define-simple-check (check-eval-to? i b e r)
+  (cond [(boolean? r) (equal? r (eval-unknown e b i))]
+        [else (relation-eq? r (eval-unknown e b i))]))
+
+; Must be an immutable hash, or eval-model will throw a contract violation when substituting.
+(define binding1 (make-immutable-hash '(
                               (Node . ((Node0)
                                        (Node1)
                                        (Node2)))
@@ -11,17 +19,28 @@
                                         (Node1 Node2)))
                               )))
 
-(check-eq? (length (eval-exp 'edges binding1 4)) 2)
-(check-eq? (length (eval-exp 'Node binding1 4)) 3)
+; Expected name-binding-expression-result tuples
+(check-eval-to? 4 binding1 'edges               '((Node1 Node2) (Node0 Node1)))
+(check-eval-to? 4 binding1 'Node                '((Node1) (Node2) (Node0)))
+(check-eval-to? 4 binding1 '(join edges edges)  '((Node0 Node2)))
+(check-eval-to? 4 binding1 '(join edges (join edges edges))  '())
+(check-eval-to? 4 binding1 '(^ edges)           '((Node0 Node1) (Node1 Node2) (Node0 Node2)))
+(check-eval-to? 4 binding1 '(* edges)           '((Node0 Node1) (Node1 Node2) (Node0 Node2) (Node0 Node0) (Node1 Node1) (Node2 Node2)))
+(check-eval-to? 4 binding1 '(~ edges)           '((Node2 Node1) (Node1 Node0)))
+(check-eval-to? 4 binding1 '(+ edges (~ edges)) '((Node1 Node2) (Node0 Node1) (Node2 Node1) (Node1 Node0)))
+(check-eval-to? 4 binding1 '(- edges (~ edges)) '((Node1 Node2) (Node0 Node1)))
+(check-eval-to? 4 binding1 'univ                '((Node0) (Node1) (Node2)))
+(check-eval-to? 4 binding1 'iden                '((Node0 Node0) (Node1 Node1) (Node2 Node2)))
+(check-eval-to? 4 binding1 'none                '())            
 
-(let ([e '(^ edges)])
-  (check-eq? (length (eval-exp e binding1 4)) 3))
-(let ([e '(* edges)]) ; the 3 above plus 3 identity tuples
-  (check-eq? (length (eval-exp e binding1 4)) 6))
-
-(let ([e '(~ edges)])
-  (check-pred (lambda (x) (and (member '(Node2 Node1) x)
-                               (member '(Node1 Node0) x)
-                               (eq? (length x) 2)))
-              (eval-exp e binding1 4)))
-
+(check-eval-to? 4 binding1 '(= edges edges)     #t)
+(check-eval-to? 4 binding1 '(= edges (~ edges)) #f)
+(check-eval-to? 4 binding1 '(some edges)        #t)
+(check-eval-to? 4 binding1 '(no edges)          #f)
+(check-eval-to? 4 binding1 '(lone edges)        #f)
+(check-eval-to? 4 binding1 '(one edges)         #f)
+(check-eval-to? 4 binding1 '(one (join edges edges))     #t)
+(check-eval-to? 4 binding1 '(lone (join edges edges))    #t)
+(check-eval-to? 4 binding1 '(no (join none edges))       #t)
+(check-eval-to? 4 binding1 '(some x Node (some (join x edges))) #t)
+(check-eval-to? 4 binding1 '(all x Node (some (join x edges))) #f)

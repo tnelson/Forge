@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
+(require "../shared.rkt")
 
 (provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
 
@@ -18,10 +19,10 @@
 (define (eval-unknown thing bind maxint)
   (with-handlers
       ([exn:fail?
-        (lambda (v) (println v)
+        (lambda (v) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v))
           (with-handlers
               ([exn:fail?
-                (lambda (v2) (println v2) (raise-user-error "Not a formula or expression" thing))])
+                (lambda (v2) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v)) (raise-user-error "Not a formula or expression" thing))])
             (eval-exp thing bind maxint)))])
         (eval-form thing bind maxint)))
 
@@ -174,6 +175,7 @@
     [`(no ,exp) (empty? (eval-exp exp bind maxint))]
     [`(some ,exp) (not (empty? (eval-exp exp bind maxint)))]
     [`(one ,exp) (let [(const (eval-exp exp bind maxint))] (and (not (empty? const))) (empty? (cdr const)))]
+    [`(lone ,exp) (let [(const (eval-exp exp bind maxint))] (or (empty? const)) (empty? (cdr const)))]
     [`(in ,exp-1 ,exp-2) (subset? (eval-exp exp-1 bind maxint) (eval-exp exp-2 bind maxint))]
     [`(and ,form ...) (for/and ([f form]) (eval-form f bind maxint))]
     [`(or ,form ...) (for/or ([f form]) (eval-form f bind maxint))]
