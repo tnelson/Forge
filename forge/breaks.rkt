@@ -574,16 +574,18 @@
                 ))
             )
         ))
-        (λ () (break bound (set  ; FIXME: this doesn't allow empty relation
-            (@some ([init sig]) (@and
-                (@no (@join rel init))
-                (@all ([x (@- sig init)]) (@one (@join rel x)))
-                (@= (@join init (@* rel)) sig)
-            ))
-            (@some ([term sig]) (@and
-                (@no (@join term rel))
-                (@all ([x (@- sig term)]) (@one (@join x rel)))
-                (@= (@join (@* rel) term) sig)
+        (λ () (break bound (set
+            (@=> (@some rel) (@and
+                (@some ([init sig]) (@and
+                    (@no (@join rel init))
+                    (@all ([x (@- sig init)]) (@one (@join rel x)))
+                    (@= (@join init (@* rel)) sig)
+                ))
+                (@some ([term sig]) (@and
+                    (@no (@join term rel))
+                    (@all ([x (@- sig term)]) (@one (@join x rel)))
+                    (@= (@join (@* rel) term) sig)
+                ))
             ))
         )))
     )
