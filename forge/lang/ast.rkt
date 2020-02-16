@@ -305,7 +305,7 @@
 
 (define-syntax (@@and stx)
   (syntax-case stx ()
-    [(_) (syntax/loc stx #t)]
+    [(_) (syntax/loc stx true)] ;#t?
     [(_ a0 a ...)
      (syntax/loc stx
        (let ([a0* a0])
@@ -314,7 +314,7 @@
              (and a0* a ...))))]))
 (define-syntax (@@or stx)
   (syntax-case stx ()
-    [(_) (syntax/loc stx #f)]
+    [(_) (syntax/loc stx false)]
     [(_ a0 a ...)
      (syntax/loc stx
        (let ([a0* a0])
