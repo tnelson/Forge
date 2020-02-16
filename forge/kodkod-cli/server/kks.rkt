@@ -27,7 +27,7 @@
 
 (define-syntax-rule (kodkod-display arg)
   (begin
-    (when (>= (get-verbosity) 5)
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
       (display arg))
     (display arg [kodkod-port])))
 
@@ -134,7 +134,8 @@
 ; instructed to provide cores; it will be empty otherwise.
 (define (read-solution port)
   (define result (read port))
-  (writeln result)
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (writeln result))
   (match result
     [(list (== 'sat) (== ':model) (list (list rid val) ...))
      ; We do this because our "pairs" are actually little lists, so we can't use make-hash directly.
