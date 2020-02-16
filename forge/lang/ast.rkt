@@ -50,7 +50,7 @@
                                  "got" arity "and" (node/expr-arity a) ":" args)))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
-      (raise-arguments-error op "join would create a relation of arity 0")))
+      (raise-arguments-error op (format "join would create a relation of arity 0: ~a" args))))
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)
       (raise-arguments-error op "second argument must have arity 1")))

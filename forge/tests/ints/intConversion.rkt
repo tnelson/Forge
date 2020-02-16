@@ -38,6 +38,9 @@ test expect operators {
     sign2: { sign[-2] != -1 } for exactly 0 A is unsat
     sign3: { sign[2] = 1 } for exactly 0 A is sat
     sign4: { sign[-2] = -1 } for exactly 0 A is sat
+
+    nonesum1: { sum[none] != 0 } for exactly 0 A is unsat
+    nonesum2: { sum[none] = 0 } for exactly 0 A is sat
 }
 
 
