@@ -789,6 +789,7 @@
     )
   )
 
+   ; Duplicate with TestDecl
   (define param-facts (for/list ([p (syntax->datum params)]) 
     `(Expr (QualName ,(string->symbol (format "~a_fact" p))))))
   (define param-insts (for/list ([p (syntax->datum params)]) 
@@ -805,14 +806,14 @@
 ) stx))
 
 (define-syntax (TestDecl stx) (map-stx (lambda (d)
-  (define-values (name cmd arg scope block bounds expect) (values #f 'test #f '() #f #f #f))
+  (define-values (name cmd arg scope block bounds params expect) (values #f 'test #f '() '() '(Bounds) #'() #f))  
   (define (make-typescope x)
     (syntax-case x (Typescope)
       [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
       [(Typescope n things) (syntax->datum #'(things 0 n))]))
   (for ([arg (cdr d)])
     ; (println arg)
-    (syntax-case arg (Name Typescope Scope Block QualName)
+    (syntax-case arg (Name Typescope Scope Block QualName Parameters)
       [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
       ["sat" (set! expect 'sat)]
       ["unsat" (set! expect 'unsat)]
@@ -822,10 +823,21 @@
       [(Block b ...) (set! block (syntax->datum #'(b ...)))]
       [(QualName n) (set! block (list (syntax->datum #'n)))]
       ; [(Block a ...) (set! block (syntax->datum #'(Block a ...)))]
+      [(Parameters ps ...) (set! params #'(ps ...))]
       [(Bounds _ ...) (set! bounds arg)]
       [_ #f]
     )
   )
+                                           
+  ; Duplicate with CmdDecl
+  (define param-facts (for/list ([p (syntax->datum params)]) 
+    `(Expr (QualName ,(string->symbol (format "~a_fact" p))))))
+  (define param-insts (for/list ([p (syntax->datum params)]) 
+    `(Expr (QualName ,(string->symbol (format "~a_inst" p))))))
+                                         
+  (set! block (append block param-facts))
+  (set! bounds (append bounds param-insts))
+                                         
   (if name #f (set! name (symbol->string (gensym))))
   ;(define datum `(,cmd ,name ,block ,scope ',expect)) ; replaced to support fancy bounds
   (define datum (if bounds  ; copied from CmdDecl

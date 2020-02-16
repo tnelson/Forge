@@ -7,4 +7,6 @@ racket basic/sigMultiplicities.rkt
 
 racket ints/intConversion.rkt
 
+racket traces/addRemove.rkt
+
 racket test-evaluator.rkt
