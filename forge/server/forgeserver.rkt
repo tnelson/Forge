@@ -66,7 +66,6 @@
                         [exn:fail? (λ (exn) (println exn) "syntax error")]
                       )
 
-                      (define maxint 8) ; TODO: get maxint
                       (define port (open-input-string (string-append "eval " command)))
                       (define stxFromEvaluator (read-syntax 'Evaluator port))
                       (define alloy (third (last (syntax->datum stxFromEvaluator))))
@@ -77,7 +76,7 @@
                       ;(printf "funs-n-preds : ~a~n" funs-n-preds)
                       (set! binding (hash-union binding funs-n-preds))
                       ;(printf "binding: ~a~n" binding)
-                      (define lists (eval-unknown kodkod binding maxint))
+                      (define lists (eval-unknown kodkod binding bitwidth))
                       ;(printf "lists: ~a~n" lists)
                       (if (list? lists)
                           (string-join (for/list ([l lists])

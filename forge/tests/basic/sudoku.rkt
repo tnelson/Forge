@@ -59,8 +59,8 @@ pred someSolved {
 }
 test expect {
  {structural} for 2 Board, 9 N is sat
- {tenFilled structural} for 2 Board, 9 N, 8 Int is sat
- {someSolved structural} for 2 Board, 9 N, 8 Int is sat
+ {tenFilled structural} for 2 Board, 9 N, 5 Int is sat
+ {someSolved structural} for 2 Board, 9 N, 5 Int is sat
 }
 
 pred generatePuzzle {
@@ -76,5 +76,5 @@ pred generatePuzzle {
   }
 } 
 test expect {
-  generatePuzzle for 2 Board, 9 N, 8 Int is sat
+  generatePuzzle for 2 Board, 9 N, 5 Int is sat
 }

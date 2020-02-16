@@ -19,6 +19,8 @@
                                         (Node1 Node2)))
                               )))
 
+(printf "-----------------------------~nRunning test-evaluator.rkt~n-----------------------------~n")
+
 ; Expected name-binding-expression-result tuples
 (check-eval-to? 4 binding1 'edges               '((Node1 Node2) (Node0 Node1)))
 (check-eval-to? 4 binding1 'Node                '((Node1) (Node2) (Node0)))
@@ -44,3 +46,18 @@
 (check-eval-to? 4 binding1 '(no (join none edges))       #t)
 (check-eval-to? 4 binding1 '(some x Node (some (join x edges))) #t)
 (check-eval-to? 4 binding1 '(all x Node (some (join x edges))) #f)
+
+(check-eval-to? 4 binding1 7   '((7)))
+(check-eval-to? 4 binding1 8   '((-8)))
+(check-eval-to? 4 binding1 -9  '((7)))
+(check-eval-to? 5 binding1 7   '((7)))
+(check-eval-to? 5 binding1 8   '((8)))
+(check-eval-to? 5 binding1 -9  '((-9)))
+(check-eval-to? 5 binding1 15   '((15)))
+(check-eval-to? 5 binding1 16   '((-16)))
+(check-eval-to? 5 binding1 -17  '((15)))
+
+(check-eval-to? 5 binding1 '(plus 4 4) '((8)))
+(check-eval-to? 5 binding1 '(minus 4 4) '((0)))
+(check-eval-to? 5 binding1 '(divide 4 4) '((1)))
+(check-eval-to? 5 binding1 '(mult 2 4) '((8)))

@@ -6,3 +6,5 @@ racket basic/skolemOptions.rkt
 racket basic/sigMultiplicities.rkt
 
 racket ints/intConversion.rkt
+
+racket test-evaluator.rkt
