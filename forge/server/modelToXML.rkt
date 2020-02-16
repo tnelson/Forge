@@ -9,7 +9,7 @@
   (string-append "<atom label=\"" (format "~a" atom) "\"/>"))
 
 (define (sig-contents-to-XML-string data sig-rel)  
-  (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (hash-ref data sig-rel))))
+  (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (reverse (hash-ref data sig-rel)))))
 
 (define (sig-to-XML-string data sig-rel sigID ID-hash)
   (string-append "<sig label=\"" (relation-name sig-rel) "\" ID=\"" (number->string sigID) "\" parentID=\"" (number->string (hash-ref ID-hash (relation-parent sig-rel))) "\">\n"
