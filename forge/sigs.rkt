@@ -146,8 +146,8 @@
   ; if int-bounds are already defined, intersect the old/new intervals
   (cond [(hash-has-key? int-bounds-store rel)
     (define old (hash-ref int-bounds-store rel))
-    (define lower (max (int-bound-lower old) (int-bound-lower new)))
-    (define upper (min (int-bound-upper old) (int-bound-upper new)))
+    (define lower (@max (int-bound-lower old) (int-bound-lower new)))
+    (define upper (@min (int-bound-upper old) (int-bound-upper new)))
     (when (@> lower upper) (error (format "conflicting int-bounds: no [~a, ~a] & [~a, ~a]"
       (int-bound-lower old) (int-bound-upper old) (int-bound-lower new) (int-bound-upper new))))
     (hash-set! int-bounds-store rel (int-bound lower upper))
