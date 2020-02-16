@@ -184,6 +184,12 @@
     (define formulas (mutable-set))
     ; unextended sets
     (set! sigs (list->mutable-set sigs))
+
+    ; maintain non-transitive reachability relation 
+    (define reachable (make-hash))
+    (hash-set! reachable 'broken (mutable-set 'broken))
+    (for ([sig sigs]) (hash-set! reachable sig (mutable-set sig)))
+
     (hash-for-each extensions-store (λ (k v) (set-remove! sigs v)))    
 
     ; First add all partial instances.
@@ -266,11 +272,6 @@
     |#
 
     (set! candidates (sort candidates < #:key breaker-pri))
-
-    ; maintain non-transitive reachability relation 
-    (define reachable (make-hash))
-    (hash-set! reachable 'broken (mutable-set 'broken))
-    (for ([sig sigs]) (hash-set! reachable sig (mutable-set sig)))
 
     (for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
@@ -575,17 +576,12 @@
             )
         ))
         (λ () (break bound (set
-            (@=> (@some rel) (@and
-                (@some ([init sig]) (@and
-                    (@no (@join rel init))
-                    (@all ([x (@- sig init)]) (@one (@join rel x)))
-                    (@= (@join init (@* rel)) sig)
-                ))
-                (@some ([term sig]) (@and
-                    (@no (@join term rel))
-                    (@all ([x (@- sig term)]) (@one (@join x rel)))
-                    (@= (@join (@* rel) term) sig)
-                ))
+            (@lone (@- (@join rel sig) (@join sig rel)))    ; lone init
+            (@lone (@- (@join sig rel) (@join rel sig)))    ; lone term
+            (@no (@& @iden (@^ rel)))   ; acyclic
+            (@all ([x sig]) (@and       ; all x have
+                (@lone (@join x rel))   ; lone successor
+                (@lone (@join rel x))   ; lone predecessor
             ))
         )))
     )
