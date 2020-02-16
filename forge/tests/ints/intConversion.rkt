@@ -14,7 +14,8 @@ expect conversion {
     onesum_invalid: { sing[sum[A.j]] != A.j } for exactly 2 A is sat
 }
 
-test expect operators {
+test expect operators {    
+    
     gt1: { some a1, a2: A | sum[a1.j] > sum[a2.j] } for exactly 2 A is sat
     gt2: { some a1 : A |    sum[a1.j] > sum[a1.j] } for exactly 2 A is unsat
     lt1: { some a1, a2: A | sum[a1.j] < sum[a2.j] } for exactly 2 A is sat
@@ -27,7 +28,16 @@ test expect operators {
     minus1: { some i1, i2, i3: Int | subtract[sum[i1], sum[i2]] = sum[i3] } for exactly 0 A is sat
     mult1: { some i1, i2, i3: Int | multiply[sum[i1], sum[i2]] = sum[i3] } for exactly 0 A is sat
     div1: { some i1, i2, i3: Int | divide[sum[i1], sum[i2]] = sum[i3] } for exactly 0 A is sat
+    div2: { some i: Int | divide[0, sum[i]] != 0 } for exactly 0 A is unsat
 
+    abs1: { some i1: Int | all i2: Int | abs[sum[i1]] != sum[i2] } for exactly 0 A is unsat    
+
+    max1: { max[{x: Int | sum[x] > 0 and sum[x] < 3}] != 2} for exactly 0 A is unsat
+    min1: { min[{x: Int | sum[x] > 0 and sum[x] < 3}] != 1} for exactly 0 A is unsat
+    sign1: { sign[2] != 1 } for exactly 0 A is unsat
+    sign2: { sign[-2] != -1 } for exactly 0 A is unsat
+    sign3: { sign[2] = 1 } for exactly 0 A is sat
+    sign4: { sign[-2] = -1 } for exactly 0 A is sat
 }
 
 
@@ -35,14 +45,14 @@ test expect operators {
 // Sterling seems to be throwing an error for some of these, too
 
 expect unexpected {
+
+
     onesum_invalid1: { sing[sum[A.j]] != A.j } for 1 A is sat
     --rem1: { some i1, i2, i3: Int | remainder[sum[i1], sum[i2]] = sum[i3] } for exactly 0 A is sat
 
- -- abs1: { some i1, i2: Int | abs[sum[i1]] = sum[i2] } for exactly 0 A is sat -- identifier?
-   -- sign1: { some i1 | sign[sum[i1]] = sum[i2] } for exactly 0 A is sat  -- what is the type of sign?
-
   -- Alloy produces "unsat" for both of these (0-variable trivial) with and without the sum operators
-  divzero: { some i1, i3: Int | divide[sum[i1], 0] = sum[i3] } for exactly 0 A is unsat
+  -- but I suspect that's because of overflow protection.
+  --divzero: { some i1, i3: Int | divide[sum[i1], 0] = sum[i3] } for exactly 0 A is unsat
  
   div2: { some i1: Int | divide[sum[i1], sum[i1]] != 1 } for exactly 0 A is unsat
 }
