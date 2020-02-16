@@ -700,6 +700,28 @@
         )
     )
 ))
+(add-strategy 'pbij (λ (pri rel bound atom-lists rel-list) 
+    (define A (first rel-list))
+    (define B (second rel-list))
+    (define As (first atom-lists))
+    (define Bs (second atom-lists))  
+    (define formulas (set 
+        (@all ([a A]) (@one  (@join a rel)))    ; @one
+        (@all ([b B]) (@one  (@join rel b)))    ; @one
+    ))
+    (if (equal? A B)
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break bound formulas))
+        )
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set) (set (set A B)))   ; breaks only {A,B}
+            (λ () (make-upper-break rel (map list As Bs)))
+            (λ () (break bound formulas))
+        )
+    )
+))
 
 ; use to prevent breaks
 (add-strategy 'default (λ (pri rel bound atom-lists rel-list) (breaker pri
@@ -726,6 +748,7 @@
 (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
 (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
 (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
+(add-strategy 'pbij (variadic 2 (hash-ref strategies 'pbij)))
 
 
 ;;; Domination Order ;;;
@@ -768,6 +791,7 @@ TODO:
     - unique init/term
     - unique init/term + acyclic
     - has init/term
+    - more partial breaks
 - major work
     - allow arbitrary terms to be passed into strategies, not just relations
         - lenses!

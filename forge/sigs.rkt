@@ -1029,40 +1029,47 @@
   (define T_fact (string->symbol (format "~a_fact" name)))
   (define T_inst (string->symbol (format "~a_inst" name)))
 
+  ;(define init (gensym "init"))
+  ;(define tran (gensym "tran"))
+  ;(define term (gensym "term"))
+  (define init 'init)
+  (define tran 'tran)
+  (define term 'term)
+
   (define datum `(begin
     (pre-declare-sig ,T #:extends univ)
     (SigDecl (Mult "one") (NameList ,T) (ArrowDeclList 
-      (ArrowDecl (NameList init) (ArrowMult "set") (ArrowExpr (QualName ,S))) 
-      (ArrowDecl (NameList tran) (ArrowMult "set") (ArrowExpr (QualName ,S) (QualName ,S))) 
-      (ArrowDecl (NameList term) (ArrowMult "set") (ArrowExpr (QualName ,S)))))
+      (ArrowDecl (NameList ,init) (ArrowMult "set") (ArrowExpr (QualName ,S))) 
+      (ArrowDecl (NameList ,tran) (ArrowMult "set") (ArrowExpr (QualName ,S) (QualName ,S))) 
+      (ArrowDecl (NameList ,term) (ArrowMult "set") (ArrowExpr (QualName ,S)))))
     (StateDecl "facts" (QualName ,T) (Name ,T_pred) (Block 
-      (Expr (Expr4 "some" (Expr8 (QualName tran))) 
+      (Expr (Expr4 "some" (Expr8 (QualName ,tran))) 
         "=>" (Expr3 (Block 
           (Expr (Expr6 (QualName ,S)) (CompareOp "=") 
-            (Expr7 (Expr8 (Expr15 (QualName tran)) "." (Expr16 (QualName ,S))) "+" 
-            (Expr10 (Expr15 (QualName ,S)) "." (Expr16 (QualName tran))))) 
-          (Expr (Expr6 (QualName init)) (CompareOp "=") 
-            (Expr7 (Expr8 (Expr15 (QualName tran)) "." (Expr16 (QualName ,S))) "-" 
-            (Expr10 (Expr15 (QualName ,S)) "." (Expr16 (QualName tran))))) 
-          (Expr (Expr6 (QualName term)) (CompareOp "=") 
-            (Expr7 (Expr8 (Expr15 (QualName ,S)) "." (Expr16 (QualName tran))) "-" 
-            (Expr10 (Expr15 (QualName tran)) "." (Expr16 (QualName ,S))))))) 
+            (Expr7 (Expr8 (Expr15 (QualName ,tran)) "." (Expr16 (QualName ,S))) "+" 
+            (Expr10 (Expr15 (QualName ,S)) "." (Expr16 (QualName ,tran))))) 
+          (Expr (Expr6 (QualName ,init)) (CompareOp "=") 
+            (Expr7 (Expr8 (Expr15 (QualName ,tran)) "." (Expr16 (QualName ,S))) "-" 
+            (Expr10 (Expr15 (QualName ,S)) "." (Expr16 (QualName ,tran))))) 
+          (Expr (Expr6 (QualName ,term)) (CompareOp "=") 
+            (Expr7 (Expr8 (Expr15 (QualName ,S)) "." (Expr16 (QualName ,tran))) "-" 
+            (Expr10 (Expr15 (QualName ,tran)) "." (Expr16 (QualName ,S))))))) 
         "else" (Expr3 (Block 
           (Expr "one" (Expr8 (QualName ,S))) 
-          (Expr (Expr6 (QualName init)) (CompareOp "=") (Expr7 (QualName ,S))) 
-          (Expr (Expr6 (QualName term)) (CompareOp "=") (Expr7 (QualName ,S)))))) 
+          (Expr (Expr6 (QualName ,init)) (CompareOp "=") (Expr7 (QualName ,S))) 
+          (Expr (Expr6 (QualName ,term)) (CompareOp "=") (Expr7 (QualName ,S)))))) 
       ,@(if (equal? S_init '_) '()
-        `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName init)))) 
+        `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,init)))) 
           (BlockOrBar "|" (Expr (Expr14 (QualName ,S_init)) 
             "[" (ExprList (Expr (QualName s))) "]"))))) 
       ,@(if (equal? S_tran '_) '()
         `((Expr (Quant "all") (DeclList 
             (Decl (NameList s) (Expr (QualName ,S))) 
-            (Decl (NameList |s'|) (Expr (Expr15 (QualName s)) "." (Expr16 (QualName tran))))) 
+            (Decl (NameList |s'|) (Expr (Expr15 (QualName s)) "." (Expr16 (QualName ,tran))))) 
           (BlockOrBar "|" (Expr (Expr14 (QualName ,S_tran)) 
             "[" (ExprList (Expr (QualName s)) (Expr (QualName |s'|))) "]")))))
       ,@(if (equal? S_term '_) '()
-        `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName term)))) 
+        `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,term)))) 
           (BlockOrBar "|" (Expr (Expr14 (QualName ,S_term)) 
             "[" (ExprList (Expr (QualName s))) "]")))))))
     (PredDecl (Name ,T_fact) (Block 
@@ -1070,7 +1077,7 @@
       (BlockOrBar "|" (Expr (Expr14 (QualName ,T_pred)) 
         "[" (ExprList (Expr (QualName t))) "]")))))
     (InstDecl (Name ,T_inst) (Bounds 
-      (Expr (Expr6 (QualName tran)) (CompareOp "is") (Expr7 (QualName ,strat)))))
+      (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat)))))
   ))
 
   ;(define fields (hash-ref sig-to-fields sig))
