@@ -9,6 +9,14 @@ Forge extends the Ocelot package to create first-order relational logic models. 
 - Built-in semantics for state
 - Additional teaching tools like language levels and different interaction modes (coming soon)
 
+## Documentation
+
+- [Forge Documentation](/forge/docs)
+- [The official Alloy documentation
+](http://alloytools.org/documentation.html)
+- [A quick reference guide to most Forge operators](http://www.ics.uci.edu/~alspaugh/cls/shr/alloy.html)
+- [A helpful powerpoint presentation for syntax and basic examples](http://alloytools.org/tutorials/day-course/)
+
 <!-- ## Installation
 
 ```
