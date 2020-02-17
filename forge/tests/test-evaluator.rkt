@@ -11,28 +11,44 @@
         [else (relation-eq? r (eval-unknown e b i))]))
 
 ; Must be an immutable hash, or eval-model will throw a contract violation when substituting.
-(define binding1 (make-immutable-hash '(
-                              (Node . ((Node0)
-                                       (Node1)
-                                       (Node2)))
-                              (edges . ((Node0 Node1)
-                                        (Node1 Node2)))
-                              )))
+(define binding1
+  (make-immutable-hash
+   '(
+     (Node . ((Node0)
+              (Node1)
+              (Node2)))
+     (edges . ((Node0 Node1)
+               (Node1 Node2)))
+
+     ; At the moment, preds/functions are in parsed Alloy, not Kodkod, syntax
+     
+     ;(inNexus . (()
+     ;            (Block (Expr (Quant all) (DeclList (Decl (NameList n) (Expr (QualName Node))))
+     ;                         (BlockOrBar || (Expr (Quant some) (DeclList (Decl (NameList n2) (Expr (QualName Node))))
+     ;                                           (BlockOrBar || (Expr (Expr6 (Expr13 (QualName n)) (ArrowOp ->) (Expr12 (QualName n2))) (CompareOp in) (Expr7 (QualName edges))))))))))
+     ;(superOut . ((n)
+     ;             (Block (Expr (Quant all) (DeclList (Decl (NameList n2) (Expr (QualName Node))))
+     ;                          (BlockOrBar || (Expr (Expr6 (QualName n2)) (CompareOp in) (Expr7 (Expr15 (QualName n)) |.| (Expr16 (QualName edges)))))))))
+     
+     )))
 
 (printf "-----------------------------~nRunning test-evaluator.rkt~n-----------------------------~n")
 
-; Expected name-binding-expression-result tuples
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Basic expressions and formulas 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (check-eval-to? 4 binding1 'edges               '((Node1 Node2) (Node0 Node1)))
 (check-eval-to? 4 binding1 'Node                '((Node1) (Node2) (Node0)))
 (check-eval-to? 4 binding1 '(join edges edges)  '((Node0 Node2)))
 (check-eval-to? 4 binding1 '(join edges (join edges edges))  '())
 (check-eval-to? 4 binding1 '(^ edges)           '((Node0 Node1) (Node1 Node2) (Node0 Node2)))
-(check-eval-to? 4 binding1 '(* edges)           '((Node0 Node1) (Node1 Node2) (Node0 Node2) (Node0 Node0) (Node1 Node1) (Node2 Node2)))
 (check-eval-to? 4 binding1 '(~ edges)           '((Node2 Node1) (Node1 Node0)))
 (check-eval-to? 4 binding1 '(+ edges (~ edges)) '((Node1 Node2) (Node0 Node1) (Node2 Node1) (Node1 Node0)))
 (check-eval-to? 4 binding1 '(- edges (~ edges)) '((Node1 Node2) (Node0 Node1)))
 (check-eval-to? 4 binding1 'univ                '((Node0) (Node1) (Node2)))
 (check-eval-to? 4 binding1 'iden                '((Node0 Node0) (Node1 Node1) (Node2 Node2)))
+(check-eval-to? 4 binding1 '(* edges)           '((Node0 Node1) (Node1 Node2) (Node0 Node2) (Node0 Node0) (Node1 Node1) (Node2 Node2)))
 (check-eval-to? 4 binding1 'none                '())            
 
 (check-eval-to? 4 binding1 '(= edges edges)     #t)
@@ -46,6 +62,16 @@
 (check-eval-to? 4 binding1 '(no (join none edges))       #t)
 (check-eval-to? 4 binding1 '(some x Node (some (join x edges))) #t)
 (check-eval-to? 4 binding1 '(all x Node (some (join x edges))) #f)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Predicate invocations
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;(check-eval-to? 4 binding1 '(inNexus)            #f)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Integers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (check-eval-to? 4 binding1 7   '((7)))
 (check-eval-to? 4 binding1 8   '((-8)))

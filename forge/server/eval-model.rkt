@@ -110,7 +110,7 @@
                       ; oops
                       [else (raise-user-error "Not an expression" id)])]))
   ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
-  ; Also canonicalize so that if we compare relational constants, a list-based representation is OK
+  ; Also canonicalize so that if we compare relational constants, a list-based representation is OK  
   (define ret (if (not (list? result))
       (canonicalize-result (list (list result)))
       (canonicalize-result (remove-duplicates result))))
@@ -120,29 +120,38 @@
 
 ; extract list of all atoms used across all relations
 ; do so by taking union of contents of all relations (since this will include all top-level sigs)
-; TODO: include ints?
-(define (build-univ bind)
-  (map (lambda (x) (list x))
-       (remove-duplicates (flatten (hash-map bind (lambda (k v) v))))))
-
+; TODO: include ints
+; Filter out pred/function defns
+(define (build-univ bind)  
+    (map (lambda (x) (list x))
+         (remove-duplicates (flatten (hash-map bind (lambda (k v) (match v [`((,args ...) (Block ,blk ...)) '()] [else v])))))))
+ 
+                                                                                         
 (define (build-iden bind)
   (define universe (build-univ bind))
   (map (lambda (x) (apply append x)) ; convert list of eles like ((1)(2)) into list of eles like (1 2)
        (map list universe universe)))
 
 ; Sort an evaluation result lexicographically
-(define (canonicalize-result l)
+(define (canonicalize-result l)  
   (sort l tuple<?))
+
+; may be a number, not a symbol
+(define (->string v)
+  (cond [(symbol? v) (symbol->string v)]
+        [(number? v) (number->string v)]
+        [else v]))
 
 ; is t1 < t2?
 ; Note: weird 3-valued logic being folded here due to need to represent "equal...so far"
-(define (tuple<? t1 t2)    
+(define (tuple<? t1 t2)
+  ;(printf "t1: ~a, t2: ~a~n" t1 t2)
   (define result
     (foldl (lambda (p acc)  
              (cond [(eq? acc #t) #t] ; already known (some prior component was <)
                    [(eq? acc #f) #f] ; already known (some prior component was >)
-                   [(string=? (symbol->string (first p)) (symbol->string (second p))) 0] ; don't know yet
-                   [else (string<? (symbol->string (first p)) (symbol->string (second p)))]))
+                   [(string=? (->string (first p)) (->string (second p))) 0] ; don't know yet
+                   [else (string<? (->string (first p)) (->string (second p)))]))
            ; assume same to start
            0
            (map list t1 t2)))

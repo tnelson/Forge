@@ -18,6 +18,11 @@ pred inNexus {
   all n: Node | some n2: Node | n->n2 in edges
 }
 
+pred superOut[n: Node] {
+  all n2: Node | n2 in n.edges
+}
+
+--run {} for exactly 3 Node
 
 test expect {
  first : {inNexus} for exactly 5 Node is sat
