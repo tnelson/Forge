@@ -258,7 +258,7 @@
 ; Recursively generates atoms that can possibly exist in a sig
 (define (generate-atoms sig lower upper)
   (define sig-name (string->symbol (relation-name sig)))
-  (define syms (if (hash-has-key? bindings sig-name)
+  (define syms (if (and (hash-has-key? bindings sig-name) (symbol? (caar (hash-ref bindings sig-name))))
                    (map first (hash-ref bindings sig-name))
                    (list)))
   (map
@@ -1152,12 +1152,20 @@
                   [(_ "one" (_ (QualName rel))) #`(Bind (Expr (Expr (QualName rel)) (CompareOp "=") (QualName
                                                                                                      #,(string->symbol (string-append (symbol->string (syntax->datum #'rel)) "0")))))]
                   [(_ "lone" rel) #'(add-int-bound rel (int-bound 0 1))]
-                  [(_ (_ "#" rel) (CompareOp "=") (_ (Const exact)))
-                   #'(add-int-bound rel (int-bound exact exact))]
-                  [(_ (_ "#" rel) (CompareOp "<=") (_ (Const upper)))
-                   #'(add-int-bound rel (int-bound 0 upper))]
-                  [(_ (_ (_ (Const lower)) (CompareOp "<=") (_ "#" rel)) (CompareOp "<=") (_ (Const upper)))
-                   #'(add-int-bound rel (int-bound lower upper))]
+                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) #'(begin 
+                    (define exact (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
+                    (add-int-bound rel (int-bound exact exact))
+                    (hash-set! bindings 'rel (map list (range exact))))] ;; dummy atoms so #rel works
+                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "<=") expr) #'(begin 
+                    (define upper (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
+                    (add-int-bound rel (int-bound 0 upper))
+                    (hash-set! bindings 'rel (map list (range upper))))] ;; dummy atoms so #rel works
+                  [(_ (_ expr1 (CompareOp "<=") (_ "#" (_ (QualName rel)))) (CompareOp "<=") expr2)
+                   #'(begin 
+                    (define lower (caar (eval-exp (alloy->kodkod 'expr1) bindings 8 #f)))
+                    (define upper (caar (eval-exp (alloy->kodkod 'expr2) bindings 8 #f)))
+                    (add-int-bound rel (int-bound lower upper))
+                    (hash-set! bindings 'rel (map list (range upper))))] ;; dummy atoms so #rel works
                   [(_ rel (CompareOp "in") (_ (QualName strat))) #'(break rel 'strat)]
                   [(_ rel (CompareOp "is") (_ (QualName strat))) #'(break rel 'strat)]
                   [(_ (QualName f)) #'(f bindings)]

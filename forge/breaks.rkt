@@ -718,7 +718,7 @@
         )
         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set (set A B)))   ; breaks only {A,B}
-            (λ () (make-upper-break rel (map list As Bs)))
+            (λ () (make-upper-break rel (for/list ([a As][b Bs]) (list a b))))
             (λ () (break bound formulas))
         )
     )
