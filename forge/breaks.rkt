@@ -706,6 +706,12 @@
     (define B (second rel-list))
     (define As (first atom-lists))
     (define Bs (second atom-lists))  
+    (define LA (length As))
+    (define LB (length Bs))
+    (define broken (cond [(> LA LB) (set A)]
+                         [(< LA LB) (set B)]
+                         [else (set)]))
+    ;(printf "broken : ~v~n" broken)
     (define formulas (set 
         (@all ([a A]) (@one  (@join a rel)))    ; @one
         (@all ([b B]) (@one  (@join rel b)))    ; @one
@@ -717,8 +723,8 @@
             (λ () (break bound formulas))
         )
         (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-            (break-graph (set) (set (set A B)))   ; breaks only {A,B}
-            (λ () (make-upper-break rel (for/list ([a As][b Bs]) (list a b))))
+            (break-graph broken (set (set A B)))   ; breaks only {A,B}
+            (λ () (make-upper-break rel (for/list ([a As][b Bs]) (list a b)) formulas))
             (λ () (break bound formulas))
         )
     )
