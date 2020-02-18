@@ -258,7 +258,9 @@
 ; Recursively generates atoms that can possibly exist in a sig
 (define (generate-atoms sig lower upper)
   (define sig-name (string->symbol (relation-name sig)))
-  (define syms (if (and (hash-has-key? bindings sig-name) (symbol? (caar (hash-ref bindings sig-name))))
+  (define syms (if (and (hash-has-key? bindings sig-name)
+                        (cons? (hash-ref bindings sig-name))
+                        (symbol? (caar (hash-ref bindings sig-name))))
                    (map first (hash-ref bindings sig-name))
                    (list)))
   (map
@@ -1149,9 +1151,10 @@
 (define-syntax (Bind stx)
   (define datum (syntax-case (second (syntax-e stx)) (CompareOp QualName Const)
                   [(_ "no" rel) #'(Bind (Expr rel (CompareOp "=") none))]
-                  [(_ "one" (_ (QualName rel))) #`(Bind (Expr (Expr (QualName rel)) (CompareOp "=") (QualName
-                                                                                                     #,(string->symbol (string-append (symbol->string (syntax->datum #'rel)) "0")))))]
-                  [(_ "lone" rel) #'(add-int-bound rel (int-bound 0 1))]
+                  [(_ "one" rel) 
+                   #'(Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "1")))))]
+                  [(_ "lone" rel) 
+                   #'(Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1")))))]
                   [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) #'(begin 
                     (define exact (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
                     (add-int-bound rel (int-bound exact exact))

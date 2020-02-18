@@ -149,6 +149,8 @@ To run the trace, you simply add the trace to end of the run keyword as shown be
 run<|myTrace|> { ... }
 ```
 
+For more information, see the [Trace Documentation](./traces.md)
+
 ## Constants
 Forge has a few constants that it provides:
  - `univ`: a set of all the atoms in the universe (including [Ints](#integers))
@@ -245,6 +247,16 @@ When you [run](#running-your-spec) your spec, depending on the type of run you u
 The basic representation of the visualization is a graph showing all the atoms in that instance and the relations between them. You can also view an alternate depiction of the instance in the table view tab. To keep visualizations neat, Sterling will not show you any [Int](#integers) atoms that are not in any relation in that instance.
 
 ### Evaluator
+
+The evaluator provides a repl that lets you query instances with a language very similar to Forge itself. There are some minor differences between the evaluator language and Forge itself:
+
+- Individual atoms can be directly referenced by name
+- Exact values of expressions are returned
+- Higher order quantification is allowed
+
+Other minor differences may exist as language features are added.
+
+The evaluator can also be given commands like `--version` (`-v`) to show the version of Forge being used or `--help` (`-h`) to show the file being run.
 
 ### Projection
 
