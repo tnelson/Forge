@@ -44,6 +44,8 @@ Fear not though. Forge works hard to restore sound compositionality to your stra
 1. Strategy Combination: some strategies can be simply combined into other strategies. For example `tree+acyclic=tree` and `tree+cotree=linear`.
 1. Strategy Composition: starting with the highest priority strategies, Forge tries to apply each strategy. Those that can't be implemented with bounds fall back onto a default implementation that uses normal formulas.
 
+Be aware that at the time of writing this, priority is determined only by the order in which symmetry-breaking annotations appear in your code, so be careful to place stronger strategies like `linear` before weaker strategies.
+
 ## Strategies
 
 Here are the existing strategies:

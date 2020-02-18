@@ -689,7 +689,7 @@
 
 (define-syntax (CmdDecl stx)
   (map-stx (lambda (d)
-             (define-values (name cmd arg scope block bounds facty-params) (values #f #f #f '() '() '(Bounds) #'()))
+             (define-values (name cmd arg scope block bounds facty-params) (values #f #f #f '() '() '() #'()))
              (define (make-typescope x)
                (syntax-case x (Typescope)
                  [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
@@ -704,14 +704,14 @@
                  [(Block b ...) (set! block (syntax->datum #'(b ...)))]
                  [(QualName n) (set! block (list (syntax->datum #'n)))]
                  [(Parameters ps ...) (set! facty-params #'(ps ...))] ; Traces should go in here - anything in params will be considered a fact in a check block.
-                 [(Bounds _ ...) (set! bounds arg)]
+                 [(Bounds bs ...) (set! bounds (syntax->datum #'(bs ...)))]
                  [_ #f]))
              ; Duplicate with TestDecl
              (define param-facts (for/list ([p (syntax->datum facty-params)]) 
                                    `(Expr (QualName ,(string->symbol (format "~a_fact" p))))))
              (define param-insts (for/list ([p (syntax->datum facty-params)]) 
                                    `(Expr (QualName ,(string->symbol (format "~a_inst" p))))))
-             (set! bounds (append bounds param-insts))
+             (set! bounds `(Bounds ,@param-insts ,@bounds))
 
              (if name #f (set! name (symbol->string (gensym))))
              (define datum `(begin
@@ -722,7 +722,7 @@
 
 (define-syntax (TestDecl stx)
   (map-stx (lambda (d)
-             (define-values (name cmd arg scope block bounds params expect) (values #f 'test #f '() '() '(Bounds) #'() #f))  
+             (define-values (name cmd arg scope block bounds params expect) (values #f 'test #f '() '() '() #'() #f))  
              (define (make-typescope x)
                (syntax-case x (Typescope)
                  [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
@@ -737,7 +737,7 @@
                  [(Block b ...) (set! block (syntax->datum #'(b ...)))]
                  [(QualName n) (set! block (list (syntax->datum #'n)))]
                  [(Parameters ps ...) (set! params #'(ps ...))]
-                 [(Bounds _ ...) (set! bounds arg)]
+                 [(Bounds bs ...) (set! bounds (syntax->datum #'(bs ...)))]
                  [_ #f]))
                                            
              ; Duplicate with CmdDecl
@@ -747,7 +747,7 @@
                                    `(Expr (QualName ,(string->symbol (format "~a_inst" p))))))
                                          
              (set! block (append block param-facts))
-             (set! bounds (append bounds param-insts))
+             (set! bounds `(Bounds ,@param-insts ,@bounds))
                                          
              (if name #f (set! name (symbol->string (gensym))))
              (define datum (if bounds  ; copied from CmdDecl
