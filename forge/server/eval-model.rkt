@@ -79,6 +79,8 @@
                    [`(card ,lst) (length (eval-exp lst bind bitwidth safe))]
                    ; Set comprehension
                    [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) bitwidth safe)) (eval-exp lst bind bitwidth safe))]
+                   ; Let binding (also allowed in formulas)
+                   [`(let ([,n ,e]) ,block) (eval-exp block (hash-set bind n (eval-exp e bind bitwidth)) bitwidth safe)]
                    ; Constants
                    [`none empty]
                    [`univ (build-univ bind)]
@@ -206,7 +208,7 @@
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind bitwidth) (eval-exp var-2 bind bitwidth))]
     [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind bitwidth) (eval-exp int2 bind bitwidth))]
     [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind bitwidth) (eval-exp int2 bind bitwidth))]
-    [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (list (eval-exp e bind bitwidth))) bitwidth)]
+    [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (eval-exp e bind bitwidth)) bitwidth)]
     [`(,p ,vals ...) #:when (hash-has-key? bind p)
       (match-define (list args alloy) (hash-ref bind p))
       (set! vals (for/list ([val vals]) (eval-exp val bind bitwidth)))

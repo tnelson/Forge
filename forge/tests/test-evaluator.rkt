@@ -42,6 +42,7 @@
 (check-eval-to? 4 binding1 'Node                '((Node1) (Node2) (Node0)))
 (check-eval-to? 4 binding1 '(join edges edges)  '((Node0 Node2)))
 (check-eval-to? 4 binding1 '(join edges (join edges edges))  '())
+(check-eval-to? 4 binding1 '(let ([somename edges]) (& edges somename))     '((Node1 Node2) (Node0 Node1)))
 (check-eval-to? 4 binding1 '(^ edges)           '((Node0 Node1) (Node1 Node2) (Node0 Node2)))
 (check-eval-to? 4 binding1 '(~ edges)           '((Node2 Node1) (Node1 Node0)))
 (check-eval-to? 4 binding1 '(+ edges (~ edges)) '((Node1 Node2) (Node0 Node1) (Node2 Node1) (Node1 Node0)))
@@ -52,6 +53,7 @@
 (check-eval-to? 4 binding1 'none                '())            
 
 (check-eval-to? 4 binding1 '(= edges edges)     #t)
+(check-eval-to? 4 binding1 '(let ([somename edges]) (= edges somename))     #t)
 (check-eval-to? 4 binding1 '(= edges (~ edges)) #f)
 (check-eval-to? 4 binding1 '(some edges)        #t)
 (check-eval-to? 4 binding1 '(no edges)          #f)
