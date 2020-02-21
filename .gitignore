@@ -6,6 +6,7 @@
 *.bak
 .genIntSpec.py.swp
 *.swp
+.idea/
 kodkod-cli/docs/
 *.class
 cytotestsite/index.html
