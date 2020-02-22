@@ -14,6 +14,7 @@ cytotestsite/cytotest.css
 cytotestsite/cytoscape.min.js
 local/
 .vscode/
+.idea/
 forge/racket-rfc6455/compiled
 forge/racket-rfc6455/net/compiled
 forge/racket-rfc6455/net/doc
