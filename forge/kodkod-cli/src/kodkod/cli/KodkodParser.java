@@ -217,7 +217,9 @@ public class KodkodParser extends BaseParser<Object> {
 						Sequence(Keyword("MiniSat"),			push(SATFactory.MiniSat)),
 						Sequence(Keyword("Glucose"),			push(SATFactory.Glucose)),
 						Sequence(Keyword("Lingeling"),			push(SATFactory.Lingeling)),
-						Sequence(Keyword("SAT4J"),				push(SATFactory.DefaultSAT4J)));
+						Sequence(Keyword("SAT4J"),				push(SATFactory.DefaultSAT4J)),
+						// TODO: figure out doing stuff here VV
+						Sequence("\"", KodkodParser.ANY, "\"",  push(SATFactory......)));
     }
 
 	//-------------------------------------------------------------------------
