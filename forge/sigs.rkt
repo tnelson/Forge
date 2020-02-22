@@ -838,6 +838,8 @@
                  [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
                  [_ #f]))
 
+             (unless (hash-has-key? sig-to-fields sig)
+               (raise-user-error (format "Unknown sig in state predicate (~a) declaration: ~a" name sig)))
              (define fields (hash-ref sig-to-fields sig))
              (define (at f) (string->symbol (string-append "@" (symbol->string f))))
              (define lets (append
