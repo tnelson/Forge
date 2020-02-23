@@ -1036,11 +1036,13 @@
                 [(_ "lone" n e a) #`(lone ([n e]) a)]
                 [(_ "some" n e a) #`(some ([n e]) a)]
                 [(_ "one" n e a) #`(one ([n e]) a)]
+                [(_ "sum" n e a) #`(sum-quant ([n e]) a)]
                 [(_ q n "set" e a)
                  #'(raise (format "higher-order quantification not supported: ~a ~a: set ..." 'q 'n))]))
   ret)
 
 (define-syntax (Expr stx)
+  (println stx)
   (define ret (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp ExprList QualName
                                       LetDeclList LetDecl)
                 [(_ "let" (LetDeclList (LetDecl n e) ...) block) #`(let ([n e] ...) block)]
