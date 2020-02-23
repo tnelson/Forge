@@ -1042,7 +1042,7 @@
   ret)
 
 (define-syntax (Expr stx)
-  (println stx)
+  ;(println stx)
   (define ret (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp ExprList QualName
                                       LetDeclList LetDecl)
                 [(_ "let" (LetDeclList (LetDecl n e) ...) block) #`(let ([n e] ...) block)]
