@@ -93,7 +93,7 @@
    ["set"       (token+ `SET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["sig"       (token+ `SIG-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["some"      (token+ `SOME-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    ["test"      (token+ `TEST-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
