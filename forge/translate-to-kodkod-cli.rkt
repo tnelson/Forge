@@ -151,7 +151,17 @@
     [(node/int/constant value)
      (print-cmd-cont (format "~a " value))]
     [(node/int/op args)
-     (interpret-int-op expr relations quantvars args)]))
+     (interpret-int-op expr relations quantvars args)]
+    [(node/int/sum-quant decls int-expr)
+     (define var (car (car decls)))
+     (let ([quantvars (cons var quantvars)])
+       ( print-cmd-cont (format "(sum ([~a : ~a " 
+                                (v (get-var-idx var quantvars))
+                                (if (@> (node/expr-arity var) 1) "set" "one")))
+       (interpret-expr (cdr (car decls)) relations quantvars)
+       (print-cmd-cont "]) ")
+       (interpret-int int-expr relations quantvars)
+       (print-cmd-cont ")"))]))
 
 (define (interpret-int-op expr relations quantvars args)
   (match expr
@@ -191,4 +201,12 @@
      ( print-cmd-cont "(sgn ")
      (map (lambda (x) (interpret-int x relations quantvars)) args)
      ( print-cmd-cont ")")]
+    [(node/int/sum-quant decls int-expr)
+     (define var (car (car decls)))
+     (let ([quantvars (cons var quantvars)])
+       ( print-cmd-cont (format "(sum ([~a : ~a " (v (get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
+       (interpret-expr (cdr (car decls)) relations quantvars)
+       ( print-cmd-cont "]) ")
+       (interpret-int int-expr relations quantvars)
+       ( print-cmd-cont ")"))]
     ))
