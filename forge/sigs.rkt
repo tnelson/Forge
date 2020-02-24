@@ -116,7 +116,7 @@
 (provide = -> * => not and or)
 (provide set-bitwidth)
 (provide < > int=)
-(provide add subtract multiply divide sign abs)
+(provide add subtract multiply divide sign abs remainder)
 (provide card sum sing succ max min)
 (provide add-relation set-option)
 
