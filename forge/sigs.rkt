@@ -116,7 +116,7 @@
 (provide = -> * => not and or)
 (provide set-bitwidth)
 (provide < > int=)
-(provide add subtract multiply divide sign abs)
+(provide add subtract multiply divide sign abs remainder)
 (provide card sum sing succ max min)
 (provide add-relation set-option)
 
@@ -1032,17 +1032,19 @@
 (define-for-syntax (sym n)  (map-stx string->symbol n))
 
 (define-syntax (Q stx)
-  (define ret (syntax-case stx ()
+  (define ret (syntax-case stx (sum)
                 [(_ "all" n e a) #`(all ([n e]) a)]
                 [(_ "no" n e a) #`(no ([n e]) a)]
                 [(_ "lone" n e a) #`(lone ([n e]) a)]
                 [(_ "some" n e a) #`(some ([n e]) a)]
                 [(_ "one" n e a) #`(one ([n e]) a)]
+                [(_ sum n e a) #`(sum-quant ([n e]) a)]
                 [(_ q n "set" e a)
                  #'(raise (format "higher-order quantification not supported: ~a ~a: set ..." 'q 'n))]))
   ret)
 
 (define-syntax (Expr stx)
+  ;(println stx)
   (define ret (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp ExprList QualName
                                       LetDeclList LetDecl)
                 [(_ "let" (LetDeclList (LetDecl n e) ...) block) #`(let ([n e] ...) block)]

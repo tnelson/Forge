@@ -248,6 +248,25 @@
   [(define (write-proc self port mode)
      (fprintf port "~v" (node/int/constant-value self)))])
 
+;; -- sum quantifier -----------------------------------------------------------
+(struct node/int/sum-quant node/int (decls int-expr)
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (match-define (node/int/sum-quant decls int-expr) self)
+     (fprintf port "(sum [~a] ~a)"
+                   decls
+                   int-expr))])
+
+(define (sum-quant-expr decls int-expr)
+  (for ([e (map cdr decls)])
+    (unless (node/expr? e)
+      (raise-argument-error 'set "expr?" e))
+    (unless (equal? (node/expr-arity e) 1)
+      (raise-argument-error 'set "decl of arity 1" e)))
+  (unless (node/int? int-expr)
+    (raise-argument-error 'set "int-expr?" int-expr))
+  (node/int/sum-quant decls int-expr))
+
 ;; FORMULAS --------------------------------------------------------------------
 
 (struct node/formula () #:transparent)
@@ -431,6 +450,15 @@
     [(_ expr)
      (syntax/loc stx
        (multiplicity-formula 'lone expr))]))
+
+
+; sum quantifier macro
+(define-syntax (sum-quant stx)
+  (syntax-case stx ()
+    [(_ ([x1 r1] ...) int-expr)
+     (syntax/loc stx
+       (let* ([x1 (node/expr/quantifier-var (node/expr-arity r1) 'x1)] ...)
+         (sum-quant-expr (list (cons x1 r1) ...) int-expr)))]))
 
 
 ;; PREDICATES ------------------------------------------------------------------
