@@ -78,7 +78,7 @@
                    [`(sum ,lst) (list (list (foldl (lambda (x init) (foldl + init x)) 0 (eval-exp lst bind bitwidth safe))))]
                    [`(card ,lst) (length (eval-exp lst bind bitwidth safe))]
                    ; Set comprehension
-                   [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) bitwidth safe)) (eval-exp lst bind bitwidth safe))]
+                   [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) bitwidth)) (eval-exp lst bind bitwidth safe))]
                    ; Let binding (also allowed in formulas)
                    [`(let ([,n ,e]) ,block) (eval-exp block (hash-set bind n (eval-exp e bind bitwidth)) bitwidth safe)]
                    ; Constants

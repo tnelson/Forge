@@ -65,6 +65,11 @@
 (check-eval-to? 4 binding1 '(some x Node (some (join x edges))) #t)
 (check-eval-to? 4 binding1 '(all x Node (some (join x edges))) #f)
 
+(check-eval-to? 4 binding1 '(set x Node (some (join x edges))) '((Node0) (Node1)))
+
+; TODO: evaluator will not support nested set comprehensions currently 
+;(check-eval-to? 4 binding1 '(set x Node (set y Node (in y (join x edges)))) '((Node0) (Node1)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Predicate invocations
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
