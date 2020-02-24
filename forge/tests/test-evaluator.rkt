@@ -61,6 +61,7 @@
 (check-eval-to? 4 binding1 '(one edges)         #f)
 (check-eval-to? 4 binding1 '(one (join edges edges))     #t)
 (check-eval-to? 4 binding1 '(lone (join edges edges))    #t)
+(check-eval-to? 4 binding1 '(all n1 Node (all n2 Node (lone (join (join n1 edges) n2))))    #t)
 (check-eval-to? 4 binding1 '(no (join none edges))       #t)
 (check-eval-to? 4 binding1 '(some x Node (some (join x edges))) #t)
 (check-eval-to? 4 binding1 '(all x Node (some (join x edges))) #f)

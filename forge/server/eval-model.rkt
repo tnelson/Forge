@@ -43,7 +43,8 @@
 ; ((a) (b) (c)) represents the set {a b c}, and ((a b) (b c)) represents
 ; the relation {(a b) (b c)}
 (define (eval-exp exp bind bitwidth [safe #t])
-  ;(printf "exp : ~v~n" exp)
+  (when (>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "evaluating expr : ~v~n" exp))
   (define result (match exp
                    ; Binary set operations
                    [`(+ ,exp-1 ,exp-2) (append                                        
@@ -191,13 +192,14 @@
 ; Interpreter for evaluating an eval query for a formula in a model
 ; context
 (define (eval-form form bind bitwidth)
-  ;(printf "form : ~v~n" form)
+  (when (>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "evaluating form : ~v~n" form))
   (define ret (match form
     [`(! ,f) (not (eval-form f bind bitwidth))]
     [`(no ,exp) (empty? (eval-exp exp bind bitwidth))]
     [`(some ,exp) (not (empty? (eval-exp exp bind bitwidth)))]
-    [`(one ,exp) (let [(const (eval-exp exp bind bitwidth))] (and (not (empty? const))) (empty? (cdr const)))]
-    [`(lone ,exp) (let [(const (eval-exp exp bind bitwidth))] (or (empty? const)) (empty? (cdr const)))]
+    [`(one ,exp) (let [(const (eval-exp exp bind bitwidth))] (and (not (empty? const)) (empty? (cdr const))))]
+    [`(lone ,exp) (let [(const (eval-exp exp bind bitwidth))] (or (empty? const) (empty? (cdr const))))]
     [`(in ,exp-1 ,exp-2) (subset? (eval-exp exp-1 bind bitwidth) (eval-exp exp-2 bind bitwidth))]
     [`(and ,form ...) (for/and ([f form]) (eval-form f bind bitwidth))]
     [`(or ,form ...) (for/or ([f form]) (eval-form f bind bitwidth))]
