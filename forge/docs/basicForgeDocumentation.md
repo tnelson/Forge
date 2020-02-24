@@ -168,6 +168,7 @@ In the following, "atoms" is a set of integer atoms and "value" is an integer va
  - `divide[<value-a>, <value-b> ...]`: returns the value of the left-associative integer quotient (value-a / value-b) / ...
  - `abs[<value>]`: returns the absolute value of value
  - `sign[<value>]`: returns 1 if value is > 0, 0 if value is 0, and -1 if value is < 0
+ - `sum x : e | ie`: sums over <ie> for all atoms in <e>. This is useful when you want to sum over a field of a sig, but duplicates exist. For instance, consider `sig A { i: one Int }` and `sum a: A | a.i`. The latter will include duplicates, while `sum[A.i]` would not.
  
 To convert between sets of integer atoms and integer values there are the following operations:
  - `sing[<value>]`: returns a set containing the int atom that represents the given value
