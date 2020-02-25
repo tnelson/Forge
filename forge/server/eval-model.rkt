@@ -7,11 +7,21 @@
 
 ; Consumes a model and produces a binding, which acts as an environment
 ; for interpreting eval queries
-(define (model->binding model)
+(define (model->binding model bitwidth)
   (define out-bind (make-hash))
   (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (relation-name k)) v)))
-  (make-immutable-hash (hash->list out-bind))
-  )
+  
+  ; add ints relation to our binding
+  (define int-max (expt 2 (sub1 bitwidth)))
+  (define int-range (range (- int-max) int-max))
+  (define int-sings (map list int-range))
+  (hash-set! out-bind 'Int int-sings)
+
+  ; add succ relation to our binding
+  (define successor-rel (map list (take int-range (sub1 (length int-range))) (rest int-range)))
+  (hash-set! out-bind 'succ successor-rel)
+
+  (make-immutable-hash (hash->list out-bind)))
 
 ; For use by the Sterling evaluator, when we don't know immediately
 ; whether it's a formula or an expression. Try eval-form first. If it
@@ -274,8 +284,5 @@
       [(? string?) (with-handlers ([exn:fail? (λ (exn) (string->symbol e))]) 
         (define n (string->number e))
         (if (integer? n) n (string->symbol e)))]
-      [else e]
-    )
-  )
-  (f e)
-)
+      [else e]))
+  (f e))
