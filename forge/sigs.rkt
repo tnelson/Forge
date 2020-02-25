@@ -646,7 +646,7 @@
              (define val (syntax-case (second (rest d)) (QualName Number)
                            [(QualName n) #''n]
                            [(Number n) #'(string->number n)]
-                           [fp #'fp]))
+                           [fp #'(string-append "\"" fp "\"")]))
              `(set-option ,key ,val)) stx))
 
 (define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
