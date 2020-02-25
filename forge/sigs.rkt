@@ -3,7 +3,8 @@
 (require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "server/forgeserver.rkt"
          "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
-         "breaks.rkt")
+         "breaks.rkt"
+         "demo/life.rkt")
 
 ; racket/string needed for replacing transpose operator (~) with escaped version in error messages
 (require (for-syntax racket/syntax)
@@ -55,6 +56,7 @@
 ; core granularity and log translation --- affect core quality (see kodkod docs)
 (define coregranoption 0)
 (define logtransoption 1)
+(define demo #f)
 
 ; set of one sigs
 (define one-sigs (mutable-set))
@@ -96,6 +98,10 @@
     ['coregranularity (set! coregranoption val)]
     ['sb (set! sboption val)]
     ['logtranslation (set! logtransoption val)]
+    ['demo
+     (match val
+       ['life (set! demo 'life)]
+       [else (error (format "Invalid option key: ~a" key))])]
     [else (error (format "Invalid option key: ~a" key))]))
 
 (define (set-bitwidth i) (set! bitwidth i))
@@ -478,7 +484,11 @@
     [_
      (define (get-next-model)
        (cmd [stdin] (solve))
-       (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
+       (match-define (cons restype inst) (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
+       (when (and demo (equal? restype 'sat))
+         (match demo
+           ['life (output-life inst)]))
+       (cons restype inst))
      (display-model get-next-model name command filepath bitwidth funs-n-preds)]))
 
 (define-syntax (run stx)
