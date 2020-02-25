@@ -36,15 +36,15 @@
             (eval-exp thing bind bitwidth)))])
         (eval-form thing bind bitwidth)))
 
-; 2's complement wraparound if needed. Takes a number and returns a ((number)) for use in expr eval
+; 2's complement wraparound if needed. Takes a number and returns a number
 (define (wraparound n bitwidth)
-  (define maxint (- (expt 2 (- bitwidth 1)) 1)) ; positive 2^(bitwidth-1) - 1
-  (define minint (- (expt 2 (- bitwidth 1))))   ; negative 2^(bitwidth-1)
-  (define modulus (expt 2 bitwidth))
-  (cond [(> n maxint) 
-         (list (list (- n (* modulus (+ 1 (quotient n modulus))))))]
-        [(< n minint)   
-         (list (list (+ n (* modulus (+ 1 (quotient n modulus))))))]
+  (define max-int (- (expt 2 (sub1 bitwidth)) 1)) ; positive 2^(bitwidth-1) - 1
+  (define min-int (- (expt 2 (sub1 bitwidth))))   ; negative 2^(bitwidth-1)
+  (define num-ints (expt 2 bitwidth))
+  (cond [(> n max-int) 
+         (+ min-int (modulo (- n max-int 1) num-ints))]
+        [(< n min-int)   
+         (- max-int (modulo (- min-int n 1) num-ints))]
         [else n]))
 
 ; Interpreter for evaluating an eval query for an expression in a model
