@@ -209,6 +209,10 @@ public class KodkodParser extends BaseParser<Object> {
 					RPAR);
 	}
 
+	Rule FilePath() {
+		return Sequence("\"", KodkodParser.ANY, "\"");
+	}
+
 	/** @return MiniSatProver | MiniSat | Glucose | Lingeling | SAT4J */
     @SuppressSubnodes
     @MemoMismatches
@@ -218,8 +222,7 @@ public class KodkodParser extends BaseParser<Object> {
 						Sequence(Keyword("Glucose"),			push(SATFactory.Glucose)),
 						Sequence(Keyword("Lingeling"),			push(SATFactory.Lingeling)),
 						Sequence(Keyword("SAT4J"),				push(SATFactory.DefaultSAT4J)),
-						// TODO: figure out doing stuff here VV
-						Sequence("\"", KodkodParser.ANY, "\"",  push(SATFactory......)));
+						Sequence(FilePath(),                    push(SATFactory.externalFactory((String)pop(), null))));
     }
 
 	//-------------------------------------------------------------------------
