@@ -91,7 +91,7 @@ fun weighta[es: City -> Int -> City]: Int {
 }
 
 fun weightb[es: City -> Int -> City]: Int {
-  sum a: es[City][Int] | sum b: es.City.Int | es[a].b
+  sum a: es[City][Int] | sum b: es.City.Int | sum[es[a].b]
 }
 
 pred reachableWithHopsOfBug[src: City, dst: City, hopmax: Int] {

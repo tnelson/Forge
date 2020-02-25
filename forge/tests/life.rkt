@@ -1,7 +1,15 @@
 #lang forge
 
+/*
+    Conway's Game of Life
+    Hunt for still-lifes, oscillators, and gliders
+    Andrew Wagner + Tim Nelson
+*/
+
 option verbosity 0
+option solver MiniSat
 option demo life
+
 
 sig State {
     alive: set Int->Int
@@ -37,4 +45,60 @@ pred nontrivial {
     }
 }
 
-run<|gameTrace|> { nontrivial } for 3 Int, exactly 3 State
+--run<|gameTrace|> { nontrivial } for 3 Int, exactly 3 State
+
+
+------------
+
+pred useOnlyMiddle4x4 {
+//#gameTrace.init.alive < 5 -- argh! can't count higher w/o messing up wraparound
+    no gameTrace.init.alive[sing[-4]]
+    no gameTrace.init.alive[sing[-3]]
+    no gameTrace.init.alive[sing[2]]
+    no gameTrace.init.alive[sing[3]]
+    -- Note parens are necessary
+    no gameTrace.init.alive.(sing[-4])
+    no gameTrace.init.alive.(sing[-3])
+    no gameTrace.init.alive.(sing[2])
+    no gameTrace.init.alive.(sing[3])
+}
+
+pred useOnlyMiddle5x5 {
+    no gameTrace.init.alive[sing[-4]]
+    no gameTrace.init.alive[sing[-3]]
+    no gameTrace.init.alive[sing[3]]
+    -- Note parens are necessary
+    no gameTrace.init.alive.(sing[-4])
+    no gameTrace.init.alive.(sing[-3])
+    no gameTrace.init.alive.(sing[3])
+}
+
+pred oscillator {
+    some gameTrace.init.alive
+    useOnlyMiddle4x4
+
+    -- There's a cycle
+    some s: State-gameTrace.init {
+        s.alive = gameTrace.init.alive
+    }
+    -- It's not a trivial cycle ("still life")
+    gameTrace.init.alive != gameTrace.init.(gameTrace.tran).alive
+    
+}
+--run<|gameTrace|> { oscillator } for 3 Int, exactly 3 State
+
+pred glider {
+    some gameTrace.init.alive
+    useOnlyMiddle5x5
+
+    -- There's some transpose (possibly across toroidal bounds)
+    some future: State-gameTrace.init | 
+    some xoffset, yoffset: Int | {
+        xoffset != sing[0] or yoffset != sing[0]
+        all r, c: Int |
+            r->c in gameTrace.init.alive iff
+            (sing[add[sum[r], sum[xoffset]]])->
+            (sing[add[sum[c], sum[yoffset]]]) in future.alive
+    }
+}
+run<|gameTrace|> { glider } for 3 Int, exactly 5 State -- period 4
