@@ -898,12 +898,14 @@
              (unless (or (member '|this'| syms)
                          (foldl (λ (x y) (and x y)) #t (for/list ([f posts]) (member f syms))))
                (raise (string-append "Underspecified transition predicate: " (symbol->string name))))
-             (for ([clause block])
-               (define syms (find-syms clause))
-               (unless (or (member '|this'| syms)
-                           (foldl (λ (x y) (or x y)) #f (for/list ([s syms])
-                                                          (or (member s posts) (member s paras)))))
-                 (raise (string-append "Irrelevant clause in: " (symbol->string name)))))
+
+             ;; DON'T DELETE! Just temporarily commenting out until we decide on behavior.  
+             ;(for ([clause block])
+             ;  (define syms (find-syms clause))
+             ;  (unless (or (member '|this'| syms)
+             ;              (foldl (λ (x y) (or x y)) #f (for/list ([s syms])
+             ;                                             (or (member s posts) (member s paras)))))
+             ;    (raise (string-append "Irrelevant clause in: " (symbol->string name)))))
 
              datum) stx))
 
