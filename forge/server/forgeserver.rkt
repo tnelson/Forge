@@ -74,15 +74,16 @@
                       (define binding (model->binding (cdr model) bitwidth))
                       ;(printf "funs-n-preds : ~a~n" funs-n-preds)
                       (set! binding (hash-union binding funs-n-preds))
-                      (printf "binding: ~a~n" binding)
+                      ;(printf "binding: ~a~n" binding)
                       (define lists (eval-unknown kodkod binding bitwidth))
                       ;(printf "lists: ~a~n" lists)
                       (if (list? lists)
                           (string-join (for/list ([l lists])
                               (string-join (for/list ([atom l])
-                                (if (number? atom)
-                                    (string-append (format "~a" atom))
-                                    (symbol->string atom))
+                                (cond
+                                  [(int-atom? atom) (int-atom->string atom)]
+                                  ;[(number? atom) (number->string atom)]
+                                  [(symbol? atom) (symbol->string atom)])
                               ) "->")
                               ) " + ")
                           lists)

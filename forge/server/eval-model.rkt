@@ -4,7 +4,7 @@
 (require "../shared.rkt")
 (require racket/struct)
 
-(provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
+(provide eval-exp eval-form eval-unknown model->binding alloy->kodkod int-atom->string int-atom?)
 
 ; seperate structure for binding int atoms so they don't collide with int values
 (struct int-atom (n)
@@ -13,6 +13,9 @@
       (make-constructor-style-printer
         (lambda (obj) 'int-atom)
         (lambda (obj) (list (int-atom-n obj)))))])
+
+(define (int-atom->string v)
+  (string-append "sing[" (number->string (int-atom-n v)) "]"))
 
 (define (ints-to-atoms rel-v)
   (map
@@ -45,18 +48,15 @@
 ; whether it's a formula or an expression. Try eval-form first. If it
 ; fails, try eval-exp. If that fails, throw a user error.
 (define (eval-unknown thing bind bitwidth)
-  ; (printf "EVALUATING: ~a~n" thing)
-  ; (newline)
-  ; (printf "Binding: ~a~n" (flatten (build-univ bind)))
-  ; (newline)
-  (with-handlers
-      ([exn:fail?
-        (lambda (v) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v))
-          (with-handlers
-              ([exn:fail?
-                (lambda (v2) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v)) (raise-user-error "Not a formula or expression" thing))])
-            (eval-exp thing bind bitwidth)))])
-        (eval-form thing bind bitwidth)))
+  (eval-exp thing bind bitwidth))
+  ; (with-handlers
+  ;     ([exn:fail?
+  ;       (lambda (v) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v))
+  ;         (with-handlers
+  ;             ([exn:fail?
+  ;               (lambda (v2) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v)) (raise-user-error "Not a formula or expression" thing))])
+  ;           (eval-exp thing bind bitwidth)))])
+  ;       (eval-form thing bind bitwidth)))
 
 
 
@@ -117,9 +117,9 @@
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]                      
                       ; relation name
-                      [(hash-has-key? bind id) (printf "Found relation: ~a\n" id) (hash-ref bind id)]
+                      [(hash-has-key? bind id) (printf "Found relation: ~a\n" id)(newline) (hash-ref bind id)]
                       ; atom name
-                      [(member id (flatten (build-univ bind))) (printf "Found atom ~a\n" id) id]
+                      [(member id (flatten (build-univ bind))) (printf "Found atom ~a\n" id)(newline) id]
                       [(not safe) id]
                       ; oops
                       [else (raise-user-error "Not an expression" id)])]))
@@ -152,8 +152,9 @@
 
 ; may be a number, not a symbol
 (define (->string v)
-  (cond [(symbol? v) (symbol->string v)]
-        [(number? v) (number->string v)]
+  (cond [(int-atom? v) (int-atom->string v)]
+        [(symbol? v) (symbol->string v)]
+        ;[(number? v) (number->string v)]
         [else v]))
 
 ; is t1 < t2?
