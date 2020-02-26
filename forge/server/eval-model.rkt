@@ -302,15 +302,26 @@
          (- max-int (modulo (- min-int n 1) num-ints))]
         [else n]))
 
-; Convertes integer value to integer atom
-(define (sing-int-expr int-expr)
-  0)
 
 ; Evaluates integer value expression 
 (define (eval-int-expr int-expr bind bitwidth)
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "evaluating expr : ~v~n" exp))
-  ; (match int-expr
-    ; []
-    ; []))
-)
+    (printf "evaluating int-expr : ~v~n" exp))
+  (match int-expr
+    [`(add ,ix1 ,ix2) (wraparound (+ (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(subtract ,ix1 ,ix2) (wraparound (- (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(multiply ,ix1 ,ix2) (wraparound (* (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(divide ,ix1 ,ix2) (wraparound (quotient (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(remainder ,ix1 ,ix2) (wraparound (remainder (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(abs ,ix1 ,ix2) (wraparound (abs (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(sign ,ix1)
+      (let ([ix1-val (eval-int-expr ix1 bind bitwidth)])
+           (wraparound
+             (case
+               [(> ix1-val 0) 1]
+               [(= ix1-val 0) 0]
+               [(< ix1-val 0) -1]) bitwidth))]
+    [`(sing ,ix1) (int-atom (eval-int-expr ix1 bind bitwidth))]
+    [n (cond
+         [(number? n) (wraparound n bitwidth)]
+         [else (raise-user-error "Invalid int expression")])]))
