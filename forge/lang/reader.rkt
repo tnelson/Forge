@@ -5,7 +5,7 @@
 (require "alloy-syntax/tokenizer.rkt" "alloy-syntax/parser.rkt")
 (require (prefix-in @ racket))
 
-(require macro-debugger/syntax-browser)
+;(require macro-debugger/syntax-browser)
 
 (define-runtime-path forge-path "../forge.rkt")
 

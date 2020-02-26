@@ -5831,7 +5831,7 @@ code {
     font-family: "Fira Code VF", monospace;
   }
 }
-.options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button .icon, .status-item, .nav-icon-button, .nav-header {
+.body-full .overlay .row .number-picker .icon, .body-full .overlay .row .text, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button .icon, .status-item, .nav-icon-button, .nav-header {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5844,7 +5844,7 @@ code {
   justify-content: center;
 }
 
-.filetree, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .button, .nav {
+.filetree, .body-full .overlay .row .number-picker, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .button, .nav {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -5897,7 +5897,7 @@ code {
   margin-left: auto;
 }
 
-.options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button .icon, .status-item, .nav-header, .nav-icon-button {
+.body-full .overlay .row .number-picker .icon, .body-full .overlay .row .text, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button .icon, .status-item, .nav-header, .nav-icon-button {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5910,7 +5910,7 @@ code {
   justify-content: center;
 }
 
-.filetree, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .button, .nav {
+.filetree, .body-full .overlay .row .number-picker, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .button, .nav {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -5938,7 +5938,7 @@ code {
   margin-left: auto;
 }
 
-.options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button .icon, .nav-header, .nav-icon-button, .status-item {
+.body-full .overlay .row .number-picker .icon, .body-full .overlay .row .text, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button .icon, .nav-header, .nav-icon-button, .status-item {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5951,7 +5951,7 @@ code {
   justify-content: center;
 }
 
-.filetree, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .button, .nav {
+.filetree, .body-full .overlay .row .number-picker, .options-bar .options-bar-body .label, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .button, .nav {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -5976,6 +5976,7 @@ code {
 }
 .options-bar .options-bar-body {
   display: flex;
+  flex: 1 0 auto;
 }
 .options-bar .options-bar-body .button {
   color: #152932;
@@ -6092,26 +6093,11 @@ code {
   margin: 0.5em 0.25em;
   color: #152932;
 }
-
-.body {
-  display: flex;
+.options-bar .options-bar-body .spring {
   flex: 1 0 auto;
-  height: calc(100vh - 70px - 25px);
-  overflow: hidden;
-  margin: 0 auto;
-  width: 1024px;
 }
 
-.body-full {
-  display: flex;
-  flex-direction: column;
-  flex: 1 0 auto;
-  height: calc(100vh - 70px - 25px);
-  margin: 0;
-  width: 100%;
-}
-
-.nav-header, .nav-icon-button, .status-item, .options-bar .options-bar-body .text-icon-button .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .label {
+.body-full .overlay .row .number-picker .icon, .body-full .overlay .row .text, .nav-header, .nav-icon-button, .status-item, .options-bar .options-bar-body .text-icon-button .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .label {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -6124,7 +6110,84 @@ code {
   justify-content: center;
 }
 
-.filetree, .nav, .options-bar .options-bar-body .button, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .label {
+.filetree, .body-full .overlay .row .number-picker, .nav, .options-bar .options-bar-body .button, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .label {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.body {
+  display: flex;
+  flex: 1 0 auto;
+  height: calc(100vh - 70px - 25px);
+  overflow: hidden;
+  margin: 0 auto;
+  width: 1024px;
+}
+
+.body-full {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  flex: 1 0 auto;
+  height: calc(100vh - 70px - 25px);
+  margin: 0;
+  width: 100%;
+}
+.body-full .overlay {
+  position: absolute;
+  top: calc(50px + 10px);
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  background-color: #e1e2e1;
+  border: 1px solid #e1e2e1;
+  box-shadow: 1px 1px 2px 1px #708690;
+}
+.body-full .overlay .row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.8em;
+}
+.body-full .overlay .row .text {
+  padding: 0.5em 0.75em;
+}
+.body-full .overlay .row .number-picker {
+  display: flex;
+  color: #152932;
+  background-color: #ffffff;
+  border: 1px solid #708690;
+  margin: 0.5em 0.25em;
+}
+.body-full .overlay .row .number-picker .icon {
+  min-width: 1.5em;
+  color: #152932;
+  background-color: #ffffff;
+  padding: 0.5em;
+  cursor: pointer;
+}
+.body-full .overlay .row .number-picker .icon:hover:not(.inactive) {
+  background-color: #708690;
+  color: #ffffff;
+}
+
+.nav-header, .nav-icon-button, .status-item, .options-bar .options-bar-body .text-icon-button .icon, .options-bar .options-bar-body .text-icon-button .text, .options-bar .options-bar-body .text-icon-button-inv .icon, .options-bar .options-bar-body .text-icon-button-inv .text, .options-bar .options-bar-body .combo-button .icon, .options-bar .options-bar-body .combo-button .text, .options-bar .options-bar-body .icon-button .icon, .options-bar .options-bar-body .label, .body-full .overlay .row .text, .body-full .overlay .row .number-picker .icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.options-bar .options-bar-body .button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filetree, .nav, .options-bar .options-bar-body .button, .options-bar .options-bar-body .text-icon-button, .options-bar .options-bar-body .text-icon-button-inv, .options-bar .options-bar-body .combo-button, .options-bar .options-bar-body .icon-button, .options-bar .options-bar-body .label, .body-full .overlay .row .number-picker {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -6321,7 +6384,6 @@ code {
   justify-content: space-between;
 }
 .eval .eval-editor .eval-output {
-  flex: 0 1 auto;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -6329,15 +6391,12 @@ code {
 }
 .eval .eval-editor .eval-output .output {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
   font-family: "Fira Code", monospace;
   font-size: 0.9em;
-  border: 1px solid #e1e2e1;
   border-radius: 4px 4px 0 0;
   margin: 0.5em;
-}
-.eval .eval-editor .eval-output .output.active {
-  border: 1px solid #708690;
 }
 .eval .eval-editor .eval-output .output.active .expression {
   padding: 0.5em;
@@ -6356,6 +6415,7 @@ code {
   overflow-wrap: break-word;
 }
 .eval .eval-editor .eval-output .output .result {
+  flex: 1 0 auto;
   min-height: 1em;
   padding: 0.5em;
   color: #708690;

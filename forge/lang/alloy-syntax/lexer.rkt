@@ -27,6 +27,8 @@
    ;; comments
    [(or (from/stop-before "--" "\n") (from/stop-before "//" "\n") (from/to "/*" "*/"))
     (token+ 'COMMENT "" lexeme "" lexeme-start lexeme-end #t)]
+   [(from/stop-before "#lang" "\n")
+    (token+ 'COMMENT "" lexeme "" lexeme-start lexeme-end #t)]
 
    ;; reserved
    [(or "$" "%" "?")
@@ -41,7 +43,6 @@
    ["==" (token+ 'EQUIV-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["|" (token+ 'BAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["-" (token+ 'MINUS-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["#" (token+ 'HASH-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["~" (token+ 'TILDE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["*" (token+ 'STAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["^" (token+ 'EXP-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -70,14 +71,15 @@
    ["disj"      (token+ `DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["else"      (token+ `ELSE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)]    
+   ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)]   
+   ["expect"    (token+ `EXPECT-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["extends"   (token+ `EXTENDS-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["fact"      (token+ `FACT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["for"       (token+ `FOR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["fun"       (token+ `FUN-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]      
    ["in"        (token+ `IN-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ;["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["is"        (token+ `IS-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["let"       (token+ `LET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["lone"      (token+ `LONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["module"    (token+ `MODULE-TOK "" lexeme "" lexeme-start lexeme-end)]    
@@ -87,17 +89,28 @@
    ["open"      (token+ `OPEN-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["pred"      (token+ `PRED-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["run"       (token+ `RUN-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["sat"       (token+ `SAT-TOK "" lexeme "" lexeme-start lexeme-end)] 
    ["set"       (token+ `SET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["sig"       (token+ `SIG-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["some"      (token+ `SOME-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["some"      (token+ `SOME-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
+   ["test"      (token+ `TEST-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
    ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
+   ["trace"      (token+ `TRACE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
 
+   ;; int stuff
+   ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
+   ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
+   
    ;; punctuation
    ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
    [")" (token+ 'RIGHT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -105,14 +118,17 @@
    ["}" (token+ 'RIGHT-CURLY-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["[" (token+ 'LEFT-SQUARE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["]" (token+ 'RIGHT-SQUARE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["<|" (token+ 'LEFT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["|>" (token+ 'RIGHT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["," (token+ 'COMMA-TOK "" lexeme "" lexeme-start lexeme-end)]
    [";" (token+ 'SEMICOLON-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["/" (token+ 'SLASH-TOK "" lexeme "" lexeme-start lexeme-end)]
    [":" (token+ 'COLON-TOK "" lexeme "" lexeme-start lexeme-end)]
    ;["@" (token+ 'AT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["_" (token+ 'UNDERSCORE-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; identifiers
-   [(: (or alphabetic "@") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
+   [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -142,7 +158,8 @@
            "iff"
            "implies"
            "in"
-           "Int"
+           "is"
+
            "let"
            "lone"
            "module"
@@ -158,8 +175,38 @@
            "sig"
            "some"
            "sum"
+           "test"
+           "expect"
+           "sat"
+           "unsat"
            "univ"
-           "break")))
+           "break"
+           
+           "state"
+           "facts"
+           "transition"
+           "trace"
+           "bind"
+           "option"
+           "inst"
+
+           'Int
+           'sum
+           'sing
+           'add
+           'subtract
+           'multiply
+           'divide
+           'abs
+           'sign
+           'max
+           'min
+           "#"
+
+           '_
+           'this
+           '|this'|
+)))
 
 (define (paren? str)
   (member str
@@ -168,7 +215,9 @@
                 "{"
                 "}"
                 "["
-                "]")))
+                "]"
+                "<|"
+                "|>")))
 
 (define (token+ type left lex right lex-start lex-end [skip? #f] [sym? #f])
   (let ([l0 (string-length left)] 

@@ -1,25 +1,34 @@
 #lang racket
 
-(require "../lang/ast.rkt" racket/date xml racket/string)
+(require "../lang/ast.rkt" racket/date xml racket/string
+         (prefix-in @ (only-in racket and or not)))
+
 (provide model-to-XML-string)
 
 (define (atom-to-XML-string atom)
   (string-append "<atom label=\"" (format "~a" atom) "\"/>"))
 
-(define (sig-contents-to-XML-string data sig-rel)
-  (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (hash-ref data sig-rel))))
+(define (sig-contents-to-XML-string data sig-rel)  
+  (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (reverse (hash-ref data sig-rel)))))
 
 (define (sig-to-XML-string data sig-rel sigID ID-hash)
   (string-append "<sig label=\"" (relation-name sig-rel) "\" ID=\"" (number->string sigID) "\" parentID=\"" (number->string (hash-ref ID-hash (relation-parent sig-rel))) "\">\n"
                  (sig-contents-to-XML-string data sig-rel)
                  "\n</sig>\n\n"))
 
+(define (skolem-to-XML-string data skolem-rel skolemID ID-hash)
+  ; No parent for skolems + use relation-to-xml (set of tuples, not set)
+  (string-append "<skolem label=\"" (relation-name skolem-rel) "\" ID=\"" (number->string skolemID) "\">\n"
+                 (relation-to-XML-string data skolem-rel)
+                 (types-to-XML-string skolem-rel ID-hash)
+                 "\n</skolem>\n\n"))
+
 (define (tuple-to-XML-string tuple)
   (string-append "<tuple>"
                  (apply string-append (map atom-to-XML-string tuple))
                  "</tuple>\n"))
 
-(define (relation-to-XML-string data rel)
+(define (relation-to-XML-string data rel)  
   (apply string-append (map tuple-to-XML-string (hash-ref data rel))))
 
 (define (type-to-XML-string typestring ID-hash)
@@ -48,13 +57,15 @@
       (string-append (first lines) "\r\n" (agg-lines (rest lines)))))
                  
 
-(define (model-to-XML-string model name command filepath bitwidth)
+(define (model-to-XML-string model name command filepath bitwidth forge-version)
   (define flag (car model))
   (define data (cdr model))
   
+  
   (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
-                                  (clean (clean-syntax command)) "\" filename=\"" filepath "\">\n"
+                                  (clean (clean-syntax command)) "\" filename=\"" filepath
+                                  "\" version=\"" forge-version "\">\n"
                                   #<<here-string-delimiter
 
 <sig label="seq/Int" ID="0" parentID="1" builtin="yes">
@@ -85,7 +96,6 @@ here-string-delimiter
                         "</alloy>")]
         [(equal? flag 'no-more-instances)
          (string-append prologue
-                        ;"\n<sig label=\"NO MORE INSTANCES\" ID=\"5\" parentID=\"2\"></sig>\n"
                         "\n<sig label=\"No more instances! Some equivalent instances may have been removed through symmetry breaking.\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"&#128557;\"/><atom label=\"&#128542;\"/><atom label=\"&#128546;\"/><atom label=\"&#128551;\"/><atom label=\"&#128558;\"/>\n"
                         "</sig>\n"
@@ -98,10 +108,17 @@ here-string-delimiter
                         "</instance>\n</alloy>")]
         [else
 
+         ; Do not include unary Skolem relations as sigs! Sterling expects these as <skolem> decls, not <sig> decls
+         ; Remember to use *Racket* not + and here
+         (hash-remove! data Int)
+
          (define sigs-unsorted (filter
-                                (λ (key) (equal? (relation-arity key) 1))
+                                (λ (key) (@and (equal? (relation-arity key) 1)
+                                               (@not (string-prefix? (relation-name key) "$"))))
                                 (hash-keys data)))
 
+         (define skolems (filter (lambda (key) (string-prefix? (relation-name key) "$")) (hash-keys data)))
+         
          (define childrenhash
            (make-hash (map
                        (λ (parent)
@@ -150,8 +167,8 @@ here-string-delimiter
              (loop)))
 
          (unless (hash-empty? childrenhash)
-           (error "CYCLE IN INPUT SIGS"))
-
+           (error "CYCLE IN INPUT SIGS"))         
+         
          (define atom-tuples (mutable-set))
          (define cleaned-model (make-hash (map (λ (x)
                                                  (begin0
@@ -159,10 +176,12 @@ here-string-delimiter
                                                    (set-union! atom-tuples (list->mutable-set (hash-ref data x)))))
                                                sigs-r)))
          
-         (define sigs (reverse sigs-r))
-  
+         (define sigs (reverse sigs-r))                  
+
+         ; RACKET "or"
          (define fields (filter-not
-                         (λ (key) (equal? (relation-arity key) 1))
+                         (λ (key) (@or (equal? (relation-arity key) 1)
+                                      (string-prefix? (relation-name key) "$")))
                          (hash-keys data)))  
 
          (define sigs# (length sigs))
@@ -186,6 +205,12 @@ here-string-delimiter
                                                      fields
                                                      (range (+ 4 sigs#) (+ 4 sigs# (length fields))))))
 
+         ; Remember to use "data", not "cleaned-model" -- the cleaned model won't have tuples for Skolem relations
+         (define skolem-strings (apply string-append (map
+                                                      (lambda (skolem id) (skolem-to-XML-string data skolem id ID-hash))
+                                                      skolems
+                                                      (range (+ 4 sigs# (length fields)) (+ 4 sigs# (length fields) (length skolems))))))
+         
          (define epilogue (string-append
                            "\n</instance>\n"
                            "<source filename=\"" filepath "\">"
@@ -199,5 +224,8 @@ here-string-delimiter
                         "\n\n"
                         sig-strings
                         field-strings
+                        ; Include these only when question about type of Skolem rels in Sterling is resolved.
+                        ; including this beforehand will cause Sterling to error on any instance with a Skolem relation.
+                        ;skolem-strings
                         epilogue
                         )]))

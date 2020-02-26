@@ -5,7 +5,8 @@
 ;(require data/union-find)
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
-(provide (rename-out [add-instance instance]))
+(provide (rename-out [add-instance instance]) clear-breaker-state)
+(provide make-exact-sbound)
 
 ;;;;;;;;;;;;;;
 ;;;; util ;;;;
@@ -87,6 +88,14 @@
 ; priority counter
 (define pri_c 0)
 
+; clear all state
+(define (clear-breaker-state)
+    (set! instances empty)
+    (set! rel-breaks (make-hash))
+    (set! rel-break-pri (make-hash))
+    (set! pri_c 0)
+)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; methods for defining breaks ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -164,7 +173,7 @@
         (unless (hash-has-key? strategies break) (error "break not implemented:" break))
         (hash-add! rel-breaks rel break)
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
-(define (add-instance xml) (cons! instances xml))
+(define (add-instance i) (cons! instances i))
 
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
@@ -175,18 +184,26 @@
     (define formulas (mutable-set))
     ; unextended sets
     (set! sigs (list->mutable-set sigs))
+
+    ; maintain non-transitive reachability relation 
+    (define reachable (make-hash))
+    (hash-set! reachable 'broken (mutable-set 'broken))
+    (for ([sig sigs]) (hash-set! reachable sig (mutable-set sig)))
+
     (hash-for-each extensions-store (λ (k v) (set-remove! sigs v)))    
 
     ; First add all partial instances.
-    (define instance-bounds (append* (for/list ([i instances]) (xml->breakers i name-to-rel))))
-    (define defined (mutable-set))
+    (define instance-bounds (append* (for/list ([i instances]) 
+        (if (sbound? i) (list i) (xml->breakers i name-to-rel)))))
+    (define defined-relations (mutable-set))
     (for ([b instance-bounds])
-        (println b)
+        ;(printf "constraining bounds: ~v~n" b)
         (cons! new-total-bounds (sbound->bound b))
         (define rel (sbound-relation b))
-        (set-add! defined rel)
+        (set-add! defined-relations rel)
         (define typelist (@node/expr/relation-typelist rel))
-        (for ([t typelist]) (set-remove! sigs (hash-ref name-to-rel t)))
+        (for ([t typelist]) (when (hash-has-key? name-to-rel t)
+            (set-remove! sigs (hash-ref name-to-rel t))))
     )
 
     ; proposed breakers from each relation
@@ -200,11 +217,10 @@
         ; compose breaks
         (min-breaks! breaks break-pris)
 
-        (cond [(set-member? defined rel)
-            ; noop
-        ][(set-empty? breaks)
-            (cons! new-total-bounds bound)]
-        [else
+        (define defined (set-member? defined-relations rel))
+        (cond [(set-empty? breaks)
+            (unless defined (cons! new-total-bounds bound))
+        ][else
             (define rel-list (hash-ref relations-store rel))
             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
 
@@ -218,7 +234,7 @@
 
             ; propose highest pri breaker that breaks only leaf sigs
             ; break the rest the default way (with get-formulas)
-            (define broken #f)
+            (define broken defined)
             (for ([breaker breakers])
                 (cond [broken
                     (define default ((breaker-make-default breaker)))
@@ -235,7 +251,7 @@
                     ])
                 ])
             )
-            (unless broken (cons! new-total-bounds bound))
+            (unless (or broken defined) (cons! new-total-bounds bound))
         ])     
     )
     
@@ -257,11 +273,6 @@
     |#
 
     (set! candidates (sort candidates < #:key breaker-pri))
-
-    ; maintain non-transitive reachability relation 
-    (define reachable (make-hash))
-    (hash-set! reachable 'broken (mutable-set 'broken))
-    (for ([sig sigs]) (hash-set! reachable sig (mutable-set sig)))
 
     (for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
@@ -555,26 +566,23 @@
         (break-graph (set sig) (set))
         (λ () (break
             (sbound rel 
-                (set (take atoms 2))
+                (set) ;(set (take atoms 2))
                 (map list (drop-right atoms 1) (cdr atoms))
             )
             (set
-                (@one ([init sig]) (@and
+                (@lone ([init sig]) (@and
                     (@no (@join rel init))
                     (@some (@join init rel))
                 ))
             )
         ))
         (λ () (break bound (set
-            (@some ([init sig]) (@and
-                (@no (@join rel init))
-                (@all ([x (@- sig init)]) (@one (@join rel x)))
-                (@= (@join init (@* rel)) sig)
-            ))
-            (@some ([term sig]) (@and
-                (@no (@join term rel))
-                (@all ([x (@- sig term)]) (@one (@join x rel)))
-                (@= (@join (@* rel) term) sig)
+            (@lone (@- (@join rel sig) (@join sig rel)))    ; lone init
+            (@lone (@- (@join sig rel) (@join rel sig)))    ; lone term
+            (@no (@& @iden (@^ rel)))   ; acyclic
+            (@all ([x sig]) (@and       ; all x have
+                (@lone (@join x rel))   ; lone successor
+                (@lone (@join rel x))   ; lone predecessor
             ))
         )))
     )
@@ -590,12 +598,19 @@
         (@all ([a A]) (@one (@join a rel)))    ; @one
     ))
     (if (equal? A B)
-        (breaker pri
-            (break-graph (set) (set))
-            (λ () (break (bound->sbound bound) formulas))
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set A) (set))
+            (λ () (break ;(bound->sbound bound) formulas))
+                (sbound rel
+                    (set)
+                    ;(for*/set ([a (length As)]
+                    ;           [b (length Bs)] #:when (<= b (+ a 1)))
+                    ;    (list (list-ref As a) (list-ref Bs b))))
+                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
             (λ () 
                 ; assume wlog f(a) = b for some a in A, b in B
@@ -618,12 +633,12 @@
         (@all ([b B]) (@some (@join rel b)))    ; @some
     ))
     (if (equal? A B)
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set (set A B)))   ; breaks only {A,B}
             (λ () 
                 ; assume wlog f(a) = b for some a in A, b in B
@@ -646,12 +661,12 @@
         (@all ([b B]) (@lone (@join rel b)))    ; @lone
     ))
     (if (equal? A B)
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
             (λ () 
                 ; assume wlog f(a) = b for some a in A, b in B
@@ -674,14 +689,42 @@
         (@all ([b B]) (@one  (@join rel b)))    ; @one
     ))
     (if (equal? A B)
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set) (set (set A B)))   ; breaks only {A,B}
             (λ () (make-exact-break rel (map list As Bs)))
+            (λ () (break bound formulas))
+        )
+    )
+))
+(add-strategy 'pbij (λ (pri rel bound atom-lists rel-list) 
+    (define A (first rel-list))
+    (define B (second rel-list))
+    (define As (first atom-lists))
+    (define Bs (second atom-lists))  
+    (define LA (length As))
+    (define LB (length Bs))
+    (define broken (cond [(> LA LB) (set A)]
+                         [(< LA LB) (set B)]
+                         [else (set)]))
+    ;(printf "broken : ~v~n" broken)
+    (define formulas (set 
+        (@all ([a A]) (@one  (@join a rel)))    ; @one
+        (@all ([b B]) (@one  (@join rel b)))    ; @one
+    ))
+    (if (equal? A B)
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break bound formulas))
+        )
+        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph broken (set (set A B)))   ; breaks only {A,B}
+            (λ () (make-upper-break rel (for/list ([a As][b Bs]) (list a b)) formulas))
             (λ () (break bound formulas))
         )
     )
@@ -712,6 +755,7 @@
 (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
 (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
 (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
+(add-strategy 'pbij (variadic 2 (hash-ref strategies 'pbij)))
 
 
 ;;; Domination Order ;;;
@@ -741,8 +785,8 @@ ADDING BREAKS
     - a = a + b   !|- a > b   
 
 TODO:
-! use for sequence library
 - add extra formulas to further break symmetries because kodkod can't once we've broken bounds
+    - improve all functional strategies (see func A->A case for commented working example)
 - strategy combinators
     - naive equiv strategies
         - can be used to combine many strats with ref/irref, even variadic ones
@@ -754,6 +798,7 @@ TODO:
     - unique init/term
     - unique init/term + acyclic
     - has init/term
+    - more partial breaks
 - major work
     - allow arbitrary terms to be passed into strategies, not just relations
         - lenses!

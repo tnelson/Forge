@@ -4,6 +4,8 @@
 
 ;(provide (except-out (all-defined-out) kodkod-port define-ops))
 
+(require "../../shared.rkt")
+
 (provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
 
 ; Prints all Kodkod commands issued during the dynamic
@@ -25,7 +27,8 @@
 
 (define-syntax-rule (kodkod-display arg)
   (begin
-    (display arg)
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
+      (display arg))
     (display arg [kodkod-port])))
 
 ; Prints the given command string to the kodkod-port.
@@ -57,9 +60,9 @@
 (define (declare-univ size)   (print-cmd "(univ ~a)" size))
 
 (define (declare-ints ints idxs)
-  (print-cmd "(ints [")
+  (print-cmd-cont "(ints [")
   (for ([int ints][idx idxs])
-    (print-cmd "(~a ~a)" int idx))
+    (print-cmd-cont "(~a ~a)" int idx))
   (print-cmd "])"))
 
 (define declare-rel
@@ -131,7 +134,8 @@
 ; instructed to provide cores; it will be empty otherwise.
 (define (read-solution port)
   (define result (read port))
-  (writeln result)
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (writeln result))
   (match result
     [(list (== 'sat) (== ':model) (list (list rid val) ...))
      ; We do this because our "pairs" are actually little lists, so we can't use make-hash directly.

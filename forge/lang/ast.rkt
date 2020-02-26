@@ -50,7 +50,7 @@
                                  "got" arity "and" (node/expr-arity a) ":" args)))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
-      (raise-arguments-error op "join would create a relation of arity 0")))
+      (raise-arguments-error op (format "join would create a relation of arity 0: ~a" args))))
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)
       (raise-arguments-error op "second argument must have arity 1")))
@@ -61,15 +61,18 @@
 
 ;; EXPRESSIONS -----------------------------------------------------------------
 
-(struct node/expr (arity) #:transparent)
+(struct node/expr (arity) #:transparent
+  #:property prop:procedure (λ (r . sigs) (foldl join r sigs))
+)
 
 ;; -- operators ----------------------------------------------------------------
 
 (struct node/expr/op node/expr (children) #:transparent)
 
+; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-expr-op stx)
   (syntax-case stx ()
-    [(_ id arity checks ... #:lift @op)
+    [(_ id arity checks ... #:lift @op #:type childtype)
      (with-syntax ([name (format-id #'id "node/expr/op/~a" #'id)])
        (syntax/loc stx
          (begin
@@ -79,9 +82,17 @@
                (if ($and @op (for/and ([a (in-list e)]) ($not (node/expr? a))))
                    (apply @op e)
                    (begin
-                     (check-args 'id e node/expr? checks ...)
-                     (let ([arities (for/list ([a (in-list e)]) (node/expr-arity a))])
-                       (name (apply arity arities) e)))))))))]
+                     (check-args 'id e childtype checks ...)
+                     (if arity
+                         (let ([arities (for/list ([a (in-list e)]) (node/expr-arity a))])
+                           (name (apply arity arities) e))
+                         (name 1 e)))))))))] ; If arity is #f, assumed to be const 1
+    [(_ id arity checks ... #:lift @op)
+     (syntax/loc stx
+       (define-expr-op id arity checks ... #:lift @op #:type node/expr?))]
+    [(_ id arity checks ... #:type childtype)
+     (syntax/loc stx
+       (define-expr-op id arity checks ... #:lift #f #:type childtype))]
     [(_ id arity checks ...)
      (syntax/loc stx
        (define-expr-op id arity checks ... #:lift #f))]))
@@ -111,6 +122,7 @@
 
 (define-expr-op <: get-second #:max-length 2 #:domain? #t)
 (define-expr-op :> get-first  #:max-length 2 #:range? #t)
+(define-expr-op sing #f #:min-length 1 #:max-length 1 #:type node/int?)
 
 (define-syntax-rule (define-op/closure id @op)
   (define-expr-op id (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:lift @op))
@@ -144,7 +156,7 @@
   (syntax-case stx ()
     [(_ ([r0 e0] ...) pred)
      (syntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var 1 'r0)] ... )
+       (let* ([r0 (node/expr/quantifier-var (node/expr-arity e0) 'r0)] ... )
          (comprehension (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
@@ -180,7 +192,8 @@
 (define none (node/expr/constant 1 'none))
 (define univ (node/expr/constant 1 'univ))
 (define iden (node/expr/constant 2 'iden))
-(define Int (node/expr/constant 1 'Int))
+(define Int (node/expr/relation 1 "Int" '(Int) "univ"))
+(define succ (node/expr/relation 2 "succ" '(Int Int) "CharlieSaysWhatever"))
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -216,12 +229,43 @@
 (define-int-op card node/expr? #:min-length 1 #:max-length 1)
 (define-int-op sum node/expr? #:min-length 1 #:max-length 1)
 
+(define-int-op remainder node/int? #:min-length 2 #:max-length 2)
+(define-int-op abs node/int? #:min-length 1 #:max-length 1)
+(define-int-op sign node/int? #:min-length 1 #:max-length 1)
+
+(define (max s-int)
+  (sum (- s-int (join (^ succ) s-int))))
+(define (min s-int)
+  (sum (- s-int (join s-int (^ succ)))))
+
+;(define-int-op max node/expr? #:min-length 1 #:max-length 1)
+;(define-int-op min node/expr? #:min-length 1 #:max-length 1)
+
 ;; -- constants ----------------------------------------------------------------
 
 (struct node/int/constant node/int (value) #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (fprintf port "~v" (node/int/constant-value self)))])
+
+;; -- sum quantifier -----------------------------------------------------------
+(struct node/int/sum-quant node/int (decls int-expr)
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (match-define (node/int/sum-quant decls int-expr) self)
+     (fprintf port "(sum [~a] ~a)"
+                   decls
+                   int-expr))])
+
+(define (sum-quant-expr decls int-expr)
+  (for ([e (map cdr decls)])
+    (unless (node/expr? e)
+      (raise-argument-error 'set "expr?" e))
+    (unless (equal? (node/expr-arity e) 1)
+      (raise-argument-error 'set "decl of arity 1" e)))
+  (unless (node/int? int-expr)
+    (raise-argument-error 'set "int-expr?" int-expr))
+  (node/int/sum-quant decls int-expr))
 
 ;; FORMULAS --------------------------------------------------------------------
 
@@ -280,7 +324,7 @@
 
 (define-syntax (@@and stx)
   (syntax-case stx ()
-    [(_) (syntax/loc stx #t)]
+    [(_) (syntax/loc stx true)] ;#t?
     [(_ a0 a ...)
      (syntax/loc stx
        (let ([a0* a0])
@@ -289,7 +333,7 @@
              (and a0* a ...))))]))
 (define-syntax (@@or stx)
   (syntax-case stx ()
-    [(_) (syntax/loc stx #f)]
+    [(_) (syntax/loc stx false)]
     [(_ a0 a ...)
      (syntax/loc stx
        (let ([a0* a0])
@@ -308,20 +352,16 @@
 
 (define (quantified-formula quantifier decls formula)
   (for ([e (in-list (map cdr decls))])
-    ; (writeln decls)
-    ;(writeln (map cdr decls))
-    ;(writeln (cdr (car decls)))
-    ;(writeln (car decls))
-    ;(writeln (car (car decls)))
-    ;(writeln (cdr (car decls)))
-    ;(writeln e)
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
-    (unless (equal? (node/expr-arity e) 1)
+    #'(unless (equal? (node/expr-arity e) 1)
       (raise-argument-error quantifier "decl of arity 1" e)))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified quantifier decls formula))
+
+
+;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
 
 ;; -- multiplicities -----------------------------------------------------------
 
@@ -360,7 +400,7 @@
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax????
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))
 
 #|(define-syntax (one stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
@@ -377,7 +417,7 @@
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'some (list (cons v0 e0) ...) pred)))]
     [(_ expr)
      (syntax/loc stx
@@ -387,7 +427,7 @@
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var 1 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (! (quantified-formula 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
      (syntax/loc stx
@@ -412,6 +452,15 @@
        (multiplicity-formula 'lone expr))]))
 
 
+; sum quantifier macro
+(define-syntax (sum-quant stx)
+  (syntax-case stx ()
+    [(_ ([x1 r1] ...) int-expr)
+     (syntax/loc stx
+       (let* ([x1 (node/expr/quantifier-var (node/expr-arity r1) 'x1)] ...)
+         (sum-quant-expr (list (cons x1 r1) ...) int-expr)))]))
+
+
 ;; PREDICATES ------------------------------------------------------------------
 
 ; Operators that take only a single argument
@@ -419,12 +468,15 @@
   (@or (node/expr/op/~? op)
        (node/expr/op/^? op)
        (node/expr/op/*? op)
+       (node/expr/op/sing? op)
        (node/formula/op/!? op)
        (node/int/op/sum? op)
        (node/int/op/card? op)
-       (@member op (list ~ ^ * ! not))))
+       (node/int/op/abs? op)
+       (node/int/op/sign? op)
+       (@member op (list ~ ^ * sing ! not sum card abs sign)))) ; These are just aliases for the expanded names
 (define (binary-op? op)
-  (@member op (list <: :> in = => int= int> int<)))
+  (@member op (list <: :> in = => int= int> int< remainder)))
 (define (nary-op? op)
   (@member op (list + - & -> join && || add subtract multiply divide)))
 

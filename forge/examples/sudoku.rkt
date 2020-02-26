@@ -1,7 +1,11 @@
 #lang forge
 
 -- SUDOKU
--- Find me unique-solution boards
+-- Find me boards with 10 squares populated (initial puzzle)
+--  such that there is a valid completed extension (i.e., the initial is solvable)
+
+-- Ideally we'd like to find UNIQUE-SOLUTION boards (up to isomorphism) but unfortunately that's
+--  harder than we can handle at the moment (needs 2nd order universals and possibly some cleverness around isomorphism)
 
 sig N {neighbors: set N}
 one sig N1 extends N {}
@@ -39,8 +43,8 @@ pred intbounds {
 
 pred structural {
   -- lone number per cell
-  all b: Board | all i: N | all j: N | lone i.(j.(b.places))
-
+  all b: Board | all i: N | all j: N | lone b.places[i][j]
+                 
   -- neighbors
   N1.neighbors = N1+N2+N3
   N2.neighbors = N1+N2+N3
@@ -60,16 +64,16 @@ pred tenFilled {
   some b: Board | filled[b, 10]  
 }
 pred solved[b: Board] {  
-    all i: N | N.(i.(b.places)) = N // every row, taking all columns
-    all i: N | i.(N.(b.places)) = N // every column, taking all rows  //N in {x : N | some j : N | j->i->x in b.places } 
-    // and every sub-block (inefficient way of phrasing it)
-    all i: N | all j: N | (j.neighbors).((i.neighbors).(b.places)) = N
+    all i: N | b.places[i, N] = N // every row, taking all columns
+    all i: N | b.places[N, i] = N // every column, taking all rows  //N in {x : N | some j : N | j->i->x in b.places } 
+    // and every sub-block (inefficient way of phrasing it -- or is it?)
+    all i: N | all j: N | b.places[i.neighbors][j.neighbors] = N
 }
 pred someSolved {
   some b: Board | solved[b]
 }
 --base: run {structural} for 2 Board, 9 N
--- tenfilled: run {tenFilled structural} for 2 Board, 9 N, 8 Int
+tenfilled: run {tenFilled structural} for 2 Board, 9 N, 8 Int
 --solved: run {someSolved structural} for 2 Board, 9 N, 8 Int
 
 pred generatePuzzle {
@@ -84,6 +88,4 @@ pred generatePuzzle {
     solved[final]     
   }
 }
-run {generatePuzzle} for 2 Board, 9 N, 8 Int
-
--- Finding a VALID puzzle would be awesome (unique solution up to isomorphism) but that seems to require 2nd order logic + cleverness around isomorphism
+--run {generatePuzzle} for 2 Board, 9 N, 8 Int

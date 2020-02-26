@@ -5,10 +5,10 @@
 ------------------------------------------------------
 
 abstract sig Formula {
-  eval: set Instance -- Instances this is true in
+  truth: set Instance -- Instances this is true in
 }
 sig Var extends Formula {} {
-  eval = {i: Instance | this in i.trueVars}
+  truth = {i: Instance | this in i.trueVars}
 }
 
 sig Not extends Formula {child: one Formula}
@@ -16,9 +16,9 @@ sig And extends Formula {aleft, aright: one Formula}
 sig Or extends Formula {oleft, oright: one Formula}
 
 pred children {
-  all n: Not | n.eval = Instance - n.child.eval
-  all a: And | a.eval = a.aleft.eval & a.aright.eval
-  all o: Or | o.eval = o.oleft.eval + o.oright.eval
+  all n: Not | n.truth = Instance - n.child.truth
+  all a: And | a.truth = a.aleft.truth & a.aright.truth
+  all o: Or | o.truth = o.oleft.truth + o.oright.truth
 }
 -- IMPORTANT: don't add new formulas without updating allSubformulas and children
 
@@ -47,12 +47,12 @@ pred GiveMeABigFormula {
   wellFormed 
   some f: Formula | {
     #(allSubformulas[f] & Var) > 2
-    some i: Instance | i not in f.eval
-    some i: Instance | i in f.eval
+    some i: Instance | i not in f.truth
+    some i: Instance | i in f.truth
   }
 }
 
-run GiveMeABigFormula for 8 Formula, 2 Instance -- need 2 instances
+nameThisRun : run GiveMeABigFormula for 8 Formula, 2 Instance -- need 2 instances
 
 ------------------------------------------------------
 -- Semantics

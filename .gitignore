@@ -14,8 +14,13 @@ cytotestsite/cytotest.css
 cytotestsite/cytoscape.min.js
 local/
 .vscode/
+.idea/
 forge/racket-rfc6455/compiled
 forge/racket-rfc6455/net/compiled
 forge/racket-rfc6455/net/doc
 forge/racket-rfc6455/net/scribblings
 forge/racket-rfc6455/net/rfc6455/doc
+forge/secrets
+
+forge/sterling-js
+!forge/sterling-js/dist
