@@ -159,8 +159,7 @@
         }
         types() {
             let hierarchy = this._parent ? this._parent.types() : [];
-            if (this._label !== 'univ')
-                hierarchy.push(this);
+            hierarchy.push(this);
             return hierarchy;
         }
     }
@@ -7143,6 +7142,9 @@
                 let s = select(this), f = s.attr('filename'), c = s.text();
                 instance._sources.set(f, c);
             });
+            instance.signatures().forEach(sig => {
+                console.log(sig.id(), sig.types().map(sig => sig.id()));
+            });
             return instance;
         }
     }
@@ -7529,7 +7531,6 @@
                         this._on_eval_cb(e.data);
                     break;
                 case 'XML:':
-                    console.log(data);
                     if (data.length) {
                         let instance = Instance.fromXML(data);
                         if (this._on_instance_cb)
