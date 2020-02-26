@@ -7,14 +7,13 @@
 */
 
 option verbosity 0
-option solver MiniSat
+-- comment this out if windows
+option solver Glucose
 option demo life
-
 
 sig State {
     alive: set Int->Int
 }
-
 
 fun neighborhoods[alyv: Int->Int]: Int->Int->Int->Int {
     { r: Int, c: Int, r': Int, c': Int |
@@ -36,7 +35,7 @@ transition[State] gameStep {
                 alive' = birthing + surviving
 }
 
-trace<|State, _, gameStep, _|> gameTrace: linear { }
+trace<|State, _, gameStep, _|> gameTrace { }
 
 pred nontrivial {
     some s: State {
@@ -51,7 +50,7 @@ pred nontrivial {
 ------------
 
 pred useOnlyMiddle4x4 {
-//#gameTrace.init.alive < 5 -- argh! can't count higher w/o messing up wraparound
+    -- Can't say #gameTrace.init.alive bigger than 3 w/o messing up wraparound
     no gameTrace.init.alive[sing[-4]]
     no gameTrace.init.alive[sing[-3]]
     no gameTrace.init.alive[sing[2]]
@@ -60,16 +59,6 @@ pred useOnlyMiddle4x4 {
     no gameTrace.init.alive.(sing[-4])
     no gameTrace.init.alive.(sing[-3])
     no gameTrace.init.alive.(sing[2])
-    no gameTrace.init.alive.(sing[3])
-}
-
-pred useOnlyMiddle5x5 {
-    no gameTrace.init.alive[sing[-4]]
-    no gameTrace.init.alive[sing[-3]]
-    no gameTrace.init.alive[sing[3]]
-    -- Note parens are necessary
-    no gameTrace.init.alive.(sing[-4])
-    no gameTrace.init.alive.(sing[-3])
     no gameTrace.init.alive.(sing[3])
 }
 
@@ -89,7 +78,7 @@ pred oscillator {
 
 pred glider {
     some gameTrace.init.alive
-    useOnlyMiddle5x5
+    useOnlyMiddle4x4
 
     -- There's some transpose (possibly across toroidal bounds)
     some future: State-gameTrace.init | 
