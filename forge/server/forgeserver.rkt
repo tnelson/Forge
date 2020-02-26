@@ -82,7 +82,7 @@
                               (string-join (for/list ([atom l])
                                 (cond
                                   [(int-atom? atom) (int-atom->string atom)]
-                                  ;[(number? atom) (number->string atom)]
+                                  [(number? atom) (number->string atom)]
                                   [(symbol? atom) (symbol->string atom)])
                               ) "->")
                               ) " + ")

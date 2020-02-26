@@ -72,6 +72,8 @@
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating expr : ~v~n" exp))
   (define result (match exp
+                   ; Conversion from int values
+                   [`(sing ,ix1) (int-atom (eval-int-expr ix1 bind bitwidth))]
                    ; Binary set operations
                    [`(+ ,exp-1 ,exp-2) (append                                        
                                          (eval-exp exp-1 bind bitwidth safe)
@@ -306,8 +308,34 @@
 ; Evaluates integer value expression 
 (define (eval-int-expr int-expr bind bitwidth)
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "evaluating int-expr : ~v~n" exp))
+    (printf "evaluating int-expr : ~v~n" int-expr))
   (match int-expr
+    [`(sum ,expr)
+     (wraparound
+      (let ([expr-val (eval-exp expr bind bitwidth)])
+        (foldl (λ (x ret) (if (and (= (length x) 1) (int-atom? (first x)))
+                              (+ ret (int-atom-n (first x)))
+                              ret))
+                0 expr-val)) bitwidth)]
+    [`(max ,expr)
+     (let ([expr-val (filter (λ (a) (and (= 1 (length a)) (int-atom? (first a)))) 
+                             (eval-exp expr bind bitwidth))])
+       (if (empty? expr-val) 0
+           (foldl (λ (a ret) 
+                     (let ([n (int-atom-n (first a))])
+                       (if (> n ret) n ret)))
+                  (- (expt 2 (sub1 bitwidth))) ; min-int
+                  expr-val)))]
+    [`(min ,expr) 
+     (let ([expr-val (filter (λ (a) (and (= 1 (length a)) (int-atom? (first a)))) 
+                             (eval-exp expr bind bitwidth))])
+       (if (empty? expr-val) 0
+           (foldl (λ (a ret) 
+                     (let ([n (int-atom-n (first a))])
+                       (if (< n ret) n ret)))
+                  (- (expt 2 (sub1 bitwidth)) 1) ; max-int
+                  expr-val)))]
+    [`(card ,expr) (wraparound (length (eval-exp expr bind bitwidth)))]
     [`(add ,ix1 ,ix2) (wraparound (+ (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [`(subtract ,ix1 ,ix2) (wraparound (- (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [`(multiply ,ix1 ,ix2) (wraparound (* (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
@@ -321,7 +349,6 @@
                [(> ix1-val 0) 1]
                [(= ix1-val 0) 0]
                [(< ix1-val 0) -1]) bitwidth))]
-    [`(sing ,ix1) (int-atom (eval-int-expr ix1 bind bitwidth))]
     [n (cond
          [(number? n) (wraparound n bitwidth)]
          [else (raise-user-error "Invalid int expression")])]))
