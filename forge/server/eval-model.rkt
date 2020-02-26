@@ -44,21 +44,24 @@
 
   (make-immutable-hash (hash->list out-bind)))
 
+
+; simplifies the nested try/catch of trying different evaluators
+; pass an evaluator function and the 
+(define (try-eval eval-fn fallback)
+  (lambda (thing bind bitwidth)
+    (with-handlers
+      ([exn:fail?
+        (lambda (v) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v))
+                    (fallback thing bind bitwidth))])
+       (eval-fn thing bind bitwidth))))
+
 ; For use by the Sterling evaluator, when we don't know immediately
 ; whether it's a formula or an expression. Try eval-form first. If it
 ; fails, try eval-exp. If that fails, throw a user error.
 (define (eval-unknown thing bind bitwidth)
-  (eval-exp thing bind bitwidth))
-  ; (with-handlers
-  ;     ([exn:fail?
-  ;       (lambda (v) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v))
-  ;         (with-handlers
-  ;             ([exn:fail?
-  ;               (lambda (v2) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v)) (raise-user-error "Not a formula or expression" thing))])
-  ;           (eval-exp thing bind bitwidth)))])
-  ;       (eval-form thing bind bitwidth)))
-
-
+  (define (final-fallback t b bw) (raise-user-error "Not a formula, expression, or int expression" t))
+  ((try-eval eval-form (try-eval eval-exp (try-eval eval-int-expr final-fallback)))
+    thing bind bitwidth))
 
 ; Interpreter for evaluating an eval query for an expression in a model
 ; context
