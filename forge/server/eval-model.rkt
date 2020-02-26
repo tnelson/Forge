@@ -2,18 +2,36 @@
 
 (require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
 (require "../shared.rkt")
+(require racket/struct)
 
 (provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
+
+; seperate structure for binding int atoms so they don't collide with int values
+(struct int-atom (n)
+  #:methods gen:custom-write
+  [(define write-proc
+      (make-constructor-style-printer
+        (lambda (obj) 'int-atom)
+        (lambda (obj) (list (int-atom-n obj)))))])
+
+(define (ints-to-atoms rel-v)
+  (map
+    (lambda (r)
+      (map (lambda (a) 
+        (if (integer? a) (int-atom a) a)) r))
+    rel-v))
 
 ; Consumes a model and produces a binding, which acts as an environment
 ; for interpreting eval queries
 (define (model->binding model bitwidth)
   (define out-bind (make-hash))
-  (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (relation-name k)) v)))
+  (hash-map model (lambda (k v) (hash-set! out-bind 
+                                           (string->symbol (relation-name k))
+                                           (ints-to-atoms v))))
   
   ; add ints relation to our binding
   (define int-max (expt 2 (sub1 bitwidth)))
-  (define int-range (range (- int-max) int-max))
+  (define int-range (map int-atom (range (- int-max) int-max)))
   (define int-sings (map list int-range))
   (hash-set! out-bind 'Int int-sings)
 
@@ -99,9 +117,9 @@
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]                      
                       ; relation name
-                      [(hash-has-key? bind id) (hash-ref bind id)]
+                      [(hash-has-key? bind id) (printf "Found relation: ~a\n" id) (hash-ref bind id)]
                       ; atom name
-                      [(member id (flatten (build-univ bind))) id]
+                      [(member id (flatten (build-univ bind))) (printf "Found atom ~a\n" id) id]
                       [(not safe) id]
                       ; oops
                       [else (raise-user-error "Not an expression" id)])]))
@@ -119,7 +137,7 @@
 ; TODO: include ints
 ; Filter out pred/function defns
 (define (build-univ bind)  
-    (map (lambda (x) (list x))
+    (map (lambda (x) (println x) (list x))
          (remove-duplicates (flatten (hash-map bind (lambda (k v) (match v [`((,args ...) (Block ,blk ...)) '()] [else v])))))))
  
                                                                                          
