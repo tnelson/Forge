@@ -623,6 +623,7 @@
 ;;;;
 
 (define-for-syntax (map-stx f . stx) (datum->syntax (car stx) (apply f (map syntax->datum stx)) (car stx)))
+(define-for-syntax (at stx datum) (datum->syntax stx datum stx))
 (define-for-syntax (replace-ints datum)
   (cond
     [(list? datum)
@@ -782,9 +783,8 @@
                datum)) stx))
 
 (define-syntax (PredDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block) (values #f '() '()))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
@@ -792,14 +792,13 @@
                  [(Block bs ...) (set! block #'(bs ...))]
                  [_ #f]))
              (define datum (if (empty? paras)
-                               `(begin 
-                                  (pred ,name (and ,@(syntax->datum block)))
-                                  (define-for-evaluator ',name '() '(Block ,@(syntax->datum block))))
-                               `(begin
-                                  (pred (,name ,@paras) (and ,@(syntax->datum block)))
-                                  (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block))))))
-
-             datum) stx))
+                   (at stx `(begin 
+                     (pred ,name (and ,@(syntax->list block)))
+                     (define-for-evaluator ',name '() '(Block ,@(syntax->datum block)))))
+                   (at stx `(begin
+                     (pred (,name ,@paras) (and ,@(syntax->list block)))
+                     (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block)))))))
+             datum)
 
 (define-syntax (AssertDecl stx)
   (map-stx (lambda (d)
@@ -1054,7 +1053,7 @@
   ret)
 
 (define-syntax (Expr stx)
-  ;(println stx)
+  ;(printf "stx : ~v~n" stx)
   (define ret (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp ExprList QualName
                                       LetDeclList LetDecl)
                 [(_ "let" (LetDeclList (LetDecl n e) ...) block) #`(let ([n e] ...) block)]
