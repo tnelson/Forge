@@ -622,7 +622,7 @@
 
 ;;;;
 
-(define-for-syntax (map-stx f . stx) (datum->syntax (car stx) (apply f (map syntax->datum stx))))
+(define-for-syntax (map-stx f . stx) (datum->syntax (car stx) (apply f (map syntax->datum stx)) (car stx)))
 (define-for-syntax (replace-ints datum)
   (cond
     [(list? datum)

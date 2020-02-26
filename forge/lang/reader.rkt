@@ -57,7 +57,7 @@
   (define filename-definition (list
                                `(set-path! ,(format "~a" path))
                                '(displayln filepath)))
-  (define final `(,@(append filename-definition sig-inits src-datum)))
+  (define final `(,@filename-definition ,@sig-inits ,@(cdr (syntax->list parse-tree))))
 
   ;(map println final)
 

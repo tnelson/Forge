@@ -1,0 +1,11 @@
+
+
+this file has some files in various syntaxes to test line locations in errors:
+- error-test-ast.rkt: #lang racket: just imports and uses ast.rkt directly
+- error-test-paren.rkt: #lang forge: parenthetical syntax
+- error-test-forge.rkt: #lang forge: full syntax
+
+I'll try to get them working in that order.
+
+I also have a file kodkod-cli/server/error-tests.rkt with the same error.
+It makes it to kodkod which crashes.
