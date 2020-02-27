@@ -836,26 +836,26 @@
              datum) stx))
 
 (define-syntax (StateDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block sig) (values #f '() '() #f))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block QualName)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(QualName n) (set! sig (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
                   (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+                 [(Block bs ...) (set! block #'(bs ...))]
                  [_ #f]))
 
              (unless (hash-has-key? sig-to-fields sig)
                (raise-user-error (format "Unknown sig in state predicate (~a) declaration: ~a" name sig)))
              (define fields (hash-ref sig-to-fields sig))
-             (define (at f) (string->symbol (string-append "@" (symbol->string f))))
+             (define (at- f) (string->symbol (string-append "@" (symbol->string f))))
              (define lets (append
                            (for/list ([f fields]) `[,f (join this ,f)])
-                           (for/list ([f fields]) `[,(at f) ,f])))
-             (define datum `(pred (,name this ,@paras) (let ,lets (and ,@block))))
-             datum) stx))
+                           (for/list ([f fields]) `[,(at- f) ,f])))
+             (define ret (at stx 
+              `(pred (,name this ,@paras) (let ,lets (and ,@(syntax->list block))))))
+             ret)
 
 (define-syntax (TransitionDecl stx)
              (define-values (name paras block sig) (values #f '() '() #f))

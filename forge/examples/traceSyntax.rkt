@@ -1,7 +1,7 @@
 #lang forge
 
 sig A {}
-sig S { stuff: set A, other: set A }
+sig S { stuff: set A }
 
 state[S] S_init { no stuff }
 transition[S] add_A[a:A] {
