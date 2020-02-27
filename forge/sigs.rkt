@@ -931,6 +931,7 @@
              (define S_init (if (> L 1) (list-ref params 1) '_))
              (define S_tran (if (> L 2) (list-ref params 2) '_))
              (define S_term (if (> L 3) (list-ref params 3) '_))
+             (define S_inva (if (> L 4) (list-ref params 4) '_))
 
              (define T name)
              (define T_pred (string->symbol (format "~a_pred" name)))
@@ -984,6 +985,10 @@
                     ,@(if (equal? S_term '_) '()
                           `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,term)))) 
                                   (BlockOrBar "|" (Expr (Expr14 (QualName ,S_term)) 
+                                                        "[" (ExprList (Expr (QualName s))) "]")))))
+                    ,@(if (equal? S_inva '_) '()
+                          `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,S)))) 
+                                  (BlockOrBar "|" (Expr (Expr14 (QualName ,S_inva)) 
                                                         "[" (ExprList (Expr (QualName s))) "]")))))))
                   (PredDecl (Name ,T_fact) (Block 
                                             (Expr (Quant "all") (DeclList (Decl (NameList t) (Expr (QualName ,T)))) 
