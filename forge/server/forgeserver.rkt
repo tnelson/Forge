@@ -6,18 +6,9 @@
          racket/async-channel
          racket/hash)
 (require "eval-model.rkt")
-
-(define-runtime-path info-path "../info.rkt")
-(define forge-version "x.x.x")
-(with-handlers ([exn:fail? (λ (exn) (println exn))])
-  (define info-str (file->string info-path))
-  (define parts (regexp-match #px"define\\s+version\\s+\"(\\S+)\"" info-str))
-  (set! forge-version (second parts))
-)
-;(printf "Forge Version: ~a~n" forge-version)
+(require "../shared.rkt")
 
 (provide display-model)
-
 
 (define-runtime-path sterling-path "../sterling-js/dist/index.html")
 
