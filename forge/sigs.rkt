@@ -911,16 +911,15 @@
              ret)
 
 (define-syntax (TraceDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block sig params strat) (values #f '() '() #f #f 'plinear))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block QualName Parameters Expr)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(QualName n) (set! sig (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
                   (set! paras (flatten (syntax->datum #'(ps ...))))]
                  [(Parameters ps ...) (set! params (syntax->datum #'(ps ...)))]
-                 [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+                 [(Block bs ...) (set! block #'(bs ...))]
                  [(Expr (QualName s)) (set! strat (syntax->datum #'s))]
                  [_ #f]
                  )
@@ -942,8 +941,8 @@
              (define tran 'tran)
              (define term 'term)
 
-             (define datum
-               `(begin
+             (define ret
+               (at stx `(begin
                   (pre-declare-sig ,T #:extends univ)
                   (SigDecl
                    (Mult "one")
@@ -957,6 +956,7 @@
                    (QualName ,T)
                    (Name ,T_pred)
                    (Block 
+                    ,@(syntax->list block)
                     (Expr (Expr4 "some" (Expr8 (QualName ,tran))) 
                           "=>" (Expr3 (Block 
                                        (Expr (Expr6 (QualName ,S)) (CompareOp "=") 
@@ -995,9 +995,9 @@
                                                   (BlockOrBar "|" (Expr (Expr14 (QualName ,T_pred)) 
                                                                         "[" (ExprList (Expr (QualName t))) "]")))))
                   (InstDecl (Name ,T_inst) (Bounds 
-                                            (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat)))))))
+                                            (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat))))))))
 
-             datum) stx))
+             ret)
 
 (define-syntax (RelDecl stx)
   (define ret (syntax-case stx (set one lone ArrowDecl NameList ArrowMult)

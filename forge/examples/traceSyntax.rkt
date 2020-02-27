@@ -16,7 +16,11 @@ transition[S] S_tran {
 state[S] S_term { #stuff = 3 }
 state[S] S_inva { no b }
 
-trace<|S, S_init, S_tran, S_term, S_inva|> T {}
+trace<|S, _, S_tran, _, S_inva|> T {
+    some tran
+    all s:init | S_init[s]
+    all s:term | S_term[s]
+}
 --trace<|S, _, S_tran, _|> T: linear {}
 --trace<|S, S_init, S_tran|> T: tree {}
 run<|T|> {
