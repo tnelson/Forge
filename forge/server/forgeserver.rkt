@@ -6,9 +6,6 @@
          racket/async-channel
          racket/hash)
 (require "eval-model.rkt")
-; TODO: remove this once evaluator is in; just want to show we can evaluate something
-
-(require "../lang/reader.rkt")
 
 (define-runtime-path info-path "../info.rkt")
 (define forge-version "x.x.x")
@@ -17,7 +14,7 @@
   (define parts (regexp-match #px"define\\s+version\\s+\"(\\S+)\"" info-str))
   (set! forge-version (second parts))
 )
-(printf "Forge Version: ~a~n" forge-version)
+;(printf "Forge Version: ~a~n" forge-version)
 
 (provide display-model)
 

@@ -858,31 +858,31 @@
              datum) stx))
 
 (define-syntax (TransitionDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block sig) (values #f '() '() #f))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block QualName)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(QualName n) (set! sig (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
                   (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+                 [(Block bs ...) (set! block #'(bs ...))]
                  [_ #f]))
 
              (define fields (hash-ref sig-to-fields sig))
              (define (post f) (string->symbol (string-append (symbol->string f) "'")))
-             (define (at f) (string->symbol (string-append "@" (symbol->string f))))
+             (define (at- f) (string->symbol (string-append "@" (symbol->string f))))
              (define posts (map post fields))
              (define lets (append* (for/list ([f fields] [p posts])
                                      (list
                                       `[,f (join  this   ,f)]
                                       `[,p (join |this'| ,f)]
-                                      `[,(at f) ,f]
+                                      `[,(at- f) ,f]
                                       ))))
-             (define datum `(pred (,name this |this'| ,@paras) (let ,lets (and ,@block))))
+             (define ret (at stx 
+               `(pred (,name this |this'| ,@paras) (let ,lets (and ,@(syntax->list block))))))
 
              ; require either this' or all f', g', ... to be used in block
-             ; TODO: this is bad
+             ; this is checked at macro-expansion, but raised at run-time
              (define (find-syms term)
                (define syms (list))
                (define (find-syms b)
@@ -893,10 +893,12 @@
                    ))
                (find-syms term)
                syms)
-             (define syms (find-syms block))
-             (unless (or (member '|this'| syms)
-                         (foldl (λ (x y) (and x y)) #t (for/list ([f posts]) (member f syms))))
-               (raise (string-append "Underspecified transition predicate: " (symbol->string name))))
+             (define syms (find-syms (syntax->datum block)))
+             (unless (or (member '|this'| syms) (for/and ([f posts]) (member f syms)))
+               (define unspec (for/list ([f posts] #:unless (member f syms)) f))
+               (raise-syntax-error name
+                (format "Underspecified transition predicate. Please specify these fields: ~a" unspec)
+                stx))
 
              ;; DON'T DELETE! Just temporarily commenting out until we decide on behavior.  
              ;(for ([clause block])
@@ -905,8 +907,8 @@
              ;              (foldl (λ (x y) (or x y)) #f (for/list ([s syms])
              ;                                             (or (member s posts) (member s paras)))))
              ;    (raise (string-append "Irrelevant clause in: " (symbol->string name)))))
-
-             datum) stx))
+             ;(printf "ret : ~v~n" ret)
+             ret)
 
 (define-syntax (TraceDecl stx)
   (map-stx (lambda (d)

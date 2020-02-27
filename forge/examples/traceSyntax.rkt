@@ -1,12 +1,12 @@
 #lang forge
 
 sig A {}
-sig S { stuff: set A }
+sig S { stuff: set A, other: set A }
 
 state[S] S_init { no stuff }
 transition[S] add_A[a:A] {
     stuff' = stuff+a
-    a not in stuff
+    a.a not in stuff
 }
 transition[S] S_tran {
     some a: A | add_A[this, this', a]
