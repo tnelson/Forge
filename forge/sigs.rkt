@@ -1051,14 +1051,16 @@
 
 (define-syntax (Q stx)
   (define ret (syntax-case stx (sum)
-                [(_ "all" n e a) #`(all ([n e]) a)]
-                [(_ "no" n e a) #`(no ([n e]) a)]
-                [(_ "lone" n e a) #`(lone ([n e]) a)]
-                [(_ "some" n e a) #`(some ([n e]) a)]
-                [(_ "one" n e a) #`(one ([n e]) a)]
-                [(_ sum n e a) #`(sum-quant ([n e]) a)]
+                [(_ "all" n e a) (syntax/loc stx (all ([n e]) a))]
+                [(_ "no" n e a) (syntax/loc stx (no ([n e]) a))]
+                [(_ "lone" n e a) (syntax/loc stx (lone ([n e]) a))]
+                [(_ "some" n e a) (syntax/loc stx (some ([n e]) a))]
+                [(_ "one" n e a) (syntax/loc stx (one ([n e]) a))]
+                [(_ "two" n e a) (syntax/loc stx (two ([n e]) a))]
+                [(_ sum n e a) (syntax/loc stx (sum-quant ([n e]) a))]
                 [(_ q n "set" e a)
-                 #'(raise (format "higher-order quantification not supported: ~a ~a: set ..." 'q 'n))]))
+                 (raise-syntax-error (string->symbol (syntax->datum #'q)) 
+                  "Higher-order quantification not supported" stx)]))
   ret)
 
 (define-syntax (Expr stx)
@@ -1098,6 +1100,7 @@
                 [(_ "some" a) (syntax/loc stx (some a))]
                 [(_ "lone" a) (syntax/loc stx (lone a))]
                 [(_ "one" a) (syntax/loc stx (one a))]
+                [(_ "two" a) (syntax/loc stx (two a))]
                 [(_ "set" a) (syntax/loc stx (set a))]
                 [(_ a "+" b) (syntax/loc stx (+ a b))]
                 [(_ a "-" b) (syntax/loc stx (- a b))]
@@ -1212,3 +1215,12 @@
                   [(_ a "and" b) (syntax/loc stx (begin (Bind a) (Bind b)))]
                   [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") stx)]))
   datum)
+
+(define-syntax (two stx)
+  (syntax-case stx ()
+    [(_ ([v0 e0]) pred) (syntax/loc stx 
+     (some ([v0 e0]) (and pred 
+      (some ([v1 (- e0 v0)]) (let ([v0 v1]) pred))
+     )))]
+    [(_ expr) (syntax/loc stx 
+     (some ([x expr]) (one (- expr x))))]))

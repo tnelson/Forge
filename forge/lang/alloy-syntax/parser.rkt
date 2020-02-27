@@ -26,8 +26,8 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
-Mult : LONE-TOK | SOME-TOK | ONE-TOK
-ArrowMult : LONE-TOK | SET-TOK | ONE-TOK
+Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
+ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
 Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
 ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
 FactDecl : FACT-TOK Name? Block
@@ -93,7 +93,7 @@ Expr3  : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
 Expr4  : @Expr5  | Expr4 AND-TOK Expr5
 Expr5  : @Expr6  | NEG-TOK Expr5
 Expr6  : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
-Expr7  : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | SET-TOK) Expr8
+Expr7  : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr8
 Expr8  : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
 Expr9  : @Expr10 | CARD-TOK Expr9
 Expr10 : @Expr11 | Expr10 PPLUS-TOK Expr11
