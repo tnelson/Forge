@@ -8,6 +8,7 @@
 
 ; seperate structure for binding int atoms so they don't collide with int values
 (struct int-atom (n)
+  #:transparent
   #:methods gen:custom-write
   [(define write-proc
       (make-constructor-style-printer
@@ -81,20 +82,21 @@
                    [`(- ,exp-1 ,exp-2) (set->list (set-subtract
                                                    (list->set (eval-exp exp-1 bind bitwidth safe))
                                                    (list->set (eval-exp exp-2 bind bitwidth safe))))]
-                   [`(& ,exp-1 ,exp-2) (set->list (set-intersect
+                   [`(& ,exp-1 ,exp-2) (println (eval-exp exp-1 bind bitwidth safe)) (println (eval-exp exp-2 bind bitwidth safe)) (set->list (set-intersect
                                                    (list->set (eval-exp exp-1 bind bitwidth safe))
                                                    (list->set (eval-exp exp-2 bind bitwidth safe))))]
                    [`(-> ,exp-1 ,exp-2) (map flatten (foldl append '()
                                                             (map (lambda (x)
                                                                    (map (lambda (y) `(,x ,y))
                                                                         (eval-exp exp-2 bind bitwidth safe))) (eval-exp exp-1 bind bitwidth safe))))]
-                   [`(join ,exp-1 ,exp-2) (foldl append '() (map
-                                                             (lambda (x) (map
-                                                                          (lambda (y) (append (reverse (rest (reverse x))) (rest y)))
-                                                                          (filter
-                                                                           (lambda (z) (eq? (car (reverse x)) (car z)))
-                                                                           (eval-exp exp-2 bind bitwidth safe))))
-                                                             (eval-exp exp-1 bind bitwidth safe)))]
+                   [`(join ,exp-1 ,exp-2) 
+                    (foldl append '() 
+                           (map (lambda (x) 
+                                        (map (lambda (y)
+                                                     (append (reverse (rest (reverse x))) (rest y)))
+                                              (filter (lambda (z) (equal? (car (reverse x)) (car z)))
+                                                      (eval-exp exp-2 bind bitwidth safe))))
+                                (eval-exp exp-1 bind bitwidth safe)))]
                    ; Unary set operations
                    [`(^ ,lst) (tc (eval-exp lst bind bitwidth safe))]
                    [`(* ,lst) (append (build-iden bind) (tc (eval-exp lst bind bitwidth safe)))]
@@ -122,9 +124,9 @@
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]                      
                       ; relation name
-                      [(hash-has-key? bind id) (printf "Found relation: ~a\n" id)(newline) (hash-ref bind id)]
+                      [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name
-                      [(member id (flatten (build-univ bind))) (printf "Found atom ~a\n" id)(newline) id]
+                      [(member id (flatten (build-univ bind))) id]
                       [(not safe) id]
                       ; oops
                       [else (raise-user-error "Not an expression" id)])]))
@@ -142,7 +144,7 @@
 ; TODO: include ints
 ; Filter out pred/function defns
 (define (build-univ bind)  
-    (map (lambda (x) (println x) (list x))
+    (map (lambda (x) (list x))
          (remove-duplicates (flatten (hash-map bind (lambda (k v) (match v [`((,args ...) (Block ,blk ...)) '()] [else v])))))))
  
                                                                                          
