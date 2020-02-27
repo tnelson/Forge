@@ -22,5 +22,6 @@ run {
 --    two A
     two a: A | p[a]
 } for {
---    two A
+--    no r
+    no s
 }

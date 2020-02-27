@@ -1183,6 +1183,8 @@
                   [(_ "no" rel) (syntax/loc stx (Bind (Expr rel (CompareOp "=") none)))]
                   [(_ "one" rel) 
                    (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "1"))))))]
+                  [(_ "two" rel) 
+                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "2"))))))]
                   [(_ "lone" rel) 
                    (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1"))))))]
                   [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) (syntax/loc stx (begin 
@@ -1220,7 +1222,7 @@
   (syntax-case stx ()
     [(_ ([v0 e0]) pred) (syntax/loc stx 
      (some ([v0 e0]) (and pred 
-      (some ([v1 (- e0 v0)]) (let ([v0 v1]) pred))
+      (one ([v1 (- e0 v0)]) (let ([v0 v1]) pred))
      )))]
     [(_ expr) (syntax/loc stx 
      (some ([x expr]) (one (- expr x))))]))

@@ -7,6 +7,7 @@
          racket/hash)
 (require "eval-model.rkt")
 (require "../shared.rkt")
+(require "../lang/reader.rkt")
 
 (provide display-model)
 

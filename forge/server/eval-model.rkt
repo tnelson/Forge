@@ -199,6 +199,7 @@
     [`(no ,exp) (empty? (eval-exp exp bind bitwidth))]
     [`(some ,exp) (not (empty? (eval-exp exp bind bitwidth)))]
     [`(one ,exp) (let [(const (eval-exp exp bind bitwidth))] (and (not (empty? const)) (empty? (cdr const))))]
+    [`(two ,exp) (let [(const (eval-exp exp bind bitwidth))] (equal? (length const) 2))]
     [`(lone ,exp) (let [(const (eval-exp exp bind bitwidth))] (or (empty? const) (empty? (cdr const))))]
     [`(in ,exp-1 ,exp-2) (subset? (eval-exp exp-1 bind bitwidth) (eval-exp exp-2 bind bitwidth))]
     [`(and ,form ...) (for/and ([f form]) (eval-form f bind bitwidth))]
