@@ -56,6 +56,7 @@
   ; Insert the filename of the running file into itself, to be shown in visualizer later,
   ; and used to extract source text.
   (define filename-definition (list
+                               `(set-path! ,(format "~a" path))
                                `(printf "Forge Version: ~a - File: ~a~n" ,forge-version ,path)))
   (define final `(,@filename-definition ,@sig-inits ,@(cdr (syntax->list parse-tree))))
 
