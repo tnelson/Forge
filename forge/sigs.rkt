@@ -116,7 +116,7 @@
 (provide pre-declare-sig declare-one-sig declare-sig set-top-level-bound sigs pred)
 (provide run check test fact)
 (provide Int iden univ none)
-(provide no some one lone all)
+(provide no some one lone all two)
 (provide + - ^ & ~ join !)
 (provide set in )
 (provide = -> * => not and or)
@@ -174,7 +174,7 @@
          (add-sig name (symbol->string 'parent)))]))
 
 (define-syntax (declare-field stx)
-  (syntax-case stx (set one lone)
+  (syntax-case stx (set one lone two)
     [(_ set name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
@@ -186,6 +186,12 @@
          (add-relation field (list name r ...))
          (add-constraint (in field (-> name r ...)))
          (add-constraint (all ([n name]) (one (join n field)))))]
+    [(_ two name field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...)))
+         (add-constraint (all ([n name]) (two (join n field)))))]
     [(_ lone name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))

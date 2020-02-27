@@ -1,6 +1,6 @@
 #lang forge
 
-sig A { r: set A, s: set A }
+sig A { r: set A, s: two A }
 
 pred p[a:A] { a->a in r }
 fun f[a:A]: A { a.r }
@@ -12,16 +12,7 @@ fun g[a1:A, a2:A]: A {a1+a2}
 --check { all a:A | r.s[a] = r.(s[a]) }  -- invalid
 
 run {
---    some a:A | one A-a
---    some a:A {
---        p[a]
---        one b:A-a {
---            let a = b | p[a]
---        }
---    }
---    two A
     two a: A | p[a]
 } for {
---    no r
-    no s
+--    two A
 }
