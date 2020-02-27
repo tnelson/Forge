@@ -1202,6 +1202,8 @@
                            (add-int-bound rel (int-bound exact exact))))
                        (hash-set! bindings 'rel tups)
                        ))]
+                  [(_ (_ (QualName Int)) "[" (_ (_ (Const (Number i)))) "]")
+                   (quasisyntax/loc stx (set-bitwidth #,(string->number (syntax-e #'i))))]
                   [(_ a "and" b) (syntax/loc stx (begin (Bind a) (Bind b)))]
                   [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") stx)]))
   datum)

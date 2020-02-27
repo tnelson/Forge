@@ -21,6 +21,7 @@ run<|T|> {
 --    some B
 } for {
     A = apple + orange + peach
+    Int[3]
 --    some B
 }
 
