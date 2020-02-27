@@ -623,6 +623,7 @@
 ;;;;
 
 (define-for-syntax (map-stx f . stx) (datum->syntax (car stx) (apply f (map syntax->datum stx)) (car stx)))
+(define-for-syntax (at stx datum) (datum->syntax stx datum stx))
 (define-for-syntax (replace-ints datum)
   (cond
     [(list? datum)
@@ -782,9 +783,8 @@
                datum)) stx))
 
 (define-syntax (PredDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block) (values #f '() '()))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
@@ -792,14 +792,13 @@
                  [(Block bs ...) (set! block #'(bs ...))]
                  [_ #f]))
              (define datum (if (empty? paras)
-                               `(begin 
-                                  (pred ,name (and ,@(syntax->datum block)))
-                                  (define-for-evaluator ',name '() '(Block ,@(syntax->datum block))))
-                               `(begin
-                                  (pred (,name ,@paras) (and ,@(syntax->datum block)))
-                                  (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block))))))
-
-             datum) stx))
+                   (at stx `(begin 
+                     (pred ,name (and ,@(syntax->list block)))
+                     (define-for-evaluator ',name '() '(Block ,@(syntax->datum block)))))
+                   (at stx `(begin
+                     (pred (,name ,@paras) (and ,@(syntax->list block)))
+                     (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block)))))))
+             datum)
 
 (define-syntax (AssertDecl stx)
   (map-stx (lambda (d)
@@ -1056,54 +1055,58 @@
   ret)
 
 (define-syntax (Expr stx)
-  ;(println stx)
+  ;(printf "stx : ~v~n" stx)
   (define ret (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp ExprList QualName
                                       LetDeclList LetDecl)
-                [(_ "let" (LetDeclList (LetDecl n e) ...) block) #`(let ([n e] ...) block)]
-                [(_ "bind" (LetDeclList (LetDecl n e) ...) block) #`(bind ([n e] ...) block)]
-                [(_ "{" (DeclList (Decl (NameList n) e) ...) block "}") #`(set ([n e] ...) block)]
+                [(_ "let" (LetDeclList (LetDecl n e) ...) block) 
+                 (syntax/loc stx (let ([n e] ...) block))]
+                [(_ "bind" (LetDeclList (LetDecl n e) ...) block) 
+                 (syntax/loc stx (bind ([n e] ...) block))]
+                [(_ "{" (DeclList (Decl (NameList n) e) ...) block "}") 
+                 (syntax/loc stx (set ([n e] ...) block))]
 
                 [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a)
-                 #`(Q q n e ... a)]
+                 (syntax/loc stx (Q q n e ... a))]
                 [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a)
-                 #`(Q q n e ... (Expr (Quant q) (DeclList ds ...) a))]
+                 (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
                 [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a)
-                 #`(Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a))]
+                 (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a)))]
 
-                [(_ a "or" b) #'(or a b)]
-                [(_ a "||" b) #'(or a b)]
-                [(_ a "iff" b) #'(iff a b)]
-                [(_ a "<=>" b) #'(iff a b)]
-                [(_ a "implies" b "else" c) #'(ifte a b c)]
-                [(_ a "=>" b "else" c) #'(ifte a b c)]
-                [(_ a "implies" b) #'(=> a b)]
-                [(_ a "=>" b) #'(=> a b)]
-                [(_ a "and" b) #'(and a b)]
-                [(_ a "&&" b) #'(and a b)]
-                [(_ "!" a) #'(! a)]
-                [(_ "not" a) #'(! a)]
-                [(_ a "!" (CompareOp op) b) #'(! (Expr a (CompareOp op) b))]
-                [(_ a "not" (CompareOp op) b) #'(! (Expr a (CompareOp op) b))]
-                [(_ a (CompareOp op) b) #`(#,(sym #'op) a b)]
-                [(_ "no" a) #'(no a)]
-                [(_ "some" a) #'(some a)]
-                [(_ "lone" a) #'(lone a)]
-                [(_ "one" a) #'(one a)]
-                [(_ "set" a) #'(set a)]
-                [(_ a "+" b) #'(+ a b)]
-                [(_ a "-" b) #'(- a b)]
-                [(_ "#" a) #'(card a)]
-                [(_ a "++" b) #'(++ a b)]
-                [(_ a "&" b) #'(& a b)]
-                [(_ a (ArrowOp _ ...) b) #'(-> a b)]
-                [(_ a "<:" b) #'(<: a b)]
-                [(_ a ":>" b) #'(<: b a)]
-                [(_ a "[" (ExprList bs ...) "]") #'(a bs ...)]
-                [(_ a "." b) #'(join a b)]
-                [(_ "~" a) #'(~ a)]
-                [(_ "^" a) #'(^ a)]
-                [(_ "*" a) #'(* a)]
-                [(_ a) #'a]))
+                [(_ a "or" b) (syntax/loc stx (or a b))]
+                [(_ a "||" b) (syntax/loc stx (or a b))]
+                [(_ a "iff" b) (syntax/loc stx (iff a b))]
+                [(_ a "<=>" b) (syntax/loc stx (iff a b))]
+                [(_ a "implies" b "else" c) (syntax/loc stx (ifte a b c))]
+                [(_ a "=>" b "else" c) (syntax/loc stx (ifte a b c))]
+                [(_ a "implies" b) (syntax/loc stx (=> a b))]
+                [(_ a "=>" b) (syntax/loc stx (=> a b))]
+                [(_ a "and" b) (syntax/loc stx (and a b))]
+                [(_ a "&&" b) (syntax/loc stx (and a b))]
+                [(_ "!" a) (syntax/loc stx (! a))]
+                [(_ "not" a) (syntax/loc stx (! a))]
+                [(_ a "!" (CompareOp op) b) (syntax/loc stx (! (Expr a (CompareOp op) b)))]
+                [(_ a "not" (CompareOp op) b) (syntax/loc stx (! (Expr a (CompareOp op) b)))]
+                [(_ a (CompareOp op) b) (quasisyntax/loc stx (#,(sym #'op) a b))]
+                [(_ "no" a) (syntax/loc stx (no a))]
+                [(_ "some" a) (syntax/loc stx (some a))]
+                [(_ "lone" a) (syntax/loc stx (lone a))]
+                [(_ "one" a) (syntax/loc stx (one a))]
+                [(_ "set" a) (syntax/loc stx (set a))]
+                [(_ a "+" b) (syntax/loc stx (+ a b))]
+                [(_ a "-" b) (syntax/loc stx (- a b))]
+                [(_ "#" a) (syntax/loc stx (card a))]
+                [(_ a "++" b) (syntax/loc stx (++ a b))]
+                [(_ a "&" b) (syntax/loc stx (& a b))]
+                [(_ a (ArrowOp _ ...) b) (syntax/loc stx (-> a b))]
+                [(_ a "<:" b) (syntax/loc stx (<: a b))]
+                [(_ a ":>" b) (syntax/loc stx (<: b a))]
+                [(_ a "[" (ExprList bs ...) "]") (syntax/loc stx (a bs ...))]
+                [(_ a "." b) (syntax/loc stx (join a b))]
+                [(_ "~" a) (syntax/loc stx (~ a))]
+                [(_ "^" a) (syntax/loc stx (^ a))]
+                [(_ "*" a) (syntax/loc stx (* a))]
+                [(_ a) (syntax/loc stx a)]))
+  ;(printf "ret : ~v~n" ret)
   ret)
 
 (provide Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
