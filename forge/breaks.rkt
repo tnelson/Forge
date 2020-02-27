@@ -281,6 +281,7 @@
 
         (define edges (list))
         ; reduce broken sigs to broken edges between those sigs and the auxiliary 'broken symbol
+        ; TODO: replace 'broken with univ
         (for ([sig broken-sigs]) (cons! edges (cons sig 'broken)))
         ; get all pairs from sets
         (for ([edge broken-edges])

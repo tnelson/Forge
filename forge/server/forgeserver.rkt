@@ -9,6 +9,7 @@
 ; TODO: remove this once evaluator is in; just want to show we can evaluate something
 
 (require "../lang/reader.rkt")
+(require "../shared.rkt")
 
 (define-runtime-path info-path "../info.rkt")
 (define forge-version "x.x.x")
@@ -18,8 +19,9 @@
   (set! forge-version (second parts)))
 (printf "Forge Version: ~a~n" forge-version)
 
-(provide display-model)
 
+
+(provide display-model)
 
 (define-runtime-path sterling-path "../sterling-js/dist/index.html")
 
