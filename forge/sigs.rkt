@@ -57,6 +57,7 @@
 (define coregranoption 0)
 (define logtransoption 1)
 (define demo #f)
+(define project "")
 
 ; set of one sigs
 (define one-sigs (mutable-set))
@@ -98,6 +99,7 @@
     ['coregranularity (set! coregranoption val)]
     ['sb (set! sboption val)]
     ['logtranslation (set! logtransoption val)]
+    ['project (set! project "T")]
     ['demo
      (match val
        ['life (set! demo 'life)]
@@ -489,7 +491,7 @@
          (match demo
            ['life (output-life inst)]))
        (cons restype inst))
-     (display-model get-next-model name command filepath bitwidth funs-n-preds)]))
+     (display-model get-next-model name command filepath bitwidth funs-n-preds project)]))
 
 (define-syntax (run stx)
   (define command (format "~a" stx))

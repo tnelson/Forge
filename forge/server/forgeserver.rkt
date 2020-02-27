@@ -14,7 +14,7 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-model name command filepath bitwidth funs-n-preds)
+(define (display-model get-next-model name command filepath bitwidth funs-n-preds project)
   (define model (get-next-model))
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -36,10 +36,10 @@
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
                  [(equal? m "current")
-                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
+                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version project))]
                  [(equal? m "next")
                   (set! model (get-next-model))
-                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
+                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version project))]
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))

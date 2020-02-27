@@ -57,7 +57,7 @@
       (string-append (first lines) "\r\n" (agg-lines (rest lines)))))
                  
 
-(define (model-to-XML-string model name command filepath bitwidth forge-version)
+(define (model-to-XML-string model name command filepath bitwidth forge-version project)
   (define flag (car model))
   (define data (cdr model))
   
@@ -65,7 +65,7 @@
   (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
                                   (clean (clean-syntax command)) "\" filename=\"" filepath
-                                  "\" version=\"" forge-version "\">\n"
+                                  "\" project=\"" project "\" version=\"" forge-version "\">\n"
                                   #<<here-string-delimiter
 
 <sig label="seq/Int" ID="0" parentID="1" builtin="yes">
