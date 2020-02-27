@@ -11,7 +11,7 @@
          (for-syntax racket/string))
 (require racket/trace)
 
-(provide break instance quote begin println filepath set-path! let)
+(provide break instance quote begin println filepath set-path! let void)
 
 (define filepath #f)
 (define (set-path! path)
@@ -699,37 +699,37 @@
 (define-syntax-rule (InstanceDecl i) (instance i))
 
 (define-syntax (CmdDecl stx)
-  (map-stx (lambda (d)
              (define-values (name cmd arg scope block bounds facty-params) (values #f #f #f '() '() '() #'()))
              (define (make-typescope x)
                (syntax-case x (Typescope)
                  [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
                  [(Typescope n things) (syntax->datum #'(things 0 n))]))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name Typescope Scope Block QualName Parameters)
                  [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
                  ["run"   (set! cmd 'run)]
                  ["check" (set! cmd 'check)]
                  [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
-                 [(Block (Expr (QualName ns)) ...) (set! block (syntax->datum #'(ns ...)))]
-                 [(Block b ...) (set! block (syntax->datum #'(b ...)))]
-                 [(QualName n) (set! block (list (syntax->datum #'n)))]
+                 ;[(Block (Expr (QualName ns)) ...) (set! block #'(ns ...))]
+                 [(Block b ...) (set! block #'(b ...))]
+                 [(QualName n) (set! block (list #'n))]
                  [(Parameters ps ...) (set! facty-params #'(ps ...))] ; Traces should go in here - anything in params will be considered a fact in a check block.
-                 [(Bounds bs ...) (set! bounds (syntax->datum #'(bs ...)))]
+                 [(Bounds bs ...) (set! bounds #'(bs ...))]
                  [_ #f]))
              ; Duplicate with TestDecl
-             (define param-facts (for/list ([p (syntax->datum facty-params)]) 
-                                   `(Expr (QualName ,(string->symbol (format "~a_fact" p))))))
-             (define param-insts (for/list ([p (syntax->datum facty-params)]) 
-                                   `(Expr (QualName ,(string->symbol (format "~a_inst" p))))))
+             (define param-facts (for/list ([p (syntax->list facty-params)]) 
+                                   (at p `(Expr (QualName ,(string->symbol (format "~a_fact" (syntax->datum p))))))))
+             (define param-insts (for/list ([p (syntax->list facty-params)]) 
+                                   (at p `(Expr (QualName ,(string->symbol (format "~a_inst" (syntax->datum p))))))))
              (set! bounds `(Bounds ,@param-insts ,@bounds))
 
              (if name #f (set! name (symbol->string (gensym))))
-             (define datum `(begin
+             (define ret (at stx `(begin
+                              (void ,@(syntax->list facty-params)) ;; noop but fails early if undefined
                               ,bounds
-                              (,cmd ,name ,block ,scope ,param-facts)))
-             datum)
-           stx))
+                              (,cmd ,name ,block ,scope ,param-facts))))
+             ;(printf "ret : ~v~n" ret)
+             ret)
 
 (define-syntax (TestDecl stx)
   (map-stx (lambda (d)
@@ -1158,49 +1158,50 @@
     block))
 
 (define-syntax (Bounds stx)
-  (define datum (syntax-case stx ()
+  (define ret (syntax-case stx ()
                   [(_ "exactly" lines ...)
                    #'(begin
                        (Bind lines) ...
                        (set-is-exact))]
                   [(_ lines ...)
                    #'(begin (Bind lines) ...)]))
-  datum)
+  ret)
 (define-syntax-rule (InstDecl (Name name) (Bounds lines ...))
   (define (name B)
     (Bind lines) ...))
 (define-syntax (Bind stx)
-  (define datum (syntax-case (second (syntax-e stx)) (CompareOp QualName Const)
-                  [(_ "no" rel) #'(Bind (Expr rel (CompareOp "=") none))]
+  (set! stx (second (syntax-e stx)))
+  (define datum (syntax-case stx (CompareOp QualName Const)
+                  [(_ "no" rel) (syntax/loc stx (Bind (Expr rel (CompareOp "=") none)))]
                   [(_ "one" rel) 
-                   #'(Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "1")))))]
+                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "1"))))))]
                   [(_ "lone" rel) 
-                   #'(Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1")))))]
-                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) #'(begin 
+                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1"))))))]
+                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) (syntax/loc stx (begin 
                     (define exact (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
                     (add-int-bound rel (int-bound exact exact))
-                    (hash-set! bindings 'rel (map list (range exact))))] ;; dummy atoms so #rel works
-                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "<=") expr) #'(begin 
+                    (hash-set! bindings 'rel (map list (range exact)))))] ;; dummy atoms so #rel works
+                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "<=") expr) (syntax/loc stx (begin 
                     (define upper (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
                     (add-int-bound rel (int-bound 0 upper))
-                    (hash-set! bindings 'rel (map list (range upper))))] ;; dummy atoms so #rel works
+                    (hash-set! bindings 'rel (map list (range upper)))))] ;; dummy atoms so #rel works
                   [(_ (_ expr1 (CompareOp "<=") (_ "#" (_ (QualName rel)))) (CompareOp "<=") expr2)
-                   #'(begin 
+                   (syntax/loc stx (begin 
                     (define lower (caar (eval-exp (alloy->kodkod 'expr1) bindings 8 #f)))
                     (define upper (caar (eval-exp (alloy->kodkod 'expr2) bindings 8 #f)))
                     (add-int-bound rel (int-bound lower upper))
-                    (hash-set! bindings 'rel (map list (range upper))))] ;; dummy atoms so #rel works
-                  [(_ rel (CompareOp "in") (_ (QualName strat))) #'(break rel 'strat)]
-                  [(_ rel (CompareOp "is") (_ (QualName strat))) #'(break rel 'strat)]
-                  [(_ (QualName f)) #'(f bindings)]
+                    (hash-set! bindings 'rel (map list (range upper)))))] ;; dummy atoms so #rel works
+                  [(_ rel (CompareOp "in") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
+                  [(_ rel (CompareOp "is") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
+                  [(_ (QualName f)) (syntax/loc stx (f bindings))]
                   [(_ (_ (QualName rel)) (CompareOp "=") expr)
-                   #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+                   (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
                        (instance (make-exact-sbound rel tups))
                        (when (equal? (relation-arity rel) 1)
                          (let ([exact (length tups)])
                            (add-int-bound rel (int-bound exact exact))))
                        (hash-set! bindings 'rel tups)
-                       )]
-                  [(_ a "and" b) #'(begin (Bind a) (Bind b))]
-                  [x #'(error (format "Not allowed in bounds constraint: ~a~n" 'x))]))
+                       ))]
+                  [(_ a "and" b) (syntax/loc stx (begin (Bind a) (Bind b)))]
+                  [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") stx)]))
   datum)
