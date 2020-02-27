@@ -3,7 +3,7 @@
 sig A {}
 
 pred p {
-    some A.A
+    not not not some A.A
 }
 
 run p
