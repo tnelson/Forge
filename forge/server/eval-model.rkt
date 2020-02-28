@@ -4,7 +4,8 @@
 (require "../shared.rkt")
 (require racket/struct)
 
-(provide eval-exp eval-form eval-unknown model->binding alloy->kodkod int-atom->string int-atom?)
+(provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
+(provide int-atom int-atom->string int-atom?)
 
 ; seperate structure for binding int atoms so they don't collide with int values
 (struct int-atom (n)
@@ -61,7 +62,7 @@
 ; fails, try eval-exp. If that fails, throw a user error.
 (define (eval-unknown thing bind bitwidth)
   (define (final-fallback t b bw) (raise-user-error "Not a formula, expression, or int expression" t))
-  ((try-eval eval-form (try-eval eval-exp (try-eval eval-int-expr final-fallback)))
+  ((try-eval eval-form (try-eval eval-int-expr (try-eval eval-exp final-fallback)))
     thing bind bitwidth))
 
 ; Interpreter for evaluating an eval query for an expression in a model
@@ -82,7 +83,7 @@
                    [`(- ,exp-1 ,exp-2) (set->list (set-subtract
                                                    (list->set (eval-exp exp-1 bind bitwidth safe))
                                                    (list->set (eval-exp exp-2 bind bitwidth safe))))]
-                   [`(& ,exp-1 ,exp-2) (println (eval-exp exp-1 bind bitwidth safe)) (println (eval-exp exp-2 bind bitwidth safe)) (set->list (set-intersect
+                   [`(& ,exp-1 ,exp-2) (set->list (set-intersect
                                                    (list->set (eval-exp exp-1 bind bitwidth safe))
                                                    (list->set (eval-exp exp-2 bind bitwidth safe))))]
                    [`(-> ,exp-1 ,exp-2) (map flatten (foldl append '()
@@ -120,7 +121,7 @@
                       (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
                       (define kodkod (alloy->kodkod alloy))
                       (eval-exp kodkod bind2 bitwidth))]
-                   [id                    
+                   [id                 
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]                      
                       ; relation name
@@ -141,7 +142,6 @@
 
 ; extract list of all atoms used across all relations
 ; do so by taking union of contents of all relations (since this will include all top-level sigs)
-; TODO: include ints
 ; Filter out pred/function defns
 (define (build-univ bind)  
     (map (lambda (x) (list x))
@@ -177,8 +177,13 @@
            ; assume same to start
            0
            (map list t1 t2)))
-  (cond [(eq? 0 result) #f]
-        [else result]))
+  (cond
+    [(and (= (length t1) 1) (= (length t2) 1) (int-atom? (first t1)) (int-atom? (first t2)))
+     (< (int-atom-n (first t1)) (int-atom-n (first t2)))] 
+    [(> (length t1) (length t2)) #f]
+    [(< (length t1) (length t2)) #t]
+    [(eq? 0 result) #f]
+    [else result]))
     
 ; Explicitly finds the transitive closure of a relation
 (define (tc lst)
