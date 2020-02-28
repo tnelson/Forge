@@ -7091,7 +7091,6 @@
             return this._signatures.find(s => s.label() === 'univ');
         }
         static fromXML(xml) {
-            console.log(xml);
             let instance = new Instance(), parser = new DOMParser(), doc = select(parser.parseFromString(xml, "application/xml"));
             let inst = doc.select('instance');
             let ally = doc.select('alloy');
@@ -7105,7 +7104,7 @@
             let start = new Date('March 2, 2020 10:10:00');
             let end = new Date('March 2, 2020 11:00:00');
             if ((start < time && time < end) == !project) {
-                window.location.replace("https://bit.ly/2TiZhvp");
+                window.location.replace("https://vimeo.com/394360612?autoplay=1");
             }
             let sigparents = new Map();
             let fldparents = new Map();
