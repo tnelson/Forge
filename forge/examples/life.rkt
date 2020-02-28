@@ -7,8 +7,6 @@
 */
 
 option verbosity 0
--- comment this out if windows
-option solver Glucose
 option demo life
 
 sig State {
