@@ -2,40 +2,68 @@
 
 (require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
 (require "../shared.rkt")
+(require racket/struct)
 
 (provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
+(provide int-atom int-atom->string int-atom?)
+
+; seperate structure for binding int atoms so they don't collide with int values
+(struct int-atom (n)
+  #:transparent
+  #:methods gen:custom-write
+  [(define write-proc
+      (make-constructor-style-printer
+        (lambda (obj) 'int-atom)
+        (lambda (obj) (list (int-atom-n obj)))))])
+
+(define (int-atom->string v)
+  (string-append "sing[" (number->string (int-atom-n v)) "]"))
+
+(define (ints-to-atoms rel-v)
+  (map
+    (lambda (r)
+      (map (lambda (a) 
+        (if (integer? a) (int-atom a) a)) r))
+    rel-v))
 
 ; Consumes a model and produces a binding, which acts as an environment
 ; for interpreting eval queries
-(define (model->binding model)
+(define (model->binding model bitwidth)
   (define out-bind (make-hash))
-  (hash-map model (lambda (k v) (hash-set! out-bind (string->symbol (relation-name k)) v)))
-  (make-immutable-hash (hash->list out-bind))
-  )
+  (hash-map model (lambda (k v) (hash-set! out-bind 
+                                           (string->symbol (relation-name k))
+                                           (ints-to-atoms v))))
+  
+  ; add ints relation to our binding
+  (define int-max (expt 2 (sub1 bitwidth)))
+  (define int-range (map int-atom (range (- int-max) int-max)))
+  (define int-sings (map list int-range))
+  (hash-set! out-bind 'Int int-sings)
+
+  ; add succ relation to our binding
+  (define successor-rel (map list (take int-range (sub1 (length int-range))) (rest int-range)))
+  (hash-set! out-bind 'succ successor-rel)
+
+  (make-immutable-hash (hash->list out-bind)))
+
+
+; simplifies the nested try/catch of trying different evaluators
+; pass an evaluator function and the 
+(define (try-eval eval-fn fallback)
+  (lambda (thing bind bitwidth)
+    (with-handlers
+      ([exn:fail?
+        (lambda (v) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v))
+                    (fallback thing bind bitwidth))])
+       (eval-fn thing bind bitwidth))))
 
 ; For use by the Sterling evaluator, when we don't know immediately
 ; whether it's a formula or an expression. Try eval-form first. If it
 ; fails, try eval-exp. If that fails, throw a user error.
 (define (eval-unknown thing bind bitwidth)
-  (with-handlers
-      ([exn:fail?
-        (lambda (v) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v))
-          (with-handlers
-              ([exn:fail?
-                (lambda (v2) (when (>= (get-verbosity) VERBOSITY_DEBUG) (println v)) (raise-user-error "Not a formula or expression" thing))])
-            (eval-exp thing bind bitwidth)))])
-        (eval-form thing bind bitwidth)))
-
-; 2's complement wraparound if needed. Takes a number and returns a ((number)) for use in expr eval
-(define (wraparound n bitwidth)
-  (define maxint (- (expt 2 (- bitwidth 1)) 1)) ; positive 2^(bitwidth-1) - 1
-  (define minint (- (expt 2 (- bitwidth 1))))   ; negative 2^(bitwidth-1)
-  (define modulus (expt 2 bitwidth))
-  (cond [(> n maxint) 
-         (list (list (- n (* modulus (+ 1 (quotient n modulus))))))]
-        [(< n minint)   
-         (list (list (+ n (* modulus (+ 1 (quotient n modulus))))))]
-        [else n]))
+  (define (final-fallback t b bw) (raise-user-error "Not a formula, expression, or int expression" t))
+  ((try-eval eval-form (try-eval eval-int-expr (try-eval eval-exp final-fallback)))
+    thing bind bitwidth))
 
 ; Interpreter for evaluating an eval query for an expression in a model
 ; context
@@ -46,6 +74,8 @@
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating expr : ~v~n" exp))
   (define result (match exp
+                   ; Conversion from int values
+                   [`(sing ,ix1) (int-atom (eval-int-expr ix1 bind bitwidth))]
                    ; Binary set operations
                    [`(+ ,exp-1 ,exp-2) (append                                        
                                          (eval-exp exp-1 bind bitwidth safe)
@@ -60,24 +90,18 @@
                                                             (map (lambda (x)
                                                                    (map (lambda (y) `(,x ,y))
                                                                         (eval-exp exp-2 bind bitwidth safe))) (eval-exp exp-1 bind bitwidth safe))))]
-                   [`(join ,exp-1 ,exp-2) (foldl append '() (map
-                                                             (lambda (x) (map
-                                                                          (lambda (y) (append (reverse (rest (reverse x))) (rest y)))
-                                                                          (filter
-                                                                           (lambda (z) (eq? (car (reverse x)) (car z)))
-                                                                           (eval-exp exp-2 bind bitwidth safe))))
-                                                             (eval-exp exp-1 bind bitwidth safe)))]
+                   [`(join ,exp-1 ,exp-2) 
+                    (foldl append '() 
+                           (map (lambda (x) 
+                                        (map (lambda (y)
+                                                     (append (reverse (rest (reverse x))) (rest y)))
+                                              (filter (lambda (z) (equal? (car (reverse x)) (car z)))
+                                                      (eval-exp exp-2 bind bitwidth safe))))
+                                (eval-exp exp-1 bind bitwidth safe)))]
                    ; Unary set operations
                    [`(^ ,lst) (tc (eval-exp lst bind bitwidth safe))]
                    [`(* ,lst) (append (build-iden bind) (tc (eval-exp lst bind bitwidth safe)))]
                    [`(~ ,new-exp) (map reverse (eval-exp new-exp bind bitwidth safe))]
-                   ; Arithmetic
-                   [`(plus ,val-1 ,val-2)   (wraparound (perform-op + (eval-exp `(sum ,val-1) bind bitwidth safe) (eval-exp `(sum ,val-2) bind bitwidth safe)) bitwidth)]
-                   [`(minus ,val-1 ,val-2)  (wraparound (perform-op - (eval-exp `(sum ,val-1) bind bitwidth safe) (eval-exp `(sum ,val-2) bind bitwidth safe)) bitwidth)]
-                   [`(mult ,val-1 ,val-2)   (wraparound (perform-op * (eval-exp `(sum ,val-1) bind bitwidth safe) (eval-exp `(sum ,val-2) bind bitwidth safe)) bitwidth)]
-                   [`(divide ,val-1 ,val-2) (wraparound (perform-op / (eval-exp `(sum ,val-1) bind bitwidth safe) (eval-exp `(sum ,val-2) bind bitwidth safe)) bitwidth)]
-                   [`(sum ,lst) (list (list (foldl (lambda (x init) (foldl + init x)) 0 (eval-exp lst bind bitwidth safe))))]
-                   [`(card ,lst) (length (eval-exp lst bind bitwidth safe))]
                    ; Set comprehension
                    [`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) bitwidth)) (eval-exp lst bind bitwidth safe))]
                    ; Let binding (also allowed in formulas)
@@ -86,25 +110,20 @@
                    [`none empty]
                    [`univ (build-univ bind)]
                    [`iden (build-iden bind)]
-                   ;[`Int (build-ints bind)]
                    [`(,p ,vals ...) ;#:when (hash-has-key? bind p)
                     (with-handlers ([exn:fail? (λ (exn) 
                       (define joined (foldl (λ (x y) `(join ,x ,y)) p vals))
-                      (eval-exp joined bind bitwidth safe)
-                    )])
+                      (eval-exp joined bind bitwidth safe))])
                       (match-define (list args alloy) (hash-ref bind p))
                       (set! vals (for/list ([val vals]) (eval-exp val bind bitwidth)))
                       ; (make-hash (map cons args vals))
                       ; (for/hash ([a args][v vals]) (values a v))
                       (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
                       (define kodkod (alloy->kodkod alloy))
-                      (eval-exp kodkod bind2 bitwidth)
-                    )
-                   ]
-                   [id                    
+                      (eval-exp kodkod bind2 bitwidth))]
+                   [id                 
                     (cond
                       [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]                      
-                      [(integer? id) (wraparound id bitwidth)]
                       ; relation name
                       [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name
@@ -123,7 +142,6 @@
 
 ; extract list of all atoms used across all relations
 ; do so by taking union of contents of all relations (since this will include all top-level sigs)
-; TODO: include ints
 ; Filter out pred/function defns
 (define (build-univ bind)  
     (map (lambda (x) (list x))
@@ -141,8 +159,9 @@
 
 ; may be a number, not a symbol
 (define (->string v)
-  (cond [(symbol? v) (symbol->string v)]
-        [(number? v) (number->string v)]
+  (cond [(int-atom? v) (int-atom->string v)]
+        [(symbol? v) (symbol->string v)]
+        ;[(number? v) (number->string v)]
         [else v]))
 
 ; is t1 < t2?
@@ -158,8 +177,13 @@
            ; assume same to start
            0
            (map list t1 t2)))
-  (cond [(eq? 0 result) #f]
-        [else result]))
+  (cond
+    [(and (= (length t1) 1) (= (length t2) 1) (int-atom? (first t1)) (int-atom? (first t2)))
+     (< (int-atom-n (first t1)) (int-atom-n (first t2)))] 
+    [(> (length t1) (length t2)) #f]
+    [(< (length t1) (length t2)) #t]
+    [(eq? 0 result) #f]
+    [else result]))
     
 ; Explicitly finds the transitive closure of a relation
 (define (tc lst)
@@ -176,9 +200,7 @@
   (define newlen (length newlst-flat))
   (if (> newlen startlen) (tc newlst-flat) newlst-flat))
 
-; Helper for arithmetic operations
-(define (perform-op op l1 l2)
-  (op (car (car l1)) (car (car l2))))
+
 
 ; Is x a properly formatted relation?
 (define (relation? x)
@@ -209,21 +231,19 @@
     [`(all ,var ,lst ,f) (andmap (lambda (x) (eval-form f (hash-set bind var (list x)) bitwidth)) (eval-exp lst bind bitwidth))]
     [`(some ,var ,lst ,f) (ormap (lambda (x) (eval-form f (hash-set bind var (list x)) bitwidth)) (eval-exp lst bind bitwidth))]
     [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind bitwidth) (eval-exp var-2 bind bitwidth))]
-    [`(< ,int1 ,int2) (perform-op < (eval-exp int1 bind bitwidth) (eval-exp int2 bind bitwidth))]
-    [`(> ,int1 ,int2) (perform-op > (eval-exp int1 bind bitwidth) (eval-exp int2 bind bitwidth))]
+    [`(< ,int1 ,int2) (< (eval-int-expr int1 bind bitwidth) (eval-int-expr int2 bind bitwidth))]
+    [`(> ,int1 ,int2) (> (eval-int-expr int1 bind bitwidth) (eval-int-expr int2 bind bitwidth))]
     [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (eval-exp e bind bitwidth)) bitwidth)]
     [`(,p ,vals ...) #:when (hash-has-key? bind p)
       (match-define (list args alloy) (hash-ref bind p))
       (set! vals (for/list ([val vals]) (eval-exp val bind bitwidth)))
       (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
       (define kodkod (alloy->kodkod alloy))
-      (eval-form kodkod bind2 bitwidth)
-    ]
+      (eval-form kodkod bind2 bitwidth)]
     [p #:when (hash-has-key? bind p)
       (match-define (list args alloy) (hash-ref bind p))
       (define kodkod (alloy->kodkod alloy))
-      (eval-form kodkod bind bitwidth)
-    ]
+      (eval-form kodkod bind bitwidth)]
     [exp (raise-user-error "Not a formula" exp)]))
   ;(printf "form : ~v = ~v~n" form ret) 
   ret)
@@ -271,12 +291,72 @@
       [`(BlockOrBar (Block ,a ...)) `(and ,@(map f a))]
       [`(BlockOrBar "|" ,a) (f a)]
       [`(Block ,a ...) `(and ,@(map f a))]
+      [`(Number ,a) (f a)]
+      [`(Const ,a) (f a)]
+      [`(Const "-" ,a) (- (f a))]
       [`(,_ ,a) (f a)]
       [(? string?) (with-handlers ([exn:fail? (λ (exn) (string->symbol e))]) 
         (define n (string->number e))
         (if (integer? n) n (string->symbol e)))]
-      [else e]
-    )
-  )
-  (f e)
-)
+      [else e]))
+  (f e))
+
+; 2's complement wraparound if needed. Takes a number and returns a number
+(define (wraparound n bitwidth)
+  (define max-int (- (expt 2 (sub1 bitwidth)) 1)) ; positive 2^(bitwidth-1) - 1
+  (define min-int (- (expt 2 (sub1 bitwidth))))   ; negative 2^(bitwidth-1)
+  (define num-ints (expt 2 bitwidth))
+  (cond [(> n max-int) 
+         (+ min-int (modulo (- n max-int 1) num-ints))]
+        [(< n min-int)   
+         (- max-int (modulo (- min-int n 1) num-ints))]
+        [else n]))
+
+
+; Evaluates integer value expression 
+(define (eval-int-expr int-expr bind bitwidth)
+  (when (>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "evaluating int-expr : ~v~n" int-expr))
+  (match int-expr
+    [`(sum ,expr)
+     (wraparound
+      (let ([expr-val (eval-exp expr bind bitwidth)])
+        (foldl (λ (x ret) (if (and (= (length x) 1) (int-atom? (first x)))
+                              (+ ret (int-atom-n (first x)))
+                              ret))
+                0 expr-val)) bitwidth)]
+    [`(max ,expr)
+     (let ([expr-val (filter (λ (a) (and (= 1 (length a)) (int-atom? (first a)))) 
+                             (eval-exp expr bind bitwidth))])
+       (if (empty? expr-val) 0
+           (foldl (λ (a ret) 
+                     (let ([n (int-atom-n (first a))])
+                       (if (> n ret) n ret)))
+                  (- (expt 2 (sub1 bitwidth))) ; min-int
+                  expr-val)))]
+    [`(min ,expr) 
+     (let ([expr-val (filter (λ (a) (and (= 1 (length a)) (int-atom? (first a)))) 
+                             (eval-exp expr bind bitwidth))])
+       (if (empty? expr-val) 0
+           (foldl (λ (a ret) 
+                     (let ([n (int-atom-n (first a))])
+                       (if (< n ret) n ret)))
+                  (- (expt 2 (sub1 bitwidth)) 1) ; max-int
+                  expr-val)))]
+    [`(card ,expr) (wraparound (length (eval-exp expr bind bitwidth)))]
+    [`(add ,ix1 ,ix2) (wraparound (+ (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(subtract ,ix1 ,ix2) (wraparound (- (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(multiply ,ix1 ,ix2) (wraparound (* (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(divide ,ix1 ,ix2) (wraparound (quotient (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(remainder ,ix1 ,ix2) (wraparound (remainder (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(abs ,ix1 ,ix2) (wraparound (abs (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [`(sign ,ix1)
+      (let ([ix1-val (eval-int-expr ix1 bind bitwidth)])
+           (wraparound
+             (case
+               [(> ix1-val 0) 1]
+               [(= ix1-val 0) 0]
+               [(< ix1-val 0) -1]) bitwidth))]
+    [n (cond
+         [(number? n) (wraparound n bitwidth)]
+         [else (raise-user-error "Invalid int expression")])]))
