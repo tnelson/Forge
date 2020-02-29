@@ -286,12 +286,12 @@
 
 ; Generates the lowest n atoms for sig not already contained in lower
 (define (next-atoms sig lower ind n)
-  (if (= n 0)
+  (if (@= n 0)
       '()
-      (let ([name (string->symbol (string-append relation-name sig) ind)])
+      (let ([name (string->symbol (string-append (relation-name sig) (number->string ind)))])
         (if (member name lower)
-            (next-atoms sig lower (+ ind 1) n)
-            (cons name (next-atoms sig (cons name lower) (+ ind 1) (- n 1)))))))
+            (next-atoms sig lower (@+ ind 1) n)
+            (cons name (next-atoms sig (cons name lower) (@+ ind 1) (@- n 1)))))))
 
 ; Returns a list of symbols representing atoms
 (define (compute-lower-bound parent-sig hashy-bounds)
