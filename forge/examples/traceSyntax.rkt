@@ -28,7 +28,7 @@ run<|T|> {
 --    some B
     two B
 } for {
-    A = apple + orange + peach
+--    A = apple + orange + peach
 --    some B
 --    one B
 }

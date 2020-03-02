@@ -61,10 +61,11 @@
   (define flag (car model))
   (define data (cdr model))
   
+  (set! command (clean (clean-syntax command)))
   
   (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
-                                  (clean (clean-syntax command)) "\" filename=\"" filepath
+                                  (car (string-split command)) "\" filename=\"" filepath
                                   "\" project=\"" project "\" version=\"" forge-version "\">\n"
                                   #<<here-string-delimiter
 
