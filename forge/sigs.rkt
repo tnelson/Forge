@@ -397,12 +397,21 @@
   (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
     (printf "Running: ~a~n" name))
   (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
-    (printf "ONE sigs known: ~a~n" one-sigs))  
+    (printf "ONE sigs known: ~a~n" one-sigs))
+  (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
+    (printf "ABSTRACT sigs known: ~a~n" abstract-sigs))  
   (append-run name)
 
-  (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
-
   (set! run-constraints (append constraints assumptions))
+
+  (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
+  (for ([sig (in-set abstract-sigs)]) 
+    (define extenders (for/list ([(k v) (in-hash extensions-store)] #:when (equal? v sig)) k))
+    ;(when (empty? extenders) (raise-syntax-error 'abstract (format "Abstract sig not extended ~a" sig)))
+    (define c (in sig (for/fold ([res none]) ([x extenders]) (+ x res))))
+    (set! run-constraints (cons c run-constraints))
+  )
+  
   (define intmax (expt 2 (sub1 bitwidth)))
   (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
   (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
@@ -710,10 +719,10 @@
                    (if (= 0 (length decls))
                        (cons 'begin (map (lambda (name) `(,op ,name)) names))
                        (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-             (set! ret (at stx `(begin
-               ,ret
-               ;,@(for/list ([name names]) )
-             )))
+             (set! ret #`(begin
+               #,(at stx ret)
+               #,@(if abstract (for/list ([name names]) #`(set-add! abstract-sigs #,name)) '())
+             ))
              ;(printf "ret : ~v~n" ret)
              ret
              )

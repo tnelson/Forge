@@ -1,10 +1,12 @@
 #lang forge
 
+--option verbosity 10
+
 abstract sig A {}
---sig B {}
+sig B extends A {}
+sig C extends A {}
 sig S {
-    stuff: set A--,
---    b: set B
+    stuff: set A
 }
 
 state[S] S_init { no stuff }
