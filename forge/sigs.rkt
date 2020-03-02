@@ -11,7 +11,7 @@
          (for-syntax racket/string))
 (require racket/trace)
 
-(provide break instance quote begin println filepath set-path! let)
+(provide break instance quote begin println filepath set-path! let void)
 
 (define filepath #f)
 (define (set-path! path)
@@ -116,7 +116,7 @@
 (provide pre-declare-sig declare-one-sig declare-sig set-top-level-bound sigs pred)
 (provide run check test fact)
 (provide Int iden univ none)
-(provide no some one lone all)
+(provide no some one lone all two)
 (provide + - ^ & ~ join !)
 (provide set in )
 (provide = -> * => not and or)
@@ -174,7 +174,7 @@
          (add-sig name (symbol->string 'parent)))]))
 
 (define-syntax (declare-field stx)
-  (syntax-case stx (set one lone)
+  (syntax-case stx (set one lone two)
     [(_ set name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
@@ -186,6 +186,12 @@
          (add-relation field (list name r ...))
          (add-constraint (in field (-> name r ...)))
          (add-constraint (all ([n name]) (one (join n field)))))]
+    [(_ two name field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...)))
+         (add-constraint (all ([n name]) (two (join n field)))))]
     [(_ lone name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
@@ -622,7 +628,8 @@
 
 ;;;;
 
-(define-for-syntax (map-stx f . stx) (datum->syntax (car stx) (apply f (map syntax->datum stx))))
+(define-for-syntax (map-stx f . stx) (datum->syntax (car stx) (apply f (map syntax->datum stx)) (car stx)))
+(define-for-syntax (at stx datum) (datum->syntax stx datum stx))
 (define-for-syntax (replace-ints datum)
   (cond
     [(list? datum)
@@ -698,37 +705,37 @@
 (define-syntax-rule (InstanceDecl i) (instance i))
 
 (define-syntax (CmdDecl stx)
-  (map-stx (lambda (d)
              (define-values (name cmd arg scope block bounds facty-params) (values #f #f #f '() '() '() #'()))
              (define (make-typescope x)
                (syntax-case x (Typescope)
                  [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
                  [(Typescope n things) (syntax->datum #'(things 0 n))]))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name Typescope Scope Block QualName Parameters)
                  [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
                  ["run"   (set! cmd 'run)]
                  ["check" (set! cmd 'check)]
                  [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
-                 [(Block (Expr (QualName ns)) ...) (set! block (syntax->datum #'(ns ...)))]
-                 [(Block b ...) (set! block (syntax->datum #'(b ...)))]
-                 [(QualName n) (set! block (list (syntax->datum #'n)))]
+                 ;[(Block (Expr (QualName ns)) ...) (set! block #'(ns ...))]
+                 [(Block b ...) (set! block #'(b ...))]
+                 [(QualName n) (set! block (list #'n))]
                  [(Parameters ps ...) (set! facty-params #'(ps ...))] ; Traces should go in here - anything in params will be considered a fact in a check block.
-                 [(Bounds bs ...) (set! bounds (syntax->datum #'(bs ...)))]
+                 [(Bounds bs ...) (set! bounds #'(bs ...))]
                  [_ #f]))
              ; Duplicate with TestDecl
-             (define param-facts (for/list ([p (syntax->datum facty-params)]) 
-                                   `(Expr (QualName ,(string->symbol (format "~a_fact" p))))))
-             (define param-insts (for/list ([p (syntax->datum facty-params)]) 
-                                   `(Expr (QualName ,(string->symbol (format "~a_inst" p))))))
+             (define param-facts (for/list ([p (syntax->list facty-params)]) 
+                                   (at p `(Expr (QualName ,(string->symbol (format "~a_fact" (syntax->datum p))))))))
+             (define param-insts (for/list ([p (syntax->list facty-params)]) 
+                                   (at p `(Expr (QualName ,(string->symbol (format "~a_inst" (syntax->datum p))))))))
              (set! bounds `(Bounds ,@param-insts ,@bounds))
 
              (if name #f (set! name (symbol->string (gensym))))
-             (define datum `(begin
+             (define ret (at stx `(begin
+                              (void ,@(syntax->list facty-params)) ;; noop but fails early if undefined
                               ,bounds
-                              (,cmd ,name ,block ,scope ,param-facts)))
-             datum)
-           stx))
+                              (,cmd ,name ,block ,scope ,param-facts))))
+             ;(printf "ret : ~v~n" ret)
+             ret)
 
 (define-syntax (TestDecl stx)
   (map-stx (lambda (d)
@@ -782,9 +789,8 @@
                datum)) stx))
 
 (define-syntax (PredDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block) (values #f '() '()))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
@@ -792,14 +798,13 @@
                  [(Block bs ...) (set! block #'(bs ...))]
                  [_ #f]))
              (define datum (if (empty? paras)
-                               `(begin 
-                                  (pred ,name (and ,@(syntax->datum block)))
-                                  (define-for-evaluator ',name '() '(Block ,@(syntax->datum block))))
-                               `(begin
-                                  (pred (,name ,@paras) (and ,@(syntax->datum block)))
-                                  (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block))))))
-
-             datum) stx))
+                   (at stx `(begin 
+                     (pred ,name (and ,@(syntax->list block)))
+                     (define-for-evaluator ',name '() '(Block ,@(syntax->datum block)))))
+                   (at stx `(begin
+                     (pred (,name ,@paras) (and ,@(syntax->list block)))
+                     (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block)))))))
+             datum)
 
 (define-syntax (AssertDecl stx)
   (map-stx (lambda (d)
@@ -837,53 +842,53 @@
              datum) stx))
 
 (define-syntax (StateDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block sig) (values #f '() '() #f))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block QualName)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(QualName n) (set! sig (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
                   (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+                 [(Block bs ...) (set! block #'(bs ...))]
                  [_ #f]))
 
              (unless (hash-has-key? sig-to-fields sig)
                (raise-user-error (format "Unknown sig in state predicate (~a) declaration: ~a" name sig)))
              (define fields (hash-ref sig-to-fields sig))
-             (define (at f) (string->symbol (string-append "@" (symbol->string f))))
+             (define (at- f) (string->symbol (string-append "@" (symbol->string f))))
              (define lets (append
                            (for/list ([f fields]) `[,f (join this ,f)])
-                           (for/list ([f fields]) `[,(at f) ,f])))
-             (define datum `(pred (,name this ,@paras) (let ,lets (and ,@block))))
-             datum) stx))
+                           (for/list ([f fields]) `[,(at- f) ,f])))
+             (define ret (at stx 
+              `(pred (,name this ,@paras) (let ,lets (and ,@(syntax->list block))))))
+             ret)
 
 (define-syntax (TransitionDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block sig) (values #f '() '() #f))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block QualName)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(QualName n) (set! sig (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
                   (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+                 [(Block bs ...) (set! block #'(bs ...))]
                  [_ #f]))
 
              (define fields (hash-ref sig-to-fields sig))
              (define (post f) (string->symbol (string-append (symbol->string f) "'")))
-             (define (at f) (string->symbol (string-append "@" (symbol->string f))))
+             (define (at- f) (string->symbol (string-append "@" (symbol->string f))))
              (define posts (map post fields))
              (define lets (append* (for/list ([f fields] [p posts])
                                      (list
                                       `[,f (join  this   ,f)]
                                       `[,p (join |this'| ,f)]
-                                      `[,(at f) ,f]
+                                      `[,(at- f) ,f]
                                       ))))
-             (define datum `(pred (,name this |this'| ,@paras) (let ,lets (and ,@block))))
+             (define ret (at stx 
+               `(pred (,name this |this'| ,@paras) (let ,lets (and ,@(syntax->list block))))))
 
              ; require either this' or all f', g', ... to be used in block
-             ; TODO: this is bad
+             ; this is checked at macro-expansion, but raised at run-time
              (define (find-syms term)
                (define syms (list))
                (define (find-syms b)
@@ -894,30 +899,33 @@
                    ))
                (find-syms term)
                syms)
-             (define syms (find-syms block))
-             (unless (or (member '|this'| syms)
-                         (foldl (λ (x y) (and x y)) #t (for/list ([f posts]) (member f syms))))
-               (raise (string-append "Underspecified transition predicate: " (symbol->string name))))
-             (for ([clause block])
-               (define syms (find-syms clause))
-               (unless (or (member '|this'| syms)
-                           (foldl (λ (x y) (or x y)) #f (for/list ([s syms])
-                                                          (or (member s posts) (member s paras)))))
-                 (raise (string-append "Irrelevant clause in: " (symbol->string name)))))
+             (define syms (find-syms (syntax->datum block)))
+             (unless (or (member '|this'| syms) (for/and ([f posts]) (member f syms)))
+               (define unspec (for/list ([f posts] #:unless (member f syms)) f))
+               (raise-syntax-error name
+                (format "Underspecified transition predicate. Please specify these fields: ~a" unspec)
+                stx))
 
-             datum) stx))
+             ;; DON'T DELETE! Just temporarily commenting out until we decide on behavior.  
+             ;(for ([clause block])
+             ;  (define syms (find-syms clause))
+             ;  (unless (or (member '|this'| syms)
+             ;              (foldl (λ (x y) (or x y)) #f (for/list ([s syms])
+             ;                                             (or (member s posts) (member s paras)))))
+             ;    (raise (string-append "Irrelevant clause in: " (symbol->string name)))))
+             ;(printf "ret : ~v~n" ret)
+             ret)
 
 (define-syntax (TraceDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block sig params strat) (values #f '() '() #f #f 'plinear))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block QualName Parameters Expr)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(QualName n) (set! sig (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
                   (set! paras (flatten (syntax->datum #'(ps ...))))]
                  [(Parameters ps ...) (set! params (syntax->datum #'(ps ...)))]
-                 [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+                 [(Block bs ...) (set! block #'(bs ...))]
                  [(Expr (QualName s)) (set! strat (syntax->datum #'s))]
                  [_ #f]
                  )
@@ -928,6 +936,7 @@
              (define S_init (if (> L 1) (list-ref params 1) '_))
              (define S_tran (if (> L 2) (list-ref params 2) '_))
              (define S_term (if (> L 3) (list-ref params 3) '_))
+             (define S_inva (if (> L 4) (list-ref params 4) '_))
 
              (define T name)
              (define T_pred (string->symbol (format "~a_pred" name)))
@@ -938,8 +947,8 @@
              (define tran 'tran)
              (define term 'term)
 
-             (define datum
-               `(begin
+             (define ret
+               (at stx `(begin
                   (pre-declare-sig ,T #:extends univ)
                   (SigDecl
                    (Mult "one")
@@ -953,6 +962,7 @@
                    (QualName ,T)
                    (Name ,T_pred)
                    (Block 
+                    ,@(syntax->list block)
                     (Expr (Expr4 "some" (Expr8 (QualName ,tran))) 
                           "=>" (Expr3 (Block 
                                        (Expr (Expr6 (QualName ,S)) (CompareOp "=") 
@@ -981,15 +991,19 @@
                     ,@(if (equal? S_term '_) '()
                           `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,term)))) 
                                   (BlockOrBar "|" (Expr (Expr14 (QualName ,S_term)) 
+                                                        "[" (ExprList (Expr (QualName s))) "]")))))
+                    ,@(if (equal? S_inva '_) '()
+                          `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,S)))) 
+                                  (BlockOrBar "|" (Expr (Expr14 (QualName ,S_inva)) 
                                                         "[" (ExprList (Expr (QualName s))) "]")))))))
                   (PredDecl (Name ,T_fact) (Block 
                                             (Expr (Quant "all") (DeclList (Decl (NameList t) (Expr (QualName ,T)))) 
                                                   (BlockOrBar "|" (Expr (Expr14 (QualName ,T_pred)) 
                                                                         "[" (ExprList (Expr (QualName t))) "]")))))
                   (InstDecl (Name ,T_inst) (Bounds 
-                                            (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat)))))))
+                                            (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat))))))))
 
-             datum) stx))
+             ret)
 
 (define-syntax (RelDecl stx)
   (define ret (syntax-case stx (set one lone ArrowDecl NameList ArrowMult)
@@ -1043,65 +1057,72 @@
 
 (define-syntax (Q stx)
   (define ret (syntax-case stx (sum)
-                [(_ "all" n e a) #`(all ([n e]) a)]
-                [(_ "no" n e a) #`(no ([n e]) a)]
-                [(_ "lone" n e a) #`(lone ([n e]) a)]
-                [(_ "some" n e a) #`(some ([n e]) a)]
-                [(_ "one" n e a) #`(one ([n e]) a)]
-                [(_ sum n e a) #`(sum-quant ([n e]) a)]
+                [(_ "all" n e a) (syntax/loc stx (all ([n e]) a))]
+                [(_ "no" n e a) (syntax/loc stx (no ([n e]) a))]
+                [(_ "lone" n e a) (syntax/loc stx (lone ([n e]) a))]
+                [(_ "some" n e a) (syntax/loc stx (some ([n e]) a))]
+                [(_ "one" n e a) (syntax/loc stx (one ([n e]) a))]
+                [(_ "two" n e a) (syntax/loc stx (two ([n e]) a))]
+                [(_ sum n e a) (syntax/loc stx (sum-quant ([n e]) a))]
                 [(_ q n "set" e a)
-                 #'(raise (format "higher-order quantification not supported: ~a ~a: set ..." 'q 'n))]))
+                 (raise-syntax-error (string->symbol (syntax->datum #'q)) 
+                  "Higher-order quantification not supported" stx)]))
   ret)
 
 (define-syntax (Expr stx)
-  ;(println stx)
+  ;(printf "stx : ~v~n" stx)
   (define ret (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp ExprList QualName
                                       LetDeclList LetDecl)
-                [(_ "let" (LetDeclList (LetDecl n e) ...) block) #`(let ([n e] ...) block)]
-                [(_ "bind" (LetDeclList (LetDecl n e) ...) block) #`(bind ([n e] ...) block)]
-                [(_ "{" (DeclList (Decl (NameList n) e) ...) block "}") #`(set ([n e] ...) block)]
+                [(_ "let" (LetDeclList (LetDecl n e) ...) block) 
+                 (syntax/loc stx (let ([n e] ...) block))]
+                [(_ "bind" (LetDeclList (LetDecl n e) ...) block) 
+                 (syntax/loc stx (bind ([n e] ...) block))]
+                [(_ "{" (DeclList (Decl (NameList n) e) ...) block "}") 
+                 (syntax/loc stx (set ([n e] ...) block))]
 
                 [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a)
-                 #`(Q q n e ... a)]
+                 (syntax/loc stx (Q q n e ... a))]
                 [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a)
-                 #`(Q q n e ... (Expr (Quant q) (DeclList ds ...) a))]
+                 (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
                 [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a)
-                 #`(Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a))]
+                 (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a)))]
 
-                [(_ a "or" b) #'(or a b)]
-                [(_ a "||" b) #'(or a b)]
-                [(_ a "iff" b) #'(iff a b)]
-                [(_ a "<=>" b) #'(iff a b)]
-                [(_ a "implies" b "else" c) #'(ifte a b c)]
-                [(_ a "=>" b "else" c) #'(ifte a b c)]
-                [(_ a "implies" b) #'(=> a b)]
-                [(_ a "=>" b) #'(=> a b)]
-                [(_ a "and" b) #'(and a b)]
-                [(_ a "&&" b) #'(and a b)]
-                [(_ "!" a) #'(! a)]
-                [(_ "not" a) #'(! a)]
-                [(_ a "!" (CompareOp op) b) #'(! (Expr a (CompareOp op) b))]
-                [(_ a "not" (CompareOp op) b) #'(! (Expr a (CompareOp op) b))]
-                [(_ a (CompareOp op) b) #`(#,(sym #'op) a b)]
-                [(_ "no" a) #'(no a)]
-                [(_ "some" a) #'(some a)]
-                [(_ "lone" a) #'(lone a)]
-                [(_ "one" a) #'(one a)]
-                [(_ "set" a) #'(set a)]
-                [(_ a "+" b) #'(+ a b)]
-                [(_ a "-" b) #'(- a b)]
-                [(_ "#" a) #'(card a)]
-                [(_ a "++" b) #'(++ a b)]
-                [(_ a "&" b) #'(& a b)]
-                [(_ a (ArrowOp _ ...) b) #'(-> a b)]
-                [(_ a "<:" b) #'(<: a b)]
-                [(_ a ":>" b) #'(<: b a)]
-                [(_ a "[" (ExprList bs ...) "]") #'(a bs ...)]
-                [(_ a "." b) #'(join a b)]
-                [(_ "~" a) #'(~ a)]
-                [(_ "^" a) #'(^ a)]
-                [(_ "*" a) #'(* a)]
-                [(_ a) #'a]))
+                [(_ a "or" b) (syntax/loc stx (or a b))]
+                [(_ a "||" b) (syntax/loc stx (or a b))]
+                [(_ a "iff" b) (syntax/loc stx (iff a b))]
+                [(_ a "<=>" b) (syntax/loc stx (iff a b))]
+                [(_ a "implies" b "else" c) (syntax/loc stx (ifte a b c))]
+                [(_ a "=>" b "else" c) (syntax/loc stx (ifte a b c))]
+                [(_ a "implies" b) (syntax/loc stx (=> a b))]
+                [(_ a "=>" b) (syntax/loc stx (=> a b))]
+                [(_ a "and" b) (syntax/loc stx (and a b))]
+                [(_ a "&&" b) (syntax/loc stx (and a b))]
+                [(_ "!" a) (syntax/loc stx (! a))]
+                [(_ "not" a) (syntax/loc stx (! a))]
+                [(_ a "!" (CompareOp op) b) (syntax/loc stx (! (Expr a (CompareOp op) b)))]
+                [(_ a "not" (CompareOp op) b) (syntax/loc stx (! (Expr a (CompareOp op) b)))]
+                [(_ a (CompareOp op) b) (quasisyntax/loc stx (#,(sym #'op) a b))]
+                [(_ "no" a) (syntax/loc stx (no a))]
+                [(_ "some" a) (syntax/loc stx (some a))]
+                [(_ "lone" a) (syntax/loc stx (lone a))]
+                [(_ "one" a) (syntax/loc stx (one a))]
+                [(_ "two" a) (syntax/loc stx (two a))]
+                [(_ "set" a) (syntax/loc stx (set a))]
+                [(_ a "+" b) (syntax/loc stx (+ a b))]
+                [(_ a "-" b) (syntax/loc stx (- a b))]
+                [(_ "#" a) (syntax/loc stx (card a))]
+                [(_ a "++" b) (syntax/loc stx (++ a b))]
+                [(_ a "&" b) (syntax/loc stx (& a b))]
+                [(_ a (ArrowOp _ ...) b) (syntax/loc stx (-> a b))]
+                [(_ a "<:" b) (syntax/loc stx (<: a b))]
+                [(_ a ":>" b) (syntax/loc stx (<: b a))]
+                [(_ a "[" (ExprList bs ...) "]") (syntax/loc stx (a bs ...))]
+                [(_ a "." b) (syntax/loc stx (join a b))]
+                [(_ "~" a) (syntax/loc stx (~ a))]
+                [(_ "^" a) (syntax/loc stx (^ a))]
+                [(_ "*" a) (syntax/loc stx (* a))]
+                [(_ a) (syntax/loc stx a)]))
+  ;(printf "ret : ~v~n" ret)
   ret)
 
 (provide Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
@@ -1151,49 +1172,63 @@
     block))
 
 (define-syntax (Bounds stx)
-  (define datum (syntax-case stx ()
+  (define ret (syntax-case stx ()
                   [(_ "exactly" lines ...)
                    #'(begin
                        (Bind lines) ...
                        (set-is-exact))]
                   [(_ lines ...)
                    #'(begin (Bind lines) ...)]))
-  datum)
+  ret)
 (define-syntax-rule (InstDecl (Name name) (Bounds lines ...))
   (define (name B)
     (Bind lines) ...))
 (define-syntax (Bind stx)
-  (define datum (syntax-case (second (syntax-e stx)) (CompareOp QualName Const)
-                  [(_ "no" rel) #'(Bind (Expr rel (CompareOp "=") none))]
+  (set! stx (second (syntax-e stx)))
+  (define datum (syntax-case stx (CompareOp QualName Const)
+                  [(_ "no" rel) (syntax/loc stx (Bind (Expr rel (CompareOp "=") none)))]
                   [(_ "one" rel) 
-                   #'(Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "1")))))]
+                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "1"))))))]
+                  [(_ "two" rel) 
+                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "2"))))))]
                   [(_ "lone" rel) 
-                   #'(Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1")))))]
-                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) #'(begin 
+                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1"))))))]
+                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) (syntax/loc stx (begin 
                     (define exact (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
                     (add-int-bound rel (int-bound exact exact))
-                    (hash-set! bindings 'rel (map list (range exact))))] ;; dummy atoms so #rel works
-                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "<=") expr) #'(begin 
+                    (hash-set! bindings 'rel (map list (range exact)))))] ;; dummy atoms so #rel works
+                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "<=") expr) (syntax/loc stx (begin 
                     (define upper (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
                     (add-int-bound rel (int-bound 0 upper))
-                    (hash-set! bindings 'rel (map list (range upper))))] ;; dummy atoms so #rel works
+                    (hash-set! bindings 'rel (map list (range upper)))))] ;; dummy atoms so #rel works
                   [(_ (_ expr1 (CompareOp "<=") (_ "#" (_ (QualName rel)))) (CompareOp "<=") expr2)
-                   #'(begin 
+                   (syntax/loc stx (begin 
                     (define lower (caar (eval-exp (alloy->kodkod 'expr1) bindings 8 #f)))
                     (define upper (caar (eval-exp (alloy->kodkod 'expr2) bindings 8 #f)))
                     (add-int-bound rel (int-bound lower upper))
-                    (hash-set! bindings 'rel (map list (range upper))))] ;; dummy atoms so #rel works
-                  [(_ rel (CompareOp "in") (_ (QualName strat))) #'(break rel 'strat)]
-                  [(_ rel (CompareOp "is") (_ (QualName strat))) #'(break rel 'strat)]
-                  [(_ (QualName f)) #'(f bindings)]
+                    (hash-set! bindings 'rel (map list (range upper)))))] ;; dummy atoms so #rel works
+                  [(_ rel (CompareOp "in") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
+                  [(_ rel (CompareOp "is") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
+                  [(_ (QualName f)) (syntax/loc stx (f bindings))]
                   [(_ (_ (QualName rel)) (CompareOp "=") expr)
-                   #'(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+                   (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
                        (instance (make-exact-sbound rel tups))
                        (when (equal? (relation-arity rel) 1)
                          (let ([exact (length tups)])
                            (add-int-bound rel (int-bound exact exact))))
                        (hash-set! bindings 'rel tups)
-                       )]
-                  [(_ a "and" b) #'(begin (Bind a) (Bind b))]
-                  [x #'(error (format "Not allowed in bounds constraint: ~a~n" 'x))]))
+                       ))]
+                  [(_ (_ (QualName Int)) "[" (_ (_ (Const (Number i)))) "]")
+                   (quasisyntax/loc stx (set-bitwidth #,(string->number (syntax-e #'i))))]
+                  [(_ a "and" b) (syntax/loc stx (begin (Bind a) (Bind b)))]
+                  [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") stx)]))
   datum)
+
+(define-syntax (two stx)
+  (syntax-case stx ()
+    [(_ ([v0 e0]) pred) (syntax/loc stx 
+     (some ([v0 e0]) (and pred 
+      (one ([v1 (- e0 v0)]) (let ([v0 v1]) pred))
+     )))]
+    [(_ expr) (syntax/loc stx 
+     (some ([x expr]) (one (- expr x))))]))
