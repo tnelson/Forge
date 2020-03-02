@@ -24,6 +24,3 @@ forge/secrets
 
 forge/sterling-js
 !forge/sterling-js/dist
-
-forge/sterling
-!forge/sterling/build
