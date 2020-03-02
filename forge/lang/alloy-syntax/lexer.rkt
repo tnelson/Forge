@@ -95,6 +95,7 @@
    ["some"      (token+ `SOME-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    ["test"      (token+ `TEST-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["two"       (token+ `TWO-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
@@ -176,6 +177,7 @@
            "some"
            "sum"
            "test"
+           "two"
            "expect"
            "sat"
            "unsat"

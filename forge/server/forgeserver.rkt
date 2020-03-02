@@ -6,7 +6,21 @@
          racket/async-channel
          racket/hash)
 (require "eval-model.rkt")
+; TODO: remove this once evaluator is in; just want to show we can evaluate something
+
+(require "../lang/reader.rkt")
 (require "../shared.rkt")
+(require "../lang/reader.rkt")
+
+(define-runtime-path info-path "../info.rkt")
+(define forge-version "x.x.x")
+(with-handlers ([exn:fail? (λ (exn) (println exn))])
+  (define info-str (file->string info-path))
+  (define parts (regexp-match #px"define\\s+version\\s+\"(\\S+)\"" info-str))
+  (set! forge-version (second parts)))
+(printf "Forge Version: ~a~n" forge-version)
+
+
 
 (provide display-model)
 
@@ -61,7 +75,7 @@
                       ;(printf "alloy: ~a~n" alloy)
                       (define kodkod (alloy->kodkod alloy))
                       ;(printf "kodkod: ~a~n" kodkod)
-                      (define binding (model->binding (cdr model)))
+                      (define binding (model->binding (cdr model) bitwidth))
                       ;(printf "funs-n-preds : ~a~n" funs-n-preds)
                       (set! binding (hash-union binding funs-n-preds))
                       ;(printf "binding: ~a~n" binding)
@@ -70,9 +84,10 @@
                       (if (list? lists)
                           (string-join (for/list ([l lists])
                               (string-join (for/list ([atom l])
-                                (if (number? atom)
-                                    (string-append (format "~a" atom))
-                                    (symbol->string atom))
+                                (cond
+                                  [(int-atom? atom) (int-atom->string atom)]
+                                  [(number? atom) (number->string atom)]
+                                  [(symbol? atom) (symbol->string atom)])
                               ) "->")
                               ) " + ")
                           lists)

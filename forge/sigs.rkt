@@ -118,7 +118,7 @@
 (provide pre-declare-sig declare-one-sig declare-sig set-top-level-bound sigs pred)
 (provide run check test fact)
 (provide Int iden univ none)
-(provide no some one lone all)
+(provide no some one lone all two)
 (provide + - ^ & ~ join !)
 (provide set in )
 (provide = -> * => not and or)
@@ -176,7 +176,7 @@
          (add-sig name (symbol->string 'parent)))]))
 
 (define-syntax (declare-field stx)
-  (syntax-case stx (set one lone)
+  (syntax-case stx (set one lone two)
     [(_ set name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
@@ -188,6 +188,12 @@
          (add-relation field (list name r ...))
          (add-constraint (in field (-> name r ...)))
          (add-constraint (all ([n name]) (one (join n field)))))]
+    [(_ two name field r ...)
+     #'(begin
+         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
+         (add-relation field (list name r ...))
+         (add-constraint (in field (-> name r ...)))
+         (add-constraint (all ([n name]) (two (join n field)))))]
     [(_ lone name field r ...)
      #'(begin
          (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
@@ -264,6 +270,7 @@
 
 
 ; Recursively generates atoms that can possibly exist in a sig
+; Depracated - use next-atoms instead
 (define (generate-atoms sig lower upper)
   (define sig-name (string->symbol (relation-name sig)))
   (define syms (if (and (hash-has-key? bindings sig-name)
@@ -278,6 +285,16 @@
          (string->symbol (string-append (relation-name sig) (number->string n)))))
    (range lower upper)))
 
+
+; Generates the lowest n atoms for sig not already contained in lower
+(define (next-atoms sig lower ind n)
+  (if (@= n 0)
+      '()
+      (let ([name (string->symbol (string-append (relation-name sig) (number->string ind)))])
+        (if (member name lower)
+            (next-atoms sig lower (@+ ind 1) n)
+            (cons name (next-atoms sig (cons name lower) (@+ ind 1) (@- n 1)))))))
+
 ; Returns a list of symbols representing atoms
 (define (compute-lower-bound parent-sig hashy-bounds)
   (if (hash-has-key? lower-bounds parent-sig) (hash-ref lower-bounds parent-sig)
@@ -291,7 +308,7 @@
               (let ([additional-lower-bound (int-bound-lower (get-bound parent-sig hashy-bounds))])
                 (hash-set! top-extras parent-sig '())
                 (when (@> additional-lower-bound (length lower-bound))
-                  (let* ([extras (generate-atoms parent-sig (length lower-bound) additional-lower-bound)])
+                  (let* ([extras (next-atoms parent-sig lower-bound 0 additional-lower-bound)])
                     (hash-set! top-extras parent-sig extras)
                     (set! lower-bound (append extras lower-bound))
                     (set! working-universe (append extras working-universe)))))
@@ -300,7 +317,7 @@
             ; Otherwise, return the lower bounds for this sig
             (begin
               (hash-set! top-extras parent-sig '())
-              (set! lower-bound (generate-atoms parent-sig 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
+              (set! lower-bound (next-atoms parent-sig '() 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
               (set! working-universe (append lower-bound working-universe))
               (hash-set! lower-bounds parent-sig lower-bound)
               lower-bound)))))
@@ -323,7 +340,7 @@
             atoms)
           (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
             (define leftovers '())
-            (when (@> upper lower) (set! leftovers (generate-atoms sig lower upper)))
+            (when (@> upper lower) (set! leftovers (next-atoms sig (hash-ref lower-bounds sig) 0 upper)))
             (set! working-universe (append leftovers working-universe))
             (hash-set! top-level-leftovers sig leftovers)
             (hash-set! upper-bounds sig (append (hash-ref lower-bounds sig) leftovers))
@@ -913,16 +930,15 @@
              ret)
 
 (define-syntax (TraceDecl stx)
-  (map-stx (lambda (d)
              (define-values (name paras block sig params strat) (values #f '() '() #f #f 'plinear))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (Name ParaDecls Decl NameList Block QualName Parameters Expr)
                  [(Name n) (set! name (syntax->datum #'n))]
                  [(QualName n) (set! sig (syntax->datum #'n))]
                  [(ParaDecls (Decl (NameList ps) _ ...) ...)
                   (set! paras (flatten (syntax->datum #'(ps ...))))]
                  [(Parameters ps ...) (set! params (syntax->datum #'(ps ...)))]
-                 [(Block bs ...) (set! block (syntax->datum #'(bs ...)))]
+                 [(Block bs ...) (set! block #'(bs ...))]
                  [(Expr (QualName s)) (set! strat (syntax->datum #'s))]
                  [_ #f]
                  )
@@ -933,6 +949,7 @@
              (define S_init (if (> L 1) (list-ref params 1) '_))
              (define S_tran (if (> L 2) (list-ref params 2) '_))
              (define S_term (if (> L 3) (list-ref params 3) '_))
+             (define S_inva (if (> L 4) (list-ref params 4) '_))
 
              (define T name)
              (define T_pred (string->symbol (format "~a_pred" name)))
@@ -943,8 +960,8 @@
              (define tran 'tran)
              (define term 'term)
 
-             (define datum
-               `(begin
+             (define ret
+               (at stx `(begin
                   (pre-declare-sig ,T #:extends univ)
                   (SigDecl
                    (Mult "one")
@@ -958,6 +975,7 @@
                    (QualName ,T)
                    (Name ,T_pred)
                    (Block 
+                    ,@(syntax->list block)
                     (Expr (Expr4 "some" (Expr8 (QualName ,tran))) 
                           "=>" (Expr3 (Block 
                                        (Expr (Expr6 (QualName ,S)) (CompareOp "=") 
@@ -986,15 +1004,19 @@
                     ,@(if (equal? S_term '_) '()
                           `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,term)))) 
                                   (BlockOrBar "|" (Expr (Expr14 (QualName ,S_term)) 
+                                                        "[" (ExprList (Expr (QualName s))) "]")))))
+                    ,@(if (equal? S_inva '_) '()
+                          `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,S)))) 
+                                  (BlockOrBar "|" (Expr (Expr14 (QualName ,S_inva)) 
                                                         "[" (ExprList (Expr (QualName s))) "]")))))))
                   (PredDecl (Name ,T_fact) (Block 
                                             (Expr (Quant "all") (DeclList (Decl (NameList t) (Expr (QualName ,T)))) 
                                                   (BlockOrBar "|" (Expr (Expr14 (QualName ,T_pred)) 
                                                                         "[" (ExprList (Expr (QualName t))) "]")))))
                   (InstDecl (Name ,T_inst) (Bounds 
-                                            (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat)))))))
+                                            (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat))))))))
 
-             datum) stx))
+             ret)
 
 (define-syntax (RelDecl stx)
   (define ret (syntax-case stx (set one lone ArrowDecl NameList ArrowMult)
@@ -1048,14 +1070,16 @@
 
 (define-syntax (Q stx)
   (define ret (syntax-case stx (sum)
-                [(_ "all" n e a) #`(all ([n e]) a)]
-                [(_ "no" n e a) #`(no ([n e]) a)]
-                [(_ "lone" n e a) #`(lone ([n e]) a)]
-                [(_ "some" n e a) #`(some ([n e]) a)]
-                [(_ "one" n e a) #`(one ([n e]) a)]
-                [(_ sum n e a) #`(sum-quant ([n e]) a)]
+                [(_ "all" n e a) (syntax/loc stx (all ([n e]) a))]
+                [(_ "no" n e a) (syntax/loc stx (no ([n e]) a))]
+                [(_ "lone" n e a) (syntax/loc stx (lone ([n e]) a))]
+                [(_ "some" n e a) (syntax/loc stx (some ([n e]) a))]
+                [(_ "one" n e a) (syntax/loc stx (one ([n e]) a))]
+                [(_ "two" n e a) (syntax/loc stx (two ([n e]) a))]
+                [(_ sum n e a) (syntax/loc stx (sum-quant ([n e]) a))]
                 [(_ q n "set" e a)
-                 #'(raise (format "higher-order quantification not supported: ~a ~a: set ..." 'q 'n))]))
+                 (raise-syntax-error (string->symbol (syntax->datum #'q)) 
+                  "Higher-order quantification not supported" stx)]))
   ret)
 
 (define-syntax (Expr stx)
@@ -1095,6 +1119,7 @@
                 [(_ "some" a) (syntax/loc stx (some a))]
                 [(_ "lone" a) (syntax/loc stx (lone a))]
                 [(_ "one" a) (syntax/loc stx (one a))]
+                [(_ "two" a) (syntax/loc stx (two a))]
                 [(_ "set" a) (syntax/loc stx (set a))]
                 [(_ a "+" b) (syntax/loc stx (+ a b))]
                 [(_ a "-" b) (syntax/loc stx (- a b))]
@@ -1177,6 +1202,8 @@
                   [(_ "no" rel) (syntax/loc stx (Bind (Expr rel (CompareOp "=") none)))]
                   [(_ "one" rel) 
                    (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "1"))))))]
+                  [(_ "two" rel) 
+                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "2"))))))]
                   [(_ "lone" rel) 
                    (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1"))))))]
                   [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) (syntax/loc stx (begin 
@@ -1204,6 +1231,17 @@
                            (add-int-bound rel (int-bound exact exact))))
                        (hash-set! bindings 'rel tups)
                        ))]
+                  [(_ (_ (QualName Int)) "[" (_ (_ (Const (Number i)))) "]")
+                   (quasisyntax/loc stx (set-bitwidth #,(string->number (syntax-e #'i))))]
                   [(_ a "and" b) (syntax/loc stx (begin (Bind a) (Bind b)))]
                   [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") stx)]))
   datum)
+
+(define-syntax (two stx)
+  (syntax-case stx ()
+    [(_ ([v0 e0]) pred) (syntax/loc stx 
+     (some ([v0 e0]) (and pred 
+      (one ([v1 (- e0 v0)]) (let ([v0 v1]) pred))
+     )))]
+    [(_ expr) (syntax/loc stx 
+     (some ([x expr]) (one (- expr x))))]))

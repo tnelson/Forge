@@ -213,11 +213,11 @@ here-string-delimiter
          
          (define epilogue (string-append
                            "\n</instance>\n"
-                           "<source filename=\"" filepath "\">"
+                           "<source filename=\"" filepath "\" content=\""
                            (with-handlers ([exn:fail:filesystem:errno?
                                             (λ (exn) "// Couldn't open source file! Maybe you forgot to save it?")])
                              (clean (agg-lines (port->lines (open-input-file filepath)))))
-                           "</source>\n"
+                           "\"></source>\n"
                            "</alloy>"))
                                            
          (string-append prologue

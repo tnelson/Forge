@@ -1,6 +1,6 @@
 #lang forge
 
-sig A { r: set A, s: set A }
+sig A { r: set A, s: two A }
 
 pred p[a:A] { a->a in r }
 fun f[a:A]: A { a.r }
