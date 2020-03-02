@@ -927,6 +927,7 @@
              ;(printf "ret : ~v~n" ret)
              ret)
 
+(define-for-syntax using-traces #f)
 (define-syntax (TraceDecl stx)
              (define-values (name paras block sig params strat) (values #f '() '() #f #f 'plinear))
              (for ([arg (cdr (syntax->list stx))])
@@ -960,14 +961,16 @@
 
              (define ret
                (at stx `(begin
-                  (pre-declare-sig ,T #:extends univ)
-                  (SigDecl
-                   (Mult "one")
-                   (NameList ,T)
-                   (ArrowDeclList 
-                    (ArrowDecl (NameList ,init) (ArrowMult "set") (ArrowExpr (QualName ,S))) 
-                    (ArrowDecl (NameList ,tran) (ArrowMult "set") (ArrowExpr (QualName ,S) (QualName ,S))) 
-                    (ArrowDecl (NameList ,term) (ArrowMult "set") (ArrowExpr (QualName ,S)))))
+                  ,@(if using-traces '() `(
+                    (pre-declare-sig TraceBase #:extends univ)
+                    (SigDecl
+                      (NameList TraceBase)
+                      (ArrowDeclList 
+                        (ArrowDecl (NameList ,init) (ArrowMult "set") (ArrowExpr (QualName ,S))) 
+                        (ArrowDecl (NameList ,tran) (ArrowMult "set") (ArrowExpr (QualName ,S) (QualName ,S))) 
+                        (ArrowDecl (NameList ,term) (ArrowMult "set") (ArrowExpr (QualName ,S)))))))
+                  (pre-declare-sig ,T #:extends TraceBase)
+                  (SigDecl (Mult "one") (NameList ,T) (SigExt "extends" (QualName TraceBase)))
                   (StateDecl
                    "facts"
                    (QualName ,T)
@@ -1013,7 +1016,8 @@
                                                                         "[" (ExprList (Expr (QualName t))) "]")))))
                   (InstDecl (Name ,T_inst) (Bounds 
                                             (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat))))))))
-
+             (set! using-traces #t)
+             ;(printf "ret : ~v~n" ret)
              ret)
 
 (define-syntax (RelDecl stx)
