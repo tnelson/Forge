@@ -11,8 +11,4 @@ fun g[a1:A, a2:A]: A {a1+a2}
 --check { all a:A | r.s[a] = (r.s)[a] }  -- valid
 --check { all a:A | r.s[a] = r.(s[a]) }  -- invalid
 
-run {
-    two a: A | p[a]
-} for {
---    two A
-}
+run { some A } 

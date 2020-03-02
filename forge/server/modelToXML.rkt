@@ -57,7 +57,7 @@
       (string-append (first lines) "\r\n" (agg-lines (rest lines)))))
                  
 
-(define (model-to-XML-string model name command filepath bitwidth forge-version)
+(define (model-to-XML-string model name command filepath bitwidth forge-version project)
   (define flag (car model))
   (define data (cdr model))
   
@@ -65,7 +65,7 @@
   (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
                                   (clean (clean-syntax command)) "\" filename=\"" filepath
-                                  "\" version=\"" forge-version "\">\n"
+                                  "\" project=\"" project "\" version=\"" forge-version "\">\n"
                                   #<<here-string-delimiter
 
 <sig label="seq/Int" ID="0" parentID="1" builtin="yes">
@@ -213,11 +213,11 @@ here-string-delimiter
          
          (define epilogue (string-append
                            "\n</instance>\n"
-                           "<source filename=\"" filepath "\">"
+                           "<source filename=\"" filepath "\" content=\""
                            (with-handlers ([exn:fail:filesystem:errno?
                                             (λ (exn) "// Couldn't open source file! Maybe you forgot to save it?")])
                              (clean (agg-lines (port->lines (open-input-file filepath)))))
-                           "</source>\n"
+                           "\"></source>\n"
                            "</alloy>"))
                                            
          (string-append prologue

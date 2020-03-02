@@ -57,6 +57,7 @@
 (define coregranoption 0)
 (define logtransoption 1)
 (define demo #f)
+(define project "")
 
 ; set of one sigs
 (define one-sigs (mutable-set))
@@ -98,6 +99,7 @@
     ['coregranularity (set! coregranoption val)]
     ['sb (set! sboption val)]
     ['logtranslation (set! logtransoption val)]
+    ['project (set! project "T")]
     ['demo
      (match val
        ['life (set! demo 'life)]
@@ -268,6 +270,7 @@
 
 
 ; Recursively generates atoms that can possibly exist in a sig
+; Depracated - use next-atoms instead
 (define (generate-atoms sig lower upper)
   (define sig-name (string->symbol (relation-name sig)))
   (define syms (if (and (hash-has-key? bindings sig-name)
@@ -282,6 +285,16 @@
          (string->symbol (string-append (relation-name sig) (number->string n)))))
    (range lower upper)))
 
+
+; Generates the lowest n atoms for sig not already contained in lower
+(define (next-atoms sig lower ind n)
+  (if (@= n 0)
+      '()
+      (let ([name (string->symbol (string-append (relation-name sig) (number->string ind)))])
+        (if (member name lower)
+            (next-atoms sig lower (@+ ind 1) n)
+            (cons name (next-atoms sig (cons name lower) (@+ ind 1) (@- n 1)))))))
+
 ; Returns a list of symbols representing atoms
 (define (compute-lower-bound parent-sig hashy-bounds)
   (if (hash-has-key? lower-bounds parent-sig) (hash-ref lower-bounds parent-sig)
@@ -295,7 +308,7 @@
               (let ([additional-lower-bound (int-bound-lower (get-bound parent-sig hashy-bounds))])
                 (hash-set! top-extras parent-sig '())
                 (when (@> additional-lower-bound (length lower-bound))
-                  (let* ([extras (generate-atoms parent-sig (length lower-bound) additional-lower-bound)])
+                  (let* ([extras (next-atoms parent-sig lower-bound 0 additional-lower-bound)])
                     (hash-set! top-extras parent-sig extras)
                     (set! lower-bound (append extras lower-bound))
                     (set! working-universe (append extras working-universe)))))
@@ -304,7 +317,7 @@
             ; Otherwise, return the lower bounds for this sig
             (begin
               (hash-set! top-extras parent-sig '())
-              (set! lower-bound (generate-atoms parent-sig 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
+              (set! lower-bound (next-atoms parent-sig '() 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
               (set! working-universe (append lower-bound working-universe))
               (hash-set! lower-bounds parent-sig lower-bound)
               lower-bound)))))
@@ -327,7 +340,7 @@
             atoms)
           (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
             (define leftovers '())
-            (when (@> upper lower) (set! leftovers (generate-atoms sig lower upper)))
+            (when (@> upper lower) (set! leftovers (next-atoms sig (hash-ref lower-bounds sig) 0 upper)))
             (set! working-universe (append leftovers working-universe))
             (hash-set! top-level-leftovers sig leftovers)
             (hash-set! upper-bounds sig (append (hash-ref lower-bounds sig) leftovers))
@@ -495,7 +508,7 @@
          (match demo
            ['life (output-life inst)]))
        (cons restype inst))
-     (display-model get-next-model name command filepath bitwidth funs-n-preds)]))
+     (display-model get-next-model name command filepath bitwidth funs-n-preds project)]))
 
 (define-syntax (run stx)
   (define command (format "~a" stx))
