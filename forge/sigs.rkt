@@ -978,7 +978,8 @@
                (at stx `(begin
                   ,@(if using-traces '() `(
                     (pre-declare-sig TraceBase #:extends univ)
-                    (SigDecl
+                    (SigDecl 
+                      "abstract"
                       (NameList TraceBase)
                       (ArrowDeclList 
                         (ArrowDecl (NameList ,init) (ArrowMult "set") (ArrowExpr (QualName ,S))) 
