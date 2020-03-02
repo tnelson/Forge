@@ -1,6 +1,6 @@
 #lang forge
 
-sig A {}
+abstract sig A {}
 --sig B {}
 sig S {
     stuff: set A--,
@@ -27,6 +27,7 @@ trace<|S, _, S_tran, _, S_inva|> T {
 --trace<|S, _, S_tran, _|> T: linear {}
 --trace<|S, S_init, S_tran|> T: tree {}
 run<|T|> {
+    TraceBase in T
     S.stuff = A
 --    some B
 --    two B

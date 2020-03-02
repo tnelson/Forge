@@ -60,6 +60,8 @@
 
 ; set of one sigs
 (define one-sigs (mutable-set))
+; set of abstract sigs
+(define abstract-sigs (mutable-set))
 ; is the current command using exactly
 (define is-exact #f)
 (define (set-is-exact) (set! is-exact #t))
@@ -683,9 +685,8 @@
              (replace-ints (cons 'begin (port->list read (open-input-string (cadr d)))))
              ) stx))
 (define-syntax (SigDecl stx)
-  (map-stx (lambda (d)
              (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
-             (for ([arg (cdr d)])
+             (for ([arg (cdr (syntax->list stx))])
                (syntax-case arg (NameList Mult SigExt ArrowDeclList Block)
                  ["abstract" (set! abstract #t)]
                  [(Mult "one") (set! one #t)]
@@ -696,11 +697,11 @@
                  [_ #f]
                  )
                )
-             (set! names (syntax->datum names))
-             (if qualName (set! qualName (cadr (syntax->datum qualName))) #f)
+             (set! names (syntax->list names))
+             (if qualName (set! qualName (cadr (syntax->list qualName))) #f)
 
              (define op (if one 'declare-one-sig 'declare-sig))
-             (define datum
+             (define ret
                (if qualName
                    (if (= 0 (length decls))
                        (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
@@ -709,8 +710,13 @@
                    (if (= 0 (length decls))
                        (cons 'begin (map (lambda (name) `(,op ,name)) names))
                        (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-             datum
-             ) stx))
+             (set! ret (at stx `(begin
+               ,ret
+               ;,@(for/list ([name names]) )
+             )))
+             ;(printf "ret : ~v~n" ret)
+             ret
+             )
 
 ; See note in parser.rkt about difference between InstanceDecl and InstDecl
 (define-syntax-rule (InstanceDecl i) (instance i))
