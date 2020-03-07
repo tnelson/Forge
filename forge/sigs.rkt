@@ -1238,6 +1238,10 @@
                     (define upper (caar (eval-exp (alloy->kodkod 'expr2) bindings 8 #f)))
                     (add-int-bound rel (int-bound lower upper))
                     (hash-set! bindings 'rel (map list (range upper)))))] ;; dummy atoms so #rel works
+                  [(_ (_ "~" rel) (CompareOp "in") (_ (QualName strat))) 
+                   (syntax/loc stx (break rel (get-co 'strat)))]
+                  [(_ (_ "~" rel) (CompareOp "is") (_ (QualName strat))) 
+                   (syntax/loc stx (break rel (get-co 'strat)))]
                   [(_ rel (CompareOp "in") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
                   [(_ rel (CompareOp "is") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
                   [(_ (QualName f)) (syntax/loc stx (f bindings))]
