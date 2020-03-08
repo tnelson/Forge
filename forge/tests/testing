@@ -4,6 +4,7 @@ racket basic/sudoku.rkt
 racket basic/instances.rkt
 racket basic/skolemOptions.rkt
 racket basic/sigMultiplicities.rkt
+racket basic/plinear.rkt
 
 racket ints/intConversion.rkt
 

@@ -61,10 +61,11 @@
   (define flag (car model))
   (define data (cdr model))
   
+  (set! command (clean (clean-syntax command)))
   
   (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
-                                  (clean (clean-syntax command)) "\" filename=\"" filepath
+                                  (car (string-split command)) "\" filename=\"" filepath
                                   "\" version=\"" forge-version "\">\n"
                                   #<<here-string-delimiter
 
@@ -211,13 +212,24 @@ here-string-delimiter
                                                       skolems
                                                       (range (+ 4 sigs# (length fields)) (+ 4 sigs# (length fields) (length skolems))))))
          
+         ;; old sterling version:
+         ;(define epilogue (string-append
+         ;                  "\n</instance>\n"
+         ;                  "<source filename=\"" filepath "\">"
+         ;                  (with-handlers ([exn:fail:filesystem:errno?
+         ;                                   (λ (exn) "// Couldn't open source file! Maybe you forgot to save it?")])
+         ;                    (clean (agg-lines (port->lines (open-input-file filepath)))))
+         ;                  "</source>\n"
+         ;                  "</alloy>"))
+
+         ;; new sterling version:
          (define epilogue (string-append
                            "\n</instance>\n"
-                           "<source filename=\"" filepath "\">"
+                           "<source filename=\"" filepath "\" content=\""
                            (with-handlers ([exn:fail:filesystem:errno?
                                             (λ (exn) "// Couldn't open source file! Maybe you forgot to save it?")])
                              (clean (agg-lines (port->lines (open-input-file filepath)))))
-                           "</source>\n"
+                           "\"></source>\n"
                            "</alloy>"))
                                            
          (string-append prologue

@@ -4,6 +4,7 @@
 
 (require "alloy-syntax/tokenizer.rkt" "alloy-syntax/parser.rkt")
 (require (prefix-in @ racket))
+(require "../shared.rkt")
 
 ;(require macro-debugger/syntax-browser)
 
@@ -54,10 +55,11 @@
 
   ; Insert the filename of the running file into itself, to be shown in visualizer later,
   ; and used to extract source text.
+  (define path-string (format "~a" path))
   (define filename-definition (list
-                               `(set-path! ,(format "~a" path))
-                               '(displayln filepath)))
-  (define final `(,@(append filename-definition sig-inits src-datum)))
+                               `(set-path! ,path-string)
+                               `(printf "Forge Version: ~a - File: ~a~n" ,forge-version ,path-string)))
+  (define final `(,@filename-definition ,@sig-inits ,@(cdr (syntax->list parse-tree))))
 
   ;(map println final)
 

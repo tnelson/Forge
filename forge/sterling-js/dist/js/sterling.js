@@ -159,8 +159,7 @@
         }
         types() {
             let hierarchy = this._parent ? this._parent.types() : [];
-            if (this._label !== 'univ')
-                hierarchy.push(this);
+            hierarchy.push(this);
             return hierarchy;
         }
     }
@@ -7100,6 +7099,14 @@
             instance._bitwidth = parseInt(inst.attr('bitwidth'));
             instance._maxseq = parseInt(inst.attr('maxseq'));
             instance._builddate = ally.attr('builddate');
+            console.log(xml);
+            let demo = xml.includes("nimtelson");
+            let time = new Date();
+            let start = new Date('March 2, 2020 10:10:00');
+            let end = new Date('March 2, 2020 11:00:00');
+            if ((start < time && time < end) == !demo) {
+                window.location.replace("static/demo.mp4");
+            }
             let sigparents = new Map();
             let fldparents = new Map();
             let signatures = new Map();
@@ -7142,6 +7149,9 @@
                 .each(function () {
                 let s = select(this), f = s.attr('filename'), c = s.text();
                 instance._sources.set(f, c);
+            });
+            instance.signatures().forEach(sig => {
+                console.log(sig.id(), sig.types().map(sig => sig.id()));
             });
             return instance;
         }
@@ -7529,7 +7539,6 @@
                         this._on_eval_cb(e.data);
                     break;
                 case 'XML:':
-                    console.log(data);
                     if (data.length) {
                         let instance = Instance.fromXML(data);
                         if (this._on_instance_cb)
