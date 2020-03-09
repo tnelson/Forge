@@ -75,19 +75,18 @@ transition[MyState] addOrRemoveA[a: A] {
 
 A trace over `MyState` can be defined and run like:
 ```alloy
-trace<|MyState, myInitState, myTransition, myFinalState|> MyTrace {}
+trace<|MyState, myInitState, myTransition, myFinalState, myInvariant|> MyTrace {}
 run<|MyTrace|> { ... }
 ```
 
-Note that at the moment of writing this:
-- The 3 predicates `myInitState, myTransition, myFinalState` must take no arguments other than the implicit `this/this'`.
-- The contents of the trace's `{}` block will be ignored.
-- Multiple traces can't be defined for a single sig.
+Note that at the moment of writing this, the 3 predicates `myInitState, myTransition, myFinalState, myInvariant` must take no arguments other than the implicit `this/this'`.
 
 Under the hood, the `trace<|MyState, ...|> MyTrace {}` line creates 3 things: 
-1. A new sig `MyTrace`
+1. A new sig: `one sig MyTrace extends BaseTrace {}`
 1. A predicate `MyTrace_fact`
 1. An instance `MyState_inst` 
+
+The contents of the trace declaration's block are added to the `MyTrace_fact` predicate. In that block, the symbols `this, init, tran, term` are bounded to the trace sig and it's fields respectively.
 
 A command like `run<|MyState, ...|> {...} for {...}` turns into `run { MyTrace_fact and ... } for { MyTrace_inst, ... }`
 
