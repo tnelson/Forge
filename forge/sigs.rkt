@@ -1243,6 +1243,9 @@
                   [(_ (QualName f)) (syntax/loc stx (f bindings))]
                   [(_ (_ (QualName rel)) (CompareOp "=") expr)
                    (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+                       (set! tups (for/list ([tup tups]) (for/list ([e tup]) 
+                         (if (int-atom? e) (int-atom-n e) e)
+                       )))
                        (instance (make-exact-sbound rel tups))
                        (when (equal? (relation-arity rel) 1)
                          (let ([exact (length tups)])
