@@ -90,10 +90,10 @@ here-string-delimiter
                         "</sig>\n"
                         "\n</instance>\n"
                         (if data
-                            (string-append "<source filename=\"Unsat Core\">"
+                            (string-append "<source filename=\"Unsat Core\" content=\""
                                            (agg-lines
                                             (map clean data))
-                                           "</source>\n") "")
+                                           "\"></source>\n") "")
                         "</alloy>")]
         [(equal? flag 'no-more-instances)
          (string-append prologue

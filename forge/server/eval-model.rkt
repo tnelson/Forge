@@ -5,7 +5,7 @@
 (require racket/struct)
 
 (provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
-(provide int-atom int-atom->string int-atom?)
+(provide int-atom int-atom->string int-atom? int-atom-n)
 
 ; seperate structure for binding int atoms so they don't collide with int values
 (struct int-atom (n)
