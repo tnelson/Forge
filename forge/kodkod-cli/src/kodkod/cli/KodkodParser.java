@@ -243,7 +243,7 @@ public class KodkodParser extends BaseParser<Object> {
                        Sequence(Keyword("Lingeling"),       push(SATFactory.Lingeling)),
                        Sequence(Keyword("SAT4J"),           push(SATFactory.DefaultSAT4J)),
                        Sequence(Sequence(FilePathLiteral(), Space()),
-                                push(SATFactory.externalFactory(popString(),//"C:/Users/lavre/Desktop/Brown/lfs/Forge/forge/kodkod-cli/customSolver/haskell/solver.exe",
+                                push(SATFactory.externalFactory(popString(),
                                                                 "customSolver.temp")))
                         );
     }
