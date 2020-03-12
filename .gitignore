@@ -6,6 +6,7 @@
 *.bak
 .genIntSpec.py.swp
 *.swp
+*.temp
 .idea/
 kodkod-cli/docs/
 *.class
