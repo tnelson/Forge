@@ -1,0 +1,35 @@
+name: Semantic Version Updater
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - 'master'
+
+jobs:
+  semverUpd:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+    - name: Set up Python ${{matrix.python-version}}
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
+    - name: Get version
+      run: echo "::set-env name=UPDATE_TYPE::$(python .github/workflows/get-update-type.py ${{ github.event.pull_request.title }})"
+    - name: Update version
+      run: python .github/workflows/read-version.py forge/info.rkt $UPDATE_TYPE
+    - name: Commit files
+      run: |
+        git add .
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git commit -m "Bump version" -a
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
