@@ -33,6 +33,7 @@ Here are some example bounds formulas:
 - `A = ...` : exactly specify a relation
     - ex: `A = Alice+Alex+Adam` : any atom names can be given to sigs :)
     - ex: `r = Alice->A - iden` : the RHS is given to the evaluator, but names must be already be defined
+    - ex: `g = Node0->sing[2]->Node1` : use sing[-] to refer to int atoms
 - `r is tree` : use bounds-based [symmetry breaking](#symmetry-breaking) to make sure `r` is a tree
 - `~r is tree` : use (co tree) symmetry breaker
 
