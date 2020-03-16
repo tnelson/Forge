@@ -2,7 +2,7 @@
 
 (define collection "forge")
 
-(define version "0.3.0")
+(define version "0.2.3")
 
 (define deps '("beautiful-racket" "predicates"))
 
