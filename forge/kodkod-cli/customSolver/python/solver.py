@@ -1,3 +1,4 @@
+#!/bin/python3
 import sys
 from time import time
 from copy import copy, deepcopy
