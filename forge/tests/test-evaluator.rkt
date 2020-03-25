@@ -25,7 +25,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Basic expressions and formulas 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#|
 (check-eval-to? 4 binding1 'edges               '((Node1 Node2) (Node0 Node1)))
 (check-eval-to? 4 binding1 'Node                '((Node1) (Node2) (Node0)))
 (check-eval-to? 4 binding1 '(join edges edges)  '((Node0 Node2)))
@@ -58,7 +57,7 @@
 
 ; TODO: evaluator will not support nested set comprehensions currently 
 ;(check-eval-to? 4 binding1 '(set x Node (set y Node (in y (join x edges)))) '((Node0) (Node1)))
-|#
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Predicate invocations
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

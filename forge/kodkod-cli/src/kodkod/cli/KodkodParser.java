@@ -73,6 +73,7 @@ import org.parboiled.annotations.MemoMismatches;
 import org.parboiled.annotations.SuppressNode;
 import org.parboiled.annotations.SuppressSubnodes;
 import org.parboiled.support.Var;
+import org.parboiled.support.StringVar;
 import org.parboiled.support.DefaultValueStack;
 
 /**
@@ -80,745 +81,879 @@ import org.parboiled.support.DefaultValueStack;
  * This parser does not support error recovery, since building the problem requires
  * state mutation that cannot be safely undone.
  *
+ * @author Emina Torlak
  * @specfield problem: {@link KodkodProblem}	// an empty KodkodProblem instance to be populated with the parsed specification
  * @specfield out: {@link KodkodOutput} 		// KodkodOutput instance to which solutions should be written
- * @author Emina Torlak
  */
 public class KodkodParser extends BaseParser<Object> {
-	final KodkodOutput out;
-	KodkodProblem problem;
+    final KodkodOutput out;
+    KodkodProblem problem;
 
-	/**
-	 * Creates a parser that will populate an instance of KodkodProblem.complete() and that will output
-	 * the result of any command executios to an instance of {@link StandardKodkodOutput}.
-	 */
-	public KodkodParser() { this(KodkodProblem.complete(), new StandardKodkodOutput()); }
+    /**
+     * Creates a parser that will populate an instance of KodkodProblem.complete() and that will output
+     * the result of any command executios to an instance of {@link StandardKodkodOutput}.
+     */
+    public KodkodParser() {
+        this(KodkodProblem.complete(), new StandardKodkodOutput());
+    }
 
-	/**
-	 * Creates a {@link KodkodParser} that will populate the given Kodkod problem and that will output
-	 * the result of any command executions to the given solution output.
-	 */
-	public KodkodParser(KodkodProblem problem, KodkodOutput out) {
-		this.problem = problem;
-		this.out = out;
-	}
+    /**
+     * Creates a {@link KodkodParser} that will populate the given Kodkod problem and that will output
+     * the result of any command executions to the given solution output.
+     */
+    public KodkodParser(KodkodProblem problem, KodkodOutput out) {
+        this.problem = problem;
+        this.out = out;
+    }
 
-	/**
-	 * Returns the {@link KodkodProblem} (to be) populated by this parser.
-	 * @return this.problem
-	 */
-	public KodkodProblem problem() 				{ return problem ; }
+    /**
+     * Returns the {@link KodkodProblem} (to be) populated by this parser.
+     *
+     * @return this.problem
+     */
+    public KodkodProblem problem() {
+        return problem;
+    }
 
-	/**
-	 * Sets {@code this.problem} to the given problem and returns true.
-	 * Setting the problem to <code>null</code> causes this method to
-	 * terminate the current JVM instance with a 0 exit code. So basically,
-	 * when a solve() returns null, that's our cue to end the process.
-	 * @ensures this.problem' = problem
-	 * @return true
-	 */
-	public boolean setProblem(KodkodProblem problem) {
-		if (problem==null)
-			System.exit(0);
-		this.problem = problem;
-		return true;
-	}
+    /**
+     * Sets {@code this.problem} to the given problem and returns true.
+     * Setting the problem to <code>null</code> causes this method to
+     * terminate the current JVM instance with a 0 exit code. So basically,
+     * when a solve() returns null, that's our cue to end the process.
+     *
+     * @return true
+     * @ensures this.problem' = problem
+     */
+    public boolean setProblem(KodkodProblem problem) {
+        if (problem == null)
+            System.exit(0);
+        this.problem = problem;
+        return true;
+    }
 
-	public Rule Problems() {
-		return OneOrMore(Problem());
-	}
+    public Rule Problems() {
+        return OneOrMore(Problem());
+    }
 
-	/** @return (Problem() IncrementalProblem()*)+ EOI */
-	// public Rule IncrementalProblems()			{ return OneOrMore(Problem(), ZeroOrMore(IncrementalProblem()));  }
-	public Rule IncrementalProblems()			{ return NOTHING; }
+    /**
+     * @return (Problem () IncrementalProblem()*)+ EOI
+     */
+    // public Rule IncrementalProblems()			{ return OneOrMore(Problem(), ZeroOrMore(IncrementalProblem()));  }
+    public Rule IncrementalProblems() {
+        return NOTHING;
+    }
 
-	/** @return (Problem() IncrementalProblem()*)+ EOI */
-	public Rule RestOfIncrementalProblems()		{ return OneOrMore(IncrementalProblem(), ZeroOrMore(IncrementalProblems()));  }
+    /**
+     * @return (Problem () IncrementalProblem()*)+ EOI
+     */
+    public Rule RestOfIncrementalProblems() {
+        return OneOrMore(IncrementalProblem(), ZeroOrMore(IncrementalProblems()));
+    }
 
-	// a problem can also just be (solve), in which case we just print the next Solution.
-	// but can't be multiple solves (should just be solve + eoi, and can't be series of solve + eoi, cuz that's not
-	// even possible)
+    // a problem can also just be (solve), in which case we just print the next Solution.
+    // but can't be multiple solves (should just be solve + eoi, and can't be series of solve + eoi, cuz that's not
+    // even possible)
 
-	public Rule StepperServe() {
-		return Sequence(
-				Space(),
-				Solve(),
-				Optional(FirstOf(Clear(), Exit())),
-				EOI);
-	}
+    public Rule StepperServe() {
+        return Sequence(
+                Space(),
+                Solve(),
+                Optional(FirstOf(Clear(), Exit())),
+                EOI);
+    }
 
-	@Cached
-	public Rule StepperProblem() {
-		return Sequence(
-				Space(),				 						problem.startBuild(),
-				Configure(),
-				DeclareUniverse(),
-				Optional(DeclareInts()),
-				ZeroOrMore(FirstOf(	DeclareRelation(),
-									DefNode(),
-									Assert())),					problem.endBuild(),
-				StepperServe());
-	}
+    @Cached
+    public Rule StepperProblem() {
+        return Sequence(
+                Space(), problem.startBuild(),
+                Configure(),
+                DeclareUniverse(),
+                Optional(DeclareInts()),
+                ZeroOrMore(FirstOf(DeclareRelation(),
+                                   DefNode(),
+                                   Assert())), problem.endBuild(),
+                StepperServe());
+    }
 
-	/** @return Exit? Configure Universe DefineInts? IncrementalProblem  */
-	@Cached
-	public Rule Problem()	{
-		return Sequence(
-				Space(), Optional(Exit()), 						problem.startBuild(),
-				Configure(),
-				DeclareUniverse(),
-				Optional(DeclareInts()),
-				ZeroOrMore(FirstOf(	DeclareRelation(),
-									DefNode(),
-									Assert())),					problem.endBuild(),
-				Serve());
-	}
+    /**
+     * @return Exit? Configure Universe DefineInts? IncrementalProblem
+     */
+    @Cached
+    public Rule Problem() {
+        return Sequence(
+                Space(), Optional(Exit()), problem.startBuild(),
+                Configure(),
+                DeclareUniverse(),
+                Optional(DeclareInts()),
+                ZeroOrMore(FirstOf(DeclareRelation(),
+                                   DefNode(),
+                                   Assert())), problem.endBuild(),
+                Serve());
+    }
 
-	/** @return DefineRelation* DefineNode* Assert* Serve   */
-	@Cached
-	public Rule IncrementalProblem() {
-		return Sequence(
-				Space(),										problem.startBuild(),
-				ZeroOrMore(FirstOf(	DeclareRelation(),
-									DefNode(),
-									Assert())),					problem.endBuild(),
-				Serve());
-	}
+    /**
+     * @return DefineRelation* DefineNode* Assert* Serve
+     */
+    @Cached
+    public Rule IncrementalProblem() {
+        return Sequence(
+                Space(), problem.startBuild(),
+                ZeroOrMore(FirstOf(DeclareRelation(),
+                                   DefNode(),
+                                   Assert())), problem.endBuild(),
+                Serve());
+    }
 
-	//-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     //  Configuration options
     //-------------------------------------------------------------------------
-	/** @return (LPAR CONFIG
-	 *          		((:solver Solver) | (:bitwidth NatLiteral) | (:produce-cores BooleanLiteral) |
-	 * 					 (:verbosity NatLiteral) | (:max-solutions NatLiteral))+ RPAR)* **/
-	Rule Configure() {
-		return ZeroOrMore(
-					LPAR,
-						CONFIG,
-						OneOrMore(":",
-							FirstOf(
-								Sequence(Keyword("solver"), 		Solver(), 		problem.setSolver((SATFactory)pop())),
-								Sequence(Keyword("bitwidth"),		NatLiteral(), 	problem.setBitwidth(popInt())),
-								//Sequence(Keyword("produce-cores"), 	BoolLiteral(), 	problem.setCoreExtraction(popBool())),
-								Sequence(Keyword("log-trans"),   	NatLiteral(), 	problem.setLogTranslation(popInt())),
-								Sequence(Keyword("core-gran"),   	NatLiteral(), 	problem.setCoreGranularity(popInt())),
-								Sequence(Keyword("verbosity"),		NatLiteral(),	problem.setVerbosity(level(popInt()))),
-								Sequence(Keyword("sb"),		        NatLiteral(),	problem.setSB(popInt())),
-								Sequence(Keyword("skolem-depth"),   NatLiteral(),	problem.setSkolemDepth(popInt())),
-								Sequence(Keyword("max-solutions"), 	NatLiteral(),	problem.setMaxSolutions(popInt())))),
-					RPAR);
-	}
 
-	/** @return MiniSatProver | MiniSat | Glucose | Lingeling | SAT4J */
+    /**
+     * @return (LPAR CONFIG
+     *( ( : solver Solver) | (:bitwidth NatLiteral) | (:produce-cores BooleanLiteral) |
+     * (:verbosity NatLiteral) | (:max-solutions NatLiteral))+ RPAR)*
+     **/
+    Rule Configure() {
+        return ZeroOrMore(
+                LPAR,
+                CONFIG,
+                OneOrMore(":",
+                          FirstOf(
+                                  Sequence(Keyword("solver"), Solver(), problem.setSolver((SATFactory) pop())),
+                                  Sequence(Keyword("bitwidth"), NatLiteral(), problem.setBitwidth(popInt())),
+                                  //Sequence(Keyword("produce-cores"), 	BoolLiteral(), 	problem.setCoreExtraction(popBool())),
+                                  Sequence(Keyword("log-trans"), NatLiteral(), problem.setLogTranslation(popInt())),
+                                  Sequence(Keyword("core-gran"), NatLiteral(), problem.setCoreGranularity(popInt())),
+                                  Sequence(Keyword("verbosity"), NatLiteral(), problem.setVerbosity(level(popInt()))),
+                                  Sequence(Keyword("sb"), NatLiteral(), problem.setSB(popInt())),
+                                  Sequence(Keyword("skolem-depth"), NatLiteral(), problem.setSkolemDepth(popInt())),
+                                  Sequence(Keyword("max-solutions"), NatLiteral(), problem.setMaxSolutions(popInt())))),
+                RPAR);
+    }
+
+    /**
+     * @return MiniSatProver | MiniSat | Glucose | Lingeling | SAT4J
+     */
     @SuppressSubnodes
     @MemoMismatches
     Rule Solver() {
-		return FirstOf( Sequence(Keyword("MiniSatProver"),		push(SATFactory.MiniSatProver)),
-						Sequence(Keyword("MiniSat"),			push(SATFactory.MiniSat)),
-						Sequence(Keyword("Glucose"),			push(SATFactory.Glucose)),
-						Sequence(Keyword("Lingeling"),			push(SATFactory.Lingeling)),
-						Sequence(Keyword("SAT4J"),				push(SATFactory.DefaultSAT4J)));
+        return FirstOf(Sequence(Keyword("MiniSatProver"),   push(SATFactory.MiniSatProver)),
+                       Sequence(Keyword("MiniSat"),         push(SATFactory.MiniSat)),
+                       Sequence(Keyword("Glucose"),         push(SATFactory.Glucose)),
+                       Sequence(Keyword("Lingeling"),       push(SATFactory.Lingeling)),
+                       Sequence(Keyword("SAT4J"),           push(SATFactory.DefaultSAT4J)),
+                       Sequence(Sequence(FilePathLiteral(), Space()),
+                                push(SATFactory.externalFactory(popString(),
+                                                                "customSolver.temp")))
+                        );
     }
 
-	//-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     //  Universe, int builder and relation declarations/builder
     //-------------------------------------------------------------------------
-	/** @return LPAR UNIV NatLiteral RPAR */
-	Rule DeclareUniverse() {
-		return Sequence(
-				LPAR,
-					UNIV, NatLiteral(), 						problem.declareUniverse(popInt()),
-				RPAR);
-	}
 
-	/** @return LPAR INTS LBRK (LPAR IntLiteral NatLiteral RPAR)+ RBRK RPAR  */
-	Rule DeclareInts() {
-		final Var<List<Integer>> ints = new Var<>();
-		return Sequence(
-				LPAR,
-					INTS,
-					LBRK, 										ints.set(new ArrayList<Integer>(16)),
-						OneOrMore(
-								LPAR,
-									IntLiteral(), 				ints.get().add(popInt()),
-									NatLiteral(), 				ints.get().add(popInt()),
-								RPAR),
-					RBRK,
-				RPAR,											problem.declareInts(ints.get()));
-	}
+    /**
+     * @return LPAR UNIV NatLiteral RPAR
+     */
+    Rule DeclareUniverse() {
+        return Sequence(
+                LPAR,
+                UNIV, NatLiteral(), problem.declareUniverse(popInt()),
+                RPAR);
+    }
 
-	/** @return LPAR Identifier('r')+ LBRK TupleSet [DOUBLECOLON? TupleSet]? RBRK RPAR  */
-	Rule DeclareRelation() {
-		final Var<List<Integer>> idxs = new Var<>();
-		final Var<TupleSet> lower = new Var<>(), upper = new Var<>();
-		return Sequence(
-				LPAR,
-					Identifier('r'), 							idxs.set(new ArrayList<Integer>(4)), idxs.get().add(popInt()),
-					ZeroOrMore(Identifier('r'), 				idxs.get().add(popInt())),
-					LBRK,
-					TupleSet(), 								lower.set(popTupleSet()),
-					FirstOf(
-						Sequence(
-							DOUBLECOLON,						upper.set(lower.get()),
-							TupleSet(),	 						upper.set(upper.isSet() ? union(upper.get(), popTupleSet()) : popTupleSet())),
-						Sequence(EMPTY, 						upper.set(lower.get()))),
-					RBRK,
-				RPAR, 											problem.declareRelations(idxs.get(), lower.get(), upper.get()));
-	}
+    /**
+     * @return LPAR INTS LBRK (LPAR IntLiteral NatLiteral RPAR)+ RBRK RPAR
+     */
+    Rule DeclareInts() {
+        final Var<List<Integer>> ints = new Var<>();
+        return Sequence(
+                LPAR,
+                INTS,
+                LBRK, ints.set(new ArrayList<Integer>(16)),
+                OneOrMore(
+                        LPAR,
+                        IntLiteral(), ints.get().add(popInt()),
+                        NatLiteral(), ints.get().add(popInt()),
+                        RPAR),
+                RBRK,
+                RPAR, problem.declareInts(ints.get()));
+    }
 
-	//-------------------------------------------------------------------------
+    /**
+     * @return LPAR Identifier('r')+ LBRK TupleSet [DOUBLECOLON? TupleSet]? RBRK RPAR
+     */
+    Rule DeclareRelation() {
+        final Var<List<Integer>> idxs = new Var<>();
+        final Var<TupleSet> lower = new Var<>(), upper = new Var<>();
+        return Sequence(
+                LPAR,
+                Identifier('r'), idxs.set(new ArrayList<Integer>(4)), idxs.get().add(popInt()),
+                ZeroOrMore(Identifier('r'), idxs.get().add(popInt())),
+                LBRK,
+                TupleSet(), lower.set(popTupleSet()),
+                FirstOf(
+                        Sequence(
+                                DOUBLECOLON, upper.set(lower.get()),
+                                TupleSet(), upper.set(upper.isSet() ? union(upper.get(), popTupleSet()) : popTupleSet())),
+                        Sequence(EMPTY, upper.set(lower.get()))),
+                RBRK,
+                RPAR, problem.declareRelations(idxs.get(), lower.get(), upper.get()));
+    }
+
+    //-------------------------------------------------------------------------
     //  TupleSets and Tuples
     //-------------------------------------------------------------------------
-	/** @return RelationReference | ExprLiteral | TupleSetEnum | TupleSetExpr  */
-	Rule TupleSet() {
-		return FirstOf(
-				Sequence(Use('r'),	 							push(valueOf(popRelation(), problem.allBounds()))),
-				Sequence(ExprLiteral(), 						push(valueOf(popExpr(), problem.allBounds()))),
-				TupleSetEnum(),
-				TupleSetExpr());
-	}
 
-	/** @return LPAR (PLUS|PRODUCT|INTERSECT|MINUS) TupleSet+ RPAR */
-	Rule TupleSetExpr() {
-		return Sequence(
-				LPAR,
-					FirstOf(
-						TupleSetExpr(ARROW,	ExprOperator.PRODUCT),
-						TupleSetExpr(PLUS,	ExprOperator.UNION),
-						TupleSetExpr(AMP, 	ExprOperator.INTERSECTION),
-						TupleSetExpr(MINUS,	ExprOperator.DIFFERENCE)),
-				RPAR);
-	}
+    /**
+     * @return RelationReference | ExprLiteral | TupleSetEnum | TupleSetExpr
+     */
+    Rule TupleSet() {
+        return FirstOf(
+                Sequence(Use('r'), push(valueOf(popRelation(), problem.allBounds()))),
+                Sequence(ExprLiteral(), push(valueOf(popExpr(), problem.allBounds()))),
+                TupleSetEnum(),
+                TupleSetExpr());
+    }
 
-	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	Rule TupleSetExpr(Rule opRule, ExprOperator op) {
-		final Var<TupleSet> first = new Var<>();
-		final Var<List<TupleSet>> rest = new Var<>();
+    /**
+     * @return LPAR (PLUS|PRODUCT|INTERSECT|MINUS) TupleSet+ RPAR
+     */
+    Rule TupleSetExpr() {
+        return Sequence(
+                LPAR,
+                FirstOf(
+                        TupleSetExpr(ARROW, ExprOperator.PRODUCT),
+                        TupleSetExpr(PLUS, ExprOperator.UNION),
+                        TupleSetExpr(AMP, ExprOperator.INTERSECTION),
+                        TupleSetExpr(MINUS, ExprOperator.DIFFERENCE)),
+                RPAR);
+    }
 
-		return FirstOf(
-				Sequence(										ACTION(first.enterFrame()),
-																ACTION(rest.enterFrame()),
+    // WARNING CHANGED HACK USES VAR RECURSIVELY
+    Rule TupleSetExpr(Rule opRule, ExprOperator op) {
+        final Var<TupleSet> first = new Var<>();
+        final Var<List<TupleSet>> rest = new Var<>();
 
-					opRule,										rest.set(new ArrayList<TupleSet>(4)),
-					TupleSet(),									first.set(popTupleSet()),
-					ZeroOrMore(TupleSet(), 						rest.get().add(popTupleSet())),
-																push(compose(op, first.get(), rest.get())),
+        return FirstOf(
+                Sequence(ACTION(first.enterFrame()),
+                         ACTION(rest.enterFrame()),
 
-																ACTION(first.exitFrame()),
-																ACTION(rest.exitFrame())),
+                         opRule, rest.set(new ArrayList<TupleSet>(4)),
+                         TupleSet(), first.set(popTupleSet()),
+                         ZeroOrMore(TupleSet(), rest.get().add(popTupleSet())),
+                         push(compose(op, first.get(), rest.get())),
 
-				Sequence(										ACTION(first.exitFrame()),
-																ACTION(rest.exitFrame()),
-						NOTHING));
-	}
+                         ACTION(first.exitFrame()),
+                         ACTION(rest.exitFrame())),
 
-	/** @return LWING (Tuple ((ELLIPSIS Tuple) | (HASH Tuple) | Tuple*))? RWING */
-	Rule TupleSetEnum() {
-		final Var<TupleSet> ts = new Var<>();
-		return Sequence(
-				LWING,
-					FirstOf(
-						Sequence(
-							Tuple(),
-							FirstOf(
-								Sequence(ELLIPSIS, Tuple(), 	swap(),	ts.set(range(popTuple(), popTuple()))),
-								Sequence(HASH,     Tuple(),		swap(), ts.set(area(popTuple(), popTuple()))),
-								Sequence(						ts.set(setOf(popTuple())),
-									ZeroOrMore(    Tuple(),		add(ts.get(), popTuple()))))),
-						Sequence(EMPTY, 						ts.set(valueOf(Expression.NONE, problem.allBounds())))),
-				RWING, 											push(ts.get()));
-	}
+                Sequence(ACTION(first.exitFrame()),
+                         ACTION(rest.exitFrame()),
+                         NOTHING));
+    }
 
-	/** @return LPAR NatLiteral+ RPAR  */
-	@SuppressSubnodes
-	Rule Tuple() {
-		final Var<List<Integer>> t = new Var<List<Integer>>();
-		return Sequence(LPAR, 									t.set(new ArrayList<Integer>(4)),
-							OneOrMore(NatLiteral(), 			t.get().add(popInt())),
-						RPAR,									push(tuple(problem.allBounds().universe().factory(), t.get())));
-	}
+    /**
+     * @return LWING (Tuple ((ELLIPSIS Tuple) | (HASH Tuple) | Tuple*))? RWING
+     */
+    Rule TupleSetEnum() {
+        final Var<TupleSet> ts = new Var<>();
+        return Sequence(
+                LWING,
+                FirstOf(
+                        Sequence(
+                                Tuple(),
+                                FirstOf(
+                                        Sequence(ELLIPSIS, Tuple(), swap(), ts.set(range(popTuple(), popTuple()))),
+                                        Sequence(HASH, Tuple(), swap(), ts.set(area(popTuple(), popTuple()))),
+                                        Sequence(ts.set(setOf(popTuple())),
+                                                 ZeroOrMore(Tuple(), add(ts.get(), popTuple()))))),
+                        Sequence(EMPTY, ts.set(valueOf(Expression.NONE, problem.allBounds())))),
+                RWING, push(ts.get()));
+    }
 
-	//-------------------------------------------------------------------------
+    /**
+     * @return LPAR NatLiteral+ RPAR
+     */
+    @SuppressSubnodes
+    Rule Tuple() {
+        final Var<List<Integer>> t = new Var<List<Integer>>();
+        return Sequence(LPAR, t.set(new ArrayList<Integer>(4)),
+                        OneOrMore(NatLiteral(), t.get().add(popInt())),
+                        RPAR, push(tuple(problem.allBounds().universe().factory(), t.get())));
+    }
+
+    //-------------------------------------------------------------------------
     //  Register defs and uses
     //-------------------------------------------------------------------------
-	/** @return LPAR NodeDef RPAR  */
-	Rule DefNode() {
-		return Sequence(LPAR, NodeDef(), RPAR);
-	}
 
-	/** @return Def('e', Expr) | Def('i', IntExpr) | Def('f', Constraint) */
-	Rule NodeDef() {
-		return FirstOf(Def('e', Expr()),  Def('i', IntExpr()), Def('f', Constraint()));
-	}
+    /**
+     * @return LPAR NodeDef RPAR
+     */
+    Rule DefNode() {
+        return Sequence(LPAR, NodeDef(), RPAR);
+    }
 
-	@SuppressSubnodes @Cached /** @return Identifier(varPrefix) varValue */
-	Rule Def(char varPrefix, Rule varValue) {
-		final Var<Integer> varIdx = new Var<>();
-		return Sequence(
-				Identifier(varPrefix), 							varIdx.set(popInt()),
-				varValue, 										env().def(varPrefix, varIdx.get(), (Node)pop()));
-	}
+    /**
+     * @return Def(' e ', Expr) | Def('i', IntExpr) | Def('f', Constraint)
+     */
+    Rule NodeDef() {
+        return FirstOf(Def('e', Expr()), Def('i', IntExpr()), Def('f', Constraint()));
+    }
 
-    @SuppressSubnodes @Cached /** @return Identifier(varPrefix) */
+    @SuppressSubnodes
+    @Cached
+    /** @return Identifier(varPrefix) varValue */
+    Rule Def(char varPrefix, Rule varValue) {
+        final Var<Integer> varIdx = new Var<>();
+        return Sequence(
+                Identifier(varPrefix), varIdx.set(popInt()),
+                varValue, env().def(varPrefix, varIdx.get(), (Node) pop()));
+    }
+
+    @SuppressSubnodes
+    @Cached
+    /** @return Identifier(varPrefix) */
     Rule Use(char varPrefix) {
-    	return Sequence(Identifier(varPrefix), 					push(env().use(varPrefix, popInt())));
+        return Sequence(Identifier(varPrefix), push(env().use(varPrefix, popInt())));
     }
 
     //-------------------------------------------------------------------------
     //  Assertions and commands
     //-------------------------------------------------------------------------
-    /** @return LPAR ASSERT Use('f')+ RPAR */
+
+    /**
+     * @return LPAR ASSERT Use('f')+ RPAR
+     */
     Rule Assert() {
-    	return Sequence(
-    			LPAR,
-    				ASSERT,
-    				OneOrMore(Use('f'), 						problem.assertFormula(popFormula())),
-    			RPAR);
+        return Sequence(
+                LPAR,
+                ASSERT,
+                OneOrMore(Use('f'), problem.assertFormula(popFormula())),
+                RPAR);
     }
 
-    /** @return (Solve Clear?) | Clear | Exit? */
+    /**
+     * @return (Solve Clear ?) | Clear | Exit?
+     */
     Rule Serve() {
-    	return Sequence(
-    			FirstOf(Sequence(Solve(), Optional(Clear())),
-    					Clear()),
-    			Optional(Exit()),
-    			Optional(EOI));
+        return Sequence(
+                FirstOf(Sequence(Solve(), Optional(Clear())),
+                        Clear()),
+                Optional(Exit()),
+                Optional(EOI));
     }
 
     /**
-     * @ensures setProblem(this.problem.solve())
      * @return LPAR SOLVE RPAR
+     * @ensures setProblem(this.problem.solve ())
      **/
-    Rule Solve() { return Sequence(LPAR, SOLVE, RPAR,			setProblem(problem.solve(out))); }
+    Rule Solve() {
+        return Sequence(LPAR, SOLVE, RPAR, setProblem(problem.solve(out)));
+    }
 
     /**
-     * @ensures setProblem(this.problem.clear())
      * @return LPAR CLEAR RPAR
+     * @ensures setProblem(this.problem.clear ())
      **/
-    Rule Clear() { return Sequence(LPAR, CLEAR, RPAR,			setProblem(problem.clear())); }
+    Rule Clear() {
+        return Sequence(LPAR, CLEAR, RPAR, setProblem(problem.clear()));
+    }
 
     /**
-     * @ensures setProblem(null)
      * @return LPAR EXIT RPAR
+     * @ensures setProblem(null)
      **/
-    Rule Exit()  { return Sequence(LPAR, EXIT, RPAR,			setProblem(null)); }
+    Rule Exit() {
+        return Sequence(LPAR, EXIT, RPAR, setProblem(null));
+    }
 
-	//-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     //  Formulas
     //-------------------------------------------------------------------------
-    /** @return Use('f') | BoolLiteral | LPAR ... RPAR **/
-	Rule Constraint() {
-		return FirstOf(
-				Use('f'),
-				ConstraintLiteral(),
-				Sequence(
-					LPAR,
-						FirstOf(
-							ExprComparison(IN, 		ExprCompOperator.SUBSET),
-							EqComparison(),
-							IntExprComparison(LTE, 	IntCompOperator.LTE),
-							IntExprComparison(LT,  	IntCompOperator.LT),
-							IntExprComparison(GTE, 	IntCompOperator.GTE),
-							IntExprComparison(GT,  	IntCompOperator.GT),
-							MultConstraint(ONE, 	Multiplicity.ONE),
-							MultConstraint(LONE,	Multiplicity.LONE),
-							MultConstraint(NO,  	Multiplicity.NO),
-							SomeConstraint(),
-							QuantConstraint(ALL, 	Quantifier.ALL),
-							NotConstraint(),
-							NaryConstraint(AND, 	FormulaOperator.AND),
-							NaryConstraint(OR,		FormulaOperator.OR),
-							NaryConstraint(IMPLIES,	FormulaOperator.IMPLIES),
-							NaryConstraint(IFF,		FormulaOperator.IFF),
-							Acyclic(),
-							TotalOrder(),
-							Let(Constraint())),
-					RPAR));
-	}
 
-	/** @return BoolLiteral */
-	Rule ConstraintLiteral() {
-		return Sequence(BoolLiteral(), 							push(Formula.constant(popBool())));
-	}
+    /**
+     * @return Use(' f ') | BoolLiteral | LPAR ... RPAR
+     **/
+    Rule Constraint() {
+        return FirstOf(
+                Use('f'),
+                ConstraintLiteral(),
+                Sequence(
+                        LPAR,
+                        FirstOf(
+                                ExprComparison(IN, ExprCompOperator.SUBSET),
+                                EqComparison(),
+                                IntExprComparison(LTE, IntCompOperator.LTE),
+                                IntExprComparison(LT, IntCompOperator.LT),
+                                IntExprComparison(GTE, IntCompOperator.GTE),
+                                IntExprComparison(GT, IntCompOperator.GT),
+                                MultConstraint(ONE, Multiplicity.ONE),
+                                MultConstraint(LONE, Multiplicity.LONE),
+                                MultConstraint(NO, Multiplicity.NO),
+                                SomeConstraint(),
+                                QuantConstraint(ALL, Quantifier.ALL),
+                                NotConstraint(),
+                                NaryConstraint(AND, FormulaOperator.AND),
+                                NaryConstraint(OR, FormulaOperator.OR),
+                                NaryConstraint(IMPLIES, FormulaOperator.IMPLIES),
+                                NaryConstraint(IFF, FormulaOperator.IFF),
+                                Acyclic(),
+                                TotalOrder(),
+                                Let(Constraint())),
+                        RPAR));
+    }
 
-	/** @return EQ ((Expr Expr)|(IntExpr IntExpr)) */
-	Rule EqComparison() {
-		return Sequence(EQ, FirstOf(ExprComparison(EMPTY, ExprCompOperator.EQUALS), IntExprComparison(EMPTY, IntCompOperator.EQ)));
-	}
+    /**
+     * @return BoolLiteral
+     */
+    Rule ConstraintLiteral() {
+        return Sequence(BoolLiteral(), push(Formula.constant(popBool())));
+    }
 
-	@Cached /** @return cmpRule Expr Expr */
-	Rule ExprComparison(Rule cmpRule, ExprCompOperator cmp) {
-		return Sequence(cmpRule, Expr(), Expr(),				swap(), push(compare(cmp, popExpr(), popExpr())));
-	}
+    /**
+     * @return EQ ((Expr Expr)|(IntExpr IntExpr))
+     */
+    Rule EqComparison() {
+        return Sequence(EQ, FirstOf(ExprComparison(EMPTY, ExprCompOperator.EQUALS), IntExprComparison(EMPTY, IntCompOperator.EQ)));
+    }
 
-	@Cached /** @return cmpRule IntExpr IntExpr */
-	Rule IntExprComparison(Rule cmpRule, IntCompOperator cmp) {
-		return Sequence(cmpRule, IntExpr(), IntExpr(),			swap(), push(popIntExpr().compare(cmp, popIntExpr())));
-	}
+    @Cached
+    /** @return cmpRule Expr Expr */
+    Rule ExprComparison(Rule cmpRule, ExprCompOperator cmp) {
+        return Sequence(cmpRule, Expr(), Expr(), swap(), push(compare(cmp, popExpr(), popExpr())));
+    }
 
-	@Cached /** @return multRule Expr */
-	Rule MultConstraint(Rule multRule, Multiplicity mult) {
-		return Sequence(multRule, Expr(), 						push(popExpr().apply(mult)));
-	}
+    @Cached
+    /** @return cmpRule IntExpr IntExpr */
+    Rule IntExprComparison(Rule cmpRule, IntCompOperator cmp) {
+        return Sequence(cmpRule, IntExpr(), IntExpr(), swap(), push(popIntExpr().compare(cmp, popIntExpr())));
+    }
 
-	@Cached /** @return SOME (Expr | QuantifiedConstraint) */
-	Rule SomeConstraint() {
-		return Sequence(SOME, FirstOf(MultConstraint(EMPTY, Multiplicity.SOME), QuantConstraint(EMPTY, Quantifier.SOME)));
-	}
+    @Cached
+    /** @return multRule Expr */
+    Rule MultConstraint(Rule multRule, Multiplicity mult) {
+        return Sequence(multRule, Expr(), push(popExpr().apply(mult)));
+    }
 
-	@Cached /** @return quantRule VarDecls Constraint */
-	Rule QuantConstraint(Rule quantRule, Quantifier quant) {
-		return Sequence(
-				quantRule, VarDecls(), Constraint(),			push(popFormula().quantify(quant, popDecls())), swap(), drop());
-	}
+    @Cached
+    /** @return SOME (Expr | QuantifiedConstraint) */
+    Rule SomeConstraint() {
+        return Sequence(SOME, FirstOf(MultConstraint(EMPTY, Multiplicity.SOME), QuantConstraint(EMPTY, Quantifier.SOME)));
+    }
 
-	/** @return NOT Constraint */
-	Rule NotConstraint() {
-		return Sequence(NOT, Constraint(), 						push(popFormula().not()));
-	}
+    @Cached
+    /** @return quantRule VarDecls Constraint */
+    Rule QuantConstraint(Rule quantRule, Quantifier quant) {
+        return Sequence(
+                quantRule, VarDecls(), Constraint(), push(popFormula().quantify(quant, popDecls())), swap(), drop());
+    }
 
-	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	@Cached /** @return opRule Constraint+ */
-	Rule NaryConstraint(Rule opRule, FormulaOperator op) {
-		final Var<List<Formula>> args = new Var<>();
+    /**
+     * @return NOT Constraint
+     */
+    Rule NotConstraint() {
+        return Sequence(NOT, Constraint(), push(popFormula().not()));
+    }
 
-		return FirstOf(
-				Sequence(										ACTION(args.enterFrame()),
-					opRule,										args.set(new ArrayList<Formula>(4)),
-					OneOrMore(Constraint(),						args.get().add(popFormula())),
-																push(compose(op, args.get())),
-																ACTION(args.exitFrame())),
+    // WARNING CHANGED HACK USES VAR RECURSIVELY
+    @Cached
+    /** @return opRule Constraint+ */
+    Rule NaryConstraint(Rule opRule, FormulaOperator op) {
+        final Var<List<Formula>> args = new Var<>();
 
-				Sequence(										ACTION(args.exitFrame()),
-					NOTHING));
-	}
+        return FirstOf(
+                Sequence(ACTION(args.enterFrame()),
+                         opRule, args.set(new ArrayList<Formula>(4)),
+                         OneOrMore(Constraint(), args.get().add(popFormula())),
+                         push(compose(op, args.get())),
+                         ACTION(args.exitFrame())),
 
-	/** @return ACYCLIC Use('r') */
-	Rule Acyclic() {
-		return Sequence(ACYCLIC, Use('r'),						push(acyclic(popRelation())));
-	}
+                Sequence(ACTION(args.exitFrame()),
+                         NOTHING));
+    }
 
-	/** @return TOTAL_ORD Use('r') Use('r') Use('r') Use('r') */
-	Rule TotalOrder() {
-		return Sequence(
-				TOTAL_ORD,
-				Use('r'), Use('r'), Use('r'), Use('r'),			swap4(),
-																push(totalOrder(popRelation(),popRelation(),popRelation(),popRelation())));
-	}
+    /**
+     * @return ACYCLIC Use('r')
+     */
+    Rule Acyclic() {
+        return Sequence(ACYCLIC, Use('r'), push(acyclic(popRelation())));
+    }
 
-	//-------------------------------------------------------------------------
+    /**
+     * @return TOTAL_ORD Use('r') Use('r') Use('r') Use('r')
+     */
+    Rule TotalOrder() {
+        return Sequence(
+                TOTAL_ORD,
+                Use('r'), Use('r'), Use('r'), Use('r'), swap4(),
+                push(totalOrder(popRelation(), popRelation(), popRelation(), popRelation())));
+    }
+
+    //-------------------------------------------------------------------------
     //  Quantified variable declarations
     //-------------------------------------------------------------------------
 
-	public <V> Boolean pushToStack(Var<DefaultValueStack> stack, V val){
-		//if (val )
-		stack.get().push(val);
-		//pnt(stack);
-		//pnt(stack.get());
-		//stack.get().push(3);
-		return true;
-	}
+    public <V> Boolean pushToStack(Var<DefaultValueStack> stack, V val) {
+        //if (val )
+        stack.get().push(val);
+        //pnt(stack);
+        //pnt(stack.get());
+        //stack.get().push(3);
+        return true;
+    }
 
-	public <V> Boolean initializeVar(Var<V> var, V val){
-		if (var.get() == null){
-			var.set(val);
-		}
-		return true;
-	}
+    public <V> Boolean initializeVar(Var<V> var, V val) {
+        if (var.get() == null) {
+            var.set(val);
+        }
+        return true;
+    }
 
-	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	/** @return LPAR VarDecl+ RPAR */
-	Rule VarDecls() {
-		final Var<Decls> decls = new Var<>();
-		return FirstOf(
-				Sequence(											ACTION(decls.enterFrame()),
-					LPAR,											push(env().extend()),
-					VarDecl(),										decls.set(popDecls()),
-					ZeroOrMore(
-						Sequence(VarDecl(),							decls.set(decls.get().and(popDecls())))),
-					RPAR,											push(decls.get()),
-																	ACTION(decls.exitFrame())),
+    // WARNING CHANGED HACK USES VAR RECURSIVELY
 
-				Sequence(											ACTION(decls.exitFrame()),
-					NOTHING));
-	}
+    /**
+     * @return LPAR VarDecl+ RPAR
+     */
+    Rule VarDecls() {
+        final Var<Decls> decls = new Var<>();
+        return FirstOf(
+                Sequence(ACTION(decls.enterFrame()),
+                         LPAR, push(env().extend()),
+                         VarDecl(), decls.set(popDecls()),
+                         ZeroOrMore(
+                                 Sequence(VarDecl(), decls.set(decls.get().and(popDecls())))),
+                         RPAR, push(decls.get()),
+                         ACTION(decls.exitFrame())),
 
-	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	/** @return LBRK Identifier('v') :[LONE|ONE|SOME|SET] Expr RBRK */
-	Rule VarDecl() {
-		final Var<Integer> varIdx = new Var<>();
-		final Var<Decl> decl = new Var<>();
+                Sequence(ACTION(decls.exitFrame()),
+                         NOTHING));
+    }
 
-		return FirstOf(
-				Sequence(											ACTION(varIdx.enterFrame()),
-																	ACTION(decl.enterFrame()),
-					LBRK,
-						Identifier('v'),							varIdx.set(popInt()),
-						Ch(':'),
-						Space(),
-						FirstOf(
-							VarMult(ONE,  	 Multiplicity.ONE),
-							VarMult(LONE, 	 Multiplicity.LONE),
-							VarMult(SOME, 	 Multiplicity.SOME),
-							VarMult(SET,  	 Multiplicity.SET),
-							VarMult(Space(), Multiplicity.ONE)),
-						Expr(),										swap(),
-					RBRK,											decl.set(declareVariable(varIdx.get(), popMult(), popExpr())),
-																	peekEnv().def('v', varIdx.get(), decl.get().variable()),
-																	push(decl.get()),
+    // WARNING CHANGED HACK USES VAR RECURSIVELY
 
-																	ACTION(varIdx.exitFrame()),
-																	ACTION(decl.exitFrame())),
+    /**
+     * @return LBRK Identifier('v') :[LONE|ONE|SOME|SET] Expr RBRK
+     */
+    Rule VarDecl() {
+        final Var<Integer> varIdx = new Var<>();
+        final Var<Decl> decl = new Var<>();
 
-				Sequence(											ACTION(varIdx.exitFrame()),
-																	ACTION(decl.exitFrame()),
-					NOTHING));
-	}
+        return FirstOf(
+                Sequence(ACTION(varIdx.enterFrame()),
+                         ACTION(decl.enterFrame()),
+                         LBRK,
+                         Identifier('v'), varIdx.set(popInt()),
+                         Ch(':'),
+                         Space(),
+                         FirstOf(
+                                 VarMult(ONE, Multiplicity.ONE),
+                                 VarMult(LONE, Multiplicity.LONE),
+                                 VarMult(SOME, Multiplicity.SOME),
+                                 VarMult(SET, Multiplicity.SET),
+                                 VarMult(Space(), Multiplicity.ONE)),
+                         Expr(), swap(),
+                         RBRK, decl.set(declareVariable(varIdx.get(), popMult(), popExpr())),
+                         peekEnv().def('v', varIdx.get(), decl.get().variable()),
+                         push(decl.get()),
 
-	@Cached /** @return multRule */
-	Rule VarMult(Rule multRule, Multiplicity mult) {
-		return Sequence(multRule, 								push(mult));
-	}
+                         ACTION(varIdx.exitFrame()),
+                         ACTION(decl.exitFrame())),
 
-	//-------------------------------------------------------------------------
+                Sequence(ACTION(varIdx.exitFrame()),
+                         ACTION(decl.exitFrame()),
+                         NOTHING));
+    }
+
+    @Cached
+    /** @return multRule */
+    Rule VarMult(Rule multRule, Multiplicity mult) {
+        return Sequence(multRule, push(mult));
+    }
+
+    //-------------------------------------------------------------------------
     //  Relational expressions
     //-------------------------------------------------------------------------
-	/** @return Use('e') | Use('r') | Use('v') | ExprLiteral | LPAR ... RPAR | SetComprehension */
-	Rule Expr() {
-		return FirstOf(
-				Use('e'), Use('r'), Use('v'),
-				ExprLiteral(),
-				Sequence(
-					LPAR,
-						FirstOf(
-							NaryExpr(DOT,		ExprOperator.JOIN),
-							NaryExpr(PLUSPLUS, 	ExprOperator.OVERRIDE),
-							NaryExpr(PLUS, 		ExprOperator.UNION),
-							NaryExpr(AMP, 		ExprOperator.INTERSECTION),
-							NaryExpr(ARROW,		ExprOperator.PRODUCT),
-							NaryExpr(MINUS, ExprOperator.DIFFERENCE),
-							UnaryExpr(TILDE,	ExprOperator.TRANSPOSE),
-							UnaryExpr(HAT, 		ExprOperator.CLOSURE),
-							UnaryExpr(STAR, 	ExprOperator.REFLEXIVE_CLOSURE),
-							IntToExprCast(SET, 	IntCastOperator.BITSETCAST),
-							IntToExprCast(LONE,	IntCastOperator.INTCAST),
-							IfExpr(),
-							Let(Expr()),
-							Projection()),
-					RPAR),
-				SetComprehension());
-	}
 
-	/** @return ITE Constraint Expr Expr */
-	Rule IfExpr() {
-		return Sequence(ITE, Constraint(), Expr(), Expr(),		swap3(), push(ite(popFormula(), popExpr(), popExpr())));
-	}
+    /**
+     * @return Use(' e ') | Use('r') | Use('v') | ExprLiteral | LPAR ... RPAR | SetComprehension
+     */
+    Rule Expr() {
+        return FirstOf(
+                Use('e'), Use('r'), Use('v'),
+                ExprLiteral(),
+                Sequence(
+                        LPAR,
+                        FirstOf(
+                                NaryExpr(DOT, ExprOperator.JOIN),
+                                NaryExpr(PLUSPLUS, ExprOperator.OVERRIDE),
+                                NaryExpr(PLUS, ExprOperator.UNION),
+                                NaryExpr(AMP, ExprOperator.INTERSECTION),
+                                NaryExpr(ARROW, ExprOperator.PRODUCT),
+                                NaryExpr(MINUS, ExprOperator.DIFFERENCE),
+                                UnaryExpr(TILDE, ExprOperator.TRANSPOSE),
+                                UnaryExpr(HAT, ExprOperator.CLOSURE),
+                                UnaryExpr(STAR, ExprOperator.REFLEXIVE_CLOSURE),
+                                IntToExprCast(SET, IntCastOperator.BITSETCAST),
+                                IntToExprCast(LONE, IntCastOperator.INTCAST),
+                                IfExpr(),
+                                Let(Expr()),
+                                Projection()),
+                        RPAR),
+                SetComprehension());
+    }
 
-	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	//@Cached /** @return opRule Expr+ */
-	Rule NaryExpr(Rule opRule, ExprOperator op) {
-		final Var<List<Expression>> args = new Var<>();
+    /**
+     * @return ITE Constraint Expr Expr
+     */
+    Rule IfExpr() {
+        return Sequence(ITE, Constraint(), Expr(), Expr(), swap3(), push(ite(popFormula(), popExpr(), popExpr())));
+    }
 
-		return FirstOf(
-				Sequence(										ACTION(args.enterFrame()),
-					opRule,										args.set(new ArrayList<Expression>(4)),
-					OneOrMore(
-						Expr(),									args.get().add(popExpr())),
-																push(compose(op, args.get())),
-																ACTION(args.exitFrame())),
+    // WARNING CHANGED HACK USES VAR RECURSIVELY
+    //@Cached /** @return opRule Expr+ */
+    Rule NaryExpr(Rule opRule, ExprOperator op) {
+        final Var<List<Expression>> args = new Var<>();
 
-					Sequence(									ACTION(args.exitFrame()),
-						NOTHING));
-	}
+        return FirstOf(
+                Sequence(ACTION(args.enterFrame()),
+                         opRule, args.set(new ArrayList<Expression>(4)),
+                         OneOrMore(
+                                 Expr(), args.get().add(popExpr())),
+                         push(compose(op, args.get())),
+                         ACTION(args.exitFrame())),
 
-	@Cached /** @return opRule Expr */
-	Rule UnaryExpr(Rule opRule, ExprOperator op) {
-		return Sequence(opRule, Expr(),							push(compose(op, Collections.singletonList(popExpr()))));
-	}
+                Sequence(ACTION(args.exitFrame()),
+                         NOTHING));
+    }
 
-	@Cached /** @return castRule IntExpr */
-	Rule IntToExprCast(Rule castRule, IntCastOperator castOp) {
-		return Sequence(castRule, IntExpr(),					push(popIntExpr().cast(castOp)));
-	}
+    @Cached
+    /** @return opRule Expr */
+    Rule UnaryExpr(Rule opRule, ExprOperator op) {
+        return Sequence(opRule, Expr(), push(compose(op, Collections.singletonList(popExpr()))));
+    }
 
-	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	/** @return AT Expr() IntExpr()+ */
-	Rule Projection() {
-		final Var<Expression> expr = new Var<>();
-		final Var<List<IntExpression>> cols = new Var<>();
-		return FirstOf(
-				Sequence(										ACTION(expr.enterFrame()),
-																ACTION(cols.enterFrame()),
+    @Cached
+    /** @return castRule IntExpr */
+    Rule IntToExprCast(Rule castRule, IntCastOperator castOp) {
+        return Sequence(castRule, IntExpr(), push(popIntExpr().cast(castOp)));
+    }
 
-					AT, Expr(), 								expr.set(popExpr()), cols.set(new ArrayList<IntExpression>(4)),
-					OneOrMore(IntExpr(), 						cols.get().add(popIntExpr())),
-																push(expr.get().project(cols.get().toArray(new IntExpression[cols.get().size()]))),
-																ACTION(expr.exitFrame()),
-																ACTION(cols.exitFrame())),
+    // WARNING CHANGED HACK USES VAR RECURSIVELY
 
-				Sequence(										ACTION(expr.exitFrame()),
-																ACTION(cols.exitFrame()),
-					NOTHING));
-	}
+    /**
+     * @return AT Expr() IntExpr()+
+     */
+    Rule Projection() {
+        final Var<Expression> expr = new Var<>();
+        final Var<List<IntExpression>> cols = new Var<>();
+        return FirstOf(
+                Sequence(ACTION(expr.enterFrame()),
+                         ACTION(cols.enterFrame()),
 
-	/** @return LWING VarDecls Constraint RWING */
-	Rule SetComprehension() {
-		return Sequence(
-				LWING,
-					VarDecls(),  Constraint(), 					swap3(), drop(),
-				RWING,											push(comprehension(popDecls(), popFormula())));
-	}
+                         AT, Expr(), expr.set(popExpr()), cols.set(new ArrayList<IntExpression>(4)),
+                         OneOrMore(IntExpr(), cols.get().add(popIntExpr())),
+                         push(expr.get().project(cols.get().toArray(new IntExpression[cols.get().size()]))),
+                         ACTION(expr.exitFrame()),
+                         ACTION(cols.exitFrame())),
+
+                Sequence(ACTION(expr.exitFrame()),
+                         ACTION(cols.exitFrame()),
+                         NOTHING));
+    }
+
+    /**
+     * @return LWING VarDecls Constraint RWING
+     */
+    Rule SetComprehension() {
+        return Sequence(
+                LWING,
+                VarDecls(), Constraint(), swap3(), drop(),
+                RWING, push(comprehension(popDecls(), popFormula())));
+    }
 
 
-
-	//-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     //  Bitvector expressions
     //-------------------------------------------------------------------------
-	/** @return Use('i') | IntLiteral | LPAR ... RPAR */
-	Rule IntExpr() {
-		return FirstOf(
-				Use('i'),
-				IntExprLiteral(),
-				Sequence(
-					LPAR,
-						FirstOf(
-							ExprToIntCast(HASH, ExprCastOperator.CARDINALITY),
-							SumIntExpr(),
-							MinusIntExpr(),
-							NaryIntExpr(PLUS,	IntOperator.PLUS),
-							NaryIntExpr(STAR,	IntOperator.MULTIPLY),
-							NaryIntExpr(DIV,	IntOperator.DIVIDE),
-							NaryIntExpr(MOD,	IntOperator.MODULO),
-							NaryIntExpr(AMP,	IntOperator.AND),
-							NaryIntExpr(BAR,	IntOperator.OR),
-							NaryIntExpr(HAT,	IntOperator.XOR),
-							NaryIntExpr(SHL,	IntOperator.SHL),
-							NaryIntExpr(SHR,	IntOperator.SHR),
-							NaryIntExpr(SHA,	IntOperator.SHA),
-							UnaryIntExpr(TILDE,	IntOperator.NOT),
-							UnaryIntExpr(ABS,	IntOperator.ABS),
-							UnaryIntExpr(SGN,	IntOperator.SGN),
-							IfIntExpr(),
-							Let(IntExpr())),
-					RPAR));
-	}
 
-	/** @return IntLiteral */
-	Rule IntExprLiteral() {
-		return Sequence(IntLiteral(), 							push(IntConstant.constant(popInt())));
-	}
+    /**
+     * @return Use(' i ') | IntLiteral | LPAR ... RPAR
+     */
+    Rule IntExpr() {
+        return FirstOf(
+                Use('i'),
+                IntExprLiteral(),
+                Sequence(
+                        LPAR,
+                        FirstOf(
+                                ExprToIntCast(HASH, ExprCastOperator.CARDINALITY),
+                                SumIntExpr(),
+                                MinusIntExpr(),
+                                NaryIntExpr(PLUS, IntOperator.PLUS),
+                                NaryIntExpr(STAR, IntOperator.MULTIPLY),
+                                NaryIntExpr(DIV, IntOperator.DIVIDE),
+                                NaryIntExpr(MOD, IntOperator.MODULO),
+                                NaryIntExpr(AMP, IntOperator.AND),
+                                NaryIntExpr(BAR, IntOperator.OR),
+                                NaryIntExpr(HAT, IntOperator.XOR),
+                                NaryIntExpr(SHL, IntOperator.SHL),
+                                NaryIntExpr(SHR, IntOperator.SHR),
+                                NaryIntExpr(SHA, IntOperator.SHA),
+                                UnaryIntExpr(TILDE, IntOperator.NOT),
+                                UnaryIntExpr(ABS, IntOperator.ABS),
+                                UnaryIntExpr(SGN, IntOperator.SGN),
+                                IfIntExpr(),
+                                Let(IntExpr())),
+                        RPAR));
+    }
 
-	/** @return ITE Constraint IntExpr IntExpr */
-	Rule IfIntExpr() {
-		return Sequence(ITE, Constraint(),
-						IntExpr(), IntExpr(),					swap3(), push(popFormula().thenElse(popIntExpr(), popIntExpr())));
-	}
+    /**
+     * @return IntLiteral
+     */
+    Rule IntExprLiteral() {
+        return Sequence(IntLiteral(), push(IntConstant.constant(popInt())));
+    }
 
-	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	@Cached /** @return opRule IntExpr+ */
-	Rule NaryIntExpr(Rule opRule, IntOperator op) {
-		final Var<List<IntExpression>> args = new Var<>();
+    /**
+     * @return ITE Constraint IntExpr IntExpr
+     */
+    Rule IfIntExpr() {
+        return Sequence(ITE, Constraint(),
+                        IntExpr(), IntExpr(), swap3(), push(popFormula().thenElse(popIntExpr(), popIntExpr())));
+    }
 
-		return FirstOf(
-				Sequence(										ACTION(args.enterFrame()),
+    // WARNING CHANGED HACK USES VAR RECURSIVELY
+    @Cached
+    /** @return opRule IntExpr+ */
+    Rule NaryIntExpr(Rule opRule, IntOperator op) {
+        final Var<List<IntExpression>> args = new Var<>();
 
-					opRule,										args.set(new ArrayList<IntExpression>(4)),
-					OneOrMore(IntExpr(),						args.get().add(popIntExpr())),
-																push(compose(op, args.get())),
+        return FirstOf(
+                Sequence(ACTION(args.enterFrame()),
 
-																ACTION(args.exitFrame())),
+                         opRule, args.set(new ArrayList<IntExpression>(4)),
+                         OneOrMore(IntExpr(), args.get().add(popIntExpr())),
+                         push(compose(op, args.get())),
 
-				Sequence(										ACTION(args.exitFrame()),
-					NOTHING));
-	}
+                         ACTION(args.exitFrame())),
 
-	// WARNING CHANGED HACK USES VAR RECURSIVELY
-	/** @return - IntExpr+ */
-	Rule MinusIntExpr() {
-		final Var<List<IntExpression>> args = new Var<>();
-		return FirstOf(
-				Sequence(										ACTION(args.enterFrame()),
-					MINUS,										args.set(new ArrayList<IntExpression>(4)),
-					OneOrMore(IntExpr(),						args.get().add(popIntExpr())),
-																push(compose(args.get().size()==1 ? IntOperator.NEG : IntOperator.MINUS, args.get())),
-																ACTION(args.exitFrame())),
-				Sequence(										ACTION(args.exitFrame()),
-					NOTHING));
-	}
+                Sequence(ACTION(args.exitFrame()),
+                         NOTHING));
+    }
 
-	@Cached /** @return opRule IntExpr */
-	Rule UnaryIntExpr(Rule opRule, IntOperator op) {
-		return Sequence(opRule, IntExpr(),						push(compose(op, Collections.singletonList(popIntExpr()))));
-	}
+    // WARNING CHANGED HACK USES VAR RECURSIVELY
 
-	@Cached /** @return castOp Expr */
-	Rule ExprToIntCast(Rule castRule, ExprCastOperator castOp) {
-		return Sequence(castRule, Expr(), 						push(cast(castOp, popExpr())));
-	}
+    /**
+     * @return - IntExpr+
+     */
+    Rule MinusIntExpr() {
+        final Var<List<IntExpression>> args = new Var<>();
+        return FirstOf(
+                Sequence(ACTION(args.enterFrame()),
+                         MINUS, args.set(new ArrayList<IntExpression>(4)),
+                         OneOrMore(IntExpr(), args.get().add(popIntExpr())),
+                         push(compose(args.get().size() == 1 ? IntOperator.NEG : IntOperator.MINUS, args.get())),
+                         ACTION(args.exitFrame())),
+                Sequence(ACTION(args.exitFrame()),
+                         NOTHING));
+    }
 
-	/** @return SUM (Expr | (VarDecls IntExpr)) */
-	Rule SumIntExpr() {
-		return Sequence(SUM,
-				FirstOf(
-					ExprToIntCast(EMPTY, ExprCastOperator.SUM),
-					Sequence(VarDecls(), IntExpr(),				swap3(), drop(), push(sum(popDecls(), popIntExpr())))));
-	}
+    @Cached
+    /** @return opRule IntExpr */
+    Rule UnaryIntExpr(Rule opRule, IntOperator op) {
+        return Sequence(opRule, IntExpr(), push(compose(op, Collections.singletonList(popIntExpr()))));
+    }
 
-	//-------------------------------------------------------------------------
+    @Cached
+    /** @return castOp Expr */
+    Rule ExprToIntCast(Rule castRule, ExprCastOperator castOp) {
+        return Sequence(castRule, Expr(), push(cast(castOp, popExpr())));
+    }
+
+    /**
+     * @return SUM (Expr | (VarDecls IntExpr))
+     */
+    Rule SumIntExpr() {
+        return Sequence(SUM,
+                        FirstOf(
+                                ExprToIntCast(EMPTY, ExprCastOperator.SUM),
+                                Sequence(VarDecls(), IntExpr(), swap3(), drop(), push(sum(popDecls(), popIntExpr())))));
+    }
+
+    //-------------------------------------------------------------------------
     //  Let
     //-------------------------------------------------------------------------
-	@Cached /** @return LET LPAR (LRBRK NodeDef RBRK)+ RPAR bodyRule */
-	Rule Let(Rule bodyRule) {
-		return Sequence(
-				LET, 											push(env().extend()),
-				LPAR,
-					OneOrMore(Sequence(LBRK, NodeDef(), RBRK)),
-				RPAR,
-					bodyRule,									swap(), drop());
-	}
+    @Cached
+    /** @return LET LPAR (LRBRK NodeDef RBRK)+ RPAR bodyRule */
+    Rule Let(Rule bodyRule) {
+        return Sequence(
+                LET, push(env().extend()),
+                LPAR,
+                OneOrMore(Sequence(LBRK, NodeDef(), RBRK)),
+                RPAR,
+                bodyRule, swap(), drop());
+    }
 
-	//-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     //  Literals
     //-------------------------------------------------------------------------
-	/** @return MINUS?NatLiteral */
+
+    /**
+     * @return MINUS?NatLiteral
+     */
     @SuppressSubnodes
     Rule IntLiteral() {
-    	return Sequence(
-    			Sequence(Optional(Ch('-')),
-    					OneOrMore(Digit())), 					push(Integer.parseInt(match())), Space());
+        return Sequence(
+                Sequence(Optional(Ch('-')),
+                         OneOrMore(Digit())), push(Integer.parseInt(match())), Space());
     }
 
-    /** @return Digit+ */
+    /**
+     * @return Digit+
+     */
     @SuppressSubnodes
     Rule NatLiteral() {
-    	return Sequence(OneOrMore(Digit()), 					push(Integer.parseInt(match())), Space());
+        return Sequence(OneOrMore(Digit()), push(Integer.parseInt(match())), Space());
     }
 
-    /** @return TRUE | FALSE */
+    /**
+     * @return TRUE | FALSE
+     */
     @SuppressSubnodes
     Rule BoolLiteral() {
-    	return FirstOf(Sequence(TRUE,  							push(Boolean.TRUE)),
-    			       Sequence(FALSE, 							push(Boolean.FALSE)));
+        return FirstOf(Sequence(TRUE, push(Boolean.TRUE)),
+                       Sequence(FALSE, push(Boolean.FALSE)));
     }
 
-    /** @return UNIV | NONE | IDEN | INTS */
+    /**
+     * @return UNIV | NONE | IDEN | INTS
+     */
     @SuppressSubnodes
     Rule ExprLiteral() {
-    	return FirstOf(ExprLiteral(UNIV, Expression.UNIV),
-    				   ExprLiteral(NONE, Expression.NONE),
-    				   ExprLiteral(IDEN, Expression.IDEN),
-    				   ExprLiteral(INTS, Expression.INTS));
+        return FirstOf(ExprLiteral(UNIV, Expression.UNIV),
+                       ExprLiteral(NONE, Expression.NONE),
+                       ExprLiteral(IDEN, Expression.IDEN),
+                       ExprLiteral(INTS, Expression.INTS));
     }
 
-    @Cached /** @return litRule */
+    @SuppressSubnodes
+    Rule FilePathLiteral() {
+        return Sequence('"', ZeroOrMore(FilePathChar()).suppressSubnodes(), push(match()), '"');
+    }
+
+    @Cached
+    /** @return litRule */
     Rule ExprLiteral(Rule litRule, Expression lit) {
-    	return Sequence(litRule, 								push(lit));
+        return Sequence(litRule, push(lit));
     }
 
     //-------------------------------------------------------------------------
     //  Identifiers
     //-------------------------------------------------------------------------
-    /** @return Ch(prefix)[0-9]+ */
+
+    /**
+     * @return Ch(prefix)[0-9]+
+     */
     @SuppressSubnodes
     Rule Identifier(char prefix) {
         return Sequence(Ch(prefix), NatLiteral(), Space());
@@ -827,22 +962,22 @@ public class KodkodParser extends BaseParser<Object> {
     //-------------------------------------------------------------------------
     //  Spacing
     //-------------------------------------------------------------------------
-	Rule Space() {
+    Rule Space() {
         return ZeroOrMore(FirstOf(
-                OneOrMore(AnyOf(" \t\r\n\f")),						// whitespace
-                Sequence(";",                      					// end of line comment
-                        ZeroOrMore(TestNot(AnyOf("\r\n")), ANY),
-                        FirstOf("\r\n", '\r', '\n', EOI))));
+                OneOrMore(AnyOf(" \t\r\n\f")),                        // whitespace
+                Sequence(";",                                        // end of line comment
+                         ZeroOrMore(TestNot(AnyOf("\r\n")), ANY),
+                         FirstOf("\r\n", '\r', '\n', EOI))));
     }
 
     //-------------------------------------------------------------------------
     //  Separators
     //-------------------------------------------------------------------------
-    final Rule LBRK  = Terminal("["),  	RBRK  = Terminal("]");
-    final Rule LWING = Terminal("{"),  	RWING = Terminal("}");
-    final Rule LPAR  = Terminal("("), 	RPAR  = Terminal(")");
+    final Rule LBRK = Terminal("["), RBRK = Terminal("]");
+    final Rule LWING = Terminal("{"), RWING = Terminal("}");
+    final Rule LPAR = Terminal("("), RPAR = Terminal(")");
 
-	//-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Keywords and symbols
     //-------------------------------------------------------------------------
     final Rule CONFIG = Keyword("configure");
@@ -856,7 +991,7 @@ public class KodkodParser extends BaseParser<Object> {
     final Rule IDEN = Keyword("iden");
     final Rule INTS = Keyword("ints");
     final Rule TRUE = Keyword("true");
-    final Rule FALSE= Keyword("false");
+    final Rule FALSE = Keyword("false");
 
     final Rule LET = Keyword("let");
     final Rule ALL = Keyword("all");
@@ -892,7 +1027,7 @@ public class KodkodParser extends BaseParser<Object> {
     final Rule GT = Terminal(">", AnyOf("=>"));
     final Rule LTE = Terminal("<=");
     final Rule LT = Terminal("<", AnyOf("=<"));
-    final Rule PLUS = Terminal("+",Ch('+'));
+    final Rule PLUS = Terminal("+", Ch('+'));
     final Rule MINUS = Terminal("-", Ch('>'));
     final Rule AMP = Terminal("&");
     final Rule PLUSPLUS = Terminal("++");
@@ -906,7 +1041,7 @@ public class KodkodParser extends BaseParser<Object> {
     final Rule BAR = Terminal("|");
     final Rule SHL = Terminal("<<");
     final Rule SHR = Terminal(">>>");
-    final Rule SHA = Terminal(">>",Ch('>'));
+    final Rule SHA = Terminal(">>", Ch('>'));
 
     //-------------------------------------------------------------------------
     // Keywords and terminals
@@ -917,9 +1052,9 @@ public class KodkodParser extends BaseParser<Object> {
         return Terminal(keyword, LetterOrDigit());
     }
 
-	@SuppressNode
-	@DontLabel
-	Rule Terminal(String string) {
+    @SuppressNode
+    @DontLabel
+    Rule Terminal(String string) {
         return Sequence(string, Space()).label('\'' + string + '\'');
     }
 
@@ -929,52 +1064,121 @@ public class KodkodParser extends BaseParser<Object> {
         return Sequence(string, TestNot(mustNotFollow), Space()).label('\'' + string + '\'');
     }
 
-    /** @return [0-9] */
+    /**
+     * @return [0-9]
+     */
     Rule Digit() {
         return CharRange('0', '9');
     }
 
-    /** @return [a-z|A-Z|0-9|_|$]+ */
+    /**
+     * @return [a-z|A-Z|0-9|_|$]+
+     */
     @MemoMismatches
     Rule LetterOrDigit() {
         return FirstOf(CharRange('a', 'z'), CharRange('A', 'Z'), CharRange('0', '9'), '_', '$');
     }
 
+
+    Rule FilePathChar() {
+        return Sequence(TestNot(AnyOf("\"\n\r")), ANY);
+    }
+
     //-------------------------------------------------------------------------
     //  Helper methods
     //-------------------------------------------------------------------------
- 	final Integer  		popInt() 			{ return (Integer) pop(); }
-	final Boolean  		popBool()			{ return (Boolean) pop(); }
-	final Options  		popOptions()		{ return (Options) pop(); }
-	final Tuple    		popTuple()			{ return (Tuple) pop(); }
-	final TupleSet 		popTupleSet()		{ return (TupleSet) pop(); }
-	final Relation 		popRelation()		{ return (Relation) pop(); }
-	final Expression	popExpr()			{ return (Expression) pop(); }
-	final IntExpression	popIntExpr()		{ return (IntExpression) pop(); }
-	final Formula		popFormula()		{ return (Formula) pop(); }
-	final Decls			popDecls()			{ return (Decls) pop(); }
-	final Multiplicity  popMult()			{ return (Multiplicity) pop(); }
-	final DefEnv		popEnv()			{ return (DefEnv) pop(); }
+    final Integer popInt() {
+        return (Integer) pop();
+    }
 
-	final List			popList()			{ return (List) pop(); }
-	final Integer		popInteger()		{ return (Integer) pop(); }
-	final Decl 			popDecl()			{ return (Decl) pop(); }
-	final DefEnv		peekEnv()			{ return (DefEnv) peek(); }
-	final Multiplicity  peekMult()			{ return (Multiplicity) peek(); }
-	final Expression	peekExpr()			{ return (Expression) peek(); }
-	final Options  		peekOptions()		{ return (Options) peek(); }
+    final String popString() {
+        return (String) pop();
+    }
 
-	/**
-	 * Returns the current lexical environment, which is the first environment
-	 * object from the top the stack, or {@code this.builder.global()} is there
-	 * is no environment on the stack.
-	 * @return current lexical environment
-	 */
-	final DefEnv env() {
-		for(Object val : getContext().getValueStack()) {
-			if (val instanceof DefEnv)
-				return (DefEnv) val;
-		}
-		return problem.env();
-	}
+    final Boolean popBool() {
+        return (Boolean) pop();
+    }
+
+    final Options popOptions() {
+        return (Options) pop();
+    }
+
+    final Tuple popTuple() {
+        return (Tuple) pop();
+    }
+
+    final TupleSet popTupleSet() {
+        return (TupleSet) pop();
+    }
+
+    final Relation popRelation() {
+        return (Relation) pop();
+    }
+
+    final Expression popExpr() {
+        return (Expression) pop();
+    }
+
+    final IntExpression popIntExpr() {
+        return (IntExpression) pop();
+    }
+
+    final Formula popFormula() {
+        return (Formula) pop();
+    }
+
+    final Decls popDecls() {
+        return (Decls) pop();
+    }
+
+    final Multiplicity popMult() {
+        return (Multiplicity) pop();
+    }
+
+    final DefEnv popEnv() {
+        return (DefEnv) pop();
+    }
+
+    final List popList() {
+        return (List) pop();
+    }
+
+    final Integer popInteger() {
+        return (Integer) pop();
+    }
+
+    final Decl popDecl() {
+        return (Decl) pop();
+    }
+
+    final DefEnv peekEnv() {
+        return (DefEnv) peek();
+    }
+
+    final Multiplicity peekMult() {
+        return (Multiplicity) peek();
+    }
+
+    final Expression peekExpr() {
+        return (Expression) peek();
+    }
+
+    final Options peekOptions() {
+        return (Options) peek();
+    }
+
+    /**
+     * Returns the current lexical environment, which is the first environment
+     * object from the top the stack, or {@code this.builder.global()} is there
+     * is no environment on the stack.
+     *
+     * @return current lexical environment
+     */
+    final DefEnv env() {
+        for (Object val : getContext().getValueStack()) {
+            if (val instanceof DefEnv)
+                return (DefEnv) val;
+        }
+        return problem.env();
+    }
 }
