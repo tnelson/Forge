@@ -28,11 +28,14 @@ Here are some example bounds formulas:
 - `2 <= #A <= 5` : there are at least 2 and at most 5 `A`s
 - `no A` : same as `#A = 0`
 - `one A` : same as `#A = 1`
+- `two A` : same as `#A = 2`
 - `lone A` : same as `#A <= 1`
 - `A = ...` : exactly specify a relation
     - ex: `A = Alice+Alex+Adam` : any atom names can be given to sigs :)
     - ex: `r = Alice->A - iden` : the RHS is given to the evaluator, but names must be already be defined
+    - ex: `g = Node0->sing[2]->Node1` : use sing[-] to refer to int atoms
 - `r is tree` : use bounds-based [symmetry breaking](#symmetry-breaking) to make sure `r` is a tree
+- `~r is tree` : use (co tree) symmetry breaker
 
 ## Symmetry-Breaking
 

@@ -93,6 +93,8 @@
 ; Filter options to prevent user from rewriting any global
 ; Note that we cannot use dash in option names
 (define (set-option key val)
+  (println key)
+  (println val)
   (match key
     ['solver (set! solveroption val)]
     ['verbosity (set-verbosity val)]
@@ -678,13 +680,20 @@
 (define-for-syntax (use-ctxt stx1 stx2)
   (datum->syntax stx1 (syntax->datum stx2)))
 
+(define (process-fp fp)
+  (define path (path->string (expand-user-path (string->path fp))))
+  (if (string-contains? path "/")
+      path
+      (string-append "./" path)))
+
 (define-syntax (OptionDecl stx)
   (map-stx (lambda (d)
              (define key (syntax-case (first (rest d)) (QualName)
                            [(QualName n) #''n]))
              (define val (syntax-case (second (rest d)) (QualName Number)
                            [(QualName n) #''n]
-                           [(Number n) #'(string->number n)]))
+                           [(Number n) #'(string->number n)]
+                           [fp #'(string-append "\"" (process-fp fp) "\"")]))
              `(set-option ,key ,val)) stx))
 
 (define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
@@ -1238,6 +1247,10 @@
                     (define upper (caar (eval-exp (alloy->kodkod 'expr2) bindings 8 #f)))
                     (add-int-bound rel (int-bound lower upper))
                     (hash-set! bindings 'rel (map list (range upper)))))] ;; dummy atoms so #rel works
+                  [(_ (_ "~" rel) (CompareOp "in") (_ (QualName strat))) 
+                   (syntax/loc stx (break rel (get-co 'strat)))]
+                  [(_ (_ "~" rel) (CompareOp "is") (_ (QualName strat))) 
+                   (syntax/loc stx (break rel (get-co 'strat)))]
                   [(_ rel (CompareOp "in") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
                   [(_ rel (CompareOp "is") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
                   [(_ (QualName f)) (syntax/loc stx (f bindings))]

@@ -14,6 +14,10 @@
    [(from/to "/*$" "*/")
     (token+ 'SEXPR-TOK "/*$" lexeme "*/" lexeme-start lexeme-end)]
 
+   ;; file path
+   [(from/to "\"" "\"")
+    (token+ 'FILE-PATH-TOK "\"" lexeme "\"" lexeme-start lexeme-end)]
+
    ;; instances
    [(from/to "<instance" "</instance>")
     (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]

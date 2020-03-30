@@ -770,6 +770,18 @@
 (declare 'cofunc < 'cosurj 'coinj)
 (declare 'bij = 'cosurj 'coinj)
 
+(provide get-co)
+(define co-map (make-hash))
+(hash-set! co-map 'tree 'cotree)
+(hash-set! co-map 'func 'cofunc)
+(hash-set! co-map 'surj 'cosurj)
+(hash-set! co-map 'inj 'coinj)
+(hash-set! co-map 'tree 'cotree)
+(for ([(k v) (in-hash co-map)]) (hash-set! co-map v k))
+(for ([sym '('bij 'pbij 'linear 'plinear 'ref 'irref 'acyclic)]) (hash-set! co-map sym sym))
+(define (get-co sym) (hash-ref co-map sym))
+
+
 
 #|
 ADDING BREAKS
@@ -786,8 +798,10 @@ ADDING BREAKS
     - a = a + b   !|- a > b   
 
 TODO:
+- prove correctness
 - add extra formulas to further break symmetries because kodkod can't once we've broken bounds
     - improve all functional strategies (see func A->A case for commented working example)
+- allow strategies to be passed multiple values, return values, split sigs
 - strategy combinators
     - naive equiv strategies
         - can be used to combine many strats with ref/irref, even variadic ones
@@ -800,11 +814,6 @@ TODO:
     - unique init/term + acyclic
     - has init/term
     - more partial breaks
-- major work
-    - allow arbitrary terms to be passed into strategies, not just relations
-        - lenses!
-        - use combinators: (tree ~r) should do (cotree r), etc.
-    - allow strategies to be passed multiple values, return values, split sigs
 |#
 
 

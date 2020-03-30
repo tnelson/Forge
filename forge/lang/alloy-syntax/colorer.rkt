@@ -20,6 +20,7 @@
          ['COMMENT '(comment #f)]
          ['ERROR '(error #f)]
          ['NUM-CONST-TOK '(constant #f)]
+         ['FILE-PATH-TOK '(string #f)]
          [else
           (match val
             [(? keyword?) '(hash-colon-keyword #f)]
