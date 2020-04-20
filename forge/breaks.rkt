@@ -2,7 +2,7 @@
 
 (require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
 (require predicates)
-;(require data/union-find)
+(require "shared.rkt")
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
@@ -208,6 +208,7 @@
 
     ; proposed breakers from each relation
     (define candidates (list))
+    (define cand->rel (make-hash))
 
     (for ([bound total-bounds])
         ; get declared breaks for the relation associated with this bound        
@@ -244,6 +245,7 @@
                     (define broken-sigs (break-graph-sigs break-graph))
                     (cond [(subset? broken-sigs sigs)
                         (cons! candidates breaker)
+                        (hash-set! cand->rel breaker rel)
                         (set! broken #t)
                     ][else
                         (define default ((breaker-make-default breaker)))
@@ -273,6 +275,60 @@
     |#
 
     (set! candidates (sort candidates < #:key breaker-pri))
+
+    ;; build simplified edge-only break-graphs
+    ;; cand->edges :: breaker |-> set<pair<sig>> (but actually undirected)
+    (define cand->edges (make-hash))
+    (for ([breaker candidates])
+        (define break-graph (breaker-break-graph breaker))
+        (define broken-sigs (break-graph-sigs break-graph))
+        (define broken-edges (break-graph-edges break-graph))
+
+        (define edges (mutable-set))
+        ; reduce broken sigs to broken edges between those sigs and the auxiliary 'broken symbol
+        ; TODO: replace 'broken with univ
+        (for ([sig broken-sigs]) (set-add! edges (cons sig 'broken)))
+        ; get all pairs from sets
+        (for ([edge broken-edges])
+            ; TODO: make functional
+            (set! edge (set->list edge))
+            (define L (length edge))
+            (for* ([i (in-range 0 (- L 1))]
+                   [j (in-range (+ i 1) L)])
+                (set-add! edges (cons (list-ref edge i) (list-ref edge j)))
+            )
+        )
+
+        (hash-set! cand->edges breaker edges)
+    )
+
+    ;; build the order of which witness functions must be constructed before which in the hypothetical isomorphism construction
+    ;; before :: breaker |-> set<breaker>
+    (define before (make-hash))
+    (for ([breaker1 candidates])
+        (define after1 (mutable-set))
+        (hash-set! before breaker1 after1)
+
+        (for ([breaker2 candidates] #:when (not (equal? breaker1 breaker2)))
+            (define edges1 (hash-ref cand->edges breaker1))
+            (define rel2 (hash-ref cand->rel breaker2))
+            (define sigs2 (set-add (list->set (hash-ref relations-store rel2)) 'broken))
+
+            ; breaker1 should be before breaker2 if it has an edge between 2 of its sigs
+            (for* ([A sigs2] [B sigs2]) ; #:when (not (equal? A B)))
+                (when (set-member? edges1 (cons A B)) (set-add! after1 breaker2))
+            )
+        )
+    )
+
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
+        (for* ([(x ys) (in-hash before)] [y ys])
+            (printf "~v >> ~v~n" (hash-ref cand->rel x) (hash-ref cand->rel y))
+        )
+    )
+
+    ; TODO: replace the below with something that just selects candidates such that the restriction
+    ;       of before to them is acyclic
 
     (for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
@@ -327,6 +383,10 @@
 
             ; do break
             (define break ((breaker-make-break breaker)))
+            (when (>= (get-verbosity) VERBOSITY_HIGH)
+                (define rel (hash-ref cand->rel breaker))
+                (printf "BOUNDSY BROKE: ~a~n" rel)
+            )
             (cons! new-total-bounds (break-bound break))
             (set-union! formulas (break-formulas break))
         ][else
