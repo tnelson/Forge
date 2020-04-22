@@ -93,7 +93,7 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 										{"SAT4J",SATFactory.DefaultSAT4J}};
 		for(Object[] solver : supported) {
 			if (SATFactory.available((SATFactory)solver[1]))
-				ret.add(new Object[] { "(configure :solver "+solver[0]+")", ExpectedError.NONE, setSolver(new Options(), (SATFactory)solver[1]) });
+				ret.add(new Object[] { "(configure :solver "+solver[0]+")", ExpectedError.NONE, setSatSolver(new Options(), (SATFactory)solver[1]) });
 		}
 		ret.add(new Object[] { "( configure :bitwidth 1 )", ExpectedError.NONE, setBitwidth(new Options(), 1) });
 		ret.add(new Object[] { "( configure :bitwidth 7 )", ExpectedError.NONE, setBitwidth(new Options(), 7) });
@@ -105,9 +105,9 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 				ret.add(new Object[] {	"(configure :produce-cores true\t)\n" +
 										"(configure :bitwidth 32)\n" +
 										"(configure :solver Glucose)\n", ExpectedError.NONE,
-										setSolver(setBitwidth(enableCore(new Options()), 32), SATFactory.Glucose) });
+										setSatSolver(setBitwidth(enableCore(new Options()), 32), SATFactory.Glucose) });
 				ret.add(new Object[] {	"(configure :produce-cores true :bitwidth 32 :solver Glucose)\n",
-						ExpectedError.NONE,  setSolver(setBitwidth(enableCore(new Options()), 32), SATFactory.Glucose) });
+						ExpectedError.NONE,  setSatSolver(setBitwidth(enableCore(new Options()), 32), SATFactory.Glucose) });
 			}
 		} else {
 			if (SATFactory.available(SATFactory.Glucose)) {
@@ -121,8 +121,8 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 		}
 	}
 
-	private static Options setSolver(Options opts, SATFactory factory) {
-		opts.setSolver(factory);
+	private static Options setSatSolver(Options opts, SATFactory factory) {
+		opts.setSatSolver(factory);
 		return opts;
 	}
 	private static Options setBitwidth(Options opts, int bw) {
@@ -133,7 +133,7 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 		assert (SATFactory.available(SATFactory.MiniSatProver)) ;
 		 opts.setLogTranslation(1);
 		 opts.setCoreGranularity(0);
-		 opts.setSolver(SATFactory.MiniSatProver);
+		 opts.setSatSolver(SATFactory.MiniSatProver);
 		return opts;
 	}
 	private static Options disableCore(Options opts) {
@@ -149,7 +149,7 @@ public final class ConfigureRuleTest extends AbstractParserTest {
 		assertEquals(0, result.valueStack.size());
 		final Options actual = options();
 		assertEquals(expectedOpts.bitwidth(), actual.bitwidth());
-		assertEquals(expectedOpts.solver(), actual.solver());
+		assertEquals(expectedOpts.satSolver(), actual.satSolver());
 		assertEquals(expectedOpts.logTranslation(), actual.logTranslation());
 		assertEquals(expectedOpts.coreGranularity(), actual.coreGranularity());
 		assertEquals(expectedOpts.intEncoding(), actual.intEncoding());
