@@ -704,6 +704,7 @@ import org.parboiled.errors.ActionException;
                 Iterator<Solution> solved = solver.solveAll(asserts(), bounds());
 				return new Stepper(this, solved).solve(out);
 			} catch (RuntimeException ex){
+				ex.printStackTrace();
 				throw new ActionException(ex.getMessage(), ex);
 			}
 		}
