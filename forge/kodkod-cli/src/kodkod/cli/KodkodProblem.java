@@ -424,12 +424,22 @@ import org.parboiled.errors.ActionException;
 	}
 
 	/**
-	 * Sets {@code this.options.solver} to use the specified bdd solver
-	 * @param solver The solver to use
-	 * @return true
+	 * Same as {@link #setBddSolver(BDDSolverFactory, boolean)} with the default parameter of false
+	 * for distinctPathsOnly.
 	 */
 	boolean setBddSolver(BDDSolverFactory solver) {
-		options.setBddSolver(solver);
+		return setBddSolver(solver, false);
+	}
+
+	/**
+	 * Sets {@code this.options.solver} to use the specified bdd solver and tells whether
+	 * to generate one solution per distinct path in the bdd or for all solutions.
+	 * @param solver The solver to use
+	 * @param distinctPathsOnly whether to generate only one solution per path through the bdd.
+	 * @return true
+	 */
+	boolean setBddSolver(BDDSolverFactory solver, boolean distinctPathsOnly) {
+		options.setBddSolver(solver, distinctPathsOnly);
 		return true;
 	}
 

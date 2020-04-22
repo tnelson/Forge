@@ -221,6 +221,7 @@ public class KodkodParser extends BaseParser<Object> {
                           FirstOf(
                                   Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
                                   Sequence(Keyword("solver"), BddSolver(), problem.setBddSolver((BDDSolverFactory) pop())),
+                                  Sequence(Keyword("solver"), DistinctPathBddSolver(), problem.setBddSolver((BDDSolverFactory) pop(), true)),
                                   Sequence(Keyword("bitwidth"), NatLiteral(), problem.setBitwidth(popInt())),
                                   //Sequence(Keyword("produce-cores"), 	BoolLiteral(), 	problem.setCoreExtraction(popBool())),
                                   Sequence(Keyword("log-trans"), NatLiteral(), problem.setLogTranslation(popInt())),
@@ -256,6 +257,12 @@ public class KodkodParser extends BaseParser<Object> {
     @MemoMismatches
     Rule BddSolver() {
         return Sequence(Keyword("BuDDy"),  push(BDDSolverFactory.JBuDDy));
+    }
+
+    @SuppressSubnodes
+    @MemoMismatches
+    Rule DistinctPathBddSolver() {
+        return Sequence(Keyword("BuDDyPaths"),  push(BDDSolverFactory.JBuDDy));
     }
 
     //-------------------------------------------------------------------------
