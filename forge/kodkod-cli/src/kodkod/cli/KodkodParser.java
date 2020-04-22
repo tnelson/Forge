@@ -60,6 +60,7 @@ import kodkod.ast.operator.IntCompOperator;
 import kodkod.ast.operator.IntOperator;
 import kodkod.ast.operator.Multiplicity;
 import kodkod.ast.operator.Quantifier;
+import kodkod.engine.bddlab.BDDSolverFactory;
 import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Tuple;
@@ -73,7 +74,6 @@ import org.parboiled.annotations.MemoMismatches;
 import org.parboiled.annotations.SuppressNode;
 import org.parboiled.annotations.SuppressSubnodes;
 import org.parboiled.support.Var;
-import org.parboiled.support.StringVar;
 import org.parboiled.support.DefaultValueStack;
 
 /**
@@ -219,7 +219,8 @@ public class KodkodParser extends BaseParser<Object> {
                 CONFIG,
                 OneOrMore(":",
                           FirstOf(
-                                  Sequence(Keyword("solver"), Solver(), problem.setSolver((SATFactory) pop())),
+                                  Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
+                                  Sequence(Keyword("solver"), BddSolver(), problem.setBddSolver((BDDSolverFactory) pop())),
                                   Sequence(Keyword("bitwidth"), NatLiteral(), problem.setBitwidth(popInt())),
                                   //Sequence(Keyword("produce-cores"), 	BoolLiteral(), 	problem.setCoreExtraction(popBool())),
                                   Sequence(Keyword("log-trans"), NatLiteral(), problem.setLogTranslation(popInt())),
@@ -236,7 +237,7 @@ public class KodkodParser extends BaseParser<Object> {
      */
     @SuppressSubnodes
     @MemoMismatches
-    Rule Solver() {
+    Rule SatSolver() {
         return FirstOf(Sequence(Keyword("MiniSatProver"),   push(SATFactory.MiniSatProver)),
                        Sequence(Keyword("MiniSat"),         push(SATFactory.MiniSat)),
                        Sequence(Keyword("Glucose"),         push(SATFactory.Glucose)),
@@ -246,6 +247,15 @@ public class KodkodParser extends BaseParser<Object> {
                                 push(SATFactory.externalFactory(popString(),
                                                                 "customSolver.temp")))
                         );
+    }
+
+    /**
+     * @return BuDDy
+     */
+    @SuppressSubnodes
+    @MemoMismatches
+    Rule BddSolver() {
+        return Sequence(Keyword("BuDDy"),  push(BDDSolverFactory.JBuDDy));
     }
 
     //-------------------------------------------------------------------------
