@@ -302,35 +302,107 @@
         (hash-set! cand->edges breaker edges)
     )
 
-    ;; build the order of which witness functions must be constructed before which in the hypothetical isomorphism construction
+    ;; build the order of which witness functions must be constructed after which in the hypothetical isomorphism construction
     ;; before :: breaker |-> set<breaker>
-    (define before (make-hash))
-    (for ([breaker1 candidates])
-        (define after1 (mutable-set))
-        (hash-set! before breaker1 after1)
+    ;; B ∈ after[A] <=> A ∈ before[B] => "A must happen before B"
+    (define before (for/hash ([c candidates]) (values c (mutable-set))))
+    (define after  (for/hash ([c candidates]) (values c (mutable-set))))
+    (for* ([breaker1 candidates] [breaker2 candidates] #:when (not (equal? breaker1 breaker2)))
+        (define edges1 (hash-ref cand->edges breaker1))
+        (define rel2 (hash-ref cand->rel breaker2))
+        (define sigs2 (set-add (list->set (hash-ref relations-store rel2)) 'broken))
 
-        (for ([breaker2 candidates] #:when (not (equal? breaker1 breaker2)))
-            (define edges1 (hash-ref cand->edges breaker1))
-            (define rel2 (hash-ref cand->rel breaker2))
-            (define sigs2 (set-add (list->set (hash-ref relations-store rel2)) 'broken))
-
-            ; breaker1 should be before breaker2 if it has an edge between 2 of its sigs
-            (for* ([A sigs2] [B sigs2]) ; #:when (not (equal? A B)))
-                (when (set-member? edges1 (cons A B)) (set-add! after1 breaker2))
+        ; breaker2 should be after breaker1 if breaker1 has an edge between 2 of breaker2's sigs
+        (for* ([A sigs2] [B sigs2] #:when (not (equal? A B)))
+            (when (set-member? edges1 (cons A B)) 
+                (set-add! (hash-ref after  breaker1) breaker2)
+                (set-add! (hash-ref before breaker2) breaker1)
             )
         )
     )
 
     (when (>= (get-verbosity) VERBOSITY_HIGH)
+        (displayln "AFTER:")
+        (for* ([(x ys) (in-hash after)] [y ys])
+            (printf "  ~v >> ~v~n" (hash-ref cand->rel x) (hash-ref cand->rel y))
+        )
+        (displayln "BEFORE:")
         (for* ([(x ys) (in-hash before)] [y ys])
-            (printf "~v >> ~v~n" (hash-ref cand->rel x) (hash-ref cand->rel y))
+            (printf "  ~v << ~v~n" (hash-ref cand->rel x) (hash-ref cand->rel y))
         )
     )
 
-    ; TODO: replace the below with something that just selects candidates such that the restriction
-    ;       of before to them is acyclic
+    ;; boundsy break subset of candidates s.t. restriction of `after` to them is acyclic (*after)
+    ;; this guarantees that we can start somewhere and construct a full isomorphism
 
-    (for ([breaker candidates])
+    (for ([c candidates])
+        (set-add! (hash-ref before c) c)
+        (set-add! (hash-ref after  c) c)
+    )
+
+    (define boundsy (mutable-set))
+    (define *before (for/hash ([c candidates]) (values c (mutable-set))))
+    (define *after  (for/hash ([c candidates]) (values c (mutable-set))))
+    (for ([B candidates])
+        (define As (hash-ref before B))
+        (define Cs (hash-ref after  B))
+
+        (define acceptable (for*/and ([A As] [C Cs])
+            (not (set-member? (hash-ref *after C) A))
+        ))
+
+        (cond [acceptable
+            ;; update boundsy, *before, and *after
+            (set-add! boundsy B)
+
+            (define newAs (set-copy As))
+            (for ([A As]) (set-union! newAs (hash-ref *before A)))
+            (set-intersect! newAs boundsy)
+            (define newCs (set-copy Cs))
+            (for ([C Cs]) (set-union! newCs (hash-ref *after C)))
+            (set-intersect! newCs boundsy)
+
+            (for ([A newAs]) (set-union! (hash-ref *after  A) newCs))
+            (for ([C newCs]) (set-union! (hash-ref *before C) newAs))
+
+            ; do boundsy break
+            (define break ((breaker-make-break B)))
+            (cons! new-total-bounds (break-bound break))
+            (set-union! formulas (break-formulas break))
+
+            (when (>= (get-verbosity) VERBOSITY_HIGH)
+                (printf "BOUNDSY BROKE : ~v~n" (hash-ref cand->rel B))
+            )
+        ][else
+            ; do default break
+            (define default ((breaker-make-default B)))
+            (cons! new-total-bounds (break-sbound default))
+            (set-union! formulas (break-formulas default))
+
+            (when (>= (get-verbosity) VERBOSITY_HIGH)
+                (printf "DEFAULT BROKE : ~v~n" (hash-ref cand->rel B))
+            )
+        ])
+        ;(when (>= (get-verbosity) VERBOSITY_HIGH)
+        ;    (displayln "BOUNDSY:")
+        ;    (for ([b boundsy])
+        ;        (printf "  ~v~n" (hash-ref cand->rel b))
+        ;    )
+        ;    (displayln "*AFTER:")
+        ;    (for* ([(x ys) (in-hash *after)] [y ys])
+        ;        (printf "  ~v >>> ~v~n" (hash-ref cand->rel x) (hash-ref cand->rel y))
+        ;    )
+        ;    (displayln "*BEFORE:")
+        ;    (for* ([(x ys) (in-hash *before)] [y ys])
+        ;        (printf "  ~v <<< ~v~n" (hash-ref cand->rel x) (hash-ref cand->rel y))
+        ;    )
+        ;)
+    )
+
+
+
+
+    #|(for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
         (define broken-sigs (break-graph-sigs break-graph))
         (define broken-edges (break-graph-edges break-graph))
@@ -395,7 +467,7 @@
             (cons! new-total-bounds (break-sbound default))
             (set-union! formulas (break-formulas default))
         ])
-    )
+    )|#
 
     (values new-total-bounds (set->list formulas))
 )
