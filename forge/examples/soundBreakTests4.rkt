@@ -5,7 +5,7 @@ option show 0
 
 sig A { f : set B }
 sig B { g : set A, h : set C }
-sig C {}
+sig C extends A {}
 
 --test expect {
 --    t0: {} for {

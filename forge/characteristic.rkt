@@ -1,7 +1,6 @@
 #lang racket
 
 (require "lang/ast.rkt" (prefix-in @ racket))
-(require "pretty-print.rkt")
 
 (provide inst-to-formula)
 
