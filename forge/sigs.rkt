@@ -4,6 +4,7 @@
          "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
          "breaks.rkt"
+         "characteristic.rkt"
          "demo/life.rkt")
 
 ; racket/string needed for replacing transpose operator (~) with escaped version in error messages
@@ -56,6 +57,7 @@
 ; core granularity and log translation --- affect core quality (see kodkod docs)
 (define coregranoption 0)
 (define logtransoption 1)
+(define showoption #t)
 (define demo #f)
 
 ; set of one sigs
@@ -102,6 +104,7 @@
     ['coregranularity (set! coregranoption val)]
     ['sb (set! sboption val)]
     ['logtranslation (set! logtransoption val)]
+    ['show (set! showoption (equal? val '1))]
     ['demo
      (match val
        ['life (set! demo 'life)]
@@ -515,11 +518,12 @@
      (define (get-next-model)
        (cmd [stdin] (solve))
        (match-define (cons restype inst) (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
+       (inst-to-formula inst)
        (when (and demo (equal? restype 'sat))
          (match demo
            ['life (output-life inst)]))
        (cons restype inst))
-     (display-model get-next-model name command filepath bitwidth funs-n-preds)]))
+     (display-model get-next-model name command filepath bitwidth funs-n-preds showoption)]))
 
 (define-syntax (run stx)
   (define command (format "~a" stx))

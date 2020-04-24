@@ -131,7 +131,11 @@
 
 ;; -- quantifier vars ----------------------------------------------------------
 
-(struct node/expr/quantifier-var node/expr (sym))
+;(struct node/expr/quantifier-var node/expr (sym))
+(struct node/expr/quantifier-var node/expr (sym)
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (fprintf port "qv:~a" (node/expr/quantifier-var-sym self)))])
 
 ;; -- comprehensions -----------------------------------------------------------
 
@@ -165,7 +169,8 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/expr/relation arity name typelist parent) self)
-     (fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))])
+     (fprintf port "~a" name))])
+     ;(fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))])
 (define next-name 0)
 (define (declare-relation typelist parent [name #f])
   (let ([name (if (false? name) 
