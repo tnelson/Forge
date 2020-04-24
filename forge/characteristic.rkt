@@ -21,10 +21,12 @@
     ;(printf "sigs : ~s~n" sigs)
 
     ;; atoms :: symbol |-> (qvar . sig)
-    (define atoms (for*/hash ([(sig syms) (in-hash sigs)]
-                              [sym syms]) (values sym `[,(node/expr/quantifier-var 1 sym) . ,sig]) ))
-    (define (sym-to-qv sym) (car (hash-ref atoms sym)))
+    ;; sorting sigs by size makes sure atoms get assigned most specific sig when there are subsigs
+    (define atoms (for*/hash ([sig-syms (sort (hash->list sigs) @> #:key length)]
+                              [sym (cdr sig-syms)]) 
+        (values sym `[,(node/expr/quantifier-var 1 sym) . ,(car sig-syms)])))
     ;(printf "atoms : ~s~n" atoms)
+    (define (sym-to-qv sym) (car (hash-ref atoms sym)))
 
     (define ineqs (for*/list ([(sig syms) (in-hash sigs)]
                 [sym1 syms]
