@@ -135,7 +135,7 @@
 (struct node/expr/quantifier-var node/expr (sym)
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (fprintf port "qv:~a" (node/expr/quantifier-var-sym self)))])
+     (fprintf port "~a" (node/expr/quantifier-var-sym self)))])
 
 ;; -- comprehensions -----------------------------------------------------------
 

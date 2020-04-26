@@ -10,9 +10,13 @@
 ;; this function assumes inst assigns a value to every sig/relation
 (define (inst-to-formula inst)
 
+    (define (is-rel rel)
+        (define name (relation-name rel))
+        (and (@not (equal? name "Int"))                         ; not Int
+             (@not (equal? (first (string->list name)) #\$))))  ; not Skolem
+
     ;; rels :: relation |-> list<tuple<sym>>
-    (define rels (for/hash ([(rel tups) (in-hash inst)] #:when (@not (equal? (relation-name rel) "Int")))
-        (values rel tups)))
+    (define rels (for/hash ([(rel tups) (in-hash inst)] #:when (is-rel rel)) (values rel tups)))
     ;(printf "rels : ~v~n" rels)
 
     ;; sigs :: sig |-> list<sym>
@@ -41,10 +45,15 @@
         )))
     ))
 
-    (define fm `(some ,(hash-values atoms) 
-        (and ,@ineqs ,@defs)
+    (define fm (foldl 
+        (lambda (kv acc) `(some (,kv) ,acc))
+        `(and ,@ineqs ,@defs)
+        (hash-values atoms) 
     ))
 
-    ;(printf "fm : ~s~n" (pp-ast fm rels))
+    ;(define fm `(some ,(hash-values atoms) 
+    ;    (and ,@ineqs ,@defs)
+    ;))
+
     (printf "fm : ~s~n" fm)
 )
