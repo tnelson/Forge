@@ -280,6 +280,10 @@
                         (symbol? (caar (hash-ref bindings sig-name))))
                    (map first (hash-ref bindings sig-name))
                    (list)))
+
+  (printf "sig : ~v~n" sig)
+  (printf "syms : ~v~n" syms)
+
   (map
    (lambda (n)
      (if (@< n (length syms))
@@ -1256,12 +1260,20 @@
                   [(_ (QualName f)) (syntax/loc stx (f bindings))]
                   [(_ (_ (QualName rel)) (CompareOp "=") expr)
                    (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
-                       (instance (make-exact-sbound rel tups))
-                       (when (equal? (relation-arity rel) 1)
-                         (let ([exact (length tups)])
-                           (add-int-bound rel (int-bound exact exact))))
-                       (hash-set! bindings 'rel tups)
-                       ))]
+                      (instance (make-exact-sbound rel tups))
+                      (when (equal? (relation-arity rel) 1)
+                        ;; make sure all sub-sigs exactly defined
+                        (for ([(sub sup) (in-hash extensions-store)] #:when (equal? sup rel))
+                          (with-handlers ([exn:fail? (lambda (v) (raise 
+                              (error 'inst "sub-sig ~a must be exactly specified before super-sig ~a" 
+                                (relation-name sub) (relation-name sup))))])
+                            (define i-b (hash-ref int-bounds-store sub))
+                            (unless (@= (int-bound-lower i-b) (int-bound-upper i-b)) (raise))
+                          ))
+                        (let ([exact (length tups)]) (add-int-bound rel (int-bound exact exact)))
+                      )
+                      (hash-set! bindings 'rel tups)
+                    ))]
                   [(_ (_ (QualName Int)) "[" (_ (_ (Const (Number i)))) "]")
                    (quasisyntax/loc stx (set-bitwidth #,(string->number (syntax-e #'i))))]
                   [(_ a "and" b) (syntax/loc stx (begin (Bind a) (Bind b)))]
