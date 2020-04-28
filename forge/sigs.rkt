@@ -400,6 +400,7 @@
 
 
 (define (run-spec hashy name command filepath runtype . assumptions)
+  (printf "bindings : ~v~n" bindings)
   (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
     (printf "Running: ~a~n" name))
   (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
@@ -1260,6 +1261,9 @@
                   [(_ (QualName f)) (syntax/loc stx (f bindings))]
                   [(_ (_ (QualName rel)) (CompareOp "=") expr)
                    (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+                      (set! tups (for/list ([tup tups]) (for/list ([e tup]) 
+                        (if (int-atom? e) (int-atom-n e) e)
+                      )))
                       (instance (make-exact-sbound rel tups))
                       (when (equal? (relation-arity rel) 1)
                         ;; make sure all sub-sigs exactly defined
