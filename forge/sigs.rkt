@@ -299,7 +299,10 @@
 (define (next-atoms sig lower ind n)
   (if (@= n 0)
       '()
-      (let ([name (string->symbol (string-append (relation-name sig) (number->string ind)))])
+      (let ([name (if (and (hash-has-key? bindings sig)
+                           (@< ind (length (hash-ref bindings sig))))
+                      (list-ref (hash-ref bindings sig) ind)
+                      (string->symbol (string-append (relation-name sig) (number->string ind))))])
         (if (member name lower)
             (next-atoms sig lower (@+ ind 1) n)
             (cons name (next-atoms sig (cons name lower) (@+ ind 1) (@- n 1)))))))
@@ -411,6 +414,9 @@
   (append-run name)
 
   (map instance (hash-values pbindings))
+  (for ([(rel sb) (in-hash pbindings)])
+    (hash-set! bindings rel (for/list ([tup (sbound-upper sb)]) (car tup))) ; this nonsense is just for atom names
+  )
 
   ;(error "stop")
 
