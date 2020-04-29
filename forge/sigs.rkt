@@ -67,6 +67,8 @@
 (define (set-is-exact) (set! is-exact #t))
 ; user defined bindings
 (define bindings (make-hash))
+; user defined partial bindings
+(define pbindings (make-hash))
 ; function and predicate datums for evaluator
 (define funs-n-preds (make-hash))
 
@@ -653,7 +655,7 @@
 (provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestExpectDecl TestDecl TestBlock PredDecl Block BlockOrBar
          AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
          StateDecl TransitionDecl RelDecl OptionDecl InstDecl TraceDecl
-         Expr Name QualName Const Number iff ifte >= <=)
+         Expr Name QualName Const Number iff ifte >= <= ni)
 
 ;;;;
 
@@ -1202,9 +1204,10 @@
     [(_ c) (datum->syntax stx (string->symbol (syntax->datum #'c)))]))
 
 (define-simple-macro (iff a b) (and (=> a b) (=> b a)))
-(define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
+(define-simple-macro (ifte a b c ni) (and (=> a b) (=> (not a) c)))
 (define-simple-macro (>= a b) (or (> a b) (int= a b)))
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
+(define-simple-macro (ni a b) (in b a))
 
 (require "server/eval-model.rkt")
 (provide make-exact-sbound Bounds make-hash printf)

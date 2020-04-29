@@ -83,6 +83,7 @@
    ["fun"       (token+ `FUN-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]      
    ["in"        (token+ `IN-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["ni"        (token+ `NI-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["is"        (token+ `IS-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["let"       (token+ `LET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["lone"      (token+ `LONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
@@ -163,6 +164,7 @@
            "iff"
            "implies"
            "in"
+           "ni"
            "is"
 
            "let"
