@@ -1224,19 +1224,47 @@
 
 (define (update-bindings rel lower [upper #f])
   (set! lower (list->set lower))
-  (set! upper (list->set upper))
+  (when upper (set! upper (list->set upper)))
   (if (hash-has-key? pbindings rel)
       (let ([old (hash-ref pbindings rel)])
         (set! lower (set-union lower (sbound-lower old)))
         (set! upper (if upper
                         (set-intersect upper (sbound-upper old))
                         (sbound-upper old))))
-      (begin
-        (unless upper (begin
-          (define uppers (for/list ([type (relations-store rel)]) 
-            (hash-ref pbindings type)
-          ))
-          (set! upper (apply cartesian-product uppers))))))
+      (unless upper (begin
+        (let* ([uppers (for/list ([type (hash-ref relations-store rel)]) 
+                (for/list ([tup (sbound-upper (hash-ref pbindings type))]) (car tup))
+              )]
+             [cart (apply cartesian-product uppers)])
+          (set! upper cart)))))
+  (hash-set! pbindings rel (sbound rel lower upper))
+  ;; when exact bounds, put in bindings
+  (when (equal? lower upper) 
+    (hash-set! bindings (string->symbol (relation-name rel)) (set->list lower))
+  )
+)
+(define (update-bindings-at rel focus lower [upper #f])
+  (set! lower (for/set ([tup lower]) (cons focus tup)))
+  (when upper (set! upper (for/set ([tup upper]) (cons focus tup))))
+  (if (hash-has-key? pbindings rel)
+      (let ([old (hash-ref pbindings rel)])
+        (set! lower (set-union lower (sbound-lower old)))
+        (set! upper (if upper
+                        (for/list ([tup (sbound-upper old)] #:when 
+                          (or (@not (equal? (car tup) focus))
+                              (set-member? upper tup))
+                          ) tup)
+                        (sbound-upper old))))
+      (let* ([uppers (for/list ([type (hash-ref relations-store rel)]) 
+                (for/list ([tup (sbound-upper (hash-ref pbindings type))]) (car tup))
+              )]
+             [cart (apply cartesian-product uppers)])
+        (set! upper (if upper 
+                        (for/list ([tup cart] #:when
+                          (or (@not (equal? (car tup) focus))
+                              (set-member? upper tup))
+                          ) tup)
+                        cart))))
   (hash-set! pbindings rel (sbound rel lower upper))
   ;; when exact bounds, put in bindings
   (when (equal? lower upper) 
@@ -1305,6 +1333,12 @@
                       (when (equal? cmp "=")  (update-bindings rel tups tups))
                       (when (equal? cmp "in") (update-bindings rel (@set) tups))
                       (when (equal? cmp "ni") (update-bindings rel tups))
+                    ))]
+                  [(_ (_ (_ (QualName rel)) "." (_ (QualName focus))) (CompareOp cmp) expr)
+                    (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+                      (when (equal? cmp "=")  (update-bindings-at rel 'focus tups tups))
+                      (when (equal? cmp "in") (update-bindings-at rel 'focus (@set) tups))
+                      (when (equal? cmp "ni") (update-bindings-at rel 'focus tups))
                     ))]
                   [(_ (_ (QualName Int)) "[" (_ (_ (Const (Number i)))) "]")
                    (quasisyntax/loc stx (set-bitwidth #,(string->number (syntax-e #'i))))]

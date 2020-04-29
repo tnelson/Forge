@@ -1,6 +1,6 @@
 #lang forge
 
-option verbosity 10
+--option verbosity 10
 
 sig A { r: set B }
 sig B {}
@@ -18,7 +18,9 @@ run {
     
 --    r = Alpha->Beta + Aleph->Beth
 
-    #A = 2
-    #B = 2
-    r in A0->B0 + A1->B1
+    A = A0+A1
+    B = B0+B1
+--    r in A0->B0 + A1->B1
+    r.A0 = B0
+    r.A1 in B1
 }
