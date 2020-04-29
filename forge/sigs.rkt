@@ -65,7 +65,7 @@
 ; is the current command using exactly
 (define is-exact #f)
 (define (set-is-exact) (set! is-exact #t))
-; user defined bindings
+; user defined exact bindings
 (define bindings (make-hash))
 ; user defined partial bindings
 (define pbindings (make-hash))
@@ -82,7 +82,8 @@
   (set! top-level-leftovers (make-hash))
   (set! top-extras (make-hash))
   (set! run-constraints '())
-  (set! bindings (make-hash)))
+  (set! bindings (make-hash))
+  (set! pbindings (make-hash)))
 
 (provide define-for-evaluator)
 (define (define-for-evaluator name args block) (hash-set! funs-n-preds name (list args block)))
@@ -153,7 +154,7 @@
           (hash-set! parents parent (list child))))
   (hash-set! extensions-store child parent))
 
-(define (add-int-bound rel new)
+(define (update-int-bound rel new)
   ; if int-bounds are already defined, intersect the old/new intervals
   (cond [(hash-has-key? int-bounds-store rel)
          (define old (hash-ref int-bounds-store rel))
@@ -402,18 +403,18 @@
 
 
 (define (run-spec hashy name command filepath runtype . assumptions)
-  (printf "bindings : ~v~n" bindings)
   (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
-    (printf "Running: ~a~n" name))
-  (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
-    (printf "ONE sigs known: ~a~n" one-sigs))
-  (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
-    (printf "ABSTRACT sigs known: ~a~n" abstract-sigs))  
+    (printf "ABSTRACT sigs known: ~a~n" abstract-sigs)
+    (printf "bindings : ~v~n" bindings)
+    (printf "pbindings : ~v~n" pbindings)
+    (printf "int-bounds-store : ~v~n" int-bounds-store))
   (append-run name)
+
+  ;(error "stop")
 
   (set! run-constraints (append constraints assumptions))
 
-  (for ([rel (in-set one-sigs)]) (add-int-bound rel (int-bound 1 1)))
+  (for ([rel (in-set one-sigs)]) (update-int-bound rel (int-bound 1 1)))
   (for ([sig (in-set abstract-sigs)]) 
     (define extenders (for/list ([(k v) (in-hash extensions-store)] #:when (equal? v sig)) k))
     ;(when (empty? extenders) (raise-syntax-error 'abstract (format "Abstract sig not extended ~a" sig)))
@@ -1219,6 +1220,29 @@
       ) ...
     block))
 
+(define (update-bindings rel lower [upper #f])
+  (set! lower (list->set lower))
+  (set! upper (list->set upper))
+  (if (hash-has-key? pbindings rel)
+      (let ([old (hash-ref pbindings rel)])
+        (set! lower (set-union lower (sbound-lower old)))
+        (set! upper (if upper
+                        (set-intersect upper (sbound-upper old))
+                        (sbound-upper old))))
+      (begin
+        (unless upper (begin
+          (define uppers (for/list ([type (relations-store rel)]) 
+            (hash-ref pbindings type)
+          ))
+          (set! upper (apply cartesian-product uppers))))))
+  (hash-set! pbindings rel (sbound rel lower upper))
+  ;; when exact bounds, put in bindings
+  (when (equal? lower upper) 
+    (hash-set! bindings (string->symbol (relation-name rel)) (set->list lower))
+  )
+)
+(define (rel-is-exact rel) (hash-has-key? bindings (string->symbol (relation-name rel))))
+
 (define-syntax (Bounds stx)
   (define ret (syntax-case stx ()
                   [(_ "exactly" lines ...)
@@ -1243,26 +1267,27 @@
                    (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1"))))))]
                   [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) (syntax/loc stx (begin 
                     (define exact (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
-                    (add-int-bound rel (int-bound exact exact))
-                    (hash-set! bindings 'rel (map list (range exact)))))] ;; dummy atoms so #rel works
+                    (update-int-bound rel (int-bound exact exact)) ))]
+                    ;(define dummies (for/list ([i exact]) (list i))) ;; dummy atoms so #rel works
+                    ;(update-bindings rel dummies dummies)))]
                   [(_ (_ "#" (_ (QualName rel))) (CompareOp "<=") expr) (syntax/loc stx (begin 
                     (define upper (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
-                    (add-int-bound rel (int-bound 0 upper))
-                    (hash-set! bindings 'rel (map list (range upper)))))] ;; dummy atoms so #rel works
+                    (update-int-bound rel (int-bound 0 upper)) ))]
+                    ;(define dummies (for/set ([i upper]) (list i))) ;; dummy atoms so #rel works
+                    ;(update-bindings rel (@set) dummies)))]
                   [(_ (_ expr1 (CompareOp "<=") (_ "#" (_ (QualName rel)))) (CompareOp "<=") expr2)
                    (syntax/loc stx (begin 
                     (define lower (caar (eval-exp (alloy->kodkod 'expr1) bindings 8 #f)))
                     (define upper (caar (eval-exp (alloy->kodkod 'expr2) bindings 8 #f)))
-                    (add-int-bound rel (int-bound lower upper))
-                    (hash-set! bindings 'rel (map list (range upper)))))] ;; dummy atoms so #rel works
-                  [(_ (_ "~" rel) (CompareOp "in") (_ (QualName strat))) 
-                   (syntax/loc stx (break rel (get-co 'strat)))]
+                    (update-int-bound rel (int-bound lower upper)) ))]
+                    ;(define ldummies (for/set ([i lower]) (list i))) ;; dummy atoms so #rel works
+                    ;(define udummies (for/set ([i upper]) (list i))) ;; dummy atoms so #rel works
+                    ;(update-bindings rel ldummies udummies)))]
                   [(_ (_ "~" rel) (CompareOp "is") (_ (QualName strat))) 
                    (syntax/loc stx (break rel (get-co 'strat)))]
-                  [(_ rel (CompareOp "in") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
                   [(_ rel (CompareOp "is") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
                   [(_ (QualName f)) (syntax/loc stx (f bindings))]
-                  [(_ (_ (QualName rel)) (CompareOp "=") expr)
+                  [(_ (_ (QualName rel)) (CompareOp cmp) expr)
                    (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
                       (set! tups (for/list ([tup tups]) (for/list ([e tup]) 
                         (if (int-atom? e) (int-atom-n e) e)
@@ -1271,15 +1296,14 @@
                       (when (equal? (relation-arity rel) 1)
                         ;; make sure all sub-sigs exactly defined
                         (for ([(sub sup) (in-hash extensions-store)] #:when (equal? sup rel))
-                          (with-handlers ([exn:fail? (lambda (v) (raise 
-                              (error 'inst "sub-sig ~a must be exactly specified before super-sig ~a" 
-                                (relation-name sub) (relation-name sup))))])
-                            (define i-b (hash-ref int-bounds-store sub))
-                            (unless (@= (int-bound-lower i-b) (int-bound-upper i-b)) (raise))
-                          ))
-                        (let ([exact (length tups)]) (add-int-bound rel (int-bound exact exact)))
+                          (unless (rel-is-exact sub)
+                            (error 'inst "sub-sig ~a must be exactly specified before super-sig ~a" 
+                              (relation-name sub) (relation-name sup))))
+                        (let ([exact (length tups)]) (update-int-bound rel (int-bound exact exact)))
                       )
-                      (hash-set! bindings 'rel tups)
+                      (when (equal? cmp "=")  (update-bindings rel tups tups))
+                      (when (equal? cmp "in") (update-bindings rel (@set) tups))
+                      (when (equal? cmp "ni") (update-bindings rel tups))
                     ))]
                   [(_ (_ (QualName Int)) "[" (_ (_ (Const (Number i)))) "]")
                    (quasisyntax/loc stx (set-bitwidth #,(string->number (syntax-e #'i))))]
