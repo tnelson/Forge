@@ -141,7 +141,7 @@
 
    ;; otherwise
    [whitespace (token+ lexeme "" lexeme "" lexeme-start lexeme-end #t)]
-   [any-char (error (format "unexpected char: ~a" lexeme))]))
+   [any-char (token+ 'RESERVED-TOK "" lexeme "" lexeme-start lexeme-end)]))
 
 (define (keyword? str)
   (member str
