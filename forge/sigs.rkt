@@ -410,6 +410,8 @@
     (printf "int-bounds-store : ~v~n" int-bounds-store))
   (append-run name)
 
+  (map instance (hash-values pbindings))
+
   ;(error "stop")
 
   (set! run-constraints (append constraints assumptions))
@@ -1289,10 +1291,9 @@
                   [(_ (QualName f)) (syntax/loc stx (f bindings))]
                   [(_ (_ (QualName rel)) (CompareOp cmp) expr)
                    (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
-                      (set! tups (for/list ([tup tups]) (for/list ([e tup]) 
-                        (if (int-atom? e) (int-atom-n e) e)
-                      )))
-                      (instance (make-exact-sbound rel tups))
+                      ;(set! tups (for/list ([tup tups]) (for/list ([e tup]) 
+                      ;  (if (int-atom? e) (int-atom-n e) e)
+                      ;)))
                       (when (equal? (relation-arity rel) 1)
                         ;; make sure all sub-sigs exactly defined
                         (for ([(sub sup) (in-hash extensions-store)] #:when (equal? sup rel))
