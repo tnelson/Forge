@@ -1213,7 +1213,7 @@
     [(_ c) (datum->syntax stx (string->symbol (syntax->datum #'c)))]))
 
 (define-simple-macro (iff a b) (and (=> a b) (=> b a)))
-(define-simple-macro (ifte a b c ni) (and (=> a b) (=> (not a) c)))
+(define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
 (define-simple-macro (>= a b) (or (> a b) (int= a b)))
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
 (define-simple-macro (ni a b) (in b a))
