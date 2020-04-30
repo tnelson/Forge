@@ -12,11 +12,19 @@
          (for-syntax racket/string))
 (require racket/trace)
 
-(provide break instance quote begin println filepath set-path! let void)
+(provide break instance quote begin println filepath set-path! process-args let void)
 
 (define filepath #f)
 (define (set-path! path)
   (set! filepath path))
+
+(define process-args
+  (command-line
+    #:usage-help "FORGE!"
+    #:once-each
+    [("-v" "--verbose" "--verbosity") VERBOSITY "set verbosity" 
+      (set-verbosity (string->number VERBOSITY))]
+    #:args () (void)))
 
 (define lower-bounds (make-hash))
 (define upper-bounds (make-hash))
