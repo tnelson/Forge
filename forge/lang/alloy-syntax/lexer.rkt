@@ -83,6 +83,7 @@
    ["fun"       (token+ `FUN-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]      
    ["in"        (token+ `IN-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["ni"        (token+ `NI-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["is"        (token+ `IS-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["let"       (token+ `LET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["lone"      (token+ `LONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
@@ -140,7 +141,7 @@
 
    ;; otherwise
    [whitespace (token+ lexeme "" lexeme "" lexeme-start lexeme-end #t)]
-   [any-char (error (format "unexpected char: ~a" lexeme))]))
+   [any-char (token+ 'RESERVED-TOK "" lexeme "" lexeme-start lexeme-end)]))
 
 (define (keyword? str)
   (member str
@@ -163,6 +164,7 @@
            "iff"
            "implies"
            "in"
+           "ni"
            "is"
 
            "let"
