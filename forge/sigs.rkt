@@ -12,19 +12,11 @@
          (for-syntax racket/string))
 (require racket/trace)
 
-(provide break instance quote begin println filepath set-path! process-args let void)
+(provide break instance quote begin println filepath set-path! let void)
 
 (define filepath #f)
 (define (set-path! path)
   (set! filepath path))
-
-(define process-args
-  (command-line
-    #:usage-help "FORGE!"
-    #:once-each
-    [("-v" "--verbose" "--verbosity") VERBOSITY "set verbosity" 
-      (set-verbosity (string->number VERBOSITY))]
-    #:args () (void)))
 
 (define lower-bounds (make-hash))
 (define upper-bounds (make-hash))
@@ -67,6 +59,7 @@
 (define logtransoption 1)
 (define showoption #t)
 (define demo #f)
+(define boundsyoption #t)
 
 ; set of one sigs
 (define one-sigs (mutable-set))
@@ -116,11 +109,24 @@
     ['sb (set! sboption val)]
     ['logtranslation (set! logtransoption val)]
     ['show (set! showoption (equal? val '1))]
+    ['boundsy (set! boundsyoption (equal? val '|1|))]
     ['demo
      (match val
        ['life (set! demo 'life)]
        [else (error (format "Invalid option key: ~a" key))])]
     [else (error (format "Invalid option key: ~a" key))]))
+
+(define process-command-line-args
+  (command-line
+    #:usage-help "FORGE!"
+    #:once-each
+    [("-v" "--verbose" "--verbosity") VERBOSITY "set verbosity" 
+      (set-option 'verbosity (string->number VERBOSITY))]
+    [("--show") SHOW "whether to open visualizer" 
+      (set-option 'show SHOW)]
+    [("--boundsy") BOUNDSY "whether to allow boundsy breaks" 
+      (set-option 'boundsy (string->symbol BOUNDSY))]
+    #:args () (void)))
 
 (define (set-bitwidth i) (set! bitwidth i))
 
@@ -501,10 +507,14 @@
         (tupleset #:tuples int-atoms)))
 
 
-  (define-values (new-total-bounds new-formulas)
-    (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
-  (set! total-bounds new-total-bounds)
-  (set! run-constraints (append run-constraints new-formulas))
+  (if boundsyoption 
+    (let-values ([(new-total-bounds new-formulas)
+                  (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store)])
+      (set! total-bounds new-total-bounds)
+      (set! run-constraints (append run-constraints new-formulas)))
+    (let ([new-formulas (constrain-formulas upper-bounds relations-store)])
+      (set! run-constraints (append run-constraints new-formulas)))
+  )
 
   (when is-exact
     (for ([b total-bounds])

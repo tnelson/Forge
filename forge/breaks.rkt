@@ -5,6 +5,7 @@
 (require "shared.rkt")
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
+(provide constrain-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
 (provide make-exact-sbound)
 (provide sbound sbound-lower sbound-upper)
@@ -175,6 +176,25 @@
         (hash-add! rel-breaks rel break)
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
 (define (add-instance i) (cons! instances i))
+
+;; constrain bounds using only formula breaks
+(define (constrain-formulas bounds-store relations-store)
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
+        (println "DOING FORMULA BREAKS"))
+
+    (define formulas (mutable-set))
+    (for ([(rel breaks) (in-hash rel-breaks)])
+        (define rel-list (hash-ref relations-store rel))
+        (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
+        (for ([sym (set->list breaks)]) 
+            (define strategy (hash-ref strategies sym))
+            (define breaker (strategy 0 rel bound atom-lists rel-list))
+            (define default ((breaker-make-default breaker)))
+            (set-union! formulas (break-formulas default))
+        )
+    )
+    (set->list formulas)
+)
 
 (define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
