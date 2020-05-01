@@ -8,7 +8,17 @@
 ;; 1. I |= ϕ
 ;; 2. J |= ϕ <=> I ≅ J
 ;; this function assumes inst assigns a value to every sig/relation
-(define (inst-to-formula inst)
+(define (inst-to-formula inst [relations-store #f])
+
+    (printf "inst : ~v~n" inst)
+
+    (define name-to-rel (hash-map))
+    (when relations-store
+        (for ([rel relations-store])
+            (hash-set! name-to-rel (string->symbol (relation-name rel)) rel)))
+    (define (to-rel x) (if (symbol? x) (name-to-rel x) x))
+
+    (printf "name-to-rel : ~v~n" name-to-rel)
 
     (define (is-rel rel)
         (define name (relation-name rel))
@@ -16,7 +26,8 @@
              (@not (equal? (first (string->list name)) #\$))))  ; not Skolem
 
     ;; rels :: relation |-> list<tuple<sym>>
-    (define rels (for/hash ([(rel tups) (in-hash inst)] #:when (is-rel rel)) (values rel tups)))
+    (define rels (for/hash ([(rel tups) (in-hash inst)] #:when (is-rel rel)) 
+        (values rel tups)))
     ;(printf "rels : ~v~n" rels)
 
     ;; sigs :: sig |-> list<sym>

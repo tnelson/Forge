@@ -353,7 +353,9 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/formula/quantified quantifier decls formula) self)
-     (fprintf port "(~a [~a] ~a)" quantifier decls formula))])
+     (set! decls (for/list ([decl decls]) (list (car decl) (cdr decl))))
+     (println "HEY")
+     (fprintf port "(~a [< ~a >] ~a)" quantifier decls formula))])
 
 (define (quantified-formula quantifier decls formula)
   (for ([e (in-list (map cdr decls))])

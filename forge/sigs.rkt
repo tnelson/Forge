@@ -60,6 +60,8 @@
 (define showoption #t)
 (define demo #f)
 (define boundsyoption #t)
+(define writeoption #f)
+(define readoption #f)
 
 ; set of one sigs
 (define one-sigs (mutable-set))
@@ -99,8 +101,8 @@
 ; Filter options to prevent user from rewriting any global
 ; Note that we cannot use dash in option names
 (define (set-option key val)
-  (println key)
-  (println val)
+  ;(println key)
+  ;(println val)
   (match key
     ['solver (set! solveroption val)]
     ['verbosity (set-verbosity val)]
@@ -108,8 +110,10 @@
     ['coregranularity (set! coregranoption val)]
     ['sb (set! sboption val)]
     ['logtranslation (set! logtransoption val)]
-    ['show (set! showoption (equal? val '1))]
+    ['show (set! showoption (equal? val '|1|))]
     ['boundsy (set! boundsyoption (equal? val '|1|))]
+    ['write (set! writeoption (equal? val '|1|))]
+    ['read (set! readoption (read (open-input-string (symbol->string val))))]
     ['demo
      (match val
        ['life (set! demo 'life)]
@@ -126,6 +130,12 @@
       (set-option 'show SHOW)]
     [("--boundsy") BOUNDSY "whether to allow boundsy breaks" 
       (set-option 'boundsy (string->symbol BOUNDSY))]
+    [("--write") WRITE "whether to write instances to stdout" 
+      (set-option 'write (string->symbol WRITE))
+      (set-option 'show 0)]
+    [("--read") READ "input instance" 
+      (set-option 'read (string->symbol READ))
+      (set-option 'show 0)]
     #:args () (void)))
 
 (define (set-bitwidth i) (set! bitwidth i))
@@ -435,6 +445,8 @@
     (hash-set! bindings rel (for/list ([tup (sbound-upper sb)]) (car tup))) ; this nonsense is just for atom names
   )
 
+  (when readoption (inst-to-formula readoption relations-store))
+
   ;(error "stop")
 
   (set! run-constraints (append constraints assumptions))
@@ -552,7 +564,7 @@
      (define (get-next-model)
        (cmd [stdin] (solve))
        (match-define (cons restype inst) (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
-       (inst-to-formula inst)
+       (when writeoption (printf "INSTANCE : ~a~n" inst))
        (when (and demo (equal? restype 'sat))
          (match demo
            ['life (output-life inst)]))
