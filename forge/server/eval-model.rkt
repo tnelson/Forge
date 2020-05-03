@@ -343,7 +343,7 @@
                        (if (< n ret) n ret)))
                   (- (expt 2 (sub1 bitwidth)) 1) ; max-int
                   expr-val)))]
-    [`(card ,expr) (wraparound (length (eval-exp expr bind bitwidth)))]
+    [`(card ,expr) (wraparound (length (eval-exp expr bind bitwidth)) bitwidth)]
     [`(add ,ix1 ,ix2) (wraparound (+ (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [`(subtract ,ix1 ,ix2) (wraparound (- (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [`(multiply ,ix1 ,ix2) (wraparound (* (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
