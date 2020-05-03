@@ -318,6 +318,10 @@
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating int-expr : ~v~n" int-expr))
   (match int-expr
+    [`(sum ,var ,lst ,ie)
+     (foldl (λ (x res) (+ res (eval-int-expr ie (hash-set bind var (list x)) bitwidth)))
+      0
+      (eval-exp lst bind bitwidth))]
     [`(sum ,expr)
      (wraparound
       (let ([expr-val (eval-exp expr bind bitwidth)])
