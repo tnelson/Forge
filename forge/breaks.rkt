@@ -9,6 +9,7 @@
 (provide (rename-out [add-instance instance]) clear-breaker-state)
 (provide make-exact-sbound)
 (provide sbound sbound-lower sbound-upper)
+(provide cons!)
 
 ;;;;;;;;;;;;;;
 ;;;; util ;;;;

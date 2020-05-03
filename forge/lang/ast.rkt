@@ -1,6 +1,7 @@
 #lang racket
 
 (require (for-syntax racket/syntax) (prefix-in @ racket) (prefix-in $ racket))
+(require racket/struct)
 
 (provide (except-out (all-defined-out) next-name @@and @@or int< int>)
          (rename-out [@@and and] [@@or or] [int< <] [int> >]))
@@ -135,7 +136,7 @@
 (struct node/expr/quantifier-var node/expr (sym)
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (fprintf port "~a" (node/expr/quantifier-var-sym self)))])
+     (fprintf port "?~a" (node/expr/quantifier-var-sym self)))])
 
 ;; -- comprehensions -----------------------------------------------------------
 
@@ -353,9 +354,7 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/formula/quantified quantifier decls formula) self)
-     (set! decls (for/list ([decl decls]) (list (car decl) (cdr decl))))
-     (println "HEY")
-     (fprintf port "(~a [< ~a >] ~a)" quantifier decls formula))])
+     (fprintf port "(~a ~a ~a)" quantifier decls formula))])
 
 (define (quantified-formula quantifier decls formula)
   (for ([e (in-list (map cdr decls))])

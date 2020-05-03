@@ -445,10 +445,6 @@
     (hash-set! bindings rel (for/list ([tup (sbound-upper sb)]) (car tup))) ; this nonsense is just for atom names
   )
 
-  (when readoption (inst-to-formula readoption relations-store))
-
-  ;(error "stop")
-
   (set! run-constraints (append constraints assumptions))
 
   (for ([rel (in-set one-sigs)]) (update-int-bound rel (int-bound 1 1)))
@@ -483,6 +479,8 @@
   (define successor-rel (map list (take int-range (sub1 (length int-range))) (rest int-range)))
   (set! total-bounds (append total-bounds (list (bound succ successor-rel successor-rel))))
   (set! rels (append rels (list succ)))
+
+  (when readoption (cons! run-constraints (inst-to-formula readoption rels)))
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define kks (new server%
