@@ -1340,12 +1340,35 @@
                       (when (equal? cmp "in") (update-bindings rel (@set) tups))
                       (when (equal? cmp "ni") (update-bindings rel tups))
                     ))]
-                  [(_ (_ (_ (QualName rel)) "." (_ (QualName focus))) (CompareOp cmp) expr)
+                  [(_ (_ (_ (QualName A)) "." (_ (QualName B))) (CompareOp cmp) expr)
                     (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
-                      (when (equal? cmp "=")  (update-bindings-at rel 'focus tups tups))
-                      (when (equal? cmp "in") (update-bindings-at rel 'focus (@set) tups))
-                      (when (equal? cmp "ni") (update-bindings-at rel 'focus tups))
-                    ))]
+
+                      #| FIXME: this is intentionally wrong to maintain backwards compatibility during
+                          the L4S final projects. I accidentally got the join backwards, so the
+                          implementation below swaps A and B to do `foc.rel = ...` depending on which
+                          of A/B is the relation. This can be fixed after the final as just:
+
+                          (when (equal? cmp "=")  (update-bindings-at B 'A tups tups))
+                          (when (equal? cmp "in") (update-bindings-at B 'A (@set) tups))
+                          (when (equal? cmp "ni") (update-bindings-at B 'A tups))
+
+                          or `update-bindings-at` can be generalized to allow `rel.foc = ...`
+                      |#
+
+                      (define nameA (symbol->string 'A))
+                      (define nameB (symbol->string 'B))
+                      (define rels (hash-keys relations-store))
+                      (define relA (findf (λ (x) (equal? (relation-name x) nameA)) rels))
+                      (define relB (findf (λ (x) (equal? (relation-name x) nameB)) rels))
+                      (match-define-values (rel foc) (cond
+                        [relA (values relA 'B)]
+                        [relB (values relB 'A)]
+                        [else (error 'inst "one of ~a or ~a must be a relation" 'A 'B)]))
+
+                      (when (equal? cmp "=")  (update-bindings-at rel foc tups tups))
+                      (when (equal? cmp "in") (update-bindings-at rel foc (@set) tups))
+                      (when (equal? cmp "ni") (update-bindings-at rel foc tups))
+                  ))]
                   [(_ (_ (QualName Int)) "[" (_ (_ (Const (Number i)))) "]")
                    (quasisyntax/loc stx (set-bitwidth #,(string->number (syntax-e #'i))))]
                   [(_ a "and" b) (syntax/loc stx (begin (Bind a) (Bind b)))]
