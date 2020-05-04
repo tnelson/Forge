@@ -18,6 +18,15 @@ NOTE: run this from the command line to avoid $PATH issues.
     )
 )
 
-;racket $file1 --write 1 |> process
-;racket $file1 --read "#hash((A . ((A0) (A1) (A2) (A3))) (f . ((A0 B0) (A1 B1) (A2 B2) (A3 B3))) (g . ((B0 A1) (B1 A0) (B2 A2) (B3 A3))) (Int . ((-8) (-7) (-6) (-5) (-4) (-3) (-2) (-1) (0) (1) (2) (3) (4) (5) (6) (7))) (B . ((B0) (B1) (B2) (B3))))"
-racket $file1 --read "#hash((A . ((A0) (A1))) (f . ((A0 B0) (A1 B1))) (g . ((B0 A1) (B1 A0))) (B . ((B0) (B1))))"
+(define (io-filter pred) 
+    (λ (port) (for ([line (in-lines port)] #:when (pred line)) 
+        (displayln line)
+        ;(fprintf port "~a" line)
+    ))
+)
+
+;racket $file1 --write |> process
+;racket $file1 --read "#hash((A . ((A0) (A1))) (f . ((A0 B0) (A1 B1))) (g . ((B0 A1) (B1 A0))) (B . ((B0) (B1))))"
+
+racket $file1 --write |>  (io-filter (λ (x) (string-prefix? x "INSTANCE : #hash")))
+

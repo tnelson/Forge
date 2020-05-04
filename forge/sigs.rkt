@@ -130,8 +130,8 @@
       (set-option 'show SHOW)]
     [("--boundsy") BOUNDSY "whether to allow boundsy breaks" 
       (set-option 'boundsy (string->symbol BOUNDSY))]
-    [("--write") WRITE "whether to write instances to stdout" 
-      (set-option 'write (string->symbol WRITE))
+    [("--write") "whether to write instances to stdout" 
+      (set-option 'write '|1|)
       (set-option 'show 0)]
     [("--read") READ "input instance" 
       (set-option 'read (string->symbol READ))
