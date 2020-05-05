@@ -161,7 +161,7 @@
 (define (->string v)
   (cond [(int-atom? v) (int-atom->string v)]
         [(symbol? v) (symbol->string v)]
-        ;[(number? v) (number->string v)]
+        [(number? v) (number->string v)]
         [else v]))
 
 ; is t1 < t2?
