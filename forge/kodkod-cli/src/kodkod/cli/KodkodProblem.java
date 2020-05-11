@@ -33,6 +33,7 @@ import kodkod.ast.Relation;
 import kodkod.engine.IncrementalSolver;
 import kodkod.engine.Solution;
 import kodkod.engine.Solver;
+import kodkod.engine.bddlab.BDDSolverFactory;
 import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.ucore.RCEStrategy;
@@ -413,13 +414,33 @@ import org.parboiled.errors.ActionException;
 	 * @requires no this.prev
 	 * @ensures this.options.solver' = solver
 	 */
-	boolean setSolver(SATFactory solver) {
+	boolean setSatSolver(SATFactory solver) {
 		if (SATFactory.available(solver)) {
-			options.setSolver(solver);
+			options.setSatSolver(solver);
 			return true;
 		} else {
 			throw new ActionException(solver.toString() + " is not available on this system. Searched " + System.getProperty("java.library.path"));
 		}
+	}
+
+	/**
+	 * Same as {@link #setBddSolver(BDDSolverFactory, boolean)} with the default parameter of false
+	 * for distinctPathsOnly.
+	 */
+	boolean setBddSolver(BDDSolverFactory solver) {
+		return setBddSolver(solver, false);
+	}
+
+	/**
+	 * Sets {@code this.options.solver} to use the specified bdd solver and tells whether
+	 * to generate one solution per distinct path in the bdd or for all solutions.
+	 * @param solver The solver to use
+	 * @param distinctPathsOnly whether to generate only one solution per path through the bdd.
+	 * @return true
+	 */
+	boolean setBddSolver(BDDSolverFactory solver, boolean distinctPathsOnly) {
+		options.setBddSolver(solver, distinctPathsOnly);
+		return true;
 	}
 
 	/**
@@ -430,7 +451,7 @@ import org.parboiled.errors.ActionException;
 	 * @requires no this.prev
 	 * @ensures enable =>
 	 * 				(this.options.setLogTranslation(1) && this.options.setCoreGranularity(0) &&
-	 * 				 this.ooptions.setSolver(SATFactory.MiniSatProver)) else
+	 * 				 this.ooptions.setSatSolver(SATFactory.MiniSatProver)) else
 	 *              (this.options.setLogTranslation(0) && this.options.setCoreGranularity(0))
 	 **/
 	// Just set solver, LT, and CG separately.
@@ -443,7 +464,7 @@ import org.parboiled.errors.ActionException;
 				}
 				options.setLogTranslation(1);
 				options.setCoreGranularity(0);
-				options.setSolver(SATFactory.MiniSatProver);
+				options.setSatSolver(SATFactory.MiniSatProver);
 			} else {
 				options.setLogTranslation(0);
 				options.setCoreGranularity(0);
@@ -693,6 +714,7 @@ import org.parboiled.errors.ActionException;
                 Iterator<Solution> solved = solver.solveAll(asserts(), bounds());
 				return new Stepper(this, solved).solve(out);
 			} catch (RuntimeException ex){
+				ex.printStackTrace();
 				throw new ActionException(ex.getMessage(), ex);
 			}
 		}
@@ -774,10 +796,10 @@ import org.parboiled.errors.ActionException;
 			return super.setCoreExtraction(enable);
 		}
 
-		boolean setSolver(SATFactory solver) {
+		boolean setSatSolver(SATFactory solver) {
 			if (!solver.incremental())
 				throw new ActionException("Cannot use a non-incremental SAT solver ("+solver+") for incremental solving.");
-			return super.setSolver(solver);
+			return super.setSatSolver(solver);
 		}
 	}
 
@@ -795,7 +817,7 @@ import org.parboiled.errors.ActionException;
 //			return "Cannot " + msg + " of an incremental problem.  Use (clear) to start specifying a new problem.";
 //		}
 //		boolean setBitwidth(int bitwidth) { throw new ActionException(cannot("re-configure bitwidth")); }
-//		boolean setSolver(SATFactory solver) { throw new ActionException(cannot("re-configure the solver")); }
+//		boolean setSatSolver(SATFactory solver) { throw new ActionException(cannot("re-configure the solver")); }
 //		boolean setCoreExtraction(boolean enable) { throw new ActionException(cannot("re-configure the core extraction behavior")); }
 //		boolean declareInts(List<Integer> ints) { throw new ActionException(cannot("re-declare integer atoms in the universe of")); }
 //	}
@@ -822,7 +844,7 @@ import org.parboiled.errors.ActionException;
 			return "Cannot " + msg + " of an incremental problem.  Use (clear) to start specifying a new problem.";
 		}
 		boolean setBitwidth(int bitwidth) { throw new ActionException(cannot("re-configure bitwidth")); }
-		boolean setSolver(SATFactory solver) { throw new ActionException(cannot("re-configure the solver")); }
+		boolean setSatSolver(SATFactory solver) { throw new ActionException(cannot("re-configure the solver")); }
 		boolean setCoreExtraction(boolean enable) { throw new ActionException(cannot("re-configure the core extraction behavior")); }
 		boolean declareInts(List<Integer> ints) { throw new ActionException(cannot("re-declare integer atoms in the universe of")); }
 	}

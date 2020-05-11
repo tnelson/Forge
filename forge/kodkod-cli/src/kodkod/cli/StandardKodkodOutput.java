@@ -191,21 +191,23 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	 */
 	void writeStats(KodkodProblem problem, Solution sol) {
 		final Statistics stats = sol.stats();
-		writeStat("problem size",
-				String.format("variables = %s, clauses = %s, state = %s bits",
-				stats.variables(), stats.clauses(), stats.primaryVariables()));
+		if (stats != null) {
+			writeStat("problem size",
+					  String.format("variables = %s, clauses = %s, state = %s bits",
+									stats.variables(), stats.clauses(), stats.primaryVariables()));
 
-		final long pt = problem.buildTimeMillis(), ct = problem.coreTimeMillis(),
-				   tt = stats.translationTime(), st = stats.solvingTime();
+			final long pt = problem.buildTimeMillis(), ct = problem.coreTimeMillis(),
+					tt = stats.translationTime(), st = stats.solvingTime();
 
-		if (ct >= 0)
-			writeStat("solving time (ms)",
-					String.format("total = %s, parsing = %s, translation = %s, SAT = %s, core = %s",
-					pt + tt + st + ct, pt, tt, st, ct));
-		else
-			writeStat("solving time (ms)",
-					String.format("total = %s, parsing = %s, translation = %s, SAT = %s",
-					pt + tt + st, pt, tt, st));
+			if (ct >= 0)
+				writeStat("solving time (ms)",
+						  String.format("total = %s, parsing = %s, translation = %s, SAT = %s, core = %s",
+										pt + tt + st + ct, pt, tt, st, ct));
+			else
+				writeStat("solving time (ms)",
+						  String.format("total = %s, parsing = %s, translation = %s, SAT = %s",
+										pt + tt + st, pt, tt, st));
+		}
 	}
 
 	/**
