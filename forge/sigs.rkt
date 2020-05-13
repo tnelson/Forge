@@ -1241,7 +1241,7 @@
         (let* ([uppers (for/list ([type (hash-ref relations-store rel)]) 
                 (for/list ([tup (sbound-upper (hash-ref pbindings type))]) (car tup))
               )]
-             [cart (apply cartesian-product uppers)])
+             [cart (list->set (apply cartesian-product uppers))])
           (set! upper cart)))))
   (hash-set! pbindings rel (sbound rel lower upper))
   ;; when exact bounds, put in bindings
@@ -1264,7 +1264,7 @@
       (let* ([uppers (for/list ([type (hash-ref relations-store rel)]) 
                 (for/list ([tup (sbound-upper (hash-ref pbindings type))]) (car tup))
               )]
-             [cart (apply cartesian-product uppers)])
+             [cart (list->set (apply cartesian-product uppers))])
         (set! upper (if upper 
                         (for/list ([tup cart] #:when
                           (or (@not (equal? (car tup) focus))
