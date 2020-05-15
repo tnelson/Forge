@@ -56,9 +56,12 @@
                 (sym-to-qv (car tup))
                 (foldr (λ (x y) (if y (-> x y) x)) #f (map sym-to-qv tup)))
         ))
-        (= rel (if (empty? parts)
-                    none
-                    (foldl (λ (x y) (if y (+ x y) x)) #f parts)))
+        ;(= rel (if (empty? parts)
+        ;            none
+        ;            (foldl (λ (x y) (if y (+ x y) x)) #f parts)))
+        (if (empty? parts)
+            (no rel)
+            (= rel (foldl (λ (x y) (if y (+ x y) x)) #f parts)))
     ))
 
     ;(define fm (foldl 

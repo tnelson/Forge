@@ -1,3 +1,5 @@
+// this file tests that isoEx.rkt is equivalent with and without boundsy breaks
+
 [160] iso $ ./boundsytest.py isoEx.rkt 
 Testing: P ≅ Q for P="racket isoEx.rkt", Q="racket isoEx.rkt --boundsy 0"
         Testing: ∀I(I⊧P => ∃J(J⊧Q and J≅I))
