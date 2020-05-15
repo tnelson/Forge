@@ -1,5 +1,12 @@
 #!/usr/local/bin/python3
 
+"""
+This file tests 2 commands for equivalence.
+ex: ./isotest.py "racket isoEx.rkt" "racket isoEx.rkt"
+"""
+
+########
+
 import os
 from subprocess import Popen, PIPE, check_output
 
@@ -53,10 +60,8 @@ def isotest(P, Q):
 
 if __name__ == "__main__":
     import sys
-
     cmd1 = sys.argv[1]
     cmd2 = sys.argv[2]
-
     isotest(cmd1, cmd2)
 
 
