@@ -26,7 +26,7 @@ NOTE: run this from the command line to avoid $PATH issues.
 )
 
 ;racket $file1 --write |> process
-;racket $file1 --read "#hash((A . ((A0) (A1))) (f . ((A0 B0) (A1 B1))) (g . ((B0 A1) (B1 A0))) (B . ((B0) (B1))))"
+racket $file1 --read "#hash((A . ((A0) (A1))) (f . ((A0 B0) (A1 B1))) (g . ((B0 A1) (B1 A0))) (B . ((B0) (B1))))"
 
-racket $file1 --write |>  (io-filter (λ (x) (string-prefix? x "INSTANCE : #hash")))
+;racket $file1 --write |>  (io-filter (λ (x) (string-prefix? x "INSTANCE : #hash")))
 

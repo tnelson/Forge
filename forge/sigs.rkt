@@ -480,7 +480,9 @@
   (set! total-bounds (append total-bounds (list (bound succ successor-rel successor-rel))))
   (set! rels (append rels (list succ)))
 
-  (when readoption (cons! run-constraints (inst-to-formula readoption rels)))
+  (when readoption 
+    (printf "chi(I) : ~v~n" (inst-to-formula readoption rels))
+    (cons! run-constraints (inst-to-formula readoption rels)))
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define kks (new server%
@@ -562,7 +564,13 @@
      (define (get-next-model)
        (cmd [stdin] (solve))
        (match-define (cons restype inst) (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
-       (when writeoption (printf "INSTANCE : ~a~n" inst))
+       (when (and writeoption inst)
+        (printf "INSTANCE : ~a~n" inst)
+        ; TODO: make interactive:
+        ;(sleep 0.01)
+        ;(display "press enter for another... ")
+        ;(define wait (read-line))
+        (display-model get-next-model name command filepath bitwidth funs-n-preds showoption))
        (when (and demo (equal? restype 'sat))
          (match demo
            ['life (output-life inst)]))
