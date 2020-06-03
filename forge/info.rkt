@@ -18,4 +18,4 @@
 
 (define compile-omit-paths '("examples" "doc" "tests"))
 
-(define test-include-paths '("tests"))
+(define test-omit-paths 'all)
