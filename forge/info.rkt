@@ -17,3 +17,5 @@
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
 (define compile-omit-paths '("examples" "doc" "tests"))
+
+(define test-include-paths '("tests"))
