@@ -4,7 +4,15 @@
 
 (define version "0.5.1")
 
-(define deps '("beautiful-racket" "predicates"))
+(define deps '("base"
+               "br-parser-tools-lib"
+               "brag-lib"
+               "net-lib"
+               "profile-lib"
+               "rackunit-lib"
+               "syntax-color-lib"
+               "web-server-lib"
+               "beautiful-racket" "predicates"))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
