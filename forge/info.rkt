@@ -2,7 +2,7 @@
 
 (define collection "forge")
 
-(define version "0.7.0")
+(define version "0.8.0")
 
 (define deps '("base"
                "br-parser-tools-lib"
