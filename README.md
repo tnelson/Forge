@@ -17,13 +17,19 @@ Forge extends the Ocelot package to create first-order relational logic models. 
 - [A quick reference guide to most Forge operators](http://www.ics.uci.edu/~alspaugh/cls/shr/alloy.html)
 - [A helpful powerpoint presentation for syntax and basic examples](http://alloytools.org/tutorials/day-course/)
 
-<!-- ## Installation
+## Contributing
+To contribute, fork the repository (or open a new branch if a core contributor) and make your changes. When making a pull request back into master, please prepend the pull request title with one of `[patch]`, `[minor]`, or `[major]` so that the corresponding version number is updated. If no version update is specified, the minor version will be updated automatically.
 
+
+## Installation from source
+To install from source, use the following commands. Make sure that you have [Racket](https://racket-lang.org/) 7.4 or greater installed along with the raco package manager. You will also need Java 8.
 ```
-$ cd [Path-To-Repo]/forge
-$ raco pkg install
+git clone https://github.com/tnelson/Forge
+cd Forge/forge
+raco pkg install
 ```
 
+<!--
 ## Backwards Compatibility
 
 - You can wrap the entirety of a forge file with the old syntax in `/*$ ...decls... */` to get the exact same behavior. I call this escaping to s-expressions.
