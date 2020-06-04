@@ -24,6 +24,9 @@ $ cd [Path-To-Repo]/forge
 $ raco pkg install
 ```
 
+## Contributing
+To contribute, fork the repository (or open a new branch if a core contributor) and make your changes. When making a pull request back into master, please prepend the pull request title with one of `[patch]`, `[minor]`, or `[major]` so that the corresponding version number is updated. If no version update is specified, the minor version will be updated automatically.
+
 ## Backwards Compatibility
 
 - You can wrap the entirety of a forge file with the old syntax in `/*$ ...decls... */` to get the exact same behavior. I call this escaping to s-expressions.
