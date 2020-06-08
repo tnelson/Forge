@@ -5,8 +5,8 @@ one sig UniqueObject {}
 sig Stuff {}
 
 test expect {
-    oneSigEnforced : {#UniqueObject != 1} is unsat
-    oneSigIsntPersistent : {#Stuff = 2} is sat
+    oneSigEnforced : { #UniqueObject != 1 } is unsat
+    oneSigIsntPersistent : { #Stuff = 2 } is sat
 }
 
 
