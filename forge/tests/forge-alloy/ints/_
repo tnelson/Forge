@@ -1,0 +1,5 @@
+Loaded: libminisat.dylib
+Loaded: libminisatprover.dylib
+Loaded: liblingeling.dylib
+Loaded: libglucose.dylib
+Failed to load: libcryptominisat.dylib
