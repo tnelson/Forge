@@ -8,6 +8,16 @@
 --   - forge-alloy/formulas/quantifiedFormulas.rkt
 --   - forge-alloy/formulas/multiplicityFormulas.rkt
 
+-- Found bug in code: sigs.rkt, lines 1139-1144
+--   [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a)
+--    (syntax/loc stx (Q q n e ... a))]
+--   [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a)
+--    (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
+--   [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a)
+--    (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a)))]
+
+option verbosity 10
+
 sig A {friendA: set B}
 sig B {friendB: set A}
 

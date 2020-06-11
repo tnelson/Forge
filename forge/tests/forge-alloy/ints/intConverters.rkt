@@ -37,7 +37,7 @@ one sig S5 extends IntSet {}
 
 inst SumInst {
     ints = -- S10->() +
-           S20->(0) +
+           S20->(6) +
            S30->(1 + 2 + 3) +
            S40->(-5 + -1 + 3) +
            S50->(7 + 1)
@@ -48,17 +48,21 @@ pred Sum {
         i = sing[sum[i]]
 
     sum[S1.ints] = 0
-    sum[S2.ints] = 0
+    sum[S2.ints] = 6
     sum[S3.ints] = 6
     sum[S4.ints] = -3
     sum[S5.ints] = -8
 }
 
 pred SumQuant {
-    (sum S: IntSet | min[S.ints]) = -3
-    (sum S: IntSet | max[S.ints]) = 13
+    (sum S: IntSet | min[S.ints]) = 3
+    (sum S: IntSet | max[S.ints]) = 19
     (sum S: IntSet | #S.ints) = 9
-    (sum S: IntSet | sum i: S.ints | multiply[sum[i], sum[i]]) = 99
+
+    -- This also checks that sum works with duplicates
+    (sum S: IntSet | sum i: S.ints | sum[i]) = 1
+
+    (sum S: IntSet | sum i: S.ints | multiply[sum[i], sum[i]]) = 135
 }
 
 

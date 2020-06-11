@@ -64,18 +64,15 @@ pred Subtract {
     all i1, i2: Int |
         add[subtract[sum[i1], sum[i2]], sum[i2]] = sum[i1]
 }
-/*
+
 pred DivideRemainder {
     all i1: Int, i2: (Int - sing[0]) | let x = sum[i1], y = sum[i2] | 
         let q = divide[x, y], r = remainder[x, y] | {
             sign[r] = sign[x] or sign[r] = 0
             abs[r] < abs[y] or y = -8
-            y = add[multiply[x, q], r]
+            x = add[multiply[y, q], r]
         }
 }
-
-run {}*/
-
 
 test expect {
     absTest : {not Abs} for 4 Int is unsat
@@ -83,5 +80,5 @@ test expect {
     addTest : {not Add} is unsat
     subtractTest : {not Subtract} is unsat
     multiplyTest : {not Multiply} is unsat
-    -- divideRemainderTest : {not DivideRemainder} is unsat -- workin on it...
+    divideRemainderTest : {not DivideRemainder} is unsat
 }
