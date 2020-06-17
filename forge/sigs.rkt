@@ -179,6 +179,15 @@
         (define (name args ...) (&& conds ...))
         (update-state! (state-add-predicate curr-state (symbol->string 'name))))]))
 
+(define-syntax (fun stx)
+  (syntax-parse stx
+    [(fun (name:id args:id ...+) result:expr) 
+      #'(begin 
+        (define (name args ...) result)
+        (update-state! (state-add-function curr-state (symbol->string 'name))))]))
+
+; (define-syntax (const stx))
+
 (define-syntax (run stx)
   (syntax-parse stx
     [(run name:id
@@ -277,6 +286,8 @@
   
 
   ; declare assertions
+  ; the extra sorting process is so that translate-to-kodkod knows
+  ; which names to use in predicate translation.
   (define all-sigs
     (map Sig-rel (sort (hash-values (State-sigs run-state))
                        @<
@@ -329,6 +340,7 @@
 
   ;; get true bounds (Map<String, Range>)
   ; this takes into account the demanded atoms from (recursive) child sigs
+  ; and also contains the default bounds for unspecified sigs
   (define true-bounds (make-hash))
 
   ; get-demand :: Sig -> int
@@ -463,29 +475,15 @@
 
 (relation R1 (A1 A2))
 
-(pred P1 (in A1 A))
-(pred (ni s1 s2) (in s2 s1))
-(pred P2 (ni A A2))
+; (pred P1 (in A1 A))
+; (pred (ni s1 s2) (in s2 s1))
+; (pred P2 (ni A A2))
+(fun (my-func x y) (+ x y))
+(pred (P x y z) (in (my-func x y) z))
+(pred P1 (P A1 A2 A))
+(pred P2 true)
 
 (run my-run (P1 P2) ([A 4 7] [A1 1 1] [A2 2 3]))
-
-
-
-
-
-; (define-syntax (relation stx)
-;   (update-state!
-;     (syntax-case stx ()
-;       [(name sigs ...) (update-state! (state-add-relation curr-state 'name (list 'sigs ...)))]))
-;   #'())
-
-; (define-syntax (pred stx)
-;   (update-state!
-;     (syntax-case stx ()
-;       [(name exprs ...) ()
-;                         #'(begin 
-;                             (define pred (&& exprs ...)))])))
-
 
 
 
