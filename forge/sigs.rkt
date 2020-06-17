@@ -67,6 +67,7 @@
   relations   ; Map<String, Relation>
   predicates  ; Set<String>
   functions   ; Set<String>
+  constants   ; Set<String>
   bounds      ; Map<String, Bound>
   insts       ; Map<String, Inst>
   ) #:transparent)
@@ -82,9 +83,12 @@
 (define init-relations (hash))
 (define init-predicates (@set))
 (define init-functions (@set))
+(define init-constants (@set))
 (define init-bounds (hash))
 (define init-insts (hash))
-(define init-state (State init-sigs init-relations init-predicates init-functions init-bounds init-insts))
+(define init-state (State init-sigs init-relations 
+                          init-predicates init-functions init-constants 
+                          init-bounds init-insts))
 
 ; Defaults
 (define DEFAULT-BITWIDTH 4)
@@ -101,7 +105,7 @@
 ; Adds a new sig to the given State; if new sig extends some
 ; other sig, then updates that sig with extension.
 (define (state-add-sig state name rel one abstract extends)
-  (match state [(State sigs relations predicates functions bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts)
     (define new-sig (Sig name rel one abstract extends '()))
     ; assert extends in State-sigs
 
@@ -113,29 +117,36 @@
                                       (sig-add-extender (hash-ref sigs extends) name))
           sigs-with-new-sig))
 
-    (State new-state-sigs relations predicates functions bounds insts)]))
+    (State new-state-sigs relations predicates functions constants bounds insts)]))
 
 ; state-add-relation :: State, String, List<Sig> -> State
 ; Adds a new relation to the given State.
 (define (state-add-relation state name rel rel-sigs)
-  (match state [(State sigs relations predicates functions bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts)
     (define new-relation (Relation name rel rel-sigs))
     (define new-state-relations (hash-set relations name new-relation))
-    (State sigs new-state-relations predicates functions bounds insts)]))
+    (State sigs new-state-relations predicates functions constants bounds insts)]))
 
 ; state-add-predicate :: State, String -> State
 ; Adds a new predicate to the given State.
 (define (state-add-predicate state name)
-  (match state [(State sigs relations predicates functions bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts)
     (define new-state-predicates (set-add predicates name))
-    (State sigs relations new-state-predicates functions bounds insts)]))
+    (State sigs relations new-state-predicates functions constants bounds insts)]))
 
 ; state-add-function :: State, String -> State
 ; Adds a new function to the given State.
 (define (state-add-function state name)
-  (match state [(State sigs relations predicates functions bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts)
     (define new-state-functions (set-add functions name))
-    (State sigs relations predicates new-state-functions bounds insts)]))
+    (State sigs relations predicates new-state-functions constants bounds insts)]))
+
+; state-add-constant :: State, String -> State
+; Adds a new constant to the given State.
+(define (state-add-constant state name)
+  (match state [(State sigs relations predicates functions constants bounds insts)
+    (define new-state-constants (set-add constants name))
+    (State sigs relations predicates functions new-state-constants bounds insts)]))
 
 ; (define-for-syntax (state-add-bounds state ))
 
@@ -186,7 +197,12 @@
         (define (name args ...) result)
         (update-state! (state-add-function curr-state (symbol->string 'name))))]))
 
-; (define-syntax (const stx))
+(define-syntax (const stx)
+  (syntax-parse stx
+    [(const name:id value:expr) 
+      #'(begin 
+        (define name value)
+        (update-state! (state-add-constant curr-state (symbol->string 'name))))]))
 
 (define-syntax (run stx)
   (syntax-parse stx
@@ -479,8 +495,9 @@
 ; (pred (ni s1 s2) (in s2 s1))
 ; (pred P2 (ni A A2))
 (fun (my-func x y) (+ x y))
-(pred (P x y z) (in (my-func x y) z))
-(pred P1 (P A1 A2 A))
+(const A12 (my-func A1 A2))
+(pred (P x y) (or (in x y) (in y x)))
+(pred P1 (P A12 A))
 (pred P2 true)
 
 (run my-run (P1 P2) ([A 4 7] [A1 1 1] [A2 2 3]))
