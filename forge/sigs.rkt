@@ -6,6 +6,11 @@
          "breaks.rkt"
          "demo/life.rkt")
 
+; (require (prefix-in @ racket) 
+;          "lang/ast.rkt" 
+;          "kodkod-cli/server/kks.rkt" 
+;          "translate-to-kodkod-cli.rkt")
+
 ; ; racket/string needed for replacing transpose operator (~) with escaped version in error messages
 ; (require (for-syntax racket/syntax)
 ;          (for-syntax racket/string))
@@ -62,6 +67,14 @@
   
   ) #:transparent)
 
+(struct Options (
+  solver          ; symbol
+  verbosity       ; int
+  sb              ; int
+  coregranularity ; int
+  logtranslation  ; int
+  ) #:transparent)
+
 (struct State (
   sigs        ; Map<String, Sig>
   relations   ; Map<String, Relation>
@@ -70,6 +83,7 @@
   constants   ; Set<String>
   bounds      ; Map<String, Bound>
   insts       ; Map<String, Inst>
+  options     ; Options
   ) #:transparent)
 
 (struct Run (
@@ -86,9 +100,11 @@
 (define init-constants (@set))
 (define init-bounds (hash))
 (define init-insts (hash))
+(define init-options (Options 'SAT4J 5 5 0 0))
 (define init-state (State init-sigs init-relations 
                           init-predicates init-functions init-constants 
-                          init-bounds init-insts))
+                          init-bounds init-insts
+                          init-options))
 
 ; Defaults
 (define DEFAULT-BITWIDTH 4)
@@ -105,7 +121,7 @@
 ; Adds a new sig to the given State; if new sig extends some
 ; other sig, then updates that sig with extension.
 (define (state-add-sig state name rel one abstract extends)
-  (match state [(State sigs relations predicates functions constants bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-sig (Sig name rel one abstract extends '()))
     ; assert extends in State-sigs
 
@@ -117,36 +133,38 @@
                                       (sig-add-extender (hash-ref sigs extends) name))
           sigs-with-new-sig))
 
-    (State new-state-sigs relations predicates functions constants bounds insts)]))
+    (State new-state-sigs relations predicates functions constants bounds insts options)]))
 
 ; state-add-relation :: State, String, List<Sig> -> State
 ; Adds a new relation to the given State.
 (define (state-add-relation state name rel rel-sigs)
-  (match state [(State sigs relations predicates functions constants bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-relation (Relation name rel rel-sigs))
     (define new-state-relations (hash-set relations name new-relation))
-    (State sigs new-state-relations predicates functions constants bounds insts)]))
+    (State sigs new-state-relations predicates functions constants bounds insts options)]))
 
 ; state-add-predicate :: State, String -> State
 ; Adds a new predicate to the given State.
 (define (state-add-predicate state name)
-  (match state [(State sigs relations predicates functions constants bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-state-predicates (set-add predicates name))
-    (State sigs relations new-state-predicates functions constants bounds insts)]))
+    (State sigs relations new-state-predicates functions constants bounds insts options)]))
 
 ; state-add-function :: State, String -> State
 ; Adds a new function to the given State.
 (define (state-add-function state name)
-  (match state [(State sigs relations predicates functions constants bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-state-functions (set-add functions name))
-    (State sigs relations predicates new-state-functions constants bounds insts)]))
+    (State sigs relations predicates new-state-functions constants bounds insts options)]))
 
 ; state-add-constant :: State, String -> State
 ; Adds a new constant to the given State.
 (define (state-add-constant state name)
-  (match state [(State sigs relations predicates functions constants bounds insts)
+  (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-state-constants (set-add constants name))
-    (State sigs relations predicates functions new-state-constants bounds insts)]))
+    (State sigs relations predicates functions new-state-constants bounds insts options)]))
+
+
 
 ; (define-for-syntax (state-add-bounds state ))
 
