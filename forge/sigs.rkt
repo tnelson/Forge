@@ -1,15 +1,15 @@
 #lang racket
 
-(require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "server/forgeserver.rkt"
-         "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
-         "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
-         "breaks.rkt"
-         "demo/life.rkt")
+; (require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "server/forgeserver.rkt"
+;          "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
+;          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
+;          "breaks.rkt"
+;          "demo/life.rkt")
 
-; (require (prefix-in @ racket) 
-;          "lang/ast.rkt" 
-;          "kodkod-cli/server/kks.rkt" 
-;          "translate-to-kodkod-cli.rkt")
+(require (prefix-in @ racket) 
+         "lang/ast.rkt" 
+         "kodkod-cli/server/kks.rkt" 
+         "translate-to-kodkod-cli.rkt")
 
 ; ; racket/string needed for replacing transpose operator (~) with escaped version in error messages
 ; (require (for-syntax racket/syntax)
@@ -109,6 +109,14 @@
 ; Defaults
 (define DEFAULT-BITWIDTH 4)
 (define DEFAULT-SIG-BOUND (Range 0 4))
+
+; Some macros for ast
+(require syntax/parse/define)
+(define-simple-macro (iff a b) (and (=> a b) (=> b a)))
+(define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
+(define-simple-macro (>= a b) (or (> a b) (int= a b)))
+(define-simple-macro (<= a b) (or (< a b) (int= a b)))
+(define-simple-macro (ni a b) (in b a))
 
 
 ; sig-add-extender :: Sig, String -> Sig
@@ -320,6 +328,14 @@
   
 
   ; declare assertions
+  (define run-constraints 
+    (append run-preds
+            (get-sig-size-preds run-info)
+            (get-relation-preds run-info)
+            (get-extender-preds run-info)))
+            ;(get-break-preds run-info)))
+
+
   ; the extra sorting process is so that translate-to-kodkod knows
   ; which names to use in predicate translation.
   (define all-sigs
@@ -334,22 +350,13 @@
                                            Relation-name))))
   (define all-rels (append (list Int succ) all-sigs all-relations))
 
-  (define assertion-number 0)
-  ; TODO: fill in extra assertions
-  ; size of sigs
-  ; relation in sig->sig->sig
-  ; abstract
-  ; extender in extends
-  ; no extender1 & extender2
-  ; breaks "constrain-bounds"????
-
   ; run predicates
-  (for ([p run-preds])
+  (for ([p run-constraints]
+        [assertion-number (in-naturals)])
     (print-cmd-cont "(f~a " assertion-number)
     (translate-to-kodkod-cli p all-rels '())
     (print-cmd ")")
-    (assert (f assertion-number))
-    (set! assertion-number (add1 assertion-number)))
+    (assert (f assertion-number)))
 
   (solve))
 
@@ -499,15 +506,79 @@
   (values rel-to-name rel-to-min rel-to-max)
   )
 
+(define (get-sig-size-preds run-info) 
+  (define run-state (Run-state run-info))
+  (define sig-map (State-sigs run-state))
+  (define extender-sigs (filter Sig-extends (hash-values sig-map)))
+
+  (define run-bounds (Run-bounds run-info))
+  (define sig-bounds (Bound-sig-bounds run-bounds))
+  (define default-bounds (Bound-default-bound run-bounds))
+
+  (for/list ([sig extender-sigs])
+    (define upper-bound 
+      (Range-upper (hash-ref sig-bounds 
+                             (Sig-name sig) 
+                             (or default-bounds DEFAULT-SIG-BOUND))))
+    (<= (card (Sig-rel sig)) (node/int/constant upper-bound))))
+
+(define (get-extender-preds run-info)
+  (define run-state (Run-state run-info))
+  (define sig-map (State-sigs run-state))
+
+  (define sig-constraints (for/list ([sig (hash-values sig-map)])
+    ; get children information
+    (define children-sigs (map (curry hash-ref sig-map ) 
+                               (Sig-extenders sig)))
+    (define children-rels (map Sig-rel children-sigs))
+
+    ; abstract and sig1, ... extend => (= sig (+ sig1 ...))
+    ; not abstract and sig is parent of sig1 => (in sig1 sig)
+    (define (abstract sig extenders)
+      (= sig (apply + extenders)))
+    (define (parent sig1 sig2)
+      (in sig2 sig1))
+    (define extends-constraints 
+      (if (and (Sig-abstract sig) (cons? (Sig-extenders sig)))
+          (list (abstract (Sig-rel sig) children-rels))
+          (map (curry parent (Sig-rel sig)) children-rels)))
+
+    ; sig1 and sig2 extend sig => (no (& sig1 sig2))
+    (define (disjoin-pair sig1 sig2)
+      (no (& sig1 sig2)))
+    (define (disjoin-list a-sig a-list)
+      (map (curry disjoin-pair a-sig) a-list))
+    (define (disjoin a-list)
+      (if (empty? a-list)
+          empty
+          (append (disjoin-list (first a-list) (rest a-list))
+                  (disjoin (rest a-list)))))
+    (define disjoint-constraints (disjoin children-rels))
+
+    (append extends-constraints disjoint-constraints)))
+
+  (apply append sig-constraints))
+
+(define (get-relation-preds run-info)
+  (define run-state (Run-state run-info))
+  (define sig-map (State-sigs run-state))
+  (define relation-map (State-relations run-state))
+
+  (for/list ([relation (hash-values relation-map)])
+    (define children-sigs (map (curry hash-ref sig-map ) (Relation-sigs relation)))
+    (define children-rels (map Sig-rel children-sigs))
+    (in (Relation-rel relation) (apply -> children-rels))))
 
 
 
 (sig A #:abstract)
 (sig A1 #:one #:extends A)
 (sig A2 #:extends A)
-(sig B)
+(sig A3 #:extends A)
+(sig A31 #:extends A3)
+(sig A32 #:extends A3)
 
-(relation R1 (A1 A2))
+(relation R1 (A1 A2 A3))
 
 ; (pred P1 (in A1 A))
 ; (pred (ni s1 s2) (in s2 s1))
@@ -518,7 +589,7 @@
 (pred P1 (P A12 A))
 (pred P2 true)
 
-(run my-run (P1 P2) ([A 4 7] [A1 1 1] [A2 2 3]))
+(run my-run () ())
 
 
 
