@@ -110,6 +110,43 @@
 (define DEFAULT-BITWIDTH 4)
 (define DEFAULT-SIG-BOUND (Range 0 4))
 
+; Accessors for cleaner code
+(define (get-state run-or-state)
+  (if (Run? run-or-state)
+      (Run-state run-or-state)
+      run-or-state))
+
+(define (get-sig state sig-name)
+  (hash-ref (State-sigs state) sig-name))
+
+(define (get-sigs run-or-state [relation #f])
+  (if relation
+      (map (curry get-sig (get-state run-or-state)) (Relation-sigs relation))
+      (hash-values (State-sigs (get-state run-or-state)))))
+
+(define (get-top-level-sigs run-or-state)
+  (filter (compose @not Sig-extends) (get-sigs run-or-state)))
+
+(define (get-relations run-or-state)
+  (hash-values (State-relations (get-state run-or-state))))
+
+(define (get-children run-or-state sig)
+  (define sig-map (State-sigs (get-state run-or-state)))
+  (map (curry hash-ref sig-map) (Sig-extenders sig)))
+
+(define (get-bound run sig)
+  (define bounds (Run-bounds run))
+  (define bounds-map (Bound-sig-bounds bounds))
+  (define sig-name (Sig-name sig))
+  (define default-bounds (or (Bound-default-bound bounds) DEFAULT-SIG-BOUND))
+  (hash-ref bounds-map sig-name default-bounds))
+
+(define (get-bitwidth run)
+  (or (Bound-bitwidth (Run-bounds run)))
+      DEFAULT-BITWIDTH)
+
+
+
 ; Some macros for ast
 (require syntax/parse/define)
 (define-simple-macro (iff a b) (and (=> a b) (=> b a)))
@@ -258,7 +295,6 @@
 
 
 (define (run-spec run-info)
-  (define run-state (Run-state run-info))
   (define run-preds (Run-preds run-info))
   (define bitwidth (Bound-bitwidth (Run-bounds run-info)))
 
@@ -339,12 +375,12 @@
   ; the extra sorting process is so that translate-to-kodkod knows
   ; which names to use in predicate translation.
   (define all-sigs
-    (map Sig-rel (sort (hash-values (State-sigs run-state))
+    (map Sig-rel (sort (get-sigs run-info)
                        @<
                        #:key (compose (curry hash-ref sig-to-name )
                                       Sig-name))))
   (define all-relations
-    (map Relation-rel (sort (hash-values (State-relations run-state))
+    (map Relation-rel (sort (get-relations run-info)
                             @<
                             #:key (compose (curry hash-ref rel-to-name )
                                            Relation-name))))
@@ -367,16 +403,8 @@
 ; Given a run, assigns names to each sig, minimum and maximum 
 ; sets of atoms for each, and the total number of atoms needed (including ints).
 (define (get-sig-info run-info)
-  ;; extract state info
-  (define state (Run-state run-info))
-  (define sigs-map (State-sigs state))
-  (define sigs (hash-values sigs-map))
-  (define run-bounds (Run-bounds run-info))
-  (define sig-bounds (Bound-sig-bounds run-bounds))
-  (define bitwidth (Bound-bitwidth run-bounds))
-
   ; get top-level sigs
-  (define top-level-sigs (filter (compose @not (curry Sig-extends)) sigs))
+  (define top-level-sigs (get-top-level-sigs run-info))
 
 
   ;; get true bounds (Map<String, Range>)
@@ -389,12 +417,11 @@
   ; returns the (minimum) number of atoms that a particular sig demands from its parent
   (define (get-demand sig)
     ; recur and get childrens demands
-    (define children (map (curry hash-ref sigs-map ) (Sig-extenders sig)))
+    (define children (get-children run-info sig))
     (define demands (apply + (map get-demand children)))
 
     ; generate true bounds
-    (define bounds (hash-ref sig-bounds (Sig-name sig) (or (Bound-default-bound run-bounds)  
-                                                           DEFAULT-SIG-BOUND)))
+    (define bounds (get-bound run-info sig))
     ;(assert (<= demands (Range-upper bounds)))
     (define true-demands (@max demands (Range-lower bounds)))
     (hash-set! true-bounds (Sig-name sig) (Range true-demands (Range-upper bounds)))
@@ -413,7 +440,7 @@
 
   ; name updaters
   (define curr-relation 2)
-  (define curr-max-atom (expt 2 (or bitwidth DEFAULT-BITWIDTH)))
+  (define curr-max-atom (expt 2 (get-bitwidth run-info)))
 
   ; generate :: Sig, List<int>, List<int> -> void
   ; Takes in a Sig, and two integer lists and
@@ -435,7 +462,7 @@
     (hash-set! sig-to-max (Sig-name sig) max-atoms)
 
     ; get children lower bounds
-    (define children (map (curry hash-ref sigs-map ) (Sig-extenders sig)))
+    (define children (get-children run-info sig))
     (define children-lower (map (compose (curry Range-lower )
                                          (curry hash-ref true-bounds )
                                          (curry Sig-name ))
@@ -478,11 +505,8 @@
 ; Given a run and the atoms assigned to each sig, assigns names to each relation
 ; and minimum and maximum sets of atoms for each relation.
 (define (get-relation-info run-info sig-to-max start-relation-name)
-  (define state (Run-state run-info))
-  (define relations (hash-values (State-relations state)))
-  
   (define rel-to-name
-    (for/hash ([relation relations]
+    (for/hash ([relation (get-relations run-info)]
                [name (in-naturals start-relation-name)])
     (values (Relation-name relation) name)))
 
@@ -492,12 +516,12 @@
           [(@> arity 0) (product 'none (n-arity-none (@- arity 1)))]
           [else (error "Error: Relation with negative or 0 arity specified.")]))
   (define rel-to-min
-    (for/hash ([relation relations])
+    (for/hash ([relation (get-relations run-info)])
       (define nones (n-arity-none (length (Relation-sigs relation))))
       (values (Relation-name relation) nones)))
 
   (define rel-to-max
-    (for/hash ([relation relations])
+    (for/hash ([relation (get-relations run-info)])
       (define atoms ; List<List<int>>
         (map (curry hash-ref sig-to-max ) (Relation-sigs relation)))
       (define tuples (apply cartesian-product atoms))
@@ -507,30 +531,17 @@
   )
 
 (define (get-sig-size-preds run-info) 
-  (define run-state (Run-state run-info))
-  (define sig-map (State-sigs run-state))
-  (define extender-sigs (filter Sig-extends (hash-values sig-map)))
-
-  (define run-bounds (Run-bounds run-info))
-  (define sig-bounds (Bound-sig-bounds run-bounds))
-  (define default-bounds (Bound-default-bound run-bounds))
+  (define extender-sigs (filter Sig-extends (get-sigs run-info)))
 
   (for/list ([sig extender-sigs])
     (define upper-bound 
-      (Range-upper (hash-ref sig-bounds 
-                             (Sig-name sig) 
-                             (or default-bounds DEFAULT-SIG-BOUND))))
+      (Range-upper (get-bound run-info sig)))
     (<= (card (Sig-rel sig)) (node/int/constant upper-bound))))
 
 (define (get-extender-preds run-info)
-  (define run-state (Run-state run-info))
-  (define sig-map (State-sigs run-state))
-
-  (define sig-constraints (for/list ([sig (hash-values sig-map)])
+  (define sig-constraints (for/list ([sig (get-sigs run-info)])
     ; get children information
-    (define children-sigs (map (curry hash-ref sig-map ) 
-                               (Sig-extenders sig)))
-    (define children-rels (map Sig-rel children-sigs))
+    (define children-rels (map Sig-rel (get-children run-info sig)))
 
     ; abstract and sig1, ... extend => (= sig (+ sig1 ...))
     ; not abstract and sig is parent of sig1 => (in sig1 sig)
@@ -557,17 +568,13 @@
 
     (append extends-constraints disjoint-constraints)))
 
+  ; combine all constraints together
   (apply append sig-constraints))
 
 (define (get-relation-preds run-info)
-  (define run-state (Run-state run-info))
-  (define sig-map (State-sigs run-state))
-  (define relation-map (State-relations run-state))
-
-  (for/list ([relation (hash-values relation-map)])
-    (define children-sigs (map (curry hash-ref sig-map ) (Relation-sigs relation)))
-    (define children-rels (map Sig-rel children-sigs))
-    (in (Relation-rel relation) (apply -> children-rels))))
+  (for/list ([relation (get-relations run-info)])
+    (define sig-rels (map Sig-rel (get-sigs run-info relation)))
+    (in (Relation-rel relation) (apply -> sig-rels))))
 
 
 
