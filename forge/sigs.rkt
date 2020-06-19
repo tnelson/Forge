@@ -518,7 +518,13 @@
     ; Set min and max list of atoms
     (define min-atoms private-atoms)
     ; TODO: optimize by not providing shared atoms if upper bound = |private-atoms|
-    (define max-atoms (append private-atoms shared-atoms)) 
+    (define exact-bound
+      (let ([bound (hash-ref true-bounds (Sig-name sig))])
+        (@= (Range-lower bound) (Range-upper bound))))
+    (define max-atoms 
+      (if exact-bound
+          private-atoms
+          (append private-atoms shared-atoms)))
     (hash-set! sig-to-min (Sig-name sig) min-atoms)
     (hash-set! sig-to-max (Sig-name sig) max-atoms)
 
