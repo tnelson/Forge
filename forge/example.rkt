@@ -11,4 +11,4 @@
 (pred acyclic (no (& iden (^ edges))))
 (pred root-connected (= Node (join Root (* edges))))
 
-(run (acyclic root-connected) ([Node 5] [Root 1 1]))
+(run rooted-dag (acyclic root-connected) ([Node 0 5] [Root 1 1]))

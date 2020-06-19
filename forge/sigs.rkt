@@ -300,7 +300,8 @@
   (define command (format "~a" stx))
 
   (syntax-parse stx
-    [(run (~optional name:id)
+    [(run name:id
+          ; (~optional name:id) <- parsinig bugs when name not included
           (~optional (pred:id ...))
           (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
     #`(begin
