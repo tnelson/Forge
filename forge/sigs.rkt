@@ -1,38 +1,26 @@
 #lang racket
 
-; (require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "server/forgeserver.rkt"
-;          "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
-;          "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
-;          "breaks.rkt"
-;          "demo/life.rkt")
-
 (require (prefix-in @ racket) 
-         "lang/ast.rkt" 
+         "lang/ast.rkt")
+(require "server/forgeserver.rkt"
          "kodkod-cli/server/kks.rkt" 
-         "translate-to-kodkod-cli.rkt")
+         "kodkod-cli/server/server.rkt"
+         "kodkod-cli/server/server-common.rkt"
+         "translate-to-kodkod-cli.rkt"
+         "translate-from-kodkod-cli.rkt")
+(require "shared.rkt")
 
-; ; racket/string needed for replacing transpose operator (~) with escaped version in error messages
-; (require (for-syntax racket/syntax)
-;          (for-syntax racket/string))
-; (require racket/trace)
-
-; (provide break instance quote begin println filepath set-path! let void)
-
-; ; For verbosity, etc. that must be shared without cyclic dependency
-; (require "shared.rkt")
-
-; (provide declare-sig set-top-level-bound sigs pred)
-; (provide run check test fact)
-; (provide Int iden univ none)
-; (provide no some one lone all two)
-; (provide + - ^ & ~ join !)
-; (provide set in )
-; (provide = -> * => not and or)
-; (provide set-bitwidth)
-; (provide < > int=)
-; (provide add subtract multiply divide sign abs remainder)
-; (provide card sum sing succ max min)
-; (provide add-relation set-option)
+(provide sig relation fun const pred run)
+(provide Int iden univ none)
+(provide no some one lone all) ; two)
+(provide + - ^ & ~ join !)
+(provide set in )
+(provide = -> * => not and or)
+(provide < > int=)
+(provide add subtract multiply divide sign abs remainder)
+(provide card sum sing succ max min)
+(provide true false)
+(provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
 
 (require (prefix-in @ racket/set))
 (require (for-syntax syntax/parse))
@@ -89,10 +77,11 @@
   ) #:transparent)
 
 (struct Run (
-  name   ; String
-  state  ; State
-  preds  ; Set<String>
-  bounds ; Bound
+  name    ; String
+  state   ; State
+  preds   ; Set<String>
+  bounds  ; Bound
+  command ; String (syntax)
   ) #:transparent)
 
 ; Define initial state
@@ -308,20 +297,24 @@
 ; Run a given spec
 ; (run [(pred ...)] [((sig [lower 0] upper) ...)])
 (define-syntax (run stx)
+  (define command (format "~a" stx))
+
   (syntax-parse stx
-    [(run name:id
+    [(run (~optional name:id)
           (~optional (pred:id ...))
           (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
-    #'(begin
-      (define run-name (symbol->string 'name))
+    #`(begin
+      (define run-name (~? (~@ (symbol->string 'name)) (~@ "no-name-provided")))
       (define run-state curr-state)
       (define run-preds (~? (~@ (list pred ...)) (~@ (list)))) 
 
-      (define sig-bounds
-        (for/hash ([name (list 'sig ...)]
-                   [lo (list lower ...)]
-                   [hi (list upper ...)])
-          (values (symbol->string name) (Range lo hi))))
+      (define sig-bounds (~? 
+        (~@
+          (for/hash ([name (list 'sig ...)]
+                     [lo (list lower ...)]
+                     [hi (list upper ...)])
+            (values (symbol->string name) (Range lo hi))))
+        (~@ (hash))))
       (define bitwidth (if (hash-has-key? sig-bounds "int")
                            (begin0 (hash-ref sig-bounds "int")
                                    (hash-remove! sig-bounds "int"))
@@ -329,7 +322,9 @@
       (define default-bound DEFAULT-SIG-BOUND)
       (define run-bounds (Bound default-bound bitwidth sig-bounds))
 
-      (define run-info (Run run-name run-state run-preds run-bounds))
+      (define run-command #,command)
+
+      (define run-info (Run run-name run-state run-preds run-bounds run-command))
 
       (run-spec run-info))]))
 
@@ -364,24 +359,39 @@
 
   ; print solve
 
+  ; Initializing our kodkod-cli process, and getting ports for communication with it
+  (define kks (new server%
+                   [initializer (thunk (kodkod-initializer #f))]
+                   [stderr-handler (curry kodkod-stderr-handler "blank")]))
+  (send kks initialize)
+  (define stdin (send kks stdin))
+  (define stdout (send kks stdout))
+
+  (define-syntax-rule (kk-print lines ...)
+    (cmd 
+      [stdin]
+      lines ...))
 
   ; Print configure and declare univ size
   (define bitwidth (get-bitwidth run-info))
-  (configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
-                     bitwidth "SAT4J" 20 0 1))
-  (declare-univ num-atoms)
+  (kk-print
+    (configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
+                       bitwidth "SAT4J" 20 0 1))
+    (declare-univ num-atoms))
 
   ; Declare ints
   (define num-ints (expt 2 bitwidth))
-  (declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
-                (range num-ints))                         ; indexes
+  (kk-print
+    (declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
+                  (range num-ints)))                        ; indexes
 
   ; Print Int sig and succ relation
-  (define int-rel (map list (range num-ints)))
-  (define succ-rel (map list (range num-ints) 
-                             (range 1 (+ num-ints 1))))
-  (declare-rel (r 0) int-rel int-rel)
-  (declare-rel (r 1) succ-rel succ-rel)
+  (define int-rel (tupleset #:tuples (map list (range num-ints))))
+  (define succ-rel (tupleset #:tuples (map list (range (sub1 num-ints))
+                                                (range 1 num-ints))))
+  (kk-print
+    (declare-rel (r 0) int-rel int-rel)
+    (declare-rel (r 1) succ-rel succ-rel))
 
   ; Declare sigs
   ; Sort the sigs by KodKod name to print in order
@@ -393,7 +403,7 @@
           (tupleset #:tuples (map list (hash-ref sig-to-min sigstr)))
           "none"))
     (define hi (tupleset #:tuples (map list (hash-ref sig-to-max sigstr))))
-    (declare-rel (r name) lo hi))
+    (kk-print (declare-rel (r name) lo hi)))
 
   ; Declare relations
   ; Sort the relations by KodKod name to print in order
@@ -401,8 +411,8 @@
   (for ([relstr relations])
     (define name (hash-ref rel-to-name relstr))
     (define lo (hash-ref rel-to-min relstr))
-    (define hi (hash-ref rel-to-max relstr))
-    (declare-rel (r name) lo hi))
+    (define hi (tupleset #:tuples (hash-ref rel-to-max relstr)))
+    (kk-print (declare-rel (r name) lo hi)))
   
 
   ; Declare assertions
@@ -433,13 +443,20 @@
 
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
-    (print-cmd-cont "(f~a " assertion-number)
-    (translate-to-kodkod-cli p all-rels '())
-    (print-cmd ")")
-    (assert (f assertion-number)))
+    (kk-print
+      (print-cmd-cont "(f~a " assertion-number)
+      (translate-to-kodkod-cli p all-rels '())
+      (print-cmd ")")
+      (assert (f assertion-number))))
 
   ; Print solve
-  (solve))
+  (define (get-next-model)
+    (kk-print (solve))
+    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution stdout) all-rels (range num-atoms)))
+    (cons restype inst))
+  ;(display-model get-next-model name command filepath bitwidth funs-n-preds))
+  (display-model get-next-model (Run-name run-info) (Run-command run-info) "/Users/thomasdelvecchio/Documents/all-forge/Forge/forge/tests/bugs/univBug.rkt" (get-bitwidth run-info) empty))
+
 
 ; get-sig-info :: Run -> Map<String, int>, 
 ;                        Map<String, List<int>>, 
@@ -633,28 +650,5 @@
   (for/list ([relation (get-relations run-info)])
     (define sig-rels (map Sig-rel (get-sigs run-info relation)))
     (in (Relation-rel relation) (apply -> sig-rels))))
-
-
-
-(sig A #:abstract)
-(sig A1 #:one #:extends A)
-(sig A2 #:extends A)
-(sig A3 #:extends A)
-(sig A31 #:extends A3)
-(sig A32 #:extends A3)
-
-(relation R1 (A1 A2 A3))
-
-; (pred P1 (in A1 A))
-; (pred (ni s1 s2) (in s2 s1))
-; (pred P2 (ni A A2))
-(fun (my-func x y) (+ x y))
-(const A12 (my-func A1 A2))
-(pred (P x y) (or (in x y) (in y x)))
-(pred P1 (P A12 A))
-(pred P2 true)
-
-(run my-run () ())
-
 
 
