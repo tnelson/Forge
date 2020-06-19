@@ -144,15 +144,18 @@
 
 ; get-bound :: Run, Sig -> Range
 ; Returns the run bound of a Sig, in order:
+; - if it is a one sig, returns (Range 1 1)
 ; - if an explicit bound is given, returns it;
 ; - if a default bound is given; returns it;
 ; - return DEFAULT-SIG-BOUND
 (define (get-bound run sig)
-  (define bounds (Run-bounds run))
-  (define bounds-map (Bound-sig-bounds bounds))
-  (define sig-name (Sig-name sig))
-  (define default-bounds (or (Bound-default-bound bounds) DEFAULT-SIG-BOUND))
-  (hash-ref bounds-map sig-name default-bounds))
+  (if (Sig-one sig)
+      (Range 1 1)
+      (let* ([bounds (Run-bounds run)]
+             [bounds-map (Bound-sig-bounds bounds)]
+             [sig-name (Sig-name sig)]
+             [default-bounds (or (Bound-default-bound bounds) DEFAULT-SIG-BOUND)])
+        (hash-ref bounds-map sig-name default-bounds))))
 
 ; get-bitwidth :: Run -> int
 ; Returns the bitwidth for a run, returning the
