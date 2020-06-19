@@ -24,6 +24,8 @@
 ;     * node/formula/quantified  -- quantified formula
 ;     * node/formula/multiplicity  -- multiplicity formula
 
+
+
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
 (define (check-args op args type?
@@ -60,6 +62,8 @@
 
 
 ;; EXPRESSIONS -----------------------------------------------------------------
+
+;; TODO: CHANGE TO USE TYPES, FOR TYPE-CHECKING
 
 (struct node/expr (arity) #:transparent
   #:property prop:procedure (λ (r . sigs) (foldl join r sigs))
@@ -142,6 +146,7 @@
               (node/expr-arity self) 
               (node/expr/comprehension-decls self)
               (node/expr/comprehension-formula self)))])
+
 (define (comprehension decls formula)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
@@ -249,6 +254,7 @@
      (fprintf port "~v" (node/int/constant-value self)))])
 
 ;; -- sum quantifier -----------------------------------------------------------
+
 (struct node/int/sum-quant node/int (decls int-expr)
   #:methods gen:custom-write
   [(define (write-proc self port mode)
@@ -272,8 +278,6 @@
 (struct node/formula () #:transparent)
 
 ;; -- constants ----------------------------------------------------------------
-
-
 
 (struct node/formula/constant node/formula (type) #:transparent
   #:methods gen:custom-write
@@ -307,7 +311,6 @@
 
 (define-formula-op in node/expr? #:same-arity? #t #:max-length 2)
 
-
 (define-formula-op ordered node/expr? #:max-length 2)
 
 (define-formula-op && node/formula? #:min-length 1 #:lift #f)
@@ -331,6 +334,7 @@
          (if (node/formula? a0*)
              (&& a0* a ...)
              (and a0* a ...))))]))
+
 (define-syntax (@@or stx)
   (syntax-case stx ()
     [(_) (syntax/loc stx false)]
@@ -340,7 +344,6 @@
          (if (node/formula? a0*)
              (|| a0* a ...)
              (or a0* a ...))))]))
-       
 
 ;; -- quantifiers --------------------------------------------------------------
 
@@ -360,7 +363,6 @@
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified quantifier decls formula))
 
-
 ;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
 
 ;; -- multiplicities -----------------------------------------------------------
@@ -375,26 +377,6 @@
     (raise-argument-error mult "expr?" expr))
   (node/formula/multiplicity mult expr))
 
-
-#|(define-syntax (all stx)
-  (syntax-case stx ()
-    [(_ ([x1 r1] ...) pred)
-     (with-syntax ([(rel ...) (generate-temporaries #'(r1 ...))])
-       (syntax/loc stx
-         (let* ([x1 (declare-relation 1)] ...
-                [decls (list (cons x1 r1) ...)])
-           (quantified-formula 'all decls pred))))]))|#
-
-
-
-; ok something of this form works!
-; now to make it actually work.
-; ok, search through pred for instances of v0, replace with just the datum.
-; then, in kodkod-translate, we keep a list of quantified variables, and if we ever hit one we know what to do.
-; and that can only happen in the context of interpret-expr, right? yeah, it always appears in an expression context.
-; and in that scenario, we can always just straight print it!
-
-; OK new plan: reader goes through all 
 (define-syntax (all stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
@@ -402,16 +384,6 @@
      (syntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))
-
-#|(define-syntax (one stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
-  (syntax-case stx ()
-    [(_ ([v0 e0]) pred)
-     ; need a with syntax????
-     (syntax/loc stx
-       (let ([v0 (node/expr/quantifier-var 1 'v0)])
-         (quantified-formula 'one (list (cons v0 e0)) pred)))]))|#
-
-
 
 (define-syntax (some stx)
   (syntax-case stx ()
@@ -451,7 +423,6 @@
      (syntax/loc stx
        (multiplicity-formula 'lone expr))]))
 
-
 ; sum quantifier macro
 (define-syntax (sum-quant stx)
   (syntax-case stx ()
@@ -459,7 +430,6 @@
      (syntax/loc stx
        (let* ([x1 (node/expr/quantifier-var (node/expr-arity r1) 'x1)] ...)
          (sum-quant-expr (list (cons x1 r1) ...) int-expr)))]))
-
 
 ;; PREDICATES ------------------------------------------------------------------
 
@@ -479,7 +449,6 @@
   (@member op (list <: :> in = => int= int> int< remainder)))
 (define (nary-op? op)
   (@member op (list + - & -> join && || add subtract multiply divide)))
-
 
 ;; PREFABS ---------------------------------------------------------------------
 
