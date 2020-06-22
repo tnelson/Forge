@@ -10,7 +10,16 @@
          "translate-from-kodkod-cli.rkt")
 (require "shared.rkt")
 
-(provide sig relation fun const pred run display-run)
+(provide sig relation fun const pred run test display-run)
+(provide (struct-out Sig)
+         (struct-out Relation)
+         (struct-out Range)
+         (struct-out Bound)
+         (struct-out Inst)
+         (struct-out Options)
+         (struct-out State)
+         (struct-out Run-info)
+         (struct-out Run))
 (provide Int iden univ none)
 (provide no some one lone all) ; two)
 (provide + - ^ & ~ join !)
@@ -318,7 +327,6 @@
 
   (syntax-parse stx
     [(run name:id
-          ; (~optional name:id) <- parsinig bugs when name not included
           (~optional (pred:id ...))
           (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
       #`(begin
@@ -358,6 +366,17 @@
           (set! model-stream (stream-rest model-stream))
           ret)
         (display-model get-next-model (Run-name run) (Run-command run) "/no-name.rkt" (get-bitwidth (Run-run-info run)) empty))]))
+
+(define-syntax (test stx)
+  (syntax-parse stx
+    [(test name:id 
+           (pred:id ...)
+           (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...))
+           (~and (~or 'sat 'unsat) sat-or-unsat))
+     #'(begin
+       (run temp-run (pred ...) (~? (~@ ([sig lower upper] ...)) (~@)))
+       (define first-instance (stream-first (Run-result temp-run)))
+       (display (equal? (car first-instance) sat-or-unsat)))]))
 
 ; run-spec :: Run-info -> void
 ; Given a Run-info structure, processes the data and communicates it to KodKod-CLI;
