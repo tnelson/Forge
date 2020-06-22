@@ -91,9 +91,8 @@
   ) #:transparent
   #:methods gen:custom-write
   [(define (write-proc run port mode)
-     (println port)
      (if (@not mode)
-         (display-run run)
+         (when (string=? (format "~a" port) "#<output-port:redirect>") (display-run run))
          ((make-constructor-style-printer
             (lambda (obj) 'Run)
             (lambda (obj) (list (Run-name obj) (Run-command obj) (Run-run-info obj) (Run-result obj))))
