@@ -2,7 +2,7 @@
 
 (require (prefix-in @ racket) 
          "lang/ast.rkt")
-(require "server/forgeserver.rkt"
+(require "server/forgeserver.rkt" ; v long
          "kodkod-cli/server/kks.rkt" 
          "kodkod-cli/server/server.rkt"
          "kodkod-cli/server/server-common.rkt"
@@ -113,10 +113,10 @@
       (Run-state run-or-state)
       run-or-state))
 
-; get-sig :: State, String -> Sig
+; get-sig :: (|| Run State), String -> Sig
 ; Returns the Sig of a given name from state.
-(define (get-sig state sig-name)
-  (hash-ref (State-sigs state) sig-name))
+(define (get-sig run-or-state sig-name)
+  (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 
 ; get-sigs :: (|| Run State), Relation? -> List<Sig>
 ; If a relation is provided, returns the column sigs;
@@ -453,13 +453,37 @@
       (print-cmd ")")
       (assert (f assertion-number))))
 
+  ; Create list of atom names for translate-from-kodkod-cli
+  (define inty-univ
+    (for/fold ([inty-univ (reverse (range (- (/ num-ints 2)) (/ num-ints 2)))]
+               [highest-name (hash)]; Map<String, int>
+               #:result (reverse inty-univ)) 
+              ([i (in-range num-ints num-atoms)])
+      (define curr-sig (findf (compose (curry member i )
+                                       (curry hash-ref sig-to-max )
+                                       Sig-name) 
+                              (get-sigs run-info)))
+      (define root-sig
+        (let get-root ([sig curr-sig])
+          (if (@and (Sig-extends sig) (@not (Sig-one sig)))
+              (get-root (get-sig run-info (Sig-extends sig)))
+              sig)))
+
+      (define sig-num (add1 (hash-ref highest-name (Sig-name root-sig) -1)))
+      (define new-highest-name (hash-set highest-name (Sig-name root-sig) sig-num))
+
+      (define name (string->symbol (format "~a~a" (Sig-name root-sig) sig-num)))
+      ; Raise an error if false
+      (values (cons name inty-univ) new-highest-name)))
+  (println inty-univ)
+
   ; Print solve
   (define (get-next-model)
     (kk-print (solve))
-    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution stdout) all-rels (range num-atoms)))
+    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution stdout) all-rels inty-univ))
     (cons restype inst))
   ;(display-model get-next-model name command filepath bitwidth funs-n-preds))
-  (display-model get-next-model (Run-name run-info) (Run-command run-info) "/Users/thomasdelvecchio/Documents/all-forge/Forge/forge/tests/bugs/univBug.rkt" (get-bitwidth run-info) empty))
+  (display-model get-next-model (Run-name run-info) (Run-command run-info) "/no-name.rkt" (get-bitwidth run-info) empty))
 
 
 ; get-sig-info :: Run -> Map<String, int>, 
@@ -517,7 +541,7 @@
 
     ; Set min and max list of atoms
     (define min-atoms private-atoms)
-    ; TODO: optimize by not providing shared atoms if upper bound = |private-atoms|
+    ; Optimized by not providing shared atoms if true lower bound = upper bound
     (define exact-bound
       (let ([bound (hash-ref true-bounds (Sig-name sig))])
         (@= (Range-lower bound) (Range-upper bound))))
