@@ -53,4 +53,5 @@
 (sig A2 #:one #:extends A)
 
 (run test-run)
-(display-run test-run)
+(display test-run)
+; (display 1)

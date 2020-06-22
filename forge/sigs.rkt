@@ -24,6 +24,7 @@
 
 (require (prefix-in @ racket/set))
 (require (for-syntax syntax/parse))
+(require racket/struct)
 
 ; Define data structures
 
@@ -87,7 +88,16 @@
   command  ; String (syntax)
   run-info ; Run-info
   result   ; Stream
-  ) #:transparent)
+  ) #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc run port mode)
+     (println port)
+     (if (@not mode)
+         (display-run run)
+         ((make-constructor-style-printer
+            (lambda (obj) 'Run)
+            (lambda (obj) (list (Run-name obj) (Run-command obj) (Run-run-info obj) (Run-result obj))))
+          run port mode)))])
 
 ; Define initial state
 (define init-sigs (hash))
@@ -342,7 +352,7 @@
 (define-syntax (display-run stx)
   (syntax-parse stx
     [(display-run run:id)
-      #'(begin
+      #'(let ()
         (define model-stream (Run-result run))
         (define (get-next-model)
           (define ret (stream-first model-stream))
