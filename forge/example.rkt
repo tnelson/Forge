@@ -2,7 +2,7 @@
 
 (require "sigs.rkt")
 (require (prefix-in @ racket))
-(set-verbosity 10)
+; (set-verbosity 10)
 
 ; Example 1
 ; (sig Node)
@@ -53,3 +53,4 @@
 (sig A2 #:one #:extends A)
 
 (run test-run)
+(display-run test-run)
