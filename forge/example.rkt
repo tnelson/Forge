@@ -82,6 +82,8 @@
 ; (display bound-pred)
 
 (test my-test (reflexive (= edges (~ edges)) transitive) ([Node 1 3]) 'sat)
+(check my-check ((= Node Node)) ([Node 1 3]))
+(check my-fail (reflexive))
 
 ; Bug: A not defined.
 ; (run my-run ([A 1 2]))

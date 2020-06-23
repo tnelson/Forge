@@ -2,6 +2,7 @@
 
 (require (prefix-in @ racket) 
          "lang/ast.rkt"
+         (prefix-in @@ "lang/ast.rkt")
          (for-syntax "lang/ast.rkt"))
 (require "server/forgeserver.rkt" ; v long
          "kodkod-cli/server/kks.rkt" 
@@ -11,7 +12,7 @@
          "translate-from-kodkod-cli.rkt")
 (require "shared.rkt")
 
-(provide sig relation fun const pred run test display)
+(provide sig relation fun const pred run test check display)
 (provide (struct-out Sig)
          (struct-out Relation)
          (struct-out Range)
@@ -376,6 +377,17 @@
        (run temp-run (~? (~@ (pred ...)) (~@)) (~? (~@ ([sig lower upper] ...)) (~@)))
        (define first-instance (stream-first (Run-result temp-run)))
        (display (equal? (car first-instance) sat-or-unsat)))]))
+
+(define-syntax (check stx)
+  (syntax-parse stx
+    [(check name:id 
+           (~alt
+            (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...))
+            (~optional (pred:expr ...))) ...)
+     #'(begin
+       (run temp-run (~? (~@ ((|| (! pred) ...))) (~@)) (~? (~@ ([sig lower upper] ...)) (~@)))
+       (define first-instance (stream-first (Run-result temp-run)))
+       (display (equal? (car first-instance) 'unsat)))]))
 
 ; run-spec :: Run-info -> void
 ; Given a Run-info structure, processes the data and communicates it to KodKod-CLI;
