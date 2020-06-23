@@ -10,7 +10,7 @@
          "translate-from-kodkod-cli.rkt")
 (require "shared.rkt")
 
-(provide sig relation fun const pred run test display-run)
+(provide sig relation fun const pred run test display)
 (provide (struct-out Sig)
          (struct-out Relation)
          (struct-out Range)
@@ -97,15 +97,7 @@
   command  ; String (syntax)
   run-info ; Run-info
   result   ; Stream
-  ) #:transparent
-  #:methods gen:custom-write
-  [(define (write-proc run port mode)
-     (if (@not mode)
-         (when (string=? (format "~a" port) "#<output-port:redirect>") (display-run run))
-         ((make-constructor-style-printer
-            (lambda (obj) 'Run)
-            (lambda (obj) (list (Run-name obj) (Run-command obj) (Run-run-info obj) (Run-result obj))))
-          run port mode)))])
+  ) #:transparent)
 
 ; Define initial state
 (define init-sigs (hash))
@@ -356,16 +348,20 @@
         (define name (Run run-name run-command run-info run-result)))]))
 
 
-(define-syntax (display-run stx)
+(define-syntax (display stx)
   (syntax-parse stx
-    [(display-run run:id)
-      #'(let ()
-        (define model-stream (Run-result run))
-        (define (get-next-model)
-          (define ret (stream-first model-stream))
-          (set! model-stream (stream-rest model-stream))
-          ret)
-        (display-model get-next-model (Run-name run) (Run-command run) "/no-name.rkt" (get-bitwidth (Run-run-info run)) empty))]))
+    [(display run:id)
+      #'(if (@not (Run? run))
+            (@display run)
+            (let ()
+              (define model-stream (Run-result run))
+              (define (get-next-model)
+                (define ret (stream-first model-stream))
+                (set! model-stream (stream-rest model-stream))
+                ret)
+              (display-model get-next-model (Run-name run) (Run-command run) "/no-name.rkt" (get-bitwidth (Run-run-info run)) empty)))]
+    [(display stuff:expr ...)
+     #'(@display stuff ...)]))
 
 (define-syntax (test stx)
   (syntax-parse stx
