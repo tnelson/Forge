@@ -5,18 +5,18 @@
 ; (set-verbosity 10)
 
 ; Example 1
-(sig Node)
-(sig Root #:one #:extends Node)
+; (sig Node)
+; (sig Root #:one #:extends Node)
 
-(relation edges (Node Node))
+; (relation edges (Node Node))
 
-(pred acyclic (no (& iden (^ edges))))
-(pred root-connected (= Node (join Root (* edges))))
+; (pred acyclic (no (& iden (^ edges))))
+; (pred root-connected (= Node (join Root (* edges))))
 
-(test rooted-dag (acyclic root-connected) ([Node 0 5]) 'sat)
+; (test rooted-dag (acyclic root-connected) ([Node 0 5]) 'sat)
 
-(pred root-not-root (some ([x Node]) (in (-> x Root) edges )))
-(test root-fail (acyclic root-connected root-not-root) 'unsat)
+; (pred root-not-root (some ([x Node]) (in (-> x Root) edges )))
+; (test root-fail (acyclic root-connected root-not-root) 'unsat)
 
 
 ; Example 2
@@ -58,3 +58,34 @@
 ; (run test-run)
 ; (display test-run)
 ; (display 1)
+
+; Example 5
+(sig Node)
+(relation edges (Node Node))
+(pred reflexive (all ([n Node]) (in (-> n n) edges)))
+(pred symmetric (= edges (~ edges)))
+(pred transitive (= (edges edges) edges))
+
+(run nothing)
+; (display nothing)
+
+(run just-preds (reflexive (= edges (~ edges)) transitive))
+; (display just-preds)
+
+(run just-bounds ([Node 1 3]))
+; (display just-bounds)
+
+(run pred-bound (reflexive (= edges (~ edges)) transitive) ([Node 1 3]))
+; (display pred-bound)
+
+(run bound-pred ([Node 1 3]) (reflexive (= edges (~ edges)) transitive))
+; (display bound-pred)
+
+(test my-test (reflexive (= edges (~ edges)) transitive) ([Node 1 3]) 'sat)
+
+; Bug: A not defined.
+; (run my-run ([A 1 2]))
+; (display my-run)
+
+
+

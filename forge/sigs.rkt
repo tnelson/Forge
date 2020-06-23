@@ -1,7 +1,8 @@
 #lang racket
 
 (require (prefix-in @ racket) 
-         "lang/ast.rkt")
+         "lang/ast.rkt"
+         (for-syntax "lang/ast.rkt"))
 (require "server/forgeserver.rkt" ; v long
          "kodkod-cli/server/kks.rkt" 
          "kodkod-cli/server/server.rkt"
@@ -319,8 +320,9 @@
 
   (syntax-parse stx
     [(run name:id
-          (~optional (pred:id ...))
-          (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+          (~alt
+            (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...))
+            (~optional (pred:expr ...))) ...)
       #`(begin
         (define run-name (~? (~@ (symbol->string 'name)) (~@ "no-name-provided")))
         (define run-state curr-state)
@@ -366,11 +368,12 @@
 (define-syntax (test stx)
   (syntax-parse stx
     [(test name:id 
-           (pred:id ...)
-           (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...))
+           (~alt
+            (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...))
+            (~optional (pred:expr ...))) ...
            (~and (~or 'sat 'unsat) sat-or-unsat))
      #'(begin
-       (run temp-run (pred ...) (~? (~@ ([sig lower upper] ...)) (~@)))
+       (run temp-run (~? (~@ (pred ...)) (~@)) (~? (~@ ([sig lower upper] ...)) (~@)))
        (define first-instance (stream-first (Run-result temp-run)))
        (display (equal? (car first-instance) sat-or-unsat)))]))
 
