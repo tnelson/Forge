@@ -136,7 +136,7 @@
       run-or-state))
 
 ; get-sig :: (|| Run-spec State), String -> Sig
-; Returns the Sig of a given name from state.
+; Returns the Sig of a given name from a run/state.
 (define (get-sig run-or-state sig-name)
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 
@@ -152,6 +152,11 @@
 ; Returns the Sigs in a run/state that do not extend another Sig.
 (define (get-top-level-sigs run-or-state)
   (filter (compose @not Sig-extends) (get-sigs run-or-state)))
+
+; get-relation :: (|| Run-spec State), String -> Relation
+; Returns the Relation of a given name from a run/state.
+(define (get-relation run-or-state relation-name)
+  (hash-ref (State-relations (get-state run-or-state)) relation-name))
 
 ; get-relations :: (|| Run-spec State) -> List<Relation>
 ; Returns the Relations in a run/state.
@@ -525,10 +530,18 @@
     (declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
                   (range num-ints)))                        ; indexes
 
+  ; to-tupleset :: List<List<int>>, int -> tupleset
+  (define (to-tupleset arity eles)
+    (if (empty? eles)
+        (if (@= arity 1)
+            'none
+            (product 'none (to-tupleset (sub1 arity) eles)))
+        (tupleset #:tuples eles)))
+
   ; Print Int sig and succ relation
-  (define int-rel (tupleset #:tuples (map list (range num-ints))))
-  (define succ-rel (tupleset #:tuples (map list (range (sub1 num-ints))
-                                                (range 1 num-ints))))
+  (define int-rel (to-tupleset 1 (map list (range num-ints))))
+  (define succ-rel (to-tupleset 2 (map list (range (sub1 num-ints))
+                                            (range 1 num-ints))))
   (kk-print
     (declare-rel (r 0) int-rel int-rel)
     (declare-rel (r 1) succ-rel succ-rel))
@@ -538,11 +551,8 @@
   (define sigs (map car (sort (hash->list sig-to-name) @< #:key cdr)))
   (for ([sigstr sigs])
     (define name (hash-ref sig-to-name sigstr))
-    (define lo 
-      (if (cons? (hash-ref sig-to-min sigstr))
-          (tupleset #:tuples (map list (hash-ref sig-to-min sigstr)))
-          "none"))
-    (define hi (tupleset #:tuples (map list (hash-ref sig-to-max sigstr))))
+    (define lo (to-tupleset 1 (map list (hash-ref sig-to-min sigstr))))
+    (define hi (to-tupleset 1 (map list (hash-ref sig-to-max sigstr))))
     (kk-print (declare-rel (r name) lo hi)))
 
   ; Declare relations
@@ -550,8 +560,9 @@
   (define relations (map car (sort (hash->list rel-to-name) @< #:key cdr)))
   (for ([relstr relations])
     (define name (hash-ref rel-to-name relstr))
-    (define lo (hash-ref rel-to-min relstr))
-    (define hi (tupleset #:tuples (hash-ref rel-to-max relstr)))
+    (define arity (length (Relation-sigs (get-relation run-spec relstr))))
+    (define lo (to-tupleset arity (hash-ref rel-to-min relstr)))
+    (define hi (to-tupleset arity (hash-ref rel-to-max relstr)))
     (kk-print (declare-rel (r name) lo hi)))
   
 
@@ -744,17 +755,9 @@
                [name (in-naturals start-relation-name)])
     (values (Relation-name relation) name)))
 
-  ; n-arity-none :: int -> nones?
-  ; Creates an empty relation for lower bound for KodKod.
-  (define (n-arity-none arity)
-        (cond
-          [(equal? arity 1) 'none]
-          [(@> arity 0) (product 'none (n-arity-none (@- arity 1)))]
-          [else (error "Error: Relation with negative or 0 arity specified.")]))
   (define rel-to-min ; Map<String, nones?>
     (for/hash ([relation (get-relations run-spec)])
-      (define nones (n-arity-none (length (Relation-sigs relation))))
-      (values (Relation-name relation) nones)))
+      (values (Relation-name relation) '())))
 
   (define rel-to-max ; Map<String, List<List<int>>>
     (for/hash ([relation (get-relations run-spec)])
