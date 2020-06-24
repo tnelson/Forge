@@ -12,7 +12,7 @@
          "translate-from-kodkod-cli.rkt")
 (require "shared.rkt")
 
-(provide sig relation fun const pred run test check display)
+(provide sig relation fun const pred run test check display instance)
 (provide (struct-out Sig)
          (struct-out Relation)
          (struct-out Range)
@@ -24,9 +24,10 @@
          (struct-out Run))
 (provide Int iden univ none)
 (provide no some one lone all) ; two)
-(provide + - ^ & ~ join !)
-(provide set in )
-(provide = -> * => not and or)
+(provide + - & * ^  ~ join )
+(provide set in ni)
+(provide = -> => implies ! not and or && || ifte iff <=>)
+(provide != !in !ni)
 (provide < > int=)
 (provide add subtract multiply divide sign abs remainder)
 (provide card sum sing succ max min)
@@ -35,6 +36,8 @@
 
 (require (prefix-in @ racket/set))
 (require (for-syntax syntax/parse))
+(require (for-syntax racket/list))
+(require (for-syntax racket/function))
 (require racket/struct)
 
 ; Define data structures
@@ -66,7 +69,9 @@
   ) #:transparent)
 
 (struct Inst (
-  
+  name ; String
+  pbindings ; Map<Symbol, List<List<Symbol>>>
+  tbindings ; Map<Symbol, List<List<Symbol>>>
   ) #:transparent)
 
 (struct Options (
@@ -237,14 +242,24 @@
     (define new-state-constants (set-add constants name))
     (State sigs relations predicates functions new-state-constants bounds insts options)]))
 
+(define (state-add-instance state name pbindings tbindings)
+  (match state [(State sigs relations predicates functions constants bounds insts options)
+    (define new-state-insts (hash-set insts name (Inst name pbindings tbindings)))
+    (State sigs relations predicates functions constants bounds new-state-insts options)]))
+
 
 ;; AST macros
 (require syntax/parse/define)
 (define-simple-macro (iff a b) (and (=> a b) (=> b a)))
+(define-simple-macro (<=> a b) (and (=> a b) (=> b a)))
 (define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
 (define-simple-macro (>= a b) (or (> a b) (int= a b)))
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
 (define-simple-macro (ni a b) (in b a))
+(define-simple-macro (!= a b) (not (= a b)))
+(define-simple-macro (!in a b) (not (in a b)))
+(define-simple-macro (!ni a b) (not (ni a b)))
+
 
 ;; Forge-core command macros
 
@@ -388,6 +403,70 @@
        (run temp-run (~? (~@ ((|| (! pred) ...))) (~@)) (~? (~@ ([sig lower upper] ...)) (~@)))
        (define first-instance (stream-first (Run-result temp-run)))
        (display (equal? (car first-instance) 'unsat)))]))
+
+(define-syntax (instance stx)
+
+  (define pbindings (make-hash))
+  (define tbindings (make-hash))
+
+  (syntax-parse stx
+    [(instance name:id definitions:expr ...)
+     #`(begin
+       (instance-helper #,pbindings #,tbindings definitions ...)
+       (define name (Inst 'name #,pbindings #,tbindings))
+       (update-state! (state-add-instance curr-state 'name #,pbindings #,tbindings)))]))
+
+(define-syntax (instance-helper stx)
+
+  (define pbindings #f)
+  (define tbindings #f)
+
+  (define-syntax-class builder-base 
+    (pattern name:id
+      #:attr eles (thunk
+        (define true-name (syntax->datum #'name))
+        (hash-ref tbindings
+                  true-name 
+                  (list (list true-name))))))
+
+  (define-syntax-class builder-plus
+    (pattern ((~literal +) (~var children builder-expr) ...)
+      #:attr eles (thunk 
+        (apply append 
+               (map (lambda (x) (x)) 
+                    (attribute children.eles))))))
+
+  (define-syntax-class builder-arrow
+    (pattern ((~literal ->) (~var children builder-expr) ...)
+      #:attr eles (thunk 
+        (map (curry apply append ) 
+             (apply cartesian-product 
+                    (map (lambda (x) (x)) 
+                         (attribute children.eles)))))))
+
+
+  (define-syntax-class builder-expr
+    (pattern (~or (~var exp builder-base)
+                  (~var exp builder-plus)
+                  (~var exp builder-arrow))
+      #:attr eles (attribute exp.eles)))
+
+  (define-syntax-class eq-or-in 
+    (pattern (~or (~literal =) (~literal in))))
+
+  (define-syntax-class definer 
+    (pattern (comp:eq-or-in name:id (~var expression builder-expr))
+      #:attr s (list #'comp (syntax->datum #'name) (attribute expression.eles))))
+
+  (syntax-parse stx
+    [(instance-helper apbindings atbindings) #'(values)]
+    [(instance-helper apbindings atbindings definition:definer definitions:definer ...)
+     (set! pbindings (eval #'apbindings (make-empty-namespace)))
+     (set! tbindings (eval #'atbindings (make-empty-namespace)))
+     #`(begin
+       (match-define (list bindtype name values) '#,(attribute definition.s))
+       (hash-set! (if (equal? bindtype '=) atbindings apbindings) name (values))
+       (instance-helper apbindings atbindings definitions ...))]))
 
 ; send-to-kodkod :: Run-spec -> void
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;

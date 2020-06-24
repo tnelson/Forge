@@ -79,7 +79,7 @@
      (map (lambda (x) (interpret-int x relations quantvars)) args)
      ( print-cmd-cont ")")]))
 
-(define (interpret-expr expr relations quantvars)  
+(define (interpret-expr expr relations quantvars)
   (match expr
     [(node/expr/relation arity name typelist parent)
      ( print-cmd-cont (format "r~a " (index-of relations expr)))]

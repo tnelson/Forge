@@ -60,30 +60,44 @@
 ; (display 1)
 
 ; Example 5
-(sig Node)
-(relation edges (Node Node))
-(pred reflexive (all ([n Node]) (in (-> n n) edges)))
-(pred symmetric (= edges (~ edges)))
-(pred transitive (= (edges edges) edges))
+; (sig Node)
+; (relation edges (Node Node))
+; (pred reflexive (all ([n Node]) (in (-> n n) edges)))
+; (pred symmetric (= edges (~ edges)))
+; (pred transitive (= (edges edges) edges))
 
-(run nothing)
-; (display nothing)
+; (run nothing)
+; ; (display nothing)
 
-(run just-preds (reflexive (= edges (~ edges)) transitive))
-; (display just-preds)
+; (run just-preds (reflexive (= edges (~ edges)) transitive))
+; ; (display just-preds)
 
-(run just-bounds ([Node 1 3]))
-; (display just-bounds)
+; (run just-bounds ([Node 1 3]))
+; ; (display just-bounds)
 
-(run pred-bound (reflexive (= edges (~ edges)) transitive) ([Node 1 3]))
-; (display pred-bound)
+; (run pred-bound (reflexive (= edges (~ edges)) transitive) ([Node 1 3]))
+; ; (display pred-bound)
 
-(run bound-pred ([Node 1 3]) (reflexive (= edges (~ edges)) transitive))
-; (display bound-pred)
+; (run bound-pred ([Node 1 3]) (reflexive (= edges (~ edges)) transitive))
+; ; (display bound-pred)
 
-(test my-test (reflexive (= edges (~ edges)) transitive) ([Node 1 3]) 'sat)
-(check my-check ((= Node Node)) ([Node 1 3]))
-(check my-fail (reflexive))
+; (test my-test (reflexive (= edges (~ edges)) transitive) ([Node 1 3]) 'sat)
+; (check my-check ((= Node Node)) ([Node 1 3]))
+; (check my-fail (reflexive))
+
+; Example 6
+(sig A)
+(sig B)
+(relation R1 (A B))
+(relation R2 (A B))
+(instance my-inst
+    (= A (+ A1 A2 A3))
+    (= B (+ B1 B2))
+    (= R1 (-> (+ A1 A2) (+ B1 B2)))
+    (in R2 (+ R1 (-> A3 B1))))
+(display my-inst)
+
+; my-inst
 
 ; Bug: A not defined.
 ; (run my-run ([A 1 2]))
