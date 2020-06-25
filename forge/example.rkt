@@ -2,7 +2,7 @@
 
 (require "sigs.rkt")
 (require (prefix-in @ racket))
-; (set-verbosity 10)
+(set-verbosity 10)
 
 ; Example 1
 ; (sig Node)
@@ -60,30 +60,35 @@
 ; (display 1)
 
 ; Example 5
-(sig Node)
-(relation edges (Node Node))
-(pred reflexive (all ([n Node]) (in (-> n n) edges)))
-(pred symmetric (= edges (~ edges)))
-(pred transitive (= (edges edges) edges))
+; (sig Node)
+; (relation edges (Node Node))
+; (pred reflexive (all ([n Node]) (in (-> n n) edges)))
+; (pred symmetric (= edges (~ edges)))
+; (pred transitive (= (edges edges) edges))
 
-(run nothing)
+; (run nothing)
 ; (display nothing)
 
-(run just-preds (reflexive (= edges (~ edges)) transitive))
+; (run just-preds #:preds [reflexive (= edges (~ edges)) transitive])
 ; (display just-preds)
 
-(run just-bounds ([Node 1 3]))
+; (run just-bounds #:bounds ([Node 1 3]))
 ; (display just-bounds)
 
-(run pred-bound (reflexive (= edges (~ edges)) transitive) ([Node 1 3]))
+; (run pred-bound #:preds [reflexive (= edges (~ edges)) transitive] #:bounds ([Node 1 3]))
 ; (display pred-bound)
 
-(run bound-pred ([Node 1 3]) (reflexive (= edges (~ edges)) transitive))
+; (run bound-pred #:bounds ([Node 1 3]) #:preds [reflexive (= edges (~ edges)) transitive])
 ; (display bound-pred)
 
-(test my-test (reflexive (= edges (~ edges)) transitive) ([Node 1 3]) 'sat)
-(check my-check ((= Node Node)) ([Node 1 3]))
-(check my-fail (reflexive))
+;(test my-test #:preds [reflexive (= edges (~ edges)) transitive] #:bounds ([Node 1 3]) 'sat)
+;(check my-check #:preds [(= Node Node)] #:bounds ([Node 1 3]))
+
+; (instance my-inst
+;     (= Node (+ Node0 Node1 Node2))
+;     (= edges (+ (-> Node0 Node0) (-> Node1 Node1) (-> Node2 Node2))))
+
+; (check inst-check #:preds [reflexive] #:inst my-inst)
 
 ; Example 6
 ; (sig A)
@@ -98,6 +103,53 @@
 ; (display my-inst)
 
 ; my-inst
+
+
+; Example 7
+
+(sig Thing)
+(sig SpecialThing #:one #:extends Thing)
+(sig UnspecialThing #:extends Thing)
+
+(sig Stuff)
+(sig Stuff1 #:extends Stuff)
+(sig Stuff11 #:extends Stuff1)
+(sig Stuff12 #:extends Stuff1)
+(sig Stuff2 #:extends Stuff)
+
+(instance just-sigs
+    (= UnspecialThing (+ UT1 UT2 UT3)) ; r9 : 27 28 29
+    (= SpecialThing ST) ; r8 : 26
+    (= Thing (+ UnspecialThing SpecialThing OT1 OT2)) ; r7 : 26 27 28 29 30 31
+
+    (= Stuff11 (+ S11a S11b)) ; r4 : 16 17
+    (= Stuff12 (+ S12a S12b)) ; r5 : 18 19
+    (= Stuff1 (+ Stuff11 Stuff12 S1a S1b)) ; r3 : 16 17 18 19 20 21
+    (= Stuff2 (+ S2a S2b)) ; r6 : 22 23
+    (= Stuff (+ Stuff1 Stuff2 Sa Sb))) ; r2 : 16 17 18 19 20 21 22 23 24 25
+
+; (run my-run #:inst just-sigs)
+
+
+(relation R (Thing Stuff))
+
+(instance and-rels
+    (= UnspecialThing (+ UT1 UT2 UT3)) ; r9 : 27 28 29
+    (= SpecialThing ST) ; r8 : 26
+    (= Thing (+ UnspecialThing SpecialThing OT1 OT2)) ; r7 : 26 27 28 29 30 31
+
+    (= Stuff11 (+ S11a S11b)) ; r4 : 16 17
+    (= Stuff12 (+ S12a S12b)) ; r5 : 18 19
+    (= Stuff1 (+ Stuff11 Stuff12 S1a S1b)) ; r3 : 16 17 18 19 20 21
+    (= Stuff2 (+ S2a S2b)) ; r6 : 22 23
+    (= Stuff (+ Stuff1 Stuff2 Sa Sb)) ; r2 : 16 17 18 19 20 21 22 23 24 25
+
+    (= R (-> UnspecialThing Stuff1)))
+
+(run my-run #:inst and-rels)
+
+
+
 
 ; Bug: A not defined.
 ; (run my-run ([A 1 2]))

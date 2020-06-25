@@ -43,18 +43,18 @@
 ; Define data structures
 
 (struct Sig (
-  name       ; String
+  name       ; Symbol
   rel        ; node/expr/relation
   one        ; Boolean
   abstract   ; Boolean
-  extends    ; String | #f
-  extenders  ; List<String>
+  extends    ; Symbol | #f
+  extenders  ; List<Symbol>
   ) #:transparent)
 
 (struct Relation (
-  name  ; String
+  name  ; Symbol
   rel   ; node/expr/relation
-  sigs  ; List<String>
+  sigs  ; List<Symbol>
   ) #:transparent)
 
 (struct Range (
@@ -65,11 +65,11 @@
 (struct Bound (
   default-bound  ; Range | #f
   bitwidth       ; int | #f
-  sig-bounds     ; Map<String, Range>
+  sig-bounds     ; Map<Symbol, Range>
   ) #:transparent)
 
 (struct Inst (
-  name ; String
+  name ; Symbol
   pbindings ; Map<Symbol, List<List<Symbol>>>
   tbindings ; Map<Symbol, List<List<Symbol>>>
   ) #:transparent)
@@ -83,24 +83,25 @@
   ) #:transparent)
 
 (struct State (
-  sigs        ; Map<String, Sig>
-  relations   ; Map<String, Relation>
-  predicates  ; Set<String>
-  functions   ; Set<String>
-  constants   ; Set<String>
-  bounds      ; Map<String, Bound>
-  insts       ; Map<String, Inst>
+  sigs        ; Map<Symbol, Sig>
+  relations   ; Map<Symbol, Relation>
+  predicates  ; Set<Symbol>
+  functions   ; Set<Symbol>
+  constants   ; Set<Symbol>
+  bounds      ; Map<Symbol, Bound>
+  insts       ; Map<Symbol, Inst>
   options     ; Options
   ) #:transparent)
 
 (struct Run-spec (
   state   ; State
-  preds   ; Set<String>
+  preds   ; Set<node/formula>
   bounds  ; Bound
+  inst    ; Inst
   ) #:transparent)
 
 (struct Run (
-  name     ; String
+  name     ; Symbol
   command  ; String (syntax)
   run-spec ; Run-spec
   result   ; Stream
@@ -135,7 +136,7 @@
       (Run-spec-state run-or-state)
       run-or-state))
 
-; get-sig :: (|| Run-spec State), String -> Sig
+; get-sig :: (|| Run-spec State), Symbol -> Sig
 ; Returns the Sig of a given name from a run/state.
 (define (get-sig run-or-state sig-name)
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
@@ -153,7 +154,7 @@
 (define (get-top-level-sigs run-or-state)
   (filter (compose @not Sig-extends) (get-sigs run-or-state)))
 
-; get-relation :: (|| Run-spec State), String -> Relation
+; get-relation :: (|| Run-spec State), Symbol -> Relation
 ; Returns the Relation of a given name from a run/state.
 (define (get-relation run-or-state relation-name)
   (hash-ref (State-relations (get-state run-or-state)) relation-name))
@@ -169,16 +170,40 @@
   (define sig-map (State-sigs (get-state run-or-state)))
   (map (curry hash-ref sig-map) (Sig-extenders sig)))
 
+; get-pbinding :: Run-spec, Sig -> (|| List<List<Symbol>> #f)
+; Returns the partial binding in a given Run-spec
+; for a given Sig, returning #f if none present.
+(define (get-sig-pbinding run-spec sig)
+  (hash-ref (Inst-pbindings (Run-spec-inst run-spec)) (Sig-name sig) #f))
+
+; get-pbinding :: Run-spec, Sig -> (|| List<List<Symbol>> #f)
+; Returns the total binding in a given Run-spec
+; for a given Sig, returning #f if none present.
+(define (get-sig-tbinding run-spec sig)
+  (hash-ref (Inst-tbindings (Run-spec-inst run-spec)) (Sig-name sig) #f))
+
+; get-pbinding :: Run-spec, Relation -> (|| List<List<Symbol>> #f)
+; Returns the partial binding in a given Run-spec
+; for a given Relation, returning #f if none present.
+(define (get-relation-pbinding run-spec rel)
+  (hash-ref (Inst-pbindings (Run-spec-inst run-spec)) (Relation-name rel) #f))
+
+; get-tbinding :: Run-spec, Relation -> (|| List<List<Symbol>> #f)
+; Returns the total binding in a given Run-spec
+; for a given Relation, returning #f if none present.
+(define (get-relation-tbinding run-spec rel)
+  (hash-ref (Inst-tbindings (Run-spec-inst run-spec)) (Relation-name rel) #f))
+
 ; get-bound :: Run-spec, Sig -> Range
 ; Returns the run bound of a Sig, in order:
 ; - if it is a one sig, returns (Range 1 1)
 ; - if an explicit bound is given, returns it;
 ; - if a default bound is given; returns it;
 ; - return DEFAULT-SIG-BOUND
-(define (get-bound run sig)
+(define (get-bound run-spec sig)
   (if (Sig-one sig)
       (Range 1 1)
-      (let* ([bounds (Run-spec-bounds run)]
+      (let* ([bounds (Run-spec-bounds run-spec)]
              [bounds-map (Bound-sig-bounds bounds)]
              [sig-name (Sig-name sig)]
              [default-bounds (or (Bound-default-bound bounds) DEFAULT-SIG-BOUND)])
@@ -187,20 +212,20 @@
 ; get-bitwidth :: Run-spec -> int
 ; Returns the bitwidth for a run, returning the
 ; DEFAULT-BITWIDTH if none is provided.
-(define (get-bitwidth run)
-  (or (Bound-bitwidth (Run-spec-bounds run)))
+(define (get-bitwidth run-spec)
+  (or (Bound-bitwidth (Run-spec-bounds run-spec)))
       DEFAULT-BITWIDTH)
 
 
 ;; Functions for state updating
 
-; sig-add-extender :: Sig, String -> Sig
+; sig-add-extender :: Sig, Symbol -> Sig
 ; Adds a new extender to the given Sig.
 (define (sig-add-extender sig extender)
   (match sig [(Sig name rel one abstract extends old-extenders)
     (Sig name rel one abstract extends (append old-extenders (list extender)))]))
 
-; state-add-sig :: State, String, bool, bool, (String | #f) -> State
+; state-add-sig :: State, Symbol, bool, bool, (Symbol | #f) -> State
 ; Adds a new Sig to the given State; if new Sig extends some
 ; other Sig, then updates that Sig with extension.
 (define (state-add-sig state name rel one abstract extends)
@@ -218,7 +243,7 @@
 
     (State new-state-sigs relations predicates functions constants bounds insts options)]))
 
-; state-add-relation :: State, String, List<Sig> -> State
+; state-add-relation :: State, Symbol, List<Sig> -> State
 ; Adds a new relation to the given State.
 (define (state-add-relation state name rel rel-sigs)
   (match state [(State sigs relations predicates functions constants bounds insts options)
@@ -226,27 +251,30 @@
     (define new-state-relations (hash-set relations name new-relation))
     (State sigs new-state-relations predicates functions constants bounds insts options)]))
 
-; state-add-predicate :: State, String -> State
+; state-add-predicate :: State, Symbol -> State
 ; Adds a new predicate to the given State.
 (define (state-add-predicate state name)
   (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-state-predicates (set-add predicates name))
     (State sigs relations new-state-predicates functions constants bounds insts options)]))
 
-; state-add-function :: State, String -> State
+; state-add-function :: State, Symbol -> State
 ; Adds a new function to the given State.
 (define (state-add-function state name)
   (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-state-functions (set-add functions name))
     (State sigs relations predicates new-state-functions constants bounds insts options)]))
 
-; state-add-constant :: State, String -> State
+; state-add-constant :: State, Symbol -> State
 ; Adds a new constant to the given State.
 (define (state-add-constant state name)
   (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-state-constants (set-add constants name))
     (State sigs relations predicates functions new-state-constants bounds insts options)]))
 
+; state-add-instance  :: State, Symbol, Map<Symbol, List<List<Symbol>>>, 
+;                        Map<Symbol, List<List<Symbol>>> -> State
+;  Adds a new instance to the given State. 
 (define (state-add-instance state name pbindings tbindings)
   (match state [(State sigs relations predicates functions constants bounds insts options)
     (define new-state-insts (hash-set insts name (Inst name pbindings tbindings)))
@@ -282,13 +310,13 @@
                         (~optional (~or (~seq (~and #:one one-kw))
                                         (~seq (~and #:abstract abstract-kw))))) ...)
     #'(begin
-        (define true-name (symbol->string 'name))
+        (define true-name 'name)
         (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
-        (define true-parent (~? (~@ (symbol->string 'parent)) (~@ #f)))
-        (define name (declare-relation (list true-name) 
+        (define true-parent (~? (~@ 'parent) (~@ #f)))
+        (define name (declare-relation (list true-name)
                                        (or true-parent "univ")
-                                       true-name))
+                                       (symbol->string true-name)))
         (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent)))]))
 
 ; Declare a new relation
@@ -297,9 +325,9 @@
   (syntax-parse stx
     [(relation name:id (sig1:id sig2:id sigs ...))
      #'(begin
-       (define true-name (symbol->string 'name))
-       (define true-sigs (map symbol->string (list 'sig1 'sig2 'sigs ...)))
-       (define name (declare-relation true-sigs (symbol->string 'sig1) true-name))
+       (define true-name 'name)
+       (define true-sigs (list 'sig1 'sig2 'sigs ...))
+       (define name (declare-relation true-sigs 'sig1 (symbol->string true-name)))
        (update-state! (state-add-relation curr-state true-name name true-sigs)))]))
 
 ; Declare a new predicate
@@ -310,11 +338,11 @@
     [(pred name:id conds:expr ...+) 
       #'(begin 
         (define name (&& conds ...))
-        (update-state! (state-add-predicate curr-state (symbol->string 'name))))]
+        (update-state! (state-add-predicate curr-state 'name)))]
     [(pred (name:id args:id ...+) conds:expr ...+) 
       #'(begin 
         (define (name args ...) (&& conds ...))
-        (update-state! (state-add-predicate curr-state (symbol->string 'name))))]))
+        (update-state! (state-add-predicate curr-state 'name)))]))
 
 ; Declare a new function
 ; (fun (name var ...) result)
@@ -323,7 +351,7 @@
     [(fun (name:id args:id ...+) result:expr) 
       #'(begin 
         (define (name args ...) result)
-        (update-state! (state-add-function curr-state (symbol->string 'name))))]))
+        (update-state! (state-add-function curr-state 'name)))]))
 
 ; Declare a new constant
 ; (const name value)
@@ -332,7 +360,7 @@
     [(const name:id value:expr) 
       #'(begin 
         (define name value)
-        (update-state! (state-add-constant curr-state (symbol->string 'name))))]))
+        (update-state! (state-add-constant curr-state 'name)))]))
 
 ; Run a given spec
 ; (run [(pred ...)] [((sig [lower 0] upper) ...)])
@@ -342,10 +370,11 @@
   (syntax-parse stx
     [(run name:id
           (~alt
-            (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...))
-            (~optional (pred:expr ...))) ...)
+            (~optional (~seq #:preds (pred:expr ...)))
+            (~optional (~seq #:bounds ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+            (~optional (~seq #:inst inst:expr))) ...)
       #`(begin
-        (define run-name (~? (~@ (symbol->string 'name)) (~@ "no-name-provided")))
+        (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
         (define run-state curr-state)
         (define run-preds (~? (~@ (list pred ...)) (~@ (list)))) 
 
@@ -354,18 +383,20 @@
             (for/hash ([name (list 'sig ...)]
                        [lo (list lower ...)]
                        [hi (list upper ...)])
-              (values (symbol->string name) (Range lo hi))))
+              (values name (Range lo hi))))
           (~@ (hash))))
-        (define bitwidth (if (hash-has-key? sig-bounds "int")
-                             (begin0 (hash-ref sig-bounds "int")
-                                     (hash-remove! sig-bounds "int"))
+        (define bitwidth (if (hash-has-key? sig-bounds 'int)
+                             (begin0 (hash-ref sig-bounds 'int)
+                                     (hash-remove! sig-bounds 'int))
                              DEFAULT-BITWIDTH))
         (define default-bound DEFAULT-SIG-BOUND)
         (define run-bounds (Bound default-bound bitwidth sig-bounds))
 
+        (define run-inst (~? (~@ inst) (~@ (Inst 'default (hash) (hash)))))
+
         (define run-command #,command)
 
-        (define run-spec (Run-spec run-state run-preds run-bounds))
+        (define run-spec (Run-spec run-state run-preds run-bounds run-inst))
         (define run-result (send-to-kodkod run-spec))
 
         (define name (Run run-name run-command run-spec run-result)))]))
@@ -390,11 +421,12 @@
   (syntax-parse stx
     [(test name:id 
            (~alt
-            (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...))
-            (~optional (pred:expr ...))) ...
+            (~optional (~seq #:preds (pred:expr ...)))
+            (~optional (~seq #:bounds ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+            (~optional (~seq #:inst inst:expr))) ...
            (~and (~or 'sat 'unsat) sat-or-unsat))
      #'(begin
-       (run temp-run (~? (~@ (pred ...)) (~@)) (~? (~@ ([sig lower upper] ...)) (~@)))
+       (run temp-run (~? (~@ #:preds (pred ...)) (~@)) (~? (~@ #:bounds ([sig lower upper] ...)) (~@)) (~? (~@ #:inst inst) (~@)))
        (define first-instance (stream-first (Run-result temp-run)))
        (display (equal? (car first-instance) sat-or-unsat)))]))
 
@@ -402,10 +434,11 @@
   (syntax-parse stx
     [(check name:id 
            (~alt
-            (~optional ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...))
-            (~optional (pred:expr ...))) ...)
+            (~optional (~seq #:preds (pred:expr ...)))
+            (~optional (~seq #:bounds ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+            (~optional (~seq #:inst inst:expr))) ...)
      #'(begin
-       (run temp-run (~? (~@ ((|| (! pred) ...))) (~@)) (~? (~@ ([sig lower upper] ...)) (~@)))
+       (run temp-run (~? (~@ #:preds [(|| (! pred) ...)]) (~@)) (~? (~@ #:bounds ([sig lower upper] ...)) (~@)) (~? (~@ #:inst inst) (~@)))
        (define first-instance (stream-first (Run-result temp-run)))
        (display (equal? (car first-instance) 'unsat)))]))
 
@@ -478,16 +511,17 @@
 ; then takes result from KodKod-CLI and connects to Sterling server.
 (define (send-to-kodkod run-spec)
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
-  (define-values (sig-to-name ; Map<String, int>
-                  sig-to-min  ; Map<String, List<int>>
-                  sig-to-max  ; Map<String, List<int>>
-                  num-atoms)  ; int
+  (define-values (sig-to-name   ; Map<Symbol, int>
+                  sig-to-min    ; Map<Symbol, List<int>>
+                  sig-to-max    ; Map<Symbol, List<int>>
+                  name-to-atom  ; Map<Symbol, int>
+                  num-atoms)    ; int
                  (get-sig-info run-spec))
 
-  (define-values (rel-to-name ; Map<String, int>
-                  rel-to-min  ; Map<String, nones??>
-                  rel-to-max) ; Map<String, List<List<int>>>
-                 (get-relation-info run-spec sig-to-max (+ (hash-count sig-to-name) 2)))
+  (define-values (rel-to-name ; Map<Symbol, int>
+                  rel-to-min  ; Map<Symbol, nones??>
+                  rel-to-max) ; Map<Symbol, List<List<int>>>
+                 (get-relation-info run-spec sig-to-max name-to-atom (+ (hash-count sig-to-name) 2)))
 
   ;; Print to KodKod-CLI
   ; print configure
@@ -635,14 +669,15 @@
   (model-stream))
 
 
-; get-sig-info :: Run-spec -> Map<String, int>, 
-;                        Map<String, List<int>>, 
-;                        Map<String, List<int>>, 
-;                        int
+; get-sig-info :: Run-spec -> Map<Symbol, int>, 
+;                             Map<Symbol, List<int>>, 
+;                             Map<Symbol, List<int>>, 
+;                             Map<Symbol, int>,
+;                             int
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
 ; sets of atoms for each, and find the total number of atoms needed (including ints).
 (define (get-sig-info run-spec)
-  ;; Get true bounds (Map<String, Range>)
+  ;; Get true bounds (Map<Symbol, Range>)
   ; This takes into account the demanded atoms from (recursive) child sigs
   ; and also contains the default bounds for unspecified sigs.
   (define true-bounds (make-hash))
@@ -653,25 +688,50 @@
   (define (get-demand sig)
     ; Recur and get childrens demands
     (define children (get-children run-spec sig))
-    (define demands (apply + (map get-demand children)))
+    (define children-demands (apply + (map get-demand children)))
 
-    ; Generate true bounds
+
+    (define pbinding (get-sig-pbinding run-spec sig))
+    (define tbinding (get-sig-tbinding run-spec sig))
+    ;(assert (not (and pbinding tbinding)))
     (define bounds (get-bound run-spec sig))
-    ;(assert (<= demands (Range-upper bounds)))
-    (define true-demands (@max demands (Range-lower bounds)))
-    (hash-set! true-bounds (Sig-name sig) (Range true-demands (Range-upper bounds)))
+
+    (define personal-demands (cond
+      [tbinding (length tbinding)]
+      [pbinding (@max (Range-lower bounds) (length pbinding))]
+      [else (Range-lower bounds)]))
+
+    (define true-lower (@max children-demands personal-demands))
+
+    (define true-upper (cond
+      [tbinding (length tbinding)]
+      [else (Range-upper bounds)]))
+
+    ;(assert (<= true-lower true-upper))
+
+    (hash-set! true-bounds (Sig-name sig) (Range true-lower true-upper))
 
     ; Return own demands
-    true-demands)
+    true-lower)
 
   (for-each get-demand (get-top-level-sigs run-spec))
   ; ideally should freeze true-bounds here
 
 
   ;; To return
-  (define sig-to-name (make-hash)) ; Map<String, int>
-  (define sig-to-min (make-hash))  ; Map<String, List<int>>
-  (define sig-to-max (make-hash))  ; Map<String, List<int>>
+  (define sig-to-name (make-hash)) ; Map<Symbol, int>
+  (define sig-to-min (make-hash))  ; Map<Symbol, List<int>>
+  (define sig-to-max (make-hash))  ; Map<Symbol, List<int>>
+  (define name-to-atom (make-hash)) ; Map<Symbol, int>
+
+  ; get-atom :: Symbol, List<int> -> int
+  ; For instances. If an atom has not been assigned to name,
+  ; assigns a new atom from atoms; returns name's assigned atom.
+  (define (get-atom name atoms)
+    (hash-ref name-to-atom name (lambda ()
+      (define atom (findf (lambda (atom) (@not (member atom (hash-values name-to-atom)))) atoms))
+      (hash-set! name-to-atom name atom)
+      atom)))
 
   ; Name updaters
   (define curr-relation 2) ; Start at 2 to account for Int and succ relations
@@ -723,6 +783,12 @@
       (set! num-allocated (+ num-allocated child-lower)))
 
     (for-each allocate-atoms children children-lower)
+
+    (define binding (or (get-sig-tbinding run-spec sig) 
+                        (get-sig-pbinding run-spec sig) 
+                        '()))
+    (for ([name (flatten binding)])
+      (get-atom name private-atoms))
   )
 
   ; generate-top-level :: Sig -> void
@@ -741,30 +807,48 @@
 
   (for-each generate-top-level (get-top-level-sigs run-spec))
 
-  (values sig-to-name sig-to-min sig-to-max curr-max-atom)
+  (values sig-to-name sig-to-min sig-to-max name-to-atom curr-max-atom)
 )
 
-; get-relation-info :: Run-spec -> Map<String, int>, 
-;                             Map<String, nones?>, 
-;                             Map<String, List<List<int>>>
-; Given a Run-spec and the atoms assigned to each sig, assigns names to each relation
+; get-relation-info :: Run-spec -> Map<Symbol, int>, 
+;                                  Map<Symbol, List<List<int>>>, 
+;                                  Map<Symbol, int>
+;                                  int
+; Given a Run-spec, the atoms assigned to each sig, the atoms assigned to each name,
+; and the starting relation name, assigns names to each relation
 ; and minimum and maximum sets of atoms for each relation.
-(define (get-relation-info run-spec sig-to-max start-relation-name)
+(define (get-relation-info run-spec sig-to-max name-to-atom start-relation-name)
   (define rel-to-name ; Map <String, int>
     (for/hash ([relation (get-relations run-spec)]
                [name (in-naturals start-relation-name)])
     (values (Relation-name relation) name)))
 
-  (define rel-to-min ; Map<String, nones?>
+  (define rel-to-min ; Map<String, List<List<int>>>
     (for/hash ([relation (get-relations run-spec)])
-      (values (Relation-name relation) '())))
+      (define pbinding (get-relation-pbinding run-spec relation))
+      (define tbinding (get-relation-tbinding run-spec relation))
+      (define binding (or pbinding tbinding))
+
+      (define min-rel
+        (if binding
+            (map (curry map (curry hash-ref name-to-atom )) binding)
+            '()))
+
+      (values (Relation-name relation) min-rel)))
 
   (define rel-to-max ; Map<String, List<List<int>>>
     (for/hash ([relation (get-relations run-spec)])
       (define atoms ; List<List<int>>
         (map (curry hash-ref sig-to-max ) (Relation-sigs relation)))
       (define tuples (apply cartesian-product atoms))
-      (values (Relation-name relation) tuples)))
+
+      (define tbinding (get-relation-tbinding run-spec relation))
+      (define max-rel 
+        (if tbinding
+            (map (curry map (curry hash-ref name-to-atom )) tbinding)
+            tuples))
+
+      (values (Relation-name relation) max-rel)))
 
   (values rel-to-name rel-to-min rel-to-max))
 
