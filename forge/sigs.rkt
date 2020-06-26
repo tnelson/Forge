@@ -442,69 +442,79 @@
        (define first-instance (stream-first (Run-result temp-run)))
        (display (equal? (car first-instance) 'unsat)))]))
 
+(define (get-bindings definitions state)
+  (for/fold ([pbindings (hash)]
+             [tbindings (hash)]
+             [atom-names (@set)])
+            ([definition definitions])
+
+    (match-define (list bind-type name expression) definition)
+
+    (define replaced
+      (let replace ([expression expression])
+        (if (symbol? expression)
+          (cond
+            [(hash-has-key? tbindings expression)
+             (hash-ref tbindings expression)]
+            [(hash-has-key? pbindings expression)
+             ;(assert (equal? bind-type 'in))
+             (hash-ref pbindings expression)]
+            [(set-member? atom-names expression)
+             expression]
+            [else expression])
+          (cond
+            [(empty? expression) expression]
+            [(member (car expression) '(+ ->))
+             (cons (car expression) (map replace (cdr expression)))]
+            [else (map replace expression)]))))
+
+    (define flattened
+      (let flatten ([expression replaced])
+        (cond
+          [(symbol? expression) 
+           (list (list expression))]
+          [(equal? (car expression) '+)
+           (define children (map flatten (cdr expression)))
+           (apply append children)]
+          [(equal? (car expression) '->)
+           (define children (map flatten (cdr expression)))
+           (map (curry apply append ) (apply cartesian-product children))]
+          [else expression])))
+
+    (define new-atom-names (set-union atom-names (list->set (flatten flattened))))
+
+    (if (equal? bind-type '=)
+        (values pbindings (hash-set tbindings name flattened) new-atom-names)
+        (values (hash-set pbindings name flattened) tbindings new-atom-names))))
+
 (define-syntax (instance stx)
-
-  (define pbindings (make-hash))
-  (define tbindings (make-hash))
-
-  (syntax-parse stx
-    [(instance name:id definitions:expr ...)
-     #`(begin
-       (instance-helper #,pbindings #,tbindings definitions ...)
-       (define name (Inst 'name #,pbindings #,tbindings))
-       (update-state! (state-add-instance curr-state 'name #,pbindings #,tbindings)))]))
-
-(define-syntax (instance-helper stx)
-
-  (define pbindings #f)
-  (define tbindings #f)
-
   (define-syntax-class builder-base 
-    (pattern name:id
-      #:attr eles (thunk
-        (define true-name (syntax->datum #'name))
-        (hash-ref tbindings
-                  true-name 
-                  (list (list true-name))))))
+    (pattern name:id))
 
   (define-syntax-class builder-plus
-    (pattern ((~literal +) (~var children builder-expr) ...)
-      #:attr eles (thunk 
-        (apply append 
-               (map (lambda (x) (x)) 
-                    (attribute children.eles))))))
+    (pattern ((~literal +) children:builder-expr ...)))
 
   (define-syntax-class builder-arrow
-    (pattern ((~literal ->) (~var children builder-expr) ...)
-      #:attr eles (thunk 
-        (map (curry apply append ) 
-             (apply cartesian-product 
-                    (map (lambda (x) (x)) 
-                         (attribute children.eles)))))))
+    (pattern ((~literal ->) children:builder-expr ...)))
 
 
   (define-syntax-class builder-expr
-    (pattern (~or (~var exp builder-base)
-                  (~var exp builder-plus)
-                  (~var exp builder-arrow))
-      #:attr eles (attribute exp.eles)))
+    (pattern (~or exp:builder-base
+                  exp:builder-plus
+                  exp:builder-arrow)))
 
   (define-syntax-class eq-or-in 
     (pattern (~or (~literal =) (~literal in))))
 
   (define-syntax-class definer 
-    (pattern (comp:eq-or-in name:id (~var expression builder-expr))
-      #:attr s (list #'comp (syntax->datum #'name) (attribute expression.eles))))
+    (pattern (comp:eq-or-in name:id expression:builder-expr)))
 
   (syntax-parse stx
-    [(instance-helper apbindings atbindings) #'(values)]
-    [(instance-helper apbindings atbindings definition:definer definitions:definer ...)
-     (set! pbindings (eval #'apbindings (make-empty-namespace)))
-     (set! tbindings (eval #'atbindings (make-empty-namespace)))
+    [(instance name:id definitions:definer ...)
      #`(begin
-       (match-define (list bindtype name values) '#,(attribute definition.s))
-       (hash-set! (if (equal? bindtype '=) atbindings apbindings) name (values))
-       (instance-helper apbindings atbindings definitions ...))]))
+       (define-values (pbindings tbindings _) (get-bindings '(definitions ...) curr-state))
+       (define name (Inst 'name pbindings tbindings))
+       (update-state! (state-add-instance curr-state 'name pbindings tbindings)))]))
 
 ; send-to-kodkod :: Run-spec -> void
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;
