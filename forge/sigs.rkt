@@ -564,9 +564,9 @@
      (define (get-next-model)
        (cmd [stdin] (solve))
        (match-define (cons restype inst) (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
-       (when (and readoption inst) 
+       (when (and readoption inst (equal? restype 'sat)) 
         (printf "INSTANCE : ~a~n" inst))
-       (when (and writeoption inst)
+       (when (and writeoption inst (equal? restype 'sat))
         (printf "INSTANCE : ~a~n" inst)
         ; TODO: make interactive:
         ;(sleep 0.01)

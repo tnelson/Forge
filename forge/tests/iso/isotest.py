@@ -19,14 +19,14 @@ def forgeW(cmd):
     # TODO: make this interactive with subprocess.Popen
     cmd = f"{cmd} --write"
     for line in check_output(cmd.split()).decode().splitlines():
-        if line.startswith("INSTANCE : "):
+        if line.startswith("INSTANCE : #hash("):
             line = line[len("INSTANCE : "):]
             yield(line)
 
 def forgeR(cmd, inst):
     cmd = f"{cmd} --read "
     for line in check_output(cmd.split()+[inst]).decode().splitlines():
-        if line.startswith("INSTANCE : "):
+        if line.startswith("INSTANCE : #hash("):
             return line[len("INSTANCE : "):]
     return False
 
