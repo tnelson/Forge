@@ -18,9 +18,20 @@ def simple(exp, file1, file2): return Test(exp, f'racket {file1}', f'racket {fil
 ########
 
 tests = [
-    boundsy('isoEx.rkt'),
-    boundsy('isoEx2.rkt'),
-    simple(False, 'isoEx.rkt', 'isoEx2.rkt')
+    boundsy('files/AB_func.rkt'),
+    boundsy('files/AB_inj.rkt'),
+    boundsy('files/AB_surj.rkt'),
+    boundsy('files/AB_bij.rkt'),
+    boundsy('files/AB_pbij.rkt'),
+
+    boundsy('files/A_tree.rkt'),
+    boundsy('files/A_ref.rkt'),
+    boundsy('files/A_cyclic.rkt'),
+    boundsy('files/A_linear.rkt'),
+
+    boundsy('files/isoEx.rkt'),
+    boundsy('files/isoEx2.rkt'),
+    simple(False, 'files/isoEx.rkt', 'files/isoEx2.rkt'),
 ]
 
 def runSuite():
