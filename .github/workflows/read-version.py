@@ -59,14 +59,14 @@ def writeVersion(filename, updateType, prerelease=None):
         line = fileInfo[i]
         match = re.match(r'^\(define version "(\d+\.\d+\.\d+(\-[a-z0-9]*)?)"\)$', line)
         if match:
-            print(f"Old version: {match.group(1)}")
             newVer = updateVersion(match.group(1), updateType, prerelease)
-            print(f"Updating {updateType}")
-            print(f"New version: {newVer}")
+            
             fileInfo[i] = f'(define version "{newVer}")\n'
     
     with open(filename, "w") as file:
         file.writelines(fileInfo)
+    
+    print(newVer)
 
 
 if __name__ == "__main__":

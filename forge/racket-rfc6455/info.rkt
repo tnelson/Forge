@@ -7,10 +7,3 @@
 	       "rackunit-lib"
 	       "web-server-lib"
 	       ))
-(define build-deps '(
-		     ;; these are what the package system tells me I need:
-		     "scribble-lib"
-		     "net-doc"
-		     "racket-doc"
-		     "web-server-doc"
-		     ))

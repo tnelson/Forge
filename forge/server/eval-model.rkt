@@ -161,7 +161,7 @@
 (define (->string v)
   (cond [(int-atom? v) (int-atom->string v)]
         [(symbol? v) (symbol->string v)]
-        ;[(number? v) (number->string v)]
+        [(number? v) (number->string v)]
         [else v]))
 
 ; is t1 < t2?
@@ -318,6 +318,10 @@
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating int-expr : ~v~n" int-expr))
   (match int-expr
+    [`(sum ,var ,lst ,ie)
+     (foldl (λ (x res) (+ res (eval-int-expr ie (hash-set bind var (list x)) bitwidth)))
+      0
+      (eval-exp lst bind bitwidth))]
     [`(sum ,expr)
      (wraparound
       (let ([expr-val (eval-exp expr bind bitwidth)])
@@ -343,7 +347,7 @@
                        (if (< n ret) n ret)))
                   (- (expt 2 (sub1 bitwidth)) 1) ; max-int
                   expr-val)))]
-    [`(card ,expr) (wraparound (length (eval-exp expr bind bitwidth)))]
+    [`(card ,expr) (wraparound (length (eval-exp expr bind bitwidth)) bitwidth)]
     [`(add ,ix1 ,ix2) (wraparound (+ (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [`(subtract ,ix1 ,ix2) (wraparound (- (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [`(multiply ,ix1 ,ix2) (wraparound (* (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
