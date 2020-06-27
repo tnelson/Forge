@@ -4,5 +4,5 @@ sig A { f : set A }
 
 run {} for {
     #A = 3
-    f is cyclic
+    f is acyclic
 }
