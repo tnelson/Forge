@@ -698,17 +698,19 @@
                                         #:when (< i j))
                                     (list (list-ref atoms i) (list-ref atoms j)))))
                 (set
-                    (@some ([n sig]) 
+                    (@some ([n sig]) (@and
+                        (@= (@join n (@^ rel)) (@- sig n))
                         (@all ([m (@- sig n)]) 
                             (@one (@join rel m))
                         )
-                    )
+                    ))
                 )))
         (λ () (break bound (set
             (@some ([n sig]) (@and
-                (@no (@join rel n))
+                ;@no (@join rel n))
+                (@= (@join n (@^ rel)) (@- sig n))  ; n.^rel = sig-n
                 (@all ([m (@- sig n)]) 
-                    (@one (@join rel m))
+                    (@one (@join rel m))    ; one rel.m
                 )
             ))
         )))

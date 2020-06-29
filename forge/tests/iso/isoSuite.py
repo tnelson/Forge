@@ -24,7 +24,7 @@ tests = [
     boundsy('files/AB_bij.rkt'),
     boundsy('files/AB_pbij.rkt'),
 
-    boundsy('files/A_tree.rkt'),      # FIXME: FAIL! Testing: J=#hash((Int . ((-8) (-7) (-6) (-5) (-4) (-3) (-2) (-1) (0) (1) (2) (3) (4) (5) (6) (7))) (f . ((A1 A1) (A2 A0))) ($v1 . ((A2))) (A . ((A0) (A1) (A2)))) Failed: No such I # we shouldn't get this J
+    boundsy('files/A_tree.rkt'),
     boundsy('files/A_ref.rkt'),       # FIXME: FAIL! Testing: J=#hash((A . ((A0) (A1) (A2))) (Int . ((-8) (-7) (-6) (-5) (-4) (-3) (-2) (-1) (0) (1) (2) (3) (4) (5) (6) (7))) (f . ((A0 A2) (A1 A0) (A1 A1)))) Failed: No such I # we should get such an I
     boundsy('files/A_acyclic.rkt'),
     boundsy('files/A_linear.rkt'),
