@@ -642,7 +642,7 @@
                             atom-lists))
         (λ () (break bound (set
             (@all ([x sig])
-                (@in x (@join sig rel))
+                (@in x (@join x rel))
             )
         )))
     )
