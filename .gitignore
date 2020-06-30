@@ -26,3 +26,6 @@ forge/secrets
 
 forge/sterling-js
 !forge/sterling-js/dist
+
+*/kodkod-cli/kodkod-cli.iml
+
