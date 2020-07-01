@@ -314,8 +314,8 @@
         (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
         (define true-parent (~? (~@ 'parent) (~@ #f)))
-        (define name (declare-relation (list true-name)
-                                       (or true-parent "univ")
+        (define name (declare-relation (list (symbol->string true-name))
+                                       (symbol->string (or true-parent 'univ))
                                        (symbol->string true-name)))
         (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent)))]))
 
@@ -327,7 +327,7 @@
      #'(begin
        (define true-name 'name)
        (define true-sigs (list 'sig1 'sig2 'sigs ...))
-       (define name (declare-relation true-sigs 'sig1 (symbol->string true-name)))
+       (define name (declare-relation (map symbol->string true-sigs) (symbol->string 'sig1) (symbol->string true-name)))
        (update-state! (state-add-relation curr-state true-name name true-sigs)))]))
 
 ; Declare a new predicate
@@ -549,16 +549,11 @@
   ; print solve
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
-  (define kks (new server%
-                   [initializer (thunk (kodkod-initializer #f))]
-                   [stderr-handler (curry kodkod-stderr-handler "blank")]))
-  (send kks initialize)
-  (define stdin (send kks stdin))
-  (define stdout (send kks stdout))
+  (start-server)
 
   (define-syntax-rule (kk-print lines ...)
     (cmd 
-      [stdin]
+      [(stdin)]
       lines ...))
 
   ; Print configure and declare univ size
@@ -670,7 +665,7 @@
   ; Print solve
   (define (get-next-model)
     (kk-print (solve))
-    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution stdout) all-rels inty-univ))
+    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution (stdout)) all-rels inty-univ))
     (cons restype inst))
 
   (define (model-stream)

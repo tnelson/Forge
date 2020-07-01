@@ -8,6 +8,22 @@
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
 (provide assert f define-const)
+
+(require "server.rkt"
+         "server-common.rkt")
+(define stdin-val #false)
+(define stdout-val #false)
+(provide start-server stdin stdout)
+(define (start-server)
+  (define kks (new server%
+                   [initializer (thunk (kodkod-initializer #f))]
+                   [stderr-handler (curry kodkod-stderr-handler "blank")]))
+  (send kks initialize)
+  (set! stdin-val (send kks stdin))
+  (set! stdout-val (send kks stdout)))
+(define (stdin) stdin-val)
+(define (stdout) stdout-val)
+
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
 (define-syntax-rule (cmd [port] expr ...)
@@ -48,6 +64,8 @@
   (print-cmd "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs)))
 
 (define (assert val)      (print-cmd "(assert ~a)" val))
+(define (evaluate val)    (print-cmd "(evaluate ~a)" val))
+
 (define (solve)
   (print-cmd "(solve)")
   (print-eof))
