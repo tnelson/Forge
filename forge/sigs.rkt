@@ -402,6 +402,25 @@
         (define name (Run run-name run-command run-spec run-result)))]))
 
 
+(define (make-model-generator model-stream)
+  (thunk
+    (define ret (stream-first model-stream))
+    (set! model-stream (stream-rest model-stream))
+    ret))
+
+(define (make-model-evaluator run)
+  (lambda (command)
+    (define name (substring command 1 3))
+    (cmd [(stdin)] 
+      (print-cmd command)
+      (print-cmd "(evaluate ~a)" name)
+      (print-eof))
+    (define result (read (stdout)))
+    result))
+    ; (define u (read (open-input-string command)))
+    ; (println u)
+    ; u))
+
 (define-syntax (display stx)
   (syntax-parse stx
     [(display run:id)
@@ -409,11 +428,10 @@
             (@display run)
             (let ()
               (define model-stream (Run-result run))
-              (define (get-next-model)
-                (define ret (stream-first model-stream))
-                (set! model-stream (stream-rest model-stream))
-                ret)
-              (display-model get-next-model (Run-name run) (Run-command run) "/no-name.rkt" (get-bitwidth (Run-run-spec run)) empty)))]
+              (define get-next-model (make-model-generator model-stream))
+              (define evaluate (make-model-evaluator run))
+              (display-model get-next-model evaluate (Run-name run) (Run-command run) "/no-name.rkt" (get-bitwidth (Run-run-spec run)) empty)))]
+
     [(display stuff:expr ...)
      #'(@display stuff ...)]))
 

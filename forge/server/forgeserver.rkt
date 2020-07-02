@@ -20,7 +20,7 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-model name command filepath bitwidth funs-n-preds)
+(define (display-model get-next-model evaluate name command filepath bitwidth funs-n-preds)
   (define model (get-next-model))
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -87,13 +87,8 @@
                   ;(println result)
                   ;(cmd [stdin] command)
                   ;(define result (read stdout))
-                  (cmd [(stdin)] 
-                    (print-cmd " ")
-                    (print-cmd command)
-                    (print-cmd "(evaluate ~a)" (substring command 1 3))
-                    ; (print-cmd "(solve)")
-                    (print-eof))
-                  (define result (read (stdout)))
+
+                  (define result (evaluate command))
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else
                   (ws-send! "BAD REQUEST")])

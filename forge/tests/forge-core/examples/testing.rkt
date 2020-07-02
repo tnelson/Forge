@@ -2,9 +2,13 @@
 
 (set-verbosity 10)
 
-(sig A)
-(sig B)
-(relation R (A B))
+(sig Node)
+(sig Root #:one #:extends Node)
 
-(run my-run)
-(display my-run)
+(relation edges (Node Node))
+
+(pred acyclic (no (& iden (^ edges))))
+(pred root-connected (in Node (join Root (* edges))))
+
+(run rooted-acyclic-run #:preds [acyclic root-connected] #:bounds ([Node 4 6]))
+(display rooted-acyclic-run)
