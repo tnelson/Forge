@@ -218,6 +218,24 @@
 (define-for-syntax (sym n) 
   (map-stx string->symbol n))
 
+
+(define-syntax (BlockOrBar stx)
+  (define ret (syntax-case stx (Block)
+                [(_ (Block a ...)) #'(Block a ...)]
+                [(_ BAR-TOK e) #'e]))
+  ret)
+(provide BlockOrBar)
+(define-syntax (Q stx)
+  (syntax-parse stx
+    [(Q "all" ([n e] ...) a) (syntax/loc stx (all ([n e] ...) a))]
+    [(Q "no" ([n e] ...) a) (syntax/loc stx (no ([n e] ...) a))]
+    [(Q "lone" ([n e] ...) a) (syntax/loc stx (lone ([n e] ...) a))]
+    [(Q "some" ([n e] ...) a) (syntax/loc stx (some ([n e] ...) a))]
+    [(Q "one" ([n e] ...) a) (syntax/loc stx (one ([n e] ...) a))]
+    [(Q "two" ([n e] ...) a) (syntax/loc stx (two ([n e] ...) a))]
+    [(Q sum ([n e] ...) a) (syntax/loc stx (sum-quant ([n e] ...) a))]))
+(provide Q)
+
 (define-syntax (Expr stx)
   (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp 
                                       ExprList QualName LetDeclList LetDecl)
@@ -228,12 +246,12 @@
     [(_ "{" (DeclList (Decl (NameList n) e) ...) block "}") (syntax/loc stx 
        (set ([n e] ...) block))]
 
-    [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a) (syntax/loc stx 
-       (Q q n e ... a))]
-    [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a) (syntax/loc stx 
-       (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
-    [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a) (syntax/loc stx 
-       (Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a)))]
+    ; [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a) (syntax/loc stx 
+    ;    (Q q n e ...  a))]
+    ; [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a) (syntax/loc stx 
+    ;    (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
+    [(_ (Quant q) (DeclList (Decl (NameList n ...) e) ...) a) (syntax/loc stx 
+       (Q q ((~@ [n e] ...) ...) a))]
 
     [(_ a "or" b) (syntax/loc stx (or a b))]
     [(_ a "||" b) (syntax/loc stx (or a b))]
