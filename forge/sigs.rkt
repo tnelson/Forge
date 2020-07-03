@@ -12,7 +12,7 @@
          "translate-from-kodkod-cli.rkt")
 (require "shared.rkt")
 
-(provide sig relation fun const pred run test check display instance)
+(provide sig relation fun const pred run test #|check|# display instance)
 (provide (struct-out Sig)
          (struct-out Relation)
          (struct-out Range)
@@ -33,6 +33,10 @@
 (provide card sum sing succ max min)
 (provide true false)
 (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
+(provide is-sat? is-unsat?)
+
+(provide set-path!)
+(define (set-path! path) #f)
 
 (require (prefix-in @ racket/set))
 (require (for-syntax syntax/parse))
@@ -421,19 +425,28 @@
     ; (println u)
     ; u))
 
-(define-syntax (display stx)
-  (syntax-parse stx
-    [(display run:id)
-      #'(if (@not (Run? run))
-            (@display run)
-            (let ()
-              (define model-stream (Run-result run))
-              (define get-next-model (make-model-generator model-stream))
-              (define evaluate (make-model-evaluator run))
-              (display-model get-next-model evaluate (Run-name run) (Run-command run) "/no-name.rkt" (get-bitwidth (Run-run-spec run)) empty)))]
+(define (is-sat? run)
+  (define first-instance (stream-first (Run-result run)))
+  (equal? (car first-instance) 'sat))
+(define (is-unsat? run)
+  (define first-instance (stream-first (Run-result run)))
+  (equal? (car first-instance) 'unsat))
 
-    [(display stuff:expr ...)
-     #'(@display stuff ...)]))
+(define (display arg1 [arg2 #f])
+  (if (@not (Run? arg1))
+      (if arg2 (@display arg1 arg2) (@display arg1))
+      (let ()
+        (define run arg1)
+        (define model-stream (Run-result run))
+        (define get-next-model (make-model-generator model-stream))
+        (define evaluate (make-model-evaluator run))
+        (display-model get-next-model evaluate 
+                       (Run-name run) 
+                       (Run-command run) 
+                       "/no-name.rkt" 
+                       (get-bitwidth 
+                        (Run-run-spec run)) 
+                       empty))))
 
 (define-syntax (test stx)
   (syntax-parse stx
@@ -446,19 +459,19 @@
      #'(begin
        (run temp-run (~? (~@ #:preds (pred ...)) (~@)) (~? (~@ #:bounds ([sig lower upper] ...)) (~@)) (~? (~@ #:inst inst) (~@)))
        (define first-instance (stream-first (Run-result temp-run)))
-       (display (equal? (car first-instance) sat-or-unsat)))]))
+       (when (@not (equal? (car first-instance) sat-or-unsat)) (raise "Failed test")))]))
 
-(define-syntax (check stx)
-  (syntax-parse stx
-    [(check name:id 
-           (~alt
-            (~optional (~seq #:preds (pred:expr ...)))
-            (~optional (~seq #:bounds ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
-            (~optional (~seq #:inst inst:expr))) ...)
-     #'(begin
-       (run temp-run (~? (~@ #:preds [(|| (! pred) ...)]) (~@)) (~? (~@ #:bounds ([sig lower upper] ...)) (~@)) (~? (~@ #:inst inst) (~@)))
-       (define first-instance (stream-first (Run-result temp-run)))
-       (display (equal? (car first-instance) 'unsat)))]))
+; (define-syntax (check stx)
+;   (syntax-parse stx
+;     [(check name:id 
+;            (~alt
+;             (~optional (~seq #:preds (pred:expr ...)))
+;             (~optional (~seq #:bounds ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+;             (~optional (~seq #:inst inst:expr))) ...)
+;      #'(begin
+;        (run temp-run (~? (~@ #:preds [(|| (! pred) ...)]) (~@)) (~? (~@ #:bounds ([sig lower upper] ...)) (~@)) (~? (~@ #:inst inst) (~@)))
+;        (define first-instance (stream-first (Run-result temp-run)))
+;        (when (equal? (car first-instance) 'sat) (raise "Failed check")))]))
 
 (define (get-bindings definitions state)
   (for/fold ([pbindings (hash)]
@@ -533,6 +546,17 @@
        (define-values (pbindings tbindings _) (get-bindings '(definitions ...) curr-state))
        (define name (Inst 'name pbindings tbindings))
        (update-state! (state-add-instance curr-state 'name pbindings tbindings)))]))
+
+(define-syntax (with stx)
+  (syntax-parse stx
+    [(with module-name exprs ...)
+      #'(begin
+        (module temp-module racket
+          (require forge/core/main)
+          (require module-name)
+          exprs ...)
+        (require 'temp-module))]))
+(provide with)
 
 ; send-to-kodkod :: Run-spec -> void
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;
@@ -900,7 +924,9 @@
     ; not abstract and sig is parent of sig1 => (in sig1 sig)
     ; TODO: optimize by identifying abstract sigs as sum of children
     (define (abstract sig extenders)
-      (= sig (apply + extenders)))
+      (if (@= (length extenders) 1)
+          (= sig (car extenders))
+          (= sig (apply + extenders))))
     (define (parent sig1 sig2)
       (in sig2 sig1))
     (define extends-constraints 
