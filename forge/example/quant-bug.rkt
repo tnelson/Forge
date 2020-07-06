@@ -1,5 +1,15 @@
 #lang forge
 
+abstract sig Char {}
+
+one sig A extends Char {}
+one sig B extends Char {}
+one sig C extends Char {}
+one sig D extends Char {}
+one sig E extends Char {}
+one sig F extends Char {}
+one sig G extends Char {}
+
 sig seqChar {
     r: set Int -> Char
 }

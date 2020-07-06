@@ -112,8 +112,8 @@
   ) #:transparent)
 
 ; Define initial state
-(define init-sigs (hash))
-(define init-relations (hash))
+(define init-sigs (hash 'Int (Sig 'Int Int #f #f #f empty)))
+(define init-relations (hash 'succ (Relation 'succ succ '(Int Int))))
 (define init-predicates (@set))
 (define init-functions (@set))
 (define init-constants (@set))
@@ -770,6 +770,11 @@
   (define sig-to-min (make-hash))  ; Map<Symbol, List<int>>
   (define sig-to-max (make-hash))  ; Map<Symbol, List<int>>
   (define name-to-atom (make-hash)) ; Map<Symbol, int>
+
+  ; (hash-set! sig-to-name 'Int 0)
+  (hash-set! sig-to-min 'Int (map list (range (expt 2 (get-bitwidth run-spec)))))
+  (hash-set! sig-to-max 'Int (map list (range (expt 2 (get-bitwidth run-spec)))))
+  ; (hash-set! name-to-atom )
 
   ; get-atom :: Symbol, List<int> -> int
   ; For instances. If an atom has not been assigned to name,
