@@ -237,7 +237,7 @@
 (provide Q)
 
 (define-syntax (Expr stx)
-  (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp 
+  (syntax-parse stx #:datum-literals (Quant DeclList Decl NameList CompareOp ArrowOp 
                                       ExprList QualName LetDeclList LetDecl)
     [(_ "let" (LetDeclList (LetDecl n e) ...) block) (syntax/loc stx 
        (let ([n e] ...) block))]
@@ -247,13 +247,18 @@
        (set ([n e] ...) block))]
 
     ; [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a) (syntax/loc stx 
-    ;    (Q q n e ...  a))]
+    ;   (Q q n e ... a))]
     ; [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a) (syntax/loc stx 
-    ;    (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
+    ;   (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
+    ; [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a) (syntax/loc stx 
+    ;   (Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a)))]
+
     [(_ (Quant q) (DeclList (Decl (NameList n) e) ...) a) (syntax/loc stx 
        (Q q ([n e] ...) a))]
-    [(Expr (Quant q) (DeclList (Decl (NameList n ns ...) e) ...) a) (syntax/loc stx 
-       (Expr (Quant q) (DeclList (~@ (Decl (NameList n) e) (Decl (NameList ns ...) e)) ...) a))]
+    [(_ (Quant q) (DeclList (Decl (NameList npre) epre) ...
+                            (Decl (NameList n1 n2 ns ...) e) 
+                            (Decl (NameList npost ...) epost) ...) a) (syntax/loc stx 
+       (Expr (Quant q) (DeclList (Decl (NameList npre) epre) ... (Decl (NameList n1) e) (Decl (NameList n2 ns ...) e) (Decl (NameList npost ...) epost) ...) a))]
 
     [(_ a "or" b) (syntax/loc stx (or a b))]
     [(_ a "||" b) (syntax/loc stx (or a b))]
