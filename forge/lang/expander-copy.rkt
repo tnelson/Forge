@@ -94,13 +94,17 @@
   (make-optional run-or-check
                  "run" 'run
                  "check" 'check)
+  (make-optional exactly-tok "exactly" ())
+  (define-syntax-class string-int 
+    (pattern n #:with val (string->number (syntax-e #'n)) ))
 
   (syntax-parse stx #:datum-literals (Name Parameters QualName Block Scope Bounds)
     [(CmdDecl (~optional (Name name:id))
               roc:run-or-check
               (~optional (Parameters paras ...))
               (~optional (~or (QualName pred) (Block preds ...)))
-              (~optional (Scope scope))
+              (~optional (Scope (Typescope (~or (~seq "exactly" (Number n-exact:string-int))
+                                                (Number n-inexact:string-int)) (QualName sig-name)) ...))
               (~optional (Bounds bounds)))
      #`(begin
        (define given-preds (and (~? (~? pred (~@ preds ...)))))
@@ -108,7 +112,7 @@
         (if (equal? roc.val 'run) 
             given-preds
             (not given-preds)))
-       (run (~? name temp-name) #:preds [run-preds])
+       (run (~? name temp-name) #:preds [run-preds] (~? (~@ #:bounds [(sig-name (~? (~@ n-exact.val n-exact.val) (~@ n-inexact.val))) ...])))
        (display (~? name temp-name)))]))
 (provide CmdDecl)
 
@@ -250,10 +254,8 @@
     ;    (Q q n e ...  a))]
     ; [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a) (syntax/loc stx 
     ;    (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
-    [(_ (Quant q) (DeclList (Decl (NameList n) e) ...) a) (syntax/loc stx 
-       (Q q ([n e] ...) a))]
-    [(Expr (Quant q) (DeclList (Decl (NameList n ns ...) e) ...) a) (syntax/loc stx 
-       (Expr (Quant q) (DeclList (~@ (Decl (NameList n) e) (Decl (NameList ns ...) e)) ...) a))]
+    [(_ (Quant q) (DeclList (Decl (NameList n ...) e) ...) a) (syntax/loc stx 
+       (Q q ((~@ [n e] ...) ...) a))]
 
     [(_ a "or" b) (syntax/loc stx (or a b))]
     [(_ a "||" b) (syntax/loc stx (or a b))]
