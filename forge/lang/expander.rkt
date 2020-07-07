@@ -13,7 +13,8 @@
      PARSE-TREE ...))
 (provide (rename-out [forge-module-begin #%module-begin]))
 (provide provide all-defined-out)
-
+(provide (all-from-out "ast.rkt"))
+(provide (all-from-out "../sigs.rkt"))
 
 ; Translating the tree
 
@@ -74,7 +75,7 @@
                (~optional (ParaDecls (Decl (NameList arg:id ...) (~optional "set") arg-type ...) ...))
                exprs ...)
       #`(begin
-        (pred (~? (name arg ... ...) name) true))]))
+        (pred (~? (name arg ... ...) name) exprs ...))]))
 (provide PredDecl)
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
@@ -85,8 +86,8 @@
               out-type
               expr) 
       #`(begin
-        (~? (fun (name arg ... ...) univ)
-            (const name univ)))]))
+        (~? (fun (name arg ... ...) expr)
+            (const name expr)))]))
 (provide FunDecl)
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?

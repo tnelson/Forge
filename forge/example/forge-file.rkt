@@ -22,4 +22,4 @@ everyoneHasFriends : run {
     all a: A | some getFriends[a]
     all b: B | some friend.b
     AreFriends[AKing, BKing]
-} for 2 A, exactly 4 B
+} -- for 2 A, exactly 4 B

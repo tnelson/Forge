@@ -28,12 +28,13 @@
 (provide set in ni)
 (provide = -> => implies ! not and or && || ifte iff <=>)
 (provide != !in !ni)
-(provide < > int=)
+(provide < > int= <= >=)
 (provide add subtract multiply divide sign abs remainder)
 (provide card sum sing succ max min)
 (provide true false)
 (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
 (provide is-sat? is-unsat?)
+(provide node/int/constant)
 
 (provide set-path!)
 (define (set-path! path) #f)
@@ -573,7 +574,7 @@
   (define-values (rel-to-name ; Map<Symbol, int>
                   rel-to-min  ; Map<Symbol, nones??>
                   rel-to-max) ; Map<Symbol, List<List<int>>>
-                 (get-relation-info run-spec sig-to-max name-to-atom (+ (hash-count sig-to-name) 2)))
+                 (get-relation-info run-spec sig-to-max name-to-atom (hash-count sig-to-name)))
 
   ;; Print to KodKod-CLI
   ; print configure
@@ -620,12 +621,12 @@
         (tupleset #:tuples eles)))
 
   ; Print Int sig and succ relation
-  (define int-rel (to-tupleset 1 (map list (range num-ints))))
-  (define succ-rel (to-tupleset 2 (map list (range (sub1 num-ints))
-                                            (range 1 num-ints))))
-  (kk-print
-    (declare-rel (r 0) int-rel int-rel)
-    (declare-rel (r 1) succ-rel succ-rel))
+  ; (define int-rel (to-tupleset 1 (map list (range num-ints))))
+  ; (define succ-rel (to-tupleset 2 (map list (range (sub1 num-ints))
+  ;                                           (range 1 num-ints))))
+  ; (kk-print
+  ;   (declare-rel (r 0) int-rel int-rel)
+  ;   (declare-rel (r 1) succ-rel succ-rel))
 
   ; Declare sigs
   ; Sort the sigs by KodKod name to print in order
@@ -663,7 +664,7 @@
                             @<
                             #:key (compose (curry hash-ref rel-to-name )
                                            Relation-name))))
-  (define all-rels (append (list Int succ) all-sigs all-relations))
+  (define all-rels (append (list Int succ) (rest all-sigs) (rest all-relations)))
 
   ; Get and print predicates
   (define run-constraints 
@@ -771,11 +772,6 @@
   (define sig-to-max (make-hash))  ; Map<Symbol, List<int>>
   (define name-to-atom (make-hash)) ; Map<Symbol, int>
 
-  ; (hash-set! sig-to-name 'Int 0)
-  (hash-set! sig-to-min 'Int (map list (range (expt 2 (get-bitwidth run-spec)))))
-  (hash-set! sig-to-max 'Int (map list (range (expt 2 (get-bitwidth run-spec)))))
-  ; (hash-set! name-to-atom )
-
   ; get-atom :: Symbol, List<int> -> int
   ; For instances. If an atom has not been assigned to name,
   ; assigns a new atom from atoms; returns name's assigned atom.
@@ -847,15 +843,27 @@
   ; Assigns set of unused atoms to each top-level Sig based on
   ; upper bound, and recurs into children sigs with generate.
   (define (generate-top-level sig)
-    (define sig-bound (hash-ref true-bounds (Sig-name sig)))
-    (define lower (Range-lower sig-bound))
-    (define upper (Range-upper sig-bound))
+    (when (@not (equal? (Sig-name sig) 'Int))
+      (define sig-bound (hash-ref true-bounds (Sig-name sig)))
+      (define lower (Range-lower sig-bound))
+      (define upper (Range-upper sig-bound))
 
-    (define private-atoms (range curr-max-atom (+ curr-max-atom lower)))
-    (define shared-atoms (range (+ curr-max-atom lower) (+ curr-max-atom upper)))
-    (set! curr-max-atom (+ curr-max-atom upper)) ; Update so next top-level Sig has new atoms
+      (define private-atoms (range curr-max-atom (+ curr-max-atom lower)))
+      (define shared-atoms (range (+ curr-max-atom lower) (+ curr-max-atom upper)))
+      (set! curr-max-atom (+ curr-max-atom upper)) ; Update so next top-level Sig has new atoms
 
-    (generate sig private-atoms shared-atoms))
+      (generate sig private-atoms shared-atoms)))
+
+  (hash-set! sig-to-name 'Int 0)
+  (let* ([num-ints (expt 2 (get-bitwidth run-spec))]
+         [indices (range num-ints)]
+         [max-int (expt 2 (sub1 (get-bitwidth run-spec)))]
+         [ints (range (- max-int) max-int)])
+    (hash-set! sig-to-min 'Int indices)
+    (hash-set! sig-to-max 'Int indices)
+    (for ([index indices]
+          [int ints])
+      (hash-set! name-to-atom index int)))
 
   (for-each generate-top-level (get-top-level-sigs run-spec))
 
@@ -873,10 +881,15 @@
   (define rel-to-name ; Map <String, int>
     (for/hash ([relation (get-relations run-spec)]
                [name (in-naturals start-relation-name)])
-    (values (Relation-name relation) name)))
+      (values (Relation-name relation) name)))
+  (set! rel-to-name (hash-set rel-to-name 'succ 1))
+
+  (define int-atoms (hash-ref sig-to-max 'Int))
+  (define succ-rel (map list (reverse (rest (reverse int-atoms))) (rest int-atoms)))
 
   (define rel-to-min ; Map<String, List<List<int>>>
-    (for/hash ([relation (get-relations run-spec)])
+    (for/hash ([relation (get-relations run-spec)]
+               #:unless (equal? (Relation-name relation) 'succ))
       (define pbinding (get-relation-pbinding run-spec relation))
       (define tbinding (get-relation-tbinding run-spec relation))
       (define binding (or pbinding tbinding))
@@ -887,9 +900,11 @@
             '()))
 
       (values (Relation-name relation) min-rel)))
+  (set! rel-to-min (hash-set rel-to-min 'succ succ-rel))
 
   (define rel-to-max ; Map<String, List<List<int>>>
-    (for/hash ([relation (get-relations run-spec)])
+    (for/hash ([relation (get-relations run-spec)]
+               #:unless (equal? (Relation-name relation) 'succ))
       (define atoms ; List<List<int>>
         (map (curry hash-ref sig-to-max ) (Relation-sigs relation)))
       (define tuples (apply cartesian-product atoms))
@@ -901,6 +916,7 @@
             tuples))
 
       (values (Relation-name relation) max-rel)))
+  (set! rel-to-max (hash-set rel-to-max 'succ succ-rel))
 
   (values rel-to-name rel-to-min rel-to-max))
 
