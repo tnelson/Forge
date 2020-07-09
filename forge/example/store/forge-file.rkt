@@ -18,17 +18,8 @@ fun getFriends[a: A]: set B {
     a.friend
 }
 
-; instance myInst {
-;     A = A0 + A1 + A2
-;     B = B0 + B1 + B2
-;     friend = A -> B
-;     friends is 'linear
-; }
-
-; run myRun { } for friends is linear, 
-
-; everyoneHasFriends : run { 
-;     all a: A | some getFriends[a]
-;     all b: B | some friend.b
-;     AreFriends[AKing, BKing]
-; }
+everyoneHasFriends : run { 
+    all a: A | some getFriends[a]
+    all b: B | some friend.b
+    AreFriends[AKing, BKing]
+} -- for 2 A, exactly 4 B
