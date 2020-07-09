@@ -13,7 +13,8 @@
      PARSE-TREE ...))
 (provide (rename-out [forge-module-begin #%module-begin]))
 (provide provide all-defined-out)
-
+(provide (all-from-out "ast.rkt"))
+(provide (all-from-out "../sigs.rkt"))
 
 ; Translating the tree
 
@@ -52,16 +53,16 @@
   (syntax-parse stx #:datum-literals (Mult NameList SigExt QualName)
     [(SigDecl (~optional abstract:abstract-tok)
               (~optional (Mult mult:mult-tok))
-              (NameList name:id ...)
+              (NameList name:id)
               (~optional (SigExt "extends" (QualName extend-sig:id)))
-              (~optional (ArrowDeclList (ArrowDecl (NameList rel-name ...) 
+              (~optional (ArrowDeclList (ArrowDecl (NameList rel-name) 
                                                    (ArrowMult arrow-mult:arrow-mult-tok)
                                                    (ArrowExpr (QualName col-name) ...)) ...)))
       #`(begin
         (sig name (~? mult.val)
                   (~? abstract.val)
-                  (~? (~@ #:extends extend-sig))) ...
-        (~? (~@ (relation rel-name (name col-name ...)) ... ...)))]))
+                  (~? (~@ #:extends extend-sig)))
+        (~? (~@ (relation rel-name (name col-name ...)) ...)))]))
 (provide SigDecl)
 
 ; FactDecl : FACT-TOK Name? Block
@@ -74,7 +75,7 @@
                (~optional (ParaDecls (Decl (NameList arg:id ...) (~optional "set") arg-type ...) ...))
                exprs ...)
       #`(begin
-        (pred (~? (name arg ... ...) name) true))]))
+        (pred (~? (name arg ... ...) name) exprs ...))]))
 (provide PredDecl)
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
@@ -85,8 +86,8 @@
               out-type
               expr) 
       #`(begin
-        (~? (fun (name arg ... ...) univ)
-            (const name univ)))]))
+        (~? (fun (name arg ... ...) expr)
+            (const name expr)))]))
 (provide FunDecl)
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
@@ -95,12 +96,14 @@
                  "run" 'run
                  "check" 'check)
 
-  (syntax-parse stx #:datum-literals (Name Parameters QualName Block Scope Bounds)
+  (syntax-parse stx #:datum-literals (Name Parameters QualName Block Scope Bounds Number)
     [(CmdDecl (~optional (Name name:id))
               roc:run-or-check
               (~optional (Parameters paras ...))
               (~optional (~or (QualName pred) (Block preds ...)))
-              (~optional (Scope scope))
+              (~optional (Scope (Typescope (~or (~seq "exactly" (Number exact-n)) 
+                                                (Number inexact-n)) 
+                                           (QualName sig)) ...))
               (~optional (Bounds bounds)))
      #`(begin
        (define given-preds (and (~? (~? pred (~@ preds ...)))))
@@ -108,7 +111,8 @@
         (if (equal? roc.val 'run) 
             given-preds
             (not given-preds)))
-       (run (~? name temp-name) #:preds [run-preds])
+       (run (~? name temp-name) #:preds [run-preds] 
+                        (~? (~@ #:scope ([sig (~? (~@ exact-n exact-n) inexact-n)] ...))))
        (display (~? name temp-name)))]))
 (provide CmdDecl)
 
@@ -169,7 +173,7 @@
                (Bounds (~optional "exactly") exprs ...)
                (~optional (Scope scope)))
      #`(begin 
-       (instance name #,@(expand #'(exprs ...))))]))
+       (inst name exprs ...))]))
 (provide InstDecl)
 
 ; ExprList : Expr
@@ -237,7 +241,7 @@
 (provide Q)
 
 (define-syntax (Expr stx)
-  (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp 
+  (syntax-parse stx #:datum-literals (Quant DeclList Decl NameList CompareOp ArrowOp 
                                       ExprList QualName LetDeclList LetDecl)
     [(_ "let" (LetDeclList (LetDecl n e) ...) block) (syntax/loc stx 
        (let ([n e] ...) block))]
@@ -247,11 +251,18 @@
        (set ([n e] ...) block))]
 
     ; [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a) (syntax/loc stx 
-    ;    (Q q n e ...  a))]
+    ;   (Q q n e ... a))]
     ; [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a) (syntax/loc stx 
-    ;    (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
-    [(_ (Quant q) (DeclList (Decl (NameList n ...) e) ...) a) (syntax/loc stx 
-       (Q q ((~@ [n e] ...) ...) a))]
+    ;   (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
+    ; [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a) (syntax/loc stx 
+    ;   (Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a)))]
+
+    [(_ (Quant q) (DeclList (Decl (NameList n) e) ...) a) (syntax/loc stx 
+       (Q q ([n e] ...) a))]
+    [(_ (Quant q) (DeclList (Decl (NameList npre) epre) ...
+                            (Decl (NameList n1 n2 ns ...) e) 
+                            (Decl (NameList npost ...) epost) ...) a) (syntax/loc stx 
+       (Expr (Quant q) (DeclList (Decl (NameList npre) epre) ... (Decl (NameList n1) e) (Decl (NameList n2 ns ...) e) (Decl (NameList npost ...) epost) ...) a))]
 
     [(_ a "or" b) (syntax/loc stx (or a b))]
     [(_ a "||" b) (syntax/loc stx (or a b))]
@@ -287,7 +298,8 @@
     [(_ "~" a) (syntax/loc stx (~ a))]
     [(_ "^" a) (syntax/loc stx (^ a))]
     [(_ "*" a) (syntax/loc stx (* a))]
-    [(_ a) (syntax/loc stx a)]))
+    [(_ a) (syntax/loc stx a)]
+    [else (raise "ERR")]))
 (provide Expr)
 
           ; | AssertDecl 

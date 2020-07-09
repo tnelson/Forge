@@ -39,7 +39,7 @@
     (token+ 'RESERVED-TOK "" lexeme "" lexeme-start lexeme-end)]
    ;; numeric
    [(or "0" (: (char-range "1" "9") (* (char-range "0" "9"))))
-    (token+ 'NUM-CONST-TOK "" lexeme "" lexeme-start lexeme-end)]
+    (token+ 'NUM-CONST-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
 
    ["->" (token+ 'ARROW-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["." (token+ 'DOT-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -231,7 +231,9 @@
   (let ([l0 (string-length left)] 
         [l1 (string-length right)]
         [trimmed (trim-ends left lex right)])
-    (token type (if sym? (string->symbol trimmed) trimmed)
+    (token type (cond [(and sym? (string->number trimmed)) (string->number trimmed)]
+                      [sym? (string->symbol trimmed)]
+                      [else trimmed])
            #:position (+ (pos lex-start) l0)
            #:line (line lex-start)
            #:column (+ (col lex-start) l0)

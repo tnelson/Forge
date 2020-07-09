@@ -131,7 +131,7 @@
 
 ;; -- quantifier vars ----------------------------------------------------------
 
-(struct node/expr/quantifier-var node/expr (sym))
+(struct node/expr/quantifier-var node/expr (sym) #:transparent)
 
 ;; -- comprehensions -----------------------------------------------------------
 
