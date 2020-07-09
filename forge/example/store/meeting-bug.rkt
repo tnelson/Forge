@@ -1,5 +1,7 @@
 #lang forge
 
+option verbosity 10
+
 abstract sig Char {}
 
 one sig A extends Char {}
@@ -14,15 +16,15 @@ sig seqChar {
     r: set Int -> Char
 }
 
-pred isSeqOf[r: set Int -> univ, d: set univ] {
-    r in Int -> univ
-    r[Int] in d
-    all i: r.univ | {
-        sum[i] >= 0 =>
-        lone r[i]
+pred isSeqOf[r1: set Int -> univ, d: set univ] {
+    r1 in Int -> univ
+    r1[Int] in d
+    all i1: r1.univ | {
+        sum[i1] >= 0 =>
+        lone r1[i1]
     }
-    all e: r[Int] | some r.e
-    all i: (r.univ - sing[0]) | { some r[sing[subtract[sum[i], 1]]] }
+    all e: r1[Int] | some r.e
+    all i1: (r1.univ - sing[0]) | { some r1[sing[subtract[sum[i1], 1]]] }
 }
 
 fun first[r: set Int -> univ]: univ {
@@ -90,8 +92,8 @@ pred prop2[input: seqChar, output: seqChar] {
 }
 
 pred prop3[input: seqChar, output: seqChar] {
-    all i,j: inds[output.r] | sum[i] < sum[j] => {
-        idxOf[input.r, output.r[i]] <= idxOf[input.r, output.r[j]]
+    all i1,j: inds[output.r] | sum[i1] < sum[j] => {
+        idxOf[input.r, output.r[i1]] <= idxOf[input.r, output.r[j]]
     }
 }
 
@@ -128,4 +130,10 @@ run {
         prop5[i, o]
         prop6[i, o]
     }
-} for 7 Char --for 6 Int, exactly 2 seqChar
+} for 7 Char, 6 Int, exactly 2 seqChar
+
+
+
+
+
+

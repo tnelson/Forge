@@ -152,7 +152,7 @@
 (define-syntax (Block stx)
   (syntax-parse stx
     [(Block exprs ...)
-     #'(begin exprs ...)]))
+     #'(and exprs ...)]))
 (provide Block)
 
 
@@ -172,8 +172,10 @@
     [(InstDecl (Name name)
                (Bounds (~optional "exactly") exprs ...)
                (~optional (Scope scope)))
+     (with-syntax ([exprs (map expand (syntax-e #'(exprs ...)))])
      #`(begin 
-       (inst name exprs ...))]))
+       (println 'exprs)))]))
+       ; (inst name exprs ...)))]))
 (provide InstDecl)
 
 ; ExprList : Expr

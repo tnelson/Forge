@@ -42,7 +42,7 @@ pred validConfiguration {
 }
 
 -- Enforce structure on transition and contains
-/* To be implemented :(
+-- To be implemented :(
 inst trans {
     nextState is linear
     contains is func
@@ -51,4 +51,4 @@ inst trans {
 transitionRun : run {
     validConfiguration
 } for 6 State, exactly 6 Contents for trans
-*/
+
