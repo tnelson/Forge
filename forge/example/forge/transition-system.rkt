@@ -1,5 +1,7 @@
 #lang forge
 
+option verbosity 10
+
 sig State {
     nextState: set State,
     contains: set Contents

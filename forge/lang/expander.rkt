@@ -302,6 +302,12 @@
     [else (raise "ERR")]))
 (provide Expr)
 
+(define-syntax (OptionDecl stx)
+  (syntax-parse stx #:datum-literals (QualName verbosity)
+    [(OptionDecl (QualName verbosity) (Number n))
+     #'(set-verbosity n)]))
+(provide OptionDecl)
+
           ; | AssertDecl 
           ; | SexprDecl
           ; | BreakDecl
