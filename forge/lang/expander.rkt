@@ -32,8 +32,8 @@
   (syntax-rearm 
     (datum->syntax expr (if (list? (syntax-e expanded))
                             (map my-expand (syntax-e expanded))
-                            expanded)
-    expr)))
+                            expanded))
+    expr))
 
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
