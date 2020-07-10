@@ -28,11 +28,13 @@
 
 ; A helper for recursively expanding syntax when possible
 (define-for-syntax (my-expand expr)
-  (define expanded (local-expand expr 'expression #f))
-  (if (list? (syntax-e expanded))
-      (map my-expand (syntax-e expanded))
-      expanded))
-      
+  (define expanded (local-expand (syntax-disarm expr #f) 'expression #f))
+  (syntax-rearm 
+    (datum->syntax expr (if (list? (syntax-e expanded))
+                            (map my-expand (syntax-e expanded))
+                            expanded)
+    expr)))
+
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*

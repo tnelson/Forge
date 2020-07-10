@@ -5,7 +5,7 @@
 
 (define (read-syntax path port)
   (define parse-tree (port->list read port))
-  (define module-datum `(module bf-mod ,forge-path
+  (define module-datum `(module forge-core-mod ,forge-path
                           (provide (all-defined-out))
                           ,@parse-tree))
   (datum->syntax #f module-datum))

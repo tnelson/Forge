@@ -57,6 +57,8 @@
 (provide set-path!)
 (define (set-path! path) #f)
 
+(provide curr-state update-state!)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -492,12 +494,11 @@
 (define-syntax (with stx)
   (syntax-parse stx
     [(with module-name exprs ...)
-      #'(begin
-        (module temp-module racket
-          (require forge/core/main)
-          (require module-name)
-          exprs ...)
-        (require 'temp-module))]))
+      #'(let ([temp-state curr-state])
+          (local-require module-name)
+          exprs ...
+          (println "tests")
+          (update-state! temp-state))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
