@@ -44,4 +44,4 @@
      #:bounds [transition]
      #:scope ([State 6]
               [Contents 6 6]))
-(display transition-run)
+; (display transition-run)

@@ -26,6 +26,14 @@
         #'(define-syntax-class name
             (pattern key #:with val #'value) ...)])))
 
+; A helper for recursively expanding syntax when possible
+(define-for-syntax (my-expand expr)
+  (define expanded (local-expand expr 'expression #f))
+  (if (list? (syntax-e expanded))
+      (map my-expand (syntax-e expanded))
+      expanded))
+      
+
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*
 (define-syntax (AlloyModule stx)
@@ -104,7 +112,8 @@
               (~optional (Scope (Typescope (~or (~seq "exactly" (Number exact-n)) 
                                                 (Number inexact-n)) 
                                            (QualName sig)) ...))
-              (~optional (Bounds bounds)))
+              (~optional (Bounds (~optional "exactly") exprs ...)))
+     (with-syntax ([(exprs ...) (datum->syntax #'(exprs ...) (my-expand #'(exprs ...)))])
      #`(begin
        (define given-preds (and (~? (~? pred (~@ preds ...)))))
        (define run-preds 
@@ -112,8 +121,9 @@
             given-preds
             (not given-preds)))
        (run (~? name temp-name) #:preds [run-preds] 
-                        (~? (~@ #:scope ([sig (~? (~@ exact-n exact-n) inexact-n)] ...))))
-       (display (~? name temp-name)))]))
+                        (~? (~@ #:scope ([sig (~? (~@ exact-n exact-n) inexact-n)] ...)))
+                        (~? (~@ #:bounds (exprs ...))))
+       (display (~? name temp-name))))]))
 (provide CmdDecl)
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
@@ -172,10 +182,8 @@
     [(InstDecl (Name name)
                (Bounds (~optional "exactly") exprs ...)
                (~optional (Scope scope)))
-     (with-syntax ([exprs (map expand (syntax-e #'(exprs ...)))])
-     #`(begin 
-       (println 'exprs)))]))
-       ; (inst name exprs ...)))]))
+     (with-syntax ([(exprs ...) (datum->syntax #'(exprs ...) (my-expand #'(exprs ...)))])
+     #'(inst name exprs ...))]))
 (provide InstDecl)
 
 ; ExprList : Expr
@@ -188,7 +196,7 @@
   (syntax-parse stx
     [(Bounds (~optional exactly:exactly-tok)
              exprs ...)
-     #'(begin exprs ...)]))
+     #'(exprs ...)]))
 (provide Bounds)
 
 

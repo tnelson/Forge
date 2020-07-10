@@ -888,7 +888,6 @@
   (define (get-next-model)
     (kk-print (solve))
     (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution (stdout)) all-rels all-atoms))
-    (printf "GET-NEXT-MODEL: ~a ~a ~n" restype inst)
     (cons restype inst))
 
   (define (model-stream)
