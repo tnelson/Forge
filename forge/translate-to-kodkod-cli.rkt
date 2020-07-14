@@ -3,6 +3,7 @@
 (require "lang/ast.rkt" "kodkod-cli/server/kks.rkt" (prefix-in @ racket))
 
 (provide translate-to-kodkod-cli)
+(provide interpret-formula interpret-expr interpret-int)
 
 (define (get-var-idx var quantvars)
   (- (length quantvars) (index-of quantvars var)))
