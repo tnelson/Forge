@@ -1,20 +1,29 @@
 #lang racket
 (require net/url)
 
-(define repo "tdelv/forge-checkexspec-files-student")
+; download-file :: string string? string? -> bytes
+; Downloads a file from the given url.
+; If backup provided and connection to url fails, attempts
+; to retrive from backup.
+; If save-to provided, saves result to save-to before returning.
+(define (download-file link [backup #f] [save-to #f])
+  (define url (string->url link))
+  (define port
+    (with-handlers ([exn:fail:network:errno?
+                     (lambda (exn) 
+                       (if backup
+                           (begin
+                             (println "Reading from local version.")
+                             (open-input-file backup))
+                           (raise exn)))])
+      (get-pure-port url)))
 
-; Read command line input
-(require racket/cmdline)
-(define-values (project-name)
-  (command-line 
-   #:args (project-name)
-   (values project-name)))
+  (define contents (port->bytes port))
+  (close-input-port port)
+  
+  (when save-to
+    (define (write-contents port)
+      (void (write-bytes contents port)))
+    (call-with-output-file save-to write-contents #:exists 'replace))
 
-;; Download the data.
-(define the-url (string->url "https://raw.githubusercontent.com/tdelv/forge-checkexpsec-files-ta/master/project1/README?token=AMVP275DGLS2JMPVA4IIZM27BDIFS"))
-(define the-data (port->bytes (get-pure-port the-url)))
-
-;; Write the data to a file.
-(define out (open-output-file "forge-file2.rkt"))
-(write-bytes the-data out)
-(close-output-port out)
+  contents)
