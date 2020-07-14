@@ -8,6 +8,7 @@
   (define final `(,parse-tree))
 
   (define module-datum `(module forge-mod forge/lang/expander
+                          (provide (all-defined-out))
                           ,@final))
   (datum->syntax #f module-datum))
 (provide read-syntax)
