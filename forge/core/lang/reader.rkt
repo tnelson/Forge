@@ -6,7 +6,7 @@
 (define (read-syntax path port)
   (define parse-tree (port->list read port))
   (define module-datum `(module forge-core-mod racket
-                          (require "../../sigs.rkt")
+                          (require forge/sigs)
                           ,@parse-tree))
   (datum->syntax #f module-datum))
 
