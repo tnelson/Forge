@@ -12,6 +12,7 @@
 (provide provide all-defined-out)
 (provide (all-from-out "ast.rkt"))
 (provide (all-from-out "../sigs.rkt"))
+; (provide (all-defined-out))
 
 ; Translating the tree
 
@@ -115,7 +116,6 @@
                                                 (Number inexact-n)) 
                                            (QualName sig)) ...))
               (~optional (Bounds (~optional "exactly") exprs ...)))
-     (with-syntax ([(exprs2 ...) (datum->syntax #'(exprs ...) (my-expand #'(exprs ...)))])
      #`(begin
        (define given-preds (and (~? (~? pred (~@ preds ...)))))
        (define run-preds 
@@ -123,9 +123,19 @@
             given-preds
             (not given-preds)))
        (run (~? name temp-name) #:preds [run-preds] 
-                        (~? (~@ #:scope ([sig (~? (~@ exact-n exact-n) inexact-n)] ...)))
-                        (~? (~@ #:bounds (exprs2 ...))))
-       (display (~? name temp-name))))]))
+                        (~? (~@ #:scope ([sig (~? (~@ exact-n exact-n) inexact-n)] ...))))
+       (display (~? name temp-name)))]))
+     ; (with-syntax ([(exprs2 ...) (datum->syntax #'(exprs ...) (my-expand #'(exprs ...)))])
+     ; #`(begin
+     ;   (define given-preds (and (~? (~? pred (~@ preds ...)))))
+     ;   (define run-preds 
+     ;    (if (equal? roc.val 'run) 
+     ;        given-preds
+     ;        (not given-preds)))
+     ;   (run (~? name temp-name) #:preds [run-preds] 
+     ;                    (~? (~@ #:scope ([sig (~? (~@ exact-n exact-n) inexact-n)] ...)))
+     ;                    (~? (~@ #:bounds (exprs2 ...))))
+     ;   (display (~? name temp-name))))]))
 (provide CmdDecl)
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
