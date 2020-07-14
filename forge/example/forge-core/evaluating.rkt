@@ -8,7 +8,7 @@
 (relation R (A B))
 
 (run my-run)
-(define s (Run-result my-run))
+(define s (forge:Run-result my-run))
 (define f (stream-first s))
 
 (evaluate my-run f (in (join A R) B))
