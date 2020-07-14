@@ -7,7 +7,8 @@
 (require "../../shared.rkt")
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
-(provide assert f define-const)
+(provide assert e f i define-const)
+(provide read-evaluation)
 
 (require "server.rkt"
          "server-common.rkt")
@@ -167,3 +168,15 @@
     [(== eof)
      (error "Kodkod CLI shut down unexpectedly!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
+
+(define (read-evaluation port)
+  (define result (read port))
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (writeln result))
+  (match result
+    [(list (== 'evaluated) (== ':expression) atoms)
+     (cons 'expression atoms)]
+    [(list (== 'evaluated) (== ':int-expression) val)
+     (cons 'int-expression val)]
+    [(list (== 'evaluated) (== ':formula) val)
+     (cons 'formula (equal? val 'true))]))

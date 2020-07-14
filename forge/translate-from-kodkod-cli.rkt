@@ -2,7 +2,8 @@
 
 (require (only-in "lang/ast.rkt" relation-name)
          (only-in "lang/ast.rkt" univ declare-relation))
-(provide translate-from-kodkod-cli)
+(provide translate-from-kodkod-cli
+         translate-evaluation-from-kodkod-cli )
 
 #|
 The kodkod cli only numbers relations and atoms, it doesn't give them names. This is where
@@ -101,3 +102,15 @@ This function just recreates the model, but using names instead of numbers.
                              translated-tuples)]))
          ;(printf "Translated model: ~a~n" translated-model)
          (cons 'sat translated-model)]))
+
+(define (translate-evaluation-from-kodkod-cli result atom-names)
+  (match-define (cons type value) result)
+  (cond 
+    [(equal? type 'formula) value]
+    [(equal? type 'int-expression) value]
+    [(equal? type 'expression)
+     (for/list ([tuple value])
+       (for/list ([atom tuple])
+         (define rel (list-ref atom-names atom))
+         (or (string->number (relation-name rel))
+             (string->symbol (relation-name rel)))))]))

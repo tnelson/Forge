@@ -753,16 +753,16 @@ import org.parboiled.errors.ActionException;
 				str.append(")");
 			}
 			str.append("}");
-			System.out.println(str);
+			System.out.println("(evaluated :expression " + str + ")");
 
 			return true;
 		}
 		public boolean evaluate(kodkod.ast.IntExpression expression) {
-			System.out.println(evaluator.evaluate(expression));
+			System.out.println("(evaluated :int-expression " + evaluator.evaluate(expression) + ")");
 			return true;
 		}
 		public boolean evaluate(Formula formula) {
-			System.out.println(evaluator.evaluate(formula));
+			System.out.println("(evaluated :formula " + evaluator.evaluate(formula) + ")");
 			return true;
 		}
 	}
