@@ -4,12 +4,10 @@
 
 (define (read-syntax path port)
   (define parse-tree (parse path (make-tokenizer port)))
-  ; (println parse-tree)
 
   (define final `(,parse-tree))
 
-  (define module-datum `(module forge-mod forge/lang/expander
-                          (provide (all-defined-out))
+  (define module-datum `(module forge-mod forge/core/lang/expander
                           ,@final))
   (datum->syntax #f module-datum))
 (provide read-syntax)

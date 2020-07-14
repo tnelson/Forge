@@ -52,6 +52,9 @@
 (provide card sum sing succ max min sum-quant)
 (provide node/int/constant)
 
+; Racket stuff
+(provide let)
+
 ; Technical stuff
 (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
 (provide set-path!)

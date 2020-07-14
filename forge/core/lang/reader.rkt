@@ -1,12 +1,12 @@
 #lang br/quicklang
 
 (require racket/runtime-path)
-(define-runtime-path forge-path "../forge-core.rkt")
+(define-runtime-path forge-path "expander.rkt")
 
 (define (read-syntax path port)
   (define parse-tree (port->list read port))
-  (define module-datum `(module forge-core-mod ,forge-path
-                          (provide (all-defined-out))
+  (define module-datum `(module forge-core-mod racket
+                          (require "../../sigs.rkt")
                           ,@parse-tree))
   (datum->syntax #f module-datum))
 

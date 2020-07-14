@@ -1,17 +1,8 @@
-#lang br/quicklang
+#lang racket
 
 (require (for-syntax syntax/parse)
          (for-syntax (for-syntax syntax/parse)))
 (require (for-syntax (for-syntax racket/base)))
-(require "../sigs.rkt")
-(require "ast.rkt")
-
-
-; Main macro
-(provide #%module-begin)
-(provide provide all-defined-out)
-(provide (all-from-out "ast.rkt"))
-(provide (all-from-out "../sigs.rkt"))
 
 ; Translating the tree
 

@@ -53,7 +53,3 @@
                        (toggle (not (commented? first-line))))))]
         [else default]))
     handle-query))
-
-(require "forge.rkt")
-
-(provide (all-from-out "forge.rkt"))

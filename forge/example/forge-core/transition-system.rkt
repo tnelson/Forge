@@ -37,11 +37,12 @@
 ; Enforce structure on transition and contains
 (inst transition
   (is next-state linear)
-  (is contains func))
+  (is contains func)
+  (<= (card State) 5))
 
 (run transition-run
      #:preds [valid-configuration]
      #:bounds [transition]
-     #:scope ([State 6]
+     #:scope (;[State 6]
               [Contents 6 6]))
-; (display transition-run)
+(display transition-run)
