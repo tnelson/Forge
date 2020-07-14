@@ -24,15 +24,15 @@
 (provide is-sat? is-unsat?)
 
 ; Data structures
-(provide (struct-out Sig)
-         (struct-out Relation)
-         (struct-out Range)
-         (struct-out Scope)
-         (struct-out Bound)
-         (struct-out Options)
-         (struct-out State)
-         (struct-out Run-spec)
-         (struct-out Run))
+(provide (prefix-out forge: (struct-out Sig))
+         (prefix-out forge: (struct-out Relation))
+         (prefix-out forge: (struct-out Range))
+         (prefix-out forge: (struct-out Scope))
+         (prefix-out forge: (struct-out Bound))
+         (prefix-out forge: (struct-out Options))
+         (prefix-out forge: (struct-out State))
+         (prefix-out forge: (struct-out Run-spec))
+         (prefix-out forge: (struct-out Run)))
 
 ; AST values
 ; Expression
@@ -60,7 +60,8 @@
 (provide set-path!)
 (define (set-path! path) #f)
 
-(provide curr-state update-state!)
+(provide (prefix-out forge: curr-state)
+         (prefix-out forge: update-state!))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;

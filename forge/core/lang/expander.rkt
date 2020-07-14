@@ -2,7 +2,6 @@
 
 (define-syntax-rule (forge-core-module-begin cmds ...)
   (#%module-begin
-    (provide (all-defined-out))
     cmds ...))
 (provide (rename-out [forge-core-module-begin #%module-begin]))
 
