@@ -20,8 +20,18 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-model evaluate name command filepath bitwidth funs-n-preds)
+(define (display-model get-next-model evaluate name command filepath bitwidth funs-n-preds atom-rels)
   (define model (get-next-model))
+
+  ; Begin hack to remove helper relations
+  (define (clean-model)
+    (when (equal? (car model) 'sat)
+    (define instance (cdr model))
+    (for ([rel atom-rels])
+      (hash-remove! instance rel))))
+  (clean-model)
+  ; End hack to remove helper relations
+
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
 
@@ -45,49 +55,11 @@
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
                  [(equal? m "next")
                   (set! model (get-next-model))
+                  (clean-model)
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
-                  
-                  ; (define result (case command 
-                  ;   [("--version" "-v") forge-version]
-                  ;   [("--file" "-f") filepath]
-                  ;   [else (with-handlers (
-                  ;       ;[exn:fail:read? (λ (exn) (println exn) "syntax error")]
-                  ;       ;[exn:fail:parsing? (λ (exn) (println exn) "syntax error")]
-                  ;       [exn:fail:contract? (λ (exn) (println exn) "error")]
-                  ;       [exn:fail? (λ (exn) (println exn) "syntax error")]
-                  ;     )
-
-                  ;     (define port (open-input-string (string-append "eval " command)))
-                  ;     (define stxFromEvaluator (read-syntax 'Evaluator port))
-                  ;     (define alloy (third (last (syntax->datum stxFromEvaluator))))
-                  ;     ;(printf "alloy: ~a~n" alloy)
-                  ;     (define kodkod (alloy->kodkod alloy))
-                  ;     ;(printf "kodkod: ~a~n" kodkod)
-                  ;     (define binding (model->binding (cdr model) bitwidth))
-                  ;     ;(printf "funs-n-preds : ~a~n" funs-n-preds)
-                  ;     (set! binding (hash-union binding funs-n-preds))
-                  ;     ;(printf "binding: ~a~n" binding)
-                  ;     (define lists (eval-unknown kodkod binding bitwidth))
-                  ;     ;(printf "lists: ~a~n" lists)
-                  ;     (if (list? lists)
-                  ;         (string-join (for/list ([l lists])
-                  ;             (string-join (for/list ([atom l])
-                  ;               (cond
-                  ;                 [(int-atom? atom) (int-atom->string atom)]
-                  ;                 [(number? atom) (number->string atom)]
-                  ;                 [(symbol? atom) (symbol->string atom)])
-                  ;             ) "->")
-                  ;             ) " + ")
-                  ;         lists)
-                  ;     )]
-                  ;   ))
-                  ;(println result)
-                  ;(cmd [stdin] command)
-                  ;(define result (read stdout))
-
                   (define result (evaluate command))
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else

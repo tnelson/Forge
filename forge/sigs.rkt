@@ -596,6 +596,8 @@
     ; (println u)
     ; u))
 
+(provide nsa)
+(define nsa (make-parameter #f))
 ; display :: Run -> void
 ; Lifted function which, when provided a Run,
 ; generates a Sterling instance for it.
@@ -606,14 +608,33 @@
         (define run arg1)
         (define model-stream (Run-result run))
         (define get-next-model (make-model-generator model-stream))
-        (define evaluate (make-model-evaluator run))
-        (display-model get-next-model evaluate 
+        (define (evaluate-str str-command)
+          (define-values (in-pipe out-pipe) (make-pipe))
+
+          ; Write string command to pipe
+          (write-string str-command out-pipe)
+          (close-output-port out-pipe)
+
+          (with-handlers ([(lambda (x) #t) 
+                           (lambda (exn) (exn-message exn))])
+            ; Read command as syntax from pipe
+            (define command-syntax (read-syntax 'eval-pipe in-pipe))
+            (close-input-port in-pipe)
+
+            ; Evaluate command
+            (define ns (namespace-anchor->namespace (nsa)))
+            (define command (eval command-syntax ns))
+            (println command)
+            (evaluate run '() command)))
+
+        (display-model get-next-model evaluate-str
                        (Run-name run) 
                        (Run-command run) 
                        "/no-name.rkt" 
                        (get-bitwidth 
-                        (Run-run-spec run)) 
-                       empty))))
+                         (Run-run-spec run)) 
+                       empty
+                       (Run-atom-rels run)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

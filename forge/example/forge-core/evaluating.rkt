@@ -8,9 +8,14 @@
 (relation R (A B))
 
 (run my-run)
-(define s (forge:Run-result my-run))
-(define f (stream-first s))
+(define st (forge:Run-result my-run))
+(define f (stream-first st))
 
 (evaluate my-run f (in (join A R) B))
-(evaluate my-run f (join A R))
-;(evaluate my-run f (+ 1 2))
+(evaluate my-run f (+ A B))
+; (evaluate my-run f (+ (node/int/constant 1) (node/int/constant 2)))
+
+(define s (stream-first (stream-rest st)))
+
+(evaluate my-run s (in (join A R) B))
+(evaluate my-run s (+ A B))
