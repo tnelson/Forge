@@ -10,6 +10,7 @@
 ; Main macro
 (provide #%module-begin)
 (provide provide all-defined-out)
+(provide nsa define-namespace-anchor)
 (provide (all-from-out "ast.rkt"))
 (provide (all-from-out "../sigs.rkt"))
 ; (provide (all-defined-out))

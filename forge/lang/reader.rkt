@@ -9,6 +9,8 @@
 
   (define module-datum `(module forge-mod forge/lang/expander
                           (provide (all-defined-out))
+                          (define-namespace-anchor n)
+                          (nsa n)
                           ,@final))
   (datum->syntax #f module-datum))
 (provide read-syntax)
