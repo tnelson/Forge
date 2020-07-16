@@ -1,4 +1,4 @@
-#lang br/quicklang
+#lang racket
 
 (require (for-syntax syntax/parse)
          (for-syntax (for-syntax syntax/parse)))
@@ -9,6 +9,7 @@
 
 ; Main macro
 (provide #%module-begin)
+(provide #%top #%app #%datum #%top-interaction)
 (provide provide all-defined-out)
 (provide nsa define-namespace-anchor)
 (provide (all-from-out "ast.rkt"))

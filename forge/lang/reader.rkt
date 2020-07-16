@@ -1,4 +1,5 @@
-#lang br/quicklang
+#lang racket/base
+
 (require "alloy-syntax/parser.rkt")
 (require "alloy-syntax/tokenizer.rkt")
 
