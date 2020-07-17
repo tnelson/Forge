@@ -171,9 +171,13 @@
 ;;;;;; State Accessors ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; get-state :: (|| Run Run-spec State) -> State
+; Some type definitions for simplification of documentation:
+; Run-or-State :: (|| Run Run-spec State)
+; AST-Relation :: node/expr/Relation
+
+; get-state :: Run-or-State -> State
 ; If run-or-state is a State, returns it;
-; if it is a Run-spec, then returns its state.
+; if it is a Run-spec or a Run, then returns its state.
 (define (get-state run-or-state)
   (cond [(Run? run-or-state)
          (Run-spec-state (Run-run-spec run-or-state))]
@@ -182,8 +186,8 @@
         [(State? run-or-state)
          run-or-state]))
 
-; get-sig :: (|| Run-spec State), (|| Symbol node/expr/relation) -> Sig
-; Returns the Sig of a given name from a run/state.
+; get-sig :: Run-or-State (|| Symbol AST-Relation) -> Sig
+; Returns the Sig of a given name/ast-relation from a run/state.
 (define (get-sig run-or-state sig-name-or-rel)
   (define sig-name
     (cond [(symbol? sig-name-or-rel) sig-name-or-rel]
@@ -191,9 +195,9 @@
            (string->symbol (relation-name sig-name-or-rel))]))
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 
-; get-sigs :: (|| Run-spec State), Relation? -> List<Sig>
+; get-sigs :: Run-or-State, Relation? -> List<Sig>
 ; If a relation is provided, returns the column sigs;
-; otherwise, returns the Sigs in a run/state.
+; otherwise, returns the Sigs of the given relation in a run/state.
 (define (get-sigs run-or-state [relation #f])
   (define state (get-state run-or-state))
   (if relation
@@ -206,8 +210,23 @@
 (define (get-top-level-sigs run-or-state)
   (filter (compose @not Sig-extends) (get-sigs run-or-state)))
 
-; get-relation :: (|| Run-spec State), (|| Symbol node/expr/relation) -> Relation
-; Returns the Relation of a given name from a run/state.
+; get-fields :: (|| Sig AST-Relation) Run-or-State -> List<Relation>
+(define (get-fields sig-or-rel run-or-state)
+  (define state (get-state run-or-state))
+  (define sig 
+    (cond [(Sig? sig-or-rel)
+           sig-or-rel]
+          [(node/expr/relation? sig-or-rel)
+           (get-sig state sig-or-rel)]))
+  (define relations (get-relations state))
+
+  (for/list ([relation relations]
+             #:when (equal? (first (get-sigs state relation))
+                            sig))
+    relation))
+
+; get-relation :: Run-or-State, (|| Symbol AST-Relation) -> Relation
+; Returns the Relation of a given name/ast-relation from a run/state.
 (define (get-relation run-or-state relation-name-or-rel)
   (define name
     (cond [(symbol? relation-name-or-rel) relation-name-or-rel]
@@ -215,15 +234,15 @@
            (string->symbol (relation-name relation-name-or-rel))]))
   (hash-ref (State-relations (get-state run-or-state)) name))
 
-; get-relations :: (|| Run-spec State) -> List<Relation>
+; get-relations :: Run-or-State -> List<Relation>
 ; Returns the Relations in a run/state.
 (define (get-relations run-or-state)
   (define state (get-state run-or-state))
   (map (curry hash-ref (State-relations state) ) 
        (State-relation-order state)))
 
-; get-children :: (|| Run-spec State), Sig -> List<Sig>
-; Returns the children Sigs of a Siig.
+; get-children :: Run-or-State, Sig -> List<Sig>
+; Returns the children Sigs of a Sig.
 (define (get-children run-or-state sig)
   (define sig-map (State-sigs (get-state run-or-state)))
   (map (curry hash-ref sig-map) (Sig-extenders sig)))
@@ -260,14 +279,16 @@
 ; - return DEFAULT-SIG-BOUND
 (define (get-scope run-spec-or-scope sig-or-name)
   (define scope 
-    (if (Scope? run-spec-or-scope)
-        run-spec-or-scope
-        (Run-spec-scope run-spec-or-scope)))
+    (cond [(Scope? run-spec-or-scope)
+           run-spec-or-scope]
+          [(Run-spec? run-spec-or-scope)
+           (Run-spec-scope run-spec-or-scope)]))
 
   (define sig-name
-    (if (Sig? sig-or-name)
-        (Sig-name sig-or-name)
-        sig-or-name))
+    (cond [(Sig? sig-or-name)
+           (Sig-name sig-or-name)]
+          [(symbol? sig-or-name)
+           sig-or-name]))
 
   (if (equal? sig-name 'Int)
       (let* ([bitwidth (get-bitwidth scope)]
@@ -283,9 +304,10 @@
 ; DEFAULT-BITWIDTH if none is provided.
 (define (get-bitwidth run-spec-or-scope)
   (define scope
-    (if (Run-spec? run-spec-or-scope)
-        (Run-spec-scope run-spec-or-scope)
-        run-spec-or-scope))
+    (cond [(Run-spec? run-spec-or-scope)
+           (Run-spec-scope run-spec-or-scope)]
+          [(Scope? run-spec-or-scope)
+           run-spec-or-scope]))
   (or (Scope-bitwidth scope)
       DEFAULT-BITWIDTH))
 
@@ -296,17 +318,18 @@
 ; atom access by the evaluator. 
 ; Used for translate to kodkod-cli.
 (define (get-all-rels run-or-spec)
-  (if (Run-spec? run-or-spec)
-      (let ([run-spec run-or-spec])
-        (append
-          (map Sig-rel (get-sigs run-spec))
-          (map Relation-rel (get-relations run-spec))))
-      (let ([run run-or-spec]
-            [run-spec (Run-run-spec run-or-spec)])
-        (append
-          (map Sig-rel (get-sigs run-spec))
-          (map Relation-rel (get-relations run-spec))
-          (Run-atom-rels run)))))
+  (cond [(Run-spec? run-or-spec)
+         (let ([run-spec run-or-spec])
+           (append
+             (map Sig-rel (get-sigs run-spec))
+             (map Relation-rel (get-relations run-spec))))]
+        [(Run? run-or-spec)
+         (let ([run run-or-spec]
+               [run-spec (Run-run-spec run-or-spec)])
+           (append
+             (map Sig-rel (get-sigs run-spec))
+             (map Relation-rel (get-relations run-spec))
+             (Run-atom-rels run)))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

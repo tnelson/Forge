@@ -48,5 +48,16 @@
      #:scope (;[State 6]
               [Contents 6 6]))
 ; (display transition-run)
-(forge:get-sig transition-run State)
-(forge:get-relation transition-run next-state)
+
+; get-fields :: node/expr/relation Run -> List<Relation>
+(define (get-fields sig-rel run)
+  (define state (forge:get-state run)) ; State
+  (define sig (forge:get-sig state sig-rel)) ; Sig
+  (define relations (forge:get-relations state)) ; List<Relation>
+  (for/list ([relation relations]
+             #:when (equal? (first (forge:get-sigs state relation))
+                            sig))
+    relation)) ; You can grab what you want from each field here
+
+(get-fields State transition-run)
+(forge:get-fields State transition-run)
