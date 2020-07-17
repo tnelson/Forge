@@ -48,4 +48,5 @@
      #:scope (;[State 6]
               [Contents 6 6]))
 ; (display transition-run)
-(forge:get-sig (forge:get-state transition-run) State)
+(forge:get-sig transition-run State)
+(forge:get-relation transition-run next-state)

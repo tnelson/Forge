@@ -206,10 +206,14 @@
 (define (get-top-level-sigs run-or-state)
   (filter (compose @not Sig-extends) (get-sigs run-or-state)))
 
-; get-relation :: (|| Run-spec State), Symbol -> Relation
+; get-relation :: (|| Run-spec State), (|| Symbol node/expr/relation) -> Relation
 ; Returns the Relation of a given name from a run/state.
-(define (get-relation run-or-state relation-name)
-  (hash-ref (State-relations (get-state run-or-state)) relation-name))
+(define (get-relation run-or-state relation-name-or-rel)
+  (define name
+    (cond [(symbol? relation-name-or-rel) relation-name-or-rel]
+          [(node/expr/relation? relation-name-or-rel)
+           (string->symbol (relation-name relation-name-or-rel))]))
+  (hash-ref (State-relations (get-state run-or-state)) name))
 
 ; get-relations :: (|| Run-spec State) -> List<Relation>
 ; Returns the Relations in a run/state.
