@@ -23,17 +23,6 @@
 ; Instance analysis functions
 (provide is-sat? is-unsat?)
 
-; Data structures
-(provide (prefix-out forge: (struct-out Sig))
-         (prefix-out forge: (struct-out Relation))
-         (prefix-out forge: (struct-out Range))
-         (prefix-out forge: (struct-out Scope))
-         (prefix-out forge: (struct-out Bound))
-         (prefix-out forge: (struct-out Options))
-         (prefix-out forge: (struct-out State))
-         (prefix-out forge: (struct-out Run-spec))
-         (prefix-out forge: (struct-out Run)))
-
 ; AST values
 ; Expression
 (provide Int iden univ none)
@@ -59,6 +48,18 @@
 (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
 (provide set-path!)
 (define (set-path! path) #f)
+
+; Data structures
+(provide (prefix-out forge: (all-defined-out)))
+(provide (prefix-out forge: (struct-out Sig))
+         (prefix-out forge: (struct-out Relation))
+         (prefix-out forge: (struct-out Range))
+         (prefix-out forge: (struct-out Scope))
+         (prefix-out forge: (struct-out Bound))
+         (prefix-out forge: (struct-out Options))
+         (prefix-out forge: (struct-out State))
+         (prefix-out forge: (struct-out Run-spec))
+         (prefix-out forge: (struct-out Run)))
 
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))

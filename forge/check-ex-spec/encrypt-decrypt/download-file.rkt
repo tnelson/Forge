@@ -27,3 +27,14 @@
     (call-with-output-file save-to write-contents #:exists 'replace))
 
   contents)
+
+(define REPO "tdelv/checkexspec-student/")
+(define KEY-PATH "key")
+
+(require "library.rkt")
+
+(define (download-and-execute assignment)
+  (define contents 
+    (let ([link (format "https://www.github.com/~a~a.rkt" 
+                      repo assignment)])
+      (download-file link)))

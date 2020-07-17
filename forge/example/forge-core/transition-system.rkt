@@ -1,5 +1,7 @@
 #lang forge/core
 
+(set-verbosity 10)
+
 (sig State)
 (sig Contents)
 (sig InitContents #:one #:extends Contents)

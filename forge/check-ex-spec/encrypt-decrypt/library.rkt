@@ -12,7 +12,7 @@
 (define (generate-key [just-private #f])
 
   (define rsa-impl (get-pk 'rsa libcrypto-factory))
-  (define privkey (generate-private-key rsa-impl '((nbits 2048))))
+  (define privkey (generate-private-key rsa-impl))
   (define pubkey (pk-key->public-only-key privkey))
 
   (if just-private
@@ -34,6 +34,19 @@
     (void (write key-datum port)))
   (call-with-output-file file-path write-key #:exists 'replace))
 
+; read-key-from-file ;; string boolean -> pk-key
+; Reads the key from the given file.
+(define (read-key-from-file file-path private?)
+  (define format
+    (if private?
+        'rkt-private
+        'rkt-public))
+
+  ; Read contents
+  (define datum (call-with-input-file file-path read))
+
+  (datum->pk-key datum format libcrypto-factory))
+
 
 ; encrypt-file :: pk-key string string -> void
 ; Takes a file, encrypts its contents using the given key,
@@ -42,8 +55,8 @@
   ; Get file contents
   (define (read-contents port)
     (for/list ([n (in-naturals)]
-               #:break (eof-object? (peek-bytes 256 0 port)))
-      (read-bytes 256 port)))
+               #:break (eof-object? (peek-bytes 128 0 port)))
+      (read-bytes 128 port)))
   (define contents (call-with-input-file in-path read-contents)) ; List<bytes>
   
   ; Encrypt conents
@@ -54,7 +67,7 @@
   (define (write-contents port)
     (for ([bstr encrypted])
       (write-bytes bstr port)))
-  (call-with-output-file out-file write-contents #:exists 'replace))
+  (call-with-output-file out-path write-contents #:exists 'replace))
 
 ; decrypt-file :: private-key string -> bytes
 ; Takes an encrypted file and decrypts it with the given key.
@@ -62,24 +75,23 @@
     ; Read contents
     (define (read-contents port)
       (for/list ([n (in-naturals)]
-                 #:break (eof-object? (peek-bytes 256 0 port)))
-        (read-bytes 256 port)))
+                 #:break (eof-object? (peek-bytes 128 0 port)))
+        (read-bytes 128 port)))
     (define contents (call-with-input-file file-path read-contents))
 
     ; Decrypt contents
     (apply bytes-append (map (curry pk-decrypt priv-key ) contents)))
 
-; execute-data :: bytes -> void
+; execute-data :: bytes namespace-anchor -> void
 ; Translates the byte string to a syntax object via a pipe,
 ; and then executes it in the current namespace.
-(define (execute-data bstring)
+(define (execute-data bstring nsa)
   ; Write data to pipe
   (define-values (input-port output-port) (make-pipe))
   (void (write-bytes bstring output-port))
   (close-output-port output-port)
 
   ; Set namespace for eval
-  (define-namespace-anchor nsa)
   (define ns (namespace-anchor->namespace nsa))
 
   ; Read data from pipe and execute
