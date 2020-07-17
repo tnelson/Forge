@@ -47,6 +47,7 @@ inst trans {
     nextState is linear
     contains is func
     -- State = S1 + S2 + S3
+    State in S1 + S2 + S3
     -- #State < 5
     -- 3 < #State
 }

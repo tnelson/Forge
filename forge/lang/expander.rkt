@@ -109,7 +109,7 @@
                  "run" 'run
                  "check" 'check)
 
-  (syntax-parse stx #:datum-literals (Name Parameters QualName Block Scope Bounds Number)
+  (syntax-parse stx #:datum-literals (Name Parameters QualName Block Scope Bounds Number Expr)
     [(CmdDecl (~optional (Name name:id))
               roc:run-or-check
               (~optional (Parameters paras ...))
@@ -117,7 +117,7 @@
               (~optional (Scope (Typescope (~or (~seq "exactly" (Number exact-n)) 
                                                 (Number inexact-n)) 
                                            (QualName sig)) ...))
-              (~optional (Bounds (~optional "exactly") exprs ...)))
+              (~optional (Bounds (~optional "exactly") (Expr (QualName bound-name)) ...)))
      #`(begin
        (define given-preds (and (~? (~? pred (~@ preds ...)))))
        (define run-preds 
@@ -125,7 +125,8 @@
             given-preds
             (not given-preds)))
        (run (~? name temp-name) #:preds [run-preds] 
-                        (~? (~@ #:scope ([sig (~? (~@ exact-n exact-n) inexact-n)] ...))))
+                        (~? (~@ #:scope ([sig (~? (~@ exact-n exact-n) inexact-n)] ...)))
+                        (~? (~@ #:bounds [bound-name ...])))
        (display (~? name temp-name)))]))
      ; (with-syntax ([(exprs2 ...) (datum->syntax #'(exprs ...) (my-expand #'(exprs ...)))])
      ; #`(begin

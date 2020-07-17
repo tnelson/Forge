@@ -1,8 +1,5 @@
 #lang racket/base
 
-; (require racket/runtime-path)
-; (define-runtime-path forge-path "expander.rkt")
-
 (require racket/port)
 
 (define (read-syntax path port)

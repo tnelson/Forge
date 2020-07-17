@@ -242,7 +242,7 @@
 
 ; get-scope :: (|| Run-spec Scope), (|| Sig Symbol) -> Range
 ; Returns the run bound of a Sig, in order:
-; - if it is a one sig, returns (Range 1 1)
+; - if it is Int, then returns (Range 2^bitwidth 2^bitwidth);
 ; - if an explicit bound is given, returns it;
 ; - if a default bound is given; returns it;
 ; - return DEFAULT-SIG-BOUND
@@ -257,16 +257,25 @@
         (Sig-name sig-or-name)
         sig-or-name))
 
-  (let* ([scope-map (Scope-sig-scopes scope)]
-         [default-scope (or (Scope-default-scope scope) DEFAULT-SIG-SCOPE)])
-    (hash-ref scope-map sig-name default-scope)))
+  (if (equal? sig-name 'Int)
+      (let* ([bitwidth (get-bitwidth scope)]
+             [num-ints (expt 2 bitwidth)])
+        (Range num-ints num-ints))
+      (let* ([scope-map (Scope-sig-scopes scope)]
+             [default-scope (or (Scope-default-scope scope) 
+                                DEFAULT-SIG-SCOPE)])
+        (hash-ref scope-map sig-name default-scope))))
 
-; get-bitwidth :: Run-spec -> int
-; Returns the bitwidth for a run, returning the
+; get-bitwidth :: (|| Run-spec Scope) -> int
+; Returns the bitwidth for a run/scope, returning the
 ; DEFAULT-BITWIDTH if none is provided.
-(define (get-bitwidth run-spec)
-  (or (Scope-bitwidth (Run-spec-scope run-spec)))
-      DEFAULT-BITWIDTH)
+(define (get-bitwidth run-spec-or-scope)
+  (define scope
+    (if (Run-spec? run-spec-or-scope)
+        (Run-spec-scope run-spec-or-scope)
+        run-spec-or-scope))
+  (or (Scope-bitwidth scope)
+      DEFAULT-BITWIDTH))
 
 ; get-all-rels :: (|| Run Run-spec) -> List<node/expr/relation>
 ; Returns a list of all sigs, then all relations, as
@@ -466,9 +475,9 @@
                        [hi (list upper ...)])
               (values name (Range lo hi))))
           (~@ (hash))))
-        (define bitwidth (if (hash-has-key? sig-scopes 'int)
-                             (begin0 (hash-ref sig-scopes 'int)
-                                     (set! sig-scopes (hash-remove sig-scopes 'int)))
+        (define bitwidth (if (hash-has-key? sig-scopes 'Int)
+                             (begin0 (Range-upper (hash-ref sig-scopes 'Int))
+                                     (set! sig-scopes (hash-remove sig-scopes 'Int)))
                              #f))
         (define default-sig-scope (if (hash-has-key? sig-scopes 'default)
                                       (begin0 (hash-ref sig-scopes 'default)
@@ -679,9 +688,10 @@
   (when (hash-has-key? old-pbindings rel)
     (let ([old (hash-ref old-pbindings rel)])
       (set! lower (set-union lower (sbound-lower old)))
-      (set! upper (if upper
-                      (set-intersect upper (sbound-upper old))
-                      (sbound-upper old)))))
+      (set! upper (cond [(@and upper (sbound-upper old))
+                         (set-intersect upper (sbound-upper old))]
+                        [else (@or upper (sbound-upper old))]))))
+  
 
   (unless (@or (@not upper) (subset? lower upper))
     (raise "Bound conflict."))
@@ -830,12 +840,15 @@
   ; Send user defined partial bindings to breaks
   (map instance (hash-values pbindings))
 
+  (printf "PBINDINGS ~a~n" pbindings)
+  (printf "OG TBINDINGS ~a~n" (Bound-tbindings (Run-spec-bounds run-spec)))
   (define tbindings 
     (for/fold ([tbindings (Bound-tbindings (Run-spec-bounds run-spec))])
-              ([(name sb) (in-hash pbindings)])
+              ([(rel sb) (in-hash pbindings)])
       ; this nonsense is just for atom names
+      (define name (string->symbol (relation-name rel)))
       (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup)))))
-
+  (printf "TBINDINGS ~a~n" tbindings)
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
     (get-sig-bounds run-spec tbindings))
@@ -1003,7 +1016,7 @@
     (if (hash-has-key? tbindings (Sig-name sig))
         (let ([bind-names (hash-ref tbindings (Sig-name sig))])
           (if (@< atom-number (length bind-names))
-              (first (list-ref bind-names atom-number))
+              (list-ref bind-names atom-number)
               default-name))
         default-name))
   ; Sig, int -> List<Symbol>
@@ -1096,15 +1109,19 @@
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
 
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
-; Creates assertions for each non-top-level Sig to restrict
-; it to the correct upper bound.
+; Creates assertions for each Sig to restrict
+; it to the correct lower/upper bound.
 (define (get-sig-size-preds run-spec) 
-  (define extender-sigs (filter Sig-extends (get-sigs run-spec)))
-
-  (for/list ([sig extender-sigs])
-    (define upper-bound 
-      (Range-upper (get-scope run-spec sig)))
-    (<= (card (Sig-rel sig)) (node/int/constant upper-bound))))
+  (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
+  (for/list ([sig (get-sigs run-spec)]
+             #:unless (equal? (Sig-name sig) 'Int))
+    (match-define (Range lower upper) (get-scope run-spec sig))
+    (unless (@< upper max-int)
+      (raise (format (string-append "Upper bound too large for given BitWidth; "
+                                    "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
+                     sig upper (sub1 max-int))))
+    (and (<= (node/int/constant lower) (card (Sig-rel sig)))
+         (<= (card (Sig-rel sig)) (node/int/constant upper)))))
 
 ; get-extender-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig which has extending Sigs so that:
