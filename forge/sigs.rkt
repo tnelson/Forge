@@ -171,9 +171,46 @@
 ;;;;;; State Accessors ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Some type definitions for simplification of documentation:
-; Run-or-State :: (|| Run Run-spec State)
-; AST-Relation :: node/expr/Relation
+
+#|
+type AST-Relation = node/expr/Relation
+type Sig* = (|| Sig AST-Relation)
+type Relation* = (|| Relation AST-Relation)
+type Run-or-State = (|| Run State)
+
+get-state :: Run-or-State -> State
+If run-or-state is a State, returns it;
+if it is a Run-spec or a Run, then returns its state.
+
+get-sig :: Run-or-State (|| Symbol AST-Relation) -> Sig
+Returns the Sig of a given name/ast-relation from a run/state.
+
+get-sigs :: Run-or-State, Relation*? -> List<Sig>
+If a relation is provided, returns the column sigs;
+otherwise, returns the Sigs of the given relation in a run/state.
+
+get-top-level-sigs :: Run-or-State -> List<Sig>
+Returns the Sigs in a run/state that do not extend another Sig.
+
+get-fields :: Run-or-State Sig*) -> List<Relation>
+Returns the relations whose first sig is the given sig.
+
+get-relation :: Run-or-State, (|| Symbol AST-Relation) -> Relation
+Returns the Relation of a given name/ast-relation from a run/state.
+
+get-relations :: Run-or-State -> List<Relation>
+Returns the Relations in a run/state.
+
+get-children :: Run-or-State, Sig* -> List<Sig>
+Returns the children Sigs of a Sig.
+
+get-result :: Run -> Stream
+Returns a stream of instances for the given run.
+
+is-sat? :: Run -> boolean
+is-unsat? :: Run -> boolean
+Returns whether the given run resulted in sat or unsat, respectively.
+|#
 
 ; get-state :: Run-or-State -> State
 ; If run-or-state is a State, returns it;
@@ -186,38 +223,38 @@
         [(State? run-or-state)
          run-or-state]))
 
-; get-sig :: Run-or-State (|| Symbol AST-Relation) -> Sig
+; get-sig :: Run-or-State (|| Symbol Sig*) -> Sig
 ; Returns the Sig of a given name/ast-relation from a run/state.
 (define (get-sig run-or-state sig-name-or-rel)
   (define sig-name
     (cond [(symbol? sig-name-or-rel) sig-name-or-rel]
           [(node/expr/relation? sig-name-or-rel)
-           (string->symbol (relation-name sig-name-or-rel))]))
+           (string->symbol (relation-name sig-name-or-rel))]
+          [(Sig? sig-name-or-rel)
+           (Sig-name sig-name-or-rel)]))
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 
-; get-sigs :: Run-or-State, Relation? -> List<Sig>
+; get-sigs :: Run-or-State, Relation*? -> List<Sig>
 ; If a relation is provided, returns the column sigs;
 ; otherwise, returns the Sigs of the given relation in a run/state.
 (define (get-sigs run-or-state [relation #f])
   (define state (get-state run-or-state))
   (if relation
-      (map (curry get-sig state) (Relation-sigs relation))
+      (map (curry get-sig state) 
+           (Relation-sigs (get-relation state relation)))
       (map (curry hash-ref (State-sigs state )) 
            (State-sig-order state))))
 
-; get-top-level-sigs :: (|| Run-spec State) -> List<Sig>
+; get-top-level-sigs :: Run-or-State -> List<Sig>
 ; Returns the Sigs in a run/state that do not extend another Sig.
 (define (get-top-level-sigs run-or-state)
   (filter (compose @not Sig-extends) (get-sigs run-or-state)))
 
-; get-fields :: (|| Sig AST-Relation) Run-or-State -> List<Relation>
-(define (get-fields sig-or-rel run-or-state)
+; get-fields :: Run-or-State Sig* -> List<Relation>
+; Returns the relations whose first sig is the given sig.
+(define (get-fields run-or-state sig-or-rel)
   (define state (get-state run-or-state))
-  (define sig 
-    (cond [(Sig? sig-or-rel)
-           sig-or-rel]
-          [(node/expr/relation? sig-or-rel)
-           (get-sig state sig-or-rel)]))
+  (define sig (get-sig state sig-or-rel))
   (define relations (get-relations state))
 
   (for/list ([relation relations]
@@ -225,13 +262,15 @@
                             sig))
     relation))
 
-; get-relation :: Run-or-State, (|| Symbol AST-Relation) -> Relation
+; get-relation :: Run-or-State, (|| Symbol Relation*) -> Relation
 ; Returns the Relation of a given name/ast-relation from a run/state.
 (define (get-relation run-or-state relation-name-or-rel)
   (define name
     (cond [(symbol? relation-name-or-rel) relation-name-or-rel]
           [(node/expr/relation? relation-name-or-rel)
-           (string->symbol (relation-name relation-name-or-rel))]))
+           (string->symbol (relation-name relation-name-or-rel))]
+          [(Relation? relation-name-or-rel)
+           (Relation-name relation-name-or-rel)]))
   (hash-ref (State-relations (get-state run-or-state)) name))
 
 ; get-relations :: Run-or-State -> List<Relation>
@@ -241,11 +280,17 @@
   (map (curry hash-ref (State-relations state) ) 
        (State-relation-order state)))
 
-; get-children :: Run-or-State, Sig -> List<Sig>
+; get-children :: Run-or-State, Sig* -> List<Sig>
 ; Returns the children Sigs of a Sig.
-(define (get-children run-or-state sig)
+(define (get-children run-or-state sig-or-rel)
+  (define children-names (Sig-extenders (get-sig state sig-or-rel)))
   (define sig-map (State-sigs (get-state run-or-state)))
-  (map (curry hash-ref sig-map) (Sig-extenders sig)))
+  (map (curry hash-ref sig-map) children-names))
+
+; get-result :: Run -> Stream
+; Returns a stream of instances for the given run.
+(define (get-result run)
+  (Run-result run))
 
 ; get-pbinding :: Run-spec, Sig -> (|| List<List<Symbol>> #f)
 ; Returns the partial binding in a given Run-spec

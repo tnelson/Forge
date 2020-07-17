@@ -60,4 +60,4 @@
     relation)) ; You can grab what you want from each field here
 
 (get-fields State transition-run)
-(forge:get-fields State transition-run)
+(forge:get-fields transition-run (forge:get-sig transition-run State))
