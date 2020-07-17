@@ -171,17 +171,24 @@
 ;;;;;; State Accessors ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; get-state :: (|| Run-spec State) -> State
+; get-state :: (|| Run Run-spec State) -> State
 ; If run-or-state is a State, returns it;
 ; if it is a Run-spec, then returns its state.
 (define (get-state run-or-state)
-  (if (Run-spec? run-or-state)
-      (Run-spec-state run-or-state)
-      run-or-state))
+  (cond [(Run? run-or-state)
+         (Run-spec-state (Run-run-spec run-or-state))]
+        [(Run-spec? run-or-state)
+         (Run-spec-state run-or-state)]
+        [(State? run-or-state)
+         run-or-state]))
 
-; get-sig :: (|| Run-spec State), Symbol -> Sig
+; get-sig :: (|| Run-spec State), (|| Symbol node/expr/relation) -> Sig
 ; Returns the Sig of a given name from a run/state.
-(define (get-sig run-or-state sig-name)
+(define (get-sig run-or-state sig-name-or-rel)
+  (define sig-name
+    (cond [(symbol? sig-name-or-rel) sig-name-or-rel]
+          [(node/expr/relation? sig-name-or-rel)
+           (string->symbol (relation-name sig-name-or-rel))]))
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 
 ; get-sigs :: (|| Run-spec State), Relation? -> List<Sig>
