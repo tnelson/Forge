@@ -1,13 +1,18 @@
-#lang racket
-
-(require "../../../sigs.rkt")
+#lang forge/core
 
 (sig A)
 (sig B)
 
-(test singleSig ((somg A)) 'sat)
-(test doubleSig ((somg A) (somg B)) 'sat)
+(test singleSig 
+      #:preds [(some A)] 
+      sat)
+(test doubleSig 
+      #:preds [(some A) (some B)] 
+      sat)
 
-(test sigsDisjoint ((some (& A B))) 'sat)
-; (check sigsSpanUniv ((= univ (+ A B Int)))) ; CURRENTLY BUGGED
+(check sigsDisjoint 
+       #:preds [(no (& A B))])
+
+; (check sigsSpanUniv
+;        #:preds [(= univ (+ A B Int))]) ; CURRENTLY BUGGED
 

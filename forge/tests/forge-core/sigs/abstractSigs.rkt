@@ -1,16 +1,20 @@
-#lang racket
-
-(require "../../../sigs.rkt")
+#lang forge/core
 
 (sig Abstract #:abstract)
 (sig Extension1 #:extends Abstract)
 (sig Extension2 #:extends Abstract)
 
-(check abstractEnforced ((= Abstract (+ Extension1 Extension2))))
-(test extensionsAllowed ((some Extension1)) 'sat)
-(check emptyExtensionsEmptyAbstract ((=> (no (+ Extension1 Extension2)) (no Abstract))))
+(check abstractEnforced 
+       #:preds [(= Abstract (+ Extension1 Extension2))])
+(test extensionsAllowed 
+      #:preds [(some Extension1)] 
+      sat)
+(check emptyExtensionsEmptyAbstract 
+       #:preds [(=> (no (+ Extension1 Extension2)) (no Abstract))])
 
 
 (sig Unextended #:abstract)
 
-(test unextendedCanPopulate ((some Unextended)) 'sat)
+(test unextendedCanPopulate 
+      #:preds [(some Unextended)]
+      sat)

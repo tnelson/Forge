@@ -597,6 +597,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ;       [|| sat unsat]))
 (define-syntax-rule (test name args ... sat-or-unsat)
   (begin
+    (unless (member 'sat-or-unsat '(sat unsat))
+      (raise (format "Illegal argument to test. Received ~a, expected sat or unsat."
+                     'sat-or-unsat)))
     (run name args ...)
     (define first-instance (stream-first (Run-result name)))
     (when (@not (equal? (car first-instance) 'sat-or-unsat))
@@ -932,15 +935,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Send user defined partial bindings to breaks
   (map instance (hash-values pbindings))
 
-  (printf "PBINDINGS ~a~n" pbindings)
-  (printf "OG TBINDINGS ~a~n" (Bound-tbindings (Run-spec-bounds run-spec)))
   (define tbindings 
     (for/fold ([tbindings (Bound-tbindings (Run-spec-bounds run-spec))])
               ([(rel sb) (in-hash pbindings)])
       ; this nonsense is just for atom names
       (define name (string->symbol (relation-name rel)))
       (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup)))))
-  (printf "TBINDINGS ~a~n" tbindings)
+
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
     (get-sig-bounds run-spec tbindings))
