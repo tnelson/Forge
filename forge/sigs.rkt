@@ -971,6 +971,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                         #:when (Sig-extends sig))
                                (values (Sig-rel sig) (Sig-rel (get-sig run-spec (Sig-extends sig)))))])
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
+  (clear-breaker-state)
 
   (define sigs-and-rels
     (append (State-sig-order (Run-spec-state run-spec))
@@ -980,6 +981,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                      (equal? name (string->symbol (relation-name (bound-relation b)))))
                                    total-bounds)) 
                           sigs-and-rels))
+
+  (displayln "--------------------------")
+  (printf "Original PBindings: ~n~a~n~n" (Bound-pbindings (Run-spec-bounds run-spec)))
+  (printf "Fixed PBindings: ~n~a~n~n" pbindings)
+  (printf "Original TBindings: ~n~a~n~n" (Bound-tbindings (Run-spec-bounds run-spec)))
+  (printf "Fixed TBindings: ~n~a~n~n" tbindings)
+  (printf "sig-to-bound: ~n~a~n~n" sig-to-bound)
+  (printf "relation-to-bound: ~n~a~n~n" relation-to-bound)
+  (printf "all-atoms: ~n~a~n~n" all-atoms)
+  (displayln "--------------------------")
 
 
   #| Print to KodKod-CLI
@@ -1034,6 +1045,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define atoms 
       (for/list ([tup atom-names])
         (for/list ([atom tup])
+          (unless (member atom all-atoms)
+            (raise (format "atom (~a) not in all-atoms (~a)"
+                           atom all-atoms)))
           (index-of all-atoms atom))))
     (define ret (to-tupleset arity atoms))
     ret)
@@ -1111,7 +1125,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (let ([bind-names (hash-ref tbindings (Sig-name sig))])
           (if (@< atom-number (length bind-names))
               (list-ref bind-names atom-number)
-              default-name))
+              (if (member default-name bind-names) ; Avoid clash with user atom names
+                  (get-next-name sig)
+                  default-name)))
         default-name))
   ; Sig, int -> List<Symbol>
   (define (get-next-names sig num)
