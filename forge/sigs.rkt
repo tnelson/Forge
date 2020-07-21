@@ -18,7 +18,7 @@
          "translate-from-kodkod-cli.rkt")
 
 ; Commands
-(provide sig relation fun const pred run #|test|# #|check|# display inst with evaluate)
+(provide sig relation fun const pred run test check display inst with evaluate)
 
 ; Instance analysis functions
 (provide is-sat? is-unsat?)
@@ -590,26 +590,32 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define name (Run run-name run-command run-spec run-result atom-rels)))]))
 
 ; Test that a spec is sat or unsat
-; (run name
-;      [#:pred [(pred ...)]] 
-;      [#:scope [((sig [lower 0] upper) ...)]]
-;      [#:inst instance-name]
-;      [|| sat unsat]))
-(define-syntax (test stx)
-  (define-syntax-class sat-or-unsat
-    (pattern (~and (~or (~literal sat) (~literal unsat)) value)
-      #:with val 'value))
-  (syntax-parse stx
-    [(test name:id 
-           (~alt
-            (~optional (~seq #:preds (pred:expr ...)))
-            (~optional (~seq #:bounds ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
-            (~optional (~seq #:inst inst:expr))) ...
-           sou:sat-or-unsat)
-     #'(begin
-       (run temp-run (~? (~@ #:preds (pred ...)) (~@)) (~? (~@ #:bounds ([sig lower upper] ...)) (~@)) (~? (~@ #:inst inst) (~@)))
-       (define first-instance (stream-first (Run-result temp-run)))
-       (when (@not (equal? (car first-instance) sou.val)) (raise "Failed test")))]))
+; (test name
+;       [#:preds [(pred ...)]] 
+;       [#:scope [((sig [lower 0] upper) ...)]]
+;       [#:bounds [bound ...]]
+;       [|| sat unsat]))
+(define-syntax-rule (test name args ... sat-or-unsat)
+  (begin
+    (run name args ...)
+    (define first-instance (stream-first (Run-result name)))
+    (when (@not (equal? (car first-instance) 'sat-or-unsat))
+      (raise (format "Failed test ~a. Expected ~a, got ~a."
+                     'name 'sat-or-unsat (car first-instance))))))
+
+; Checks that some predicates are always true.
+; (check name
+;        #:preds [(pred ...)]
+;        [#:scope [((sig [lower 0] upper) ...)]]
+;        [#:bounds [bound ...]]))
+(define-syntax-rule (check name #:preds (preds ...) 
+                                args ...)
+  (begin
+    (run name #:preds [(or (not preds) ...)] args ...)
+    (define first-instance (stream-first (Run-result name)))
+    (when (@not (equal? (car first-instance) 'unsat))
+      (raise (format "Failed check ~a." 'name)))))
+
 
 ; Exprimental: Run in the context of a given external Forge spec
 ; (with path-to-forge-spec commands ...)
