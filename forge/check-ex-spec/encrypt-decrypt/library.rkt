@@ -54,11 +54,11 @@
 (define (encrypt-file key in-path out-path)
   ; Get file contents
   (define (read-contents port)
-    (for/list ([n (in-naturals)]
+    (for/list ([n (in-naturals)] ; 128 bytes here is small enough to encrypt
                #:break (eof-object? (peek-bytes 128 0 port)))
       (read-bytes 128 port)))
   (define contents (call-with-input-file in-path read-contents)) ; List<bytes>
-  
+
   ; Encrypt conents
   (define encrypted ; List<bytes>
     (map (curry pk-encrypt key ) contents))
@@ -74,13 +74,17 @@
 (define (decrypt-file priv-key file-path)
     ; Read contents
     (define (read-contents port)
-      (for/list ([n (in-naturals)]
-                 #:break (eof-object? (peek-bytes 128 0 port)))
-        (read-bytes 128 port)))
+      (for/list ([n (in-naturals)] ; 256 bytes here is length of encrypted text
+                 #:break (eof-object? (peek-bytes 256 0 port)))
+        (read-bytes 256 port)))
     (define contents (call-with-input-file file-path read-contents))
 
     ; Decrypt contents
-    (apply bytes-append (map (curry pk-decrypt priv-key ) contents)))
+    (define decrypted 
+      (for/list ([bstr contents])
+        (pk-decrypt priv-key bstr)))
+    (apply bytes-append decrypted))
+
 
 ; execute-data :: bytes namespace-anchor -> void
 ; Translates the byte string to a syntax object via a pipe,

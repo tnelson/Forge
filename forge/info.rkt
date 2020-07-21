@@ -17,7 +17,7 @@
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
-(define compile-omit-paths '("check-ex-spec" "example" "examples" "doc" "tests" "kodkod-cli/out"))
+(define compile-omit-paths '("example" "examples" "doc" "tests" "kodkod-cli/out"))
 
 (define test-omit-paths '("compiled" "demo" "docs" "examples" "kodkod-cli"
 	                      "racket-rfc6455" "server" "sterling" "sterling-js"))
