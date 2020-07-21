@@ -65,9 +65,9 @@
     (ifte false false true)
     (not (ifte false false false)))
 
-(check basicTrueFalse [TrueFalse])
-(check notOps [Not])
-(check andOps [And])
-(check orOps [Or])
-(check impliesOps [Implies])
+(check basicTrueFalse #:preds [TrueFalse])
+(check notOps #:preds [Not])
+(check andOps #:preds [And])
+(check orOps #:preds [Or])
+(check impliesOps #:preds [Implies])
 

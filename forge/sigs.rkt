@@ -447,6 +447,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 
 ;; AST macros
+(define-simple-macro (implies a b) (=> a b))
 (define-simple-macro (iff a b) (and (=> a b) (=> b a)))
 (define-simple-macro (<=> a b) (and (=> a b) (=> b a)))
 (define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
