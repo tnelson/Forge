@@ -1,27 +1,45 @@
-#lang forge
+#lang forge/core
 
-sig A {
-    otherA: one A
-}
+(sig A)
+(relation otherA (A A))
 
-sig B {
-    otherB: one A
-}
+(sig B)
+(relation otherB (B A))
 
-pred ComprehensionsOnSigs {
-    {a: A | a->a in otherA} = A.(otherA & iden)
-}
+(inst relations
+    (is otherA func)
+    (is otherB func))
 
-pred ComprehensionsOnSets {
-    {x: A + B | some y: A | x.otherA = y or x.otherB = y} = (otherA + otherB).A
-}
+(pred ComprehensionsOnSigs
+    (= (set ([a A])
+           (in (-> a a) otherA))
+       (join A (& otherA iden))))
 
-pred MultiComprehension {
-    {b: B, a: A | some c: A | b->c in otherB and c->a in otherA} = otherB.otherA
-}
+(pred ComprehensionsOnSets
+    (= (set ([x (+ A B)])
+           (some ([y A])
+               (or (= (join x otherA)
+                      y)
+                   (= (join x otherB)
+                      y))))
+       (join (+ otherA otherB)
+             A)))
 
-test expect {
-    comprehensionsOnSigs : {not ComprehensionsOnSigs} is unsat
-    comprehensionsOnSets : {not ComprehensionsOnSets} is unsat
-    multiComprehension : {not MultiComprehension} is unsat
-}
+(pred MultiComprehension
+    (= (set ([b B] [a A])
+           (some ([c A])
+               (and (in (-> b c)
+                        otherB)
+                    (in (-> c a)
+                        otherA))))
+       (join otherB otherA)))
+
+(check comprehensionsOnSigs 
+       #:preds [ComprehensionsOnSigs]
+       #:bounds [relations])
+(check comprehensionsOnSets
+       #:preds [ComprehensionsOnSets]
+       #:bounds [relations])
+(check multiComprehension
+       #:preds [MultiComprehension]
+       #:bounds [relations])

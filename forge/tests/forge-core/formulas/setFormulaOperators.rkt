@@ -1,6 +1,4 @@
-#lang racket
-
-(require "../../../sigs.rkt")
+#lang forge/core
 
 (sig Node)
 (relation edges (Node Node))
@@ -76,6 +74,6 @@
         (implies (!ni (join n1 edges) (join n2 edges))
                  (not (ni (join n1 edges) (join n2 edges))))))
 
-(check InOps [In])
-(check EqualsOp [Equals])
-(check ComboNotOps [ComboNot])
+(check InOps #:preds [In])
+(check EqualsOp #:preds [Equals])
+(check ComboNotOps #:preds [ComboNot])
