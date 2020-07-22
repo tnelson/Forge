@@ -982,15 +982,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                    total-bounds)) 
                           sigs-and-rels))
 
-  (displayln "--------------------------")
-  (printf "Original PBindings: ~n~a~n~n" (Bound-pbindings (Run-spec-bounds run-spec)))
-  (printf "Fixed PBindings: ~n~a~n~n" pbindings)
-  (printf "Original TBindings: ~n~a~n~n" (Bound-tbindings (Run-spec-bounds run-spec)))
-  (printf "Fixed TBindings: ~n~a~n~n" tbindings)
-  (printf "sig-to-bound: ~n~a~n~n" sig-to-bound)
-  (printf "relation-to-bound: ~n~a~n~n" relation-to-bound)
-  (printf "all-atoms: ~n~a~n~n" all-atoms)
-  (displayln "--------------------------")
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (displayln "--------------------------")
+    (printf "Original PBindings: ~n~a~n~n" (Bound-pbindings (Run-spec-bounds run-spec)))
+    (printf "Fixed PBindings: ~n~a~n~n" pbindings)
+    (printf "Original TBindings: ~n~a~n~n" (Bound-tbindings (Run-spec-bounds run-spec)))
+    (printf "Fixed TBindings: ~n~a~n~n" tbindings)
+    (printf "sig-to-bound: ~n~a~n~n" sig-to-bound)
+    (printf "relation-to-bound: ~n~a~n~n" relation-to-bound)
+    (printf "all-atoms: ~n~a~n~n" all-atoms)
+    (displayln "--------------------------"))
 
 
   #| Print to KodKod-CLI
