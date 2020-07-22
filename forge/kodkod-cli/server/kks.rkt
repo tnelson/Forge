@@ -166,7 +166,7 @@
     [(list (== 'no-more-instances))
      (cons 'no-more-instances #f)]
     [(== eof)
-     (error "Kodkod CLI shut down unexpectedly!")]
+     (error "Kodkod CLI shut down unexpectedly while running!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
 
 (define (read-evaluation port)
@@ -179,4 +179,6 @@
     [(list (== 'evaluated) (== ':int-expression) val)
      (cons 'int-expression val)]
     [(list (== 'evaluated) (== ':formula) val)
-     (cons 'formula (equal? val 'true))]))
+     (cons 'formula (equal? val 'true))]
+    [(== eof)
+     (error "Kodkod CLI shut down unexpectedly while evaluating!")]))

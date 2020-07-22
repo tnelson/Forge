@@ -28,14 +28,12 @@
 
 ; A helper for recursively expanding syntax when possible
 (define-for-syntax (my-expand expr)
-  (printf "Expr: ~a~n" expr)
   ; (when (syntax-tainted? expr)
   ;   (printf "Tainted syntax: ~a~n" expr))
   (define expanded (local-expand expr 'expression #f))
   (define result (datum->syntax expr (if (list? (syntax-e expanded))
                           (map my-expand (syntax-e expanded))
                           expanded)))
-  (printf "Result: ~a~n" result)
   result)
 
 

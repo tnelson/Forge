@@ -633,6 +633,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (update-state! temp-state))]))
 
 (define (evaluate run instance expression)
+  (unless (is-sat? run)
+    (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))
   (define-values (expr-name interpretter)
     (cond [(node/expr? expression) (begin0
            (values (e (current-expression))
@@ -1046,6 +1048,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define atoms 
       (for/list ([tup atom-names])
         (for/list ([atom tup])
+          ; Used to allow using ints in instances.
+          (when (int-atom? atom)
+            (set! atom (int-atom-n atom)))
+
           (unless (member atom all-atoms)
             (raise (format "atom (~a) not in all-atoms (~a)"
                            atom all-atoms)))
@@ -1176,6 +1182,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (range (- max-int) max-int)))
   (hash-set! sig-to-lower 'Int int-atoms)
   (hash-set! sig-to-upper 'Int int-atoms)
+
+  ; Start: Used to allow extending Ints.
+  (for ([sig (get-children run-spec Int)])
+    (hash-set! sig-to-lower (Sig-name sig) '())
+    (hash-set! sig-to-upper (Sig-name sig) int-atoms))
+  ; End: Used to allow extending Ints.
 
   (define top-level-sigs (get-top-level-sigs run-spec))
   (define sig-atoms (apply append
