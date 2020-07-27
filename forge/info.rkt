@@ -19,5 +19,4 @@
 
 (define compile-omit-paths '("example" "examples" "doc" "tests" "kodkod-cli/out"))
 
-(define test-omit-paths '("compiled" "demo" "docs" "examples" "kodkod-cli"
-	                      "racket-rfc6455" "server" "sterling" "sterling-js"))
+(define test-omit-paths 'all)
