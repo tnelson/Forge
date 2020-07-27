@@ -576,7 +576,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define base-scope (Scope default-sig-scope bitwidth sig-scopes))
 
         (define default-bound
-          (let* ([max-int (expt 2 (sub1 bitwidth))]
+          (let* ([max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
                  [ints (map int-atom (range (- max-int) max-int))]
                  [succs (map list (reverse (rest (reverse ints)))
                                     (rest ints))])
