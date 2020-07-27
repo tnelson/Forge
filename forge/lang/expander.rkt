@@ -29,10 +29,19 @@
   (make-token abstract-tok "abstract" #:abstract))
 
 (define-for-syntax (my-expand stx)
-  (define forge-core-macros
-    (list #'<= #'is #'= #'in #'ni
-          #'card #'node/int/constant))
-  (define result (local-expand stx 'expression #f))
+  (define core-funcs-and-macros
+    (map (curry datum->syntax stx)
+         '(^ * ~ + - & join
+           -> => implies ! not and or && || ifte iff <=>
+           = in ni != !in !ni is
+           no some one lone all set two
+           < > int= >= <=
+           add subtract multiply divide sign abs remainder
+           card sum sing succ max min sum-quant
+           node/int/constant
+           let)))
+
+  (define result (local-expand stx 'expression core-funcs-and-macros))
   result)
 
 
@@ -132,10 +141,10 @@
 
   ; ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
   (define-syntax-class ArrowMultClass
-    (pattern ((~literal ArrowMult) "lone") #:attr symbol #'#:lone)
-    (pattern ((~literal ArrowMult) "set") #:attr symbol #'#:set)
-    (pattern ((~literal ArrowMult) "one") #:attr symbol #'#:one)
-    (pattern ((~literal ArrowMult) "two") #:attr symbol #'#:two))
+    (pattern ((~literal ArrowMult) "lone") #:attr symbol #'pfunc)
+    (pattern ((~literal ArrowMult) "set") #:attr symbol #'default)
+    (pattern ((~literal ArrowMult) "one") #:attr symbol #'func)
+    (pattern ((~literal ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
 
   ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
   (define-syntax-class DeclClass
@@ -164,10 +173,11 @@
               (~optional "disj")
               name-list:NameListClass
               (~optional "disj")
-              mult:ArrowMultClass
+              mult-class:ArrowMultClass
               type-list:ArrowExprClass)
       #:attr names #'(name-list.names ...)
-      #:attr types #'type-list.names))
+      #:attr types #'type-list.names
+      #:attr mult #'mult-class.symbol))
 
   ; ArrowDeclList : ArrowDecl
   ;               | ArrowDecl /COMMA-TOK @ArrowDeclList
@@ -507,17 +517,16 @@
    #,@(apply append
         (for/list ([sig-name (syntax->list #'(sig-names.names ...))]
                    #:when #t
-                   ; [relation-decl (syntax->list #'(arrow-decl ...))]
                    [relation-names (syntax->list #'(arrow-decl.names ...))]
-                   [relation-types (syntax->list #'(arrow-decl.types ...))])
-          (with-syntax ([sig-name sig-name]
-                        ; [relation-names relation-names]
-                        [relation-types (datum->syntax relation-types 
-                                                       (cons (syntax->datum sig-name)
-                                                             (syntax->list relation-types)))])
-            (for/list ([relation-name (syntax->list relation-names)])
-              (with-syntax ([relation-name relation-name])
-                #'(relation relation-name relation-types)))))))])
+                   [relation-types (syntax->list #'(arrow-decl.types ...))]
+                   [relation-mult (syntax->list #'((~? arrow-decl.mult default) ...))])
+          (for/list ([relation-name (syntax->list relation-names)])
+            (with-syntax ([relation-name relation-name]
+                          [relation-types (datum->syntax relation-types 
+                                                         (cons (syntax->datum sig-name)
+                                                               (syntax->list relation-types)))]
+                          [relation-mult relation-mult])
+              #'(relation relation-name relation-types #:is relation-mult))))))])
    
 ; RelDecl : ArrowDecl
 (define-syntax-parser RelDecl
