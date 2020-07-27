@@ -18,7 +18,8 @@
          "translate-from-kodkod-cli.rkt")
 
 ; Commands
-(provide sig relation fun const pred run test check display inst with evaluate)
+(provide sig relation fun const pred inst)
+(provide run test check display with evaluate)
 
 ; Instance analysis functions
 (provide is-sat? is-unsat?)
@@ -50,7 +51,6 @@
 (define (set-path! path) #f)
 
 ; Data structures
-(provide (prefix-out forge: (all-defined-out)))
 (provide (prefix-out forge: (struct-out Sig))
          (prefix-out forge: (struct-out Relation))
          (prefix-out forge: (struct-out Range))
@@ -60,6 +60,9 @@
          (prefix-out forge: (struct-out State))
          (prefix-out forge: (struct-out Run-spec))
          (prefix-out forge: (struct-out Run)))
+
+; Export everything for doing scripting
+(provide (prefix-out forge: (all-defined-out)))
 
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
@@ -573,7 +576,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define base-scope (Scope default-sig-scope bitwidth sig-scopes))
 
         (define default-bound
-          (Bound (hash) (hash)))
+          (let* ([max-int (expt 2 (sub1 bitwidth))]
+                 [ints (map int-atom (range (- max-int) max-int))]
+                 [succs (map list (reverse (rest (reverse ints)))
+                                    (rest ints))])
+            (Bound (hash)
+                   (hash 'Int (map list ints)
+                         'succ succs))))
         (define (run-inst scope bounds)
           (for ([sigg (get-sigs run-state)])
             (when (Sig-one sigg)
@@ -833,18 +842,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(lone rel) #`(bind #,scope #,bound (<= (card rel) 1))]
 
     [(= (card rel) n)
-     #`(let* ([exact (caar (eval-exp 'n (Bound-tbindings #,bound) 8 #f))]
+     #`(let* ([exact (eval-int-expr 'n (Bound-tbindings #,bound) 8)]
               [new-scope (update-int-bound #,scope rel (Range exact exact))])
          (values new-scope #,bound))]
 
     [(<= (card rel) upper)
-     #`(let* ([upper-val (caar (eval-exp 'upper (Bound-tbindings #,bound) 8 #f))]
+     #`(let* ([upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
               [new-scope (update-int-bound #,scope rel (Range 0 upper-val))])
          (values new-scope #,bound))]
 
     [(<= lower (card rel) upper)
-     #`(let* ([lower-val (caar (eval-exp 'lower (Bound-tbindings #,bound) 8 #f))]
-              [upper-val (caar (eval-exp 'upper (Bound-tbindings #,bound) 8 #f))]
+     #`(let* ([lower-val (eval-int-expr 'lower (Bound-tbindings #,bound) 8)]
+              [upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
               [new-scope (update-int-bound #,scope rel (Range lower-val upper-val))])
          (values new-scope #,bound))]
 
@@ -939,11 +948,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (map instance (hash-values pbindings))
 
   (define tbindings 
-    (for/fold ([tbindings (Bound-tbindings (Run-spec-bounds run-spec))])
-              ([(rel sb) (in-hash pbindings)])
-      ; this nonsense is just for atom names
-      (define name (string->symbol (relation-name rel)))
-      (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup)))))
+    (let* ([init-tbindings (Bound-tbindings (Run-spec-bounds run-spec))]
+           [fixed-init-tbindings (hash-remove (hash-remove init-tbindings 'Int) 'succ)])
+      (for/fold ([tbindings fixed-init-tbindings])
+                ([(rel sb) (in-hash pbindings)])
+        ; this nonsense is just for atom names
+        (define name (string->symbol (relation-name rel)))
+        (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup))))))
 
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>

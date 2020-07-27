@@ -2,14 +2,14 @@
 
 option verbosity 10
 
-sig Node {
-    edges: set Color->Node
-}
-
 abstract sig Color {}
 one sig Red extends Color {}
 one sig Green extends Color {}
 one sig Blue extends Color {}
+
+sig Node {
+    edges: set Color->Node
+}
 
 
 -- (Color) -> (Node Node)
