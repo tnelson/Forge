@@ -566,7 +566,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
         (define sig-scopes (~? 
           (~@
-            (for/hash ([name (list 'sig ...)]
+            (for/hash ([name (list (Sig-name (get-sig curr-state sig)) ...)]
                        [lo (list lower ...)]
                        [hi (list upper ...)])
               (values name (Range lo hi))))
