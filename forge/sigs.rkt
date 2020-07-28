@@ -484,7 +484,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define true-name 'name)
         (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
-        (define true-parent (~? (~@ 'parent) (~@ #f)))
+        (define true-parent (~? (Sig-name (get-sig curr-state parent))
+                                #f))
         (define name (declare-relation (list (symbol->string true-name))
                                        (symbol->string (or true-parent 'univ))
                                        (symbol->string true-name)))
@@ -498,7 +499,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
                (~optional (~seq #:is breaker:id)))
      #'(begin
        (define true-name 'name)
-       (define true-sigs (list 'sig1 'sig2 'sigs ...))
+       (define true-sigs (map (compose Sig-name
+                                       (curry get-sig curr-state ))
+                              (list sig1 sig2 sigs ...)))
        (define true-breaker (~? 'breaker #f))
        (define name (declare-relation (map symbol->string true-sigs) (symbol->string 'sig1) (symbol->string true-name)))
        (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker)))]))
