@@ -13,6 +13,6 @@ test expect NormalAbstract {
 
 abstract sig Unextended {}
 
-expect UnextendedAbstract { -- CURRENTLY BUGGED?
+test expect UnextendedAbstract {
     unextendedCanPopulate : { some Unextended } is sat
 }
