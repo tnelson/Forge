@@ -499,9 +499,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
                (~optional (~seq #:is breaker:id)))
      #'(begin
        (define true-name 'name)
-       (define true-sigs (map (compose Sig-name
-                                       (curry get-sig curr-state ))
-                              (list sig1 sig2 sigs ...)))
+       (define true-sigs '(sig1 sig2 sigs ...))
+       ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
+       ;                                 (curry get-sig curr-state ))
+       ;                        (list sig1 sig2 sigs ...)))
        (define true-breaker (~? 'breaker #f))
        (define name (declare-relation (map symbol->string true-sigs) (symbol->string 'sig1) (symbol->string true-name)))
        (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker)))]))

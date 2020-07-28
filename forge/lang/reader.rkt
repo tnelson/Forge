@@ -8,12 +8,14 @@
   (define (replace-ints-expr expr)
     ; (printf "Replace-int-expr: ~a~n~n" expr)
     (syntax-parse expr #:datum-literals (Name QualName Const Number)
-      [(_ (~or (Name (~literal sing))
-               (_ (QualName (~literal sing)))) "[" _ "]")
-       expr]
       [(_ (Const (~optional "-")
                  (Number n)))
        #`(Expr (Expr (QualName sing)) "[" (ExprList #,expr) "]")]
+      [(_ (~or (Name (~literal sing))
+               (_ (QualName (~literal sing)))) "[" _ "]")
+       expr]
+      [(_ expr1 (~optional neg-tok) (CompareOp "<=") expr2)
+       expr]
       [(parts ...)
        (datum->syntax expr
                       (map replace-ints-expr (syntax->list #'(parts ...))))]
