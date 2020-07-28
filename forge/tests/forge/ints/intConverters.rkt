@@ -51,7 +51,7 @@ pred Sum {
     sum[S2.ints] = 6
     sum[S3.ints] = 6
     sum[S4.ints] = -3
-    sum[S5.ints] = -8
+    sum[S5.ints] = 8
 }
 
 pred SumQuant {
@@ -121,9 +121,9 @@ pred MaxMin {
 
 
 test expect {
-    sings : {not Sing} for 4 Int is unsat
-    sums : {not Sum} for SumInst is unsat
-    sumQuants : {not SumQuant} for SumInst is unsat
-    cards : {not Card} for CardInst is unsat
-    maxMins : {not MaxMin} for MaxMinInst is unsat
+    sings : {not Sing} for 4 Int, 5 IntSet is unsat
+    sums : {not Sum} for 5 IntSet for SumInst is unsat
+    sumQuants : {not SumQuant} for 5 IntSet for SumInst is unsat
+    cards : {not Card} for 5 IntSet for CardInst is unsat
+    maxMins : {not MaxMin} for 5 IntSet for MaxMinInst is unsat
 }

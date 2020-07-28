@@ -12,7 +12,7 @@ test expect {
 
 sig Thing {}
 one sig SpecialThing extends Thing {}
-sig unspecialThing extends Thing {}
+sig UnspecialThing extends Thing {}
 
 test expect oneExtending {
     oneExtendActuallyExtends : { SpecialThing !in Thing } is unsat

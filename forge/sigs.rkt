@@ -876,6 +876,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
     ; Particular bounds
     [(cmp rel expr)
+     #:fail-unless (member (syntax->datum #'cmp) '(= in ni)) "expected a comparator"
      #`(let ([tups (eval-exp 'expr (Bound-tbindings #,bound) 8 #f)]) ; LOOK HERE
          (define new-scope #,scope)
            ; (if (@not (equal? (relation-arity rel) 1))
@@ -908,7 +909,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(Int n:nat)
      #'(values (set-bitwidth #,scope n) #,bound)]
 
-    [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") stx)]))
+    [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") binding)]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1183,7 +1184,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
     (define difference (@- own-upper-int (length own-lower)))
     (when (@< difference 0)
-      (raise "Illegal bounds"))
+      (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
 
     (define new-names 
       (if parent-names

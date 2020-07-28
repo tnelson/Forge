@@ -434,10 +434,12 @@
 
   ; Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
   (define-syntax-class QuantClass
-    (pattern ((~literal Quant) (~and q (~or "all" "no" "sum" "lone"
+    (pattern ((~literal Quant) (~and q (~or "all" "no" "lone"
                                             "some" "one" "two")))
       #:attr symbol (datum->syntax #'q
-                                   (string->symbol (syntax->datum #'q)))))
+                                   (string->symbol (syntax->datum #'q))))
+    (pattern ((~literal Quant) (~literal sum))
+      #:attr symbol (syntax/loc #'q sum-quant)))
 
   (define-syntax-class ExprClass
     (pattern ((~or (~literal Expr) (~literal Expr1) (~literal Expr2) (~literal Expr3)
@@ -693,7 +695,7 @@
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [expr3 (my-expand #'expr3)])
-     #'(ifte expr1 expr2))]
+     #'(ifte expr1 expr2 expr3))]
 
   [((~literal Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -771,6 +773,11 @@
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      #'(join expr1 expr2))]
+
+  [((~literal Expr) name:NameClass "[" exprs:ExprListClass "]")
+   (with-syntax ([name #'name.name]
+                 [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
+     #'(name exprs ...))]
 
   [((~literal Expr) expr1:ExprClass "[" exprs:ExprListClass "]")
    (with-syntax ([expr1 (my-expand #'expr1)]
