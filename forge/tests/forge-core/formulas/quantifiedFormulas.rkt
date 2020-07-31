@@ -1,64 +1,108 @@
-#lang forge
+#lang forge/core
 
-sig Node {
-    edges: set Node->Color
-}
+(sig Node)
 
-abstract sig Color {}
-one sig Red extends Color {}
-one sig Green extends Color {}
-one sig Blue extends Color {}
+(sig Color #:abstract)
+(sig Red #:one #:extends Color)
+(sig Green #:one #:extends Color)
+(sig Blue #:one #:extends Color)
+
+(relation edges (Node Node Color))
+
+(inst test-inst
+    (= Node (+ N1 (+ N2 (+ N3 N4))))
+
+    (= edges (+ (-> (+ (-> N1 N2) ; cycle
+                    (+ (-> N2 N3)
+                    (+ (-> N3 N4)
+                       (-> N4 N1)))) Red0)
+
+             (+ (-> (-> Node Node) Green0) ; complete
+
+                (-> (+ (-> N1 (+ N1 (+ N2 (+ N3 N4)))) ; <= relation
+                    (+ (-> N2 (+ N2 (+ N3 N4)))
+                    (+ (-> N3 (+ N3 N4))
+                       (-> N4 N4)))) Blue0)))))
+
+(pred All
+    (all ([n Node])
+        (= Node
+           (join n (join edges Green))))
+
+    (all ([n1 Node]
+          [n2 Node])
+        (implies (in (+ (-> n1 n2) (-> n2 n1))
+                     (join edges Blue))
+                 (= n1 n2)))
+
+    (all ([n Node]
+          [c Color])
+        (in (-> n n)
+            (^ (join edges c)))))
+
+(pred Some
+    (some ([n Node])
+        (in (-> n Node)
+            (join edges Blue)))
+
+    (some ([n1 Node]
+           [n2 Node])
+        (and (!= n1 n2)
+             (in (-> (-> n1 n2) Color)
+                 edges)))
+
+    (some ([n Node]
+           [c Color])
+        (and (in (-> (-> Node n) c)
+                 edges)
+             (!in (-> (-> n Node) c)
+                  edges))))
+
+(pred No
+    (no ([n Node])
+        (in (-> (-> n Node) Red)
+            edges))
+
+    (no ([n1 Node]
+         [n2 Node])
+        (and (!= n1 n2)
+             (= n1 n2)))
+
+    (no ([n Node]
+         [c Color])
+        (= n c)))
+
+(pred (SomePred n)
+    (in (-> (-> n Node) Red)
+        edges))
+
+(pred Equivalences
+    (iff (all ([n Node]) 
+             (SomePred n))
+         (not (some ([n Node]) 
+                  (not (SomePred n)))))
+
+    (iff (all ([n Node])
+             (SomePred n))
+         (no ([n Node])
+             (not (SomePred n))))
+
+    (iff (some ([n Node])
+             (SomePred n))
+         (not (no ([n Node])
+                  (SomePred n)))))
 
 
-inst TestInst {
-    Node = N1 + N2 + N3 + N4
-    edges = (N1->N2 + N2->N3 + N3->N4 + N4->N1) -> Red0 + -- Cycle
+(check AllQuant
+       #:preds [All]
+       #:bounds [test-inst])
+(check SomeQuant
+       #:preds [Some]
+       #:bounds [test-inst])
+(check NoQuant
+       #:preds [No]
+       #:bounds [test-inst])
 
-            (Node->Node) -> Green0 + -- Complete
+(check QuantifierEquivalences
+       #:preds [Equivalences])
 
-            (N1->(N1 + N2 + N3 + N4) + -- <= relation
-             N2->(N2 + N3 + N4) + 
-             N3->(N3 + N4) + 
-             N4->N4) -> Blue0
-}
-
-pred All {
-    all n: Node | (edges.Green)[n] = Node
-    all n1, n2: Node | (n1->n2 + n2->n1) in edges.Blue implies n1 = n2
-    all n: Node, c: Color | n->n in ^(edges.c)
-}
-
-pred Some {
-    some n: Node | n->Node in edges.Blue
-    some n1, n2: Node | n1 != n2 and n1->n2->Color in edges
-    some n: Node, c: Color | Node->n->c in edges and n->Node->c !in edges
-}
-
-pred No {
-    no n: Node | n->Node->Red in edges
-    no n1, n2: Node | n1 != n2 and n1 = n2
-    no n: Node, c: Color | n = c
-}
-
-pred SomePred[n: Node] {
-    n->Node->Red in edges
-}
-
-pred Equivalences {
-    (all n: Node | SomePred[n]) iff
-    (not (some n: Node | not SomePred[n]))
-
-    (all n: Node | SomePred[n]) iff
-    (no n: Node | not SomePred[n])
-
-    (some n: Node | SomePred[n]) iff
-    (not (no n: Node | SomePred[n]))
-}
-
-test expect QuantifiedFormulas {
-    AllQuant : {not All} for TestInst is unsat
-    SomeQuant : {not Some} for TestInst is unsat
-    --NoQuant : {not No} for TestInst is unsat -- CURRENTLY BUGGED!
-
-    QuantifierEquivalences : {not Equivalences} is unsat
-}

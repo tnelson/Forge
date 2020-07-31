@@ -1,67 +1,66 @@
-#lang forge
+#lang forge/core
 
-pred SuccStructure {
-    all i: Int | -- partial function
-        lone i.succ
+(require (prefix-in @ racket))
 
-    some i: Int | -- everything reachable from init
-        i.*succ = Int
+(pred SuccStructure
+    (all ([i Int]) ; partial function
+        (lone (join i succ)))
 
-    some i: Int | -- there is a term
-        no i.succ
-}
+    (some ([i Int]) ; everything reachable from init
+        (= (join i (* succ))
+           Int))
 
-test expect SuccessorRelation {
-    succStructure1 : {not SuccStructure} for 1 Int is unsat
-    succStructure2 : {not SuccStructure} for 2 Int is unsat
-    succStructure3 : {not SuccStructure} for 3 Int is unsat
-    succStructure4 : {not SuccStructure} for 4 Int is unsat
-    succStructure5 : {not SuccStructure} for 5 Int is unsat
-}
+    (some ([i Int]) ; there is a term
+        (no (join i succ))))
+
+(check succStructure1
+       #:preds [SuccStructure]
+       #:scope ([Int 1]))
+(check succStructure2
+       #:preds [SuccStructure]
+       #:scope ([Int 2]))
+(check succStructure3
+       #:preds [SuccStructure]
+       #:scope ([Int 3]))
+(check succStructure4
+       #:preds [SuccStructure]
+       #:scope ([Int 4]))
+(check succStructure5
+       #:preds [SuccStructure]
+       #:scope ([Int 5]))
 
 
-pred Size1 {
-    -- max int 0
-    no   sing[0].succ
+(define (make-n n)
+    (cond
+      [(@= n 0) (sing (node/int/constant 0))]
+      [(@< n 0) (join succ (make-n (add1 n)))]
+      [(@> n 0) (join (make-n (sub1 n)) succ)]))
 
-    -- min int -1
-    some succ.     (sing[0])
-    no   succ.succ.(sing[0])
-}
+(pred (Size lower upper)
+    ; lower
+    (no (make-n (sub1 lower)))
+    (some (make-n lower))
 
-pred Size2 {
-    -- max int 1
-    some sing[0].succ
-    no   sing[0].succ.succ
+    ; upper
+    (some (make-n upper))
+    (no (make-n (add1 upper))))
 
-    -- min int -2
-    some succ.succ.     (sing[0])
-    no   succ.succ.succ.(sing[0])
-}
+(check size1
+       #:preds [(Size -1 0)]
+       #:scope ([Int 1]))
 
-pred Size3 {
-    -- max int 3
-    some sing[0].succ.succ.succ
-    no   sing[0].succ.succ.succ.succ
+(check size2
+       #:preds [(Size -2 1)]
+       #:scope ([Int 2]))
 
-    -- min int -4
-    some succ.succ.succ.succ.     (sing[0])
-    no   succ.succ.succ.succ.succ.(sing[0])
-}
+(check size3
+       #:preds [(Size -4 3)]
+       #:scope ([Int 3]))
 
-pred Size4 {
-    -- max int 7
-    some sing[0].succ.succ.succ.succ.succ.succ.succ
-    no   sing[0].succ.succ.succ.succ.succ.succ.succ.succ
+(check size4
+       #:preds [(Size -8 7)]
+       #:scope ([Int 4]))
 
-    -- min int -8
-    some succ.succ.succ.succ.succ.succ.succ.succ.     (sing[0])
-    no   succ.succ.succ.succ.succ.succ.succ.succ.succ.(sing[0])
-}
-
-test expect IntSet {
-    size1 : {not Size1} for 1 Int is unsat
-    size2 : {not Size2} for 2 Int is unsat
-    size3 : {not Size3} for 3 Int is unsat
-    size4 : {not Size4} for 4 Int is unsat
-}
+(check size5
+       #:preds [(Size -16 15)]
+       #:scope ([Int 5]))

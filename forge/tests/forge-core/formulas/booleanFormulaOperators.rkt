@@ -1,6 +1,4 @@
-#lang racket
-
-(require "../../../sigs.rkt")
+#lang forge/core
 
 (pred TrueFalse
     true

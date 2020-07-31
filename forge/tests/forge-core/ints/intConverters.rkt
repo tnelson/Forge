@@ -1,129 +1,193 @@
-#lang forge
+#lang forge/core
 
--- sing      int -> set
+; (set-verbosity 10)
 
-pred Sing {
-    no succ.(sing[-8])
-    sing[-8].succ = sing[-7]
-    sing[-7].succ = sing[-6]
-    sing[-6].succ = sing[-5]
-    sing[-5].succ = sing[-4]
-    sing[-4].succ = sing[-3]
-    sing[-3].succ = sing[-2]
-    sing[-2].succ = sing[-1]
-    sing[-1].succ = sing[0]
-    sing[0].succ = sing[1]
-    sing[1].succ = sing[2]
-    sing[2].succ = sing[3]
-    sing[3].succ = sing[4]
-    sing[4].succ = sing[5]
-    sing[5].succ = sing[6]
-    sing[6].succ = sing[7]
-    no sing[7].succ
-}
+; sing      int -> set
 
+(pred Sing
+    (no (join succ (sing (node/int/constant -8))))
+    (= (join (sing (node/int/constant -8)) succ) 
+       (sing (node/int/constant -7)))
+    (= (join (sing (node/int/constant -7)) succ) 
+       (sing (node/int/constant -6)))
+    (= (join (sing (node/int/constant -6)) succ) 
+       (sing (node/int/constant -5)))
+    (= (join (sing (node/int/constant -5)) succ) 
+       (sing (node/int/constant -4)))
+    (= (join (sing (node/int/constant -4)) succ) 
+       (sing (node/int/constant -3)))
+    (= (join (sing (node/int/constant -3)) succ) 
+       (sing (node/int/constant -2)))
+    (= (join (sing (node/int/constant -2)) succ) 
+       (sing (node/int/constant -1)))
+    (= (join (sing (node/int/constant -1)) succ) 
+       (sing (node/int/constant 0)))
+    (= (join (sing (node/int/constant 0)) succ) 
+       (sing (node/int/constant 1)))
+    (= (join (sing (node/int/constant 1)) succ) 
+       (sing (node/int/constant 2)))
+    (= (join (sing (node/int/constant 2)) succ) 
+       (sing (node/int/constant 3)))
+    (= (join (sing (node/int/constant 3)) succ) 
+       (sing (node/int/constant 4)))
+    (= (join (sing (node/int/constant 4)) succ) 
+       (sing (node/int/constant 5)))
+    (= (join (sing (node/int/constant 5)) succ) 
+       (sing (node/int/constant 6)))
+    (= (join (sing (node/int/constant 6)) succ) 
+       (sing (node/int/constant 7)))
+    (no (join (sing (node/int/constant 7)) succ)))
 
-abstract sig IntSet {
-    ints: set Int
-}
-one sig S1 extends IntSet {}
-one sig S2 extends IntSet {}
-one sig S3 extends IntSet {}
-one sig S4 extends IntSet {}
-one sig S5 extends IntSet {}
+(sig IntSet #:abstract)
+(relation ints (IntSet Int))
 
--- sum       set -> int
--- sum-quant set -> int
+(sig S1 #:one #:extends IntSet)
+(sig S2 #:one #:extends IntSet)
+(sig S3 #:one #:extends IntSet)
+(sig S4 #:one #:extends IntSet)
+(sig S5 #:one #:extends IntSet)
 
-inst SumInst {
-    ints = -- S10->() +
-           S20->(6) +
-           S30->(1 + 2 + 3) +
-           S40->(-5 + -1 + 3) +
-           S50->(7 + 1)
-}
+; sum       set -> int
+; sum-quant set -> int
 
-pred Sum {
-    all i: Int |
-        i = sing[sum[i]]
+(inst sum-inst
+    (= ints (+ (-> S20 (sing (node/int/constant 6)))
+            (+ (-> S30 (+ (sing (node/int/constant 1))
+                       (+ (sing (node/int/constant 2))
+                          (sing (node/int/constant 3)))))
+            (+ (-> S40 (+ (sing (node/int/constant -5))
+                       (+ (sing (node/int/constant -1))
+                          (sing (node/int/constant 3)))))
+               (-> S50 (+ (sing (node/int/constant 7))
+                          (sing (node/int/constant 1)))))))))
 
-    sum[S1.ints] = 0
-    sum[S2.ints] = 6
-    sum[S3.ints] = 6
-    sum[S4.ints] = -3
-    sum[S5.ints] = -8
-}
+(pred Sum
+    (all ([i Int])
+        (= i (sing (sum i))))
 
-pred SumQuant {
-    (sum S: IntSet | min[S.ints]) = 3
-    (sum S: IntSet | max[S.ints]) = 19
-    (sum S: IntSet | #S.ints) = 9
+    (int= (sum (join S1 ints)) (node/int/constant 0))
+    (int= (sum (join S2 ints)) (node/int/constant 6))
+    (int= (sum (join S3 ints)) (node/int/constant 6))
+    (int= (sum (join S4 ints)) (node/int/constant -3))
+    (int= (sum (join S5 ints)) (node/int/constant -8)))
 
-    -- This also checks that sum works with duplicates
-    (sum S: IntSet | sum i: S.ints | sum[i]) = 1
+(pred SumQuant
+    (int= (sum-quant ([S IntSet])
+              (min (join S ints)))
+          (node/int/constant 3))
 
-    (sum S: IntSet | sum i: S.ints | multiply[sum[i], sum[i]]) = 135
-}
+    (int= (sum-quant ([S IntSet])
+              (max (join S ints)))
+          (node/int/constant 19))
 
+    (int= (sum-quant ([S IntSet])
+              (card (join S ints)))
+          (node/int/constant 9))
 
--- card      set -> int
+    ; This also checks that sum works with duplicates
+    (int= (sum-quant ([S IntSet])
+              (sum-quant ([i (join S ints)])
+                  (sum i)))
+          (node/int/constant 1))
 
-inst CardInst {
-    ints = -- S10->() +
-           S20->(-5) +
-           S30->(-3 + 0) +
-           S40->(-8 + 7 + 1) + 
-           S50->(4 + 3 + 2 + 1)
-}
-
-pred Card {
-    all i: Int |
-        card[i] = 1
-
-    card[S1.ints] = 0
-    card[S2.ints] = 1
-    card[S3.ints] = 2
-    card[S4.ints] = 3
-    card[S5.ints] = 4
-
-    all S: IntSet |
-        card[S.ints] = #S.ints
-}
-
-
--- max, min  set -> int
-
-inst MaxMinInst {
-    ints = S10->(0) +
-           S20->(0 + 1) +
-           S30->(-5 + -2 + 0 + 4) +
-           S40->(7) +
-           S50->(-8 + -7 + -6 + -5 + -4 + -3 + -2 + -1 +
-                 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7)
-}
-
-pred MaxMin {
-    min[S1.ints] = 0
-    max[S1.ints] = 0
-
-    min[S2.ints] = 0
-    max[S2.ints] = 1
-
-    min[S3.ints] = -5
-    max[S3.ints] = 4
-
-    min[S4.ints] = 7
-    max[S4.ints] = 7
-
-    min[S5.ints] = -8
-    max[S5.ints] = 7
-}
+    (int= (sum-quant ([S IntSet])
+              (sum-quant ([i (join S ints)])
+                  (multiply (sum i) (sum i))))
+          (node/int/constant 135)))
 
 
-test expect {
-    sings : {not Sing} for 4 Int is unsat
-    sums : {not Sum} for SumInst is unsat
-    sumQuants : {not SumQuant} for SumInst is unsat
-    cards : {not Card} for CardInst is unsat
-    maxMins : {not MaxMin} for MaxMinInst is unsat
-}
+; card      set -> int
+
+(inst card-inst
+    (= ints (+ (-> S20 (sing (node/int/constant -5)))
+            (+ (-> S30 (+ (sing (node/int/constant -3))
+                          (sing (node/int/constant 0))))
+            (+ (-> S40 (+ (sing (node/int/constant -8))
+                       (+ (sing (node/int/constant 7))
+                          (sing (node/int/constant 1)))))
+               (-> S50 (+ (sing (node/int/constant 4))
+                       (+ (sing (node/int/constant 3))
+                       (+ (sing (node/int/constant 2))
+                          (sing (node/int/constant 1)))))))))))
+
+(pred Card
+    (all ([i Int])
+        (int= (card i)
+              (node/int/constant 1)))
+
+    (int= (card (join S1 ints))
+          (node/int/constant 0))
+    (int= (card (join S2 ints))
+          (node/int/constant 1))
+    (int= (card (join S3 ints))
+          (node/int/constant 2))
+    (int= (card (join S4 ints))
+          (node/int/constant 3))
+    (int= (card (join S5 ints))
+          (node/int/constant 4)))
+
+
+; max, min  set -> int
+
+(inst max-min-inst
+    (= ints (+ (-> S10 (sing (node/int/constant 0)))
+            (+ (-> S20 (+ (sing (node/int/constant 0))
+                          (sing (node/int/constant 1))))
+            (+ (-> S30 (+ (sing (node/int/constant -5))
+                       (+ (sing (node/int/constant -2))
+                       (+ (sing (node/int/constant 0))
+                          (sing (node/int/constant 4))))))
+            (+ (-> S40 (sing (node/int/constant 7)))
+               (-> S50 Int)))))))
+
+(pred MaxMin
+    (int= (min (join S1 ints))
+          (node/int/constant 0))
+    (int= (max (join S1 ints))
+          (node/int/constant 0))
+
+    (int= (min (join S2 ints))
+          (node/int/constant 0))
+    (int= (max (join S2 ints))
+          (node/int/constant 1))
+
+    (int= (min (join S3 ints))
+          (node/int/constant -5))
+    (int= (max (join S3 ints))
+          (node/int/constant 4))
+
+    (int= (min (join S4 ints))
+          (node/int/constant 7))
+    (int= (max (join S4 ints))
+          (node/int/constant 7))
+
+    (int= (min (join S5 ints))
+          (node/int/constant -8))
+    (int= (max (join S5 ints))
+          (node/int/constant 7)))
+
+
+
+(check sings 
+       #:preds [Sing]
+       #:scope ([Int 4] [IntSet 5]))
+
+(check sums
+       #:preds [Sum] 
+       #:bounds [sum-inst]
+       #:scope ([Int 4] [IntSet 5]))
+
+(check sumQuants
+       #:preds [SumQuant] 
+       #:bounds [sum-inst]
+       #:scope ([Int 4] [IntSet 5]))
+
+(check cards
+       #:preds [Card] 
+       #:bounds [card-inst]
+       #:scope ([Int 4] [IntSet 5]))
+
+(check maxMins
+       #:preds [MaxMin] 
+       #:bounds [max-min-inst]
+       #:scope ([Int 4] [IntSet 5]))

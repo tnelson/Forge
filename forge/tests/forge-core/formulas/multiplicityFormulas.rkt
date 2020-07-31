@@ -1,99 +1,146 @@
-#lang forge
+#lang forge/core
 
-abstract sig Color {}
-one sig Red extends Color {}
-one sig Green extends Color {}
-one sig Blue extends Color {}
+(sig Color #:abstract)
+(sig Red #:one #:extends Color)
+(sig Green #:one #:extends Color)
+(sig Blue #:one #:extends Color)
 
-abstract sig Node {
-    edges: set Node->Color
-}
+(sig Node #:abstract)
+(sig N1 #:one #:extends Node)
+(sig N2 #:one #:extends Node)
+(sig N3 #:one #:extends Node)
 
-one sig N1 extends Node {}
-one sig N2 extends Node {}
-one sig N3 extends Node {}
+(relation edges (Node Node Color))
 
-inst TestInst {
-    edges = (N10->N20 + N10->N30 + N20->N30 + N30->N30)->Red0 +
-            (N10->N10 + N10->N20 + N10->N30 + 
-             N20->N30 + 
-             N30->N20)->Green0
-}
+(inst test-inst
+    (= edges (+ (-> (+ (-> N10 N20) 
+                    (+ (-> N10 N30)
+                    (+ (-> N20 N30)
+                       (-> N30 N30)))) Red0)
+                (-> (+ (-> N10 N10)
+                    (+ (-> N10 N20)
+                    (+ (-> N10 N30)
+                    (+ (-> N20 N30)
+                       (-> N30 N20))))) Green0))))
 
-pred Some {
-    some      N1.(edges.Red)
-    some      N2.(edges.Red)
-    some      N3.(edges.Red)
-    not (some (edges.Red).N1)
-    some      (edges.Red).N2
-    some      (edges.Red).N3
-}
+(pred Some
+    (some      (join N1 (join edges Red)))
+    (some      (join N2 (join edges Red)))
+    (some      (join N3 (join edges Red)))
+    (not (some (join (join edges Red) N1)))
+    (some      (join (join edges Red) N2))
+    (some      (join (join edges Red) N3)))
 
-pred No {
-    not (no N1.(edges.Red))
-    not (no N2.(edges.Red))
-    not (no N3.(edges.Red))
-    no      (edges.Red).N1
-    not (no (edges.Red).N2)
-    not (no (edges.Red).N3)
-}
+(pred No
+    (not (no (join N1 (join edges Red))))
+    (not (no (join N2 (join edges Red))))
+    (not (no (join N3 (join edges Red))))
+    (no      (join (join edges Red) N1))
+    (not (no (join (join edges Red) N2)))
+    (not (no (join (join edges Red) N3))))
 
-pred One1 {
-    not (one N1.(edges.Red))
-    one      N2.(edges.Red)
-    one      N3.(edges.Red)
-    not (one (edges.Red).N1)
-    one      (edges.Red).N2
-    not (one (edges.Red).N3)
-}
+(pred One1
+    (not (one (join N1 (join edges Red))))
+    (one      (join N2 (join edges Red)))
+    (one      (join N3 (join edges Red)))
+    (not (one (join (join edges Red) N1)))
+    (one      (join (join edges Red) N2))
+    (not (one (join (join edges Red) N3))))
 
-pred Lone1 {
-    not (lone N1.(edges.Red))
-    lone      N2.(edges.Red)
-    lone      N3.(edges.Red)
-    lone      (edges.Red).N1
-    lone      (edges.Red).N2
-    not (lone (edges.Red).N3)
-}
+(pred Lone1
+    (not (lone (join N1 (join edges Red))))
+    (lone      (join N2 (join edges Red)))
+    (lone      (join N3 (join edges Red)))
+    (lone      (join (join edges Red) N1))
+    (lone      (join (join edges Red) N2))
+    (not (lone (join (join edges Red) N3))))
 
--- These are treated as multiplicity formulas by ast.rkt,
--- rather than quantifier formulas.
+; These are treated as multiplicity formulas by ast.rkt,
+; rather than quantifier formulas.
 
-pred One2 {
-    one n: Node | n->Node in edges.Green
-    one n1, n2: Node | (n1 != n2 and ((n1->n2 + n2->n1) in edges.Green))
-    one n: Node, c: Color | n->Node->c in edges
-}
+(pred One2
+    (one ([n Node])
+        (in (-> n Node)
+            (join edges Green)))
 
-pred Lone2 {
-    lone n: Node | n->Node in edges.Green -- one
-    lone n: Node | Node->n in edges.Green -- no
+    (one ([n1 Node]
+          [n2 Node])
+        (and (!= n1 n2)
+             (in (+ (-> n1 n2) (-> n2 n1))
+                 (join edges Green))))
 
-    lone n1, n2: Node | n1 != n2 and n1->n2 + n2->n1 in edges.Green -- one
-    lone n1, n2: Node | Node->(n1 + n2) + (n1 + n2)->Node in edges.Green -- no
+    (one ([n Node]
+          [c Color])
+        (in (-> n (-> Node c))
+            edges)))
 
-    lone n: Node, c: Color | n->Node->c in edges -- one
-    lone n: Node, c: Color | (n->Node + Node->n)->c in edges -- no
-}
+(pred Lone2 
+    (lone ([n Node]) ; one
+        (in (-> n Node)
+            (join edges Green)))
 
-pred SomePred[n: Node] {
-    n->Node->Red in edges
-}
+    (lone ([n Node]) ; no
+        (in (-> Node n)
+            (join edges Green)))
 
-pred Equivalence {
-    (lone n: Node | SomePred[n]) iff
-    ((one n: Node | SomePred[n]) or 
-     (no  n: Node | SomePred[n]))
-}
 
-test expect MultiplicityFormulas {
-    someAsMultiplicity : {not Some} for TestInst is unsat
-    noAsMultiplicity : {not No} for TestInst is unsat
-    oneAsMultiplicity : {not One1} for TestInst is unsat
-    loneAsMultiplicity : {not Lone1} for TestInst is unsat
+    (lone ([n1 Node] ; one
+           [n2 Node])
+        (and (!= n1 n2)
+             (in (+ (-> n1 n2) (-> n2 n1))
+                 (join edges Green))))
 
-    -- oneAsQuantifer : {not One2} for TestInst is unsat -- CURRENTLY BUGGED!
-    -- loneAsQuantifer : {not Lone2} for TestInst is unsat -- CURRENTLY BUGGED!
+    (lone ([n1 Node] ; no
+           [n2 Node])
+        (in (+ (-> Node (+ n1 n2))
+               (-> (+ n1 n2) Node))
+            (join edges Green)))
 
-    loneEquivalentOneNo : {not Equivalence} is unsat
-}
+
+    (lone ([n Node] ;o ne
+           [c Color])
+        (in (-> (-> n Node) c)
+            edges))
+
+    (lone ([n Node] ; no
+           [c Color])
+        (in (-> (+ (-> n Node) (-> Node n)) c)
+            edges)))
+
+(pred (SomePred n)
+    (in (-> (-> n Node) Red)
+        edges))
+
+(pred Equivalence
+    (iff (lone ([n Node]) (SomePred n))
+         (or (no ([n Node]) (SomePred n))
+             (one ([n Node]) (SomePred n)))))
+
+
+
+(check someAsMultiplicity
+       #:preds [Some]
+       #:bounds [test-inst])
+
+(check noAsMultiplicity
+       #:preds [No]
+       #:bounds [test-inst])
+
+(check oneAsMultiplicity
+       #:preds [One1]
+       #:bounds [test-inst])
+
+(check loneAsMultiplicity
+       #:preds [Lone1]
+       #:bounds [test-inst])
+
+; (check oneAsQuantifer ; CUURRENTLY BUGGED
+;        #:preds [One2]
+;        #:bounds [test-inst])
+
+; (check loneAsQuantifer ; CUURRENTLY BUGGED
+;        #:preds [Lone2]
+;        #:bounds [test-inst])
+
+(check loneEquivalentOneNo
+       #:preds [Equivalence])

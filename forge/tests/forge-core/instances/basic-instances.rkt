@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-verbosity 10)
+; (set-verbosity 10)
 
 (sig A)
 (sig B)
