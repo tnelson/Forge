@@ -1,4 +1,6 @@
 # Forge
+![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/tnelson/Forge?label=version)
+![GitHub issues](https://img.shields.io/github/issues/tnelson/Forge)
 
 Welcome to Forge! Forge is a language built for teaching formal methods and model checking.
 
