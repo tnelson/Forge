@@ -1,4 +1,7 @@
 # Forge
+![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/tnelson/Forge?label=version)
+![GitHub issues](https://img.shields.io/github/issues/tnelson/Forge)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/tnelson/Forge/Continuous%20Integration?label=tests)
 
 Welcome to Forge! Forge is a language built for teaching formal methods and model checking.
 
@@ -11,11 +14,11 @@ Forge extends the Ocelot package to create first-order relational logic models. 
 
 ## Documentation
 
-- [Forge Documentation](/forge/docs)
-- [The official Alloy documentation
+- [Official Forge documentation](https://github.com/tnelson/Forge/wiki)
+- [Alloy documentation
 ](http://alloytools.org/documentation.html)
-- [A quick reference guide to most Forge operators](http://www.ics.uci.edu/~alspaugh/cls/shr/alloy.html)
-- [A helpful powerpoint presentation for syntax and basic examples](http://alloytools.org/tutorials/day-course/)
+- [A quick reference guide to Alloy operators](http://www.ics.uci.edu/~alspaugh/cls/shr/alloy.html) (most of which Forge shares)
+- [A guide to syntax and basic examples in Alloy](http://alloytools.org/tutorials/day-course/)
 
 ## Contributing
 To contribute, fork the repository (or open a new branch if a core contributor) and make your changes. When making a pull request back into master, please prepend the pull request title with one of `[patch]`, `[minor]`, or `[major]` so that the corresponding version number is updated. If no version update is specified, the minor version will be updated automatically.

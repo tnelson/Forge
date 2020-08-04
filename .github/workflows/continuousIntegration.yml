@@ -1,0 +1,29 @@
+name: Continuous Integration
+
+on:
+  pull_request: ~
+  push:
+    branches:
+    - master
+    - dev
+
+jobs:
+  forge-tests:
+    runs-on: ubuntu-latest
+    container: docker://racket/racket:7.7
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+    - name: Setup Java
+      uses: actions/setup-java@v1
+      with:
+        java-version: '8'
+    - name: Install Forge
+      run: |
+        cd forge/
+        raco pkg install --auto --no-docs
+    - name: Run tests
+      run: |
+        cd forge/
+        chmod +x run-tests.sh
+        ./run-tests.sh tests/
