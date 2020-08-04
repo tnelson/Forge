@@ -26,8 +26,10 @@ for testFile in $testFiles; do
     echo -e "\nRunning $testFile"
     
     racket $testFile > /dev/null
+    testExitCode=$?
 
-    if [[ $? ]]; then
+    if [[ $testExitCode -ne 0 ]]; then
+        echo "Test failed with code $testExitCode"
         exitCode=1
     fi
 done
