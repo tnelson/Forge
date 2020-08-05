@@ -23,6 +23,7 @@ package kodkod.cli;
 
 
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -32,6 +33,7 @@ import kodkod.ast.Relation;
 import kodkod.engine.bool.BooleanFormula;
 import kodkod.engine.config.Reporter;
 import kodkod.instance.Bounds;
+import kodkod.instance.Tuple;
 import kodkod.util.ints.IntSet;
 
 /**
@@ -41,7 +43,28 @@ import kodkod.util.ints.IntSet;
  */
 public final class KodkodReporter implements Reporter {
 	private final Logger logger;
+
+	/*
+	 * Added for Pardinus.
+	 */
+	public void reportConfigs(int configs, int primaryVars, int vars, int clauses) {};
 	
+	/*
+	 * Added for Pardinus.
+	 */
+	public void warning(String warning) {};
+
+	/*
+ 	 * Added for Pardinus.
+	 */
+	public void debug(String debug) {};
+
+	/*
+ 	 * Added for Pardinus.
+	 */
+	public void reportLex(List<Entry<Relation, Tuple>> original,
+			List<Entry<Relation, Tuple>> permuted) {};
+
 	/**
 	 * Constructs a new instance of the LoggerReporter that logs its messages
 	 * to the given logger. 
