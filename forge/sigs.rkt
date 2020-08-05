@@ -130,11 +130,16 @@
   bounds  ; Bound
   ) #:transparent)
 
+(struct Server-ports (
+  stdin
+  stdout) #:transparent)
+
 (struct Run (
   name     ; Symbol
   command  ; String (syntax)
   run-spec ; Run-spec
   result   ; Stream
+  server-ports ; Server-ports
   atom-rels ; List<node/expr/relation>
   ) #:transparent)
 
@@ -386,6 +391,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
              (map Relation-rel (get-relations run-spec))
              (Run-atom-rels run)))]))
 
+; get-stdin :: Run -> input-port?
+(define (get-stdin run)
+  (Server-ports-stdin (Run-server-ports)))
+
+; get-stdin :: Run -> output-port?
+(define (get-stdout run)
+  (Server-ports-stdout (Run-server-ports)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
@@ -602,9 +615,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define run-command #,command)
 
         (define run-spec (Run-spec run-state run-preds run-scope run-bound))
-        (define-values (run-result atom-rels) (send-to-kodkod run-spec))
+        (define-values (run-result atom-rels server-ports) (send-to-kodkod run-spec))
 
-        (define name (Run run-name run-command run-spec run-result atom-rels)))]))
+        (define name (Run run-name run-command run-spec run-result server-ports atom-rels)))]))
 
 ; Test that a spec is sat or unsat
 ; (test name
@@ -668,7 +681,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define all-rels (get-all-rels run))
 
   (cmd 
-    [(stdin)]
+    [(get-stdin run)]
     (print-cmd-cont "(~a " expr-name)
     (interpretter expression all-rels '())
     (print-cmd ")")
@@ -676,7 +689,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (print-eof))
 
   (define atom-rels (Run-atom-rels run))
-  (translate-evaluation-from-kodkod-cli (read-evaluation (stdout)) atom-rels))
+  (translate-evaluation-from-kodkod-cli (read-evaluation (get-stdout run)) atom-rels))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -702,22 +715,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define ret (stream-first model-stream))
     (set! model-stream (stream-rest model-stream))
     ret))
-
-; make-model-evaluator :: Run -> (String -> ???)
-; Creates an evaluator function for a given Run. 
-; Executes on the most recently generated instance.
-(define (make-model-evaluator run)
-  (lambda (command)
-    (define name (substring command 1 3))
-    (cmd [(stdin)] 
-      (print-cmd command)
-      (print-cmd "(evaluate ~a)" name)
-      (print-eof))
-    (define result (read (stdout)))
-    result))
-    ; (define u (read (open-input-string command)))
-    ; (println u)
-    ; u))
 
 (provide nsa)
 (define nsa (make-parameter #f))
@@ -1038,11 +1035,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
   |#
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
-  (start-server)
+  (define-values (stdin stdout) (start-server))
 
   (define-syntax-rule (kk-print lines ...)
     (cmd 
-      [(stdin)]
+      [stdin]
       lines ...))
 
   ; Print configure and declare univ size
@@ -1131,13 +1128,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Print solve
   (define (get-next-model)
     (kk-print (solve))
-    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution (stdout)) (append all-rels atom-rels) all-atoms))
+    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution stdout) (append all-rels atom-rels) all-atoms))
     (cons restype inst))
 
   (define (model-stream)
     (stream-cons (get-next-model) (model-stream)))
 
-  (values (model-stream) atom-rels))
+  (values (model-stream) atom-rels (Server-ports stdin stdout)))
 
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>

@@ -14,16 +14,17 @@
          "server-common.rkt")
 (define stdin-val #false)
 (define stdout-val #false)
-(provide start-server stdin stdout)
+(provide start-server) ; stdin stdout)
 (define (start-server)
   (define kks (new server%
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
   (send kks initialize)
   (set! stdin-val (send kks stdin))
-  (set! stdout-val (send kks stdout)))
-(define (stdin) stdin-val)
-(define (stdout) stdout-val)
+  (set! stdout-val (send kks stdout))
+  (values stdin-val stdout-val))
+; (define (stdin) stdin-val)
+; (define (stdout) stdout-val)
 
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
