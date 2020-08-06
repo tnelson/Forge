@@ -20,17 +20,20 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-model evaluate name command filepath bitwidth funs-n-preds atom-rels)
+(define (display-model get-next-model evaluate name command filepath bitwidth funs-n-preds atom-rels get-contrast-model-generator)
   (define model (get-next-model))
 
   ; Begin hack to remove helper relations
-  (define (clean-model)
+  (define (clean model)
     (when (equal? (car model) 'sat)
-    (define instance (cdr model))
-    (for ([rel atom-rels])
-      (hash-remove! instance rel))))
-  (clean-model)
+      (define instance (cdr model))
+      (for ([rel atom-rels])
+        (hash-remove! instance rel))))
+  (clean model)
   ; End hack to remove helper relations
+
+  (define get-next-contrast-model (thunk (raise "No contrast model set yet.")))
+  (define contrast-model #f)
 
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -54,9 +57,17 @@
                  [(equal? m "current")
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
                  [(equal? m "next")
+                  (set! contrast-model #f)
                   (set! model (get-next-model))
-                  (clean-model)
+                  (clean model)
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
+                 [(equal? m "contrast")
+                  (unless contrast-model
+                    (set! get-next-contrast-model
+                          (get-contrast-model-generator model)))
+                  (set! contrast-model (get-next-contrast-model))
+                  (clean contrast-model)
+                  (ws-send! connection (string-append "CST:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))

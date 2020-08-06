@@ -827,6 +827,19 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (println command)
             (evaluate run '() command)))
 
+        (define (get-contrast-model-generator model)
+          (define contrast-run-spec
+            (struct-copy Run-spec (Run-run-spec run)
+                         [target (cdr model)]))
+          (define-values (run-result atom-rels server-ports) (send-to-kodkod contrast-run-spec))
+          (define contrast-run 
+            (struct-copy Run run
+                         [name (string->symbol (format "~a-contrast" (Run-name run)))]
+                         [run-spec contrast-run-spec]
+                         [result run-result]
+                         [server-ports server-ports]))
+          (make-model-generator (get-result contrast-run)))
+
         (display-model get-next-model evaluate-str
                        (Run-name run) 
                        (Run-command run) 
@@ -834,7 +847,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
                        (get-bitwidth 
                          (Run-run-spec run)) 
                        empty
-                       (Run-atom-rels run)))))
+                       (Run-atom-rels run)
+                       get-contrast-model-generator))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
