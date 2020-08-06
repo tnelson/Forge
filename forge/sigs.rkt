@@ -10,11 +10,14 @@
          "lang/bounds.rkt"
          "breaks.rkt")
 (require "server/eval-model.rkt")
-(require "server/forgeserver.rkt" ; v long
-         "kodkod-cli/server/kks.rkt" 
-         "kodkod-cli/server/server.rkt"
-         "kodkod-cli/server/server-common.rkt"
-         "translate-to-kodkod-cli.rkt"
+(require "server/forgeserver.rkt") ; v long
+(require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
+         (prefix-in kodkod: "kodkod-cli/server/server.rkt")
+         (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
+(require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
+         (prefix-in pardinus: "pardinus-cli/server/server.rkt")
+         (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
+(require "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
 
 ; Commands
@@ -105,6 +108,7 @@
 
 (struct Options (
   solver          ; symbol
+  backend         ; symbol
   verbosity       ; int
   sb              ; int
   coregranularity ; int
@@ -156,7 +160,7 @@
 (define init-functions (@set))
 (define init-constants (@set))
 (define init-insts (@set))
-(define init-options (Options 'SAT4J 5 5 0 0))
+(define init-options (Options 'SAT4J 'kodkod 5 5 0 0))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-predicates init-functions init-constants 
@@ -399,6 +403,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-stdout run)
   (Server-ports-stdout (Run-server-ports)))
 
+; get-option :: Run-or-state Symbol -> Any
+(define (get-option run-or-state option)
+  (define state (get-state run-or-state))
+  (define symbol->proc
+    (hash 'solver Options-solver
+          'backend Options-backend
+          'verbosity Options-verbosity
+          'sb Options-sb
+          'coregranularity Options-coregranularity
+          'logtranslation Options-logtranslation))
+  ((hash-ref symbol->proc option) (State-options state)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
@@ -461,6 +477,46 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define new-state-constants (set-add (State-constants state) name))
   (struct-copy State state
                [constants new-state-constants]))
+
+; state-set-option :: State, Symbol, Symbol -> State
+; Sets option to value for state.
+(define (state-set-option state option value)
+  (define options (State-options state))
+
+  (define option-types
+    (hash 'solver symbol?
+          'backend symbol?
+          'verbosity exact-nonnegative-integer?
+          'sb exact-nonnegative-integer?
+          'coregranularity exact-nonnegative-integer?
+          'logtranslation exact-nonnegative-integer?))
+  (unless ((hash-ref option-types option) value)
+    (raise (format "Setting option ~a requires ~a; received ~a"
+                   option (hash-ref option-types option) value)))
+
+  (define new-options
+    (cond
+      [(equal? option 'solver)
+       (struct-copy Options options
+                    [solver value])]
+      [(equal? option 'backend)
+       (struct-copy Options options
+                    [backend value])]
+      [(equal? option 'verbosity)
+       (struct-copy Options options
+                    [verbosity value])]
+      [(equal? option 'sb)
+       (struct-copy Options options
+                    [sb value])]
+      [(equal? option 'coregranularity)
+       (struct-copy Options options
+                    [coregranularity value])]
+      [(equal? option 'logtranslation)
+       (struct-copy Options options
+                    [logtranslation value])]))
+
+  (struct-copy State state
+               [options new-options]))
 
 
 ;; AST macros
@@ -570,13 +626,21 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (syntax-parse stx
     [(run name:id
           (~alt
-            (~optional (~seq #:preds (pred ...)))
+            (~optional (~or (~seq #:preds (preds ...))
+                            (~seq #:preds pred)))
             (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
-            (~optional (~seq #:bounds (bound ...)))) ...)
+            (~optional (~or (~seq #:bounds (boundss ...))
+                            (~seq #:bounds bound)))
+            (~optional (~seq #:solver solver-choice))
+            (~optional (~seq #:backend backend-choice))) ...)
       #`(begin
         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
         (define run-state curr-state)
-        (define run-preds (~? (~@ (list pred ...)) (~@ (list)))) 
+        (define run-preds (~? (list preds ...) (~? (list pred) (list))))
+
+        (~? (set! run-state (state-set-option run-state 'solver 'solver-choice)))
+        (~? (set! run-state (state-set-option run-state 'backend 'backend-choice)))
+        
 
         (define sig-scopes (~? 
           (~@
@@ -607,7 +671,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (for ([sigg (get-sigs run-state)])
             (when (Sig-one sigg)
               (set!-values (scope bounds) (bind scope bounds (one (Sig-rel sigg))))))
-          (~? (~@ (set!-values (scope bounds) (bind scope bounds bound)) ...))
+          (~? (~@ (set!-values (scope bounds) (bind scope bounds boundss)) ...)
+              (~? (set!-values (scope bounds) (bind scope bounds bound))))
           (values scope bounds))
         (define-values (run-scope run-bound)
           (run-inst base-scope default-bound))
@@ -666,30 +731,30 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))
   (define-values (expr-name interpretter)
     (cond [(node/expr? expression) (begin0
-           (values (e (current-expression))
+           (values (kodkod:e (current-expression))
                    interpret-expr)
            (current-expression (add1 (current-expression))))]
           [(node/formula? expression) (begin0
-           (values (f (current-formula))
+           (values (kodkod:f (current-formula))
                    interpret-formula)
            (current-formula (add1 (current-formula))))]
           [(node/int? expression) (begin0
-           (values (i (current-int-expression))
+           (values (kodkod:i (current-int-expression))
                    interpret-int)
            (current-int-expression (add1 (current-int-expression))))]))
 
   (define all-rels (get-all-rels run))
 
-  (cmd 
+  (kodkod:cmd 
     [(get-stdin run)]
-    (print-cmd-cont "(~a " expr-name)
+    (kodkod:print-cmd-cont "(~a " expr-name)
     (interpretter expression all-rels '())
-    (print-cmd ")")
-    (print-cmd "(evaluate ~a)" expr-name)
-    (print-eof))
+    (kodkod:print-cmd ")")
+    (kodkod:print-cmd "(evaluate ~a)" expr-name)
+    (kodkod:print-eof))
 
   (define atom-rels (Run-atom-rels run))
-  (translate-evaluation-from-kodkod-cli (read-evaluation (get-stdout run)) atom-rels))
+  (translate-evaluation-from-kodkod-cli (kodkod:read-evaluation (get-stdout run)) atom-rels))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1035,33 +1100,42 @@ Returns whether the given run resulted in sat or unsat, respectively.
   |#
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
-  (define-values (stdin stdout) (start-server))
+  (define backend (get-option run-spec 'backend))
+  (define-values (stdin stdout) 
+    (cond
+      [(equal? backend 'kodkod) (kodkod:start-server)]
+      [(equal? backend 'pardinus) (pardinus:start-server)]
+      [else (raise (format "Invalid backend: ~a" backend))]))
 
   (define-syntax-rule (kk-print lines ...)
-    (cmd 
+    (kodkod:cmd 
       [stdin]
       lines ...))
 
   ; Print configure and declare univ size
   (define bitwidth (get-bitwidth run-spec))
   (kk-print
-    (configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
-                       bitwidth "SAT4J" 20 0 1))
-    (declare-univ (length all-atoms)))
+    (kodkod:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
+                               bitwidth 
+                               (get-option run-spec 'solver) 
+                               (get-option run-spec 'sb) 
+                               (get-option run-spec 'coregranularity)
+                               (get-option run-spec 'logtranslation)))
+    (kodkod:declare-univ (length all-atoms)))
 
   ; Declare ints
   (define num-ints (expt 2 bitwidth))
   (kk-print
-    (declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
-                  (range num-ints)))                        ; indexes
+    (kodkod:declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
+                         (range num-ints)))                        ; indexes
 
   ; to-tupleset :: List<List<int>>, int -> tupleset
   (define (to-tupleset arity eles)
     (if (empty? eles)
         (if (@= arity 1)
             'none
-            (product 'none (to-tupleset (sub1 arity) eles)))
-        (tupleset #:tuples eles)))
+            (kodkod:product 'none (to-tupleset (sub1 arity) eles)))
+        (kodkod:tupleset #:tuples eles)))
 
   (define (get-atoms sig-or-rel atom-names)
     (define arity 
@@ -1084,8 +1158,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [bound total-bounds]
         [index (in-naturals)])
     (kk-print
-      (declare-rel
-        (r index)
+      (kodkod:declare-rel
+        (kodkod:r index)
         (get-atoms sig-or-rel (bound-lower bound))
         (get-atoms sig-or-rel (bound-upper bound)))))
 
@@ -1094,7 +1168,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [index (in-naturals (length (get-all-rels run-spec)))])
     (define tup (to-tupleset 1 (list (list atom-int))))
     (kk-print
-      (declare-rel (r index) tup tup)))
+      (kodkod:declare-rel (kodkod:r index) tup tup)))
   
 
   ; Declare assertions
@@ -1111,10 +1185,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
     (kk-print
-      (print-cmd-cont "(f~a " assertion-number)
+      (kodkod:print-cmd-cont "(f~a " assertion-number)
       (translate-to-kodkod-cli p all-rels '())
-      (print-cmd ")")
-      (assert (f assertion-number))
+      (kodkod:print-cmd ")")
+      (kodkod:assert (kodkod:f assertion-number))
       (current-formula (add1 assertion-number))))
 
   (define atom-rels 
@@ -1127,8 +1201,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   ; Print solve
   (define (get-next-model)
-    (kk-print (solve))
-    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution stdout) (append all-rels atom-rels) all-atoms))
+    (kk-print (kodkod:solve))
+    (match-define (cons restype inst) (translate-from-kodkod-cli 'run 
+                                                                 (kodkod:read-solution stdout) 
+                                                                 (append all-rels atom-rels) 
+                                                                 all-atoms))
     (cons restype inst))
 
   (define (model-stream)

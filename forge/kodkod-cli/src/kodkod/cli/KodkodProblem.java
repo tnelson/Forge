@@ -34,7 +34,7 @@ import kodkod.engine.Evaluator;
 import kodkod.engine.IncrementalSolver;
 import kodkod.engine.Solution;
 import kodkod.engine.Solver;
-// import kodkod.engine.bddlab.BDDSolverFactory; Removed for Pardinus
+import kodkod.engine.bddlab.BDDSolverFactory;
 import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.ucore.RCEStrategy;
@@ -411,11 +411,10 @@ import org.parboiled.errors.ActionException;
 	 * with a non-incremental {@link SATFactory} on an incremental problem specification.
 	 * @requires no this.prev
 	 * @ensures this.options.solver' = solver
-	 * Changed for Pardinus
 	 */
-	boolean setSolver(SATFactory solver) {
+	boolean setSatSolver(SATFactory solver) {
 		if (SATFactory.available(solver)) {
-			options.setSolver(solver);
+			options.setSatSolver(solver);
 			return true;
 		} else {
 			throw new ActionException(solver.toString() + " is not available on this system. Searched " + System.getProperty("java.library.path"));
@@ -425,10 +424,10 @@ import org.parboiled.errors.ActionException;
 	/**
 	 * Same as {@link #setBddSolver(BDDSolverFactory, boolean)} with the default parameter of false
 	 * for distinctPathsOnly.
-	 */ 
-	// boolean setBddSolver(BDDSolverFactory solver) {
-	// 	return setBddSolver(solver, false);
-	// } Removed for Pardinus
+	 */
+	boolean setBddSolver(BDDSolverFactory solver) {
+		return setBddSolver(solver, false);
+	}
 
 	/**
 	 * Sets {@code this.options.solver} to use the specified bdd solver and tells whether
@@ -437,10 +436,10 @@ import org.parboiled.errors.ActionException;
 	 * @param distinctPathsOnly whether to generate only one solution per path through the bdd.
 	 * @return true
 	 */
-	// boolean setBddSolver(BDDSolverFactory solver, boolean distinctPathsOnly) {
-	// 	options.setBddSolver(solver, distinctPathsOnly);
-	// 	return true;
-	// } Removed for Pardinus
+	boolean setBddSolver(BDDSolverFactory solver, boolean distinctPathsOnly) {
+		options.setBddSolver(solver, distinctPathsOnly);
+		return true;
+	}
 
 	/**
 	 * Modifies {@code this.options} so as to enable or disable minimal core extraction.
@@ -463,8 +462,7 @@ import org.parboiled.errors.ActionException;
 				}
 				options.setLogTranslation(1);
 				options.setCoreGranularity(0);
-				// Changed for Pardinus
-				options.setSolver(SATFactory.MiniSatProver);
+				options.setSatSolver(SATFactory.MiniSatProver);
 			} else {
 				options.setLogTranslation(0);
 				options.setCoreGranularity(0);
@@ -845,11 +843,10 @@ import org.parboiled.errors.ActionException;
 			return super.setCoreExtraction(enable);
 		}
 
-		// Changed for Pardinus
-		boolean setSolver(SATFactory solver) {
+		boolean setSatSolver(SATFactory solver) {
 			if (!solver.incremental())
 				throw new ActionException("Cannot use a non-incremental SAT solver ("+solver+") for incremental solving.");
-			return super.setSolver(solver);
+			return super.setSatSolver(solver);
 		}
 	}
 
@@ -894,8 +891,7 @@ import org.parboiled.errors.ActionException;
 			return "Cannot " + msg + " of an incremental problem.  Use (clear) to start specifying a new problem.";
 		}
 		boolean setBitwidth(int bitwidth) { throw new ActionException(cannot("re-configure bitwidth")); }
-		// Changed for Pardinus
-		boolean setSolver(SATFactory solver) { throw new ActionException(cannot("re-configure the solver")); }
+		boolean setSatSolver(SATFactory solver) { throw new ActionException(cannot("re-configure the solver")); }
 		boolean setCoreExtraction(boolean enable) { throw new ActionException(cannot("re-configure the core extraction behavior")); }
 		boolean declareInts(List<Integer> ints) { throw new ActionException(cannot("re-declare integer atoms in the universe of")); }
 	}

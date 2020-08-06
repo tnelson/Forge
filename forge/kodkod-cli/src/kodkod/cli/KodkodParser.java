@@ -60,7 +60,7 @@ import kodkod.ast.operator.IntCompOperator;
 import kodkod.ast.operator.IntOperator;
 import kodkod.ast.operator.Multiplicity;
 import kodkod.ast.operator.Quantifier;
-// import kodkod.engine.bddlab.BDDSolverFactory; Removed for Pardinus
+import kodkod.engine.bddlab.BDDSolverFactory;
 import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Tuple;
@@ -219,11 +219,9 @@ public class KodkodParser extends BaseParser<Object> {
                 CONFIG,
                 OneOrMore(":",
                           FirstOf(
-                                  Sequence(Keyword("solver"), SatSolver(), problem.setSolver((SATFactory) pop())),
-                                  // Changed for Pardinus
-                                  // Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
-                                  // Sequence(Keyword("solver"), BddSolver(), problem.setBddSolver((BDDSolverFactory) pop())),
-                                  // Sequence(Keyword("solver"), DistinctPathBddSolver(), problem.setBddSolver((BDDSolverFactory) pop(), true)),
+                                  Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
+                                  Sequence(Keyword("solver"), BddSolver(), problem.setBddSolver((BDDSolverFactory) pop())),
+                                  Sequence(Keyword("solver"), DistinctPathBddSolver(), problem.setBddSolver((BDDSolverFactory) pop(), true)),
                                   Sequence(Keyword("bitwidth"), NatLiteral(), problem.setBitwidth(popInt())),
                                   //Sequence(Keyword("produce-cores"), 	BoolLiteral(), 	problem.setCoreExtraction(popBool())),
                                   Sequence(Keyword("log-trans"), NatLiteral(), problem.setLogTranslation(popInt())),
@@ -245,27 +243,27 @@ public class KodkodParser extends BaseParser<Object> {
                        Sequence(Keyword("MiniSat"),         push(SATFactory.MiniSat)),
                        Sequence(Keyword("Glucose"),         push(SATFactory.Glucose)),
                        Sequence(Keyword("Lingeling"),       push(SATFactory.Lingeling)),
-                       Sequence(Keyword("SAT4J"),           push(SATFactory.DefaultSAT4J))); //),
-                       // Sequence(Sequence(FilePathLiteral(), Space()),
-                       //          push(SATFactory.externalFactory(popString(),
-                       //                                          "customSolver.temp")))
-                       //  ); Removed for Pardinus
+                       Sequence(Keyword("SAT4J"),           push(SATFactory.DefaultSAT4J)),
+                       Sequence(Sequence(FilePathLiteral(), Space()),
+                                push(SATFactory.externalFactory(popString(),
+                                                                "customSolver.temp")))
+                        );
     }
 
     /**
      * @return BuDDy
      */
-    // @SuppressSubnodes
-    // @MemoMismatches
-    // Rule BddSolver() {
-    //     return Sequence(Keyword("BuDDy"),  push(BDDSolverFactory.JBuDDy));
-    // } Removed for Pardinus
+    @SuppressSubnodes
+    @MemoMismatches
+    Rule BddSolver() {
+        return Sequence(Keyword("BuDDy"),  push(BDDSolverFactory.JBuDDy));
+    }
 
-    // @SuppressSubnodes
-    // @MemoMismatches
-    // Rule DistinctPathBddSolver() {
-    //     return Sequence(Keyword("BuDDyPaths"),  push(BDDSolverFactory.JBuDDy));
-    // } Removed for Pardinus
+    @SuppressSubnodes
+    @MemoMismatches
+    Rule DistinctPathBddSolver() {
+        return Sequence(Keyword("BuDDyPaths"),  push(BDDSolverFactory.JBuDDy));
+    }
 
     //-------------------------------------------------------------------------
     //  Universe, int builder and relation declarations/builder
