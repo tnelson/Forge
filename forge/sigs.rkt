@@ -132,6 +132,7 @@
   preds   ; Set<node/formula>
   scope   ; Scope
   bounds  ; Bound
+  target  ; Map<??>
   ) #:transparent)
 
 (struct Server-ports (
@@ -632,7 +633,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (~optional (~or (~seq #:bounds (boundss ...))
                             (~seq #:bounds bound)))
             (~optional (~seq #:solver solver-choice))
-            (~optional (~seq #:backend backend-choice))) ...)
+            (~optional (~seq #:backend backend-choice))
+            (~optional (~seq #:target target-instance))) ...)
       #`(begin
         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
         (define run-state curr-state)
@@ -677,12 +679,25 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define-values (run-scope run-bound)
           (run-inst base-scope default-bound))
 
+        (define run-target (~? (cdr target-instance) (hash)))
+
         (define run-command #,command)
 
-        (define run-spec (Run-spec run-state run-preds run-scope run-bound))
+        (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))
         (define-values (run-result atom-rels server-ports) (send-to-kodkod run-spec))
 
-        (define name (Run run-name run-command run-spec run-result server-ports atom-rels)))]))
+        ; Remove helper relations
+        (define run-result-clean
+          (stream-map (lambda (model)
+                        (if (equal? (car model) 'unsat)
+                            model
+                            (let ([instance (cdr model)])
+                              (for ([rel atom-rels])
+                                (hash-remove! instance rel))
+                              (cons 'sat instance))))
+                      run-result))
+
+        (define name (Run run-name run-command run-spec run-result-clean server-ports atom-rels)))]))
 
 ; Test that a spec is sat or unsat
 ; (test name
@@ -1198,6 +1213,23 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (symbol->string atom-name)
             (number->string atom-name)))
       (declare-relation (list atom-name-str) "univ" atom-name-str)))
+
+  ; Print targets
+  (define-syntax-rule (pardinus-print lines ...)
+    (pardinus:cmd 
+      [stdin]
+      lines ...))
+
+  (define target-instance (Run-spec-target run-spec))
+  (for ([(relation atoms) target-instance])
+    (define sig-or-rel
+      (if (@= (relation-arity relation) 1)
+          (get-sig run-spec relation)
+          (get-relation run-spec relation)))
+    (pardinus-print
+      (pardinus:declare-target 
+        (pardinus:r (index-of all-rels relation))
+        (get-atoms sig-or-rel atoms))))
 
   ; Print solve
   (define (get-next-model)

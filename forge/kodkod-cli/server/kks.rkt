@@ -16,6 +16,8 @@
 (define stdout-val #false)
 (provide start-server) ; stdin stdout)
 (define (start-server)
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (displayln "Starting kodkod server."))
   (define kks (new server%
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))

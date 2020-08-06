@@ -30,7 +30,9 @@
 
     (subprocess #f #f #f
                 java "-cp" cp (string-append "-Djava.library.path=" (path->string pardinus/jar))
-                "kodkod.cli.KodkodServer" (format "-~a" solver-type) "-error-out" error-out)))
+                "kodkod.cli.KodkodServer" 
+                (format "-~a" solver-type) (if target-oriented "-target-oriented" "") 
+                "-error-out" error-out)))
 
 (define (pardinus-stderr-handler src err)
   (match (read-line err)
