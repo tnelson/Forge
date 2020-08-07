@@ -111,7 +111,7 @@ public abstract class AbstractParserTest {
 	 * Returns {@code this.parser.problem().globals()}.
 	 * @return this.parser.problem().globals()
 	 */
-	final DefEnv globals() { return parser.problem().env(); }
+	final StringDefEnv globals() { return parser.problem().env(); }
 
 	/**
 	 * Returns {@code this.parser.problem().asserts()}.

@@ -253,15 +253,15 @@ public final class KodkodFactory {
     //  Quantified variable declarations
     //-------------------------------------------------------------------------
 	/**
-	 * Returns a declaration of a quantified variable {@code "v"+idx} with the
+	 * Returns a declaration of a quantified variable {@code name} with the
 	 * given multiplicity and expression.
-	 * @return Variable.nary("v"+idx, expr.arity()).declare(mult, expr)
+	 * @return Variable.nary(name, expr.arity()).declare(mult, expr)
 	 */
-	public static final Decl declareVariable(int idx, Multiplicity mult, Expression expr) {
+	public static final Decl declareVariable(String name, Multiplicity mult, Expression expr) {
 		try {
 			//System.out.println(mult);
 			//System.out.println(expr);
-			return Variable.nary("v"+idx, expr.arity()).declare(mult, expr);
+			return Variable.nary(name, expr.arity()).declare(mult, expr);
 		} catch (RuntimeException ex) {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}

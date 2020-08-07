@@ -77,7 +77,7 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	StandardKodkodOutput() {  this(Logger.getGlobal()); }
 
     public void writeUnsat(Solution sol, KodkodProblem problem) {
-        writeCore(sol.proof(), (Defs<Formula>) problem.env().defs('f'));
+        writeCore(sol.proof(), (StringDefs<Formula>) problem.env().defs('f'));
         writeStats(problem, sol);
     }
 
@@ -87,7 +87,7 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	 */
 	@SuppressWarnings("unchecked")
 	public void writeSolution(Solution sol, KodkodProblem problem) {
-		if (sol.sat()) 	writeInstance(sol.instance(), (Defs<Relation>) problem.env().defs('r'));
+		if (sol.sat()) 	writeInstance(sol.instance(), (StringDefs<Relation>) problem.env().defs('r'));
 		else			System.out.println("(no-more-instances)");
 		writeStats(problem, sol);
 	}
@@ -98,12 +98,12 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	 * Writes the instance s-expression to standard out.
 	 * @requires all r: defs.def[int] | inst.tuples(r) != null
 	 **/
-	public void writeInstance(Instance inst, Defs<Relation> defs) {
+	public void writeInstance(Instance inst, StringDefs<Relation> defs) {
 		final StringBuilder str = new StringBuilder();
 		Set<Relation> written = new HashSet<>();
 		str.append("(sat :model (");
-		for (int i = 0, max = defs.maxIndex(); i <= max; i++) {
-			final Relation r = defs.use(i);
+		for (String name : defs.keys()) {
+			final Relation r = defs.use(name);
 			if (r==null) continue;
 			final TupleSet ts = inst.tuples(r);
 			assert ts != null;
@@ -140,7 +140,7 @@ public final class StandardKodkodOutput implements KodkodOutput {
 	 * Writes the core s-expression to standard out.
 	 * @requires proof.highLevelCore().values() in defs.def[int]
 	 **/
-	public void writeCore(Proof proof, Defs<Formula> defs) {
+	public void writeCore(Proof proof, StringDefs<Formula> defs) {
 		final StringBuilder str = new StringBuilder();
 		str.append("(unsat");
 

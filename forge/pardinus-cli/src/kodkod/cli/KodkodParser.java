@@ -333,12 +333,12 @@ public class KodkodParser extends BaseParser<Object> {
      * @return LPAR Identifier('r')+ LBRK TupleSet [DOUBLECOLON? TupleSet]? RBRK RPAR
      */
     Rule DeclareRelation() {
-        final Var<List<Integer>> idxs = new Var<>();
+        final Var<List<String>> names = new Var<>();
         final Var<TupleSet> lower = new Var<>(), upper = new Var<>();
         return Sequence(
                 LPAR,
-                Identifier('r'), idxs.set(new ArrayList<Integer>(4)), idxs.get().add(popInt()),
-                ZeroOrMore(Identifier('r'), idxs.get().add(popInt())),
+                Identifier('r'), names.set(new ArrayList<String>(4)), names.get().add(popString()),
+                ZeroOrMore(Identifier('r'), names.get().add(popString())),
                 LBRK,
                 TupleSet(), lower.set(popTupleSet()),
                 FirstOf(
@@ -347,7 +347,7 @@ public class KodkodParser extends BaseParser<Object> {
                                 TupleSet(), upper.set(upper.isSet() ? union(upper.get(), popTupleSet()) : popTupleSet())),
                         Sequence(EMPTY, upper.set(lower.get()))),
                 RBRK,
-                RPAR, problem.declareRelations(idxs.get(), lower.get(), upper.get()));
+                RPAR, problem.declareRelations(names.get(), lower.get(), upper.get()));
     }
 
     //-------------------------------------------------------------------------
@@ -453,17 +453,17 @@ public class KodkodParser extends BaseParser<Object> {
     @Cached
     /** @return Identifier(varPrefix) varValue */
     Rule Def(char varPrefix, Rule varValue) {
-        final Var<Integer> varIdx = new Var<>();
+        final Var<String> varName = new Var<>();
         return Sequence(
-                Identifier(varPrefix), varIdx.set(popInt()),
-                varValue, env().def(varPrefix, varIdx.get(), (Node) pop()));
+                Identifier(varPrefix), varName.set(popString()),
+                varValue, env().def(varPrefix, varName.get(), (Node) pop()));
     }
 
     @SuppressSubnodes
     @Cached
     /** @return Identifier(varPrefix) */
     Rule Use(char varPrefix) {
-        return Sequence(Identifier(varPrefix), push(env().use(varPrefix, popInt())));
+        return Sequence(Identifier(varPrefix), push(env().use(varPrefix, popString())));
     }
 
     //-------------------------------------------------------------------------
@@ -697,14 +697,14 @@ public class KodkodParser extends BaseParser<Object> {
      * @return LBRK Identifier('v') :[LONE|ONE|SOME|SET] Expr RBRK
      */
     Rule VarDecl() {
-        final Var<Integer> varIdx = new Var<>();
+        final Var<String> varName = new Var<>();
         final Var<Decl> decl = new Var<>();
 
         return FirstOf(
-                Sequence(ACTION(varIdx.enterFrame()),
+                Sequence(ACTION(varName.enterFrame()),
                          ACTION(decl.enterFrame()),
                          LBRK,
-                         Identifier('v'), varIdx.set(popInt()),
+                         Identifier('v'), varName.set(popString()),
                          Ch(':'),
                          Space(),
                          FirstOf(
@@ -714,14 +714,14 @@ public class KodkodParser extends BaseParser<Object> {
                                  VarMult(SET, Multiplicity.SET),
                                  VarMult(Space(), Multiplicity.ONE)),
                          Expr(), swap(),
-                         RBRK, decl.set(declareVariable(varIdx.get(), popMult(), popExpr())),
-                         peekEnv().def('v', varIdx.get(), decl.get().variable()),
+                         RBRK, decl.set(declareVariable(varName.get(), popMult(), popExpr())),
+                         peekEnv().def('v', varName.get(), decl.get().variable()),
                          push(decl.get()),
 
-                         ACTION(varIdx.exitFrame()),
+                         ACTION(varName.exitFrame()),
                          ACTION(decl.exitFrame())),
 
-                Sequence(ACTION(varIdx.exitFrame()),
+                Sequence(ACTION(varName.exitFrame()),
                          ACTION(decl.exitFrame()),
                          NOTHING));
     }
@@ -978,6 +978,11 @@ public class KodkodParser extends BaseParser<Object> {
         return Sequence(OneOrMore(Digit()), push(Integer.parseInt(match())), Space());
     }
 
+    @SuppressSubnodes
+    Rule StringLiteral() {
+        return Sequence(OneOrMore(LetterOrDigit()), push(match()), Space());
+    }
+
     /**
      * @return TRUE | FALSE
      */
@@ -1018,7 +1023,7 @@ public class KodkodParser extends BaseParser<Object> {
      */
     @SuppressSubnodes
     Rule Identifier(char prefix) {
-        return Sequence(Ch(prefix), NatLiteral(), Space());
+        return Sequence(Ch(prefix), StringLiteral(), Space());
     }
 
     //-------------------------------------------------------------------------
@@ -1198,8 +1203,8 @@ public class KodkodParser extends BaseParser<Object> {
         return (Multiplicity) pop();
     }
 
-    final DefEnv popEnv() {
-        return (DefEnv) pop();
+    final StringDefEnv popEnv() {
+        return (StringDefEnv) pop();
     }
 
     final List popList() {
@@ -1214,8 +1219,8 @@ public class KodkodParser extends BaseParser<Object> {
         return (Decl) pop();
     }
 
-    final DefEnv peekEnv() {
-        return (DefEnv) peek();
+    final StringDefEnv peekEnv() {
+        return (StringDefEnv) peek();
     }
 
     final Multiplicity peekMult() {
@@ -1237,10 +1242,10 @@ public class KodkodParser extends BaseParser<Object> {
      *
      * @return current lexical environment
      */
-    final DefEnv env() {
+    final StringDefEnv env() {
         for (Object val : getContext().getValueStack()) {
             if (val instanceof DefEnv)
-                return (DefEnv) val;
+                return (StringDefEnv) val;
         }
         return problem.env();
     }

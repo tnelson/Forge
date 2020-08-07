@@ -222,10 +222,10 @@ public class ExprRuleTest extends AbstractParserTest {
 		final Expression actual = (Expression) result.valueStack.pop();
 		assertEquals(expectedExpr.arity(), actual.arity());
 		assertEquals(expectedExpr.toString(), actual.toString());
-		assertEquals(-1, globals().maxIndex('e'));
-		assertEquals(-1, globals().maxIndex('f'));
-		assertEquals(-1, globals().maxIndex('i'));
-		assertEquals(-1, globals().maxIndex('v'));
+		assertEquals(0, globals().keys('e').size());
+		assertEquals(0, globals().keys('f').size());
+		assertEquals(0, globals().keys('i').size());
+		assertEquals(0, globals().keys('v').size());
 	}
 
 }

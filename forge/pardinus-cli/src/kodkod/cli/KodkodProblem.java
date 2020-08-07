@@ -50,7 +50,7 @@ import org.parboiled.errors.ActionException;
  * a complete or an incremental specification of a Kodkod problem.
  *
  * <p>A complete specification consists of {@link Options}, {@link Bounds}, a set of
- * asserted {@link Formula formulas}, and a problem {@link DefEnv definition environment}.
+ * asserted {@link Formula formulas}, and a problem {@link StringDefEnv definition environment}.
  * It represents a stand-alone problem description in which each asserted formulas refers to
  * the relations bound the problem's own {@link Bounds} instance.  Complete specifications
  * are solved with a {@link Solver standard solver}.</p>
@@ -80,7 +80,7 @@ import org.parboiled.errors.ActionException;
  * @specfield options: {@link Options}
  * @specfield bounds: lone {@link Bounds}
  * @specfield asserts: set {@link Formula} 	// top-level formulas
- * @specfield env: {@link DefEnv} 			// definitions for this problem
+ * @specfield env: {@link StringDefEnv} 			// definitions for this problem
  * @specfield maxSolutions: long			// maximum number of solutions that may be produced for this problem
  *
  * @invariant one this.*prev.options && one this.*prev.bounds.universe
@@ -94,7 +94,7 @@ import org.parboiled.errors.ActionException;
  public abstract class KodkodProblem {
 	private long buildTimeMillis = -1, coreTimeMillis = -1, maxSolutions = 1;
 	private Options options;
-	private final DefEnv env;
+	private final StringDefEnv env;
 	private final List<Formula> asserts;
 	private PardinusBounds bounds;
 
@@ -103,7 +103,7 @@ import org.parboiled.errors.ActionException;
 	 * @requires prev.incremental()
 	 * @ensures this.bounds' = bounds && no this.asserts' && this.env' = env && this.options' = options && this.maxSolutions' = maxSolutions
 	 */
-	private KodkodProblem(DefEnv env, PardinusBounds bounds, Options options, long maxSolutions) {
+	private KodkodProblem(StringDefEnv env, PardinusBounds bounds, Options options, long maxSolutions) {
 		this.env = env;
 		this.bounds = bounds;
 		this.options = options;
@@ -119,7 +119,7 @@ import org.parboiled.errors.ActionException;
 	 * @ensures this(new DefEnv(), null, KodkodFactory.baseOptions(), 1)
 	 */
 	private KodkodProblem() {
-		this(new DefEnv(), null, KodkodFactory.baseOptions(), 1);
+		this(new StringDefEnv(), null, KodkodFactory.baseOptions(), 1);
 	}
 
 	/**
@@ -130,7 +130,7 @@ import org.parboiled.errors.ActionException;
 	 * with the given options.
 	 * @return some p: {@link KodkodProblem} |
 	 * 			no p.prev && !p.incremental() && p.options = KodkodFactory.baseOptions() &&
-	 * 			no p.bounds && no p.asserts && p.env = new DefEnv() && p.maxSolutions = 1
+	 * 			no p.bounds && no p.asserts && p.env = new StringDefEnv() && p.maxSolutions = 1
 	 */
 	public static KodkodProblem complete() { return new KodkodProblem.Complete(); }
 
@@ -142,7 +142,7 @@ import org.parboiled.errors.ActionException;
 	 * {@link KodkodFactory#baseOptions()}.
 	 * @return some p: {@link KodkodProblem} |
 	 * 			no p.prev && p.incremental() && p.options = KodkodFactory.baseOptions() &&
-	 * 			no p.bounds && no p.asserts && p.env = new DefEnv() && p.maxSolutions = 1
+	 * 			no p.bounds && no p.asserts && p.env = new StringDefEnv() && p.maxSolutions = 1
 	 */
 	public static KodkodProblem incremental() { return new KodkodProblem.Incremental(); }
 
@@ -179,7 +179,7 @@ import org.parboiled.errors.ActionException;
 	 * @return some p: {@link KodkodProblem} |
 	 * 			no p.prev && (p.incremental() iff prototype.incremental()) &&
 	 * 			p.options = prototype.options && p.maxSolutions = prototype.maxSolutions &&
-	 * 			no p.bounds && no p.asserts && p.env = new DefEnv()
+	 * 			no p.bounds && no p.asserts && p.env = new StringDefEnv()
 	 */
 	public abstract KodkodProblem clear();
 
@@ -221,7 +221,7 @@ import org.parboiled.errors.ActionException;
 	 * register of the problem environment is unmodifiable.
 	 * @return this.env
 	 */
-	public final DefEnv env() { return env; }
+	public final StringDefEnv env() { return env; }
 
 	/**
 	 * Returns {@code this.bounds}.  The bounds should not be modified by client
@@ -570,11 +570,11 @@ import org.parboiled.errors.ActionException;
 	 *            	this.bounds.lowerBound'[r] = lower && this.bounds.upperBound'[r] = upper &&
 	 *            	this.env.def('r', idx, r))
 	 */
-	final boolean declareRelations(List<Integer> idxs, TupleSet lower, TupleSet upper) {
+	final boolean declareRelations(List<String> names, TupleSet lower, TupleSet upper) {
 		try {
-			for(Integer idx : idxs) {
-				final Relation r = Relation.nary("r"+idx, lower.arity());
-				env.def('r', idx, r);
+			for(String name : names) {
+				final Relation r = Relation.nary(name, lower.arity());
+				env.def('r', name, r);
 				bounds.bound(r, lower, upper);
 				declaredRelation(r, lower, upper);
 			}
@@ -810,7 +810,7 @@ import org.parboiled.errors.ActionException;
 
 		Complete() {  this.solver = new Solver(super.options); }
 		Complete(Complete prototype) {
-			super(new DefEnv(), null, prototype.options(), prototype.maxSolutions());
+			super(new StringDefEnv(), null, prototype.options(), prototype.maxSolutions());
 			this.solver = prototype.solver;
 		}
 		public boolean isIncremental() { return false; }
@@ -843,7 +843,7 @@ import org.parboiled.errors.ActionException;
 		IncrementalSolver solver = null;
 
 		Incremental() { }
-		Incremental(DefEnv env, PardinusBounds bounds, Options options, long maxSolutions, IncrementalSolver solver) {
+		Incremental(StringDefEnv env, PardinusBounds bounds, Options options, long maxSolutions, IncrementalSolver solver) {
 			super(env, bounds, options, maxSolutions);
 			this.solver = solver;
 		}
@@ -858,7 +858,7 @@ import org.parboiled.errors.ActionException;
 		public final KodkodProblem clear() {
 			if (solver!=null)
 				solver.free();
-			return new Incremental(new DefEnv(), null, options(), maxSolutions(), null) ;
+			return new Incremental(new StringDefEnv(), null, options(), maxSolutions(), null) ;
 		}
 
 		public final KodkodProblem solve(KodkodOutput out) {

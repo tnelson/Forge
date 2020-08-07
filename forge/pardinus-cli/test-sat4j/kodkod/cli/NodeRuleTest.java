@@ -46,9 +46,9 @@ import org.parboiled.support.ParsingResult;
 @RunWith(Parameterized.class)
 public class NodeRuleTest extends AbstractParserTest {
 	private static final Relation[] r = {
-		Relation.unary("r0"), Relation.unary("r1"),
-		Relation.binary("r2"), Relation.binary("r3"),
-		Relation.ternary("r4"), Relation.ternary("r5")
+		Relation.unary("0"), Relation.unary("1"),
+		Relation.binary("2"), Relation.binary("3"),
+		Relation.ternary("4"), Relation.ternary("5")
 	};
 	private final String input;
 	private final ExpectedError expectedError;
@@ -142,9 +142,9 @@ public class NodeRuleTest extends AbstractParserTest {
 		final ParsingResult<?> result = checkExpectedErrors(expectedError, parse(input));
 		if (expectedError != ExpectedError.NONE) return;
 		assertEquals(0, result.valueStack.size());
-		final DefEnv actual = globals();
+		final StringDefEnv actual = globals();
 		for(char reg : new char[]{'e', 'f', 'i'}) {
-			assertEquals(expectedEnv.maxIndex(reg), actual.maxIndex(reg));
+//			assertEquals(expectedEnv.maxIndex(reg), actual.maxIndex(reg));
 			final int max = expectedEnv.maxIndex(reg);
 			for(int i = 0; i <= max; i++) {
 				Node en = null, an = null;
@@ -152,7 +152,7 @@ public class NodeRuleTest extends AbstractParserTest {
 					en = expectedEnv.use(reg, i);
 				} catch (ActionException e) {} // ignore
 				try {
-					an = actual.use(reg, i);
+					an = actual.use(reg, Integer.toString(i));
 				} catch (ActionException e) {} // ignore
 				assertEquals(String.valueOf(en), String.valueOf(an));
 			}
