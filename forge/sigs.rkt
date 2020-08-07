@@ -828,9 +828,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (evaluate run '() command)))
 
         (define (get-contrast-model-generator model)
+          (define new-state 
+            (let ([old-state (get-state run)])
+              (state-set-option (state-set-option old-state 'backend 'pardinus)
+                                'solver 'TargetSATSolver)))
           (define contrast-run-spec
             (struct-copy Run-spec (Run-run-spec run)
-                         [target (cdr model)]))
+                         [target (cdr model)]
+                         [state new-state]))
           (define-values (run-result atom-rels server-ports) (send-to-kodkod contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
