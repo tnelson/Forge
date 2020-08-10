@@ -14,6 +14,8 @@
 ; How to refactor? Instead of printing in many small pieces, accumulate a string and just print that.
 ; with maybe a formatting function?
 
+(define get-sym node/expr/quantifier-var-sym)
+
 ; quantvars should start at -1
 (define (interpret-formula formula relations quantvars)
   (match formula
@@ -32,7 +34,7 @@
        (for/fold ([quantvars quantvars])
                  ([decl decls])
          (define new-quantvars (cons (car decl) quantvars))
-         (print-cmd-cont (format "[~a : ~a " (v (get-var-idx (car decl) new-quantvars)) (if (@> (node/expr-arity (car decl)) 1) "set" "one")))
+         (print-cmd-cont (format "[~a : ~a " (v (get-sym (car decl)) #;(get-var-idx (car decl) new-quantvars)) (if (@> (node/expr-arity (car decl)) 1) "set" "one")))
          (interpret-expr (cdr decl) relations new-quantvars)
          (print-cmd-cont "] ")
          new-quantvars))
@@ -103,7 +105,7 @@
     [(node/expr/op arity args)
      (interpret-expr-op expr relations quantvars args)]
     [(node/expr/quantifier-var arity sym)     
-     (print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
+     (print-cmd-cont (symbol->string (v sym #;(get-var-idx expr quantvars))))
      (print-cmd-cont " ")]
     [(node/expr/comprehension len decls form)     
      (define vars (map car decls)) ; account for multiple variables
@@ -111,7 +113,7 @@
      (let ([quantvars (append vars quantvars)])       
        ( print-cmd-cont "{(") ; start comprehension, start decls
        (for-each (lambda (d) ; each declaration
-                   (print-cmd-cont (format "[~a : " (v (get-var-idx (car d) quantvars))))
+                   (print-cmd-cont (format "[~a : " (v (get-sym (car d)) #;(get-var-idx (car d) quantvars))))
                    (interpret-expr (cdr d) relations quantvars)
                    (print-cmd-cont "]"))
                  decls)
@@ -169,7 +171,7 @@
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        ( print-cmd-cont (format "(sum ([~a : ~a " 
-                                (v (get-var-idx var quantvars))
+                                (v (get-sym var) #;(get-var-idx var quantvars))
                                 (if (@> (node/expr-arity var) 1) "set" "one")))
        (interpret-expr (cdr (car decls)) relations quantvars)
        (print-cmd-cont "]) ")
@@ -217,7 +219,7 @@
     [(node/int/sum-quant decls int-expr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ( print-cmd-cont (format "(sum ([~a : ~a " (v (get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
+       ( print-cmd-cont (format "(sum ([~a : ~a " (v (get-sym var) #;(get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
        (interpret-expr (cdr (car decls)) relations quantvars)
        ( print-cmd-cont "]) ")
        (interpret-int int-expr relations quantvars)
