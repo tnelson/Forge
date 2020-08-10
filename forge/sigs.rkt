@@ -145,7 +145,7 @@
   run-spec ; Run-spec
   result   ; Stream
   server-ports ; Server-ports
-  atom-rels ; List<node/expr/relation>
+  atoms    ; List<Symbol>
   ) #:transparent)
 
 
@@ -393,8 +393,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
                [run-spec (Run-run-spec run-or-spec)])
            (append
              (map Sig-rel (get-sigs run-spec))
-             (map Relation-rel (get-relations run-spec))
-             (Run-atom-rels run)))]))
+             (map Relation-rel (get-relations run-spec))))]))
 
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)
@@ -684,20 +683,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define run-command #,command)
 
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))
-        (define-values (run-result atom-rels server-ports) (send-to-kodkod run-spec))
+        (define-values (run-result atoms server-ports) (send-to-kodkod run-spec))
 
-        ; Remove helper relations
-        (define run-result-clean
-          (stream-map (lambda (model)
-                        (if (equal? (car model) 'unsat)
-                            model
-                            (let ([instance (cdr model)])
-                              (for ([rel atom-rels])
-                                (hash-remove! instance rel))
-                              (cons 'sat instance))))
-                      run-result))
-
-        (define name (Run run-name run-command run-spec run-result-clean server-ports atom-rels)))]))
+        (define name (Run run-name run-command run-spec run-result server-ports atoms)))]))
 
 ; Test that a spec is sat or unsat
 ; (test name
@@ -768,8 +756,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (kodkod:print-cmd "(evaluate ~a)" expr-name)
     (kodkod:print-eof))
 
-  (define atom-rels (Run-atom-rels run))
-  (translate-evaluation-from-kodkod-cli (kodkod:read-evaluation (get-stdout run)) atom-rels))
+  (define run-atoms (Run-atoms run))
+  (translate-evaluation-from-kodkod-cli (kodkod:read-evaluation (get-stdout run)) run-atoms))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -832,9 +820,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
                        (Run-command run) 
                        "/no-name.rkt" 
                        (get-bitwidth 
-                         (Run-run-spec run)) 
-                       empty
-                       (Run-atom-rels run)))))
+                       (Run-run-spec run)) 
+                       empty))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1152,9 +1139,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (kodkod:product 'none (to-tupleset (sub1 arity) eles)))
         (kodkod:tupleset #:tuples eles)))
 
-  (define (get-atoms sig-or-rel atom-names)
-    (define arity 
-      (if (Sig? sig-or-rel) 1 (length (Relation-sigs sig-or-rel))))
+  (define (get-atoms rel atom-names)
     (define atoms 
       (for/list ([tup atom-names])
         (for/list ([atom tup])
@@ -1166,25 +1151,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (raise (format "atom (~a) not in all-atoms (~a)"
                            atom all-atoms)))
           (index-of all-atoms atom))))
-    (define ret (to-tupleset arity atoms))
+    (define ret (to-tupleset (relation-arity rel) atoms))
     ret)
 
-  (for ([sig-or-rel (append (get-sigs run-spec) (get-relations run-spec))]
-        [bound total-bounds]
-        [index (in-naturals)])
+  (for ([rel (get-all-rels run-spec)]
+        [bound total-bounds])
     (kk-print
       (kodkod:declare-rel
-        (kodkod:r index)
-        (get-atoms sig-or-rel (bound-lower bound))
-        (get-atoms sig-or-rel (bound-upper bound)))))
-
-  (for ([atom all-atoms]
-        [atom-int (in-naturals)]
-        [index (in-naturals (length (get-all-rels run-spec)))])
-    (define tup (to-tupleset 1 (list (list atom-int))))
-    (kk-print
-      (kodkod:declare-rel (kodkod:r index) tup tup)))
-  
+        (kodkod:r (relation-name rel))
+        (get-atoms rel (bound-lower bound))
+        (get-atoms rel (bound-upper bound)))))
 
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
@@ -1205,14 +1181,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (kodkod:print-cmd ")")
       (kodkod:assert (kodkod:f assertion-number))
       (current-formula (add1 assertion-number))))
-
-  (define atom-rels 
-    (for/list ([atom-name all-atoms])
-      (define atom-name-str 
-        (if (symbol? atom-name)
-            (symbol->string atom-name)
-            (number->string atom-name)))
-      (declare-relation (list atom-name-str) "univ" atom-name-str)))
 
   ; Print targets
   (define-syntax-rule (pardinus-print lines ...)
@@ -1236,14 +1204,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (kk-print (kodkod:solve))
     (match-define (cons restype inst) (translate-from-kodkod-cli 'run 
                                                                  (kodkod:read-solution stdout) 
-                                                                 (append all-rels atom-rels) 
+                                                                 all-rels 
                                                                  all-atoms))
     (cons restype inst))
 
   (define (model-stream)
     (stream-cons (get-next-model) (model-stream)))
 
-  (values (model-stream) atom-rels (Server-ports stdin stdout)))
+  (values (model-stream) all-atoms (Server-ports stdin stdout)))
 
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>

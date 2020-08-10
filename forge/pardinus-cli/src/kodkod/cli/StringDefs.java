@@ -63,7 +63,7 @@ final class StringDefs<V>  {
      */
     @SuppressWarnings("unchecked")
     public static <V> StringDefs<V> empty(char prefix) {
-        return new StringDefs<V>(prefix, (Map<String, V>)Collections.<String, V>emptyMap());
+        return new StringDefs<V>(prefix, new HashMap<String, V>());
     }
 
     /**
@@ -157,6 +157,6 @@ final class StringDefs<V>  {
      * @see java.lang.Object#toString()
      */
     public String toString() {
-        return prefix + "[" + def.keySet() + "]";
+        return prefix + "" + def.keySet();
     }
 }

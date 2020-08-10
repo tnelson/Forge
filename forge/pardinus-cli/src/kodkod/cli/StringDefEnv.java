@@ -134,12 +134,15 @@ public final class StringDefEnv {
      * @throws UnsupportedOperationException this is an unmodifiable definition list
      */
     final boolean def(char reg, String name, Node value) {
+//        System.out.println("Defining " + reg + name + ".");
         switch(reg){
             case 'e'	: return e.def(name, (Expression)value);
             case 'f'	: return f.def(name, (Formula)value);
             case 'i'	: return i.def(name, (IntExpression)value);
             case 'r'	: return r.def(name, (Relation)value);
-            case 'v'	: return v.def(name, (Variable)value);
+            case 'v'	: boolean ret =  v.def(name, (Variable)value);
+//                          System.out.println("DEFINED " + reg + name + " AS " + v.use(name));
+                          return ret;
             default     : throw new ActionException("Invalid identifier: " + reg + name);
         }
     }
@@ -185,9 +188,11 @@ public final class StringDefEnv {
         StringDefEnv top = this;
         do {
             final StringDefs<? extends Node> defs = top.defs(reg);
-            if (defs.isDef(name))
-                return (N)defs.use(name);
-            else
+//            System.out.println("Looking for " + reg + name + " in " + defs);
+            if (defs.isDef(name)) {
+//                System.out.println("Found " + defs.use(name));
+                return (N) defs.use(name);
+            } else
                 top = top.parent;
         } while (top != null);
         throw new ActionException("No definition found for " + reg + name  + ".");

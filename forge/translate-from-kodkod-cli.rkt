@@ -10,9 +10,6 @@ The kodkod cli only numbers relations and atoms, it doesn't give them names. Thi
 we convert from the numbering scheme to the naming scheme.
 |#
 
-; returns #f if the substring is not numeric
-(define (id-to-index id) 
-  (string->number (substring (symbol->string id) 1)))
 
 (define (translate-kodkod-cli-atom univ atom)
   (list-ref univ atom))
@@ -59,7 +56,7 @@ relation-names is the same, a list of all relation names ordered as they are in 
 This function just recreates the model, but using names instead of numbers.
 |#
 
-(define (translate-from-kodkod-cli runtype model relation-names inty-univ)
+(define (translate-from-kodkod-cli runtype model relations inty-univ)
   (define flag (car model))
   (define data (cdr model))
 
@@ -74,12 +71,13 @@ This function just recreates the model, but using names instead of numbers.
         [(equal? 'no-more-instances flag)
          (cons 'no-more-instances #f)]
         [(equal? 'sat flag)
+         #|
          (define translated-model (make-hash))
          (define initial-mapping (make-hash))
-         #|(for ([relation-num (hash-keys data)])
+         (for ([relation-num (hash-keys data)])
            (hash-set! initial-mapping
                       (list-ref relation-names (id-to-index relation-num))
-                      (translate-kodkod-cli-relation univ (hash-ref data relation-num) (id-to-index relation-num) parents)))|#
+                      (translate-kodkod-cli-relation univ (hash-ref data relation-num) (id-to-index relation-num) parents)))
 
 
          (for ([relation-num (hash-keys data)])
@@ -99,8 +97,15 @@ This function just recreates the model, but using names instead of numbers.
                   (printf "Skolem ~a: ~a~n" relation-num translated-tuples)
                   (hash-set! translated-model
                              (declare-relation arity-types "univ" (symbol->string relation-num))
-                             translated-tuples)]))
+                             translated-tuples)]))|#
          ;(printf "Translated model: ~a~n" translated-model)
+
+         (define translated-model
+           (for/hash ([(key value) data]
+                      #:unless (equal? key 'Int)
+                      #:unless (equal? key 'succ))
+             (values key
+                     (translate-kodkod-cli-relation inty-univ value))))
          (cons 'sat translated-model)]))
 
 (define (translate-evaluation-from-kodkod-cli result atom-names)
@@ -111,6 +116,6 @@ This function just recreates the model, but using names instead of numbers.
     [(equal? type 'expression)
      (for/list ([tuple value])
        (for/list ([atom tuple])
-         (define rel (list-ref atom-names atom))
-         (or (string->number (relation-name rel))
-             (string->symbol (relation-name rel)))))]))
+         (define name (list-ref atom-names atom))
+         (or (string->number name)
+             (string->symbol name))))]))

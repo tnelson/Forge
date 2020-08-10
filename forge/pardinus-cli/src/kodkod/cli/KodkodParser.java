@@ -1244,7 +1244,7 @@ public class KodkodParser extends BaseParser<Object> {
      */
     final StringDefEnv env() {
         for (Object val : getContext().getValueStack()) {
-            if (val instanceof DefEnv)
+            if (val instanceof StringDefEnv)
                 return (StringDefEnv) val;
         }
         return problem.env();
