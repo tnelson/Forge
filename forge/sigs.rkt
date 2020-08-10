@@ -832,8 +832,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (let ([old-state (get-state run)])
               (state-set-option (state-set-option old-state 'backend 'pardinus)
                                 'solver 'TargetSATSolver)))
+          (define new-preds
+            (list (not (foldr (lambda (a b) (and a b))
+                              true
+                              (Run-spec-preds (Run-run-spec run))))))
+
           (define contrast-run-spec
             (struct-copy Run-spec (Run-run-spec run)
+                         [preds new-preds]
                          [target (cdr model)]
                          [state new-state]))
           (define-values (run-result atom-rels server-ports) (send-to-kodkod contrast-run-spec))

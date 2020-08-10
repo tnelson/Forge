@@ -6,5 +6,9 @@
 (sig B)
 (relation r (A B))
 
-(run my-run)
-(is-sat? my-run)
+(pred P
+  (= A (join r B)))
+
+(run my-run
+     #:preds P)
+(display my-run)
