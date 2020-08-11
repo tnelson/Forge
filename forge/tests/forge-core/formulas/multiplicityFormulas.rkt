@@ -118,29 +118,36 @@
 
 
 
-(check someAsMultiplicity
-       #:preds [Some]
-       #:bounds [test-inst])
+(test someAsMultiplicity
+      #:preds [Some]
+      #:bounds [test-inst]
+      #:expect theorem)
 
-(check noAsMultiplicity
-       #:preds [No]
-       #:bounds [test-inst])
+(test noAsMultiplicity
+      #:preds [No]
+      #:bounds [test-inst]
+      #:expect theorem)
 
-(check oneAsMultiplicity
-       #:preds [One1]
-       #:bounds [test-inst])
+(test oneAsMultiplicity
+      #:preds [One1]
+      #:bounds [test-inst]
+      #:expect theorem)
 
-(check loneAsMultiplicity
-       #:preds [Lone1]
-       #:bounds [test-inst])
+(test loneAsMultiplicity
+      #:preds [Lone1]
+      #:bounds [test-inst]
+      #:expect theorem)
 
-; (check oneAsQuantifer ; CUURRENTLY BUGGED
-;        #:preds [One2]
-;        #:bounds [test-inst])
+; (test oneAsQuantifer ; CUURRENTLY BUGGED
+;       #:preds [One2]
+;       #:bounds [test-inst]
+;       #:expect theorem)
 
-; (check loneAsQuantifer ; CUURRENTLY BUGGED
-;        #:preds [Lone2]
-;        #:bounds [test-inst])
+; (test loneAsQuantifer ; CUURRENTLY BUGGED
+;       #:preds [Lone2]
+;       #:bounds [test-inst]
+;       #:expect theorem)
 
-(check loneEquivalentOneNo
-       #:preds [Equivalence])
+(test loneEquivalentOneNo
+      #:preds [Equivalence]
+      #:expect theorem)

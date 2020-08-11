@@ -13,21 +13,26 @@
     (some ([i Int]) ; there is a term
         (no (join i succ))))
 
-(check succStructure1
-       #:preds [SuccStructure]
-       #:scope ([Int 1]))
-(check succStructure2
-       #:preds [SuccStructure]
-       #:scope ([Int 2]))
-(check succStructure3
-       #:preds [SuccStructure]
-       #:scope ([Int 3]))
-(check succStructure4
-       #:preds [SuccStructure]
-       #:scope ([Int 4]))
-(check succStructure5
-       #:preds [SuccStructure]
-       #:scope ([Int 5]))
+(test succStructure1
+      #:preds [SuccStructure]
+      #:scope ([Int 1])
+      #:expect theorem)
+(test succStructure2
+      #:preds [SuccStructure]
+      #:scope ([Int 2])
+      #:expect theorem)
+(test succStructure3
+      #:preds [SuccStructure]
+      #:scope ([Int 3])
+      #:expect theorem)
+(test succStructure4
+      #:preds [SuccStructure]
+      #:scope ([Int 4])
+      #:expect theorem)
+(test succStructure5
+      #:preds [SuccStructure]
+      #:scope ([Int 5])
+      #:expect theorem)
 
 
 (define (make-n n)
@@ -45,22 +50,27 @@
     (some (make-n upper))
     (no (make-n (add1 upper))))
 
-(check size1
-       #:preds [(Size -1 0)]
-       #:scope ([Int 1]))
+(test size1
+      #:preds [(Size -1 0)]
+      #:scope ([Int 1])
+      #:expect theorem)
 
-(check size2
-       #:preds [(Size -2 1)]
-       #:scope ([Int 2]))
+(test size2
+      #:preds [(Size -2 1)]
+      #:scope ([Int 2])
+      #:expect theorem)
 
-(check size3
-       #:preds [(Size -4 3)]
-       #:scope ([Int 3]))
+(test size3
+      #:preds [(Size -4 3)]
+      #:scope ([Int 3])
+      #:expect theorem)
 
-(check size4
-       #:preds [(Size -8 7)]
-       #:scope ([Int 4]))
+(test size4
+      #:preds [(Size -8 7)]
+      #:scope ([Int 4])
+      #:expect theorem)
 
-(check size5
-       #:preds [(Size -16 15)]
-       #:scope ([Int 5]))
+(test size5
+      #:preds [(Size -16 15)]
+      #:scope ([Int 5])
+      #:expect theorem)

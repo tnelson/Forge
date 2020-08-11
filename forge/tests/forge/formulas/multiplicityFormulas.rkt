@@ -87,13 +87,13 @@ pred Equivalence {
 }
 
 test expect MultiplicityFormulas {
-    someAsMultiplicity : {not Some} for TestInst is unsat
-    noAsMultiplicity : {not No} for TestInst is unsat
-    oneAsMultiplicity : {not One1} for TestInst is unsat
-    loneAsMultiplicity : {not Lone1} for TestInst is unsat
+    someAsMultiplicity : Some for TestInst is theorem
+    noAsMultiplicity : No for TestInst is theorem
+    oneAsMultiplicity : One1 for TestInst is theorem
+    loneAsMultiplicity : Lone1 for TestInst is theorem
 
-    -- oneAsQuantifer : {not One2} for TestInst is unsat -- CURRENTLY BUGGED!
-    -- loneAsQuantifer : {not Lone2} for TestInst is unsat -- CURRENTLY BUGGED!
+    -- oneAsQuantifer : One2 for TestInst is theorem -- CURRENTLY BUGGED!
+    -- loneAsQuantifer : Lone2 for TestInst is theorem -- CURRENTLY BUGGED!
 
-    loneEquivalentOneNo : {not Equivalence} is unsat
+    loneEquivalentOneNo : Equivalence is theorem
 }

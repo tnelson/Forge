@@ -117,14 +117,16 @@
                      (int= x (add (multiply y q) r)))))))
 
 
-(check abs-check
-       #:preds [Abs]
-       #:scope ([Int 4]))
-(check sign-check
-       #:preds [Sign]
-       #:scope ([Int 4]))
+(test abs-check
+      #:preds [Abs]
+      #:scope ([Int 4])
+      #:expect theorem)
+(test sign-check
+      #:preds [Sign]
+      #:scope ([Int 4])
+      #:expect theorem)
 
-(check add-check #:preds [Add])
-(check subtract-check #:preds [Subtract])
-(check multiply-check #:preds [Multiply])
-(check divide-check #:preds [DivideRemainder])
+(test add-check #:preds [Add] #:expect theorem)
+(test subtract-check #:preds [Subtract] #:expect theorem)
+(test multiply-check #:preds [Multiply] #:expect theorem)
+(test divide-check #:preds [DivideRemainder] #:expect theorem)

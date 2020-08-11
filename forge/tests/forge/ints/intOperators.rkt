@@ -75,10 +75,10 @@ pred DivideRemainder {
 }
 
 test expect {
-    absTest : {not Abs} for 4 Int is unsat
-    signTest : {not Sign} for 4 Int is unsat
-    addTest : {not Add} is unsat
-    subtractTest : {not Subtract} is unsat
-    multiplyTest : {not Multiply} is unsat
-    divideRemainderTest : {not DivideRemainder} is unsat
+    absTest : Abs for 4 Int is theorem
+    signTest : Sign for 4 Int is theorem
+    addTest : Add is theorem
+    subtractTest : Subtract is theorem
+    multiplyTest : Multiply is theorem
+    divideRemainderTest : DivideRemainder is theorem
 }

@@ -81,8 +81,8 @@ pred Implies { -- =>, implies, <=>, iff, => else, implies else
 }
 
 test expect BooleanFormulaOperators {
-    NotOps : {not Not} is unsat
-    AndOps : {not And} is unsat
-    OrOps : {not Or} is unsat
-    ImpliesOps : {not Implies} is unsat
+    NotOps : Not is theorem
+    AndOps : And is theorem
+    OrOps : Or is theorem
+    ImpliesOps : Implies is theorem
 }

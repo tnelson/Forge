@@ -84,13 +84,13 @@ pred ColonGreater {
 }
 |#
 
-(check tilde #:preds [Tilde])
-(check caret #:preds [Caret])
-(check star #:preds [Star])
-(check plus #:preds [Plus])
-(check minus #:preds [Minus])
-(check ampersandd #:preds [Ampersand])
-(check arrow #:preds [Arrow])
-(check dot #:preds [Dot])
-; (check lessColon #:preds [LessColon])
-; (check colonGreater #:preds [ColonGreater])
+(test tilde #:preds [Tilde] #:expect theorem)
+(test caret #:preds [Caret] #:expect theorem)
+(test star #:preds [Star] #:expect theorem)
+(test plus #:preds [Plus] #:expect theorem)
+(test minus #:preds [Minus] #:expect theorem)
+(test ampersandd #:preds [Ampersand] #:expect theorem)
+(test arrow #:preds [Arrow] #:expect theorem)
+(test dot #:preds [Dot] #:expect theorem)
+; (test lessColon #:preds [LessColon] #:expect theorem)
+; (test colonGreater #:preds [ColonGreater] #:expect theorem)

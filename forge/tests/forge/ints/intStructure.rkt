@@ -12,11 +12,11 @@ pred SuccStructure {
 }
 
 test expect SuccessorRelation {
-    succStructure1 : {not SuccStructure} for 1 Int is unsat
-    succStructure2 : {not SuccStructure} for 2 Int is unsat
-    succStructure3 : {not SuccStructure} for 3 Int is unsat
-    succStructure4 : {not SuccStructure} for 4 Int is unsat
-    succStructure5 : {not SuccStructure} for 5 Int is unsat
+    succStructure1 : SuccStructure for 1 Int is theorem
+    succStructure2 : SuccStructure for 2 Int is theorem
+    succStructure3 : SuccStructure for 3 Int is theorem
+    succStructure4 : SuccStructure for 4 Int is theorem
+    succStructure5 : SuccStructure for 5 Int is theorem
 }
 
 
@@ -60,8 +60,8 @@ pred Size4 {
 }
 
 test expect IntSet {
-    size1 : {not Size1} for 1 Int is unsat
-    size2 : {not Size2} for 2 Int is unsat
-    size3 : {not Size3} for 3 Int is unsat
-    size4 : {not Size4} for 4 Int is unsat
+    size1 : Size1 for 1 Int is theorem
+    size2 : Size2 for 2 Int is theorem
+    size3 : Size3 for 3 Int is theorem
+    size4 : Size4 for 4 Int is theorem
 }

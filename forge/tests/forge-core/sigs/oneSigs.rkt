@@ -4,21 +4,24 @@
 
 (sig Stuff)
 
-(check oneSigEnforced
-       #:preds [(= (card UniqueObject) (node/int/constant 1))])
+(test oneSigEnforced
+      #:preds [(= (card UniqueObject) (node/int/constant 1))]
+      #:expect theorem)
 (test oneSigIsntPersistent
       #:preds [(= (card Stuff) (node/int/constant 2))]
-      sat)
+      #:expect sat)
 
 
 (sig Thing)
 (sig SpecialThing #:one #:extends Thing)
 (sig UnspecialThing #:extends Thing)
 
-(check oneExtendActuallyExtends
-       #:preds [(in SpecialThing Thing)])
-(check oneExtendEnforced
-       #:preds [(= (card SpecialThing) (node/int/constant 1))])
+(test oneExtendActuallyExtends
+      #:preds [(in SpecialThing Thing)]
+      #:expect theorem)
+(test oneExtendEnforced
+      #:preds [(= (card SpecialThing) (node/int/constant 1))]
+      #:expect theorem)
 (test oneExtendDoesntSpread
       #:preds [(= (card UnspecialThing) (node/int/constant 2))] 
-      sat)
+      #:expect sat)

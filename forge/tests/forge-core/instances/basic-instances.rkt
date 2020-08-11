@@ -12,27 +12,29 @@
     (= R (+ (-> (+ Aaron Alice) Bob)
             (-> Andy (+ Betty Bennett)))))
 
-(test basic1 #:bounds [inst1] sat)
-(check basic-sizes
-       #:preds [(int= (card A) (node/int/constant 3))]
-       #:bounds [inst1])
+(test basic1 #:bounds [inst1] #:expect sat)
+(test basic-sizes
+      #:preds [(int= (card A) (node/int/constant 3))]
+      #:bounds [inst1]
+      #:expect theorem)
 
 
 (inst inst2
     (= A (+ A1 (+ A2 A3))))
 
-(test basic2 #:bounds [inst2] sat)
-(check basic-set-size
-       #:preds [(int= (card A) (node/int/constant 3))]
-       #:bounds [inst2])
+(test basic2 #:bounds [inst2] #:expect sat)
+(test basic-set-size
+      #:preds [(int= (card A) (node/int/constant 3))]
+      #:bounds [inst2]
+      #:expect theorem)
 (test basic-unset-size
       #:preds [(int= (card B) (node/int/constant 2))
                (int= (card R) (node/int/constant 5))]
       #:bounds [inst2]
-      sat)
+      #:expect sat)
 
 (inst inst3
     (= A John)
     (= B John))
 
-; (test basic3 #:bounds [inst3] unsat) ; BUGGED
+; (test basic3 #:bounds [inst3] #:expect unsat) ; BUGGED

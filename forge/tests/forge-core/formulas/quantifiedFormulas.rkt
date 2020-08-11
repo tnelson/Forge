@@ -93,16 +93,23 @@
                   (SomePred n)))))
 
 
-(check AllQuant
-       #:preds [All]
-       #:bounds [test-inst])
-(check SomeQuant
-       #:preds [Some]
-       #:bounds [test-inst])
-(check NoQuant
-       #:preds [No]
-       #:bounds [test-inst])
+(test AllQuant
+      #:preds [All]
+      #:bounds [test-inst]
+      #:expect theorem)
 
-(check QuantifierEquivalences
-       #:preds [Equivalences])
+(test SomeQuant
+      #:preds [Some]
+      #:bounds [test-inst]
+      #:expect theorem)
+
+(test NoQuant
+      #:preds [No]
+      #:bounds [test-inst]
+      #:expect theorem)
+
+
+(test QuantifierEquivalences
+      #:preds [Equivalences]
+      #:expect theorem)
 

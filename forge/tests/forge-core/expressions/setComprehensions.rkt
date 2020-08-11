@@ -34,12 +34,15 @@
                         otherA))))
        (join otherB otherA)))
 
-(check comprehensionsOnSigs 
-       #:preds [ComprehensionsOnSigs]
-       #:bounds [relations])
-(check comprehensionsOnSets
-       #:preds [ComprehensionsOnSets]
-       #:bounds [relations])
-(check multiComprehension
-       #:preds [MultiComprehension]
-       #:bounds [relations])
+(test comprehensionsOnSigs 
+      #:preds [ComprehensionsOnSigs]
+      #:bounds [relations]
+      #:expect theorem)
+(test comprehensionsOnSets
+      #:preds [ComprehensionsOnSets]
+      #:bounds [relations]
+      #:expect theorem)
+(test multiComprehension
+      #:preds [MultiComprehension]
+      #:bounds [relations]
+      #:expect theorem)

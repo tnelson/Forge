@@ -6,11 +6,11 @@ sig Extension2 extends ToExtend {}
 sig Extension3 extends Extension2 {}
 
 test expect ExtensionSigs {
-    extensionEnforced : { not ((Extension1 + Extension2) in ToExtend) } is unsat
+    extensionEnforced : { (Extension1 + Extension2) in ToExtend } is theorem
     multipleExtensions : { some Extension1 and some Extension2 } is sat
-    extensionsDisjoint : { some (Extension1 & Extension2) } is unsat
+    extensionsDisjoint : { no (Extension1 & Extension2) } is theorem
     extensionsNotExhaustive : { some (ToExtend - Extension1 - Extension2) } is sat
-    doubleExtendingWorks : { not (Extension3 in Extension2 and Extension2 in ToExtend) } is unsat
+    doubleExtendingWorks : { Extension3 in Extension2 and Extension2 in ToExtend } is theorem
 }
 
 
@@ -23,7 +23,7 @@ sig Child extends Parent {
 }
 
 test expect ExtensionRelations {
-	relationsIntoExtension : { not (parentRel[Parent] in Child) } is unsat
+	relationsIntoExtension : { parentRel[Parent] in Child } is theorem
 	extensionsInheritRelations : { some parentRel[Child] } is sat
-	parentsDontGetExtensionRelations : { not (childRel.Parent in Child) } is unsat
+	parentsDontGetExtensionRelations : { childRel.Parent in Child } is theorem
 }

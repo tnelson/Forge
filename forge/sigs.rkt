@@ -612,7 +612,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ;       [#:scope [((sig [lower 0] upper) ...)]]
 ;       [#:bounds [bound ...]]
 ;       [|| sat unsat]))
-(define-syntax-rule (test name args ... expected)
+(define-syntax-rule (test name args ... #:expect expected)
   (cond 
     [(member 'expected '(sat unsat))
      (run name args ...)

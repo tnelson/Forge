@@ -21,7 +21,7 @@ pred MultiComprehension {
 }
 
 test expect {
-    comprehensionsOnSigs : {not ComprehensionsOnSigs} is unsat
-    comprehensionsOnSets : {not ComprehensionsOnSets} is unsat
-    multiComprehension : {not MultiComprehension} is unsat
+    comprehensionsOnSigs : ComprehensionsOnSigs is theorem
+    comprehensionsOnSets : ComprehensionsOnSets is theorem
+    multiComprehension : MultiComprehension is theorem
 }

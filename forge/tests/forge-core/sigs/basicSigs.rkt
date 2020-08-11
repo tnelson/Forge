@@ -5,14 +5,16 @@
 
 (test singleSig 
       #:preds [(some A)] 
-      sat)
+      #:expect sat)
 (test doubleSig 
       #:preds [(some A) (some B)] 
-      sat)
+      #:expect sat)
 
-(check sigsDisjoint 
-       #:preds [(no (& A B))])
+(test sigsDisjoint 
+      #:preds [(no (& A B))]
+      #:expect theorem)
 
-; (check sigsSpanUniv
-;        #:preds [(= univ (+ A B Int))]) ; CURRENTLY BUGGED
+; (test sigsSpanUniv
+;       #:preds [(= univ (+ A B Int))]
+;       #:expect theorem) ; CURRENTLY BUGGED
 

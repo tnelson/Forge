@@ -255,7 +255,7 @@
                               pred-block:BlockClass))
               (~optional scope:ScopeClass)
               (~optional bounds:BoundsClass)
-              (~or "sat" "unsat"))))
+              (~or "sat" "unsat" "theorem"))))
 
   ; TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
   (define-syntax-class TestBlockClass
@@ -619,16 +619,16 @@
                                         preds:BlockClass))
                         (~optional scope:ScopeClass)
                         (~optional bounds:BoundsClass)
-                        (~and sat-or-unsat (~or "sat" "unsat")))
+                        (~and expected (~or "sat" "unsat" "theorem")))
    (with-syntax ([name #'(~? name.name temporary-name)]
                  [preds (my-expand #'(~? pred.name preds))]
-                 [sat-or-unsat (datum->syntax #'sat-or-unsat
-                                              (string->symbol (syntax->datum #'sat-or-unsat)))])
+                 [expected (datum->syntax #'expected
+                                          (string->symbol (syntax->datum #'expected)))])
      #'(begin
        (test name (~? (~@ #:preds [preds]))
                   (~? (~@ #:scope scope.translate))
                   (~? (~@ #:bounds bounds.translate))
-                  sat-or-unsat)))])
+                  #:expect expected)))])
 
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 (define-syntax-parser TestExpectDecl 

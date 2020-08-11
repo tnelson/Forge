@@ -168,26 +168,31 @@
 
 
 
-(check sings 
-       #:preds [Sing]
-       #:scope ([Int 4] [IntSet 5]))
+(test sings 
+      #:preds [Sing]
+      #:scope ([Int 4] [IntSet 5])
+      #:expect theorem)
 
-(check sums
-       #:preds [Sum] 
-       #:bounds [sum-inst]
-       #:scope ([Int 4] [IntSet 5]))
+(test sums
+      #:preds [Sum] 
+      #:bounds [sum-inst]
+      #:scope ([Int 4] [IntSet 5])
+      #:expect theorem)
 
-(check sumQuants
-       #:preds [SumQuant] 
-       #:bounds [sum-inst]
-       #:scope ([Int 4] [IntSet 5]))
+(test sumQuants
+      #:preds [SumQuant] 
+      #:bounds [sum-inst]
+      #:scope ([Int 4] [IntSet 5])
+      #:expect theorem)
 
-(check cards
-       #:preds [Card] 
-       #:bounds [card-inst]
-       #:scope ([Int 4] [IntSet 5]))
+(test cards
+      #:preds [Card] 
+      #:bounds [card-inst]
+      #:scope ([Int 4] [IntSet 5])
+      #:expect theorem)
 
-(check maxMins
-       #:preds [MaxMin] 
-       #:bounds [max-min-inst]
-       #:scope ([Int 4] [IntSet 5]))
+(test maxMins
+      #:preds [MaxMin] 
+      #:bounds [max-min-inst]
+      #:scope ([Int 4] [IntSet 5])
+      #:expect theorem)

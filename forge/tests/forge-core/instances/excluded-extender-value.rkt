@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-verbosity 10)
+; (set-verbosity 10)
 
 (sig A)
 (sig B #:extends A)
@@ -14,4 +14,4 @@
 (test my-test
      #:bounds [my-inst]
      #:scope ([A 6])
-     unsat)
+     #:expect unsat)

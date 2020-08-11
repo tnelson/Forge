@@ -52,7 +52,7 @@ pred ComboNot { -- !=, !in, !ni
 }
 
 test expect SetFormulaOperators {
-    InOps : {not In} is unsat
-    EqualsOp : {not Equals} is unsat
-    ComboNotOps : {not ComboNot} is unsat
+    InOps : In is theorem
+    EqualsOp : Equals is theorem
+    ComboNotOps : ComboNot is theorem
 }

@@ -64,14 +64,14 @@ pred ColonGreater {
 
 
 test expect ExpressionOperators {
-    tilde : {not Tilde} is unsat
-    caret : {not Caret} is unsat
-    star : {not Star} is unsat
-    plus : {not Plus} is unsat
-    minus : {not Minus} is unsat
-    ampersand : {not Ampersand} is unsat
-    arrow : {not Arrow} is unsat
-    dot : {not Dot} is unsat
-    --lessColon : {not LessColon} is unsat
-    --colonGreater : {not ColonGreater} is unsat
+    tilde : Tilde is theorem
+    caret : Caret is theorem
+    star : Star is theorem
+    plus : Plus is theorem
+    minus : Minus is theorem
+    ampersand : Ampersand is theorem
+    arrow : Arrow is theorem
+    dot : Dot is theorem
+    --lessColon : LessColon is theorem
+    --colonGreater : ColonGreater is theorem
 }

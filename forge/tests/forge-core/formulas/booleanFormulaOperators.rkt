@@ -65,17 +65,17 @@
 
 (test basicTrueFalse 
       #:preds [TrueFalse]
-      theorem)
+      #:expect theorem)
 (test notOps 
       #:preds [Not]
-      theorem)
+      #:expect theorem)
 (test andOps 
       #:preds [And]
-      theorem)
+      #:expect theorem)
 (test orOps 
       #:preds [Or]
-      theorem)
+      #:expect theorem)
 (test impliesOps 
       #:preds [Implies]
-      theorem)
+      #:expect theorem)
 

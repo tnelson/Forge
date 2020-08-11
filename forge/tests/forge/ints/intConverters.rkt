@@ -121,9 +121,9 @@ pred MaxMin {
 
 
 test expect {
-    sings : {not Sing} for 4 Int, 5 IntSet is unsat
-    sums : {not Sum} for 5 IntSet for SumInst is unsat
-    sumQuants : {not SumQuant} for 5 IntSet for SumInst is unsat
-    cards : {not Card} for 5 IntSet for CardInst is unsat
-    maxMins : {not MaxMin} for 5 IntSet for MaxMinInst is unsat
+    sings : Sing for 4 Int, 5 IntSet is theorem
+    sums : Sum for 5 IntSet for SumInst is theorem
+    sumQuants : SumQuant for 5 IntSet for SumInst is theorem
+    cards : Card for 5 IntSet for CardInst is theorem
+    maxMins : MaxMin for 5 IntSet for MaxMinInst is theorem
 }
