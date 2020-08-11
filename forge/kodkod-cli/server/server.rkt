@@ -1,7 +1,7 @@
 #lang racket
 
 (require racket/runtime-path "log.rkt" "server-common.rkt")
-(require "kks.rkt")
+; (require "kks.rkt") <-- unnecessary and causes cycle
 
 (provide kodkod-initializer kodkod-stderr-handler server%)
 

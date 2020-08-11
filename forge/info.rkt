@@ -12,11 +12,11 @@
                "rackunit-lib"
                "syntax-color-lib"
                "web-server-lib"
-               "beautiful-racket" "predicates"))
+               "beautiful-racket" "predicates"
+               "crypto-lib"))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
-(define compile-omit-paths '("examples" "doc" "tests"))
+(define compile-omit-paths '("example" "examples" "doc" "tests" "kodkod-cli/out"))
 
-(define test-omit-paths '("compiled" "demo" "docs" "examples" "kodkod-cli"
-	                      "racket-rfc6455" "server" "sterling" "sterling-js"))
+(define test-omit-paths 'all)

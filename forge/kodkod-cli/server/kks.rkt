@@ -13,6 +13,25 @@
          assert f define-const
          print-cmd print-cmd-cont)
 
+(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
+(provide assert e f i define-const)
+(provide read-evaluation)
+
+(require "server.rkt"
+         "server-common.rkt")
+(define stdin-val #false)
+(define stdout-val #false)
+(provide start-server stdin stdout)
+(define (start-server)
+  (define kks (new server%
+                   [initializer (thunk (kodkod-initializer #f))]
+                   [stderr-handler (curry kodkod-stderr-handler "blank")]))
+  (send kks initialize)
+  (set! stdin-val (send kks stdin))
+  (set! stdout-val (send kks stdout)))
+(define (stdin) stdin-val)
+(define (stdout) stdout-val)
+
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
 (define-syntax-rule (cmd [port] expr ...)
@@ -52,8 +71,9 @@
 (define (configure . kvs)
   (kk-displaylns (format "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs))))
 
-(define (assert val)
-  (kk-displaylns (format "(assert ~a)" val)))
+(define (assert val)      (print-cmd "(assert ~a)" val))
+(define (evaluate val)    (print-cmd "(evaluate ~a)" val))
+
 (define (solve)
   (kk-displaylns "(solve)")
   (kk-print-eof))
@@ -153,5 +173,19 @@
     [(list (== 'no-more-instances))
      (cons 'no-more-instances #f)]
     [(== eof)
-     (error "Kodkod CLI shut down unexpectedly!")]
+     (error "Kodkod CLI shut down unexpectedly while running!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
+
+(define (read-evaluation port)
+  (define result (read port))
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (writeln result))
+  (match result
+    [(list (== 'evaluated) (== ':expression) atoms)
+     (cons 'expression atoms)]
+    [(list (== 'evaluated) (== ':int-expression) val)
+     (cons 'int-expression val)]
+    [(list (== 'evaluated) (== ':formula) val)
+     (cons 'formula (equal? val 'true))]
+    [(== eof)
+     (error "Kodkod CLI shut down unexpectedly while evaluating!")]))

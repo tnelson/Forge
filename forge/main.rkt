@@ -1,6 +1,6 @@
-#lang br/quicklang
+#lang racket/base
 
-(require br/indent)
+; (require br/indent)
 
 (module reader racket
   (provide read-syntax)
@@ -53,7 +53,3 @@
                        (toggle (not (commented? first-line))))))]
         [else default]))
     handle-query))
-
-(require "forge.rkt")
-
-(provide (all-from-out "forge.rkt"))

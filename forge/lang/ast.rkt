@@ -163,7 +163,7 @@
    ":"
    (to-kkcli-str (node/expr/var-origin var))
    "]"))
-  
+
 ;; -- comprehensions -----------------------------------------------------------
 
 ; decls is just a list of node/expr/var
@@ -252,7 +252,7 @@
      (if (equal? op A) B
          (node/int/op (node/int/op-operator op)
                       (map (curryr replace A B) (node/int/op-operands op)))))])
-         
+
 (define (make-int-op operator type? options #:fallback [fallback #f])
   (λ args
     (if (and fallback (not (ormap type? args)))
@@ -390,7 +390,7 @@
        (let ([a0* a0])
          (if (node/formula? a0*)
              (|| a0* a ...)
-             (or a0* a ...))))])) |# 
+             (or a0* a ...))))])) |#
 
 ;; -- quantifiers --------------------------------------------------------------
 

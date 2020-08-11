@@ -1,4 +1,7 @@
-#lang br
+#lang racket/base
+
+(require racket/match)
+
 (require brag/support syntax-color/racket-lexer "lexer.rkt")
 
 (define (color-forge port)
