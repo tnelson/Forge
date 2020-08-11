@@ -34,13 +34,19 @@
   abstract   ; Boolean
   extends    ; String | #f
   extenders  ; List<String>
-  ) #:transparent)
+  )
+  #:methods gen:ast-wrapper
+  [(define inner-ast Sig-rel)]
+  #:transparent)
 
 (struct Relation (
   name  ; String
   rel   ; node/expr/relation
   sigs  ; List<String>
-  ) #:transparent)
+  )
+  #:methods gen:ast-wrapper
+  [(define inner-ast Relation-rel)]
+  #:transparent)
 
 (struct Range (
   lower ; int

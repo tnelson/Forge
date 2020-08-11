@@ -1,13 +1,20 @@
 #lang racket
 
-(require (for-syntax racket/syntax) (prefix-in @ racket) (prefix-in $ racket))
+(require (for-syntax racket/syntax)
+         (prefix-in @ racket)
+         racket/generic
+         "../shared.rkt")
 
-(provide (except-out (all-defined-out) next-name @@and @@or int< int>)
-         (rename-out [@@and and] [@@or or] [int< <] [int> >]))
+; NOTE: removed @@and, @@or, due to doubt in implementation.
+; Does this cause problems?
+
+(provide (except-out (all-defined-out) int< int>)
+         (rename-out [int< <] [int> >]))
 
 ; Ocelot ASTs are made up of expressions (which evaluate to relations) and
 ; formulas (which evaluate to booleans).
 ; All AST structs start with node/. The hierarchy is:
+;
 ;   * node/expr  -- expressions
 ;     * node/expr/op  -- simple operators
 ;       * node/expr/+
@@ -24,14 +31,24 @@
 ;     * node/formula/quantified  -- quantified formula
 ;     * node/formula/multiplicity  -- multiplicity formula
 
+(define-generics kkcli-str
+  [to-kkcli-str kkcli-str])
 
+(define-generics replace
+  [replace replace A B])
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
-(define (check-args op args type?
-                    #:same-arity? [same-arity? #f] #:arity [arity #f]
+(define (ast-options #:same-arity? [same-arity? #f] #:arity [arity #f]
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
+  (list same-arity? arity min-length max-length join? domain? range?))
+
+; options must have been created by ast-options above
+(define (check-args op args type? options)
+  (define-values
+    (same-arity? arity min-length max-length join? domain? range?)
+    (apply values options))
   (when (< (length args) min-length)
     (raise-arguments-error op "not enough arguments" "required" min-length "got" (length args)))
   (unless (false? max-length)
@@ -60,188 +77,206 @@
     (unless (equal? (node/expr-arity (car args)) 1)
       (raise-arguments-error op "first argument must have arity 1"))))
 
-
 ;; EXPRESSIONS -----------------------------------------------------------------
 
-;; TODO: CHANGE TO USE TYPES, FOR TYPE-CHECKING
-
-(struct node/expr (arity) #:transparent
-  #:property prop:procedure (λ (r . sigs) (foldl join r sigs))
-)
+(struct node/expr (arity) #:transparent)
+(struct node/int () #:transparent)
 
 ;; -- operators ----------------------------------------------------------------
 
-(struct node/expr/op node/expr (children) #:transparent)
+; sym describes what type of operation this is, e.g. '* for multiplication.
+; operands is a list of the arguments to the operation.
+; and remember, this inherits the arity field from node/expr
+(struct node/expr/op node/expr (operator operands) #:transparent
+  #:methods gen:kkcli-str
+  [(define/generic recur to-kkcli-str)
+   (define (to-kkcli-str op)
+     (string-append-immutable
+      "(" (symbol->string (node/expr/op-operator op))
+      (string-join (map recur (node/expr/op-operands op)) " " #:before-first " ")
+      ")"))]
+  #:methods gen:replace
+  [(define (replace op A B)
+     (cond
+       [(equal? op A) B]
+       [else (node/expr/op
+              (node/expr-arity op)
+              (node/expr/op-operator op)
+              (map (curryr replace A B) (node/expr/op-operands op)))]))])
 
-; lifted operators are defaults, for when the types aren't as expected
-(define-syntax (define-expr-op stx)
-  (syntax-case stx ()
-    [(_ id arity checks ... #:lift @op #:type childtype)
-     (with-syntax ([name (format-id #'id "node/expr/op/~a" #'id)])
-       (syntax/loc stx
-         (begin
-           (struct name node/expr/op () #:transparent #:reflection-name 'id)
-           (define id
-             (lambda e
-               (if ($and @op (for/and ([a (in-list e)]) ($not (node/expr? a))))
-                   (apply @op e)
-                   (begin
-                     (check-args 'id e childtype checks ...)
-                     (if arity
-                         (let ([arities (for/list ([a (in-list e)]) (node/expr-arity a))])
-                           (name (apply arity arities) e))
-                         (name 1 e)))))))))] ; If arity is #f, assumed to be const 1
-    [(_ id arity checks ... #:lift @op)
-     (syntax/loc stx
-       (define-expr-op id arity checks ... #:lift @op #:type node/expr?))]
-    [(_ id arity checks ... #:type childtype)
-     (syntax/loc stx
-       (define-expr-op id arity checks ... #:lift #f #:type childtype))]
-    [(_ id arity checks ...)
-     (syntax/loc stx
-       (define-expr-op id arity checks ... #:lift #f))]))
+; Creates a function to wrap up some args in an operation of type given by sym.
+; Arity-combinator is a function that tells us what the arity of the resulting expression
+; should be, given the arities of the operands.
+; type? is a predicate that is true if an argument is of the desired type. Used in check-args, and to determine whether fallback should be used.
+; options is passed to check-args so it knows what properties of the arguments to check
+(define (make-expr-op operator arity-combinator type? options #:fallback [fallback #f])
+  (λ args
+    (if (and fallback (not (ormap #|coercible-|# type? args)))
+        (fallback args)
+        (begin (check-args operator args type? options)
+               (let ([arities (for/list ([arg (in-list args)]) (node/expr-arity arg))])
+                 (node/expr/op (arity-combinator arities) operator args))))))
 
-(define get-first
-  (lambda e (car e)))
-(define get-second
-  (lambda e (cadr e)))
-(define-syntax-rule (define-op/combine id @op)
-  (define-expr-op id get-first #:same-arity? #t #:lift @op))
+(define + (make-expr-op '+ first node/expr? (ast-options #:same-arity? #t) #:fallback @+))
+(define - (make-expr-op '- first node/expr? (ast-options #:same-arity? #t) #:fallback @-))
+(define & (make-expr-op '& first node/expr? (ast-options #:same-arity? #t)))
 
-(define-op/combine + @+)
-(define-op/combine - @-)
-(define-op/combine & #f)
+(define -> (make-expr-op '-> @+ node/expr? empty))
 
-(define-syntax-rule (define-op/cross id)
-  (define-expr-op id @+))
-(define-op/cross ->)
-
-(define-expr-op ~ get-first #:min-length 1 #:max-length 1 #:arity 2)
+(define ~ (make-expr-op '~ first node/expr? (ast-options #:min-length 1 #:max-length 1 #:arity 2)))
 
 (define join-arity
-  (lambda e (@- (apply @+ e) (@* 2 (@- (length e) 1)))))
-(define-syntax-rule (define-op/join id)
-  (define-expr-op id join-arity #:join? #t))
-(define-op/join join)
+  (lambda (args) (@- (apply @+ args)
+                     (@* 2 (@- (length args) 1)))))
+(define join (make-expr-op 'join join-arity node/expr? (ast-options #:join? #t)))
 
-(define-expr-op <: get-second #:max-length 2 #:domain? #t)
-(define-expr-op :> get-first  #:max-length 2 #:range? #t)
-(define-expr-op sing #f #:min-length 1 #:max-length 1 #:type node/int?)
+(define sing (make-expr-op 'sing (const 1) node/int? (ast-options #:min-length 1 #:max-length 1)))
 
-(define-syntax-rule (define-op/closure id @op)
-  (define-expr-op id (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:lift @op))
-(define-op/closure ^ #f)
-(define-op/closure * @*)
+(define ^ (make-expr-op '^ (const 2) node/expr? (ast-options #:min-length 1 #:max-length 1 #:arity 2)))
+(define * (make-expr-op '* (const 2) node/expr? (ast-options #:min-length 1 #:max-length 1 #:arity 2) #:fallback @*))
 
 ;; -- quantifier vars ----------------------------------------------------------
 
-(struct node/expr/quantifier-var node/expr (sym))
+; mult is one of 'one, 'some, 'lone, 'set, default 'one
+(struct node/expr/var node/expr (mult origin name)
+  #:methods gen:kkcli-str
+  [(define (to-kkcli-str var)
+     (string-append-immutable
+      "v"
+      (symbol->string (node/expr/var-name var))))]
+  #:methods gen:replace
+  [(define (replace var A B)
+     (if (equal? var A) B
+         (node/expr/var (node/expr-arity var)
+                        (node/expr/var-mult var)
+                        (replace (node/expr/var-origin var) A B)
+                        (node/expr/var-name var))))])
 
+(define (decl-to-kkcli-str var)
+  (unless (node/expr/var? var)
+    (raise-argument-error 'decl-to-kkcli-str "node/expr/var?" var))
+  (string-append-immutable
+   "["
+   (symbol->string (node/expr/var-mult var))
+   " "
+   (to-kkcli-str var)
+   ":"
+   (to-kkcli-str (node/expr/var-origin var))
+   "]"))
+  
 ;; -- comprehensions -----------------------------------------------------------
 
+; decls is just a list of node/expr/var
 (struct node/expr/comprehension node/expr (decls formula)
-  #:methods gen:custom-write
-  [(define (write-proc self port mode)
-     (fprintf port "(comprehension ~a ~a ~a)" 
-              (node/expr-arity self) 
-              (node/expr/comprehension-decls self)
-              (node/expr/comprehension-formula self)))])
+  #:methods gen:kkcli-str
+  [(define/generic recur to-kkcli-str)
+   (define (to-kkcli-str comp)
+     (string-append-immutable
+      "{("
+      (string-join (map decl-to-kkcli-str (node/expr/comprehension-decls comp)) " ")
+      ") "
+      (recur node/expr/comprehension-formula comp)
+      "}"))]
+  #:methods gen:replace
+  [(define (replace comp A B)
+     (if (equal? comp A) B
+         (node/expr/comprehension
+          (node/expr-arity comp)
+          (map (curryr replace A B) (node/expr/comprehension-decls comp))
+          (replace (node/expr/comprehension-formula comp) A B))))])
 
 (define (comprehension decls formula)
-  (for ([e (map cdr decls)])
-    (unless (node/expr? e)
-      (raise-argument-error 'set "expr?" e))
-    (unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error 'set "decl of arity 1" e)))
+  (for ([decl decls])
+    (unless (node/expr? decl)
+      (raise-argument-error 'set "expr?" decl))
+    (unless (equal? (node/expr-arity decl) 1)
+      (raise-argument-error 'set "decl of arity 1" decl)))
   (unless (node/formula? formula)
     (raise-argument-error 'set "formula?" formula))
   (node/expr/comprehension (length decls) decls formula))
 
 (define-syntax (set stx)
   (syntax-case stx ()
-    [(_ ([r0 e0] ...) pred)
+    [(_ ([var-name origin] ...) pred)
      (syntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var (node/expr-arity e0) 'r0)] ... )
-         (comprehension (list (cons r0 e0) ...) pred)))]))
+       (let* ([var-name (node/expr/var (node/expr-arity origin) origin 'var-name)] ... )
+         (comprehension (list var-name ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 
-(struct node/expr/relation node/expr (name typelist parent) #:transparent #:mutable
-  #:methods gen:custom-write
-  [(define (write-proc self port mode)
-     (match-define (node/expr/relation arity name typelist parent) self)
-     (fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))])
-(define next-name 0)
-(define (declare-relation typelist parent [name #f])
-  (let ([name (if (false? name) 
-                  (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))
-                  name)])
-    (node/expr/relation (length typelist) name typelist parent)))
-(define (relation-arity rel)
-  (node/expr-arity rel))
-(define (relation-name rel)
-  (node/expr/relation-name rel))
-(define (relation-typelist rel)
-  (node/expr/relation-typelist rel))
-(define (relation-parent rel)
-  (node/expr/relation-parent rel))
+(struct node/expr/relation node/expr (name) #:transparent
+  #:methods gen:kkcli-str
+  [(define (to-kkcli-str rel)
+     (string-append-immutable "r" (symbol->string (node/expr/relation-name rel))))]
+  #:methods gen:replace
+  [(define (replace rel A B)
+     (if (equal? rel A) B
+         rel))])
 
 ;; -- constants ----------------------------------------------------------------
 
-(struct node/expr/constant node/expr (type) #:transparent
-  #:methods gen:custom-write
-  [(define (write-proc self port mode)
-     (fprintf port "~v" (node/expr/constant-type self)))])
+(struct node/expr/constant node/expr (name) #:transparent
+  #:methods gen:kkcli-str
+  [(define (to-kkcli-str const)
+     (symbol->string node/expr/constant-name const))]
+  #:methods gen:replace
+  [(define (replace const A B)
+     (if (equal? const A) B A))])
 
-; THESE SHOULD BE MACROS
+; SHOULD THESE BE MACROS?
 (define none (node/expr/constant 1 'none))
 (define univ (node/expr/constant 1 'univ))
 (define iden (node/expr/constant 2 'iden))
-(define Int (node/expr/relation 1 "Int" '(Int) "univ"))
-(define succ (node/expr/relation 2 "succ" '(Int Int) "CharlieSaysWhatever"))
+
+; Outdated - "parents" must be replaced by typesets
+;(define Int (node/expr/relation 1 "Int" '(Int) "univ"))
+;(define succ (node/expr/relation 2 "succ" '(Int Int) "CharlieSaysWhatever"))
 
 ;; INTS ------------------------------------------------------------------------
 
-(struct node/int () #:transparent)
+; Actually defined above, with node/expr
+; (struct node/int () #:transparent)
 
 ;; -- operators ----------------------------------------------------------------
 
-(struct node/int/op node/int (children) #:transparent)
+(struct node/int/op node/int (operator operands) #:transparent
+  #:methods gen:kkcli-str
+  [(define/generic recur to-kkcli-str)
+   (define (to-kkcli-str op)
+     (string-append-immutable
+      "(" (symbol->string (node/int/op-operator op))
+      (string-join (map recur (node/int/op-operands op)) " " #:before-first " ")
+      ")"))]
+  #:methods gen:replace
+  [(define (replace op A B)
+     (if (equal? op A) B
+         (node/int/op (node/int/op-operator op)
+                      (map (curryr replace A B) (node/int/op-operands op)))))])
+         
+(define (make-int-op operator type? options #:fallback [fallback #f])
+  (λ args
+    (if (and fallback (not (ormap type? args)))
+        (fallback args)
+        (begin (check-args operator args type? options)
+               (node/int/op operator args)))))
 
-(define-syntax (define-int-op stx)
-  (syntax-case stx ()
-    [(_ id type? checks ... #:lift @op)
-     (with-syntax ([name (format-id #'id "node/int/op/~a" #'id)])
-       (syntax/loc stx
-         (begin
-           (struct name node/int/op () #:transparent #:reflection-name 'id)
-           (define id
-             (lambda e
-               (if ($and @op (for/and ([a (in-list e)]) ($not (type? a))))
-                   (apply @op e)
-                   (begin
-                     (check-args 'id e type? checks ...)
-                     (name e))))))))]
-    [(_ id type? checks ...)
-     (syntax/loc stx
-       (define-int-op id type? checks ... #:lift #f))]))
+(define plus (make-int-op '+ node/int? (ast-options #:min-length 2) #:fallback @+))
+(define minus (make-int-op '- node/int? (ast-options #:min-length 2) #:fallback @-))
+(define times (make-int-op '* node/int? (ast-options #:min-length 2) #:fallback @*))
+(define divide (make-int-op '/ node/int? (ast-options #:min-length 2) #:fallback @/))
 
-(define-int-op add node/int? #:min-length 2)
-(define-int-op subtract node/int? #:min-length 2)
-(define-int-op multiply node/int? #:min-length 2)
-(define-int-op divide node/int? #:min-length 2)
+(define card (make-int-op '|#| node/expr? (ast-options #:min-length 1 #:max-length 1)))
+(define sum (make-int-op 'sum node/expr? (ast-options #:min-length 1 #:max-length 1)))
 
-(define-int-op card node/expr? #:min-length 1 #:max-length 1)
-(define-int-op sum node/expr? #:min-length 1 #:max-length 1)
+(define remainder (make-int-op '% node/int? (ast-options #:min-length 2 #:max-length 2)))
 
-(define-int-op remainder node/int? #:min-length 2 #:max-length 2)
-(define-int-op abs node/int? #:min-length 1 #:max-length 1)
-(define-int-op sign node/int? #:min-length 1 #:max-length 1)
+(define abs (make-int-op 'abs node/int? (ast-options #:min-length 1 #:max-length 1)))
+(define sign (make-int-op 'sgn node/int? (ast-options #:min-length 1 #:max-length 1)))
 
-(define (max s-int)
+#| (define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
 (define (min s-int)
-  (sum (- s-int (join s-int (^ succ)))))
+  (sum (- s-int (join s-int (^ succ))))) |#
 
 ;(define-int-op max node/expr? #:min-length 1 #:max-length 1)
 ;(define-int-op min node/expr? #:min-length 1 #:max-length 1)
@@ -249,19 +284,30 @@
 ;; -- constants ----------------------------------------------------------------
 
 (struct node/int/constant node/int (value) #:transparent
-  #:methods gen:custom-write
-  [(define (write-proc self port mode)
-     (fprintf port "~v" (node/int/constant-value self)))])
+  #:methods gen:kkcli-str
+  [(define (to-kkcli-str const)
+     (number->string node/int/constant-value const))]
+  #:methods gen:replace
+  [(define (replace const A B)
+     (if (equal? const A) B A))])
 
 ;; -- sum quantifier -----------------------------------------------------------
 
 (struct node/int/sum-quant node/int (decls int-expr)
-  #:methods gen:custom-write
-  [(define (write-proc self port mode)
-     (match-define (node/int/sum-quant decls int-expr) self)
-     (fprintf port "(sum [~a] ~a)"
-                   decls
-                   int-expr))])
+  #:methods gen:kkcli-str
+  [(define/generic recur to-kkcli-str)
+   (define (to-kkcli-str quant)
+     (string-append-immutable
+      "{("
+      (string-join (map decl-to-kkcli-str (node/int/sum-quant-decls quant)) " ")
+      ") "
+      (recur node/int/sum-quant-int-expr quant)
+      "}"))]
+  #:methods gen:replace
+  [(define (replace quant A B)
+     (if (equal? quant A) B
+         (node/int/sum-quant (map (curryr replace A B) (node/int/sum-quant-decls quant))
+                             (replace (node/int/sum-quant-int-expr quant) A B))))])
 
 (define (sum-quant-expr decls int-expr)
   (for ([e (map cdr decls)])
@@ -279,53 +325,54 @@
 
 ;; -- constants ----------------------------------------------------------------
 
-(struct node/formula/constant node/formula (type) #:transparent
-  #:methods gen:custom-write
-  [(define (write-proc self port mode)
-     (fprintf port "~v" (node/formula/constant-type self)))])
+(struct node/formula/constant node/formula (name) #:transparent
+  #:methods gen:kkcli-str
+  [(define (to-kkcli-str const)
+     (symbol->string (node/formula/constant-name const)))]
+  #:methods gen:replace
+  [(define (replace const A B)
+     (if (equal? const A) B A))])
 
 (define true (node/formula/constant 'true))
 (define false (node/formula/constant 'false))
 
 ;; -- operators ----------------------------------------------------------------
 
-(struct node/formula/op node/formula (children) #:transparent)
+(struct node/formula/op node/formula (operator operands) #:transparent
+  #:methods gen:kkcli-str
+  [(define/generic recur to-kkcli-str)
+   (define (to-kkcli-str op)
+     (string-append-immutable
+      "(" (symbol->string (node/formula/op-operator op))
+      (string-join (map recur (node/formula/op-operands op)) " " #:before-first " ")
+      ")"))])
 
-(define-syntax (define-formula-op stx)
-  (syntax-case stx ()
-    [(_ id type? checks ... #:lift @op)
-     (with-syntax ([name (format-id #'id "node/formula/op/~a" #'id)])
-       (syntax/loc stx
-         (begin
-           (struct name node/formula/op () #:transparent #:reflection-name 'id)
-           (define id
-             (lambda e
-               (if ($and @op (for/and ([a (in-list e)]) ($not (type? a))))
-                   (apply @op e)
-                   (begin
-                     (check-args 'id e type? checks ...)
-                     (name e))))))))]
-    [(_ id type? checks ...)
-     (syntax/loc stx
-       (define-formula-op id type? checks ... #:lift #f))]))
+(define (make-formula-op operator type? options #:fallback [fallback #f])
+  (λ args
+    (if (and fallback (not (ormap type? args)))
+        (fallback args)
+        (begin (check-args operator args type? options)
+               (node/formula/op operator args)))))
 
-(define-formula-op in node/expr? #:same-arity? #t #:max-length 2)
+(define in (make-formula-op 'in node/expr? (ast-options #:min-length 2)))
+(define = (make-formula-op '= node/expr? (ast-options #:same-arity? #t #:max-length 2)))
 
-(define-formula-op ordered node/expr? #:max-length 2)
+(define ordered (make-formula-op 'ordered node/expr? (ast-options #:max-length 2)))
 
-(define-formula-op && node/formula? #:min-length 1 #:lift #f)
-(define-formula-op || node/formula? #:min-length 1 #:lift #f)
-(define-formula-op => node/formula? #:min-length 2 #:max-length 2 #:lift #f)
-(define-formula-op ! node/formula? #:min-length 1 #:max-length 1 #:lift #f)
-(define-formula-op int> node/int? #:min-length 2 #:max-length 2)
-(define-formula-op int< node/int? #:min-length 2 #:max-length 2)
-(define-formula-op int= node/int? #:min-length 2 #:max-length 2)
+(define && (make-formula-op '&& node/formula? (ast-options #:min-length 1)))
+(define || (make-formula-op '|| node/formula? (ast-options #:min-length 1)))
 
-(define-formula-op = node/expr? #:same-arity? #t #:max-length 2 #:lift int=)
-
+(define ! (make-formula-op '! node/formula? (ast-options #:min-length 1 #:max-length 1)))
 (define not !)
 
-(define-syntax (@@and stx)
+(define => (make-formula-op '=> node/formula? (ast-options #:min-length 2 #:max-length 2)))
+(define int> (make-formula-op 'int> node/int? (ast-options #:min-length 2 #:max-length 2)))
+(define int< (make-formula-op 'int< node/int? (ast-options #:min-length 2 #:max-length 2)))
+(define int= (make-formula-op 'int= node/int? (ast-options #:min-length 2 #:max-length 2)))
+
+; Are these necessary? Can they be replaced / rephrased?
+; Yeah i don't like these. they privilege the first argument in a weird way.
+#| (define-syntax (@@and stx)
   (syntax-case stx ()
     [(_) (syntax/loc stx true)] ;#t?
     [(_ a0 a ...)
@@ -343,35 +390,72 @@
        (let ([a0* a0])
          (if (node/formula? a0*)
              (|| a0* a ...)
-             (or a0* a ...))))]))
+             (or a0* a ...))))])) |# 
 
 ;; -- quantifiers --------------------------------------------------------------
 
+;symbol table not working
+; why is it using the wrong version of to-kkcli-str?
+
 (struct node/formula/quantified node/formula (quantifier decls formula)
-  #:methods gen:custom-write
-  [(define (write-proc self port mode)
-     (match-define (node/formula/quantified quantifier decls formula) self)
-     (fprintf port "(~a [~a] ~a)" quantifier decls formula))])
+  #:methods gen:kkcli-str
+  [(define/generic recur to-kkcli-str)
+   (define (to-kkcli-str quant)
+     (string-append-immutable
+      "("
+      (symbol->string (node/formula/quantified-quantifier quant))
+      " ("
+      (string-join (map decl-to-kkcli-str (node/formula/quantified-decls quant)) " ")
+      ") "
+      (recur (node/formula/quantified-formula quant))
+      ")"))]
+  #:methods gen:replace
+  [(define (replace quant A B)
+     (if (equal? quant A) B
+         (node/formula/quantified
+          (node/formula/quantified-quantifier quant)
+          (map (curryr replace A B) (node/formula/quantified-decls quant))
+          (replace (node/formula/quantified-formula quant) A B))))])
 
 (define (quantified-formula quantifier decls formula)
   (for ([e (in-list (map cdr decls))])
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
     #'(unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error quantifier "decl of arity 1" e)))
+        (raise-argument-error quantifier "decl of arity 1" e)))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified quantifier decls formula))
 
 ;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
+; I think doing the macro -> define quant var decl, then proceed with quantified expression, is the best way forward.
+; don't ask me why, just intuition.
 
+; Ah shit wait I sorta need this decl information in two places? where and why. ok, I need it up front in the wrapping ast object, so that it can be printed out.
+; I also want it deeper in the formula, so that it can be arity- and type-checked. And that requires that, deeper in the formula,
+; there's this actual variable with an arity and type, so that rules out just doing symbolic replacement.
+; Should decls be different from vars? not really, I don't think.
+; So, in general, they're just vars. And I have to state up front some information about the vars contained within, so they can be printed properly. That's the "decls"
 ;; -- multiplicities -----------------------------------------------------------
 
+; mult is a symbol like 'one or 'some
 (struct node/formula/multiplicity node/formula (mult expr)
-  #:methods gen:custom-write
-  [(define (write-proc self port mode)
-     (match-define (node/formula/multiplicity mult expr) self)
-     (fprintf port "(~a ~a)" mult expr))])
+  #:methods gen:kkcli-str
+  [(define/generic recur to-kkcli-str)
+   (define (to-kkcli-str mult)
+     (string-append-immutable
+      "("
+      (symbol->string (node/formula/multiplicity-mult mult))
+      " "
+      (recur (node/formula/multiplicity-expr mult))
+      ")"))]
+  #:methods gen:replace
+  [(define (replace mult A B)
+     (if (equal? mult A) B
+         (node/formula/multiplicity
+          (node/formula/multiplicity-mult mult)
+          (replace (node/formula/multiplicity-expr) A B))))])
+
 (define (multiplicity-formula mult expr)
   (unless (node/expr? expr)
     (raise-argument-error mult "expr?" expr))
@@ -435,31 +519,8 @@
 
 ; Operators that take only a single argument
 (define (unary-op? op)
-  (@or (node/expr/op/~? op)
-       (node/expr/op/^? op)
-       (node/expr/op/*? op)
-       (node/expr/op/sing? op)
-       (node/formula/op/!? op)
-       (node/int/op/sum? op)
-       (node/int/op/card? op)
-       (node/int/op/abs? op)
-       (node/int/op/sign? op)
-       (@member op (list ~ ^ * sing ! not sum card abs sign)))) ; These are just aliases for the expanded names
+  (@member op (list ~ ^ * sing ! not sum card abs sign)))
 (define (binary-op? op)
-  (@member op (list <: :> in = => int= int> int< remainder)))
+  (@member op (list in = => int= int> int< remainder)))
 (define (nary-op? op)
-  (@member op (list + - & -> join && || add subtract multiply divide)))
-
-;; PREFABS ---------------------------------------------------------------------
-
-; Prefabs are functions that produce AST nodes. They're used in sketches, where
-; we might want to specify an entire expression as a terminal or non-terminal
-; rather than a single operator.
-; A prefab needs to specify two things:
-; (a) a function that takes a desired output arity k, and produces a list of
-;     inputs that could produce such an output arity when the prefad is applied
-; (b) a function that takes a number of inputs defined by the above function, 
-;     and produces an AST.
-
-(struct prefab (inputs ctor) #:transparent
-  #:property prop:procedure (struct-field-index ctor))
+  (@member op (list + - & -> join && || plus minus times divide)))
