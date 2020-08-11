@@ -612,29 +612,43 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ;       [#:scope [((sig [lower 0] upper) ...)]]
 ;       [#:bounds [bound ...]]
 ;       [|| sat unsat]))
-(define-syntax-rule (test name args ... sat-or-unsat)
-  (begin
-    (unless (member 'sat-or-unsat '(sat unsat))
-      (raise (format "Illegal argument to test. Received ~a, expected sat or unsat."
-                     'sat-or-unsat)))
-    (run name args ...)
-    (define first-instance (stream-first (Run-result name)))
-    (when (@not (equal? (car first-instance) 'sat-or-unsat))
-      (raise (format "Failed test ~a. Expected ~a, got ~a."
-                     'name 'sat-or-unsat (car first-instance))))))
+(define-syntax-rule (test name args ... expected)
+  (cond 
+    [(member 'expected '(sat unsat))
+     (run name args ...)
+     (define first-instance (stream-first (Run-result name)))
+     (unless (equal? (car first-instance) 'expected)
+       (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
+                      'name 'expected (car first-instance)
+                      (if (equal? (car first-instance) 'sat)
+                          (format "~nFound instance ~a" (cdr first-instance))
+                          ""))))]
+
+    [(equal? 'expected 'theorem)
+     (check name args ...)
+     (define first-instance (stream-first (Run-result name)))
+     (unless (equal? (car first-instance) 'unsat)
+       (raise (format "Theorem ~a failed. Found instance:~n~a"
+                      'name (cdr first-instance))))]
+
+    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                         'expected))]))
 
 ; Checks that some predicates are always true.
 ; (check name
 ;        #:preds [(pred ...)]
 ;        [#:scope [((sig [lower 0] upper) ...)]]
 ;        [#:bounds [bound ...]]))
-(define-syntax-rule (check name #:preds (preds ...) 
-                                args ...)
-  (begin
-    (run name #:preds [(or (not preds) ...)] args ...)
-    (define first-instance (stream-first (Run-result name)))
-    (when (@not (equal? (car first-instance) 'unsat))
-      (raise (format "Failed check ~a." 'name)))))
+(define-syntax (check stx)
+  (syntax-parse stx
+    [(check name:id
+            (~alt
+              (~optional (~seq #:preds (pred ...)))
+              (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+              (~optional (~seq #:bounds (bound ...)))) ...)
+     #'(run name (~? (~@ #:preds [(not (and pred ...))]))
+                 (~? (~@ #:scope ([sig lower upper] ...)))
+                 (~? (~@ #:bounds (bound ...))))]))
 
 
 ; Exprimental: Run in the context of a given external Forge spec
@@ -719,7 +733,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     ; (println u)
     ; u))
 
-(provide nsa)
+(provide (prefix-out forge: nsa))
 (define nsa (make-parameter #f))
 ; display :: Run -> void
 ; Lifted function which, when provided a Run,

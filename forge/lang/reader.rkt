@@ -59,10 +59,11 @@
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
-  (define final `((provide (all-defined-out)) ; So other programs can require it
+  (define final `((provide (except-out (all-defined-out) ; So other programs can require it
+                                       forge:n))
 
-                  (define-namespace-anchor n) ; Used for evaluator
-                  (nsa n)
+                  (define-namespace-anchor forge:n) ; Used for evaluator
+                  (forge:nsa forge:n)
 
                   ,ints-coerced))
 

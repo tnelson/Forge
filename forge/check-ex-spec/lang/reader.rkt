@@ -12,9 +12,10 @@
 
   (define module-datum `(module forge-core/check-ex-spec-mod racket
                           (require forge/sigs)
-                          (provide (all-defined-out))
-                          (define-namespace-anchor n)
-                          (nsa n)
+                          (provide (except-out (all-defined-out)
+                                               forge:n)
+                          (define-namespace-anchor forge:n)
+                          (forge:nsa forge:n)
 
                           (require (prefix-in check-ex-spec: forge/check-ex-spec/student))
                           (check-ex-spec:load-assignment ,assignment)
