@@ -1023,7 +1023,7 @@ public class KodkodParser extends BaseParser<Object> {
      */
     @SuppressSubnodes
     Rule Identifier(char prefix) {
-        return Sequence(Ch(prefix), StringLiteral(), Space());
+        return Sequence(Ch(prefix), Ch(':'), StringLiteral(), Space());
     }
 
     //-------------------------------------------------------------------------

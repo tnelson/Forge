@@ -116,6 +116,4 @@ This function just recreates the model, but using names instead of numbers.
     [(equal? type 'expression)
      (for/list ([tuple value])
        (for/list ([atom tuple])
-         (define name (list-ref atom-names atom))
-         (or (string->number name)
-             (string->symbol name))))]))
+         (list-ref atom-names atom)))]))

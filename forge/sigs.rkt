@@ -397,11 +397,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)
-  (Server-ports-stdin (Run-server-ports)))
+  (Server-ports-stdin (Run-server-ports run)))
 
 ; get-stdin :: Run -> output-port?
 (define (get-stdout run)
-  (Server-ports-stdout (Run-server-ports)))
+  (Server-ports-stdout (Run-server-ports run)))
 
 ; get-option :: Run-or-state Symbol -> Any
 (define (get-option run-or-state option)
@@ -1176,7 +1176,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
     (kk-print
-      (kodkod:print-cmd-cont "(f~a " assertion-number)
+      (kodkod:print-cmd-cont "(~a " (kodkod:f assertion-number))
       (translate-to-kodkod-cli p all-rels '())
       (kodkod:print-cmd ")")
       (kodkod:assert (kodkod:f assertion-number))

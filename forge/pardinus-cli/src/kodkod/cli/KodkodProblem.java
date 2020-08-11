@@ -22,6 +22,7 @@
 package kodkod.cli;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Handler;
@@ -43,6 +44,9 @@ import kodkod.util.ints.IntSet;
 import kodkod.util.ints.Ints;
 
 import org.parboiled.errors.ActionException;
+
+import static kodkod.cli.KodkodFactory.setOf;
+import static kodkod.cli.KodkodFactory.tuple;
 
 /**
  * Provides a set of actions invoked by the {@link KodkodParser Kodkod parser} to specify
@@ -502,8 +506,10 @@ import org.parboiled.errors.ActionException;
 			throw new ActionException("Universe already defined.");
 		try {
 			final List<Integer> atoms = new ArrayList<Integer>(size);
-			for(int i = 0; i < size; i++)
+			for(int i = 0; i < size; i++) {
 				atoms.add(i);
+				env.def('a', Integer.toString(i), Relation.unary("atom " + i));
+			}
 			final Universe universe = new Universe(atoms);
 			bounds = new PardinusBounds(universe);
 		} catch (IllegalArgumentException ex) {
@@ -689,6 +695,7 @@ import org.parboiled.errors.ActionException;
         private int iteration = -1;
         private boolean unsat = false;
         private Evaluator evaluator = null;
+        private Bounds bounds = null;
 
 		// Used to print new solutions from the first solved model.
 		private Iterator<Solution> solutions;
@@ -706,6 +713,7 @@ import org.parboiled.errors.ActionException;
 			this.solver = null;
 			this.issolved = true;
 			this.solutions = solutions;
+			this.bounds = prototype.bounds();
             assert (this.iteration == -1);
 		}
 
@@ -723,6 +731,7 @@ import org.parboiled.errors.ActionException;
 		}
 
 		public KodkodProblem solve(KodkodOutput out) {
+//			System.out.println("SOLVE!!!");
 			if (isSolved()){
                 assert (this.iteration >= 0);
                 this.iteration++;
@@ -744,9 +753,20 @@ import org.parboiled.errors.ActionException;
                         writeUnsat(out, lastSol);
                         return this;
                     } else {
-    					write(out, sol);
-    					lastSol = sol;
-    					evaluator = new Evaluator(sol.instance()); // TODO: add options
+						// Add helper relations to instance
+						Instance instance = sol.instance().clone();
+						for (String atom : env().keys('a')) {
+							instance.add(env().use('a', atom),
+									setOf(tuple(bounds.universe().factory(),
+											Arrays.asList(Integer.parseInt(atom)))));
+						}
+
+						evaluator = new Evaluator(instance); // TODO: add options
+						//						evaluator = new Evaluator(sol.instance());
+
+						write(out, sol);
+						lastSol = sol;
+
     					return this;
                     }
 				}

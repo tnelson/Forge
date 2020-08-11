@@ -31,6 +31,7 @@ import kodkod.ast.Variable;
 import org.parboiled.errors.ActionException;
 
 import java.util.Set;
+import java.util.logging.Logger;
 
 /**
  * A definition environment keeps track of definition registers
@@ -59,6 +60,7 @@ public final class StringDefEnv {
     private final StringDefs<Formula> f;
     private final StringDefs<IntExpression> i;
     private final StringDefs<Variable> v;
+    private final StringDefs<Relation> a;
 
     /**
      * Constructs an extended definition environment with the given parent.
@@ -72,6 +74,7 @@ public final class StringDefEnv {
         this.f = new StringDefs<>('f');
         this.i = new StringDefs<>('i');
         this.v = new StringDefs<>('v');
+        this.a = new StringDefs<>('a');
     }
 
     /**
@@ -86,6 +89,7 @@ public final class StringDefEnv {
         this.f = new StringDefs<>('f');
         this.i = new StringDefs<>('i');
         this.v = StringDefs.empty('v');
+        this.a = new StringDefs<>('a');
     }
 
     /**
@@ -102,6 +106,7 @@ public final class StringDefEnv {
         this.f = new StringDefs<>('f');
         this.i = new StringDefs<>('i');
         this.v = StringDefs.empty('v');
+        this.a = new StringDefs<>('a');
     }
 
     /**
@@ -134,15 +139,14 @@ public final class StringDefEnv {
      * @throws UnsupportedOperationException this is an unmodifiable definition list
      */
     final boolean def(char reg, String name, Node value) {
-//        System.out.println("Defining " + reg + name + ".");
+//        Logger.getGlobal().severe("Defining " + reg + name + " as " + value);
         switch(reg){
             case 'e'	: return e.def(name, (Expression)value);
             case 'f'	: return f.def(name, (Formula)value);
             case 'i'	: return i.def(name, (IntExpression)value);
             case 'r'	: return r.def(name, (Relation)value);
-            case 'v'	: boolean ret =  v.def(name, (Variable)value);
-//                          System.out.println("DEFINED " + reg + name + " AS " + v.use(name));
-                          return ret;
+            case 'v'	: return v.def(name, (Variable)value);
+            case 'a'    : return a.def(name, (Relation)value);
             default     : throw new ActionException("Invalid identifier: " + reg + name);
         }
     }
@@ -159,6 +163,7 @@ public final class StringDefEnv {
             case 'i'	: return i;
             case 'r'	: return r;
             case 'v'	: return v;
+            case 'a'    : return a;
             default     : throw new ActionException("Invalid identifier prefix: " + name);
         }
     }
@@ -207,6 +212,6 @@ public final class StringDefEnv {
     }
 
     public String toString() {
-        return "{" + e + ", " + f + ", " + i + ", " + r + ", " + v + ", " + "}";
+        return "{" + e + ", " + f + ", " + i + ", " + r + ", " + v + ", " + a + "," + "}";
     }
 }
