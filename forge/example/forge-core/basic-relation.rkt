@@ -8,7 +8,9 @@
 
 (pred P
   (= A (join r B)))
+(pred Q
+  (some ([a A]) (= (join a r) B)))
 
 (run my-run
-     #:preds P)
+     #:preds [P Q])
 (display my-run)

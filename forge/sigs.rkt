@@ -837,10 +837,15 @@ Returns whether the given run resulted in sat or unsat, respectively.
                               true
                               (Run-spec-preds (Run-run-spec run))))))
 
+          (define new-target
+            (for/hash ([(key value) (cdr model)]
+                       #:when (member key (State-sig-order new-state)))
+              (values key value)))
+
           (define contrast-run-spec
             (struct-copy Run-spec (Run-run-spec run)
                          [preds new-preds]
-                         [target (cdr model)]
+                         [target new-target]
                          [state new-state]))
           (define-values (run-result atom-rels server-ports) (send-to-kodkod contrast-run-spec))
           (define contrast-run 
