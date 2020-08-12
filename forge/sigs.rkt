@@ -411,7 +411,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (state-add-sig state name rel one abstract extends)
   (define new-sig (Sig name rel one abstract extends empty))
   (when (@and extends (@not (member extends (State-sig-order state))))
-    (raise "Can't extend non-existant sig."))
+    (raise "Can't extend non-existent sig."))
 
   (define sigs-with-new-sig (hash-set (State-sigs state) name new-sig))
   (define new-state-sigs

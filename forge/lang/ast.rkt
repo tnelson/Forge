@@ -80,9 +80,13 @@
 ;; EXPRESSIONS -----------------------------------------------------------------
 
 (struct node/expr (arity) #:transparent)
+
+;; PRE-DECLARE NODE/INT --------------------------------------------------------
+; Have to do this so I can use the node/int? predicate in the node/expr operators.
+
 (struct node/int () #:transparent)
 
-;; -- operators ----------------------------------------------------------------
+;; -- EXPRESSION OPERATIONS ----------------------------------------------------
 
 ; sym describes what type of operation this is, e.g. '* for multiplication.
 ; operands is a list of the arguments to the operation.
@@ -105,10 +109,9 @@
               (map (curryr replace A B) (node/expr/op-operands op)))]))])
 
 ; Creates a function to wrap up some args in an operation of type given by sym.
-; Arity-combinator is a function that tells us what the arity of the resulting expression
-; should be, given the arities of the operands.
-; type? is a predicate that is true if an argument is of the desired type. Used in check-args, and to determine whether fallback should be used.
-; options is passed to check-args so it knows what properties of the arguments to check
+; Arity-combinator is a function that tells us what the arity of the resulting expression should be, given the arities of the operands.
+; type? is used to type-check arguments. Used in check-args, and to determine whether fallback operation should be used.
+; options is passed to check-args so it knows what other properties of the arguments to check
 (define (make-expr-op operator arity-combinator type? options #:fallback [fallback #f])
   (λ args
     (if (and fallback (@not (ormap #|coercible-|# type? args)))
@@ -135,14 +138,14 @@
 (define ^ (make-expr-op '^ (const 2) node/expr? (ast-options #:min-length 1 #:max-length 1 #:arity 2)))
 (define * (make-expr-op '* (const 2) node/expr? (ast-options #:min-length 1 #:max-length 1 #:arity 2) #:fallback @*))
 
-;; -- quantifier vars ----------------------------------------------------------
+;; -- QUANTIFIER VARS ----------------------------------------------------------
 
 ; mult is one of 'one, 'some, 'lone, 'set, default 'one
 (struct node/expr/var node/expr (mult origin name)
   #:methods gen:kkcli-str
   [(define (to-kkcli-str var)
      (string-append-immutable
-      "v"
+      "v:"
       (symbol->string (node/expr/var-name var))))]
   #:methods gen:replace
   [(define (replace var A B)
@@ -152,6 +155,8 @@
                         (replace (node/expr/var-origin var) A B)
                         (node/expr/var-name var))))])
 
+; Variable declarations contain no more information than the variables themselves, they just have to be printed different.
+; So this is a helper function to be used in to-kkcli-str methods.
 (define (decl-to-kkcli-str var)
   (unless (node/expr/var? var)
     (raise-argument-error 'decl-to-kkcli-str "node/expr/var?" var))
@@ -164,7 +169,7 @@
    (to-kkcli-str (node/expr/var-origin var))
    "]"))
 
-;; -- comprehensions -----------------------------------------------------------
+;; -- COMPREHENSIONS -----------------------------------------------------------
 
 ; decls is just a list of node/expr/var
 (struct node/expr/comprehension node/expr (decls formula)
@@ -187,8 +192,8 @@
 
 (define (comprehension decls formula)
   (for ([decl decls])
-    (unless (node/expr? decl)
-      (raise-argument-error 'set "expr?" decl))
+    (unless (node/expr/var? decl)
+      (raise-argument-error 'set "node/expr/var?" decl))
     (unless (equal? (node/expr-arity decl) 1)
       (raise-argument-error 'set "decl of arity 1" decl)))
   (unless (node/formula? formula)
@@ -202,7 +207,7 @@
        (let* ([var-name (node/expr/var (node/expr-arity origin) origin 'var-name)] ... )
          (comprehension (list var-name ...) pred)))]))
 
-;; -- relations ----------------------------------------------------------------
+;; -- RELATIONS ----------------------------------------------------------------
 
 (struct node/expr/relation node/expr (name) #:transparent
   #:methods gen:kkcli-str
@@ -213,7 +218,7 @@
      (if (equal? rel A) B
          rel))])
 
-;; -- constants ----------------------------------------------------------------
+;; -- CONSTANTS ----------------------------------------------------------------
 
 (struct node/expr/constant node/expr (name) #:transparent
   #:methods gen:kkcli-str
@@ -237,7 +242,7 @@
 ; Actually defined above, with node/expr
 ; (struct node/int () #:transparent)
 
-;; -- operators ----------------------------------------------------------------
+;; -- INT OPERATORS ------------------------------------------------------------
 
 (struct node/int/op node/int (operator operands) #:transparent
   #:methods gen:kkcli-str
@@ -281,7 +286,7 @@
 ;(define-int-op max node/expr? #:min-length 1 #:max-length 1)
 ;(define-int-op min node/expr? #:min-length 1 #:max-length 1)
 
-;; -- constants ----------------------------------------------------------------
+;; -- INT CONSTANTS ------------------------------------------------------------
 
 (struct node/int/constant node/int (value) #:transparent
   #:methods gen:kkcli-str
@@ -293,7 +298,7 @@
 
 ;; -- sum quantifier -----------------------------------------------------------
 
-(struct node/int/sum-quant node/int (decls int-expr)
+(struct node/int/quant_sum node/int (decls int-expr)
   #:methods gen:kkcli-str
   [(define/generic recur to-kkcli-str)
    (define (to-kkcli-str quant)
@@ -310,14 +315,21 @@
                              (replace (node/int/sum-quant-int-expr quant) A B))))])
 
 (define (sum-quant-expr decls int-expr)
-  (for ([e (map cdr decls)])
-    (unless (node/expr? e)
-      (raise-argument-error 'set "expr?" e))
-    (unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error 'set "decl of arity 1" e)))
+  (for ([decl decls])
+    (unless (node/expr/var? decl)
+      (raise-argument-error 'sum "node/expr/var?" decl))
+    (unless (equal? (node/expr-arity decl) 1)
+      (raise-argument-error 'sum "decl of arity 1" decl)))
   (unless (node/int? int-expr)
-    (raise-argument-error 'set "int-expr?" int-expr))
+    (raise-argument-error 'sum "int-expr?" formula))
   (node/int/sum-quant decls int-expr))
+
+(define-syntax (sum stx)
+  (syntax-case stx ()
+    [(_ ([var-name origin] ...) pred)
+     (syntax/loc stx
+       (let* ([var-name (node/expr/var (node/expr-arity origin) origin 'var-name)] ... )
+         (comprehension (list var-name ...) pred)))]))
 
 ;; FORMULAS --------------------------------------------------------------------
 
@@ -392,7 +404,7 @@
              (|| a0* a ...)
              (or a0* a ...))))])) |#
 
-;; -- quantifiers --------------------------------------------------------------
+;; -- QUANTIFIED FORMULAS ------------------------------------------------------
 
 ;symbol table not working
 ; why is it using the wrong version of to-kkcli-str?
