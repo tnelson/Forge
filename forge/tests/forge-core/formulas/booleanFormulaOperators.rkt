@@ -1,5 +1,7 @@
 #lang forge/core
 
+(set-verbosity 10)
+
 (pred TrueFalse
     true
     (! false))
