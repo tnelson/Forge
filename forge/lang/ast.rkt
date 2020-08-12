@@ -181,6 +181,18 @@
 (define (relation-parent rel)
   (node/expr/relation-parent rel))
 
+;; -- relations ----------------------------------------------------------------
+
+(struct node/expr/atom node/expr (name) #:transparent #:mutable
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (match-define (node/expr/atom arity name) self)
+     (fprintf port "(atom ~a)" name))])
+(define (atom name)
+  (node/expr/atom 1 name))
+(define (atom-name rel)
+  (node/expr/atom-name rel))
+
 ;; -- constants ----------------------------------------------------------------
 
 (struct node/expr/constant node/expr (type) #:transparent

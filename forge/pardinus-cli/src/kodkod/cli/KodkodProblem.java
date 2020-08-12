@@ -790,6 +790,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 		}
 
 		public boolean evaluate(kodkod.ast.Expression expression) {
+//			Logger.getGlobal().severe("Evaluating " + expression);
 			TupleSet ts = evaluator.evaluate(expression);
 			StringBuilder str = new StringBuilder();
 			str.append("{");

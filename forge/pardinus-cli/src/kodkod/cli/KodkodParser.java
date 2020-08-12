@@ -741,7 +741,7 @@ public class KodkodParser extends BaseParser<Object> {
      */
     Rule Expr() {
         return FirstOf(
-                Use('e'), Use('r'), Use('v'),
+                Use('e'), Use('r'), Use('v'), Use('a'),
                 ExprLiteral(),
                 Sequence(
                         LPAR,

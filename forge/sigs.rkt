@@ -31,6 +31,7 @@
 ; Expression
 (provide Int iden univ none)
 (provide ^ * ~ + - & join )
+(provide atom)
 
 ; Formula
 (provide true false)
@@ -747,11 +748,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
            (current-int-expression (add1 (current-int-expression))))]))
 
   (define all-rels (get-all-rels run))
+  (define atom-names (Run-atoms run))
 
   (kodkod:cmd 
     [(get-stdin run)]
     (kodkod:print-cmd-cont "(~a " expr-name)
-    (interpretter expression all-rels '())
+    (interpretter expression all-rels atom-names '())
     (kodkod:print-cmd ")")
     (kodkod:print-cmd "(evaluate ~a)" expr-name)
     (kodkod:print-eof))
@@ -1177,7 +1179,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [assertion-number (in-naturals)])
     (kk-print
       (kodkod:print-cmd-cont "(~a " (kodkod:f assertion-number))
-      (translate-to-kodkod-cli p all-rels '())
+      (translate-to-kodkod-cli p all-rels all-atoms '())
       (kodkod:print-cmd ")")
       (kodkod:assert (kodkod:f assertion-number))
       (current-formula (add1 assertion-number))))
