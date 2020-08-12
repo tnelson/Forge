@@ -121,19 +121,19 @@ public class NodeRuleTest extends AbstractParserTest {
 	}
 
 	private static void validDefs(Collection<Object[]> ret) {
-		ret.add(new Object[] { "(e10 r5)", ExpectedError.NONE, env('e',10,r[5]) });
-		ret.add(new Object[] { "(f100 (let ([f100 (some r2)]) f100))", ExpectedError.NONE, env('f', 100, r[2].some()) });
-		ret.add(new Object[] { "(i0 (sum r1))", ExpectedError.NONE, env('i', 0, r[1].sum()) });
+		ret.add(new Object[] { "(e10 r5)", ExpectedError.NONE, env('e',"10",r[5]) });
+		ret.add(new Object[] { "(f100 (let ([f100 (some r2)]) f100))", ExpectedError.NONE, env('f', "100", r[2].some()) });
+		ret.add(new Object[] { "(i0 (sum r1))", ExpectedError.NONE, env('i', "0", r[1].sum()) });
 		final DefEnv env = new DefEnv();
-		env.def('e', 10, r[5]);
-		env.def('f', 0, r[5].some());
-		env.def('i', 100, r[5].some().thenElse(r[5].count(), IntConstant.constant(3)));
+		env.def('e', "10", r[5]);
+		env.def('f', "0", r[5].some());
+		env.def('i', "100", r[5].some().thenElse(r[5].count(), IntConstant.constant(3)));
 		ret.add(new Object[] { "(e10 r5)(f0 (some e10))(i100 (ite f0 (# e10) 3))", ExpectedError.NONE, env });
 	}
 
-	private static DefEnv env(char reg, int idx, Node val) {
+	private static DefEnv env(char reg, String name, Node val) {
 		final DefEnv env = new DefEnv();
-		env.def(reg, idx, val);
+		env.def(reg, name, val);
 		return env;
 	}
 
@@ -144,15 +144,14 @@ public class NodeRuleTest extends AbstractParserTest {
 		assertEquals(0, result.valueStack.size());
 		final DefEnv actual = globals();
 		for(char reg : new char[]{'e', 'f', 'i'}) {
-			assertEquals(expectedEnv.maxIndex(reg), actual.maxIndex(reg));
-			final int max = expectedEnv.maxIndex(reg);
-			for(int i = 0; i <= max; i++) {
+			assertEquals(expectedEnv.keys(reg), actual.keys(reg));
+			for(String name : expectedEnv.keys(reg)) {
 				Node en = null, an = null;
 				try {
-					en = expectedEnv.use(reg, i);
+					en = expectedEnv.use(reg, name);
 				} catch (ActionException e) {} // ignore
 				try {
-					an = actual.use(reg, i);
+					an = actual.use(reg, name);
 				} catch (ActionException e) {} // ignore
 				assertEquals(String.valueOf(en), String.valueOf(an));
 			}

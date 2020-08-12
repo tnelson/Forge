@@ -93,11 +93,11 @@
   (print-cmd "(~a ~a)" id val))
 
 ; Identifiers
-(define (r idx) (format-symbol "r~a" idx))  ; relational constant
-(define (e idx) (format-symbol "e~a" idx))  ; relational expression
-(define (f idx) (format-symbol "f~a" idx))  ; boolean expression
-(define (i idx) (format-symbol "i~a" idx))  ; bitvector expression
-(define (v idx) (format-symbol "v~a" idx))  ; bitvector expression
+(define (r idx) (format-symbol "r:~a" idx))  ; relational constant
+(define (e idx) (format-symbol "e:~a" idx))  ; relational expression
+(define (f idx) (format-symbol "f:~a" idx))  ; boolean expression
+(define (i idx) (format-symbol "i:~a" idx))  ; bitvector expression
+(define (v idx) (format-symbol "v:~a" idx))  ; bitvector expression
 
 ; Built-in constants
 (define-values (TRUE FALSE UNIV NONE IDEN INTS)

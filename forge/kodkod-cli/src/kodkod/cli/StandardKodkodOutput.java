@@ -102,8 +102,8 @@ public final class StandardKodkodOutput implements KodkodOutput {
 		final StringBuilder str = new StringBuilder();
 		Set<Relation> written = new HashSet<>();
 		str.append("(sat :model (");
-		for (int i = 0, max = defs.maxIndex(); i <= max; i++) {
-			final Relation r = defs.use(i);
+		for (String name : defs.keys()) {
+			final Relation r = defs.use(name);
 			if (r==null) continue;
 			final TupleSet ts = inst.tuples(r);
 			assert ts != null;

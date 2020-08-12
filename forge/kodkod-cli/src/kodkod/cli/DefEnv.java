@@ -1,4 +1,4 @@
-/* 
+/*
  * Kodkod -- Copyright (c) 2005-present, Emina Torlak
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,22 +30,25 @@ import kodkod.ast.Variable;
 
 import org.parboiled.errors.ActionException;
 
+import java.util.Set;
+import java.util.logging.Logger;
+
 /**
- * A definition environment keeps track of definition registers 
- * for Kodkod nodes created and referenced during parsing. 
- * These include a global {@link Relation} register that is 
- * shared between all definition environments, and each 
- * environment's registers for intermediate nodes.  The 
+ * A definition environment keeps track of definition registers
+ * for Kodkod nodes created and referenced during parsing.
+ * These include a global {@link Relation} register that is
+ * shared between all definition environments, and each
+ * environment's registers for intermediate nodes.  The
  * contents of the intermediate registers are looked up using standard
  * lexical scoping rules.
- * 
+ *
  * @specfield parent: lone {@link DefEnv}
- * @specfield defs: 'r' -> Defs<Relation> + 
- *                  'v' -> Defs<Variable> + 
- *                  'e' -> Defs<Expression> + 
- *                  'i' -> Defs<IntExpression> + 
- *                  'f' -> Defs<Formula>                  
- * @invariant some parent => parent.defs['r'] = defs['r']                 
+ * @specfield defs: 'r' -> Defs<Relation> +
+ *                  'v' -> Defs<Variable> +
+ *                  'e' -> Defs<Expression> +
+ *                  'i' -> Defs<IntExpression> +
+ *                  'f' -> Defs<Formula>
+ * @invariant some parent => parent.defs['r'] = defs['r']
  * @invariant no parent => no defs['v'].def
  * @author Emina Torlak
  *
@@ -57,6 +60,7 @@ public final class DefEnv {
 	private final Defs<Formula> f;
 	private final Defs<IntExpression> i;
 	private final Defs<Variable> v;
+	private final Defs<Relation> a;
 
 	/**
 	 * Constructs an extended definition environment with the given parent.
@@ -70,12 +74,13 @@ public final class DefEnv {
 		this.f = new Defs<>('f');
 		this.i = new Defs<>('i');
 		this.v = new Defs<>('v');
+		this.a = new Defs<>('a');
 	}
-	
+
 	/**
 	 * Constructs a root {@link DefEnv} with no parent.
 	 * The root env has no variable definitions.
-	 * @ensures no d.defs['r'+'e'+'f'+'i'+'v'] && no this.parent  
+	 * @ensures no d.defs['r'+'e'+'f'+'i'+'v'] && no this.parent
 	 */
 	DefEnv() {
 		this.parent = null;
@@ -84,13 +89,14 @@ public final class DefEnv {
 		this.f = new Defs<>('f');
 		this.i = new Defs<>('i');
 		this.v = Defs.empty('v');
+		this.a = new Defs<>('a');
 	}
-	
+
 	/**
-	 * Constructs a root {@link DefEnv} with no parent that contains 
+	 * Constructs a root {@link DefEnv} with no parent that contains
 	 * the specified relation register. The root env has no variable definitions.
 	 * @requires defs.prefix = 'r'
-	 * @ensures this.defs = defs.prefix->defs && no this.parent  
+	 * @ensures this.defs = defs.prefix->defs && no this.parent
 	 */
 	DefEnv(Defs<Relation> r) {
 		if (r.prefix()!='r') throw new IllegalArgumentException("Expected an 'r' register, given " + r);
@@ -100,27 +106,28 @@ public final class DefEnv {
 		this.f = new Defs<>('f');
 		this.i = new Defs<>('i');
 		this.v = Defs.empty('v');
+		this.a = new Defs<>('a');
 	}
-	
+
 	/**
-	 * Returns a new {@link DefEnv} that has this as its parent, 
+	 * Returns a new {@link DefEnv} that has this as its parent,
 	 * and that shares its relation register.
-	 * @return some e: {@link DefEnv} | 
+	 * @return some e: {@link DefEnv} |
 	 * 			d.parent = this && d.defs['r'] = this.defs['r'] && no d.defs['e'+'f'+'i'+'v']
 	 */
 	DefEnv extend() {
 		return new DefEnv(this);
 	}
-	
+
 	/**
 	 * Returns the parent environment.
 	 * @return this.parent
 	 */
 	DefEnv parent() { return parent; }
-	
+
 	/**
-	 * Assigns the given value to the variable with the given index in the given register, increasing 
-	 * the size of that register if necessary.  Throws an {@link ActionException} if 
+	 * Assigns the given value to the variable with the given index in the given register, increasing
+	 * the size of that register if necessary.  Throws an {@link ActionException} if
 	 * the given variable index is invalid or the variable is already defined.  Assumes that the value
 	 * is non-null.
 	 * @requires reg in 'r'+'e'+'f'+'i'+'v'
@@ -131,71 +138,80 @@ public final class DefEnv {
 	 * @throws ActionException some this.defs[reg].def[idx]
 	 * @throws UnsupportedOperationException this is an unmodifiable definition list
 	 */
-	final boolean def(char reg, int idx, Node value) {
+	final boolean def(char reg, String name, Node value) {
+//        Logger.getGlobal().severe("Defining " + reg + name + " as " + value);
 		switch(reg){
-		case 'e'	: return e.def(idx, (Expression)value);
-		case 'f'	: return f.def(idx, (Formula)value);
-		case 'i'	: return i.def(idx, (IntExpression)value);
-		case 'r'	: return r.def(idx, (Relation)value);
-		case 'v'	: return v.def(idx, (Variable)value);
-		default     : throw new ActionException("Invalid identifier: " + reg + idx);
+			case 'e'	: return e.def(name, (Expression)value);
+			case 'f'	: return f.def(name, (Formula)value);
+			case 'i'	: return i.def(name, (IntExpression)value);
+			case 'r'	: return r.def(name, (Relation)value);
+			case 'v'	: return v.def(name, (Variable)value);
+			case 'a'    : return a.def(name, (Relation)value);
+			default     : throw new ActionException("Invalid identifier: " + reg + name);
 		}
 	}
-	
+
 	/**
 	 * Returns the definition register with the given name.  The returned register
-	 * should not be modified by client code except through  {@link #def(char, int, Node)}.
+	 * should not be modified by client code except through  {@link #def(char, String, Node)}.
 	 * @return (this.defs) & prefix.name
 	 */
 	final Defs<? extends Node> defs(char name) {
 		switch(name){
-		case 'e'	: return e;
-		case 'f'	: return f;
-		case 'i'	: return i;
-		case 'r'	: return r;
-		case 'v'	: return v;
-		default     : throw new ActionException("Invalid identifier prefix: " + name);
+			case 'e'	: return e;
+			case 'f'	: return f;
+			case 'i'	: return i;
+			case 'r'	: return r;
+			case 'v'	: return v;
+			case 'a'    : return a;
+			default     : throw new ActionException("Invalid identifier prefix: " + name);
 		}
 	}
-	
-	/**
-	 * Returns the maximum index over all variables defined in the given register, or -1 if no variables have been defined.
-	 * @return this.defs[name].maxIndex()
-	 */
-	final int maxIndex(char name) {
-		return defs(name).maxIndex();
+
+//    /**
+//     * Returns the maximum index over all variables defined in the given register, or -1 if no variables have been defined.
+//     * @return this.defs[name].maxIndex()
+//     */
+//    final int maxIndex(char name) {
+//        return defs(name).maxIndex();
+//    }
+
+	final Set<String> keys(char name) {
+		return defs(name).keys();
 	}
-	
+
 	/**
-	 * Returns the lexical definition of the variable at the given index 
-	 * in the given register. The value of the variable is looked up the environment 
-	 * chain, if needed, using standard lexical scoping rules.  
+	 * Returns the lexical definition of the variable at the given index
+	 * in the given register. The value of the variable is looked up the environment
+	 * chain, if needed, using standard lexical scoping rules.
 	 * Throws {@link ActionException} if the identified variable is undefined.
-	 * @return lexical definition of the variable at the given index 
+	 * @return lexical definition of the variable at the given index
 	 * in the given register
 	 */
 	@SuppressWarnings("unchecked")
-	final <N extends Node> N use(char reg, int idx) {
+	final <N extends Node> N use(char reg, String name) {
 		DefEnv top = this;
 		do {
 			final Defs<? extends Node> defs = top.defs(reg);
-			if (defs.isDef(idx)) 
-				return (N)defs.use(idx);
-			else
+//            System.out.println("Looking for " + reg + name + " in " + defs);
+			if (defs.isDef(name)) {
+//                System.out.println("Found " + defs.use(name));
+				return (N) defs.use(name);
+			} else
 				top = top.parent;
 		} while (top != null);
-		throw new ActionException("No definition found for " + reg + idx  + ".");
+		throw new ActionException("No definition found for " + reg + name  + ".");
 	}
-	
+
 	/**
 	 * This method has the same effect as calling {@code this.use(var.charAt(0), Integer.parseInt(var.substring(1)))}.
 	 * @return this.use(var.charAt(0), Integer.parseInt(var.substring(1)))
 	 */
-	final <N extends Node> N use(String var) { 
-		return use(var.charAt(0), Integer.parseInt(var.substring(1)));
+	final <N extends Node> N use(String var) {
+		return use(var.charAt(0), var.substring(1));
 	}
-	
+
 	public String toString() {
-		return "{" + e + ", " + f + ", " + i + ", " + r + ", " + v + ", " + "}";
+		return "{" + e + ", " + f + ", " + i + ", " + r + ", " + v + ", " + a + "," + "}";
 	}
 }

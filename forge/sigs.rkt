@@ -65,6 +65,7 @@
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
+(provide (prefix-out forge: (all-from-out "lang/ast.rkt")))
 
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
@@ -1099,11 +1100,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
     ret)
 
   (for ([sig-or-rel (append (get-sigs run-spec) (get-relations run-spec))]
-        [bound total-bounds]
-        [index (in-naturals)])
+        [bound total-bounds])
+    (define name (if (Sig? sig-or-rel) 
+                     (Sig-name sig-or-rel)
+                     (Relation-name sig-or-rel)))
     (kk-print
       (declare-rel
-        (r index)
+        (r name)
         (get-atoms sig-or-rel (bound-lower bound))
         (get-atoms sig-or-rel (bound-upper bound)))))
 
@@ -1128,8 +1131,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
+    (println p)
     (kk-print
-      (print-cmd-cont "(f~a " assertion-number)
+      (print-cmd-cont "(~a " (f assertion-number))
       (print-cmd-cont (to-kkcli-str p))
       (print-cmd ")")
       (assert (f assertion-number))

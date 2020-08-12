@@ -17,23 +17,13 @@
     (&& true true)
     (not (&& true false))
     (not (&& false true))
-    (not (&& false false))
-
-    (and true true)
-    (not (and true false))
-    (not (and false true))
-    (not (and false false)))
+    (not (&& false false)))
 
 (pred Or ; ||, -or-
     (|| true true)
     (|| true false)
     (|| false true)
-    (not (|| false false))
-
-    (or true true)
-    (or true false)
-    (or false true)
-    (not (or false false)))
+    (not (|| false false)))
 
 (pred Implies ; =>, implies, <=>, iff, ifte
     (=> true true)

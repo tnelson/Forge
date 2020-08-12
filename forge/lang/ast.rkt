@@ -207,7 +207,7 @@
 (struct node/expr/relation node/expr (name) #:transparent
   #:methods gen:kkcli-str
   [(define (to-kkcli-str rel)
-     (string-append-immutable "r" (symbol->string (node/expr/relation-name rel))))]
+     (string-append-immutable "r:" (symbol->string (node/expr/relation-name rel))))]
   #:methods gen:replace
   [(define (replace rel A B)
      (if (equal? rel A) B
@@ -360,7 +360,7 @@
 (define ordered (make-formula-op 'ordered node/expr? (ast-options #:max-length 2)))
 
 (define && (make-formula-op '&& node/formula? (ast-options #:min-length 1)))
-(define || (make-formula-op '|| node/formula? (ast-options #:min-length 1)))
+(define || (make-formula-op '\|\| node/formula? (ast-options #:min-length 1)))
 
 (define ! (make-formula-op '! node/formula? (ast-options #:min-length 1 #:max-length 1)))
 (define not !)

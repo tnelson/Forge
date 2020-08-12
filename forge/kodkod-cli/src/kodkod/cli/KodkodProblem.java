@@ -557,11 +557,11 @@ import org.parboiled.errors.ActionException;
 	 *            	this.bounds.lowerBound'[r] = lower && this.bounds.upperBound'[r] = upper &&
 	 *            	this.env.def('r', idx, r))
 	 */
-	final boolean declareRelations(List<Integer> idxs, TupleSet lower, TupleSet upper) {
+	final boolean declareRelations(List<String> names, TupleSet lower, TupleSet upper) {
 		try {
-			for(Integer idx : idxs) {
-				final Relation r = Relation.nary("r"+idx, lower.arity());
-				env.def('r', idx, r);
+			for(String name : names) {
+				final Relation r = Relation.nary(name, lower.arity());
+				env.def('r', name, r);
 				bounds.bound(r, lower, upper);
 				declaredRelation(r, lower, upper);
 			}

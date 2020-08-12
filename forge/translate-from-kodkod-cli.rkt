@@ -75,15 +75,15 @@ This function just recreates the model, but using names instead of numbers.
         [(equal? 'no-more-instances flag)
          (cons 'no-more-instances #f)]
         [(equal? 'sat flag)
-         (define translated-model (make-hash))
-         (define initial-mapping (make-hash))
+         ; (define translated-model (make-hash))
+         ; (define initial-mapping (make-hash))
          #|(for ([relation-num (hash-keys data)])
            (hash-set! initial-mapping
                       (list-ref relation-names (id-to-index relation-num))
                       (translate-kodkod-cli-relation univ (hash-ref data relation-num) (id-to-index relation-num) parents)))|#
 
 
-         (for ([relation-num (hash-keys data)])
+         #|(for ([relation-num (hash-keys data)])
            (cond [(id-to-index relation-num)
                   (let ([idx (id-to-index relation-num)])
                     (unless (string=? "succ" (relation-name (list-ref relation-names idx)))
@@ -100,8 +100,15 @@ This function just recreates the model, but using names instead of numbers.
                   (printf "Skolem ~a: ~a~n" relation-num translated-tuples)
                   (hash-set! translated-model
                              (node/expr/relation (length arity-types) relation-num)
-                             translated-tuples)]))
+                             translated-tuples)]))|#
          ;(printf "Translated model: ~a~n" translated-model)
+         
+         (define translated-model
+           (for/hash ([(key value) data]
+                      #:unless (equal? key 'Int)
+                      #:unless (equal? key 'succ))
+             (values key
+                     (translate-kodkod-cli-relation inty-univ value))))
          (cons 'sat translated-model)]))
 
 (define (translate-evaluation-from-kodkod-cli result atom-names)
