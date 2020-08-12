@@ -32,7 +32,7 @@
   (define core-funcs-and-macros
     (map (curry datum->syntax stx)
          '(^ * ~ + - & join
-           -> => implies ! not and or && || ifte iff <=>
+           -> => implies ! not && || ifte iff <=>
            = in ni != !in !ni is
            no some one lone all set two
            < > int= >= <=
@@ -678,7 +678,7 @@
   [((~literal Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     #'(or expr1 expr2))]
+     #'(|| expr1 expr2))]
 
   [((~literal Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -700,7 +700,7 @@
   [((~literal Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     #'(and expr1 expr2))]
+     #'(&& expr1 expr2))]
 
   [((~literal Expr) (~or "!" "not") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])

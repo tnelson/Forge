@@ -114,8 +114,8 @@
 ; options is passed to check-args so it knows what other properties of the arguments to check
 (define (make-expr-op operator arity-combinator type? options #:fallback [fallback #f])
   (λ args
-    (if (and fallback (not (ormap #|coercible-|# type? args)))
-        (fallback args)
+    (if (and fallback (@not (ormap #|coercible-|# type? args)))
+        (apply fallback args)
         (begin (check-args operator args type? options)
                (let ([arities (for/list ([arg (in-list args)]) (node/expr-arity arg))])
                  (node/expr/op (arity-combinator arities) operator args))))))
@@ -124,7 +124,7 @@
 (define - (make-expr-op '- first node/expr? (ast-options #:same-arity? #t) #:fallback @-))
 (define & (make-expr-op '& first node/expr? (ast-options #:same-arity? #t)))
 
-(define -> (make-expr-op '-> @+ node/expr? empty))
+(define -> (make-expr-op '-> (curry apply @+) node/expr? (ast-options)))
 
 (define ~ (make-expr-op '~ first node/expr? (ast-options #:min-length 1 #:max-length 1 #:arity 2)))
 
@@ -234,8 +234,8 @@
 (define iden (node/expr/constant 2 'iden))
 
 ; Outdated - "parents" must be replaced by typesets
-;(define Int (node/expr/relation 1 "Int" '(Int) "univ"))
-;(define succ (node/expr/relation 2 "succ" '(Int Int) "CharlieSaysWhatever"))
+(define Int (node/expr/relation 1 'Int))
+(define succ (node/expr/relation 2 'succ))
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -260,17 +260,17 @@
 
 (define (make-int-op operator type? options #:fallback [fallback #f])
   (λ args
-    (if (and fallback (not (ormap type? args)))
-        (fallback args)
+    (if (and fallback (@not (ormap type? args)))
+        (apply fallback args)
         (begin (check-args operator args type? options)
                (node/int/op operator args)))))
 
-(define plus (make-int-op '+ node/int? (ast-options #:min-length 2) #:fallback @+))
-(define minus (make-int-op '- node/int? (ast-options #:min-length 2) #:fallback @-))
-(define times (make-int-op '* node/int? (ast-options #:min-length 2) #:fallback @*))
+(define add (make-int-op '+ node/int? (ast-options #:min-length 2) #:fallback @+))
+(define subtract (make-int-op '- node/int? (ast-options #:min-length 2) #:fallback @-))
+(define multiply (make-int-op '* node/int? (ast-options #:min-length 2) #:fallback @*))
 (define divide (make-int-op '/ node/int? (ast-options #:min-length 2) #:fallback @/))
 
-(define card (make-int-op '|#| node/expr? (ast-options #:min-length 1 #:max-length 1)))
+(define card (make-int-op '|#| #||# node/expr? (ast-options #:min-length 1 #:max-length 1)))
 (define sum (make-int-op 'sum node/expr? (ast-options #:min-length 1 #:max-length 1)))
 
 (define remainder (make-int-op '% node/int? (ast-options #:min-length 2 #:max-length 2)))
@@ -278,10 +278,10 @@
 (define abs (make-int-op 'abs node/int? (ast-options #:min-length 1 #:max-length 1)))
 (define sign (make-int-op 'sgn node/int? (ast-options #:min-length 1 #:max-length 1)))
 
-#| (define (max s-int)
+(define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
 (define (min s-int)
-  (sum (- s-int (join s-int (^ succ))))) |#
+  (sum (- s-int (join s-int (^ succ)))))
 
 ;(define-int-op max node/expr? #:min-length 1 #:max-length 1)
 ;(define-int-op min node/expr? #:min-length 1 #:max-length 1)
@@ -361,8 +361,8 @@
 
 (define (make-formula-op operator type? options #:fallback [fallback #f])
   (λ args
-    (if (and fallback (not (ormap type? args)))
-        (fallback args)
+    (if (and fallback (@not (ormap type? args)))
+        (apply fallback args)
         (begin (check-args operator args type? options)
                (node/formula/op operator args)))))
 
@@ -478,14 +478,14 @@
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax????
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))
 
 (define-syntax (some stx)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'some (list (cons v0 e0) ...) pred)))]
     [(_ expr)
      (syntax/loc stx
@@ -495,7 +495,7 @@
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/var (node/expr-arity e0) 'v0)] ...)
          (! (quantified-formula 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
      (syntax/loc stx
@@ -524,7 +524,7 @@
   (syntax-case stx ()
     [(_ ([x1 r1] ...) int-expr)
      (syntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (node/expr-arity r1) 'x1)] ...)
+       (let* ([x1 (node/expr/var (node/expr-arity r1) 'x1)] ...)
          (sum-quant-expr (list (cons x1 r1) ...) int-expr)))]))
 
 ;; PREDICATES ------------------------------------------------------------------
@@ -535,4 +535,4 @@
 (define (binary-op? op)
   (@member op (list in = => int= int> int< remainder)))
 (define (nary-op? op)
-  (@member op (list + - & -> join && || plus minus times divide)))
+  (@member op (list + - & -> join && || add subtract multiply divide)))

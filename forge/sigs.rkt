@@ -6,15 +6,17 @@
 (require (for-syntax racket/match))
 
 (require "shared.rkt")
-(require "lang/ast.rkt"
-         "lang/bounds.rkt"
+(require (rename-in "lang/ast.rkt"
+                    [node/expr/relation-name relation-name]
+                    [node/expr-arity relation-arity]))
+(require "lang/bounds.rkt"
          "breaks.rkt")
 (require "server/eval-model.rkt")
 (require "server/forgeserver.rkt" ; v long
          "kodkod-cli/server/kks.rkt"
          "kodkod-cli/server/server.rkt"
          "kodkod-cli/server/server-common.rkt"
-         "translate-to-kodkod-cli.rkt"
+         ; "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
 
 ; Commands
@@ -31,7 +33,7 @@
 
 ; Formula
 (provide true false)
-(provide -> => implies ! not and or && || ifte iff <=>)
+(provide -> => implies ! not && || ifte iff <=>)
 (provide = in ni)
 (provide != !in !ni)
 (provide no some one lone all set) ; two)
@@ -78,18 +80,18 @@
   abstract   ; Boolean
   extends    ; Symbol | #f
   extenders  ; List<Symbol>
-  #:methods gen:ast-wrapper
-  [(define inner-ast Sig-rel)]
-  ) #:transparent)
+  ) ;#:methods gen:ast-wrapper
+    ;  [(define inner-ast Sig-rel)]
+    #:transparent)
 
 (struct Relation (
   name  ; Symbol
   rel   ; node/expr/relation
   sigs  ; List<Symbol>
   breaker ; Symbol
-  #:methods gen:ast-wrapper
-  [(define inner-ast Relation-rel)]
-  ) #:transparent)
+  ) ;#:methods gen:ast-wrapper
+    ;  [(define inner-ast Relation-rel)]
+    #:transparent)
 
 (struct Range (
   lower ; int
@@ -243,7 +245,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define sig-name
     (cond [(symbol? sig-name-or-rel) sig-name-or-rel]
           [(node/expr/relation? sig-name-or-rel)
-           (string->symbol (relation-name sig-name-or-rel))]
+           (relation-name sig-name-or-rel)]
           [(Sig? sig-name-or-rel)
            (Sig-name sig-name-or-rel)]))
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
@@ -456,11 +458,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ;; AST macros
 (define-simple-macro (implies a b) (=> a b))
-(define-simple-macro (iff a b) (and (=> a b) (=> b a)))
-(define-simple-macro (<=> a b) (and (=> a b) (=> b a)))
-(define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
-(define-simple-macro (>= a b) (or (> a b) (int= a b)))
-(define-simple-macro (<= a b) (or (< a b) (int= a b)))
+(define-simple-macro (iff a b) (&& (=> a b) (=> b a)))
+(define-simple-macro (<=> a b) (&& (=> a b) (=> b a)))
+(define-simple-macro (ifte a b c) (&& (=> a b) (=> (not a) c)))
+(define-simple-macro (>= a b) (|| (> a b) (int= a b)))
+(define-simple-macro (<= a b) (|| (< a b) (int= a b)))
 (define-simple-macro (ni a b) (in b a))
 (define-simple-macro (!= a b) (not (= a b)))
 (define-simple-macro (!in a b) (not (in a b)))
@@ -490,9 +492,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
         (define true-parent (~? (Sig-name (get-sig curr-state parent))
                                 #f))
-        (define name (declare-relation (list (symbol->string true-name))
-                                       (symbol->string (or true-parent 'univ))
-                                       (symbol->string true-name)))
+        (define name (node/expr/relation 1 true-name))
         (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent)))]))
 
 ; Declare a new relation
@@ -508,7 +508,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
        ;                                 (curry get-sig curr-state ))
        ;                        (list sig1 sig2 sigs ...)))
        (define true-breaker (~? 'breaker #f))
-       (define name (declare-relation (map symbol->string true-sigs) (symbol->string 'sig1) (symbol->string true-name)))
+       (define name (node/expr/relation (length true-sigs) true-name))
        (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker)))]))
 
 ; Declare a new predicate
@@ -588,7 +588,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
         (define default-bound
           (let* ([max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
-                 [ints (map int-atom (range (- max-int) max-int))]
+                 [ints (map int-atom (range (@- max-int) max-int))]
                  [succs (map list (reverse (rest (reverse ints)))
                                     (rest ints))])
             (Bound (hash)
@@ -650,7 +650,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
               (~optional (~seq #:preds (pred ...)))
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
-     #'(run name (~? (~@ #:preds [(not (and pred ...))]))
+     #'(run name (~? (~@ #:preds [(not (&& pred ...))]))
                  (~? (~@ #:scope ([sig lower upper] ...)))
                  (~? (~@ #:bounds (bound ...))))]))
 
@@ -669,18 +669,15 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (evaluate run instance expression)
   (unless (is-sat? run)
     (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))
-  (define-values (expr-name interpretter)
+  (define expr-name
     (cond [(node/expr? expression) (begin0
-           (values (e (current-expression))
-                   interpret-expr)
+           (e (current-expression))
            (current-expression (add1 (current-expression))))]
           [(node/formula? expression) (begin0
-           (values (f (current-formula))
-                   interpret-formula)
+           (f (current-formula))
            (current-formula (add1 (current-formula))))]
           [(node/int? expression) (begin0
-           (values (i (current-int-expression))
-                   interpret-int)
+           (i (current-int-expression))
            (current-int-expression (add1 (current-int-expression))))]))
 
   (define all-rels (get-all-rels run))
@@ -688,7 +685,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (cmd
     [(stdin)]
     (print-cmd-cont "(~a " expr-name)
-    (interpretter expression all-rels '())
+    (print-cmd-cont (to-kkcli-str expression))
     (print-cmd ")")
     (print-cmd "(evaluate ~a)" expr-name)
     (print-eof))
@@ -1022,7 +1019,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (State-relation-order (Run-spec-state run-spec))))
   (set! total-bounds (map (lambda (name)
                             (findf (lambda (b)
-                                     (equal? name (string->symbol (relation-name (bound-relation b)))))
+                                     (equal? name (relation-name (bound-relation b))))
                                    total-bounds))
                           sigs-and-rels))
 
@@ -1073,7 +1070,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Declare ints
   (define num-ints (expt 2 bitwidth))
   (kk-print
-    (declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
+    (declare-ints (range (@- (/ num-ints 2)) (/ num-ints 2)) ; ints
                   (range num-ints)))                        ; indexes
 
   ; to-tupleset :: List<List<int>>, int -> tupleset
@@ -1133,18 +1130,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [assertion-number (in-naturals)])
     (kk-print
       (print-cmd-cont "(f~a " assertion-number)
-      (translate-to-kodkod-cli p all-rels '())
+      (print-cmd-cont (to-kkcli-str p))
       (print-cmd ")")
       (assert (f assertion-number))
       (current-formula (add1 assertion-number))))
 
   (define atom-rels
     (for/list ([atom-name all-atoms])
-      (define atom-name-str
-        (if (symbol? atom-name)
-            (symbol->string atom-name)
-            (number->string atom-name)))
-      (declare-relation (list atom-name-str) "univ" atom-name-str)))
+      (node/expr/relation 1 atom-name)))
 
   ; Print solve
   (define (get-next-model)
@@ -1285,8 +1278,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (raise (format (string-append "Upper bound too large for given BitWidth; "
                                     "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                      sig upper (sub1 max-int))))
-    (and (<= (node/int/constant lower) (card (Sig-rel sig)))
-         (<= (card (Sig-rel sig)) (node/int/constant upper)))))
+    (&& (<= (node/int/constant lower) (card (Sig-rel sig)))
+        (<= (card (Sig-rel sig)) (node/int/constant upper)))))
 
 ; get-extender-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig which has extending Sigs so that:

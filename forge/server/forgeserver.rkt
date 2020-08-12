@@ -1,6 +1,7 @@
 #lang racket
 
-(require (only-in "../lang/ast.rkt" relation-name)
+(require (rename-in (only-in "../lang/ast.rkt" node/expr/relation-name)
+                    [node/expr/relation-name relation-name])
          "modelToXML.rkt" xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel

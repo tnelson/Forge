@@ -1,10 +1,15 @@
 #lang racket
 
-(require "../lang/ast.rkt" racket/date xml racket/string
+(require "../lang/ast.rkt" 
+         racket/date xml racket/string
          (prefix-in @ (only-in racket and or not)))
 
 (provide model-to-XML-string)
 
+(define (model-to-XML-string . args)
+  (raise "MODEL TO XML CURRENTLY BUGGED."))
+
+#|
 (define (atom-to-XML-string atom)
   (string-append "<atom label=\"" (format "~a" atom) "\"/>"))
 
@@ -240,4 +245,4 @@ here-string-delimiter
                         ; including this beforehand will cause Sterling to error on any instance with a Skolem relation.
                         ;skolem-strings
                         epilogue
-                        )]))
+                        )]))|#

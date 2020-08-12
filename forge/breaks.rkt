@@ -202,9 +202,9 @@
         (cons! new-total-bounds (sbound->bound b))
         (define rel (sbound-relation b))
         (set-add! defined-relations rel)
-        (define typelist (@node/expr/relation-typelist rel))
-        (for ([t typelist]) (when (hash-has-key? name-to-rel t)
-            (set-remove! sigs (hash-ref name-to-rel t))))
+        ; (define typelist (@node/expr/relation-typelist rel)) TODO FIXME PLEASE DONT FORGET ME HELLO I AM BROKEN THANK YOU
+        ; (for ([t typelist]) (when (hash-has-key? name-to-rel t)
+        ;     (set-remove! sigs (hash-ref name-to-rel t))))
     )
 
     ; proposed breakers from each relation
@@ -360,7 +360,7 @@
             (define postfix-lists (take-right atom-lists n))
 
             (define vars (for/list ([p prefix]) 
-                (@node/expr/quantifier-var 1 (gensym "v"))
+                (@node/expr/var 1 (gensym "v"))
             ))
             (define new-rel (foldl @join rel vars))   ; rel[a][b]...
             (define sub-breaker (f pri new-rel bound postfix-lists postfix))
@@ -501,12 +501,12 @@
         (break-graph (set sig) (set))
         (λ () (make-exact-break rel (map list (drop-right atoms 1) (cdr atoms))))
         (λ () (break bound (set
-            (@some ([init sig]) (@and
+            (@some ([init sig]) (@&&
                 (@no (@join rel init))
                 (@all ([x (@- sig init)]) (@one (@join rel x)))
                 (@= (@join init (@* rel)) sig)
             ))
-            (@some ([term sig]) (@and
+            (@some ([term sig]) (@&&
                 (@no (@join term rel))
                 (@all ([x (@- sig term)]) (@one (@join x rel)))
                 (@= (@join (@* rel) term) sig)
@@ -552,7 +552,7 @@
                     )
                 )))
         (λ () (break bound (set
-            (@some ([n sig]) (@and
+            (@some ([n sig]) (@&&
                 (@no (@join rel n))
                 (@all ([m (@- sig n)]) 
                     (@one (@join rel m))
@@ -572,7 +572,7 @@
                 (map list (drop-right atoms 1) (cdr atoms))
             )
             (set
-                (@lone ([init sig]) (@and
+                (@lone ([init sig]) (@&&
                     (@no (@join rel init))
                     (@some (@join init rel))
                 ))
@@ -582,7 +582,7 @@
             (@lone (@- (@join rel sig) (@join sig rel)))    ; lone init
             (@lone (@- (@join sig rel) (@join rel sig)))    ; lone term
             (@no (@& @iden (@^ rel)))   ; acyclic
-            (@all ([x sig]) (@and       ; all x have
+            (@all ([x sig]) (@&&       ; all x have
                 (@lone (@join x rel))   ; lone successor
                 (@lone (@join rel x))   ; lone predecessor
             ))

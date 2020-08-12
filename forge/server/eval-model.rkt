@@ -1,6 +1,9 @@
 #lang racket
 
-(require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
+(require racket/match 
+         (rename-in (only-in "../lang/ast.rkt" node/expr/relation-name)
+                    [node/expr/relation-name relation-name]) 
+         racket/hash)
 (require "../shared.rkt")
 (require racket/struct)
 
