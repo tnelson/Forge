@@ -4,7 +4,7 @@
 (require "../shared.rkt")
 (require racket/struct)
 
-(provide eval-exp eval-form eval-unknown model->binding alloy->kodkod)
+(provide eval-exp eval-form eval-unknown eval-int-expr model->binding alloy->kodkod)
 (provide int-atom int-atom->string int-atom? int-atom-n)
 
 ; seperate structure for binding int atoms so they don't collide with int values
@@ -318,6 +318,8 @@
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating int-expr : ~v~n" int-expr))
   (match int-expr
+    [`(node/int/constant ,n) (eval-int-expr n bind bitwidth)] ; Temporary fix for lang forge instances
+    [`(node/int/constant50 ,n) (eval-int-expr n bind bitwidth)]
     [`(sum ,var ,lst ,ie)
      (foldl (λ (x res) (+ res (eval-int-expr ie (hash-set bind var (list x)) bitwidth)))
       0
@@ -363,4 +365,4 @@
                [(< ix1-val 0) -1]) bitwidth))]
     [n (cond
          [(number? n) (wraparound n bitwidth)]
-         [else (raise-user-error "Invalid int expression")])]))
+         [else (raise-user-error (format "Invalid int expression ~a" n))])]))

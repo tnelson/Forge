@@ -3,6 +3,7 @@
 (require "lang/ast.rkt" "kodkod-cli/server/kks.rkt" (prefix-in @ racket))
 
 (provide translate-to-kodkod-cli)
+(provide interpret-formula interpret-expr interpret-int)
 
 (define (get-var-idx var quantvars)
   (- (length quantvars) (index-of quantvars var)))
@@ -26,13 +27,25 @@
      ( print-cmd-cont ")")]
     [(node/formula/quantified quantifier decls form)
      ;(writeln formula)
-     (define var (car (car decls)))
-     (let ([quantvars (cons var quantvars)])
-       ( print-cmd-cont (format "(~a ([~a : ~a " quantifier (v (get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
-       (interpret-expr (cdr (car decls)) relations quantvars)
-       ( print-cmd-cont "]) ")
-       (interpret-formula form relations quantvars)
-       ( print-cmd-cont ")"))]
+     (print-cmd-cont (format "(~a (" quantifier))
+     (define new-quantvars
+       (for/fold ([quantvars quantvars])
+                 ([decl decls])
+         (define new-quantvars (cons (car decl) quantvars))
+         (print-cmd-cont (format "[~a : ~a " (v (get-var-idx (car decl) new-quantvars)) (if (@> (node/expr-arity (car decl)) 1) "set" "one")))
+         (interpret-expr (cdr decl) relations new-quantvars)
+         (print-cmd-cont "] ")
+         new-quantvars))
+     (print-cmd-cont ") ")
+     (interpret-formula form relations new-quantvars)
+     (print-cmd-cont ")")]
+
+     ; (let ([quantvars (cons var quantvars)])
+     ;   ( print-cmd-cont (format "(~a ([~a : ~a " quantifier (v (get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
+     ;   (interpret-expr (cdr (car decls)) relations quantvars)
+     ;   ( print-cmd-cont "]) ")
+     ;   (interpret-formula form relations quantvars)
+     ;   ( print-cmd-cont ")"))]
     [#t ( print-cmd-cont "true ")]
     [#f ( print-cmd-cont "false ")]
     ))
@@ -79,7 +92,7 @@
      (map (lambda (x) (interpret-int x relations quantvars)) args)
      ( print-cmd-cont ")")]))
 
-(define (interpret-expr expr relations quantvars)  
+(define (interpret-expr expr relations quantvars)
   (match expr
     [(node/expr/relation arity name typelist parent)
      ( print-cmd-cont (format "r~a " (index-of relations expr)))]

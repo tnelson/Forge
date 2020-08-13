@@ -131,7 +131,7 @@
 
 ;; -- quantifier vars ----------------------------------------------------------
 
-(struct node/expr/quantifier-var node/expr (sym))
+(struct node/expr/quantifier-var node/expr (sym) #:transparent)
 
 ;; -- comprehensions -----------------------------------------------------------
 
@@ -398,7 +398,7 @@
 (define-syntax (all stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
-     ; need a with syntax????
+     ; need a with syntax???? 
      (syntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))

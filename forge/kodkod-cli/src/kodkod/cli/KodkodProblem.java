@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
+import kodkod.engine.Evaluator;
 import kodkod.engine.IncrementalSolver;
 import kodkod.engine.Solution;
 import kodkod.engine.Solver;
@@ -37,10 +38,7 @@ import kodkod.engine.bddlab.BDDSolverFactory;
 import kodkod.engine.config.Options;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.ucore.RCEStrategy;
-import kodkod.instance.Bounds;
-import kodkod.instance.TupleFactory;
-import kodkod.instance.TupleSet;
-import kodkod.instance.Universe;
+import kodkod.instance.*;
 import kodkod.util.ints.IntSet;
 import kodkod.util.ints.Ints;
 
@@ -590,6 +588,27 @@ import org.parboiled.errors.ActionException;
 	}
 
 	/**
+	 *
+	 */
+	boolean evaluate(kodkod.ast.Expression expression) {
+		throw new ActionException("Can only evaluate for stepper problems.");
+	}
+
+	/**
+     *
+	 */
+	boolean evaluate(kodkod.ast.IntExpression expression) {
+		throw new ActionException("Can only evaluate for stepper problems.");
+	}
+
+	/**
+	 *
+	 */
+	boolean evaluate(Formula formula) {
+		throw new ActionException("Can only evaluate for stepper problems.");
+	}
+
+	/**
 	 * Prints the given solution for this problem to {@code out}, after first minimizing its core, if any.
 	 * @requires sol in SOLUTIONS(Formula.and(this.*prev.asserts), this.*prev.bounds, this.options)
 	 * @ensures some sol.proof => sol.proof.minimize(new RCEStrategy(sol.proof.log))
@@ -641,6 +660,7 @@ import org.parboiled.errors.ActionException;
 		private Solution lastSol;
         private int iteration = -1;
         private boolean unsat = false;
+        private Evaluator evaluator = null;
 
 		// Used to print new solutions from the first solved model.
 		private Iterator<Solution> solutions;
@@ -697,6 +717,7 @@ import org.parboiled.errors.ActionException;
                     } else {
     					write(out, sol);
     					lastSol = sol;
+    					evaluator = new Evaluator(sol.instance()); // TODO: add options
     					return this;
                     }
 				}
@@ -717,6 +738,32 @@ import org.parboiled.errors.ActionException;
 				ex.printStackTrace();
 				throw new ActionException(ex.getMessage(), ex);
 			}
+		}
+
+		public boolean evaluate(kodkod.ast.Expression expression) {
+			TupleSet ts = evaluator.evaluate(expression);
+			StringBuilder str = new StringBuilder();
+			str.append("{");
+			for(Tuple t : ts) {
+				str.append("(");
+				str.append(t.atomIndex(0));
+				for(int idx = 1; idx < ts.arity(); idx++) {
+					str.append(" ").append(t.atomIndex(idx));
+				}
+				str.append(")");
+			}
+			str.append("}");
+			System.out.println("(evaluated :expression " + str + ")");
+
+			return true;
+		}
+		public boolean evaluate(kodkod.ast.IntExpression expression) {
+			System.out.println("(evaluated :int-expression " + evaluator.evaluate(expression) + ")");
+			return true;
+		}
+		public boolean evaluate(Formula formula) {
+			System.out.println("(evaluated :formula " + evaluator.evaluate(formula) + ")");
+			return true;
 		}
 	}
 
