@@ -56,25 +56,53 @@
                   (ws-send! connection "pong")]
                  [(equal? m "current")
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
+
                  [(equal? m "next")
                   (set! contrast-model #f)
                   (set! model (get-next-model))
                   (clean model)
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
-                 [(equal? m "contrast")
+
+                 [(equal? m "compare-min")
                   (unless contrast-model
                     (set! get-next-contrast-model
-                          (get-contrast-model-generator model)))
+                          (get-contrast-model-generator model 'compare 'close)))
                   (set! contrast-model (get-next-contrast-model))
                   (clean contrast-model)
-                  (ws-send! connection (string-append "CST:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
+                  (ws-send! connection (string-append "CMP:MIN:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
+
+                 [(equal? m "compare-max")
+                  (unless contrast-model
+                    (set! get-next-contrast-model
+                          (get-contrast-model-generator model 'compare 'far)))
+                  (set! contrast-model (get-next-contrast-model))
+                  (clean contrast-model)
+                  (ws-send! connection (string-append "CMP:MAX:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
+
+                 [(equal? m "contrast-min")
+                  (unless contrast-model
+                    (set! get-next-contrast-model
+                          (get-contrast-model-generator model 'contrast 'close)))
+                  (set! contrast-model (get-next-contrast-model))
+                  (clean contrast-model)
+                  (ws-send! connection (string-append "CST:MIN:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
+
+                 [(equal? m "contrast-max")
+                  (unless contrast-model
+                    (set! get-next-contrast-model
+                          (get-contrast-model-generator model 'contrast 'far)))
+                  (set! contrast-model (get-next-contrast-model))
+                  (clean contrast-model)
+                  (ws-send! connection (string-append "CST:MAX:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
+
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
                   (define result (evaluate command))
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else
-                  (ws-send! "BAD REQUEST")])
+                  (ws-send! connection "BAD REQUEST")
+                  (printf "Bad request: ~a~n" m)])
            (loop))))
      #:port 0 #:confirmation-channel chan))
 

@@ -35,7 +35,9 @@ import kodkod.engine.IncrementalSolver;
 import kodkod.engine.Solution;
 import kodkod.engine.Solver;
 // import kodkod.engine.bddlab.BDDSolverFactory; Removed for Pardinus
+import kodkod.engine.config.ExtendedOptions;
 import kodkod.engine.config.Options;
+import kodkod.engine.config.TargetOptions;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.engine.ucore.RCEStrategy;
 import kodkod.instance.*;
@@ -93,7 +95,7 @@ import org.parboiled.errors.ActionException;
  */
  public abstract class KodkodProblem {
 	private long buildTimeMillis = -1, coreTimeMillis = -1, maxSolutions = 1;
-	private Options options;
+	private ExtendedOptions options;
 	private final DefEnv env;
 	private final List<Formula> asserts;
 	private PardinusBounds bounds;
@@ -103,7 +105,7 @@ import org.parboiled.errors.ActionException;
 	 * @requires prev.incremental()
 	 * @ensures this.bounds' = bounds && no this.asserts' && this.env' = env && this.options' = options && this.maxSolutions' = maxSolutions
 	 */
-	private KodkodProblem(DefEnv env, PardinusBounds bounds, Options options, long maxSolutions) {
+	private KodkodProblem(DefEnv env, PardinusBounds bounds, ExtendedOptions options, long maxSolutions) {
 		this.env = env;
 		this.bounds = bounds;
 		this.options = options;
@@ -241,10 +243,10 @@ import org.parboiled.errors.ActionException;
 
 	/**
 	 * Returns {@code this.options}.  The options should not be modified by client
-	 * code during the lifetime of this {@link KodkodProblem} except through the {@link #configureOptions(Options)} method.
+	 * code during the lifetime of this {@link KodkodProblem} except through the {@link #configureOptions(ExtendedOptions)} method.
 	 * @return this.options
 	 */
-	public final Options options() { return options; }
+	public final ExtendedOptions options() { return options; }
 
 	/**
 	 * Returns the conjunction of {@code this.asserts}.
@@ -599,6 +601,15 @@ import org.parboiled.errors.ActionException;
 		return true;
 	}
 
+	boolean setTargetType(TargetOptions.TMode target_type) {
+		if (!this.isTargetOriented()) {
+			throw new ActionException("Cannot set target for non-target oriented problem.");
+		}
+
+		this.options.setTargetMode(target_type);
+		return true;
+	}
+
 	/**
 	 * Hook for subclasses to intercept relation creation calls.
 	 * It is called by {@linkplain #declaredRelation(Relation, TupleSet, TupleSet)} whenever it adds a new
@@ -843,7 +854,7 @@ import org.parboiled.errors.ActionException;
 		IncrementalSolver solver = null;
 
 		Incremental() { }
-		Incremental(DefEnv env, PardinusBounds bounds, Options options, long maxSolutions, IncrementalSolver solver) {
+		Incremental(DefEnv env, PardinusBounds bounds, ExtendedOptions options, long maxSolutions, IncrementalSolver solver) {
 			super(env, bounds, options, maxSolutions);
 			this.solver = solver;
 		}

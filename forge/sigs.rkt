@@ -106,6 +106,11 @@
   tbindings ; Map<Symbol, List<Symbol>>
   ) #:transparent)
 
+(struct Target (
+  instance ; Map<Symbol, List<List<Symbol>>>
+  distance ; 'close | 'far
+  ) #:transparent)
+
 (struct Options (
   solver          ; symbol
   backend         ; symbol
@@ -132,7 +137,7 @@
   preds   ; Set<node/formula>
   scope   ; Scope
   bounds  ; Bound
-  target  ; Map<??>
+  target  ; Target | #f
   ) #:transparent)
 
 (struct Server-ports (
@@ -634,7 +639,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
                             (~seq #:bounds bound)))
             (~optional (~seq #:solver solver-choice))
             (~optional (~seq #:backend backend-choice))
-            (~optional (~seq #:target target-instance))) ...)
+            (~optional (~seq #:target target-instance))
+            (~optional (~seq #:target-distance target-distance))
+            (~optional (~or (~and #:target-compare target-compare)
+                            (~and #:target-contrast target-contrast)))) ...)
       #`(begin
         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
         (define run-state curr-state)
@@ -679,7 +687,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define-values (run-scope run-bound)
           (run-inst base-scope default-bound))
 
-        (define run-target (~? (cdr target-instance) (hash)))
+        
+        (define run-target 
+          (~? (Target (cdr target-instance)
+                      (~? 'target-distance 'close))
+              #f))
+        (~? (unless (member 'target-distance '(close far))
+              (raise (format "Target distance expected one of (close, far); got ~a." 'target-distance))))
+        (when (~? (or #t 'target-contrast) #f)
+          (set! run-preds (~? (list (not (and preds ...))) (~? (list (not pred)) (list false)))))
+
 
         (define run-command #,command)
 
@@ -827,20 +844,30 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (println command)
             (evaluate run '() command)))
 
-        (define (get-contrast-model-generator model)
+        (define (get-contrast-model-generator model compare distance)
+          (unless (member distance '(close far))
+            (raise (format "Contrast model distance expected one of ('close, 'far); got ~a" distance)))
+          (unless (member compare '(compare contrast))
+            (raise (format "Contrast model compare expected one of ('compare, 'contrast); got ~a" compare)))
+
           (define new-state 
             (let ([old-state (get-state run)])
               (state-set-option (state-set-option old-state 'backend 'pardinus)
                                 'solver 'TargetSATSolver)))
           (define new-preds
-            (list (not (foldr (lambda (a b) (and a b))
-                              true
-                              (Run-spec-preds (Run-run-spec run))))))
+            (if (equal? compare 'compare)
+                (Run-spec-preds (Run-run-spec run))
+                (list (not (foldr (lambda (a b) (and a b))
+                                  true
+                                  (Run-spec-preds (Run-run-spec run)))))))
 
           (define new-target
-            (for/hash ([(key value) (cdr model)]
-                       #:when (member key (State-sig-order new-state)))
-              (values key value)))
+            (Target
+              (for/hash ([(key value) (cdr model)]
+                         #:when (member key (append (map Sig-rel (get-sigs new-state))
+                                                    (map Relation-rel (get-relations new-state)))))
+                (values key value))
+              distance))
 
           (define contrast-run-spec
             (struct-copy Run-spec (Run-run-spec run)
@@ -1250,16 +1277,21 @@ Returns whether the given run resulted in sat or unsat, respectively.
       [stdin]
       lines ...))
 
-  (define target-instance (Run-spec-target run-spec))
-  (for ([(relation atoms) target-instance])
-    (define sig-or-rel
-      (if (@= (relation-arity relation) 1)
-          (get-sig run-spec relation)
-          (get-relation run-spec relation)))
+  (define target (Run-spec-target run-spec))
+  (when target
+    (for ([(relation atoms) (Target-instance target)])
+      (define sig-or-rel
+        (if (@= (relation-arity relation) 1)
+            (get-sig run-spec relation)
+            (get-relation run-spec relation)))
+      (pardinus-print
+        (pardinus:declare-target 
+          (pardinus:r (index-of all-rels relation))
+          (get-atoms sig-or-rel atoms))))
+
     (pardinus-print
-      (pardinus:declare-target 
-        (pardinus:r (index-of all-rels relation))
-        (get-atoms sig-or-rel atoms))))
+      (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
+
 
   ; Print solve
   (define (get-next-model)
