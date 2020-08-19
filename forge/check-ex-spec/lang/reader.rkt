@@ -13,7 +13,7 @@
   (define module-datum `(module forge-core/check-ex-spec-mod racket
                           (require forge/sigs)
                           (provide (except-out (all-defined-out)
-                                               forge:n)
+                                               forge:n))
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
