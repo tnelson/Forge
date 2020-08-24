@@ -1,0 +1,13 @@
+{
+    "users": [
+            {
+                "email": "<student>@cs.brown.edu",
+                "files": ["/User/<username>/Documents/cs1950y/forge1.rkt",
+                          "/User/<username>/Documents/cs1950y/forge2.rkt",],
+            }
+        ],
+    "projects": [
+            "forge1",
+            "forge2",
+        ],
+}

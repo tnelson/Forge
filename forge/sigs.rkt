@@ -17,6 +17,7 @@
          "kodkod-cli/server/server-common.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
+(require "logging/logging.rkt")
 
 ; Commands
 (provide sig relation fun const pred inst)
@@ -216,12 +217,12 @@
         (define-values (run-scope run-bound)
           (run-inst base-scope default-bound))
 
-        (define run-command #,command)
+        (define run-command #'#,stx)
 
         (define run-spec (Run-spec run-state run-preds run-scope run-bound))
         (define-values (run-result atom-rels) (send-to-kodkod run-spec))
 
-        (define name (Run run-name run-command run-spec run-result atom-rels)))]))
+        (define name (log-run (Run run-name run-command run-spec run-result atom-rels))))]))
 
 ; Test that a spec is sat or unsat
 ; (test name

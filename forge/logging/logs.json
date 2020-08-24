@@ -1,55 +1,89 @@
 {
-    "email": "<student>@cs.brown.edu",
-    "files": ["/User/<username>/Documents/cs1950y/forge1.rkt",
-              "/User/<username>/Documents/cs1950y/forge2.rkt",],
-    "executions": [
-            {
-                "filename": "/User/<username>/Documents/cs1950y/forge2.rkt",
-                "project": "forge1",
-                "time": 12345987023458,
-                "raw": "#lang forge/core\n...",
-                "mode": "forge/core",
-                "commands": 
-                    {
-                        "runs": [
-                                {
-                                    "raw": "(run my-run #:preds [...] ...)",
-                                    "result": "sat",
-                                    "instances": [
-                                            {
-                                                "A": ["A0", "A1", "A2"],
-                                                "B": ["B0", "B1", "B2"],
-                                                "r": [["A0", "B0"],  ["A1", "B1"], ["A2", "B2"]],
-                                            },
-                                            // ...
-                                        ],
-                                },
-                                {
-                                    "raw": "(run my-run #:preds [...] ...)",
-                                    "result": "unsat",
-                                    "core": "(...)",
-                                },
-                                // ...
-                            ],
-
-                        "tests": [
-                                {
-                                    "raw": "(test my-test #:preds [...] ... #:expect sat)",
-                                    "expect": "sat",
-                                    "passed": true,
-                                },
-                                // ...
-                            ],
-
-                        "examples": [
-                                {
-                                    // ??
-                                },
-                                // ...
-                            ],
-                    },
-            },
-            // ...
-        ],
+    "log-type": "execution",
+    "user": "<student>@cs.brown.edu",
+    "filename": "/User/<username>/Documents/cs1950y/forge1.rkt",
+    "project": "forge1",
+    "time": 12345987023458,
+    "raw": "#lang forge/core\n...",
+    "mode": "forge/core",
 }
-
+{
+    "log-type": "run",
+    "raw": "(run my-run #:preds [...] ...)",
+    "run-id": 0,
+    "spec": {
+            "sigs": ["A", "B"],
+            "relations": ["r"],
+            "predicates": ["..."],
+            "bounds": ["..."],
+        },
+}
+{
+    "log-type": "instance",
+    "run-id": 0,
+    "label": "sat",
+    "sigs": {
+            "A": ["A0", "A1", "A2"],
+            "B": ["B0", "B1"],
+        },
+    "relations": {
+            "r": [["A0", "B0"], ["A0", "B1"], ["A1", "B1"]],
+        },
+}
+{
+    "log-type": "instance",
+    "run-id": 0,
+    "label": "no-more-instances",
+}
+{
+    "log-type": "run",
+    "raw": "(run my-run2 #:preds [...] ...)",
+    "run-id": 1,
+    "spec": {
+            "sigs": ["A", "B"],
+            "relations": ["r"],
+            "predicates": ["..."],
+            "bounds": ["..."],
+        },
+}
+{
+    "log-type": "instance",
+    "run-id": 1,
+    "label": "unsat",
+    "core": "...",
+}
+{
+    "log-type": "test",
+    "raw": "(test my-test #:preds [...] ...)",
+    "expected": "sat",
+    "passed": true,
+    "spec": {
+            "sigs": ["A", "B"],
+            "relations": ["r"],
+            "predicates": ["..."],
+            "bounds": ["..."],
+        },
+}
+{
+    "log-type": "execution",
+    "user": "<student>@cs.brown.edu",
+    "filename": "/User/<username>/Documents/cs1950y/forge2.rkt",
+    "project": "forge2",
+    "time": 12345987034567,
+    "raw": "#lang forge\n...",
+    "mode": "forge",
+}
+{
+    "log-type": "example",
+    "raw": "example my-example is my-pred[A0] {\n...",
+    "sigs": {
+            "A": ["A0", "A1", "A2"],
+            "B": ["B0", "B1"],
+        },
+    "relations": {
+            "r": [["A0", "B0"], ["A0", "B1"], ["A1", "B1"]],
+        },
+    "predicate": "...",
+    "expected": true,
+    "result": true,
+}
