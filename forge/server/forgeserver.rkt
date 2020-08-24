@@ -27,9 +27,9 @@
   ; Begin hack to remove helper relations
   (define (clean-model)
     (when (equal? (car model) 'sat)
-    (define instance (cdr model))
-    (for ([rel atom-rels])
-      (hash-remove! instance rel))))
+      (define instance (cdr model))
+      (for ([rel atom-rels])
+        (hash-remove! instance rel))))
   (clean-model)
   ; End hack to remove helper relations
 

@@ -6,10 +6,6 @@
 
 (provide model-to-XML-string)
 
-(define (model-to-XML-string . args)
-  (raise "MODEL TO XML CURRENTLY BUGGED."))
-
-#|
 (define (atom-to-XML-string atom)
   (string-append "<atom label=\"" (format "~a" atom) "\"/>"))
 
@@ -17,13 +13,13 @@
   (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (reverse (hash-ref data sig-rel)))))
 
 (define (sig-to-XML-string data sig-rel sigID ID-hash)
-  (string-append "<sig label=\"" (relation-name sig-rel) "\" ID=\"" (number->string sigID) "\" parentID=\"" (number->string (hash-ref ID-hash (relation-parent sig-rel))) "\">\n"
+  (string-append "<sig label=\"" (node/expr/relation-name sig-rel) "\" ID=\"" (number->string sigID) "\" parentID=\"" (number->string (hash-ref ID-hash (node/expr/relation-name sig-rel))) "\">\n"
                  (sig-contents-to-XML-string data sig-rel)
                  "\n</sig>\n\n"))
 
 (define (skolem-to-XML-string data skolem-rel skolemID ID-hash)
   ; No parent for skolems + use relation-to-xml (set of tuples, not set)
-  (string-append "<skolem label=\"" (relation-name skolem-rel) "\" ID=\"" (number->string skolemID) "\">\n"
+  (string-append "<skolem label=\"" (node/expr/relation-name skolem-rel) "\" ID=\"" (number->string skolemID) "\">\n"
                  (relation-to-XML-string data skolem-rel)
                  (types-to-XML-string skolem-rel ID-hash)
                  "\n</skolem>\n\n"))
@@ -39,13 +35,14 @@
 (define (type-to-XML-string typestring ID-hash)
   (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
 
+; MUST FIX WITH ACTUAL TYPE SYSTEM
 (define (types-to-XML-string rel ID-hash)
   (string-append "<types>"
-                 (apply string-append (map (λ (x) (type-to-XML-string x ID-hash)) (relation-typelist rel)))
+                 (apply string-append (map (λ (x) (type-to-XML-string x ID-hash)) #|(relation-typelist rel)|# empty))
                  "</types>\n"))
 
 (define (field-to-XML-string data rel fieldID ID-hash)
-  (string-append "<field label=\"" (relation-name rel) "\" ID=\"" (number->string fieldID) "\" parentID=\"" (number->string (hash-ref ID-hash (first (relation-typelist rel)))) "\">\n"
+  (string-append "<field label=\"" (node/expr/relation-name rel) "\" ID=\"" (number->string fieldID) "\" parentID=\"" (number->string (hash-ref ID-hash (first #|(relation-typelist rel)|# ))) "\">\n"
                  (relation-to-XML-string data rel)
                  (types-to-XML-string rel ID-hash)
                  "\n</field>\n\n"))
@@ -107,29 +104,33 @@ here-string-delimiter
                         "</sig>\n"
                         "</instance>\n</alloy>")]
         [(equal? flag 'no-counterexample) 
-          (string-append prologue
+         (string-append prologue
                         "\n<sig label=\"No counterexample found. Assertion may be valid.\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"&#129395;\"/><atom label=\"&#127881;\"/><atom label=\"&#127882;\"/>\n"
                         "</sig>\n"
                         "</instance>\n</alloy>")]
         [else
 
+         (println " ")
+         (println data)
+         (println " ")
+
          ; Do not include unary Skolem relations as sigs! Sterling expects these as <skolem> decls, not <sig> decls
          ; Remember to use *Racket* not + and here
          (hash-remove! data Int)
 
          (define sigs-unsorted (filter
-                                (λ (key) (@and (equal? (relation-arity key) 1)
-                                               (@not (string-prefix? (relation-name key) "$"))))
+                                (λ (key) (@and (equal? (node/expr-arity key) 1)
+                                               (@not (string-prefix? (node/expr/relation-name key) "$"))))
                                 (hash-keys data)))
 
-         (define skolems (filter (lambda (key) (string-prefix? (relation-name key) "$")) (hash-keys data)))
+         (define skolems (filter (lambda (key) (string-prefix? (node/expr/relation-name key) "$")) (hash-keys data)))
          
          (define childrenhash
            (make-hash (map
                        (λ (parent)
                          (cons parent (filter
-                                       (λ (child) (equal? (relation-parent child) (relation-name parent)))
+                                       (λ (child) (equal? #|(first (node/expr/typelist child))|# empty (node/expr/relation-name parent)))
                                        sigs-unsorted)))
                        sigs-unsorted)))
 
@@ -137,7 +138,7 @@ here-string-delimiter
            (make-hash (map
                        (λ (child)
                          (cons child (filter
-                                      (λ (parent) (equal? (relation-parent child) (relation-name parent)))
+                                      (λ (parent) (equal? #|(first (node/expr/typelist child))|# empty (node/expr/relation-name parent)))
                                       sigs-unsorted)))
                        sigs-unsorted)))
 
@@ -186,8 +187,8 @@ here-string-delimiter
 
          ; RACKET "or"
          (define fields (filter-not
-                         (λ (key) (@or (equal? (relation-arity key) 1)
-                                      (string-prefix? (relation-name key) "$")))
+                         (λ (key) (@or (equal? (node/expr-arity key) 1)
+                                       (string-prefix? (node/expr/relation-name key) "$")))
                          (hash-keys data)))  
 
          (define sigs# (length sigs))
@@ -200,7 +201,7 @@ here-string-delimiter
 
          (define sig-strings (apply string-append (map
                                                    (λ (sig id)
-                                                     (hash-set! ID-hash (relation-name sig) id)
+                                                     (hash-set! ID-hash (node/expr/relation-name sig) id)
                                                      (sig-to-XML-string cleaned-model sig id ID-hash))
                                                    sigs
                                                    (range 4 (+ 4 sigs#)))))
@@ -245,4 +246,4 @@ here-string-delimiter
                         ; including this beforehand will cause Sterling to error on any instance with a Skolem relation.
                         ;skolem-strings
                         epilogue
-                        )]))|#
+                        )]))

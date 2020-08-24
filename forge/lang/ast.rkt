@@ -162,16 +162,18 @@
     (raise-argument-error 'decl-to-kkcli-str "node/expr/var?" var))
   (string-append-immutable
    "["
+   (to-kkcli-str var)
+   " : "
    (symbol->string (node/expr/var-mult var))
    " "
-   (to-kkcli-str var)
-   ":"
    (to-kkcli-str (node/expr/var-origin var))
    "]"))
 
 ;; -- COMPREHENSIONS -----------------------------------------------------------
 
 ; decls is just a list of node/expr/var
+; represents a relation with arity equal to the number of decls,
+; where each tuple consists of decl values that satisfy the formula.
 (struct node/expr/comprehension node/expr (decls formula)
   #:methods gen:kkcli-str
   [(define/generic recur to-kkcli-str)
@@ -180,7 +182,7 @@
       "{("
       (string-join (map decl-to-kkcli-str (node/expr/comprehension-decls comp)) " ")
       ") "
-      (recur node/expr/comprehension-formula comp)
+      (recur (node/expr/comprehension-formula comp))
       "}"))]
   #:methods gen:replace
   [(define (replace comp A B)
@@ -204,7 +206,7 @@
   (syntax-case stx ()
     [(_ ([var-name origin] ...) pred)
      (syntax/loc stx
-       (let* ([var-name (node/expr/var (node/expr-arity origin) origin 'var-name)] ... )
+       (let* ([var-name (node/expr/var (node/expr-arity origin) 'one origin 'var-name)] ... )
          (comprehension (list var-name ...) pred)))]))
 
 ;; -- RELATIONS ----------------------------------------------------------------
@@ -223,7 +225,7 @@
 (struct node/expr/constant node/expr (name) #:transparent
   #:methods gen:kkcli-str
   [(define (to-kkcli-str const)
-     (symbol->string node/expr/constant-name const))]
+     (symbol->string (node/expr/constant-name const)))]
   #:methods gen:replace
   [(define (replace const A B)
      (if (equal? const A) B A))])
@@ -291,28 +293,28 @@
 (struct node/int/constant node/int (value) #:transparent
   #:methods gen:kkcli-str
   [(define (to-kkcli-str const)
-     (number->string node/int/constant-value const))]
+     (number->string (node/int/constant-value const)))]
   #:methods gen:replace
   [(define (replace const A B)
      (if (equal? const A) B A))])
 
 ;; -- sum quantifier -----------------------------------------------------------
 
-(struct node/int/quant_sum node/int (decls int-expr)
+(struct node/int/quant_sum node/int (decls int_expr)
   #:methods gen:kkcli-str
   [(define/generic recur to-kkcli-str)
    (define (to-kkcli-str quant)
      (string-append-immutable
       "{("
-      (string-join (map decl-to-kkcli-str (node/int/sum-quant-decls quant)) " ")
+      (string-join (map decl-to-kkcli-str (node/int/quant_sum-decls quant)) " ")
       ") "
-      (recur node/int/sum-quant-int-expr quant)
+      (recur (node/int/quant_sum-int_expr quant))
       "}"))]
   #:methods gen:replace
   [(define (replace quant A B)
      (if (equal? quant A) B
-         (node/int/sum-quant (map (curryr replace A B) (node/int/sum-quant-decls quant))
-                             (replace (node/int/sum-quant-int-expr quant) A B))))])
+         (node/int/quant_sum (map (curryr replace A B) (node/int/quant_sum-decls quant))
+                             (replace (node/int/quant_sum-int_expr quant) A B))))])
 
 (define (sum-quant-expr decls int-expr)
   (for ([decl decls])
@@ -321,14 +323,14 @@
     (unless (equal? (node/expr-arity decl) 1)
       (raise-argument-error 'sum "decl of arity 1" decl)))
   (unless (node/int? int-expr)
-    (raise-argument-error 'sum "int-expr?" formula))
-  (node/int/sum-quant decls int-expr))
+    (raise-argument-error 'sum "int-expr?" int-expr))
+  (node/int/quant_sum decls int-expr))
 
-(define-syntax (sum stx)
+(define-syntax (quant_sum stx)
   (syntax-case stx ()
     [(_ ([var-name origin] ...) pred)
      (syntax/loc stx
-       (let* ([var-name (node/expr/var (node/expr-arity origin) origin 'var-name)] ... )
+       (let* ([var-name (node/expr/var (node/expr-arity origin) 'one origin 'var-name)] ... )
          (comprehension (list var-name ...) pred)))]))
 
 ;; FORMULAS --------------------------------------------------------------------
@@ -378,9 +380,9 @@
 (define not !)
 
 (define => (make-formula-op '=> node/formula? (ast-options #:min-length 2 #:max-length 2)))
-(define int> (make-formula-op 'int> node/int? (ast-options #:min-length 2 #:max-length 2)))
-(define int< (make-formula-op 'int< node/int? (ast-options #:min-length 2 #:max-length 2)))
-(define int= (make-formula-op 'int= node/int? (ast-options #:min-length 2 #:max-length 2)))
+(define int> (make-formula-op '> node/int? (ast-options #:min-length 2 #:max-length 2)))
+(define int< (make-formula-op '< node/int? (ast-options #:min-length 2 #:max-length 2)))
+(define int= (make-formula-op '= node/int? (ast-options #:min-length 2 #:max-length 2)))
 
 ; Are these necessary? Can they be replaced / rephrased?
 ; Yeah i don't like these. they privilege the first argument in a weird way.
@@ -430,11 +432,11 @@
           (replace (node/formula/quantified-formula quant) A B))))])
 
 (define (quantified-formula quantifier decls formula)
-  (for ([e (in-list (map cdr decls))])
-    (unless (node/expr? e)
-      (raise-argument-error quantifier "expr?" e))
-    #'(unless (equal? (node/expr-arity e) 1)
-        (raise-argument-error quantifier "decl of arity 1" e)))
+  (for ([decl decls])
+    (unless (node/expr? decl)
+      (raise-argument-error quantifier "expr?" decl))
+    #'(unless (equal? (node/expr-arity decl) 1)
+        (raise-argument-error quantifier "decl of arity 1" decl)))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified quantifier decls formula))
@@ -475,46 +477,53 @@
 
 (define-syntax (all stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
   (syntax-case stx ()
-    [(_ ([v0 e0] ...) pred)
-     ; need a with syntax????
+    [(_ ([var-name var-origin] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/var (node/expr-arity e0) 'v0)] ...)
-         (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))
+       (let* ([var-name (node/expr/var (node/expr-arity var-origin) 'one var-origin 'var-name)] ...)
+         (quantified-formula 'all (list var-name ...) pred)))]))
 
 (define-syntax (some stx)
   (syntax-case stx ()
-    [(_ ([v0 e0] ...) pred)
+    [(_ ([var-name var-origin] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/var (node/expr-arity e0) 'v0)] ...)
-         (quantified-formula 'some (list (cons v0 e0) ...) pred)))]
+       (let* ([var-name (node/expr/var (node/expr-arity var-origin) 'one var-origin 'var-name)] ...)
+         (quantified-formula 'some (list var-name ...) pred)))]
     [(_ expr)
      (syntax/loc stx
        (multiplicity-formula 'some expr))]))
 
 (define-syntax (no stx)
   (syntax-case stx ()
-    [(_ ([v0 e0] ...) pred)
+    [(_ ([var-name var-origin] ...) pred)
      (syntax/loc stx
-       (let* ([v0 (node/expr/var (node/expr-arity e0) 'v0)] ...)
-         (! (quantified-formula 'some (list (cons v0 e0) ...) pred))))]
+       ; needs more arguments!
+       ; arity mult origin name.
+       (let* ([var-name (node/expr/var (node/expr-arity var-origin) 'one var-origin 'var-name)] ...)
+         (! (quantified-formula 'some (list var-name ...) pred))))]
     [(_ expr)
      (syntax/loc stx
        (multiplicity-formula 'no expr))]))
 
+; PROBLEM WITH MULTIPLICITY FORMULA HERE.
+; How did the original ocelot do it?
+; i'm just overusing it, they should be quantified.
+
 (define-syntax (one stx)
   (syntax-case stx ()
-    [(_ ([x1 r1] ...) pred)
+    [(_ ([var-name var-origin] ...) pred)
      (syntax/loc stx
-       (multiplicity-formula 'one (set ([x1 r1] ...) pred)))]
+       (let* ([var-name (node/expr/var (node/expr-arity var-origin) 'one var-origin 'var-name)] ...)
+         (multiplicity-formula 'one (set ([var-name var-origin] ...) pred))))]
     [(_ expr)
      (syntax/loc stx
        (multiplicity-formula 'one expr))]))
 
 (define-syntax (lone stx)
   (syntax-case stx ()
-    [(_ ([x1 r1] ...) pred)
+    [(_ ([var-name var-origin] ...) pred)
      (syntax/loc stx
-       (multiplicity-formula 'lone (set ([x1 r1] ...) pred)))]
+       (let* ([var-name (node/expr/var (node/expr-arity var-origin) 'one var-origin 'var-name)] ...)
+         (multiplicity-formula 'lone (set ([var-name var-origin] ...) pred))))]
     [(_ expr)
      (syntax/loc stx
        (multiplicity-formula 'lone expr))]))
@@ -522,10 +531,10 @@
 ; sum quantifier macro
 (define-syntax (sum-quant stx)
   (syntax-case stx ()
-    [(_ ([x1 r1] ...) int-expr)
+    [(_ ([var-name var-origin] ...) int-expr)
      (syntax/loc stx
-       (let* ([x1 (node/expr/var (node/expr-arity r1) 'x1)] ...)
-         (sum-quant-expr (list (cons x1 r1) ...) int-expr)))]))
+       (let* ([var-name (node/expr/var (node/expr-arity var-origin) 'one var-origin 'var-name)] ...)
+         (sum-quant-expr (list var-name ...) int-expr)))]))
 
 ;; PREDICATES ------------------------------------------------------------------
 

@@ -104,11 +104,11 @@ This function just recreates the model, but using names instead of numbers.
          ;(printf "Translated model: ~a~n" translated-model)
          
          (define translated-model
-           (for/hash ([(key value) data]
+           (make-hash (hash->list (for/hash ([(key value) data]
                       #:unless (equal? key 'Int)
                       #:unless (equal? key 'succ))
              (values key
-                     (translate-kodkod-cli-relation inty-univ value))))
+                     (translate-kodkod-cli-relation inty-univ value))))))
          (cons 'sat translated-model)]))
 
 (define (translate-evaluation-from-kodkod-cli result atom-names)

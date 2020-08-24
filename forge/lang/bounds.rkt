@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/generator (only-in "ast.rkt" relation-arity))
+(require racket/generator (only-in "ast.rkt" node/expr-arity))
 (provide (all-defined-out))
 
 
@@ -12,10 +12,10 @@
 ; Error-checking constructors for bounds
 (define (make-bound relation lower upper)
   (for ([t (in-list lower)])
-    (unless (and (list? t) (= (length t) (relation-arity relation)))
+    (unless (and (list? t) (= (length t) (node/expr-arity relation)))
       (raise-arguments-error 'make-bound "bounds must contain tuples" "lower" t)))
   (for ([t (in-list upper)])
-    (unless (and (list? t) (= (length t) (relation-arity relation)))
+    (unless (and (list? t) (= (length t) (node/expr-arity relation)))
       (raise-arguments-error 'make-bound "bounds must contain tuples" "upper" t)))
   (bound relation lower upper))
 

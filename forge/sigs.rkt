@@ -789,7 +789,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; update-int-bound :: Scope, node/expr/relation, Range -> Scope
 ; Updates the scope (range) for a given sig in scope.
 (define (update-int-bound scope rel given-scope)
-  (define name (string->symbol (relation-name rel)))
+  (define name (relation-name rel))
   (define old-scope (get-scope scope name))
 
   (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
