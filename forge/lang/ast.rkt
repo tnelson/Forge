@@ -68,7 +68,7 @@
           (raise-arguments-error op "arguments must have same arity"
                                  "got" arity "and" (node/expr-arity a) ":" args)))))
   (when join?
-    (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
+    (when (<= (join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
       (raise-arguments-error op (format "join would create a relation of arity 0: ~a" args))))
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)
@@ -131,7 +131,7 @@
 (define join-arity
   (lambda (args) (@- (apply @+ args)
                      (@* 2 (@- (length args) 1)))))
-(define join (make-expr-op 'join join-arity node/expr? (ast-options #:join? #t)))
+(define join (make-expr-op '|.| join-arity node/expr? (ast-options #:join? #t)))
 
 (define sing (make-expr-op 'sing (const 1) node/int? (ast-options #:min-length 1 #:max-length 1)))
 
