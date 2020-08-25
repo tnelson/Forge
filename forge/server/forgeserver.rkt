@@ -20,20 +20,52 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-model evaluate name command filepath bitwidth funs-n-preds atom-rels get-contrast-model-generator)
-  (define model (get-next-model))
+(define (display-model get-next-unclean-model evaluate name command filepath bitwidth funs-n-preds atom-rels get-contrast-model-generator)
 
   ; Begin hack to remove helper relations
   (define (clean model)
     (when (equal? (car model) 'sat)
       (define instance (cdr model))
       (for ([rel atom-rels])
-        (hash-remove! instance rel))))
-  (clean model)
+        (hash-remove! instance rel)))
+    model)
   ; End hack to remove helper relations
 
-  (define get-next-contrast-model (thunk (raise "No contrast model set yet.")))
-  (define contrast-model #f)
+  (define model #f)
+  (define (get-current-model)
+    model)
+  (define (get-next-model)
+    (set! model (clean (get-next-unclean-model)))
+    model)
+  (get-next-model)
+
+  ; For compare/contrast models.
+  ; Map of generators
+  (define contrast-model-generators #f)
+  (define contrast-models #f)
+
+  (define (make-contrast-model-generators)
+    (define make-generator (curry get-contrast-model-generator model))
+    (set! contrast-model-generators
+      (hash 'compare-min (make-generator 'compare 'close)
+            'compare-max (make-generator 'compare 'far)
+            'contrast-min (make-generator 'contrast 'close)
+            'contrast-max (make-generator 'contrast 'far)))
+
+    (set! contrast-models
+      (make-hash (list (cons 'compare-min #f)
+                       (cons 'compare-max #f)
+                       (cons 'contrast-min #f)
+                       (cons 'contrast-max #f)))))
+  (make-contrast-model-generators)
+
+  (define (get-current-contrast-model type)
+    (hash-ref contrast-models type))
+  (define (get-next-contrast-model type)
+    (hash-set! contrast-models type 
+               (clean ((hash-ref contrast-model-generators type))))
+    (hash-ref contrast-models type))
+
 
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -49,6 +81,7 @@
 
          ; The only thing we should be receiving is next-model requests, current requests (from a new connection), and pings.
          (define m (ws-recv connection))
+         (println m)
 
          (unless (eof-object? m)
            ;(println m)
@@ -58,41 +91,24 @@
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
 
                  [(equal? m "next")
-                  (set! contrast-model #f)
-                  (set! model (get-next-model))
-                  (clean model)
+                  (get-next-model)
+                  (make-contrast-model-generators)
                   (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
 
                  [(equal? m "compare-min")
-                  (unless contrast-model
-                    (set! get-next-contrast-model
-                          (get-contrast-model-generator model 'compare 'close)))
-                  (set! contrast-model (get-next-contrast-model))
-                  (clean contrast-model)
+                  (define contrast-model (get-next-contrast-model 'compare-min))
                   (ws-send! connection (string-append "CMP:MIN:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
 
                  [(equal? m "compare-max")
-                  (unless contrast-model
-                    (set! get-next-contrast-model
-                          (get-contrast-model-generator model 'compare 'far)))
-                  (set! contrast-model (get-next-contrast-model))
-                  (clean contrast-model)
+                  (define contrast-model (get-next-contrast-model 'compare-max))
                   (ws-send! connection (string-append "CMP:MAX:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
 
                  [(equal? m "contrast-min")
-                  (unless contrast-model
-                    (set! get-next-contrast-model
-                          (get-contrast-model-generator model 'contrast 'close)))
-                  (set! contrast-model (get-next-contrast-model))
-                  (clean contrast-model)
+                  (define contrast-model (get-next-contrast-model 'contrast-min))
                   (ws-send! connection (string-append "CST:MIN:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
 
                  [(equal? m "contrast-max")
-                  (unless contrast-model
-                    (set! get-next-contrast-model
-                          (get-contrast-model-generator model 'contrast 'far)))
-                  (set! contrast-model (get-next-contrast-model))
-                  (clean contrast-model)
+                  (define contrast-model (get-next-contrast-model 'contrast-max))
                   (ws-send! connection (string-append "CST:MAX:" (model-to-XML-string contrast-model name command filepath bitwidth forge-version)))]
 
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
