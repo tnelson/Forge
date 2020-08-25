@@ -17,7 +17,7 @@
 (run my-run2
      #:preds [(= (join AA r) B)]
      #:target t
-     #:target-unsat
+     #:target-contrast
      #:solver TargetSATSolver
      #:backend pardinus)
 (display my-run2)

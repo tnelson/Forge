@@ -600,7 +600,7 @@ import org.parboiled.errors.ActionException;
 		return true;
 	}
 
-	boolean setTargetType(TargetOptions.TMode target_type) {
+	boolean setTargetType(String target_type) {
 		throw new ActionException("Cannot set target option for non-target oriented problem.");
 	}
 
@@ -700,7 +700,6 @@ import org.parboiled.errors.ActionException;
 
 		Stepper() {
 			this.solver = new Solver(super.options);
-                // System.err.println(super.options);
 			super.maxSolutions = -1;	// maxSolutions has no meaning for Steppers.
 		}
 
@@ -811,6 +810,8 @@ import org.parboiled.errors.ActionException;
 
 		private static final class TargetOriented extends Stepper {
 
+			boolean flip_target = false;
+
 			TargetOriented() {
 				super(true);
 				options().setRunTarget(true);
@@ -823,16 +824,41 @@ import org.parboiled.errors.ActionException;
 								// DO NOTHING! Keep the initial target
 							}
 						});
+
+				// Unnecessary?
+				// options().setConfigOptions(options());
 			}
 
 			@Override
 			public boolean isTargetOriented() { return true; }
 
 			@Override
-			boolean setTargetType(TargetOptions.TMode target_type) {
+			boolean setTargetType(String target_type) {
 				assert super.solver instanceof ExtendedSolver;
-				options().setTargetMode(target_type);
+				if (target_type == "close") {
+					flip_target = false;
+				} else if (target_type == "far") {
+					flip_target = true;
+				} else {
+					throw new ActionException("Bad choice for target type: " + target_type);
+				}
 				return true;
+			}
+
+			@Override
+			public KodkodProblem solve(KodkodOutput out) {
+				if (!isSolved() && flip_target) {
+					PardinusBounds pb = (PardinusBounds) bounds();
+
+					for(Relation rel : pb.targets().keySet()) {
+						TupleSet tuples = pb.upperBound(rel).clone();
+						tuples.removeAll(pb.targets().get(rel));
+						tuples.addAll(pb.lowerBound(rel).clone());
+						pb.setTarget(rel, tuples);
+					}
+				}
+
+				return super.solve(out);
 			}
 		}
 	}

@@ -215,11 +215,11 @@ public class KodkodParser extends BaseParser<Object> {
     }
 
     public Rule TargetMode() {
-        final Var<TargetOptions.TMode> target_mode = new Var<>();
+        final Var<String> target_mode = new Var<>();
         return Sequence(
                 String("target-mode"), Space(),
-                FirstOf(Sequence(CLOSE, target_mode.set(TargetOptions.TMode.CLOSE)),
-                        Sequence(FAR, target_mode.set(TargetOptions.TMode.FAR))),
+                FirstOf(Sequence(CLOSE, target_mode.set("close")),
+                        Sequence(FAR, target_mode.set("far"))),
                 problem.setTargetType(target_mode.get()));
     }
 
