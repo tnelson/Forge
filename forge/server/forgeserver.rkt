@@ -81,7 +81,6 @@
 
          ; The only thing we should be receiving is next-model requests, current requests (from a new connection), and pings.
          (define m (ws-recv connection))
-         (println m)
 
          (unless (eof-object? m)
            ;(println m)
