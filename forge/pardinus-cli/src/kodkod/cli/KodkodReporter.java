@@ -138,10 +138,10 @@ public final class KodkodReporter implements Reporter {
 	}
 	
 	/**
-	 * @see kodkod.engine.config.Reporter#solvingCNF(int, int, int)
+	 * @see kodkod.engine.config.Reporter#solvingCNF(int, int, int, int)
 	 */
-	public void solvingCNF(int primaryVars, int vars, int clauses) {
-		logger.fine("Solving p cnf " + vars + " " + clauses + ".\n");
+	public void solvingCNF(int step, int primaryVars, int vars, int clauses) {
+		logger.fine("Step " + step + " of solving p cnf " + vars + " " + clauses + ".\n");
 	}
 	
 	/**

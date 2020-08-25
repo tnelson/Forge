@@ -30,15 +30,14 @@ import java.util.logging.Logger;
 
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
-import kodkod.engine.Evaluator;
-import kodkod.engine.IncrementalSolver;
-import kodkod.engine.Solution;
-import kodkod.engine.Solver;
+import kodkod.engine.*;
 // import kodkod.engine.bddlab.BDDSolverFactory; Removed for Pardinus
 import kodkod.engine.config.ExtendedOptions;
 import kodkod.engine.config.Options;
 import kodkod.engine.config.TargetOptions;
+import kodkod.engine.fol2sat.Translation;
 import kodkod.engine.satlab.SATFactory;
+import kodkod.engine.satlab.TargetSATSolver;
 import kodkod.engine.ucore.RCEStrategy;
 import kodkod.instance.*;
 import kodkod.util.ints.IntSet;
@@ -156,7 +155,7 @@ import org.parboiled.errors.ActionException;
 	/**
 	 * Returns a new Target Oriented problem!
 	 */
-	public static KodkodProblem targetOriented() { return new KodkodProblem.TargetOriented(); }
+	public static KodkodProblem targetOriented() { return new KodkodProblem.Stepper.TargetOriented(); }
 
 	/**
 	 * Returns an empty partial {@link KodkodProblem} instance that can be used to
@@ -243,7 +242,7 @@ import org.parboiled.errors.ActionException;
 
 	/**
 	 * Returns {@code this.options}.  The options should not be modified by client
-	 * code during the lifetime of this {@link KodkodProblem} except through the {@link #configureOptions(ExtendedOptions)} method.
+	 * code during the lifetime of this {@link KodkodProblem} except through the {@link #configureOptions(Options)} method.
 	 * @return this.options
 	 */
 	public final ExtendedOptions options() { return options; }
@@ -602,12 +601,7 @@ import org.parboiled.errors.ActionException;
 	}
 
 	boolean setTargetType(TargetOptions.TMode target_type) {
-		if (!this.isTargetOriented()) {
-			throw new ActionException("Cannot set target for non-target oriented problem.");
-		}
-
-		this.options.setTargetMode(target_type);
-		return true;
+		throw new ActionException("Cannot set target option for non-target oriented problem.");
 	}
 
 	/**
@@ -694,7 +688,7 @@ import org.parboiled.errors.ActionException;
 	// they need to clear the bounds and asserts! However, for Stepper, we only need to return
 	// new objects when we transition to a solved stepper. A solved stepper can return itself.
 	private static class Stepper extends KodkodProblem {
-		private final Solver solver;
+		private final AbstractKodkodSolver solver;
 		private boolean issolved = false;
 		private Solution lastSol;
         private int iteration = -1;
@@ -708,6 +702,15 @@ import org.parboiled.errors.ActionException;
 			this.solver = new Solver(super.options);
                 // System.err.println(super.options);
 			super.maxSolutions = -1;	// maxSolutions has no meaning for Steppers.
+		}
+
+		Stepper(boolean extended) {
+			if (extended) {
+				this.solver = new ExtendedSolver(super.options);
+			} else {
+				this.solver = new Solver(super.options);
+			}
+			super.maxSolutions = -1;
 		}
 
 		// makes a solved stepper with the given solutions.
@@ -772,7 +775,7 @@ import org.parboiled.errors.ActionException;
 			}
 
 			try {
-                Iterator<Solution> solved = solver.solveAll(asserts(), bounds());
+				Iterator<Solution> solved = solver.solveAll(asserts(), bounds());
 				return new Stepper(this, solved).solve(out);
 			} catch (RuntimeException ex){
 				ex.printStackTrace();
@@ -805,12 +808,35 @@ import org.parboiled.errors.ActionException;
 			System.out.println("(evaluated :formula " + evaluator.evaluate(formula) + ")");
 			return true;
 		}
+
+		private static final class TargetOriented extends Stepper {
+
+			TargetOriented() {
+				super(true);
+				options().setRunTarget(true);
+
+				// Fix so that pardinus doesn't move target around.
+				options().setRetargeter(
+						new Retargeter() {
+							@Override
+							public void retarget(TargetSATSolver targetSATSolver, TargetOptions.TMode tMode, Translation translation, int i) {
+								// DO NOTHING! Keep the initial target
+							}
+						});
+			}
+
+			@Override
+			public boolean isTargetOriented() { return true; }
+
+			@Override
+			boolean setTargetType(TargetOptions.TMode target_type) {
+				assert super.solver instanceof ExtendedSolver;
+				options().setTargetMode(target_type);
+				return true;
+			}
+		}
 	}
 
-	private static final class TargetOriented extends Stepper {
-		@Override
-		public boolean isTargetOriented() { return true; }
-	}
 
 	/**
 	 * Implements a complete specification of a Kodkod problem.

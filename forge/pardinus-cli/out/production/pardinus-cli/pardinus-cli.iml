@@ -12,5 +12,15 @@
     <orderEntry type="library" name="old-jar" level="project" />
     <orderEntry type="library" name="new-old-jar" level="project" />
     <orderEntry type="library" exported="" name="jar" level="project" />
+    <orderEntry type="module-library">
+      <library name="maxsat">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/jar/org.sat4j.maxsat-2.3.1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="library" name="pb" level="project" />
   </component>
 </module>

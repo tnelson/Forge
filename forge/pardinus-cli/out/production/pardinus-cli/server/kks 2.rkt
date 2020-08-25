@@ -6,7 +6,7 @@
 
 (require "../../shared.rkt")
 
-(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel declare-target read-solution solve v r tupleset (rename-out [-> product]))
+(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
 (provide assert e f i define-const)
 (provide read-evaluation)
 
@@ -16,8 +16,6 @@
 (define stdout-val #false)
 (provide start-server) ; stdin stdout)
 (define (start-server [solver-type 'stepper] [target-oriented #t])
-  (when (>= (get-verbosity) VERBOSITY_HIGH)
-    (displayln "Starting pardinus server."))
   (define kks (new server%
                    [initializer (thunk (pardinus-initializer solver-type target-oriented))]
                    [stderr-handler (curry pardinus-stderr-handler "blank")]))
@@ -91,9 +89,6 @@
   (case-lambda
     [(id lo hi) (print-cmd "(~a [~a :: ~a])" id lo hi)]
     [(id exact) (print-cmd "(~a [~a])" id exact)]))
-
-(define (declare-target id target)
-  (print-cmd "(target ~a [~a])" id target))
 
 (define (declare id val)
   (print-cmd "(~a ~a)" id val))
