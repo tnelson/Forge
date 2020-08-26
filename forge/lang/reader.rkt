@@ -4,7 +4,6 @@
 (require "alloy-syntax/parser.rkt")
 (require "alloy-syntax/tokenizer.rkt")
 
-(provide coerce-ints-to-atoms)
 (define (coerce-ints-to-atoms tree)
   (define (replace-ints-expr expr)
     ; (printf "Replace-int-expr: ~a~n~n" expr)
