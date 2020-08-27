@@ -1,7 +1,6 @@
 #lang racket/base
 
 (require racket/port)
-(require racket/match)
 
 (define (read-syntax path port)
   (define assignment (read port))
@@ -10,7 +9,7 @@
 
   (define parse-tree (port->list read port))
 
-  (define module-datum `(module forge-core/check-ex-spec-mod racket
+  (define module-datum `(module forge/check-ex-spec/core-mod racket
                           (require forge/sigs)
 
                           ; Auto-provide all defined values

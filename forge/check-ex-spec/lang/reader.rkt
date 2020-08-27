@@ -13,7 +13,7 @@
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
-  (define module-datum `(module forge-mod forge/check-ex-spec/lang/expander
+  (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
                           (require forge/sigs)
 
                           ; Auto-provide all defined values

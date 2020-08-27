@@ -1,8 +1,9 @@
 #lang racket/base
 
-(module reader racket
-  (provide read-syntax)
+(module check-ex-spec/reader racket
   (require "lang/reader.rkt")
-  (provide get-info)
+  (provide read-syntax)
+  
   (require (only-in (submod forge/main reader)
-                    get-info)))
+                    get-info))
+  (provide get-info))
