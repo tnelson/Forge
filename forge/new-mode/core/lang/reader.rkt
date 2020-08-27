@@ -5,7 +5,7 @@
 (define (read-syntax path port)
   (define parse-tree (port->list read port))
 
-  (define module-datum `(module forge-core/new-mode/core-mod racket
+  (define module-datum `(module forge/new-mode/core-mod racket
                           (require forge/sigs)
 
                           ; Auto-provide all defined values
