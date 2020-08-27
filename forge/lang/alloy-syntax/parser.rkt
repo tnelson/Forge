@@ -159,4 +159,4 @@ NumberList : Number
 Number : NUM-CONST-TOK
 
 ; Added for check-ex-spec
-ExampleDecl : /EXAMPLE-TOK Name /IS-TOK Expr /FOR-TOK Bounds
+ExampleDecl : (Name /COLON-TOK)? /EXAMPLE-TOK Bounds /IS-TOK Expr
