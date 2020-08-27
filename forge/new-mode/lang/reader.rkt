@@ -9,16 +9,21 @@
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
-  (define final `((provide (except-out (all-defined-out) ; So other programs can require it
-                                       forge:n))
+  (define module-datum `(module forge/new-mode-mod forge/new-mode/lang/expander
+                          (require forge/sigs)
 
-                  (define-namespace-anchor forge:n) ; Used for evaluator
-                  (forge:nsa forge:n)
+                          ; Auto-provide all defined values
+                          (provide (except-out (all-defined-out)
+                                               forge:n))
 
-                  ,ints-coerced))
+                          ; Used for evaluator
+                          (define-namespace-anchor forge:n)
+                          (forge:nsa forge:n)
 
-  (define module-datum `(module forge-mod forge/lang/expander
-                          ,@final))
+                          ; Enable new-mode commands
+                          ; Only necessary if you run custom stuff here
+                          ; (require forge/new-mode/library)
+
+                          ,ints-coerced))
   (datum->syntax #f module-datum))
 (provide read-syntax)
-

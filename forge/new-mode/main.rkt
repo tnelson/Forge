@@ -1,6 +1,6 @@
 #lang racket/base
 
-(module new-mode/reader racket
+(module reader racket
   (require "lang/reader.rkt")
   (provide read-syntax)
   

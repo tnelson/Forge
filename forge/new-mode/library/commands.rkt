@@ -3,6 +3,7 @@
 (require forge/sigs-raw)
 (require syntax/parse/define)
 
+#|
 (provide display-transition-run)
 (define-simple-macro (display-transition-run state:id transition-pred init-pred term-pred)
   (begin
@@ -15,4 +16,4 @@
                         #:bounds [(is transition linear)])
     (display transition-run)
     (update-state! save-state)))
-
+|#
