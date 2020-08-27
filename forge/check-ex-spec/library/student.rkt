@@ -1,6 +1,6 @@
 #lang racket
 
-(require (for-syntax forge/check-ex-spec/encrypt-decrypt/download-file))
+(require (for-syntax "download-file.rkt"))
 (require forge/sigs)
 (provide load-assignment)
 

@@ -24,6 +24,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | OptionDecl
           | InstDecl
           | TraceDecl
+          | ExampleDecl ; Added for check-ex-spec
 SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -156,3 +157,6 @@ NumberList : Number
            | Number /COMMA-TOK @NumberList
 
 Number : NUM-CONST-TOK
+
+; Added for check-ex-spec
+ExampleDecl : /EXAMPLE-TOK Name /IS-TOK Expr /FOR-TOK Bounds
