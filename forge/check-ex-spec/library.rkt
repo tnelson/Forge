@@ -1,7 +1,10 @@
 #lang racket
 
-(require forge/check-ex-spec/library/student
-         forge/check-ex-spec/library/ta)
+(require "library/student.rkt"
+         "library/ta.rkt")
 
-(provide (all-from-out forge/check-ex-spec/library/student)
-         (all-from-out forge/check-ex-spec/library/ta))
+(provide (prefix-out check-ex-spec: (all-from-out "library/student.rkt"))
+         (prefix-out check-ex-spec: (all-from-out "library/ta.rkt")))
+
+(require "library/commands.rkt")
+(provide (all-from-out "library/commands.rkt"))
