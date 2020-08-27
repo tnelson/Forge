@@ -10,7 +10,8 @@
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
   (define module-datum `(module forge/new-mode-mod forge/new-mode/lang/expander
-                          (require forge/sigs)
+                          ; Only necessary if you run custom stuff here
+                          ; (require forge/sigs)
 
                           ; Auto-provide all defined values
                           (provide (except-out (all-defined-out)
