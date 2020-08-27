@@ -43,7 +43,7 @@
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
-              name:NameClass
+              (~optional name:NameClass)
               bounds:BoundsClass
               pred:ExprClass))))
 
