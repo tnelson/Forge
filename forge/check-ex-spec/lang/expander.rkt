@@ -44,8 +44,8 @@
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
               name:NameClass
-              pred:ExprClass
-              bounds:BoundsClass))))
+              bounds:BoundsClass
+              pred:ExprClass))))
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*
@@ -61,8 +61,11 @@
    #'(raise "Evaluating in #lang forge not yet implemented.")])
 
 (define-syntax-parser ExampleDecl
-  [((~literal ExampleDecl) name:NameClass
-                           pred:ExprClass
-                           bounds:BoundsClass)
-   #'(test name.name #:preds [pred] #:bounds bounds.translate #:expect sat)])
+  [((~literal ExampleDecl) (~optional name:NameClass)
+                           bounds:BoundsClass
+                           pred:ExprClass)
+   #'(test (~? name.name unnamed-example) 
+           #:preds [pred] 
+           #:bounds bounds.translate 
+           #:expect sat)])
 
