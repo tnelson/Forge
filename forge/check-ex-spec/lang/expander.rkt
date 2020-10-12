@@ -44,8 +44,8 @@
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
               (~optional name:NameClass)
-              bounds:BoundsClass
-              pred:ExprClass))))
+              pred:ExprClass
+              bounds:BoundsClass))))
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*
@@ -62,8 +62,8 @@
 
 (define-syntax-parser ExampleDecl
   [((~literal ExampleDecl) (~optional name:NameClass)
-                           bounds:BoundsClass
-                           pred:ExprClass)
+                           pred:ExprClass
+                           bounds:BoundsClass)
    #'(test (~? name.name unnamed-example) 
            #:preds [pred] 
            #:bounds bounds.translate 
