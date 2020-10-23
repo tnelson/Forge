@@ -25,7 +25,7 @@
     ; multiplicity formula (some, one, ...)
     [(node/formula/multiplicity mult expr)
      (desugar-expr expr quantvars)
-     (printf "multiplicity ~a~n" mult expr)]
+     (printf "multiplicity ~a~n" mult)]
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified quantifier decls form)
      (define var (car (car decls)))
@@ -247,8 +247,12 @@
 (define Node  (declare-relation '(univ) 'univ "Node"))
 (define edges (declare-relation '(Node Node) 'Node "edges"))
 (define f-symmetric (= edges (~ edges)))
+(define f-irreflexive (no (& edges iden)))
+(define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 
 (desugar-formula f-symmetric '())
+(desugar-formula f-irreflexive '())
+(desugar-formula f-some-reaches-all '())
 
 
 
