@@ -1,6 +1,6 @@
 #lang racket
 
-(require (prefix-in @ racket)
+(require (prefix-in @ racket) 
          (prefix-in @ racket/set))
 (require syntax/parse/define)
 (require (for-syntax racket/match))
@@ -11,7 +11,7 @@
          "breaks.rkt")
 (require "server/eval-model.rkt")
 (require "server/forgeserver.rkt" ; v long
-         "kodkod-cli/server/kks.rkt"
+         "kodkod-cli/server/kks.rkt" 
          "kodkod-cli/server/server.rkt"
          "kodkod-cli/server/server-common.rkt"
          "translate-to-kodkod-cli.rkt"
@@ -32,7 +32,7 @@
 ; Formula
 (provide true false)
 (provide -> => implies ! not and or && || ifte iff <=>)
-(provide = in ni)
+(provide = in ni) 
 (provide != !in !ni)
 (provide no some one lone all set) ; two)
 
@@ -78,8 +78,6 @@
   abstract   ; Boolean
   extends    ; Symbol | #f
   extenders  ; List<Symbol>
-  #:methods gen:ast-wrapper
-  [(define inner-ast Sig-rel)]
   ) #:transparent)
 
 (struct Relation (
@@ -87,8 +85,6 @@
   rel   ; node/expr/relation
   sigs  ; List<Symbol>
   breaker ; Symbol
-  #:methods gen:ast-wrapper
-  [(define inner-ast Relation-rel)]
   ) #:transparent)
 
 (struct Range (
@@ -158,7 +154,7 @@
 (define init-options (Options 'SAT4J 5 5 0 0))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
-                          init-predicates init-functions init-constants
+                          init-predicates init-functions init-constants 
                           init-insts
                           init-options))
 
@@ -254,9 +250,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-sigs run-or-state [relation #f])
   (define state (get-state run-or-state))
   (if relation
-      (map (curry get-sig state)
+      (map (curry get-sig state) 
            (Relation-sigs (get-relation state relation)))
-      (map (curry hash-ref (State-sigs state ))
+      (map (curry hash-ref (State-sigs state )) 
            (State-sig-order state))))
 
 ; get-top-level-sigs :: Run-or-State -> List<Sig>
@@ -337,7 +333,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; - if a default bound is given; returns it;
 ; - return DEFAULT-SIG-BOUND
 (define (get-scope run-spec-or-scope sig-or-name)
-  (define scope
+  (define scope 
     (cond [(Scope? run-spec-or-scope)
            run-spec-or-scope]
           [(Run-spec? run-spec-or-scope)
@@ -354,7 +350,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
              [num-ints (expt 2 bitwidth)])
         (Range num-ints num-ints))
       (let* ([scope-map (Scope-sig-scopes scope)]
-             [default-scope (or (Scope-default-scope scope)
+             [default-scope (or (Scope-default-scope scope) 
                                 DEFAULT-SIG-SCOPE)])
         (hash-ref scope-map sig-name default-scope))))
 
@@ -374,7 +370,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; Returns a list of all sigs, then all relations, as
 ; their rels in the order they were defined; if given a Run,
 ; includes all of the additional relations used for individual
-; atom access by the evaluator.
+; atom access by the evaluator. 
 ; Used for translate to kodkod-cli.
 (define (get-all-rels run-or-spec)
   (cond [(Run-spec? run-or-spec)
@@ -413,7 +409,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define sigs-with-new-sig (hash-set (State-sigs state) name new-sig))
   (define new-state-sigs
     (if extends
-        (hash-set sigs-with-new-sig extends
+        (hash-set sigs-with-new-sig extends 
                                     (sig-add-extender (hash-ref (State-sigs state) extends) name))
         sigs-with-new-sig))
   (define new-state-sig-order (append (State-sig-order state) (list name)))
@@ -473,7 +469,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; The environment threaded through commands
 (define curr-state init-state)
-(define (update-state! new-state)
+(define (update-state! new-state) 
   (set! curr-state new-state))
 
 
@@ -516,12 +512,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; (pred (name var ...) cond ...)
 (define-syntax (pred stx)
   (syntax-parse stx
-    [(pred name:id conds:expr ...+)
-      #'(begin
+    [(pred name:id conds:expr ...+) 
+      #'(begin 
         (define name (&& conds ...))
         (update-state! (state-add-predicate curr-state 'name)))]
-    [(pred (name:id args:id ...+) conds:expr ...+)
-      #'(begin
+    [(pred (name:id args:id ...+) conds:expr ...+) 
+      #'(begin 
         (define (name args ...) (&& conds ...))
         (update-state! (state-add-predicate curr-state 'name)))]))
 
@@ -529,8 +525,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; (fun (name var ...) result)
 (define-syntax (fun stx)
   (syntax-parse stx
-    [(fun (name:id args:id ...+) result:expr)
-      #'(begin
+    [(fun (name:id args:id ...+) result:expr) 
+      #'(begin 
         (define (name args ...) result)
         (update-state! (state-add-function curr-state 'name)))]))
 
@@ -538,8 +534,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; (const name value)
 (define-syntax (const stx)
   (syntax-parse stx
-    [(const name:id value:expr)
-      #'(begin
+    [(const name:id value:expr) 
+      #'(begin 
         (define name value)
         (update-state! (state-add-constant curr-state 'name)))]))
 
@@ -552,7 +548,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; Run a given spec
 ; (run name
-;      [#:pred [(pred ...)]]
+;      [#:pred [(pred ...)]] 
 ;      [#:scope [((sig [lower 0] upper) ...)]]
 ;      [#:inst instance-name])
 (define-syntax (run stx)
@@ -567,9 +563,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
       #`(begin
         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
         (define run-state curr-state)
-        (define run-preds (~? (~@ (list pred ...)) (~@ (list))))
+        (define run-preds (~? (~@ (list pred ...)) (~@ (list)))) 
 
-        (define sig-scopes (~?
+        (define sig-scopes (~? 
           (~@
             (for/hash ([name (list (Sig-name (get-sig curr-state sig)) ...)]
                        [lo (list lower ...)]
@@ -612,12 +608,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; Test that a spec is sat or unsat
 ; (test name
-;       [#:preds [(pred ...)]]
+;       [#:preds [(pred ...)]] 
 ;       [#:scope [((sig [lower 0] upper) ...)]]
 ;       [#:bounds [bound ...]]
 ;       [|| sat unsat]))
 (define-syntax-rule (test name args ... #:expect expected)
-  (cond
+  (cond 
     [(member 'expected '(sat unsat))
      (run name args ...)
      (define first-instance (stream-first (Run-result name)))
@@ -685,7 +681,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   (define all-rels (get-all-rels run))
 
-  (cmd
+  (cmd 
     [(stdin)]
     (print-cmd-cont "(~a " expr-name)
     (interpretter expression all-rels '())
@@ -722,12 +718,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
     ret))
 
 ; make-model-evaluator :: Run -> (String -> ???)
-; Creates an evaluator function for a given Run.
+; Creates an evaluator function for a given Run. 
 ; Executes on the most recently generated instance.
 (define (make-model-evaluator run)
   (lambda (command)
     (define name (substring command 1 3))
-    (cmd [(stdin)]
+    (cmd [(stdin)] 
       (print-cmd command)
       (print-cmd "(evaluate ~a)" name)
       (print-eof))
@@ -756,7 +752,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (write-string str-command out-pipe)
           (close-output-port out-pipe)
 
-          (with-handlers ([(lambda (x) #t)
+          (with-handlers ([(lambda (x) #t) 
                            (lambda (exn) (exn-message exn))])
             ; Read command as syntax from pipe
             (define command-syntax (read-syntax 'eval-pipe in-pipe))
@@ -769,11 +765,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (evaluate run '() command)))
 
         (display-model get-next-model evaluate-str
-                       (Run-name run)
-                       (Run-command run)
-                       "/no-name.rkt"
-                       (get-bitwidth
-                         (Run-run-spec run))
+                       (Run-name run) 
+                       (Run-command run) 
+                       "/no-name.rkt" 
+                       (get-bitwidth 
+                         (Run-run-spec run)) 
                        empty
                        (Run-atom-rels run)))))
 
@@ -823,7 +819,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (set! upper (cond [(@and upper (sbound-upper old))
                          (set-intersect upper (sbound-upper old))]
                         [else (@or upper (sbound-upper old))]))))
-
+  
 
   (unless (@or (@not upper) (subset? lower upper))
     (raise "Bound conflict."))
@@ -832,17 +828,17 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (hash-set old-pbindings rel (sbound rel lower upper)))
 
   ; when exact bounds, put in bindings
-  (define new-tbindings
-    (if (equal? lower upper)
-        (hash-set old-tbindings (string->symbol (relation-name rel))
+  (define new-tbindings 
+    (if (equal? lower upper) 
+        (hash-set old-tbindings (string->symbol (relation-name rel)) 
                                 (set->list lower))
         old-tbindings))
 
   (define new-bound (Bound new-pbindings new-tbindings))
   new-bound)
 
-; update-bindings-at :: Bound, node/expr/relation, node/expr/relation,
-;                       List<Symbol>, List<Symbol>?
+; update-bindings-at :: Bound, node/expr/relation, node/expr/relation, 
+;                       List<Symbol>, List<Symbol>? 
 ;                         -> Bound
 ; To be implemented.
 ; Updates the partial binding for a given focused relation.
@@ -859,7 +855,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (bind stx)
   (match-define (list b scope bound binding) (syntax-e stx))
   (syntax-parse binding #:datum-literals (no one two lone <= = card is ~ join Int CompareOp QualName Const)
-
+    
     ; Cardinality bindings
     [(no rel) #`(bind #,scope #,bound (= rel none))]
     [(one rel) #`(bind #,scope #,bound (= (card rel) 1))]
@@ -907,9 +903,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
            ;       ;; make sure all sub-sigs exactly defined
            ;       ; (for ([(sub sup) (in-hash extensions-store)] #:when (equal? sup rel))
            ;       ;   (unless (rel-is-exact sub)
-           ;       ;           (error 'inst "sub-sig ~a must be exactly specified before super-sig ~a"
+           ;       ;           (error 'inst "sub-sig ~a must be exactly specified before super-sig ~a" 
            ;       ;                  (relation-name sub) (relation-name sup))))
-           ;       (let ([exact (length tups)])
+           ;       (let ([exact (length tups)]) 
            ;         (update-int-bound #,scope rel (Range exact exact))))))
 
          (define new-bound (cond
@@ -940,7 +936,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; send-to-kodkod :: Run-spec -> Stream<model>, List<Symbol>
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;
-; then produces a stream to produce instances generated by KodKod,
+; then produces a stream to produce instances generated by KodKod, 
 ; along with a list of all of the atom names for sig atoms.
 (define (send-to-kodkod run-spec)
   ; Do relation breaks from declarations
@@ -978,7 +974,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Send user defined partial bindings to breaks
   (map instance (hash-values pbindings))
 
-  (define tbindings
+  (define tbindings 
     (let* ([init-tbindings (Bound-tbindings (Run-spec-bounds run-spec))]
            [fixed-init-tbindings (hash-remove (hash-remove init-tbindings 'Int) 'succ)])
       (for/fold ([tbindings fixed-init-tbindings])
@@ -1005,8 +1001,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
            [total-bounds (append sig-bounds relation-bounds)]
            [sigs (get-sigs run-spec)]
            [sig-rels (map Sig-rel (filter (lambda (sig) (@not (equal? (Sig-name sig) 'Int))) sigs))]
-           [upper-bounds (for/hash ([sig sigs])
-                           (values (Sig-rel sig)
+           [upper-bounds (for/hash ([sig sigs]) 
+                           (values (Sig-rel sig) 
                                    (map car (bound-upper (hash-ref sig-to-bound (Sig-name sig))))))]
            [relations-store (for/hash ([relation (get-relations run-spec)]
                                        #:unless (equal? (Relation-name relation) 'succ))
@@ -1020,10 +1016,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define sigs-and-rels
     (append (State-sig-order (Run-spec-state run-spec))
             (State-relation-order (Run-spec-state run-spec))))
-  (set! total-bounds (map (lambda (name)
-                            (findf (lambda (b)
+  (set! total-bounds (map (lambda (name) 
+                            (findf (lambda (b) 
                                      (equal? name (string->symbol (relation-name (bound-relation b)))))
-                                   total-bounds))
+                                   total-bounds)) 
                           sigs-and-rels))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
@@ -1059,7 +1055,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (start-server)
 
   (define-syntax-rule (kk-print lines ...)
-    (cmd
+    (cmd 
       [(stdin)]
       lines ...))
 
@@ -1085,9 +1081,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (tupleset #:tuples eles)))
 
   (define (get-atoms sig-or-rel atom-names)
-    (define arity
+    (define arity 
       (if (Sig? sig-or-rel) 1 (length (Relation-sigs sig-or-rel))))
-    (define atoms
+    (define atoms 
       (for/list ([tup atom-names])
         (for/list ([atom tup])
           ; Used to allow using ints in instances.
@@ -1116,13 +1112,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define tup (to-tupleset 1 (list (list atom-int))))
     (kk-print
       (declare-rel (r index) tup tup)))
-
+  
 
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
 
   ; Get and print predicates
-  (define run-constraints
+  (define run-constraints 
     (append (Run-spec-preds run-spec)
             (get-sig-size-preds run-spec)
             (get-relation-preds run-spec)
@@ -1138,9 +1134,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (assert (f assertion-number))
       (current-formula (add1 assertion-number))))
 
-  (define atom-rels
+  (define atom-rels 
     (for/list ([atom-name all-atoms])
-      (define atom-name-str
+      (define atom-name-str 
         (if (symbol? atom-name)
             (symbol->string atom-name)
             (number->string atom-name)))
@@ -1159,7 +1155,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
-; Given a Run-spec, assigns names to each sig, assigns minimum and maximum
+; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
 ; sets of atoms for each, and find the total number of atoms needed (including ints).
 (define (get-sig-bounds run-spec tbindings)
 
@@ -1208,7 +1204,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (when (@< difference 0)
       (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
 
-    (define new-names
+    (define new-names 
       (if parent-names
           (take parent-names (@min difference (length parent-names)))
           (get-next-names sig difference)))
@@ -1233,7 +1229,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   (define top-level-sigs (get-top-level-sigs run-spec))
   (define sig-atoms (apply append
-    (for/list ([sig top-level-sigs]
+    (for/list ([sig top-level-sigs] 
                #:unless (equal? (Sig-name sig) 'Int))
       (fill-lower sig)
       (fill-upper sig))))
@@ -1263,11 +1259,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (define sig-atoms (map (compose (curry map car )
                                       bound-upper
                                       (curry hash-ref sig-to-bound )
-                                      Sig-name)
+                                      Sig-name) 
                              sigs))
       (define upper (apply cartesian-product sig-atoms))
       (define lower empty)
-      (values (Relation-name relation)
+      (values (Relation-name relation) 
               (bound (Relation-rel relation) lower upper))))
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
   (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
@@ -1276,7 +1272,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig to restrict
 ; it to the correct lower/upper bound.
-(define (get-sig-size-preds run-spec)
+(define (get-sig-size-preds run-spec) 
   (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
   (for/list ([sig (get-sigs run-spec)]
              #:unless (equal? (Sig-name sig) 'Int))
@@ -1307,7 +1303,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (= sig (apply + extenders))))
     (define (parent sig1 sig2)
       (in sig2 sig1))
-    (define extends-constraints
+    (define extends-constraints 
       (if (and (Sig-abstract sig) (cons? (Sig-extenders sig)))
           (list (abstract (Sig-rel sig) children-rels))
           (map (curry parent (Sig-rel sig)) children-rels)))
@@ -1336,3 +1332,5 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (for/list ([relation (get-relations run-spec)])
     (define sig-rels (map Sig-rel (get-sigs run-spec relation)))
     (in (Relation-rel relation) (apply -> sig-rels))))
+
+

@@ -1,17 +1,10 @@
 #lang racket
 
-(require (only-in racket/syntax format-symbol)
-         "../../shared.rkt")
+(require (only-in racket/syntax format-symbol))
 
-; Can keep kk-commands, right, because a lot of this stuff actually is specific to kodkod-cli.
-; I guess the port commands aren't, really, but I'll worry about generalization when it matters.
+;(provide (except-out (all-defined-out) kodkod-port define-ops))
 
-(provide configure declare-ints declare-univ declare-rel
-         kk-display kk-displaylns kk-print-eof cmd  read-solution
-         solve v r tupleset
-         (rename-out [-> product])
-         assert f define-const
-         print-cmd print-cmd-cont)
+(require "../../shared.rkt")
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
 (provide assert e f i define-const)
@@ -39,6 +32,7 @@
     expr ...
     (flush-output port)))
 
+
 ; All command functions from this module (e.g., solve)
 ; write their Kodkod command to kodkod-port.
 (define kodkod-port
@@ -48,56 +42,55 @@
                       (error 'kodkod-port "expected an output-port?, given ~a" port))
                     port)))
 
-(define (kk-display arg ...)
+(define-syntax-rule (kodkod-display arg)
   (begin
     (when (>= (get-verbosity) VERBOSITY_HIGH)
-      (map display arg))
-    (map (curryr display [kodkod-port]) display arg )))
+      (display arg))
+    (display arg [kodkod-port])))
 
-(define (kk-displaylns arg ...)
+; Prints the given command string to the kodkod-port.
+(define-syntax-rule (print-cmd arg ...)
   (begin
-    (when (>= (get-verbosity) VERBOSITY_HIGH)
-      (map displayln arg))
-    (map (curryr displayln [kodkod-port]) display arg )))
+    (kodkod-display (format arg ...))
+    (kodkod-display #\newline)))
 
-(define print-cmd-cont kk-display)
-(define print-cmd kk-displaylns)
+(define-syntax-rule (print-cmd-cont arg ...)
+    (kodkod-display (format arg ...)))
 
-(define (kk-print-eof)
-  (kk-display #\uFFFF))
+(define (print-eof)
+  (kodkod-display #\uFFFF))
 
 ; Commands
-; Ah need to fix this shit.
 (define (configure . kvs)
-  (kk-displaylns (format "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs))))
+  (print-cmd "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs)))
 
 (define (assert val)      (print-cmd "(assert ~a)" val))
 (define (evaluate val)    (print-cmd "(evaluate ~a)" val))
 
 (define (solve)
-  (kk-displaylns "(solve)")
-  (kk-print-eof))
+  (print-cmd "(solve)")
+  (print-eof))
 (define (clear)
-  (kk-displaylns "(clear)")
-  (kk-print-eof))
+  (print-cmd "(clear)")
+  (print-eof))
 
 ;; Declarations and definitions
-(define (define-const id val) (kk-displaylns (format "(~a ~a)" id val)))
-(define (declare-univ size)   (kk-displaylns (format "(univ ~a)" size)))
+(define (define-const id val) (print-cmd "(~a ~a)" id val))
+(define (declare-univ size)   (print-cmd "(univ ~a)" size))
 
 (define (declare-ints ints idxs)
-  (kk-display "(ints [")
+  (print-cmd-cont "(ints [")
   (for ([int ints][idx idxs])
-    (kk-display (format "(~a ~a)" int idx)))
-  (kk-displaylns "])"))
+    (print-cmd-cont "(~a ~a)" int idx))
+  (print-cmd "])"))
 
 (define declare-rel
   (case-lambda
-    [(id lo hi) (kk-display (format "(~a [~a :: ~a])" id lo hi))]
-    [(id exact) (kk-display (format "(~a [~a])" id exact))]))
+    [(id lo hi) (print-cmd "(~a [~a :: ~a])" id lo hi)]
+    [(id exact) (print-cmd "(~a [~a])" id exact)]))
 
 (define (declare id val)
-  (kk-display (format "(~a ~a)" id val)))
+  (print-cmd "(~a ~a)" id val))
 
 ; Identifiers
 (define (r idx) (format-symbol "r~a" idx))  ; relational constant

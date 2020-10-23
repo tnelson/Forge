@@ -150,7 +150,7 @@
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
      (print-cmd-cont ")")]
     [(? node/expr/op/~?)
-     (print-cmd-cont (format "(~a " '~)) ;WHY IS THIS ONE DIFFERENT
+     (print-cmd-cont "(~a " '~) ;WHY IS THIS ONE DIFFERENT
      (map (lambda (x) (interpret-expr x relations quantvars)) args)
      (print-cmd-cont ")")]
     [(? node/expr/op/sing?)
