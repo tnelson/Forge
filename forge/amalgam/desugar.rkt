@@ -20,7 +20,7 @@
     [(node/formula/constant type)
      (printf "constant ~a~n" type)]
     ; operator formula (and, or, implies, ...)
-    [(node/formula/op args quantvars)
+    [(node/formula/op args)
      (desugar-formula-op formula quantvars args)]
     ; multiplicity formula (some, one, ...)
     [(node/formula/multiplicity mult expr)
