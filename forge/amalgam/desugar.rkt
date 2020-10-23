@@ -16,16 +16,15 @@
 
 (define (desugar-formula formula quantvars)
   (match formula
-    ; Constant formulas
+    ; Constant formulas: already at bottom
     [(node/formula/constant type)
-     (printf "constant ~a~n" type)]
+     formula]
     ; operator formula (and, or, implies, ...)
     [(node/formula/op args)
      (desugar-formula-op formula quantvars args)]
     ; multiplicity formula (some, one, ...)
     [(node/formula/multiplicity mult expr)
-     (desugar-expr expr quantvars)
-     (printf "multiplicity ~a~n" mult)]
+     (node/formula/multiplicity mult (desugar-expr expr quantvars))]
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified quantifier decls form)
      (define var (car (car decls)))
@@ -94,13 +93,13 @@
   (match expr
     ; relation name (base case)
     [(node/expr/relation arity name typelist parent)
-     (printf "relation ~a~n" name)]
+     expr]
     ; The Int constant
     [(node/expr/constant 1 'Int)
-     (printf "Int~n")]
+     expr]
     ; other expression constants
     [(node/expr/constant arity type)
-     (printf "constant ~a~n" type)]
+     expr]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
@@ -136,8 +135,9 @@
      ]
     ; intersection
     [(? node/expr/op/&?)
-     (printf "&~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
+     ;(printf "& ~a~n" expr)
+     (define children (map (lambda (x) (desugar-expr x quantvars)) args))
+     (node/expr/op/& (length children) children)
      ]
     ; product
     [(? node/expr/op/->?)
