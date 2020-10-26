@@ -62,7 +62,7 @@ matrix:
 install:
   - bash <(curl https://raw.githubusercontent.com/greghendershott/travis-racket/master/install-racket.sh)
   - export PATH="${RACKET_DIR}/bin:${PATH}" #install-racket.sh can't set for us
-  - cd forge; raco pkg install; cd ..
+  - cd forge; raco pkg install --auto; cd ..
 # Here supply steps such as raco make, raco test, etc.
 script:
   - raco make forge/main.rkt
