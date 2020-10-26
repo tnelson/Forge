@@ -13,7 +13,7 @@
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
 
-(provide provide all-defined-out except-out)
+(provide provide all-defined-out except-out require)
 (provide forge:nsa define-namespace-anchor)
 ; (provide (all-from-out "ast.rkt"))
 (provide (all-from-out "../sigs.rkt"))
