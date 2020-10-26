@@ -27,8 +27,11 @@
      (node/formula/multiplicity mult (desugar-expr expr quantvars))]
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified quantifier decls form)
+     ; car returns the first element of the pair
      (define var (car (car decls)))
-     (let ([quantvars (cons var quantvars)])      
+     ; cons is appending var into quantvars list 
+     (let ([quantvars (cons var quantvars)])
+       ; cdr returns everything but the first entry in the list  
        (desugar-expr (cdr (car decls)) quantvars)     
        (desugar-formula form quantvars)
        (printf "quant ~a~n" quantifier))]
@@ -38,6 +41,8 @@
     [#f (printf "false~n")]
     ))
 
+; This function is recursively calling every element in args and pass it to the
+; original recursive function. Q: what is args? 
 (define (desugar-formula-op formula quantvars args)
   (match formula
     ; ? <test> matches on forms that <test> returns true for
@@ -45,6 +50,7 @@
     ; AND
     [(? node/formula/op/&&?)
      (printf "and~n")
+     ; applying desugar-formula x quantvars to everything in args 
      (map (lambda (x) (desugar-formula x quantvars)) args)
      ]
     ; OR
@@ -104,6 +110,7 @@
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
      (desugar-expr-op expr quantvars args)]
+    ; Q: I am a little bit confused about this case 
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
      ;;(print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
@@ -137,6 +144,7 @@
     [(? node/expr/op/&?)
      ;(printf "& ~a~n" expr)
      (define children (map (lambda (x) (desugar-expr x quantvars)) args))
+     ; Q: Why are we getting the children here ?
      (node/expr/op/& (length children) children)
      ]
     ; product
@@ -250,8 +258,11 @@
 (define f-irreflexive (no (& edges iden)))
 (define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 
+"Symmetric ~n" 
 (desugar-formula f-symmetric '())
+"Irreflexive ~n" 
 (desugar-formula f-irreflexive '())
+"some-reaches-all ~n" 
 (desugar-formula f-some-reaches-all '())
 
 
