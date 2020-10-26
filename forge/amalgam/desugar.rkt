@@ -24,6 +24,7 @@
      (desugar-formula-op formula quantvars args)]
     ; multiplicity formula (some, one, ...)
     [(node/formula/multiplicity mult expr)
+     ; create a new multiplicity formula with fields...
      (node/formula/multiplicity mult (desugar-expr expr quantvars))]
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified quantifier decls form)
@@ -137,6 +138,7 @@
     [(? node/expr/op/&?)
      ;(printf "& ~a~n" expr)
      (define children (map (lambda (x) (desugar-expr x quantvars)) args))
+     ; first argument of & struct is the arity, second is the child expressions
      (node/expr/op/& (length children) children)
      ]
     ; product
