@@ -31,8 +31,8 @@ env:
     #- RACKET_VERSION=7.3
     #- RACKET_VERSION=7.4
     #- RACKET_VERSION=7.5
-    #- RACKET_VERSION=7.6
-    - RACKET_VERSION=7.7
+    - RACKET_VERSION=7.6
+    #- RACKET_VERSION=7.7
     # "HEAD" is a daily snapshot built from the `master` branch.
     # This is the main variant of Racket that uses its own runtime.
     #- RACKET_VERSION=HEAD
