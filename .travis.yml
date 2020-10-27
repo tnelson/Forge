@@ -71,7 +71,7 @@ install:
 # OR: If your repo is a Racket package with an info.rkt that has any
 # `deps`:
 #
- script:
-   - raco pkg install --deps search-auto
-   - raco setup -D --check-pkg-deps forge
-   - raco test -x -p forge
+script:
+  - raco pkg install --deps search-auto
+  - raco setup -D --check-pkg-deps forge
+  - raco test -x -p forge
