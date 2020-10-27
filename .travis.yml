@@ -64,14 +64,14 @@ install:
   - export PATH="${RACKET_DIR}/bin:${PATH}" #install-racket.sh can't set for us
   - cd forge; raco pkg install --auto; cd ..
 # Here supply steps such as raco make, raco test, etc.
-script:
-  - raco make forge/main.rkt
-  - raco test -x forge/tests/
+#script:
+#  - raco make forge/main.rkt
+#  - raco test -x forge/tests/
 
 # OR: If your repo is a Racket package with an info.rkt that has any
 # `deps`:
 #
-# script:
-#   - raco pkg install --deps search-auto
-#   - raco setup -D --check-pkg-deps <your-package-name>
-#   - raco test -x -p <your-package-name>
+ script:
+   - raco pkg install --deps search-auto
+   - raco setup -D --check-pkg-deps forge
+   - raco test -x -p forge
