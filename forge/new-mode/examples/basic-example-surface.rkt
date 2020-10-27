@@ -6,6 +6,6 @@ sig A {
 
 sig B {}
 
-run {}
-
-AnExample : example {A = A0 + A1} is A = A
+example AnExample is A = A for {
+    A = A0 + A1
+}

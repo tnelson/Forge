@@ -36,8 +36,8 @@
   (define-syntax-class ExampleDeclClass ; EXAMPLE
     (pattern ((~literal ExampleDecl)
               (~optional name:NameClass)
-              bounds:BoundsClass
-              pred:ExprClass))))
+              pred:ExprClass
+              bounds:BoundsClass))))
 
 ; You don't need to touch this; it just redefined the AlloyModule
 ; macro in terms of the new syntax classes you have defined.
@@ -55,8 +55,8 @@
 ; Add macros for new paragraphs here.
 (define-syntax-parser ExampleDecl ; EXAMPLE
   [((~literal ExampleDecl) (~optional name:NameClass)
-                           bounds:BoundsClass
-                           pred:ExprClass)
+                           pred:ExprClass
+                           bounds:BoundsClass)
    #'(test (~? name.name unnamed-example) 
            #:preds [pred] 
            #:bounds bounds.translate 
