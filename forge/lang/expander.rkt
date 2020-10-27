@@ -7,17 +7,18 @@
 (require (for-syntax (for-syntax racket/base)))
 (require (for-syntax racket/function))
 (require "../sigs.rkt")
-(require "ast.rkt")
+; (require "ast.rkt")
 
 
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
 
-(provide provide all-defined-out except-out require)
+(provide require provide all-defined-out except-out prefix-in)
 (provide forge:nsa define-namespace-anchor)
 ; (provide (all-from-out "ast.rkt"))
 (provide (all-from-out "../sigs.rkt"))
 (provide (all-defined-out))
+(begin-for-syntax (provide (all-defined-out)))
 
 (begin-for-syntax
   (define-syntax-parser make-token
@@ -48,13 +49,13 @@
 (begin-for-syntax
   ; AlloyModule : ModuleDecl? Import* Paragraph*
   ;             | EvalDecl*
-  (define-syntax-class AlloyModuleClass
-    (pattern ((~literal AlloyModule)
-              (~optional module-decl:ModuleDeclClass)
-              (~seq import:ImportClass ...)
-              (~seq paragraph:ParagraphClass ...)))
-    (pattern ((~literal AlloyModule)
-              (~seq eval-decl:EvalDeclClass ...))))
+  ; (define-syntax-class AlloyModuleClass
+  ;   (pattern ((~literal AlloyModule)
+  ;             (~optional module-decl:ModuleDeclClass)
+  ;             (~seq import:ImportClass ...)
+  ;             (~seq paragraph:ParagraphClass ...)))
+  ;   (pattern ((~literal AlloyModule)
+  ;             (~seq eval-decl:EvalDeclClass ...))))
 
 
   ; Header stuff

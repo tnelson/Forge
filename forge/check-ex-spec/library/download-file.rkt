@@ -4,7 +4,7 @@
 
 (require net/url)
 (require racket/file)
-(require "library.rkt")
+(require "encrypt-decrypt/library.rkt")
 
 ; download-file :: string string? string? -> bytes
 ; Downloads a file from the given url.
