@@ -1,6 +1,6 @@
 #lang racket
 
-(require forge/sigs-raw)
+(require forge/sigs)
 (require syntax/parse/define)
 
 #|
