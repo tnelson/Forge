@@ -293,11 +293,16 @@
 
   ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
   (define-syntax-class OptionDeclClass
-    (pattern ((~literal OptionDecl)
-              name:QualNameClass
-              (~or value:QualNameClass
-                   value:str
-                   value:NumberClass))))
+    #:attributes (n v)
+    (pattern ((~literal OptionDecl) name:QualNameClass value:QualNameClass)
+             #:attr n #'name.name
+             #:attr v #'value.name)
+    (pattern ((~literal OptionDecl) name:QualNameClass value:str)
+             #:attr n #'name.name
+             #:attr v #'value)
+    (pattern ((~literal OptionDecl) name:QualNameClass value:NumberClass)
+             #:attr n #'name.name
+             #:attr v #'value.value))
 
   ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
   (define-syntax-class BlockClass
@@ -642,10 +647,10 @@
        #'(begin))])
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
-(define-syntax-parser OptionDecl
-  #:datum-literals (QualName verbosity Number)
-  [((~literal OptionDecl) (QualName verbosity) (Number n))
-   #'(set-verbosity n)])
+(define-syntax-parser OptionDecl  
+  [dec:OptionDeclClass
+     #'(set-option! 'dec.n 'dec.v)
+   ])
 
 ; InstDecl : /INST-TOK Name Bounds Scope?
 (define-syntax-parser InstDecl

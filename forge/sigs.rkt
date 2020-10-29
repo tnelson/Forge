@@ -105,7 +105,7 @@
 
 (struct Options (
   solver          ; symbol
-  verbosity       ; int
+ ; verbosity       ; int ; handled in shared.rkt
   sb              ; int
   coregranularity ; int
   logtranslation  ; int
@@ -151,7 +151,7 @@
 (define init-functions (@set))
 (define init-constants (@set))
 (define init-insts (@set))
-(define init-options (Options 'SAT4J 5 5 0 0))
+(define init-options (Options 'SAT4J 20 0 0))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-predicates init-functions init-constants 
@@ -449,6 +449,38 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (struct-copy State state
                [constants new-state-constants]))
 
+(define (state-set-option state n v)
+  (define new-state-options
+    (cond [(equal? n 'verbosity)
+           (error "state-set-option called for verbosity, which is handled separately")]
+          [(equal? n 'solver)
+           (struct-copy Options (State-options state) [solver v])]
+          [(equal? n 'sb)
+           (struct-copy Options (State-options state) [sb v])]
+          [(equal? n 'coregranularity)
+           (struct-copy Options (State-options state) [coregranularity v])]
+          [(equal? n 'logtranslation)
+           (struct-copy Options (State-options state) [logtranslation v])]        
+          [else (error (format "unknown option ~a~n" n))]))
+  (struct-copy State state
+               [options new-state-options]))
+
+; Verbosity is handled externally, in shared.rkt, so that modules sigs.rkt
+; requires can use the setting. Everything else is threaded through via State.
+(define (set-option! n v)
+  (cond [(or (equal? n 'verbose) (equal? n 'verbosity))
+         (set-verbosity v)]
+        [else
+         (update-state! (state-set-option curr-state n v))]))
+(provide set-option!)
+(define (get-current-solver)
+  (Options-solver (State-options curr-state)))
+(define (get-current-sb)
+  (Options-sb (State-options curr-state)))
+(define (get-current-coregranularity)
+  (Options-coregranularity (State-options curr-state)))
+(define (get-current-logtranslation)
+  (Options-logtranslation (State-options curr-state)))
 
 ;; AST macros
 (define-simple-macro (implies a b) (=> a b))
@@ -1063,7 +1095,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define bitwidth (get-bitwidth run-spec))
   (kk-print
     (configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
-                       bitwidth "SAT4J" 20 0 1))
+                       bitwidth (get-current-solver) (get-current-sb)
+                       (get-current-coregranularity) (get-current-logtranslation)))
     (declare-univ (length all-atoms)))
 
   ; Declare ints
