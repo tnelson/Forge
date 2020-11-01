@@ -2,9 +2,10 @@
 
 (sig A)
 
+
 (test my-test #:preds [(some A)]
               #:scope ([A 1 4])
-              sat)
+              #:expect sat)
 
 (check my-check #:preds [(some A)]
                 #:scope ([A 1 4]))
