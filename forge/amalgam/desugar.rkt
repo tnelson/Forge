@@ -4,7 +4,7 @@
 ; (full AST) -> (restricted AST without stuff like implies)
 ;    Note: These functions maintain an environment of
 ;    quantified variables to aid general functionality
-
+; We are bringing the input into our core language
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Warning: ast.rkt exports (e.g.) "and".
@@ -22,7 +22,7 @@
     ; operator formula (and, or, implies, ...)
     [(node/formula/op args)
      (desugar-formula-op formula quantvars args)]
-    ; multiplicity formula (some, one, ...)
+    ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity mult expr)
      ; create a new multiplicity formula with fields...
      (node/formula/multiplicity mult (desugar-expr expr quantvars))]
@@ -49,30 +49,42 @@
     ; ? <test> matches on forms that <test> returns true for
 
     ; AND
+    ; complete? Q 
     [(? node/formula/op/&&?)
      (printf "and~n")
      ; applying desugar-formula x quantvars to everything in args 
      (map (lambda (x) (desugar-formula x quantvars)) args)
      ]
     ; OR
+    ; complete? Q 
     [(? node/formula/op/||?)
      (printf "or~n")
      (map (lambda (x) (desugar-formula x quantvars)) args)
      ]
+    ; Q: What about IFF? 
     ; IMPLIES
     [(? node/formula/op/=>?)
      (printf "implies~n")
-     (map (lambda (x) (desugar-formula x quantvars)) args)
+     (let ([desugaredImplies (node/formula/op/|| '((node/formula/op/!(car args)) (cdr args)))])
+     ;(map (lambda (x) (desugar-formula x quantvars)) desugaredImplies))
+      (desugar-formula desugaredImplies quantvars))
      ]
     ; IN (atomic fmla)
+    ; Q: Can we please go over this case together? 
     [(? node/formula/op/in?)
      (printf "in~n")
      (map (lambda (x) (desugar-expr x quantvars)) args)
      ]
     ; = (atomic fmla)
+    ; Q: How do we know that this is an expression? 
     [(? node/formula/op/=?)
      (printf "=~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
+     (let ([desugaredEquals (node/formula/op/&& '(
+                                                  (node/formula/op/in (first args) (second args))
+                                                  (node/formula/op/in (second args) (first args))))])
+      ; (map (lambda (x) (desugar-formula x quantvars)) desugaredEquals))
+       (desugar-formula desugaredEquals quantvars))
+       ;(map (lambda (x) (desugar-expr x quantvars)) desugaredEquals))
      ]
 
     ; NEGATION
