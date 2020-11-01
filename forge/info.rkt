@@ -19,4 +19,4 @@
 
 (define compile-omit-paths '("example" "examples" "doc" "tests" "kodkod-cli/out"))
 
-(define test-omit-paths 'all)
+;(define test-omit-paths 'all)
