@@ -136,6 +136,7 @@
   run-spec ; Run-spec
   result   ; Stream
   atom-rels ; List<node/expr/relation>
+  kodkod-bounds ; List<bound> (lower and upper bounds for each relation)
   ) #:transparent)
 
 
@@ -634,9 +635,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define run-command #,command)
 
         (define run-spec (Run-spec run-state run-preds run-scope run-bound))
-        (define-values (run-result atom-rels) (send-to-kodkod run-spec))
+        (define-values (run-result atom-rels kodkod-bounds) (send-to-kodkod run-spec))
 
-        (define name (Run run-name run-command run-spec run-result atom-rels)))]))
+        (define name (Run run-name run-command run-spec run-result atom-rels kodkod-bounds)))]))
 
 ; Test that a spec is sat or unsat
 ; (test name
@@ -1063,6 +1064,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (printf "sig-to-bound: ~n~a~n~n" sig-to-bound)
     (printf "relation-to-bound: ~n~a~n~n" relation-to-bound)
     (printf "all-atoms: ~n~a~n~n" all-atoms)
+    (printf "total-bounds: ~n~a~n~n" total-bounds)
     (displayln "--------------------------"))
 
 
@@ -1184,7 +1186,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define (model-stream)
     (stream-cons (get-next-model) (model-stream)))
 
-  (values (model-stream) atom-rels))
+  (values (model-stream) atom-rels total-bounds))
 
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
