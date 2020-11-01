@@ -92,8 +92,12 @@
     ; NEGATION
     [(? node/formula/op/!?)
      (printf "not~n")
-     (map (lambda (x) (desugar-formula x quantvars)) args)
-     ]
+     ; Q: Is this an OK way to re-write negation? Operand implies f? 
+     (let ([desugaredNegation (node/formula/op/=> (list (first args) #f))])
+       (desugar-formula desugaredNegation quantvars))] 
+     ; (map (lambda (x) (desugar-formula x quantvars)) args)
+
+    ; Q: Are we going to be working with arithmetic, if not, should the following 3 cases be removed? 
     ; INTEGER >
     [(? node/formula/op/int>?)
      (printf "int>~n")
@@ -124,7 +128,9 @@
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
-     (desugar-expr-op expr quantvars args)]
+     ; Q: I am changing this to include the currentTupleIfAtomic
+     ; CurrentTuppleIfAtomic should be the implicit LHS of the expression, so therefore the first element in args 
+     (desugar-expr-op expr quantvars args (car args))]
     ; Q: I am a little bit confused about this case 
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
@@ -143,24 +149,35 @@
                  decls)     
        (desugar-formula form quantvars))]))
 
-(define (desugar-expr-op expr quantvars args)
+(define (desugar-expr-op expr quantvars args currentTupleIfAtomic)
   (match expr
     ; union
     [(? node/expr/op/+?)
      (printf "+~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
+     ; Q: Should I be accounting for multiple unions? like in the intersection case below? 
+     ; The desugared version of Union should be currentTupleIfAtomic in LHS OR currentTupleIfAtomic in RHS 
+     (let ([desugared1 (node/formula/op/in (list currentTupleIfAtomic (first args)))])
+       (let ([desugared2 (node/formula/op/in (list currentTupleIfAtomic (second args)))])
+         (let ([desugaredUnion (node/formula/op/|| (list desugared1 desugared2))])
+           (desugar-formula desugaredUnion quantvars))))
+     ;(map (lambda (x) (desugar-expr x quantvars)) args)
      ]
     ; setminus
     [(? node/expr/op/-?)
      (printf "-~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
+      ; The desugared version of SetMinus should be currentTupleIfAtomic in LHS AND not(currentTupleIfAtomic in RHS) 
+     (let ([desugared1 (node/formula/op/in (list currentTupleIfAtomic (first args)))])
+       (let ([desugared2 (node/formula/op/! (list node/formula/op/in (list currentTupleIfAtomic (second args))))])
+         (let ([desugaredSetMinus (node/formula/op/&& (list desugared1 desugared2))])
+           (desugar-formula desugaredSetMinus quantvars))))
+     ;(map (lambda (x) (desugar-expr x quantvars)) args)
      ]
     ; intersection
     [(? node/expr/op/&?)
      ;(printf "& ~a~n" expr)
      (define children (map (lambda (x) (desugar-expr x quantvars)) args))
      ; first argument of & struct is the arity, second is the child expressions
-     ; Q: Why are we getting the children here ?
+     ; Q: Why are we creating a new intersection here? 
      (node/expr/op/& (length children) children)
      ]
     ; product
@@ -216,6 +233,7 @@
        (desugar-int int-expr quantvars)
        )]))
 
+; Q: Are we going to be doing any arithmetic? If not, should this be removed? 
 (define (desugar-int-op expr quantvars args)
   (match expr
     ; int addition
