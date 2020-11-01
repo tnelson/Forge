@@ -63,6 +63,8 @@
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
+(provide (prefix-out forge: (struct-out bound)))
+(provide (prefix-out forge: relation-name))
 
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
