@@ -49,24 +49,25 @@
     ; ? <test> matches on forms that <test> returns true for
 
     ; AND
-    ; complete? Q 
     [(? node/formula/op/&&?)
      (printf "and~n")
-     ; applying desugar-formula x quantvars to everything in args 
+     ; applying desugar-formula x quantvars to everything in args
      (map (lambda (x) (desugar-formula x quantvars)) args)
      ]
     ; OR
-    ; complete? Q 
     [(? node/formula/op/||?)
      (printf "or~n")
+     ; applying desugar-formula x quantvars to everything in args
      (map (lambda (x) (desugar-formula x quantvars)) args)
      ]
-    ; Q: What about IFF? 
+    ; Q: What about IFF?
+    
     ; IMPLIES
     [(? node/formula/op/=>?)
      (printf "implies~n")
-     (let ([desugaredImplies (node/formula/op/|| '((node/formula/op/!(car args)) (cdr args)))])
-     ;(map (lambda (x) (desugar-formula x quantvars)) desugaredImplies))
+     ; Implies should be desugared as (not LHS) OR (RHS) 
+     (let ([desugaredImplies (node/formula/op/|| (list (node/formula/op/!(list (car args))) (cdr args)))])
+       ; Call desugar-formula recursively on the desugared expression created on the previous step 
       (desugar-formula desugaredImplies quantvars))
      ]
     ; IN (atomic fmla)
@@ -76,13 +77,14 @@
      (map (lambda (x) (desugar-expr x quantvars)) args)
      ]
     ; = (atomic fmla)
-    ; Q: How do we know that this is an expression? 
+    ; Q: How do we know that this is an expression? I changed it to call desugar-formula recursively 
     [(? node/formula/op/=?)
      (printf "=~n")
-     (let ([desugaredEquals (node/formula/op/&& '(
-                                                  (node/formula/op/in (first args) (second args))
-                                                  (node/formula/op/in (second args) (first args))))])
-      ; (map (lambda (x) (desugar-formula x quantvars)) desugaredEquals))
+     ; The desugared version of equals should be LHS in RHS AND RHS in LHS 
+     (let ([desugaredEquals (node/formula/op/&& (list
+                                                  (node/formula/op/in (list (first args) (second args)))
+                                                  (node/formula/op/in (list (second args) (first args)))))])
+       ; Call desugar-formula recursively on the desugared expression created on the previous step 
        (desugar-formula desugaredEquals quantvars))
        ;(map (lambda (x) (desugar-expr x quantvars)) desugaredEquals))
      ]
