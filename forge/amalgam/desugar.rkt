@@ -11,6 +11,7 @@
 ; This is the macro that produces an "and" formula!
 ; To use real Racket and, use @and.
 (require "../lang/ast.rkt" (prefix-in @ racket))
+(require "../sigs.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -74,10 +75,29 @@
     ; Q: Can we please go over this case together? 
     [(? node/formula/op/in?)
      (printf "in~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
-     ]
+     ; Doing the non-ground case (e1 in e2) first (TODO: other)
+     
+     ; We don't yet know which relation's bounds will be needed, so just pass them all in
+     ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
+     (define leftE (first args))
+     (define rightE (second args)) ; TODO: descend on these somewhere -- after?
+     ; lift-bounds-expr should take *full kodkod bounds* and produce just an upper-bound
+     ;(define lifted-upper-bounds (lift-bounds-expr leftE kk-bounds '())) ; List<List<Atom>> i.e., List<Tuple>     
+
+     ; for tuple2Expr: (forge:Run-atom-rels foo5)
+     ;  ^ build the product of the result of converting each atom to its corresponding relation from this list
+     
+     ; TODO: other args?
+     ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
+     #;(node/formula/op/&& (length lifted-upper-bounds)                        
+                         (map (lambda (x)
+                                (define ante (node/formula/op/in (tuple2Expr x) leftE))
+                                (define cons (node/formula/op/in (tuple2Expr x) rightE))
+                                (node/formula/op/=> 2 ante cons)) lifted-upper-bounds))
     ; = (atomic fmla)
-    ; Q: How do we know that this is an expression? I changed it to call desugar-formula recursively 
+    ; Q: How do we know that this is an expression? I changed it to call desugar-formula recursively
+    (node/formula/op/in (list leftE rightE)) ; placeholder
+    ]
     [(? node/formula/op/=?)
      (printf "=~n")
      ; The desugared version of equals should be LHS in RHS AND RHS in LHS 
@@ -114,7 +134,7 @@
      (map (lambda (x) (desugar-int x quantvars)) args)
      ]))
 
-(define (desugar-expr expr quantvars)  
+(define (desugar-expr expr quantvars)
   (match expr
     ; relation name (base case)
     [(node/expr/relation arity name typelist parent)
@@ -268,9 +288,8 @@
      (map (lambda (x) (desugar-expr x quantvars)) args)
      ]
     ; remainder/modulo
-    [(? node/int/op/remainder?)
-     (printf "remainder~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+    [(? node/int/op/remainder?)     
+     (error "amalgam: remainder not supported")
      ]
     ; absolute value
     [(? node/int/op/abs?)

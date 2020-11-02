@@ -1,6 +1,7 @@
 #lang racket
 
 (require "sigs.rkt")
+(require forge/amalgam/desugar)
 
 ; Entry point for Amalgam from forge/core
 ;  This is a sketch for the moment
@@ -16,4 +17,12 @@
   (printf "build-provenances ~a ~a ~a ~n"
           tup inst
           (forge:Run-kodkod-bounds a-run))
+  ; get conjunction of predicates F from the run command
+  
+  ; evaluate to make sure tup is locally necessary
+  ; desugar F
+  ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)
+  ;(define kkbounds (forge:Run-kodkod-bounds a-run))
+  ;(define desugared (desugar-formula F '() a-run))
+  ; do amalgam descent on desugared F
   '())
