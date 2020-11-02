@@ -1,5 +1,9 @@
 #lang forge
 
+option solver MiniSatProver
+option logtranslation 2
+option coregranularity 2
+
 ------------------------------------------------------
 -- Formula Type
 ------------------------------------------------------
@@ -7,9 +11,12 @@
 abstract sig Formula {
   truth: set Instance -- Instances this is true in
 }
-sig Var extends Formula {} {
-  truth = {i: Instance | this in i.trueVars}
+sig Var extends Formula {}
+
+sig Instance {
+  trueVars: set Var
 }
+
 
 sig Not extends Formula {child: one Formula}
 sig And extends Formula {aleft, aright: one Formula}
@@ -34,8 +41,10 @@ pred wellFormed {
   -- no cycles
   all f: Formula | f not in allSubformulas[f]
 
-  -- TODO: abstract
-  all f: Formula | f in Not + And + Or + Var
+  -- via abstract
+  -- all f: Formula | f in Not + And + Or + Var
+
+  all f: Var | f.truth = {i: Instance | f in i.trueVars}
 }
 
 ------------------------------------------------------
@@ -52,15 +61,4 @@ pred GiveMeABigFormula {
   }
 }
 
-nameThisRun : run GiveMeABigFormula for 8 Formula, 2 Instance -- need 2 instances
-
-------------------------------------------------------
--- Semantics
-------------------------------------------------------
-
-sig Instance {
-  trueVars: set Var
-}
-
-
-
+nameThisRun : run GiveMeABigFormula for 8 Formula, 2 Instance, 5 Int -- need 2 instances

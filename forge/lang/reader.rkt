@@ -72,5 +72,7 @@
                           ,@final))
   ; (printf "Ints-coerced: ~a~n" ints-coerced)
   ; (raise "STOP")
-  (datum->syntax #f module-datum))
+  (define result (datum->syntax #f module-datum))
+  ;(printf "debug result of expansion: ~a~n" result)
+  result)
 (provide read-syntax)

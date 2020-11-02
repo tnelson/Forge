@@ -465,51 +465,55 @@
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*
-(define-syntax-parser AlloyModule
-  [((~literal AlloyModule) (~optional module-decl:ModuleDeclClass)
-                           (~seq import:ImportClass ...)
-                           (~seq paragraph:ParagraphClass ...))
-   #'(begin
+(define-syntax (AlloyModule stx)
+  (syntax-parse stx
+    [((~literal AlloyModule) (~optional module-decl:ModuleDeclClass)
+                             (~seq import:ImportClass ...)
+                             (~seq paragraph:ParagraphClass ...))
+     (syntax/loc stx (begin
      (~? module-decl)
      import ...
-     paragraph ...)]
-  [((~literal AlloyModule) (~seq eval-decl:EvalDeclClass ...))
-   #'(raise "Evaluating in #lang forge not yet implemented.")])
+     paragraph ...))]
+    [((~literal AlloyModule) (~seq eval-decl:EvalDeclClass ...))
+     (syntax/loc stx (raise "Evaluating in #lang forge not yet implemented."))]))
 
 ; ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
-(define-syntax-parser ModuleDecl
-  [((~literal ModuleDecl) module-name:QualNameClass
-                          (~optional (~seq "[" other-names:NameListClass "]")))
-   #'(raise "ModuleDecl not yet implemented.")])
+(define-syntax (ModuleDecl stx)
+  (syntax-parse stx 
+    [((~literal ModuleDecl) module-name:QualNameClass
+                            (~optional (~seq "[" other-names:NameListClass "]")))
+     (syntax/loc stx (raise "ModuleDecl not yet implemented."))]))
 
 
 ; Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
-(define-syntax-parser Import
-  [((~literal Import) file-path:str
-                      (~optional (~seq "as" as-name:NameClass)))
-   #'(begin
-     (~? (require (prefix-in as-name.name file-path))
-         (require file-path)))]
-  [((~literal Import) import-name:QualNameClass
-                      (~optional (~seq "[" other-names:QualNameListClass "]"))
-                      (~optional (~seq "as" as-name:NameClass)))
-   #'(begin
-     (raise (format "Importing packages not yet implemented: ~a." 'import-name))
-     (~? (raise (format "Bracketed import not yet implemented. ~a" 'other-names)))
-     (~? (raise (format "Importing as not yet implemented. ~a" 'as-name))))])
-
+(define-syntax (Import stx)
+  (syntax-parse stx
+      [((~literal Import) file-path:str
+                          (~optional (~seq "as" as-name:NameClass)))
+       (syntax/loc stx (begin
+           (~? (require (prefix-in as-name.name file-path))
+               (require file-path))))]
+    [((~literal Import) import-name:QualNameClass
+                        (~optional (~seq "[" other-names:QualNameListClass "]"))
+                        (~optional (~seq "as" as-name:NameClass)))
+     (syntax/loc stx (begin
+         (raise (format "Importing packages not yet implemented: ~a." 'import-name))
+         (~? (raise (format "Bracketed import not yet implemented. ~a" 'other-names)))
+         (~? (raise (format "Importing as not yet implemented. ~a" 'as-name)))))]))
+  
 ; SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
-(define-syntax-parser SigDecl
-  [((~literal SigDecl) (~optional abstract:abstract-tok)
+(define-syntax (SigDecl stx)
+  (syntax-parse stx
+    [((~literal SigDecl) (~optional abstract:abstract-tok)
                        (~optional mult:MultClass)
                        sig-names:NameListClass
                        (~optional extends:SigExtClass)
                        (~optional block:BlockClass))
-   #'(begin
+   (syntax/loc stx (begin
      (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
      (sig sig-names.names (~? mult.symbol) 
                           (~? abstract.symbol) 
-                          (~? (~@ extends.symbol extends.value))) ...)]
+                          (~? (~@ extends.symbol extends.value))) ...))]
 
   [((~literal SigDecl) (~optional abstract:abstract-tok)
                        (~optional mult:MultClass)
@@ -517,7 +521,7 @@
                        (~optional extends:SigExtClass)
                        ((~literal ArrowDeclList) arrow-decl:ArrowDeclClass ...)
                        (~optional block:BlockClass))
-   #`(begin
+   (quasisyntax/loc stx (begin
      (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
      (sig sig-names.names (~? mult.symbol) 
                           (~? abstract.symbol) 
@@ -534,30 +538,33 @@
                                                          (cons (syntax->datum sig-name)
                                                                (syntax->list relation-types)))]
                           [relation-mult relation-mult])
-              #'(relation relation-name relation-types #:is relation-mult))))))])
+              #'(relation relation-name relation-types #:is relation-mult)))))))]))
    
 ; RelDecl : ArrowDecl
-(define-syntax-parser RelDecl
+(define-syntax (RelDecl stx)
+  (syntax-parse stx
   [((~literal RelDecl) arrow-decl:ArrowDeclClass)
-   #`(begin
+   (quasisyntax/loc stx (begin
    #,@(for/list ([name (syntax->list #'arrow-decl.names)])
         (with-syntax ([name name])
-          #'(relation name arrow-decl.types))))])
+          (syntax/loc stx (relation name arrow-decl.types))))))]))
 
 ; FactDecl : FACT-TOK Name? Block
-(define-syntax-parser FactDecl
+(define-syntax (FactDecl stx)
+  (syntax-parse stx
   [((~literal FactDecl) _ ...)
-   #'(raise "Facts are not allowed in #lang forge.")])
+   (syntax/loc stx (raise "Facts are not allowed in #lang forge."))]))
 
 ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
-(define-syntax-parser PredDecl
+(define-syntax (PredDecl stx)
+  (syntax-parse stx
   [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         block:BlockClass)
    (with-syntax ([block (my-expand #'block)])
-     #'(begin
+     (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (pred name.name block)))]
+       (pred name.name block))))]
 
   [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
@@ -566,20 +573,21 @@
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
                                                    (syntax->list #'decls.translate)))]
                  [block (my-expand #'block)])
-     #'(begin
+     (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (pred decl block)))])
+       (pred decl block))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
-(define-syntax-parser FunDecl
+(define-syntax (FunDecl stx)
+  (syntax-parse stx
   [((~literal FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        output:ExprClass
                        block:BlockClass)
    (with-syntax ([block (my-expand #'block)])
-     #'(begin
+     (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (const name.name block)))]
+       (const name.name block))))]
 
   [((~literal FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
@@ -589,17 +597,19 @@
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
                                                    (syntax->list #'decls.translate)))]
                  [block (my-expand #'block)])
-     #'(begin
+     (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (fun decl block)))])
+       (fun decl block))))]))
 
 ; AssertDecl : /ASSERT-TOK Name? Block
-(define-syntax-parser AssertDecl
+(define-syntax (AssertDecl stx)
+  (syntax-parse stx
   [((~literal AssertDecl) _ ...)
-   #'(raise "Assertions not yet implemented.")])
+   (syntax/loc stx (raise "Assertions not yet implemented."))]))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
-(define-syntax-parser CmdDecl
+(define-syntax (CmdDecl stx)
+  (syntax-parse stx
   [((~literal CmdDecl) (~optional name:NameClass)
                        (~and cmd-type (~or "run" "check"))
                        (~optional parameters:ParametersClass)
@@ -611,14 +621,15 @@
                                          (string->symbol (syntax->datum #'cmd-type)))]
                  [name #'(~? name.name temporary-name)]
                  [preds (my-expand #'(~? pred.name preds))])
-     #'(begin
+     (syntax/loc stx (begin
        (cmd-type name (~? (~@ #:preds [preds]))
                       (~? (~@ #:scope scope.translate))
                       (~? (~@ #:bounds bounds.translate)))
-       (display name)))])
+       (display name))))]))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
-(define-syntax-parser TestDecl
+(define-syntax (TestDecl stx)
+  (syntax-parse stx
   [((~literal TestDecl) (~optional name:NameClass)
                         (~optional parameters:ParametersClass)
                         (~optional (~or pred:QualNameClass
@@ -630,38 +641,41 @@
                  [preds (my-expand #'(~? pred.name preds))]
                  [expected (datum->syntax #'expected
                                           (string->symbol (syntax->datum #'expected)))])
-     #'(begin
+     (syntax/loc stx (begin
        (test name (~? (~@ #:preds [preds]))
                   (~? (~@ #:scope scope.translate))
                   (~? (~@ #:bounds bounds.translate))
-                  #:expect expected)))])
+                  #:expect expected))))]))
 
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
-(define-syntax-parser TestExpectDecl 
+(define-syntax (TestExpectDecl stx)
+  (syntax-parse stx
   [((~literal TestExpectDecl) (~optional (~and "test" test-tok))
                               "expect" 
                               (~optional name:NameClass)
                               block:TestBlockClass)
    (if (attribute test-tok)
-       #'(begin block.test-decls ...)
-       #'(begin))])
+       (syntax/loc stx (begin block.test-decls ...))
+       (syntax/loc stx (begin)))]))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
-(define-syntax-parser OptionDecl  
+(define-syntax (OptionDecl stx)
+  (syntax-parse stx
   [dec:OptionDeclClass
-     #'(set-option! 'dec.n 'dec.v)
-   ])
+     (syntax/loc stx (set-option! 'dec.n 'dec.v))
+   ]))
 
 ; InstDecl : /INST-TOK Name Bounds Scope?
-(define-syntax-parser InstDecl
+(define-syntax (InstDecl stx)
+  (syntax-parse stx
   [((~literal InstDecl)
               name:NameClass
               bounds:BoundsClass
               (~optional scope:ScopeClass))
    (with-syntax ([(bounds ...) #'bounds.translate])
-     #'(begin
+     (syntax/loc stx (begin
        (~? (raise (format "Scope not implemented for bounds ~a" 'scope)))
-       (inst name.name bounds ...)))])
+       (inst name.name bounds ...))))]))
 
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
