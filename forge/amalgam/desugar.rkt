@@ -43,7 +43,7 @@
     ))
 
 ; This function is recursively calling every element in args and pass it to the
-; original recursive function. Q: what is args? 
+; original recursive function. 
 (define (desugar-formula-op formula quantvars args)
   (match formula
     ; ? <test> matches on forms that <test> returns true for
