@@ -2,6 +2,7 @@
 
 (provide download-to-syntax)
 
+(require "../../shared.rkt")
 (require net/url)
 (require racket/file)
 (require "encrypt-decrypt/library.rkt")
@@ -13,7 +14,9 @@
 ; If save-to provided, saves result to save-to before returning.
 (define (download-file link save-to [backup #f])
   (define url (string->url link))
-  (printf "download-file link: ~a~n" link)
+  ; Shouldn't fire when installing the package; turn up verbosity to show
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (printf "download-file link: ~a~n" link))
   (define port
     (with-handlers ([exn:fail:network:errno?
                      (lambda (exn) 

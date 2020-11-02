@@ -4,13 +4,14 @@
 ; (full AST) -> (restricted AST without stuff like implies)
 ;    Note: These functions maintain an environment of
 ;    quantified variables to aid general functionality
-
+; We are bringing the input into our core language
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Warning: ast.rkt exports (e.g.) "and".
 ; This is the macro that produces an "and" formula!
 ; To use real Racket and, use @and.
 (require "../lang/ast.rkt" (prefix-in @ racket))
+(require "../sigs.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -22,7 +23,7 @@
     ; operator formula (and, or, implies, ...)
     [(node/formula/op args)
      (desugar-formula-op formula quantvars args)]
-    ; multiplicity formula (some, one, ...)
+    ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity mult expr)
      ; create a new multiplicity formula with fields...
      (node/formula/multiplicity mult (desugar-expr expr quantvars))]
@@ -43,7 +44,7 @@
     ))
 
 ; This function is recursively calling every element in args and pass it to the
-; original recursive function. Q: what is args? 
+; original recursive function. 
 (define (desugar-formula-op formula quantvars args)
   (match formula
     ; ? <test> matches on forms that <test> returns true for
@@ -51,35 +52,72 @@
     ; AND
     [(? node/formula/op/&&?)
      (printf "and~n")
-     ; applying desugar-formula x quantvars to everything in args 
+     ; applying desugar-formula x quantvars to everything in args
      (map (lambda (x) (desugar-formula x quantvars)) args)
      ]
     ; OR
     [(? node/formula/op/||?)
      (printf "or~n")
+     ; applying desugar-formula x quantvars to everything in args
      (map (lambda (x) (desugar-formula x quantvars)) args)
      ]
+    ; Q: What about IFF?
+    
     ; IMPLIES
     [(? node/formula/op/=>?)
      (printf "implies~n")
-     (map (lambda (x) (desugar-formula x quantvars)) args)
+     ; Implies should be desugared as (not LHS) OR (RHS) 
+     (let ([desugaredImplies (node/formula/op/|| (list (node/formula/op/!(list (car args))) (cdr args)))])
+       ; Call desugar-formula recursively on the desugared expression created on the previous step 
+      (desugar-formula desugaredImplies quantvars))
      ]
     ; IN (atomic fmla)
+    ; Q: Can we please go over this case together? 
     [(? node/formula/op/in?)
      (printf "in~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
-     ]
+     ; Doing the non-ground case (e1 in e2) first (TODO: other)
+     
+     ; We don't yet know which relation's bounds will be needed, so just pass them all in
+     ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
+     (define leftE (first args))
+     (define rightE (second args)) ; TODO: descend on these somewhere -- after?
+     ; lift-bounds-expr should take *full kodkod bounds* and produce just an upper-bound
+     ;(define lifted-upper-bounds (lift-bounds-expr leftE kk-bounds '())) ; List<List<Atom>> i.e., List<Tuple>     
+
+     ; for tuple2Expr: (forge:Run-atom-rels foo5)
+     ;  ^ build the product of the result of converting each atom to its corresponding relation from this list
+     
+     ; TODO: other args?
+     ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
+     #;(node/formula/op/&& (length lifted-upper-bounds)                        
+                         (map (lambda (x)
+                                (define ante (node/formula/op/in (tuple2Expr x) leftE))
+                                (define cons (node/formula/op/in (tuple2Expr x) rightE))
+                                (node/formula/op/=> 2 ante cons)) lifted-upper-bounds))
     ; = (atomic fmla)
+    ; Q: How do we know that this is an expression? I changed it to call desugar-formula recursively
+    (node/formula/op/in (list leftE rightE)) ; placeholder
+    ]
     [(? node/formula/op/=?)
      (printf "=~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
+     ; The desugared version of equals should be LHS in RHS AND RHS in LHS 
+     (let ([desugaredEquals (node/formula/op/&& (list
+                                                  (node/formula/op/in (list (first args) (second args)))
+                                                  (node/formula/op/in (list (second args) (first args)))))])
+       ; Call desugar-formula recursively on the desugared expression created on the previous step 
+       (desugar-formula desugaredEquals quantvars))
+       ;(map (lambda (x) (desugar-expr x quantvars)) desugaredEquals))
      ]
 
     ; NEGATION
     [(? node/formula/op/!?)
      (printf "not~n")
-     (map (lambda (x) (desugar-formula x quantvars)) args)
-     ]
+     ; Q: Is this an OK way to re-write negation? Operand implies f? 
+     (let ([desugaredNegation (node/formula/op/=> (list (first args) #f))])
+       (desugar-formula desugaredNegation quantvars))] 
+     ; (map (lambda (x) (desugar-formula x quantvars)) args)
+
+    ; Q: Are we going to be working with arithmetic, if not, should the following 3 cases be removed? 
     ; INTEGER >
     [(? node/formula/op/int>?)
      (printf "int>~n")
@@ -96,7 +134,7 @@
      (map (lambda (x) (desugar-int x quantvars)) args)
      ]))
 
-(define (desugar-expr expr quantvars)  
+(define (desugar-expr expr quantvars)
   (match expr
     ; relation name (base case)
     [(node/expr/relation arity name typelist parent)
@@ -110,7 +148,9 @@
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
-     (desugar-expr-op expr quantvars args)]
+     ; Q: I am changing this to include the currentTupleIfAtomic
+     ; CurrentTuppleIfAtomic should be the implicit LHS of the expression, so therefore the first element in args 
+     (desugar-expr-op expr quantvars args (car args))]
     ; Q: I am a little bit confused about this case 
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
@@ -129,24 +169,35 @@
                  decls)     
        (desugar-formula form quantvars))]))
 
-(define (desugar-expr-op expr quantvars args)
+(define (desugar-expr-op expr quantvars args currentTupleIfAtomic)
   (match expr
     ; union
     [(? node/expr/op/+?)
      (printf "+~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
+     ; Q: Should I be accounting for multiple unions? like in the intersection case below? 
+     ; The desugared version of Union should be currentTupleIfAtomic in LHS OR currentTupleIfAtomic in RHS 
+     (let ([desugared1 (node/formula/op/in (list currentTupleIfAtomic (first args)))])
+       (let ([desugared2 (node/formula/op/in (list currentTupleIfAtomic (second args)))])
+         (let ([desugaredUnion (node/formula/op/|| (list desugared1 desugared2))])
+           (desugar-formula desugaredUnion quantvars))))
+     ;(map (lambda (x) (desugar-expr x quantvars)) args)
      ]
     ; setminus
     [(? node/expr/op/-?)
      (printf "-~n")
-     (map (lambda (x) (desugar-expr x quantvars)) args)
+      ; The desugared version of SetMinus should be currentTupleIfAtomic in LHS AND not(currentTupleIfAtomic in RHS) 
+     (let ([desugared1 (node/formula/op/in (list currentTupleIfAtomic (first args)))])
+       (let ([desugared2 (node/formula/op/! (list node/formula/op/in (list currentTupleIfAtomic (second args))))])
+         (let ([desugaredSetMinus (node/formula/op/&& (list desugared1 desugared2))])
+           (desugar-formula desugaredSetMinus quantvars))))
+     ;(map (lambda (x) (desugar-expr x quantvars)) args)
      ]
     ; intersection
     [(? node/expr/op/&?)
      ;(printf "& ~a~n" expr)
      (define children (map (lambda (x) (desugar-expr x quantvars)) args))
      ; first argument of & struct is the arity, second is the child expressions
-     ; Q: Why are we getting the children here ?
+     ; Q: Why are we creating a new intersection here? 
      (node/expr/op/& (length children) children)
      ]
     ; product
@@ -202,6 +253,7 @@
        (desugar-int int-expr quantvars)
        )]))
 
+; Q: Are we going to be doing any arithmetic? If not, should this be removed? 
 (define (desugar-int-op expr quantvars args)
   (match expr
     ; int addition
@@ -236,9 +288,8 @@
      (map (lambda (x) (desugar-expr x quantvars)) args)
      ]
     ; remainder/modulo
-    [(? node/int/op/remainder?)
-     (printf "remainder~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+    [(? node/int/op/remainder?)     
+     (error "amalgam: remainder not supported")
      ]
     ; absolute value
     [(? node/int/op/abs?)

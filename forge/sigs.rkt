@@ -63,6 +63,8 @@
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
+(provide (prefix-out forge: (struct-out bound)))
+(provide (prefix-out forge: relation-name))
 
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
@@ -121,6 +123,7 @@
   constants   ; Set<Symbol>
   insts       ; Set<Symbol>
   options     ; Options
+  runmap      ; Map<Symbol, Run> (as hash)
   ) #:transparent)
 
 (struct Run-spec (
@@ -153,11 +156,13 @@
 (define init-constants (@set))
 (define init-insts (@set))
 (define init-options (Options 'SAT4J 20 0 0))
+(define init-runmap (@hash))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-predicates init-functions init-constants 
                           init-insts
-                          init-options))
+                          init-options
+                          init-runmap))
 
 ; TODO: GET RID OF THIS
 (define current-formula (make-parameter 0))
@@ -399,13 +404,20 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (struct-copy Sig sig
                [extenders new-extenders]))
 
+; state-add-runmap :: State, symbol, Run -> State
+(define (state-add-runmap state name r)
+  (struct-copy State state
+               [runmap (hash-set (State-runmap state) name r)]))
+
 ; state-add-sig :: State, Symbol, bool, bool, (Symbol | #f) -> State
 ; Adds a new Sig to the given State; if new Sig extends some
 ; other Sig, then updates that Sig with extension.
 (define (state-add-sig state name rel one abstract extends)
+  (when (member name (State-sig-order state))
+    (error (format "tried to add sig ~a, but it already existed" name)))
   (define new-sig (Sig name rel one abstract extends empty))
   (when (@and extends (@not (member extends (State-sig-order state))))
-    (raise "Can't extend non-existant sig."))
+    (raise "Can't extend nonexistent sig."))
 
   (define sigs-with-new-sig (hash-set (State-sigs state) name new-sig))
   (define new-state-sigs
@@ -422,6 +434,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; state-add-relation :: State, Symbol, List<Sig>, Symbol?-> State
 ; Adds a new relation to the given State.
 (define (state-add-relation state name rel rel-sigs [breaker #f])
+  (when (member name (State-relation-order state))
+    (error (format "tried to add relation ~a, but it already existed" name)))
   (define new-relation (Relation name rel rel-sigs breaker))
   (define new-state-relations (hash-set (State-relations state) name new-relation))
   (define new-state-relation-order (append (State-relation-order state) (list name)))
@@ -637,7 +651,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define run-spec (Run-spec run-state run-preds run-scope run-bound))
         (define-values (run-result atom-rels kodkod-bounds) (send-to-kodkod run-spec))
 
-        (define name (Run run-name run-command run-spec run-result atom-rels kodkod-bounds)))]))
+        (define name (Run run-name run-command run-spec run-result atom-rels kodkod-bounds))        
+        (update-state! (state-add-runmap curr-state 'name name)))]))
 
 ; Test that a spec is sat or unsat
 ; (test name

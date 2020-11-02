@@ -75,15 +75,35 @@
 (define (lift-bounds-expr-op expr quantvars args)
   (match expr
     ; union
+    ;[(? node/expr/op/+?)
+    ; (printf "+~n")
+    ; (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+    ; ]
     [(? node/expr/op/+?)
-     (printf "+~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+	(printf "+~n")
+	; The upper bound of the LHS and RHS is just the addition between both bounds  
+	(define uppers 
+          (map (lambda (arg)
+              (define ub (lift-bounds-expr arg quantvars))
+              (printf "    arg: ~a had UB =~a~n" arg ub))
+            args))
+	  (if (equal? (length uppers) 1)
+           (first uppers)
+           (node/expr/op/+ (length uppers) uppers))
      ]
+    
     ; setminus
     [(? node/expr/op/-?)
      (printf "-~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+     ; Don't confuse semantics with upper bounds. 
+     ; Upper bound of A-B is A's upper bound (in case B empty).
+     (define ub (lift-bounds-expr (car args) quantvars))
+     (printf "    arg: ~a had UB =~a~n" (car args) ub)
+     (node/expr/op/- 1 ub))
      ]
+    ; (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+    ; ]
+
     ; intersection
     [(? node/expr/op/&?)
      ;(printf "& ~a~n" expr)
