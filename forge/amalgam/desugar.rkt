@@ -121,17 +121,17 @@
     ; INTEGER >
     [(? node/formula/op/int>?)
      (printf "int>~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+     (error "amalgam: int > not supported")
     ]
     ; INTEGER <
     [(? node/formula/op/int<?)
      (printf "int<~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+     (error "amalgam: int < not supported")
      ]
     ; INTEGER =
     [(? node/formula/op/int=?)
      (printf "int=~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+     (error "amalgam: int = not supported")
      ]))
 
 (define (desugar-expr expr quantvars)
