@@ -67,7 +67,7 @@
     [(? node/formula/op/=>?)
      (printf "implies~n")
      ; Implies should be desugared as (not LHS) OR (RHS) 
-     (let ([desugaredImplies (node/formula/op/|| (list (node/formula/op/!(list (car args))) (cdr args)))])
+     (let ([desugaredImplies (node/formula/op/|| (list (node/formula/op/!(list (first args))) (second args)))])
        ; Call desugar-formula recursively on the desugared expression created on the previous step 
       (desugar-formula desugaredImplies quantvars))
      ]
@@ -79,17 +79,18 @@
      
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
-     (define leftE (first args))
+     (define leftE (first args)) 
      (define rightE (second args)) ; TODO: descend on these somewhere -- after?
      ; lift-bounds-expr should take *full kodkod bounds* and produce just an upper-bound
      ;(define lifted-upper-bounds (lift-bounds-expr leftE kk-bounds '())) ; List<List<Atom>> i.e., List<Tuple>     
 
-     ; for tuple2Expr: (forge:Run-atom-rels foo5)
+     ; for tuple2Expr: (forge:Run-atom-rels foo5) run foo5 for 5 
      ;  ^ build the product of the result of converting each atom to its corresponding relation from this list
+     ; rel(1st tuple) x rel(2nd  tuple) x .... x (rel nth tuple) --> expression
      
      ; TODO: other args?
      ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
-     #;(node/formula/op/&& (length lifted-upper-bounds)                        
+     #;(node/formula/op/&& (length lifted-upper-bounds) ; List<Tuples>                       
                          (map (lambda (x)
                                 (define ante (node/formula/op/in (tuple2Expr x) leftE))
                                 (define cons (node/formula/op/in (tuple2Expr x) rightE))
@@ -98,6 +99,7 @@
     ; Q: How do we know that this is an expression? I changed it to call desugar-formula recursively
     (node/formula/op/in (list leftE rightE)) ; placeholder
     ]
+    ; EQUALS 
     [(? node/formula/op/=?)
      (printf "=~n")
      ; The desugared version of equals should be LHS in RHS AND RHS in LHS 
@@ -169,15 +171,16 @@
                  decls)     
        (desugar-formula form quantvars))]))
 
-(define (desugar-expr-op expr quantvars args currentTupleIfAtomic)
+(define (desugar-expr-op expr quantvars args currTupIfAtomic)
   (match expr
     ; union
     [(? node/expr/op/+?)
      (printf "+~n")
      ; Q: Should I be accounting for multiple unions? like in the intersection case below? 
-     ; The desugared version of Union should be currentTupleIfAtomic in LHS OR currentTupleIfAtomic in RHS 
-     (let ([desugared1 (node/formula/op/in (list currentTupleIfAtomic (first args)))])
-       (let ([desugared2 (node/formula/op/in (list currentTupleIfAtomic (second args)))])
+     ; The desugared version of Union should be currentTupleIfAtomic in LHS OR currentTupleIfAtomic in RHS
+     (define currTupIfAtomicExpr (tuple2Expr currTupIfAtomic))
+     (let ([desugared1 (node/formula/op/in (list currTupIfAtomicExpr (first args)))])
+       (let ([desugared2 (node/formula/op/in (list currTupIfAtomicExpr (second args)))])
          (let ([desugaredUnion (node/formula/op/|| (list desugared1 desugared2))])
            (desugar-formula desugaredUnion quantvars))))
      ;(map (lambda (x) (desugar-expr x quantvars)) args)
@@ -185,9 +188,10 @@
     ; setminus
     [(? node/expr/op/-?)
      (printf "-~n")
-      ; The desugared version of SetMinus should be currentTupleIfAtomic in LHS AND not(currentTupleIfAtomic in RHS) 
-     (let ([desugared1 (node/formula/op/in (list currentTupleIfAtomic (first args)))])
-       (let ([desugared2 (node/formula/op/! (list node/formula/op/in (list currentTupleIfAtomic (second args))))])
+      ; The desugared version of SetMinus should be currentTupleIfAtomic in LHS AND not(currentTupleIfAtomic in RHS)
+     (define currTupIfAtomicExpr (tuple2Expr currTupIfAtomic))
+     (let ([desugared1 (node/formula/op/in (list currTupIfAtomicExpr (first args)))])
+       (let ([desugared2 (node/formula/op/! (list node/formula/op/in (list currTupIfAtomicExpr (second args))))])
          (let ([desugaredSetMinus (node/formula/op/&& (list desugared1 desugared2))])
            (desugar-formula desugaredSetMinus quantvars))))
      ;(map (lambda (x) (desugar-expr x quantvars)) args)
@@ -259,22 +263,22 @@
     ; int addition
     [(? node/int/op/add?)
      (printf "int+~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+     (error "amalgam: int + not supported")
      ]
     ; int subtraction
     [(? node/int/op/subtract?)
      (printf "int-~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+     (error "amalgam: int - not supported")
      ]
     ; int multiplication
     [(? node/int/op/multiply?)
      (printf "int*~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+     (error "amalgam: int * not supported")
      ]
     ; int division
     [(? node/int/op/divide?)
      (printf "int/~n")
-     (map (lambda (x) (desugar-int x quantvars )) args)
+     (error "amalgam: int / not supported")
      ]
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
@@ -289,19 +293,23 @@
      ]
     ; remainder/modulo
     [(? node/int/op/remainder?)     
-     (error "amalgam: remainder not supported")
+     (error "amalgam: int % (modulo) not supported")
      ]
     ; absolute value
     [(? node/int/op/abs?)
      (printf "abs~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+     (error "amalgam: int abs not supported")
      ]
     ; sign-of 
     [(? node/int/op/sign?)
      (printf "sign~n")
-     (map (lambda (x) (desugar-int x quantvars)) args)
+     (error "amalgam: int sign-of not supported")
      ]
     ))
+
+; Function tuple2Expression which turns a Tuple into an Expression
+(define (tuple2Expr tup)
+  (tup))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
