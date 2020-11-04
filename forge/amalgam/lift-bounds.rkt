@@ -74,6 +74,7 @@
            (first uppers)
            (node/expr/op/-> (length uppers) uppers)))]))
 
+
 (define (lift-bounds-expr-op expr quantvars args)
   (match expr
 
@@ -112,7 +113,17 @@
     ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+     ; the bounds of A->B are Bounds(A) x Bounds(B)
+     ; Q: Does this look good? I'm not sure if it will never get solved
+     (define uppers 
+        (map (lambda (arg)
+              (define ub (lift-bounds-expr arg quantvars))
+              (printf "    arg: ~a had UB =~a~n" arg ub))
+            args))
+     (if (equal? (length uppers) 1)
+         (first uppers)
+         (node/expr/op/-> (length uppers) uppers))     
+     ;(map (lambda (x) (lift-bounds-expr x quantvars)) args)
      ]
 
     ; JOIN
