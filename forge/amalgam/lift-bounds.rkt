@@ -49,10 +49,12 @@
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
      (lift-bounds-expr-op expr quantvars args)]
+    
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
      ;;(print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
      (printf "  ~a~n" sym)]
+    
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension len decls form)     
      (define vars (map car decls)) ; account for multiple variables  
@@ -74,11 +76,8 @@
 
 (define (lift-bounds-expr-op expr quantvars args)
   (match expr
-    ; union
-    ;[(? node/expr/op/+?)
-    ; (printf "+~n")
-    ; (map (lambda (x) (lift-bounds-expr x quantvars)) args)
-    ; ]
+
+    ; SET UNION 
     [(? node/expr/op/+?)
 	(printf "+~n")
 	; The upper bound of the LHS and RHS is just the addition between both bounds  
@@ -92,51 +91,55 @@
            (node/expr/op/+ (length uppers) uppers))
      ]
     
-    ; setminus
+    ; SET MINUS 
     [(? node/expr/op/-?)
      (printf "-~n")
      ; Don't confuse semantics with upper bounds. 
      ; Upper bound of A-B is A's upper bound (in case B empty).
-     (define ub (lift-bounds-expr (car args) quantvars))
-     (printf "    arg: ~a had UB =~a~n" (car args) ub)
+     (define ub (lift-bounds-expr (first args) quantvars))
+     (printf "    arg: ~a had UB =~a~n" (first args) ub)
      (node/expr/op/- 1 ub))
      ]
-    ; (map (lambda (x) (lift-bounds-expr x quantvars)) args)
-    ; ]
 
-    ; intersection
+    ; SET INTERSECTION
     [(? node/expr/op/&?)
      ;(printf "& ~a~n" expr)
      (define children (map (lambda (x) (lift-bounds-expr x quantvars)) args))
      ; first argument of & struct is the arity, second is the child expressions
      (node/expr/op/& (length children) children)
      ]
-    ; product
+
+    ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
      (map (lambda (x) (lift-bounds-expr x quantvars)) args)
      ]
-    ; join
+
+    ; JOIN
     [(? node/expr/op/join?)
      (printf ".~n")
      (map (lambda (x) (lift-bounds-expr x quantvars)) args)
      ]
-    ; transitive closure
+
+    ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "^~n")
      (map (lambda (x) (lift-bounds-expr x quantvars)) args)
      ]
-    ; reflexive-transitive closure
+
+    ; REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
      (printf "*~n")
      (map (lambda (x) (lift-bounds-expr x quantvars)) args)
      ]
-    ; transpose
+
+    ; TRANSPOSE 
     [(? node/expr/op/~?)
      (printf "~~~n")
      (map (lambda (x) (lift-bounds-expr x quantvars)) args)
      ]
-    ; singleton (typecast number to 1x1 relation with that number in it)
+
+    ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "sing~n")
      (map (lambda (x) (lift-bounds-int x quantvars)) args)
@@ -147,9 +150,11 @@
     ; constant int
     [(node/int/constant value)
      (printf "~a~n" value)]
+    
     ; apply an operator to some integer expressions
     [(node/int/op args)   
      (lift-bounds-int-op expr quantvars args)]
+    
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age  
     [(node/int/sum-quant decls int-expr)
@@ -169,49 +174,58 @@
     ; int addition
     [(? node/int/op/add?)
      (printf "int+~n")
-     (map (lambda (x) (lift-bounds-int x quantvars)) args)
+     (error "amalgam: int + not supported")
      ]
+    
     ; int subtraction
     [(? node/int/op/subtract?)
      (printf "int-~n")
-     (map (lambda (x) (lift-bounds-int x quantvars)) args)
+     (error "amalgam: int - not supported")
      ]
+    
     ; int multiplication
     [(? node/int/op/multiply?)
      (printf "int*~n")
-     (map (lambda (x) (lift-bounds-int x quantvars)) args)
+     (error "amalgam: int * not supported")
      ]
+    
     ; int division
     [(? node/int/op/divide?)
      (printf "int/~n")
-     (map (lambda (x) (lift-bounds-int x quantvars )) args)
+     (error "amalgam: int / not supported")
      ]
+    
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
      (printf "intsum~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars )) args)
+     (error "amalgam: int sum not supported")
      ]
+    
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "cardinality~n")
      (map (lambda (x) (lift-bounds-expr x quantvars)) args)
      ]
+    
     ; remainder/modulo
     [(? node/int/op/remainder?)
      (printf "remainder~n")
-     (map (lambda (x) (lift-bounds-int x quantvars)) args)
+     (error "amalgam: int % (modulo) not supported")
      ]
+    
     ; absolute value
     [(? node/int/op/abs?)
      (printf "abs~n")
-     (map (lambda (x) (lift-bounds-int x quantvars)) args)
+     (error "amalgam: int abs not supported")
      ]
+    
     ; sign-of 
     [(? node/int/op/sign?)
      (printf "sign~n")
-     (map (lambda (x) (lift-bounds-int x quantvars)) args)
+     (error "amalgam: int sign not supported")
      ]
+    
     ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

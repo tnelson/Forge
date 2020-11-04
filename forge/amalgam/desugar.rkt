@@ -60,9 +60,7 @@
      (printf "or~n")
      ; applying desugar-formula x quantvars to everything in args
      (map (lambda (x) (desugar-formula x quantvars)) args)
-     ]
-    ; Q: What about IFF?
-    
+     ]    
     ; IMPLIES
     [(? node/formula/op/=>?)
      (printf "implies~n")
@@ -99,6 +97,7 @@
     ; Q: How do we know that this is an expression? I changed it to call desugar-formula recursively
     (node/formula/op/in (list leftE rightE)) ; placeholder
     ]
+
     ; EQUALS 
     [(? node/formula/op/=?)
      (printf "=~n")
@@ -114,12 +113,10 @@
     ; NEGATION
     [(? node/formula/op/!?)
      (printf "not~n")
-     ; Q: Is this an OK way to re-write negation? Operand implies f? 
      (let ([desugaredNegation (node/formula/op/=> (list (first args) #f))])
        (desugar-formula desugaredNegation quantvars))] 
      ; (map (lambda (x) (desugar-formula x quantvars)) args)
 
-    ; Q: Are we going to be working with arithmetic, if not, should the following 3 cases be removed? 
     ; INTEGER >
     [(? node/formula/op/int>?)
      (printf "int>~n")
@@ -150,14 +147,15 @@
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
-     ; Q: I am changing this to include the currentTupleIfAtomic
      ; CurrentTuppleIfAtomic should be the implicit LHS of the expression, so therefore the first element in args 
      (desugar-expr-op expr quantvars args (car args))]
+
     ; Q: I am a little bit confused about this case 
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
      ;;(print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
      (printf "  ~a~n" sym)]
+
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension len decls form)     
      (define vars (map car decls)) ; account for multiple variables  
@@ -165,7 +163,6 @@
        (printf "comprehension over ~a~n" vars)
        (for-each (lambda (d) ; each declaration
                    ;(print-cmd-cont (format "[~a : " (v (get-var-idx (car d) quantvars))))
-                   ; car = first thing; cdr = remainder
                    (desugar-expr (cdr d) quantvars)
                    (printf "    decl: ~a~n" d))
                  decls)     
@@ -257,7 +254,6 @@
        (desugar-int int-expr quantvars)
        )]))
 
-; Q: Are we going to be doing any arithmetic? If not, should this be removed? 
 (define (desugar-int-op expr quantvars args)
   (match expr
     ; int addition
