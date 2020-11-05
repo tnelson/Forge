@@ -9,4 +9,5 @@ pred isUndirectedTree {
     all n1, n2: Node | (n1 in n2.edges implies n1 not in n2.^(edges - (n2->n1)))
 }
 
-run isUndirectedTree for 7 Node 
+-- Now defined in forge_ex_test.rkt
+--udt: run isUndirectedTree for 7 Node 
