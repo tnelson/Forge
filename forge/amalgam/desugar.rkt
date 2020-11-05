@@ -15,6 +15,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; We need to modify desugar-formula to take in bounds, as well as bounds-lifter 
 (define (desugar-formula formula quantvars)
   (match formula
     ; Constant formulas: already at bottom
@@ -70,7 +71,6 @@
       (desugar-formula desugaredImplies quantvars))
      ]
     ; IN (atomic fmla)
-    ; Q: Can we please go over this case together? 
     [(? node/formula/op/in?)
      (printf "in~n")
      ; Doing the non-ground case (e1 in e2) first (TODO: other)
@@ -92,7 +92,7 @@
                          (map (lambda (x)
                                 (define ante (node/formula/op/in (tuple2Expr x) leftE))
                                 (define cons (node/formula/op/in (tuple2Expr x) rightE))
-                                (node/formula/op/=> 2 ante cons)) lifted-upper-bounds))
+                                (node/formula/op/=> 2 ante cons)) lifted-upper-bounds)) ; then we need to call this recursively
     ; = (atomic fmla)
     ; Q: How do we know that this is an expression? I changed it to call desugar-formula recursively
     (node/formula/op/in (list leftE rightE)) ; placeholder
