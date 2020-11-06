@@ -1,0 +1,58 @@
+
+(configure :bitwidth 4
+           :solver SAT4J 
+           :max-solutions 5
+           :verbosity 3)
+
+(univ 10)
+
+(ints [(1 0)(2 1) (4 2) (-8 3)])
+
+(r0 r1 [ none :: (+ ints { (4) ... (6) })])
+(r3 [iden :: (-> univ univ)])
+
+(i0 (sum r0))
+(i1 (sum r1))
+(f0 (< i0 i1))
+
+(assert f0)
+
+(solve)
+
+(r2 [ none ints ])
+(e0 (- r2 ints))
+(e1 (. e0 r3))
+(f1 (lone e1))
+
+(assert f1)
+
+(solve)
+(clear)
+
+(univ 10)
+
+(ints [(1 0)(2 1) (4 2) (-8 3)])
+
+(r0 r1 r2 [ none :: (+ ints { (4) ... (6) })])
+
+(i0 (sum r0))
+(i1 (sum r1))
+(f0 (< i0 i1))
+(assert f0)
+
+(solve)
+
+(r3 [iden (-> univ univ)])
+(e0 (- r2 ints))
+(e1 (. e0 r3))
+(f1 (lone e1))
+(assert f1)
+
+(solve)
+
+(e2 (. (+ r0 r1 r2) r3))
+(f2 (some e2))
+(f3 (no e2))
+
+(assert f2 f3)
+(solve)

@@ -7,23 +7,26 @@
 (require "../../shared.rkt")
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
-(provide assert e f i define-const)
+(provide assert e f i a define-const)
 (provide read-evaluation)
 
 (require "server.rkt"
          "server-common.rkt")
 (define stdin-val #false)
 (define stdout-val #false)
-(provide start-server stdin stdout)
+(provide start-server) ; stdin stdout)
 (define (start-server)
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (displayln "Starting kodkod server."))
   (define kks (new server%
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
   (send kks initialize)
   (set! stdin-val (send kks stdin))
-  (set! stdout-val (send kks stdout)))
-(define (stdin) stdin-val)
-(define (stdout) stdout-val)
+  (set! stdout-val (send kks stdout))
+  (values stdin-val stdout-val))
+; (define (stdin) stdin-val)
+; (define (stdout) stdout-val)
 
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
@@ -93,11 +96,12 @@
   (print-cmd "(~a ~a)" id val))
 
 ; Identifiers
-(define (r idx) (format-symbol "r~a" idx))  ; relational constant
-(define (e idx) (format-symbol "e~a" idx))  ; relational expression
-(define (f idx) (format-symbol "f~a" idx))  ; boolean expression
-(define (i idx) (format-symbol "i~a" idx))  ; bitvector expression
-(define (v idx) (format-symbol "v~a" idx))  ; bitvector expression
+(define (r idx) (format-symbol "r:~a" idx))  ; relational constant
+(define (e idx) (format-symbol "e:~a" idx))  ; relational expression
+(define (f idx) (format-symbol "f:~a" idx))  ; boolean expression
+(define (i idx) (format-symbol "i:~a" idx))  ; bitvector expression
+(define (v idx) (format-symbol "v:~a" idx))  ; bitvector expression
+(define (a idx) (format-symbol "a:~a" idx))  ; atom expression
 
 ; Built-in constants
 (define-values (TRUE FALSE UNIV NONE IDEN INTS)
