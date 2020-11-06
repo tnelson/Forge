@@ -34,7 +34,7 @@
 ; Only Expression and IntExpression cases needed
 ; (we never try to lift bounds of a formula, because that makes no sense.)
 
-(define (lift-bounds-expr expr quantvars)  
+(define (lift-bounds-expr expr quantvars runContext)  
   (match expr
     ; relation name (base case)
     [(node/expr/relation arity name typelist parent)
@@ -48,7 +48,7 @@
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
-     (lift-bounds-expr-op expr quantvars args)]
+     (lift-bounds-expr-op expr quantvars args runContext)]
     
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
@@ -66,7 +66,7 @@
          (map (lambda (d) ; each declaration                                      
                    ; Decl is (varname . domain-expr), so only need second thing
                    ; *pair*, not *list* 
-                   (define ub (lift-bounds-expr (cdr d) quantvars))
+                   (define ub (lift-bounds-expr (cdr d) quantvars runContext))
                    (printf "    decl: ~a had UB =~a~n" d ub))
                  decls))
        ; TN: unsure if this works to create n-ary products or if we need to chain
@@ -75,7 +75,7 @@
            (node/expr/op/-> (length uppers) uppers)))]))
 
 
-(define (lift-bounds-expr-op expr quantvars args)
+(define (lift-bounds-expr-op expr quantvars args runContext)
   (match expr
 
     ; SET UNION 
@@ -84,7 +84,7 @@
 	; The upper bound of the LHS and RHS is just the addition between both bounds  
 	(define uppers 
           (map (lambda (arg)
-              (define ub (lift-bounds-expr arg quantvars))
+              (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub))
             args))
 	  (if (equal? (length uppers) 1)
@@ -97,15 +97,15 @@
      (printf "-~n")
      ; Don't confuse semantics with upper bounds. 
      ; Upper bound of A-B is A's upper bound (in case B empty).
-     (define ub (lift-bounds-expr (first args) quantvars))
+     (define ub (lift-bounds-expr (first args) quantvars runContext))
      (printf "    arg: ~a had UB =~a~n" (first args) ub)
-     (node/expr/op/- 1 ub))
+     (node/expr/op/- 1 ub)
      ]
 
     ; SET INTERSECTION
     [(? node/expr/op/&?)
      ;(printf "& ~a~n" expr)
-     (define children (map (lambda (x) (lift-bounds-expr x quantvars)) args))
+     (define children (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
      ; first argument of & struct is the arity, second is the child expressions
      (node/expr/op/& (length children) children)
      ]
@@ -117,46 +117,46 @@
      ; Q: Does this look good? I'm not sure if it will never get solved
      (define uppers 
         (map (lambda (arg)
-              (define ub (lift-bounds-expr arg quantvars))
+              (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub))
             args))
      (if (equal? (length uppers) 1)
          (first uppers)
          (node/expr/op/-> (length uppers) uppers))     
-     ;(map (lambda (x) (lift-bounds-expr x quantvars)) args)
+     ;(map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
      ]
 
     ; JOIN
     [(? node/expr/op/join?)
      (printf ".~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
      ]
 
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "^~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
      ]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
      (printf "*~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
      ]
 
     ; TRANSPOSE 
     [(? node/expr/op/~?)
      (printf "~~~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
      ]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "sing~n")
-     (map (lambda (x) (lift-bounds-int x quantvars)) args)
+     (map (lambda (x) (lift-bounds-int x quantvars runContext)) args)
      ]))
 
-(define (lift-bounds-int expr quantvars)
+(define (lift-bounds-int expr quantvars runContext)
   (match expr
     ; constant int
     [(node/int/constant value)
@@ -164,7 +164,7 @@
     
     ; apply an operator to some integer expressions
     [(node/int/op args)   
-     (lift-bounds-int-op expr quantvars args)]
+     (lift-bounds-int-op expr quantvars args runContext)]
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age  
@@ -175,12 +175,12 @@
        ;( print-cmd-cont (format "(sum ([~a : ~a " 
        ;                         (v (get-var-idx var quantvars))
        ;                         (if (@> (node/expr-arity var) 1) "set" "one")))
-       (lift-bounds-expr (cdr (car decls)) quantvars)
+       (lift-bounds-expr (cdr (car decls)) quantvars runContext)
        
-       (lift-bounds-int int-expr quantvars)
+       (lift-bounds-int int-expr quantvars runContext)
        )]))
 
-(define (lift-bounds-int-op expr quantvars args)
+(define (lift-bounds-int-op expr quantvars args runContext)
   (match expr
     ; int addition
     [(? node/int/op/add?)
@@ -216,7 +216,7 @@
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "cardinality~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars)) args)
+     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
      ]
     
     ; remainder/modulo
