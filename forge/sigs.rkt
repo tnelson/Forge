@@ -107,6 +107,11 @@
   tbindings ; Map<Symbol, List<Symbol>>
   ) #:transparent)
 
+(struct Target (
+  instance ; Map<Symbol, List<List<Symbol>>>
+  distance ; 'close | 'far
+  ) #:transparent)
+
 (struct Options (
   solver          ; symbol
   backend         ; symbol
@@ -133,7 +138,7 @@
   preds   ; Set<node/formula>
   scope   ; Scope
   bounds  ; Bound
-  target  ; Map<??>
+  target  ; Target | #f
   ) #:transparent)
 
 (struct Server-ports (
@@ -162,7 +167,7 @@
 (define init-functions (@set))
 (define init-constants (@set))
 (define init-insts (@set))
-(define init-options (Options 'SAT4J 'kodkod 5 5 0 0))
+(define init-options (Options 'SAT4J 'pardinus 5 5 0 0))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-predicates init-functions init-constants 
@@ -377,7 +382,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (or (Scope-bitwidth scope)
       DEFAULT-BITWIDTH))
 
-; get-all-rels :: (|| Run Run-spec) -> List<node/expr/relation>
+; get-all-rels :: (|| Run Run-spec) -> List<AST-Relation>
 ; Returns a list of all sigs, then all relations, as
 ; their rels in the order they were defined; if given a Run,
 ; includes all of the additional relations used for individual
@@ -395,6 +400,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
            (append
              (map Sig-rel (get-sigs run-spec))
              (map Relation-rel (get-relations run-spec))))]))
+
+; get-relation-map :: (|| Run Run-spec) -> Map<Symbol, AST-Relation>
+; Returns a map from names to AST-Relations.
+(define (get-relation-map run-or-spec)
+  (for/hash ([rel (get-all-rels run-or-spec)])
+    (values (relation-name rel) rel)))
 
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)
@@ -634,7 +645,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
                             (~seq #:bounds bound)))
             (~optional (~seq #:solver solver-choice))
             (~optional (~seq #:backend backend-choice))
-            (~optional (~seq #:target target-instance))) ...)
+            (~optional (~seq #:target target-instance))
+            (~optional (~seq #:target-distance target-distance))
+            (~optional (~or (~and #:target-compare target-compare)
+                            (~and #:target-contrast target-contrast)))) ...)
       #`(begin
         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
         (define run-state curr-state)
@@ -679,7 +693,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define-values (run-scope run-bound)
           (run-inst base-scope default-bound))
 
-        (define run-target (~? (cdr target-instance) (hash)))
+        
+        (define run-target 
+          (~? (Target (cdr target-instance)
+                      (~? 'target-distance 'close))
+              #f))
+        (~? (unless (member 'target-distance '(close far))
+              (raise (format "Target distance expected one of (close, far); got ~a." 'target-distance))))
+        (when (~? (or #t 'target-contrast) #f)
+          (set! run-preds (~? (list (not (and preds ...))) (~? (list (not pred)) (list false)))))
+
 
         (define run-command #,command)
 
@@ -817,13 +840,55 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (println command)
             (evaluate run '() command)))
 
-        (display-model get-next-model evaluate-str
+        (define (get-contrast-model-generator model compare distance)
+          (unless (member distance '(close far))
+            (raise (format "Contrast model distance expected one of ('close, 'far); got ~a" distance)))
+          (unless (member compare '(compare contrast))
+            (raise (format "Contrast model compare expected one of ('compare, 'contrast); got ~a" compare)))
+
+          (define new-state 
+            (let ([old-state (get-state run)])
+              (state-set-option (state-set-option old-state 'backend 'pardinus)
+                                'solver 'TargetSATSolver)))
+          (define new-preds
+            (if (equal? compare 'compare)
+                (Run-spec-preds (Run-run-spec run))
+                (list (not (foldr (lambda (a b) (and a b))
+                                  true
+                                  (Run-spec-preds (Run-run-spec run)))))))
+
+          (define new-target
+            (Target
+              (for/hash ([(key value) (cdr model)]
+                         #:when (member key (append (map Sig-rel (get-sigs new-state))
+                                                    (map Relation-rel (get-relations new-state)))))
+                (values key value))
+              distance))
+
+          (define contrast-run-spec
+            (struct-copy Run-spec (Run-run-spec run)
+                         [preds new-preds]
+                         [target new-target]
+                         [state new-state]))
+          (define-values (run-result atom-rels server-ports) (send-to-kodkod contrast-run-spec))
+          (define contrast-run 
+            (struct-copy Run run
+                         [name (string->symbol (format "~a-contrast" (Run-name run)))]
+                         [run-spec contrast-run-spec]
+                         [result run-result]
+                         [server-ports server-ports]))
+          (make-model-generator (get-result contrast-run)))
+
+        (display-model get-next-model 
+                       (get-relation-map run)
+                       evaluate-str
                        (Run-name run) 
                        (Run-command run) 
                        "/no-name.rkt" 
-                       (get-bitwidth 
-                       (Run-run-spec run)) 
-                       empty))))
+                       (get-bitwidth
+                         (Run-run-spec run)) 
+                       empty
+                       get-contrast-model-generator))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1108,7 +1173,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define-values (stdin stdout) 
     (cond
       [(equal? backend 'kodkod) (kodkod:start-server)]
-      [(equal? backend 'pardinus) (pardinus:start-server)]
+      [(equal? backend 'pardinus) (pardinus:start-server 'stepper (Target? (Run-spec-target run-spec)))]
       [else (raise (format "Invalid backend: ~a" backend))]))
 
   (define-syntax-rule (kk-print lines ...)
@@ -1190,16 +1255,23 @@ Returns whether the given run resulted in sat or unsat, respectively.
       [stdin]
       lines ...))
 
-  (define target-instance (Run-spec-target run-spec))
-  (for ([(relation atoms) target-instance])
-    (define sig-or-rel
-      (if (@= (relation-arity relation) 1)
-          (get-sig run-spec relation)
-          (get-relation run-spec relation)))
+  (define target (Run-spec-target run-spec))
+  (when target
+    (for ([(rel-name atoms) (Target-instance target)])
+      (define relation (hash-ref (get-relation-map run-spec) (symbol->string rel-name)))
+      (define sig-or-rel
+        (if (@= (relation-arity relation) 1)
+            (get-sig run-spec relation)
+            (get-relation run-spec relation)))
+
+      (pardinus-print
+        (pardinus:declare-target 
+          (pardinus:r (relation-name relation))
+          (get-atoms relation atoms))))
+
     (pardinus-print
-      (pardinus:declare-target 
-        (pardinus:r (index-of all-rels relation))
-        (get-atoms sig-or-rel atoms))))
+      (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
+
 
   ; Print solve
   (define (get-next-model)
@@ -1210,8 +1282,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                                                  all-atoms))
     (cons restype inst))
 
-  (define (model-stream)
-    (stream-cons (get-next-model) (model-stream)))
+  (define (model-stream [prev #f])
+    (if (and prev
+             (or (equal? (car prev) 'no-more-instances) 
+                 (equal? (car prev) 'unsat)))
+        (letrec ([rest (stream-cons (prev) rest)])
+          rest)
+        (stream-cons (get-next-model) (model-stream))))
 
   (values (model-stream) all-atoms (Server-ports stdin stdout)))
 

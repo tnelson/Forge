@@ -6,8 +6,8 @@
 
 (require "../../shared.rkt")
 
-(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
-(provide assert e f i define-const)
+(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel declare-target read-solution solve v r tupleset (rename-out [-> product]))
+(provide assert e f i a define-const)
 (provide read-evaluation)
 
 (require "server.rkt"
@@ -16,6 +16,8 @@
 (define stdout-val #false)
 (provide start-server) ; stdin stdout)
 (define (start-server [solver-type 'stepper] [target-oriented #t])
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (displayln "Starting pardinus server."))
   (define kks (new server%
                    [initializer (thunk (pardinus-initializer solver-type target-oriented))]
                    [stderr-handler (curry pardinus-stderr-handler "blank")]))
@@ -90,15 +92,19 @@
     [(id lo hi) (print-cmd "(~a [~a :: ~a])" id lo hi)]
     [(id exact) (print-cmd "(~a [~a])" id exact)]))
 
+(define (declare-target id target)
+  (print-cmd "(target ~a [~a])" id target))
+
 (define (declare id val)
   (print-cmd "(~a ~a)" id val))
 
 ; Identifiers
-(define (r idx) (format-symbol "r~a" idx))  ; relational constant
-(define (e idx) (format-symbol "e~a" idx))  ; relational expression
-(define (f idx) (format-symbol "f~a" idx))  ; boolean expression
-(define (i idx) (format-symbol "i~a" idx))  ; bitvector expression
-(define (v idx) (format-symbol "v~a" idx))  ; bitvector expression
+(define (r idx) (format-symbol "r:~a" idx))  ; relational constant
+(define (e idx) (format-symbol "e:~a" idx))  ; relational expression
+(define (f idx) (format-symbol "f:~a" idx))  ; boolean expression
+(define (i idx) (format-symbol "i:~a" idx))  ; bitvector expression
+(define (v idx) (format-symbol "v:~a" idx))  ; bitvector expression
+(define (a idx) (format-symbol "a:~a" idx))  ; atom expression
 
 ; Built-in constants
 (define-values (TRUE FALSE UNIV NONE IDEN INTS)

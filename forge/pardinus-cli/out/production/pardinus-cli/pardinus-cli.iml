@@ -9,8 +9,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="old-jar" level="project" />
-    <orderEntry type="library" name="new-old-jar" level="project" />
-    <orderEntry type="library" exported="" name="jar" level="project" />
+    <orderEntry type="library" name="jar" level="project" />
+    <orderEntry type="library" name="jar1" level="project" />
   </component>
 </module>

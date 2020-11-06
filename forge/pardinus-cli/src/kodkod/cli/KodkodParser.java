@@ -62,6 +62,7 @@ import kodkod.ast.operator.Multiplicity;
 import kodkod.ast.operator.Quantifier;
 // import kodkod.engine.bddlab.BDDSolverFactory; Removed for Pardinus
 import kodkod.engine.config.Options;
+import kodkod.engine.config.TargetOptions;
 import kodkod.engine.satlab.SATFactory;
 import kodkod.instance.Tuple;
 import kodkod.instance.TupleSet;
@@ -185,7 +186,8 @@ public class KodkodParser extends BaseParser<Object> {
                 ZeroOrMore(FirstOf(DeclareRelation(),
                         DefNode(),
                         Assert(),
-                        Target())), problem.endBuild(),
+                        Target(),
+                        TargetOption())), problem.endBuild(),
                 StepperServe());
     }
 
@@ -202,6 +204,23 @@ public class KodkodParser extends BaseParser<Object> {
                 TupleSet(), tuple.set(popTupleSet()),
                 RBRK,
                 RPAR, problem.setTarget(rels.get(), tuple.get()));
+    }
+
+    public Rule TargetOption() {
+        return Sequence(
+                LPAR,
+                String("target-option"), Space(),
+                TargetMode(),
+                RPAR);
+    }
+
+    public Rule TargetMode() {
+        final Var<String> target_mode = new Var<>();
+        return Sequence(
+                String("target-mode"), Space(),
+                FirstOf(Sequence(CLOSE, target_mode.set("close")),
+                        Sequence(FAR, target_mode.set("far"))),
+                problem.setTargetType(target_mode.get()));
     }
 
     /**
@@ -980,7 +999,7 @@ public class KodkodParser extends BaseParser<Object> {
 
     @SuppressSubnodes
     Rule StringLiteral() {
-        return Sequence(OneOrMore(LetterOrDigit()), push(match()), Space());
+        return Sequence(OneOrMore(NotSpace()), push(match()), Space());
     }
 
     /**
@@ -1111,6 +1130,9 @@ public class KodkodParser extends BaseParser<Object> {
     final Rule SHR = Terminal(">>>");
     final Rule SHA = Terminal(">>", Ch('>'));
 
+    final Rule CLOSE = Terminal("close");
+    final Rule FAR = Terminal("far");
+
     //-------------------------------------------------------------------------
     // Keywords and terminals
     //-------------------------------------------------------------------------
@@ -1147,6 +1169,7 @@ public class KodkodParser extends BaseParser<Object> {
         return FirstOf(CharRange('a', 'z'), CharRange('A', 'Z'), CharRange('0', '9'), '_', '$');
     }
 
+    Rule NotSpace() { return NoneOf(" \n\t()[]{}"); }
 
     Rule FilePathChar() {
         return Sequence(TestNot(AnyOf("\"\n\r")), ANY);

@@ -39,6 +39,7 @@ import kodkod.ast.operator.ExprOperator;
 import kodkod.ast.operator.FormulaOperator;
 import kodkod.ast.operator.IntOperator;
 import kodkod.ast.operator.Multiplicity;
+import kodkod.engine.config.ExtendedOptions;
 import kodkod.engine.config.Options;
 import kodkod.instance.Bounds;
 import kodkod.instance.Tuple;
@@ -68,8 +69,8 @@ public final class KodkodFactory {
 	 * should use this method rather than Options constructor to create new options instances.
 	 * @return some o: Options | o.reporter.logger = Logger.getGlobal() && o.reporter.logger.level = Level.SEVERE
 	 */
-	public static final Options baseOptions() {
-		Options opts = new Options();
+	public static final ExtendedOptions baseOptions() {
+		ExtendedOptions opts = new ExtendedOptions();
 		final KodkodReporter r = new KodkodReporter();
 		r.logger().setLevel(Level.SEVERE);
 		opts.setReporter(r);

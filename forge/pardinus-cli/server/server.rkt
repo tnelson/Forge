@@ -28,7 +28,7 @@
          ;[-Djava.library.path (string-append "-Djava.library.path=" lib)]
          [error-out (build-path (find-system-path 'home-dir) "error-output.txt")])
 
-    (subprocess #f #f #f
+    (subprocess #f #f (open-output-file "stderr.rkt" #:exists 'replace)
                 java "-cp" cp (string-append "-Djava.library.path=" (path->string pardinus/jar))
                 "kodkod.cli.KodkodServer" 
                 (format "-~a" solver-type) (if target-oriented "-target-oriented" "") 

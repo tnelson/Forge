@@ -367,6 +367,7 @@ public final class KodkodServer {
 
 		// Parse options until we reach an unrecognized option, which must be a filename.
 		for(int i = 0, len = args.length; i < len; i++) {
+
 			switch(args[i]) {
 			case "-help" 		: usage(0);
 			case "-version"		: version(); System.exit(0);
@@ -381,6 +382,7 @@ public final class KodkodServer {
 					usage(1);
 				}
 				break;
+			case ""             : break;
 			default :
 				if (i+1 < len) {
 					usage(1);
