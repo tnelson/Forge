@@ -13,10 +13,11 @@
 (require "../lang/ast.rkt" (prefix-in @ racket))
 (require "../sigs.rkt")
 (require "lift-bounds.rkt")
+(require "tuple2Expr.rkt")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; We need to modify desugar-formula to take in bounds, as well as bounds-lifter 
+; Take in runContext instead of bounds
 (define (desugar-formula formula quantvars runContext)
   (match formula
     ; Constant formulas: already at bottom
@@ -53,15 +54,17 @@
     ; AND
     [(? node/formula/op/&&?)
      (printf "and~n")
-     ; The desugared version of AND is: to call args recursively 
-     (map (lambda (x) (desugar-formula x quantvars runContext)) args)
+     ; The desugared version of AND is: to call args recursively
+     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext)) args))
+     (node/formula/op/&& (length desugaredArgs) desugaredArgs)
      ]
     
     ; OR
     [(? node/formula/op/||?)
      (printf "or~n")
-     ; The desugared version of OR is: to call args recursively 
-     (map (lambda (x) (desugar-formula x quantvars runContext)) args)
+     ; The desugared version of OR is: to call args recursively
+     (define desugardArgs (map (lambda (x) (desugar-formula x quantvars runContext)) args))
+     (node/formula/op/|| (length desugaredArgs) desugaredArgs)
      ]
     
     ; IMPLIES
@@ -324,8 +327,25 @@
     ))
 
 ; Function tuple2Expression which turns a Tuple into an Expression
-(define (tuple2Expr tup)
-  (tup))
+(define (tup2Expr tuple context)
+  ;(printf "tup2Expr: testing is context a Run? ~a~n" (forge:Run? context))
+  (define tupRelationList
+   ; replace every element of the tuple (atoms) with the corresponding atom relation
+   (map
+    (lambda (tupElem)
+      ; keep only the atom relations whose name matches tupElem
+      (define filterResult
+        (filter (lambda (atomRel)
+                  (or (equal? tupElem (forge:relation-name atomRel))
+                      (and (symbol? tupElem)
+                           (equal? (symbol->string tupElem) (forge:relation-name atomRel)))))
+                (forge:Run-atom-rels context)))
+      (cond [(equal? 1 (length filterResult)) (first filterResult)]
+            [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
+    tuple))
+  ; TODO: once Tim revises the AST, will need to provide a source location
+  (node/expr/op/-> (length tupRelationList) tupRelationList))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -29,6 +29,7 @@
 ; This is the macro that produces an "and" formula!
 ; To use real Racket and, use @and.
 (require "../lang/ast.rkt" (prefix-in @ racket))
+(provide lift-bounds-expr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Only Expression and IntExpression cases needed
