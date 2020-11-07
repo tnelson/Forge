@@ -198,10 +198,6 @@
     ; INTERSECTION
     [(? node/expr/op/&?)
      (printf "& ~a~n" expr)
-     ;(define children (map (lambda (x) (desugar-expr x quantvars runContext)) args))
-     ; first argument of & struct is the arity, second is the child expressions
-     ;(node/expr/op/& (length children) children)
-
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in LHS) AND (currTupIfAtomic in RHS)
      (define currTupIfAtomicExpr (tuple2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
