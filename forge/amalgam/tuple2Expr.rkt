@@ -25,15 +25,26 @@ In essence, this function goes from semantics (a row in a database/relation) to 
       ; keep only the atom relations whose name matches tupElem
       (define filterResult
         (filter (lambda (atomRel)
-                  (or (equal? tupElem (forge:relation-name atomRel))
-                      (and (symbol? tupElem)
-                           (equal? (symbol->string tupElem) (forge:relation-name atomRel)))))
-                (forge:Run-atom-rels context)))
+                  ;(if (positive? -5) (error "doesn't get here") 2)
+                  ;tupleElem is a string and atomRel is a symbol
+                  ;(if (and (string? stupElem) (not (symbol? atomRel)))
+                  (cond
+                    [(and (string? tupElem) (not (symbol? atomRel))) (equal? tupElem (string atomRel))]
+                    [(and (string? tupElem) (symbol? atomRel)) (equal? tupElem (symbol->string atomRel))]
+                    [(and (not (string? tupElem)) (not (symbol? atomRel))) (equal? (symbol->string tupElem) (string atomRel))]
+                    [(and (not (string? tupElem)) (symbol? atomRel)) (equal? (symbol->string tupElem) (symbol->string atomRel))]))
+                  ;(or (and (symbol? atomRel) (equal? tupElem (symbol->string atomRel)))
+                  ;    (and (not (symbol? atomRel)) (equal? (string atomRel) tupElem))
+                  ;    (and (symbol? tupElem)
+                  ;        (equal? (symbol->string tupElem) (symbol->string atomRel)))))
+                ; Is something messed up with the types?
+                (forge:Run-atoms context)))
       (cond [(equal? 1 (length filterResult)) (first filterResult)]
             [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
     tuple))
   ; TODO: once Tim revises the AST, will need to provide a source location
   (node/expr/op/-> (length tupRelationList) tupRelationList))
+
 
 ; There are, unfortunately, multiple ways that we use the word "relation". There are even more in the context
 ; of Forge. Here are some:

@@ -13,6 +13,9 @@
      #:scope [(Node 7)]) ; run macro does a lot, including binding udt identifier
 ;(display udt) ; this, if run, would send to Sterling
 
+; returns a list of symbols
+(forge:Run-atoms udt)
+
 (define edgeTuple1 '(Node0 Node1))
 (define edgeTuple2 '(Node1 Node2))
 
