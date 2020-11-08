@@ -14,8 +14,8 @@
   (define src-datums0 (formatem src-lines))
   (define src-datums (append '((require "server.rkt" "kks.rkt" "server-common.rkt")
                                (define kks (new server% 
-                                                [initializer (thunk (kodkod-initializer #f))]
-                                                [stderr-handler (curry kodkod-stderr-handler "blank")]))
+                                                [initializer (thunk (pardinus-initializer #f))]
+                                                [stderr-handler (curry pardinus-stderr-handler "blank")]))
                                (send kks initialize)
                                (define stdin (send kks stdin))
                                (define stdout (send kks stdout)))

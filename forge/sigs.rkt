@@ -504,6 +504,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (struct-copy State state
                [constants new-state-constants]))
 
+(define (set-option! option value)
+  (update-state! (state-set-option curr-state option value)))
+
 ; state-set-option :: State, Symbol, Symbol -> State
 ; Sets option to value for state.
 (define (state-set-option state option value)
