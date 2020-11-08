@@ -1,8 +1,8 @@
 #lang forge/core
 
 (require "forge_ex.rkt")    ; start by running this Forge spec
-(require "tuple2Expr.rkt")  ; make available the tuple2Expr helpers
-
+;(require "tuple2Expr.rkt")  ; make available the tuple2Expr helpers
+(require "desugar.rkt")
 ;----------------------------------------------
 ; Testing (TODO: move into Racket test module + rackunit)
 
@@ -14,11 +14,20 @@
 ;(display udt) ; this, if run, would send to Sterling
 
 ; returns a list of symbols
-(forge:Run-atoms udt)
+;(print (not (string? -8)))
+;(not false)
+;(print "HERE")
+;(not (forge:node/formula #f))
+;(print (not #f))
+
+;(print (forge:Run-atoms udt))
+;(forge:Run-atoms udt)
+
 
 (define edgeTuple1 '(Node0 Node1))
 (define edgeTuple2 '(Node1 Node2))
 
 (tup2Expr edgeTuple1 udt) ; udt is in scope, because the name is def'd in the forge module
+
 
 

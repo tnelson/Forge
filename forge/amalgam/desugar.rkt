@@ -13,7 +13,7 @@
 (require "../lang/ast.rkt" (prefix-in @ racket))
 (require "../sigs.rkt")
 (require "lift-bounds.rkt")
-(require "tuple2Expr.rkt")
+(provide tup2Expr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -63,7 +63,7 @@
     [(? node/formula/op/||?)
      (printf "or~n")
      ; The desugared version of OR is: to call args recursively
-     (define desugardArgs (map (lambda (x) (desugar-formula x quantvars runContext)) args))
+     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext)) args))
      (node/formula/op/|| (length desugaredArgs) desugaredArgs)
      ]
     
@@ -93,7 +93,7 @@
      ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
      (define desugaredAnd (node/formula/op/&& (length lifted-upper-bounds)
                          (map (lambda (x)
-                                (define tupExpr (tup2Expr x))
+                                (define tupExpr (tup2Expr x runContext))
                                 (define ante (node/formula/op/in tupExpr leftE))
                                 (define cons (node/formula/op/in tupExpr rightE))
                                 (define desugaredImplies (node/formula/op/=> 2 ante cons))
@@ -179,7 +179,7 @@
     [(? node/expr/op/+?)
      (printf "+~n")
      ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
-     (define currTupIfAtomicExpr (tuple2Expr currTupIfAtomic runContext))
+     (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define cons (node/formula/op/in (list currTupIfAtomicExpr (second args))))
      (define desugaredUnion (node/formula/op/|| (list ante cons)))
@@ -189,7 +189,7 @@
     [(? node/expr/op/-?)
      (printf "-~n")
       ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) AND (not(currTupIfAtomic in RHS))
-     (define currTupIfAtomicExpr (tuple2Expr currTupIfAtomic runContext))
+     (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define cons (node/formula/op/! (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
      (define desugaredSetMinus (node/formula/op/&& (list ante cons)))
@@ -198,12 +198,9 @@
     ; INTERSECTION
     [(? node/expr/op/&?)
      (printf "& ~a~n" expr)
-     ;(define children (map (lambda (x) (desugar-expr x quantvars runContext)) args))
-     ; first argument of & struct is the arity, second is the child expressions
-     ;(node/expr/op/& (length children) children)
 
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in LHS) AND (currTupIfAtomic in RHS)
-     (define currTupIfAtomicExpr (tuple2Expr currTupIfAtomic runContext))
+     (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define cons (node/formula/op/in (list currTupIfAtomicExpr (second args))))
      (define desugaredIntersection (node/formula/op/&& (list ante cons)))
@@ -326,10 +323,8 @@
      ]
     ))
 
-; Function tuple2Expression which turns a Tuple into an Expression
-; Backup
+
 (define (tup2Expr tuple context)
-  ;(printf "tup2Expr: testing is context a Run? ~a~n" (forge:Run? context))
   (define tupRelationList
    ; replace every element of the tuple (atoms) with the corresponding atom relation
    (map
@@ -337,10 +332,12 @@
       ; keep only the atom relations whose name matches tupElem
       (define filterResult
         (filter (lambda (atomRel)
-                  (or (equal? tupElem (forge:relation-name atomRel))
-                      (and (symbol? tupElem)
-                           (equal? (symbol->string tupElem) (forge:relation-name atomRel)))))
-                (forge:Run-atom-rels context)))
+                  (cond
+                    [(@and (string? tupElem) (@not (symbol? atomRel))) (equal? tupElem (string atomRel))]
+                    [(@and (string? tupElem) (symbol? atomRel)) (equal? tupElem (symbol->string atomRel))]
+                    [(@and (@not (string? tupElem)) (@not (symbol? atomRel))) (equal? (symbol->string tupElem) (number->string atomRel))]
+                    [(@and (@not (string? tupElem)) (symbol? atomRel)) (equal? (symbol->string tupElem) (symbol->string atomRel))]))
+                (forge:Run-atoms context)))
       (cond [(equal? 1 (length filterResult)) (first filterResult)]
             [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
     tuple))
@@ -350,7 +347,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define Node  (declare-relation '(univ) 'univ "Node"))
+#|(define Node  (declare-relation '(univ) 'univ "Node"))
 (define edges (declare-relation '(Node Node) 'Node "edges"))
 (define f-symmetric (= edges (~ edges)))
 (define f-irreflexive (no (& edges iden)))
@@ -361,7 +358,7 @@
 "Irreflexive ~n" 
 (desugar-formula f-irreflexive '() '())
 "some-reaches-all ~n" 
-(desugar-formula f-some-reaches-all '() '())
+(desugar-formula f-some-reaches-all '() '())|#
 
 
 
