@@ -52,6 +52,7 @@
 ; Technical stuff
 (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
 (provide set-path!)
+(provide set-option!)
 (define (set-path! path) #f)
 
 ; Data structures
@@ -505,7 +506,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
                [constants new-state-constants]))
 
 (define (set-option! option value)
-  (update-state! (state-set-option curr-state option value)))
+  (cond [(or (equal? option 'verbosity)
+             (equal? option 'verbose))
+         (set-verbosity value)]
+        [else
+         (update-state! (state-set-option curr-state option value))]))
 
 ; state-set-option :: State, Symbol, Symbol -> State
 ; Sets option to value for state.
