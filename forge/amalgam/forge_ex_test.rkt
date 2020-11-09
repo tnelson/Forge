@@ -28,7 +28,7 @@
 (define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 
 (printf "Symmetric ~n")
-(desugar-formula f-symmetric '() udt)
+(desugar-formula f-symmetric '() udt true)
 ;(printf "Irreflexive ~n")
 ;(desugar-formula f-irreflexive '() udt)
 ;(printf "some-reaches-all ~n")

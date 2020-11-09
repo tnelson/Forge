@@ -238,10 +238,9 @@
     [(? node/expr/op/~?)
      (printf "~~~n")
      (printf args)
-     ;(define transposedTuple (transposeTup(currTupIfAtomic)))
-     
+     (define transposedTuple (transposeTup(currTupIfAtomic)))
      ; Q: What do we do with the transposed tuple? 
-     ;(map (lambda (x) (desugar-expr x quantvars runContext)) args)
+     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
      ]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
