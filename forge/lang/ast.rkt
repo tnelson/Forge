@@ -332,7 +332,8 @@
 
 (define-formula-op = node/expr? #:same-arity? #t #:max-length 2 #:lift int=)
 
-(define not !)
+; No, don't do this.
+;(define not !)
 
 (define-syntax (@@and stx)
   (syntax-case stx ()

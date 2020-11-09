@@ -35,7 +35,7 @@
 
 ; Formula
 (provide true false)
-(provide -> => implies ! not and or && || ifte iff <=>)
+(provide -> => implies ! and or && || ifte iff <=>)
 (provide = in ni) 
 (provide != !in !ni)
 (provide no some one lone all set) ; two)
@@ -73,6 +73,9 @@
 
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
+
+; export the raw AST for matching vs. the structs
+(provide (all-from-out "lang/ast.rkt"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
@@ -556,13 +559,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-simple-macro (implies a b) (=> a b))
 (define-simple-macro (iff a b) (and (=> a b) (=> b a)))
 (define-simple-macro (<=> a b) (and (=> a b) (=> b a)))
-(define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
+(define-simple-macro (ifte a b c) (and (=> a b) (=> (! a) c)))
 (define-simple-macro (>= a b) (or (> a b) (int= a b)))
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
 (define-simple-macro (ni a b) (in b a))
-(define-simple-macro (!= a b) (not (= a b)))
-(define-simple-macro (!in a b) (not (in a b)))
-(define-simple-macro (!ni a b) (not (ni a b)))
+(define-simple-macro (!= a b) (! (= a b)))
+(define-simple-macro (!in a b) (! (in a b)))
+(define-simple-macro (!ni a b) (! (ni a b)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -722,7 +725,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (~? (unless (member 'target-distance '(close far))
               (raise (format "Target distance expected one of (close, far); got ~a." 'target-distance))))
         (when (~? (or #t 'target-contrast) #f)
-          (set! run-preds (~? (list (not (and preds ...))) (~? (list (not pred)) (list false)))))
+          (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
 
 
         (define run-command #,command)
@@ -773,7 +776,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
               (~optional (~seq #:preds (pred ...)))
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
-     #'(run name (~? (~@ #:preds [(not (and pred ...))]))
+     #'(run name (~? (~@ #:preds [(! (and pred ...))]))
                  (~? (~@ #:scope ([sig lower upper] ...)))
                  (~? (~@ #:bounds (bound ...))))]))
 
@@ -905,7 +908,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (define new-preds
             (if (equal? compare 'compare)
                 (Run-spec-preds (Run-run-spec run))
-                (list (not (foldr (lambda (a b) (and a b))
+                (list (! (foldr (lambda (a b) (and a b))
                                   true
                                   (Run-spec-preds (Run-run-spec run)))))))
 

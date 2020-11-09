@@ -1,4 +1,5 @@
-#lang racket
+;#lang racket
+#lang forge/core
 
 ; Desugaring functions for Amalgam
 ; (full AST) -> (restricted AST without stuff like implies)
@@ -10,10 +11,10 @@
 ; Warning: ast.rkt exports (e.g.) "and".
 ; This is the macro that produces an "and" formula!
 ; To use real Racket and, use @and.
-(require "../lang/ast.rkt" (prefix-in @ racket))
-(require "../sigs.rkt")
+;(require "../lang/ast.rkt" (prefix-in @ racket))
+;(require "../sigs.rkt")
 (require "lift-bounds.rkt")
-(provide tup2Expr)
+(provide tup2Expr desugar-formula)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -72,33 +73,37 @@
      (printf "implies~n")
      ; The desugared version of IMPLIES is: (not LHS) OR (RHS)
      (define ante (node/formula/op/!(list (first args))))
-     (define cons (second args))
-     (define desugaredImplies (node/formula/op/|| (list ante cons)))
+     (define conseq (second args))
+     (define desugaredImplies (node/formula/op/|| (list ante conseq)))
      (desugar-formula desugaredImplies quantvars runContext)]
     
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
      (printf "in~n")
      ; Doing the non-ground case (e1 in e2) first (TODO: other)
+     ;; TODO: need to add the ground case, or the recursion goes forever!
+     ; Tim thinks the ground case is: LHS is a single tuple (ground product)
+     ; Node0->Node1 in ^edges   <--- this is a ground case of IN! we know the current tuple
+     ; Node0->Node1 + Node1->Node2 in ^edges <--- need to turn into an and-of-implications
+     ; edges in ~edges <--- same deal, need to build an and-of-implications
+     
+     ; ^^ FILL IN GROUND CASE HERE (and use a cond to avoid the code below in that case)
      
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
      (define leftE (first args)) 
-     (define rightE (second args)) ; TODO: descend on these somewhere -- after? 
-     ; lift-bounds-expr should take *full kodkod bounds* and produce just an upper-bound
-     (define kkBounds '())
-     (define lifted-upper-bounds (lift-bounds-expr leftE '() kkBounds)) 
-
+     (define rightE (second args)) ; TODO: descend on these somewhere -- after?      
+     (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext)) 
+     ;(printf "lub: ~a~n" lifted-upper-bounds)
      ; TODO: other args?
      ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
-     (define desugaredAnd (node/formula/op/&& (length lifted-upper-bounds)
+     (define desugaredAnd (node/formula/op/&& 
                          (map (lambda (x)
                                 (define tupExpr (tup2Expr x runContext))
-                                (define ante (node/formula/op/in tupExpr leftE))
-                                (define cons (node/formula/op/in tupExpr rightE))
-                                (define desugaredImplies (node/formula/op/=> 2 ante cons))
-                                ; Call every single pair of implies recursively to get broken down even further  
-                                (desugar-formula desugaredImplies quantvars runContext)) lifted-upper-bounds)))
+                                (define ante   (node/formula/op/in (list tupExpr leftE)))
+                                (define conseq (node/formula/op/in (list tupExpr rightE)))
+                                (node/formula/op/=> (list ante conseq))) lifted-upper-bounds)))
+     (printf "desugaredAnd: ~a~n" desugaredAnd)
      (desugar-formula desugaredAnd quantvars runContext)]
 
     ; EQUALS 
@@ -106,8 +111,8 @@
      (printf "=~n")
      ; The desugared version of EQUALS is: (LHS in RHS) AND (RHS in LHS)
      (define ante (node/formula/op/in (list (first args) (second args))))
-     (define cons (node/formula/op/in (list (second args) (first args))))
-     (define desugaredEquals (node/formula/op/&& (list ante cons)))
+     (define conseq (node/formula/op/in (list (second args) (first args))))
+     (define desugaredEquals (node/formula/op/&& (list ante conseq)))
      (desugar-formula desugaredEquals quantvars runContext)]
 
     ; NEGATION
@@ -115,8 +120,10 @@
      (printf "not~n")
       ; The desugared version of NEGATION is: RHS implies false
      (define ante (first args))
-     (define cons (#f))
-     (define desugaredNegation (node/formula/op/=> (list ante cons)))
+     ;; NOTE: TODO: Java version flips a boolean + recurs, negating meaning of operators
+     ; need to implement that
+     (define conseq false)
+     (define desugaredNegation (node/formula/op/=> (list ante conseq)))
      (desugar-formula desugaredNegation quantvars runContext)]   
 
     ; INTEGER >
@@ -181,8 +188,8 @@
      ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
-     (define cons (node/formula/op/in (list currTupIfAtomicExpr (second args))))
-     (define desugaredUnion (node/formula/op/|| (list ante cons)))
+     (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
+     (define desugaredUnion (node/formula/op/|| (list ante conseq)))
      (desugar-formula desugaredUnion quantvars runContext)]
     
     ; SETMINUS 
@@ -191,8 +198,8 @@
       ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) AND (not(currTupIfAtomic in RHS))
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
-     (define cons (node/formula/op/! (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
-     (define desugaredSetMinus (node/formula/op/&& (list ante cons)))
+     (define conseq (node/formula/op/! (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
+     (define desugaredSetMinus (node/formula/op/&& (list ante conseq)))
      (desugar-formula desugaredSetMinus quantvars runContext)] 
     
     ; INTERSECTION
@@ -202,8 +209,8 @@
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in LHS) AND (currTupIfAtomic in RHS)
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
-     (define cons (node/formula/op/in (list currTupIfAtomicExpr (second args))))
-     (define desugaredIntersection (node/formula/op/&& (list ante cons)))
+     (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
+     (define desugaredIntersection (node/formula/op/&& (list ante conseq)))
      (desugar-formula desugaredIntersection quantvars runContext)]
     
     ; PRODUCT
@@ -333,10 +340,10 @@
       (define filterResult
         (filter (lambda (atomRel)
                   (cond
-                    [(@and (string? tupElem) (@not (symbol? atomRel))) (equal? tupElem (string atomRel))]
-                    [(@and (string? tupElem) (symbol? atomRel)) (equal? tupElem (symbol->string atomRel))]
-                    [(@and (@not (string? tupElem)) (@not (symbol? atomRel))) (equal? (symbol->string tupElem) (number->string atomRel))]
-                    [(@and (@not (string? tupElem)) (symbol? atomRel)) (equal? (symbol->string tupElem) (symbol->string atomRel))]))
+                    [(and (string? tupElem) (not (symbol? atomRel))) (equal? tupElem (string atomRel))]
+                    [(and (string? tupElem) (symbol? atomRel)) (equal? tupElem (symbol->string atomRel))]
+                    [(and (not (string? tupElem)) (not (symbol? atomRel))) (equal? (symbol->string tupElem) (number->string atomRel))]
+                    [(and (not (string? tupElem)) (symbol? atomRel)) (equal? (symbol->string tupElem) (symbol->string atomRel))]))
                 (forge:Run-atoms context)))
       (cond [(equal? 1 (length filterResult)) (first filterResult)]
             [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
@@ -346,19 +353,6 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-#|(define Node  (declare-relation '(univ) 'univ "Node"))
-(define edges (declare-relation '(Node Node) 'Node "edges"))
-(define f-symmetric (= edges (~ edges)))
-(define f-irreflexive (no (& edges iden)))
-(define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
-
-"Symmetric ~n" 
-(desugar-formula f-symmetric '() '())
-"Irreflexive ~n" 
-(desugar-formula f-irreflexive '() '())
-"some-reaches-all ~n" 
-(desugar-formula f-some-reaches-all '() '())|#
 
 
 

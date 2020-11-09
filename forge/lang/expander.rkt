@@ -709,7 +709,7 @@
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
-                 [expr2 (my-expand #'expr2)])
+                 [expr2 (my-expand #'expr2)])     
      (syntax/loc stx (implies expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
@@ -726,7 +726,7 @@
 
   [((~literal Expr) (~or "!" "not") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (not expr1)))]
+     (syntax/loc stx (! expr1)))]
 
   [((~literal Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -740,7 +740,7 @@
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [op #'op.symbol])
-     (syntax/loc stx (not (op expr1 expr2))))]
+     (syntax/loc stx (! (op expr1 expr2))))]
 
   [((~literal Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
                           op)

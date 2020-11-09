@@ -1,4 +1,5 @@
-#lang racket
+;#lang racket
+#lang forge/core
 
 ; Bounds lifting functions for Amalgam
 ; expression x bounds -> bounds
@@ -28,18 +29,22 @@
 ; Warning: ast.rkt exports (e.g.) "and".
 ; This is the macro that produces an "and" formula!
 ; To use real Racket and, use @and.
-(require "../lang/ast.rkt" (prefix-in @ racket))
+;(require "../lang/ast.rkt" (prefix-in @ racket))
+;(require "../sigs.rkt")
 (provide lift-bounds-expr)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Only Expression and IntExpression cases needed
 ; (we never try to lift bounds of a formula, because that makes no sense.)
-
+;  ... -> list<tuple> i.e., list<list<atom>>
 (define (lift-bounds-expr expr quantvars runContext)  
   (match expr
     ; relation name (base case)
     [(node/expr/relation arity name typelist parent)
-     expr]
+     (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
+     (define filtered-bounds (filter (lambda (b) (equal? name (forge:relation-name (forge:bound-relation b)))) all-bounds))
+     (cond [(equal? (length filtered-bounds) 1) (forge:bound-upper (first filtered-bounds))]
+           [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr name all-bounds))])]
     ; The Int constant
     [(node/expr/constant 1 'Int)
      expr]

@@ -28,5 +28,5 @@
       #:expect unsat)
 
 (example Node->Node-invalid2 
-         (not (undirectedTree (-> Node Node))) 
+         (! (undirectedTree (-> Node Node))) 
          [basic-example])

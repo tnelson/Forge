@@ -27,7 +27,24 @@
 (define edgeTuple1 '(Node0 Node1))
 (define edgeTuple2 '(Node1 Node2))
 
+(printf "tup2Expr test ~n")
 (tup2Expr edgeTuple1 udt) ; udt is in scope, because the name is def'd in the forge module
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;(define Node  (declare-relation '(univ) 'univ "Node"))
+;(define edges (declare-relation '(Node Node) 'Node "edges"))
+(define f-symmetric (= edges (~ edges)))
+(define f-irreflexive (no (& edges iden)))
+(define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
+
+(printf "Symmetric ~n")
+(desugar-formula f-symmetric '() udt)
+(printf "Irreflexive ~n")
+(desugar-formula f-irreflexive '() udt)
+(printf "some-reaches-all ~n")
+(desugar-formula f-some-reaches-all '() udt)
+
 
 
 
