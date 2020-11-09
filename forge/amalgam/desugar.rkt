@@ -86,25 +86,29 @@
      ; Node0->Node1 in ^edges   <--- this is a ground case of IN! we know the current tuple
      ; Node0->Node1 + Node1->Node2 in ^edges <--- need to turn into an and-of-implications
      ; edges in ~edges <--- same deal, need to build an and-of-implications
-     
+  
      ; ^^ FILL IN GROUND CASE HERE (and use a cond to avoid the code below in that case)
-     
+
+     ; we already have the upper bounds Node0 -> Node1 upper bound is just Node0 -> Node1
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
-     (define leftE (first args)) 
+     (define leftE (first args))
      (define rightE (second args)) ; TODO: descend on these somewhere -- after?      
-     (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext)) 
+     (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
+     (cond
+       [(and (is-ground-lhs leftE) (equal? lifted-upper-bounds 1)) ...]
+       [else (
      ;(printf "lub: ~a~n" lifted-upper-bounds)
      ; TODO: other args?
      ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
-     (define desugaredAnd (node/formula/op/&& 
-                         (map (lambda (x)
+              (define desugaredAnd (node/formula/op/&& 
+                         (map (slambda (x)
                                 (define tupExpr (tup2Expr x runContext))
                                 (define ante   (node/formula/op/in (list tupExpr leftE)))
                                 (define conseq (node/formula/op/in (list tupExpr rightE)))
                                 (node/formula/op/=> (list ante conseq))) lifted-upper-bounds)))
-     (printf "desugaredAnd: ~a~n" desugaredAnd)
-     (desugar-formula desugaredAnd quantvars runContext currSign)]
+              (printf "desugaredAnd: ~a~n" desugaredAnd)
+              (desugar-formula desugaredAnd quantvars runContext currSign))])]
 
     ; EQUALS 
     [(? node/formula/op/=?)
@@ -192,7 +196,7 @@
     ; SETMINUS 
     [(? node/expr/op/-?)
      (printf "-~n")
-      ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) AND (not(currTupIfAtomic in RHS))
+      ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) fff (not(currTupIfAtomic in RHS))
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define conseq (node/formula/op/! (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
@@ -357,6 +361,15 @@
   (cond 
          [(equal? (length(tuple)) 2) ((list (second tuple) (first tuple)))]
          [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length(tuple)))]))
+
+; Used to determine if we are at the base case
+(define (is-ground-lhs leftE)
+  (cond
+    [(unary-op? leftE) ...]
+    [(binary-op? leftE) (if (node/expr/op/->? leftE) (and (is-ground-lhs (first leftE))  (is-ground-lhs (second leftE))))]
+    ; TODO: ExprVar case
+    [(node/expr/constant? leftE) (if (number? (node/expr/constant leftE)) true)]
+    [else (false)]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
