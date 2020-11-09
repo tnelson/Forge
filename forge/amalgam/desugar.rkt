@@ -19,7 +19,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Take in runContext instead of bounds
-(define (desugar-formula formula quantvars runContext)
+(define (desugar-formula formula quantvars runContext currSign)
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant type)
@@ -27,7 +27,7 @@
     
     ; operator formula (and, or, implies, ...)
     [(node/formula/op args)
-     (desugar-formula-op formula quantvars args runContext)]
+     (desugar-formula-op formula quantvars args runContext currSign)]
     
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity mult expr)
@@ -39,7 +39,7 @@
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        (desugar-expr (cdr (car decls)) quantvars runContext)     
-       (desugar-formula form quantvars runContext)
+       (desugar-formula form quantvars runContext currSign)
        (printf "quant ~a~n" quantifier))]
     
     ; truth and falsity
@@ -49,14 +49,14 @@
 
 ; This function is recursively calling every element in args and pass it to the
 ; original recursive function. 
-(define (desugar-formula-op formula quantvars args runContext)
+(define (desugar-formula-op formula quantvars args runContext currSign)
   (match formula
 
     ; AND
     [(? node/formula/op/&&?)
      (printf "and~n")
      ; The desugared version of AND is: to call args recursively
-     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext)) args))
+     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (node/formula/op/&& (length desugaredArgs) desugaredArgs)
      ]
     
@@ -64,7 +64,7 @@
     [(? node/formula/op/||?)
      (printf "or~n")
      ; The desugared version of OR is: to call args recursively
-     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext)) args))
+     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (node/formula/op/|| (length desugaredArgs) desugaredArgs)
      ]
     
@@ -75,7 +75,7 @@
      (define ante (node/formula/op/!(list (first args))))
      (define conseq (second args))
      (define desugaredImplies (node/formula/op/|| (list ante conseq)))
-     (desugar-formula desugaredImplies quantvars runContext)]
+     (desugar-formula desugaredImplies quantvars runContext currSign)]
     
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
@@ -104,7 +104,7 @@
                                 (define conseq (node/formula/op/in (list tupExpr rightE)))
                                 (node/formula/op/=> (list ante conseq))) lifted-upper-bounds)))
      (printf "desugaredAnd: ~a~n" desugaredAnd)
-     (desugar-formula desugaredAnd quantvars runContext)]
+     (desugar-formula desugaredAnd quantvars runContext currSign)]
 
     ; EQUALS 
     [(? node/formula/op/=?)
@@ -113,36 +113,33 @@
      (define ante (node/formula/op/in (list (first args) (second args))))
      (define conseq (node/formula/op/in (list (second args) (first args))))
      (define desugaredEquals (node/formula/op/&& (list ante conseq)))
-     (desugar-formula desugaredEquals quantvars runContext)]
+     (desugar-formula desugaredEquals quantvars runContext currSign)]
 
     ; NEGATION
     [(? node/formula/op/!?)
      (printf "not~n")
-      ; The desugared version of NEGATION is: RHS implies false
-     (define ante (first args))
-     ;; NOTE: TODO: Java version flips a boolean + recurs, negating meaning of operators
-     ; need to implement that
-     (define conseq false)
-     (define desugaredNegation (node/formula/op/=> (list ante conseq)))
-     (desugar-formula desugaredNegation quantvars runContext)]   
+     ; The desugared version of NEGATION is to flip the currSign type 
+     (= (not currSign) currSign)
+     (desugar-formula formula quantvars runContext currSign)
+     (= (not currSign) currSign)]   
 
     ; INTEGER >
     [(? node/formula/op/int>?)
      (printf "int>~n")
-     (error "amalgam: int > not supported")
+     (error "amalgam: int > not supported ~n")
     ]
     ; INTEGER <
     [(? node/formula/op/int<?)
      (printf "int<~n")
-     (error "amalgam: int < not supported")
+     (error "amalgam: int < not supported ~n")
      ]
     ; INTEGER =
     [(? node/formula/op/int=?)
      (printf "int=~n")
-     (error "amalgam: int = not supported")
+     (error "amalgam: int = not supported ~n")
      ]))
 
-(define (desugar-expr expr quantvars runContext)
+(define (desugar-expr expr quantvars runContext currSign)
   (match expr
     ; relation name (base case)
     [(node/expr/relation arity name typelist parent)
@@ -158,12 +155,12 @@
     [(node/expr/op arity args)
      ; currTupIfAtomic is the implicit LHS of the expression
      (desugar-expr-op expr quantvars args (first args) runContext)]
-
-    ; Q: I am a little bit confused about this case 
+ 
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
      ;;(print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
-     (printf "  ~a~n" sym)]
+     (printf "  ~a~n" sym)
+     (error "amalgam: Something wasn't substituted correctly or the formula was malformed ~n")]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension len decls form)
@@ -177,9 +174,9 @@
                    (desugar-expr (cdr d) quantvars runContext)
                    (printf "    decl: ~a~n" d))
                  decls)     
-       (desugar-formula form quantvars runContext))]))
+       (desugar-formula form quantvars runContext currSign))]))
 
-(define (desugar-expr-op expr quantvars args currTupIfAtomic runContext)
+(define (desugar-expr-op expr quantvars args currTupIfAtomic runContext currSign)
   (match expr
     ; Q: Should I be accounting for multiple unions? like in the intersection case below? 
     ; UNION
@@ -190,7 +187,7 @@
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
      (define desugaredUnion (node/formula/op/|| (list ante conseq)))
-     (desugar-formula desugaredUnion quantvars runContext)]
+     (desugar-formula desugaredUnion quantvars runContext currSign)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
@@ -200,7 +197,7 @@
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define conseq (node/formula/op/! (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
      (define desugaredSetMinus (node/formula/op/&& (list ante conseq)))
-     (desugar-formula desugaredSetMinus quantvars runContext)] 
+     (desugar-formula desugaredSetMinus quantvars runContext currSign)] 
     
     ; INTERSECTION
     [(? node/expr/op/&?)
@@ -211,7 +208,7 @@
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
      (define desugaredIntersection (node/formula/op/&& (list ante conseq)))
-     (desugar-formula desugaredIntersection quantvars runContext)]
+     (desugar-formula desugaredIntersection quantvars runContext currSign)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -240,7 +237,11 @@
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (printf "~~~n")
-     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
+     (printf args)
+     ;(define transposedTuple (transposeTup(currTupIfAtomic)))
+     
+     ; Q: What do we do with the transposed tuple? 
+     ;(map (lambda (x) (desugar-expr x quantvars runContext)) args)
      ]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
@@ -278,32 +279,32 @@
     ; int addition
     [(? node/int/op/add?)
      (printf "int+~n")
-     (error "amalgam: int + not supported")
+     (error "amalgam: int + not supported~n")
      ]
     
     ; int subtraction
     [(? node/int/op/subtract?)
      (printf "int-~n")
-     (error "amalgam: int - not supported")
+     (error "amalgam: int - not supported~n")
      ]
     
     ; int multiplication
     [(? node/int/op/multiply?)
      (printf "int*~n")
-     (error "amalgam: int * not supported")
+     (error "amalgam: int * not supported~n")
      ]
     
     ; int division
     [(? node/int/op/divide?)
      (printf "int/~n")
-     (error "amalgam: int / not supported")
+     (error "amalgam: int / not supported ~n")
      ]
     
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
      (printf "intsum~n")
-     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
+      (error "amalgam: sum not supported ~n")
      ]
     
     ; cardinality (e.g., #Node)
@@ -314,23 +315,24 @@
     
     ; remainder/modulo
     [(? node/int/op/remainder?)     
-     (error "amalgam: int % (modulo) not supported")
+     (error "amalgam: int % (modulo) not supported~n")
      ]
     
     ; absolute value
     [(? node/int/op/abs?)
      (printf "abs~n")
-     (error "amalgam: int abs not supported")
+     (error "amalgam: int abs not supported~n")
      ]
     
     ; sign-of 
     [(? node/int/op/sign?)
      (printf "sign~n")
-     (error "amalgam: int sign-of not supported")
+     (error "amalgam: int sign-of not supported~n")
      ]
     ))
 
-
+; Helper to transform a given tuple from the lifted-upper bounds function to a relation, and then do the product of all relations
+; to form an expression. 
 (define (tup2Expr tuple context)
   (define tupRelationList
    ; replace every element of the tuple (atoms) with the corresponding atom relation
@@ -350,6 +352,12 @@
     tuple))
   ; TODO: once Tim revises the AST, will need to provide a source location
   (node/expr/op/-> (length tupRelationList) tupRelationList))
+
+; Helper used to flip the currentTupleIfAtomic in the transpose case 
+(define (transposeTup tuple)
+  (cond 
+         [(equal? (length(tuple)) 2) ((list (second tuple) (first tuple)))]
+         [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length(tuple)))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

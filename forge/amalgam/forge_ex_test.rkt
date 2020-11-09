@@ -13,22 +13,11 @@
      #:scope [(Node 7)]) ; run macro does a lot, including binding udt identifier
 ;(display udt) ; this, if run, would send to Sterling
 
-; returns a list of symbols
-;(print (not (string? -8)))
-;(not false)
-;(print "HERE")
-;(not (forge:node/formula #f))
-;(print (not #f))
-
-;(print (forge:Run-atoms udt))
-;(forge:Run-atoms udt)
-
-
 (define edgeTuple1 '(Node0 Node1))
 (define edgeTuple2 '(Node1 Node2))
 
-(printf "tup2Expr test ~n")
-(tup2Expr edgeTuple1 udt) ; udt is in scope, because the name is def'd in the forge module
+;(printf "tup2Expr test ~n")
+;(tup2Expr edgeTuple1 udt) ; udt is in scope, because the name is def'd in the forge module
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -40,10 +29,10 @@
 
 (printf "Symmetric ~n")
 (desugar-formula f-symmetric '() udt)
-(printf "Irreflexive ~n")
-(desugar-formula f-irreflexive '() udt)
-(printf "some-reaches-all ~n")
-(desugar-formula f-some-reaches-all '() udt)
+;(printf "Irreflexive ~n")
+;(desugar-formula f-irreflexive '() udt)
+;(printf "some-reaches-all ~n")
+;(desugar-formula f-some-reaches-all '() udt)
 
 
 
