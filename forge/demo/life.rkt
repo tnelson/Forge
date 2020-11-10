@@ -1,10 +1,10 @@
 #lang racket
-(require "../lang/ast.rkt")
+(require (prefix-in forge: "../lang/ast.rkt"))
 (provide output-life)
 
 (define (output-life inst)
-  (define alive-key (findf (λ (kr) (equal? (node/expr/relation-name kr) "alive")) (hash-keys inst)))
-  (define bound-key (findf (λ (kr) (equal? (node/expr/relation-name kr) "Int")) (hash-keys inst)))
+  (define alive-key (findf (λ (kr) (equal? (forge:node/expr/relation-name kr) "alive")) (hash-keys inst)))
+  (define bound-key (findf (λ (kr) (equal? (forge:node/expr/relation-name kr) "Int")) (hash-keys inst)))
   (define bound (length (hash-ref inst bound-key)))
   (define shift (curry + (/ bound 2)))
   (println (format "bound: ~a, shift: ~a" bound (shift 3)))

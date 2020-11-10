@@ -1,6 +1,7 @@
 #lang racket
 
-(require (for-syntax racket/syntax) (prefix-in @ racket) (prefix-in $ racket))
+(require (for-syntax racket/syntax syntax/srcloc)
+         (prefix-in @ racket) (prefix-in $ racket))
 
 (provide (except-out (all-defined-out) next-name @@and @@or int< int>)
          (rename-out [@@and and] [@@or or] [int< <] [int> >]))
@@ -61,39 +62,65 @@
 
 ;; EXPRESSIONS -----------------------------------------------------------------
 
+; Previously, this would be: 
+;(foldl @join rel vars))   ; rel[a][b]...  (taken from breaks.rkt)
+; or (foldl join r sigs) (taken from below)
+(define (build-box-join sofar todo)
+  (cond [(empty? todo) sofar]
+        [else
+         (build-box-join (join (first todo) sofar) (rest todo))]))
+
 (struct node/expr (arity) #:transparent
-  #:property prop:procedure (λ (r . sigs) (foldl join r sigs))
+  #:property prop:procedure (λ (r . sigs) (build-box-join r sigs))
 )
 
 ;; -- operators ----------------------------------------------------------------
 
 (struct node/expr/op node/expr (children) #:transparent)
 
+; #,(build-source-location stx2)
+
 ; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-expr-op stx)
   (syntax-case stx ()
-    [(_ id arity checks ... #:lift @op #:type childtype)
-     (with-syntax ([name (format-id #'id "node/expr/op/~a" #'id)])
+    [(_ id arity checks ... #:lift @op #:type childtype)     
+     (with-syntax ([name (format-id #'id "node/expr/op/~a" #'id)]
+                   [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
            (struct name node/expr/op () #:transparent #:reflection-name 'id)
-           (define id
-             (lambda e
-               (if ($and @op (for/and ([a (in-list e)]) ($not (node/expr? a))))
-                   (apply @op e)
-                   (begin
-                     (check-args 'id e childtype checks ...)
-                     (if arity
-                         (let ([arities (for/list ([a (in-list e)]) (node/expr-arity a))])
-                           (name (apply arity arities) e))
-                         (name 1 e)))))))))] ; If arity is #f, assumed to be const 1
-    [(_ id arity checks ... #:lift @op)
+           (define-syntax (id stx2)
+             (syntax-case stx2 ()                              
+               [(_ e ellip)
+                (quasisyntax/loc stx2
+                  (begin
+                    ; Keeping this comment in case these macros need to be maintained:
+                    ; This line will cause a bad syntax error without any real error-message help.
+                    ; The problem is that "id" is the thing defined by this define-stx
+                    ;   so it'l try to expand (e.g.) "~" by itself. Instead of "id" use " 'id ".
+                    ;(printf "debug2, in ~a: ~a~n" id (list e ellip))
+
+                    ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
+                    (let* ([args-raw (list e ellip)]
+                           [args (cond
+                                   [(or (not (equal? 1 (length args-raw)))
+                                        (not (list? (first args-raw)))) args-raw]
+                                   [else (first args-raw)])])
+                      (if ($and @op (for/and ([a (in-list args)]) ($not (node/expr? a))))
+                          (apply @op args)
+                          (begin
+                            (check-args 'id args childtype checks ...)
+                            (if arity
+                                (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
+                                  (name (apply arity arities) args))
+                                (name 1 args)))))))])))))] ; If arity is #f, assumed to be const 1
+[(_ id arity checks ... #:lift @op)     
      (syntax/loc stx
        (define-expr-op id arity checks ... #:lift @op #:type node/expr?))]
-    [(_ id arity checks ... #:type childtype)
+    [(_ id arity checks ... #:type childtype)    
      (syntax/loc stx
        (define-expr-op id arity checks ... #:lift #f #:type childtype))]
-    [(_ id arity checks ...)
+    [(_ id arity checks ...)     
      (syntax/loc stx
        (define-expr-op id arity checks ... #:lift #f))]))
 
@@ -472,38 +499,3 @@
      (syntax/loc stx
        (let* ([x1 (node/expr/quantifier-var (node/expr-arity r1) 'x1)] ...)
          (sum-quant-expr (list (cons x1 r1) ...) int-expr)))]))
-
-
-;; PREDICATES ------------------------------------------------------------------
-
-; Operators that take only a single argument
-(define (unary-op? op)
-  (@or (node/expr/op/~? op)
-       (node/expr/op/^? op)
-       (node/expr/op/*? op)
-       (node/expr/op/sing? op)
-       (node/formula/op/!? op)
-       (node/int/op/sum? op)
-       (node/int/op/card? op)
-       (node/int/op/abs? op)
-       (node/int/op/sign? op)
-       (@member op (list ~ ^ * sing ! not sum card abs sign)))) ; These are just aliases for the expanded names
-(define (binary-op? op)
-  (@member op (list <: :> in = => int= int> int< remainder)))
-(define (nary-op? op)
-  (@member op (list + - & -> join && || add subtract multiply divide)))
-
-
-;; PREFABS ---------------------------------------------------------------------
-
-; Prefabs are functions that produce AST nodes. They're used in sketches, where
-; we might want to specify an entire expression as a terminal or non-terminal
-; rather than a single operator.
-; A prefab needs to specify two things:
-; (a) a function that takes a desired output arity k, and produces a list of
-;     inputs that could produce such an output arity when the prefad is applied
-; (b) a function that takes a number of inputs defined by the above function, 
-;     and produces an AST.
-
-(struct prefab (inputs ctor) #:transparent
-  #:property prop:procedure (struct-field-index ctor))
