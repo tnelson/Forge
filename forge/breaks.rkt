@@ -362,7 +362,7 @@
             (define vars (for/list ([p prefix]) 
                 (@node/expr/quantifier-var 1 (gensym "v"))
             ))
-            (define new-rel (foldl @join rel vars))   ; rel[a][b]...
+            (define new-rel (@build-box-join rel vars))  ; rel[a][b]...
             (define sub-breaker (f pri new-rel bound postfix-lists postfix))
             
             (define sub-break-graph (breaker-break-graph sub-breaker))

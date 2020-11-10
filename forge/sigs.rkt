@@ -1495,7 +1495,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define (abstract sig extenders)
       (if (@= (length extenders) 1)
           (= sig (car extenders))
-          (= sig (apply + extenders))))
+          (= sig (+ extenders))))
     (define (parent sig1 sig2)
       (in sig2 sig1))
     (define extends-constraints 
@@ -1526,6 +1526,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-relation-preds run-spec)
   (for/list ([relation (get-relations run-spec)])
     (define sig-rels (map Sig-rel (get-sigs run-spec relation)))
-    (in (Relation-rel relation) (apply -> sig-rels))))
+    (in (Relation-rel relation) (-> sig-rels))))
 
 
