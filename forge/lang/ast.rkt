@@ -3,8 +3,8 @@
 (require (for-syntax racket/syntax syntax/srcloc)
          (prefix-in @ racket) (prefix-in $ racket))
 
-(provide (except-out (all-defined-out) next-name @@and @@or int< int>)
-         (rename-out [@@and and] [@@or or] [int< <] [int> >]))
+(provide (except-out (all-defined-out) next-name @@and @@or @@not int< int>)
+         (rename-out [@@and and] [@@or or] [@@not not] [int< <] [int> >]))
 
 ; Ocelot ASTs are made up of expressions (which evaluate to relations) and
 ; formulas (which evaluate to booleans).
@@ -335,8 +335,9 @@
 
 (define-node-op = node/formula/op #f #:same-arity? #t #:max-length 2 #:lift int=-lifter #:type node/expr?) 
 
-; No, don't do this.
-;(define not !)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Lift the "and", "or" and "not" procedures
 
 (define-syntax (@@and stx)
   (syntax-case stx ()
@@ -347,6 +348,14 @@
          (if (node/formula? a0*)
              (&& a0* a ...)
              (and a0* a ...))))]))
+(define-syntax (@@not stx)
+  (syntax-case stx ()    
+    [(_ a0)
+     (syntax/loc stx
+       (let ([a0* a0])
+         (if (node/formula? a0*)
+             (! a0*)
+             (not a0*))))]))
 (define-syntax (@@or stx)
   (syntax-case stx ()
     [(_) (syntax/loc stx false)]
@@ -366,7 +375,7 @@
      (match-define (node/formula/quantified quantifier decls formula) self)
      (fprintf port "(~a [~a] ~a)" quantifier decls formula))])
 
-(define (quantified-formula quantifier decls formula)
+(define (quantified-formula quantifier decls formula)  
   (for ([e (in-list (map cdr decls))])
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
@@ -431,7 +440,7 @@
 
 (define-syntax (some stx)
   (syntax-case stx ()
-    [(_ ([v0 e0] ...) pred)
+    [(_ ([v0 e0] ...) pred)     
      (syntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
          (quantified-formula 'some (list (cons v0 e0) ...) pred)))]
