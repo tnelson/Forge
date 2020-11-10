@@ -183,6 +183,8 @@
     ; UNION
     [(? node/expr/op/+?)
      (printf "+~n")
+     ; Check that the currTupIfAtomic isn't empty 
+     (mustHaveTupleContext (currTupIfAtomic))
      ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
@@ -197,6 +199,8 @@
     ; SETMINUS 
     [(? node/expr/op/-?)
      (printf "-~n")
+      ; Check that the currTupIfAtomic isn't empty 
+     (mustHaveTupleContext (currTupIfAtomic))
       ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) fff (not(currTupIfAtomic in RHS))
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
@@ -211,6 +215,8 @@
     ; INTERSECTION
     [(? node/expr/op/&?)
      (printf "& ~a~n" expr)
+     ; Check that the currTupIfAtomic isn't empty 
+     (mustHaveTupleContext (currTupIfAtomic))
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in LHS) AND (currTupIfAtomic in RHS)
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
@@ -243,15 +249,23 @@
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (printf "*~n")
-     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
+     ; Check that the currTupIfAtomic isn't empty 
+     (mustHaveTupleContext (currTupIfAtomic))
+     ; The desugared version of REFLEXIVE-TRANSITIVE CLOSURE is ((univ) & (univ->univ)) + (^expr) 
+     (define productOfUniv (node/expr/op/-> (list univ univ)))
+     (define restrictedIden (node/expr/op/& (list univ productOfUniv)))
+     ; Q: I am not sure if this is OK
+     (define transitiveClosure (node/expr/op/^ (list args)))
+     (define desugaredRClosure (node/expr/op/+ (list restrictedIden transitiveClosure)))
+     (desugaredRClosure)
      ]
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (printf "~~~n")
      (define transposedCurrTupIfAtomic (transposeTup(currTupIfAtomic)))
-     ; Q: What do we do with the transposed tuple? 
-     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
+     ; Q: How can we modify the args to remove ~edges to just be 'edges'? 
+     (desugar-expr expr quantvars args transposedCurrTupIfAtomic runContext currSign)
      ]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
@@ -368,6 +382,11 @@
   (cond 
          [(equal? (length(tuple)) 2) ((list (second tuple) (first tuple)))]
          [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length(tuple)))]))
+
+; This helper checks the value of currTupIfAtomic and throws an error if it is empty. 
+(define (mustHaveTupleContext tup)
+  (cond
+    [(equal? (length tup) 0) (error "currTupIfAtomic is empty and it shouldn't be")]))
 
 ; Used to determine if we are at the base case
 (define (is-ground-lhs leftE)
