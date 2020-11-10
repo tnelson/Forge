@@ -1,13 +1,4 @@
-racket basic/booleanLogic.rkt
-racket basic/basicGraph.rkt
-racket basic/sudoku.rkt
-racket basic/instances.rkt
-racket basic/skolemOptions.rkt
-racket basic/sigMultiplicities.rkt
-racket basic/plinear.rkt
-
-racket ints/intConversion.rkt
-
-racket traces/addRemove.rkt
-
-racket test-evaluator.rkt
+for i in ./forge/*/*.rkt; do 
+  echo "******************** testing $i"; 
+  racket $i; 
+done
