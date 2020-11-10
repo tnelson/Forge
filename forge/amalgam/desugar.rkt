@@ -143,7 +143,7 @@
      (error "amalgam: int = not supported ~n")
      ]))
 
-(define (desugar-expr expr quantvars runContext currSign)
+(define (desugar-expr expr quantvars currTupIfAtomic runContext currSign)
   (match expr
     ; relation name (base case)
     [(node/expr/relation arity name typelist parent)
@@ -157,12 +157,10 @@
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
-     ; currTupIfAtomic is the implicit LHS of the expression
-     (desugar-expr-op expr quantvars args (first args) runContext)]
+     (desugar-expr-op expr quantvars args currTupIfAtomic runContext)]
  
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
-     ;;(print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
      (printf "  ~a~n" sym)
      (error "amalgam: Something wasn't substituted correctly or the formula was malformed ~n")]
 
@@ -182,7 +180,6 @@
 
 (define (desugar-expr-op expr quantvars args currTupIfAtomic runContext currSign)
   (match expr
-    ; Q: Should I be accounting for multiple unions? like in the intersection case below? 
     ; UNION
     [(? node/expr/op/+?)
      (printf "+~n")
@@ -190,8 +187,12 @@
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
-     (define desugaredUnion (node/formula/op/|| (list ante conseq)))
-     (desugar-formula desugaredUnion quantvars runContext currSign)]
+     ; Recur on the LHS and RHS to see if they need to be desugared further 
+     (define desugaredAnte (desugar-expr ante quantvars currTupIfAtomic runContext currSign))
+     (defined desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
+     ; Create the final desugared version of UNION by joining LHS and RHS with an OR 
+     (define desugaredUnion (node/formula/op/|| (list desugaredAnte desugaredConseq)))
+     desugaredUnion]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
@@ -200,19 +201,26 @@
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define conseq (node/formula/op/! (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
-     (define desugaredSetMinus (node/formula/op/&& (list ante conseq)))
-     (desugar-formula desugaredSetMinus quantvars runContext currSign)] 
+     ; Recur on the LHS and RHS to see if they need to be desugared further 
+     (define desugaredAnte (desugar-expr ante quantvars currTupIfAtomic runContext currSign))
+     (defined desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
+     ; Create the final desugared version of SETMINUS by joining LHS and RHS with an AND 
+     (define desugaredSetMinus (node/formula/op/&& (list desugaredAnte desugaredConseq)))
+     desugaredSetMinus] 
     
     ; INTERSECTION
     [(? node/expr/op/&?)
      (printf "& ~a~n" expr)
-
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in LHS) AND (currTupIfAtomic in RHS)
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
      (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
-     (define desugaredIntersection (node/formula/op/&& (list ante conseq)))
-     (desugar-formula desugaredIntersection quantvars runContext currSign)]
+     ; Recur on the LHS and RHS to see if they need to be desugared further
+     (define desugaredAnte (desugar-expr ante quantvars currTupIfAtomic runContext currSign))
+     (defined desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
+     ; Create the final desugared version of INTERSECTION by joining LHS and RHS with an AND 
+     (define desugaredIntersection (node/formula/op/&& (list desugaredAnte desugaredConseq)))
+     desugaredIntersection]
     
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -241,8 +249,7 @@
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (printf "~~~n")
-     (printf args)
-     (define transposedTuple (transposeTup(currTupIfAtomic)))
+     (define transposedCurrTupIfAtomic (transposeTup(currTupIfAtomic)))
      ; Q: What do we do with the transposed tuple? 
      (map (lambda (x) (desugar-expr x quantvars runContext)) args)
      ]
