@@ -40,7 +40,7 @@
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
-(define (check-args op args type?
+(define (check-args loc op args type?
                     #:same-arity? [same-arity? #f] #:arity [arity #f]
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
@@ -59,7 +59,7 @@
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
         (unless (equal? (node/expr-arity a) arity)
-          (printf "~a ~n" args)
+          (printf "~a ~a ~n" args loc)
           (raise-arguments-error op "arguments must have same arity"
                                  "got" arity "and" (node/expr-arity a) ":" args)))))
   (when join?
@@ -105,6 +105,7 @@
              (syntax-case stx2 ()                              
                [(_ e ellip)
                 (quasisyntax/loc stx2
+                  ;(printf "in created macro, arg location: ~a~n" (build-source-location stx2))
                   (begin
                     ; Keeping this comment in case these macros need to be maintained:
                     ; This line will cause a bad syntax error without any real error-message help.
@@ -121,7 +122,7 @@
                       (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
                           (apply @op args)
                           (begin
-                            (check-args 'id args childtype checks ...)
+                            (check-args #,(build-source-location stx2) 'id args childtype checks ...)
                             (if arity
                                 ; expression
                                 (if (andmap node/expr? args)
