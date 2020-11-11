@@ -388,15 +388,15 @@
   (define-syntax-class ConstClass
     #:attributes (translate)
     (pattern ((~literal Const) "none")
-      #:attr translate #'none)
+      #:attr translate (syntax/loc this-syntax none))
     (pattern ((~literal Const) "univ")
-      #:attr translate #'univ)
+      #:attr translate (syntax/loc this-syntax univ))
     (pattern ((~literal Const) "iden")
-      #:attr translate #'iden)
+      #:attr translate (syntax/loc this-syntax iden))
     (pattern ((~literal Const) n:NumberClass)
-      #:attr translate #'(int n.value))
+      #:attr translate (syntax/loc this-syntax (int n.value)))
     (pattern ((~literal Const) "-" n:NumberClass)
-      #:attr translate (datum->syntax #'n `(int ,(* -1 (syntax->datum #'n.value))))))
+      #:attr translate (syntax/loc this-syntax `(int ,(* -1 (syntax->datum #'n.value))))))
 
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK
@@ -818,7 +818,7 @@
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (* expr1)))]
 
-  [((~literal Expr) const:ConstClass)
+  [((~literal Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
 
   [((~literal Expr) name:QualNameClass)

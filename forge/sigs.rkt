@@ -267,7 +267,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
           [(node/expr/relation? sig-name-or-rel)
            (string->symbol (relation-name sig-name-or-rel))]
           [(Sig? sig-name-or-rel)
-           (Sig-name sig-name-or-rel)]))
+           (Sig-name sig-name-or-rel)]
+          [else (error (format "get-sig failed to locate: ~a" sig-name-or-rel))]))
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 
 ; get-sigs :: Run-or-State, Relation*? -> List<Sig>
@@ -730,9 +731,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
         (define run-command #,command)
 
-        (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))
-        (define-values (run-result atoms server-ports kodkod-bounds) (send-to-kodkod run-spec))
-
+        (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
+        (define-values (run-result atoms server-ports kodkod-bounds) (send-to-kodkod run-spec))        
         (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
 
@@ -1129,6 +1129,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define new-upper (set-union lower (list->set new-names)))
         (set! upper new-upper))
       (values rel (sbound rel lower upper))))
+  
   (define fixed-relations
     (for/hash ([(rel pbinding) (in-hash fixed-sigs)])
       (match-define (sbound rel lower upper) pbinding)
@@ -1142,6 +1143,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define new-upper (list->set (apply cartesian-product type-uppers)))
         (set! upper new-upper))
       (values rel (sbound rel lower upper))))
+  
   (set! pbindings fixed-relations)
   ; Send user defined partial bindings to breaks
   (map instance (hash-values pbindings))
@@ -1154,7 +1156,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         ; this nonsense is just for atom names
         (define name (string->symbol (relation-name rel)))
         (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup))))))
-
+  
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
     (get-sig-bounds run-spec tbindings))
@@ -1369,6 +1371,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
                   (get-next-name sig)
                   default-name)))
         default-name))
+  
   ; Sig, int -> List<Symbol>
   (define (get-next-names sig num)
     (for/list ([_ (range num)]) (get-next-name sig)))
@@ -1423,6 +1426,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; End: Used to allow extending Ints.
 
   (define top-level-sigs (get-top-level-sigs run-spec))
+  
   (define sig-atoms (apply append
     (for/list ([sig top-level-sigs] 
                #:unless (equal? (Sig-name sig) 'Int))

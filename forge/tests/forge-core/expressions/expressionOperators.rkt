@@ -92,5 +92,6 @@ pred ColonGreater {
 (test ampersandd #:preds [Ampersand] #:expect theorem)
 (test arrow #:preds [Arrow] #:expect theorem)
 (test dot #:preds [Dot] #:expect theorem)
+
 ; (test lessColon #:preds [LessColon] #:expect theorem)
 ; (test colonGreater #:preds [ColonGreater] #:expect theorem)

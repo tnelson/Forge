@@ -58,18 +58,20 @@
   (when same-arity?
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
-        (unless (equal? (node/expr-arity a) arity)
-          (printf "~a ~a ~n" args loc)
+        (unless (equal? (node/expr-arity a) arity)      
           (raise-arguments-error op "arguments must have same arity"
                                  "got" arity "and" (node/expr-arity a) ":" args)))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
+      (printf "Error loc: ~a Args: ~a~n" loc args)
+      (printf "Arg locs ~a~n" (map (lambda (a) (nodeinfo-loc (node-info a))) args))
+      (printf "Merged arg locs ~a~n" (apply build-source-location (map (lambda (a) (nodeinfo-loc (node-info a))) args)))
       (raise-arguments-error op (format "join would create a relation of arity 0: ~a" args))))
   (when range?
-    (unless (equal? (node/expr-arity (cadr args)) 1)
+    (unless (equal? (node/expr-arity (cadr args)) 1)      
       (raise-arguments-error op "second argument must have arity 1")))
   (when domain?
-    (unless (equal? (node/expr-arity (car args)) 1)
+    (unless (equal? (node/expr-arity (car args)) 1)      
       (raise-arguments-error op "first argument must have arity 1"))))
 
 
@@ -248,12 +250,19 @@
   [(define (write-proc self port mode)
      (fprintf port "~v" (node/expr/constant-type self)))])
 
-; THESE SHOULD BE MACROS
-(define none (node/expr/constant empty-nodeinfo 1 'none))
-(define univ (node/expr/constant empty-nodeinfo 1 'univ))
-(define iden (node/expr/constant empty-nodeinfo 2 'iden))
-(define Int (node/expr/relation empty-nodeinfo 1 "Int" '(Int) "univ"))
-(define succ (node/expr/relation empty-nodeinfo 2 "succ" '(Int Int) "Int"))
+; Macros in order to capture source location
+; constants
+(define-syntax none (lambda (stx) (syntax-case stx ()    
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 1 'none))])))
+(define-syntax univ (lambda (stx) (syntax-case stx ()    
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 1 'univ))])))
+(define-syntax iden (lambda (stx) (syntax-case stx ()    
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 2 'iden))])))
+; relations, not constants
+(define-syntax Int (lambda (stx) (syntax-case stx ()    
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ"))])))
+(define-syntax succ (lambda (stx) (syntax-case stx ()    
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int"))])))
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -328,8 +337,12 @@
   [(define (write-proc self port mode)
      (fprintf port "~v" (node/formula/constant-type self)))])
 
-(define true (node/formula/constant empty-nodeinfo 'true))
-(define false (node/formula/constant empty-nodeinfo 'false))
+(define-syntax true (lambda (stx) (syntax-case stx ()    
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx)) 'true))])))
+(define-syntax false (lambda (stx) (syntax-case stx ()    
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx)) 'false))])))
+
+
 
 ;; -- operators ----------------------------------------------------------------
 
