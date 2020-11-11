@@ -1,14 +1,17 @@
 #lang racket
 
 (require (for-syntax racket/syntax syntax/srcloc)
-         (prefix-in @ racket) (prefix-in $ racket))
+         syntax/srcloc (prefix-in @ racket) (prefix-in $ racket))
 
-(provide (except-out (all-defined-out) next-name @@and @@or int< int>)
-         (rename-out [@@and and] [@@or or] [int< <] [int> >]))
+(provide (except-out (all-defined-out) next-name @@and @@or @@not int< int>)
+         (rename-out [@@and and] [@@or or] [@@not not] [int< <] [int> >]))
+
+; Forge's AST is based on Ocelot's AST, with modifications.
 
 ; Ocelot ASTs are made up of expressions (which evaluate to relations) and
 ; formulas (which evaluate to booleans).
 ; All AST structs start with node/. The hierarchy is:
+;  * node -- holds basic info like source location (added for Forge)
 ;   * node/expr  -- expressions
 ;     * node/expr/op  -- simple operators
 ;       * node/expr/+
@@ -24,6 +27,16 @@
 ;       * ...
 ;     * node/formula/quantified  -- quantified formula
 ;     * node/formula/multiplicity  -- multiplicity formula
+
+;; -----------------------------------------------------------------------------
+
+; Group information in one struct to make change easier
+(struct nodeinfo (loc))
+
+; Base node struct, should be ancestor of all AST node types
+(struct node (info) #:transparent)
+
+(define empty-nodeinfo (nodeinfo (build-source-location #f)))
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
@@ -70,7 +83,7 @@
         [else
          (build-box-join (join (first todo) sofar) (rest todo))]))
 
-(struct node/expr (arity) #:transparent
+(struct node/expr node (arity) #:transparent
   #:property prop:procedure (λ (r . sigs) (build-box-join r sigs))
 )
 
@@ -78,18 +91,17 @@
 
 (struct node/expr/op node/expr (children) #:transparent)
 
-; #,(build-source-location stx2)
-
 ; lifted operators are defaults, for when the types aren't as expected
-(define-syntax (define-expr-op stx)
+(define-syntax (define-node-op stx)
   (syntax-case stx ()
-    [(_ id arity checks ... #:lift @op #:type childtype)     
-     (with-syntax ([name (format-id #'id "node/expr/op/~a" #'id)]
+    [(_ id parent arity checks ... #:lift @op #:type childtype)
+     ;(printf "defining: ~a~n" stx)
+     (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
-           (struct name node/expr/op () #:transparent #:reflection-name 'id)
-           (define-syntax (id stx2)
+           (struct name parent () #:transparent #:reflection-name 'id)
+           (define-syntax (id stx2)                     
              (syntax-case stx2 ()                              
                [(_ e ellip)
                 (quasisyntax/loc stx2
@@ -99,60 +111,67 @@
                     ; The problem is that "id" is the thing defined by this define-stx
                     ;   so it'l try to expand (e.g.) "~" by itself. Instead of "id" use " 'id ".
                     ;(printf "debug2, in ~a: ~a~n" id (list e ellip))
-
+                    
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
                     (let* ([args-raw (list e ellip)]
                            [args (cond
                                    [(or (not (equal? 1 (length args-raw)))
                                         (not (list? (first args-raw)))) args-raw]
                                    [else (first args-raw)])])
-                      (if ($and @op (for/and ([a (in-list args)]) ($not (node/expr? a))))
+                      (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
                           (apply @op args)
                           (begin
                             (check-args 'id args childtype checks ...)
                             (if arity
-                                (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                                  (name (apply arity arities) args))
-                                (name 1 args)))))))])))))] ; If arity is #f, assumed to be const 1
-[(_ id arity checks ... #:lift @op)     
+                                ; expression
+                                (if (andmap node/expr? args)
+                                    ; expression with expression children (common case)
+                                    (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
+                                      (name (nodeinfo #,(build-source-location stx2)) (apply arity arities) args))
+                                    ; expression with non-expression children or const arity (e.g., sing)
+                                    (name (nodeinfo #,(build-source-location stx2)) (arity) args))
+                                ; intexpression or formula
+                                (name (nodeinfo #,(build-source-location stx2)) args)))))))])))))] 
+    [(_ id parent arity checks ... #:lift @op)
+     (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
      (syntax/loc stx
-       (define-expr-op id arity checks ... #:lift @op #:type node/expr?))]
-    [(_ id arity checks ... #:type childtype)    
+       (define-node-op id parent arity checks ... #:lift @op #:type node/expr?))]
+    [(_ id parent arity checks ... #:type childtype)    
      (syntax/loc stx
-       (define-expr-op id arity checks ... #:lift #f #:type childtype))]
-    [(_ id arity checks ...)     
+       (define-node-op id parent arity checks ... #:lift #f #:type childtype))]
+    [(_ id parent arity checks ...)     
      (syntax/loc stx
-       (define-expr-op id arity checks ... #:lift #f))]))
+       (define-node-op id parent arity checks ... #:lift #f))]))
 
 (define get-first
   (lambda e (car e)))
 (define get-second
   (lambda e (cadr e)))
 (define-syntax-rule (define-op/combine id @op)
-  (define-expr-op id get-first #:same-arity? #t #:lift @op))
+  (define-node-op id node/expr/op get-first #:same-arity? #t #:lift @op #:type node/expr?))
 
 (define-op/combine + @+)
 (define-op/combine - @-)
 (define-op/combine & #f)
 
 (define-syntax-rule (define-op/cross id)
-  (define-expr-op id @+))
+  (define-node-op id node/expr/op @+ #:type node/expr?))
 (define-op/cross ->)
 
-(define-expr-op ~ get-first #:min-length 1 #:max-length 1 #:arity 2)
+(define-node-op ~ node/expr/op get-first #:min-length 1 #:max-length 1 #:arity 2 #:type node/expr?)
 
 (define join-arity
   (lambda e (@- (apply @+ e) (@* 2 (@- (length e) 1)))))
 (define-syntax-rule (define-op/join id)
-  (define-expr-op id join-arity #:join? #t))
+  (define-node-op id node/expr/op join-arity #:join? #t #:type node/expr?))
 (define-op/join join)
 
-(define-expr-op <: get-second #:max-length 2 #:domain? #t)
-(define-expr-op :> get-first  #:max-length 2 #:range? #t)
-(define-expr-op sing #f #:min-length 1 #:max-length 1 #:type node/int?)
+(define-node-op <: node/expr/op get-second #:max-length 2 #:domain? #t #:type node/expr?)
+(define-node-op :> node/expr/op get-first  #:max-length 2 #:range? #t #:type node/expr?)
+(define-node-op sing node/expr/op (const 1) #:min-length 1 #:max-length 1 #:type node/int?)
 
 (define-syntax-rule (define-op/closure id @op)
-  (define-expr-op id (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:lift @op))
+  (define-node-op id node/expr/op (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:lift @op #:type node/expr?))
 (define-op/closure ^ #f)
 (define-op/closure * @*)
 
@@ -169,7 +188,7 @@
               (node/expr-arity self) 
               (node/expr/comprehension-decls self)
               (node/expr/comprehension-formula self)))])
-(define (comprehension decls formula)
+(define (comprehension info decls formula)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-argument-error 'set "expr?" e))
@@ -177,28 +196,29 @@
       (raise-argument-error 'set "decl of arity 1" e)))
   (unless (node/formula? formula)
     (raise-argument-error 'set "formula?" formula))
-  (node/expr/comprehension (length decls) decls formula))
+  (node/expr/comprehension info (length decls) decls formula))
 
 (define-syntax (set stx)
   (syntax-case stx ()
     [(_ ([r0 e0] ...) pred)
-     (syntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var (node/expr-arity e0) 'r0)] ... )
-         (comprehension (list (cons r0 e0) ...) pred)))]))
+     (quasisyntax/loc stx
+       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'r0)] ... )
+         (comprehension (nodeinfo #,(build-source-location stx)) (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 
 (struct node/expr/relation node/expr (name typelist parent) #:transparent #:mutable
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/expr/relation arity name typelist parent) self)
+     (match-define (node/expr/relation info arity name typelist parent) self)
      (fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))])
 (define next-name 0)
 (define (declare-relation typelist parent [name #f])
   (let ([name (if (false? name) 
                   (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))
                   name)])
-    (node/expr/relation (length typelist) name typelist parent)))
+    ; TODO TN
+    (node/expr/relation empty-nodeinfo (length typelist) name typelist parent)))
 (define (relation-arity rel)
   (node/expr-arity rel))
 (define (relation-name rel)
@@ -213,7 +233,7 @@
 (struct node/expr/atom node/expr (name) #:transparent #:mutable
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/expr/atom arity name) self)
+     (match-define (node/expr/atom info arity name) self)
      (fprintf port "(atom ~a)" name))])
 (define (atom name)
   (node/expr/atom 1 name))
@@ -228,57 +248,40 @@
      (fprintf port "~v" (node/expr/constant-type self)))])
 
 ; THESE SHOULD BE MACROS
-(define none (node/expr/constant 1 'none))
-(define univ (node/expr/constant 1 'univ))
-(define iden (node/expr/constant 2 'iden))
-(define Int (node/expr/relation 1 "Int" '(Int) "univ"))
-(define succ (node/expr/relation 2 "succ" '(Int Int) "CharlieSaysWhatever"))
+(define none (node/expr/constant empty-nodeinfo 1 'none))
+(define univ (node/expr/constant empty-nodeinfo 1 'univ))
+(define iden (node/expr/constant empty-nodeinfo 2 'iden))
+(define Int (node/expr/relation empty-nodeinfo 1 "Int" '(Int) "univ"))
+(define succ (node/expr/relation empty-nodeinfo 2 "succ" '(Int Int) "Int"))
 
 ;; INTS ------------------------------------------------------------------------
 
-(struct node/int () #:transparent)
+(struct node/int node () #:transparent)
 
 ;; -- operators ----------------------------------------------------------------
 
 (struct node/int/op node/int (children) #:transparent)
 
-(define-syntax (define-int-op stx)
-  (syntax-case stx ()
-    [(_ id type? checks ... #:lift @op)
-     (with-syntax ([name (format-id #'id "node/int/op/~a" #'id)])
-       (syntax/loc stx
-         (begin
-           (struct name node/int/op () #:transparent #:reflection-name 'id)
-           (define id
-             (lambda e
-               (if ($and @op (for/and ([a (in-list e)]) ($not (type? a))))
-                   (apply @op e)
-                   (begin
-                     (check-args 'id e type? checks ...)
-                     (name e))))))))]
-    [(_ id type? checks ...)
-     (syntax/loc stx
-       (define-int-op id type? checks ... #:lift #f))]))
+(define-node-op add node/int/op #f #:min-length 2 #:type node/int?)
+(define-node-op subtract node/int/op #f #:min-length 2 #:type node/int?)
+(define-node-op multiply node/int/op #f #:min-length 2 #:type node/int?)
+(define-node-op divide node/int/op #f #:min-length 2 #:type node/int?)
 
-(define-int-op add node/int? #:min-length 2)
-(define-int-op subtract node/int? #:min-length 2)
-(define-int-op multiply node/int? #:min-length 2)
-(define-int-op divide node/int? #:min-length 2)
+; id, parent, arity, checks
+(define-node-op card node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
+(define-node-op sum node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
 
-(define-int-op card node/expr? #:min-length 1 #:max-length 1)
-(define-int-op sum node/expr? #:min-length 1 #:max-length 1)
-
-(define-int-op remainder node/int? #:min-length 2 #:max-length 2)
-(define-int-op abs node/int? #:min-length 1 #:max-length 1)
-(define-int-op sign node/int? #:min-length 1 #:max-length 1)
+(define-node-op remainder node/int/op #f #:min-length 2 #:max-length 2 #:type node/int?)
+(define-node-op abs node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
+(define-node-op sign node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 
 (define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
 (define (min s-int)
   (sum (- s-int (join s-int (^ succ)))))
 
-;(define-int-op max node/expr? #:min-length 1 #:max-length 1)
-;(define-int-op min node/expr? #:min-length 1 #:max-length 1)
+;(define-node-op max node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
+;(define-node-op min node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
 
 ;; -- constants ----------------------------------------------------------------
 
@@ -287,16 +290,23 @@
   [(define (write-proc self port mode)
      (fprintf port "~v" (node/int/constant-value self)))])
 
+
+(define-syntax (int stx)
+  (syntax-case stx ()
+    [(_ n)
+     (quasisyntax/loc stx       
+         (node/int/constant (nodeinfo #,(build-source-location stx)) n))]))
+
 ;; -- sum quantifier -----------------------------------------------------------
 (struct node/int/sum-quant node/int (decls int-expr)
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/int/sum-quant decls int-expr) self)
+     (match-define (node/int/sum-quant info decls int-expr) self)
      (fprintf port "(sum [~a] ~a)"
                    decls
                    int-expr))])
 
-(define (sum-quant-expr decls int-expr)
+(define (sum-quant-expr info decls int-expr)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-argument-error 'set "expr?" e))
@@ -304,73 +314,65 @@
       (raise-argument-error 'set "decl of arity 1" e)))
   (unless (node/int? int-expr)
     (raise-argument-error 'set "int-expr?" int-expr))
-  (node/int/sum-quant decls int-expr))
+  (node/int/sum-quant info decls int-expr))
 
 ;; FORMULAS --------------------------------------------------------------------
 
-(struct node/formula () #:transparent)
+(struct node/formula node () #:transparent)
 
 ;; -- constants ----------------------------------------------------------------
-
-
 
 (struct node/formula/constant node/formula (type) #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (fprintf port "~v" (node/formula/constant-type self)))])
 
-(define true (node/formula/constant 'true))
-(define false (node/formula/constant 'false))
+(define true (node/formula/constant empty-nodeinfo 'true))
+(define false (node/formula/constant empty-nodeinfo 'false))
 
 ;; -- operators ----------------------------------------------------------------
 
 (struct node/formula/op node/formula (children) #:transparent)
 
-(define-syntax (define-formula-op stx)
-  (syntax-case stx ()
-    [(_ id type? checks ... #:lift @op)
-     (with-syntax ([name (format-id #'id "node/formula/op/~a" #'id)])
-       (syntax/loc stx
-         (begin
-           (struct name node/formula/op () #:transparent #:reflection-name 'id)
-           (define id
-             (lambda e
-               (if ($and @op (for/and ([a (in-list e)]) ($not (type? a))))
-                   (apply @op e)
-                   (begin
-                     (check-args 'id e type? checks ...)
-                     (name e))))))))]
-    [(_ id type? checks ...)
-     (syntax/loc stx
-       (define-formula-op id type? checks ... #:lift #f))]))
+(define-node-op in node/formula/op #f  #:same-arity? #t #:max-length 2 #:type node/expr?)
 
-(define-formula-op in node/expr? #:same-arity? #t #:max-length 2)
+; TODO: what is this for?
+(define-node-op ordered node/formula/op #f #:max-length 2 #:type node/expr?)
+
+(define-node-op && node/formula/op #f #:min-length 1 #:lift #f #:type node/formula?)
+(define-node-op || node/formula/op #f #:min-length 1 #:lift #f #:type node/formula?)
+(define-node-op => node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op ! node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op int> node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
+(define-node-op int< node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
+(define-node-op int= node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
+
+(define (int=-lifter i1 i2)
+  (int= i1 i2))
+
+(define-node-op = node/formula/op #f #:same-arity? #t #:max-length 2 #:lift int=-lifter #:type node/expr?) 
 
 
-(define-formula-op ordered node/expr? #:max-length 2)
-
-(define-formula-op && node/formula? #:min-length 1 #:lift #f)
-(define-formula-op || node/formula? #:min-length 1 #:lift #f)
-(define-formula-op => node/formula? #:min-length 2 #:max-length 2 #:lift #f)
-(define-formula-op ! node/formula? #:min-length 1 #:max-length 1 #:lift #f)
-(define-formula-op int> node/int? #:min-length 2 #:max-length 2)
-(define-formula-op int< node/int? #:min-length 2 #:max-length 2)
-(define-formula-op int= node/int? #:min-length 2 #:max-length 2)
-
-(define-formula-op = node/expr? #:same-arity? #t #:max-length 2 #:lift int=)
-
-; No, don't do this.
-;(define not !)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Lift the "and", "or" and "not" procedures
 
 (define-syntax (@@and stx)
   (syntax-case stx ()
     [(_) (syntax/loc stx true)] ;#t?
     [(_ a0 a ...)
      (syntax/loc stx
-       (let ([a0* a0])
+       (let ([a0* a0])         
          (if (node/formula? a0*)
              (&& a0* a ...)
              (and a0* a ...))))]))
+(define-syntax (@@not stx)
+  (syntax-case stx ()    
+    [(_ a0)
+     (syntax/loc stx
+       (let ([a0* a0])
+         (if (node/formula? a0*)
+             (! a0*)
+             (not a0*))))]))
 (define-syntax (@@or stx)
   (syntax-case stx ()
     [(_) (syntax/loc stx false)]
@@ -380,17 +382,25 @@
          (if (node/formula? a0*)
              (|| a0* a ...)
              (or a0* a ...))))]))
-       
+
+; *** WARNING ***
+; Because of the way this is set up, if you're running tests in the REPL on the ast.rkt tab,
+; you need to use @@and (etc.) not and (etc.) to construct formulas. If you try to use and, etc.
+; you'll get the boolean behavior, which short-circuits. E.g.
+; (and (= iden iden) (= univ univ))
+; evaluates to 
+; (= #<nodeinfo> '('univ 'univ))
+; which is the last thing in the list.
 
 ;; -- quantifiers --------------------------------------------------------------
 
 (struct node/formula/quantified node/formula (quantifier decls formula)
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/formula/quantified quantifier decls formula) self)
+     (match-define (node/formula/quantified info quantifier decls formula) self)
      (fprintf port "(~a [~a] ~a)" quantifier decls formula))])
 
-(define (quantified-formula quantifier decls formula)
+(define (quantified-formula info quantifier decls formula)  
   (for ([e (in-list (map cdr decls))])
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
@@ -398,7 +408,7 @@
       (raise-argument-error quantifier "decl of arity 1" e)))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
-  (node/formula/quantified quantifier decls formula))
+  (node/formula/quantified info quantifier decls formula))
 
 
 ;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
@@ -408,12 +418,12 @@
 (struct node/formula/multiplicity node/formula (mult expr)
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/formula/multiplicity mult expr) self)
+     (match-define (node/formula/multiplicity info mult expr) self)
      (fprintf port "(~a ~a)" mult expr))])
-(define (multiplicity-formula mult expr)
+(define (multiplicity-formula info mult expr)
   (unless (node/expr? expr)
     (raise-argument-error mult "expr?" expr))
-  (node/formula/multiplicity mult expr))
+  (node/formula/multiplicity info mult expr))
 
 
 #|(define-syntax (all stx)
@@ -439,9 +449,9 @@
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax???? 
-     (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
-         (quantified-formula 'all (list (cons v0 e0) ...) pred)))]))
+     (quasisyntax/loc stx
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+         (quantified-formula (nodeinfo #,(build-source-location stx)) 'all (list (cons v0 e0) ...) pred)))]))
 
 #|(define-syntax (one stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
   (syntax-case stx ()
@@ -455,47 +465,49 @@
 
 (define-syntax (some stx)
   (syntax-case stx ()
-    [(_ ([v0 e0] ...) pred)
-     (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
-         (quantified-formula 'some (list (cons v0 e0) ...) pred)))]
+    [(_ ([v0 e0] ...) pred)     
+     (quasisyntax/loc stx
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+         (quantified-formula (nodeinfo #,(build-source-location stx)) 'some (list (cons v0 e0) ...) pred)))]
     [(_ expr)
-     (syntax/loc stx
-       (multiplicity-formula 'some expr))]))
+     (quasisyntax/loc stx
+       (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'some expr))]))
 
 (define-syntax (no stx)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
-     (syntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (node/expr-arity e0) 'v0)] ...)
-         (! (quantified-formula 'some (list (cons v0 e0) ...) pred))))]
+     (quasisyntax/loc stx
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+         (! (quantified-formula (nodeinfo #,(build-source-location stx)) 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
-     (syntax/loc stx
-       (multiplicity-formula 'no expr))]))
+     (quasisyntax/loc stx
+       (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'no expr))]))
 
 (define-syntax (one stx)
   (syntax-case stx ()
     [(_ ([x1 r1] ...) pred)
-     (syntax/loc stx
-       (multiplicity-formula 'one (set ([x1 r1] ...) pred)))]
+     (quasisyntax/loc stx
+       ; TODO TN: is this right? shouldn't it be a quantified-formula?
+       (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'one (set ([x1 r1] ...) pred)))]
     [(_ expr)
-     (syntax/loc stx
-       (multiplicity-formula 'one expr))]))
+     (quasisyntax/loc stx
+       (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'one expr))]))
 
 (define-syntax (lone stx)
   (syntax-case stx ()
     [(_ ([x1 r1] ...) pred)
-     (syntax/loc stx
-       (multiplicity-formula 'lone (set ([x1 r1] ...) pred)))]
+     (quasisyntax/loc stx
+       ; TODO TN: is this right? 
+       (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'lone (set ([x1 r1] ...) pred)))]
     [(_ expr)
-     (syntax/loc stx
-       (multiplicity-formula 'lone expr))]))
+     (quasisyntax/loc stx
+       (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'lone expr))]))
 
 
 ; sum quantifier macro
 (define-syntax (sum-quant stx)
   (syntax-case stx ()
     [(_ ([x1 r1] ...) int-expr)
-     (syntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (node/expr-arity r1) 'x1)] ...)
-         (sum-quant-expr (list (cons x1 r1) ...) int-expr)))]))
+     (quasisyntax/loc stx
+       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity r1) 'x1)] ...)
+         (sum-quant-expr (nodeinfo #,(build-source-location stx)) (list (cons x1 r1) ...) int-expr)))]))

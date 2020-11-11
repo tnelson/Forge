@@ -37,7 +37,7 @@
 
 (define (make-n n)
     (cond
-      [(@= n 0) (sing (node/int/constant 0))]
+      [(@= n 0) (sing (int 0))]
       [(@< n 0) (join succ (make-n (add1 n)))]
       [(@> n 0) (join (make-n (sub1 n)) succ)]))
 
