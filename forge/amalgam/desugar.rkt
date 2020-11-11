@@ -22,24 +22,24 @@
 (define (desugar-formula formula quantvars runContext currSign)
   (match formula
     ; Constant formulas: already at bottom
-    [(node/formula/constant type)
+    [(node/formula/constant info type)
      formula]
     
     ; operator formula (and, or, implies, ...)
-    [(node/formula/op args)
+    [(node/formula/op info args)
      (desugar-formula-op formula quantvars args runContext currSign)]
     
     ; multiplicity formula (some, one, ...) 
-    [(node/formula/multiplicity mult expr)
+    [(node/formula/multiplicity info mult expr)
      ; create a new multiplicity formula with fields...
-     (node/formula/multiplicity mult (desugar-expr expr quantvars runContext))]
+     (node/formula/multiplicitys info mult (desugar-expr expr quantvars runContext))]
     
     ; quantified formula (some x : ... or all x : ...)
-    [(node/formula/quantified quantifier decls form)
+    [(node/formula/quantified info quantifier decls form)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        (desugar-expr (cdr (car decls)) quantvars runContext)     
-       (desugar-formula form quantvars runContext currSign)
+       (desugar-formula info form quantvars runContext currSign)
        (printf "quant ~a~n" quantifier))]
     
     ; truth and falsity
@@ -57,7 +57,7 @@
      (printf "and~n")
      ; The desugared version of AND is: to call args recursively
      (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
-     (node/formula/op/&& (length desugaredArgs) desugaredArgs)
+     (node/formula/op/&& info (length desugaredArgs) desugaredArgs)
      ]
     
     ; OR
@@ -65,7 +65,7 @@
      (printf "or~n")
      ; The desugared version of OR is: to call args recursively
      (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
-     (node/formula/op/|| (length desugaredArgs) desugaredArgs)
+     (node/formula/op/|| info (length desugaredArgs) desugaredArgs)
      ]
     
     ; IMPLIES
@@ -146,26 +146,26 @@
 (define (desugar-expr expr quantvars currTupIfAtomic runContext currSign)
   (match expr
     ; relation name (base case)
-    [(node/expr/relation arity name typelist parent)
+    [(node/expr/relation info arity name typelist parent)
      expr]
     ; The Int constant
-    [(node/expr/constant 1 'Int)
+    [(node/expr/constant info 1 'Int)
      expr]
     ; other expression constants
-    [(node/expr/constant arity type)
+    [(node/expr/constant info arity type)
      expr]
     
     ; expression w/ operator (union, intersect, ~, etc...)
-    [(node/expr/op arity args)
+    [(node/expr/op info arity args)
      (desugar-expr-op expr quantvars args currTupIfAtomic runContext)]
  
     ; quantified variable (depends on scope! which quantifier is this var for?)
-    [(node/expr/quantifier-var arity sym)     
+    [(node/expr/quantifier-var info arity sym)     
      (printf "  ~a~n" sym)
      (error "amalgam: Something wasn't substituted correctly or the formula was malformed ~n")]
 
     ; set comprehension e.g. {n : Node | some n.edges}
-    [(node/expr/comprehension len decls form)
+    [(node/expr/comprehension info len decls form)
       ; account for multiple variables  
      (define vars (map car decls))
      (let ([quantvars (append vars quantvars)])       
@@ -277,16 +277,16 @@
 (define (desugar-int expr quantvars runContext)
   (match expr
     ; CONSTANT INT
-    [(node/int/constant value)
+    [(node/int/constant info value)
      (printf "~a~n" value)]
     
     ; apply an operator to some integer expressions
-    [(node/int/op args)   
+    [(node/int/op info args)   
      (desugar-int-op expr quantvars args runContext)]
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age  
-    [(node/int/sum-quant decls int-expr)
+    [(node/int/sum-quant info decls int-expr)
      (printf "sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
