@@ -19,15 +19,15 @@
 ; quantvars should start at -1
 (define (interpret-formula formula relations atom-names quantvars)
   (match formula
-    [(node/formula/constant type)
+    [(node/formula/constant info type)
      ( print-cmd-cont (format "~a " type))]
-    [(node/formula/op args)
+    [(node/formula/op info args)
      (interpret-formula-op formula relations atom-names quantvars args)]
-    [(node/formula/multiplicity mult expr)
+    [(node/formula/multiplicity info mult expr)
      ( print-cmd-cont (format "(~a " mult ))
      (interpret-expr expr relations atom-names quantvars)
      ( print-cmd-cont ")")]
-    [(node/formula/quantified quantifier decls form)
+    [(node/formula/quantified info quantifier decls form)
      ;(writeln formula)
      (print-cmd-cont (format "(~a (" quantifier))
      (define new-quantvars
@@ -96,21 +96,21 @@
 
 (define (interpret-expr expr relations atom-names quantvars)
   (match expr
-    [(node/expr/relation arity name typelist parent)
+    [(node/expr/relation info arity name typelist parent)
      ( print-cmd-cont (format "~a " (r name)))]
-    [(node/expr/atom arity name)
+    [(node/expr/atom info arity name)
      (unless (member name atom-names) (raise (format "Atom ~a not in available atoms ~a" name atom-names)))
      ( print-cmd-cont (format "~a " (a (index-of atom-names name))))]
-    [(node/expr/constant 1 'Int)
+    [(node/expr/constant info 1 'Int)
      ( print-cmd-cont "ints ")]
-    [(node/expr/constant arity type)
+    [(node/expr/constant info arity type)
      ( print-cmd-cont (format "~a " type))]
-    [(node/expr/op arity args)
+    [(node/expr/op info arity args)
      (interpret-expr-op expr relations atom-names quantvars args)]
-    [(node/expr/quantifier-var arity sym)     
+    [(node/expr/quantifier-var info arity sym)     
      (print-cmd-cont (symbol->string (v sym #;(get-var-idx expr quantvars))))
      (print-cmd-cont " ")]
-    [(node/expr/comprehension len decls form)     
+    [(node/expr/comprehension info len decls form)     
      (define vars (map car decls)) ; account for multiple variables
      ;(define var (car (car decls)))     
      (let ([quantvars (append vars quantvars)])       
@@ -166,11 +166,11 @@
 
 (define (interpret-int expr relations atom-names quantvars)
   (match expr
-    [(node/int/constant value)
+    [(node/int/constant info value)
      (print-cmd-cont (format "~a " value))]
-    [(node/int/op args)
+    [(node/int/op info args)
      (interpret-int-op expr relations atom-names quantvars args)]
-    [(node/int/sum-quant decls int-expr)
+    [(node/int/sum-quant info decls int-expr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        ( print-cmd-cont (format "(sum ([~a : ~a " 
@@ -219,7 +219,7 @@
      ( print-cmd-cont "(sgn ")
      (map (lambda (x) (interpret-int x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(node/int/sum-quant decls int-expr)
+    [(node/int/sum-quant info decls int-expr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        ( print-cmd-cont (format "(sum ([~a : ~a " (v (get-sym var) #;(get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))

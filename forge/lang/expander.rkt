@@ -394,9 +394,9 @@
     (pattern ((~literal Const) "iden")
       #:attr translate #'iden)
     (pattern ((~literal Const) n:NumberClass)
-      #:attr translate #'(node/int/constant n.value))
+      #:attr translate #'(int n.value))
     (pattern ((~literal Const) "-" n:NumberClass)
-      #:attr translate (datum->syntax #'n `(node/int/constant ,(* -1 (syntax->datum #'n.value))))))
+      #:attr translate (datum->syntax #'n `(int ,(* -1 (syntax->datum #'n.value))))))
 
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK

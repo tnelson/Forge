@@ -11,7 +11,7 @@
            (in (-> n2 n1) edges))))
 
 (pred Caret
-    (implies (< (card Node) (node/int/constant 4))
+    (implies (< (card Node) (int 4))
              (= (^ edges)
                 (+ (+ edges
                       (join edges edges))

@@ -318,8 +318,11 @@
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating int-expr : ~v~n" int-expr))
   (match int-expr
-    [`(node/int/constant ,n) (eval-int-expr n bind bitwidth)] ; Temporary fix for lang forge instances
-    [`(node/int/constant50 ,n) (eval-int-expr n bind bitwidth)]
+
+    [`(node/int/constant ,info ,n) (eval-int-expr n bind bitwidth)] ; Temporary fix for lang forge instances
+    [`(node/int/constant50 ,info ,n) (eval-int-expr n bind bitwidth)]
+    [`(int ,n) (eval-int-expr n bind bitwidth)]
+    
     [`(sum ,var ,lst ,ie)
      (foldl (λ (x res) (+ res (eval-int-expr ie (hash-set bind var (list x)) bitwidth)))
       0

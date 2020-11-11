@@ -1476,8 +1476,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (raise (format (string-append "Upper bound too large for given BitWidth; "
                                     "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                      sig upper (sub1 max-int))))
-    (and (<= (node/int/constant lower) (card (Sig-rel sig)))
-         (<= (card (Sig-rel sig)) (node/int/constant upper)))))
+    (and (<= (int lower) (card (Sig-rel sig)))
+         (<= (card (Sig-rel sig)) (int upper)))))
 
 ; get-extender-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig which has extending Sigs so that:
