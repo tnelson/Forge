@@ -388,15 +388,15 @@
   (define-syntax-class ConstClass
     #:attributes (translate)
     (pattern ((~literal Const) "none")
-      #:attr translate #'none)
+      #:attr translate (syntax/loc this-syntax none))
     (pattern ((~literal Const) "univ")
-      #:attr translate #'univ)
+      #:attr translate (syntax/loc this-syntax univ))
     (pattern ((~literal Const) "iden")
-      #:attr translate #'iden)
+      #:attr translate (syntax/loc this-syntax iden))
     (pattern ((~literal Const) n:NumberClass)
-      #:attr translate #'(int n.value))
+      #:attr translate (syntax/loc this-syntax (int n.value)))
     (pattern ((~literal Const) "-" n:NumberClass)
-      #:attr translate (datum->syntax #'n `(int ,(* -1 (syntax->datum #'n.value))))))
+      #:attr translate (quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value))))))
 
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK
@@ -818,7 +818,7 @@
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (* expr1)))]
 
-  [((~literal Expr) const:ConstClass)
+  [((~literal Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
 
   [((~literal Expr) name:QualNameClass)
@@ -838,23 +838,38 @@
 
   ))
 
-(define-simple-macro (Expr1 stx ...) (Expr stx ...))
-(define-simple-macro (Expr2 stx ...) (Expr stx ...))
-(define-simple-macro (Expr3 stx ...) (Expr stx ...))
-(define-simple-macro (Expr4 stx ...) (Expr stx ...))
-(define-simple-macro (Expr5 stx ...) (Expr stx ...))
-(define-simple-macro (Expr6 stx ...) (Expr stx ...))
-(define-simple-macro (Expr7 stx ...) (Expr stx ...))
-(define-simple-macro (Expr8 stx ...) (Expr stx ...))
-(define-simple-macro (Expr9 stx ...) (Expr stx ...))
-(define-simple-macro (Expr10 stx ...) (Expr stx ...))
-(define-simple-macro (Expr11 stx ...) (Expr stx ...))
-(define-simple-macro (Expr12 stx ...) (Expr stx ...))
-(define-simple-macro (Expr13 stx ...) (Expr stx ...))
-(define-simple-macro (Expr14 stx ...) (Expr stx ...))
-(define-simple-macro (Expr15 stx ...) (Expr stx ...))
-(define-simple-macro (Expr16 stx ...) (Expr stx ...))
-(define-simple-macro (Expr17 stx ...) (Expr stx ...))
+; --------------------------
+; these used to be define-simple-macro, but define-simple-macro doesn't
+; preserve syntax location, so we copy the definition from the docs except use syntax/loc.
+
+(define-syntax (dsm-keep stx-outer)
+  (syntax-case stx-outer ()
+    [(_ (macro-id . pattern) pattern-directive ... template)
+     (with-syntax ([ellip '...])
+       (syntax/loc stx-outer
+         (define-syntax (macro-id stx)
+           (syntax-parse stx
+             #:track-literals
+             [((~var macro-id id) . pattern) pattern-directive ... (syntax/loc stx template)]))))]))
+
+
+(dsm-keep (Expr1 stx ...) (Expr stx ...))
+(dsm-keep (Expr2 stx ...) (Expr stx ...))
+(dsm-keep (Expr3 stx ...) (Expr stx ...))
+(dsm-keep (Expr4 stx ...) (Expr stx ...))
+(dsm-keep (Expr5 stx ...) (Expr stx ...))
+(dsm-keep (Expr6 stx ...) (Expr stx ...))
+(dsm-keep (Expr7 stx ...) (Expr stx ...))
+(dsm-keep (Expr8 stx ...) (Expr stx ...))
+(dsm-keep (Expr9 stx ...) (Expr stx ...))
+(dsm-keep (Expr10 stx ...) (Expr stx ...))
+(dsm-keep (Expr11 stx ...) (Expr stx ...))
+(dsm-keep (Expr12 stx ...) (Expr stx ...))
+(dsm-keep (Expr13 stx ...) (Expr stx ...))
+(dsm-keep (Expr14 stx ...) (Expr stx ...))
+(dsm-keep (Expr15 stx ...) (Expr stx ...))
+(dsm-keep (Expr16 stx ...) (Expr stx ...))
+(dsm-keep (Expr17 stx ...) (Expr stx ...))
 
 
 
