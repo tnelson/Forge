@@ -99,14 +99,14 @@
      ; TODO: other args?
      (cond
        ; add (and (is-ground-lhs leftE)
-       [(and (is-ground-lhs leftE) (equal? lifted-upper-bounds 1)) currTupIfAtomic]
+       [(and (is-ground-lhs leftE) (equal? (length lifted-upper-bounds) 1)) currTupIfAtomic]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
               (define desugaredAnd (node/formula/op/&& 
                          (map (lambda (x)
                                 (define tupExpr (tup2Expr x runContext))
-                                (define ante   (node/formula/op/in (list tupExpr leftE)))
-                                (define conseq (node/formula/op/in (list tupExpr rightE)))
+                                (define ante   (node/formula/op/in info (list tupExpr leftE)))
+                                (define conseq (node/formula/op/in info (list tupExpr rightE)))
                                 (node/formula/op/=> (list ante conseq))) lifted-upper-bounds)))
               (printf "desugaredAnd: ~a~n" desugaredAnd)
               (desugar-formula desugaredAnd quantvars runContext currSign)])]
@@ -123,10 +123,8 @@
     ; NEGATION
     [(? node/formula/op/!?)
      (printf "not~n")
-     ; The desugared version of NEGATION is to flip the currSign type 
-     (= (not currSign) currSign)
-     (desugar-formula formula quantvars runContext currSign)
-     (= (not currSign) currSign)]   
+     ; The desugared version of NEGATION is to flip the currSign type
+     (desugar-formula formula quantvars runContext (not currSign))]   
 
     ; INTEGER >
     [(? node/formula/op/int>?)
@@ -144,7 +142,9 @@
      (error "amalgam: int = not supported ~n")
      ]))
 
+; Should always have a currTupIfAtomic when calling
 (define (desugar-expr expr quantvars currTupIfAtomic runContext currSign)
+  (unless (node/expr? expr) (error (format "desugar-expr called on non-expr: ~a" expr)))
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
@@ -174,7 +174,7 @@
         ; go through each declaration
        (for-each (lambda (d)
                    ;(print-cmd-cont (format "[~a : " (v (get-var-idx (car d) quantvars))))
-                   (desugar-expr (cdr d) quantvars '() runContext currSign)
+                   (desugar-expr (cdr d) quantvars currTupIfAtomic runContext currSign)
                    (printf "    decl: ~a~n" d))
                  decls)     
        (desugar-formula form quantvars runContext currSign))]))
@@ -218,15 +218,13 @@
      (printf "& ~a~n" expr)
      ; Check that the currTupIfAtomic isn't empty 
      (mustHaveTupleContext (currTupIfAtomic))
-     ; The desugared version of INTERSECTION is: (currTupIfAtomic in LHS) AND (currTupIfAtomic in RHS)
-     (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
-     (define ante (node/formula/op/in (list currTupIfAtomicExpr (first args))))
-     (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
-     ; Recur on the LHS and RHS to see if they need to be desugared further
-     (define desugaredAnte (desugar-expr ante quantvars currTupIfAtomic runContext currSign))
-     (define desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
-     ; Create the final desugared version of INTERSECTION by joining LHS and RHS with an AND 
-     (define desugaredIntersection (node/formula/op/&& (list desugaredAnte desugaredConseq)))
+     ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD) AND (currTupIfAtomic in CHILD)
+     ; map over all children of intersection
+     (define desugaredChildren
+       (map
+        (lambda (child) (desugar-expr child quantvars currTupIfAtomic runContext currSign)) args))
+     ; Create the final desugared version of INTERSECTION by calling with desguaredChildren
+     (define desugaredIntersection (node/formula/op/&& desugaredChildren))
      desugaredIntersection]
     
     ; PRODUCT
@@ -266,8 +264,8 @@
     [(? node/expr/op/~?)
      (printf "~~~n")
      (define transposedCurrTupIfAtomic (transposeTup(currTupIfAtomic)))
-     ; Q: How can we modify the args to remove ~edges to just be 'edges'? 
-     (desugar-expr expr quantvars args transposedCurrTupIfAtomic runContext currSign)
+     ; for ~edges, args contains edges
+     (desugar-expr expr quantvars (first args) transposedCurrTupIfAtomic runContext currSign)
      ]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
@@ -391,7 +389,7 @@
     [(equal? (length tup) 0) (error "currTupIfAtomic is empty and it shouldn't be")]))
 
 ; Used to determine if we are at the base case
-#| (define (is-ground-lhs leftE)
+(define (is-ground-lhs leftE)
   (cond
     [(unary-op? leftE) ...]
     [(binary-op? leftE) (if (node/expr/op/->? leftE) (and (is-ground-lhs (first leftE))  (is-ground-lhs (second leftE))))]
@@ -400,7 +398,7 @@
     [else (false)])
   (match leftE
     [unary-op]
-    )) |#
+    )) 
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
