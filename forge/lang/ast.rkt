@@ -45,10 +45,10 @@
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
   (when (< (length args) min-length)
-    (raise-arguments-error op "not enough arguments" "required" min-length "got" (length args)))
+    (raise-arguments-error op "not enough arguments" "required" min-length "got" args))
   (unless (false? max-length)
     (when (> (length args) max-length)
-      (raise-arguments-error op "too many arguments" "maximum" max-length "got" (length args))))
+      (raise-arguments-error op "too many arguments" "maximum" max-length "got" args)))
   (for ([a (in-list args)])
     (unless (type? a)
       (raise-argument-error op (~v type?) a))

@@ -396,7 +396,7 @@
     (pattern ((~literal Const) n:NumberClass)
       #:attr translate (syntax/loc this-syntax (int n.value)))
     (pattern ((~literal Const) "-" n:NumberClass)
-      #:attr translate (syntax/loc this-syntax `(int ,(* -1 (syntax->datum #'n.value))))))
+      #:attr translate (quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value))))))
 
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK
