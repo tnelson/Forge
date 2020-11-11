@@ -1,4 +1,3 @@
-;#lang racket
 #lang forge/core
 
 ; Desugaring functions for Amalgam
@@ -27,18 +26,19 @@
     
     ; operator formula (and, or, implies, ...)
     [(node/formula/op args)
-     (desugar-formula-op formula quantvars args runContext currSign)]
+     ; We want to pass in the currTupIfAtomic as the implicit LHS for the IN atomic formla case 
+     (desugar-formula-op formula quantvars args runContext currSign (first args))]
     
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity mult expr)
      ; create a new multiplicity formula with fields...
-     (node/formula/multiplicity mult (desugar-expr expr quantvars runContext))]
+     (node/formula/multiplicity mult (desugar-expr expr quantvars '() runContext currSign))]
     
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified quantifier decls form)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       (desugar-expr (cdr (car decls)) quantvars runContext)     
+       (desugar-expr (cdr (car decls)) quantvars '() runContext currSign)     
        (desugar-formula form quantvars runContext currSign)
        (printf "quant ~a~n" quantifier))]
     
@@ -49,7 +49,7 @@
 
 ; This function is recursively calling every element in args and pass it to the
 ; original recursive function. 
-(define (desugar-formula-op formula quantvars args runContext currSign)
+(define (desugar-formula-op formula quantvars args runContext currSign currTupIfAtomic)
   (match formula
 
     ; AND
@@ -76,7 +76,7 @@
      (define conseq (second args))
      (define desugaredImplies (node/formula/op/|| (list ante conseq)))
      (desugar-formula desugaredImplies quantvars runContext currSign)]
-    
+
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
      (printf "in~n")
@@ -95,20 +95,21 @@
      (define leftE (first args))
      (define rightE (second args)) ; TODO: descend on these somewhere -- after?      
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
-     (cond
-       [(and (is-ground-lhs leftE) (equal? lifted-upper-bounds 1)) ...]
-       [else (
      ;(printf "lub: ~a~n" lifted-upper-bounds)
      ; TODO: other args?
-     ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
+     (cond
+       ; add (and (is-ground-lhs leftE)
+       [(and (is-ground-lhs leftE) (equal? lifted-upper-bounds 1)) currTupIfAtomic]
+       [else
+        ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
               (define desugaredAnd (node/formula/op/&& 
-                         (map (slambda (x)
+                         (map (lambda (x)
                                 (define tupExpr (tup2Expr x runContext))
                                 (define ante   (node/formula/op/in (list tupExpr leftE)))
                                 (define conseq (node/formula/op/in (list tupExpr rightE)))
                                 (node/formula/op/=> (list ante conseq))) lifted-upper-bounds)))
               (printf "desugaredAnd: ~a~n" desugaredAnd)
-              (desugar-formula desugaredAnd quantvars runContext currSign))])]
+              (desugar-formula desugaredAnd quantvars runContext currSign)])]
 
     ; EQUALS 
     [(? node/formula/op/=?)
@@ -157,7 +158,7 @@
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op arity args)
-     (desugar-expr-op expr quantvars args currTupIfAtomic runContext)]
+     (desugar-expr-op expr quantvars args currTupIfAtomic runContext currSign)]
  
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var arity sym)     
@@ -173,7 +174,7 @@
         ; go through each declaration
        (for-each (lambda (d)
                    ;(print-cmd-cont (format "[~a : " (v (get-var-idx (car d) quantvars))))
-                   (desugar-expr (cdr d) quantvars runContext)
+                   (desugar-expr (cdr d) quantvars '() runContext currSign)
                    (printf "    decl: ~a~n" d))
                  decls)     
        (desugar-formula form quantvars runContext currSign))]))
@@ -191,7 +192,7 @@
      (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
      ; Recur on the LHS and RHS to see if they need to be desugared further 
      (define desugaredAnte (desugar-expr ante quantvars currTupIfAtomic runContext currSign))
-     (defined desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
+     (define desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
      ; Create the final desugared version of UNION by joining LHS and RHS with an OR 
      (define desugaredUnion (node/formula/op/|| (list desugaredAnte desugaredConseq)))
      desugaredUnion]
@@ -207,7 +208,7 @@
      (define conseq (node/formula/op/! (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
      ; Recur on the LHS and RHS to see if they need to be desugared further 
      (define desugaredAnte (desugar-expr ante quantvars currTupIfAtomic runContext currSign))
-     (defined desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
+     (define desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
      ; Create the final desugared version of SETMINUS by joining LHS and RHS with an AND 
      (define desugaredSetMinus (node/formula/op/&& (list desugaredAnte desugaredConseq)))
      desugaredSetMinus] 
@@ -223,7 +224,7 @@
      (define conseq (node/formula/op/in (list currTupIfAtomicExpr (second args))))
      ; Recur on the LHS and RHS to see if they need to be desugared further
      (define desugaredAnte (desugar-expr ante quantvars currTupIfAtomic runContext currSign))
-     (defined desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
+     (define desugaredConseq (desugar-expr conseq quantvars currTupIfAtomic runContext currSign))
      ; Create the final desugared version of INTERSECTION by joining LHS and RHS with an AND 
      (define desugaredIntersection (node/formula/op/&& (list desugaredAnte desugaredConseq)))
      desugaredIntersection]
@@ -231,19 +232,19 @@
     ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
-     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
+     (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)
      ]
     
     ; JOIN
     [(? node/expr/op/join?)
      (printf ".~n")
-     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
+     (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)
      ]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "^~n")
-     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
+     (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)
      ]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
@@ -251,11 +252,12 @@
      (printf "*~n")
      ; Check that the currTupIfAtomic isn't empty 
      (mustHaveTupleContext (currTupIfAtomic))
-     ; The desugared version of REFLEXIVE-TRANSITIVE CLOSURE is ((univ) & (univ->univ)) + (^expr) 
+     ; The desugared version of REFLEXIVE-TRANSITIVE CLOSURE is ((iden) & (univ->univ)) + (^expr) 
      (define productOfUniv (node/expr/op/-> (list univ univ)))
-     (define restrictedIden (node/expr/op/& (list univ productOfUniv)))
-     ; Q: I am not sure if this is OK
-     (define transitiveClosure (node/expr/op/^ (list args)))
+     (define restrictedIden (node/expr/op/& (list iden productOfUniv)))
+     ; Q: What is our specific input? 
+     (define transitiveClosure (node/expr/op/^ (args)))
+     ; Q: Do we want to call this recursively ?
      (define desugaredRClosure (node/expr/op/+ (list restrictedIden transitiveClosure)))
      (desugaredRClosure)
      ]
@@ -293,7 +295,7 @@
        ;( print-cmd-cont (format "(sum ([~a : ~a " 
        ;                         (v (get-var-idx var quantvars))
        ;                         (if (@> (node/expr-arity var) 1) "set" "one")))
-       (desugar-expr (cdr (car decls)) quantvars runContext)
+       (desugar-expr (cdr (car decls)) quantvars '() runContext false)
        
        (desugar-int int-expr quantvars runContext)
        )]))
@@ -334,7 +336,7 @@
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "cardinality~n")
-     (map (lambda (x) (desugar-expr x quantvars runContext)) args)
+     (map (lambda (x) (desugar-expr x quantvars (first args) runContext false)) args)
      ]
     
     ; remainder/modulo
@@ -389,13 +391,16 @@
     [(equal? (length tup) 0) (error "currTupIfAtomic is empty and it shouldn't be")]))
 
 ; Used to determine if we are at the base case
-(define (is-ground-lhs leftE)
+#| (define (is-ground-lhs leftE)
   (cond
     [(unary-op? leftE) ...]
     [(binary-op? leftE) (if (node/expr/op/->? leftE) (and (is-ground-lhs (first leftE))  (is-ground-lhs (second leftE))))]
     ; TODO: ExprVar case
     [(node/expr/constant? leftE) (if (number? (node/expr/constant leftE)) true)]
-    [else (false)]))
+    [else (false)])
+  (match leftE
+    [unary-op]
+    )) |#
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
