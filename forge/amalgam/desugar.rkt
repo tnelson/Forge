@@ -188,7 +188,7 @@
     [(? node/expr/op/+?)
      (printf "+~n")
      ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext (currTupIfAtomic))
+     (mustHaveTupleContext currTupIfAtomic)
      ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
      ; map over all children of intersection
      (define desugaredChildren
@@ -202,7 +202,7 @@
     [(? node/expr/op/-?)
      (printf "-~n")
       ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext (currTupIfAtomic))
+     (mustHaveTupleContext currTupIfAtomic)
       ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) iff (not(currTupIfAtomic in RHS))
      (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
      (define LHS (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
@@ -218,7 +218,7 @@
     [(? node/expr/op/&?)
      (printf "& ~a~n" expr)
      ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext (currTupIfAtomic))
+     (mustHaveTupleContext currTupIfAtomic)
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD) AND (currTupIfAtomic in CHILD)
      ; map over all children of intersection
      (define desugaredChildren
@@ -231,7 +231,7 @@
     ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
-     (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)
+     (mustHaveTupleContext currTupIfAtomic)
      ]
     
     ; JOIN
@@ -250,7 +250,7 @@
     [(? node/expr/op/*?)
      (printf "*~n")
      ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext (currTupIfAtomic))
+     (mustHaveTupleContext currTupIfAtomic)
      ; The desugared version of REFLEXIVE-TRANSITIVE CLOSURE is ((iden) & (univ->univ)) + (^expr) 
      (define productOfUniv (node/expr/op/-> info (list univ univ)))
      (define restrictedIden (node/expr/op/& info (list iden productOfUniv)))

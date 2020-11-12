@@ -117,8 +117,8 @@
      ; map to get the upper bounds
      ; filter to filter our the LHS only if they are also in upper bounds of RHS
      (define upper-bounds-LHS (lift-bounds-expr (first args) quantvars runContext))
-     (define upper-bounds-RHS (lift-bounds-expr (rest args) quantvards runContext))
-     (filter (lambda (x) (member? x upper-bounds-RHS)) upper-bounds-LHS)
+     (define upper-bounds-RHS (lift-bounds-expr (rest args) quantvars runContext))
+     (filter (lambda (x) (member x upper-bounds-RHS)) upper-bounds-LHS)
      ;(node/expr/op/& (length children) children)
      ]
 
