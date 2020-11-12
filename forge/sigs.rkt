@@ -3,7 +3,7 @@
 (require (prefix-in @ racket) 
          (prefix-in @ racket/set))
 (require syntax/parse/define)
-(require (for-syntax racket/match))
+(require (for-syntax racket/match syntax/srcloc))
 
 (require "shared.rkt")
 (require "lang/ast.rkt"
@@ -586,16 +586,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(sig name:id (~alt (~optional (~seq #:extends parent:expr))
                         (~optional (~or (~seq (~and #:one one-kw))
                                         (~seq (~and #:abstract abstract-kw))))) ...)
-    #'(begin
+    (quasisyntax/loc stx
+      (begin
         (define true-name 'name)
         (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
         (define true-parent (~? (Sig-name (get-sig curr-state parent))
                                 #f))
-        (define name (declare-relation (list (symbol->string true-name))
+        (define name (build-relation #,(build-source-location stx)
+                                       (list (symbol->string true-name))
                                        (symbol->string (or true-parent 'univ))
                                        (symbol->string true-name)))
-        (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent)))]))
+        (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent))))]))
 
 ; Declare a new relation
 ; (relation name (sig sig sig ...))
@@ -603,15 +605,19 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (syntax-parse stx
     [(relation name:id (sig1:id sig2:id sigs ...)
                (~optional (~seq #:is breaker:id)))
-     #'(begin
+     (quasisyntax/loc stx
+         (begin
        (define true-name 'name)
        (define true-sigs '(sig1 sig2 sigs ...))
        ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
        ;                                 (curry get-sig curr-state ))
        ;                        (list sig1 sig2 sigs ...)))
        (define true-breaker (~? 'breaker #f))
-       (define name (declare-relation (map symbol->string true-sigs) (symbol->string 'sig1) (symbol->string true-name)))
-       (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker)))]))
+       (define name (build-relation #,(build-source-location stx)
+                                      (map symbol->string true-sigs)
+                                      (symbol->string 'sig1)
+                                      (symbol->string true-name)))
+       (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker))))]))
 
 ; Declare a new predicate
 ; (pred name cond ...)

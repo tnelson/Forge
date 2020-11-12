@@ -11,15 +11,16 @@
 ; Ocelot ASTs are made up of expressions (which evaluate to relations) and
 ; formulas (which evaluate to booleans).
 ; All AST structs start with node/. The hierarchy is:
-;  * node -- holds basic info like source location (added for Forge)
-;   * node/expr  -- expressions
-;     * node/expr/op  -- simple operators
+;  * node (info) -- holds basic info like source location (added for Forge)
+;   * node/expr (arity) -- expressions
+;     * node/expr/op (children) -- simple operators
 ;       * node/expr/+
 ;       * node/expr/-
 ;       * ...
-;     * node/expr/comprehension  -- set comprehension
-;     * node/expr/relation  -- leaf relation
-;     * node/expr/constant  -- relational constant
+;     * node/expr/comprehension (decls formula)  -- set comprehension
+;     * node/expr/relation (name typelist parent)  -- leaf relation
+;     * node/expr/constant (type) -- relational constant [type serves purpose of name?]
+;     * node/expr/quantifier-var (sym) -- variable for quantifying over
 ;   * node/formula  -- formulas
 ;     * node/formula/op  -- simple operators
 ;       * node/formula/and
@@ -27,7 +28,11 @@
 ;       * ...
 ;     * node/formula/quantified  -- quantified formula
 ;     * node/formula/multiplicity  -- multiplicity formula
-
+;   * node/int -- integer expression
+;     * node/int/op (children)
+;       * node/int/op/add
+;       * ...
+;     * node/int/constant (value) -- int constant
 ;; -----------------------------------------------------------------------------
 
 ; Group information in one struct to make change easier
@@ -66,7 +71,9 @@
       (printf "Error loc: ~a Args: ~a~n" loc args)
       (printf "Arg locs ~a~n" (map (lambda (a) (nodeinfo-loc (node-info a))) args))
       (printf "Merged arg locs ~a~n" (apply build-source-location (map (lambda (a) (nodeinfo-loc (node-info a))) args)))
-      (raise-arguments-error op (format "join would create a relation of arity 0: ~a" args))))
+     ; (raise-arguments-error op (format "join would create a relation of arity 0: ~a" args))))
+       (raise-user-error (format "join would create a relation of arity 0: ~a" args)
+                         (apply build-source-location (map (lambda (a) (nodeinfo-loc (node-info a))) args)))))
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)      
       (raise-arguments-error op "second argument must have arity 1")))
@@ -216,12 +223,29 @@
      (match-define (node/expr/relation info arity name typelist parent) self)
      (fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))])
 (define next-name 0)
-(define (declare-relation typelist parent [name #f])
-  (let ([name (if (false? name) 
-                  (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))
-                  name)])
-    ; TODO TN
-    (node/expr/relation empty-nodeinfo (length typelist) name typelist parent)))
+
+; e.g.: (rel '(Node Node) 'Node "edges") to define the usual edges relation
+(define-syntax (rel stx)
+  (syntax-case stx ()
+    [(_ (typelist ...) parent name)
+     (quasisyntax/loc stx       
+         (build-relation #,(build-source-location stx) (typelist ...) parent name))]))
+
+; Used by rel macro but *also* by Sig and relation macros in forge/core (sigs.rkt)
+(define (build-relation loc typelist parent [name #f])
+  (let ([name (cond [(false? name) 
+                     (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))]
+                     [(symbol? name) (symbol->string name)]
+                     [else name])]
+        [types (map (lambda (t)
+                      (cond                        
+                        [(string? t) t]
+                        [(symbol? t) (symbol->string t)]
+                        [else (error (format "build-relation expected list of strings or symbols: ~a" typelist))])) typelist)])
+    (node/expr/relation (nodeinfo loc) (length types) name typelist parent)))
+
+
+; Helpers to more cleanly talk about relation fields
 (define (relation-arity rel)
   (node/expr-arity rel))
 (define (relation-name rel)
@@ -285,13 +309,14 @@
 (define-node-op abs node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 (define-node-op sign node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 
+; min and max are now *defined*, not declared:
+;(define-node-op max node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
+;(define-node-op min node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
+
 (define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
 (define (min s-int)
   (sum (- s-int (join s-int (^ succ)))))
-
-;(define-node-op max node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
-;(define-node-op min node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
 
 ;; -- constants ----------------------------------------------------------------
 
@@ -439,43 +464,13 @@
     (raise-argument-error mult "expr?" expr))
   (node/formula/multiplicity info mult expr))
 
-
-#|(define-syntax (all stx)
-  (syntax-case stx ()
-    [(_ ([x1 r1] ...) pred)
-     (with-syntax ([(rel ...) (generate-temporaries #'(r1 ...))])
-       (syntax/loc stx
-         (let* ([x1 (declare-relation 1)] ...
-                [decls (list (cons x1 r1) ...)])
-           (quantified-formula 'all decls pred))))]))|#
-
-
-
-; ok something of this form works!
-; now to make it actually work.
-; ok, search through pred for instances of v0, replace with just the datum.
-; then, in kodkod-translate, we keep a list of quantified variables, and if we ever hit one we know what to do.
-; and that can only happen in the context of interpret-expr, right? yeah, it always appears in an expression context.
-; and in that scenario, we can always just straight print it!
-
-; OK new plan: reader goes through all 
-(define-syntax (all stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
+(define-syntax (all stx)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax???? 
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'all (list (cons v0 e0) ...) pred)))]))
-
-#|(define-syntax (one stx) ;#'(quantified-formula 'all (list 'v0 'e0) true)
-  (syntax-case stx ()
-    [(_ ([v0 e0]) pred)
-     ; need a with syntax????
-     (syntax/loc stx
-       (let ([v0 (node/expr/quantifier-var 1 'v0)])
-         (quantified-formula 'one (list (cons v0 e0)) pred)))]))|#
-
-
 
 (define-syntax (some stx)
   (syntax-case stx ()
@@ -516,7 +511,6 @@
     [(_ expr)
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'lone expr))]))
-
 
 ; sum quantifier macro
 (define-syntax (sum-quant stx)

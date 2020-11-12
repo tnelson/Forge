@@ -1,7 +1,7 @@
 #lang racket
 
 (require (only-in "lang/ast.rkt" relation-name)
-         (only-in "lang/ast.rkt" univ declare-relation))
+         (only-in "lang/ast.rkt" univ))   ;relation))
 (provide translate-from-kodkod-cli
          translate-evaluation-from-kodkod-cli )
 
@@ -96,7 +96,7 @@ This function just recreates the model, but using names instead of numbers.
                   (define translated-tuples (translate-kodkod-cli-relation inty-univ (hash-ref data relation-num)))
                   (printf "Skolem ~a: ~a~n" relation-num translated-tuples)
                   (hash-set! translated-model
-                             (declare-relation arity-types "univ" (symbol->string relation-num))
+                             (rel arity-types "univ" (symbol->string relation-num))
                              translated-tuples)]))|#
          ;(printf "Translated model: ~a~n" translated-model)
 
