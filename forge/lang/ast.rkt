@@ -68,12 +68,9 @@
                                  "got" arity "and" (node/expr-arity a) ":" args)))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
-      (printf "Error loc: ~a Args: ~a~n" loc args)
-      (printf "Arg locs ~a~n" (map (lambda (a) (nodeinfo-loc (node-info a))) args))
-      (printf "Merged arg locs ~a~n" (apply build-source-location (map (lambda (a) (nodeinfo-loc (node-info a))) args)))
-     ; (raise-arguments-error op (format "join would create a relation of arity 0: ~a" args))))
-       (raise-user-error (format "join would create a relation of arity 0: ~a" args)
-                         (apply build-source-location (map (lambda (a) (nodeinfo-loc (node-info a))) args)))))
+       (raise-syntax-error #f (format "join would create a relation of arity 0")
+                           (datum->syntax #f args (build-source-location-syntax loc)))))
+  
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)      
       (raise-arguments-error op "second argument must have arity 1")))
