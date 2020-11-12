@@ -51,33 +51,23 @@
   (match formula
 
     ; AND and currSign equals true
-     [(and (? node/formula/op/&&?) (equal? currSign true)) 
+     [(? node/formula/op/&&?) 
      (printf "and~n")
      (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
-     (node/formula/op/&& info (length desugaredArgs) desugaredArgs)
-     ]
-
-    ; AND and currSign equals false
-     [(and (? node/formula/op/&&?) (equal? currSign false)) 
-     (printf "and~n")
-     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
-     (node/formula/op/|| info (length desugaredArgs) desugaredArgs)
+     (cond
+       [(equal? currSign true) (node/formula/op/&& info (length desugaredArgs) desugaredArgs)]
+       [else (node/formula/op/|| info (length desugaredArgs) desugaredArgs)])
      ]
 
     ; OR and currSign equals true 
-     [(and (? node/formula/op/||?) (equal? currSign true))
+     [(? node/formula/op/||?)
      (printf "or~n")
      (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
-     (node/formula/op/|| info (length desugaredArgs) desugaredArgs)
+     (cond
+       [(equal? currSign true) (node/formula/op/|| info (length desugaredArgs) desugaredArgs)]
+       [else (node/formula/op/&& info (length desugaredArgs) desugaredArgs)])
      ]
 
-    ; OR and currSign equals false 
-     [(and (? node/formula/op/||?) (equal? currSign false))
-     (printf "or~n")
-     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
-     (node/formula/op/&& info (length desugaredArgs) desugaredArgs)
-     ]
-    
     ; IMPLIES
     [(? node/formula/op/=>?)
      (printf "implies~n")
