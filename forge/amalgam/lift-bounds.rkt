@@ -40,29 +40,29 @@
 (define (lift-bounds-expr expr quantvars runContext)  
   (match expr
     ; relation name (base case)
-    [(node/expr/relation arity name typelist parent)
+    [(node/expr/relation info arity name typelist parent)
      (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
      (define filtered-bounds (filter (lambda (b) (equal? name (forge:relation-name (forge:bound-relation b)))) all-bounds))
      (cond [(equal? (length filtered-bounds) 1) (forge:bound-upper (first filtered-bounds))]
            [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr name all-bounds))])]
     ; The Int constant
-    [(node/expr/constant 1 'Int)
+    [(node/expr/constant info 1 'Int)
      expr]
     ; other expression constants
-    [(node/expr/constant arity type)
+    [(node/expr/constant info arity type)
      expr]
     
     ; expression w/ operator (union, intersect, ~, etc...)
-    [(node/expr/op arity args)
+    [(node/expr/op info arity args)
      (lift-bounds-expr-op expr quantvars args runContext)]
     
     ; quantified variable (depends on scope! which quantifier is this var for?)
-    [(node/expr/quantifier-var arity sym)     
+    [(node/expr/quantifier-var info arity sym)     
      ;;(print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
      (printf "  ~a~n" sym)]
     
     ; set comprehension e.g. {n : Node | some n.edges}
-    [(node/expr/comprehension len decls form)     
+    [(node/expr/comprehension info len decls form)     
      (define vars (map car decls)) ; account for multiple variables  
      (let ([quantvars (append vars quantvars)])             
        ; {x: e1, y: e2 | ...}
@@ -165,16 +165,16 @@
 (define (lift-bounds-int expr quantvars runContext)
   (match expr
     ; constant int
-    [(node/int/constant value)
+    [(node/int/constant info value)
      (printf "~a~n" value)]
     
     ; apply an operator to some integer expressions
-    [(node/int/op args)   
+    [(node/int/op info args)   
      (lift-bounds-int-op expr quantvars args runContext)]
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age  
-    [(node/int/sum-quant decls int-expr)
+    [(node/int/sum-quant info decls int-expr)
      (printf "sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
