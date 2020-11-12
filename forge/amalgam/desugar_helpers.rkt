@@ -38,9 +38,9 @@
 ; Function isGroundProduct used to test whether a given expression is ground. 
 (define (isGroundProduct expr args)
   (cond
-    [(not (node/expr? expr)) (error "not an expr")]
-    ; Check if the expression is UNARY and of SUM or SING type. If so, call the function recursively. 
-    [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr))) (isGroundProduct ((first args) '()))]
+    [(not (node/expr? expr)) (error "expression ~a is not an expression." expr)]
+    ; Check if the expression is UNARY and if SUM or SING type. If so, call the function recursively. 
+    [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr))) (isGroundProduct (first args) '())]
     ; If the expression is a quantifier variable, return true 
     [(node/expr/quantifier-var? expr) true]
     ; If the expression is binary and of type PRODUCT, call function recurisvely on LHS and RHS of expr 
@@ -50,6 +50,7 @@
     ; If none of the above cases are true, then return false
     [else false]
     ))
+
 
 ; Function that takes in a given expression and returns whether that expression is unary
 ; This function tests whether the given expression is transitive closure, reflexive transitive

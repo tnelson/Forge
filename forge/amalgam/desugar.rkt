@@ -51,21 +51,21 @@
 (define (desugar-formula-op formula quantvars args runContext currSign currTupIfAtomic info)
   (match formula
 
-    ; AND and currSign equals true
+    ; AND 
      [(? node/formula/op/&&?) 
      (printf "and~n")
      (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
-       [(equal? currSign true) (node/formula/op/&& info (length desugaredArgs) desugaredArgs)]
+       [(currSign) (node/formula/op/&& info (length desugaredArgs) desugaredArgs)]
        [else (node/formula/op/|| info (length desugaredArgs) desugaredArgs)])
      ]
 
-    ; OR and currSign equals true 
+    ; OR
      [(? node/formula/op/||?)
      (printf "or~n")
      (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
-       [(equal? currSign true) (node/formula/op/|| info (length desugaredArgs) desugaredArgs)]
+       [(currSign) (node/formula/op/|| info (length desugaredArgs) desugaredArgs)]
        [else (node/formula/op/&& info (length desugaredArgs) desugaredArgs)])
      ]
 
