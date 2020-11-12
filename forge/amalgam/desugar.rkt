@@ -232,6 +232,7 @@
     [(? node/expr/op/->?)
      (printf "->~n")
      (mustHaveTupleContext currTupIfAtomic)
+     (define lef
      ]
     
     ; JOIN
