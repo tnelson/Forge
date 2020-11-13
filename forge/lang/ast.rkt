@@ -14,8 +14,8 @@
 ;  * node (info) -- holds basic info like source location (added for Forge)
 ;   * node/expr (arity) -- expressions
 ;     * node/expr/op (children) -- simple operators
-;       * node/expr/+
-;       * node/expr/-
+;       * node/expr/op/+
+;       * node/expr/op/-
 ;       * ...
 ;     * node/expr/comprehension (decls formula)  -- set comprehension
 ;     * node/expr/relation (name typelist parent)  -- leaf relation
@@ -23,11 +23,11 @@
 ;     * node/expr/quantifier-var (sym) -- variable for quantifying over
 ;   * node/formula  -- formulas
 ;     * node/formula/op  -- simple operators
-;       * node/formula/and
-;       * node/formula/or
+;       * node/formula/op/and
+;       * node/formula/op/or
 ;       * ...
-;     * node/formula/quantified  -- quantified formula
-;     * node/formula/multiplicity  -- multiplicity formula
+;     * node/formula/quantified (TODO FILL)  -- quantified formula
+;     * node/formula/multiplicity (TODO FILL) -- multiplicity formula
 ;   * node/int -- integer expression
 ;     * node/int/op (children)
 ;       * node/int/op/add

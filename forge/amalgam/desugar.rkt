@@ -31,6 +31,7 @@
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity info mult expr)
      ; create a new multiplicity formula with fields...
+     ; TODO: this needs filling in (example code only present)
      (node/formula/multiplicity info mult (desugar-expr expr quantvars '() runContext currSign))]
     
     ; quantified formula (some x : ... or all x : ...)
@@ -97,7 +98,9 @@
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
      
      (cond
-       [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1)) currTupIfAtomic]
+       [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
+        ; TODO TN: Missing formula construction here? Should invoke desugar-expr?
+        currTupIfAtomic]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
         (define desugaredAnd (node/formula/op/&& info
@@ -168,6 +171,8 @@
      (error "amalgam: Something wasn't substituted correctly or the formula was malformed ~n")]
 
     ; set comprehension e.g. {n : Node | some n.edges}
+    ; t in {x0: A0, x1: A1, ... | fmla } means:
+    ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...]
     [(node/expr/comprehension info len decls form)
       ; account for multiple variables  
      (define vars (map car decls))
@@ -210,7 +215,10 @@
      ; Recur on the LHS and RHS to see if they need to be desugared further 
      (define desugaredLHS (desugar-expr LHS quantvars currTupIfAtomic runContext currSign))
      (define desugaredRHS (desugar-expr RHS quantvars currTupIfAtomic runContext currSign))
-     ; Create the final desugared version of SETMINUS by joining LHS and RHS with an AND 
+     ; Create the final desugared version of SETMINUS by joining LHS and RHS with an AND
+
+     ; TN NOTE: problem is that this line manufactures an and with desugared children
+     ;   so currentSign never gets to influence the && vs. ||. Instead, just rewrite + call desugar-fmla.
      (define desugaredSetMinus (node/formula/op/&& info (list desugaredLHS desugaredRHS)))
      desugaredSetMinus]
     
@@ -231,8 +239,7 @@
     ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
-     (mustHaveTupleContext currTupIfAtomic)
-     (define lef
+     (mustHaveTupleContext currTupIfAtomic)     
      ]
     
     ; JOIN

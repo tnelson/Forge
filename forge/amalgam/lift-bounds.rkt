@@ -96,6 +96,8 @@
 	  (if (equal? (length uppers) 1)
            (first uppers)
            (node/expr/op/+ (length uppers) uppers))
+          ; ^^^ TODO TN: this is the wrong type! should return list-of-lists
+          ; (remove-duplicates (apply append uppers)) <--- something like this
      ]
     
     ; SET MINUS 
@@ -118,6 +120,7 @@
      ; filter to filter our the LHS only if they are also in upper bounds of RHS
      (define upper-bounds-LHS (lift-bounds-expr (first args) quantvars runContext))
      (define upper-bounds-RHS (lift-bounds-expr (rest args) quantvars runContext))
+     ; ^^ TODO TN: not quite right, suggest map or foldl
      (filter (lambda (x) (member x upper-bounds-RHS)) upper-bounds-LHS)
      ;(node/expr/op/& (length children) children)
      ]
@@ -253,8 +256,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define Node  (declare-relation '(univ) 'univ "Node"))
-(define edges (declare-relation '(Node Node) 'Node "edges"))
+(define Node  (rel '(univ) 'univ "Node"))
+(define edges (rel '(Node Node) 'Node "edges"))
 (define f-symmetric (= edges (~ edges)))
 (define f-irreflexive (no (& edges iden)))
 (define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
