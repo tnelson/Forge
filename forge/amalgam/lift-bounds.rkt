@@ -93,9 +93,10 @@
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub))
             args))
-	  (if (equal? (length uppers) 1)
-           (first uppers)
-           (node/expr/op/+ (length uppers) uppers))
+        (remove-duplicates (apply append uppers))
+	 ; (if (equal? (length uppers) 1)
+         ;  (first uppers)
+         ;  (node/expr/op/+ (length uppers) uppers))
           ; ^^^ TODO TN: this is the wrong type! should return list-of-lists
           ; (remove-duplicates (apply append uppers)) <--- something like this
      ]
