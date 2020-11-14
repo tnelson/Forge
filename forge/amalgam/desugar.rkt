@@ -99,8 +99,7 @@
      
      (cond
        [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
-        ; TODO TN: Missing formula construction here? Should invoke desugar-expr?
-        currTupIfAtomic]
+       (desugar-expr leftE quantvars currTupIfAtomic runContext currSign)]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
         (define desugaredAnd (node/formula/op/&& info
@@ -194,12 +193,12 @@
      (printf "+~n")
      ; Check that the currTupIfAtomic isn't empty 
      (mustHaveTupleContext currTupIfAtomic)
-     ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
      ; map over all children of intersection
      (define desugaredChildren
        (map
         (lambda (child) (desugar-expr child quantvars currTupIfAtomic runContext currSign)) args))
      ; Create the final desugared version of UNION by calling with desguaredChildren
+     ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
      (define desugaredUnion (node/formula/op/|| info desugaredChildren))
      (desugaredUnion)]
     
@@ -208,38 +207,44 @@
      (printf "-~n")
       ; Check that the currTupIfAtomic isn't empty 
      (mustHaveTupleContext currTupIfAtomic)
-      ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) iff (not(currTupIfAtomic in RHS))
-     (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
-     (define LHS (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
-     (define RHS (node/formula/op/! info (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
-     ; Recur on the LHS and RHS to see if they need to be desugared further 
-     (define desugaredLHS (desugar-expr LHS quantvars currTupIfAtomic runContext currSign))
-     (define desugaredRHS (desugar-expr RHS quantvars currTupIfAtomic runContext currSign))
-     ; Create the final desugared version of SETMINUS by joining LHS and RHS with an AND
-
-     ; TN NOTE: problem is that this line manufactures an and with desugared children
-     ;   so currentSign never gets to influence the && vs. ||. Instead, just rewrite + call desugar-fmla.
-     (define desugaredSetMinus (node/formula/op/&& info (list desugaredLHS desugaredRHS)))
-     desugaredSetMinus]
+     (cond
+       [(!(equal? (length args) 2)) error("Setminus should not be given more than two arguments")]
+       [else 
+        ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) and (not(currTupIfAtomic in RHS))
+        (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
+        (define LHS (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
+        (define RHS (node/formula/op/! info (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
+        ; Create the final desugared version of SETMINUS by joining LHS and RHS with an AND and call desugar-formula on it
+        (define desugaredSetMinus (node/formula/op/&& info (list LHS RHS)))
+        (desugar-formula desugaredSetMinus quantvars runContext currSign)])]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
      (printf "& ~a~n" expr)
      ; Check that the currTupIfAtomic isn't empty 
      (mustHaveTupleContext currTupIfAtomic)
-     ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD) AND (currTupIfAtomic in CHILD)
      ; map over all children of intersection
      (define desugaredChildren
        (map
         (lambda (child) (desugar-expr child quantvars currTupIfAtomic runContext currSign)) args))
      ; Create the final desugared version of INTERSECTION by calling with desguaredChildren
+     ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD) AND (currTupIfAtomic in CHILD)
      (define desugaredIntersection (node/formula/op/&& info desugaredChildren))
      desugaredIntersection]
     
     ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
-     (mustHaveTupleContext currTupIfAtomic)     
+     (mustHaveTupleContext currTupIfAtomic)
+     (define LHS (first args))
+     (define RHS (second args))
+     (define leftTupleContext (projectTupleRange(currTupIfAtomic, 0, LHS/expr-arity)))
+     (define rightTupleContext(projectTupleRange(currTupIfAtomic, LHS/expr-arity, RHS/expr-arity)))
+     (define formulas (cons
+                       (node/formula/op/in info (list tup2Expr(leftTupleContext) LHS))
+                       (node/formula/op/in info (list tup2Expr(rightTupleContext) RHS))))
+     (define desugaredProduct (node/formula/op/&& info formulas))
+     (desugaredProduct)
      ]
     
     ; JOIN
