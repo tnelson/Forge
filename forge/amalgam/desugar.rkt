@@ -30,9 +30,9 @@
     
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity info mult expr)
-     ; create a new multiplicity formula with fields...
-     ; TODO: this needs filling in (example code only present)
-     (node/formula/multiplicity info mult (desugar-expr expr quantvars '() runContext currSign))]
+      (define desugaredMultiplicity (node/formula/quantified info mult expr formula))
+      (desugar-formula desugaredMultiplicity quantvars runContext currSign)]
+
     
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified info quantifier decls form)
@@ -99,7 +99,7 @@
      
      (cond
        [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
-       (desugar-expr leftE quantvars currTupIfAtomic runContext currSign)]
+        (desugar-expr leftE quantvars currTupIfAtomic runContext currSign)]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
         (define desugaredAnd (node/formula/op/&& info
@@ -164,7 +164,7 @@
     [(node/expr/op info arity args)
      (desugar-expr-op expr quantvars args currTupIfAtomic runContext currSign info)]
  
-    ; quantified variable (depends on scope! which quantifier is this var for?)
+    ; quantified variable (depends on scope!)
     [(node/expr/quantifier-var info arity sym)     
      (printf "  ~a~n" sym)
      (error "amalgam: Something wasn't substituted correctly or the formula was malformed ~n")]
@@ -208,7 +208,7 @@
       ; Check that the currTupIfAtomic isn't empty 
      (mustHaveTupleContext currTupIfAtomic)
      (cond
-       [(!(equal? (length args) 2)) error("Setminus should not be given more than two arguments")]
+       [(!(equal? (length args) 2)) (error("Setminus should not be given more than two arguments ~n"))]
        [else 
         ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) and (not(currTupIfAtomic in RHS))
         (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
