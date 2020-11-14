@@ -213,7 +213,7 @@
         ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) and (not(currTupIfAtomic in RHS))
         (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
         (define LHS (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
-        (define RHS (node/formula/op/! info (list node/formula/op/in (list currTupIfAtomicExpr (second args)))))
+        (define RHS (node/formula/op/! info (list node/formula/op/in info (list currTupIfAtomicExpr (second args)))))
         ; Create the final desugared version of SETMINUS by joining LHS and RHS with an AND and call desugar-formula on it
         (define desugaredSetMinus (node/formula/op/&& info (list LHS RHS)))
         (desugar-formula desugaredSetMinus quantvars runContext currSign)])]
