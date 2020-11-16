@@ -45,37 +45,27 @@
     [#f (printf "false~n")]
     ))
 
-; This function is recursively calling every element in args and pass it to the
-; original recursive function. 
 (define (substitute-formula-op formula quantvars args runContext currSign currTupIfAtomic info)
   (match formula
 
     ; AND 
      [(? node/formula/op/&&?) 
      (printf "and~n")
-     (define substituteedArgs (map (lambda (x) (substitute-formula x quantvars runContext currSign)) args))
-     (cond
-       [(currSign) (node/formula/op/&& info (length substituteedArgs) substituteedArgs)]
-       [else (node/formula/op/|| info (length substituteedArgs) substituteedArgs)])
-     ]
+     (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars runContext currSign)) args))
+     (node/formula/op/&& info substitutedArgs)]
 
     ; OR
      [(? node/formula/op/||?)
      (printf "or~n")
-     (define substituteedArgs (map (lambda (x) (substitute-formula x quantvars runContext currSign)) args))
-     (cond
-       [(currSign) (node/formula/op/|| info (length substituteedArgs) substituteedArgs)]
-       [else (node/formula/op/&& info (length substituteedArgs) substituteedArgs)])
-     ]
+     (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars runContext currSign)) args))
+     (node/formula/op/|| info substitutedArgs)]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
      (printf "implies~n")
-     ; The substituteed version of IMPLIES is: (not LHS) OR (RHS)
-     (define ante (node/formula/op/! info (list (first args))))
-     (define conseq (second args))
-     (define substituteedImplies (node/formula/op/|| info (list ante conseq)))
-     (substitute-formula substituteedImplies quantvars runContext currSign)]
+     (define substitutedLHS (substitute-formula info (list (first args))))
+     (define substitutedRHS (substitute-formula info (list (second args))))
+     (node/formula/op/=> info (list substitutedLHS substitutedRHS))]
 
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
