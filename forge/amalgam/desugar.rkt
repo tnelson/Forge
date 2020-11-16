@@ -238,8 +238,8 @@
      (mustHaveTupleContext currTupIfAtomic)
      (define LHS (first args))
      (define RHS (second args))
-     (define leftTupleContext (projectTupleRange(currTupIfAtomic, 0, node/expr-arity (LHS))))
-     (define rightTupleContext(projectTupleRange(currTupIfAtomic, node/expr-arity (LHS), node/expr-arity (RHS))))
+     (define leftTupleContext (projectTupleRange(currTupIfAtomic 0 node/expr-arity (LHS))))
+     (define rightTupleContext(projectTupleRange(currTupIfAtomic node/expr-arity (LHS) node/expr-arity (RHS))))
      (define formulas (cons
                        (node/formula/op/in info (list tup2Expr(leftTupleContext) LHS))
                        (node/formula/op/in info (list tup2Expr(rightTupleContext) RHS))))
