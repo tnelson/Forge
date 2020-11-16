@@ -15,16 +15,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (substitute-formula formula quantvars runContext currSign)
+(define (substitute-formula formula quantvars variable value)
   (match formula
+    ; TODO: FIX BASE CASES 
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
      formula]
     
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
-     ; We want to pass in the currTupIfAtomic as the implicit LHS
-     (substitute-formula-op formula quantvars args runContext currSign (first args) info)]
+     (substitute-formula-op formula quantvars args info variable value)]
     
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity info mult expr)
@@ -45,74 +45,47 @@
     [#f (printf "false~n")]
     ))
 
-(define (substitute-formula-op formula quantvars args runContext currSign currTupIfAtomic info)
+(define (substitute-formula-op formula quantvars args info variable value)
   (match formula
 
     ; AND 
      [(? node/formula/op/&&?) 
      (printf "and~n")
-     (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars runContext currSign)) args))
+     (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars variable value)) args))
      (node/formula/op/&& info substitutedArgs)]
 
     ; OR
      [(? node/formula/op/||?)
      (printf "or~n")
-     (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars runContext currSign)) args))
+     (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars variable value)) args))
      (node/formula/op/|| info substitutedArgs)]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
      (printf "implies~n")
-     (define substitutedLHS (substitute-formula info (list (first args))))
-     (define substitutedRHS (substitute-formula info (list (second args))))
+     (define substitutedLHS (substitute-formula  (first args) quantvars variable value))
+     (define substitutedRHS (substitute-formula  (second args) quantvars variable value))
      (node/formula/op/=> info (list substitutedLHS substitutedRHS))]
 
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
      (printf "in~n")
-
-     ; In this function there are two cases, the ground case and the case where we build an and-of-implications.
-     ; Some examples can be seen below: 
-     ;     Node0->Node1 in ^edges   <--- this is a ground case of IN! we know the current tuple
-     ;     Node0->Node1 + Node1->Node2 in ^edges <--- need to turn into an and-of-implications
-     ;     edges in ~edges <--- same deal, need to build an and-of-implications
-  
-     (define leftE (first args))
-     (define rightE (second args))
-
-     ; we already have the upper bounds Node0 -> Node1 upper bound is just Node0 -> Node1
-     ; We don't yet know which relation's bounds will be needed, so just pass them all in
-     ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
-     (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
-     
-     (cond
-       [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
-        (substitute-expr leftE quantvars currTupIfAtomic runContext currSign)]
-       [else
-        ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
-        (define substituteedAnd (node/formula/op/&& info
-                                                 (map (lambda (x)
-                                                        (define tupExpr (tup2Expr x runContext))
-                                                        (define LHS   (node/formula/op/in info (list tupExpr leftE)))
-                                                        (define RHS (node/formula/op/in info (list tupExpr rightE)))
-                                                        (node/formula/op/=> info (list LHS RHS))) lifted-upper-bounds)))
-        (printf "substituteedAnd: ~a~n" substituteedAnd)
-        (substitute-formula substituteedAnd quantvars runContext currSign)])]
+     (define substitutedLHS (substitute-formula  (first args) quantvars variable value))
+     (define substitutedRHS (substitute-formula  (second args) quantvars variable value))
+     (node/formula/op/in info (list substitutedLHS substitutedRHS))]
 
     ; EQUALS 
     [(? node/formula/op/=?)
      (printf "=~n")
-     ; The substituteed version of EQUALS is: (LHS in RHS) AND (RHS in LHS)
-     (define LHS (node/formula/op/in info (list (first args) (second args))))
-     (define RHS (node/formula/op/in info (list (second args) (first args))))
-     (define substituteedEquals (node/formula/op/&& info (list LHS RHS)))
-     (substitute-formula substituteedEquals quantvars runContext currSign)]
+     (define substitutedLHS (substitute-formula  (first args) quantvars variable value))
+     (define substitutedRHS (substitute-formula  (second args) quantvars variable value))
+     (node/formula/op/= info (list substitutedLHS substitutedRHS))]
 
     ; NEGATION
     [(? node/formula/op/!?)
      (printf "not~n")
-     ; The substituteed version of NEGATION is to flip the currSign type
-     (substitute-formula formula quantvars runContext (not currSign))]   
+     (define substitutedEntry (substitute-formula (first args) quantvars variable value))
+     (node/formula/op/! info (list substitutedEntry))]   
 
     ; INTEGER >
     [(? node/formula/op/int>?)
