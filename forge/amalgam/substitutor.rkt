@@ -29,15 +29,15 @@
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity info mult expr)
       (define substituteedMultiplicity (node/formula/quantified info mult expr formula))
-      (substitute-formula substituteedMultiplicity quantvars runContext currSign)]
+      (substitute-formula substituteedMultiplicity quantvars variable value)]
 
     
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified info quantifier decls form)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       (substitute-expr (cdr (car decls)) quantvars '() runContext currSign)     
-       (substitute-formula info form quantvars runContext currSign)
+       (substitute-expr (cdr (car decls)) quantvars variable value)     
+       (substitute-formula info form quantvars variable value)
        (printf "quant ~a~n" quantifier))]
     
     ; truth and falsity
@@ -104,26 +104,27 @@
      ]))
 
 ; Should always have a currTupIfAtomic when calling
-(define (substitute-expr expr quantvars currTupIfAtomic runContext currSign)
+; TODO: change bsae cases
+(define (substitute-expr expr quantvars variable value)
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr) (error (format "substitute-expr called on non-expr: ~a" expr)))
 
   (match expr
     ; relation name (base case)
-    [(node/expr/relation info arity name typelist parent)
-      (node/formula/op/in info (list currTupIfAtomic expr))]
-
+    [(and (node/expr/relation info arity name typelist parent) (equal? expr variable)) value]
+    [(and (node/expr/relation info arity name typelist parent) (not (equal? expr variable))) variable]
+    
     ; The Int constant
-    [(node/expr/constant info 1 'Int)
-     (node/formula/op/in info (list currTupIfAtomic expr))]
-
+    [(and (node/expr/constant info 1 'Int) (equal? expr variable)) value]
+    [(and (node/expr/constant info 1 'Int) (not (equal? expr variable))) variable]
+    
     ; other expression constants
-    [(node/expr/constant info arity type)
-     (node/formula/op/in info (list currTupIfAtomic expr))]
+    [(and (node/expr/constant info arity type) (equal? expr variable)) value]
+    [(and (node/expr/constant info arity type) (not (equal? expr variable))) variable]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
-     (substitute-expr-op expr quantvars args currTupIfAtomic runContext currSign info)]
+     (substitute-expr-op expr quantvars args info variable value)]
  
     ; quantified variable (depends on scope!)
     [(node/expr/quantifier-var info arity sym)     
@@ -131,8 +132,6 @@
      (error "amalgam: Something wasn't substituted correctly or the formula was malformed ~n")]
 
     ; set comprehension e.g. {n : Node | some n.edges}
-    ; t in {x0: A0, x1: A1, ... | fmla } means:
-    ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...]
     [(node/expr/comprehension info len decls form)
       ; account for multiple variables  
      (define vars (map car decls))
@@ -140,139 +139,111 @@
        (printf "comprehension over ~a~n" vars)
         ; go through each declaration
        (for-each (lambda (d)
-                   ;(print-cmd-cont (format "[~a : " (v (get-var-idx (car d) quantvars))))
-                   (substitute-expr (cdr d) quantvars currTupIfAtomic runContext currSign)
+                   (substitute-expr (cdr d) quantvars variable value)
                    (printf "    decl: ~a~n" d))
                  decls)     
-       (substitute-formula form quantvars runContext currSign))]))
+       (substitute-formula form quantvars variable value))]))
 
-(define (substitute-expr-op expr quantvars args currTupIfAtomic runContext currSign info)
+(define (substitute-expr-op expr quantvars args info variable value)
   (match expr
 
     ; UNION
     [(? node/expr/op/+?)
      (printf "+~n")
-     ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext currTupIfAtomic)
-     ; map over all children of intersection
-     (define substituteedChildren
+     ; map over all children of union
+     (define substitutedChildren
        (map
-        (lambda (child) (substitute-expr child quantvars currTupIfAtomic runContext currSign)) args))
-     ; Create the final substituteed version of UNION by calling with desguaredChildren
-     ; The substituteed version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
-     (define substituteedUnion (node/formula/op/|| info substituteedChildren))
-     (substituteedUnion)]
+        (lambda (child) (substitute-expr child quantvars variable value)) args))
+     (node/expr/op/+ info substitutedChildren)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
      (printf "-~n")
-      ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext currTupIfAtomic)
      (cond
        [(!(equal? (length args) 2)) (error("Setminus should not be given more than two arguments ~n"))]
        [else 
-        ; The substituteed version of SETMINUS is: (currTupIfAtomic in LHS) and (not(currTupIfAtomic in RHS))
-        (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
-        (define LHS (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
-        (define RHS (node/formula/op/! info (list node/formula/op/in info (list currTupIfAtomicExpr (second args)))))
-        ; Create the final substituteed version of SETMINUS by joining LHS and RHS with an AND and call substitute-formula on it
-        (define substituteedSetMinus (node/formula/op/&& info (list LHS RHS)))
-        (substitute-formula substituteedSetMinus quantvars runContext currSign)])]
+        (define LHS (substitute-expr (first args) quantvars variable value))
+        (define RHS (substitute-expr (second args) quantvars variable value))
+        (node/expr/op/- info (list LHS RHS))])]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
      (printf "& ~a~n" expr)
-     ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext currTupIfAtomic)
      ; map over all children of intersection
-     (define substituteedChildren
+     (define substitutedChildren
        (map
-        (lambda (child) (substitute-expr child quantvars currTupIfAtomic runContext currSign)) args))
-     ; Create the final substituteed version of INTERSECTION by calling with desguaredChildren
-     ; The substituteed version of INTERSECTION is: (currTupIfAtomic in CHILD) AND (currTupIfAtomic in CHILD)
-     (define substituteedIntersection (node/formula/op/&& info substituteedChildren))
-     substituteedIntersection]
+        (lambda (child) (substitute-expr child quantvars variable value)) args))
+     (node/expr/op/&& info substitutedChildren)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
-     (mustHaveTupleContext currTupIfAtomic)
-     (define LHS (first args))
-     (define RHS (second args))
-     (define leftTupleContext (projectTupleRange(currTupIfAtomic 0 node/expr-arity (LHS))))
-     (define rightTupleContext(projectTupleRange(currTupIfAtomic node/expr-arity (LHS) node/expr-arity (RHS))))
-     (define formulas (cons
-                       (node/formula/op/in info (list tup2Expr(leftTupleContext) LHS))
-                       (node/formula/op/in info (list tup2Expr(rightTupleContext) RHS))))
-     (define substituteedProduct (node/formula/op/&& info formulas))
-     (substituteedProduct)
-     ]
-    
+     ; map over all children of product
+     (define substitutedChildren
+       (map
+        (lambda (child) (substitute-expr child quantvars variable value)) args))
+     (node/expr/op/-> info substitutedChildren)]
+   
     ; JOIN
     [(? node/expr/op/join?)
      (printf ".~n")
-     (map (lambda (x) (substitute-expr x quantvars '() runContext currSign)) args)
-     ]
+     ; map over all children of join
+     (define substitutedChildren
+       (map
+        (lambda (child) (substitute-expr child quantvars variable value)) args))
+     (node/expr/op/join info substitutedChildren)]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "^~n")
-     (map (lambda (x) (substitute-expr x quantvars '() runContext currSign)) args)
-     ]
+     (define substitutedChildren
+       (map
+        (lambda (child) (substitute-expr child quantvars variable value)) args))
+     (node/expr/op/^ info substitutedChildren)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (printf "*~n")
-     ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext currTupIfAtomic)
-     ; The substituteed version of REFLEXIVE-TRANSITIVE CLOSURE is ((iden) & (univ->univ)) + (^expr) 
-     (define productOfUniv (node/expr/op/-> info (list univ univ)))
-     (define restrictedIden (node/expr/op/& info (list iden productOfUniv)))
-     (define transitiveClosure (node/expr/op/^ info (first args)))
-     ; Q: Do we want to call this recursively ?
-     (define substituteedRClosure (node/expr/op/+ info (list restrictedIden transitiveClosure)))
-     (substituteedRClosure)
-     ]
+     (define substitutedChildren
+       (map
+        (lambda (child) (substitute-expr child quantvars variable value)) args))
+     (node/expr/op/* info substitutedChildren)]
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (printf "~~~n")
-     (define transposedCurrTupIfAtomic (transposeTup(currTupIfAtomic)))
-     ; for ~edges, args contains edges
-     (substitute-expr expr quantvars (first args) transposedCurrTupIfAtomic runContext currSign)
-     ]
+     (define substitutedEntry (substitute-expression (first args) quantvars variable value))
+     (node/formula/op/~ info (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "sing~n")
-     (map (lambda (x) (substitute-int x quantvars runContext)) args)
-     ]))
+     (define substitutedEntry (substitute-expression (first args) quantvars variable value))
+     (node/formula/op/sing info (list substitutedEntry))]))
 
-(define (substitute-int expr quantvars runContext)
+(define (substitute-int expr quantvars variable value)
   (match expr
     ; CONSTANT INT
+    ; TODO: change these base cases
     [(node/int/constant info value)
      (printf "~a~n" value)]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)   
-     (substitute-int-op expr quantvars args runContext)]
+     (substitute-int-op expr quantvars args variable value)]
     
     ; sum "quantifier"
-    ; e.g. sum p : Person | p.age  
+    ; e.g. sum p : Person | p.age
+    ; TODO: finisht his case
     [(node/int/sum-quant info decls int-expr)
      (printf "sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ;( print-cmd-cont (format "(sum ([~a : ~a " 
-       ;                         (v (get-var-idx var quantvars))
-       ;                         (if (@> (node/expr-arity var) 1) "set" "one")))
-       (substitute-expr (cdr (car decls)) quantvars '() runContext false)
-       
-       (substitute-int int-expr quantvars runContext)
+       (substitute-expr (cdr (car decls)) quantvars variable value)
+       (substitute-int int-expr quantvars runContext variable value)
        )]))
 
-(define (substitute-int-op expr quantvars args runContext)
+(define (substitute-int-op expr quantvars args variable value)
   (match expr
     ; int addition
     [(? node/int/op/add?)
@@ -308,8 +279,8 @@
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "cardinality~n")
-     (map (lambda (x) (substitute-expr x quantvars (first args) runContext false)) args)
-     ]
+     (define substitutedEntry (substitute-formula (first args) quantvars variable value))
+     (node/formula/op/card info (list substitutedEntry))]  
     
     ; remainder/modulo
     [(? node/int/op/remainder?)     
