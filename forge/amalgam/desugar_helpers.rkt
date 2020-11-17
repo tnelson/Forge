@@ -78,3 +78,15 @@
 ; tuples are just Racket lists. remember that start is ZERO INDEXED
 (define (projectTupleRange tup start len)
   (take (list-tail tup start) len))
+
+; Helper to get the left column of a relation 
+(define (leftColumn node)
+  (define arity node/expr-arity node)
+  
+  )
+
+; Helper to get the right column of a relation
+(define (rightColumn node)
+  (define arity node/expr-arity node)
+  
+  )

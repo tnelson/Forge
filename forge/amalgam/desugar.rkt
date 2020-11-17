@@ -250,6 +250,8 @@
     ; JOIN
     [(? node/expr/op/join?)
      (printf ".~n")
+     ; re-write join as an existentialist formula
+     
      (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)
      ]
     
