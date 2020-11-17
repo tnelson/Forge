@@ -10,24 +10,26 @@
 ; the children of a given formula/expression and puts the children
 ; together with the original operator that was identified. 
 
-(require "desugar_helpers.rkt")
 (provide substitute-formula)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (substitute-formula formula quantvars variable value)
   (match formula
-    ; TODO: FIX BASE CASES 
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
-     formula]
-    
+     (cond (
+           [(equal? formula variable) value]
+           [(not(equal? formula variable)) variable]
+           ))]
+
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
      (substitute-formula-op formula quantvars args info variable value)]
     
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity info mult expr)
+     ; TODO: Fix this case. In desugar, we re-write multiplicity as substitutor 
       (define substituteedMultiplicity (node/formula/quantified info mult expr formula))
       (substitute-formula substituteedMultiplicity quantvars variable value)]
 
@@ -103,24 +105,32 @@
      (error "amalgam: int = not supported ~n")
      ]))
 
-; Should always have a currTupIfAtomic when calling
-; TODO: change bsae cases
 (define (substitute-expr expr quantvars variable value)
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr) (error (format "substitute-expr called on non-expr: ~a" expr)))
 
   (match expr
+
     ; relation name (base case)
-    [(and (node/expr/relation info arity name typelist parent) (equal? expr variable)) value]
-    [(and (node/expr/relation info arity name typelist parent) (not (equal? expr variable))) variable]
-    
-    ; The Int constant
-    [(and (node/expr/constant info 1 'Int) (equal? expr variable)) value]
-    [(and (node/expr/constant info 1 'Int) (not (equal? expr variable))) variable]
-    
+    [(node/expr/relation info arity name typelist parent)
+       (cond (
+         [(equal? expr variable) value]
+         [(not(equal? expr variable)) variable]
+        ))]
+
+    ; The INT Constant
+    [(node/expr/constant info 1 'Int)
+       (cond (
+         [(equal? expr variable) value]
+         [(not(equal? expr variable)) variable]
+        ))]
+
     ; other expression constants
-    [(and (node/expr/constant info arity type) (equal? expr variable)) value]
-    [(and (node/expr/constant info arity type) (not (equal? expr variable))) variable]
+    [(node/expr/constant info arity type)
+       (cond (
+         [(equal? expr variable) value]
+         [(not(equal? expr variable)) variable]
+        ))]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -173,7 +183,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars variable value)) args))
-     (node/expr/op/&& info substitutedChildren)]
+     (node/expr/op/& info substitutedChildren)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -212,25 +222,28 @@
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (printf "~~~n")
-     (define substitutedEntry (substitute-expression (first args) quantvars variable value))
-     (node/formula/op/~ info (list substitutedEntry))]
+     (define substitutedEntry (substitute-expr (first args) quantvars variable value))
+     (node/expr/op/~ info (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "sing~n")
-     (define substitutedEntry (substitute-expression (first args) quantvars variable value))
-     (node/formula/op/sing info (list substitutedEntry))]))
+     (define substitutedEntry (substitute-expr (first args) quantvars variable value))
+     (node/expr/op/sing info (list substitutedEntry))]))
 
 (define (substitute-int expr quantvars variable value)
   (match expr
+    
     ; CONSTANT INT
-    ; TODO: change these base cases
-    [(node/int/constant info value)
-     (printf "~a~n" value)]
+    [(node/int/constant info intValue)
+       (cond (
+         [(equal? expr variable) value]
+         [(not(equal? expr variable)) variable]
+        ))]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)   
-     (substitute-int-op expr quantvars args variable value)]
+     (substitute-int-op expr quantvars args info variable value)]
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age
@@ -240,10 +253,10 @@
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        (substitute-expr (cdr (car decls)) quantvars variable value)
-       (substitute-int int-expr quantvars runContext variable value)
+       (substitute-int int-expr quantvars variable value)
        )]))
 
-(define (substitute-int-op expr quantvars args variable value)
+(define (substitute-int-op expr quantvars args info variable value)
   (match expr
     ; int addition
     [(? node/int/op/add?)
@@ -280,7 +293,7 @@
     [(? node/int/op/card?)
      (printf "cardinality~n")
      (define substitutedEntry (substitute-formula (first args) quantvars variable value))
-     (node/formula/op/card info (list substitutedEntry))]  
+     (node/int/op/card info (list substitutedEntry))]  
     
     ; remainder/modulo
     [(? node/int/op/remainder?)     
