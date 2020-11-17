@@ -81,12 +81,12 @@
 
 ; Helper to get the left column of a relation 
 (define (leftColumn node)
-  (define arity node/expr-arity node)
+  (define (arity node/expr-arity node))
   
   )
 
 ; Helper to get the right column of a relation
 (define (rightColumn node)
-  (define arity node/expr-arity node)
+  (define (arity node/expr-arity node))
   
   )
