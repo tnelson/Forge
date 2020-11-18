@@ -80,13 +80,19 @@
   (take (list-tail tup start) len))
 
 ; Helper to get the right column of a relation
-(define (getColumnRight info node)
+(define (getColumnRight node)
   (define arity (node/expr-arity node))
-  (define out (list univ))
-  (for ([i (- arity 2)])
-    (set! out (cons univ (list out))))
-  (set! out (cons node (list out)))
-  (node/expr/op/join info arity out))
+  (define info (node-info node))
+  (cond [(equal? 0 arity) (error (format "getColumnRight arity <1: ~a" node))]
+        [(equal? 1 arity) node]
+        [else (getColumnRight (node/expr/op/join info (- arity 1) (list univ node)))]))
+
+
+;  (define out (list univ))
+;  (for ([i (- arity 2)])
+;    (set! out (cons univ (list out))))
+;  (set! out (cons node (list out)))
+;  (node/expr/op/join info arity out))
 
 ; Helper to get the left column of a relation
 (define (getColumnLeft info node)

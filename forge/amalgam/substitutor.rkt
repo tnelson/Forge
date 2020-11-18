@@ -16,7 +16,7 @@
 
 (define (substitute-formula formula quantvars variable value)
   (match formula
-    ; Constant formulas: already at bottom
+    ; Constant formulas: already at bottom   
     [(node/formula/constant info type)
      (cond (
            [(equal? formula variable) value]
@@ -29,23 +29,28 @@
     
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity info mult expr)
-     ; TODO: Fix this case. In desugar, we re-write multiplicity as substitutor 
-      (define substituteedMultiplicity (node/formula/quantified info mult expr formula))
-      (substitute-formula substituteedMultiplicity quantvars variable value)]
+      (multiplicity-formula info mult (substitute-expr expr quantvars variable value))]
 
-    
     ; quantified formula (some x : ... or all x : ...)
-    [(node/formula/quantified info quantifier decls form)
-     (define var (car (car decls)))
-     (let ([quantvars (cons var quantvars)])
-       (substitute-expr (cdr (car decls)) quantvars variable value)     
-       (substitute-formula info form quantvars variable value)
-       (printf "quant ~a~n" quantifier))]
-    
-    ; truth and falsity
-    [#t (printf "true~n")]
-    [#f (printf "false~n")]
-    ))
+    ; decls: ([n1 Node] [n2 Node] [c City.edges])
+    [(node/formula/quantified info quantifier decls subform)
+     ; might be multiple variables in one quantifier e.g. some x1, x2: Node | ...
+     (define vars (map car decls))
+     ; error checking
+     (for-each (lambda (qv)
+                 (when (equal? qv variable)
+                   (error (format "substitution encountered quantifier that shadows substitution variable ~a" variable)))
+                 (when (member qv quantvars)
+                   (error (format "substitution encountered shadowed quantifier ~a" qv))))
+                 vars)
+
+     (let ([quantvars (append vars quantvars)])       
+       (quantified-formula info quantifier
+                           (map (lambda (decl)
+                                  (cons (car decl) (substitute-expr (cdr decl) quantvars variable value))) decls)
+                           (substitute-formula subform quantvars variable value)))]
+        
+    [else (error (format "no matching case in substitution for ~a" formula))]))
 
 (define (substitute-formula-op formula quantvars args info variable value)
   (match formula
@@ -72,6 +77,7 @@
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
      (printf "in~n")
+     ; TODO: is this substitute-formula or substitute-expr?
      (define substitutedLHS (substitute-formula  (first args) quantvars variable value))
      (define substitutedRHS (substitute-formula  (second args) quantvars variable value))
      (node/formula/op/in info (list substitutedLHS substitutedRHS))]
@@ -79,6 +85,7 @@
     ; EQUALS 
     [(? node/formula/op/=?)
      (printf "=~n")
+     ; TODO: same as above
      (define substitutedLHS (substitute-formula  (first args) quantvars variable value))
      (define substitutedRHS (substitute-formula  (second args) quantvars variable value))
      (node/formula/op/= info (list substitutedLHS substitutedRHS))]
@@ -137,22 +144,27 @@
      (substitute-expr-op expr quantvars args info variable value)]
  
     ; quantified variable (depends on scope!)
+    ; (another base case)
     [(node/expr/quantifier-var info arity sym)     
-     (printf "  ~a~n" sym)
-     (error "amalgam: Something wasn't substituted correctly or the formula was malformed ~n")]
+     (cond ([(equal? expr variable) value]
+            [(not (equal? expr variable)) variable]))]
 
     ; set comprehension e.g. {n : Node | some n.edges}
-    [(node/expr/comprehension info len decls form)
+    [(node/expr/comprehension info len decls subform)
       ; account for multiple variables  
      (define vars (map car decls))
      (let ([quantvars (append vars quantvars)])       
        (printf "comprehension over ~a~n" vars)
-        ; go through each declaration
-       (for-each (lambda (d)
-                   (substitute-expr (cdr d) quantvars variable value)
-                   (printf "    decl: ~a~n" d))
-                 decls)     
-       (substitute-formula form quantvars variable value))]))
+
+       ; TODO: add safety checks as in quantifier case
+              
+       (comprehension info
+                      (map (lambda (decl)
+                             (cons (car decl) (substitute-expr (cdr decl) quantvars variable value))) decls)
+                      (substitute-formula subform quantvars variable value)))]
+
+; TODO: add defensive error case!
+    ))
 
 (define (substitute-expr-op expr quantvars args info variable value)
   (match expr
