@@ -79,19 +79,39 @@
 (define (projectTupleRange tup start len)
   (take (list-tail tup start) len))
 
+; Helper to get the right column of a relation
+(define (getColumnRight info node)
+  (define arity (node/expr-arity node))
+  (define out (list univ))
+  (for ([i (- arity 2)])
+    (set! out (cons univ (list out))))
+  (set! out (cons node (list out)))
+  (node/expr/op/join info arity out))
+
+; Helper to get the left column of a relation
+(define (getColumnLeft info node)
+  (define arity (node/expr-arity node))
+  (define out (list node))
+  (for ([i (- arity 1)])
+      (set! out (cons out 'univ)))
+  (node/expr/op/join info arity out))
+
 ; Helper to get the left column of a relation 
-(define (leftColumn node info)
+#|(define (leftColumn node info)
   (define arity (node/expr-arity node))
   (define append_list '(node)) ;'(A), where A is 'node' ((A.univ).univ).univ
-  (define leftColumn (node/expr/join info append_list)); A.
+  (define leftColumn (node/expr/op/join info arity append_list)); A.
   (for ([i (- arity 1)])
-   (cons 'univ append_list) ; '(A univ)
-   (set node_expr_join (node/expr/join append_list)))
+    (match leftColumn
+      [(node/expr/op/join info arity args)
+       (set! leftColumn (node/expr/op/join info arity (cons args 'univ)))]))
+   ;(cons 'univ append_list) ; '(A univ)
+   ;(set node_expr_join (node/expr/join append_list)))
   ;(Node/expr/join universal (node/expr/join universal A)) 
   )
 
 ; Helper to get the right column of a relation
 (define (rightColumn node)
-  (define (arity node/expr-arity node))
+  (define arity (node/expr-arity node))
    ;'(A), where A is 'node' univ.(univ.(univ.A))
-  )
+  )|#
