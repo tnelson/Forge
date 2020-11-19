@@ -248,7 +248,6 @@
     [(? node/expr/op/join?)
      (printf ".~n")
      ; re-write join as an existentialist formula
-     ;(node/formula/multiplicity info mult expr)
      (define rightColLHS (getColumnRight (first args)))
      (define leftColRHS (getColumnLeft (second args)))
      (define intersectColumns (node/expr/op/& info (list rightColLHS leftColRHS)))
