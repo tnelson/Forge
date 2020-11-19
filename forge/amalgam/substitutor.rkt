@@ -57,58 +57,47 @@
 
     ; AND 
      [(? node/formula/op/&&?) 
-     (printf "and~n")
      (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars target value)) args))
      (node/formula/op/&& info substitutedArgs)]
 
     ; OR
      [(? node/formula/op/||?)
-     (printf "or~n")
      (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars target value)) args))
      (node/formula/op/|| info substitutedArgs)]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
-     (printf "implies~n")
      (define substitutedLHS (substitute-formula  (first args) quantvars target value))
      (define substitutedRHS (substitute-formula  (second args) quantvars target value))
      (node/formula/op/=> info (list substitutedLHS substitutedRHS))]
 
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
-     (printf "in~n")
-     ; TODO: is this substitute-formula or substitute-expr?
-     (define substitutedLHS (substitute-formula  (first args) quantvars target value))
-     (define substitutedRHS (substitute-formula  (second args) quantvars target value))
+     (define substitutedLHS (substitute-expr  (first args) quantvars target value))
+     (define substitutedRHS (substitute-expr  (second args) quantvars target value))
      (node/formula/op/in info (list substitutedLHS substitutedRHS))]
 
     ; EQUALS 
     [(? node/formula/op/=?)
-     (printf "=~n")
-     ; TODO: same as above
-     (define substitutedLHS (substitute-formula  (first args) quantvars target value))
-     (define substitutedRHS (substitute-formula  (second args) quantvars target value))
+     (define substitutedLHS (substitute-expr  (first args) quantvars target value))
+     (define substitutedRHS (substitute-expr  (second args) quantvars target value))
      (node/formula/op/= info (list substitutedLHS substitutedRHS))]
 
     ; NEGATION
     [(? node/formula/op/!?)
-     (printf "not~n")
-     (define substitutedEntry (substitute-formula (first args) quantvars target value))
+     (define substitutedEntry (substitute-expr (first args) quantvars target value))
      (node/formula/op/! info (list substitutedEntry))]   
 
     ; INTEGER >
     [(? node/formula/op/int>?)
-     (printf "int>~n")
      (error "amalgam: int > not supported ~n")
     ]
     ; INTEGER <
     [(? node/formula/op/int<?)
-     (printf "int<~n")
      (error "amalgam: int < not supported ~n")
      ]
     ; INTEGER =
     [(? node/formula/op/int=?)
-     (printf "int=~n")
      (error "amalgam: int = not supported ~n")
      ]))
 
@@ -153,17 +142,20 @@
     [(node/expr/comprehension info len decls subform)
       ; account for multiple variables  
      (define vars (map car decls))
+     (for-each (lambda (v)
+                 (when (equal? v target)
+                   (error (format "substitution encountered quantifier that shadows substitution target ~a" target)))
+                 (when (member v quantvars)
+                   (error (format "substitution encountered shadowed quantifier ~a" v))))
+                 vars)
      (let ([quantvars (append vars quantvars)])       
-       (printf "comprehension over ~a~n" vars)
-
-       ; TODO: add safety checks as in quantifier case
-              
+     (printf "comprehension over ~a~n" vars)              
        (comprehension info
                       (map (lambda (decl)
                              (cons (car decl) (substitute-expr (cdr decl) quantvars target value))) decls)
                       (substitute-formula subform quantvars target value)))]
 
-; TODO: add defensive error case!
+    [else (error (format "no matching case in substitution for ~a" expr))]
     ))
 
 (define (substitute-expr-op expr quantvars args info target value)
@@ -171,7 +163,6 @@
 
     ; UNION
     [(? node/expr/op/+?)
-     (printf "+~n")
      ; map over all children of union
      (define substitutedChildren
        (map
@@ -180,7 +171,6 @@
     
     ; SETMINUS 
     [(? node/expr/op/-?)
-     (printf "-~n")
      (cond
        [(!(equal? (length args) 2)) (error("Setminus should not be given more than two arguments ~n"))]
        [else 
@@ -190,7 +180,6 @@
     
     ; INTERSECTION
     [(? node/expr/op/&?)
-     (printf "& ~a~n" expr)
      ; map over all children of intersection
      (define substitutedChildren
        (map
@@ -199,7 +188,6 @@
     
     ; PRODUCT
     [(? node/expr/op/->?)
-     (printf "->~n")
      ; map over all children of product
      (define substitutedChildren
        (map
@@ -208,7 +196,6 @@
    
     ; JOIN
     [(? node/expr/op/join?)
-     (printf ".~n")
      ; map over all children of join
      (define substitutedChildren
        (map
@@ -217,7 +204,6 @@
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
-     (printf "^~n")
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
@@ -225,7 +211,6 @@
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
-     (printf "*~n")
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
@@ -233,13 +218,11 @@
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
-     (printf "~~~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
      (node/expr/op/~ info (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
-     (printf "sing~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
      (node/expr/op/sing info (list substitutedEntry))]))
 
@@ -259,52 +242,51 @@
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age
-    ; TODO: finisht his case
     [(node/int/sum-quant info decls int-expr)
-     (printf "sumQ~n")
-     (define var (car (car decls)))
-     (let ([quantvars (cons var quantvars)])
-       (substitute-expr (cdr (car decls)) quantvars target value)
-       (substitute-int int-expr quantvars target value)
-       )]))
+      ; account for multiple variables  
+     (define vars (map car decls))
+     (for-each (lambda (v)
+                 (when (equal? v target)
+                   (error (format "substitution encountered quantifier that shadows substitution target ~a" target)))
+                 (when (member v quantvars)
+                   (error (format "substitution encountered shadowed quantifier ~a" v)))) vars)
+     (let ([quantvars (append vars quantvars)])
+       (sum-quant-expr info
+                      (map (lambda (decl)
+                             (cons (car decl) (substitute-expr (cdr decl) quantvars target value))) decls)
+                      (substitute-expr int-expr quantvars target value)))]))
 
 (define (substitute-int-op expr quantvars args info target value)
   (match expr
     ; int addition
     [(? node/int/op/add?)
-     (printf "int+~n")
      (error "amalgam: int + not supported~n")
      ]
     
     ; int subtraction
     [(? node/int/op/subtract?)
-     (printf "int-~n")
      (error "amalgam: int - not supported~n")
      ]
     
     ; int multiplication
     [(? node/int/op/multiply?)
-     (printf "int*~n")
      (error "amalgam: int * not supported~n")
      ]
     
     ; int division
     [(? node/int/op/divide?)
-     (printf "int/~n")
      (error "amalgam: int / not supported ~n")
      ]
     
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
-     (printf "intsum~n")
       (error "amalgam: sum not supported ~n")
      ]
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
-     (printf "cardinality~n")
-     (define substitutedEntry (substitute-formula (first args) quantvars target value))
+     (define substitutedEntry (substitute-expr (first args) quantvars target value))
      (node/int/op/card info (list substitutedEntry))]  
     
     ; remainder/modulo
@@ -314,13 +296,11 @@
     
     ; absolute value
     [(? node/int/op/abs?)
-     (printf "abs~n")
      (error "amalgam: int abs not supported~n")
      ]
     
     ; sign-of 
     [(? node/int/op/sign?)
-     (printf "sign~n")
      (error "amalgam: int sign-of not supported~n")
      ]
     ))
