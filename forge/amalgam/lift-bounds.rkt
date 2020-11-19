@@ -32,8 +32,9 @@
 ;(require "../lang/ast.rkt" (prefix-in @ racket))
 ;(require "../sigs.rkt")
 (provide lift-bounds-expr)
-
+(require "desugar_helpers.rkt")
 ;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; Only Expression and IntExpression cases needed
 ; (we never try to lift bounds of a formula, because that makes no sense.)
 ;  ... -> list<tuple> i.e., list<list<atom>>
@@ -43,14 +44,18 @@
     [(node/expr/relation info arity name typelist parent)
      (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
      (define filtered-bounds (filter (lambda (b) (equal? name (forge:relation-name (forge:bound-relation b)))) all-bounds))
+     ; return a list-of-lists
      (cond [(equal? (length filtered-bounds) 1) (forge:bound-upper (first filtered-bounds))]
            [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr name all-bounds))])]
+
     ; The Int constant
     [(node/expr/constant info 1 'Int)
-     expr]
+     ; return a list containing the expression to create the list of lists
+     (list expr)]
+
     ; other expression constants
     [(node/expr/constant info arity type)
-     expr]
+     (list expr)]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -75,10 +80,8 @@
                    (define ub (lift-bounds-expr (cdr d) quantvars runContext))
                    (printf "    decl: ~a had UB =~a~n" d ub))
                  decls))
-       ; TN: unsure if this works to create n-ary products or if we need to chain
-       (if (equal? (length uppers) 1)
-           (first uppers)
-           (node/expr/op/-> (length uppers) uppers)))]))
+     ; Return a list of lists with all of the bounds with the cartesian product
+     (map (lambda (ub) (apply append ub)) (cartesian-product uppers)))]))
 
 
 (define (lift-bounds-expr-op expr quantvars args runContext)
@@ -90,63 +93,57 @@
 	; The upper bound of the LHS and RHS is just the addition between both bounds  
 	(define uppers 
           (map (lambda (arg)
+               ; we are assuming that lift-bounds-expr returns a list 
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub))
             args))
+        ; return a list-of-lists of atoms. e.g. '((1) (2) (3))
         (remove-duplicates (append uppers))
-	 ; (if (equal? (length uppers) 1)
-         ;  (first uppers)
-         ;  (node/expr/op/+ (length uppers) uppers))
-          ; ^^^ TODO TN: this is the wrong type! should return list-of-lists
-          ; (remove-duplicates (apply append uppers)) <--- something like this
      ]
     
     ; SET MINUS 
     [(? node/expr/op/-?)
      (printf "-~n")
-     ; Don't confuse semantics with upper bounds. 
      ; Upper bound of A-B is A's upper bound (in case B empty).
      (define ub (lift-bounds-expr (first args) quantvars runContext))
      (printf "    arg: ~a had UB =~a~n" (first args) ub)
-     (node/expr/op/- 1 ub)
+     ; return a list-of-lists containing A's upper bound 
+     (list ub)
      ]
 
     ; SET INTERSECTION
     [(? node/expr/op/&?)
-     ;(printf "& ~a~n" expr)
-     ;(define children (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
-     ; first argument of & struct is the arity, second is the child expressions
-
      ; map to get the upper bounds
-     ; filter to filter our the LHS only if they are also in upper bounds of RHS
-     (define upper-bounds ((lambda (x) (lift-bounds-expr x quantvars runContext)) args))
-     ;(define upper-bounds-LHS (lift-bounds-expr (first args) quantvars runContext))
-     ;(define upper-bounds-RHS (lift-bounds-expr (rest args) quantvars runContext))
-     ; ^^ TODO TN: not quite right, suggest map or foldl
-     (filter (lambda (x) (member x (first upper-bounds))) (rest upper-bounds))
-     ;(node/expr/op/& (length children) children)
+     (define upper-bounds (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
+     ; filter to filter out the LHS only if they are also in upper bounds of RHS
+     ; implemented list-member? to check whether x (a list) is a member of (first upper-bound)
+     ; member wasn't working because x is a list, not a value. Now we return a list-of-lists,
+     ; which is the appropiate return value. 
+     (filter (lambda (x) (list-member? x (first upper-bounds))) (rest upper-bounds))
      ]
 
     ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
      ; the bounds of A->B are Bounds(A) x Bounds(B)
-     ; Q: Does this look good? I'm not sure if it will never get solved
+     ; right now uppers contains ((bounds a) (bounds B))
      (define uppers 
         (map (lambda (arg)
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub))
             args))
-     (if (equal? (length uppers) 1)
-         (first uppers)
-         (node/expr/op/-> (length uppers) uppers))     
-     ;(map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
+     ; Return a list of lists with all of the bounds with the cartesian product
+     (map (lambda (ub) (apply append ub)) (cartesian-product uppers))
      ]
 
     ; JOIN
     [(? node/expr/op/join?)
      (printf ".~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
+     (define uppers
+       (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
+     ;TODO: Create new tuples with the entry of each list
+     uppers
+     
      ]
 
     ; TRANSITIVE CLOSURE
@@ -164,8 +161,11 @@
     ; TRANSPOSE 
     [(? node/expr/op/~?)
      (printf "~~~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
-     ]
+     (define upper-bounds (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
+     ; the call to lift-bounds-expr returns a list of lists, so then we just go through the list
+     ; and flip the tuples themselves.
+     (define transposedBounds (map (lambda (x) (transposeTup x)) upper-bounds))
+     transposedBounds]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
@@ -177,7 +177,7 @@
   (match expr
     ; constant int
     [(node/int/constant info value)
-     (printf "~a~n" value)]
+     (list expr)]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)   
@@ -252,18 +252,7 @@
     [(? node/int/op/sign?)
      (printf "sign~n")
      (error "amalgam: int sign not supported")
-     ]
-    
+     ]  
     ))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define Node  (rel '(univ) 'univ "Node"))
-(define edges (rel '(Node Node) 'Node "edges"))
-(define f-symmetric (= edges (~ edges)))
-(define f-irreflexive (no (& edges iden)))
-(define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
-
-
 
 

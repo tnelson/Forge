@@ -96,3 +96,9 @@
   (cond [(equal? 0 arity) (error (format "getColumnRight arity <1: ~a" node))]
         [(equal? 1 arity) node]
         [else (getColumnRight (node/expr/op/join info (- arity 1) (list node univ)))]))
+
+; Helper to test whether a list is a given member of another list
+(define (list-member? x lst)
+  (define (f lst)
+    (foldr string-append "" (map number->string lst)))
+  (if (regexp-match (f x) (f lst)) #t #f))
