@@ -13,6 +13,7 @@
 
 (require "lift-bounds.rkt")
 (require "desugar_helpers.rkt")
+(require "substitutor.rkt")
 (provide desugar-formula)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -38,7 +39,12 @@
     [(node/formula/quantified info quantifier decls form)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       (desugar-expr (cdr (car decls)) quantvars '() runContext currSign)     
+       (for-each (lambda (d)
+                   ; the target is the variable x, and the value is Node. I think this might be wrong.
+                   ; if we have x: Node, how do we get all of the instances of Node? 
+                   (substitute-expr form quantvars (car d) (cdr d)))
+                 decls)           
+       ;(desugar-expr (cdr (car decls)) quantvars '() runContext currSign)     
        (desugar-formula info form quantvars runContext currSign)
        (printf "quant ~a~n" quantifier))]
     
@@ -174,15 +180,13 @@
     ; t in {x0: A0, x1: A1, ... | fmla } means:
     ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...]
     [(node/expr/comprehension info len decls form)
-      ; account for multiple variables  
+      ; account for multiple variables
      (define vars (map car decls))
      (let ([quantvars (append vars quantvars)])       
-       (printf "comprehension over ~a~n" vars)
-        ; go through each declaration
        (for-each (lambda (d)
-                   ;(print-cmd-cont (format "[~a : " (v (get-var-idx (car d) quantvars))))
-                   (desugar-expr (cdr d) quantvars currTupIfAtomic runContext currSign)
-                   (printf "    decl: ~a~n" d))
+                   ; the target is the variable x, and the value is Node. I think this might be wrong.
+                   ; if we have x: Node, how do we get all of the instances of Node? 
+                   (substitute-formula form quantvars (car d) (cdr d)))
                  decls)     
        (desugar-formula form quantvars runContext currSign))]))
 
@@ -248,19 +252,21 @@
     [(? node/expr/op/join?)
      (printf ".~n")
      ; re-write join as an existentialist formula
-     (define rightColLHS (getColumnRight (first args)))
-     (define leftColRHS (getColumnLeft (second args)))
-     (define intersectColumns (node/expr/op/& info (list rightColLHS leftColRHS)))
-     (define joinNode (node/formula/multiplicity info 'some intersectColumns))
-     (define LHSRange (projectTupleRange joinNode 0 (node/expr-arity (- (first args) 1))))
-     (define RHSRange (projectTupleRange joinNode (node/expr-arity (first args)) (node/expr-arity (second args))))
-     (define LHSProduct (node/expr/op/-> info (list LHSRange joinNode)))
-     (define RHSProduct (node/expr/op/-> info (list joinNode RHSRange)))
-     (define LHSIn (node/formula/op/in info (list LHSProduct (first args))))
-     (define RHSIn (node/formula/op/in info (list RHSProduct (second args))))
-     (define finalAnd (node/formula/op/&& info (list LHSIn RHSIn)))
-     (desugar-formula finalAnd quantvars runContext currSign)
-     ]
+     (cond
+       [(equal? (node/expr-arity expr) 2)
+        (define rightColLHS (getColumnRight (first args)))
+        (define leftColRHS (getColumnLeft (second args)))
+        (define intersectColumns (node/expr/op/& info (list rightColLHS leftColRHS)))
+        (define joinNode (node/formula/multiplicity info 'some intersectColumns))
+        (define LHSRange (projectTupleRange joinNode 0 (node/expr-arity (- (first args) 1))))
+        (define RHSRange (projectTupleRange joinNode (node/expr-arity (first args)) (node/expr-arity (second args))))
+        (define LHSProduct (node/expr/op/-> info (list LHSRange joinNode)))
+        (define RHSProduct (node/expr/op/-> info (list joinNode RHSRange)))
+        (define LHSIn (node/formula/op/in info (list LHSProduct (first args))))
+        (define RHSIn (node/formula/op/in info (list RHSProduct (second args))))
+        (define finalAnd (node/formula/op/&& info (list LHSIn RHSIn)))
+        (desugar-formula finalAnd quantvars runContext currSign)]
+       [else (error (format "Expression ~a in join had arity greater than 2") expr)])]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
@@ -310,11 +316,12 @@
      (printf "sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ;( print-cmd-cont (format "(sum ([~a : ~a " 
-       ;                         (v (get-var-idx var quantvars))
-       ;                         (if (@> (node/expr-arity var) 1) "set" "one")))
-       (desugar-expr (cdr (car decls)) quantvars '() runContext false)
-       
+       ;This is what we had before: (desugar-expr (cdr (car decls)) quantvars '() runContext false)
+       (for-each (lambda (d)
+                   ; the target is the variable x, and the value is Node. I think this might be wrong.
+                   ; if we have x: Node, how do we get all of the instances of Node? 
+                   (substitute-expr expr quantvars (car d) (cdr d)))
+                 decls)           
        (desugar-int int-expr quantvars runContext)
        )]))
 
