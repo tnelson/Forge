@@ -141,10 +141,7 @@
      (printf ".~n")
      (define uppers
        (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
-     ;TODO: Create new tuples with the entry of each list
-     uppers
-     
-     ]
+     (list (append (flatten uppers)))]
 
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
