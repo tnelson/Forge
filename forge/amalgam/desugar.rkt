@@ -142,10 +142,11 @@
      (error "amalgam: int = not supported ~n")
      ]))
 
-; Should always have a currTupIfAtomic when calling
 (define (desugar-expr expr quantvars currTupIfAtomic runContext currSign)
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr) (error (format "desugar-expr called on non-expr: ~a" expr)))
+  ; Should always have a currTupIfAtomic when calling
+  (mustHaveTupleContext currTupIfAtomic)
 
   (match expr
     ; relation name (base case)
@@ -186,13 +187,12 @@
        (desugar-formula form quantvars runContext currSign))]))
 
 (define (desugar-expr-op expr quantvars args currTupIfAtomic runContext currSign info)
+  (mustHaveTupleContext currTupIfAtomic)
   (match expr
 
     ; UNION
     [(? node/expr/op/+?)
      (printf "+~n")
-     ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext currTupIfAtomic)
      ; map over all children of intersection
      (define desugaredChildren
        (map
@@ -205,8 +205,6 @@
     ; SETMINUS 
     [(? node/expr/op/-?)
      (printf "-~n")
-      ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext currTupIfAtomic)
      (cond
        [(!(equal? (length args) 2)) (error("Setminus should not be given more than two arguments ~n"))]
        [else 
@@ -221,8 +219,6 @@
     ; INTERSECTION
     [(? node/expr/op/&?)
      (printf "& ~a~n" expr)
-     ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext currTupIfAtomic)
      ; map over all children of intersection
      (define desugaredChildren
        (map
@@ -235,25 +231,36 @@
     ; PRODUCT
     [(? node/expr/op/->?)
      (printf "->~n")
-     (mustHaveTupleContext currTupIfAtomic)
-     ; TODO: at least insert a check for arity > 2
-     (define LHS (first args))
-     (define RHS (second args))
-     (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
-     (define rightTupleContext (projectTupleRange currTupIfAtomic (node/expr-arity LHS) (node/expr-arity RHS)))
-     (define formulas (list
-                       (node/formula/op/in info (list (tup2Expr leftTupleContext) LHS))
-                       (node/formula/op/in info (list (tup2Expr rightTupleContext) RHS))))
-     (define desugaredProduct (node/formula/op/&& info formulas))
-     desugaredProduct   ;    in Racket (5) is same as in Java 5();
-     ]
+     (cond
+       [(equal? (node/expr-arity expr) 2)
+         (define LHS (first args))
+         (define RHS (second args))
+         (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
+         (define rightTupleContext (projectTupleRange currTupIfAtomic (node/expr-arity LHS) (node/expr-arity RHS)))
+         (define formulas (list
+                           (node/formula/op/in info (list (tup2Expr leftTupleContext) LHS))
+                           (node/formula/op/in info (list (tup2Expr rightTupleContext) RHS))))
+         (define desugaredProduct (node/formula/op/&& info formulas))
+         desugaredProduct]
+       [else (error (format "Expression ~a in product had arity greater than 2") expr)])]
     
     ; JOIN
     [(? node/expr/op/join?)
      (printf ".~n")
      ; re-write join as an existentialist formula
-     
-     (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)
+     ;(node/formula/multiplicity info mult expr)
+     (define rightColLHS (getColumnRight (first args)))
+     (define leftColRHS (getColumnLeft (second args)))
+     (define intersectColumns (node/expr/op/& info (list rightColLHS leftColRHS)))
+     (define joinNode (node/formula/multiplicity info 'some intersectColumns))
+     (define LHSRange (projectTupleRange joinNode 0 (node/expr-arity (- (first args) 1))))
+     (define RHSRange (projectTupleRange joinNode (node/expr-arity (first args)) (node/expr-arity (second args))))
+     (define LHSProduct (node/expr/op/-> info (list LHSRange joinNode)))
+     (define RHSProduct (node/expr/op/-> info (list joinNode RHSRange)))
+     (define LHSIn (node/formula/op/in info (list LHSProduct (first args))))
+     (define RHSIn (node/formula/op/in info (list RHSProduct (second args))))
+     (define finalAnd (node/formula/op/&& info (list LHSIn RHSIn)))
+     (desugar-formula finalAnd quantvars runContext currSign)
      ]
     
     ; TRANSITIVE CLOSURE
@@ -265,8 +272,6 @@
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (printf "*~n")
-     ; Check that the currTupIfAtomic isn't empty 
-     (mustHaveTupleContext currTupIfAtomic)
      ; The desugared version of REFLEXIVE-TRANSITIVE CLOSURE is ((iden) & (univ->univ)) + (^expr) 
      (define productOfUniv (node/expr/op/-> info (list univ univ)))
      (define restrictedIden (node/expr/op/& info (list iden productOfUniv)))
