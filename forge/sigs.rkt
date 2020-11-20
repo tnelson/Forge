@@ -522,7 +522,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define options (State-options state))
 
   (define option-types
-    (hash 'solver symbol?
+    (hash 'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
           'backend symbol?
           ; 'verbosity exact-nonnegative-integer?
           'sb exact-nonnegative-integer?
@@ -1245,12 +1245,21 @@ Returns whether the given run resulted in sat or unsat, respectively.
       [stdin]
       lines ...))
 
+  ; Confirm that if the user is invoking a custom solver, that custom solver exists
+  (define solverspec (cond [(symbol? (get-option run-spec 'solver))
+                            (get-option run-spec 'solver)]
+                           [else (string-append "\"" (get-option run-spec 'solver) "\"")]))
+  (unless (or (symbol? (get-option run-spec 'solver))
+              (file-exists? (get-option run-spec 'solver)))
+    (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist." 
+                              (get-option run-spec 'solver))))
+  
   ; Print configure and declare univ size
-  (define bitwidth (get-bitwidth run-spec))
+  (define bitwidth (get-bitwidth run-spec)) 
   (kk-print
     (kodkod:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
                                bitwidth 
-                               (get-option run-spec 'solver) 
+                               solverspec 
                                (get-option run-spec 'sb) 
                                (get-option run-spec 'coregranularity)
                                (get-option run-spec 'logtranslation)))
