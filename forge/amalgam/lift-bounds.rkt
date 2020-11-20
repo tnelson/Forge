@@ -49,11 +49,18 @@
            [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr name all-bounds))])]
 
     ; The Int constant
+    ; TN: what is a bound? it's a list-of-tuples.
+    ;     what's a tuple? it's a list-of-atoms
+    ;     what's an atom? string or symbol e.g. "Atom0" "Node2" "Providence"
+    ;     so I think this needs to return e.g. '((-4) (-3) (-2) (-1) (0) (1) (2) (3)) for bitwidth=3
     [(node/expr/constant info 1 'Int)
      ; return a list containing the expression to create the list of lists
      (list expr)]
 
     ; other expression constants
+    ; TN: similarly here e.g. univ should be '((-4) ... (3) ... ("Atom0") ("Node2") ...)
+    ;     none is empty list
+    ;     iden   (map (lambda (x) (list x x)) (forge:Run-atoms udt))
     [(node/expr/constant info arity type)
      (list expr)]
     
@@ -93,12 +100,13 @@
 	; The upper bound of the LHS and RHS is just the addition between both bounds  
 	(define uppers 
           (map (lambda (arg)
-               ; we are assuming that lift-bounds-expr returns a list 
-              (define ub (lift-bounds-expr arg quantvars runContext))
-              (printf "    arg: ~a had UB =~a~n" arg ub))
+                 ; we are assuming that lift-bounds-expr returns a list 
+                 (define ub (lift-bounds-expr arg quantvars runContext))
+                 (printf "    arg: ~a had UB =~a~n" arg ub)
+                 ub)
             args))
         ; return a list-of-lists of atoms. e.g. '((1) (2) (3))
-        (remove-duplicates (append uppers))
+        (remove-duplicates (apply append uppers))
      ]
     
     ; SET MINUS 
