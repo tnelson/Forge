@@ -54,8 +54,8 @@
     ;     what's an atom? string or symbol e.g. "Atom0" "Node2" "Providence"
     ;     so I think this needs to return e.g. '((-4) (-3) (-2) (-1) (0) (1) (2) (3)) for bitwidth=3
     [(node/expr/constant info 1 'Int)
-     ; return a list containing the expression to create the list of lists
-     (list expr)]
+     (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
+     ]
 
     ; other expression constants
     ; TN: similarly here e.g. univ should be '((-4) ... (3) ... ("Atom0") ("Node2") ...)
