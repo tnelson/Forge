@@ -62,7 +62,9 @@
     ;     none is empty list
     ;     iden   (map (lambda (x) (list x x)) (forge:Run-atoms udt))
     [(node/expr/constant info arity type)
-     (list expr)]
+     (cond
+       [(equal? type univ) (map (lambda (x) (list x x)) (forge:Run-atoms runContext))]
+       [(equal? type empty) '()])]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -103,9 +105,9 @@
                  ; we are assuming that lift-bounds-expr returns a list 
                  (define ub (lift-bounds-expr arg quantvars runContext))
                  (printf "    arg: ~a had UB =~a~n" arg ub)
-                 ub)
-            args))
-        ; return a list-of-lists of atoms. e.g. '((1) (2) (3))
+                 ub) args))
+        ; We are assuming that uppers is a list of list of list of atoms 
+        ; therefore, by calling 'apply', we can convert this into a list of list of atoms. 
         (remove-duplicates (apply append uppers))
      ]
     
@@ -122,7 +124,10 @@
     ; SET INTERSECTION
     [(? node/expr/op/&?)
      ; map to get the upper bounds
-     (define upper-bounds (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
+     (define upper-bounds
+       (map (lambda (arg)
+              (define ub (lift-bounds-expr arg quantvars runContext))
+              ub) args))
      ; filter to filter out the LHS only if they are also in upper bounds of RHS
      ; implemented list-member? to check whether x (a list) is a member of (first upper-bound)
      ; member wasn't working because x is a list, not a value. Now we return a list-of-lists,
@@ -138,8 +143,8 @@
      (define uppers 
         (map (lambda (arg)
               (define ub (lift-bounds-expr arg quantvars runContext))
-              (printf "    arg: ~a had UB =~a~n" arg ub))
-            args))
+              (printf "    arg: ~a had UB =~a~n" arg ub)
+               ub) args))
      ; Return a list of lists with all of the bounds with the cartesian product
      (map (lambda (ub) (apply append ub)) (cartesian-product uppers))
      ]
@@ -148,7 +153,10 @@
     [(? node/expr/op/join?)
      (printf ".~n")
      (define uppers
-       (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
+       (map
+        (lambda (arg)
+          (define ub (lift-bounds-expr arg quantvars runContext))
+          ub) args))
      (list (append (flatten uppers)))]
 
     ; TRANSITIVE CLOSURE
