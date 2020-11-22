@@ -145,12 +145,18 @@
     ; JOIN
     [(? node/expr/op/join?)
      (printf ".~n")
-     (define uppers
-       (map
-        (lambda (arg)
-          (define ub (lift-bounds-expr arg quantvars runContext))
-          ub) args))
-     (list (append (flatten uppers)))]
+     ; In order to approach a join with n arguments, we will first do a
+     ; binary join and procede with a foldl doing a join on the previous
+     ; result of the function
+     (cond
+       [(< node/expr-arity 2) (error (format ("Join was given expr ~a with arity less than 1") expr))]
+       [else
+        (define currBinaryJoin (zip (first args) (second args)))
+        ; we need to remove the first two things from args since we already joined there 
+        (foldl (lambda (curr acc) (zip acc curr)) currBinaryJoin (rest (rest args)))
+        ]
+       )
+     ]
 
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
@@ -176,7 +182,7 @@
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "sing~n")
-     (lift-bounds-expr (first sing) quantvars runContext)]))
+     (lift-bounds-expr (first expr) quantvars runContext)]))
 
 (define (lift-bounds-int expr quantvars runContext)
   (match expr
