@@ -1,6 +1,13 @@
 #lang forge/core
 
-(provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct checkIfUnary checkIfBinary)
+(provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct checkIfUnary checkIfBinary create-bitwidth-list)
+
+; return list of lists inclusive of start and end
+(define (create-bitwidth-list start end)
+  (cond
+    [(equal? start (+ end 1)) '()]
+    [else
+      (cons (list start) (create-bitwidth-list (+ 1 start) end))]))
 
 ; Helper to transform a given tuple from the lifted-upper bounds function to a relation, and then do the product of all relations
 ; to form an expression. 
@@ -27,8 +34,8 @@
 ; Helper used to flip the currentTupleIfAtomic in the transpose case 
 (define (transposeTup tuple)
   (cond 
-         [(equal? (length(tuple)) 2) ((list (second tuple) (first tuple)))]
-         [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length(tuple)))]))
+         [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
+         [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length tuple))]))
 
 ; This helper checks the value of currTupIfAtomic and throws an error if it is empty. 
 (define (mustHaveTupleContext tup)
@@ -97,8 +104,4 @@
         [(equal? 1 arity) node]
         [else (getColumnRight (node/expr/op/join info (- arity 1) (list node univ)))]))
 
-; Helper to test whether a list is a given member of another list
-(define (list-member? x lst)
-  (define (f lst)
-    (foldr string-append "" (map number->string lst)))
-  (if (regexp-match (f x) (f lst)) #t #f))
+

@@ -49,22 +49,17 @@
            [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr name all-bounds))])]
 
     ; The Int constant
-    ; TN: what is a bound? it's a list-of-tuples.
-    ;     what's a tuple? it's a list-of-atoms
-    ;     what's an atom? string or symbol e.g. "Atom0" "Node2" "Providence"
-    ;     so I think this needs to return e.g. '((-4) (-3) (-2) (-1) (0) (1) (2) (3)) for bitwidth=3
+    ; this needs to return e.g. '((-4) (-3) (-2) (-1) (0) (1) (2) (3)) for bitwidth=3
     [(node/expr/constant info 1 'Int)
      (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
+     (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)
      ]
 
     ; other expression constants
-    ; TN: similarly here e.g. univ should be '((-4) ... (3) ... ("Atom0") ("Node2") ...)
-    ;     none is empty list
-    ;     iden   (map (lambda (x) (list x x)) (forge:Run-atoms udt))
     [(node/expr/constant info arity type)
      (cond
        [(equal? type univ) (map (lambda (x) (list x x)) (forge:Run-atoms runContext))]
-       [(equal? type empty) '()])]
+       [(equal? type none) '()])]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -72,7 +67,6 @@
     
     ; quantified variable (depends on scope! which quantifier is this var for?)
     [(node/expr/quantifier-var info arity sym)     
-     ;;(print-cmd-cont (symbol->string (v (get-var-idx expr quantvars))))
      (printf "  ~a~n" sym)]
     
     ; set comprehension e.g. {n : Node | some n.edges}
@@ -87,10 +81,10 @@
                    ; Decl is (varname . domain-expr), so only need second thing
                    ; *pair*, not *list* 
                    (define ub (lift-bounds-expr (cdr d) quantvars runContext))
-                   (printf "    decl: ~a had UB =~a~n" d ub))
+                   (printf "    decl: ~a had UB =~a~n" d ub) ub)
                  decls))
      ; Return a list of lists with all of the bounds with the cartesian product
-     (map (lambda (ub) (apply append ub)) (cartesian-product uppers)))]))
+     (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers)))]))
 
 
 (define (lift-bounds-expr-op expr quantvars args runContext)
@@ -118,8 +112,7 @@
      (define ub (lift-bounds-expr (first args) quantvars runContext))
      (printf "    arg: ~a had UB =~a~n" (first args) ub)
      ; return a list-of-lists containing A's upper bound 
-     (list ub)
-     ]
+     ub]
 
     ; SET INTERSECTION
     [(? node/expr/op/&?)
@@ -132,7 +125,7 @@
      ; implemented list-member? to check whether x (a list) is a member of (first upper-bound)
      ; member wasn't working because x is a list, not a value. Now we return a list-of-lists,
      ; which is the appropiate return value. 
-     (filter (lambda (x) (list-member? x (first upper-bounds))) (rest upper-bounds))
+     (filter (lambda (x) (member x (first upper-bounds))) (apply append (rest upper-bounds)))
      ]
 
     ; PRODUCT
@@ -146,7 +139,7 @@
               (printf "    arg: ~a had UB =~a~n" arg ub)
                ub) args))
      ; Return a list of lists with all of the bounds with the cartesian product
-     (map (lambda (ub) (apply append ub)) (cartesian-product uppers))
+     (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))
      ]
 
     ; JOIN
@@ -177,20 +170,20 @@
      (define upper-bounds (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
      ; the call to lift-bounds-expr returns a list of lists, so then we just go through the list
      ; and flip the tuples themselves.
-     (define transposedBounds (map (lambda (x) (transposeTup x)) upper-bounds))
+     (define transposedBounds (map (lambda (x) (map transposeTup x)) upper-bounds))
      transposedBounds]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "sing~n")
-     (map (lambda (x) (lift-bounds-int x quantvars runContext)) args)
-     ]))
+     (lift-bounds-expr (first sing) quantvars runContext)]))
 
 (define (lift-bounds-int expr quantvars runContext)
   (match expr
     ; constant int
     [(node/int/constant info value)
-     (list expr)]
+     (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
+     (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)   
@@ -246,7 +239,8 @@
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "cardinality~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
+     (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
+     (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)
      ]
     
     ; remainder/modulo
