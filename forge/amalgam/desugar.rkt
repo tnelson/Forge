@@ -33,7 +33,7 @@
     ; multiplicity formula (some, one, ...)
     ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
     [(node/formula/multiplicity info mult expr)
-     (define freshvar (node/expr/quantifier-var 1 (gensym "m2q")))
+     (define freshvar (node/expr/quantifier-var 1 info (gensym "m2q")))
      (define domain univ)  ; TODO: union over upper-bound of e
      (define newfmla (node/formula/op/in info (list freshvar expr)))
      (define newdecls (list (cons freshvar domain)))
@@ -47,6 +47,7 @@
     ; if it's got multiple variables, first split into multiple single-var quantifiers
     [(node/formula/quantified info quantifier decls form)
      (printf "quant ~a~n" quantifier)
+     (debug-repl)
 
      ; QUANT DECLS | SUBFMLA
      ;       DECLS = ((x . A))
@@ -58,6 +59,10 @@
             ; TODO: desugar this quantifier type
             ; e.g. lone x:A | ...
             ; see above
+            (cond
+              [(equal? quantifier 'no)]
+              [(equal? quantifier 'one)]
+              [(equal? quantifier 'lone)])
             ]
            [(not (equal? 1 (length decls)))
             ; TODO: desugar this multi-var quantifier

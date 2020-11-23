@@ -36,7 +36,7 @@
 ;(printf "Irreflexive ~n")
 ;(desugar-formula f-irreflexive '() udt)
 ;(printf "some-reaches-all ~n")
-(desugar-formula f-some-reaches-all '() udt true)
+(desugar-formula f-irreflexive '() udt true)
 
 
 
