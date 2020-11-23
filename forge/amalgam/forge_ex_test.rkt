@@ -32,11 +32,11 @@
 ;(desugar-formula f-symmetric '() udt #t)
 
 ;(printf "Symmetric ~n")
-(desugar-formula f-symmetric '() udt true)
+;(desugar-formula f-symmetric '() udt true)
 ;(printf "Irreflexive ~n")
 ;(desugar-formula f-irreflexive '() udt)
 ;(printf "some-reaches-all ~n")
-;(desugar-formula f-some-reaches-all '() udt)
+(desugar-formula f-some-reaches-all '() udt true)
 
 
 

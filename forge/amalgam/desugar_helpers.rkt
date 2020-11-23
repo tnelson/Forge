@@ -51,7 +51,8 @@
      (define args (node/expr/op-children expr))
      (isGroundProduct (first args))]
     ; If the expression is a quantifier variable, return true 
-    [(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
+    ;[(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
+    [(node/expr/quantifier-var? expr) #t]
     ; If the expression is binary and of type PRODUCT, call function recurisvely on LHS and RHS of expr 
     [(and (checkIfBinary expr) (node/expr/op/->? expr))
      (define args (node/expr/op-children expr))

@@ -11,12 +11,13 @@
 ; together with the original operator that was identified. 
 
 (provide substitute-formula)
-
+(require debug/repl)
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (substitute-formula formula quantvars target value)
+
   (match formula
-    ; Constant formulas: already at bottom   
+    ; Constant formulas: already at bottom
     [(node/formula/constant info type)
      (cond (
            [(equal? formula target) value]
@@ -43,13 +44,11 @@
                  (when (member qv quantvars)
                    (error (format "substitution encountered shadowed quantifier ~a" qv))))
                  vars)
-
      (let ([quantvars (append vars quantvars)])       
        (quantified-formula info quantifier
                            (map (lambda (decl)
                                   (cons (car decl) (substitute-expr (cdr decl) quantvars target value))) decls)
-                           (substitute-formula subform quantvars target value)))]
-        
+                           (substitute-formula subform quantvars target value)))]    
     [else (error (format "no matching case in substitution for ~a" formula))]))
 
 (define (substitute-formula-op formula quantvars args info target value)
@@ -104,29 +103,27 @@
 (define (substitute-expr expr quantvars target value)
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr) (error (format "substitute-expr called on non-expr: ~a" expr)))
-
   (match expr
 
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
-       (cond (
+       (cond 
          [(equal? expr target) value]
-         [(not(equal? expr target)) target]
-        ))]
+         [(not(equal? expr target)) target])]
 
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
-       (cond (
+       (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) target]
-        ))]
+        )]
 
     ; other expression constants
     [(node/expr/constant info arity type)
-       (cond (
+       (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) target]
-        ))]
+        )]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -135,8 +132,8 @@
     ; quantified variable (depends on scope!)
     ; (another base case)
     [(node/expr/quantifier-var info arity sym)     
-     (cond ([(equal? expr target) value]
-            [(not (equal? expr target)) target]))]
+     (cond  [(equal? expr target) value]
+            [(not (equal? expr target)) target])]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls subform)
@@ -167,7 +164,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/+ info substitutedChildren)]
+     (node/expr/op/+ info (length substitutedChildren) substitutedChildren)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
@@ -176,7 +173,7 @@
        [else 
         (define LHS (substitute-expr (first args) quantvars target value))
         (define RHS (substitute-expr (second args) quantvars target value))
-        (node/expr/op/- info (list LHS RHS))])]
+        (node/expr/op/- info (+ (length LHS) (length RHS)) (list LHS RHS))])]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
@@ -184,7 +181,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/& info substitutedChildren)]
+     (node/expr/op/& info (length substitutedChildren) substitutedChildren)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -192,7 +189,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/-> info substitutedChildren)]
+     (node/expr/op/-> info (length substitutedChildren) substitutedChildren)]
    
     ; JOIN
     [(? node/expr/op/join?)
@@ -200,41 +197,41 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/join info substitutedChildren)]
+     (node/expr/op/join info (length substitutedChildren) substitutedChildren)]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/^ info substitutedChildren)]
+     (node/expr/op/^ info (length substitutedChildren) substitutedChildren)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/* info substitutedChildren)]
+     (node/expr/op/* info (length substitutedChildren) substitutedChildren)]
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
-     (node/expr/op/~ info (list substitutedEntry))]
+     (node/expr/op/~ info 1 (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
-     (node/expr/op/sing info (list substitutedEntry))]))
+     (node/expr/op/sing info 1 (list substitutedEntry))]))
 
 (define (substitute-int expr quantvars target value)
   (match expr
     
     ; CONSTANT INT
     [(node/int/constant info intValue)
-       (cond (
+       (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) target]
-        ))]
+        )]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)   

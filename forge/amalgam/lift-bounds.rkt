@@ -33,15 +33,18 @@
 ;(require "../sigs.rkt")
 (provide lift-bounds-expr)
 (require "desugar_helpers.rkt")
+(require debug/repl)
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Only Expression and IntExpression cases needed
 ; (we never try to lift bounds of a formula, because that makes no sense.)
 ;  ... -> list<tuple> i.e., list<list<atom>>
-(define (lift-bounds-expr expr quantvars runContext)  
+(define (lift-bounds-expr expr quantvars runContext)
+
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
+     
      (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
      (define filtered-bounds (filter (lambda (b) (equal? name (forge:relation-name (forge:bound-relation b)))) all-bounds))
      ; return a list-of-lists
@@ -65,7 +68,7 @@
     [(node/expr/op info arity args)
      (lift-bounds-expr-op expr quantvars args runContext)]
     
-    ; quantified variable (depends on scope! which quantifier is this var for?)
+    ; quantified variable
     [(node/expr/quantifier-var info arity sym)     
      (printf "  ~a~n" sym)]
     

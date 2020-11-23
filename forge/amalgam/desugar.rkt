@@ -53,7 +53,6 @@
      ; no x: A | r.x in q ------> all x: A | not (r.x in q)
      ; one x: A | r.x in q ------> (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
      ; lone x: A | r.x in q ------> (no x: A | r.x in q) or (one x: A | r.x in q)
-     
      (cond [(not (or (equal? quantifier 'some)
                      (equal? quantifier 'all)))
             ; TODO: desugar this quantifier type
@@ -87,12 +86,15 @@
               ; gives us list of all possible bindings to this variable
               (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
               ; produce a list of subformulas each substituted with a possible binding for the variable
-              (define subformulas (map (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info))) lifted-bounds))
+              (define subformulas
+                (map
+                 (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info)))
+                 lifted-bounds))
               (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
                     [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
                     [else (error (format "desugaring unsupported: ~a" formula))]))
-            ;(desugar-expr (cdr (car decls)) quantvars '() runContext currSign)     
-            (desugar-formula info form quantvars runContext currSign)])]
+            ;(desugar-expr (cdr (car decls)) quantvars '() runContext currSign)
+            (desugar-formula form quantvars runContext currSign)])]
 
     ; truth and falsity
     [#t (printf "true~n")]
@@ -149,10 +151,8 @@
      ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
      
-     
      (cond
        [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
-        (debug-repl)
         (desugar-expr leftE quantvars currTupIfAtomic runContext currSign)]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
@@ -179,7 +179,7 @@
     [(? node/formula/op/!?)
      (printf "not~n")
      ; The desugared version of NEGATION is to flip the currSign type
-     (desugar-formula formula quantvars runContext (not currSign))]   
+     (desugar-formula (first args) quantvars runContext (not currSign))]   
 
     ; INTEGER >
     [(? node/formula/op/int>?)
