@@ -30,25 +30,70 @@
      ; We want to pass in the currTupIfAtomic as the implicit LHS
      (desugar-formula-op formula quantvars args runContext currSign (first args) info)]
     
-    ; multiplicity formula (some, one, ...) 
+    ; multiplicity formula (some, one, ...)
+    ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
     [(node/formula/multiplicity info mult expr)
-      (define desugaredMultiplicity (node/formula/quantified info mult expr formula))
-      (desugar-formula desugaredMultiplicity quantvars runContext currSign)]
+     (define freshvar (node/expr/quantifier-var 1 (gensym "m2q")))
+     (define domain univ)  ; TODO: union over upper-bound of e
+     (define newfmla (node/formula/op/in info (list freshvar expr)))
+     (define newdecls (list (cons freshvar domain)))
+     (define desugaredMultiplicity (node/formula/quantified info mult newdecls newfmla))
+     (desugar-formula desugaredMultiplicity quantvars runContext currSign)]
+    
 
     
     ; quantified formula (some x : ... or all x : ...)
+    ; if it's a complex quantifier (no, lone, one) that adds constraints, first desugar into somes/alls
+    ; if it's got multiple variables, first split into multiple single-var quantifiers
     [(node/formula/quantified info quantifier decls form)
-     (define var (car (car decls)))
-     (let ([quantvars (cons var quantvars)])
-       (for-each (lambda (d)
-                   ; the target is the variable x, and the value is Node. I think this might be wrong.
-                   ; if we have x: Node, how do we get all of the instances of Node? 
-                   (substitute-expr form quantvars (first d) (rest d)))
-                 decls)           
-       ;(desugar-expr (cdr (car decls)) quantvars '() runContext currSign)     
-       (desugar-formula info form quantvars runContext currSign)
-       (printf "quant ~a~n" quantifier))]
-    
+     (printf "quant ~a~n" quantifier)
+
+     ; QUANT DECLS | SUBFMLA
+     ;       DECLS = ((x . A))
+     ; no x: A | r.x in q ------> all x: A | not (r.x in q)
+     ; one x: A | r.x in q ------> (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
+     ; lone x: A | r.x in q ------> (no x: A | r.x in q) or (one x: A | r.x in q)
+     
+     (cond [(not (or (equal? quantifier 'some)
+                     (equal? quantifier 'all)))
+            ; TODO: desugar this quantifier type
+            ; e.g. lone x:A | ...
+            ; see above
+            ]
+           [(not (equal? 1 (length decls)))
+            ; TODO: desugar this multi-var quantifier
+            ; some x: A, y: B | x.y in q
+            ;   ^ (1) turn below into a helper and fold that helper over the decls
+            ;     (2) just break up the decls. e.g., some x: A | some y: B | x.y in q
+
+            ; The problem:
+            ; (F1) one x: A, y: B | x->y in roads
+            ;   IS NOT EQUIVALENT TO
+            ; (F2) one x: A | one y: B | x->y in roads
+            ;  F1 means "there is exactly one tuple <x, y> such that x->y in roads
+            ;     i.e., one tuple in roads relation
+            ;  F2 means "there is exactly one x, such that there is exactly one y, such that x->y in roads
+            ;     i.e., only one city with one outgoing road
+            
+            ]
+           [else 
+            (define var (car (car decls)))
+            (define domain (cdr (car decls)))
+            (let ([quantvars (cons var quantvars)])
+              
+              ; the target is the variable x, and the value is Node. I think this might be wrong.
+              ; if we have x: Node, how do we get all of the instances of Node?
+       
+              ; gives us list of all possible bindings to this variable
+              (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
+              ; produce a list of subformulas each substituted with a possible binding for the variable
+              (define subformulas (map (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info))) lifted-bounds))
+              (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
+                    [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
+                    [else (error (format "desugaring unsupported: ~a" formula))]))
+            ;(desugar-expr (cdr (car decls)) quantvars '() runContext currSign)     
+            (desugar-formula info form quantvars runContext currSign)])]
+
     ; truth and falsity
     [#t (printf "true~n")]
     [#f (printf "false~n")]

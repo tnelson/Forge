@@ -10,8 +10,9 @@
       (cons (list start) (create-bitwidth-list (+ 1 start) end))]))
 
 ; Helper to transform a given tuple from the lifted-upper bounds function to a relation, and then do the product of all relations
-; to form an expression. 
-(define (tup2Expr tuple context)
+; to form an expression.
+; <info> argument is optional; if not passed, will default to empty-nodeinfo
+(define (tup2Expr tuple context [info empty-nodeinfo])
   (define tupRelationList
    ; replace every element of the tuple (atoms) with the corresponding atom relation
    (map
@@ -27,9 +28,8 @@
                 (forge:Run-atoms context)))
       (cond [(equal? 1 (length filterResult)) (first filterResult)]
             [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
-    tuple))
-  ; TODO: once Tim revises the AST, will need to provide a source location
-  (node/expr/op/-> (length tupRelationList) tupRelationList))
+    tuple))  
+  (node/expr/op/-> info (length tupRelationList) tupRelationList))
 
 ; Helper used to flip the currentTupleIfAtomic in the transpose case 
 (define (transposeTup tuple)
