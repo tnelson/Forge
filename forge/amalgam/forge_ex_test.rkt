@@ -1,5 +1,5 @@
 #lang forge/core
-
+(require debug/repl)
 (require "forge_ex.rkt")    ; start by running this Forge spec
 ;(require "tuple2Expr.rkt")  ; make available the tuple2Expr helpers
 (require "desugar.rkt")
@@ -21,13 +21,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+
 ;(define Node  (declare-relation '(univ) 'univ "Node"))
 ;(define edges (declare-relation '(Node Node) 'Node "edges"))
 (define f-symmetric (= edges (~ edges)))
 (define f-irreflexive (no (& edges iden)))
 (define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 
-(printf "Symmetric ~n")
+;(desugar-formula f-symmetric '() udt #t)
+
+;(printf "Symmetric ~n")
 (desugar-formula f-symmetric '() udt true)
 ;(printf "Irreflexive ~n")
 ;(desugar-formula f-irreflexive '() udt)

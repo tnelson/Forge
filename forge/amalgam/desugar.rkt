@@ -15,6 +15,7 @@
 (require "desugar_helpers.rkt")
 (require "substitutor.rkt")
 (provide desugar-formula)
+(require debug/repl)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -42,7 +43,7 @@
        (for-each (lambda (d)
                    ; the target is the variable x, and the value is Node. I think this might be wrong.
                    ; if we have x: Node, how do we get all of the instances of Node? 
-                   (substitute-expr form quantvars (car d) (cdr d)))
+                   (substitute-expr form quantvars (first d) (rest d)))
                  decls)           
        ;(desugar-expr (cdr (car decls)) quantvars '() runContext currSign)     
        (desugar-formula info form quantvars runContext currSign)
@@ -97,14 +98,16 @@
   
      (define leftE (first args))
      (define rightE (second args))
-
+     
      ; we already have the upper bounds Node0 -> Node1 upper bound is just Node0 -> Node1
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
      
+     
      (cond
        [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
+        (debug-repl)
         (desugar-expr leftE quantvars currTupIfAtomic runContext currSign)]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
@@ -114,6 +117,7 @@
                                                         (define LHS   (node/formula/op/in info (list tupExpr leftE)))
                                                         (define RHS (node/formula/op/in info (list tupExpr rightE)))
                                                         (node/formula/op/=> info (list LHS RHS))) lifted-upper-bounds)))
+        
         (printf "desugaredAnd: ~a~n" desugaredAnd)
         (desugar-formula desugaredAnd quantvars runContext currSign)])]
 
@@ -383,6 +387,5 @@
     ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 

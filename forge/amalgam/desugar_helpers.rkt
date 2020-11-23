@@ -43,23 +43,24 @@
     [(equal? (length tup) 0) (error "currTupIfAtomic is empty and it shouldn't be")]))
 
 ; Function isGroundProduct used to test whether a given expression is ground. 
-(define (isGroundProduct expr args)
+(define (isGroundProduct expr)
   (cond
     [(not (node/expr? expr)) (error "expression ~a is not an expression." expr)]
     ; Check if the expression is UNARY and if SUM or SING type. If so, call the function recursively. 
-    [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr))) (isGroundProduct (first args) '())]
+    [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
+     (define args (node/expr/op-children expr))
+     (isGroundProduct (first args))]
     ; If the expression is a quantifier variable, return true 
     [(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
     ; If the expression is binary and of type PRODUCT, call function recurisvely on LHS and RHS of expr 
-    [(and (checkIfBinary expr) (node/expr/op/-> expr)) (and (isGroundProduct (first args) '()) (isGroundProduct (second args) '()))]
+    [(and (checkIfBinary expr) (node/expr/op/->? expr))
+     (define args (node/expr/op-children expr))
+     (and (isGroundProduct (first args)) (isGroundProduct (second args)))]
     ; If the expression is a constant and a number, return true 
-    [(and (node/expr/constant? expr) (number? (node/expr/constant expr))) true]
+    [(and (node/expr/constant? expr) (number? (node/expr/constant expr))) #t]
     ; If none of the above cases are true, then return false
-    [else false]
+    [else #f]
     ))
-
-; TN note: use this, means don't have to pass args anymore
-; node/expr/op-children
 
 ; Function that takes in a given expression and returns whether that expression is unary
 ; This function tests whether the given expression is transitive closure, reflexive transitive
