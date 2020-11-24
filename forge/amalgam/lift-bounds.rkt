@@ -71,27 +71,26 @@
     
     ; quantified variable
     [(node/expr/quantifier-var info arity sym)
-     ; TODO: Do we need to do anything here? 
+     ; TODO: Do we need to do anything here?
+     (error (format "We should not be getting the bounds of a quantified variable ~a") sym)
      (printf "lift-bounds quantified variable  ~a~n" sym)]
     
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls form)
      (printf "lift-bounds set comprehension ~n")
+     
      (define vars (map car decls)) ; account for multiple variables  
      (let ([quantvars (append vars quantvars)])             
        ; {x: e1, y: e2 | ...}
        ; then UB(e1)->UB(e2) is the UB of the whole comprehension
-       ;  where -> is product in Alloy notation
        (define uppers
          (map (lambda (d) ; each declaration                                      
                    ; Decl is (varname . domain-expr), so only need second thing
-                   ; *pair*, not *list* 
                    (define ub (lift-bounds-expr (cdr d) quantvars runContext))
                    (printf "    decl: ~a had UB =~a~n" d ub) ub)
                  decls))
      ; Return a list of lists with all of the bounds with the cartesian product
      (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers)))]))
-
 
 (define (lift-bounds-expr-op expr quantvars args runContext)
   (match expr
