@@ -7,33 +7,34 @@
   (cond
     [(equal? start (+ end 1)) '()]
     [else
-      (cons (list start) (create-bitwidth-list (+ 1 start) end))]))
+     (cons (list start) (create-bitwidth-list (+ 1 start) end))]))
 
 ; Helper to transform a given tuple from the lifted-upper bounds function to a relation, and then do the product of all relations
 ; to form an expression.
 ; <info> argument is optional; if not passed, will default to empty-nodeinfo
 (define (tup2Expr tuple context [info empty-nodeinfo])
   (define tupRelationList
-   ; replace every element of the tuple (atoms) with the corresponding atom relation
-   (map
-    (lambda (tupElem)
-      ; keep only the atom relations whose name matches tupElem
-      (define filterResult
-        (filter (lambda (atomRel)
-                  (when (string? tupElem) (set! tupElem (string->symbol tupElem)))
-                  (when (string? atomRel) (set! atomRel (string->symbol atomRel)))
-                  (equal? (format "~v" atomRel) (format "~v" tupElem)))
-                (forge:Run-atoms context)))
-      (cond [(equal? 1 (length filterResult)) (first filterResult)]
-            [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
-    tuple))  
+    ; replace every element of the tuple (atoms) with the corresponding atom relation
+    (map
+     (lambda (tupElem)
+       ; keep only the atom relations whose name matches tupElem
+       (define filterResult
+         (filter (lambda (atomRel)
+                   (when (string? tupElem) (set! tupElem (string->symbol tupElem)))
+                   (when (string? atomRel) (set! atomRel (string->symbol atomRel)))
+                   (equal? (format "~v" atomRel) (format "~v" tupElem)))
+                 (forge:Run-atoms context)))
+       (debug-repl)
+       (cond [(equal? 1 (length filterResult)) (node/expr/atom info 1 (first filterResult))]
+             [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
+     tuple))  
   (node/expr/op/-> info (length tupRelationList) tupRelationList))
 
 ; Helper used to flip the currentTupleIfAtomic in the transpose case 
 (define (transposeTup tuple)
   (cond 
-         [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
-         [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length tuple))]))
+    [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
+    [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length tuple))]))
 
 ; This helper checks the value of currTupIfAtomic and throws an error if it is empty. 
 (define (mustHaveTupleContext tup)

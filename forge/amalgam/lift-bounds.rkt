@@ -42,6 +42,12 @@
 (define (lift-bounds-expr expr quantvars runContext)
 
   (match expr
+
+    ; atom case (base case)
+    [(node/expr/atom info arity name)
+     '()
+     ]
+    
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
      (printf "lift-bounds relation name base case ~n")
