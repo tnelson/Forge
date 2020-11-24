@@ -23,6 +23,7 @@
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
+     (printf "desugar constant formula ~a~n" formula)
      formula]
     
     ; operator formula (and, or, implies, ...)
@@ -33,11 +34,17 @@
     ; multiplicity formula (some, one, ...)
     ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
     [(node/formula/multiplicity info mult expr)
-     (define freshvar (node/expr/quantifier-var 1 info (gensym "m2q")))
-     (define domain univ)  ; TODO: union over upper-bound of e
+     (printf "desugar mult ~a~n" mult)
+     (define freshvar (node/expr/quantifier-var info 1 (list (gensym "m2q"))))
+     (define uppers (lift-bounds-expr expr quantvars runContext))
+     (define unionOfBounds (node/expr/op/+ info (length uppers) (map (lambda (bound)
+                                                       bound) uppers)))
+     (printf "desugar union of Bounds ~a ~n" unionOfBounds)
+     (define domain unionOfBounds) 
      (define newfmla (node/formula/op/in info (list freshvar expr)))
      (define newdecls (list (cons freshvar domain)))
      (define desugaredMultiplicity (node/formula/quantified info mult newdecls newfmla))
+     (printf "desugar new mult ~a~n" desugaredMultiplicity)
      (desugar-formula desugaredMultiplicity quantvars runContext currSign)]
     
 
@@ -46,7 +53,8 @@
     ; if it's a complex quantifier (no, lone, one) that adds constraints, first desugar into somes/alls
     ; if it's got multiple variables, first split into multiple single-var quantifiers
     [(node/formula/quantified info quantifier decls form)
-     (printf "quant ~a~n" quantifier)
+     (printf "desugar quant ~a~n" quantifier)
+     (printf "desugar quant formula ~a~n" formula)
 
      ; QUANT DECLS | SUBFMLA
      ;       DECLS = ((x . A))
@@ -60,7 +68,8 @@
                (define newForm (node/formula/op/! info (list form)))
                (define newQuantFormula (node/formula/quantified info 'all decls newForm))
                (desugar-formula newQuantFormula quantvars runContext currSign)]
-              
+
+              ; TODO: Finish these cases 
               [(equal? quantifier 'one) '()]
               [(equal? quantifier 'lone) '()])
             ]
@@ -99,12 +108,11 @@
               (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
                     [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
                     [else (error (format "desugaring unsupported: ~a" formula))]))
-            ;(desugar-expr (cdr (car decls)) quantvars '() runContext currSign)
             (desugar-formula form quantvars runContext currSign)])]
 
     ; truth and falsity
-    [#t (printf "true~n")]
-    [#f (printf "false~n")]
+    [#t (printf "desugar true~n")]
+    [#f (printf "desugar false~n")]
     ))
 
 ; This function is recursively calling every element in args and pass it to the
@@ -114,25 +122,27 @@
 
     ; AND 
      [(? node/formula/op/&&?) 
-     (printf "and~n")
-     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
+     (printf "desugar and~n")
+     (define desugaredArgs
+       (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
-       [(currSign) (node/formula/op/&& info (length desugaredArgs) desugaredArgs)]
-       [else (node/formula/op/|| info (length desugaredArgs) desugaredArgs)])
+       [(currSign) (node/formula/op/&& info desugaredArgs)]
+       [else (node/formula/op/|| info desugaredArgs)])
      ]
 
     ; OR
      [(? node/formula/op/||?)
-     (printf "or~n")
-     (define desugaredArgs (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
+     (printf "desugar or~n")
+     (define desugaredArgs
+       (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
-       [(currSign) (node/formula/op/|| info (length desugaredArgs) desugaredArgs)]
-       [else (node/formula/op/&& info (length desugaredArgs) desugaredArgs)])
+       [(currSign) (node/formula/op/|| info desugaredArgs)]
+       [else (node/formula/op/&& info desugaredArgs)])
      ]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
-     (printf "implies~n")
+     (printf "desugar implies~n")
      ; The desugared version of IMPLIES is: (not LHS) OR (RHS)
      (define ante (node/formula/op/! info (list (first args))))
      (define conseq (second args))
@@ -141,7 +151,7 @@
 
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
-     (printf "in~n")
+     (printf "desugar in~n")
 
      ; In this function there are two cases, the ground case and the case where we build an and-of-implications.
      ; Some examples can be seen below: 
@@ -155,7 +165,6 @@
      ; we already have the upper bounds Node0 -> Node1 upper bound is just Node0 -> Node1
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
-     (debug-repl)
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
      
      (cond
@@ -168,14 +177,13 @@
                                                         (define tupExpr (tup2Expr x runContext))
                                                         (define LHS   (node/formula/op/in info (list tupExpr leftE)))
                                                         (define RHS (node/formula/op/in info (list tupExpr rightE)))
-                                                        (node/formula/op/=> info (list LHS RHS))) lifted-upper-bounds)))
-        
+                                                        (node/formula/op/=> info (list LHS RHS))) lifted-upper-bounds))) 
         (printf "desugaredAnd: ~a~n" desugaredAnd)
         (desugar-formula desugaredAnd quantvars runContext currSign)])]
 
     ; EQUALS 
     [(? node/formula/op/=?)
-     (printf "=~n")
+     (printf "desugar =~n")
      ; The desugared version of EQUALS is: (LHS in RHS) AND (RHS in LHS)
      (define LHS (node/formula/op/in info (list (first args) (second args))))
      (define RHS (node/formula/op/in info (list (second args) (first args))))
@@ -184,66 +192,69 @@
 
     ; NEGATION
     [(? node/formula/op/!?)
-     (printf "not~n")
+     (printf "desugar not~n")
      ; The desugared version of NEGATION is to flip the currSign type
      (desugar-formula (first args) quantvars runContext (not currSign))]   
 
     ; INTEGER >
     [(? node/formula/op/int>?)
-     (printf "int>~n")
      (error "amalgam: int > not supported ~n")
     ]
     ; INTEGER <
     [(? node/formula/op/int<?)
-     (printf "int<~n")
      (error "amalgam: int < not supported ~n")
      ]
     ; INTEGER =
     [(? node/formula/op/int=?)
-     (printf "int=~n")
      (error "amalgam: int = not supported ~n")
      ]))
 
 (define (desugar-expr expr quantvars currTupIfAtomic runContext currSign)
+
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr) (error (format "desugar-expr called on non-expr: ~a" expr)))
+
   ; Should always have a currTupIfAtomic when calling
   (mustHaveTupleContext currTupIfAtomic)
 
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
+      (printf "desugar relation name ~n")
       (node/formula/op/in info (list currTupIfAtomic expr))]
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
+     (printf "desugar int constant ~n")
      (node/formula/op/in info (list currTupIfAtomic expr))]
 
     ; other expression constants
     [(node/expr/constant info arity type)
+     (printf "desugar expression constants ~n")
      (node/formula/op/in info (list currTupIfAtomic expr))]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
+     (printf "desugar expression with operators ~n")
      (desugar-expr-op expr quantvars args currTupIfAtomic runContext currSign info)]
  
     ; quantified variable (depends on scope!)
     [(node/expr/quantifier-var info arity sym)     
-     (printf "  ~a~n" sym)
-     (error "amalgam: Something wasn't substituted correctly or the formula was malformed ~n")]
+     (printf "quantified variable found in desugar ~a~n" sym)
+     (error "amalgam: A quantified variable was passed into desugar-expr. Wrong substitution or malformed formula ~n")]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     ; t in {x0: A0, x1: A1, ... | fmla } means:
     ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...]
     [(node/expr/comprehension info len decls form)
+     (printf "desugar set comprehension ~n")
       ; account for multiple variables
      (define vars (map car decls))
      (let ([quantvars (append vars quantvars)])       
        (for-each (lambda (d)
-                   ; the target is the variable x, and the value is Node. I think this might be wrong.
-                   ; if we have x: Node, how do we get all of the instances of Node? 
+                   ;TODO: Check if this is the right way to pass in target/value 
                    (substitute-formula form quantvars (car d) (cdr d)))
-                 decls)     
+                 decls)
        (desugar-formula form quantvars runContext currSign))]))
 
 (define (desugar-expr-op expr quantvars args currTupIfAtomic runContext currSign info)
@@ -252,19 +263,17 @@
 
     ; UNION
     [(? node/expr/op/+?)
-     (printf "+~n")
+     (printf "desugar +~n")
      ; map over all children of intersection
      (define desugaredChildren
        (map
         (lambda (child) (desugar-expr child quantvars currTupIfAtomic runContext currSign)) args))
-     ; Create the final desugared version of UNION by calling with desguaredChildren
      ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
-     (define desugaredUnion (node/formula/op/|| info desugaredChildren))
-     (desugaredUnion)]
+     (node/formula/op/|| info desugaredChildren)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
-     (printf "-~n")
+     (printf "desugar -~n")
      (cond
        [(!(equal? (length args) 2)) (error("Setminus should not be given more than two arguments ~n"))]
        [else 
@@ -278,19 +287,17 @@
     
     ; INTERSECTION
     [(? node/expr/op/&?)
-     (printf "& ~a~n" expr)
+     (printf "desugar & ~a~n" expr)
      ; map over all children of intersection
      (define desugaredChildren
        (map
         (lambda (child) (desugar-expr child quantvars currTupIfAtomic runContext currSign)) args))
-     ; Create the final desugared version of INTERSECTION by calling with desguaredChildren
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD) AND (currTupIfAtomic in CHILD)
-     (define desugaredIntersection (node/formula/op/&& info desugaredChildren))
-     desugaredIntersection]
+     (node/formula/op/&& info desugaredChildren)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
-     (printf "->~n")
+     (printf "desugar ->~n")
      (cond
        [(equal? (node/expr-arity expr) 2)
          (define LHS (first args))
@@ -300,24 +307,24 @@
          (define formulas (list
                            (node/formula/op/in info (list (tup2Expr leftTupleContext) LHS))
                            (node/formula/op/in info (list (tup2Expr rightTupleContext) RHS))))
-         (define desugaredProduct (node/formula/op/&& info formulas))
-         desugaredProduct]
+         (node/formula/op/&& info formulas)]
        [else (error (format "Expression ~a in product had arity greater than 2") expr)])]
     
     ; JOIN
     [(? node/expr/op/join?)
-     (printf ".~n")
-     ; re-write join as an existentialist formula
+     (printf "desugar .~n")
+     ; Re-write join as an existentialist formula
      (cond
        [(equal? (node/expr-arity expr) 2)
         (define rightColLHS (getColumnRight (first args)))
         (define leftColRHS (getColumnLeft (second args)))
-        (define intersectColumns (node/expr/op/& info (list rightColLHS leftColRHS)))
+        (define listOfColumns (list rightColLHS leftColRHS))
+        (define intersectColumns (node/expr/op/& info (length listOfColumns) listOfColumns))
         (define joinNode (node/formula/multiplicity info 'some intersectColumns))
         (define LHSRange (projectTupleRange joinNode 0 (node/expr-arity (- (first args) 1))))
         (define RHSRange (projectTupleRange joinNode (node/expr-arity (first args)) (node/expr-arity (second args))))
-        (define LHSProduct (node/expr/op/-> info (list LHSRange joinNode)))
-        (define RHSProduct (node/expr/op/-> info (list joinNode RHSRange)))
+        (define LHSProduct (node/expr/op/-> info (length (list LHSRange joinNode)) (list LHSRange joinNode)))
+        (define RHSProduct (node/expr/op/-> info (length (list joinNode RHSRange)) (list joinNode RHSRange)))
         (define LHSIn (node/formula/op/in info (list LHSProduct (first args))))
         (define RHSIn (node/formula/op/in info (list RHSProduct (second args))))
         (define finalAnd (node/formula/op/&& info (list LHSIn RHSIn)))
@@ -326,33 +333,34 @@
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
-     (printf "^~n")
+     (printf "desugar ^~n")
+     ; TODO: Complete the transitive closure case 
      (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)
      ]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
-     (printf "*~n")
+     (printf "desugar *~n")
      ; The desugared version of REFLEXIVE-TRANSITIVE CLOSURE is ((iden) & (univ->univ)) + (^expr) 
-     (define productOfUniv (node/expr/op/-> info (list univ univ)))
-     (define restrictedIden (node/expr/op/& info (list iden productOfUniv)))
-     (define transitiveClosure (node/expr/op/^ info (first args)))
-     ; Q: Do we want to call this recursively ?
-     (define desugaredRClosure (node/expr/op/+ info (list restrictedIden transitiveClosure)))
+     (define productOfUniv (node/expr/op/-> info 2 (list 'univ 'univ)))
+     (define restrictedIden (node/expr/op/& info 2 (list 'iden productOfUniv)))
+     (define transitiveClosure (node/expr/op/^ info 1 (first args)))
+     ; TODO: Do we want to call this recursively ?
+     (define desugaredRClosure (node/expr/op/+ info 2 (list restrictedIden transitiveClosure)))
      (desugaredRClosure)
      ]
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
-     (printf "~~~n")
-     (define transposedCurrTupIfAtomic (transposeTup(currTupIfAtomic)))
-     ; for ~edges, args contains edges
+     (printf "desugar ~~~n")
+     (define transposedCurrTupIfAtomic (transposeTup currTupIfAtomic))
      (desugar-expr expr quantvars (first args) transposedCurrTupIfAtomic runContext currSign)
      ]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
-     (printf "sing~n")
+     ; TODO: Complete this case 
+     (printf "desugar sing~n")
      (map (lambda (x) (desugar-int x quantvars runContext)) args)
      ]))
 
@@ -360,19 +368,21 @@
   (match expr
     ; CONSTANT INT
     [(node/int/constant info value)
-     (printf "~a~n" value)]
+     ; TODO: we should be returning something here instead of just printing something 
+     (printf "desugar constant int~a~n" value)]
     
     ; apply an operator to some integer expressions
-    [(node/int/op info args)   
+    [(node/int/op info args)
+     (printf "desugar int operator ~n")
      (desugar-int-op expr quantvars args runContext)]
     
     ; sum "quantifier"
-    ; e.g. sum p : Person | p.age  
+    ; e.g. sum p : Person | p.age
+    ; TODO: Make sure this case is OK --> with substitution specifically 
     [(node/int/sum-quant info decls int-expr)
-     (printf "sumQ~n")
+     (printf "desugar sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ;This is what we had before: (desugar-expr (cdr (car decls)) quantvars '() runContext false)
        (for-each (lambda (d)
                    ; the target is the variable x, and the value is Node. I think this might be wrong.
                    ; if we have x: Node, how do we get all of the instances of Node? 
@@ -385,38 +395,33 @@
   (match expr
     ; int addition
     [(? node/int/op/add?)
-     (printf "int+~n")
      (error "amalgam: int + not supported~n")
      ]
     
     ; int subtraction
     [(? node/int/op/subtract?)
-     (printf "int-~n")
      (error "amalgam: int - not supported~n")
      ]
     
     ; int multiplication
     [(? node/int/op/multiply?)
-     (printf "int*~n")
      (error "amalgam: int * not supported~n")
      ]
     
     ; int division
     [(? node/int/op/divide?)
-     (printf "int/~n")
      (error "amalgam: int / not supported ~n")
      ]
     
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
-     (printf "intsum~n")
       (error "amalgam: sum not supported ~n")
      ]
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
-     (printf "cardinality~n")
+     (printf "desugar cardinality~n")
      (map (lambda (x) (desugar-expr x quantvars (first args) runContext false)) args)
      ]
     
@@ -427,13 +432,11 @@
     
     ; absolute value
     [(? node/int/op/abs?)
-     (printf "abs~n")
      (error "amalgam: int abs not supported~n")
      ]
     
     ; sign-of 
     [(? node/int/op/sign?)
-     (printf "sign~n")
      (error "amalgam: int sign-of not supported~n")
      ]
     ))

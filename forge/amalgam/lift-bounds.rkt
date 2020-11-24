@@ -44,26 +44,26 @@
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
-     
+     (printf "lift-bounds relation name base case ~n")
      (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
      (define filtered-bounds (filter (lambda (b) (equal? name (forge:relation-name (forge:bound-relation b)))) all-bounds))
-     ; return a list-of-lists
      (cond [(equal? (length filtered-bounds) 1) (forge:bound-upper (first filtered-bounds))]
            [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr name all-bounds))])]
 
     ; The Int constant
-    ; this needs to return e.g. '((-4) (-3) (-2) (-1) (0) (1) (2) (3)) for bitwidth=3
     [(node/expr/constant info 1 'Int)
+     (printf "lift-bounds int constant base case ~n")
      (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
      (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)
      ]
 
     ; other expression constants
     [(node/expr/constant info arity type)
-     ;(debug-repl)
+     (printf "lift-bounds other expression constants base case ~n")
      (cond
        [(equal? type 'univ) (map (lambda (x) (list x x)) (forge:Run-atoms runContext))]
-       [(equal? type none) '()])]
+       [(equal? type 'iden) (map (lambda (x) (list x x)) (forge:Run-atoms runContext))]
+       [(equal? type 'none) '()])]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -72,10 +72,12 @@
     ; quantified variable
     [(node/expr/quantifier-var info arity sym)
      (debug-repl)
-     (printf "  ~a~n" sym)]
+     ; TODO: Do we need to do anything here? 
+     (printf "lift-bounds quantified variable  ~a~n" sym)]
     
     ; set comprehension e.g. {n : Node | some n.edges}
-    [(node/expr/comprehension info len decls form)     
+    [(node/expr/comprehension info len decls form)
+     (printf "lift-bounds set comprehension ~n")
      (define vars (map car decls)) ; account for multiple variables  
      (let ([quantvars (append vars quantvars)])             
        ; {x: e1, y: e2 | ...}
@@ -97,7 +99,7 @@
 
     ; SET UNION 
     [(? node/expr/op/+?)
-	(printf "+~n")
+	(printf "lift-bounds +~n")
 	; The upper bound of the LHS and RHS is just the addition between both bounds  
 	(define uppers 
           (map (lambda (arg)
@@ -112,7 +114,7 @@
     
     ; SET MINUS 
     [(? node/expr/op/-?)
-     (printf "-~n")
+     (printf "lift-bounds -~n")
      ; Upper bound of A-B is A's upper bound (in case B empty).
      (define ub (lift-bounds-expr (first args) quantvars runContext))
      (printf "    arg: ~a had UB =~a~n" (first args) ub)
@@ -121,21 +123,19 @@
 
     ; SET INTERSECTION
     [(? node/expr/op/&?)
+     (printf "lift-bounds &~n")
      ; map to get the upper bounds
      (define upper-bounds
        (map (lambda (arg)
               (define ub (lift-bounds-expr arg quantvars runContext))
               ub) args))
      ; filter to filter out the LHS only if they are also in upper bounds of RHS
-     ; implemented list-member? to check whether x (a list) is a member of (first upper-bound)
-     ; member wasn't working because x is a list, not a value. Now we return a list-of-lists,
-     ; which is the appropiate return value. 
      (filter (lambda (x) (member x (first upper-bounds))) (apply append (rest upper-bounds)))
      ]
 
     ; PRODUCT
     [(? node/expr/op/->?)
-     (printf "->~n")
+     (printf "lift-bounds ->~n")
      ; the bounds of A->B are Bounds(A) x Bounds(B)
      ; right now uppers contains ((bounds a) (bounds B))
      (define uppers 
@@ -149,7 +149,7 @@
 
     ; JOIN
     [(? node/expr/op/join?)
-     (printf ".~n")
+     (printf "lift-bounds .~n")
      ; In order to approach a join with n arguments, we will first do a
      ; binary join and procede with a foldl doing a join on the previous
      ; result of the function
@@ -170,19 +170,19 @@
 
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
-     (printf "^~n")
+     (printf "lift-bounds ^~n")
      (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
      ]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
-     (printf "*~n")
+     (printf "lift-bounds *~n")
      (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
      ]
 
     ; TRANSPOSE 
     [(? node/expr/op/~?)
-     (printf "~~~n")
+     (printf "lift-bounds ~~~n")
      (define upper-bounds (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
      ; the call to lift-bounds-expr returns a list of lists, so then we just go through the list
      ; and flip the tuples themselves.
@@ -191,24 +191,26 @@
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
-     (printf "sing~n")
+     (printf "lift-bounds sing~n")
      (lift-bounds-expr (first expr) quantvars runContext)]))
 
 (define (lift-bounds-int expr quantvars runContext)
   (match expr
     ; constant int
     [(node/int/constant info value)
+     (printf "lift-bounds int constant base case -~n")
      (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
      (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)]
     
     ; apply an operator to some integer expressions
-    [(node/int/op info args)   
+    [(node/int/op info args)
+     (printf "lift-bounds operator to some integer expression base case -~n")
      (lift-bounds-int-op expr quantvars args runContext)]
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age  
     [(node/int/sum-quant info decls int-expr)
-     (printf "sumQ~n")
+     (printf "lift-bounds sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        ;( print-cmd-cont (format "(sum ([~a : ~a " 
@@ -223,57 +225,49 @@
   (match expr
     ; int addition
     [(? node/int/op/add?)
-     (printf "int+~n")
      (error "amalgam: int + not supported")
      ]
     
     ; int subtraction
     [(? node/int/op/subtract?)
-     (printf "int-~n")
      (error "amalgam: int - not supported")
      ]
     
     ; int multiplication
     [(? node/int/op/multiply?)
-     (printf "int*~n")
      (error "amalgam: int * not supported")
      ]
     
     ; int division
     [(? node/int/op/divide?)
-     (printf "int/~n")
      (error "amalgam: int / not supported")
      ]
     
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
-     (printf "intsum~n")
      (error "amalgam: int sum not supported")
      ]
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
-     (printf "cardinality~n")
+     (printf "lift-bounds cardinality~n")
      (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
      (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)
      ]
     
     ; remainder/modulo
     [(? node/int/op/remainder?)
-     (printf "remainder~n")
      (error "amalgam: int % (modulo) not supported")
      ]
     
     ; absolute value
     [(? node/int/op/abs?)
-     (printf "abs~n")
      (error "amalgam: int abs not supported")
      ]
     
     ; sign-of 
     [(? node/int/op/sign?)
-     (printf "sign~n")
      (error "amalgam: int sign not supported")
      ]  
     ))

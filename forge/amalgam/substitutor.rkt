@@ -19,6 +19,7 @@
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
+     (printf "substitutor constant formula base case ~n")
      (cond (
            [(equal? formula target) value]
            [(not(equal? formula target)) target]
@@ -26,15 +27,18 @@
 
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
+     (printf "substitutor found an operator formula ~n")
      (substitute-formula-op formula quantvars args info target value)]
     
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity info mult expr)
+      (printf "substitutor multiplicity formula ~n")
       (multiplicity-formula info mult (substitute-expr expr quantvars target value))]
 
     ; quantified formula (some x : ... or all x : ...)
     ; decls: ([n1 Node] [n2 Node] [c City.edges])
     [(node/formula/quantified info quantifier decls subform)
+     (printf "substitutor quantified formula ~n")
      ; might be multiple variables in one quantifier e.g. some x1, x2: Node | ...
      (define vars (map car decls))
      ; error checking
@@ -55,35 +59,41 @@
   (match formula
 
     ; AND 
-     [(? node/formula/op/&&?) 
+     [(? node/formula/op/&&?)
+     (printf "substitutor && ~n")
      (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars target value)) args))
      (node/formula/op/&& info substitutedArgs)]
 
     ; OR
      [(? node/formula/op/||?)
+     (printf "substitutor || ~n")
      (define substitutedArgs (map (lambda (x) (substitute-formula x quantvars target value)) args))
      (node/formula/op/|| info substitutedArgs)]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
+     (printf "substitutor => ~n")
      (define substitutedLHS (substitute-formula  (first args) quantvars target value))
      (define substitutedRHS (substitute-formula  (second args) quantvars target value))
      (node/formula/op/=> info (list substitutedLHS substitutedRHS))]
 
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
+     (printf "substitutor in ~n")
      (define substitutedLHS (substitute-expr  (first args) quantvars target value))
      (define substitutedRHS (substitute-expr  (second args) quantvars target value))
      (node/formula/op/in info (list substitutedLHS substitutedRHS))]
 
     ; EQUALS 
     [(? node/formula/op/=?)
+     (printf "substitutor = ~n")
      (define substitutedLHS (substitute-expr  (first args) quantvars target value))
      (define substitutedRHS (substitute-expr  (second args) quantvars target value))
      (node/formula/op/= info (list substitutedLHS substitutedRHS))]
 
     ; NEGATION
     [(? node/formula/op/!?)
+     (printf "substitutor ! ~n")
      (define substitutedEntry (substitute-formula (first args) quantvars target value))
      (node/formula/op/! info (list substitutedEntry))]   
 
@@ -107,12 +117,14 @@
 
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
+     (printf "substitutor relation name (in expr) base case ~n")
        (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) target])]
 
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
+       (printf "substitutor int constant (in expr) base case ~n")
        (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) target]
@@ -120,6 +132,7 @@
 
     ; other expression constants
     [(node/expr/constant info arity type)
+       (printf "substitutor other expression constants (in expr) base case ~n")
        (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) target]
@@ -127,16 +140,19 @@
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
+     (printf "substitutor found an operator ~n")
      (substitute-expr-op expr quantvars args info target value)]
  
     ; quantified variable (depends on scope!)
     ; (another base case)
-    [(node/expr/quantifier-var info arity sym)     
+    [(node/expr/quantifier-var info arity sym)
+     (printf "substitutor quantified variable ~a ~n" sym)
      (cond  [(equal? expr target) value]
             [(not (equal? expr target)) target])]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls subform)
+     (printf "substitutor set comprehension ~n")
       ; account for multiple variables  
      (define vars (map car decls))
      (for-each (lambda (v)
@@ -160,6 +176,7 @@
 
     ; UNION
     [(? node/expr/op/+?)
+     (printf "substitutor + ~n")
      ; map over all children of union
      (define substitutedChildren
        (map
@@ -168,6 +185,7 @@
     
     ; SETMINUS 
     [(? node/expr/op/-?)
+     (printf "substitutor - ~n")
      (cond
        [(!(equal? (length args) 2)) (error("Setminus should not be given more than two arguments ~n"))]
        [else 
@@ -177,6 +195,7 @@
     
     ; INTERSECTION
     [(? node/expr/op/&?)
+     (printf "substitutor & ~n")
      ; map over all children of intersection
      (define substitutedChildren
        (map
@@ -185,6 +204,7 @@
     
     ; PRODUCT
     [(? node/expr/op/->?)
+     (printf "substitutor -> ~n")
      ; map over all children of product
      (define substitutedChildren
        (map
@@ -193,6 +213,7 @@
    
     ; JOIN
     [(? node/expr/op/join?)
+     (printf "substitutor join ~n")
      ; map over all children of join
      (define substitutedChildren
        (map
@@ -201,6 +222,7 @@
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
+     (printf "substitutor ^ ~n")
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
@@ -208,6 +230,7 @@
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
+     (printf "substitutor * ~n")
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
@@ -215,11 +238,13 @@
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
+     (printf "substitutor ~ ~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
      (node/expr/op/~ info 1 (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
+     (printf "substitutor sing ~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
      (node/expr/op/sing info 1 (list substitutedEntry))]))
 
@@ -228,18 +253,21 @@
     
     ; CONSTANT INT
     [(node/int/constant info intValue)
+       (printf "substitutor constant int base case (substitute-int) ~n")
        (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) target]
         )]
     
     ; apply an operator to some integer expressions
-    [(node/int/op info args)   
+    [(node/int/op info args)
+     (printf "substitutor found an int operator ~n")
      (substitute-int-op expr quantvars args info target value)]
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age
     [(node/int/sum-quant info decls int-expr)
+      (printf "substitutor sum ~n")
       ; account for multiple variables  
      (define vars (map car decls))
      (for-each (lambda (v)
@@ -283,6 +311,7 @@
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
+     (printf "substitutor cardinality ~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
      (node/int/op/card info (list substitutedEntry))]  
     
