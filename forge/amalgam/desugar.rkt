@@ -127,8 +127,7 @@
        (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
        [(currSign) (node/formula/op/&& info desugaredArgs)]
-       [else (node/formula/op/|| info desugaredArgs)])
-     ]
+       [else (node/formula/op/|| info desugaredArgs)])]
 
     ; OR
      [(? node/formula/op/||?)
@@ -137,8 +136,7 @@
        (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
        [(currSign) (node/formula/op/|| info desugaredArgs)]
-       [else (node/formula/op/&& info desugaredArgs)])
-     ]
+       [else (node/formula/op/&& info desugaredArgs)])]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
@@ -198,16 +196,13 @@
 
     ; INTEGER >
     [(? node/formula/op/int>?)
-     (error "amalgam: int > not supported ~n")
-    ]
+     (error "amalgam: int > not supported ~n")]
     ; INTEGER <
     [(? node/formula/op/int<?)
-     (error "amalgam: int < not supported ~n")
-     ]
+     (error "amalgam: int < not supported ~n")]
     ; INTEGER =
     [(? node/formula/op/int=?)
-     (error "amalgam: int = not supported ~n")
-     ]))
+     (error "amalgam: int = not supported ~n")]))
 
 (define (desugar-expr expr quantvars currTupIfAtomic runContext currSign)
 
@@ -335,8 +330,7 @@
     [(? node/expr/op/^?)
      (printf "desugar ^~n")
      ; TODO: Complete the transitive closure case 
-     (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)
-     ]
+     (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
@@ -347,22 +341,19 @@
      (define transitiveClosure (node/expr/op/^ info 1 (first args)))
      ; TODO: Do we want to call this recursively ?
      (define desugaredRClosure (node/expr/op/+ info 2 (list restrictedIden transitiveClosure)))
-     (desugaredRClosure)
-     ]
+     (desugaredRClosure)]
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (printf "desugar ~~~n")
      (define transposedCurrTupIfAtomic (transposeTup currTupIfAtomic))
-     (desugar-expr expr quantvars (first args) transposedCurrTupIfAtomic runContext currSign)
-     ]
+     (desugar-expr expr quantvars (first args) transposedCurrTupIfAtomic runContext currSign)]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      ; TODO: Complete this case 
      (printf "desugar sing~n")
-     (map (lambda (x) (desugar-int x quantvars runContext)) args)
-     ]))
+     (map (lambda (x) (desugar-int x quantvars runContext)) args)]))
 
 (define (desugar-int expr quantvars runContext)
   (match expr
@@ -388,58 +379,47 @@
                    ; if we have x: Node, how do we get all of the instances of Node? 
                    (substitute-expr expr quantvars (car d) (cdr d)))
                  decls)           
-       (desugar-int int-expr quantvars runContext)
-       )]))
+       (desugar-int int-expr quantvars runContext))]))
 
 (define (desugar-int-op expr quantvars args runContext)
   (match expr
     ; int addition
     [(? node/int/op/add?)
-     (error "amalgam: int + not supported~n")
-     ]
+     (error "amalgam: int + not supported~n")]
     
     ; int subtraction
     [(? node/int/op/subtract?)
-     (error "amalgam: int - not supported~n")
-     ]
+     (error "amalgam: int - not supported~n")]
     
     ; int multiplication
     [(? node/int/op/multiply?)
-     (error "amalgam: int * not supported~n")
-     ]
+     (error "amalgam: int * not supported~n")]
     
     ; int division
     [(? node/int/op/divide?)
-     (error "amalgam: int / not supported ~n")
-     ]
+     (error "amalgam: int / not supported ~n")]
     
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
-      (error "amalgam: sum not supported ~n")
-     ]
+      (error "amalgam: sum not supported ~n")]
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "desugar cardinality~n")
-     (map (lambda (x) (desugar-expr x quantvars (first args) runContext false)) args)
-     ]
+     (map (lambda (x) (desugar-expr x quantvars (first args) runContext false)) args)]
     
     ; remainder/modulo
     [(? node/int/op/remainder?)     
-     (error "amalgam: int % (modulo) not supported~n")
-     ]
+     (error "amalgam: int % (modulo) not supported~n")]
     
     ; absolute value
     [(? node/int/op/abs?)
-     (error "amalgam: int abs not supported~n")
-     ]
+     (error "amalgam: int abs not supported~n")]
     
     ; sign-of 
     [(? node/int/op/sign?)
-     (error "amalgam: int sign-of not supported~n")
-     ]
-    ))
+     (error "amalgam: int sign-of not supported~n")]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

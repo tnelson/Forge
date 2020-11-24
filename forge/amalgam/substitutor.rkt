@@ -22,8 +22,7 @@
      (printf "substitutor constant formula base case ~n")
      (cond (
            [(equal? formula target) value]
-           [(not(equal? formula target)) target]
-           ))]
+           [(not(equal? formula target)) target]))]
 
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
@@ -99,16 +98,13 @@
 
     ; INTEGER >
     [(? node/formula/op/int>?)
-     (error "amalgam: int > not supported ~n")
-    ]
+     (error "amalgam: int > not supported ~n")]
     ; INTEGER <
     [(? node/formula/op/int<?)
-     (error "amalgam: int < not supported ~n")
-     ]
+     (error "amalgam: int < not supported ~n")]
     ; INTEGER =
     [(? node/formula/op/int=?)
-     (error "amalgam: int = not supported ~n")
-     ]))
+     (error "amalgam: int = not supported ~n")]))
 
 (define (substitute-expr expr quantvars target value)
   ; Error message to check that we are only taking in expressions
@@ -127,16 +123,14 @@
        (printf "substitutor int constant (in expr) base case ~n")
        (cond 
          [(equal? expr target) value]
-         [(not(equal? expr target)) target]
-        )]
+         [(not(equal? expr target)) target])]
 
     ; other expression constants
     [(node/expr/constant info arity type)
        (printf "substitutor other expression constants (in expr) base case ~n")
        (cond 
          [(equal? expr target) value]
-         [(not(equal? expr target)) target]
-        )]
+         [(not(equal? expr target)) target])]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -168,8 +162,7 @@
                              (cons (car decl) (substitute-expr (cdr decl) quantvars target value))) decls)
                       (substitute-formula subform quantvars target value)))]
 
-    [else (error (format "no matching case in substitution for ~a" expr))]
-    ))
+    [else (error (format "no matching case in substitution for ~a" expr))]))
 
 (define (substitute-expr-op expr quantvars args info target value)
   (match expr
@@ -256,8 +249,7 @@
        (printf "substitutor constant int base case (substitute-int) ~n")
        (cond 
          [(equal? expr target) value]
-         [(not(equal? expr target)) target]
-        )]
+         [(not(equal? expr target)) target])]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)
@@ -285,29 +277,24 @@
   (match expr
     ; int addition
     [(? node/int/op/add?)
-     (error "amalgam: int + not supported~n")
-     ]
+     (error "amalgam: int + not supported~n")]
     
     ; int subtraction
     [(? node/int/op/subtract?)
-     (error "amalgam: int - not supported~n")
-     ]
+     (error "amalgam: int - not supported~n")]
     
     ; int multiplication
     [(? node/int/op/multiply?)
-     (error "amalgam: int * not supported~n")
-     ]
+     (error "amalgam: int * not supported~n")]
     
     ; int division
     [(? node/int/op/divide?)
-     (error "amalgam: int / not supported ~n")
-     ]
+     (error "amalgam: int / not supported ~n")]
     
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
-      (error "amalgam: sum not supported ~n")
-     ]
+      (error "amalgam: sum not supported ~n")]
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
@@ -317,19 +304,15 @@
     
     ; remainder/modulo
     [(? node/int/op/remainder?)     
-     (error "amalgam: int % (modulo) not supported~n")
-     ]
+     (error "amalgam: int % (modulo) not supported~n")]
     
     ; absolute value
     [(? node/int/op/abs?)
-     (error "amalgam: int abs not supported~n")
-     ]
+     (error "amalgam: int abs not supported~n")]
     
     ; sign-of 
     [(? node/int/op/sign?)
-     (error "amalgam: int sign-of not supported~n")
-     ]
-    ))
+     (error "amalgam: int sign-of not supported~n")]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
