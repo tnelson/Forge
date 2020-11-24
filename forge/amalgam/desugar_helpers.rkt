@@ -1,5 +1,5 @@
 #lang forge/core
-
+(require debug/repl)
 (provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct checkIfUnary checkIfBinary create-bitwidth-list)
 
 ; return list of lists inclusive of start and end
@@ -20,11 +20,9 @@
       ; keep only the atom relations whose name matches tupElem
       (define filterResult
         (filter (lambda (atomRel)
-                  (cond
-                    [(and (string? tupElem) (not (symbol? atomRel))) (equal? tupElem (string atomRel))]
-                    [(and (string? tupElem) (symbol? atomRel)) (equal? tupElem (symbol->string atomRel))]
-                    [(and (not (string? tupElem)) (not (symbol? atomRel))) (equal? (symbol->string tupElem) (number->string atomRel))]
-                    [(and (not (string? tupElem)) (symbol? atomRel)) (equal? (symbol->string tupElem) (symbol->string atomRel))]))
+                  (when (string? tupElem) (set! tupElem (string->symbol tupElem)))
+                  (when (string? atomRel) (set! atomRel (string->symbol atomRel)))
+                  (equal? (format "~v" atomRel) (format "~v" tupElem)))
                 (forge:Run-atoms context)))
       (cond [(equal? 1 (length filterResult)) (first filterResult)]
             [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))

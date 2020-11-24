@@ -84,7 +84,7 @@
 
     ; NEGATION
     [(? node/formula/op/!?)
-     (define substitutedEntry (substitute-expr (first args) quantvars target value))
+     (define substitutedEntry (substitute-formula (first args) quantvars target value))
      (node/formula/op/! info (list substitutedEntry))]   
 
     ; INTEGER >

@@ -155,6 +155,7 @@
      ; we already have the upper bounds Node0 -> Node1 upper bound is just Node0 -> Node1
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
+     (debug-repl)
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
      
      (cond

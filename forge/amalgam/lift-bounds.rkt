@@ -70,7 +70,8 @@
      (lift-bounds-expr-op expr quantvars args runContext)]
     
     ; quantified variable
-    [(node/expr/quantifier-var info arity sym)     
+    [(node/expr/quantifier-var info arity sym)
+     (debug-repl)
      (printf "  ~a~n" sym)]
     
     ; set comprehension e.g. {n : Node | some n.edges}
