@@ -60,8 +60,9 @@
 
     ; other expression constants
     [(node/expr/constant info arity type)
+     ;(debug-repl)
      (cond
-       [(equal? type univ) (map (lambda (x) (list x x)) (forge:Run-atoms runContext))]
+       [(equal? type 'univ) (map (lambda (x) (list x x)) (forge:Run-atoms runContext))]
        [(equal? type none) '()])]
     
     ; expression w/ operator (union, intersect, ~, etc...)

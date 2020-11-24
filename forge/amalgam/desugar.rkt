@@ -47,7 +47,6 @@
     ; if it's got multiple variables, first split into multiple single-var quantifiers
     [(node/formula/quantified info quantifier decls form)
      (printf "quant ~a~n" quantifier)
-     (debug-repl)
 
      ; QUANT DECLS | SUBFMLA
      ;       DECLS = ((x . A))
@@ -56,13 +55,14 @@
      ; lone x: A | r.x in q ------> (no x: A | r.x in q) or (one x: A | r.x in q)
      (cond [(not (or (equal? quantifier 'some)
                      (equal? quantifier 'all)))
-            ; TODO: desugar this quantifier type
-            ; e.g. lone x:A | ...
-            ; see above
             (cond
-              [(equal? quantifier 'no)]
-              [(equal? quantifier 'one)]
-              [(equal? quantifier 'lone)])
+              [(equal? quantifier 'no)
+               (define newForm (node/formula/op/! info (list form)))
+               (define newQuantFormula (node/formula/quantified info 'all decls newForm))
+               (desugar-formula newQuantFormula quantvars runContext currSign)]
+              
+              [(equal? quantifier 'one) '()]
+              [(equal? quantifier 'lone) '()])
             ]
            [(not (equal? 1 (length decls)))
             ; TODO: desugar this multi-var quantifier
@@ -91,6 +91,7 @@
               ; gives us list of all possible bindings to this variable
               (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
               ; produce a list of subformulas each substituted with a possible binding for the variable
+              ;(debug-repl)
               (define subformulas
                 (map
                  (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info)))
