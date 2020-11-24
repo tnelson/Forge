@@ -71,7 +71,6 @@
     
     ; quantified variable
     [(node/expr/quantifier-var info arity sym)
-     (debug-repl)
      ; TODO: Do we need to do anything here? 
      (printf "lift-bounds quantified variable  ~a~n" sym)]
     

@@ -37,8 +37,9 @@
      (printf "desugar mult ~a~n" mult)
      (define freshvar (node/expr/quantifier-var info 1 (list (gensym "m2q"))))
      (define uppers (lift-bounds-expr expr quantvars runContext))
-     (define unionOfBounds (node/expr/op/+ info (length uppers) (map (lambda (bound)
-                                                       bound) uppers)))
+     ;uppers is a list of tuples 
+     (define unionOfBounds (node/expr/op/+ info (length uppers) (map (lambda (tup)
+                                                                       (tup2Expr tup runContext)) uppers)))
      (printf "desugar union of Bounds ~a ~n" unionOfBounds)
      (define domain unionOfBounds) 
      (define newfmla (node/formula/op/in info (list freshvar expr)))
@@ -48,31 +49,38 @@
      (desugar-formula desugaredMultiplicity quantvars runContext currSign)]
     
 
-    
     ; quantified formula (some x : ... or all x : ...)
-    ; if it's a complex quantifier (no, lone, one) that adds constraints, first desugar into somes/alls
-    ; if it's got multiple variables, first split into multiple single-var quantifiers
     [(node/formula/quantified info quantifier decls form)
      (printf "desugar quant ~a~n" quantifier)
      (printf "desugar quant formula ~a~n" formula)
 
-     ; QUANT DECLS | SUBFMLA
-     ;       DECLS = ((x . A))
-     ; no x: A | r.x in q ------> all x: A | not (r.x in q)
-     ; one x: A | r.x in q ------> (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
-     ; lone x: A | r.x in q ------> (no x: A | r.x in q) or (one x: A | r.x in q)
+     ; In the case where the quantifier is not a 'some or 'all, desugar into somes/alls  
      (cond [(not (or (equal? quantifier 'some)
                      (equal? quantifier 'all)))
             (cond
+              ; no x: A | r.x in q ------> all x: A | not (r.x in q)
               [(equal? quantifier 'no)
-               (define newForm (node/formula/op/! info (list form)))
-               (define newQuantFormula (node/formula/quantified info 'all decls newForm))
+               (define negatedFormula (node/formula/op/! info (list form)))
+               (define newQuantFormula (node/formula/quantified info 'all decls negatedFormula))
                (desugar-formula newQuantFormula quantvars runContext currSign)]
 
-              ; TODO: Finish these cases 
-              [(equal? quantifier 'one) '()]
-              [(equal? quantifier 'lone) '()])
-            ]
+              ; one x: A | r.x in q ------> (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
+              [(equal? quantifier 'one)
+               (define newQuantFormLHS (node/formula/quantified info 'some decls form))
+               (define negatedFormula (node/formula/op/! info (list form)))
+               (define subtractedDecls (node/expr/op/- info (list (cdr decls) (car decls))))
+               (define newQuantFormRHS (node/formula/quantified info 'all subtractedDecls negatedFormula))
+               (define desugaredAnd (node/formula/op/&& info (list newQuantFormLHS newQuantFormRHS)))
+               (desugar-formula desugaredAnd quantvars runContext currSign)]
+
+              ; lone x: A | r.x in q ------> (no x: A | r.x in q) or (one x: A | r.x in q)
+              [(equal? quantifier 'lone)
+               (define newQuantFormLHS (node/formula/quantified info 'no decls form))
+               (define newQuantFormRHS (node/formula/quantified info 'one decls form))
+               (define desugaredOR (node/formula/op/|| info (list newQuantFormLHS newQuantFormRHS)))
+               (desugar-formula desugaredOR quantvars runContext currSign)])]
+
+           ; if it's got multiple variables, first split into multiple single-var quantifiers
            [(not (equal? 1 (length decls)))
             ; TODO: desugar this multi-var quantifier
             ; some x: A, y: B | x.y in q
@@ -92,19 +100,13 @@
            [else 
             (define var (car (car decls)))
             (define domain (cdr (car decls)))
-            (let ([quantvars (cons var quantvars)])
-              
-              ; the target is the variable x, and the value is Node. I think this might be wrong.
-              ; if we have x: Node, how do we get all of the instances of Node?
-       
+            (let ([quantvars (cons var quantvars)])    
               ; gives us list of all possible bindings to this variable
               (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
               ; produce a list of subformulas each substituted with a possible binding for the variable
-              ;(debug-repl)
-              (define subformulas
-                (map
-                 (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info)))
-                 lifted-bounds))
+              (define subformulas (map
+                                   (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info)))
+                                   lifted-bounds))
               (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
                     [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
                     [else (error (format "desugaring unsupported: ~a" formula))]))
@@ -121,7 +123,7 @@
   (match formula
 
     ; AND 
-     [(? node/formula/op/&&?) 
+    [(? node/formula/op/&&?) 
      (printf "desugar and~n")
      (define desugaredArgs
        (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
@@ -130,7 +132,7 @@
        [else (node/formula/op/|| info desugaredArgs)])]
 
     ; OR
-     [(? node/formula/op/||?)
+    [(? node/formula/op/||?)
      (printf "desugar or~n")
      (define desugaredArgs
        (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
@@ -148,21 +150,18 @@
      (desugar-formula desugaredImplies quantvars runContext currSign)]
 
     ; IN (atomic fmla)
+    ; This function has two cases, the ground case and the case where we build an and-of-implications.
+    ; Some examples can be seen below: 
+    ;     Node0->Node1 in ^edges   <--- this is a ground case of IN! we know the current tuple
+    ;     Node0->Node1 + Node1->Node2 in ^edges <--- need to turn into an and-of-implications
+    ;     edges in ~edges <--- same deal, need to build an and-of-implications
     [(? node/formula/op/in?)
      (printf "desugar in~n")
 
-     ; In this function there are two cases, the ground case and the case where we build an and-of-implications.
-     ; Some examples can be seen below: 
-     ;     Node0->Node1 in ^edges   <--- this is a ground case of IN! we know the current tuple
-     ;     Node0->Node1 + Node1->Node2 in ^edges <--- need to turn into an and-of-implications
-     ;     edges in ~edges <--- same deal, need to build an and-of-implications
-  
      (define leftE (first args))
      (define rightE (second args))
      
-     ; we already have the upper bounds Node0 -> Node1 upper bound is just Node0 -> Node1
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
-     ;   The bounds-lifter helpers will know what they need and can access the upper bounds then.
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
      
      (cond
@@ -215,8 +214,8 @@
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
-      (printf "desugar relation name ~n")
-      (node/formula/op/in info (list currTupIfAtomic expr))]
+     (printf "desugar relation name ~n")
+     (node/formula/op/in info (list currTupIfAtomic expr))]
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
@@ -243,7 +242,7 @@
     ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...]
     [(node/expr/comprehension info len decls form)
      (printf "desugar set comprehension ~n")
-      ; account for multiple variables
+     ; account for multiple variables
      (define vars (map car decls))
      (let ([quantvars (append vars quantvars)])       
        (for-each (lambda (d)
@@ -295,14 +294,14 @@
      (printf "desugar ->~n")
      (cond
        [(equal? (node/expr-arity expr) 2)
-         (define LHS (first args))
-         (define RHS (second args))
-         (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
-         (define rightTupleContext (projectTupleRange currTupIfAtomic (node/expr-arity LHS) (node/expr-arity RHS)))
-         (define formulas (list
-                           (node/formula/op/in info (list (tup2Expr leftTupleContext) LHS))
-                           (node/formula/op/in info (list (tup2Expr rightTupleContext) RHS))))
-         (node/formula/op/&& info formulas)]
+        (define LHS (first args))
+        (define RHS (second args))
+        (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
+        (define rightTupleContext (projectTupleRange currTupIfAtomic (node/expr-arity LHS) (node/expr-arity RHS)))
+        (define formulas (list
+                          (node/formula/op/in info (list (tup2Expr leftTupleContext) LHS))
+                          (node/formula/op/in info (list (tup2Expr rightTupleContext) RHS))))
+        (node/formula/op/&& info formulas)]
        [else (error (format "Expression ~a in product had arity greater than 2") expr)])]
     
     ; JOIN
@@ -402,7 +401,7 @@
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
-      (error "amalgam: sum not supported ~n")]
+     (error "amalgam: sum not supported ~n")]
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
