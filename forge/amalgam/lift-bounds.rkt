@@ -109,8 +109,7 @@
                  ub) args))
         ; We are assuming that uppers is a list of list of list of atoms 
         ; therefore, by calling 'apply', we can convert this into a list of list of atoms. 
-        (remove-duplicates (apply append uppers))
-     ]
+        (remove-duplicates (apply append uppers))]
     
     ; SET MINUS 
     [(? node/expr/op/-?)
@@ -118,7 +117,6 @@
      ; Upper bound of A-B is A's upper bound (in case B empty).
      (define ub (lift-bounds-expr (first args) quantvars runContext))
      (printf "    arg: ~a had UB =~a~n" (first args) ub)
-     ; return a list-of-lists containing A's upper bound 
      ub]
 
     ; SET INTERSECTION
@@ -130,8 +128,7 @@
               (define ub (lift-bounds-expr arg quantvars runContext))
               ub) args))
      ; filter to filter out the LHS only if they are also in upper bounds of RHS
-     (filter (lambda (x) (member x (first upper-bounds))) (apply append (rest upper-bounds)))
-     ]
+     (filter (lambda (x) (member x (first upper-bounds))) (apply append (rest upper-bounds)))]
 
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -144,8 +141,7 @@
               (printf "    arg: ~a had UB =~a~n" arg ub)
                ub) args))
      ; Return a list of lists with all of the bounds with the cartesian product
-     (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))
-     ]
+     (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))]
 
     ; JOIN
     [(? node/expr/op/join?)
@@ -163,22 +159,17 @@
                ub) args))
         (define currBinaryJoin (zip (first args) (second args)))
         ; we need to remove the first two things from args since we already joined there 
-        (foldl (lambda (curr acc) (zip acc curr)) currBinaryJoin (rest (rest args)))
-        ]
-       )
-     ]
+        (foldl (lambda (curr acc) (zip acc curr)) currBinaryJoin (rest (rest args)))])]
 
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "lift-bounds ^~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
-     ]
+     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
      (printf "lift-bounds *~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)
-     ]
+     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)]
 
     ; TRANSPOSE 
     [(? node/expr/op/~?)
@@ -213,63 +204,48 @@
      (printf "lift-bounds sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ;( print-cmd-cont (format "(sum ([~a : ~a " 
-       ;                         (v (get-var-idx var quantvars))
-       ;                         (if (@> (node/expr-arity var) 1) "set" "one")))
        (lift-bounds-expr (cdr (car decls)) quantvars runContext)
-       
-       (lift-bounds-int int-expr quantvars runContext)
-       )]))
+       (lift-bounds-int int-expr quantvars runContext))]))
 
 (define (lift-bounds-int-op expr quantvars args runContext)
   (match expr
     ; int addition
     [(? node/int/op/add?)
-     (error "amalgam: int + not supported")
-     ]
+     (error "amalgam: int + not supported")]
     
     ; int subtraction
     [(? node/int/op/subtract?)
-     (error "amalgam: int - not supported")
-     ]
+     (error "amalgam: int - not supported")]
     
     ; int multiplication
     [(? node/int/op/multiply?)
-     (error "amalgam: int * not supported")
-     ]
+     (error "amalgam: int * not supported")]
     
     ; int division
     [(? node/int/op/divide?)
-     (error "amalgam: int / not supported")
-     ]
+     (error "amalgam: int / not supported")]
     
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
-     (error "amalgam: int sum not supported")
-     ]
+     (error "amalgam: int sum not supported")]
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "lift-bounds cardinality~n")
      (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
-     (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)
-     ]
+     (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)]
     
     ; remainder/modulo
     [(? node/int/op/remainder?)
-     (error "amalgam: int % (modulo) not supported")
-     ]
+     (error "amalgam: int % (modulo) not supported")]
     
     ; absolute value
     [(? node/int/op/abs?)
-     (error "amalgam: int abs not supported")
-     ]
+     (error "amalgam: int abs not supported")]
     
     ; sign-of 
     [(? node/int/op/sign?)
-     (error "amalgam: int sign not supported")
-     ]  
-    ))
+     (error "amalgam: int sign not supported")]))
 
 
