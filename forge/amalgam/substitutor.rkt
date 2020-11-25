@@ -118,6 +118,13 @@
          [(equal? expr target) value]
          [(not(equal? expr target)) target])]
 
+    ; atom (base case)
+    [(node/expr/atom info arity name)
+     (printf "substitutor atom (in expr) base case ~n")
+     (cond 
+       [(equal? expr target) value]
+       [(not(equal? expr target)) expr])]
+
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
        (printf "substitutor int constant (in expr) base case ~n")

@@ -68,7 +68,7 @@
               [(equal? quantifier 'one)
                (define newQuantFormLHS (node/formula/quantified info 'some decls form))
                (define negatedFormula (node/formula/op/! info (list form)))
-               (define subtractedDecls (node/expr/op/- info (list (cdr decls) (car decls))))
+               (define subtractedDecls (node/expr/op/- info 2 (list (cdr decls) (car decls))))
                (define newQuantFormRHS (node/formula/quantified info 'all subtractedDecls negatedFormula))
                (define desugaredAnd (node/formula/op/&& info (list newQuantFormLHS newQuantFormRHS)))
                (desugar-formula desugaredAnd quantvars runContext currSign)]
@@ -84,18 +84,12 @@
            [(not (equal? 1 (length decls)))
             ; TODO: desugar this multi-var quantifier
             ; some x: A, y: B | x.y in q
-            ;   ^ (1) turn below into a helper and fold that helper over the decls
             ;     (2) just break up the decls. e.g., some x: A | some y: B | x.y in q
-
-            ; The problem:
-            ; (F1) one x: A, y: B | x->y in roads
-            ;   IS NOT EQUIVALENT TO
-            ; (F2) one x: A | one y: B | x->y in roads
-            ;  F1 means "there is exactly one tuple <x, y> such that x->y in roads
-            ;     i.e., one tuple in roads relation
-            ;  F2 means "there is exactly one x, such that there is exactly one y, such that x->y in roads
-            ;     i.e., only one city with one outgoing road
             
+           ; (when (and (not (equal? (quantifier 'and))) (not (equal? (quantifier 'some)))
+           ;             (error (format "Multiple quantifiers with something other than all/some: ~a" form))))
+
+
             ]
            [else 
             (define var (car (car decls)))
@@ -216,6 +210,13 @@
     [(node/expr/relation info arity name typelist parent)
      (printf "desugar relation name ~n")
      (node/formula/op/in info (list currTupIfAtomic expr))]
+
+    ; atom (base case)
+    [(node/expr/relation info arity name typelist parent)
+     (printf "desugar atom base case ~n")
+     (cond
+       [currSign (node/formula/op/in info (list currTupIfAtomic expr))]
+       [else (node/formula/op/! info (node/formula/op/in info (list currTupIfAtomic expr)))])]    
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)

@@ -45,7 +45,8 @@
 
     ; atom case (base case)
     [(node/expr/atom info arity name)
-     '()
+     (printf "lift-bounds atom base case ~n")
+     (list expr)
      ]
     
     ; relation name (base case)
@@ -144,6 +145,7 @@
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub)
                ub) args))
+     (debug-repl)
      ; Return a list of lists with all of the bounds with the cartesian product
      (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))]
 

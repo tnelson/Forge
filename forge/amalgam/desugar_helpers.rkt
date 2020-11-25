@@ -24,7 +24,6 @@
                    (when (string? atomRel) (set! atomRel (string->symbol atomRel)))
                    (equal? (format "~v" atomRel) (format "~v" tupElem)))
                  (forge:Run-atoms context)))
-       (debug-repl)
        (cond [(equal? 1 (length filterResult)) (node/expr/atom info 1 (first filterResult))]
              [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
      tuple))  
