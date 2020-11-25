@@ -46,7 +46,7 @@
 ; Function isGroundProduct used to test whether a given expression is ground. 
 (define (isGroundProduct expr)
   (cond
-    [(not (node/expr? expr)) (error "expression ~a is not an expression." expr)]
+    [(not (node/expr? expr)) (error (format "expression ~a is not an expression." expr))]
     ; Check if the expression is UNARY and if SUM or SING type. If so, call the function recursively. 
     [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
      (define args (node/expr/op-children expr))
@@ -54,12 +54,14 @@
     ; If the expression is a quantifier variable, return true 
     ;[(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
     [(node/expr/quantifier-var? expr) #t]
-    ; If the expression is binary and of type PRODUCT, call function recurisvely on LHS and RHS of expr 
-    [(and (checkIfBinary expr) (node/expr/op/->? expr))
+    ; If the expression is binary and of type PRODUCT, call function recurisvely on LHS and RHS of expr
+    [(node/expr/op/->? expr)
      (define args (node/expr/op-children expr))
-     (and (isGroundProduct (first args)) (isGroundProduct (second args)))]
+     (andmap isGroundProduct args)]
     ; If the expression is a constant and a number, return true 
     [(and (node/expr/constant? expr) (number? (node/expr/constant expr))) #t]
+    ; atoms are also a base case
+    [(node/expr/atom? expr) #t]
     ; If none of the above cases are true, then return false
     [else #f]
     ))
@@ -109,6 +111,9 @@
 
 
 (define (createNewQuantifier decls quantvars form runContext info quantifier formula)
+  (unless (equal? (length decls) 1)
+    (error (format "createNewQuantifier: ~a" decls)))
+  
   (define var (car (car decls)))
   (define domain (cdr (car decls)))
   (let ([quantvars (cons var quantvars)])    
@@ -116,8 +121,12 @@
     (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
     ; produce a list of subformulas each substituted with a possible binding for the variable
     (define subformulas (map
-                         (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info)))
+                         (lambda (tup)
+                           (define result (substitute-formula form quantvars var (tup2Expr tup runContext info)))
+                           (printf "debug for createNewQuantifier ~a: ~a~n" tup result)
+                           result)
                          lifted-bounds))
+    
     (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
           [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
           [else (error (format "desugaring unsupported: ~a" formula))])))

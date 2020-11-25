@@ -146,11 +146,13 @@
      (define rightE (second args))
      
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
-     (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
+     (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))     
      
      (cond
        [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
-        (desugar-expr leftE quantvars currTupIfAtomic runContext currSign)]
+        ; ground case. we have a current-tuple now, and want to desugar the RHS
+        (printf "entering ground case: ~a ~a" rightE (first lifted-upper-bounds))
+        (desugar-expr rightE quantvars (first lifted-upper-bounds) runContext currSign)]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
         (define desugaredAnd (node/formula/op/&& info

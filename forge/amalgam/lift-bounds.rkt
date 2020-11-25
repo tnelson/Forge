@@ -38,16 +38,17 @@
 
 ; Only Expression and IntExpression cases needed
 ; (we never try to lift bounds of a formula, because that makes no sense.)
-;  ... -> list<tuple> i.e., list<list<atom>>
+;  ... -> list<tuple> i.e., list<list<atom>> (note atom NOT EQUAL TO atom expression)
 (define (lift-bounds-expr expr quantvars runContext)
 
   (match expr
 
     ; atom case (base case)
     [(node/expr/atom info arity name)
-     (printf "lift-bounds atom base case ~n")
-     (list expr)
-     ]
+     (printf "lift-bounds atom base case ~a~n" expr)
+     ; node/expr/atom -> atom  (actual atom, i.e. symbol)
+     (define tuple (list (node/expr/atom-name expr)))
+     (list tuple)]
     
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
@@ -79,7 +80,7 @@
     ; quantified variable
     [(node/expr/quantifier-var info arity sym)
      ; TODO: Do we need to do anything here?
-     (error (format "We should not be getting the bounds of a quantified variable ~a") sym)
+     (error (format "We should not be getting the bounds of a quantified variable ~a" sym))
      (printf "lift-bounds quantified variable  ~a~n" sym)]
     
     ; set comprehension e.g. {n : Node | some n.edges}
@@ -144,8 +145,8 @@
         (map (lambda (arg)
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub)
-               ub) args))
-     (debug-repl)
+               ub) args))     
+     ;(printf "uppers for ~a are ~a~n" expr uppers)
      ; Return a list of lists with all of the bounds with the cartesian product
      (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))]
 

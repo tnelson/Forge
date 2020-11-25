@@ -116,7 +116,7 @@
      (printf "substitutor relation name (in expr) base case ~n")
        (cond 
          [(equal? expr target) value]
-         [(not(equal? expr target)) target])]
+         [(not(equal? expr target)) expr])]
 
     ; atom (base case)
     [(node/expr/atom info arity name)
@@ -130,14 +130,14 @@
        (printf "substitutor int constant (in expr) base case ~n")
        (cond 
          [(equal? expr target) value]
-         [(not(equal? expr target)) target])]
+         [(not(equal? expr target)) expr])]
 
     ; other expression constants
     [(node/expr/constant info arity type)
        (printf "substitutor other expression constants (in expr) base case ~n")
        (cond 
          [(equal? expr target) value]
-         [(not(equal? expr target)) target])]
+         [(not(equal? expr target)) expr])]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -149,7 +149,7 @@
     [(node/expr/quantifier-var info arity sym)
      (printf "substitutor quantified variable ~a ~n" sym)
      (cond  [(equal? expr target) value]
-            [(not (equal? expr target)) target])]
+            [(not (equal? expr target)) expr])]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls subform)
