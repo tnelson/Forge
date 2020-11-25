@@ -80,31 +80,21 @@
                (define desugaredOR (node/formula/op/|| info (list newQuantFormLHS newQuantFormRHS)))
                (desugar-formula desugaredOR quantvars runContext currSign)])]
 
-           ; if it's got multiple variables, first split into multiple single-var quantifiers
+           ; if it's got multiple variables, foldl over the helper that gets big AND or OR of subformulas 
            [(not (equal? 1 (length decls)))
-            ; TODO: desugar this multi-var quantifier
-            ; some x: A, y: B | x.y in q
-            ;     (2) just break up the decls. e.g., some x: A | some y: B | x.y in q
             
-           ; (when (and (not (equal? (quantifier 'and))) (not (equal? (quantifier 'some)))
-           ;             (error (format "Multiple quantifiers with something other than all/some: ~a" form))))
+            (when (and (not (equal? (quantifier 'and))) (not (equal? (quantifier 'some))))
+                        (error (format "Multiple quantifiers with something other than all/some: ~a" form)))
 
+            (define currQuantifier (list (createNewQuantifier (first decls) quantvars form runContext info quantifier formula)))
+            (define quants (foldl (lambda (curr acc) (append (createNewQuantifier curr quantvars form runContext info quantifier formula) acc))
+                   currQuantifier (rest decls)))
+            (define unionOfQuants (node/formula/op/|| info quants))
+            (desugar-formula unionOfQuants quantvars runContext currSign)]
 
-            ]
-           [else 
-            (define var (car (car decls)))
-            (define domain (cdr (car decls)))
-            (let ([quantvars (cons var quantvars)])    
-              ; gives us list of all possible bindings to this variable
-              (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
-              ; produce a list of subformulas each substituted with a possible binding for the variable
-              (define subformulas (map
-                                   (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info)))
-                                   lifted-bounds))
-              (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
-                    [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
-                    [else (error (format "desugaring unsupported: ~a" formula))]))
-            (desugar-formula form quantvars runContext currSign)])]
+           [else
+            (define newFormula (createNewQuantifier decls quantvars form runContext info quantifier formula))
+            (desugar-formula newFormula quantvars runContext currSign)])]
 
     ; truth and falsity
     [#t (printf "desugar true~n")]

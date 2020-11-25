@@ -1,6 +1,9 @@
 #lang forge/core
 (require debug/repl)
-(provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct checkIfUnary checkIfBinary create-bitwidth-list)
+(provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct checkIfUnary checkIfBinary
+         create-bitwidth-list createNewQuantifier projectTupleRange getColumnRight getColumnLeft)
+(require "lift-bounds.rkt")
+(require "substitutor.rkt")
 
 ; return list of lists inclusive of start and end
 (define (create-bitwidth-list start end)
@@ -104,7 +107,17 @@
         [(equal? 1 arity) node]
         [else (getColumnRight (node/expr/op/join info (- arity 1) (list node univ)))]))
 
-; Zip method used to get the join between bounds in lift-bounds.rkt.
-; This method works as follows: it takes in two lists, l1 and l2,
-; where l1 = '(1 2) l2 = '(3 4) and returns '((1 3) (2 4))
-(define zip (lambda (l1 l2) (map list l1 l2)))
+
+(define (createNewQuantifier decls quantvars form runContext info quantifier formula)
+  (define var (car (car decls)))
+  (define domain (cdr (car decls)))
+  (let ([quantvars (cons var quantvars)])    
+    ; gives us list of all possible bindings to this variable
+    (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
+    ; produce a list of subformulas each substituted with a possible binding for the variable
+    (define subformulas (map
+                         (lambda (tup) (substitute-formula form quantvars var (tup2Expr tup runContext info)))
+                         lifted-bounds))
+    (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
+          [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
+          [else (error (format "desugaring unsupported: ~a" formula))])))

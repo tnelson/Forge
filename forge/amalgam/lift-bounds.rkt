@@ -32,7 +32,7 @@
 ;(require "../lang/ast.rkt" (prefix-in @ racket))
 ;(require "../sigs.rkt")
 (provide lift-bounds-expr)
-(require "desugar_helpers.rkt")
+(require "lift-bounds_helpers.rkt")
 (require debug/repl)
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
