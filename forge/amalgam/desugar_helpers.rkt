@@ -15,7 +15,7 @@
 ; Helper to transform a given tuple from the lifted-upper bounds function to a relation, and then do the product of all relations
 ; to form an expression.
 ; <info> argument is optional; if not passed, will default to empty-nodeinfo
-(define (tup2Expr tuple context [info empty-nodeinfo])
+(define (tup2Expr tuple context info)
   (define tupRelationList
     ; replace every element of the tuple (atoms) with the corresponding atom relation
     (map

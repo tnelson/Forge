@@ -256,7 +256,7 @@
        (printf "substitutor constant int base case (substitute-int) ~n")
        (cond 
          [(equal? expr target) value]
-         [(not(equal? expr target)) target])]
+         [(not(equal? expr target)) expr])]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)

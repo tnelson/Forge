@@ -35,11 +35,11 @@
     ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
     [(node/formula/multiplicity info mult expr)
      (printf "desugar mult ~a~n" mult)
-     (define freshvar (node/expr/quantifier-var info 1 (list (gensym "m2q"))))
+     (define freshvar (node/expr/quantifier-var info 1 (gensym "m2q")))
      (define uppers (lift-bounds-expr expr quantvars runContext))
      ;uppers is a list of tuples 
      (define unionOfBounds (node/expr/op/+ info (length uppers) (map (lambda (tup)
-                                                                       (tup2Expr tup runContext)) uppers)))
+                                                                       (tup2Expr tup runContext info)) uppers)))
      (printf "desugar union of Bounds ~a ~n" unionOfBounds)
      (define domain unionOfBounds) 
      (define newfmla (node/formula/op/in info (list freshvar expr)))
@@ -112,7 +112,7 @@
      (define desugaredArgs
        (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
-       [(currSign) (node/formula/op/&& info desugaredArgs)]
+       [currSign (node/formula/op/&& info desugaredArgs)]
        [else (node/formula/op/|| info desugaredArgs)])]
 
     ; OR
@@ -121,7 +121,7 @@
      (define desugaredArgs
        (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
-       [(currSign) (node/formula/op/|| info desugaredArgs)]
+       [currSign (node/formula/op/|| info desugaredArgs)]
        [else (node/formula/op/&& info desugaredArgs)])]
 
     ; IMPLIES
@@ -144,10 +144,11 @@
 
      (define leftE (first args))
      (define rightE (second args))
+
      
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))     
-     
+
      (cond
        [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
         ; ground case. we have a current-tuple now, and want to desugar the RHS
@@ -157,7 +158,7 @@
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
         (define desugaredAnd (node/formula/op/&& info
                                                  (map (lambda (x)
-                                                        (define tupExpr (tup2Expr x runContext))
+                                                        (define tupExpr (tup2Expr x runContext info))
                                                         (define LHS   (node/formula/op/in info (list tupExpr leftE)))
                                                         (define RHS (node/formula/op/in info (list tupExpr rightE)))
                                                         (node/formula/op/=> info (list LHS RHS))) lifted-upper-bounds))) 
@@ -201,24 +202,24 @@
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent)
      (printf "desugar relation name ~n")
-     (node/formula/op/in info (list currTupIfAtomic expr))]
+     (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; atom (base case)
     [(node/expr/relation info arity name typelist parent)
      (printf "desugar atom base case ~n")
      (cond
-       [currSign (node/formula/op/in info (list currTupIfAtomic expr))]
-       [else (node/formula/op/! info (node/formula/op/in info (list currTupIfAtomic expr)))])]    
+       [currSign (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) expr))]
+       [else (node/formula/op/! info (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) expr)))])]    
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
      (printf "desugar int constant ~n")
-     (node/formula/op/in info (list currTupIfAtomic expr))]
+     (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; other expression constants
     [(node/expr/constant info arity type)
      (printf "desugar expression constants ~n")
-     (node/formula/op/in info (list currTupIfAtomic expr))]
+     (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) expr))]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -265,7 +266,7 @@
        [(!(equal? (length args) 2)) (error("Setminus should not be given more than two arguments ~n"))]
        [else 
         ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) and (not(currTupIfAtomic in RHS))
-        (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext))
+        (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext info))
         (define LHS (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
         (define RHS (node/formula/op/! info (list node/formula/op/in info (list currTupIfAtomicExpr (second args)))))
         ; Create the final desugared version of SETMINUS by joining LHS and RHS with an AND and call desugar-formula on it
@@ -292,8 +293,8 @@
         (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
         (define rightTupleContext (projectTupleRange currTupIfAtomic (node/expr-arity LHS) (node/expr-arity RHS)))
         (define formulas (list
-                          (node/formula/op/in info (list (tup2Expr leftTupleContext) LHS))
-                          (node/formula/op/in info (list (tup2Expr rightTupleContext) RHS))))
+                          (node/formula/op/in info (list (tup2Expr leftTupleContext info) LHS))
+                          (node/formula/op/in info (list (tup2Expr rightTupleContext info) RHS))))
         (node/formula/op/&& info formulas)]
        [else (error (format "Expression ~a in product had arity greater than 2") expr)])]
     
@@ -308,7 +309,7 @@
         (define listOfColumns (list rightColLHS leftColRHS))
         (define intersectColumns (node/expr/op/& info (length listOfColumns) listOfColumns))
         (define joinNode (node/formula/multiplicity info 'some intersectColumns))
-        (define LHSRange (projectTupleRange joinNode 0 (node/expr-arity (- (first args) 1))))
+        (define LHSRange (projectTupleRange joinNode 0 (- (node/expr-arity (first args)) 1)))
         (define RHSRange (projectTupleRange joinNode (node/expr-arity (first args)) (node/expr-arity (second args))))
         (define LHSProduct (node/expr/op/-> info (length (list LHSRange joinNode)) (list LHSRange joinNode)))
         (define RHSProduct (node/expr/op/-> info (length (list joinNode RHSRange)) (list joinNode RHSRange)))
@@ -339,7 +340,7 @@
     [(? node/expr/op/~?)
      (printf "desugar ~~~n")
      (define transposedCurrTupIfAtomic (transposeTup currTupIfAtomic))
-     (desugar-expr expr quantvars (first args) transposedCurrTupIfAtomic runContext currSign)]
+     (desugar-expr (first args) quantvars transposedCurrTupIfAtomic runContext currSign)]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
