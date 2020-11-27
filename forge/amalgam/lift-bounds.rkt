@@ -79,7 +79,6 @@
     
     ; quantified variable
     [(node/expr/quantifier-var info arity sym)
-     ; TODO: Do we need to do anything here?
      (error (format "We should not be getting the bounds of a quantified variable ~a" sym))
      (printf "lift-bounds quantified variable  ~a~n" sym)]
     
@@ -184,7 +183,7 @@
      (define upper-bounds (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
      ; the call to lift-bounds-expr returns a list of lists, so then we just go through the list
      ; and flip the tuples themselves.
-     (define transposedBounds (map (lambda (x) (map transposeTup x)) upper-bounds))
+     (define transposedBounds (map (lambda (x) (transposeTup x)) (first upper-bounds)))
      transposedBounds]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)

@@ -21,14 +21,16 @@
     (map
      (lambda (tupElem)
        ; keep only the atom relations whose name matches tupElem
-       (define filterResult
-         (filter (lambda (atomRel)
-                   (when (string? tupElem) (set! tupElem (string->symbol tupElem)))
-                   (when (string? atomRel) (set! atomRel (string->symbol atomRel)))
-                   (equal? (format "~v" atomRel) (format "~v" tupElem)))
-                 (forge:Run-atoms context)))
-       (cond [(equal? 1 (length filterResult)) (node/expr/atom info 1 (first filterResult))]
-             [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
+      ;(define filterResult
+      ;   (filter (lambda (atomRel)
+       ;            (when (string? tupElem) (set! tupElem (string->symbol tupElem)))
+       ;            (when (string? atomRel) (set! atomRel (string->symbol atomRel)))
+       ;            (equal? (format "~v" atomRel) (format "~v" tupElem)))
+       ;          (forge:Run-atoms context)))
+       ;(cond [(equal? 1 (length filterResult)) (node/expr/atom info 1 (first filterResult))]
+       ;      [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
+       (when (list? tupElem) (error (format "tupElem ~a in tuple ~a is a list" tupElem tuple)))
+       (node/expr/atom info 1 tupElem))
      tuple))  
   (node/expr/op/-> info (length tupRelationList) tupRelationList))
 
@@ -36,12 +38,14 @@
 (define (transposeTup tuple)
   (cond 
     [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
-    [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length tuple))]))
+    [else (error (format "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length tuple) ))]))
 
 ; This helper checks the value of currTupIfAtomic and throws an error if it is empty. 
-(define (mustHaveTupleContext tup)
+(define (mustHaveTupleContext tup expr)
   (cond
-    [(equal? (length tup) 0) (error "currTupIfAtomic is empty and it shouldn't be")]))
+    [(not(list? tup)) (error (format "currTupIfAtomic is not a list in ~a" expr))]
+    [(equal? (length tup) 0)  (error (format "currTupIfAtomic has length 0 in ~a" expr))]
+    [(list? (first tup)) (error (format "currTupIfAtomic ~a is not a tuple in ~a" tup expr))]))
 
 ; Function isGroundProduct used to test whether a given expression is ground. 
 (define (isGroundProduct expr)

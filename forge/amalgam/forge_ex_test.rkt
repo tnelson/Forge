@@ -21,24 +21,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-
-;(define Node  (declare-relation '(univ) 'univ "Node"))
-;(define edges (declare-relation '(Node Node) 'Node "edges"))
 (define f-symmetric (= edges (~ edges)))
 (define f-irreflexive (no (& edges iden)))
 (define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
-(define f-example (one ([x Node] [y Node]) (in y (join x (^ edges)))))
 
-;(desugar-formula f-symmetric '() udt #t)
-
-;(printf "Symmetric ~n")
-;(desugar-formula f-symmetric '() udt true)
-;(printf "Irreflexive ~n")
-;(desugar-formula f-irreflexive '() udt)
-;(printf "some-reaches-all ~n")
-;(desugar-formula f-irreflexive '() udt true)
-(desugar-formula f-symmetric '() udt true)
+(desugar-formula f-irreflexive '() udt true)
 
 
 

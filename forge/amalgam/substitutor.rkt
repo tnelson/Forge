@@ -41,7 +41,7 @@
      (define vars (map car decls))
      ; error checking
      (for-each (lambda (qv)
-                 (when (equal? (toString (node/expr/quantifier-var-sym (qv))) (toString target))
+                 (when (equal? (toString qv) (toString target))
                    (error (format "substitution encountered quantifier that shadows substitution target ~a" target)))
                  (when (member qv quantvars)
                    (error (format "substitution encountered shadowed quantifier ~a" qv))))
@@ -147,8 +147,8 @@
     ; (another base case)
     [(node/expr/quantifier-var info arity sym)
      (printf "substitutor quantified variable ~a ~n" sym)
-     (cond  [(equal? (toString sym) (toString target)) value]
-            [(not (equal? (toString sym) (toString target))) expr])]
+     (cond  [(equal? (toString expr) (toString target)) value]
+            [(not (equal? (toString expr) (toString target))) expr])]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls subform)
@@ -180,7 +180,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/+ info (length substitutedChildren) substitutedChildren)]
+     (node/expr/op/+ info (node/expr-arity expr) substitutedChildren)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
@@ -190,7 +190,7 @@
        [else 
         (define LHS (substitute-expr (first args) quantvars target value))
         (define RHS (substitute-expr (second args) quantvars target value))
-        (node/expr/op/- info (length (list LHS RHS)) (list LHS RHS))])]
+        (node/expr/op/- info (node/expr-arity expr) (list LHS RHS))])]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
@@ -199,7 +199,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/& info (length substitutedChildren) substitutedChildren)]
+     (node/expr/op/& info (node/expr-arity expr) substitutedChildren)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -208,7 +208,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/-> info (length substitutedChildren) substitutedChildren)]
+     (node/expr/op/-> info (node/expr-arity expr) substitutedChildren)]
    
     ; JOIN
     [(? node/expr/op/join?)
@@ -217,7 +217,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/join info (length substitutedChildren) substitutedChildren)]
+     (node/expr/op/join info (node/expr-arity expr) substitutedChildren)]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
@@ -225,7 +225,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/^ info (length substitutedChildren) substitutedChildren)]
+     (node/expr/op/^ info (node/expr-arity expr) substitutedChildren)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
@@ -233,19 +233,19 @@
      (define substitutedChildren
        (map
         (lambda (child) (substitute-expr child quantvars target value)) args))
-     (node/expr/op/* info (length substitutedChildren) substitutedChildren)]
+     (node/expr/op/* info (node/expr-arity expr) substitutedChildren)]
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (printf "substitutor ~ ~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
-     (node/expr/op/~ info 1 (list substitutedEntry))]
+     (node/expr/op/~ info (node/expr-arity substitutedEntry) (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "substitutor sing ~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
-     (node/expr/op/sing info 1 (list substitutedEntry))]))
+     (node/expr/op/sing info (node/expr-arity substitutedEntry) (list substitutedEntry))]))
 
 (define (substitute-int expr quantvars target value)
   (match expr

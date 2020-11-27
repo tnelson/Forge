@@ -9,7 +9,7 @@
 
 ; Warning: ast.rkt exports (e.g.) "and".
 ; This is the macro that produces an "and" formula!
-; To use real Racket and, use @and.
+; To use real Racket and, use @and.ƒ
 
 (require "lift-bounds.rkt")
 (require "desugar_helpers.rkt")
@@ -145,7 +145,6 @@
      (define leftE (first args))
      (define rightE (second args))
 
-     
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))     
 
@@ -156,6 +155,7 @@
         (desugar-expr rightE quantvars (first lifted-upper-bounds) runContext currSign)]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
+        (debug-repl)
         (define desugaredAnd (node/formula/op/&& info
                                                  (map (lambda (x)
                                                         (define tupExpr (tup2Expr x runContext info))
@@ -196,7 +196,7 @@
   (unless (node/expr? expr) (error (format "desugar-expr called on non-expr: ~a" expr)))
 
   ; Should always have a currTupIfAtomic when calling
-  (mustHaveTupleContext currTupIfAtomic)
+  (mustHaveTupleContext currTupIfAtomic expr)
 
   (match expr
     ; relation name (base case)
@@ -246,7 +246,7 @@
        (desugar-formula form quantvars runContext currSign))]))
 
 (define (desugar-expr-op expr quantvars args currTupIfAtomic runContext currSign info)
-  (mustHaveTupleContext currTupIfAtomic)
+  (mustHaveTupleContext currTupIfAtomic expr)
   (match expr
 
     ; UNION
