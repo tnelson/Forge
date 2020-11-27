@@ -205,7 +205,7 @@
 
 ; operator
 (printf "TEST 24 ~n~n")
-(define f-int-plus (+ var-int-const-x var-int-const-y))
+(define f-int-plus (node/int/op/add empty-nodeinfo (list var-int-const-x var-int-const-y)))
 (@check-exn
  exn:fail?
  (lambda () 
@@ -213,8 +213,11 @@
 
 ; cardinality
 (printf "TEST 25 ~n~n")
-(check-equal?
- (substitute-int (cardinality edges)))
+(define f-cardinality (node/int/op/card empty-nodeinfo (list Node)))
+(@check-equal?
+ (to-string (substitute-int f-cardinality '() Node edges))
+ (to-string (node/int/op/card empty-nodeinfo (list edges))))
 
 ; sum
+; TODO: Finish this case. What is int-expr? 
 (printf "TEST 26 ~n~n")

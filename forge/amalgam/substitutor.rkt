@@ -306,7 +306,7 @@
     [(? node/int/op/card?)
      (printf "substitutor cardinality ~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
-     (node/int/op/card info substitutedEntry)]  
+     (node/int/op/card info (list substitutedEntry))]  
     
     ; remainder/modulo
     [(? node/int/op/remainder?)     
