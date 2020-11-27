@@ -19,9 +19,9 @@
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
      (printf "substitutor constant formula base case ~n")
-     (cond (
+     (cond 
            [(equal? (toString formula) (toString target)) value]
-           [(not(equal? (toString formula) (toString target))) target]))]
+           [(not (equal? (toString formula) (toString target))) formula])]
 
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
@@ -78,8 +78,8 @@
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
      (printf "substitutor in ~n")
-     (define substitutedLHS (substitute-expr  (first args) quantvars target value))
-     (define substitutedRHS (substitute-expr  (second args) quantvars target value))
+     (define substitutedLHS (substitute-expr (first args) quantvars target value))
+     (define substitutedRHS (substitute-expr (second args) quantvars target value))
      (node/formula/op/in info (list substitutedLHS substitutedRHS))]
 
     ; EQUALS 
@@ -306,7 +306,7 @@
     [(? node/int/op/card?)
      (printf "substitutor cardinality ~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
-     (node/int/op/card info (list substitutedEntry))]  
+     (node/int/op/card info substitutedEntry)]  
     
     ; remainder/modulo
     [(? node/int/op/remainder?)     
