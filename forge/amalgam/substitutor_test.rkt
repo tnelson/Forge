@@ -75,16 +75,16 @@
 ; Checking substitution in join case (more complicated)
 (printf "TEST 11 ~n~n")
 (define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
-(substitute-formula f-some-reaches-all '() edges Node)
-
 (@check-equal?
- (to-string (substitute-formula (~ edges) '() edges varz-arity2))
- (to-string (~ varz-arity2)))
+ (to-string (substitute-formula f-some-reaches-all '() edges varz-arity2))
+ (to-string (some ([x Node]) (all ([y Node]) (in y (join x (^ varz-arity2)))))))
 
 ; Checking substitution in quantifier-var case. Should not throw variable shadowing error. 
 (printf "TEST 12 ~n~n")
 (define free-x-reaches-all (all ([y Node]) (in y (join varx (^ edges)))))
-(substitute-formula free-x-reaches-all '() varx varz)
+(@check-equal?
+ (to-string (substitute-formula free-x-reaches-all '() varx varz))
+ (to-string (all ([y Node]) (in y (join varz (^ edges))))))
 
 ; Checking substitution in and case
 (printf "TEST 13 ~n~n")
@@ -92,6 +92,11 @@
                                         (some ([x Node]) (all ([y Node]) (in y (join x (^ edges)))))
                                         (all ([y Node]) (in y (join varx (^ edges))))))
 (substitute-formula f-some-reaches-all-complicated '() edges varz)
+(@check-equal?
+ (to-string (substitute-formula f-some-reaches-all-complicated '() edges varz-arity2))
+ (to-string (and
+              (some ([x Node]) (all ([y Node]) (in y (join x (^ varz-arity2)))))
+              (all ([y Node]) (in y (join varx (^ varz-arity2)))))))
 
 ; Checking substitution in quantifier-var case. Should throw variable shadowing error.
 ; TODO: In order to throw an error in a test case, check-exn -- look at example
