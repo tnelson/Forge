@@ -9,7 +9,6 @@
 
 ; Checking substitution in base cases
 (printf "TEST 1 ~n~n")
-
 (substitute-formula (substitute-formula (no (& edges iden)) '() iden univ) '() univ iden)
 
 ; Checking substitution in replacing relation names base case 
@@ -53,11 +52,15 @@
 (define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 (substitute-formula f-some-reaches-all '() edges Node)
 
+; Checking substitution in quantifier-var case. Should throw variable shadowing error.
+; How to utilize check-eq? for cases that throw back an error? check-eq is undefined 
+(printf "TEST 12 ~n~n")
+(substitute-formula f-some-reaches-all '() 'x 'z)
 
-; Checking substitution in quantifier-var case. Should throw variable shadowing error. 
-;(printf "TEST 12 ~n~n")
-;(substitute-formula f-some-reaches-all '() 'x 'z)
+; Checking substitution in quantifier-var case. Should not throw variable shadowing error. 
+(printf "TEST 13 ~n~n")
+(define free-x-reaches-all (all ([y Node]) (in y (join x (^ edges))))) ; do substitution here with x since x is free
 
 ; Checking substitution in set comprehension case. Should throw variable shadowing error. 
-;(printf "TEST 13 ~n~n")
+;(printf "TEST 14 ~n~n")
 ;(substitute-formula  (([n Node]) (some (join n edges)))) '() 'n 'k)
