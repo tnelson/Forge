@@ -239,13 +239,13 @@
     [(? node/expr/op/~?)
      (printf "substitutor ~ ~n")
      (define substitutedEntry (substitute-expr (first args) quantvars target value))
-     (node/expr/op/~ info (node/expr-arity substitutedEntry) (list substitutedEntry))]
+     (node/expr/op/~ info (node/expr-arity expr) (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "substitutor sing ~n")
-     (define substitutedEntry (substitute-expr (first args) quantvars target value))
-     (node/expr/op/sing info (node/expr-arity substitutedEntry) (list substitutedEntry))]))
+     (define substitutedEntry (substitute-int (first args) quantvars target value))
+     (node/expr/op/sing info (node/expr-arity expr) (list substitutedEntry))]))
 
 (define (substitute-int expr quantvars target value)
   (match expr
@@ -253,6 +253,7 @@
     ; CONSTANT INT
     [(node/int/constant info intValue)
        (printf "substitutor constant int base case (substitute-int) ~n")
+       (debug-repl)
        (cond 
          [(equal? (toString expr) (toString target)) value]
          [(not(equal? (toString expr) (toString target))) expr])]

@@ -99,16 +99,13 @@
              (all ([y Node]) (in y (join varx (^ varz-arity2)))))))
 
 ; Checking substitution in quantifier-var case. Should throw variable shadowing error.
-; TODO: In order to throw an error in a test case, check-exn -- look at example
-; need to wrap code in a lambda of no arguments. Rather than passing the expression that is your code,
-; we give it a thunk (function of no arguments) to delay evaluation 
 (printf "TEST 14 ~n~n")
 (@check-exn
  exn:fail?
  (lambda () 
    (substitute-formula f-some-reaches-all '() varx varz)))
 
-; Checking substitution in set comprehension case. Should throw variable shadowing error. 
+; TODO: Checking substitution in set comprehension case. Should throw variable shadowing error. 
 ;(printf "TEST 15 ~n~n")
 ;(substitute-formula (varx (some varx)) '() varx varz)
 
@@ -218,10 +215,15 @@
  (to-string (substitute-int f-cardinality '() Node edges))
  (to-string (node/int/op/card empty-nodeinfo (list edges))))
 
-; sum
+; singleton
+(printf "TEST 26 ~n~n")
+(@check-equal?
+ (to-string (substitute-expr (sing var-int-const-x) '() var-int-const-x var-int-const-y))
+ (to-string (sing var-int-const-y)))
+
 ; TODO: Finish this case. What is int-expr?
 ; e.g. sum p : Person | p.age
-(printf "TEST 26 ~n~n")
+(printf "TEST 27 ~n~n")
 #|(define x-node Node)
 (define f-sum (node/int/sum-quant empty-nodeinfo (list (cons x 'Node)) (node/int/op/card empty-nodeinfo (list (join edges x)))))  
 (@check-equal?

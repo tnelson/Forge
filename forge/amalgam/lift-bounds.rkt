@@ -145,7 +145,6 @@
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub)
                ub) args))     
-     ;(printf "uppers for ~a are ~a~n" expr uppers)
      ; Return a list of lists with all of the bounds with the cartesian product
      (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))]
 
@@ -155,24 +154,26 @@
      ; In order to approach a join with n arguments, we will first do a
      ; binary join and procede with a foldl doing a join on the previous
      ; result of the function
+     (debug-repl)
      (cond
-       [(< node/expr-arity 2) (error (format ("Join was given expr ~a with arity less than 1") expr))]
+       [(< (node/int/constant empty-nodeinfo (node/expr-arity expr)) (node/int/constant empty-nodeinfo 2))
+        (error (format "Join was given expr ~a with arity less than 1" expr))]
        [else
         (define uppers 
         (map (lambda (arg)
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub)
                ub) args))
-        (define currBinaryJoin (zip (first args) (second args)))
+        (define currBinaryJoin (zip (first uppers) (second uppers)))
         ; we need to remove the first two things from args since we already joined there 
         (foldl (lambda (curr acc) (zip acc curr)) currBinaryJoin (rest (rest args)))])]
 
-    ; TRANSITIVE CLOSURE
+    ; TODO: TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "lift-bounds ^~n")
      (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)]
 
-    ; REFLEXIVE-TRANSITIVE CLOSURE 
+    ; TODO: REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
      (printf "lift-bounds *~n")
      (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)]
@@ -189,7 +190,7 @@
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "lift-bounds sing~n")
-     (lift-bounds-expr (first expr) quantvars runContext)]))
+     (lift-bounds-int (first expr) quantvars runContext)]))
 
 (define (lift-bounds-int expr quantvars runContext)
   (match expr
