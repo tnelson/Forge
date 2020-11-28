@@ -219,5 +219,11 @@
  (to-string (node/int/op/card empty-nodeinfo (list edges))))
 
 ; sum
-; TODO: Finish this case. What is int-expr? 
+; TODO: Finish this case. What is int-expr?
+; e.g. sum p : Person | p.age
 (printf "TEST 26 ~n~n")
+#|(define x-node Node)
+(define f-sum (node/int/sum-quant empty-nodeinfo (list (cons x 'Node)) (node/int/op/card empty-nodeinfo (list (join edges x)))))  
+(@check-equal?
+ (to-string (substitute-formula f-sum '() edges varz-arity2))
+ (to-string  (node/int/sum-quant empty-nodeinfo (list (cons x 'Node)) (node/int/op/card empty-nodeinfo (list (join varz-arity2 x))))))|#

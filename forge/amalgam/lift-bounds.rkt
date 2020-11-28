@@ -40,7 +40,6 @@
 ; (we never try to lift bounds of a formula, because that makes no sense.)
 ;  ... -> list<tuple> i.e., list<list<atom>> (note atom NOT EQUAL TO atom expression)
 (define (lift-bounds-expr expr quantvars runContext)
-
   (match expr
 
     ; atom case (base case)
@@ -60,6 +59,7 @@
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
+     (debug-repl)
      (printf "lift-bounds int constant base case ~n")
      (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
      (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)
