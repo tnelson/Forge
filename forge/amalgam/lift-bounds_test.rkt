@@ -99,17 +99,20 @@
  (lambda () 
   (lift-bounds-expr (join Node Node) '() udt)))
 
-; non-error case arity > 1
-; TODO: Fix the check for arity because it is always evaluating to true -- waiting on email to Thomas  
-#| (printf "TEST 12 ~n~n")
-(define join-LHS (lift-bounds-expr iden '() udt))
-(define join-RHS (lift-bounds-expr edges '() udt))
+; testing normal join case 
+(printf "TEST 12 ~n~n")
+(define join-LHS (lift-bounds-expr edges '() udt))
+(define join-RHS (lift-bounds-expr iden '() udt))
 (define list-join (list join-LHS join-RHS))
-(define currBinaryJoin (zip (first join-LHS) (second join-RHS))) 
+(define newTuples (map (lambda (left-ub)
+               (map (lambda (right-ub)
+                      (list left-ub right-ub))
+                    (rest list-join)))
+             (first list-join)))
 
 (@check-equal?
  (to-string (lift-bounds-expr (join edges iden) '() udt))
- (to-string (foldl (lambda (curr acc) (zip acc curr)) currBinaryJoin (rest (rest list-join)))))|# 
+ (to-string newTuples))
 
 ; TODO (can't do yet): Checking Set transitive closure case
 

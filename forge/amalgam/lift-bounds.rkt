@@ -1,5 +1,5 @@
-;#lang racket
 #lang forge/core
+(require (prefix-in @ racket))
 
 ; Bounds lifting functions for Amalgam
 ; expression x bounds -> bounds
@@ -154,9 +154,8 @@
      ; In order to approach a join with n arguments, we will first do a
      ; binary join and procede with a foldl doing a join on the previous
      ; result of the function
-     (debug-repl)
      (cond
-       [(< (node/int/constant empty-nodeinfo (node/expr-arity expr)) (node/int/constant empty-nodeinfo 2))
+       [(@< (node/expr-arity expr) 2)
         (error (format "Join was given expr ~a with arity less than 1" expr))]
        [else
         (define uppers 
@@ -164,9 +163,11 @@
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub)
                ub) args))
-        (define currBinaryJoin (zip (first uppers) (second uppers)))
-        ; we need to remove the first two things from args since we already joined there 
-        (foldl (lambda (curr acc) (zip acc curr)) currBinaryJoin (rest (rest args)))])]
+        (define newTuples
+          (map (lambda (left-ub)
+               (map (lambda (right-ub)
+                      (list left-ub right-ub)) (rest uppers))) (first uppers)))
+        newTuples])]
 
     ; TODO: TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
