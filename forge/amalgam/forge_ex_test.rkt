@@ -25,7 +25,7 @@
 (define f-irreflexive (no (& edges iden)))
 (define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 
-(desugar-formula f-irreflexive '() udt true)
+(desugar-formula f-symmetric '() udt true)
 
 
 

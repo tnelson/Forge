@@ -90,8 +90,7 @@
        ; {x: e1, y: e2 | ...}
        ; then UB(e1)->UB(e2) is the UB of the whole comprehension
        (define uppers
-         (map (lambda (d) ; each declaration                                      
-                   ; Decl is (varname . domain-expr), so only need second thing
+         (map (lambda (d)                                    
                    (define ub (lift-bounds-expr (cdr d) quantvars runContext))
                    (printf "    decl: ~a had UB =~a~n" d ub) ub)
                  decls))
@@ -162,7 +161,6 @@
                  (define ub (lift-bounds-expr arg quantvars runContext))
                  (printf "    arg: ~a had UB =~a~n" arg ub)
                  ub) args))
-        (debug-repl)
         (define newTuples
           (map (lambda (left-ub)
                  (map (lambda (right-ub)

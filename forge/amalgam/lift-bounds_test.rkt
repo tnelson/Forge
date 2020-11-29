@@ -58,30 +58,41 @@
  (lambda () 
    (lift-bounds-expr f-some-reaches-all '() udt)))
 
-; TODO: Checking Set Comprehension constant case 
+; Checking Set Comprehension constant case
+(printf "TEST 7 ~n~n")
+(define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+(define f-set-comprehension (node/expr/comprehension empty-nodeinfo 1
+                                  (list (cons qvx Node))
+                                  (in qvx Node)))
+(define uppers-set-comprehension (list (lift-bounds-expr Node '(qvx) udt)))
+
+(@check-equal?
+ (to-string (lift-bounds-expr f-set-comprehension '() udt))
+ (to-string (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers-set-comprehension))))
+
 
 ; Checking Set union case
-(printf "TEST 7 ~n~n")
+(printf "TEST 8 ~n~n")
 (define uppers-union (list node-bound (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
 (@check-equal?
  (to-string (lift-bounds-expr (+ Node univ) '() udt))
  (to-string (remove-duplicates (apply append uppers-union))))
 
 ; Checking Set minus case
-(printf "TEST 8 ~n~n")
+(printf "TEST 9 ~n~n")
 (@check-equal?
  (to-string (lift-bounds-expr (- Node univ) '() udt))
  (to-string node-bound))
 
 ; TODO: Checking Set intersection case
 ; Q: In set minus, why are we just looking at the bounds of the LHS? 
-(printf "TEST 9 ~n~n")
+(printf "TEST 10 ~n~n")
 (@check-equal?
  (to-string (lift-bounds-expr (& Node (- Node (+ Node univ))) '() udt))
  (to-string node-bound))
 
 ; Checking Set Product case
-(printf "TEST 10 ~n~n")
+(printf "TEST 11 ~n~n")
 (define LHSProduct-bounds (lift-bounds-expr Node '() udt))
 (define RHSProduct-bounds (lift-bounds-expr (-> Node univ) '() udt))
 (define list-product-bounds (list LHSProduct-bounds RHSProduct-bounds))
@@ -93,14 +104,14 @@
 
 ; Checking Set Join case
 ; Error case arity < 1
-(printf "TEST 11 ~n~n")
+(printf "TEST 12 ~n~n")
 (@check-exn
  exn:fail?
  (lambda () 
   (lift-bounds-expr (join Node Node) '() udt)))
 
-; testing normal join case 
-(printf "TEST 12 ~n~n")
+;TODO:  testing normal join case 
+#|(printf "TEST 13 ~n~n")
 (define join-LHS (lift-bounds-expr edges '() udt))
 (define join-RHS (lift-bounds-expr iden '() udt))
 (define list-join (list join-LHS join-RHS))
@@ -112,14 +123,14 @@
 
 (@check-equal?
  (to-string (lift-bounds-expr (join edges iden) '() udt))
- (to-string newTuples))
+ (to-string newTuples)) |#
 
 ; TODO (can't do yet): Checking Set transitive closure case
-(printf "TEST 13~n~n")
-(define transitive-closure-bounds (lift-bounds-expr (^ edges) '() udt))
-(@check-equal?
- (to-string (lift-bounds-expr (^ edges) '() udt))
- (to-string (buildClosureOfTupleSet transitive-closure-bounds)))
+;(printf "TEST 14~n~n")
+;(define transitive-closure-bounds (lift-bounds-expr (^ edges) '() udt))
+;(@check-equal?
+; (to-string (lift-bounds-expr (^ edges) '() udt))
+; (to-string (buildClosureOfTupleSet transitive-closure-bounds)))
 
 
 ; TODO (can't do yet): Checking Set reflexive transitive closure case
@@ -138,6 +149,7 @@
 ; (to-string ))
 
 ; (can't do yet)  TODO: Checking const int case
+; (printf "TEST 17~n~n")
 
 ; Checking int with operator (should error)
 (printf "TEST 18~n~n")
@@ -156,7 +168,16 @@
  (lambda () 
   (lift-bounds-int f-int-greater '() udt)))
 
-; TODO: Checking sum "quantifier" case -- waiting on Tim's email 
+; TODO: Checking sum "quantifier" case
+;(printf "TEST 20 ~n~n")
+;(define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
+;(define f-sum (node/int/sum-quant empty-nodeinfo
+;                                  (list (cons x Node))
+;                                  (node/int/op/card empty-nodeinfo (list (join edges x)))))
+;(@check-equal?
+; (to-string (lift-bounds-int f-sum '() udt))
+; (to-string ()))
+
 
 ; TODO: Checking cardinality case -- stuck on bitwidth question 
 ; cardinality

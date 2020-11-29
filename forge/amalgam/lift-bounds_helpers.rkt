@@ -20,7 +20,7 @@
 ; where l1 = '(1 2) l2 = '(3 4) and returns '((1 3) (2 4))
 (define zip (lambda (l1 l2) (map list l1 l2)))
 
-; Helper used to build a closure of tuple sets.
+; TODO: This helper is used for transitive and reflexive transtivie closure. Helper used to build a closure of tuple sets.
 (define (buildClosureOfTupleSet tuples)
   (define result tuples)
   (define toAdd (map (lambda (result-tup)
@@ -28,7 +28,6 @@
                (define newCurrTup (list result-tup tup))
                (cond
                  [(not (member newCurrTup result)) newCurrTup])) (first tuples)) (first result)))
-  (debug-repl)
   (append result toAdd))
 
 
