@@ -11,9 +11,9 @@
 ; This is the macro that produces an "and" formula!
 ; To use real Racket and, use @and.ƒ
 
-(require "lift-bounds.rkt")
+(require "../lift-bounds/lift-bounds.rkt")
 (require "desugar_helpers.rkt")
-(require "substitutor.rkt")
+(require "../substitutor/substitutor.rkt")
 (provide desugar-formula)
 (require debug/repl)
 
@@ -155,7 +155,6 @@
         (desugar-expr rightE quantvars (first lifted-upper-bounds) runContext currSign)]
        [else
         ; build a big "and" of: for every tuple T in lifted-upper-bounds: (T in leftE) implies (T in rightE)
-        (debug-repl)
         (define desugaredAnd (node/formula/op/&& info
                                                  (map (lambda (x)
                                                         (define tupExpr (tup2Expr x runContext info))

@@ -1,8 +1,7 @@
 #lang forge/core
 (require debug/repl)
-(require "forge_ex.rkt")    ; start by running this Forge spec
-;(require "tuple2Expr.rkt")  ; make available the tuple2Expr helpers
-(require "desugar.rkt")
+(require "forge_ex.rkt")  
+(require "../desugar/desugar.rkt")
 ;----------------------------------------------
 ; Testing (TODO: move into Racket test module + rackunit)
 

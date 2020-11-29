@@ -1,5 +1,5 @@
 #lang forge/core
-(require "substitutor.rkt")
+(require "../substitutor/substitutor.rkt")
 (require "test_helpers.rkt")
 (require "forge_ex.rkt")
 (require (prefix-in @ rackunit))

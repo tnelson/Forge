@@ -2,8 +2,8 @@
 (require debug/repl)
 (provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct checkIfUnary checkIfBinary
          create-bitwidth-list createNewQuantifier projectTupleRange getColumnRight getColumnLeft)
-(require "lift-bounds.rkt")
-(require "substitutor.rkt")
+(require "../lift-bounds/lift-bounds.rkt")
+(require "../substitutor/substitutor.rkt")
 
 ; return list of lists inclusive of start and end
 (define (create-bitwidth-list start end)
