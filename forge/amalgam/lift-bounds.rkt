@@ -161,21 +161,8 @@
                  (define ub (lift-bounds-expr arg quantvars runContext))
                  (printf "    arg: ~a had UB =~a~n" arg ub)
                  ub) args))
-        (define newTuples
-          (map (lambda (left-ub)
-                 (map (lambda (right-ub)
-                        (list left-ub right-ub)) (rest uppers))) (first uppers)))
-        newTuples])]
-
-        #|[else
-        (define uppers 
-        (map (lambda (arg)
-              (define ub (lift-bounds-expr arg quantvars runContext))
-              (printf "    arg: ~a had UB =~a~n" arg ub)
-               ub) args))
-        (define currBinaryJoin (zip (first uppers) (second uppers)))
-        ; we need to remove the first two things from args since we already joined there 
-        (foldl (lambda (curr acc) (zip acc curr)) currBinaryJoin (rest (rest args)))] |#
+        (define newTuples (joinTuple uppers))
+        (foldl (lambda (curr acc) (joinTuple curr)) newTuples (rest (rest uppers)))])]
 
     ; TODO: TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
@@ -188,7 +175,11 @@
     ; TODO: REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
      (printf "lift-bounds *~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)]
+     (define uppers
+       (map (lambda (arg)
+              (lift-bounds-expr arg quantvars runContext)) args))
+     (define closure (buildClosureOfTupleSet uppers))
+     (append closure (map (lambda (x) (list x x)) (forge:Run-atoms runContext)))]
 
     ; TRANSPOSE 
     [(? node/expr/op/~?)

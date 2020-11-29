@@ -20,14 +20,23 @@
 ; where l1 = '(1 2) l2 = '(3 4) and returns '((1 3) (2 4))
 (define zip (lambda (l1 l2) (map list l1 l2)))
 
+; Helper to join Tuples together
+(define (joinTuple uppers)
+  (map (lambda (left-ub)
+                 (map (lambda (right-ub)
+                        (list left-ub right-ub)) (second uppers))) (first uppers)))
+
 ; TODO: This helper is used for transitive and reflexive transtivie closure. Helper used to build a closure of tuple sets.
 (define (buildClosureOfTupleSet tuples)
-  (define result tuples)
-  (define toAdd (map (lambda (result-tup)
-         map (lambda (tup)
-               (define newCurrTup (list result-tup tup))
-               (cond
-                 [(not (member newCurrTup result)) newCurrTup])) (first tuples)) (first result)))
-  (append result toAdd))
+  (define setOfTups (joinClosureTuple tuples))
+  (foldl (lambda (curr acc) (joinClosureTuple curr)) setOfTups (rest tuples)))
+
+
+(define (joinClosureTuple tuples)
+  (define toAdd
+    (map (lambda (res)
+           (map (lambda (tup)
+                  (define newTup (list res tup))
+                  (when (not (member newTup tuples)) newTup))) (first tuples)) (first tuples))) toAdd)
 
 

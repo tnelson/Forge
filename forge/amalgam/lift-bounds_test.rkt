@@ -110,20 +110,34 @@
  (lambda () 
   (lift-bounds-expr (join Node Node) '() udt)))
 
-;TODO:  testing normal join case 
-#|(printf "TEST 13 ~n~n")
+;TODO:  testing normal join case with two arguments  
+(printf "TEST 13 ~n~n")
 (define join-LHS (lift-bounds-expr edges '() udt))
 (define join-RHS (lift-bounds-expr iden '() udt))
 (define list-join (list join-LHS join-RHS))
 (define newTuples (map (lambda (left-ub)
-               (map (lambda (right-ub)
-                      (list left-ub right-ub))
-                    (rest list-join)))
-             (first list-join)))
+                         (map (lambda (right-ub)
+                                (list left-ub right-ub))
+                              (second list-join)))
+                       (first list-join)))
 
 (@check-equal?
  (to-string (lift-bounds-expr (join edges iden) '() udt))
- (to-string newTuples)) |#
+ (to-string newTuples))
+
+
+; Checking join with more than two arguments 
+(printf "TEST 14 ~n~n")
+(define join-LHS-more (lift-bounds-expr edges '() udt))
+(define join-RHS-more (lift-bounds-expr iden '() udt))
+(define list-join-more (list join-LHS join-RHS join-RHS))
+(define newTuples-more (joinTuple list-join-more))
+(define newTuples-further (foldl (lambda (curr acc) (joinTuple curr)) newTuples (rest (rest list-join-more))))
+
+(@check-equal?
+ (to-string (lift-bounds-expr (join edges iden iden) '() udt))
+ (to-string newTuples-further))
+
 
 ; TODO (can't do yet): Checking Set transitive closure case
 ;(printf "TEST 14~n~n")
