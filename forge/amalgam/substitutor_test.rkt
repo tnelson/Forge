@@ -105,25 +105,42 @@
  (lambda () 
    (substitute-formula f-some-reaches-all '() varx varz)))
 
-; TODO: Checking substitution in set comprehension case. Should throw variable shadowing error. 
-;(printf "TEST 15 ~n~n")
-;(substitute-formula (varx (some varx)) '() varx varz)
+; set comprehension
+(printf "TEST 15 ~n~n")
+(define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+(define f-set-comprehension (node/expr/comprehension empty-nodeinfo 1
+                                  (list (cons qvx Node))
+                                  (in qvx (join edges qvx))))
+
+(@check-equal?
+ (to-string (substitute-expr f-set-comprehension '() edges varz-arity2))
+ (to-string (node/expr/comprehension empty-nodeinfo 1
+                                  (list (cons qvx Node))
+                                  (in qvx (join varz-arity2 qvx)))))
+
+; set comprehension shadow error
+(printf "TEST 16 ~n~n")
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-expr f-set-comprehension '() qvx varz-arity2)))
+
 
 ; formula constant
 (define var-const-x (node/formula/constant empty-nodeinfo Int))
 (define var-const-y (node/formula/constant empty-nodeinfo Int))
-(printf "TEST 15 ~n~n")
+(printf "TEST 17 ~n~n")
 (@check-equal?
  (to-string (substitute-formula var-const-x '() var-const-x var-const-y))
  (to-string var-const-y))
              
-(printf "TEST 16 ~n~n")
+(printf "TEST 18 ~n~n")
 (@check-equal?
  (to-string (substitute-formula var-const-x '() var-const-x var-const-x))
  (to-string var-const-x))
 
 ; Checking substitution in OR case
-(printf "TEST 17 ~n~n")
+(printf "TEST 19 ~n~n")
 (define f-some-reaches-all-complicated-or (or
                                            (some ([x Node]) (all ([y Node]) (in y (join x (^ edges)))))
                                            (all ([y Node]) (in y (join varx (^ edges))))))
@@ -136,7 +153,7 @@
 
 
 ; formula implies
-(printf "TEST 18 ~n~n")
+(printf "TEST 20 ~n~n")
 (define f-some-reaches-all-complicated-implies (implies
                                                 (some ([x Node]) (all ([y Node]) (in y (join x (^ edges)))))
                                                 (all ([y Node]) (in y (join varx (^ edges))))))
@@ -154,12 +171,12 @@
                                          (no ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
                                      (all ([x Node]) (all ([y Node]) (in y (join x (^ edges)))))))
 
-(printf "TEST 19 ~n~n")
+(printf "TEST 21 ~n~n")
 (@check-equal?
  (to-string (substitute-formula f-some-reaches-all-simple-in '() edges varz-arity2))
  (to-string (some ([x Node]) (all ([y Node]) (in y (join x (^ varz-arity2)))))))
 
-(printf "TEST 20 ~n~n")
+(printf "TEST 22 ~n~n")
 (@check-equal?
  (to-string (substitute-formula f-some-reaches-all-complex-in '() edges varz-arity2))
  (to-string (and
@@ -168,14 +185,14 @@
              (all ([x Node]) (all ([y Node]) (in y (join x (^ varz-arity2))))))))
 
 ; formula negation
-(printf "TEST 21 ~n~n")
+(printf "TEST 23 ~n~n")
 (define f-some-reaches-all-simple-negation (not (some ([x Node]) (all ([y Node]) (in y (join x (^ edges)))))))
 (@check-equal?
  (to-string (substitute-formula f-some-reaches-all-simple-negation '() edges varz-arity2))
  (to-string (not (some ([x Node]) (all ([y Node]) (in y (join x (^ varz-arity2))))))))
 
 ; formula integer >
-(printf "TEST 22 ~n~n")
+(printf "TEST 24 ~n~n")
 (define var-int-const-x (node/int/constant empty-nodeinfo 1))
 (define var-int-const-y (node/int/constant empty-nodeinfo 2))
 (define f-int-greater (> var-int-const-x var-int-const-y))
@@ -185,7 +202,7 @@
    (substitute-int f-int-greater '() var-int-const-x var-int-const-y)))
 
 ; formula integer <
-(printf "TEST 23 ~n~n")
+(printf "TEST 25 ~n~n")
 (define f-int-less (< var-int-const-x var-int-const-y))
 (@check-exn
  exn:fail?
@@ -193,7 +210,7 @@
    (substitute-int f-int-less '() var-int-const-x var-int-const-y)))
 
 ; formula integer =
-(printf "TEST 23 ~n~n")
+(printf "TEST 26 ~n~n")
 (define f-int-equal (= var-int-const-x var-int-const-y))
 (@check-exn
  exn:fail?
@@ -201,7 +218,7 @@
    (substitute-int f-int-equal '() var-int-const-x var-int-const-y)))
 
 ; operator
-(printf "TEST 24 ~n~n")
+(printf "TEST 27 ~n~n")
 (define f-int-plus (node/int/op/add empty-nodeinfo (list var-int-const-x var-int-const-y)))
 (@check-exn
  exn:fail?
@@ -209,23 +226,33 @@
    (substitute-int f-int-plus '() var-int-const-x var-int-const-y)))
 
 ; cardinality
-(printf "TEST 25 ~n~n")
+(printf "TEST 28 ~n~n")
 (define f-cardinality (node/int/op/card empty-nodeinfo (list Node)))
 (@check-equal?
  (to-string (substitute-int f-cardinality '() Node edges))
  (to-string (node/int/op/card empty-nodeinfo (list edges))))
 
 ; singleton
-(printf "TEST 26 ~n~n")
+(printf "TEST 29 ~n~n")
 (@check-equal?
  (to-string (substitute-expr (sing var-int-const-x) '() var-int-const-x var-int-const-y))
  (to-string (sing var-int-const-y)))
 
-; TODO: Finish this case. What is int-expr?
-; e.g. sum p : Person | p.age
-(printf "TEST 27 ~n~n")
-#|(define x-node Node)
-(define f-sum (node/int/sum-quant empty-nodeinfo (list (cons x 'Node)) (node/int/op/card empty-nodeinfo (list (join edges x)))))  
+; "sum" quantifier case 
+(printf "TEST 30 ~n~n")
+(define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
+(define f-sum (node/int/sum-quant empty-nodeinfo
+                                  (list (cons x Node))
+                                  (node/int/op/card empty-nodeinfo (list (join edges x)))))
 (@check-equal?
- (to-string (substitute-formula f-sum '() edges varz-arity2))
- (to-string  (node/int/sum-quant empty-nodeinfo (list (cons x 'Node)) (node/int/op/card empty-nodeinfo (list (join varz-arity2 x))))))|#
+ (to-string (substitute-int f-sum '() edges varz-arity2))
+ (to-string (node/int/sum-quant empty-nodeinfo
+                                  (list (cons x Node))
+                                  (node/int/op/card empty-nodeinfo (list (join varz-arity2 x))))))
+
+; "sum" quantifier case error shadowing 
+(printf "TEST 31 ~n~n")
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int f-sum '() x x)))

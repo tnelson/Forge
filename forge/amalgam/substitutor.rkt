@@ -253,7 +253,6 @@
     ; CONSTANT INT
     [(node/int/constant info intValue)
        (printf "substitutor constant int base case (substitute-int) ~n")
-       (debug-repl)
        (cond 
          [(equal? (toString expr) (toString target)) value]
          [(not(equal? (toString expr) (toString target))) expr])]
@@ -278,7 +277,7 @@
        (sum-quant-expr info
                       (map (lambda (decl)
                              (cons (car decl) (substitute-expr (cdr decl) quantvars target value))) decls)
-                      (substitute-expr int-expr quantvars target value)))]))
+                      (substitute-int int-expr quantvars target value)))]))
 
 (define (substitute-int-op expr quantvars args info target value)
   (match expr

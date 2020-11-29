@@ -59,7 +59,6 @@
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
-     (debug-repl)
      (printf "lift-bounds int constant base case ~n")
      (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
      (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)
@@ -159,20 +158,34 @@
         (error (format "Join was given expr ~a with arity less than 1" expr))]
        [else
         (define uppers 
+          (map (lambda (arg)
+                 (define ub (lift-bounds-expr arg quantvars runContext))
+                 (printf "    arg: ~a had UB =~a~n" arg ub)
+                 ub) args))
+        (debug-repl)
+        (define newTuples
+          (map (lambda (left-ub)
+                 (map (lambda (right-ub)
+                        (list left-ub right-ub)) (rest uppers))) (first uppers)))
+        newTuples])]
+
+        #|[else
+        (define uppers 
         (map (lambda (arg)
               (define ub (lift-bounds-expr arg quantvars runContext))
               (printf "    arg: ~a had UB =~a~n" arg ub)
                ub) args))
-        (define newTuples
-          (map (lambda (left-ub)
-               (map (lambda (right-ub)
-                      (list left-ub right-ub)) (rest uppers))) (first uppers)))
-        newTuples])]
+        (define currBinaryJoin (zip (first uppers) (second uppers)))
+        ; we need to remove the first two things from args since we already joined there 
+        (foldl (lambda (curr acc) (zip acc curr)) currBinaryJoin (rest (rest args)))] |#
 
     ; TODO: TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "lift-bounds ^~n")
-     (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args)]
+     (define uppers
+       (map (lambda (arg)
+              (lift-bounds-expr arg quantvars runContext)) args))
+     (buildClosureOfTupleSet uppers)]
 
     ; TODO: REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)

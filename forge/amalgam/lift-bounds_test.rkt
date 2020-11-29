@@ -115,6 +115,12 @@
  (to-string newTuples))
 
 ; TODO (can't do yet): Checking Set transitive closure case
+(printf "TEST 13~n~n")
+(define transitive-closure-bounds (lift-bounds-expr (^ edges) '() udt))
+(@check-equal?
+ (to-string (lift-bounds-expr (^ edges) '() udt))
+ (to-string (buildClosureOfTupleSet transitive-closure-bounds)))
+
 
 ; TODO (can't do yet): Checking Set reflexive transitive closure case
 
