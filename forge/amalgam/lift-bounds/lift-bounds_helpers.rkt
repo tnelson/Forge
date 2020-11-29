@@ -10,23 +10,24 @@
 
 
 ; Helper to join Tuples together
-(define (joinTuple uppers)
+(define (joinTuple uppers acc)
   (map (lambda (left-ub)
                  (map (lambda (right-ub)
-                        (list left-ub right-ub)) (second uppers))) (first uppers)))
+                        (list left-ub right-ub)) (first uppers))) acc))
 
 ; TODO: This helper is used for transitive and reflexive transtivie closure. Helper used to build a closure of tuple sets.
 (define (buildClosureOfTupleSet tuples)
-  (define setOfTups (joinClosureTuple tuples))
-  (foldl (lambda (curr acc) (joinClosureTuple curr)) setOfTups (rest tuples)))
+  (define setOfTups (joinClosureTuple (second tuples) (first tuples)))
+  (foldl (lambda (curr acc) (joinClosureTuple curr acc)) setOfTups (rest (rest tuples))))
 
 
-(define (joinClosureTuple tuples)
+(define (joinClosureTuple tuples acc)
   (printf "in joinClosureTuple~n")
   (define toAdd
     (map (lambda (res)
            (map (lambda (tup)
                   (define newTup (list res tup))
-                  (when (not (member newTup tuples)) newTup)) (first tuples))) (first tuples))) toAdd)
+                  ; TODO: check that acc should be the second argument of member
+                  (when (not (member newTup acc)) newTup)) (first tuples))) acc)) toAdd)
 
 

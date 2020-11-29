@@ -16,7 +16,7 @@
 (require "../substitutor/substitutor.rkt")
 (provide desugar-formula)
 (require debug/repl)
-
+(require (prefix-in @ racket))
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (desugar-formula formula quantvars runContext currSign)
@@ -146,8 +146,7 @@
      (define rightE (second args))
 
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
-     (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))     
-
+     (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
      (cond
        [(and (isGroundProduct leftE) (equal? (length lifted-upper-bounds) 1))
         ; ground case. we have a current-tuple now, and want to desugar the RHS
@@ -204,7 +203,7 @@
      (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; atom (base case)
-    [(node/expr/relation info arity name typelist parent)
+    [(node/expr/atom info arity name)
      (printf "desugar atom base case ~n")
      (cond
        [currSign (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) expr))]
@@ -286,37 +285,29 @@
     [(? node/expr/op/->?)
      (printf "desugar ->~n")
      (cond
-       [(equal? (node/expr-arity expr) 2)
-        (define LHS (first args))
-        (define RHS (second args))
-        (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
-        (define rightTupleContext (projectTupleRange currTupIfAtomic (node/expr-arity LHS) (node/expr-arity RHS)))
-        (define formulas (list
-                          (node/formula/op/in info (list (tup2Expr leftTupleContext info) LHS))
-                          (node/formula/op/in info (list (tup2Expr rightTupleContext info) RHS))))
-        (node/formula/op/&& info formulas)]
-       [else (error (format "Expression ~a in product had arity greater than 2") expr)])]
+       [(@>= (node/expr-arity expr) 2)
+        (define current-product (product-helper (second args) currTupIfAtomic info (first args)))
+        (define fold-product
+          (foldl (lambda (curr acc) (product-helper curr currTupIfAtomic info acc))
+                 current-product (rest (rest args))))
+        (node/formula/op/&& info fold-product)]
+       [(equal? (node/expr-arity expr) 1)
+        (desugar-expr (first args) quantvars currTupIfAtomic runContext currSign)]
+       [else (error (format "Expression ~a in product had arity less than 1" expr))])]
     
     ; JOIN
     [(? node/expr/op/join?)
      (printf "desugar .~n")
      ; Re-write join as an existentialist formula
      (cond
-       [(equal? (node/expr-arity expr) 2)
-        (define rightColLHS (getColumnRight (first args)))
-        (define leftColRHS (getColumnLeft (second args)))
-        (define listOfColumns (list rightColLHS leftColRHS))
-        (define intersectColumns (node/expr/op/& info (length listOfColumns) listOfColumns))
-        (define joinNode (node/formula/multiplicity info 'some intersectColumns))
-        (define LHSRange (projectTupleRange joinNode 0 (- (node/expr-arity (first args)) 1)))
-        (define RHSRange (projectTupleRange joinNode (node/expr-arity (first args)) (node/expr-arity (second args))))
-        (define LHSProduct (node/expr/op/-> info (length (list LHSRange joinNode)) (list LHSRange joinNode)))
-        (define RHSProduct (node/expr/op/-> info (length (list joinNode RHSRange)) (list joinNode RHSRange)))
-        (define LHSIn (node/formula/op/in info (list LHSProduct (first args))))
-        (define RHSIn (node/formula/op/in info (list RHSProduct (second args))))
-        (define finalAnd (node/formula/op/&& info (list LHSIn RHSIn)))
+       [(@>= (node/expr-arity expr) 1)
+        ; TODO: should currRupIfAtomic change in this recursive call?
+        (define desugared-args (map (lambda (curr-arg) (desugar-expr curr-arg quantvars currTupIfAtomic runContext currSign)) args))
+        (define current-join (join-helper expr (second desugared-args) (first desugared-args) info))
+        (define fold-join (foldl (lambda (curr acc) (join-helper expr curr acc info)) current-join (rest (rest desugared-args))))
+        (define finalAnd (node/formula/op/&& info fold-join))
         (desugar-formula finalAnd quantvars runContext currSign)]
-       [else (error (format "Expression ~a in join had arity greater than 2") expr)])]
+       [else (error (format "Expression ~a in join had arity less than 1" expr))])]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)

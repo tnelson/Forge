@@ -148,7 +148,7 @@
      ; binary join and procede with a foldl doing a join on the previous
      ; result of the function
      (cond
-       [(@< (node/expr-arity expr) 2)
+       [(@< (node/expr-arity expr) 1)
         (error (format "Join was given expr ~a with arity less than 1" expr))]
        [else
         (define uppers 
@@ -156,8 +156,8 @@
                  (define ub (lift-bounds-expr arg quantvars runContext))
                  (printf "    arg: ~a had UB =~a~n" arg ub)
                  ub) args))
-        (define newTuples (joinTuple uppers))
-        (foldl (lambda (curr acc) (joinTuple curr)) newTuples (rest (rest uppers)))])]
+        (define newTuples (joinTuple (second uppers) (first uppers)))
+        (foldl (lambda (curr acc) (joinTuple curr acc)) newTuples (rest (rest uppers)))])]
 
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)

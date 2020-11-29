@@ -11,24 +11,36 @@
 
 ; constant formulas
 (define const (node/formula/constant empty-nodeinfo Int))
-(@test-case
+#|(@test-case
  "TEST 1 constant formulas"
  (@check-equal?
   (to-string (desugar-formula const '() udt #t))
-  (to-string const)))
+  (to-string const)))|#
 
 ; multiplicity formula
+(define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x edges)))))
+(desugar-formula f-some-reaches-all '() udt #t)
 
 ; quantified formula
 
 ; no
+; QUESTION: THESE RETURN VERY LONG THINGS
+#|(define no-test (no ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
+(define negated-formula  (node/formula/op/! empty-nodeinfo (list (in y (join x (^ edges))))))
+(define new-quant-formula (node/formula/quantified empty-nodeinfo 'all (list [y Node]) negated-formula))
+(@test-case
+ "TEST NO formula curr-sign true"
+ (@check-equal?
+  (to-string (desugar-formula no-test '() udt #t))
+  (to-string (desugar-formula new-quant-formula '() udt #t))))|#
 
 ; one
+;(define one-test (one ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 
 ; lone
+;(define lone-test (lone ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 
 ; desugar-formula-op test cases
-
 ; AND
 (define and-test (and true false))
 (@test-case
@@ -71,10 +83,23 @@
 ; EQUALS
 
 ; NEGATION
+; QUESTION: SHOULD THIS BE CALLING DESUGAR-FORMULA-OP INSTEAD?
+(define negation-test (! true))
+(@test-case
+ "TEST implies formula"
+ (@check-equal?
+  (to-string (desugar-formula negation-test '() udt #t))
+  ;desugars to (not LHS) OR (RHS) 
+  (to-string true)))
 
 ; INTEGER >
-
-; INTEGER <
+(define var-int-const-x (node/int/constant empty-nodeinfo 1))
+(define var-int-const-y (node/int/constant empty-nodeinfo 2))
+(define int-greater (> var-int-const-x var-int-const-y))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (desugar-formula int-greater '() udt)))
 
 ; INTEGER =
 

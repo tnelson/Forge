@@ -5,6 +5,34 @@
 (require "../lift-bounds/lift-bounds.rkt")
 (require "../substitutor/substitutor.rkt")
 
+
+(define (product-helper args currTupIfAtomic info acc)
+  (define LHS (last acc))
+  (define RHS (first args))
+  (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
+  (define rightTupleContext (projectTupleRange currTupIfAtomic (node/expr-arity LHS) (node/expr-arity RHS)))
+  (define formulas (list
+                    (node/formula/op/in info (list (tup2Expr leftTupleContext info) LHS))
+                    (node/formula/op/in info (list (tup2Expr rightTupleContext info) RHS))))
+  formulas)
+
+; return a list of LHS and RHS to be combined into a big AND
+(define (join-helper expr args acc info)
+
+  (define rightColLHS (getColumnRight (last acc)))
+  (define leftColRHS (getColumnLeft (first args)))
+  (define listOfColumns (list rightColLHS leftColRHS))
+  (define intersectColumns (node/expr/op/& info (node/expr-arity expr) listOfColumns))
+  (define joinNode (node/formula/multiplicity info 'some intersectColumns))
+  (define LHSRange (projectTupleRange joinNode 0 (- (node/expr-arity (last acc)) 1)))
+  (define RHSRange (projectTupleRange joinNode (node/expr-arity (last acc)) (node/expr-arity (first args))))
+  ; TODO: double check arity here
+  (define LHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list LHSRange joinNode)))
+  (define RHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list joinNode RHSRange)))
+  (define LHSIn (node/formula/op/in info (list LHSProduct (last acc))))
+  (define RHSIn (node/formula/op/in info (list RHSProduct (first args))))
+  (list LHSIn RHSIn))
+
 ; return list of lists inclusive of start and end
 (define (create-bitwidth-list start end)
   (cond
