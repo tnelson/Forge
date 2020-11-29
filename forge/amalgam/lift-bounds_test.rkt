@@ -12,6 +12,10 @@
 
 (define node-bound (list (list 'Node0) (list 'Node1) (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5) (list 'Node6)))
 (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+(define var-expr-constant (node/expr/constant empty-nodeinfo 1 'Int))
+(define var-int-const-x (node/int/constant empty-nodeinfo 1))
+(define var-int-const-y (node/int/constant empty-nodeinfo 2))
+(define int-bounds (list (list -8) (list -7) (list -6) (list -5) (list -4) (list -3) (list -2) (list -1) (list 0) (list 1) (list 2) (list 3) (list 4) (list 5) (list 6) (list 7)))
 
 ; Checking atom case base case 
 (printf "TEST 1 ~n~n")
@@ -27,15 +31,12 @@
  (to-string node-bound))
 
 ; Checking Int constant case base case
-; TODO: Double check on this one how we are getting the bitwidth
-#|(printf "TEST 3 ~n~n")
-(define var-int-const-x (node/expr/constant empty-nodeinfo 1 'Int))
+(printf "TEST 3 ~n~n")
 (@check-equal?
- (to-string (lift-bounds-expr var-int-const-x '() udt))
- (to-string (list (list -8) (list -7) (list -6) (list -5) (list -4) (list -3) (list -2) (list -1) (list 0) (list 1) (list 2) (list 3) (list 4) (list 5) (list 6) (list 7))))|#
+ (to-string (lift-bounds-expr var-expr-constant '() udt))
+ (to-string int-bounds))
 
 ; Checking other esxpression constants base case
-
 ; UNIV
 (printf "TEST 4 ~n~n")
 (define expressionConstantUNIV (node/expr/constant empty-nodeinfo 1 'univ))
@@ -84,8 +85,8 @@
  (to-string (lift-bounds-expr (- Node univ) '() udt))
  (to-string node-bound))
 
-; TODO: Checking Set intersection case
-; Q: In set minus, why are we just looking at the bounds of the LHS? 
+; Checking Set intersection case
+; TODO: In set minus, why are we just looking at the bounds of the LHS? 
 (printf "TEST 10 ~n~n")
 (@check-equal?
  (to-string (lift-bounds-expr (& Node (- Node (+ Node univ))) '() udt))
@@ -110,7 +111,7 @@
  (lambda () 
   (lift-bounds-expr (join Node Node) '() udt)))
 
-;TODO:  testing normal join case with two arguments  
+; testing normal join case with two arguments  
 (printf "TEST 13 ~n~n")
 (define join-LHS (lift-bounds-expr edges '() udt))
 (define join-RHS (lift-bounds-expr iden '() udt))
@@ -139,43 +140,51 @@
  (to-string newTuples-further))
 
 
-; TODO (can't do yet): Checking Set transitive closure case
-;(printf "TEST 14~n~n")
-;(define transitive-closure-bounds (lift-bounds-expr (^ edges) '() udt))
-;(@check-equal?
-; (to-string (lift-bounds-expr (^ edges) '() udt))
-; (to-string (buildClosureOfTupleSet transitive-closure-bounds)))
+; Checking Set transitive closure case
+(printf "TEST 15~n~n")
+(define transitive-closure-bounds (list (lift-bounds-expr edges '() udt)))
+(@check-equal?
+ (to-string (lift-bounds-expr (^ edges) '() udt))
+ (to-string (buildClosureOfTupleSet transitive-closure-bounds)))
 
+; Checking Set reflexive transitive closure case
+(printf "TEST 16~n~n")
+(define reflexive-transitive-closure-bounds (list (lift-bounds-expr edges '() udt)))
+(define closureOfTupleSets (buildClosureOfTupleSet reflexive-transitive-closure-bounds))
+(define appendedTuples (append closureOfTupleSets (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
+(@check-equal?
+ (to-string (lift-bounds-expr (* edges) '() udt))
+ (to-string appendedTuples))
 
-; TODO (can't do yet): Checking Set reflexive transitive closure case
 
 ; Checking Set transpose case
-(printf "TEST 15 ~n~n")
+(printf "TEST 17 ~n~n")
 (define transpose-bounds (list (lift-bounds-expr edges '() udt)))
  (@check-equal?
  (to-string (lift-bounds-expr (~ edges) '() udt))
  (to-string (map (lambda (x) (transposeTup x)) (first transpose-bounds))))
 
-; (can't do yet) TODO: Checking Set singleton case
-;(printf "TEST 16 ~n~n")
-;(@check-equal?
-; (to-string (lift-bounds-expr (sing var-int-const-x) '() udt))
-; (to-string ))
+; Checking Set singleton case
+(printf "TEST 18 ~n~n")
+(@check-equal?
+ (to-string (lift-bounds-expr (sing var-int-const-x) '() udt))
+ (to-string int-bounds))
 
-; (can't do yet)  TODO: Checking const int case
-; (printf "TEST 17~n~n")
+; Checking const int case
+(printf "TEST 19~n~n")
+(@check-equal?
+ (to-string (lift-bounds-int var-int-const-x '() udt))
+ (to-string int-bounds))
 
 ; Checking int with operator (should error)
-(printf "TEST 18~n~n")
-(define var-int-const-x (node/int/constant empty-nodeinfo 1))
-(define var-int-const-y (node/int/constant empty-nodeinfo 2))
+(printf "TEST 20~n~n")
 (define f-int-less (< var-int-const-x var-int-const-y))
 (@check-exn
  exn:fail?
  (lambda () 
   (lift-bounds-int f-int-less '() udt)))
 
-(printf "TEST 19~n~n")
+(printf "TEST 21~n~n")
 (define f-int-greater (> var-int-const-x var-int-const-y))
 (@check-exn
  exn:fail?
@@ -183,7 +192,7 @@
   (lift-bounds-int f-int-greater '() udt)))
 
 ; TODO: Checking sum "quantifier" case
-;(printf "TEST 20 ~n~n")
+;(printf "TEST 22 ~n~n")
 ;(define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
 ;(define f-sum (node/int/sum-quant empty-nodeinfo
 ;                                  (list (cons x Node))
@@ -195,7 +204,7 @@
 
 ; TODO: Checking cardinality case -- stuck on bitwidth question 
 ; cardinality
-;(printf "TEST 21 ~n~n")
+;(printf "TEST 23 ~n~n")
 ;(define f-cardinality (node/int/op/card empty-nodeinfo (list Node)))
 ;(@check-equal?
 ; (to-string (lift-bounds-int f-cardinality '() udt))

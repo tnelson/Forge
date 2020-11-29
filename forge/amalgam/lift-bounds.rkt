@@ -26,11 +26,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Warning: ast.rkt exports (e.g.) "and".
-; This is the macro that produces an "and" formula!
-; To use real Racket and, use @and.
-;(require "../lang/ast.rkt" (prefix-in @ racket))
-;(require "../sigs.rkt")
 (provide lift-bounds-expr)
 (require "lift-bounds_helpers.rkt")
 (require debug/repl)
@@ -60,9 +55,10 @@
     ; The Int constant
     [(node/expr/constant info 1 'Int)
      (printf "lift-bounds int constant base case ~n")
-     (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
-     (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)
-     ]
+     (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
+     (define filtered-bounds (filter (lambda (b) (equal? "Int" (forge:relation-name (forge:bound-relation b)))) all-bounds))
+     (cond [(equal? (length filtered-bounds) 1) (forge:bound-upper (first filtered-bounds))]
+           [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr "Int" all-bounds))])]
 
     ; other expression constants
     [(node/expr/constant info arity type)
@@ -106,7 +102,6 @@
 	; The upper bound of the LHS and RHS is just the addition between both bounds  
 	(define uppers 
           (map (lambda (arg)
-                 ; we are assuming that lift-bounds-expr returns a list 
                  (define ub (lift-bounds-expr arg quantvars runContext))
                  (printf "    arg: ~a had UB =~a~n" arg ub)
                  ub) args))
@@ -164,7 +159,7 @@
         (define newTuples (joinTuple uppers))
         (foldl (lambda (curr acc) (joinTuple curr)) newTuples (rest (rest uppers)))])]
 
-    ; TODO: TRANSITIVE CLOSURE
+    ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "lift-bounds ^~n")
      (define uppers
@@ -172,7 +167,7 @@
               (lift-bounds-expr arg quantvars runContext)) args))
      (buildClosureOfTupleSet uppers)]
 
-    ; TODO: REFLEXIVE-TRANSITIVE CLOSURE 
+    ; REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
      (printf "lift-bounds *~n")
      (define uppers
@@ -193,15 +188,17 @@
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "lift-bounds sing~n")
-     (lift-bounds-int (first expr) quantvars runContext)]))
+     (lift-bounds-int (first args) quantvars runContext)]))
 
 (define (lift-bounds-int expr quantvars runContext)
   (match expr
     ; constant int
     [(node/int/constant info value)
      (printf "lift-bounds int constant base case -~n")
-     (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
-     (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)]
+     (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
+     (define filtered-bounds (filter (lambda (b) (equal? "Int" (forge:relation-name (forge:bound-relation b)))) all-bounds))
+     (cond [(equal? (length filtered-bounds) 1) (forge:bound-upper (first filtered-bounds))]
+           [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr "Int" all-bounds))])]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)
@@ -243,8 +240,10 @@
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "lift-bounds cardinality~n")
-     (define bitwidth (forge:Scope-bitwidth (forge:Run-spec-scope (forge:Run-run-spec runContext))))
-     (create-bitwidth-list (- (* bitwidth -1) 1) bitwidth)]
+     (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
+     (define filtered-bounds (filter (lambda (b) (equal? "Int" (forge:relation-name (forge:bound-relation b)))) all-bounds))
+     (cond [(equal? (length filtered-bounds) 1) (forge:bound-upper (first filtered-bounds))]
+           [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr "Int" all-bounds))])]
     
     ; remainder/modulo
     [(? node/int/op/remainder?)
