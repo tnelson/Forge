@@ -44,6 +44,8 @@
 ; to form an expression.
 ; <info> argument is optional; if not passed, will default to empty-nodeinfo
 (define (tup2Expr tuple context info)
+  (when (equal? (length tuple) 0) (error (format "tupElem ~a is an empty list" tuple)))
+  (when (not (list? tuple)) (error (format "tupElem ~a is not a list" tuple)))
   (define tupRelationList
     ; replace every element of the tuple (atoms) with the corresponding atom relation
     (map
@@ -86,6 +88,7 @@
     [(and (node/expr/constant? expr) (number? (node/expr/constant expr))) #t]
     ; atoms are also a base case
     [(node/expr/atom? expr) #t]
+    ; TODO: Should we check if expr is a relation?
     ; If none of the above cases are true, then return false
     [else #f]
     ))
@@ -133,3 +136,24 @@
     (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
           [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
           [else (error (format "desugaring unsupported: ~a" formula))])))
+
+; Function that takes in a given expression and returns whether that expression is unary
+; This function tests whether the given expression is transitive closure, reflexive transitive
+; closure, transpose, or sing. 
+(define (checkIfUnary expr)
+  (or (node/expr/op/^? expr)
+      (node/expr/op/*? expr)
+      (node/expr/op/~? expr)
+      (node/expr/op/sing? expr)
+      ))
+
+; Function that takes in a given expression and returns whether that expression is binary.
+; This function tests whether the given expression is a set union, set subtraction, set
+; intersection, product, or join. 
+(define (checkIfBinary expr)
+  (or (node/expr/op/+? expr)
+      (node/expr/op/-? expr)
+      (node/expr/op/&? expr)
+      (node/expr/op/->? expr)
+      (node/expr/op/join? expr)
+      ))
