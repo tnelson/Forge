@@ -206,7 +206,7 @@
      (printf "lift-bounds sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       (lift-bounds-expr (node/expr/constant info 1 'Int)))]))
+       (lift-bounds-expr (node/expr/constant info 1 'Int) quantvars runContext))]))
 
 (define (lift-bounds-int-op expr quantvars args runContext)
   (match expr

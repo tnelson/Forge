@@ -187,21 +187,20 @@
  (lambda () 
   (lift-bounds-int f-int-greater '() udt)))
 
-; TODO: Checking sum "quantifier" case
-;(printf "TEST 22 ~n~n")
-;(define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
-;(define f-sum (node/int/sum-quant empty-nodeinfo
-;                                  (list (cons x Node))
-;                                  (node/int/op/card empty-nodeinfo (list (join edges x)))))
-;(@check-equal?
-; (to-string (lift-bounds-int f-sum '() udt))
-; (to-string ()))
+; Checking sum "quantifier" case
+(printf "TEST 22 ~n~n")
+(define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
+(define f-sum (node/int/sum-quant empty-nodeinfo
+                                  (list (cons x Node))
+                                  (node/int/op/card empty-nodeinfo (list (join edges x)))))
+(@check-equal?
+ (to-string (lift-bounds-int f-sum '() udt))
+ (to-string int-bounds))
 
 
-; TODO: Checking cardinality case -- stuck on bitwidth question 
-; cardinality
-;(printf "TEST 23 ~n~n")
-;(define f-cardinality (node/int/op/card empty-nodeinfo (list Node)))
-;(@check-equal?
-; (to-string (lift-bounds-int f-cardinality '() udt))
-; (to-string (node/int/op/card empty-nodeinfo (list edges))))
+;Checking cardinality case
+(printf "TEST 23 ~n~n")
+(define f-cardinality (node/int/op/card empty-nodeinfo (list Node)))
+(@check-equal?
+ (to-string (lift-bounds-int f-cardinality '() udt))
+ (to-string int-bounds))
