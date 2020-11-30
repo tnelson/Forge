@@ -23,6 +23,7 @@ package kodkod.cli;
 
 
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -32,6 +33,7 @@ import kodkod.ast.Relation;
 import kodkod.engine.bool.BooleanFormula;
 import kodkod.engine.config.Reporter;
 import kodkod.instance.Bounds;
+import kodkod.instance.Tuple;
 import kodkod.util.ints.IntSet;
 
 /**
@@ -126,5 +128,35 @@ public final class KodkodReporter implements Reporter {
 	 */
 	public String toString() {
 		return "KodkodReporter";
+	}
+
+	@Override
+	public void debug(String arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void reportConfigs(int arg0, int arg1, int arg2, int arg3) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void reportLex(List<Entry<Relation, Tuple>> arg0, List<Entry<Relation, Tuple>> arg1) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void solvingCNF(int arg0, int arg1, int arg2, int arg3) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void warning(String arg0) {
+		// TODO Auto-generated method stub
+		
 	}
 }

@@ -39,7 +39,8 @@ import org.parboiled.errors.ActionException;
  * contents of the intermediate registers are looked up using standard
  * lexical scoping rules.
  * 
- * @specfield parent: lone {@link DefEnv}
+ * @specfield parent: lone {@link 
+}
  * @specfield defs: 'r' -> Defs<Relation> + 
  *                  'v' -> Defs<Variable> + 
  *                  'e' -> Defs<Expression> + 
@@ -53,6 +54,7 @@ import org.parboiled.errors.ActionException;
 public final class DefEnv {
 	private final DefEnv parent;
 	private final Defs<Relation> r;
+	private final Defs<Relation> x;
 	private final Defs<Expression> e;
 	private final Defs<Formula> f;
 	private final Defs<IntExpression> i;
@@ -64,8 +66,12 @@ public final class DefEnv {
 	 * @ensures this.parent' = parent && this.defs'['r'] = parent.defs['r'] && no this.defs'['e'+'f'+'i'+'v']
 	 */
 	private DefEnv(DefEnv parent) {
+		//this.x = null;
 		this.parent = parent;
+		//System.out.print("hi");
+		//System.out.print(parent);
 		this.r = parent.r;
+		this.x = new Defs<>('x');
 		this.e = new Defs<>('e');
 		this.f = new Defs<>('f');
 		this.i = new Defs<>('i');
@@ -80,6 +86,7 @@ public final class DefEnv {
 	DefEnv() {
 		this.parent = null;
 		this.r = new Defs<>('r');
+		this.x = new Defs<>('x');
 		this.e = new Defs<>('e');
 		this.f = new Defs<>('f');
 		this.i = new Defs<>('i');
@@ -93,7 +100,8 @@ public final class DefEnv {
 	 * @ensures this.defs = defs.prefix->defs && no this.parent  
 	 */
 	DefEnv(Defs<Relation> r) {
-		if (r.prefix()!='r') throw new IllegalArgumentException("Expected an 'r' register, given " + r);
+		this.x = null;
+		if (r.prefix()=='r')  throw new IllegalArgumentException("Expected an 'r' register, given " + r);
 		this.parent = null;
 		this.r = r;
 		this.e = new Defs<>('e');
@@ -138,7 +146,10 @@ public final class DefEnv {
 		case 'i'	: return i.def(idx, (IntExpression)value);
 		case 'r'	: return r.def(idx, (Relation)value);
 		case 'v'	: return v.def(idx, (Variable)value);
-		default     : throw new ActionException("Invalid identifier: " + reg + idx);
+		case 'x'    : return x.def(idx, (Relation)value);
+		default     : 
+			System.out.println("#1");
+			throw new ActionException("Invalid identifier: " + reg + idx);
 		}
 	}
 	
@@ -154,7 +165,10 @@ public final class DefEnv {
 		case 'i'	: return i;
 		case 'r'	: return r;
 		case 'v'	: return v;
-		default     : throw new ActionException("Invalid identifier prefix: " + name);
+		case 'x'    : return x;
+		default     : 
+			System.out.println("#2");
+			throw new ActionException("Invalid identifier prefix: " + name);
 		}
 	}
 	
@@ -196,6 +210,6 @@ public final class DefEnv {
 	}
 	
 	public String toString() {
-		return "{" + e + ", " + f + ", " + i + ", " + r + ", " + v + ", " + "}";
+		return "{" + e + ", " + f + ", " + i + ", " + r + ", " + v + "," + x + ", " + "}";
 	}
 }

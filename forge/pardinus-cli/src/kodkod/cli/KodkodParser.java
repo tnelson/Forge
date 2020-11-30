@@ -27,6 +27,7 @@ import static kodkod.cli.KodkodFactory.area;
 import static kodkod.cli.KodkodFactory.cast;
 import static kodkod.cli.KodkodFactory.compare;
 import static kodkod.cli.KodkodFactory.compose;
+import static kodkod.cli.KodkodFactory.compose_temp;
 import static kodkod.cli.KodkodFactory.comprehension;
 import static kodkod.cli.KodkodFactory.declareVariable;
 import static kodkod.cli.KodkodFactory.ite;
@@ -60,7 +61,8 @@ import kodkod.ast.operator.IntCompOperator;
 import kodkod.ast.operator.IntOperator;
 import kodkod.ast.operator.Multiplicity;
 import kodkod.ast.operator.Quantifier;
-// import kodkod.engine.bddlab.BDDSolverFactory; Removed for Pardinus
+import kodkod.ast.operator.TemporalOperator;
+import kodkod.engine.bddlab.BDDSolverFactory; //Removed for Pardinus
 import kodkod.engine.config.Options;
 import kodkod.engine.config.TargetOptions;
 import kodkod.engine.satlab.SATFactory;
@@ -171,6 +173,7 @@ public class KodkodParser extends BaseParser<Object> {
                 DeclareUniverse(),
                 Optional(DeclareInts()),
                 ZeroOrMore(FirstOf(DeclareRelation(),
+                				   DeclareVarRelation(),
                                    DefNode(),
                                    Assert())), problem.endBuild(),
                 StepperServe());
@@ -184,6 +187,7 @@ public class KodkodParser extends BaseParser<Object> {
                 DeclareUniverse(),
                 Optional(DeclareInts()),
                 ZeroOrMore(FirstOf(DeclareRelation(),
+                		DeclareVarRelation(),
                         DefNode(),
                         Assert(),
                         Target(),
@@ -234,6 +238,7 @@ public class KodkodParser extends BaseParser<Object> {
                 DeclareUniverse(),
                 Optional(DeclareInts()),
                 ZeroOrMore(FirstOf(DeclareRelation(),
+                				   DeclareVarRelation(),
                                    DefNode(),
                                    Assert())), problem.endBuild(),
                 Serve());
@@ -247,6 +252,7 @@ public class KodkodParser extends BaseParser<Object> {
         return Sequence(
                 Space(), problem.startBuild(),
                 ZeroOrMore(FirstOf(DeclareRelation(),
+                				   DeclareVarRelation(),
                                    DefNode(),
                                    Assert())), problem.endBuild(),
                 Serve());
@@ -267,11 +273,11 @@ public class KodkodParser extends BaseParser<Object> {
                 CONFIG,
                 OneOrMore(":",
                           FirstOf(
-                                  Sequence(Keyword("solver"), SatSolver(), problem.setSolver((SATFactory) pop())),
+                                  Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
                                   // Changed for Pardinus
                                   // Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
-                                  // Sequence(Keyword("solver"), BddSolver(), problem.setBddSolver((BDDSolverFactory) pop())),
-                                  // Sequence(Keyword("solver"), DistinctPathBddSolver(), problem.setBddSolver((BDDSolverFactory) pop(), true)),
+                                  Sequence(Keyword("solver"), BddSolver(), problem.setBddSolver((BDDSolverFactory) pop())),
+                                  Sequence(Keyword("solver"), DistinctPathBddSolver(), problem.setBddSolver((BDDSolverFactory) pop(), true)),
                                   Sequence(Keyword("bitwidth"), NatLiteral(), problem.setBitwidth(popInt())),
                                   //Sequence(Keyword("produce-cores"), 	BoolLiteral(), 	problem.setCoreExtraction(popBool())),
                                   Sequence(Keyword("log-trans"), NatLiteral(), problem.setLogTranslation(popInt())),
@@ -294,27 +300,27 @@ public class KodkodParser extends BaseParser<Object> {
                        Sequence(Keyword("Glucose"),         push(SATFactory.Glucose)),
                        Sequence(Keyword("Lingeling"),       push(SATFactory.Lingeling)),
                        Sequence(Keyword("SAT4J"),           push(SATFactory.DefaultSAT4J)),
-                       Sequence(Keyword("TargetSATSolver"), push(SATFactory.PMaxSAT4J))); //),
-                       // Sequence(Sequence(FilePathLiteral(), Space()),
-                       //          push(SATFactory.externalFactory(popString(),
-                       //                                          "customSolver.temp")))
-                       //  ); Removed for Pardinus
+                       Sequence(Keyword("TargetSATSolver"), push(SATFactory.PMaxSAT4J)),//); //),
+                       Sequence(Sequence(FilePathLiteral(), Space()),
+                                 push(SATFactory.externalFactory(popString(),"customSolver.temp",false,false)))
+                         ); //Removed for Pardinus
     }
 
+    
     /**
      * @return BuDDy
      */
-    // @SuppressSubnodes
-    // @MemoMismatches
-    // Rule BddSolver() {
-    //     return Sequence(Keyword("BuDDy"),  push(BDDSolverFactory.JBuDDy));
-    // } Removed for Pardinus
+     @SuppressSubnodes
+     @MemoMismatches
+     Rule BddSolver() {
+         return Sequence(Keyword("BuDDy"),  push(BDDSolverFactory.JBuDDy));
+     } //Removed for Pardinus
 
-    // @SuppressSubnodes
-    // @MemoMismatches
-    // Rule DistinctPathBddSolver() {
-    //     return Sequence(Keyword("BuDDyPaths"),  push(BDDSolverFactory.JBuDDy));
-    // } Removed for Pardinus
+     @SuppressSubnodes
+     @MemoMismatches
+     Rule DistinctPathBddSolver() {
+         return Sequence(Keyword("BuDDyPaths"),  push(BDDSolverFactory.JBuDDy));
+     } //Removed for Pardinus
 
     //-------------------------------------------------------------------------
     //  Universe, int builder and relation declarations/builder
@@ -368,21 +374,47 @@ public class KodkodParser extends BaseParser<Object> {
                 RBRK,
                 RPAR, problem.declareRelations(names.get(), lower.get(), upper.get()));
     }
+    
+    
+    /**
+     * @return LPAR Identifier('x')+ LBRK TupleSet [DOUBLECOLON? TupleSet]? RBRK RPAR
+     * Added for Electrum
+     */
+    Rule DeclareVarRelation() {
+        final Var<List<String>> names = new Var<>();
+        final Var<TupleSet> lower = new Var<>(), upper = new Var<>();
+        return Sequence(
+                LPAR,
+                Identifier('x'), names.set(new ArrayList<String>(4)), names.get().add(popString()),
+                ZeroOrMore(Identifier('x'), names.get().add(popString())),
+                LBRK,
+                TupleSet(), lower.set(popTupleSet()),
+                FirstOf(
+                        Sequence(
+                                DOUBLECOLON, upper.set(lower.get()),
+                                TupleSet(), upper.set(upper.isSet() ? union(upper.get(), popTupleSet()) : popTupleSet())),
+                        Sequence(EMPTY, upper.set(lower.get()))),
+                RBRK,
+                RPAR, problem.declareVarRelations(names.get(), lower.get(), upper.get()));
+    }
 
     //-------------------------------------------------------------------------
     //  TupleSets and Tuples
     //-------------------------------------------------------------------------
 
     /**
-     * @return RelationReference | ExprLiteral | TupleSetEnum | TupleSetExpr
+     * @return RelationReference | VarRelationReference | ExprLiteral | TupleSetEnum | TupleSetExpr
      */
+ 
     Rule TupleSet() {
         return FirstOf(
                 Sequence(Use('r'), push(valueOf(popRelation(), problem.allBounds()))),
+                Sequence(Use('x'), push(valueOf(popRelation(), problem.allBounds()))),
                 Sequence(ExprLiteral(), push(valueOf(popExpr(), problem.allBounds()))),
                 TupleSetEnum(),
                 TupleSetExpr());
     }
+    
 
     /**
      * @return LPAR (PLUS|PRODUCT|INTERSECT|MINUS) TupleSet+ RPAR
@@ -552,8 +584,10 @@ public class KodkodParser extends BaseParser<Object> {
     //  Formulas
     //-------------------------------------------------------------------------
 
+  
     /**
      * @return Use(' f ') | BoolLiteral | LPAR ... RPAR
+     * note: always, after, eventually added for Electrum
      **/
     Rule Constraint() {
         return FirstOf(
@@ -574,6 +608,11 @@ public class KodkodParser extends BaseParser<Object> {
                                 SomeConstraint(),
                                 QuantConstraint(ALL, Quantifier.ALL),
                                 NotConstraint(),
+                                
+                                AlwaysConstraint(),
+                                EventuallyConstraint(),
+                                TempConstraint(UNTIL,TemporalOperator.UNTIL),
+                                
                                 NaryConstraint(AND, FormulaOperator.AND),
                                 NaryConstraint(OR, FormulaOperator.OR),
                                 NaryConstraint(IMPLIES, FormulaOperator.IMPLIES),
@@ -635,6 +674,21 @@ public class KodkodParser extends BaseParser<Object> {
     Rule NotConstraint() {
         return Sequence(NOT, Constraint(), push(popFormula().not()));
     }
+    
+    
+    /**
+     * @return Always Constraint (Electrum)
+     */
+    Rule AlwaysConstraint() {
+        return Sequence(ALWAYS, Constraint(), push(popFormula().always()));
+    }
+ 
+    /**
+     * @return Eventually Constraint (Electrum
+     */
+    Rule EventuallyConstraint() {
+        return Sequence(EVENTUALLY, Constraint(), push(popFormula().eventually()));
+    }   
 
     // WARNING CHANGED HACK USES VAR RECURSIVELY
     @Cached
@@ -652,6 +706,23 @@ public class KodkodParser extends BaseParser<Object> {
                 Sequence(ACTION(args.exitFrame()),
                          NOTHING));
     }
+    
+    @Cached
+    /** @return temporal Constraint+ */
+    Rule TempConstraint(Rule rule, TemporalOperator op) {
+        final Var<List<Formula>> args = new Var<>();
+
+        return FirstOf(
+                Sequence(ACTION(args.enterFrame()),
+                         rule, args.set(new ArrayList<Formula>(4)),
+                         OneOrMore(Constraint(), args.get().add(popFormula())),
+                         push(compose_temp(op, args.get())),
+                         ACTION(args.exitFrame())),
+
+                Sequence(ACTION(args.exitFrame()),
+                         NOTHING));
+    }
+    
 
     /**
      * @return ACYCLIC Use('r')
@@ -758,9 +829,10 @@ public class KodkodParser extends BaseParser<Object> {
     /**
      * @return Use(' e ') | Use('r') | Use('v') | ExprLiteral | LPAR ... RPAR | SetComprehension
      */
+    //var x
     Rule Expr() {
         return FirstOf(
-                Use('e'), Use('r'), Use('v'), Use('a'),
+                Use('e'), Use('r'), Use('v'), Use('a'),Use('x'),
                 ExprLiteral(),
                 Sequence(
                         LPAR,
@@ -1087,6 +1159,13 @@ public class KodkodParser extends BaseParser<Object> {
     final Rule ONE = Keyword("one");
     final Rule NO = Keyword("no");
     final Rule SET = Keyword("set");
+    
+    
+    //Electrum key words
+    final Rule ALWAYS = Keyword("always");
+    final Rule EVENTUALLY = Keyword("eventually");
+    final Rule ONCE = Keyword("once");
+    final Rule UNTIL = Keyword("until");
 
     final Rule IN = Keyword("in");
     final Rule ITE = Keyword("ite");

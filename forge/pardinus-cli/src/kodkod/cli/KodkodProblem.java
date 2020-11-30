@@ -32,6 +32,7 @@ import java.util.logging.Logger;
 import kodkod.ast.Formula;
 import kodkod.ast.Relation;
 import kodkod.engine.*;
+import kodkod.engine.bddlab.BDDSolverFactory;
 // import kodkod.engine.bddlab.BDDSolverFactory; Removed for Pardinus
 import kodkod.engine.config.ExtendedOptions;
 import kodkod.engine.config.Options;
@@ -429,9 +430,9 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * @ensures this.options.solver' = solver
 	 * Changed for Pardinus
 	 */
-	boolean setSolver(SATFactory solver) {
+	boolean setSatSolver(SATFactory solver) {
 		if (SATFactory.available(solver)) {
-			options.setSolver(solver);
+			options.setSatSolver(solver);
 			return true;
 		} else {
 			throw new ActionException(solver.toString() + " is not available on this system. Searched " + System.getProperty("java.library.path"));
@@ -442,9 +443,9 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * Same as {@link #setBddSolver(BDDSolverFactory, boolean)} with the default parameter of false
 	 * for distinctPathsOnly.
 	 */ 
-	// boolean setBddSolver(BDDSolverFactory solver) {
-	// 	return setBddSolver(solver, false);
-	// } Removed for Pardinus
+	 boolean setBddSolver(BDDSolverFactory solver) {
+	 	return setBddSolver(solver, false);
+	 } //Removed for Pardinus
 
 	/**
 	 * Sets {@code this.options.solver} to use the specified bdd solver and tells whether
@@ -453,10 +454,10 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * @param distinctPathsOnly whether to generate only one solution per path through the bdd.
 	 * @return true
 	 */
-	// boolean setBddSolver(BDDSolverFactory solver, boolean distinctPathsOnly) {
-	// 	options.setBddSolver(solver, distinctPathsOnly);
-	// 	return true;
-	// } Removed for Pardinus
+	 boolean setBddSolver(BDDSolverFactory solver, boolean distinctPathsOnly) {
+	 	options.setBddSolver(solver, distinctPathsOnly);
+	 	return true;
+	 } //Removed for Pardinus
 
 	/**
 	 * Modifies {@code this.options} so as to enable or disable minimal core extraction.
@@ -480,7 +481,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 				options.setLogTranslation(1);
 				options.setCoreGranularity(0);
 				// Changed for Pardinus
-				options.setSolver(SATFactory.MiniSatProver);
+				options.setSatSolver(SATFactory.MiniSatProver);
 			} else {
 				options.setLogTranslation(0);
 				options.setCoreGranularity(0);
@@ -590,7 +591,26 @@ import static kodkod.cli.KodkodFactory.tuple;
 		}
 		return true;
 	}
+	
+	
+	//varRelation
+	final boolean declareVarRelations(List<String> names, TupleSet lower, TupleSet upper) {
+		try {
+			for(String name : names) {
+				//final Relation r = Relation.nary(name, lower.arity());
+				final Relation x = Relation.variable(name, lower.arity());
+				env.def('x', name, x);
+				bounds.bound(x, lower, upper);
+				declaredRelation(x, lower, upper);
+			}
+		} catch (RuntimeException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+		return true;
+	}
 
+	
+	
 	boolean setTarget(List<Relation> rels, TupleSet tuple) {
 		if (!this.isTargetOriented()) {
 			throw new ActionException("Cannot set target for non-target oriented problem.");
@@ -617,6 +637,8 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * by default.
 	 */
 	void declaredRelation(Relation r, TupleSet lower, TupleSet upper) { }
+	
+	//void declaredVarRelation(Relation x, TupleSet lower, TupleSet upper) { }
 
 	/**
 	 * Adds the given formula to {@code this.asserts}.
@@ -840,9 +862,14 @@ import static kodkod.cli.KodkodFactory.tuple;
 				// Fix so that pardinus doesn't move target around.
 				options().setRetargeter(
 						new Retargeter() {
-							@Override
 							public void retarget(TargetSATSolver targetSATSolver, TargetOptions.TMode tMode, Translation translation, int i) {
 								// DO NOTHING! Keep the initial target
+							}
+
+							@Override
+							public void retarget(Translation transl) {
+								// TODO Auto-generated method stub
+								
 							}
 						});
 
@@ -964,11 +991,15 @@ import static kodkod.cli.KodkodFactory.tuple;
 		}
 
 		// Changed for Pardinus
-		boolean setSolver(SATFactory solver) {
+		boolean setSatSolver(SATFactory solver) {
 			if (!solver.incremental())
 				throw new ActionException("Cannot use a non-incremental SAT solver ("+solver+") for incremental solving.");
-			return super.setSolver(solver);
+			return super.setSatSolver(solver);
 		}
+		
+
+		
+
 	}
 
 //	/**
@@ -1008,12 +1039,14 @@ import static kodkod.cli.KodkodFactory.tuple;
 
 		void declaredRelation(Relation r, TupleSet lower, TupleSet upper) { complete.bound(r, lower, upper); }
 
+		//void declaredVarRelation(Relation x, TupleSet lower, TupleSet upper) { complete.bound(x, lower, upper); }
+		
 		private final String cannot(String msg) {
 			return "Cannot " + msg + " of an incremental problem.  Use (clear) to start specifying a new problem.";
 		}
 		boolean setBitwidth(int bitwidth) { throw new ActionException(cannot("re-configure bitwidth")); }
 		// Changed for Pardinus
-		boolean setSolver(SATFactory solver) { throw new ActionException(cannot("re-configure the solver")); }
+		boolean setSatSolver(SATFactory solver) { throw new ActionException(cannot("re-configure the solver")); }
 		boolean setCoreExtraction(boolean enable) { throw new ActionException(cannot("re-configure the core extraction behavior")); }
 		boolean declareInts(List<Integer> ints) { throw new ActionException(cannot("re-declare integer atoms in the universe of")); }
 	}

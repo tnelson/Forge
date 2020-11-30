@@ -206,6 +206,7 @@ public final class KodkodServer {
 			if (result.hasErrors()) {
 				final Logger logger = Logger.getGlobal();
 				for(ParseError err : result.parseErrors) {
+					System.out.println("here");
 					logger.severe(ErrorUtils.printParseError(err));
 				}
 			} else {

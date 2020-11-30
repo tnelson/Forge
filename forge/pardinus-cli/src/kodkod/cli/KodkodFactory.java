@@ -39,6 +39,7 @@ import kodkod.ast.operator.ExprOperator;
 import kodkod.ast.operator.FormulaOperator;
 import kodkod.ast.operator.IntOperator;
 import kodkod.ast.operator.Multiplicity;
+import kodkod.ast.operator.TemporalOperator;
 import kodkod.engine.config.ExtendedOptions;
 import kodkod.engine.config.Options;
 import kodkod.instance.Bounds;
@@ -292,6 +293,32 @@ public final class KodkodFactory {
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
+	
+	
+	/**
+	 * Composes the formulas in the list according to the semantics of the given operator,
+	 * and returns the result.  Application of binary operators to more than two arguments
+	 * results in a left-associative application of the operator to the arguments.
+	 * @return Formula.compose(op, args)
+	 */
+	public static final Formula compose_temp(TemporalOperator op, List<Formula> args) {
+		try {
+			if (op.binary()) {
+				return Formula.compose(op, args);
+			} else {
+				Formula out = args.get(0);
+				for(int i = 1, size = args.size(); i < size; i++) {
+					out = out.compose(op, args.get(i));
+				}
+				return out;
+			}
+		} catch (RuntimeException ex) {
+			throw new ActionException(ex.getMessage(), ex); // wrap
+		}
+	}
+	
+	
+	
 	/**
 	 * Compares the expressions in the list according to the semantics of the given operator,
 	 * and returns the result.

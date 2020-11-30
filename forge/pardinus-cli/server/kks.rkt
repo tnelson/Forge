@@ -100,6 +100,9 @@
 
 ; Identifiers
 (define (r idx) (format-symbol "r:~a" idx))  ; relational constant
+
+(define (x idx) (format-symbol "x:~a" idx))  ; relational constant (var)
+
 (define (e idx) (format-symbol "e:~a" idx))  ; relational expression
 (define (f idx) (format-symbol "f:~a" idx))  ; boolean expression
 (define (i idx) (format-symbol "i:~a" idx))  ; bitvector expression
