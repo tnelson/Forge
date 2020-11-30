@@ -1,19 +1,25 @@
 #lang forge/core
 (require debug/repl)
-(provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct checkIfUnary checkIfBinary
-         create-bitwidth-list createNewQuantifier projectTupleRange getColumnRight getColumnLeft)
+(provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct
+         createNewQuantifier projectTupleRange getColumnRight getColumnLeft)
 (require "../lift-bounds/lift-bounds.rkt")
 (require "../substitutor/substitutor.rkt")
+(require (prefix-in @ racket))
 
-
-(define (product-helper args currTupIfAtomic info acc)
-  (define LHS (last acc))
-  (define RHS (first args))
+; input: right - list of arguments
+;        currTupIfAtomic - implicit LHS of expression
+;        info - info of original expression
+;        left - a list of arguments with previous results of the product
+; 
+; output: list containing two in nodes
+(define (product-helper left right currTupIfAtomic info runContext)
+  (define LHS (last left))
+  (define RHS (first right))
   (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
-  (define rightTupleContext (projectTupleRange currTupIfAtomic (node/expr-arity LHS) (node/expr-arity RHS)))
+  (define rightTupleContext (projectTupleRange currTupIfAtomic (- (node/expr-arity LHS) 1) (node/expr-arity RHS)))
   (define formulas (list
-                    (node/formula/op/in info (list (tup2Expr leftTupleContext info) LHS))
-                    (node/formula/op/in info (list (tup2Expr rightTupleContext info) RHS))))
+                    (node/formula/op/in info (list (tup2Expr leftTupleContext runContext info) LHS))
+                    (node/formula/op/in info (list (tup2Expr rightTupleContext runContext info) RHS))))
   formulas)
 
 ; return a list of LHS and RHS to be combined into a big AND
@@ -33,12 +39,6 @@
   (define RHSIn (node/formula/op/in info (list RHSProduct (first args))))
   (list LHSIn RHSIn))
 
-; return list of lists inclusive of start and end
-(define (create-bitwidth-list start end)
-  (cond
-    [(equal? start (+ end 1)) '()]
-    [else
-     (cons (list start) (create-bitwidth-list (+ 1 start) end))]))
 
 ; Helper to transform a given tuple from the lifted-upper bounds function to a relation, and then do the product of all relations
 ; to form an expression.
@@ -48,15 +48,6 @@
     ; replace every element of the tuple (atoms) with the corresponding atom relation
     (map
      (lambda (tupElem)
-       ; keep only the atom relations whose name matches tupElem
-      ;(define filterResult
-      ;   (filter (lambda (atomRel)
-       ;            (when (string? tupElem) (set! tupElem (string->symbol tupElem)))
-       ;            (when (string? atomRel) (set! atomRel (string->symbol atomRel)))
-       ;            (equal? (format "~v" atomRel) (format "~v" tupElem)))
-       ;          (forge:Run-atoms context)))
-       ;(cond [(equal? 1 (length filterResult)) (node/expr/atom info 1 (first filterResult))]
-       ;      [else (error (format "tup2Expr: ~a had <>1 result in atom rels: ~a" tupElem filterResult))]))
        (when (list? tupElem) (error (format "tupElem ~a in tuple ~a is a list" tupElem tuple)))
        (node/expr/atom info 1 tupElem))
      tuple))  
@@ -79,14 +70,15 @@
 (define (isGroundProduct expr)
   (cond
     [(not (node/expr? expr)) (error (format "expression ~a is not an expression." expr))]
-    ; Check if the expression is UNARY and if SUM or SING type. If so, call the function recursively. 
-    [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
+    ; Check if the expression is UNARY and if SUM or SING type. If so, call the function recursively.
+    ; we are not supporting SING or SUM
+    #|[(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
      (define args (node/expr/op-children expr))
-     (isGroundProduct (first args))]
+     (isGroundProduct (first args))]|#
     ; If the expression is a quantifier variable, return true 
     ;[(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
     [(node/expr/quantifier-var? expr) #t]
-    ; If the expression is binary and of type PRODUCT, call function recurisvely on LHS and RHS of expr
+    ; If the expression is of type PRODUCT, call function recurisvely on LHS and RHS of expr
     [(node/expr/op/->? expr)
      (define args (node/expr/op-children expr))
      (andmap isGroundProduct args)]
@@ -97,27 +89,6 @@
     ; If none of the above cases are true, then return false
     [else #f]
     ))
-
-; Function that takes in a given expression and returns whether that expression is unary
-; This function tests whether the given expression is transitive closure, reflexive transitive
-; closure, transpose, or sing. 
-(define (checkIfUnary expr)
-  (or (node/expr/op/^? expr)
-      (node/expr/op/*? expr)
-      (node/expr/op/~? expr)
-      (node/expr/op/sing? expr)
-      ))
-
-; Function that takes in a given expression and returns whether that expression is binary.
-; This function tests whether the given expression is a set union, set subtraction, set
-; intersection, product, or join. 
-(define (checkIfBinary expr)
-  (or (node/expr/op/+? expr)
-      (node/expr/op/-? expr)
-      (node/expr/op/&? expr)
-      (node/expr/op/->? expr)
-      (node/expr/op/join? expr)
-      ))
 
 ; tuples are just Racket lists. remember that start is ZERO INDEXED
 (define (projectTupleRange tup start len)

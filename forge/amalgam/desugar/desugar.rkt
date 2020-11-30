@@ -286,9 +286,9 @@
      (printf "desugar ->~n")
      (cond
        [(@>= (node/expr-arity expr) 2)
-        (define current-product (product-helper (second args) currTupIfAtomic info (first args)))
+        (define current-product (product-helper  (first args) (second args) currTupIfAtomic info runContext))
         (define fold-product
-          (foldl (lambda (curr acc) (product-helper curr currTupIfAtomic info acc))
+          (foldl (lambda (curr acc) (product-helper acc curr currTupIfAtomic info runContext))
                  current-product (rest (rest args))))
         (node/formula/op/&& info fold-product)]
        [(equal? (node/expr-arity expr) 1)
