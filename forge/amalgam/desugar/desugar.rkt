@@ -334,16 +334,15 @@
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
-     ; TODO: Complete this case 
      (printf "desugar sing~n")
-     (map (lambda (x) (desugar-int x quantvars runContext)) args)]))
+     (error "amalgam: singleton is not supported ~n")]))
 
 (define (desugar-int expr quantvars runContext)
   (match expr
     ; CONSTANT INT
     [(node/int/constant info value)
-     ; TODO: we should be returning something here instead of just printing something 
-     (printf "desugar constant int~a~n" value)]
+     (printf "desugar constant int~a~n" value)
+     (error "amalgam: constant int not supported ~n")]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)
@@ -352,56 +351,56 @@
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age
-    ; TODO: Make sure this case is OK --> with substitution specifically 
     [(node/int/sum-quant info decls int-expr)
      (printf "desugar sumQ~n")
-     (define var (car (car decls)))
-     (let ([quantvars (cons var quantvars)])
-       (for-each (lambda (d)
-                   ; the target is the variable x, and the value is Node. I think this might be wrong.
-                   ; if we have x: Node, how do we get all of the instances of Node? 
-                   (substitute-expr expr quantvars (car d) (cdr d)))
-                 decls)           
-       (desugar-int int-expr quantvars runContext))]))
+     (error "amalgam: sum quantifier not supported ~n")]))
 
 (define (desugar-int-op expr quantvars args runContext)
   (match expr
     ; int addition
     [(? node/int/op/add?)
+     (printf "desugar addition~n")
      (error "amalgam: int + not supported~n")]
     
     ; int subtraction
     [(? node/int/op/subtract?)
+     (printf "desugar subtract~n")
      (error "amalgam: int - not supported~n")]
     
     ; int multiplication
     [(? node/int/op/multiply?)
+     (printf "desugar multiplication~n")
      (error "amalgam: int * not supported~n")]
     
     ; int division
     [(? node/int/op/divide?)
+     (printf "desugar divide~n")
      (error "amalgam: int / not supported ~n")]
     
     ; int sum (also used as typecasting from relation to int)
     ; e.g. {1} --> 1 or {1, 2} --> 3
     [(? node/int/op/sum?)
+     (printf "desugar sum~n")
      (error "amalgam: sum not supported ~n")]
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "desugar cardinality~n")
-     (map (lambda (x) (desugar-expr x quantvars (first args) runContext false)) args)]
+     (error "amalgam: cardinality not supported ~n")]
     
     ; remainder/modulo
-    [(? node/int/op/remainder?)     
+    [(? node/int/op/remainder?)
+     (printf "desugar remainder~n")
      (error "amalgam: int % (modulo) not supported~n")]
     
     ; absolute value
     [(? node/int/op/abs?)
+     (printf "desugar abs~n")
      (error "amalgam: int abs not supported~n")]
     
     ; sign-of 
     [(? node/int/op/sign?)
+     (printf "desugar sign of~n")
      (error "amalgam: int sign-of not supported~n")]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

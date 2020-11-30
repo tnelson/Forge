@@ -19,11 +19,8 @@
                        (append (take t1 (- (length t1) 1)) (rest t2))]
                       [else #f]))
               all-pairs))
-  ;(map (lambda (left-ub)
-  ;               (map (lambda (right-ub)
-  ;                      (list left-ub right-ub)) (first uppers))) acc))
 
-; TODO: This helper is used for transitive and reflexive transtivie closure.
+; This helper is used for transitive and reflexive transtivie closure.
 ;   Helper used to build a closure of tuple sets.
 (define (buildClosureOfTupleSet tuples)
   (define self-join (joinTuple tuples tuples))
@@ -33,24 +30,4 @@
          tuples]
         [else
          (buildClosureOfTupleSet new-candidate)]))
-  
-  ;tuples
-  ;(joinTuple tuples tuples)
-  ;(joinTuple tuples (joinTuple tuples tuples))
-  ;(joinTuple tuples (joinTuple tuples (joinTuple tuples tuples)))
-
-  
-  ;(define setOfTups (joinClosureTuple (second tuples) (first tuples)))
-  ;(foldl (lambda (curr acc) (joinClosureTuple curr acc)) setOfTups (rest (rest tuples))))
-
-
-;(define (joinClosureTuple tuples acc)
-;  (printf "in joinClosureTuple~n")
-;  (define toAdd
-;    (map (lambda (res)
-;           (map (lambda (tup)
-;                  (define newTup (list res tup))
-;                  ; TODO: check that acc should be the second argument of member
-;                  (when (not (member newTup acc)) newTup)) (first tuples))) acc)) toAdd)
-
 

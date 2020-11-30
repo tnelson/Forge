@@ -117,11 +117,7 @@
 (define join-LHS (lift-bounds-expr edges '() udt))
 (define join-RHS (lift-bounds-expr iden '() udt))
 (define list-join (list join-LHS join-RHS))
-(define newTuples (map (lambda (left-ub)
-                         (map (lambda (right-ub)
-                                (list left-ub right-ub))
-                              (second list-join)))
-                       (first list-join)))
+(define newTuples (joinTuple (first list-join) (second list-join)))
 
 (@check-equal?
  (to-string (lift-bounds-expr (join edges iden) '() udt))
@@ -133,29 +129,28 @@
 (define join-LHS-more (lift-bounds-expr edges '() udt))
 (define join-RHS-more (lift-bounds-expr iden '() udt))
 (define list-join-more (list join-LHS join-RHS join-RHS))
-(define newTuples-more (joinTuple list-join-more))
-(define newTuples-further (foldl (lambda (curr acc) (joinTuple curr)) newTuples (rest (rest list-join-more))))
+(define newTuples-more (joinTuple (first list-join-more) (second list-join-more)))
+(define foldNewTuples (foldl (lambda (curr acc) (joinTuple acc curr)) newTuples-more (rest (rest list-join-more))))
 
 (@check-equal?
  (to-string (lift-bounds-expr (join edges iden iden) '() udt))
- (to-string newTuples-further))
-
+ (to-string foldNewTuples))
 
 ; Checking Set transitive closure case
 (printf "TEST 15~n~n")
-(define transitive-closure-bounds (list (lift-bounds-expr edges '() udt)))
+(define transitive-closure-bounds (lift-bounds-expr edges '() udt))
 (@check-equal?
  (to-string (lift-bounds-expr (^ edges) '() udt))
  (to-string (buildClosureOfTupleSet transitive-closure-bounds)))
 
 ; Checking Set reflexive transitive closure case
 (printf "TEST 16~n~n")
-(define reflexive-transitive-closure-bounds (list (lift-bounds-expr edges '() udt)))
+(define reflexive-transitive-closure-bounds (lift-bounds-expr edges '() udt))
 (define closureOfTupleSets (buildClosureOfTupleSet reflexive-transitive-closure-bounds))
-(define appendedTuples (append closureOfTupleSets (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
+
 (@check-equal?
  (to-string (lift-bounds-expr (* edges) '() udt))
- (to-string appendedTuples))
+ (to-string (remove-duplicates (append closureOfTupleSets (map (lambda (x) (list x x)) (forge:Run-atoms udt))))))
 
 
 ; Checking Set transpose case

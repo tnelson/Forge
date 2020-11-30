@@ -163,17 +163,11 @@
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "lift-bounds ^~n")
-     ;(define uppers
-     ;  (map (lambda (arg)
-     ;         (lift-bounds-expr arg quantvars runContext)) args))
      (buildClosureOfTupleSet (lift-bounds-expr (first args) quantvars runContext))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
      (printf "lift-bounds *~n")
-     ;(define uppers
-     ;  (map (lambda (arg)
-     ;         (lift-bounds-expr arg quantvars runContext)) args))
      (define closure (buildClosureOfTupleSet (lift-bounds-expr (first args) quantvars runContext)))
      (remove-duplicates (append closure (map (lambda (x) (list x x)) (forge:Run-atoms runContext))))]
 
@@ -210,19 +204,9 @@
     ; e.g. sum p : Person | p.age  
     [(node/int/sum-quant info decls int-expr)
      (printf "lift-bounds sumQ~n")
-     ; assume 1 variable!
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ; Not used:
-       ;(lift-bounds-expr (cdr (car decls)) quantvars runContext)
-       ; Not quite right, consider sum x: A | 1
-       ;  lift-bounds(1) = {(1)}, but sum could produce any integer value
-       ;    depending on how many As there are.
-       ;(lift-bounds-int int-expr quantvars runContext)
-       ; We just know it'l return an integer in scope
-       (lift-bounds-expr (node/expr/constant info 1 'Int))
-       )]
-    ))
+       (lift-bounds-expr (node/expr/constant info 1 'Int)))]))
 
 (define (lift-bounds-int-op expr quantvars args runContext)
   (match expr
