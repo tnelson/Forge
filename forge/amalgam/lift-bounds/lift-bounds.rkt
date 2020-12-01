@@ -87,44 +87,36 @@
        ; then UB(e1)->UB(e2) is the UB of the whole comprehension
        (define uppers
          (map (lambda (d)                                    
-                   (define ub (lift-bounds-expr (cdr d) quantvars runContext))
-                   (printf "    decl: ~a had UB =~a~n" d ub) ub)
-                 decls))
-     ; Return a list of lists with all of the bounds with the cartesian product
-     (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers)))]))
+                (lift-bounds-expr (cdr d) quantvars runContext)) decls))
+       ; Return a list of lists with all of the bounds with the cartesian product
+       (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers)))]))
 
 (define (lift-bounds-expr-op expr quantvars args runContext)
   (match expr
 
     ; SET UNION 
     [(? node/expr/op/+?)
-	(printf "lift-bounds +~n")
-	; The upper bound of the LHS and RHS is just the addition between both bounds  
-	(define uppers 
-          (map (lambda (arg)
-                 (define ub (lift-bounds-expr arg quantvars runContext))
-                 (printf "    arg: ~a had UB =~a~n" arg ub)
-                 ub) args))
-        ; We are assuming that uppers is a list of list of list of atoms 
-        ; therefore, by calling 'apply', we can convert this into a list of list of atoms. 
-        (remove-duplicates (apply append uppers))]
+     (printf "lift-bounds +~n")
+     ; The upper bound of the LHS and RHS is just the addition between both bounds  
+     (define uppers 
+       (map (lambda (arg)
+              (lift-bounds-expr arg quantvars runContext)) args))
+     ; We are assuming that uppers is a list of list of list of atoms 
+     ; therefore, by calling 'apply', we can convert this into a list of list of atoms. 
+     (remove-duplicates (apply append uppers))]
     
     ; SET MINUS 
     [(? node/expr/op/-?)
      (printf "lift-bounds -~n")
      ; Upper bound of A-B is A's upper bound (in case B empty).
-     (define ub (lift-bounds-expr (first args) quantvars runContext))
-     (printf "    arg: ~a had UB =~a~n" (first args) ub)
-     ub]
+     (lift-bounds-expr (first args) quantvars runContext)]
 
     ; SET INTERSECTION
     [(? node/expr/op/&?)
      (printf "lift-bounds &~n")
-     ; map to get the upper bounds
      (define upper-bounds
        (map (lambda (arg)
-              (define ub (lift-bounds-expr arg quantvars runContext))
-              ub) args))
+              (lift-bounds-expr arg quantvars runContext)) args))
      ; filter to filter out the LHS only if they are also in upper bounds of RHS
      (filter (lambda (x) (member x (first upper-bounds))) (apply append (rest upper-bounds)))]
 
@@ -132,12 +124,9 @@
     [(? node/expr/op/->?)
      (printf "lift-bounds ->~n")
      ; the bounds of A->B are Bounds(A) x Bounds(B)
-     ; right now uppers contains ((bounds a) (bounds B))
      (define uppers 
-        (map (lambda (arg)
-              (define ub (lift-bounds-expr arg quantvars runContext))
-              (printf "    arg: ~a had UB =~a~n" arg ub)
-               ub) args))     
+       (map (lambda (arg)
+              (lift-bounds-expr arg quantvars runContext)) args))     
      ; Return a list of lists with all of the bounds with the cartesian product
      (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))]
 
@@ -153,9 +142,7 @@
        [else
         (define uppers 
           (map (lambda (arg)
-                 (define ub (lift-bounds-expr arg quantvars runContext))
-                 (printf "    arg: ~a had UB =~a~n" arg ub)
-                 ub) args))
+                 (lift-bounds-expr arg quantvars runContext)) args))
         ; Note: assumes certain direction of associativity
         (define newTuples (joinTuple (first uppers) (second uppers)))
         (foldl (lambda (curr acc) (joinTuple acc curr)) newTuples (rest (rest uppers)))])]
@@ -169,16 +156,16 @@
     [(? node/expr/op/*?)
      (printf "lift-bounds *~n")
      (define closure (buildClosureOfTupleSet (lift-bounds-expr (first args) quantvars runContext)))
+     ; We remove duplicates before we are appending 'iden
      (remove-duplicates (append closure (map (lambda (x) (list x x)) (forge:Run-atoms runContext))))]
 
     ; TRANSPOSE 
     [(? node/expr/op/~?)
      (printf "lift-bounds ~~~n")
-     (define upper-bounds (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
-     ; the call to lift-bounds-expr returns a list of lists, so then we just go through the list
-     ; and flip the tuples themselves.
-     (define transposedBounds (map (lambda (x) (transposeTup x)) (first upper-bounds)))
-     transposedBounds]
+     (define upper-bounds
+       (map (lambda (x) (lift-bounds-expr x quantvars runContext)) args))
+     ; flip the tuples in the upper bounds
+     (map (lambda (x) (transposeTup x)) (first upper-bounds))]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
@@ -190,7 +177,7 @@
     ; constant int
     [(node/int/constant info value)
      (printf "lift-bounds int constant base case -~n")
-     (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
+     (define all-bounds (forge:Run-kodkod-bounds runContext)) 
      (define filtered-bounds (filter (lambda (b) (equal? "Int" (forge:relation-name (forge:bound-relation b)))) all-bounds))
      (cond [(equal? (length filtered-bounds) 1) (forge:bound-upper (first filtered-bounds))]
            [else (error (format "lift-bounds-expr on ~a: didn't have a bound for ~a in ~a" expr "Int" all-bounds))])]
