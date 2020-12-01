@@ -45,7 +45,7 @@
      (list tuple)]
     
     ; relation name (base case)
-    [(node/expr/relation info arity name typelist parent)
+    [(node/expr/relation info arity name typelist parent isvar)
      (printf "lift-bounds relation name base case ~n")
      (define all-bounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
      (define filtered-bounds (filter (lambda (b) (equal? name (forge:relation-name (forge:bound-relation b)))) all-bounds))

@@ -1,7 +1,7 @@
 #lang racket
 
 (require "sigs.rkt")
-(require forge/amalgam/desugar)
+(require forge/amalgam/desugar/desugar)
 
 ; Entry point for Amalgam from forge/core
 ;  This is a sketch for the moment

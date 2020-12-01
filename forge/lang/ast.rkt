@@ -214,10 +214,11 @@
 
 ;; -- relations ----------------------------------------------------------------
 
-(struct node/expr/relation node/expr (name typelist parent) #:transparent #:mutable
+; The is-variable field allows support for Electrum-style var fields in the core language 
+(struct node/expr/relation node/expr (name typelist parent is-variable) #:transparent #:mutable
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/expr/relation info arity name typelist parent) self)
+     (match-define (node/expr/relation info arity name typelist parent is-variable) self)
      (fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))])
 (define next-name 0)
 
@@ -226,10 +227,13 @@
   (syntax-case stx ()
     [(_ (typelist ...) parent name)
      (quasisyntax/loc stx       
-         (build-relation #,(build-source-location stx) (typelist ...) parent name))]))
+       (build-relation #,(build-source-location stx) (typelist ...) parent name #f))]
+    [(_ (typelist ...) parent name isv)
+     (quasisyntax/loc stx       
+       (build-relation #,(build-source-location stx) (typelist ...) parent name #t))]))
 
 ; Used by rel macro but *also* by Sig and relation macros in forge/core (sigs.rkt)
-(define (build-relation loc typelist parent [name #f])
+(define (build-relation loc typelist parent [name #f] [is-var #f])
   (let ([name (cond [(false? name) 
                      (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))]
                      [(symbol? name) (symbol->string name)]
@@ -239,7 +243,7 @@
                         [(string? t) t]
                         [(symbol? t) (symbol->string t)]
                         [else (error (format "build-relation expected list of strings or symbols: ~a" typelist))])) typelist)])
-    (node/expr/relation (nodeinfo loc) (length types) name typelist parent)))
+    (node/expr/relation (nodeinfo loc) (length types) name typelist parent is-var)))
 
 
 ; Helpers to more cleanly talk about relation fields
@@ -281,9 +285,9 @@
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 2 'iden))])))
 ; relations, not constants
 (define-syntax Int (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ"))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f))])))
 (define-syntax succ (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int"))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -382,6 +386,15 @@
 (define-node-op int> node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
 (define-node-op int< node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
 (define-node-op int= node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
+
+; Electrum temporal operators
+(define-node-op always node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op eventually node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op after node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op release node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+
+; --------------------------------------------------------
 
 (define (int=-lifter i1 i2)
   (int= i1 i2))

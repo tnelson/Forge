@@ -198,7 +198,7 @@
 
   (match expr
     ; relation name (base case)
-    [(node/expr/relation info arity name typelist parent)
+    [(node/expr/relation info arity name typelist parent isvar)
      (printf "desugar relation name ~n")
      (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 

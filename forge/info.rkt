@@ -17,6 +17,6 @@
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
-(define compile-omit-paths '("example" "examples" "doc" "tests" "kodkod-cli/out"))
+(define compile-omit-paths '("example" "examples" "doc" "tests" "pardinus-cli/out" "kodkod-cli/out"))
 
 ;(define test-omit-paths 'all)

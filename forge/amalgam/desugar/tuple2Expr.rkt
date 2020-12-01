@@ -5,7 +5,7 @@
 (require racket/list) ; do we need this?
 
 ;(require "../sigs.rkt") ; import Forge stuff
-(require (only-in "../lang/ast.rkt" node/expr/op/->))
+;(require (only-in "../../lang/ast.rkt" node/expr/op/->))
 
 (provide tup2Expr)
 

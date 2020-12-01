@@ -111,7 +111,7 @@
   (match expr
 
     ; relation name (base case)
-    [(node/expr/relation info arity name typelist parent)
+    [(node/expr/relation info arity name typelist parent isvar)
      (printf "substitutor relation name (in expr) base case ~n")
        (cond 
          [(equal? (toString expr) (toString target)) value]
