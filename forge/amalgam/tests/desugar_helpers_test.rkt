@@ -159,7 +159,50 @@
   (to-string (list 2 1))))
 
 ; getColumnRight
+; error
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (getColumnRight '())))
+
+; valid arity more than 1 (hits recursive call and base case)
+(@test-case
+ "TEST getColumnRight on valid"
+ (@check-equal?
+  (to-string (getColumnRight edges))
+  (to-string (join univ edges))))
 
 ; getColumnLeft
+; error
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (getColumnLeft '())))
+
+; valid arity more than 1 (hits recursive call and base case)
+(@test-case
+ "TEST getColumnLeft on valid"
+ (@check-equal?
+  (to-string (getColumnLeft edges))
+  (to-string (join edges univ))))
 
 ; createNewQuantifier
+(define form (in edges edges))
+
+; error length decls not 1
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (createNewQuantifier (list 1 2) '() form udt empty-nodeinfo 'some '())))
+
+; error desugaring unsupported
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (createNewQuantifier (list 1) '() form udt empty-nodeinfo 'no '())))
+
+; some case
+
+
+; all case
+

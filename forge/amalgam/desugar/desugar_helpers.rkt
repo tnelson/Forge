@@ -85,7 +85,7 @@
      (define args (node/expr/op-children expr))
      (andmap isGroundProduct args)]
     ; If the expression is a constant and a number, return true 
-    [(and (node/expr/constant? expr) (number? (node/expr/constant expr))) #t]
+    [(and (node/expr/constant? expr) (equal? 'Int (node/expr/constant-type expr))) #t]
     ; atoms are also a base case
     [(node/expr/atom? expr) #t]
     ; TODO: Should we check if expr is a relation?
