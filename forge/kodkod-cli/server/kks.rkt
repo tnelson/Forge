@@ -6,7 +6,8 @@
 
 (require "../../shared.rkt")
 
-(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
+(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ
+         declare-rel read-solution solve v r x tupleset (rename-out [-> product]))
 (provide assert e f i a define-const)
 (provide read-evaluation)
 
@@ -97,6 +98,7 @@
 
 ; Identifiers
 (define (r idx) (format-symbol "r:~a" idx))  ; relational constant
+(define (x idx) (format-symbol "x:~a" idx))  ; time-variable relational constant (Pardinus)
 (define (e idx) (format-symbol "e:~a" idx))  ; relational expression
 (define (f idx) (format-symbol "f:~a" idx))  ; boolean expression
 (define (i idx) (format-symbol "i:~a" idx))  ; bitvector expression
