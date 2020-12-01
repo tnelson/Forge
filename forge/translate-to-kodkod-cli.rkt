@@ -1,6 +1,7 @@
 #lang racket
 
-(require "lang/ast.rkt" "pardinus-cli/server/kks.rkt" (prefix-in @ racket))
+; TODO: change to pardinus-cli
+(require "lang/ast.rkt" "kodkod-cli/server/kks.rkt" (prefix-in @ racket))
 
 (provide translate-to-kodkod-cli)
 (provide interpret-formula interpret-expr interpret-int)
@@ -98,8 +99,8 @@
   (match expr
     [(node/expr/relation info arity name typelist parent isvar)
      (if isvar
-         ( print-cmd-cont (format "~a " (r name)))
-         ( print-cmd-cont (format "~a " (x name))))]
+         ( print-cmd-cont (format "~a " (x name)))
+         ( print-cmd-cont (format "~a " (r name))))]
     [(node/expr/atom info arity name)
      (unless (member name atom-names) (raise (format "Atom ~a not in available atoms ~a" name atom-names)))
      ( print-cmd-cont (format "~a " (a (index-of atom-names name))))]
