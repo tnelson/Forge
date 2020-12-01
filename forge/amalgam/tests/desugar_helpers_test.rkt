@@ -59,7 +59,6 @@
                                                 (node/expr/atom empty-nodeinfo 1 'Node0)
                                                 (node/expr/atom empty-nodeinfo 1 'Node1)
                                                 (node/expr/atom empty-nodeinfo 1 'Node2))))))
-
 ; empty list
 (@check-exn
  exn:fail?
