@@ -312,19 +312,17 @@
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "desugar ^~n")
-     ; TODO: Complete the transitive closure case 
+     ; TODO: Complete the transitive closure case
+     ; 
      (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (printf "desugar *~n")
-     ; The desugared version of REFLEXIVE-TRANSITIVE CLOSURE is ((iden) & (univ->univ)) + (^expr) 
-     (define productOfUniv (node/expr/op/-> info 2 (list 'univ 'univ)))
-     (define restrictedIden (node/expr/op/& info 2 (list 'iden productOfUniv)))
-     (define transitiveClosure (node/expr/op/^ info 1 (first args)))
-     ; TODO: Do we want to call this recursively ?
-     (define desugaredRClosure (node/expr/op/+ info 2 (list restrictedIden transitiveClosure)))
-     (desugaredRClosure)]
+     (define transitiveClosure (node/expr/op/^ info 2 (first args)))
+     (define desugaredRClosure (node/expr/op/+ info 2 (list iden transitiveClosure)))
+     (define in-formula (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) desugaredRClosure)))
+     (desugar-formula in-formula quantvars runContext currSign)]
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
