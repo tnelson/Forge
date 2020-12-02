@@ -35,6 +35,7 @@
 ; (we never try to lift bounds of a formula, because that makes no sense.)
 ;  ... -> list<tuple> i.e., list<list<atom>> (note atom NOT EQUAL TO atom expression)
 (define (lift-bounds-expr expr quantvars runContext)
+
   (match expr
 
     ; atom case (base case)

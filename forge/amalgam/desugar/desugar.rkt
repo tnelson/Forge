@@ -50,7 +50,7 @@
     
 
     ; quantified formula (some x : ... or all x : ...)
-    [(node/formula/quantified info quantifier decls form)
+    [(node/formula/quantified info quantifier decls subForm)
      (printf "desugar quant ~a~n" quantifier)
      (printf "desugar quant formula ~a~n" formula)
 
@@ -60,14 +60,14 @@
             (cond
               ; no x: A | r.x in q ------> all x: A | not (r.x in q)
               [(equal? quantifier 'no)
-               (define negatedFormula (node/formula/op/! info (list form)))
+               (define negatedFormula (node/formula/op/! info (list subForm)))
                (define newQuantFormula (node/formula/quantified info 'all decls negatedFormula))
                (desugar-formula newQuantFormula quantvars runContext currSign)]
 
               ; one x: A | r.x in q ------> (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
               [(equal? quantifier 'one)
-               (define newQuantFormLHS (node/formula/quantified info 'some decls form))
-               (define negatedFormula (node/formula/op/! info (list form)))
+               (define newQuantFormLHS (node/formula/quantified info 'some decls subForm))
+               (define negatedFormula (node/formula/op/! info (list subForm)))
                (define subtractedDecls (node/expr/op/- info 2 (list (cdr decls) (car decls))))
                (define newQuantFormRHS (node/formula/quantified info 'all subtractedDecls negatedFormula))
                (define desugaredAnd (node/formula/op/&& info (list newQuantFormLHS newQuantFormRHS)))
@@ -75,8 +75,8 @@
 
               ; lone x: A | r.x in q ------> (no x: A | r.x in q) or (one x: A | r.x in q)
               [(equal? quantifier 'lone)
-               (define newQuantFormLHS (node/formula/quantified info 'no decls form))
-               (define newQuantFormRHS (node/formula/quantified info 'one decls form))
+               (define newQuantFormLHS (node/formula/quantified info 'no decls subForm))
+               (define newQuantFormRHS (node/formula/quantified info 'one decls subForm))
                (define desugaredOR (node/formula/op/|| info (list newQuantFormLHS newQuantFormRHS)))
                (desugar-formula desugaredOR quantvars runContext currSign)])]
 
@@ -84,16 +84,16 @@
            [(not (equal? 1 (length decls)))
             
             (when (and (not (equal? (quantifier 'and))) (not (equal? (quantifier 'some))))
-                        (error (format "Multiple quantifiers with something other than all/some: ~a" form)))
-
-            (define currQuantifier (list (createNewQuantifier (first decls) quantvars form runContext info quantifier formula)))
-            (define quants (foldl (lambda (curr acc) (append (createNewQuantifier curr quantvars form runContext info quantifier formula) acc))
+                        (error (format "Multiple quantifiers with something other than all/some: ~a" subForm)))
+            ; ((x Node) (y Node) (z Node))
+            (define currQuantifier (list (createNewQuantifier (first decls) quantvars subForm runContext info quantifier formula)))
+            (define quants (foldl (lambda (curr acc) (append (createNewQuantifier curr quantvars subForm runContext info quantifier formula) acc))
                    currQuantifier (rest decls)))
             (define unionOfQuants (node/formula/op/|| info quants))
             (desugar-formula unionOfQuants quantvars runContext currSign)]
 
            [else
-            (define newFormula (createNewQuantifier decls quantvars form runContext info quantifier formula))
+            (define newFormula (createNewQuantifier (first decls) quantvars subForm runContext info quantifier formula))
             (desugar-formula newFormula quantvars runContext currSign)])]
 
     ; truth and falsity

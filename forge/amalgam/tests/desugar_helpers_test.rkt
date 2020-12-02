@@ -1,6 +1,7 @@
 #lang forge/core
 (require "../desugar/desugar_helpers.rkt")
 (require "../desugar/desugar.rkt")
+(require "../substitutor/substitutor.rkt")
 (require "forge_ex.rkt")
 (require "test_helpers.rkt")
 (require (prefix-in @ rackunit))
@@ -201,7 +202,23 @@
    (createNewQuantifier (list 1) '() form udt empty-nodeinfo 'no '())))
 
 ; some case
+(define node-bound (list (list 'Node0) (list 'Node1) (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5) (list 'Node6)))
+(define some-formula (some ([x Node]) (in x Node)))
+(define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+(define subformulas (map (lambda (tup)
+                               (substitute-formula (in varx Node) (list varx) varx (tup2Expr tup udt empty-nodeinfo)))
+                             node-bound))
 
+(@test-case
+ "TEST createNewQuantifier on 'some' quantifier with just one decl"
+ (@check-equal?
+  (to-string (createNewQuantifier (list varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'some some-formula))
+  (to-string (node/formula/op/|| empty-nodeinfo subformulas)))) 
 
 ; all case
-
+(define all-formula (all ([x Node]) (in x Node)))
+(@test-case
+ "TEST createNewQuantifier on 'all' quantifier with just one decl"
+ (@check-equal?
+  (to-string (createNewQuantifier (list varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'all all-formula))
+  (to-string (node/formula/op/&& empty-nodeinfo subformulas))))

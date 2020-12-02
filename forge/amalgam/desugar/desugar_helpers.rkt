@@ -24,7 +24,6 @@
 
 ; return a list of LHS and RHS to be combined into a big AND
 (define (join-helper expr args acc info)
-
   (define rightColLHS (getColumnRight (last acc)))
   (define leftColRHS (getColumnLeft (first args)))
   (define listOfColumns (list rightColLHS leftColRHS))
@@ -115,23 +114,18 @@
         [(equal? 1 arity) node]
         [else (getColumnRight (node/expr/op/join info (- arity 1) (list node univ)))]))
 
-
-(define (createNewQuantifier decls quantvars form runContext info quantifier formula)
-  (unless (equal? (length decls) 1)
-    (error (format "createNewQuantifier: ~a" decls)))
-  
-  (define var (car (car decls)))
-  (define domain (cdr (car decls)))
-  (let ([quantvars (cons var quantvars)])    
+(define (createNewQuantifier decl quantvars subForm runContext info quantifier formula)
+  (unless (equal? (length decl) 2)
+    (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
+  (define var (car decl)) 
+  (define domain (second decl)) 
+  (let ([quantvars (cons var quantvars)])  
     ; gives us list of all possible bindings to this variable
-    (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
+    (define lifted-bounds (lift-bounds-expr domain quantvars runContext)) 
     ; produce a list of subformulas each substituted with a possible binding for the variable
-    (define subformulas (map
-                         (lambda (tup)
-                           (define result (substitute-formula form quantvars var (tup2Expr tup runContext info)))
-                           (printf "debug for createNewQuantifier ~a: ~a~n" tup result)
-                           result)
-                         lifted-bounds))
+    (define subformulas (map (lambda (tup)
+                               (substitute-formula subForm quantvars var (tup2Expr tup runContext info)))
+                             lifted-bounds))
     
     (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
           [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
