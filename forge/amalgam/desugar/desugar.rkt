@@ -37,10 +37,9 @@
      (printf "desugar mult ~a~n" mult)
      (define freshvar (node/expr/quantifier-var info 1 (gensym "m2q")))
      (define uppers (lift-bounds-expr expr quantvars runContext))
-     ;uppers is a list of tuples 
-     (define unionOfBounds (node/expr/op/+ info (length uppers) (map (lambda (tup)
-                                                                       (tup2Expr tup runContext info)) uppers)))
-     (printf "desugar union of Bounds ~a ~n" unionOfBounds)
+     (define unionOfBounds (node/expr/op/+ info (node/expr-arity (tup2Expr (first uppers) runContext info))
+                                           (map (lambda (tup)
+                                                  (tup2Expr tup runContext info)) uppers)))
      (define domain unionOfBounds) 
      (define newfmla (node/formula/op/in info (list freshvar expr)))
      (define newdecls (list (cons freshvar domain)))
@@ -51,9 +50,7 @@
 
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified info quantifier decls subForm)
-     (printf "desugar quant ~a~n" quantifier)
      (printf "desugar quant formula ~a~n" formula)
-
      ; In the case where the quantifier is not a 'some or 'all, desugar into somes/alls  
      (cond [(not (or (equal? quantifier 'some)
                      (equal? quantifier 'all)))
@@ -66,10 +63,15 @@
 
               ; one x: A | r.x in q ------> (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
               [(equal? quantifier 'one)
+               ; This is making the LHS 
                (define newQuantFormLHS (node/formula/quantified info 'some decls subForm))
+               ; This is making the RHS 
                (define negatedFormula (node/formula/op/! info (list subForm)))
-               (define subtractedDecls (node/expr/op/- info 2 (list (cdr decls) (car decls))))
-               (define newQuantFormRHS (node/formula/quantified info 'all subtractedDecls negatedFormula))
+               (define subtractedDecls (node/expr/op/- info 2 (list (cdr (car decls)) (car (car decls)))))
+               (define y (node/expr/quantifier-var info 1 (gensym "quantiOne")))
+               (define newDecls (list (cons y subtractedDecls)))
+               (define newQuantFormRHS (node/formula/quantified info 'all newDecls negatedFormula))
+               ; Put LHS and RHS together 
                (define desugaredAnd (node/formula/op/&& info (list newQuantFormLHS newQuantFormRHS)))
                (desugar-formula desugaredAnd quantvars runContext currSign)]
 
@@ -85,7 +87,6 @@
             
             (when (and (not (equal? (quantifier 'and))) (not (equal? (quantifier 'some))))
                         (error (format "Multiple quantifiers with something other than all/some: ~a" subForm)))
-            ; ((x Node) (y Node) (z Node))
             (define currQuantifier (list (createNewQuantifier (first decls) quantvars subForm runContext info quantifier formula)))
             (define quants (foldl (lambda (curr acc) (append (createNewQuantifier curr quantvars subForm runContext info quantifier formula) acc))
                    currQuantifier (rest decls)))
@@ -94,6 +95,7 @@
 
            [else
             (define newFormula (createNewQuantifier (first decls) quantvars subForm runContext info quantifier formula))
+            (debug-repl)
             (desugar-formula newFormula quantvars runContext currSign)])]
 
     ; truth and falsity
@@ -144,7 +146,6 @@
 
      (define leftE (first args))
      (define rightE (second args))
-
      ; We don't yet know which relation's bounds will be needed, so just pass them all in
      (define lifted-upper-bounds (lift-bounds-expr leftE '() runContext))
      (cond

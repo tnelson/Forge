@@ -18,7 +18,7 @@
   (to-string const)))|#
 
 ; multiplicity formula
-(define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x edges)))))
+(define f-some-reaches-all (no edges))
 (desugar-formula f-some-reaches-all '() udt #t)
 
 ; quantified formula

@@ -115,13 +115,13 @@
         [else (getColumnRight (node/expr/op/join info (- arity 1) (list node univ)))]))
 
 (define (createNewQuantifier decl quantvars subForm runContext info quantifier formula)
-  (unless (equal? (length decl) 2)
+  (unless (not (and (null? (car decl)) (null? (cdr decl))))
     (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
   (define var (car decl)) 
-  (define domain (second decl)) 
+  (define domain (cdr decl)) 
   (let ([quantvars (cons var quantvars)])  
     ; gives us list of all possible bindings to this variable
-    (define lifted-bounds (lift-bounds-expr domain quantvars runContext)) 
+    (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
     ; produce a list of subformulas each substituted with a possible binding for the variable
     (define subformulas (map (lambda (tup)
                                (substitute-formula subForm quantvars var (tup2Expr tup runContext info)))
