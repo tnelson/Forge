@@ -12,22 +12,22 @@
 ; Helper to join Tuples together
 ; list<tuple>, list<tuple> -> list<tuple>
 (define (joinTuple leftTS rightTS)
-  (define all-pairs (cartesian-product leftTS rightTS))
+  (define allPairs (cartesian-product leftTS rightTS))
   (filter-map (lambda (combo)
                 (define-values (t1 t2) (values (first combo) (second combo)))
                 (cond [(equal? (last t1) (first t2))
                        (append (take t1 (- (length t1) 1)) (rest t2))]
                       [else #f]))
-              all-pairs))
+              allPairs))
 
 ; This helper is used for transitive and reflexive transtivie closure.
 ;   Helper used to build a closure of tuple sets.
 (define (buildClosureOfTupleSet tuples)
-  (define self-join (joinTuple tuples tuples))
+  (define selfJoin (joinTuple tuples tuples))
   ; appending tuples always keep the prior-hop-count tuples in the set
-  (define new-candidate (remove-duplicates (append tuples self-join)))
-  (cond [(equal? (length new-candidate) (length tuples))
+  (define newCandidate (remove-duplicates (append tuples selfJoin)))
+  (cond [(equal? (length newCandidate) (length tuples))
          tuples]
         [else
-         (buildClosureOfTupleSet new-candidate)]))
+         (buildClosureOfTupleSet newCandidate)]))
 

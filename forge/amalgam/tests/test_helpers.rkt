@@ -1,7 +1,7 @@
 #lang racket
 
-(provide to-string)
+(provide toString)
 
 ; helper that converts the output of substitutor to a string
-(define (to-string output)
+(define (toString output)
   (format "~v" output))

@@ -11,263 +11,263 @@
      #:preds [isUndirectedTree]
      #:scope [(Node 7)])
 
-(define node-bound (list (list 'Node0) (list 'Node1) (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5) (list 'Node6)))
+(define nodeBound (list (list 'Node0) (list 'Node1) (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5) (list 'Node6)))
 (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
-(define var-expr-constant (node/expr/constant empty-nodeinfo 1 'Int))
-(define var-int-const-x (node/int/constant empty-nodeinfo 1))
-(define var-int-const-y (node/int/constant empty-nodeinfo 2))
-(define int-bounds (list (list -8) (list -7) (list -6) (list -5) (list -4) (list -3) (list -2) (list -1) (list 0) (list 1) (list 2) (list 3) (list 4) (list 5) (list 6) (list 7)))
+(define varExprConstant (node/expr/constant empty-nodeinfo 1 'Int))
+(define varIntConstX (node/int/constant empty-nodeinfo 1))
+(define varIntConstY (node/int/constant empty-nodeinfo 2))
+(define intBounds (list (list -8) (list -7) (list -6) (list -5) (list -4) (list -3) (list -2) (list -1) (list 0) (list 1) (list 2) (list 3) (list 4) (list 5) (list 6) (list 7)))
 
 ; Checking atom case base case 
 (@test-case
- "TEST lift-bounds-expr on atom base case"
+ "TEST liftBoundsExpr on atom base case"
 (define sampleAtom (node/expr/atom empty-nodeinfo 1 Node))
 (@check-equal?
- (to-string (lift-bounds-expr sampleAtom '() udt))
- (to-string (list (list (node/expr/atom-name sampleAtom))))))
+ (toString (liftBoundsExpr sampleAtom '() udt))
+ (toString (list (list (node/expr/atom-name sampleAtom))))))
 
 ; Checking relation name case base case 
 (@test-case
- "TEST lift-bounds-expr on relation base case"
+ "TEST liftBoundsExpr on relation base case"
 (@check-equal?
- (to-string (lift-bounds-expr Node '() udt))
- (to-string node-bound)))
+ (toString (liftBoundsExpr Node '() udt))
+ (toString nodeBound)))
 
 ; Checking Int constant case base case
 (@test-case
- "TEST lift-bounds-expr on int constant base case"
+ "TEST liftBoundsExpr on int constant base case"
 (@check-equal?
- (to-string (lift-bounds-expr var-expr-constant '() udt))
- (to-string int-bounds)))
+ (toString (liftBoundsExpr varExprConstant '() udt))
+ (toString intBounds)))
 
 ; Checking other esxpression constants base case
 ; UNIV
 (@test-case
- "TEST lift-bounds-expr on constant univ base case"
+ "TEST liftBoundsExpr on constant univ base case"
 (define expressionConstantUNIV (node/expr/constant empty-nodeinfo 1 'univ))
 (@check-equal?
- (to-string (lift-bounds-expr expressionConstantUNIV '() udt))
- (to-string (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))
+ (toString (liftBoundsExpr expressionConstantUNIV '() udt))
+ (toString (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))
 
 ; IDEN
 (@test-case
- "TEST lift-bounds-expr on constant iden base case"
+ "TEST liftBoundsExpr on constant iden base case"
 (define expressionConstantIDEN (node/expr/constant empty-nodeinfo 1 'iden))
 (@check-equal?
- (to-string (lift-bounds-expr expressionConstantIDEN '() udt))
- (to-string (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))
+ (toString (liftBoundsExpr expressionConstantIDEN '() udt))
+ (toString (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))
 
 ; Checking Quantified variable
-(define f-some-reaches-all (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
+(define fSomeReachesAll (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-expr f-some-reaches-all '() udt)))
+   (liftBoundsExpr fSomeReachesAll '() udt)))
 
 ; Checking Set Comprehension constant case
 (@test-case
- "TEST lift-bounds-expr on set comprehension case"
+ "TEST liftBoundsExpr on set comprehension case"
 (define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
-(define f-set-comprehension (node/expr/comprehension empty-nodeinfo 1
+(define fSetComprehension (node/expr/comprehension empty-nodeinfo 1
                                   (list (cons qvx Node))
                                   (in qvx Node)))
-(define uppers-set-comprehension (list (lift-bounds-expr Node '(qvx) udt)))
+(define uppersSetComprehension (list (liftBoundsExpr Node '(qvx) udt)))
 
 (@check-equal?
- (to-string (lift-bounds-expr f-set-comprehension '() udt))
- (to-string (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers-set-comprehension)))))
+ (toString (liftBoundsExpr fSetComprehension '() udt))
+ (toString (map (lambda (ub) (apply append ub)) (apply cartesian-product uppersSetComprehension)))))
 
 
 ; Checking Set union case
 (@test-case
- "TEST lift-bounds-expr on set union case"
-(define uppers-union (list node-bound (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
+ "TEST liftBoundsExpr on set union case"
+(define uppersUnion (list nodeBound (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
 (@check-equal?
- (to-string (lift-bounds-expr (+ Node univ) '() udt))
- (to-string (remove-duplicates (apply append uppers-union)))))
+ (toString (liftBoundsExpr (+ Node univ) '() udt))
+ (toString (remove-duplicates (apply append uppersUnion)))))
 
 ; Checking Set minus case
 (@test-case
- "TEST lift-bounds-expr on set minus case"
+ "TEST liftBoundsExpr on set minus case"
 (@check-equal?
- (to-string (lift-bounds-expr (- Node univ) '() udt))
- (to-string node-bound)))
+ (toString (liftBoundsExpr (- Node univ) '() udt))
+ (toString nodeBound)))
 
 ; Checking Set intersection case
 (@test-case
- "TEST lift-bounds-expr on set intersection case"
+ "TEST liftBoundsExpr on set intersection case"
 (@check-equal?
- (to-string (lift-bounds-expr (& Node (- Node (+ Node univ))) '() udt))
- (to-string node-bound)))
+ (toString (liftBoundsExpr (& Node (- Node (+ Node univ))) '() udt))
+ (toString nodeBound)))
 
 ; Checking Set Product case
 (@test-case
- "TEST lift-bounds-expr on set product case"
-(define LHSProduct-bounds (lift-bounds-expr Node '() udt))
-(define RHSProduct-bounds (lift-bounds-expr (-> Node univ) '() udt))
-(define list-product-bounds (list LHSProduct-bounds RHSProduct-bounds))
-(define product-map (map (lambda (ub) (apply append ub)) (apply cartesian-product list-product-bounds)))
+ "TEST liftBoundsExpr on set product case"
+(define LHSProductBounds (liftBoundsExpr Node '() udt))
+(define RHSProductBounds (liftBoundsExpr (-> Node univ) '() udt))
+(define listProductBounds (list LHSProductBounds RHSProductBounds))
+(define productMap (map (lambda (ub) (apply append ub)) (apply cartesian-product listProductBounds)))
 
 (@check-equal?
- (to-string (lift-bounds-expr (-> Node (-> Node univ)) '() udt))
- (to-string product-map)))
+ (toString (liftBoundsExpr (-> Node (-> Node univ)) '() udt))
+ (toString productMap)))
 
 ; Checking Set Join case
 ; Error case arity < 1
 (@check-exn
  exn:fail?
  (lambda () 
-  (lift-bounds-expr (join Node Node) '() udt)))
+  (liftBoundsExpr (join Node Node) '() udt)))
 
 ; testing normal join case with two arguments  
 (@test-case
- "TEST lift-bounds-expr on join case"
-(define join-LHS (lift-bounds-expr edges '() udt))
-(define join-RHS (lift-bounds-expr iden '() udt))
-(define list-join (list join-LHS join-RHS))
-(define newTuples (joinTuple (first list-join) (second list-join)))
+ "TEST liftBoundsExpr on join case"
+(define joinLHS (liftBoundsExpr edges '() udt))
+(define joinRHS (liftBoundsExpr iden '() udt))
+(define listJoin (list joinLHS joinRHS))
+(define newTuples (joinTuple (first listJoin) (second listJoin)))
 
 (@check-equal?
- (to-string (lift-bounds-expr (join edges iden) '() udt))
- (to-string newTuples)))
+ (toString (liftBoundsExpr (join edges iden) '() udt))
+ (toString newTuples)))
 
 
 ; Checking join with more than two arguments 
 (@test-case
- "TEST lift-bounds-expr on more complicated join case"
-(define join-LHS-more (lift-bounds-expr edges '() udt))
-(define join-RHS-more (lift-bounds-expr iden '() udt))
-(define list-join-more (list join-LHS-more join-RHS-more join-RHS-more))
-(define newTuples-more (joinTuple (first list-join-more) (second list-join-more)))
-(define foldNewTuples (foldl (lambda (curr acc) (joinTuple acc curr)) newTuples-more (rest (rest list-join-more))))
+ "TEST liftBoundsExpr on more complicated join case"
+(define joinLHSMore (liftBoundsExpr edges '() udt))
+(define joinRHSMore (liftBoundsExpr iden '() udt))
+(define listJoinMore (list joinLHSMore joinRHSMore joinRHSMore))
+(define newTuplesMore (joinTuple (first listJoinMore) (second listJoinMore)))
+(define foldNewTuples (foldl (lambda (curr acc) (joinTuple acc curr)) newTuplesMore (rest (rest listJoinMore))))
 
 (@check-equal?
- (to-string (lift-bounds-expr (join edges iden iden) '() udt))
- (to-string foldNewTuples)))
+ (toString (liftBoundsExpr (join edges iden iden) '() udt))
+ (toString foldNewTuples)))
 
 ; Checking Set transitive closure case
 (@test-case
- "TEST lift-bounds-expr on set transitive closure case"
-(define transitive-closure-bounds (lift-bounds-expr edges '() udt))
+ "TEST liftBoundsExpr on set transitive closure case"
+(define transitiveClosureBounds (liftBoundsExpr edges '() udt))
 (@check-equal?
- (to-string (lift-bounds-expr (^ edges) '() udt))
- (to-string (buildClosureOfTupleSet transitive-closure-bounds))))
+ (toString (liftBoundsExpr (^ edges) '() udt))
+ (toString (buildClosureOfTupleSet transitiveClosureBounds))))
 
 ; Checking Set reflexive transitive closure case
 (@test-case
- "TEST lift-bounds-expr on set reflexive transitive closure case"
-(define reflexive-transitive-closure-bounds (lift-bounds-expr edges '() udt))
-(define closureOfTupleSets (buildClosureOfTupleSet reflexive-transitive-closure-bounds))
+ "TEST liftBoundsExpr on set reflexive transitive closure case"
+(define reflexiveTransitiveClosureBounds (liftBoundsExpr edges '() udt))
+(define closureOfTupleSets (buildClosureOfTupleSet reflexiveTransitiveClosureBounds))
 
 (@check-equal?
- (to-string (lift-bounds-expr (* edges) '() udt))
- (to-string (remove-duplicates (append closureOfTupleSets (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))))
+ (toString (liftBoundsExpr (* edges) '() udt))
+ (toString (remove-duplicates (append closureOfTupleSets (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))))
 
 
 ; Checking Set transpose case
 (@test-case
- "TEST lift-bounds-expr on set transpose case"
-(define transpose-bounds (list (lift-bounds-expr edges '() udt)))
+ "TEST liftBoundsExpr on set transpose case"
+(define transposeBounds (list (liftBoundsExpr edges '() udt)))
  (@check-equal?
- (to-string (lift-bounds-expr (~ edges) '() udt))
- (to-string (map (lambda (x) (transposeTup x)) (first transpose-bounds)))))
+ (toString (liftBoundsExpr (~ edges) '() udt))
+ (toString (map (lambda (x) (transposeTup x)) (first transposeBounds)))))
 
 ; Checking Set singleton case
 (@test-case
- "TEST lift-bounds-expr on set singleton case"
+ "TEST liftBoundsExpr on set singleton case"
 (@check-equal?
- (to-string (lift-bounds-expr (sing var-int-const-x) '() udt))
- (to-string int-bounds)))
+ (toString (liftBoundsExpr (sing varIntConstX) '() udt))
+ (toString intBounds)))
 
 ; Checking const int case
 (@test-case
- "TEST lift-bounds-expr on const int case"
+ "TEST liftBoundsExpr on const int case"
 (@check-equal?
- (to-string (lift-bounds-int var-int-const-x '() udt))
- (to-string int-bounds)))
+ (toString (liftBoundsInt varIntConstX '() udt))
+ (toString intBounds)))
 
 ; Checking int with operator (should error)
-(define f-int-less (< var-int-const-x var-int-const-y))
+(define fIntLess (< varIntConstX varIntConstY))
 (@check-exn
  exn:fail?
  (lambda () 
-  (lift-bounds-int f-int-less '() udt)))
+  (liftBoundsInt fIntLess '() udt)))
 
-(define f-int-greater (> var-int-const-x var-int-const-y))
+(define fIntGreater (> varIntConstX varIntConstY))
 (@check-exn
  exn:fail?
  (lambda () 
-  (lift-bounds-int f-int-greater '() udt)))
+  (liftBoundsInt fIntGreater '() udt)))
 
 ; Checking sum "quantifier" case
 (@test-case
- "TEST lift-bounds-expr on sum quantifier case"
+ "TEST liftBoundsExpr on sum quantifier case"
 (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
-(define f-sum (node/int/sum-quant empty-nodeinfo
+(define fSum (node/int/sum-quant empty-nodeinfo
                                   (list (cons x Node))
                                   (node/int/op/card empty-nodeinfo (list (join edges x)))))
 (@check-equal?
- (to-string (lift-bounds-int f-sum '() udt))
- (to-string int-bounds)))
+ (toString (liftBoundsInt fSum '() udt))
+ (toString intBounds)))
 
 
 ;Checking cardinality case
 (@test-case
- "TEST lift-bounds-expr on cardinality case"
-(define f-cardinality (node/int/op/card empty-nodeinfo (list Node)))
+ "TEST liftBoundsExpr on cardinality case"
+(define fCardinality (node/int/op/card empty-nodeinfo (list Node)))
 (@check-equal?
- (to-string (lift-bounds-int f-cardinality '() udt))
- (to-string int-bounds)))
+ (toString (liftBoundsInt fCardinality '() udt))
+ (toString intBounds)))
 
 ; sum
-(define int-sum (sum edges))
+(define intSum (sum edges))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-sum '() udt)))
+   (liftBoundsInt intSum '() udt)))
 
 ; lift-bounds-op
 ; int addition
-(define int-add (+ 1 2))
+(define intAdd (+ 1 2))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-add '() udt #t)))
+   (liftBoundsInt intAdd '() udt #t)))
 
 ; int subtraction
-(define int-sub (- 1 2))
+(define intSub (- 1 2))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-sub '() udt #t)))
+   (liftBoundsInt intSub '() udt #t)))
 
 ; int division
-(define int-div (/ 1 2))
+(define intDiv (/ 1 2))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-div '() udt #t)))
+   (liftBoundsInt intDiv '() udt #t)))
 
 ; int mult
-(define int-mult (* 1 2))
+(define intMult (* 1 2))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-mult '() udt #t)))
+   (liftBoundsInt intMult '() udt #t)))
 
 ; int sum
-(define int-sum-err (sum Node))
+(define intSumErr  (sum Node))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-sum-err '() udt #t)))
+   (liftBoundsInt intSumErr  '() udt #t)))
 
 ; int mod
-(define int-mod (modulo 0 5))
+(define intMod (modulo 0 5))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-mod '() udt #t)))
+   (liftBoundsInt intMod '() udt #t)))
 
 ; int abs
 ; TODO: finish this case
@@ -275,11 +275,11 @@
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-abs '() udt #t)))|#
+   (liftBoundsInt int-abs '() udt #t)))|#
 
 ; int sign-of
-(define int-sign-of (sgn 1))
+(define intSignOf (sgn 1))
 (@check-exn
  exn:fail?
  (lambda () 
-   (lift-bounds-int int-sign-of '() udt #t)))
+   (liftBoundsInt intSignOf '() udt #t)))
