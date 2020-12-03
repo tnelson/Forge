@@ -22,21 +22,33 @@
                     (node/formula/op/in info (list (tup2Expr rightTupleContext runContext info) RHS))))
   formulas)
 
+; input:
+;      left: left hand side of our join
+;      right: right hand side of our join
+;      expr: overall expression of the entire join we are looking at
+;      info: info of original Node
+; output: quantified some representing join
 ; return a list of LHS and RHS to be combined into a big AND
-(define (join-helper expr args acc info)
-  (define rightColLHS (getColumnRight (last acc)))
-  (define leftColRHS (getColumnLeft (first args)))
-  (define listOfColumns (list rightColLHS leftColRHS))
+(define (join-helper expr left right info)
+  (define rightColLHS (getColumnRight left))
+  (define leftColRHS (getColumnLeft right))
+  (define listOfColumns (list leftColRHS rightColLHS))
+
+  ; intersectColumns is a part of decls
   (define intersectColumns (node/expr/op/& info (node/expr-arity expr) listOfColumns))
-  (define joinNode (node/formula/multiplicity info 'some intersectColumns))
-  (define LHSRange (projectTupleRange joinNode 0 (- (node/expr-arity (last acc)) 1)))
-  (define RHSRange (projectTupleRange joinNode (node/expr-arity (last acc)) (node/expr-arity (first args))))
-  ; TODO: double check arity here
-  (define LHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list LHSRange joinNode)))
-  (define RHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list joinNode RHSRange)))
-  (define LHSIn (node/formula/op/in info (list LHSProduct (last acc))))
-  (define RHSIn (node/formula/op/in info (list RHSProduct (first args))))
-  (list LHSIn RHSIn))
+  (define x (node/expr/quantifier-var info 1 (gensym "join")))
+  (define new-decls (list (cons x intersectColumns)))
+ 
+  (define LHSRange (projectTupleRange x 0 (- (node/expr-arity left) 1)))
+  (define RHSRange (projectTupleRange x (node/expr-arity left) (node/expr-arity right)))
+  
+  (define LHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list LHSRange x)))
+  (define RHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list x RHSRange)))
+  (define LHSIn (node/formula/op/in info (list LHSProduct left)))
+  (define RHSIn (node/formula/op/in info (list RHSProduct right)))
+
+  (define join-and (node/formula/op/&& info (list LHSIn RHSIn)))
+  (node/formula/quantified info 'some new-decls join-and))
 
 
 ; Helper to transform a given tuple from the lifted-upper bounds function to a relation, and then do the product of all relations
@@ -73,9 +85,9 @@
     [(not (node/expr? expr)) (error (format "expression ~a is not an expression." expr))]
     ; Check if the expression is UNARY and if SUM or SING type. If so, call the function recursively.
     ; we are not supporting SING or SUM
-    #|[(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
+    [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
      (define args (node/expr/op-children expr))
-     (isGroundProduct (first args))]|#
+     (isGroundProduct (first args))]
     ; If the expression is a quantifier variable, return true 
     ;[(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
     [(node/expr/quantifier-var? expr) #t]

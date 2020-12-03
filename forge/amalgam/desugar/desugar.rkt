@@ -111,7 +111,6 @@
     ; AND 
     [(? node/formula/op/&&?) 
      (printf "desugar and~n")
-     (debug-repl)
      (define desugaredArgs
        (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
@@ -191,7 +190,6 @@
      (error "amalgam: int = not supported ~n")]))
 
 (define (desugar-expr expr quantvars currTupIfAtomic runContext currSign)
-
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr) (error (format "desugar-expr called on non-expr: ~a" expr)))
 
@@ -253,11 +251,12 @@
     [(? node/expr/op/+?)
      (printf "desugar +~n")
      ; map over all children of intersection
+     ; TODO: we are never creating the in here?
      (define desugaredChildren
        (map
         (lambda (child) (desugar-expr child quantvars currTupIfAtomic runContext currSign)) args))
      ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR (currTupIfAtomic in RHS)
-     (node/formula/op/|| info desugaredChildren)]
+     (desugar-formula (node/formula/op/|| info desugaredChildren) quantvars runContext currSign)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
@@ -281,7 +280,7 @@
        (map
         (lambda (child) (desugar-expr child quantvars currTupIfAtomic runContext currSign)) args))
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD) AND (currTupIfAtomic in CHILD)
-     (node/formula/op/&& info desugaredChildren)]
+     (desugar-formula (node/formula/op/&& info desugaredChildren) quantvars runContext currSign)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -305,10 +304,16 @@
        [(@>= (node/expr-arity expr) 1)
         ; TODO: should currRupIfAtomic change in this recursive call?
         (define desugared-args (map (lambda (curr-arg) (desugar-expr curr-arg quantvars currTupIfAtomic runContext currSign)) args))
-        (define current-join (join-helper expr (second desugared-args) (first desugared-args) info))
-        (define fold-join (foldl (lambda (curr acc) (join-helper expr curr acc info)) current-join (rest (rest desugared-args))))
-        (define finalAnd (node/formula/op/&& info fold-join))
-        (desugar-formula finalAnd quantvars runContext currSign)]
+
+        ; join of first two arguments
+        (define current-join (join-helper expr (first desugared-args) (second desugared-args) info))
+
+        ; desugared join of first two arguments
+        (define desugared-first-join (desugar-formula current-join quantvars runContext currSign))
+
+        ; desugar recursively with everything else in the join
+        (define recursive-join (node/expr/op/join info (cons desugared-first-join (rest (rest desugared-args)))))
+        (desugar-formula recursive-join quantvars runContext currSign)]
        [else (error (format "Expression ~a in join had arity less than 1" expr))])]
     
     ; TRANSITIVE CLOSURE
