@@ -331,8 +331,9 @@
      (define rightColumnUpperBounds (lift-bounds-expr rightColumn quantvars runContext))
      (define numOfDots (- (+ (length leftColumnUpperBounds) (length rightColumnUpperBounds)) 1))
      (define numOfExpr (+ (length leftColumnUpperBounds) (length rightColumnUpperBounds)))
-     (define unionOfJoins (transitive-closure-helper curr-expr '() numOfDots 0))
-     (node/expr/op/+ info (node/expr-arity curr-expr) unionOfJoins)]
+     (define listOfJoins (transitive-closure-helper curr-expr '() numOfDots 0))
+     (define unionOfJoins (node/expr/op/+ info (node/expr-arity curr-expr) listOfJoins))
+     (desugar-formula unionOfJoins quantvars runContext currSign)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
