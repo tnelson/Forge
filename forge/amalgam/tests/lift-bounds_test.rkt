@@ -218,3 +218,68 @@
 (@check-equal?
  (to-string (lift-bounds-int f-cardinality '() udt))
  (to-string int-bounds)))
+
+; sum
+(define int-sum (sum edges))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-sum '() udt)))
+
+; lift-bounds-op
+; int addition
+(define int-add (+ 1 2))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-add '() udt #t)))
+
+; int subtraction
+(define int-sub (- 1 2))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-sub '() udt #t)))
+
+; int division
+(define int-div (/ 1 2))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-div '() udt #t)))
+
+; int mult
+(define int-mult (* 1 2))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-mult '() udt #t)))
+
+; int sum
+(define int-sum-err (sum Node))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-sum-err '() udt #t)))
+
+; int mod
+(define int-mod (modulo 0 5))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-mod '() udt #t)))
+
+; int abs
+; TODO: finish this case
+#|(define int-abs (absolute 1))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-abs '() udt #t)))|#
+
+; int sign-of
+(define int-sign-of (sgn 1))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (lift-bounds-int int-sign-of '() udt #t)))

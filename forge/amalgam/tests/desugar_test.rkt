@@ -214,7 +214,7 @@
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-sum '() udt)))
+   (desugar-int int-sum '() udt)))
 
 ; desugar-int-op
 ; int addition
@@ -222,49 +222,49 @@
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-add '() udt #t)))
+   (desugar-int int-add '() udt #t)))
 
 ; int subtraction
 (define int-sub (- 1 2))
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-sub '() udt #t)))
+   (desugar-int int-sub '() udt #t)))
 
 ; int division
 (define int-div (/ 1 2))
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-div '() udt #t)))
+   (desugar-int int-div '() udt #t)))
 
 ; int mult
 (define int-mult (* 1 2))
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-mult '() udt #t)))
+   (desugar-int int-mult '() udt #t)))
 
 ; int sum
 (define int-sum-err (sum Node))
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-sum-err '() udt #t)))
+   (desugar-int int-sum-err '() udt #t)))
 
 ; int card
 (define int-card (card Node))
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-card '() udt #t)))
+   (desugar-int int-card '() udt #t)))
 
 ; int mod
 (define int-mod (modulo 0 5))
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-mod '() udt #t)))
+   (desugar-int int-mod '() udt #t)))
 
 ; int abs
 ; TODO: finish this case
@@ -272,11 +272,11 @@
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-abs '() udt #t)))|#
+   (desugar-int int-abs '() udt #t)))|#
 
 ; int sign-of
 (define int-sign-of (sgn 1))
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugar-formula int-sign-of '() udt #t)))
+   (desugar-int int-sign-of '() udt #t)))

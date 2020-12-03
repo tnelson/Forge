@@ -278,3 +278,63 @@
  exn:fail?
  (lambda () 
    (substitute-int f-sum '() x x)))
+
+; substitute-int-op
+; int addition
+(define int-add (+ 1 2))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int int-add '() udt #t)))
+
+; int subtraction
+(define int-sub (- 1 2))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int int-sub '() udt #t)))
+
+; int division
+(define int-div (/ 1 2))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int int-div '() udt #t)))
+
+; int mult
+(define int-mult (* 1 2))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int int-mult '() udt #t)))
+
+; int sum
+(define int-sum-err (sum Node))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int int-sum-err '() udt #t)))
+
+; int mod
+(define int-mod (modulo 0 5))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int int-mod '() udt #t)))
+
+; int abs
+; TODO: finish this case
+#|(define int-abs (absolute 1))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int int-abs '() udt #t)))|#
+
+; int sign-of
+(define int-sign-of (sgn 1))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (substitute-int int-sign-of '() udt #t)))
+
+

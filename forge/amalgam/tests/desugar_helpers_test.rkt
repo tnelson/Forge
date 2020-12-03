@@ -115,18 +115,17 @@
 
 
 ; isGroundProduct
-; not an expr error
+; not an expr or int constant error
 (@check-exn
  exn:fail?
  (lambda () 
-   (isGroundProduct (node/int/constant empty-nodeinfo 1))))
+   (isGroundProduct (node/formula/op/&& empty-nodeinfo (list 1 2)))))
 
 ; quantifier-var
-(@test-case
- "TEST isGroundProduct on valid quantifier-var"
- (@check-equal?
-  (to-string (isGroundProduct (node/expr/quantifier-var empty-nodeinfo 1 (gensym "m2q"))))
-  (to-string #t)))
+(@check-exn
+ exn:fail?
+ (lambda () 
+   (isGroundProduct (node/expr/quantifier-var empty-nodeinfo 1 (gensym "m2q")))))
 
 ; return false
 (define product-expr (node/expr/op/-> empty-nodeinfo 2 (list Node Node)))
@@ -144,11 +143,11 @@
   (to-string (isGroundProduct quantifier-expr))
   (to-string #t)))
 
-; number and constant
+; node int constant 
 (@test-case
  "TEST isGroundProduct on valid constant"
  (@check-equal?
-  (to-string (isGroundProduct (node/expr/constant empty-nodeinfo 1 'Int)))
+  (to-string (isGroundProduct (node/int/constant empty-nodeinfo 1)))
   (to-string #t)))
 
 ; atom
@@ -189,17 +188,17 @@
 ; createNewQuantifier
 (define form (in edges edges))
 
-; error length decls not 1
+; error decl does not contain both things 
 (@check-exn
  exn:fail?
  (lambda () 
-   (createNewQuantifier (list 1 2) '() form udt empty-nodeinfo 'some '())))
+   (createNewQuantifier (cons 1 '()) '() form udt empty-nodeinfo 'some '())))
 
 ; error desugaring unsupported
 (@check-exn
  exn:fail?
  (lambda () 
-   (createNewQuantifier (list 1) '() form udt empty-nodeinfo 'no '())))
+   (createNewQuantifier (cons 1 2) '() form udt empty-nodeinfo 'no '())))
 
 ; some case
 (define node-bound (list (list 'Node0) (list 'Node1) (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5) (list 'Node6)))
@@ -212,7 +211,7 @@
 (@test-case
  "TEST createNewQuantifier on 'some' quantifier with just one decl"
  (@check-equal?
-  (to-string (createNewQuantifier (list varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'some some-formula))
+  (to-string (createNewQuantifier (cons varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'some some-formula))
   (to-string (node/formula/op/|| empty-nodeinfo subformulas)))) 
 
 ; all case
@@ -220,5 +219,5 @@
 (@test-case
  "TEST createNewQuantifier on 'all' quantifier with just one decl"
  (@check-equal?
-  (to-string (createNewQuantifier (list varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'all all-formula))
+  (to-string (createNewQuantifier (cons varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'all all-formula))
   (to-string (node/formula/op/&& empty-nodeinfo subformulas))))

@@ -82,21 +82,20 @@
 ; Function isGroundProduct used to test whether a given expression is ground. 
 (define (isGroundProduct expr)
   (cond
-    [(not (node/expr? expr)) (error (format "expression ~a is not an expression." expr))]
+    [(not (or (node/expr? expr) (node/int/constant? expr))) (error (format "expression ~a is not an expression or int constant." expr))]
     ; Check if the expression is UNARY and if SUM or SING type. If so, call the function recursively.
     ; we are not supporting SING or SUM
     [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
      (define args (node/expr/op-children expr))
      (isGroundProduct (first args))]
     ; If the expression is a quantifier variable, return true 
-    ;[(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
-    [(node/expr/quantifier-var? expr) #t]
+    [(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
     ; If the expression is of type PRODUCT, call function recurisvely on LHS and RHS of expr
     [(node/expr/op/->? expr)
      (define args (node/expr/op-children expr))
      (andmap isGroundProduct args)]
     ; If the expression is a constant and a number, return true 
-    [(and (node/expr/constant? expr) (equal? 'Int (node/expr/constant-type expr))) #t]
+    [(node/int/constant? expr) #t]
     ; atoms are also a base case
     [(node/expr/atom? expr) #t]
     ; TODO: Should we check if expr is a relation?

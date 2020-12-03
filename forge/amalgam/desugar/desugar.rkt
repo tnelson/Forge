@@ -68,6 +68,7 @@
                (define newQuantFormLHS (node/formula/quantified info 'some decls subForm))
                ; This is making the RHS 
                (define negatedFormula (node/formula/op/! info (list subForm)))
+               ; TODO: How can we re-write the arity in this case? Doing Node - x would be 0 if x: Node 
                (define subtractedDecls (node/expr/op/- info 2 (list (cdr (car decls)) (car (car decls)))))
                (define y (node/expr/quantifier-var info 1 (gensym "quantiOne")))
                (define newDecls (list (cons y subtractedDecls)))
@@ -312,7 +313,7 @@
         (define desugared-first-join (desugar-formula current-join quantvars runContext currSign))
 
         ; desugar recursively with everything else in the join
-        (define recursive-join (node/expr/op/join info (cons desugared-first-join (rest (rest desugared-args)))))
+        (define recursive-join (node/expr/op/join info (node/expr-arity expr) (cons desugared-first-join (rest (rest desugared-args)))))
         (desugar-formula recursive-join quantvars runContext currSign)]
        [else (error (format "Expression ~a in join had arity less than 1" expr))])]
     
@@ -326,8 +327,8 @@
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (printf "desugar *~n")
-     (define transitiveClosure (node/expr/op/^ info 2 (first args)))
-     (define desugaredRClosure (node/expr/op/+ info 2 (list iden transitiveClosure)))
+     (define transitiveClosure (node/expr/op/^ info (node/expr-arity (first args)) (first args)))
+     (define desugaredRClosure (node/expr/op/+ info (node/expr-arity transitiveClosure) (list iden transitiveClosure)))
      (define in-formula (node/formula/op/in info (list (tup2Expr currTupIfAtomic runContext info) desugaredRClosure)))
      (desugar-formula in-formula quantvars runContext currSign)]
     
