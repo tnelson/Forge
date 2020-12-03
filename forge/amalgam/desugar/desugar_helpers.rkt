@@ -5,6 +5,15 @@
 (require "../lift-bounds/lift-bounds.rkt")
 (require "../substitutor/substitutor.rkt")
 (require (prefix-in @ racket))
+(define (transitive-closure-helper orig-expr listOfJoins total-num-of-dots curr-num-of-dots info)
+  (cond
+    [(equal? curr-num-of-dots total-num-of-dots) listOfJoins]
+    [(equal? curr-num-of-dots 0)
+     (transitive-closure-helper orig-expr (append listOfJoins (list orig-expr)) total-num-of-dots (+ curr-num-of-dots 1) info)]
+    [else
+     (define nextJoin (node/expr/op/join info (node/expr-arity orig-expr) (list (last listOfJoins) orig-expr)))
+     (transitive-closure-helper orig-expr (append listOfJoins (list nextJoin)) total-num-of-dots (+ curr-num-of-dots 1) info)]))
+
 
 ; input: right - list of arguments
 ;        currTupIfAtomic - implicit LHS of expression

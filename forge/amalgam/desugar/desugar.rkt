@@ -320,9 +320,19 @@
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "desugar ^~n")
-     ; TODO: Complete the transitive closure case
-     ; 
-     (map (lambda (x) (desugar-expr x quantvars '() runContext currSign)) args)]
+     ; Write transitive closure case 
+     ;^e = e + e.e + e.e.e ... up to firstCol(e)
+     ; #dots = #(UB(leftCol)+UB(rightCol)) - 1  ?
+     ;#times-e-is-used-in-biggest-join = #(UB(leftCol)+UB(rightCol))
+     (define curr-expr (first args))
+     (define leftColumn (getColumnLeft curr-expr))
+     (define rightColumn (getColumnRight curr-expr))
+     (define leftColumnUpperBounds (lift-bounds-expr leftColumn quantvars runContext))
+     (define rightColumnUpperBounds (lift-bounds-expr rightColumn quantvars runContext))
+     (define numOfDots (- (+ (length leftColumnUpperBounds) (length rightColumnUpperBounds)) 1))
+     (define numOfExpr (+ (length leftColumnUpperBounds) (length rightColumnUpperBounds)))
+     (define unionOfJoins (transitive-closure-helper curr-expr '() numOfDots 0))
+     (node/expr/op/+ info (node/expr-arity curr-expr) unionOfJoins)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)

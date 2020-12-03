@@ -221,3 +221,10 @@
  (@check-equal?
   (to-string (createNewQuantifier (cons varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'all all-formula))
   (to-string (node/formula/op/&& empty-nodeinfo subformulas))))
+
+; transitive-closure-helper
+(@test-case
+ "TEST transitive-closure-helper"
+ (@check-equal?
+  (to-string (transitive-closure-helper edges '() 2 0 empty-nodeinfo))
+  (to-string (list edges (join edges edges)))))
