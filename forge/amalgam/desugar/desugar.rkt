@@ -20,6 +20,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (desugar-formula formula quantvars runContext currSign)
+  
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -84,7 +85,7 @@
 
            ; if it's got multiple variables, foldl over the helper that gets big AND or OR of subformulas 
            [(not (equal? 1 (length decls)))
-            
+ 
             (when (and (not (equal? (quantifier 'and))) (not (equal? (quantifier 'some))))
                         (error (format "Multiple quantifiers with something other than all/some: ~a" subForm)))
             (define currQuantifier (list (createNewQuantifier (first decls) quantvars subForm runContext info quantifier formula)))
@@ -95,11 +96,10 @@
 
            [else
             (define newFormula (createNewQuantifier (first decls) quantvars subForm runContext info quantifier formula))
-            (debug-repl)
             (desugar-formula newFormula quantvars runContext currSign)])]
 
     ; truth and falsity
-    [#t (printf "desugar true~n")]
+    [#t  (printf "desugar true~n")]
     [#f (printf "desugar false~n")]
     ))
 
@@ -111,6 +111,7 @@
     ; AND 
     [(? node/formula/op/&&?) 
      (printf "desugar and~n")
+     (debug-repl)
      (define desugaredArgs
        (map (lambda (x) (desugar-formula x quantvars runContext currSign)) args))
      (cond
