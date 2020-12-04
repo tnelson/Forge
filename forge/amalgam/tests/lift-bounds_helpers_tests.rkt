@@ -61,6 +61,7 @@
   " buildClosureOfTupleSet"
   (lambda () (display "Starting tests for buildClosureOfTupleSet"))
   (lambda () (display "All tests for buildClosureOfTupleSet passed!"))
+  
 (@test-case
  "TEST buildClosureOfTupleSet on empty tuple set"
 (@check-equal?
