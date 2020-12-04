@@ -55,6 +55,11 @@
   (toString (desugarFormula andTest '() udt #t))
   (toString (node/formula/op/&& empty-nodeinfo (list true false)))))
 
+; Consider De Morgan's Laws: !(a && b)  -----> !a || !b
+; not true and false     (#t sign)
+; true and false    (#f sign)  <--- this case
+; <> or <>
+; not true or not false
 (@test-case
  "TEST AND formula currSign false"
  (@check-equal?

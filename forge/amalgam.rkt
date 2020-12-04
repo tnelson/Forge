@@ -25,19 +25,20 @@
   ;(inst relations
   ;  (is otherA func)
   ;  (is otherB func))
+  (inst l-alternate-inst
+        [ (= edges
+             (+ (-> (+ (-> N10 N20) 
+                       (+ (-> N10 N30)
+                          (+ (-> N20 N30)
+                             (-> N30 N30)))) Red0)
+                (-> (+ (-> N10 N10)
+                       (+ (-> N10 N20)
+                          (+ (-> N10 N30)
+                             (+ (-> N20 N30)
+                                (-> N30 N20))))) Green0)))])
   (run alternate
        #:preds []
-       #:bounds (inst l-alternate-inst
-                      [ (= edges (+ (-> (+ (-> N10 N20) 
-                    (+ (-> N10 N30)
-                    (+ (-> N20 N30)
-                       (-> N30 N30)))) Red0)
-                (-> (+ (-> N10 N10)
-                    (+ (-> N10 N20)
-                    (+ (-> N10 N30)
-                    (+ (-> N20 N30)
-                       (-> N30 N20))))) Green0)))
-]))
+       #:bounds l-alternate-inst)
        
   
   ; evaluate to make sure tup is locally necessary
