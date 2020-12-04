@@ -13,7 +13,8 @@
 ;    suppose UB(A) = {A0, A1}, UB(B) = {B0, B1},
 ;            UB(C) = {C0, C1, C2}, UB(Int) = [-8, ..., 7].
 ;   Then if we convert the above quantified formula using "univ", we'll build
-;    a big "or" with *23* disjuncts, rather than the *4* needed (note C wasn't included).
+;    a big "or" with *23* disjuncts, rather than the *4* needed (note C wasn't
+;    included).
 ;  Also, the desugaring algorithm uses upperBounds in a lot of other places,
 ;    e.g., "R in Q" becomes a big "and" saying that all possible members of R
 ;    are in Q (if they are in R).
@@ -33,7 +34,8 @@
 
 ; Only Expression and IntExpression cases needed
 ; (we never try to lift bounds of a formula, because that makes no sense.)
-;  ... -> list<tuple> i.e., list<list<atom>> (note atom NOT EQUAL TO atom expression)
+;  ... -> list<tuple> i.e., list<list<atom>>
+; (note atom NOT EQUAL TO atom expression)
 (define (liftBoundsExpr expr quantvars runContext)
 
   (match expr
@@ -48,25 +50,44 @@
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isvar)
      (printf "liftBounds relation name base case ~n")
-     (define allBounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
-     (define filteredBounds (filter (lambda (b) (equal? name (forge:relation-name (forge:bound-relation b)))) allBounds))
-     (cond [(equal? (length filteredBounds) 1) (forge:bound-upper (first filteredBounds))]
-           [else (error (format "liftBoundsExpr on ~a: didn't have a bound for ~a in ~a" expr name allBounds))])]
+     (define allBounds
+       (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
+     (define filteredBounds
+       (filter (lambda (b)
+                 (equal? name
+                         (forge:relation-name (forge:bound-relation b))))
+               allBounds))
+     (cond [(equal? (length filteredBounds) 1)
+            (forge:bound-upper (first filteredBounds))]
+           [else (error (format
+                         "liftBoundsExpr on ~a: didn't have a bound for ~a in ~a"
+                         expr name allBounds))])]
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
      (printf "liftBounds int constant base case ~n")
-     (define allBounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
-     (define filteredBounds (filter (lambda (b) (equal? "Int" (forge:relation-name (forge:bound-relation b)))) allBounds))
-     (cond [(equal? (length filteredBounds) 1) (forge:bound-upper (first filteredBounds))]
-           [else (error (format "liftBoundsExpr on ~a: didn't have a bound for ~a in ~a" expr "Int" allBounds))])]
+     (define allBounds
+       (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
+     (define filteredBounds
+       (filter (lambda (b)
+                 (equal? "Int"
+                         (forge:relation-name (forge:bound-relation b))))
+               allBounds))
+     (cond [(equal? (length filteredBounds) 1)
+            (forge:bound-upper (first filteredBounds))]
+           [else
+            (error
+             (format "liftBoundsExpr on ~a: didn't have a bound for ~a in ~a"
+                     expr "Int" allBounds))])]
 
     ; other expression constants
     [(node/expr/constant info arity type)
      (printf "liftBounds other expression constants base case ~n")
      (cond
-       [(equal? type 'univ) (map (lambda (x) (list x x)) (forge:Run-atoms runContext))]
-       [(equal? type 'iden) (map (lambda (x) (list x x)) (forge:Run-atoms runContext))]
+       [(equal? type 'univ) (map (lambda (x) (list x x))
+                                 (forge:Run-atoms runContext))]
+       [(equal? type 'iden) (map (lambda (x) (list x x))
+                                 (forge:Run-atoms runContext))]
        [(equal? type 'none) '()])]
     
     ; expression w/ operator (union, intersect, ~, etc...)
@@ -75,7 +96,9 @@
     
     ; quantified variable
     [(node/expr/quantifier-var info arity sym)
-     (error (format "We should not be getting the bounds of a quantified variable ~a" sym))
+     (error (format
+             "We should not be getting the bounds of a quantified variable ~a"
+             sym))
      (printf "liftBounds quantified variable  ~a~n" sym)]
     
     ; set comprehension e.g. {n : Node | some n.edges}
@@ -98,12 +121,14 @@
     ; SET UNION 
     [(? node/expr/op/+?)
      (printf "liftBounds +~n")
-     ; The upper bound of the LHS and RHS is just the addition between both bounds  
+     ; The upper bound of the LHS and RHS is just the addition between both
+     ; bounds  
      (define uppers 
        (map (lambda (arg)
               (liftBoundsExpr arg quantvars runContext)) args))
      ; We are assuming that uppers is a list of list of list of atoms 
-     ; therefore, by calling 'apply', we can convert this into a list of list of atoms. 
+     ; therefore, by calling 'apply', we can convert this into a list of list of
+     ; atoms. 
      (remove-duplicates (apply append uppers))]
     
     ; SET MINUS 
@@ -119,7 +144,8 @@
        (map (lambda (arg)
               (liftBoundsExpr arg quantvars runContext)) args))
      ; filter to filter out the LHS only if they are also in upper bounds of RHS
-     (filter (lambda (x) (member x (first upperBounds))) (apply append (rest upperBounds)))]
+     (filter (lambda (x) (member x (first upperBounds)))
+             (apply append (rest upperBounds)))]
 
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -146,7 +172,8 @@
                  (liftBoundsExpr arg quantvars runContext)) args))
         ; Note: assumes certain direction of associativity
         (define newTuples (joinTuple (first uppers) (second uppers)))
-        (foldl (lambda (curr acc) (joinTuple acc curr)) newTuples (rest (rest uppers)))])]
+        (foldl (lambda (curr acc) (joinTuple acc curr))
+               newTuples (rest (rest uppers)))])]
 
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
@@ -156,9 +183,12 @@
     ; REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
      (printf "liftBounds *~n")
-     (define closure (buildClosureOfTupleSet (liftBoundsExpr (first args) quantvars runContext)))
+     (define closure (buildClosureOfTupleSet
+                      (liftBoundsExpr (first args) quantvars runContext)))
      ; We remove duplicates before we are appending 'iden
-     (remove-duplicates (append closure (map (lambda (x) (list x x)) (forge:Run-atoms runContext))))]
+     (remove-duplicates
+      (append closure (map (lambda (x) (list x x))
+                           (forge:Run-atoms runContext))))]
 
     ; TRANSPOSE 
     [(? node/expr/op/~?)
@@ -179,9 +209,17 @@
     [(node/int/constant info value)
      (printf "liftBounds int constant base case -~n")
      (define allBounds (forge:Run-kodkod-bounds runContext)) 
-     (define filteredBounds (filter (lambda (b) (equal? "Int" (forge:relation-name (forge:bound-relation b)))) allBounds))
-     (cond [(equal? (length filteredBounds) 1) (forge:bound-upper (first filteredBounds))]
-           [else (error (format "liftBoundsExpr on ~a: didn't have a bound for ~a in ~a" expr "Int" allBounds))])]
+     (define filteredBounds (filter
+                             (lambda (b) (equal? "Int"
+                                                 (forge:relation-name
+                                                  (forge:bound-relation b))))
+                             allBounds))
+     (cond [(equal? (length filteredBounds) 1)
+            (forge:bound-upper (first filteredBounds))]
+           [else (error
+                  (format
+                   "liftBoundsExpr on ~a: didn't have a bound for ~a in ~a"
+                   expr "Int" allBounds))])]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)
@@ -194,7 +232,8 @@
      (printf "liftBounds sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       (liftBoundsExpr (node/expr/constant info 1 'Int) quantvars runContext))]))
+       (liftBoundsExpr (node/expr/constant info 1 'Int)
+                       quantvars runContext))]))
 
 (define (liftBoundsIntOp expr quantvars args runContext)
   (match expr
@@ -222,10 +261,19 @@
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "liftBounds cardinality~n")
-     (define allBounds (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
-     (define filteredBounds (filter (lambda (b) (equal? "Int" (forge:relation-name (forge:bound-relation b)))) allBounds))
-     (cond [(equal? (length filteredBounds) 1) (forge:bound-upper (first filteredBounds))]
-           [else (error (format "liftBoundsExpr on ~a: didn't have a bound for ~a in ~a" expr "Int" allBounds))])]
+     (define allBounds
+       (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
+     (define filteredBounds (filter
+                             (lambda (b)
+                               (equal? "Int"
+                                       (forge:relation-name
+                                        (forge:bound-relation b))))
+                             allBounds))
+     (cond [(equal? (length filteredBounds) 1)
+            (forge:bound-upper (first filteredBounds))]
+           [else (error (format
+                         "liftBoundsExpr on ~a: didn't have a bound for ~a in ~a"
+                         expr "Int" allBounds))])]
     
     ; remainder/modulo
     [(? node/int/op/remainder?)
