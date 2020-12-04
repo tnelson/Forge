@@ -330,7 +330,7 @@
      (cond
        [(!(equal? (length args) 2))
         (error("Setminus should not be given more than two arguments ~n"))]
-       [else 
+       [else
         ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) and
         ;  (not(currTupIfAtomic in RHS))
         (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext info))

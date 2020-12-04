@@ -6,7 +6,8 @@
 (define (transposeTup tuple)
   (cond 
     [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
-    [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length tuple))]))
+    [else (error "transpose tuple for tup ~a isn't arity 2. It has arity ~a"
+                 tuple (length tuple))]))
 
 
 ; Helper to join Tuples together

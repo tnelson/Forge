@@ -183,15 +183,14 @@
 ; SETMINUS
 ; (currTupIfAtomic in LHS) and (not(currTupIfAtomic in RHS))
 #|(define setMinusTest (- Node Node))
-(define LHS (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
-(define RHS (node/formula/op/! info (list node/formula/op/in info (list currTupIfAtomicExpr (second args)))))
-(define desugaredChild (desugarExpr Node '() '(Node) udt #t))
-(define desugaredWithOr (node/formula/op/&& empty-nodeinfo (list desugaredChild desugaredChild)))
+(define LHSSetMinus (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
+(define RHSSetMinus (node/formula/op/! info (list node/formula/op/in info (list currTupIfAtomicExpr (second args)))))
+(define desugaredSetMinus (node/formula/op/&& info (list LHSSetMinus RHSSetMinus)))
 (@test-case
  "TEST UNION expression"
  (@check-equal?
-  (toString (desugarExpr unionTest '() '(Node) udt #t))
-  (toString desugaredWithOr)))|#
+  (toString (desugarExpr setMinusTest '() '(Node) udt #t))
+  (toString (desugarFormula desugaredSetMinus quantVars runContext currSign))))|#
 
 ; INTERSECTION
 
