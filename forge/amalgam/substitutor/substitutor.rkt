@@ -31,7 +31,8 @@
     ; multiplicity formula (some, one, ...) 
     [(node/formula/multiplicity info mult expr)
       (printf "substitutor multiplicity formula ~n")
-      (multiplicity-formula info mult (substituteExpr expr quantvars target value))]
+      (multiplicity-formula info mult
+                            (substituteExpr expr quantvars target value))]
 
     ; quantified formula (some x : ... or all x : ...)
     ; decls: ([n1 Node] [n2 Node] [c City.edges])
@@ -40,16 +41,22 @@
      ; might be multiple variables in one quantifier e.g. some x1, x2: Node | ...
      (define vars (map car decls))
      ; error checking
-     (for-each (lambda (qv)
-                 (when (equal? (toStringSub qv) (toStringSub target))
-                   (error (format "substitution encountered quantifier that shadows substitution target ~a" target)))
-                 (when (member qv quantvars)
-                   (error (format "substitution encountered shadowed quantifier ~a" qv))))
-                 vars)
+     (for-each
+      (lambda (qv)
+        (when (equal? (toStringSub qv) (toStringSub target))
+          (error
+           (format
+            "substitution encountered quantifier that shadows substitution target ~a"
+            target)))
+        (when (member qv quantvars)
+          (error
+           (format "substitution encountered shadowed quantifier ~a" qv)))) vars)
      (let ([quantvars (append vars quantvars)])       
-       (quantified-formula info quantifier
-                           (map (lambda (decl)
-                                  (cons (car decl) (substituteExpr (cdr decl) quantvars target value))) decls)
+       (quantified-formula
+        info quantifier
+        (map (lambda (decl)
+               (cons (car decl)
+                     (substituteExpr (cdr decl) quantvars target value))) decls)
                            (substituteFormula subform quantvars target value)))]    
     [else (error (format "no matching case in substitution for ~a" formula))]))
 
@@ -59,40 +66,49 @@
     ; AND 
      [(? node/formula/op/&&?)
      (printf "substitutor && ~n")
-     (define substitutedArgs (map (lambda (x) (substituteFormula x quantvars target value)) args))
+     (define substitutedArgs
+       (map (lambda (x) (substituteFormula x quantvars target value)) args))
      (node/formula/op/&& info substitutedArgs)]
 
     ; OR
      [(? node/formula/op/||?)
      (printf "substitutor || ~n")
-     (define substitutedArgs (map (lambda (x) (substituteFormula x quantvars target value)) args))
+     (define substitutedArgs
+       (map (lambda (x) (substituteFormula x quantvars target value)) args))
      (node/formula/op/|| info substitutedArgs)]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
      (printf "substitutor => ~n")
-     (define substitutedLHS (substituteFormula  (first args) quantvars target value))
-     (define substitutedRHS (substituteFormula  (second args) quantvars target value))
+     (define substitutedLHS
+       (substituteFormula  (first args) quantvars target value))
+     (define substitutedRHS
+       (substituteFormula  (second args) quantvars target value))
      (node/formula/op/=> info (list substitutedLHS substitutedRHS))]
 
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
      (printf "substitutor in ~n")
-     (define substitutedLHS (substituteExpr (first args) quantvars target value))
-     (define substitutedRHS (substituteExpr (second args) quantvars target value))
+     (define substitutedLHS
+       (substituteExpr (first args) quantvars target value))
+     (define substitutedRHS
+       (substituteExpr (second args) quantvars target value))
      (node/formula/op/in info (list substitutedLHS substitutedRHS))]
 
     ; EQUALS 
     [(? node/formula/op/=?)
      (printf "substitutor = ~n")
-     (define substitutedLHS (substituteExpr  (first args) quantvars target value))
-     (define substitutedRHS (substituteExpr  (second args) quantvars target value))
+     (define substitutedLHS
+       (substituteExpr  (first args) quantvars target value))
+     (define substitutedRHS
+       (substituteExpr  (second args) quantvars target value))
      (node/formula/op/= info (list substitutedLHS substitutedRHS))]
 
     ; NEGATION
     [(? node/formula/op/!?)
      (printf "substitutor ! ~n")
-     (define substitutedEntry (substituteFormula (first args) quantvars target value))
+     (define substitutedEntry
+       (substituteFormula (first args) quantvars target value))
      (node/formula/op/! info (list substitutedEntry))]   
 
     ; INTEGER >
@@ -107,7 +123,8 @@
 
 (define (substituteExpr expr quantvars target value)
   ; Error message to check that we are only taking in expressions
-  (unless (node/expr? expr) (error (format "substituteExpr called on non-expr: ~a" expr)))
+  (unless (node/expr? expr)
+    (error (format "substituteExpr called on non-expr: ~a" expr)))
   (match expr
 
     ; relation name (base case)
@@ -155,17 +172,22 @@
      (printf "substitutor set comprehension ~n")
       ; account for multiple variables  
      (define vars (map car decls))
-     (for-each (lambda (v)
-                 (when (equal? (toStringSub v) (toStringSub target))
-                   (error (format "substitution encountered quantifier that shadows substitution target ~a" target)))
-                 (when (member v quantvars)
-                   (error (format "substitution encountered shadowed quantifier ~a" v))))
+     (for-each
+      (lambda (v)
+        (when (equal? (toStringSub v) (toStringSub target))
+          (error
+           (format
+            "substitution encountered quantifier that shadows substitution target ~a" target)))
+        (when (member v quantvars)
+          (error (format "substitution encountered shadowed quantifier ~a" v))))
                  vars)
      (let ([quantvars (append vars quantvars)])       
      (printf "comprehension over ~a~n" vars)              
-       (comprehension info
-                      (map (lambda (decl)
-                             (cons (car decl) (substituteExpr (cdr decl) quantvars target value))) decls)
+       (comprehension
+        info
+        (map (lambda (decl)
+               (cons (car decl)
+                     (substituteExpr (cdr decl) quantvars target value))) decls)
                       (substituteFormula subform quantvars target value)))]
 
     [else (error (format "no matching case in substitution for ~a" expr))]))
@@ -186,7 +208,8 @@
     [(? node/expr/op/-?)
      (printf "substitutor - ~n")
      (cond
-       [(not(equal? (length args) 2)) (error("Setminus should not be given more than two arguments ~n"))]
+       [(not(equal? (length args) 2))
+        (error("Setminus should not be given more than two arguments ~n"))]
        [else 
         (define LHS (substituteExpr (first args) quantvars target value))
         (define RHS (substituteExpr (second args) quantvars target value))
@@ -238,13 +261,15 @@
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (printf "substitutor ~ ~n")
-     (define substitutedEntry (substituteExpr (first args) quantvars target value))
+     (define substitutedEntry
+       (substituteExpr (first args) quantvars target value))
      (node/expr/op/~ info (node/expr-arity expr) (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (printf "substitutor sing ~n")
-     (define substitutedEntry (substituteInt (first args) quantvars target value))
+     (define substitutedEntry
+       (substituteInt (first args) quantvars target value))
      (node/expr/op/sing info (node/expr-arity expr) (list substitutedEntry))]))
 
 (define (substituteInt expr quantvars target value)
@@ -268,15 +293,22 @@
       (printf "substitutor sum ~n")
       ; account for multiple variables  
      (define vars (map car decls))
-     (for-each (lambda (v)
-                 (when (equal? (toStringSub v) (toStringSub target))
-                   (error (format "substitution encountered quantifier that shadows substitution target ~a" target)))
-                 (when (member v quantvars)
-                   (error (format "substitution encountered shadowed quantifier ~a" v)))) vars)
+     (for-each
+      (lambda (v)
+        (when (equal? (toStringSub v) (toStringSub target))
+          (error
+           (format
+            "substitution encountered quantifier that shadows substitution target ~a"
+            target)))
+        (when (member v quantvars)
+          (error (format "substitution encountered shadowed quantifier ~a" v))))
+      vars)
      (let ([quantvars (append vars quantvars)])
        (sum-quant-expr info
                       (map (lambda (decl)
-                             (cons (car decl) (substituteExpr (cdr decl) quantvars target value))) decls)
+                             (cons (car decl)
+                                   (substituteExpr
+                                    (cdr decl) quantvars target value))) decls)
                       (substituteInt int-expr quantvars target value)))]))
 
 (define (substituteIntOp expr quantvars args info target value)
@@ -305,7 +337,8 @@
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (printf "substitutor cardinality ~n")
-     (define substitutedEntry (substituteExpr (first args) quantvars target value))
+     (define substitutedEntry
+       (substituteExpr (first args) quantvars target value))
      (node/int/op/card info (list substitutedEntry))]  
     
     ; remainder/modulo
