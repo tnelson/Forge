@@ -798,6 +798,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (println "tests")
           (update-state! temp-state))]))
 
+; TODO: instance isn't used
+;  always evaluates with respect to solver's current state
 (define (evaluate run instance expression)
   (unless (is-sat? run)
     (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))

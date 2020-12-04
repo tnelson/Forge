@@ -385,6 +385,26 @@
      ; Re-write join as an existentialist formula
      (cond
        [(@>= (node/expr-arity expr) 1)
+
+        ; Example of how to do it like the Java code does:
+        ; t in A.B ~~~~> OR_{ta : UB(A), tb: UB(B) | ta.tb = t } (ta in A and tb in B)
+        (define UBA (lift-upper-bound (first args)))
+        (define UBB (lift-upper-bound (second args)))
+        ; TODO: >2 arguments: have a case where arity > 2, convert (A.B.C) to (A.B).C
+        (define all-pairs (cartestian-product UBA UBB))
+        (define new-args
+          (filter-map
+           (lambda (lstpr)
+             (define-values (ta tb) (values (first lstpr) (second lstpr)))
+                        (cond [(equals? (joinTuple ta tb) currTupIfAtomic)
+                               (desugar-formula
+                                (node/formula/op/and (node/formula/op/in ta A)
+                                                     (node/formula/op/in tb B)))]
+                              [else #f]))
+           all-pairs))
+        
+
+        
         ; TODO: should currRupIfAtomic change in this recursive call?
         (define desugaredArgs
           (map (lambda (currArg)
