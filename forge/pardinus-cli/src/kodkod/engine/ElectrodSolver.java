@@ -221,6 +221,7 @@ public class ElectrodSolver implements UnboundedSolver<ExtendedOptions>,
 			}
 			writer = new PrintWriter(file+".elo");
 		} catch (Exception e) {
+			System.out.println("Solution");
 			rep.debug(e.getMessage());
 			throw new AbortedException("Electrod problem generation failed.", e);
 		}

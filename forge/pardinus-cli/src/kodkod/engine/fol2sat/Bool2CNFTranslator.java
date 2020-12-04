@@ -63,12 +63,13 @@ abstract class Bool2CNFTranslator implements BooleanVisitor<int[], Object> {
 	 *          meaning(circuit) = meaning(cnf.clauses)
 	 */
 	static SATSolver translate(final BooleanFormula circuit, final int maxPrimaryVar, final SATFactory factory) {
-		final int maxLiteral = StrictMath.abs(circuit.label());		
+		final int maxLiteral = StrictMath.abs(circuit.label());	
 		final Bool2CNFTranslator translator = new Bool2CNFTranslator(factory.instance()) {
 			final PolarityDetector pdetector = (new PolarityDetector(maxPrimaryVar, maxLiteral)).apply(circuit);
 			boolean positive(int label) { return pdetector.positive(label); }
 			boolean negative(int label) { return pdetector.negative(label); }
 		};
+		
 		return translator.translate(circuit, maxPrimaryVar).solver;
 	}
 	

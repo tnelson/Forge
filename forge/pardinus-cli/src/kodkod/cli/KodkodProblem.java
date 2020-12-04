@@ -321,6 +321,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * @return true
 	 */
 	final boolean startBuild() {
+		System.out.println("startbuild");
 		buildTimeMillis = System.currentTimeMillis();
 		return true;
 	}
@@ -334,6 +335,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * @return true
 	 */
 	final boolean endBuild() {
+		System.out.println("endbuild");
 		buildTimeMillis = System.currentTimeMillis() - buildTimeMillis;
 		return true;
 	}
@@ -350,6 +352,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * @return true
 	 */
 	final boolean setMaxSolutions(long maxSolutions) {
+		System.out.println("maxSol");
 		if (maxSolutions < 1)
 			throw new ActionException("Expected maxSolutions > 0, given " + maxSolutions);
 		this.maxSolutions = maxSolutions;
@@ -381,6 +384,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 		try {
 			options.setBitwidth(bitwidth);
 		} catch (IllegalArgumentException ex) {
+			System.out.println("sb");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -390,6 +394,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 		try {
 			options.setSymmetryBreaking(sb);
 		} catch (IllegalArgumentException ex) {
+			System.out.println("sb 2");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -399,6 +404,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 		try {
 			options.setSkolemDepth(sd);
 		} catch (IllegalArgumentException ex) {
+			System.out.println("skolem");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -407,6 +413,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 		try {
 			options.setCoreGranularity(gran);
 		} catch (IllegalArgumentException ex) {
+			System.out.println("cg");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -415,6 +422,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 		try {
 			options.setLogTranslation(lt);
 		} catch (IllegalArgumentException ex) {
+			System.out.println("lt");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -431,10 +439,13 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * Changed for Pardinus
 	 */
 	boolean setSatSolver(SATFactory solver) {
+		System.out.println("setSAT");
+		System.out.println(solver);
 		if (SATFactory.available(solver)) {
 			options.setSatSolver(solver);
 			return true;
 		} else {
+			//System.out.println("setSat");
 			throw new ActionException(solver.toString() + " is not available on this system. Searched " + System.getProperty("java.library.path"));
 		}
 	}
@@ -487,6 +498,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 				options.setCoreGranularity(0);
 			}
 		} catch (IllegalArgumentException ex) {
+			System.out.println("coreExtraction");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -504,6 +516,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 	 * @ensures no this.bounds'.intBound && no this.bounds'.lowerBound && no this.bounds'.upperBound
 	 */
 	final boolean declareUniverse(int size) {
+		System.out.println("declareUniverse");
 		if (bounds != null)
 			throw new ActionException("Universe already defined.");
 		try {
@@ -515,6 +528,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 			final Universe universe = new Universe(atoms);
 			bounds = new PardinusBounds(universe);
 		} catch (IllegalArgumentException ex) {
+			
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -557,6 +571,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 				bounds.boundExactly(i, f.setOf(atom));
 			}
 		} catch (IllegalArgumentException ex) {
+			System.out.println("ints");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 
@@ -587,6 +602,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 				declaredRelation(r, lower, upper);
 			}
 		} catch (RuntimeException ex) {
+			System.out.println("dr");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -604,6 +620,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 				declaredRelation(x, lower, upper);
 			}
 		} catch (RuntimeException ex) {
+			System.out.println("dvr");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -621,6 +638,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 				bounds.setTarget(rel, tuple);
 			}
 		} catch (RuntimeException ex) {
+			System.out.println("Target");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -766,7 +784,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 		}
 
 		public KodkodProblem solve(KodkodOutput out) {
-//			System.out.println("SOLVE!!!");
+			//System.out.println("SOLVE!!!");
 			if (isSolved()){
                 assert (this.iteration >= 0);
                 this.iteration++;
@@ -819,7 +837,8 @@ import static kodkod.cli.KodkodFactory.tuple;
 				Iterator<Solution> solved = solver.solveAll(asserts(), bounds());
 				return new Stepper(this, solved).solve(out);
 			} catch (RuntimeException ex){
-				ex.printStackTrace();
+				//ex.printStackTrace();
+				System.out.println("kkp solve");
 				throw new ActionException(ex.getMessage(), ex);
 			}
 		}
@@ -895,6 +914,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 
 			@Override
 			public KodkodProblem solve(KodkodOutput out) {
+				System.out.println("solve");
 				if (!isSolved() && flip_target) {
 					PardinusBounds pb = (PardinusBounds) bounds();
 
@@ -933,6 +953,8 @@ import static kodkod.cli.KodkodFactory.tuple;
 		public KodkodProblem clear() { return new Complete(this) ; }
 
 		public KodkodProblem solve(KodkodOutput out) {
+			System.out.println("solve 2");
+			System.out.println(super.options.solver());
 			try {
 				if (maxSolutions()==1) {
 					write(out, solver.solve(asserts(), bounds()));
@@ -941,6 +963,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 				}
 				return clear();
 			} catch (RuntimeException ex) {
+				System.out.println("kkp 2");
 				throw new ActionException(ex.getMessage(), ex);
 			}
 		}
@@ -973,6 +996,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 		}
 
 		public final KodkodProblem solve(KodkodOutput out) {
+			System.out.println("solve 3");
 			try {
 				if (solver==null)
 					solver = IncrementalSolver.solver(options());
@@ -980,6 +1004,7 @@ import static kodkod.cli.KodkodFactory.tuple;
 				KodkodServer.lastModel = null;
 				return extend();
 			} catch (RuntimeException ex) {
+				System.out.println("kkp 3");
 				throw new ActionException(ex.getMessage(), ex);
 			}
 		}

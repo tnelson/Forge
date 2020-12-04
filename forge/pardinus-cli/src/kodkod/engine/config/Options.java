@@ -157,7 +157,8 @@ public class Options implements Cloneable, BoundedOptions {
 			throw new NullPointerException();
 		this.bddSolver = null;
 		this.solverType = SolverType.SAT;
-		this.satSolver = solver;	
+		this.satSolver = solver;
+		
 	}
 	
 	/**
@@ -511,7 +512,7 @@ public class Options implements Cloneable, BoundedOptions {
 	@Override
 	public SATFactory solver() {
 		// TODO Auto-generated method stub
-		return null;
+		return this.satSolver;
 	}
 
 	@Override

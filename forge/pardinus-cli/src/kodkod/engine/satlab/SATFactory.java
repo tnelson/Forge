@@ -55,11 +55,13 @@ public abstract class SATFactory {
 	public static final boolean available(SATFactory factory) {
 		SATSolver solver = null;
 		try {
+			System.out.println("available");
 			solver = factory.instance();
 			solver.addVariables(1);
 			solver.addClause(new int[]{1});
 			return solver.solve();
 		} catch (RuntimeException|UnsatisfiedLinkError t) {	
+			System.out.println("not available");
 			return false;
 		} finally {
 			if (solver!=null) {
@@ -313,8 +315,9 @@ public abstract class SATFactory {
 	 */
 	// [HASLab] unbounded info
 	public static final SATFactory externalFactory(final String executable, final String cnf, final boolean incremental, final boolean unbounded, final String... options) {
+		System.out.println("external");
 		return new SATFactory() {
-
+			
 			@Override
 			public SATSolver instance() {
 				if (cnf != null) {

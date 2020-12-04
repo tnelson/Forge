@@ -128,6 +128,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @ensures this.problem' = problem
      */
     public boolean setProblem(KodkodProblem problem) {
+    	System.out.println("setProb");
         if (problem == null)
             System.exit(0);
         this.problem = problem;
@@ -158,6 +159,7 @@ public class KodkodParser extends BaseParser<Object> {
     // even possible)
 
     public Rule StepperServe() {
+    	System.out.println("StepperServe");
         return Sequence(
                 Space(),
                 FirstOf(Sequence(Solve(), Optional(FirstOf(Clear(), Exit()))),
@@ -167,6 +169,7 @@ public class KodkodParser extends BaseParser<Object> {
 
     @Cached
     public Rule StepperProblem() {
+    	System.out.println("stepper");
         return Sequence(
                 Space(), problem.startBuild(),
                 Configure(),
@@ -181,6 +184,7 @@ public class KodkodParser extends BaseParser<Object> {
 
     @Cached
     public Rule TargetOrientedProblem() {
+       	System.out.println("TOP");
         return Sequence (
                 Space(), problem.startBuild(),
                 Configure(),
@@ -249,6 +253,7 @@ public class KodkodParser extends BaseParser<Object> {
      */
     @Cached
     public Rule IncrementalProblem() {
+    	System.out.println("Inc");
         return Sequence(
                 Space(), problem.startBuild(),
                 ZeroOrMore(FirstOf(DeclareRelation(),
@@ -268,6 +273,7 @@ public class KodkodParser extends BaseParser<Object> {
      * (:verbosity NatLiteral) | (:max-solutions NatLiteral))+ RPAR)*
      **/
     Rule Configure() {
+    	//System.out.println("config");
         return ZeroOrMore(
                 LPAR,
                 CONFIG,
@@ -275,7 +281,7 @@ public class KodkodParser extends BaseParser<Object> {
                           FirstOf(
                                   Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
                                   // Changed for Pardinus
-                                  // Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
+                                   Sequence(Keyword("solver"), SatSolver(), problem.setSatSolver((SATFactory) pop())),
                                   Sequence(Keyword("solver"), BddSolver(), problem.setBddSolver((BDDSolverFactory) pop())),
                                   Sequence(Keyword("solver"), DistinctPathBddSolver(), problem.setBddSolver((BDDSolverFactory) pop(), true)),
                                   Sequence(Keyword("bitwidth"), NatLiteral(), problem.setBitwidth(popInt())),
@@ -295,12 +301,13 @@ public class KodkodParser extends BaseParser<Object> {
     @SuppressSubnodes
     @MemoMismatches
     Rule SatSolver() {
+    	System.out.println("satSolver");
         return FirstOf(Sequence(Keyword("MiniSatProver"),   push(SATFactory.MiniSatProver)),
                        Sequence(Keyword("MiniSat"),         push(SATFactory.MiniSat)),
                        Sequence(Keyword("Glucose"),         push(SATFactory.Glucose)),
                        Sequence(Keyword("Lingeling"),       push(SATFactory.Lingeling)),
                        Sequence(Keyword("SAT4J"),           push(SATFactory.DefaultSAT4J)),
-                       Sequence(Keyword("TargetSATSolver"), push(SATFactory.PMaxSAT4J)),//); //),
+                       Sequence(Keyword("TargetSATSolver"), push(SATFactory.PMaxSAT4J)), //)); //),
                        Sequence(Sequence(FilePathLiteral(), Space()),
                                  push(SATFactory.externalFactory(popString(),"customSolver.temp",false,false)))
                          ); //Removed for Pardinus
@@ -308,7 +315,6 @@ public class KodkodParser extends BaseParser<Object> {
 
     
     /**
-     * @return BuDDy
      */
      @SuppressSubnodes
      @MemoMismatches
@@ -330,6 +336,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @return LPAR UNIV NatLiteral RPAR
      */
     Rule DeclareUniverse() {
+    	//System.out.println("Declareuniv");
         return Sequence(
                 LPAR,
                 UNIV, NatLiteral(), problem.declareUniverse(popInt()),
@@ -340,6 +347,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @return LPAR INTS LBRK (LPAR IntLiteral NatLiteral RPAR)+ RBRK RPAR
      */
     Rule DeclareInts() {
+    	//System.out.println("DeclareInt");
         final Var<List<Integer>> ints = new Var<>();
         return Sequence(
                 LPAR,
@@ -358,6 +366,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @return LPAR Identifier('r')+ LBRK TupleSet [DOUBLECOLON? TupleSet]? RBRK RPAR
      */
     Rule DeclareRelation() {
+    	//System.out.println("DecRel");
         final Var<List<String>> names = new Var<>();
         final Var<TupleSet> lower = new Var<>(), upper = new Var<>();
         return Sequence(
@@ -490,6 +499,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @return LPAR NodeDef RPAR
      */
     Rule DefNode() {
+    	//System.out.println("defNode");
         return Sequence(LPAR, NodeDef(), RPAR);
     }
 
@@ -525,6 +535,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @return LPAR ASSERT Use('f')+ RPAR
      */
     Rule Assert() {
+    	//System.out.println("Assert");
         return Sequence(
                 LPAR,
                 ASSERT,
@@ -536,6 +547,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @return LPAR EVALUATE Use('e') | Use('i') | Use('f') RPAR
      */
     Rule Evaluate() {
+    	System.out.println("eval");
         return Sequence(
                 LPAR,
                 EVALUATE,
@@ -549,6 +561,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @return (Solve Clear ?) | Clear | Exit?
      */
     Rule Serve() {
+    	System.out.println("Serve");
         return Sequence(
                 FirstOf(Sequence(Solve(), Optional(Clear())),
                         Clear()),
@@ -561,6 +574,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @ensures setProblem(this.problem.solve ())
      **/
     Rule Solve() {
+    	//System.out.println("SOLVE");
         return Sequence(LPAR, SOLVE, RPAR, setProblem(problem.solve(out)));
     }
 
@@ -569,6 +583,7 @@ public class KodkodParser extends BaseParser<Object> {
      * @ensures setProblem(this.problem.clear ())
      **/
     Rule Clear() {
+    	System.out.println("clear");
         return Sequence(LPAR, CLEAR, RPAR, setProblem(problem.clear()));
     }
 
@@ -1066,6 +1081,7 @@ public class KodkodParser extends BaseParser<Object> {
      */
     @SuppressSubnodes
     Rule NatLiteral() {
+    	//System.out.println("nat");
         return Sequence(OneOrMore(Digit()), push(Integer.parseInt(match())), Space());
     }
 
@@ -1096,6 +1112,7 @@ public class KodkodParser extends BaseParser<Object> {
 
     @SuppressSubnodes
     Rule FilePathLiteral() {
+    	//System.out.println("fplit");
         return Sequence('"', ZeroOrMore(FilePathChar()).suppressSubnodes(), push(match()), '"');
     }
 
@@ -1121,12 +1138,15 @@ public class KodkodParser extends BaseParser<Object> {
     //  Spacing
     //-------------------------------------------------------------------------
     Rule Space() {
+    	System.out.println("space");
         return ZeroOrMore(FirstOf(
                 OneOrMore(AnyOf(" \t\r\n\f")),                        // whitespace
-                Sequence(";",                                        // end of line comment
+                Sequence(";", 	  // end of line comment
                          ZeroOrMore(TestNot(AnyOf("\r\n")), ANY),
                          FirstOf("\r\n", '\r', '\n', EOI))));
     }
+    
+
 
     //-------------------------------------------------------------------------
     //  Separators
@@ -1251,6 +1271,7 @@ public class KodkodParser extends BaseParser<Object> {
     Rule NotSpace() { return NoneOf(" \n\t()[]{}"); }
 
     Rule FilePathChar() {
+    	//System.out.println("fpchar");
         return Sequence(TestNot(AnyOf("\"\n\r")), ANY);
     }
 
@@ -1262,6 +1283,7 @@ public class KodkodParser extends BaseParser<Object> {
     }
 
     final String popString() {
+    	System.out.println("popString");
         return (String) pop();
     }
 
@@ -1352,3 +1374,22 @@ public class KodkodParser extends BaseParser<Object> {
         return problem.env();
     }
 }
+
+//(configure :bitwidth 4 :solver "/Users/juliannerudner/Desktop/engn1970_ng/Pardinus+Electrum/Forge/forge/pardinus-cli/src/customSolver/python/solver.py⁩" :max-solutions 1 :verbosity 7 :sb 5 :core-gran 0 :log-trans 0)
+//(univ 18)
+//(ints [(-8 0)(-7 1)(-6 2)(-5 3)(-4 4)(-3 5)(-2 6)(-1 7)(0 8)(1 9)(2 10)(3 11)(4 12)(5 13)(6 14)(7 15)])
+//(r:Int [{(0) (1) (2) (3) (4) (5) (6) (7) (8) (9) (10) (11) (12) (13) (14) (15)} :: {(0) (1) (2) (3) (4) (5) (6) (7) (8) (9) (10) (11) (12) (13) (14) (15)}])
+//(r:Node [none :: {(16) (17)}])
+//(r:succ [{(0 1) (1 2) (2 3) (3 4) (4 5) (5 6) (6 7) (7 8) (8 9) (9 10) (10 11) (11 12) (12 13) (13 14) (14 15)} :: {(0 1) (1 2) (2 3) (3 4) (4 5) (5 6) (6 7) (7 8) (8 9) (9 10) (10 11) (11 12) (12 13) (13 14) (14 15)}])
+//(r:neighbors [(-> none none) :: {(16 16) (16 17) (17 16) (17 17)}])
+//(f:0 (&& (&& (&& (all ([v:n : one r:Node ] ) (in v:n (. v:n r:neighbors )))))))
+//(assert f:0)
+//(f:1 (&& (|| (< 0 (# r:Node ))(= 0 (# r:Node )))(|| (< (# r:Node )2 )(= (# r:Node )2 ))))
+//(assert f:1)
+//(f:2 (in r:succ (-> r:Int r:Int )))
+//(assert f:2)
+//(f:3 (in r:neighbors (-> r:Node r:Node )))
+//(assert f:3)
+//(solve)
+
+

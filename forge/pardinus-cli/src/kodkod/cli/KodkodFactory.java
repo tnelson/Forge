@@ -166,6 +166,7 @@ public final class KodkodFactory {
 			}
 			return out;
 		} catch (RuntimeException ex) {
+			System.out.println("compose");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -182,6 +183,7 @@ public final class KodkodFactory {
 			out.addAll(second);
 			return out;
 		} catch (RuntimeException ex) {
+			System.out.println("union");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -194,6 +196,7 @@ public final class KodkodFactory {
 		try {
 			return start.universe().factory().range(start, end);
 		} catch (RuntimeException ex) {
+			System.out.println("range");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -207,6 +210,7 @@ public final class KodkodFactory {
 		try {
 			return start.universe().factory().area(start, end);
 		} catch (RuntimeException ex) {
+			System.out.println("area");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -219,6 +223,7 @@ public final class KodkodFactory {
 		try {
 			return t.universe().factory().setOf(t);
 		} catch (RuntimeException ex) {
+			System.out.println("set of");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -231,6 +236,7 @@ public final class KodkodFactory {
 		try {
 			ts.add(t);
 		} catch (RuntimeException ex) {
+			System.out.println("add");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 		return true;
@@ -247,6 +253,7 @@ public final class KodkodFactory {
 		try {
 			return factory.tuple(atoms);
 		} catch (RuntimeException ex) {
+			System.out.println("tuple");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -265,6 +272,7 @@ public final class KodkodFactory {
 			//System.out.println(expr);
 			return Variable.nary(name, expr.arity()).declare(mult, expr);
 		} catch (RuntimeException ex) {
+			System.out.println("dvar");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -290,6 +298,7 @@ public final class KodkodFactory {
 				return out;
 			}
 		} catch (RuntimeException ex) {
+			System.out.println("comp 2");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -313,6 +322,7 @@ public final class KodkodFactory {
 				return out;
 			}
 		} catch (RuntimeException ex) {
+			System.out.println("compose_temp");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -328,6 +338,7 @@ public final class KodkodFactory {
 		try {
 			return left.compare(op, right);
 		} catch (RuntimeException ex) {
+			System.out.println("compare");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -339,6 +350,7 @@ public final class KodkodFactory {
 		try {
 			return r.acyclic();
 		} catch (RuntimeException ex) {
+			System.out.println("acyclic");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -350,6 +362,7 @@ public final class KodkodFactory {
 		try {
 			return ord.totalOrder(ordered, first, last);
 		} catch (RuntimeException ex) {
+			System.out.println("tot ord");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -393,6 +406,7 @@ public final class KodkodFactory {
 		try {
 			return formula.comprehension(decls);
 		} catch (RuntimeException ex) {
+			System.out.println("compre");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -404,6 +418,7 @@ public final class KodkodFactory {
 		try {
 			return formula.thenElse(thenExpr, elseExpr);
 		} catch (RuntimeException ex) {
+			System.out.println("ite");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}
@@ -435,6 +450,7 @@ public final class KodkodFactory {
 				return args.get(0).apply(op);
 			}
 		} catch (RuntimeException ex) {
+			System.out.println("comp 3");
 			throw new ActionException(ex.getMessage(), ex); // wrap
 		}
 	}

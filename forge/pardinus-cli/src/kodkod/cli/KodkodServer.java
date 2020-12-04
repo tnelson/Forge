@@ -287,6 +287,7 @@ public final class KodkodServer {
 		try(FileReader fr = new FileReader(file)) {
 			serve(read(fr));
 		} catch (IOException e) {
+			System.out.println("serve"); 
 			Logger.getGlobal().severe(e.getMessage());
 		}
 	}
@@ -302,6 +303,7 @@ public final class KodkodServer {
 				serve(read(ir));
 			}
 		} catch (IOException e) {
+			System.out.println("serve 2"); 
 			Logger.getGlobal().severe(e.getMessage());
 		}
 	}
@@ -362,7 +364,6 @@ public final class KodkodServer {
 	 * {@code java kodkod.cli.KodkodServer -help} for usage options.
 	 */
 	public static void main(String[] args) {
-
 		boolean incremental = false, fastParsing = false, stepper = false, targetOriented = false;
 		String errorOut = null;
 
