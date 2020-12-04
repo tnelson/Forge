@@ -1,19 +1,27 @@
 #lang forge/core
 (require debug/repl)
-(provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct
-         createNewQuantifier projectTupleRange getColumnRight getColumnLeft)
 (require "../lift-bounds/lift-bounds.rkt")
 (require "../substitutor/substitutor.rkt")
 (require (prefix-in @ racket))
-(define (transitive-closure-helper orig-expr listOfJoins total-num-of-dots curr-num-of-dots info)
-  (cond
-    [(equal? curr-num-of-dots total-num-of-dots) listOfJoins]
-    [(equal? curr-num-of-dots 0)
-     (transitive-closure-helper orig-expr (append listOfJoins (list orig-expr)) total-num-of-dots (+ curr-num-of-dots 1) info)]
-    [else
-     (define nextJoin (node/expr/op/join info (node/expr-arity orig-expr) (list (last listOfJoins) orig-expr)))
-     (transitive-closure-helper orig-expr (append listOfJoins (list nextJoin)) total-num-of-dots (+ curr-num-of-dots 1) info)]))
 
+(provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct
+         createNewQuantifier projectTupleRange getColumnRight getColumnLeft
+         transitiveClosureHelper productHelper joinHelper)
+
+; input: origExpr - the first argument of transitive closure 
+;        listOfJoins - list containing all of the previous joins
+;        totalNumOfDots - The total number of dots that we want to see in the last join 
+;        info - info of the original node 
+; 
+; output: list containing all of the joins of a transitive closure 
+(define (transitiveClosureHelper origExpr listOfJoins totalNumOfDots currNumOfDots info)
+  (cond
+    [(equal? currNumOfDots totalNumOfDots) listOfJoins]
+    [(equal? currNumOfDots 0)
+     (transitiveClosureHelper origExpr (append listOfJoins (list origExpr)) totalNumOfDots (+ currNumOfDots 1) info)]
+    [else
+     (define nextJoin (node/expr/op/join info (node/expr-arity origExpr) (list (last listOfJoins) origExpr)))
+     (transitiveClosureHelper origExpr (append listOfJoins (list nextJoin)) totalNumOfDots (+ currNumOfDots 1) info)]))
 
 ; input: right - list of arguments
 ;        currTupIfAtomic - implicit LHS of expression
@@ -21,7 +29,7 @@
 ;        left - a list of arguments with previous results of the product
 ; 
 ; output: list containing two in nodes
-(define (product-helper left right currTupIfAtomic info runContext)
+(define (productHelper left right currTupIfAtomic info runContext)
   (define LHS (last left))
   (define RHS (first right))
   (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
@@ -32,37 +40,37 @@
   formulas)
 
 ; input:
+;      expr: overall expression of the entire join we are looking at
 ;      left: left hand side of our join
 ;      right: right hand side of our join
-;      expr: overall expression of the entire join we are looking at
 ;      info: info of original Node
-; output: quantified some representing join
-; return a list of LHS and RHS to be combined into a big AND
-(define (join-helper expr left right info)
+; output: re-writing join as a 'some existential formula. We return a
+;      quantified formula of all of the joins 
+(define (joinHelper expr left right info)
   (define rightColLHS (getColumnRight left))
   (define leftColRHS (getColumnLeft right))
   (define listOfColumns (list leftColRHS rightColLHS))
 
-  ; intersectColumns is a part of decls
   (define intersectColumns (node/expr/op/& info (node/expr-arity expr) listOfColumns))
-  (define x (node/expr/quantifier-var info 1 (gensym "join")))
-  (define new-decls (list (cons x intersectColumns)))
+  (define quantifiedVarJoin (node/expr/quantifier-var info 1 (gensym "join")))
+  (define newDecls (list (cons quantifiedVarJoin intersectColumns)))
  
-  (define LHSRange (projectTupleRange x 0 (- (node/expr-arity left) 1)))
-  (define RHSRange (projectTupleRange x (node/expr-arity left) (node/expr-arity right)))
+  (define LHSRange (projectTupleRange quantifiedVarJoin 0 (- (node/expr-arity left) 1)))
+  (define RHSRange (projectTupleRange quantifiedVarJoin (node/expr-arity left) (node/expr-arity right)))
   
-  (define LHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list LHSRange x)))
-  (define RHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list x RHSRange)))
+  (define LHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list LHSRange quantifiedVarJoin)))
+  (define RHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list quantifiedVarJoin RHSRange)))
   (define LHSIn (node/formula/op/in info (list LHSProduct left)))
   (define RHSIn (node/formula/op/in info (list RHSProduct right)))
 
-  (define join-and (node/formula/op/&& info (list LHSIn RHSIn)))
-  (node/formula/quantified info 'some new-decls join-and))
+  (define joinAnd (node/formula/op/&& info (list LHSIn RHSIn)))
+  (node/formula/quantified info 'some newDecls joinAnd))
 
-
-; Helper to transform a given tuple from the lifted-upper bounds function to a relation, and then do the product of all relations
-; to form an expression.
-; <info> argument is optional; if not passed, will default to empty-nodeinfo
+; input: tuple - the tuple that we want to convert into an expression 
+;        context - the run context of the program 
+;        info - info of original tuple 
+; 
+; output: the tuple as an expression, re-written as a node/expr/atom 
 (define (tup2Expr tuple context info)
   (when (equal? (length tuple) 0) (error (format "tupElem ~a is an empty list" tuple)))
   (when (not (list? tuple)) (error (format "tupElem ~a is not a list" tuple)))
@@ -75,49 +83,57 @@
      tuple))  
   (node/expr/op/-> info (length tupRelationList) tupRelationList))
 
-; Helper used to flip the currentTupleIfAtomic in the transpose case 
+; input: tuple - the tuple that we want to flip 
+; 
+; output: flipped (transposed) tuple  
 (define (transposeTup tuple)
   (cond 
     [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
     [else (error (format "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length tuple) ))]))
 
-; This helper checks the value of currTupIfAtomic and throws an error if it is empty. 
+; input:
+;      tup: The currentTupleIfAtomic that we are evaluating 
+;      expr: The expression that contains the currentTupleIfAtomic
+;
+; output: throws an error if the currentTupleIfAtomic doesn't have a context 
 (define (mustHaveTupleContext tup expr)
   (cond
     [(not(list? tup)) (error (format "currTupIfAtomic is not a list in ~a" expr))]
     [(equal? (length tup) 0)  (error (format "currTupIfAtomic has length 0 in ~a" expr))]
     [(list? (first tup)) (error (format "currTupIfAtomic ~a is not a tuple in ~a" tup expr))]))
 
-; Function isGroundProduct used to test whether a given expression is ground. 
+; input:
+;      expr: A given expression that has the possibility of being ground 
+;
+; output: returns true if the expr is ground, false if it isn't, and an error if something went wrong. 
 (define (isGroundProduct expr)
   (cond
     [(not (or (node/expr? expr) (node/int/constant? expr))) (error (format "expression ~a is not an expression or int constant." expr))]
-    ; Check if the expression is UNARY and if SUM or SING type. If so, call the function recursively.
-    ; we are not supporting SING or SUM
     [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
      (define args (node/expr/op-children expr))
      (isGroundProduct (first args))]
-    ; If the expression is a quantifier variable, return true 
     [(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
-    ; If the expression is of type PRODUCT, call function recurisvely on LHS and RHS of expr
     [(node/expr/op/->? expr)
      (define args (node/expr/op-children expr))
      (andmap isGroundProduct args)]
-    ; If the expression is a constant and a number, return true 
     [(node/int/constant? expr) #t]
-    ; atoms are also a base case
     [(node/expr/atom? expr) #t]
-    ; TODO: Should we check if expr is a relation?
-    ; If none of the above cases are true, then return false
     [else #f]
     ))
 
-; tuples are just Racket lists. remember that start is ZERO INDEXED
+; input:
+;      tup: The current tuple that we are getting the range of
+;      start: starting index
+;      len: end index 
+;
+; output: Returns the range of a given tuple 
 (define (projectTupleRange tup start len)
   (take (list-tail tup start) len))
 
-; Helper to get the right column of a relation. This should have the join on the LHS
-; (univ.(univ.node)) for node with arity 3
+; input:
+;      node: The node that we want to get the right column of 
+;
+; output: Returns the right column of a given node. For node with arity 3, it returns (univ.(univ.node))
 (define (getColumnRight node)
   (define arity (node/expr-arity node))
   (define info (node-info node))
@@ -125,8 +141,10 @@
         [(equal? 1 arity) node]
         [else (getColumnRight (node/expr/op/join info (- arity 1) (list univ node)))]))
 
-; Helper to get the left column of a relation. This should have the join on the RHS
-; (node.univ).univ for node with arity 3
+; input:
+;      node: The node that we want to get the left column of 
+;
+; output: Returns the right column of a given node. For node with arity 3, it returns (node.univ).univ
 (define (getColumnLeft node)
   (define arity (node/expr-arity node))
   (define info (node-info node))
@@ -134,40 +152,50 @@
         [(equal? 1 arity) node]
         [else (getColumnRight (node/expr/op/join info (- arity 1) (list node univ)))]))
 
-(define (createNewQuantifier decl quantvars subForm runContext info quantifier formula)
+; input:
+;      decl: The original decl for the quantifier that we are trying to re-write
+;      quantVars: the quantifiable variables of the run that we're calling this helper from
+;      subForm: the original subformula from the quantifier that we are re-writing
+;      runContext: the context for the program
+;      info: the original info of the node
+;      quantifier: the quantifier from the formula that we are trying to re-write
+;      formula: the quantifier formula 
+;
+; output: Returns a big AND or OR of the subformulas 
+(define (createNewQuantifier decl quantVars subForm runContext info quantifier formula)
   (unless (not (and (null? (car decl)) (null? (cdr decl))))
     (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
   (define var (car decl)) 
   (define domain (cdr decl)) 
-  (let ([quantvars (cons var quantvars)])  
+  (let ([quantVars (cons var quantVars)])  
     ; gives us list of all possible bindings to this variable
-    (define lifted-bounds (lift-bounds-expr domain quantvars runContext))
-    ; produce a list of subformulas each substituted with a possible binding for the variable
-    (define subformulas (map (lambda (tup)
-                               (substitute-formula subForm quantvars var (tup2Expr tup runContext info)))
-                             lifted-bounds))
+    (define liftedBounds (liftBoundsExpr domain quantVars runContext))
+    ; produce a list of subFormulas each substituted with a possible binding for the variable
+    (define subFormulas (map (lambda (tup)
+                               (substituteFormula subForm quantVars var (tup2Expr tup runContext info)))
+                             liftedBounds))
     
-    (cond [(equal? quantifier 'some) (node/formula/op/|| info subformulas)]
-          [(equal? quantifier 'all) (node/formula/op/&& info subformulas)]
+    (cond [(equal? quantifier 'some) (node/formula/op/|| info subFormulas)]
+          [(equal? quantifier 'all) (node/formula/op/&& info subFormulas)]
           [else (error (format "desugaring unsupported: ~a" formula))])))
 
-; Function that takes in a given expression and returns whether that expression is unary
-; This function tests whether the given expression is transitive closure, reflexive transitive
-; closure, transpose, or sing. 
+; input:
+;      expr: A given expression 
+;
+; output: returns true if the expression is unary, false if not. 
 (define (checkIfUnary expr)
   (or (node/expr/op/^? expr)
       (node/expr/op/*? expr)
       (node/expr/op/~? expr)
-      (node/expr/op/sing? expr)
-      ))
+      (node/expr/op/sing? expr)))
 
-; Function that takes in a given expression and returns whether that expression is binary.
-; This function tests whether the given expression is a set union, set subtraction, set
-; intersection, product, or join. 
+; input:
+;      expr: A given expression 
+;
+; output: returns true if the expression is binary, false if not. 
 (define (checkIfBinary expr)
   (or (node/expr/op/+? expr)
       (node/expr/op/-? expr)
       (node/expr/op/&? expr)
       (node/expr/op/->? expr)
-      (node/expr/op/join? expr)
-      ))
+      (node/expr/op/join? expr)))

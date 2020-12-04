@@ -11,20 +11,29 @@
      #:preds [isUndirectedTree]
      #:scope [(Node 7)])
 
-; product-helper
-(define currTupIfAtomic (list 'Node0))
-(define LHS univ)
-(define RHS Node)
-(define rightTupleContext (projectTupleRange currTupIfAtomic (- (node/expr-arity LHS) 1) (node/expr-arity RHS)))
-(define leftTupleContext (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
-(define formulas (list
-                  (node/formula/op/in empty-nodeinfo (list (tup2Expr leftTupleContext udt empty-nodeinfo) LHS))
-                  (node/formula/op/in empty-nodeinfo (list (tup2Expr rightTupleContext udt empty-nodeinfo) RHS))))
-(@test-case
- "TEST product-helper on valid input same arity"
- (@check-equal?
-  (to-string (product-helper (list edges Node univ) (list Node edges) currTupIfAtomic empty-nodeinfo udt))
-  (to-string formulas)))
+(run-tests (@test-suite 
+  " Desugar helpers tests"
+  (lambda () (display "Starting tests for Desugar helpers"))
+  (lambda () (display "All tests for Desugar helpers passed!"))
+
+  (@test-suite
+  " Product helper tests"
+  (lambda () (display "Starting tests for Product helper"))
+  (lambda () (display "All tests for Product helper passed!"))
+  ; product-helper
+  (define currTupIfAtomic (list 'Node0))
+  (define LHS univ)
+  (define RHS Node)
+  (define rightTupleContext (projectTupleRange currTupIfAtomic (- (node/expr-arity LHS) 1) (node/expr-arity RHS)))
+  (define leftTupleContext (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
+  (define formulas (list
+                    (node/formula/op/in empty-nodeinfo (list (tup2Expr leftTupleContext udt empty-nodeinfo) LHS))
+                    (node/formula/op/in empty-nodeinfo (list (tup2Expr rightTupleContext udt empty-nodeinfo) RHS))))
+  (@test-case
+   "TEST product-helper on valid input same arity"
+   (@check-equal?
+    (to-string (product-helper (list edges Node univ) (list Node edges) currTupIfAtomic empty-nodeinfo udt))
+    (to-string formulas))))
 
 
 (define currTupIfAtomic_different_arity (list 'Node0 'Node1))
