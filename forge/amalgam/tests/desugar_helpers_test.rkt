@@ -5,231 +5,325 @@
 (require "forge_ex.rkt")
 (require "test_helpers.rkt")
 (require (prefix-in @ rackunit))
-
+(require rackunit/text-ui)
 
 (run udt
      #:preds [isUndirectedTree]
      #:scope [(Node 7)])
 
 (run-tests (@test-suite 
-  " Desugar helpers tests"
-  (lambda () (display "Starting tests for Desugar helpers"))
-  (lambda () (display "All tests for Desugar helpers passed!"))
+            " Desugar helpers tests"
+            (lambda () (display "Starting tests for Desugar helpers"))
+            (lambda () (display "All tests for Desugar helpers passed!"))
 
-  ; product-helper
-  (@test-case
-   "TEST product-helper on valid input same arity"
-     (define currTupIfAtomic (list 'Node0))
-  (define LHS univ)
-  (define RHS Node)
-  (define rightTupleContext (projectTupleRange currTupIfAtomic (- (node/expr-arity LHS) 1) (node/expr-arity RHS)))
-  (define leftTupleContext (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
-  (define formulas (list
-                    (node/formula/op/in empty-nodeinfo (list (tup2Expr leftTupleContext udt empty-nodeinfo) LHS))
-                    (node/formula/op/in empty-nodeinfo (list (tup2Expr rightTupleContext udt empty-nodeinfo) RHS))))
-   (@check-equal?
-    (to-string (product-helper (list edges Node univ) (list Node edges) currTupIfAtomic empty-nodeinfo udt))
-    (to-string formulas))))
+            ; productHelper
+            (@test-case
+             "TEST productHelper on valid input same arity"
+             (define currTupIfAtomic (list 'Node0))
+             (define LHS univ)
+             (define RHS Node)
+             (define rightTupleContext
+               (projectTupleRange currTupIfAtomic
+                                  (- (node/expr-arity LHS) 1)
+                                  (node/expr-arity RHS)))
+             (define leftTupleContext
+               (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
+             (define formulas
+               (list
+                (node/formula/op/in
+                 empty-nodeinfo
+                 (list (tup2Expr leftTupleContext udt empty-nodeinfo) LHS))
+                (node/formula/op/in
+                 empty-nodeinfo
+                 (list (tup2Expr rightTupleContext udt empty-nodeinfo) RHS))))
+             (@check-equal?
+              (toString (productHelper
+                         (list edges Node univ) (list Node edges)
+                         currTupIfAtomic empty-nodeinfo udt))
+              (toString formulas)))
 
+           (@test-case
+            "TEST productHelper on valid input different arity"
+            (define currTupIfAtomicDifferentArity (list 'Node0 'Node1))
+            ; arity 2
+            (define LHSDifferentArity edges)
+            ; arity 1
+            (define RHSDifferentArity Node)
+            (define
+              rightTupleContextDifferentArity
+              (projectTupleRange
+               currTupIfAtomicDifferentArity
+               (- (node/expr-arity LHSDifferentArity) 1)
+               (node/expr-arity RHSDifferentArity)))
+            (define leftTupleContextDifferentArity
+              (projectTupleRange currTupIfAtomicDifferentArity 0
+                                 (node/expr-arity LHSDifferentArity)))
+            (define
+              formulasDifferentArity
+              (list
+               (node/formula/op/in empty-nodeinfo
+                                   (list
+                                    (tup2Expr leftTupleContextDifferentArity
+                                              udt empty-nodeinfo)
+                                    LHSDifferentArity))
+               (node/formula/op/in empty-nodeinfo
+                                   (list
+                                    (tup2Expr rightTupleContextDifferentArity
+                                              udt empty-nodeinfo)
+                                    RHSDifferentArity))))
+            (@check-equal?
+             (toString
+              (productHelper (list Node edges) (list Node edges)
+                             currTupIfAtomicDifferentArity empty-nodeinfo udt))
+             (toString formulasDifferentArity)))
 
-(define currTupIfAtomic_different_arity (list 'Node0 'Node1))
-; arity 2
-(define LHS_different_arity edges)
-; arity 1
-(define RHS_different_arity Node)
-(define rightTupleContext_different_arity (projectTupleRange
-                                           currTupIfAtomic_different_arity
-                                           (- (node/expr-arity LHS_different_arity) 1)
-                                           (node/expr-arity RHS_different_arity)))
-(define leftTupleContext_different_arity (projectTupleRange currTupIfAtomic_different_arity 0 (node/expr-arity LHS_different_arity)))
-(define formulas_different_arity (list
-                                  (node/formula/op/in empty-nodeinfo (list (tup2Expr leftTupleContext_different_arity udt empty-nodeinfo) LHS_different_arity))
-                                  (node/formula/op/in empty-nodeinfo (list (tup2Expr rightTupleContext_different_arity udt empty-nodeinfo) RHS_different_arity))))
-(@test-case
- "TEST product-helper on valid input different arity"
- (@check-equal?
-  (to-string (product-helper (list Node edges) (list Node edges) currTupIfAtomic_different_arity empty-nodeinfo udt))
-  (to-string formulas_different_arity)))
-
-; join-helper
-
-
-; tup2Expr
-(define tuple (list 'Node0 'Node1 'Node2))
-
-(@test-case
- "TEST tup2ExprValid"
- (@check-equal?
-  (to-string (tup2Expr tuple udt empty-nodeinfo))
-  (to-string (node/expr/op/-> empty-nodeinfo 3 (list
-                                                (node/expr/atom empty-nodeinfo 1 'Node0)
-                                                (node/expr/atom empty-nodeinfo 1 'Node1)
-                                                (node/expr/atom empty-nodeinfo 1 'Node2))))))
-; empty list
-(@check-exn
- exn:fail?
- (lambda () 
-   (tup2Expr '() udt empty-nodeinfo)))
-
-; not a list
-(@check-exn
- exn:fail?
- (lambda () 
-   (tup2Expr 'Node0 udt empty-nodeinfo)))
-
-; element that is a list
-(@check-exn
- exn:fail?
- (lambda () 
-   (tup2Expr (list (list 'Node0)) udt empty-nodeinfo)))
-
-; transposeTup
-(define tup-arity-2 (list 1 2))
-(define tup-arity-3 (list 1 2 3))
-
-(@test-case
- "TEST transposeTup on valid tuple"
- (@check-equal?
-  (to-string (transposeTup tup-arity-2))
-  (to-string (list 2 1))))
-
-(@check-exn
- exn:fail?
- (lambda () 
-   (transposeTup tup-arity-3)))
-
-; mustHaveTupleContext
-; not list
-(@check-exn
- exn:fail?
- (lambda () 
-   (mustHaveTupleContext 'Node0 edges)))
+           ; joinHelper
 
 
-; length of tup is 0
-(@check-exn
- exn:fail?
- (lambda () 
-   (mustHaveTupleContext '() edges)))
+           ; tup2Expr
 
-; first thing in tuple is a list
-(@check-exn
- exn:fail?
- (lambda () 
-   (mustHaveTupleContext (list (list 'Node0)) edges)))
+           (@test-case
+            "TEST tup2ExprValid"
+            (define tuple (list 'Node0 'Node1 'Node2))
+            (@check-equal?
+             (toString (tup2Expr tuple udt empty-nodeinfo))
+             (toString
+              (node/expr/op/-> empty-nodeinfo 3
+                               (list
+                                (node/expr/atom empty-nodeinfo 1 'Node0)
+                                (node/expr/atom empty-nodeinfo 1 'Node1)
+                                (node/expr/atom empty-nodeinfo 1 'Node2))))))
+           ; empty list
+           (@check-exn
+            exn:fail?
+            (lambda () 
+              (tup2Expr '() udt empty-nodeinfo)))
 
+           ; not a list
+           (@check-exn
+            exn:fail?
+            (lambda () 
+              (tup2Expr 'Node0 udt empty-nodeinfo)))
 
-; isGroundProduct
-; not an expr or int constant error
-(@check-exn
- exn:fail?
- (lambda () 
-   (isGroundProduct (node/formula/op/&& empty-nodeinfo (list 1 2)))))
+           ; element that is a list
+           (@check-exn
+            exn:fail?
+            (lambda () 
+              (tup2Expr (list (list 'Node0)) udt empty-nodeinfo)))
 
-; quantifier-var
-(@check-exn
- exn:fail?
- (lambda () 
-   (isGroundProduct (node/expr/quantifier-var empty-nodeinfo 1 (gensym "m2q")))))
+           ; transposeTup
+           (@test-case
+            "TEST transposeTup on valid tuple"
+            (define tupArity2 (list 1 2))
+            (@check-equal?
+             (toString (transposeTup tupArity2))
+             (toString (list 2 1))))
 
-; return false
-(define product-expr (node/expr/op/-> empty-nodeinfo 2 (list Node Node)))
-(@test-case
- "TEST isGroundProduct on valid product-expr"
- (@check-equal?
-  (to-string (isGroundProduct product-expr))
-  (to-string #f)))
+           (@test-case
+            "TEST transposeTup on validtuple arity 3"
+            (define tupArity3 (list 1 2 3))
+            (@check-exn
+             exn:fail?
+             (lambda () 
+               (transposeTup tupArity3))))
 
-; product case, should return true
-(define quantifier-expr (node/expr/op/-> empty-nodeinfo 1 (list (node/expr/atom empty-nodeinfo 1 'Node0))))
-(@test-case
- "TEST isGroundProduct quantifier case"
- (@check-equal?
-  (to-string (isGroundProduct quantifier-expr))
-  (to-string #t)))
+           ; mustHaveTupleContext
+           (@test-case
+            "TEST mustHaveTupleContext on not a list error"
+            (@check-exn
+             exn:fail?
+             (lambda () 
+               (mustHaveTupleContext 'Node0 edges))))
 
-; node int constant 
-(@test-case
- "TEST isGroundProduct on valid constant"
- (@check-equal?
-  (to-string (isGroundProduct (node/int/constant empty-nodeinfo 1)))
-  (to-string #t)))
+           (@test-case
+            "TEST mustHaveTupleContext on a tup with length 0"
+            ; length of tup is 0
+            (@check-exn
+             exn:fail?
+             (lambda () 
+               (mustHaveTupleContext '() edges))))
 
-; atom
-(@test-case
- "TEST transposeTup on valid tuple"
- (@check-equal?
-  (to-string (transposeTup tup-arity-2))
-  (to-string (list 2 1))))
+           (@test-case
+            "TEST mustHaveTupleContext first thing in tuple is a list"
+            ; first thing in tuple is a list
+            (@check-exn
+             exn:fail?
+             (lambda () 
+               (mustHaveTupleContext (list (list 'Node0)) edges))))
 
-; getColumnRight
-; error
-(@check-exn
- exn:fail?
- (lambda () 
-   (getColumnRight '())))
+           ; isGroundProduct
+           (@test-case
+            "TEST isGroundProduct not an expr or int constant error"
+            (@check-exn
+             exn:fail?
+             (lambda () 
+               (isGroundProduct (node/formula/op/&& empty-nodeinfo
+                                                    (list 1 2))))))
 
-; valid arity more than 1 (hits recursive call and base case)
-(@test-case
- "TEST getColumnRight on valid"
- (@check-equal?
-  (to-string (getColumnRight edges))
-  (to-string (join univ edges))))
+           ; quantifier-var
+           (@check-exn
+            exn:fail?
+            (lambda () 
+              (isGroundProduct
+               (node/expr/quantifier-var empty-nodeinfo 1 (gensym "m2q")))))
 
-; getColumnLeft
-; error
-(@check-exn
- exn:fail?
- (lambda () 
-   (getColumnLeft '())))
+           ; return false
+           (@test-case
+            "TEST isGroundProduct on valid productExpr"
+            (define productExpr
+              (node/expr/op/-> empty-nodeinfo 2 (list Node Node)))
+            (@check-equal?
+             (toString (isGroundProduct productExpr))
+             (toString #f)))
 
-; valid arity more than 1 (hits recursive call and base case)
-(@test-case
- "TEST getColumnLeft on valid"
- (@check-equal?
-  (to-string (getColumnLeft edges))
-  (to-string (join edges univ))))
+           ; product case, should return true
+           (@test-case
+            "TEST isGroundProduct quantifier case"
+            (define quantifierExpr
+              (node/expr/op/-> empty-nodeinfo 1
+                               (list (node/expr/atom empty-nodeinfo 1 'Node0))))
+            (@check-equal?
+             (toString (isGroundProduct quantifierExpr))
+             (toString #t)))
 
-; createNewQuantifier
-(define form (in edges edges))
+           ; node int constant 
+           (@test-case
+            "TEST isGroundProduct on valid constant"
+            (@check-equal?
+             (toString (isGroundProduct (node/int/constant empty-nodeinfo 1)))
+             (toString #t)))
 
-; error decl does not contain both things 
-(@check-exn
- exn:fail?
- (lambda () 
-   (createNewQuantifier (cons 1 '()) '() form udt empty-nodeinfo 'some '())))
+           ; atom
+           (@test-case
+            "TEST transposeTup on valid tuple"
+            (define tupArity2 (list 1 2))
+            (@check-equal?
+             (toString (transposeTup tupArity2))
+             (toString (list 2 1))))
 
-; error desugaring unsupported
-(@check-exn
- exn:fail?
- (lambda () 
-   (createNewQuantifier (cons 1 2) '() form udt empty-nodeinfo 'no '())))
+           ; getColumnRight
+            (@test-case
+            "TEST getColumnRight error"
+           (@check-exn
+            exn:fail?
+            (lambda () 
+              (getColumnRight '()))))
 
-; some case
-(define node-bound (list (list 'Node0) (list 'Node1) (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5) (list 'Node6)))
-(define some-formula (some ([x Node]) (in x Node)))
-(define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
-(define subformulas (map (lambda (tup)
-                               (substitute-formula (in varx Node) (list varx) varx (tup2Expr tup udt empty-nodeinfo)))
-                             node-bound))
+           ; valid arity more than 1 (hits recursive call and base case)
+           (@test-case
+            "TEST getColumnRight on valid"
+            (@check-equal?
+             (toString (getColumnRight edges))
+             (toString (join univ edges))))
 
-(@test-case
- "TEST createNewQuantifier on 'some' quantifier with just one decl"
- (@check-equal?
-  (to-string (createNewQuantifier (cons varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'some some-formula))
-  (to-string (node/formula/op/|| empty-nodeinfo subformulas)))) 
+           ; getColumnLeft
+            (@test-case
+            "TEST getColumnLeft error"
+           (@check-exn
+            exn:fail?
+            (lambda () 
+              (getColumnLeft '()))))
 
-; all case
-(define all-formula (all ([x Node]) (in x Node)))
-(@test-case
- "TEST createNewQuantifier on 'all' quantifier with just one decl"
- (@check-equal?
-  (to-string (createNewQuantifier (cons varx Node) (list varx) (in varx Node) udt empty-nodeinfo 'all all-formula))
-  (to-string (node/formula/op/&& empty-nodeinfo subformulas))))
+           ; valid arity more than 1 (hits recursive call and base case)
+           (@test-case
+            "TEST getColumnLeft on valid"
+            (@check-equal?
+             (toString (getColumnLeft edges))
+             (toString (join edges univ))))
 
-; transitive-closure-helper
-(@test-case
- "TEST transitive-closure-helper"
- (@check-equal?
-  (to-string (transitive-closure-helper edges '() 2 0 empty-nodeinfo))
-  (to-string (list edges (join edges edges)))))
+           ; createNewQuantifier
+           (@test-case
+            "TEST createNewQuantifier error decl does not contain both things"
+            (define form (in edges edges))
+
+            (@check-exn
+             exn:fail?
+             (lambda () 
+               (createNewQuantifier
+                (cons 1 '()) '() form udt empty-nodeinfo 'some '()))))
+
+           (@test-case
+            "TEST createNewQuantifier error desugaring unsupported"
+            (define form (in edges edges))
+            (@check-exn
+             exn:fail?
+             (lambda () 
+               (createNewQuantifier (cons 1 2) '()
+                                    form udt empty-nodeinfo 'no '()))))
+
+           ; some case
+           (@test-case
+            "TEST createNewQuantifier on 'some' quantifier with just one decl"
+            (define
+              nodeBound
+              (list (list 'Node0) (list 'Node1)
+                    (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5)
+                    (list 'Node6)))
+            (define someFormula (some ([x Node]) (in x Node)))
+            (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+            (define subformulas
+              (map (lambda (tup)
+                     (substituteFormula (in varx Node)
+                                        (list varx) varx
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+            (@check-equal?
+             (toString
+              (createNewQuantifier (cons varx Node)
+                                   (list varx) (in varx Node)
+                                   udt empty-nodeinfo 'some someFormula))
+             (toString (node/formula/op/|| empty-nodeinfo subformulas)))) 
+
+           ; all case
+           (@test-case
+            "TEST createNewQuantifier on 'all' quantifier with just one decl"
+            (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+            (define someFormula (some ([x Node]) (in x Node)))
+            (define allFormula (all ([x Node]) (in x Node)))
+            (define
+              nodeBound
+              (list (list 'Node0) (list 'Node1)
+                    (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5)
+                    (list 'Node6)))
+            (define subformulas
+              (map (lambda (tup)
+                     (substituteFormula (in varx Node)
+                                        (list varx) varx
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+            (@check-equal?
+             (toString
+              (createNewQuantifier (cons varx Node)
+                                   (list varx) (in varx Node)
+                                   udt empty-nodeinfo 'some someFormula))
+             (toString (node/formula/op/|| empty-nodeinfo subformulas))))
+
+           (@test-case
+            "TEST createNewQuantifier on 'some' quantifier with just one decl"
+            (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+            (define someFormula (some ([x Node]) (in x Node)))
+            (define allFormula (all ([x Node]) (in x Node)))
+            (define
+              nodeBound
+              (list (list 'Node0) (list 'Node1)
+                    (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5)
+                    (list 'Node6)))
+            (define subformulas
+              (map (lambda (tup)
+                     (substituteFormula (in varx Node)
+                                        (list varx) varx
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+            (@check-equal?
+             (toString
+              (createNewQuantifier (cons varx Node)
+                                   (list varx) (in varx Node)
+                                   udt empty-nodeinfo 'all allFormula))
+             (toString (node/formula/op/&& empty-nodeinfo subformulas))))
+
+           ; transitive-closure-helper
+           (@test-case
+            "TEST transitive-closure-helper"
+            (@check-equal?
+             (toString (transitiveClosureHelper edges '() 2 0 empty-nodeinfo))
+             (toString (list edges (join edges edges)))))))
