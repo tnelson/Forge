@@ -9,7 +9,8 @@
   " liftBoundsHelpers"
   (lambda () (display "Starting tests for liftBoundsHelpers"))
   (lambda () (display "All tests for liftBoundsHelpers passed!"))
-;;;;;;;;;;;;;;;;; TRANSPOSE TUP ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  
 (@test-suite
   " transposeTup"
   (lambda () (display "Starting tests for transposeTup"))
@@ -34,8 +35,6 @@
  (lambda () 
    (transposeTup '(3 1 2)))))
 
-;;;;;;;;;;;;;;;;; JOIN TUPLE ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (@test-suite
   " joinTuple"
   (lambda () (display "Starting tests for joinTuple"))
@@ -57,8 +56,6 @@
 (@check-equal?
  (toString  (joinTuple '((1 2) (3 4) (5 100)) '((4 6) (4 7) (4 9) (100 4))))
  (toString  '((3 6) (3 7) (3 9) (5 4))))))
-
-;;;;;;;;;;;;;;;;; BUILD CLOSURE OF TUPLE SETS ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (@test-suite
   " buildClosureOfTupleSet"

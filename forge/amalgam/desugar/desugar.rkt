@@ -196,7 +196,8 @@
         (desugarExpr rightE quantVars
                      (first liftedUpperBounds) runContext currSign)]
        [else
-        ; build a big "and" of: for every tuple T in liftedUpperBounds: (T in leftE) implies (T in rightE)
+        ; build a big "and" of: for every tuple T in liftedUpperBounds:
+        ; (T in leftE) implies (T in rightE)
         (define desugaredAnd
           (node/formula/op/&& info
                               (map (lambda (x)
