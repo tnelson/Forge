@@ -10,18 +10,27 @@
 
 ; input: origExpr - the first argument of transitive closure 
 ;        listOfJoins - list containing all of the previous joins
-;        totalNumOfDots - The total number of dots that we want to see in the last join 
+;        totalNumOfDots - The total number of dots that we want to see in the
+;        last join 
 ;        info - info of the original node 
 ; 
 ; output: list containing all of the joins of a transitive closure 
-(define (transitiveClosureHelper origExpr listOfJoins totalNumOfDots currNumOfDots info)
+(define
+  (transitiveClosureHelper
+   origExpr listOfJoins totalNumOfDots currNumOfDots info)
   (cond
     [(equal? currNumOfDots totalNumOfDots) listOfJoins]
     [(equal? currNumOfDots 0)
-     (transitiveClosureHelper origExpr (append listOfJoins (list origExpr)) totalNumOfDots (+ currNumOfDots 1) info)]
+     (transitiveClosureHelper
+      origExpr (append listOfJoins (list origExpr))
+      totalNumOfDots (+ currNumOfDots 1) info)]
     [else
-     (define nextJoin (node/expr/op/join info (node/expr-arity origExpr) (list (last listOfJoins) origExpr)))
-     (transitiveClosureHelper origExpr (append listOfJoins (list nextJoin)) totalNumOfDots (+ currNumOfDots 1) info)]))
+     (define nextJoin
+       (node/expr/op/join info (node/expr-arity origExpr)
+                          (list (last listOfJoins) origExpr)))
+     (transitiveClosureHelper
+      origExpr (append listOfJoins (list nextJoin))
+      totalNumOfDots (+ currNumOfDots 1) info)]))
 
 ; input: right - list of arguments
 ;        currTupIfAtomic - implicit LHS of expression
@@ -32,11 +41,19 @@
 (define (productHelper left right currTupIfAtomic info runContext)
   (define LHS (last left))
   (define RHS (first right))
-  (define leftTupleContext  (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
-  (define rightTupleContext (projectTupleRange currTupIfAtomic (- (node/expr-arity LHS) 1) (node/expr-arity RHS)))
-  (define formulas (list
-                    (node/formula/op/in info (list (tup2Expr leftTupleContext runContext info) LHS))
-                    (node/formula/op/in info (list (tup2Expr rightTupleContext runContext info) RHS))))
+  (define
+    leftTupleContext
+    (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
+  (define
+    rightTupleContext
+    (projectTupleRange currTupIfAtomic
+                       (- (node/expr-arity LHS) 1) (node/expr-arity RHS)))
+  (define formulas
+    (list
+     (node/formula/op/in info (list
+                               (tup2Expr leftTupleContext runContext info) LHS))
+     (node/formula/op/in info (list
+                               (tup2Expr rightTupleContext runContext info) RHS))))
   formulas)
 
 ; input:
@@ -51,15 +68,23 @@
   (define leftColRHS (getColumnLeft right))
   (define listOfColumns (list leftColRHS rightColLHS))
 
-  (define intersectColumns (node/expr/op/& info (node/expr-arity expr) listOfColumns))
+  (define intersectColumns (node/expr/op/& info
+                                           (node/expr-arity expr) listOfColumns))
   (define quantifiedVarJoin (node/expr/quantifier-var info 1 (gensym "join")))
   (define newDecls (list (cons quantifiedVarJoin intersectColumns)))
  
-  (define LHSRange (projectTupleRange quantifiedVarJoin 0 (- (node/expr-arity left) 1)))
-  (define RHSRange (projectTupleRange quantifiedVarJoin (node/expr-arity left) (node/expr-arity right)))
+  (define LHSRange (projectTupleRange quantifiedVarJoin 0
+                                      (- (node/expr-arity left) 1)))
+  (define RHSRange (projectTupleRange quantifiedVarJoin
+                                      (node/expr-arity left)
+                                      (node/expr-arity right)))
   
-  (define LHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list LHSRange quantifiedVarJoin)))
-  (define RHSProduct (node/expr/op/-> info (node/expr-arity intersectColumns) (list quantifiedVarJoin RHSRange)))
+  (define LHSProduct (node/expr/op/-> info
+                                      (node/expr-arity intersectColumns)
+                                      (list LHSRange quantifiedVarJoin)))
+  (define RHSProduct (node/expr/op/-> info
+                                      (node/expr-arity intersectColumns)
+                                      (list quantifiedVarJoin RHSRange)))
   (define LHSIn (node/formula/op/in info (list LHSProduct left)))
   (define RHSIn (node/formula/op/in info (list RHSProduct right)))
 
@@ -72,13 +97,16 @@
 ; 
 ; output: the tuple as an expression, re-written as a node/expr/atom 
 (define (tup2Expr tuple context info)
-  (when (equal? (length tuple) 0) (error (format "tupElem ~a is an empty list" tuple)))
-  (when (not (list? tuple)) (error (format "tupElem ~a is not a list" tuple)))
+  (when (equal? (length tuple) 0)
+    (error (format "tupElem ~a is an empty list" tuple)))
+  (when (not (list? tuple))
+    (error (format "tupElem ~a is not a list" tuple)))
   (define tupRelationList
     ; replace every element of the tuple (atoms) with the corresponding atom relation
     (map
      (lambda (tupElem)
-       (when (list? tupElem) (error (format "tupElem ~a in tuple ~a is a list" tupElem tuple)))
+       (when (list? tupElem)
+         (error (format "tupElem ~a in tuple ~a is a list" tupElem tuple)))
        (node/expr/atom info 1 tupElem))
      tuple))  
   (node/expr/op/-> info (length tupRelationList) tupRelationList))
@@ -89,7 +117,10 @@
 (define (transposeTup tuple)
   (cond 
     [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
-    [else (error (format "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple (length tuple) ))]))
+    [else
+     (error
+      (format "transpose tuple for tup ~a isn't arity 2. It has arity ~a" tuple
+              (length tuple) ))]))
 
 ; input:
 ;      tup: The currentTupleIfAtomic that we are evaluating 
@@ -98,21 +129,28 @@
 ; output: throws an error if the currentTupleIfAtomic doesn't have a context 
 (define (mustHaveTupleContext tup expr)
   (cond
-    [(not(list? tup)) (error (format "currTupIfAtomic is not a list in ~a" expr))]
-    [(equal? (length tup) 0)  (error (format "currTupIfAtomic has length 0 in ~a" expr))]
-    [(list? (first tup)) (error (format "currTupIfAtomic ~a is not a tuple in ~a" tup expr))]))
+    [(not(list? tup))
+     (error (format "currTupIfAtomic is not a list in ~a" expr))]
+    [(equal? (length tup) 0)
+     (error (format "currTupIfAtomic has length 0 in ~a" expr))]
+    [(list? (first tup))
+     (error (format "currTupIfAtomic ~a is not a tuple in ~a" tup expr))]))
 
 ; input:
 ;      expr: A given expression that has the possibility of being ground 
 ;
-; output: returns true if the expr is ground, false if it isn't, and an error if something went wrong. 
+; output: returns true if the expr is ground, false if it isn't, and an
+; error if something went wrong. 
 (define (isGroundProduct expr)
   (cond
-    [(not (or (node/expr? expr) (node/int/constant? expr))) (error (format "expression ~a is not an expression or int constant." expr))]
-    [(and (checkIfUnary expr) (or (node/expr/op/sing? expr) (node/int/op/sum? expr)))
+    [(not (or (node/expr? expr) (node/int/constant? expr)))
+     (error (format "expression ~a is not an expression or int constant." expr))]
+    [(and (checkIfUnary expr) (or (node/expr/op/sing? expr)
+                                  (node/int/op/sum? expr)))
      (define args (node/expr/op-children expr))
      (isGroundProduct (first args))]
-    [(node/expr/quantifier-var? expr) (error (format "isGroundProduct called on variable ~a" expr))]
+    [(node/expr/quantifier-var? expr)
+     (error (format "isGroundProduct called on variable ~a" expr))]
     [(node/expr/op/->? expr)
      (define args (node/expr/op-children expr))
      (andmap isGroundProduct args)]
@@ -133,28 +171,33 @@
 ; input:
 ;      node: The node that we want to get the right column of 
 ;
-; output: Returns the right column of a given node. For node with arity 3, it returns (univ.(univ.node))
+; output: Returns the right column of a given node.
+; For node with arity 3, it returns (univ.(univ.node))
 (define (getColumnRight node)
   (define arity (node/expr-arity node))
   (define info (node-info node))
   (cond [(equal? 0 arity) (error (format "getColumnRight arity <1: ~a" node))]
         [(equal? 1 arity) node]
-        [else (getColumnRight (node/expr/op/join info (- arity 1) (list univ node)))]))
+        [else (getColumnRight (node/expr/op/join info (- arity 1)
+                                                 (list univ node)))]))
 
 ; input:
 ;      node: The node that we want to get the left column of 
 ;
-; output: Returns the right column of a given node. For node with arity 3, it returns (node.univ).univ
+; output: Returns the right column of a given node. For node with arity 3,
+; it returns (node.univ).univ
 (define (getColumnLeft node)
   (define arity (node/expr-arity node))
   (define info (node-info node))
   (cond [(equal? 0 arity) (error (format "getColumnRight arity <1: ~a" node))]
         [(equal? 1 arity) node]
-        [else (getColumnRight (node/expr/op/join info (- arity 1) (list node univ)))]))
+        [else (getColumnRight (node/expr/op/join info (- arity 1)
+                                                 (list node univ)))]))
 
 ; input:
 ;      decl: The original decl for the quantifier that we are trying to re-write
-;      quantVars: the quantifiable variables of the run that we're calling this helper from
+;      quantVars: the quantifiable variables of the run that we're calling this
+;        helper from
 ;      subForm: the original subformula from the quantifier that we are re-writing
 ;      runContext: the context for the program
 ;      info: the original info of the node
@@ -162,7 +205,8 @@
 ;      formula: the quantifier formula 
 ;
 ; output: Returns a big AND or OR of the subformulas 
-(define (createNewQuantifier decl quantVars subForm runContext info quantifier formula)
+(define
+  (createNewQuantifier decl quantVars subForm runContext info quantifier formula)
   (unless (not (and (null? (car decl)) (null? (cdr decl))))
     (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
   (define var (car decl)) 
@@ -170,10 +214,13 @@
   (let ([quantVars (cons var quantVars)])  
     ; gives us list of all possible bindings to this variable
     (define liftedBounds (liftBoundsExpr domain quantVars runContext))
-    ; produce a list of subFormulas each substituted with a possible binding for the variable
-    (define subFormulas (map (lambda (tup)
-                               (substituteFormula subForm quantVars var (tup2Expr tup runContext info)))
-                             liftedBounds))
+    ; produce a list of subFormulas each substituted with a possible binding
+    ; for the variable
+    (define subFormulas
+      (map (lambda (tup)
+             (substituteFormula subForm quantVars var
+                                (tup2Expr tup runContext info)))
+           liftedBounds))
     
     (cond [(equal? quantifier 'some) (node/formula/op/|| info subFormulas)]
           [(equal? quantifier 'all) (node/formula/op/&& info subFormulas)]
