@@ -25,7 +25,13 @@
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
      (printf "desugar constant formula ~a~n" formula)
-     formula]
+     (define formString (toStringSub formula))
+     (cond
+       [(and (equal? formString (toStringSub 'true)) currSign) true]
+       [(and (equal? formString (toStringSub 'false)) currSign) false]
+       [(and (equal? formString (toStringSub 'true)) (not currSign)) false]
+       [(and (equal? formString (toStringSub 'false)) (not currSign)) true]
+       [else formula])]
     
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
@@ -177,7 +183,7 @@
     ; This function has two cases, the ground case and the case where we build
     ; an and-of-implications.
     ; Some examples can be seen below: 
-    ;     Node0->Node1 in ^edges   <--- this is a ground case of IN! we know
+    ;     Node0->Node1 in ^ edges   <--- this is a ground case of IN! we know
     ;     the current tuplen Node0->Node1 + Node1->Node2 in ^edges <--- need to
     ;     turn into an and-of-implications edges in ~edges <--- same deal, need
     ;     to build an and-of-implications
@@ -414,7 +420,6 @@
 
         (cond
           [(@> (length args) 2)
-           (debug-repl)
            (define newJoin (append newArgs
                                    (node/expr/op/join info (node/expr-arity expr)
                                                       (rest (rest args)))))
@@ -426,25 +431,33 @@
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (printf "desugar ^~n")
+     ;(debug-repl)
      ; Write transitive closure case 
      ;^e = e + e.e + e.e.e ... up to firstCol(e)
      ; #dots = #(UB(leftCol)+UB(rightCol)) - 1  ?
-     ;#times-e-is-used-in-biggest-join = #(UB(leftCol)+UB(rightCol))
-     (define currExpr (first args))
-     (define leftColumn (getColumnLeft currExpr))
-     (define rightColumn (getColumnRight currExpr))
-     (define leftColumnUpperBounds
-       (liftBoundsExpr  leftColumn quantVars runContext))
-     (define rightColumnUpperBounds
-       (liftBoundsExpr  rightColumn quantVars runContext))
-     (define numOfDots
-       (- (+ (length leftColumnUpperBounds) (length rightColumnUpperBounds)) 1))
-     (define numOfExpr
-       (+ (length leftColumnUpperBounds) (length rightColumnUpperBounds)))
-     (define listOfJoins (transitiveClosureHelper currExpr '() numOfDots 0))
-     (define unionOfJoins
-       (node/expr/op/+ info (node/expr-arity currExpr) listOfJoins))
-     (desugarFormula unionOfJoins quantVars runContext currSign)]
+     ; #times-e-is-used-in-biggest-join = #(UB(leftCol)+UB(rightCol))
+
+     ; get the upper bound to be called in extendResult
+     (define uppers (liftBoundsExpr expr quantVars runContext))
+
+     ; TODO: is (first uppers) the correct seconda rgument for extendPossible
+     ; Paths
+     (define extendResult (extendPossiblePaths uppers (first uppers)))
+
+     ; Check the endpoint and remove items that do not match
+     (define endPoint (last (last uppers)))
+     
+     ;(debug-repl)
+     (define filteredExtendResult
+       (filter
+        (lambda (result) (equal? (last result) endPoint)) extendResult))
+     
+     ; Go through everything in filteredExtendResult to create big AND
+     ; by calling helper
+     (define transitiveAnd
+       (transitiveClosureAnd
+        filteredExtendResult (first args) info runContext '()))
+     (desugarFormula transitiveAnd quantVars runContext currSign)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)

@@ -11,7 +11,7 @@
      #:preds [isUndirectedTree]
      #:scope [(Node 7)])
 
-
+#|
 ; constant formulas
 (define const (node/formula/constant empty-nodeinfo Int))
 (@test-case
@@ -64,7 +64,7 @@
  "TEST AND formula currSign false"
  (@check-equal?
   (toString (desugarFormula andTest '() udt #f))
-  (toString (node/formula/op/|| empty-nodeinfo (list true false)))))
+  (toString (node/formula/op/|| empty-nodeinfo (list false true)))))
 
 ; OR
 (define orTest (or true false))
@@ -78,7 +78,7 @@
  "TEST OR formula currSign false"
  (@check-equal?
   (toString (desugarFormula orTest '() udt #f))
-  (toString (node/formula/op/&& empty-nodeinfo (list true false)))))
+  (toString (node/formula/op/&& empty-nodeinfo (list false true)))))
 
 ; IMPLIES
 (define impliesTest (implies true false))
@@ -87,7 +87,7 @@
  (@check-equal?
   (toString (desugarFormula impliesTest '() udt #t))
   ;desugars to (not LHS) OR (RHS) 
-  (toString (node/formula/op/|| empty-nodeinfo (list true false)))))
+  (toString (node/formula/op/|| empty-nodeinfo (list false false)))))
 
 ; IN For Not Ground LeftE
 (define inTest (in Node univ))
@@ -131,7 +131,7 @@
  (@check-equal?
   (toString (desugarFormula negationTest '() udt #t))
   ;desugars to (not LHS) OR (RHS) 
-  (toString true)))
+  (toString false)))
 
 ; INTEGER <
 (define varIntConstX (node/int/constant empty-nodeinfo 1))
@@ -202,20 +202,23 @@
 ; PRODUCT
 
 ; JOIN
-(printf "TEST!!!!!!!")
-#| (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
+#|(printf "TEST!!!!!!!")
+ (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
                          (join Node edges)))
 (desugarFormula joinFormulaORFalse '() udt #f)
 
 (define joinFormulaORTrue (in (node/expr/atom empty-nodeinfo 1 'Node0)
                          (join Node edges)))
-(desugarFormula joinFormulaORTrue '() udt #t)|#
+(desugarFormula joinFormulaORTrue '() udt #t)
 
 (define joinFormulaORFalseBiggerArity (in (node/expr/atom empty-nodeinfo 1 'Node0)
                          (join Node edges edges)))
-(desugarFormula joinFormulaORFalseBiggerArity '() udt #t) 
+(desugarFormula joinFormulaORFalseBiggerArity '() udt #t) |#
 
 ; TRANSITIVE CLOSURE
+(define fSomeReachesAll
+  (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
+(desugarFormula fSomeReachesAll '() udt #t)
 
 ; REFLEXIVE-TRANSITIVE CLOSURE
 
@@ -297,4 +300,4 @@
 (@check-exn
  exn:fail?
  (lambda () 
-   (desugarInt intSignOf '() udt #t)))
+   (desugarInt intSignOf '() udt #t)))|#

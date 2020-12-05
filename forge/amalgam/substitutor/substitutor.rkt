@@ -10,7 +10,7 @@
 ; the children of a given formula/expression and puts the children
 ; together with the original operator that was identified. 
 
-(provide substituteFormula)
+(provide substituteFormula toStringSub)
 (require debug/repl)
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
