@@ -9,7 +9,7 @@
 
 ; Warning: ast.rkt exports (e.g.) "and".
 ; This is the macro that produces an "and" formula!
-; To use real Racket and, use @and.ƒ
+; To use real Racket and, use @and
 
 (require "../lift-bounds/lift-bounds.rkt")
 (require "desugar_helpers.rkt")
@@ -385,46 +385,41 @@
      ; Re-write join as an existentialist formula
      (cond
        [(@>= (node/expr-arity expr) 1)
-
         ; Example of how to do it like the Java code does:
-        ; t in A.B ~~~~> OR_{ta : UB(A), tb: UB(B) | ta.tb = t } (ta in A and tb in B)
-        (define UBA (lift-upper-bound (first args)))
-        (define UBB (lift-upper-bound (second args)))
-        ; TODO: >2 arguments: have a case where arity > 2, convert (A.B.C) to (A.B).C
-        (define all-pairs (cartestian-product UBA UBB))
-        (define new-args
+        ; t in A.B ~~~~> OR_{ta : UB(A), tb: UB(B) | ta.tb = t } (ta in A
+        ; and tb in B)
+        (define UBA (liftBoundsExpr (first args) quantVars runContext))
+        (define UBB (liftBoundsExpr (second args) quantVars runContext))
+        (define allPairs (cartesian-product UBA UBB))
+        (define newArgs
           (filter-map
            (lambda (lstpr)
              (define-values (ta tb) (values (first lstpr) (second lstpr)))
-                        (cond [(equals? (joinTuple ta tb) currTupIfAtomic)
-                               (desugar-formula
-                                (node/formula/op/and (node/formula/op/in ta A)
-                                                     (node/formula/op/in tb B)))]
-                              [else #f]))
-           all-pairs))
-        
+             (define taExpr (tup2Expr ta runContext info))
+             (define tbExpr (tup2Expr tb runContext info))
+             (cond
+               [(equal? (joinTupleDesugar ta tb) currTupIfAtomic)
+                (desugarFormula
+                 (node/formula/op/&& info
+                                      (list
+                                       (node/formula/op/in info
+                                                           (list
+                                                            taExpr (first args)))
+                                       (node/formula/op/in info
+                                                           (list
+                                                            tbExpr (second args)))))
+                 quantVars runContext currSign)]
+               [else #f]))
+           allPairs))
 
-        
-        ; TODO: should currRupIfAtomic change in this recursive call?
-        (define desugaredArgs
-          (map (lambda (currArg)
-                 (desugarExpr currArg quantVars currTupIfAtomic
-                              runContext currSign)) args))
-
-        ; join of first two arguments
-        (define currentJoin (joinHelper expr (first desugaredArgs)
-                                        (second desugaredArgs) info))
-
-        ; desugared join of first two arguments
-        (define desugaredFirstJoin (desugarFormula currentJoin quantVars
-                                                   runContext currSign))
-
-        ; desugar recursively with everything else in the join
-        (define recursiveJoin
-          (node/expr/op/join info (node/expr-arity expr)
-                             (cons desugaredFirstJoin
-                                   (rest (rest desugaredArgs)))))
-        (desugarFormula recursiveJoin quantVars runContext currSign)]
+        (cond
+          [(@> (length args) 2)
+           (debug-repl)
+           (define newJoin (append newArgs
+                                   (node/expr/op/join info (node/expr-arity expr)
+                                                      (rest (rest args)))))
+           (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
+          [else newArgs])]
        [else
         (error (format "Expression ~a in join had arity less than 1" expr))])]
     

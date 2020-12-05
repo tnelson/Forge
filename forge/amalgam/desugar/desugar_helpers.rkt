@@ -6,7 +6,15 @@
 
 (provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct
          createNewQuantifier projectTupleRange getColumnRight getColumnLeft
-         transitiveClosureHelper productHelper joinHelper)
+         transitiveClosureHelper productHelper joinHelper joinTupleDesugar)
+
+; Helper to join Tuples together
+; list<tuple>, list<tuple> -> list<tuple>
+(define (joinTupleDesugar leftTS rightTS)
+  (cond
+    [(equal? (last leftTS) (first rightTS))
+     (append (take leftTS (- (length leftTS) 1)) (rest rightTS))]
+    [else #f]))
 
 ; input: origExpr - the first argument of transitive closure 
 ;        listOfJoins - list containing all of the previous joins

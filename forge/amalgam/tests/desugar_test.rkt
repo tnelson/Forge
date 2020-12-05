@@ -202,6 +202,18 @@
 ; PRODUCT
 
 ; JOIN
+(printf "TEST!!!!!!!")
+#| (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
+                         (join Node edges)))
+(desugarFormula joinFormulaORFalse '() udt #f)
+
+(define joinFormulaORTrue (in (node/expr/atom empty-nodeinfo 1 'Node0)
+                         (join Node edges)))
+(desugarFormula joinFormulaORTrue '() udt #t)|#
+
+(define joinFormulaORFalseBiggerArity (in (node/expr/atom empty-nodeinfo 1 'Node0)
+                         (join Node edges edges)))
+(desugarFormula joinFormulaORFalseBiggerArity '() udt #t) 
 
 ; TRANSITIVE CLOSURE
 
