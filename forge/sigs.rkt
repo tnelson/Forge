@@ -815,7 +815,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
           [(node/int? expression) (begin0
            (values (kodkod:i (current-int-expression))
                    interpret-int)
-           (current-int-expression (add1 (current-int-expression))))]))
+           (current-int-expression (add1 (current-int-expression))))]
+          [else
+           (error (format "Forge: unexpected input type to evaluate: ~a" expression))]))
 
   (define all-rels (get-all-rels run))
   (define atom-names (Run-atoms run))
