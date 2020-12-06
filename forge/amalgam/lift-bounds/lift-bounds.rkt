@@ -37,19 +37,17 @@
 ;  ... -> list<tuple> i.e., list<list<atom>>
 ; (note atom NOT EQUAL TO atom expression)
 (define (liftBoundsExpr expr quantvars runContext)
-
+  (printf "liftBoundsExpr~n")
   (match expr
 
     ; atom case (base case)
     [(node/expr/atom info arity name)
-     (printf "liftBounds atom base case ~a~n" expr)
      ; node/expr/atom -> atom  (actual atom, i.e. symbol)
      (define tuple (list (node/expr/atom-name expr)))
      (list tuple)]
     
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isvar)
-     (printf "liftBounds relation name base case ~n")
      (define allBounds
        (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
      (define filteredBounds
@@ -65,7 +63,6 @@
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
-     (printf "liftBounds int constant base case ~n")
      (define allBounds
        (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
      (define filteredBounds
@@ -82,7 +79,6 @@
 
     ; other expression constants
     [(node/expr/constant info arity type)
-     (printf "liftBounds other expression constants base case ~n")
      (cond
        [(equal? type 'univ) (map (lambda (x) (list x x))
                                  (forge:Run-atoms runContext))]
@@ -98,12 +94,10 @@
     [(node/expr/quantifier-var info arity sym)
      (error (format
              "We should not be getting the bounds of a quantified variable ~a"
-             sym))
-     (printf "liftBounds quantified variable  ~a~n" sym)]
+             sym))]
     
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls form)
-     (printf "liftBounds set comprehension ~n")
      
      (define vars (map car decls)) ; account for multiple variables  
      (let ([quantvars (append vars quantvars)])             
@@ -116,11 +110,11 @@
        (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers)))]))
 
 (define (liftBoundsExprOp expr quantvars args runContext)
+  (printf "liftBoundsExprOp~n")
   (match expr
 
     ; SET UNION 
     [(? node/expr/op/+?)
-     (printf "liftBounds +~n")
      ; The upper bound of the LHS and RHS is just the addition between both
      ; bounds  
      (define uppers 
@@ -133,13 +127,11 @@
     
     ; SET MINUS 
     [(? node/expr/op/-?)
-     (printf "liftBounds -~n")
      ; Upper bound of A-B is A's upper bound (in case B empty).
      (liftBoundsExpr (first args) quantvars runContext)]
 
     ; SET INTERSECTION
     [(? node/expr/op/&?)
-     (printf "liftBounds &~n")
      (define upperBounds
        (map (lambda (arg)
               (liftBoundsExpr arg quantvars runContext)) args))
@@ -149,7 +141,6 @@
 
     ; PRODUCT
     [(? node/expr/op/->?)
-     (printf "liftBounds ->~n")
      ; the bounds of A->B are Bounds(A) x Bounds(B)
      (define uppers 
        (map (lambda (arg)
@@ -159,7 +150,6 @@
 
     ; JOIN
     [(? node/expr/op/join?)
-     (printf "liftBounds .~n")
      ; In order to approach a join with n arguments, we will first do a
      ; binary join and procede with a foldl doing a join on the previous
      ; result of the function
@@ -177,12 +167,10 @@
 
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
-     (printf "liftBounds ^~n")
      (buildClosureOfTupleSet (liftBoundsExpr (first args) quantvars runContext))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE 
     [(? node/expr/op/*?)
-     (printf "liftBounds *~n")
      (define closure (buildClosureOfTupleSet
                       (liftBoundsExpr (first args) quantvars runContext)))
      ; We remove duplicates before we are appending 'iden
@@ -192,7 +180,6 @@
 
     ; TRANSPOSE 
     [(? node/expr/op/~?)
-     (printf "liftBounds ~~~n")
      (define upperBounds
        (map (lambda (x) (liftBoundsExpr x quantvars runContext)) args))
      ; flip the tuples in the upper bounds
@@ -200,14 +187,13 @@
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
-     (printf "liftBounds sing~n")
      (liftBoundsInt (first args) quantvars runContext)]))
 
 (define (liftBoundsInt expr quantvars runContext)
+  (printf "liftBoundsInt~n")
   (match expr
     ; constant int
     [(node/int/constant info value)
-     (printf "liftBounds int constant base case -~n")
      (define allBounds (forge:Run-kodkod-bounds runContext)) 
      (define filteredBounds (filter
                              (lambda (b) (equal? "Int"
@@ -223,19 +209,18 @@
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)
-     (printf "liftBounds operator to some integer expression base case -~n")
      (liftBoundsIntOp expr quantvars args runContext)]
     
     ; sum "quantifier"
     ; e.g. sum p : Person | p.age  
     [(node/int/sum-quant info decls intExpr)
-     (printf "liftBounds sumQ~n")
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        (liftBoundsExpr (node/expr/constant info 1 'Int)
                        quantvars runContext))]))
 
 (define (liftBoundsIntOp expr quantvars args runContext)
+  (printf "liftBoundsIntOp~n")
   (match expr
     ; int addition
     [(? node/int/op/add?)
@@ -260,7 +245,6 @@
     
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
-     (printf "liftBounds cardinality~n")
      (define allBounds
        (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
      (define filteredBounds (filter

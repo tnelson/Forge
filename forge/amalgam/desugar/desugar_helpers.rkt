@@ -19,7 +19,6 @@
 ;         and put in a big AND called by desugar
 (define
   (transitiveClosureAnd filteredExtendResult expr info runContext runningArgs)
-  ;(debug-repl)
   (cond
     [(or
       (empty? filteredExtendResult)
@@ -87,13 +86,11 @@
          (append newSimplePaths
                  (apply append (map (lambda (newPrefix) (extendPossiblePaths edges newPrefix)) newSimplePaths)))]))
 
-; (extendPossiblePaths '() '(1))
-; (extendPossiblePaths '((1 2)) '(1))
-; (extendPossiblePaths '((1 2) (2 3) (1 5) (4 7)) '(1))
-; (extendPossiblePaths '((1 2) (2 3) (1 5) (4 7) (7 8) (2 5) (2 2)) '(1))
-;(extendPossiblePaths (cartesian-product '(0 1 2 3 4 5 6 7 8 9) '(0 1 2 3 4 5 6 7 8 9)) '(1))
 
-
+; input: leftTS - left hand side of joined tuple
+;        rightTS - right hand side of joined tuple
+; 
+; output: result of the join of leftTS and rightTS
 ; Helper to join Tuples together
 ; list<tuple>, list<tuple> -> list<tuple>
 (define (joinTupleDesugar leftTS rightTS)

@@ -16,6 +16,51 @@
             (lambda () (display "Starting tests for Desugar helpers"))
             (lambda () (display "All tests for Desugar helpers passed!"))
 
+          ; extendPossiblePaths
+          (@test-case
+             "TEST extendPossiblePaths on empty list"
+             (@check-equal?
+              (toString (extendPossiblePaths '() '(1)))
+              (toString '())))
+
+            (@test-case
+             "TEST extendPossiblePaths on length 1 list"
+             (@check-equal?
+              (toString  (extendPossiblePaths '((1 2)) '(1)))
+              (toString '((1 2)))))
+
+            (@test-case
+             "TEST extendPossiblePaths on valid list"
+             (@check-equal?
+              (toString
+               (extendPossiblePaths '((1 2) (2 3) (1 5) (4 7) (7 8)) '(1)))
+              (toString '((1 2 ) (1 5) (1 2 3)))))
+
+            (@test-case
+             "TEST extendPossiblePaths on valid list with cycle"
+             (@check-equal?
+              (toString
+               (extendPossiblePaths
+                '((1 2) (2 3) (1 5) (4 7) (7 8) (2 5) (2 2)) '(1)))
+              (toString '((1 2 ) (1 5) ( 1 2 3) (1 2 5)))))
+
+            ; transitiveClosureAnd
+
+            ; transitiveClosureIn
+            (@test-case
+             "TEST transitiveClosureIn on valid input"
+             (@check-equal?
+              (toString
+               (transitiveClosureIn 'Node0 'Node1 edges empty-nodeinfo udt))
+              (toString
+               (node/formula/op/in
+                empty-nodeinfo
+                (list (node/expr/op/->
+                       empty-nodeinfo 2
+                       (list (node/expr/atom empty-nodeinfo 1 'Node0)
+                             (node/expr/atom empty-nodeinfo 1 'Node1)))
+                      edges)))))
+
             ; productHelper
             (@test-case
              "TEST productHelper on valid input same arity"
