@@ -64,7 +64,8 @@
          (prefix-out forge: (struct-out Options))
          (prefix-out forge: (struct-out State))
          (prefix-out forge: (struct-out Run-spec))
-         (prefix-out forge: (struct-out Run)))
+         (prefix-out forge: (struct-out Run))         
+         (prefix-out forge: (struct-out sbound)))
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
@@ -724,7 +725,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define-values (run-scope run-bound)
           (run-inst base-scope default-bound))
 
-        
         (define run-target 
           (~? (Target (cdr target-instance)
                       (~? 'target-distance 'close))
@@ -735,10 +735,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
 
 
-        (define run-command #,command)
-
+        (define run-command #,command)        
+        
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
-        (define-values (run-result atoms server-ports kodkod-bounds) (send-to-kodkod run-spec))        
+        (define-values (run-result atoms server-ports kodkod-bounds) (send-to-kodkod run-spec))
+        
         (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
 
@@ -1129,7 +1130,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Insert missing upper bounds of partial bindings
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define fixed-sigs
-    (for/hash ([(rel pbinding) (in-hash pbindings)])
+    (for/hash ([(rel pbinding) (in-hash pbindings)])      
       (match-define (sbound rel lower upper) pbinding)
       (when (@and (@= (relation-arity rel) 1) (@not upper))
         (define sig (get-sig run-spec (string->symbol (relation-name rel))))
@@ -1173,7 +1174,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   (define relation-to-bound ; Map<Symbol, bound>
     (get-relation-bounds run-spec sig-to-bound))
-
+  
   ; Get new bounds and constraints from breaks
   (define-values (total-bounds break-preds)
     (let* ([sig-bounds (map (compose (curry hash-ref sig-to-bound )

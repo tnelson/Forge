@@ -7,7 +7,8 @@
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
 (provide make-exact-sbound)
-(provide sbound sbound-lower sbound-upper)
+;(provide sbound sbound-lower sbound-upper)
+(provide (struct-out sbound))
 
 ;;;;;;;;;;;;;;
 ;;;; util ;;;;

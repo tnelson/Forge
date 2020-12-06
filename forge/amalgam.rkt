@@ -3,9 +3,15 @@
 ; Why does the above cause an error?
 #lang forge/core
 
+;(set-verbosity 10)
+
 ;(require forge/amalgam/desugar/desugar)
 
-(require "amalgam/tests/forge_ex.rkt")  
+(require "amalgam/tests/forge_ex.rkt")
+(require racket/hash)
+;(require (only-in "breaks.rkt" sbound))
+; ^ This will be a *different* struct defn; instead get via sigs
+
 (run udt
      #:preds [isUndirectedTree]
      #:scope [(Node 7)]) 
@@ -36,25 +42,55 @@
   (define Fs (forge:Run-spec-preds spec))
   ;(define F (and Fs)) ; drake saying no meme
   (define F (foldl (lambda (f acc) (and f acc)) (first Fs) (rest Fs))); drake saying yes meme
-  (printf "  F: ~a~n" F) 
+  ;(printf "  F: ~a~n" F) 
   
   (define state (forge:Run-spec-state spec))
-  (define scope (forge:Run-spec-scope spec))
+  (define orig-scope (forge:Run-spec-scope spec))
+  (define orig-bounds (forge:Run-spec-bounds spec))
   (define sigs (forge:State-sigs state))
-  (define relations (forge:State-relations state))  
-
-;  pbindings ; Map<Symbol, sbound>
-;  tbindings ; Map<Symbol, List<Symbol>>
+  (define relations (forge:State-relations state))
   
   ; TODO This may only work if the solver state is the *first* instance in the stream
   ;   Confirm + discuss: what's the method by which the generator moves forward?
   (define orig-inst (stream-first (forge:Run-result orig-run)))
   (unless (symbol=? 'sat (car orig-inst))
-    (error "amalgam called on unsat run"))  
-  (printf "  orig-inst: ~a~n" orig-inst)
+    (error "amalgam called on unsat run"))
+  (printf "~n  first orig instance: ~a~n" orig-inst)
+  ;(printf "~n  orig-inst: ~a~n" orig-inst)
+  ;(printf "~n  orig-bounds: ~a~n" (forge:Run-spec-bounds spec))
+  ;(printf "~n  orig-scope: ~a~n" orig-scope) 
   (define new-totals (flip-tuple (cdr orig-inst) (car tup) (cdr tup)))
-  (define bounds (forge:Bound (hash) new-totals)) 
-  (printf "  bounds: ~a~n" bounds)
+  
+  ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
+  ; e.g. (for fixed edge relation)
+  ;Original PBindings: 
+  ; #hash(((relation 2 "edges" (Node Node) Node) .
+  ;   #(struct:sbound (relation 2 "edges" (Node Node) Node)
+  ;   #<set: (Node0 Node1)> #<set: (Node0 Node1)>))
+  ;    ...
+  ;(define bounds (forge:Bound (hash) new-totals))
+  ;(define all-rels (hash-union sigs relations))
+  
+  (define (make-exact-sbound rel tups)
+    (forge:sbound rel (list->set tups) (list->set tups)))
+  
+  ; For reasons passing understanding, get-relation returns a symbol...
+  (define (get-actual-relation relname)
+    (cond [(hash-has-key? sigs relname) (forge:Sig-rel (hash-ref sigs relname))]
+          [(hash-has-key? relations relname) (forge:Relation-rel (hash-ref relations relname))]
+          [else (error "unknown relation or sig" relname)]))
+ 
+  (define new-pbindings
+    (for/hash ([k (hash-keys new-totals)]);(hash-keys orig-bounds)])
+      (values (get-actual-relation k)
+              (make-exact-sbound (get-actual-relation k)
+                                 (hash-ref new-totals k)))))
+  
+  ;(printf "~n~n  new-pbindings: ~a~n" new-pbindings)
+ 
+  (define bounds (forge:Bound new-pbindings (forge:Bound-tbindings orig-bounds)))
+  (define scope (forge:Scope #f #f (hash))) ; empty
+  ;(printf "~n  bounds: ~a~n" bounds)
   ; can't use inst syntax here, so construct manually
   (define alt-inst
     (lambda (s b) (values scope bounds)))
@@ -62,10 +98,11 @@
   (run alt-run
        #:preds []
        #:bounds alt-inst)
-  (printf "  first alt instance: ~a~n" (stream-first (forge:Run-result alt-run)))
+  (printf "~n  first alt instance: ~a~n" (stream-first (forge:Run-result alt-run)))
+  ;(printf "~n  ALT BOUNDS: ~a~n" (forge:Run-spec-bounds (forge:Run-run-spec alt-run)))
   ; evaluate to make sure tup is locally necessary  
   (define check-alt (evaluate alt-run 'unused F))
-  (printf "  check-alt: ~a~n" check-alt)
+  (printf "~n  check-alt: ~a~n" check-alt)
 
   ; desugar F
   ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)  
@@ -80,6 +117,12 @@
 ; > (require racket/stream racket/base forge/amalgam)
 ; > (build-provenances (cons '(Node3 Node1) "edges") #f foo1)
 
-(build-provenances (cons '(Node3 Node1) "edges") #f udt)
+; This will produce an error if Node1 isn't in all-atoms
+;   TODO
+;(build-provenances (cons '(Node1 Node1) "edges") #f udt)
+
+; these are OK assuming 3, 4, 5, 6 are used
+;(build-provenances (cons '(Node3 Node3) "edges") #f udt) ; add
+(build-provenances (cons '(Node4 Node5) "edges") #f udt) ; remove
 
 
