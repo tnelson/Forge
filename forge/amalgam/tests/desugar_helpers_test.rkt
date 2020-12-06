@@ -83,7 +83,7 @@
                  (list (tup2Expr rightTupleContext udt empty-nodeinfo) RHS))))
              (@check-equal?
               (toString (productHelper
-                         (list edges Node univ) (list Node edges)
+                         (list edges Node univ) Node
                          currTupIfAtomic empty-nodeinfo udt))
               (toString formulas)))
 
@@ -118,7 +118,7 @@
                                     RHSDifferentArity))))
             (@check-equal?
              (toString
-              (productHelper (list Node edges) (list Node edges)
+              (productHelper (list Node edges) Node
                              currTupIfAtomicDifferentArity empty-nodeinfo udt))
              (toString formulasDifferentArity)))
 

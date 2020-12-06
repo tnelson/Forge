@@ -75,26 +75,27 @@
               ; one x: A | r.x in q ------>
               ;    (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
               [(equal? quantifier 'one)
-               ; This is making the LHS 
-               (define newQuantFormLHS
-                 (node/formula/quantified info 'some decls subForm))
                ; This is making the RHS 
                (define negatedFormula (node/formula/op/! info (list subForm)))
-               ; TODO: How can we re-write the arity in this case?
-               ; Doing Node - x would be 0 if x: Node 
+               
                (define subtractedDecls
-                 (node/expr/op/- info 2
+                 (node/expr/op/- info (node/expr-arity (cdr (car decls)))
                                  (list (cdr (car decls)) (car (car decls)))))
                (define quantifiedVarOne
                  (node/expr/quantifier-var info 1 (gensym "quantiOne")))
                (define newDecls (list (cons quantifiedVarOne subtractedDecls)))
                (define newQuantFormRHS
                  (node/formula/quantified info 'all newDecls negatedFormula))
+               
                ; Put LHS and RHS together 
                (define desugaredAnd
                  (node/formula/op/&& info
-                                     (list newQuantFormLHS newQuantFormRHS)))
-               (desugarFormula desugaredAnd quantVars runContext currSign)]
+                                     (list subForm newQuantFormRHS)))
+      
+               (define newQuantFormLHS
+                 (node/formula/quantified info 'some decls desugaredAnd))
+                        
+               (desugarFormula newQuantFormLHS quantVars runContext currSign)]
 
               ; lone x: A | r.x in q ------>
               ;   (no x: A | r.x in q) or (one x: A | r.x in q)
@@ -348,18 +349,25 @@
                      quantVars runContext currSign)]
     
     ; PRODUCT
+    ; TODO: re-implement solution with similar approach as join
     [(? node/expr/op/->?)
      (cond
        [(@>= (node/expr-arity expr) 2)
         (define currentProduct
-          (productHelper  (first args) (second args)
+
+        ; get product of first thing in args and second thing in args
+        (productHelper (list (first args)) (second args)
                           currTupIfAtomic info runContext))
+
+        ; fold over everything else and return the AND of everything in the fold
         (define foldProduct
           (foldl (lambda (curr acc)
                    (productHelper acc curr currTupIfAtomic info runContext))
                  currentProduct (rest (rest args))))
         (node/formula/op/&& info foldProduct)]
        [(equal? (node/expr-arity expr) 1)
+
+        ; if arity is 1, only call desugarExpr on the first thing
         (desugarExpr (first args)
                      quantVars currTupIfAtomic runContext currSign)]
        [else (error
@@ -409,7 +417,6 @@
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
-     ;(debug-repl)
      ; Write transitive closure case 
      ;^e = e + e.e + e.e.e ... up to firstCol(e)
      ; #dots = #(UB(leftCol)+UB(rightCol)) - 1  ?
@@ -425,7 +432,6 @@
      ; Check the endpoint and remove items that do not match
      (define endPoint (last (last uppers)))
      
-     ;(debug-repl)
      (define filteredExtendResult
        (filter
         (lambda (result) (equal? (last result) endPoint)) extendResult))

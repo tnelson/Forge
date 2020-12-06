@@ -214,6 +214,25 @@
             ; INTERSECTION
 
             ; PRODUCT
+            ; TODO: write test case for Product on arity 3
+            (@test-case
+             "TEST PRODUCT expression on arity 2"
+             (define productTest (-> Node Node))
+             (define sol
+               (node/formula/op/&& empty-nodeinfo
+                                          (list (node/formula/op/in
+                                                 empty-nodeinfo
+                                                 (list (node/expr/op/->
+                                                        empty-nodeinfo 1
+                                                        (list (node/expr/atom empty-nodeinfo 1 'Node))) Node))
+                                                (node/formula/op/in
+                                                 empty-nodeinfo
+                                                 (list (node/expr/op/->
+                                                        empty-nodeinfo 1
+                                                        (list (node/expr/atom empty-nodeinfo 1 'Node))) Node)))))
+             (@check-equal?
+              (toString (desugarExpr productTest '() '(Node) udt #t))
+              (toString sol)))
 
             ; JOIN
             #|(printf "TEST!!!!!!!")

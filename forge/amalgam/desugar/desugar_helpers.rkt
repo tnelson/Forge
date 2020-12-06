@@ -84,7 +84,9 @@
         [else
          ; keep the new simple paths, but also try to extend them again
          (append newSimplePaths
-                 (apply append (map (lambda (newPrefix) (extendPossiblePaths edges newPrefix)) newSimplePaths)))]))
+                 (apply append (map (lambda (newPrefix)
+                                      (extendPossiblePaths edges newPrefix))
+                                    newSimplePaths)))]))
 
 
 ; input: leftTS - left hand side of joined tuple
@@ -130,8 +132,9 @@
 ; 
 ; output: list containing two in nodes
 (define (productHelper left right currTupIfAtomic info runContext)
+  ;(debug-repl)
   (define LHS (last left))
-  (define RHS (first right))
+  (define RHS right)
   (define
     leftTupleContext
     (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
