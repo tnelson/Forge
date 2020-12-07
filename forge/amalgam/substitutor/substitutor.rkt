@@ -21,7 +21,6 @@
 ;
 ; output: the formula with target substituted by value
 (define (substituteFormula formula quantvars target value)
-  (printf "substituteFormula~n")
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -88,7 +87,6 @@
 
     ; IMPLIES
     [(? node/formula/op/=>?)
-     (printf "substitutor => ~n")
      (define substitutedLHS
        (substituteFormula  (first args) quantvars target value))
      (define substitutedRHS
@@ -134,7 +132,6 @@
 ;
 ; output: the expression with target substituted by value
 (define (substituteExpr expr quantvars target value)
-  (printf "substituteExpr~n")
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr)
     (error (format "substituteExpr called on non-expr: ~a" expr)))
@@ -187,8 +184,7 @@
         (when (member v quantvars)
           (error (format "substitution encountered shadowed quantifier ~a" v))))
                  vars)
-     (let ([quantvars (append vars quantvars)])       
-     (printf "comprehension over ~a~n" vars)              
+     (let ([quantvars (append vars quantvars)])               
        (comprehension
         info
         (map (lambda (decl)
@@ -207,7 +203,6 @@
 ;
 ; output: the expression with target substituted by value
 (define (substituteExprOp expr quantvars args info target value)
-  (printf "substituteExprOp~n")
   (match expr
 
     ; UNION
@@ -286,7 +281,6 @@
 ;
 ; output: the expression with target substituted by value
 (define (substituteInt expr quantvars target value)
-  (printf "substituteInt~n")
   (match expr
     
     ; CONSTANT INT
@@ -336,7 +330,6 @@
 ; This helper is used for transitive and reflexive transtivie closure.
 ;   Helper used to build a closure of tuple sets.
 (define (substituteIntOp expr quantvars args info target value)
-  (printf "substituteIntOp~n")
   (match expr
     ; int addition
     [(? node/int/op/add?)

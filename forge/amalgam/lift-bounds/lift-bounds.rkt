@@ -37,7 +37,6 @@
 ;  ... -> list<tuple> i.e., list<list<atom>>
 ; (note atom NOT EQUAL TO atom expression)
 (define (liftBoundsExpr expr quantvars runContext)
-  (printf "liftBoundsExpr~n")
   (match expr
 
     ; atom case (base case)
@@ -110,7 +109,6 @@
        (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers)))]))
 
 (define (liftBoundsExprOp expr quantvars args runContext)
-  (printf "liftBoundsExprOp~n")
   (match expr
 
     ; SET UNION 
@@ -190,7 +188,6 @@
      (liftBoundsInt (first args) quantvars runContext)]))
 
 (define (liftBoundsInt expr quantvars runContext)
-  (printf "liftBoundsInt~n")
   (match expr
     ; constant int
     [(node/int/constant info value)
@@ -220,7 +217,6 @@
                        quantvars runContext))]))
 
 (define (liftBoundsIntOp expr quantvars args runContext)
-  (printf "liftBoundsIntOp~n")
   (match expr
     ; int addition
     [(? node/int/op/add?)

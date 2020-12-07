@@ -77,7 +77,6 @@
              [(equal? (last prefix) e0) (append prefix (list e1))]
              [else #f]))
      edges))
-  ;(printf "new simple paths: ~a~n" newSimplePaths)
   
   (cond [(empty? newSimplePaths)
          empty]

@@ -20,7 +20,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (desugarFormula formula quantVars runContext currSign)
-  (printf "desugarFormula~n")
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -147,7 +146,6 @@
 ; original recursive function. 
 (define (desugarFormulaOp formula quantVars args
                           runContext currSign currTupIfAtomic info)
-  (printf "desugarFormulaOp~n")
   (match formula
 
     ; AND 
@@ -192,7 +190,6 @@
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
         ; ground case. we have a currentTuple now, and want to desugar the RHS
-        (printf "entering ground case: ~a ~a" rightE (first liftedUpperBounds))
         (desugarExpr rightE quantVars
                      (first liftedUpperBounds) runContext currSign)]
        [else
@@ -238,7 +235,6 @@
      (error "amalgam: int = not supported ~n")]))
 
 (define (desugarExpr expr quantVars currTupIfAtomic runContext currSign)
-  (printf "desugarExpr~n")
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr)
     (error (format "desugarExpr called on nonExpr ~a" expr)))
@@ -482,7 +478,6 @@
      (error "amalgam: sum quantifier not supported ~n")]))
 
 (define (desugarIntOp expr quantVars args runContext)
-  (printf "desugarIntOp~n")
   (match expr
     ; int addition
     [(? node/int/op/add?)
@@ -515,7 +510,6 @@
     
     ; absolute value
     [(? node/int/op/abs?)
-     (printf "desugar abs~n")
      (error "amalgam: int abs not supported~n")]
     
     ; signOf 
