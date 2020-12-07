@@ -241,6 +241,7 @@
 ;
 ; output: throws an error if the currentTupleIfAtomic doesn't have a context 
 (define (mustHaveTupleContext tup expr)
+  (debug-repl)
   (cond
     [(not(list? tup))
      (error (format "currTupIfAtomic is not a list in ~a" expr))]

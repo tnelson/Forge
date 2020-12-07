@@ -256,6 +256,23 @@
             ; quantified variable
 
             ; set comprehension
+            (@test-case
+             "TEST desugar in set comprehension case"
+             (define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+
+             (define fSetComprehension (node/expr/comprehension empty-nodeinfo 1
+                                                   (list (cons qvx Node))
+                                                   (in qvx Node)))
+             
+             (define inSetComprehension
+               (node/formula/op/in empty-nodeinfo
+                                   (list (node/expr/op/->
+                  empty-nodeinfo
+                  1 (list (node/expr/atom empty-nodeinfo 1 'Node0))) fSetComprehension))) 
+           
+             (@check-equal?
+              (toString (desugarFormula inSetComprehension '() udt #t))
+              (toString '())))
 
             ; desugarExpr test on no currTupIfAtomic
             (@check-exn

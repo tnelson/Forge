@@ -195,7 +195,6 @@
     ;     turn into an and-of-implications edges in ~edges <--- same deal, need
     ;     to build an and-of-implications
     [(? node/formula/op/in?)
-
      (define leftE (first args))
      (define rightE (second args))
      ; We don't yet know which relation's bounds will be needed, so just pass
