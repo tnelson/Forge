@@ -429,6 +429,10 @@
                                    (node/expr/op/join info (node/expr-arity expr)
                                                       (rest (rest args)))))
            ; TODO: WRITE A TEST AND SEE WHAT HAPPENS
+           ; Maybe this doesn't use the newArgs etc.
+           ; A.B.C.D ~~~~~>
+           ; (A.B.C).D  (or the other way around :-/)
+           ; apply this repeatedly!
            (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
           [else
            ; TODO: build the big OR from newargs, call desugarFormula on it
