@@ -112,7 +112,7 @@
            ; big AND or OR of subformulas 
            [(not (equal? 1 (length decls)))
  
-            (when (and (not (equal? (quantifier 'and)))
+            (when (and (not (equal? (quantifier 'all)))
                        (not (equal? (quantifier 'some))))
               (error
                (format
@@ -300,18 +300,18 @@
      ; account for multiple variables
      (define vars (map car decls))
      (let ([quantVars (append vars quantVars)])
-       ; NOTE: suggest constructing both sub formulas separately:
        ;  t0 in A0 ...
-       ;  then
-       ; below
-       (for-each (lambda (d)
-                   ;TODO: Check if this is the right way to pass in target/value
-                   ; NOTE: (cdr d) should be instead the i-th tuple component
-                   ; NOTE: also, use foldl or something similar, not for-each
-                   ;  suggest accumulator + start value as a pair (fmla-so-far . tuple-remaining)
-                   (substituteFormula form quantVars (car d) (cdr d)))
-                 decls)
-       (desugarFormula form quantVars runContext currSign))]))
+       (define LHSSubformula
+         (node/formula/op/&& info (setComprehensionAndHelper
+                                   currTupIfAtomic decls info)))
+       ; fmla[t0/x0, t1/x1, ...]
+       (define RHSSubformula
+         (setComprehensionSubHelper form currTupIfAtomic quantVars decls))
+
+       ; Put both formulas together
+       (define setComprehensionAnd (node/formula/op/&& info (list LHSSubformula
+                                                                  RHSSubformula)))
+       (desugarFormula setComprehensionAnd quantVars runContext currSign))]))
 
 (define (desugarExprOp  expr quantVars args
                         currTupIfAtomic runContext currSign info)

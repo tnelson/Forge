@@ -9,6 +9,26 @@
          transitiveClosureHelper productHelper joinHelper joinTupleDesugar
          extendPossiblePaths transitiveClosureAnd )
 
+(define (setComprehensionAndHelper currTupIfAtomic decls info)
+  (cond
+    [(empty? decls) '()]
+    [else
+     (cons (node/formula/op/in info (list (first currTupIfAtomic)
+                                          (first (cdr decls))))
+           (setComprehensionAndHelper (rest currTupIfAtomic)
+                                      (rest decls) info))]))
+
+
+(define (setComprehensionSubHelper form currTupIfAtomic quantVars decls)
+  (cond
+    [(empty? decls) form]
+    [else
+     (define vary (node/expr/quantifier-var empty-nodeinfo 1 (first (car decls))))
+     (define formulaSoFar (substituteFormula form quantVars vary
+                              (first currTupIfAtomic)))
+     (setComprehensionSubHelper formulaSoFar (rest currTupIfAtomic) quantVars
+                                      (rest decls))]))
+
 ; input: filteredExtendResult - the list of edges from desugar
 ;        expr - the current expression we are looking at 
 ;        info - info of the original node 

@@ -11,6 +11,8 @@
 
 (define varz (node/expr/quantifier-var empty-nodeinfo 1 'z))
 (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+(define vary (node/expr/quantifier-var empty-nodeinfo 1 'y))
+
 (define varzArity2 (node/expr/quantifier-var empty-nodeinfo 2 'z))
 (define fSomeReachesAll (some ([x Node]) (all ([y Node])
                                               (in y (join x (^ edges))))))
@@ -146,6 +148,17 @@
                                   '() edges varzArity2))
      (toString (some ([x Node]) (all ([y Node])
                                      (in y (join x (^ varzArity2))))))))
+
+   ; formula in
+   (@test-case
+    "TEST substituteFormula in 'IN' case "
+    (define fSomeReachesAllSimpleIn (some ([x Node])
+                                          (all ([y Node])
+                                               (in y (join x (^ edges))))))
+    (@check-equal?
+     (toString (substituteFormula (in vary (join varx (^ edges)))
+                                  '() qvx varz))
+     (toString (in vary (join varz (^ edges))))))
 
    (@test-case
     "TEST substituteFormula in complex in case "
