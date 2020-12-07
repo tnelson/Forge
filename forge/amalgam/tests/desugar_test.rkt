@@ -35,23 +35,22 @@
 
             ; no
             ; QUESTION: THESE RETURN VERY LONG THINGS
-            #|(define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
-(define y (node/expr/quantifier-var empty-nodeinfo 1 'y))
-(define noTest (no ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
-(define negatedFormula  (node/formula/op/! empty-nodeinfo (list (in y (join x (^ edges))))))
-(define newQuantFormula (node/formula/quantified empty-nodeinfo 'all (list [y Node]) negatedFormula))
-(@test-case
- "TEST NO formula currSign true"
- (@check-equal?
-  (toString (desugarFormula noTest '() udt #t))
-  (toString (desugarFormula newQuantFormula '() udt #t))))|#
+            #|(@test-case
+              "TEST NO formula currSign true"
+             (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
+             (define y (node/expr/quantifier-var empty-nodeinfo 1 'y))
+             (define noTest (no ([x Node]) (all ([y Node]) (in y (join x edges)))))
+             (define negatedFormula  (node/formula/op/! empty-nodeinfo (list (in y (join x edges)))))
+             (define newQuantFormula (node/formula/quantified empty-nodeinfo 'all (list [y Node] [x Node]) negatedFormula))
+             (@check-equal?
+              (toString (desugarFormula noTest '() udt #t))
+              (toString (desugarFormula newQuantFormula '() udt #t))))|#
 
             ; one
-            ;(define oneTest (one ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
+            ;(define oneTest (one ([x Node]) (in x Node)))
 
             ; lone
-            ;(define loneTest (lone ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
-
+            ; (define loneTest (lone ([x Node])  (in x Node)))
 
             ; AND
             (@test-case
@@ -142,15 +141,19 @@
               (toString false)))
 
             ; INTEGER <
+            (@test-case
+             "TEST error <"
             (@check-exn
              exn:fail?
              (lambda ()
                (define varIntConstX (node/int/constant empty-nodeinfo 1))
                (define varIntConstY  (node/int/constant empty-nodeinfo 2))
                (define intLess (< varIntConstX varIntConstY ))
-               (desugarFormula intLess '() udt #t)))
+               (desugarFormula intLess '() udt #t))))
 
             ; INTEGER >
+            (@test-case
+             "TEST error >"
             (@check-exn
              exn:fail?
 
@@ -158,23 +161,83 @@
                (define varIntConstX (node/int/constant empty-nodeinfo 1))
                (define varIntConstY  (node/int/constant empty-nodeinfo 2))
                (define intGreater (> varIntConstX varIntConstY ))
-               (desugarFormula intGreater '() udt #t)))
+               (desugarFormula intGreater '() udt #t))))
 
             ; INTEGER =
+            (@test-case
+             "TEST error ="
             (@check-exn
              exn:fail?
-
              (lambda ()
                (define varIntConstX (node/int/constant empty-nodeinfo 1))
                (define varIntConstY  (node/int/constant empty-nodeinfo 2))
                (define intEquals (= varIntConstX varIntConstY ))
-               (desugarFormula intEquals '() udt #t)))
+               (desugarFormula intEquals '() udt #t))))
 
+
+            ; error test desugarExpr no expr
+            (@test-case
+             "TEST error desugarExpr"
+            (@check-exn
+             exn:fail?
+             (lambda ()
+               (desugarExpr '() '() '() udt #f))))
+            
             ; relation name
+             (@test-case
+             "TEST RELATION NAME"
+             (define relationTest Node)
+             (@check-equal?
+              (toString (desugarExpr relationTest '() '(Node) udt #f))
+              (toString
+               (node/formula/op/in
+                empty-nodeinfo
+                (list
+                 (node/expr/op/->
+                  empty-nodeinfo
+                  1 (list (node/expr/atom empty-nodeinfo 1 'Node))) Node)))))
 
-            ; atom
+            ; atom currSign true
+             (@test-case
+              "TEST atom on currSign true"
+             (define result (node/formula/op/in empty-nodeinfo
+                            (list (tup2Expr '(Node) udt empty-nodeinfo)
+                                  (node/expr/atom empty-nodeinfo 1 'Node))))
+             (@check-equal?
+              (toString (desugarExpr
+                         (node/expr/atom empty-nodeinfo 1 'Node)
+                         '() '(Node) udt #t))
+              (toString result)))
+
+            ; atom currSign false
+             (@test-case
+              "TEST atom on currSign false"
+              (define result (node/formula/op/!
+                              empty-nodeinfo
+                              (node/formula/op/in
+                               empty-nodeinfo
+                               (list
+                                (tup2Expr
+                                 '(Node) udt empty-nodeinfo)
+                                (node/expr/atom empty-nodeinfo 1 'Node)))))
+              (@check-equal?
+               (toString (desugarExpr
+                          (node/expr/atom empty-nodeinfo 1 'Node)
+                          '() '(Node) udt #f))
+               (toString result)))
 
             ; Int constant
+             (@test-case
+              "TEST Int"
+             (define result (node/formula/op/in empty-nodeinfo
+                         (list
+                          (tup2Expr '(Node) udt empty-nodeinfo)
+                          (node/expr/constant empty-nodeinfo 1 'Int))))
+             (@check-equal?
+               (toString (desugarExpr
+                          (node/expr/constant empty-nodeinfo 1 'Int)
+                          '() '(Node) udt #f))
+               (toString result)))
 
             ; other expression constants
 
