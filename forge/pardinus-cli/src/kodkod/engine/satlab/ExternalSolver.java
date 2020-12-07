@@ -210,6 +210,7 @@ final public class ExternalSolver implements SATSolver {
 			try {
 				cnf.seek(0);
 				cnf.writeBytes("p cnf " + vars + " " + clauses);
+				System.out.println("VARS = "+vars+" CLAUSES="+clauses);
 				cnf.close();
 
 				final String[] command = new String[options.length+2];
@@ -225,6 +226,7 @@ final public class ExternalSolver implements SATSolver {
 				while((line = out.readLine()) != null) {
 //					System.out.println("2.0");
 					String[] tokens = line.split("\\s");
+					System.out.println("line = "+line);
 					int tlength = tokens.length;
 //					System.out.println("2.1");
 					if (tlength>0) {
@@ -244,9 +246,12 @@ final public class ExternalSolver implements SATSolver {
 							for(int i = 1; i < last; i++) {
 								updateSolution(Integer.parseInt(tokens[i]));
 							}
-							int lit = Integer.parseInt(tokens[last]);
-							if (lit!=0) updateSolution(lit);
-							else if (sat!=null) break;
+							// Account for *optional* terminating 0 in valuation
+							if(last > 0) { // account for trivial case (no vars)
+								int lit = Integer.parseInt(tokens[last]);
+								if (lit != 0) updateSolution(lit);
+								else if (sat != null) break; // know satisfiability, so done
+							}
 						} // not a solution line or a variable line, so ignore it.
 					}
 				}
@@ -256,6 +261,7 @@ final public class ExternalSolver implements SATSolver {
 			} catch (IOException e) {
 				throw new SATAbortedException(e);
 			} catch (NumberFormatException e) {
+				e.printStackTrace();
 				throw new SATAbortedException("Invalid "+ executable +" output: encountered a non-integer variable token.", e);
 			} finally {
 				close(cnf);
