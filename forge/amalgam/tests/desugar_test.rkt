@@ -266,9 +266,7 @@
              
              (define inSetComprehension
                (node/formula/op/in empty-nodeinfo
-                                   (list (node/expr/op/->
-                  empty-nodeinfo
-                  1 (list (node/expr/atom empty-nodeinfo 1 'Node0))) fSetComprehension))) 
+                                   (list (node/expr/atom empty-nodeinfo 1 'Node0) fSetComprehension)))
            
              (@check-equal?
               (toString (desugarFormula inSetComprehension '() udt #t))

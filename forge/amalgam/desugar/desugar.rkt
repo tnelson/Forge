@@ -163,7 +163,8 @@
   (match formula
 
     ; AND 
-    [(? node/formula/op/&&?) 
+    [(? node/formula/op/&&?)
+     (debug-repl)
      (define desugaredArgs
        (map (lambda (x) (desugarFormula x quantVars runContext currSign)) args))
      (cond
@@ -200,6 +201,7 @@
      ; We don't yet know which relation's bounds will be needed, so just pass
      ; them all in
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
+     (debug-repl)
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
         ; ground case. we have a currentTuple now, and want to desugar the RHS
@@ -300,16 +302,15 @@
      (define vars (map car decls))
      (let ([quantVars (append vars quantVars)])
        ;  t0 in A0 ...
-       (define LHSSubformula
-         (node/formula/op/&& info (setComprehensionAndHelper
-                                   currTupIfAtomic decls info)))
+       (define LHSSubformula (setComprehensionAndHelper currTupIfAtomic
+                                                        decls info))
        ; fmla[t0/x0, t1/x1, ...]
        (define RHSSubformula
          (setComprehensionSubHelper form currTupIfAtomic quantVars decls))
 
        ; Put both formulas together
-       (define setComprehensionAnd (node/formula/op/&& info (list LHSSubformula
-                                                                  RHSSubformula)))
+       (define setComprehensionAnd
+         (node/formula/op/&& info (append LHSSubformula (list RHSSubformula))))
        (desugarFormula setComprehensionAnd quantVars runContext currSign))]))
 
 (define (desugarExprOp  expr quantVars args

@@ -14,7 +14,7 @@
     [(empty? decls) '()]
     [else
      (cons (node/formula/op/in info (list (first currTupIfAtomic)
-                                          (first (cdr decls))))
+                                          (cdr (first decls))))
            (setComprehensionAndHelper (rest currTupIfAtomic)
                                       (rest decls) info))]))
 
@@ -23,8 +23,7 @@
   (cond
     [(empty? decls) form]
     [else
-     (define vary (node/expr/quantifier-var empty-nodeinfo 1 (first (car decls))))
-     (define formulaSoFar (substituteFormula form quantVars vary
+     (define formulaSoFar (substituteFormula form quantVars (car (first decls))
                               (first currTupIfAtomic)))
      (setComprehensionSubHelper formulaSoFar (rest currTupIfAtomic) quantVars
                                       (rest decls))]))
@@ -62,8 +61,7 @@
 ; 
 ; output: an in which looks like (in left->right edges)
 ; called by transitiveClosureAnd
-(define (transitiveClosureIn left right expr info runContext)
-  ;(debug-repl)
+(define (transitiveClosureIn left right expr info runContext) 
   (node/formula/op/in info
                       (list (tup2Expr (list left right) runContext info)
                             expr)))
@@ -151,7 +149,6 @@
 ; 
 ; output: list containing two in nodes
 (define (productHelper left right currTupIfAtomic info runContext)
-  ;(debug-repl)
   (define LHS (last left))
   (define RHS right)
   (define
@@ -241,7 +238,6 @@
 ;
 ; output: throws an error if the currentTupleIfAtomic doesn't have a context 
 (define (mustHaveTupleContext tup expr)
-  (debug-repl)
   (cond
     [(not(list? tup))
      (error (format "currTupIfAtomic is not a list in ~a" expr))]
