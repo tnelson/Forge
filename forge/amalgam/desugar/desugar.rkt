@@ -128,6 +128,20 @@
                                                     runContext info quantifier
                                                     formula) acc))
                      currQuantifier (rest decls)))
+            ; we know this quantifier is either an all or a some
+            ; Q x0: A0, x1: A1, ... | fmla(x0, x1, ...)
+            ; ~~~~~>
+            ; Q x0: A0 | Q x1: A1 | ... | fmla(x0, x1, ...)
+
+            ; Note: when desugaring Q x: A | fmla(x)
+            ;   (this is the later case!)
+            ;   don't forget the let the A assert itself, e.g.
+            ;   some x: A | fmla(x) ~~~>
+            ;      OR_{a \in UB(A)} (x in A and fmla(x->a))
+            ;   all x: A | fmla(x) ~~~>
+            ;     AND_{a \in UB(A)} (x in A implies fmla(x->a))
+
+            
             (define unionOfQuants (node/formula/op/|| info quants))
             (desugarFormula unionOfQuants quantVars runContext currSign)]
 
@@ -281,13 +295,20 @@
 
     ; set comprehension e.g. {n : Node | some n.edges}
     ; t in {x0: A0, x1: A1, ... | fmla } means:
-    ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...]
+    ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...] <--- "replace x0 with t0" etc.
     [(node/expr/comprehension info len decls form)
      ; account for multiple variables
      (define vars (map car decls))
-     (let ([quantVars (append vars quantVars)])       
+     (let ([quantVars (append vars quantVars)])
+       ; NOTE: suggest constructing both sub formulas separately:
+       ;  t0 in A0 ...
+       ;  then
+       ; below
        (for-each (lambda (d)
-                   ;TODO: Check if this is the right way to pass in target/value 
+                   ;TODO: Check if this is the right way to pass in target/value
+                   ; NOTE: (cdr d) should be instead the i-th tuple component
+                   ; NOTE: also, use foldl or something similar, not for-each
+                   ;  suggest accumulator + start value as a pair (fmla-so-far . tuple-remaining)
                    (substituteFormula form quantVars (car d) (cdr d)))
                  decls)
        (desugarFormula form quantVars runContext currSign))]))
@@ -371,7 +392,7 @@
     
     ; JOIN
     [(? node/expr/op/join?)
-     ; Re-write join as an existentialist formula
+     ; Re-write join as an existential formula
      (cond
        [(@>= (node/expr-arity expr) 1)
         ; Example of how to do it like the Java code does:
@@ -388,7 +409,7 @@
              (define tbExpr (tup2Expr tb runContext info))
              (cond
                [(equal? (joinTupleDesugar ta tb) currTupIfAtomic)
-                (desugarFormula
+                ;(desugarFormula
                  (node/formula/op/&& info
                                       (list
                                        (node/formula/op/in info
@@ -397,7 +418,8 @@
                                        (node/formula/op/in info
                                                            (list
                                                             tbExpr (second args)))))
-                 quantVars runContext currSign)]
+;                 quantVars runContext currSign)
+                 ]
                [else #f]))
            allPairs))
 
@@ -406,8 +428,11 @@
            (define newJoin (append newArgs
                                    (node/expr/op/join info (node/expr-arity expr)
                                                       (rest (rest args)))))
+           ; TODO: WRITE A TEST AND SEE WHAT HAPPENS
            (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
-          [else newArgs])]
+          [else
+           ; TODO: build the big OR from newargs, call desugarFormula on it
+           newArgs])]
        [else
         (error (format "Expression ~a in join had arity less than 1" expr))])]
     

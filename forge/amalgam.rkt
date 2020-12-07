@@ -21,6 +21,8 @@
 
 (provide build-provenances)
 
+; takes a hash-table representation of an instance and a tuple and flips the truth of
+;  that tuple in the instance. The tuple is <t> in <raw-r>.
 (define (flip-tuple a-hash t raw-r)
   (define r (cond [(string? raw-r) (string->symbol raw-r)]
                   [(symbol? raw-r) raw-r]
@@ -125,4 +127,18 @@
 ;(build-provenances (cons '(Node3 Node3) "edges") #f udt) ; add
 (build-provenances (cons '(Node4 Node5) "edges") #f udt) ; remove
 
-
+(define (amalgam-descent a-run currTuple node)
+  (match node    
+    [(node/formula/op/&& info args)
+     #t
+     ]
+    [(node/formula/op/|| info args)
+     #t
+     ]
+    [(node/formula/op/in info args)
+     #f
+     ]
+    ; not a base case in more efficient "desugar as needed only" version
+    [(node/formula/op/! info args)
+     #f
+     ]))
