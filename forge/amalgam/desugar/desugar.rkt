@@ -315,11 +315,11 @@
     ; quantified variable (depends on scope!)
     [(node/expr/quantifier-var info arity sym)     
      (error
-      "amalgam: A quantified variable was passed into desugarExpr. Wrong substitution or malformed formula ~n")]
+      "amalgam: A quantified variable was passed into desugarExpr. ~n")]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     ; t in {x0: A0, x1: A1, ... | fmla } means:
-    ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...] <--- "replace x0 with t0" etc.
+    ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...] 
     [(node/expr/comprehension info len decls form)
      ; account for multiple variables
      (define vars (map car decls))
@@ -355,8 +355,6 @@
 
     ; UNION
     [(? node/expr/op/+?)
-     ; map over all children of intersection
-     ; TODO: we are never creating the in here?
      (define desugaredChildren
        (map
         (lambda (child)
@@ -405,8 +403,8 @@
     [(? node/expr/op/->?)
      (cond
        [(@>= (node/expr-arity expr) 2)
-        (define currentProduct
 
+        (define currentProduct
         ; get product of first thing in args and second thing in args
         (productHelper (list (first args)) (second args)
                           currTupIfAtomic info runContext))
