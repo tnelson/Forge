@@ -299,6 +299,7 @@
      ; account for multiple variables
      (define vars (map car decls))
      (let ([quantVars (append vars quantVars)])
+       
        ;  t0 in A0 ...
        (define LHSSubformula (setComprehensionAndHelper currTupIfAtomic
                                                         decls info))

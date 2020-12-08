@@ -69,6 +69,11 @@
               (toString '((1 2 ) (1 5) ( 1 2 3) (1 2 5)))))
 
             ; transitiveClosureAnd
+            #|(@test-case
+             "TEST ClosureAnd on valid input"
+             (@check-equal?
+              (toString ())
+              (toString ())))|#
 
             ; transitiveClosureIn
             (@test-case
