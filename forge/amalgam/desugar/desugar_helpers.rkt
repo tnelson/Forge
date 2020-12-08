@@ -67,21 +67,11 @@
                             expr)))
 
 ; used by desugar. similar logic to buildClosureOfTupleSet
-; given upper-bound on possible tuples, constructs all possible
-; paths from <prefix> using <edges>
-; TODO: account for <end>
+; input:
+;     edges: upper-bound on possible tuples
+;     prefix: the beginning point for all paths
+; output: constructs all possible paths from <prefix> using <edges>
 ; to build set of paths starting with t0 using upperbnd UBA: (extendPossiblePaths UBA (list t0))
-
-; to produce desugared fmla:
-;   '((1 2 3) (1 3 4) (1 2 5) (1 3 5))
-; first filter to desired end point (e.g., 5)
-;   '((1 2 5) (1 3 5))
-; OR:
-;   can follow: 1 to 2 to 5
-;   can follow: 1 to 3 to 5
-; OR:
-;   AND: edge(1,2) edge(2,5)
-;   AND: edge(1,3) edge(3,5) 
 
 (define (extendPossiblePaths edges prefix)    
   (define newSimplePaths

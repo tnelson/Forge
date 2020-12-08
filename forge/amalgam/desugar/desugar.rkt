@@ -452,7 +452,7 @@
 
      ; TODO: is (first uppers) the correct seconda rgument for extendPossible
      ; Paths
-     (define extendResult (extendPossiblePaths uppers (first uppers)))
+     (define extendResult (extendPossiblePaths uppers (first currTupIfAtomic)))
 
      ; Check the endpoint and remove items that do not match
      (define endPoint (last (last uppers)))
