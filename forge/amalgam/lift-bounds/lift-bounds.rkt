@@ -23,32 +23,31 @@
 ;   to arbitrary expressions.
 
 ; Adapted from original Amalgam UpperBoundVisitor.java at:
-; https://github.com/transclosure/amalgam/blob/master/src/edu/mit/csail/sdg/alloy4compiler/translator/AmalgamUpperBoundVisitor.java
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; https://github.com/transclosure/amalgam/blob/master/src/edu/mit/csail/sdg/
+; alloy4compiler/translator/AmalgamUpperBoundVisitor.java
 
 (provide liftBoundsExpr)
 (require "lift-bounds_helpers.rkt")
 (require debug/repl)
-;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Only Expression and IntExpression cases needed
-; (we never try to lift bounds of a formula, because that makes no sense.)
-;  ... -> list<tuple> i.e., list<list<atom>>
-; (note atom NOT EQUAL TO atom expression)
+; input: expr - the expression that we are trying to get the bounds of 
+;        quantVars - the quantifiable variables of the expression
+;        runContext - the run context of the current program being ran 
+;
+; output: Returns a list of tuples (list <tuple>) containing the bounds
+; of the given expression. 
 (define (liftBoundsExpr expr quantvars runContext)
   (match expr
 
     ; atom case (base case)
     [(node/expr/atom info arity name)
-     ; node/expr/atom -> atom  (actual atom, i.e. symbol)
      (define tuple (list (node/expr/atom-name expr)))
      (list tuple)]
     
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isvar)
      (define allBounds
-       (forge:Run-kodkod-bounds runContext)) ; list of bounds objects     
+       (forge:Run-kodkod-bounds runContext))    
      (define filteredBounds
        (filter (lambda (b)
                  (equal? name
@@ -63,7 +62,7 @@
     ; The Int constant
     [(node/expr/constant info 1 'Int)
      (define allBounds
-       (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
+       (forge:Run-kodkod-bounds runContext)) 
      (define filteredBounds
        (filter (lambda (b)
                  (equal? "Int"
@@ -98,34 +97,37 @@
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls form)
      
-     (define vars (map car decls)) ; account for multiple variables  
+     (define vars (map car decls)) 
      (let ([quantvars (append vars quantvars)])             
        ; {x: e1, y: e2 | ...}
        ; then UB(e1)->UB(e2) is the UB of the whole comprehension
        (define uppers
          (map (lambda (d)                                    
                 (liftBoundsExpr (cdr d) quantvars runContext)) decls))
-       ; Return a list of lists with all of the bounds with the cartesian product
        (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers)))]))
 
+; input: expr - the expression that we are trying to get the bounds of 
+;        quantVars - the quantifiable variables of the expression
+;        args - the args (children) of the current expression that we're getting
+;               the bounds of. 
+;        runContext - the run context of the current program being ran 
+;
+; output: Returns a list of tuples (list <tuple>) containing the bounds
+; of the given expression. 
 (define (liftBoundsExprOp expr quantvars args runContext)
   (match expr
 
     ; SET UNION 
     [(? node/expr/op/+?)
-     ; The upper bound of the LHS and RHS is just the addition between both
-     ; bounds  
+     ; UB(LHS and RHS) = UB(LHS) + UB(RHS) 
      (define uppers 
        (map (lambda (arg)
               (liftBoundsExpr arg quantvars runContext)) args))
-     ; We are assuming that uppers is a list of list of list of atoms 
-     ; therefore, by calling 'apply', we can convert this into a list of list of
-     ; atoms. 
      (remove-duplicates (apply append uppers))]
     
     ; SET MINUS 
     [(? node/expr/op/-?)
-     ; Upper bound of A-B is A's upper bound (in case B empty).
+     ; UB(A-B) = UB(A).
      (liftBoundsExpr (first args) quantvars runContext)]
 
     ; SET INTERSECTION
@@ -139,11 +141,10 @@
 
     ; PRODUCT
     [(? node/expr/op/->?)
-     ; the bounds of A->B are Bounds(A) x Bounds(B)
+     ; UB(A->B) = UB(A) x UB(B)
      (define uppers 
        (map (lambda (arg)
               (liftBoundsExpr arg quantvars runContext)) args))     
-     ; Return a list of lists with all of the bounds with the cartesian product
      (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))]
 
     ; JOIN
@@ -187,8 +188,15 @@
     [(? node/expr/op/sing?)
      (liftBoundsInt (first args) quantvars runContext)]))
 
+; input: expr - the expression that we are trying to get the bounds of 
+;        quantVars - the quantifiable variables of the expression
+;        runContext - the run context of the current program being ran 
+;
+; output: Returns a list of tuples (list <tuple>) containing the bounds
+; of the given expression. 
 (define (liftBoundsInt expr quantvars runContext)
   (match expr
+
     ; constant int
     [(node/int/constant info value)
      (define allBounds (forge:Run-kodkod-bounds runContext)) 
@@ -209,13 +217,18 @@
      (liftBoundsIntOp expr quantvars args runContext)]
     
     ; sum "quantifier"
-    ; e.g. sum p : Person | p.age  
     [(node/int/sum-quant info decls intExpr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        (liftBoundsExpr (node/expr/constant info 1 'Int)
                        quantvars runContext))]))
 
+; input: expr - the expression that we are trying to get the bounds of 
+;        quantVars - the quantifiable variables of the expression
+;        runContext - the run context of the current program being ran 
+;
+; output: Returns mostly errors since int operators are not supported in
+; Amalgam. 
 (define (liftBoundsIntOp expr quantvars args runContext)
   (match expr
     ; int addition
@@ -242,7 +255,7 @@
     ; cardinality (e.g., #Node)
     [(? node/int/op/card?)
      (define allBounds
-       (forge:Run-kodkod-bounds runContext)) ; list of bounds objects
+       (forge:Run-kodkod-bounds runContext))
      (define filteredBounds (filter
                              (lambda (b)
                                (equal? "Int"
