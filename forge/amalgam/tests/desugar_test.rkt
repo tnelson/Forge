@@ -260,7 +260,7 @@
              "TEST desugar in set comprehension case called from desugar expr"
              (define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
 
-             ; x in Node
+             ; {x: Node | x in Node}
              (define fSetComprehension (node/expr/comprehension empty-nodeinfo 1
                                                                 (list (cons qvx Node))
                                                                 (in qvx Node)))

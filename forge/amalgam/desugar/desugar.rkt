@@ -19,6 +19,12 @@
 (require (prefix-in @ racket))
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; input: formula - the current formula being desugared into simpler AST
+;        quantVars - quantified variables
+;        runContext - the context of the current run
+;        currSign - the currentSign used for desugaring of NOT
+;
+; output: recursively creates restricted AST of the formula passed in
 (define (desugarFormula formula quantVars runContext currSign)
   (match formula
     ; Constant formulas: already at bottom
@@ -156,8 +162,17 @@
     [#f (printf "desugar false~n")]
     ))
 
-; This function is recursively calling every element in args and pass it to the
-; original recursive function. 
+; input: formula - the current formula being desugared into simpler AST
+;        quantVars - quantified variables
+;        runContext - the context of the current run
+;        currSign - the currentSign used for desugaring of NOT
+;        args - a list of the arguments of the current formula
+;        currTupIfAtomic - the tuple containing the implicit LHS of the current
+;                          "in"
+;        info - the info of the original node
+;
+; output: This function is recursively calling every element in args and pass
+; it to the original recursive function. 
 (define (desugarFormulaOp formula quantVars args
                           runContext currSign currTupIfAtomic info)
   (match formula
@@ -247,6 +262,16 @@
     [(? node/formula/op/int=?)
      (error "amalgam: int = not supported ~n")]))
 
+; input: expr - the current expression being desugared into simpler AST
+;        quantVars - quantified variables
+;        runContext - the context of the current run
+;        currSign - the currentSign used for desugaring of NOT
+;        args - a list of the arguments of the current expression
+;        currTupIfAtomic - the tuple containing the implicit LHS of the current
+;                          "in"
+;
+; output: This function is desugaring the current expression (returns simpler
+;         result of desugared expression)
 (define (desugarExpr expr quantVars currTupIfAtomic runContext currSign)
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr)
@@ -312,6 +337,17 @@
          (node/formula/op/&& info (append LHSSubformula (list RHSSubformula))))
        (desugarFormula setComprehensionAnd quantVars runContext currSign))]))
 
+; input: expr - the current expression being desugared into simpler AST
+;        quantVars - quantified variables
+;        runContext - the context of the current run
+;        currSign - the currentSign used for desugaring of NOT
+;        args - a list of the arguments of the current expression
+;        currTupIfAtomic - the tuple containing the implicit LHS of the current
+;                          "in"
+;        info - the info of the original node
+;
+; output: This function is desugaring the current expression (returns simpler
+;         result of desugared expression)
 (define (desugarExprOp  expr quantVars args
                         currTupIfAtomic runContext currSign info)
   (mustHaveTupleContext currTupIfAtomic expr)
@@ -506,6 +542,12 @@
     [(? node/expr/op/sing?)
      (error "amalgam: singleton is not supported ~n")]))
 
+; input: expr - the current expression being desugared into simpler AST
+;        quantVars - quantified variables
+;        runContext - the context of the current run
+;
+; output: amalgam does not support integer operations, so this
+;         returns an error
 (define (desugarInt expr quantVars runContext)
   (match expr
     ; CONSTANT INT
@@ -521,6 +563,12 @@
     [(node/int/sum-quant info decls intExpr)
      (error "amalgam: sum quantifier not supported ~n")]))
 
+; input: expr - the current expression being desugared into simpler AST
+;        quantVars - quantified variables
+;        runContext - the context of the current run
+;        args - a list of the arguments of the current formula
+;
+; output: amalgam does not support integer operations, so this returns an error
 (define (desugarIntOp expr quantVars args runContext)
   (match expr
     ; int addition
