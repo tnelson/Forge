@@ -451,8 +451,7 @@
                                                             taExpr (first args)))
                                        (node/formula/op/in info
                                                            (list
-                                                            tbExpr (second args)))))
-                 ]
+                                                            tbExpr (second args)))))]
                [else #f]))
            allPairs))
 
@@ -474,7 +473,7 @@
              (desugarExpr
               (node/expr/op/join info
                                  (node/expr-arity expr)
-                                 (list LHS RHS)) info quantVars
+                                 (list LHS RHS)) quantVars
                                                  currTupIfAtomic
                                                  runContext currSign))
            ; TODO: WRITE A TEST AND SEE WHAT HAPPENS
