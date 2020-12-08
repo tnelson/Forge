@@ -16,6 +16,30 @@
             (lambda () (display "Starting tests for Desugar helpers"))
             (lambda () (display "All tests for Desugar helpers passed!"))
 
+             ; setComprehensionAndHelper
+          (@test-case
+           "TEST setComprehensionAndHelper test"
+           (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
+           (@check-equal?
+            (toString (setComprehensionAndHelper '(Node)
+                                                 '((x Node)) empty-nodeinfo))
+            (toString (list (node/formula/op/in empty-nodeinfo
+                                                '(Node (Node)))))))
+
+          ; EDGES: (rel '(Node Node) 'Node "edges")
+; Node: (rel '(Node) univ "Node")
+          ; setComprehensionSubHelper
+          ; TODO: fix this case (need to get relation from actual)
+           (@test-case
+           "TEST setComprehensionSubHelper test"
+           (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
+           (define y (node/expr/quantifier-var empty-nodeinfo 1 'y))
+           (define relRes (rel '(Node) 'univ "Node"))
+           (@check-equal?
+            (toString (setComprehensionSubHelper
+                       (in x Node) '(y) '(x) '((x Node))))
+            (toString (node/formula/op/in empty-nodeinfo
+                                          (list y relRes)))))
           ; extendPossiblePaths
           (@test-case
              "TEST extendPossiblePaths on empty list"

@@ -164,7 +164,6 @@
 
     ; AND 
     [(? node/formula/op/&&?)
-     (debug-repl)
      (define desugaredArgs
        (map (lambda (x) (desugarFormula x quantVars runContext currSign)) args))
      (cond
@@ -201,7 +200,6 @@
      ; We don't yet know which relation's bounds will be needed, so just pass
      ; them all in
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
-     (debug-repl)
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
         ; ground case. we have a currentTuple now, and want to desugar the RHS
@@ -391,7 +389,7 @@
               (format "Expression ~a in product had arity less than 1" expr))])]
     
     ; JOIN
-    [(? node/expr/op/join?)
+   [(? node/expr/op/join?)
      ; Re-write join as an existential formula
      (cond
        [(@>= (node/expr-arity expr) 1)
@@ -409,7 +407,6 @@
              (define tbExpr (tup2Expr tb runContext info))
              (cond
                [(equal? (joinTupleDesugar ta tb) currTupIfAtomic)
-                ;(desugarFormula
                  (node/formula/op/&& info
                                       (list
                                        (node/formula/op/in info
@@ -418,25 +415,42 @@
                                        (node/formula/op/in info
                                                            (list
                                                             tbExpr (second args)))))
-;                 quantVars runContext currSign)
                  ]
                [else #f]))
            allPairs))
 
         (cond
           [(@> (length args) 2)
-           (define newJoin (append newArgs
-                                   (node/expr/op/join info (node/expr-arity expr)
-                                                      (rest (rest args)))))
+           (define len (length args))
+           ; LHS
+           (define LHS
+             (desugarExpr
+             (node/expr/op/join info (node/expr-arity expr) (take args (- len 1)))
+             quantVars
+             currTupIfAtomic
+             runContext
+             currSign))
+
+           ; RHS
+           (define RHS (last args))
+           (define newJoin
+             (desugarExpr
+              (node/expr/op/join info
+                                 (node/expr-arity expr)
+                                 (list LHS RHS)) info quantVars
+                                                 currTupIfAtomic
+                                                 runContext currSign))
            ; TODO: WRITE A TEST AND SEE WHAT HAPPENS
            ; Maybe this doesn't use the newArgs etc.
            ; A.B.C.D ~~~~~>
            ; (A.B.C).D  (or the other way around :-/)
            ; apply this repeatedly!
-           (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
+           newJoin]
           [else
-           ; TODO: build the big OR from newargs, call desugarFormula on it
-           newArgs])]
+           
+           ; build the big OR from newargs, call desugarFormula on it
+           (define newOr (node/formula/op/|| info newArgs))
+           (desugarFormula newOr quantVars runContext currSign)])]
        [else
         (error (format "Expression ~a in join had arity less than 1" expr))])]
     

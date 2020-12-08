@@ -9,6 +9,13 @@
          transitiveClosureHelper productHelper joinHelper joinTupleDesugar
          extendPossiblePaths transitiveClosureAnd )
 
+; input: currTupIfAtomic - implicit LHS
+;        quantVars - 
+;        decls - the declarations in the current set comprehension
+;        info - info of the original node
+;
+; output: recursively create an in formula of the currTupIfAtomic and
+;         the corresopnding decl at the same index
 (define (setComprehensionAndHelper currTupIfAtomic decls info)
   (cond
     [(empty? decls) '()]
@@ -18,7 +25,13 @@
            (setComprehensionAndHelper (rest currTupIfAtomic)
                                       (rest decls) info))]))
 
-
+; input: form - the current formula being desugared
+;        currTupIfAtomic - implicit LHS
+;        quantVars - 
+;        decls - the declarations in the current set comprehension
+;
+; output: recursively create a quantifier-var expression containing each
+;         declaration and the corresponding quantVar
 (define (setComprehensionSubHelper form currTupIfAtomic quantVars decls)
   (cond
     [(empty? decls) form]
