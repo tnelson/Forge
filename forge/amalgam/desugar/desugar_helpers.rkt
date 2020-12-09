@@ -17,14 +17,18 @@
 ; output: recursively create an in formula of the currTupIfAtomic and
 ;         the corresopnding decl at the same index
 (define (setComprehensionAndHelper currTupIfAtomic decls info runContext)
+  (debug-repl)
   (cond
     [(empty? decls) '()]
     [else
+     ; I added this list cast, but seems shady
+     ; '(Node0) === Node0
+     (debug-repl)
      (cons (node/formula/op/in info (list (tup2Expr (first currTupIfAtomic)
                                                     runContext info)
                                           (cdr (first decls))))
            (setComprehensionAndHelper (rest currTupIfAtomic)
-                                      (rest decls) info))]))
+                                      (rest decls) info runContext))]))
 
 ; input: form - the current formula being desugared
 ;        currTupIfAtomic - implicit LHS
@@ -41,7 +45,7 @@
      (define formulaSoFar (substituteFormula form quantVars (car (first decls))
                               (tup2Expr (first currTupIfAtomic) runContext info)))
      (setComprehensionSubHelper formulaSoFar (rest currTupIfAtomic) quantVars
-                                      (rest decls))]))
+                                      (rest decls) runContext info)]))
 
 ; input: filteredExtendResult - the list of edges from desugar
 ;        expr - the current expression we are looking at 

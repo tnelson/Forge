@@ -255,40 +255,6 @@
 
             ; quantified variable
 
-            ; set comprehension desugar expression case
-            (@test-case
-             "TEST desugar in set comprehension case called from desugar expr"
-             (define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
-
-             ; {x: Node | x in Node}
-             (define fSetComprehension (node/expr/comprehension empty-nodeinfo 1
-                                                                (list (cons qvx Node))
-                                                                (in qvx Node)))
-
-           
-             (@check-equal?
-              (toString (desugarExpr fSetComprehension '(qvx)
-                                     (list (node/expr/atom empty-nodeinfo 1
-                                                           'Node0)) udt #f))
-              (toString (node/formula/op/||
-                         empty-nodeinfo
-                         (list
-                          (node/formula/op/in
-                           empty-nodeinfo
-                           (list (node/expr/op/->
-                                  empty-nodeinfo 1
-                                  (list
-                                   (node/expr/atom empty-nodeinfo 1
-                                                   'Node0)))
-                                 (rel '(Node) 'univ "Node")))
-                          (node/formula/op/in
-                           empty-nodeinfo
-                           (list
-                            (node/expr/op/->
-                             empty-nodeinfo 1
-                             (list (node/expr/atom empty-nodeinfo 1
-                                                   'Node0)))
-                            (rel '(Node) 'univ "Node"))))))))
 
             ; set comprehension desugar formula
             (@test-case
@@ -302,7 +268,7 @@
 
              (define inSetComprehension
                (node/formula/op/in empty-nodeinfo
-                                   (list (node/expr/atom empty-nodeinfo 1 'Node0)
+                                   (list (list Node)
                                          fSetComprehension)))
            
              (@check-equal?
@@ -605,14 +571,3 @@
               (lambda ()
                 (define intSignOf (sgn 1))
                 (desugarInt intSignOf '() udt #t))))))
-
-
-(define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
-(define fSetComprehension (node/expr/comprehension empty-nodeinfo 1
-                                                   (list (cons qvx Node))
-                                                   (in qvx Node)))
-(define inSetComprehension
-  (node/formula/op/in empty-nodeinfo
-                      (list (node/expr/atom empty-nodeinfo 1 'Node0)
-                            fSetComprehension)))
- (desugarFormula inSetComprehension '() udt #t)

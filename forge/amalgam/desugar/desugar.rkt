@@ -330,15 +330,14 @@
      ; account for multiple variables
      (define vars (map car decls))
      (let ([quantVars (append vars quantVars)])
-       
        ;  t0 in A0 ...
        (define LHSSubformula (setComprehensionAndHelper currTupIfAtomic
                                                         decls info runContext))
+
        ; fmla[t0/x0, t1/x1, ...]
        (define RHSSubformula
          (setComprehensionSubHelper form currTupIfAtomic quantVars decls
                                     runContext info))
-
        ; Put both formulas together
        (define setComprehensionAnd
          (node/formula/op/&& info (append LHSSubformula (list RHSSubformula))))
