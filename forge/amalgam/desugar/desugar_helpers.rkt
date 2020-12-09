@@ -16,11 +16,12 @@
 ;
 ; output: recursively create an in formula of the currTupIfAtomic and
 ;         the corresopnding decl at the same index
-(define (setComprehensionAndHelper currTupIfAtomic decls info)
+(define (setComprehensionAndHelper currTupIfAtomic decls info runContext)
   (cond
     [(empty? decls) '()]
     [else
-     (cons (node/formula/op/in info (list (first currTupIfAtomic)
+     (cons (node/formula/op/in info (list (tup2Expr (first currTupIfAtomic)
+                                                    runContext info)
                                           (cdr (first decls))))
            (setComprehensionAndHelper (rest currTupIfAtomic)
                                       (rest decls) info))]))
@@ -32,12 +33,13 @@
 ;
 ; output: recursively create a quantifier-var expression containing each
 ;         declaration and the corresponding quantVar
-(define (setComprehensionSubHelper form currTupIfAtomic quantVars decls)
+(define (setComprehensionSubHelper form currTupIfAtomic quantVars decls
+                                   runContext info)
   (cond
     [(empty? decls) form]
     [else
      (define formulaSoFar (substituteFormula form quantVars (car (first decls))
-                              (first currTupIfAtomic)))
+                              (tup2Expr (first currTupIfAtomic) runContext info)))
      (setComprehensionSubHelper formulaSoFar (rest currTupIfAtomic) quantVars
                                       (rest decls))]))
 

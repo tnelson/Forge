@@ -333,10 +333,11 @@
        
        ;  t0 in A0 ...
        (define LHSSubformula (setComprehensionAndHelper currTupIfAtomic
-                                                        decls info))
+                                                        decls info runContext))
        ; fmla[t0/x0, t1/x1, ...]
        (define RHSSubformula
-         (setComprehensionSubHelper form currTupIfAtomic quantVars decls))
+         (setComprehensionSubHelper form currTupIfAtomic quantVars decls
+                                    runContext info))
 
        ; Put both formulas together
        (define setComprehensionAnd
@@ -495,7 +496,7 @@
      (define extendResult (extendPossiblePaths uppers (first currTupIfAtomic)))
 
      ; Check the endpoint and remove items that do not match
-     (define endPoint (last (last uppers))) ;?? TODO: should be (last currTupIfAtomic) ?
+     (define endPoint (last currTupIfAtomic))
      
      (define filteredExtendResult
        (filter
@@ -507,7 +508,10 @@
      (define transitiveAnd
        (transitiveClosureAnd
         filteredExtendResult (first args) info runContext '()))
-     (desugarFormula transitiveAnd quantVars runContext currSign)]
+     
+     (define transitiveOr (node/formula/op/|| info (list transitiveAnd)))
+     
+     (desugarFormula transitiveOr quantVars runContext currSign)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
