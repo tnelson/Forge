@@ -605,3 +605,14 @@
               (lambda ()
                 (define intSignOf (sgn 1))
                 (desugarInt intSignOf '() udt #t))))))
+
+
+(define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+(define fSetComprehension (node/expr/comprehension empty-nodeinfo 1
+                                                   (list (cons qvx Node))
+                                                   (in qvx Node)))
+(define inSetComprehension
+  (node/formula/op/in empty-nodeinfo
+                      (list (node/expr/atom empty-nodeinfo 1 'Node0)
+                            fSetComprehension)))
+ (desugarFormula inSetComprehension '() udt #t)

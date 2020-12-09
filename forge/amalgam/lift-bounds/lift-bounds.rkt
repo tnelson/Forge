@@ -37,6 +37,7 @@
 ; output: Returns a list of tuples (list <tuple>) containing the bounds
 ; of the given expression. 
 (define (liftBoundsExpr expr quantvars runContext)
+  (printf "liftBoundsExpr: ~a (isExpr? = ~a) ~n" expr (node/expr? expr))  
   (match expr
 
     ; atom case (base case)

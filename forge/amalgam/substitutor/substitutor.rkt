@@ -99,6 +99,13 @@
        (substituteExpr (first args) quantvars target value))
      (define substitutedRHS
        (substituteExpr (second args) quantvars target value))
+
+     ;;;; temporary debugging check
+     ;;;; ideally, this would be a "is the input type the same as the output type?" contract
+     (unless (node/expr? substitutedLHS)
+       (error "IN subst produced LHS: ~a ~a~n" (first args) substitutedLHS))
+     (unless (node/expr? substitutedRHS)
+       (error "IN subst produced RHS: ~a ~a~n" (second args) substitutedRHS))
      (node/formula/op/in info (list substitutedLHS substitutedRHS))]
 
     ; EQUALS 

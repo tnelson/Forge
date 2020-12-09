@@ -26,6 +26,7 @@
 ;
 ; output: recursively creates restricted AST of the formula passed in
 (define (desugarFormula formula quantVars runContext currSign)
+  (printf "desugarFormula: ~a~n" formula)
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -210,11 +211,14 @@
     ;     turn into an and-of-implications edges in ~edges <--- same deal, need
     ;     to build an and-of-implications
     [(? node/formula/op/in?)
+     (printf "IN CASE: ~a~n" args)     
      (define leftE (first args))
      (define rightE (second args))
      ; We don't yet know which relation's bounds will be needed, so just pass
      ; them all in
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
+     (printf "liftedUpperBounds: ~a~n" liftedUpperBounds)
+     (printf "igp: ~a~n" (isGroundProduct leftE))
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
         ; ground case. we have a currentTuple now, and want to desugar the RHS
@@ -276,6 +280,8 @@
   ; Error message to check that we are only taking in expressions
   (unless (node/expr? expr)
     (error (format "desugarExpr called on nonExpr ~a" expr)))
+
+  (printf "desugarExpr: ~a~n" expr)
 
   ; Should always have a currTupIfAtomic when calling
   (mustHaveTupleContext currTupIfAtomic expr)
@@ -456,30 +462,40 @@
         (cond
           [(@> (length args) 2)
            (define len (length args))
+           ;(desugarFormula (in iden (join iden iden iden)) '() udt #f)
+           ; (A.B.C.D) ~~~~>
+           ;    A
+           (define newLHS (first args))
+           ;    (B.C.D)
+           ;   TODO: maybe not same arity (consider if arity(A) = 1, but arity(other) = 2)
+           (define newRHS (node/expr/op/join info (node/expr-arity expr) (rest args)))
+           (define newJoin (node/expr/op/join info (node/expr-arity expr) (list newLHS newRHS)))
+           (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
+           
            ; LHS
-           (define LHS
-             (desugarExpr
-             (node/expr/op/join info (node/expr-arity expr) (take args (- len 1)))
-             quantVars
-             currTupIfAtomic
-             runContext
-             currSign))
-
-           ; RHS
-           (define RHS (last args))
-           (define newJoin
-             (desugarExpr
-              (node/expr/op/join info
-                                 (node/expr-arity expr)
-                                 (list LHS RHS)) quantVars
-                                                 currTupIfAtomic
-                                                 runContext currSign))
-           ; TODO: WRITE A TEST AND SEE WHAT HAPPENS
-           ; Maybe this doesn't use the newArgs etc.
-           ; A.B.C.D ~~~~~>
-           ; (A.B.C).D  (or the other way around :-/)
-           ; apply this repeatedly!
-           newJoin]
+;           (define LHS
+;             (desugarExpr
+;             (node/expr/op/join info (node/expr-arity expr) (take args (- len 1)))
+;             quantVars
+;             currTupIfAtomic
+;             runContext
+;             currSign))
+;
+;           ; RHS
+;           (define RHS (last args))
+;           (define newJoin
+;             (desugarExpr
+;              (node/expr/op/join info
+;                                 (node/expr-arity expr)
+;                                 (list LHS RHS)) quantVars
+;                                                 currTupIfAtomic
+;                                                 runContext currSign))
+;           ; TODO: WRITE A TEST AND SEE WHAT HAPPENS
+;           ; Maybe this doesn't use the newArgs etc.
+;           ; A.B.C.D ~~~~~>
+;           ; (A.B.C).D  (or the other way around :-/)
+;           ; apply this repeatedly!
+           
           [else
            
            ; build the big OR from newargs, call desugarFormula on it
@@ -503,7 +519,7 @@
      (define extendResult (extendPossiblePaths uppers (first currTupIfAtomic)))
 
      ; Check the endpoint and remove items that do not match
-     (define endPoint (last (last uppers)))
+     (define endPoint (last (last uppers))) ;?? TODO: should be (last currTupIfAtomic) ?
      
      (define filteredExtendResult
        (filter
@@ -511,6 +527,7 @@
      
      ; Go through everything in filteredExtendResult to create big AND
      ; by calling helper
+     ; TODO: missing big OR wrapping these. one AND per path, each in a big OR
      (define transitiveAnd
        (transitiveClosureAnd
         filteredExtendResult (first args) info runContext '()))
