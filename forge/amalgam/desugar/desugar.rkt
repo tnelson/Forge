@@ -468,36 +468,12 @@
            (define newLHS (first args))
            ;    (B.C.D)
            ;   TODO: maybe not same arity (consider if arity(A) = 1, but arity(other) = 2)
-           (define newRHS (node/expr/op/join info (node/expr-arity expr) (rest args)))
+           (define arityRHS (apply join-arity (map (lambda (x) (node/expr-arity x)) (rest args))))
+           (define newRHS (node/expr/op/join info arityRHS (rest args)))
            (define newJoin (node/expr/op/join info (node/expr-arity expr) (list newLHS newRHS)))
            (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
            
-           ; LHS
-;           (define LHS
-;             (desugarExpr
-;             (node/expr/op/join info (node/expr-arity expr) (take args (- len 1)))
-;             quantVars
-;             currTupIfAtomic
-;             runContext
-;             currSign))
-;
-;           ; RHS
-;           (define RHS (last args))
-;           (define newJoin
-;             (desugarExpr
-;              (node/expr/op/join info
-;                                 (node/expr-arity expr)
-;                                 (list LHS RHS)) quantVars
-;                                                 currTupIfAtomic
-;                                                 runContext currSign))
-;           ; TODO: WRITE A TEST AND SEE WHAT HAPPENS
-;           ; Maybe this doesn't use the newArgs etc.
-;           ; A.B.C.D ~~~~~>
-;           ; (A.B.C).D  (or the other way around :-/)
-;           ; apply this repeatedly!
-           
           [else
-           
            ; build the big OR from newargs, call desugarFormula on it
            (define newOr (node/formula/op/|| info newArgs))
            (desugarFormula newOr quantVars runContext currSign)])]
