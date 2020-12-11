@@ -116,6 +116,15 @@
    ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
 
+   ; Electrum operators
+   ["always"  (token+ `ALWAYS-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["eventually"  (token+ `EVENTUALLY-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["after"  (token+ `AFTER-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["until"  (token+ `UNTIL-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["release"  (token+ `RELEASE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ; Electrum var relation label
+   ["var"  (token+ `VAR-TOK "" lexeme "" lexeme-start lexeme-end)]      
+   
    ;; int stuff
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -204,6 +213,13 @@
            "bind"
            "option"
            "inst"
+
+           "always"
+           "eventually"
+           "after"
+           "until"
+           "release"
+           "var"
 
            'Int
            'sum

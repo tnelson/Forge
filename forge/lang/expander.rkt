@@ -169,16 +169,19 @@
                                                   (syntax->list #'(decls.translate ...)))))))
 
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
+  (define-syntax-class VarKeywordClass (pattern "var")) 
   (define-syntax-class ArrowDeclClass
     (pattern ((~literal ArrowDecl)
               (~optional "disj")
+              (~optional isv:VarKeywordClass #:defaults ([isv #'#f])) ; electrum
               name-list:NameListClass
-              (~optional "disj")
+              (~optional "disj") 
               mult-class:ArrowMultClass
               type-list:ArrowExprClass)
       #:attr names #'(name-list.names ...)
       #:attr types #'type-list.names
-      #:attr mult #'mult-class.symbol))
+      #:attr mult #'mult-class.symbol
+      #:attr is-var #'isv))
 
   ; ArrowDeclList : ArrowDecl
   ;               | ArrowDecl /COMMA-TOK @ArrowDeclList
@@ -448,7 +451,7 @@
       #:attr symbol (syntax/loc #'q sum-quant)))
 
   (define-syntax-class ExprClass
-    (pattern ((~or (~literal Expr) (~literal Expr1) (~literal Expr2) (~literal Expr3)
+    (pattern ((~or (~literal Expr) (~literal Expr0.5) (~literal Expr1) (~literal Expr2) (~literal Expr3)
                    (~literal Expr4) (~literal Expr5) (~literal Expr6) (~literal Expr7)
                    (~literal Expr8) (~literal Expr9) (~literal Expr10) (~literal Expr11)
                    (~literal Expr12) (~literal Expr13) (~literal Expr14) (~literal Expr15)
@@ -531,14 +534,16 @@
                    #:when #t
                    [relation-names (syntax->list #'(arrow-decl.names ...))]
                    [relation-types (syntax->list #'(arrow-decl.types ...))]
+                   [relation-is-var  (syntax->list #'(arrow-decl.is-var ...))]
                    [relation-mult (syntax->list #'((~? arrow-decl.mult default) ...))])
-          (for/list ([relation-name (syntax->list relation-names)])
+          (for/list ([relation-name (syntax->list relation-names)])            
             (with-syntax ([relation-name relation-name]
                           [relation-types (datum->syntax relation-types 
                                                          (cons (syntax->datum sig-name)
-                                                               (syntax->list relation-types)))]
-                          [relation-mult relation-mult])
-              #'(relation relation-name relation-types #:is relation-mult)))))))]))
+                                                               (syntax->list relation-types)))]                          
+                          [relation-mult relation-mult]
+                          [is-var relation-is-var])                                             
+                  #'(relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
@@ -724,10 +729,30 @@
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (and expr1 expr2)))]
 
+  [((~literal Expr) expr1:ExprClass (~or "release") expr2:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
+     (syntax/loc stx (release expr1 expr2)))]
+
+  [((~literal Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
+     (syntax/loc stx (until expr1 expr2)))]
+    
   [((~literal Expr) (~or "!" "not") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (! expr1)))]
 
+  [((~literal Expr) (~or "always") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+     (syntax/loc stx (always expr1)))]
+  [((~literal Expr) (~or "eventually") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+     (syntax/loc stx (eventually expr1)))]
+  [((~literal Expr) (~or "after") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+       (syntax/loc stx (after expr1)))]
+    
   [((~literal Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]

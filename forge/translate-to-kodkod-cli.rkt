@@ -67,8 +67,30 @@
      ( print-cmd-cont "(=> ")
      (map (lambda (x) (interpret-formula x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/in?)
 
+    [(? node/formula/op/always?)
+     ( print-cmd-cont "(always ")
+     (map (lambda (x) (interpret-formula x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/eventually?)
+     ( print-cmd-cont "(eventually ")
+     (map (lambda (x) (interpret-formula x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/after?)
+     ( print-cmd-cont "(after ")
+     (map (lambda (x) (interpret-formula x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/release?)
+     ( print-cmd-cont "(release ")
+     (map (lambda (x) (interpret-formula x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/until?)
+     ( print-cmd-cont "(until ")
+     (map (lambda (x) (interpret-formula x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+
+    
+    [(? node/formula/op/in?)
      (print-cmd-cont "(in ")
      (map (lambda (x) (interpret-expr x relations atom-names quantvars)) args)
      (print-cmd-cont ")")]

@@ -600,12 +600,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                        (symbol->string true-name)))
         (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent))))]))
 
-; Declare a new relation
-; (relation name (sig sig sig ...))
 (define-syntax (relation stx)
   (syntax-parse stx
     [(relation name:id (sig1:id sig2:id sigs ...)
-               (~optional (~seq #:is breaker:id)))
+               (~optional (~seq #:is breaker:id))
+               (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
      (quasisyntax/loc stx
          (begin
        (define true-name 'name)
@@ -617,7 +616,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
        (define name (build-relation #,(build-source-location stx)
                                       (map symbol->string true-sigs)
                                       (symbol->string 'sig1)
-                                      (symbol->string true-name)))
+                                      (symbol->string true-name)
+                                      is-var))
        (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker))))]))
 
 ; Declare a new predicate
@@ -1300,10 +1300,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
     ret)
 
   (for ([rel (get-all-rels run-spec)]
-        [bound total-bounds])
+        [bound total-bounds])    
     (kk-print
       (kodkod:declare-rel
-        (kodkod:r (relation-name rel))
+       (if (node/expr/relation-is-variable rel)
+           (kodkod:x (relation-name rel))
+           (kodkod:r (relation-name rel)))
         (get-atoms rel (bound-lower bound))
         (get-atoms rel (bound-upper bound)))))
 
