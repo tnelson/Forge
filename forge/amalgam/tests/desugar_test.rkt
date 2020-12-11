@@ -268,7 +268,7 @@
 
              (define inSetComprehension
                (node/formula/op/in empty-nodeinfo
-                                   (list (list Node)
+                                   (list Node
                                          fSetComprehension)))
            
              (@check-equal?

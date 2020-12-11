@@ -130,9 +130,22 @@
 (define (amalgam-descent a-run currTuple node)
   (match node    
     [(node/formula/op/&& info args)
+     
      #t
      ]
     [(node/formula/op/|| info args)
+
+     ; length of args
+     (deifne len (length args))
+     
+     ; list of not of each arg
+     (define LHSArgs (map (lambda (a) (node/formula/op/! info (list a))) args))
+     
+     ; Union of not of each arg
+     (define LHS (node/expr/op/+ info LHSArgs))
+
+     ; RHS is a set comprehension
+     (define RHS (node/expr/comprehension info len decls form)) 
      #t
      ]
     [(node/formula/op/in info args)

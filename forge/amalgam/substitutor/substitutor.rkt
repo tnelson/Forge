@@ -16,11 +16,14 @@
 
 ; input: formula - the formula we are substituting in
 ;        quantvars - quantvars passed in from original substitute tree
-;        target - the value that value should be replacaed with
-;        value - the value that we are looking to replace
+;        target - the value that value should be replacaed with, an expression
+;        value - the value that we are looking to replace, an expression
 ;
 ; output: the formula with target substituted by value
 (define (substituteFormula formula quantvars target value)
+  (unless (and (node/expr? target) (node/expr? value))
+    (error
+     (format "Target ~a and value ~a not expressions" target value)))
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -66,11 +69,14 @@
 ;        quantvars - quantvars passed in from original substitute tree
 ;        args - a list of the argments of the expression passed in
 ;        info - info of the original node
-;        target - the value that value should be replacaed with
-;        value - the value that we are looking to replace
+;        target - the value that value should be replacaed with, an expression
+;        value - the value that we are looking to replace, an expression
 ;
 ; output: the formula with target substituted by value
 (define (substituteFormulaOp formula quantvars args info target value)
+   (unless (and (node/expr? target) (node/expr? value))
+    (error
+     (format "Target ~a and value ~a not expressions" target value)))
   (match formula
 
     ; AND 
@@ -210,6 +216,9 @@
 ;
 ; output: the expression with target substituted by value
 (define (substituteExprOp expr quantvars args info target value)
+   (unless (and (node/expr? target) (node/expr? value))
+    (error
+     (format "Target ~a and value ~a not expressions" target value)))
   (match expr
 
     ; UNION

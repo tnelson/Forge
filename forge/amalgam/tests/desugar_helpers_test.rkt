@@ -22,7 +22,7 @@
            (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
            (@check-equal?
             (toString (setComprehensionAndHelper '(Node)
-                                                 '((x Node)) empty-nodeinfo))
+                                                 '((x Node)) empty-nodeinfo udt))
             (toString (list (node/formula/op/in empty-nodeinfo
                                                 '(Node (Node)))))))
 
@@ -37,7 +37,7 @@
            (define relRes (rel '(Node) 'univ "Node"))
            (@check-equal?
             (toString (setComprehensionSubHelper
-                       (in x Node) '(y) '(x) '((x Node))))
+                       (in x Node) '(y) '(x) '((x Node)) udt empty-nodeinfo))
             (toString (node/formula/op/in empty-nodeinfo
                                           (list y relRes)))))
           ; extendPossiblePaths

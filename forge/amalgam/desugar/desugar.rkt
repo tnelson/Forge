@@ -26,7 +26,7 @@
 ;
 ; output: recursively creates restricted AST of the formula passed in
 (define (desugarFormula formula quantVars runContext currSign)
-  (printf "desugarFormula: ~a~n" formula)
+  ;(printf "desugarFormula: ~a~n" formula)
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -211,14 +211,14 @@
     ;     turn into an and-of-implications edges in ~edges <--- same deal, need
     ;     to build an and-of-implications
     [(? node/formula/op/in?)
-     (printf "IN CASE: ~a~n" args)     
+     ;(printf "IN CASE: ~a~n" args)     
      (define leftE (first args))
      (define rightE (second args))
      ; We don't yet know which relation's bounds will be needed, so just pass
      ; them all in
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
-     (printf "liftedUpperBounds: ~a~n" liftedUpperBounds)
-     (printf "igp: ~a~n" (isGroundProduct leftE))
+     ;(printf "liftedUpperBounds: ~a~n" liftedUpperBounds)
+     ;(printf "igp: ~a~n" (isGroundProduct leftE))
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
         ; ground case. we have a currentTuple now, and want to desugar the RHS
@@ -281,7 +281,7 @@
   (unless (node/expr? expr)
     (error (format "desugarExpr called on nonExpr ~a" expr)))
 
-  (printf "desugarExpr: ~a~n" expr)
+  ;(printf "desugarExpr: ~a~n" expr)
 
   ; Should always have a currTupIfAtomic when calling
   (mustHaveTupleContext currTupIfAtomic expr)
@@ -338,6 +338,7 @@
        (define RHSSubformula
          (setComprehensionSubHelper form currTupIfAtomic quantVars decls
                                     runContext info))
+       (debug-repl)
        ; Put both formulas together
        (define setComprehensionAnd
          (node/formula/op/&& info (append LHSSubformula (list RHSSubformula))))
@@ -408,8 +409,15 @@
     ; TODO: re-implement solution with similar approach as join
     [(? node/expr/op/->?)
      (cond
+       [(@> (length args) 2)
+        (define arity (node/expr-arity expr))
+        (define newLHS (first args))
+        (define newRHS (node/expr/op/-> info arity (rest args)))
+        (define newProduct (node/expr/op/-> info arity (list newLHS newRHS)))
+        (desugarExpr newProduct quantVars currTupIfAtomic runContext currSign)])
+     (cond
        [(@>= (node/expr-arity expr) 2)
-
+        ; TODO: remove call to helper from old implementation, helper no longer necessary
         (define currentProduct
         ; get product of first thing in args and second thing in args
         (productHelper (list (first args)) (second args)

@@ -93,17 +93,17 @@
      (lambda () 
        (substituteFormula fSomeReachesAll '() varx varz))))
 
-   (@test-case
+   #|(@test-case
     "TEST substituteFormula in formula constant case 1" 
     (@check-equal?
      (toString (substituteFormula varConstX '() varConstX varConstY))
-     (toString varConstY)))
+     (toString varConstY)))|#
              
-   (@test-case
+   #|(@test-case
     "TEST substituteFormula in formula constant case 2" 
     (@check-equal?
      (toString (substituteFormula varConstX '() varConstX varConstX))
-     (toString varConstX)))
+     (toString varConstX)))|#
 
    ; Checking substitution in OR case
    (@test-case
@@ -315,12 +315,12 @@
      (toString (node/int/op/card empty-nodeinfo (list edges)))))
 
    ; singleton
-   (@test-case
+   #|(@test-case
     "TEST substituteExpr in singleton case " 
     (@check-equal?
      (toString
       (substituteExpr (sing varIntConstX) '() varIntConstX varIntConstY))
-     (toString (sing varIntConstY))))
+     (toString (sing varIntConstY))))|#
 
    ; "sum" quantifier case 
    (@test-case

@@ -17,13 +17,13 @@
 ; output: recursively create an in formula of the currTupIfAtomic and
 ;         the corresopnding decl at the same index
 (define (setComprehensionAndHelper currTupIfAtomic decls info runContext)
-  (debug-repl)
+
   (cond
     [(empty? decls) '()]
     [else
      ; I added this list cast, but seems shady
      ; '(Node0) === Node0
-     (debug-repl)
+
      (cons (node/formula/op/in info (list (tup2Expr (first currTupIfAtomic)
                                                     runContext info)
                                           (cdr (first decls))))
