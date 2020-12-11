@@ -50,22 +50,27 @@
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
   (when (< (length args) min-length)
-    (raise-arguments-error op "not enough arguments" "required" min-length "got" args))
+    (raise-syntax-error #f (format "not enough arguments; required ~a got ~a" min-length args)
+                        (datum->syntax #f args (build-source-location-syntax loc))))
   (unless (false? max-length)
     (when (> (length args) max-length)
-      (raise-arguments-error op "too many arguments" "maximum" max-length "got" args)))
+      (raise-syntax-error #f (format "too many arguments; maximum ~a, got ~a" max-length args)
+                          (datum->syntax #f args (build-source-location-syntax loc)))))
   (for ([a (in-list args)])
     (unless (type? a)
-      (raise-argument-error op (~v type?) a))
+      (raise-syntax-error #f (format "argument had unexpected type. expected ~a" type?)
+                          (datum->syntax #f args (build-source-location-syntax loc))))
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
-        (raise-argument-error op (format "expression with arity ~v" arity) a))))
+        (raise-syntax-error #f (format "expression with arity ~v" arity)
+                            (datum->syntax #f args (build-source-location-syntax loc))))))
   (when same-arity?
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
-        (unless (equal? (node/expr-arity a) arity)      
-          (raise-arguments-error op "arguments must have same arity"
-                                 "got" arity "and" (node/expr-arity a) ":" args)))))
+        (unless (equal? (node/expr-arity a) arity)
+          (raise-syntax-error #f (format "arguments must have same arity. got ~a and ~a"
+                                         arity (node/expr-arity a))
+                           (datum->syntax #f args (build-source-location-syntax loc)))))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
        (raise-syntax-error #f (format "join would create a relation of arity 0")
@@ -73,10 +78,12 @@
   
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)      
-      (raise-arguments-error op "second argument must have arity 1")))
+      (raise-syntax-error #f "second argument must have arity 1"
+                          (datum->syntax #f args (build-source-location-syntax loc)))))
   (when domain?
     (unless (equal? (node/expr-arity (car args)) 1)      
-      (raise-arguments-error op "first argument must have arity 1"))))
+      (raise-syntax-error #f "first argument must have arity 1"
+                             (datum->syntax #f args (build-source-location-syntax loc))))))
 
 
 ;; EXPRESSIONS -----------------------------------------------------------------
@@ -176,6 +183,8 @@
 (define-node-op <: node/expr/op get-second #:max-length 2 #:domain? #t #:type node/expr?)
 (define-node-op :> node/expr/op get-first  #:max-length 2 #:range? #t #:type node/expr?)
 (define-node-op sing node/expr/op (const 1) #:min-length 1 #:max-length 1 #:type node/int?)
+
+(define-node-op prime node/expr/op (const 1) #:min-length 1 #:max-length 1 #:type node/expr?)
 
 (define-syntax-rule (define-op/closure id @op)
   (define-node-op id node/expr/op (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:lift @op #:type node/expr?))

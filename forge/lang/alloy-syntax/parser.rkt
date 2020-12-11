@@ -91,7 +91,7 @@ Expr    : @Expr0.5
         | LET-TOK LetDeclList BlockOrBar
         | BIND-TOK LetDeclList BlockOrBar
         | Quant DeclList BlockOrBar
-; Electrum binary operators
+; Electrum binary operators (these may be on the wrong side of OR/IFF/etc.)
 Expr0.5 : @Expr1  | Expr0.5 UNTIL-TOK Expr1
                   | Expr0.5 RELEASE-TOK Expr1
 
@@ -104,7 +104,8 @@ Expr5   : @Expr6  | NEG-TOK Expr5
                   | EVENTUALLY-TOK Expr5
                   | AFTER-TOK Expr5
 Expr6   : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
-Expr7   : @Expr8  | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr8
+Expr7   : @Expr7.5| (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr8
+Expr7.5 : @Expr8  | Expr8 PRIME-TOK ; electrum priming of expressions
 Expr8   : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
 Expr9   : @Expr10 | CARD-TOK Expr9
 Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11

@@ -123,7 +123,9 @@
    ["until"  (token+ `UNTIL-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["release"  (token+ `RELEASE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ; Electrum var relation label
-   ["var"  (token+ `VAR-TOK "" lexeme "" lexeme-start lexeme-end)]      
+   ["var"  (token+ `VAR-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ; Electrum prime
+   ["'"  (token+ `PRIME-TOK "" lexeme "" lexeme-start lexeme-end)]      
    
    ;; int stuff
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
@@ -146,7 +148,9 @@
    ;["_" (token+ 'UNDERSCORE-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; identifiers
-   [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
+   ;[(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
+   ; Don't allow priming
+   [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -220,6 +224,7 @@
            "until"
            "release"
            "var"
+           "'"
 
            'Int
            'sum

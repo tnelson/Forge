@@ -21,24 +21,25 @@ pred polityIsEquivRel {
 
 pred init { no roads }
 
-pred traces {
-  init
-  --always all c: City | doNothing[c] or buildARoad[c]
-  always { all c: City | doNothing[c] or buildARoad[c] }
-}
-
 pred doNothing[c: City] {
   c.roads' = c.roads 
 }
 
 pred buildARoad[c: City] {
   some c2 : City-(c.roads + c.polity) | 
-    c.roads' = c.roads + (c->c2)
+    c.roads' = c.roads + c2
+}
+
+pred traces {
+  init
+  --always all c: City | doNothing[c] or buildARoad[c]
+  always { all c: City | doNothing[c] or buildARoad[c] }
 }
 
 --run {polityIsEquivRel} for exactly 5 City
 
 pred roadsOnlyCrossPolities {
+  traces
   always {
       no disj c1, c2: City | c1->c2 in roads and c1->c2 in polity
   }

@@ -452,7 +452,7 @@
 
   (define-syntax-class ExprClass
     (pattern ((~or (~literal Expr) (~literal Expr0.5) (~literal Expr1) (~literal Expr2) (~literal Expr3)
-                   (~literal Expr4) (~literal Expr5) (~literal Expr6) (~literal Expr7)
+                   (~literal Expr4) (~literal Expr5) (~literal Expr6) (~literal Expr7) (~literal Expr7.5)
                    (~literal Expr8) (~literal Expr9) (~literal Expr10) (~literal Expr11)
                    (~literal Expr12) (~literal Expr13) (~literal Expr14) (~literal Expr15)
                    (~literal Expr16) (~literal Expr17))
@@ -777,6 +777,11 @@
   [((~literal Expr) "#" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (card expr1)))]
+
+  ; Semantic priming as in Electrum
+  [((~literal Expr) expr1:ExprClass "'")
+   (with-syntax ([expr1 (my-expand #'expr1)])
+     (syntax/loc stx (prime expr1)))]
 
   [((~literal Expr) expr1:ExprClass "+" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]

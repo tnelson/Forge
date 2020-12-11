@@ -167,6 +167,12 @@
      ( print-cmd-cont "(-> ")
      (map (lambda (x) (interpret-expr x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
+
+    [(? node/expr/op/prime?)
+     ( print-cmd-cont "(prime ")
+     (map (lambda (x) (interpret-expr x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+
     [(? node/expr/op/join?)
      ( print-cmd-cont "(. ")
      (map (lambda (x) (interpret-expr x relations atom-names quantvars)) args)
