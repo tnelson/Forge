@@ -17,6 +17,7 @@
 (provide desugarFormula)
 (require debug/repl)
 (require (prefix-in @ racket))
+(require (prefix-in @ (only-in racket ->)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; input: formula - the current formula being desugared into simpler AST
@@ -25,7 +26,8 @@
 ;        currSign - the currentSign used for desugaring of NOT
 ;
 ; output: recursively creates restricted AST of the formula passed in
-(define (desugarFormula formula quantVars runContext currSign)
+(define/contract (desugarFormula formula quantVars runContext currSign)
+  (@-> node/formula? list? forge:Run? boolean? node/formula?)
   ;(printf "desugarFormula: ~a~n" formula)
   (match formula
     ; Constant formulas: already at bottom
@@ -41,8 +43,9 @@
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
      ; We want to pass in the currTupIfAtomic as the implicit LHS
+
      (desugarFormulaOp
-      formula quantVars args runContext currSign (first args) info)]
+      formula quantVars args runContext currSign (list (first args)) info)]
     
     ; multiplicity formula (some, one, ...)
     ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
@@ -174,8 +177,13 @@
 ;
 ; output: This function is recursively calling every element in args and pass
 ; it to the original recursive function. 
-(define (desugarFormulaOp formula quantVars args
+(define/contract (desugarFormulaOp formula quantVars args
                           runContext currSign currTupIfAtomic info)
+  (@-> node/formula? list?
+       (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
+       forge:Run? boolean?
+       (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
+       nodeinfo? node/formula?)
   (match formula
 
     ; AND 
@@ -276,10 +284,10 @@
 ;
 ; output: This function is desugaring the current expression (returns simpler
 ;         result of desugared expression)
-(define (desugarExpr expr quantVars currTupIfAtomic runContext currSign)
+(define/contract (desugarExpr expr quantVars currTupIfAtomic runContext currSign)
   ; Error message to check that we are only taking in expressions
-  (unless (node/expr? expr)
-    (error (format "desugarExpr called on nonExpr ~a" expr)))
+  (@-> node/expr? list? (listof symbol?) forge:Run? boolean? node/formula?)
+  
 
   ;(printf "desugarExpr: ~a~n" expr)
 
@@ -338,7 +346,6 @@
        (define RHSSubformula
          (setComprehensionSubHelper form currTupIfAtomic quantVars decls
                                     runContext info))
-       (debug-repl)
        ; Put both formulas together
        (define setComprehensionAnd
          (node/formula/op/&& info (append LHSSubformula (list RHSSubformula))))
@@ -355,8 +362,10 @@
 ;
 ; output: This function is desugaring the current expression (returns simpler
 ;         result of desugared expression)
-(define (desugarExprOp  expr quantVars args
+(define/contract (desugarExprOp  expr quantVars args
                         currTupIfAtomic runContext currSign info)
+  (@-> node/expr? list? (listof node/expr?) (listof symbol?)
+       forge:Run? boolean? nodeinfo? node/formula?)
   (mustHaveTupleContext currTupIfAtomic expr)
   (match expr
 
@@ -445,7 +454,9 @@
         ; Example of how to do it like the Java code does:
         ; t in A.B ~~~~> OR_{ta : UB(A), tb: UB(B) | ta.tb = t } (ta in A
         ; and tb in B)
+        (debug-repl)
         (define UBA (liftBoundsExpr (first args) quantVars runContext))
+        (debug-repl)
         (define UBB (liftBoundsExpr (second args) quantVars runContext))
         (define allPairs (cartesian-product UBA UBB))
         (define newArgs
@@ -454,6 +465,7 @@
              (define-values (ta tb) (values (first lstpr) (second lstpr)))
              (define taExpr (tup2Expr ta runContext info))
              (define tbExpr (tup2Expr tb runContext info))
+             (debug-repl)
              (cond
                [(equal? (joinTupleDesugar ta tb) currTupIfAtomic)
                  (node/formula/op/&& info

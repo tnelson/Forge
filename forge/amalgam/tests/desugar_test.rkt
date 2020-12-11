@@ -98,7 +98,7 @@
 
             ; IN For Not Ground LeftE
             (@test-case
-             "TEST In formula"
+             "TEST In formula Node relation in univ"
              (define inTest (in Node univ))
              (define leftE Node)
              (define rightE univ)
@@ -268,7 +268,7 @@
 
              (define inSetComprehension
                (node/formula/op/in empty-nodeinfo
-                                   (list Node
+                                   (list (list 'Node0)
                                          fSetComprehension)))
            
              (@check-equal?
@@ -353,7 +353,7 @@
 (desugarFormula fSomeReachesAll '() udt #t)|#
 (@test-case
              "TEST JOIN on OR with currSign False 2 arguments"
-             (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
+             (define joinFormulaORFalse (in (list 'Node0)
                                             (join Node edges)))
              (@check-equal?
               (toString (desugarFormula joinFormulaORFalse '() udt #f))

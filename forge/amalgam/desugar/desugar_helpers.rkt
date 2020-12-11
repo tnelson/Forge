@@ -3,11 +3,11 @@
 (require "../lift-bounds/lift-bounds.rkt")
 (require "../substitutor/substitutor.rkt")
 (require (prefix-in @ racket))
+(require (prefix-in @ (only-in racket ->)))
 
 (provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct
-         createNewQuantifier projectTupleRange getColumnRight getColumnLeft
-         transitiveClosureHelper productHelper joinHelper joinTupleDesugar
-         extendPossiblePaths transitiveClosureAnd )
+         createNewQuantifier projectTupleRange getColumnRight 
+         productHelper joinTupleDesugar extendPossiblePaths transitiveClosureAnd)
 
 ; input: currTupIfAtomic - implicit LHS
 ;        quantVars - 
@@ -16,14 +16,16 @@
 ;
 ; output: recursively create an in formula of the currTupIfAtomic and
 ;         the corresopnding decl at the same index
-(define (setComprehensionAndHelper currTupIfAtomic decls info runContext)
-
+(define/contract (setComprehensionAndHelper currTupIfAtomic decls info runContext)
+  (@-> (listof symbol?) (listof pair?) nodeinfo? forge:Run?
+       (listof node/formula/op/in?))
   (cond
     [(empty? decls) '()]
     [else
      ; I added this list cast, but seems shady
      ; '(Node0) === Node0
 
+     ; 
      (cons (node/formula/op/in info (list (tup2Expr (first currTupIfAtomic)
                                                     runContext info)
                                           (cdr (first decls))))
@@ -37,8 +39,10 @@
 ;
 ; output: recursively create a quantifier-var expression containing each
 ;         declaration and the corresponding quantVar
-(define (setComprehensionSubHelper form currTupIfAtomic quantVars decls
+(define/contract (setComprehensionSubHelper form currTupIfAtomic quantVars decls
                                    runContext info)
+  (@-> node/formula? (listof symbol?) list? (listof pair?) forge:Run?
+       nodeinfo? node/formula?)
   (cond
     [(empty? decls) form]
     [else
@@ -55,8 +59,9 @@
 ;
 ; output: recursively call transitiveClosureIn on first two items in list
 ;         and put in a big AND called by desugar
-(define
+(define/contract
   (transitiveClosureAnd filteredExtendResult expr info runContext runningArgs)
+  (@-> (listof list?) node/expr? nodeinfo? forge:Run? list? node/formula/op/&&?)
   (cond
     [(or
       (empty? filteredExtendResult)
@@ -73,14 +78,15 @@
 
 
 ; input: left - the leftmost item in the currentResultPath
-;        right - the rightmost item in the crurentResultPath
+;        right - the rightmost item in the currentResultPath
 ;        expr - the current expression we are looking at 
 ;        info - info of the original node 
 ;        runContent - current runContext
 ; 
 ; output: an in which looks like (in left->right edges)
 ; called by transitiveClosureAnd
-(define (transitiveClosureIn left right expr info runContext) 
+(define/contract (transitiveClosureIn left right expr info runContext)
+  (@-> list? list? node/expr? nodeinfo? forge:Run? node/formula/op/in?)
   (node/formula/op/in info
                       (list (tup2Expr (list left right) runContext info)
                             expr)))
@@ -91,15 +97,12 @@
 ;     prefix: the beginning point for all paths
 ; output: constructs all possible paths from <prefix> using <edges>
 ; to build set of paths starting with t0 using upperbnd UBA: (extendPossiblePaths UBA (list t0))
-
-(define (extendPossiblePaths edges prefix)    
+; TODO: add contract here
+(define (extendPossiblePaths edges prefix)
   (define newSimplePaths
     (filter-map
      (lambda (e)
        (define-values (e0 e1) (values (first e) (second e)))
-       ; TODO: SO INEFFICIENT :-( but just write it
-       ;  might be better to build paths in reverse from t1 than forward from t0
-       ;  or use something other than lists for everything here
        (cond [(member e1 prefix) #f] ; only build simple paths
              [(equal? (last prefix) e0) (append prefix (list e1))]
              [else #f]))
@@ -121,7 +124,8 @@
 ; output: result of the join of leftTS and rightTS
 ; Helper to join Tuples together
 ; list<tuple>, list<tuple> -> list<tuple>
-(define (joinTupleDesugar leftTS rightTS)
+(define/contract (joinTupleDesugar leftTS rightTS)
+  (@-> (listof list?) (listof list?) (listof list?))
   (cond
     [(equal? (last leftTS) (first rightTS))
      (append (take leftTS (- (length leftTS) 1)) (rest rightTS))]
@@ -134,7 +138,7 @@
 ;        info - info of the original node 
 ; 
 ; output: list containing all of the joins of a transitive closure 
-(define
+#|(define
   (transitiveClosureHelper
    origExpr listOfJoins totalNumOfDots currNumOfDots info)
   (cond
@@ -149,15 +153,17 @@
                           (list (last listOfJoins) origExpr)))
      (transitiveClosureHelper
       origExpr (append listOfJoins (list nextJoin))
-      totalNumOfDots (+ currNumOfDots 1) info)]))
+      totalNumOfDots (+ currNumOfDots 1) info)]))|#
 
-; input: right - list of arguments
+; input: right - arguments
 ;        currTupIfAtomic - implicit LHS of expression
 ;        info - info of original expression
 ;        left - a list of arguments with previous results of the product
 ; 
 ; output: list containing two in nodes
-(define (productHelper left right currTupIfAtomic info runContext)
+(define/contract (productHelper left right currTupIfAtomic info runContext)
+  (@-> (listof node/expr?) node/expr? (listof symbol?) nodeinfo?
+       forge:Run? (listof node/formula/op/in?))
   (define LHS (last left))
   (define RHS right)
   (define
@@ -182,7 +188,7 @@
 ;      info: info of original Node
 ; output: re-writing join as a 'some existential formula. We return a
 ;      quantified formula of all of the joins 
-(define (joinHelper expr left right info)
+#|(define (joinHelper expr left right info)
   (define rightColLHS (getColumnRight left))
   (define leftColRHS (getColumnLeft right))
   (define listOfColumns (list leftColRHS rightColLHS))
@@ -208,32 +214,39 @@
   (define RHSIn (node/formula/op/in info (list RHSProduct right)))
 
   (define joinAnd (node/formula/op/&& info (list LHSIn RHSIn)))
-  (node/formula/quantified info 'some newDecls joinAnd))
+  (node/formula/quantified info 'some newDecls joinAnd))|#
+
 
 ; input: tuple - the tuple that we want to convert into an expression 
 ;        context - the run context of the program 
 ;        info - info of original tuple 
 ; 
-; output: the tuple as an expression, re-written as a node/expr/atom 
-(define (tup2Expr tuple context info)
-  (when (equal? (length tuple) 0)
-    (error (format "tupElem ~a is an empty list" tuple)))
-  (when (not (list? tuple))
-    (error (format "tupElem ~a is not a list" tuple)))
-  (define tupRelationList
-    ; replace every element of the tuple (atoms) with the corresponding atom relation
-    (map
-     (lambda (tupElem)
-       (when (list? tupElem)
-         (error (format "tupElem ~a in tuple ~a is a list" tupElem tuple)))
-       (node/expr/atom info 1 tupElem))
-     tuple))  
-  (node/expr/op/-> info (length tupRelationList) tupRelationList))
+; output: the tuple as an expression, re-written as a node/expr/atom
+; NOTE: doesn't handle ints
+(define/contract (tup2Expr tuple context info)
+  (@-> (or/c (listof symbol?) symbol?) forge:Run? nodeinfo? node/expr?)
+
+  (cond
+    [(symbol? tuple) (node/expr/atom info 1 tuple)]
+    [(equal? (length tuple) 0)
+     (error (format "tupElem ~a is an empty list" tuple))]
+    [else
+     (define tupRelationList
+       ; replace every element of the tuple (atoms) with the corresponding atom
+       ; relation
+       (map
+        (lambda (tupElem)
+          (when (list? tupElem)
+            (error (format "tupElem ~a in tuple ~a is a list" tupElem tuple)))
+          (node/expr/atom info 1 tupElem))
+        tuple))  
+     (node/expr/op/-> info (length tupRelationList) tupRelationList)]))
 
 ; input: tuple - the tuple that we want to flip 
 ; 
 ; output: flipped (transposed) tuple  
-(define (transposeTup tuple)
+(define/contract (transposeTup tuple)
+  (@-> (listof pair?) (listof pair?))
   (cond 
     [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
     [else
@@ -260,7 +273,8 @@
 ;
 ; output: returns true if the expr is ground, false if it isn't, and an
 ; error if something went wrong. 
-(define (isGroundProduct expr)
+(define/contract (isGroundProduct expr)
+  (@-> node/expr? (or/c exn:fail? boolean?))
   (cond
     [(not (or (node/expr? expr) (node/int/constant? expr)))
      (error (format "expression ~a is not an expression or int constant." expr))]
@@ -284,7 +298,8 @@
 ;      len: end index 
 ;
 ; output: Returns the range of a given tuple 
-(define (projectTupleRange tup start len)
+(define/contract (projectTupleRange tup start len)
+  (@-> list? number? number? list?)
   (take (list-tail tup start) len))
 
 ; input:
@@ -292,7 +307,8 @@
 ;
 ; output: Returns the right column of a given node.
 ; For node with arity 3, it returns (univ.(univ.node))
-(define (getColumnRight node)
+(define/contract (getColumnRight node)
+  (@-> node? (or/c exn:fail? node?))
   (define arity (node/expr-arity node))
   (define info (node-info node))
   (cond [(equal? 0 arity) (error (format "getColumnRight arity <1: ~a" node))]
@@ -300,18 +316,6 @@
         [else (getColumnRight (node/expr/op/join info (- arity 1)
                                                  (list univ node)))]))
 
-; input:
-;      node: The node that we want to get the left column of 
-;
-; output: Returns the right column of a given node. For node with arity 3,
-; it returns (node.univ).univ
-(define (getColumnLeft node)
-  (define arity (node/expr-arity node))
-  (define info (node-info node))
-  (cond [(equal? 0 arity) (error (format "getColumnRight arity <1: ~a" node))]
-        [(equal? 1 arity) node]
-        [else (getColumnRight (node/expr/op/join info (- arity 1)
-                                                 (list node univ)))]))
 
 ; input:
 ;      decl: The original decl for the quantifier that we are trying to re-write
@@ -324,8 +328,11 @@
 ;      formula: the quantifier formula 
 ;
 ; output: Returns a big AND or OR of the subformulas 
-(define
+(define/contract
   (createNewQuantifier decl quantVars subForm runContext info quantifier formula)
+  (@-> pair? list? node/formula? forge:Run? nodeinfo?
+       node/expr/quantifier-var? node/formula?
+       (or/c node/formula/op||? node/formula/op/&&? exn:fail?))
   (unless (not (and (null? (car decl)) (null? (cdr decl))))
     (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
   (define var (car decl)) 
@@ -349,19 +356,9 @@
 ;      expr: A given expression 
 ;
 ; output: returns true if the expression is unary, false if not. 
-(define (checkIfUnary expr)
+(define/contract (checkIfUnary expr)
+  (@-> (or/c node/expr? node/formula? symbol?) boolean?)
   (or (node/expr/op/^? expr)
       (node/expr/op/*? expr)
       (node/expr/op/~? expr)
       (node/expr/op/sing? expr)))
-
-; input:
-;      expr: A given expression 
-;
-; output: returns true if the expression is binary, false if not. 
-(define (checkIfBinary expr)
-  (or (node/expr/op/+? expr)
-      (node/expr/op/-? expr)
-      (node/expr/op/&? expr)
-      (node/expr/op/->? expr)
-      (node/expr/op/join? expr)))
