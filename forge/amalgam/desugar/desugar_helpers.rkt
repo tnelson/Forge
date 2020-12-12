@@ -22,11 +22,8 @@
   (cond
     [(empty? decls) '()]
     [else
-     ; I added this list cast, but seems shady
-     ; '(Node0) === Node0
-
-     ; 
-     (cons (node/formula/op/in info (list (tup2Expr (first currTupIfAtomic)
+                (debug-repl)
+     (cons (node/formula/op/in info (list (tup2Expr (list (first currTupIfAtomic))
                                                     runContext info)
                                           (cdr (first decls))))
            (setComprehensionAndHelper (rest currTupIfAtomic)
@@ -47,7 +44,7 @@
     [(empty? decls) form]
     [else
      (define formulaSoFar (substituteFormula form quantVars (car (first decls))
-                              (tup2Expr (first currTupIfAtomic) runContext info)))
+                              (tup2Expr (list (first currTupIfAtomic)) runContext info)))
      (setComprehensionSubHelper formulaSoFar (rest currTupIfAtomic) quantVars
                                       (rest decls) runContext info)]))
 

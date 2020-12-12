@@ -21,10 +21,14 @@
            "TEST setComprehensionAndHelper test"
            (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
            (@check-equal?
-            (toString (setComprehensionAndHelper '(Node)
-                                                 '((x Node)) empty-nodeinfo udt))
-            (toString (list (node/formula/op/in empty-nodeinfo
-                                                '(Node (Node)))))))
+            (toString (setComprehensionAndHelper (list 'Node0)
+                                                 (list (cons x Node))
+                                                 empty-nodeinfo udt))
+            (toString (list
+                       (node/formula/op/in empty-nodeinfo
+                                           (list
+                                            (tup2Expr (list 'Node0) udt empty-nodeinfo)
+                                            Node))))))
 
           ; EDGES: (rel '(Node Node) 'Node "edges")
 ; Node: (rel '(Node) univ "Node")
@@ -37,9 +41,10 @@
            (define relRes (rel '(Node) 'univ "Node"))
            (@check-equal?
             (toString (setComprehensionSubHelper
-                       (in x Node) '(y) '(x) '((x Node)) udt empty-nodeinfo))
+                       (in x Node) (list 'Node1) '(x) (list (cons x Node)) udt empty-nodeinfo))
             (toString (node/formula/op/in empty-nodeinfo
-                                          (list y relRes)))))
+                                          (list (tup2Expr (list 'Node1) udt empty-nodeinfo) relRes)))))
+
           ; extendPossiblePaths
           (@test-case
              "TEST extendPossiblePaths on empty list"
@@ -290,21 +295,6 @@
              (toString (getColumnRight edges))
              (toString (join univ edges))))
 
-           ; getColumnLeft
-            (@test-case
-            "TEST getColumnLeft error"
-           (@check-exn
-            exn:fail?
-            (lambda () 
-              (getColumnLeft '()))))
-
-           ; valid arity more than 1 (hits recursive call and base case)
-           (@test-case
-            "TEST getColumnLeft on valid"
-            (@check-equal?
-             (toString (getColumnLeft edges))
-             (toString (join edges univ))))
-
            ; createNewQuantifier
            (@test-case
             "TEST createNewQuantifier error decl does not contain both things"
@@ -393,11 +383,4 @@
               (createNewQuantifier (cons varx Node)
                                    (list varx) (in varx Node)
                                    udt empty-nodeinfo 'all allFormula))
-             (toString (node/formula/op/&& empty-nodeinfo subformulas))))
-
-           ; transitive-closure-helper
-           (@test-case
-            "TEST transitive-closure-helper"
-            (@check-equal?
-             (toString (transitiveClosureHelper edges '() 2 0 empty-nodeinfo))
-             (toString (list edges (join edges edges)))))))
+             (toString (node/formula/op/&& empty-nodeinfo subformulas))))))

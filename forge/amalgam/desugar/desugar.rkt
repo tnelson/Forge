@@ -220,8 +220,15 @@
     ;     to build an and-of-implications
     [(? node/formula/op/in?)
      ;(printf "IN CASE: ~a~n" args)     
-     (define leftE (first args))
-     (define rightE (second args))
+     (define leftE
+       (cond
+         [(symbol? (first args)) (tup2Expr (first args) runContext info)]
+         [else (first args)]))
+     (define rightE
+       (cond
+         [(symbol? (second args)) (tup2Expr (second args) runContext info)]
+         [else (second args)]))
+     
      ; We don't yet know which relation's bounds will be needed, so just pass
      ; them all in
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
@@ -512,7 +519,7 @@
 
      ; TODO: is (first uppers) the correct seconda rgument for extendPossible
      ; Paths
-     (define extendResult (extendPossiblePaths uppers (first currTupIfAtomic)))
+     (define extendResult (extendPossiblePaths uppers (list (first currTupIfAtomic))))
 
      ; Check the endpoint and remove items that do not match
      (define endPoint (last currTupIfAtomic))
