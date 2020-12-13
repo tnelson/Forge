@@ -12,6 +12,7 @@
 
 (provide substituteFormula toStringSub)
 (require debug/repl)
+(require (prefix-in @ (only-in racket ->)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; input: formula - the formula we are substituting in
@@ -20,10 +21,8 @@
 ;        value - the value that we are looking to replace, an expression
 ;
 ; output: the formula with target substituted by value
-(define (substituteFormula formula quantvars target value)
-  (unless (and (node/expr? target) (node/expr? value))
-    (error
-     (format "Target ~a and value ~a not expressions" target value)))
+(define/contract (substituteFormula formula quantvars target value)
+  (@-> node/formula? list? node/expr? node/expr? node/formula?)
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -73,10 +72,11 @@
 ;        value - the value that we are looking to replace, an expression
 ;
 ; output: the formula with target substituted by value
-(define (substituteFormulaOp formula quantvars args info target value)
-   (unless (and (node/expr? target) (node/expr? value))
-    (error
-     (format "Target ~a and value ~a not expressions" target value)))
+(define/contract (substituteFormulaOp formula quantvars args info target value)
+  (@-> (or/c node/formula? node/expr?) list?
+       (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
+       nodeinfo? (or/c node/expr? node/formula?) (or/c node/expr? node/formula?)
+       (or/c node/expr? node/formula?))     
   (match formula
 
     ; AND 
@@ -144,10 +144,8 @@
 ;        value - the value that we are looking to replace
 ;
 ; output: the expression with target substituted by value
-(define (substituteExpr expr quantvars target value)
-  ; Error message to check that we are only taking in expressions
-  (unless (node/expr? expr)
-    (error (format "substituteExpr called on non-expr: ~a" expr)))
+(define/contract (substituteExpr expr quantvars target value)
+  (@-> node/expr? list? node/expr? node/expr? node/expr?)
   (match expr
 
     ; relation name (base case)
@@ -215,10 +213,10 @@
 ;        value - the value that we are looking to replace
 ;
 ; output: the expression with target substituted by value
-(define (substituteExprOp expr quantvars args info target value)
-   (unless (and (node/expr? target) (node/expr? value))
-    (error
-     (format "Target ~a and value ~a not expressions" target value)))
+(define/contract (substituteExprOp expr quantvars args info target value)
+  (@-> node/expr/op? list?
+       (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
+       nodeinfo? node/expr? node/expr? node/expr/op?)
   (match expr
 
     ; UNION
@@ -296,7 +294,8 @@
 ;        value - the value that we are looking to replace
 ;
 ; output: the expression with target substituted by value
-(define (substituteInt expr quantvars target value)
+(define/contract (substituteInt expr quantvars target value)
+  (@-> node/int? list? node/expr? node/expr? node/int?)
   (match expr
     
     ; CONSTANT INT
