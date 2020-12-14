@@ -523,7 +523,8 @@
 
      ; Check the endpoint and remove items that do not match
      (define endPoint (last currTupIfAtomic))
-     
+
+     ; A list containing tuples
      (define filteredExtendResult
        (filter
         (lambda (result) (equal? (last result) endPoint)) extendResult))

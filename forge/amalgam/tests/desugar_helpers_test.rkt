@@ -31,7 +31,7 @@
                                             Node))))))
 
           ; EDGES: (rel '(Node Node) 'Node "edges")
-; Node: (rel '(Node) univ "Node")
+          ; Node: (rel '(Node) univ "Node")
           ; setComprehensionSubHelper
           ; TODO: fix this case (need to get relation from actual)
            (@test-case
@@ -63,7 +63,7 @@
              (@check-equal?
               (toString
                (extendPossiblePaths '((1 2) (2 3) (1 5) (4 7) (7 8)) '(1)))
-              (toString '((1 2 ) (1 5) (1 2 3)))))
+              (toString '((1 2) (1 5) (1 2 3)))))
 
             (@test-case
              "TEST extendPossiblePaths on valid list with cycle"
@@ -71,7 +71,7 @@
               (toString
                (extendPossiblePaths
                 '((1 2) (2 3) (1 5) (4 7) (7 8) (2 5) (2 2)) '(1)))
-              (toString '((1 2 ) (1 5) ( 1 2 3) (1 2 5)))))
+              (toString '((1 2) (1 5) (1 2 3) (1 2 5)))))
 
             ; transitiveClosureAnd
             #|(@test-case
@@ -85,7 +85,8 @@
              "TEST transitiveClosureIn on valid input"
              (@check-equal?
               (toString
-               (transitiveClosureIn 'Node0 'Node1 edges empty-nodeinfo udt))
+               (transitiveClosureIn (list 'Node0) (list 'Node1) edges
+                                    empty-nodeinfo udt))
               (toString
                (node/formula/op/in
                 empty-nodeinfo
@@ -172,23 +173,15 @@
                                 (node/expr/atom empty-nodeinfo 1 'Node0)
                                 (node/expr/atom empty-nodeinfo 1 'Node1)
                                 (node/expr/atom empty-nodeinfo 1 'Node2))))))
-           ; empty list
-           (@check-exn
-            exn:fail?
-            (lambda () 
-              (tup2Expr '() udt empty-nodeinfo)))
 
-           ; not a list
-           (@check-exn
-            exn:fail?
-            (lambda () 
-              (tup2Expr 'Node0 udt empty-nodeinfo)))
 
            ; element that is a list
-           (@check-exn
-            exn:fail?
-            (lambda () 
-              (tup2Expr (list (list 'Node0)) udt empty-nodeinfo)))
+           (@test-case
+            "TEST tup2ExprError"
+            (@check-exn
+             exn:fail?
+             (lambda () 
+               (tup2Expr (list (list 'Node0)) udt empty-nodeinfo))))
 
            ; transposeTup
            (@test-case

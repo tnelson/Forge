@@ -355,7 +355,7 @@
              "TEST JOIN on OR with currSign False 2 arguments"
              (define joinFormulaORFalse (in (list 'Node0)
                                             (join Node edges)))
-             (@check-equal?g
+             (@check-equal?
               (toString (desugarFormula joinFormulaORFalse '() udt #f))
               (toString
                (node/formula/op/&&

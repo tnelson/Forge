@@ -22,7 +22,7 @@
   (cond
     [(empty? decls) '()]
     [else
-                (debug-repl)
+     ;(debug-repl)
      (cons (node/formula/op/in info (list (tup2Expr (list (first currTupIfAtomic))
                                                     runContext info)
                                           (cdr (first decls))))
@@ -85,7 +85,7 @@
 (define/contract (transitiveClosureIn left right expr info runContext)
   (@-> list? list? node/expr? nodeinfo? forge:Run? node/formula/op/in?)
   (node/formula/op/in info
-                      (list (tup2Expr (list left right) runContext info)
+                      (list (tup2Expr (append left right) runContext info)
                             expr)))
 
 ; used by desugar. similar logic to buildClosureOfTupleSet
@@ -94,8 +94,9 @@
 ;     prefix: the beginning point for all paths
 ; output: constructs all possible paths from <prefix> using <edges>
 ; to build set of paths starting with t0 using upperbnd UBA: (extendPossiblePaths UBA (list t0))
-; TODO: add contract here
-(define (extendPossiblePaths edges prefix)
+; TODO: confirm contract for prefix
+(define/contract (extendPossiblePaths edges prefix)
+  (@-> (listof list?) list? (listof list?))
   (define newSimplePaths
     (filter-map
      (lambda (e)
@@ -222,7 +223,6 @@
 ; NOTE: doesn't handle ints
 (define/contract (tup2Expr tuple context info)
   (@-> (or/c (listof symbol?) symbol?) forge:Run? nodeinfo? node/expr?)
-
   (cond
     [(symbol? tuple) (node/expr/atom info 1 tuple)]
     [(equal? (length tuple) 0)
@@ -243,7 +243,7 @@
 ; 
 ; output: flipped (transposed) tuple  
 (define/contract (transposeTup tuple)
-  (@-> (listof pair?) (listof pair?))
+  (@-> list? list?)
   (cond 
     [(equal? (length tuple) 2) (list (second tuple) (first tuple))]
     [else
@@ -271,7 +271,7 @@
 ; output: returns true if the expr is ground, false if it isn't, and an
 ; error if something went wrong. 
 (define/contract (isGroundProduct expr)
-  (@-> node/expr? (or/c exn:fail? boolean?))
+  (@-> (or/c node? symbol?) (or/c exn:fail? boolean?))
   (cond
     [(not (or (node/expr? expr) (node/int/constant? expr)))
      (error (format "expression ~a is not an expression or int constant." expr))]
@@ -328,7 +328,7 @@
 (define/contract
   (createNewQuantifier decl quantVars subForm runContext info quantifier formula)
   (@-> pair? list? node/formula? forge:Run? nodeinfo?
-       node/expr/quantifier-var? node/formula?
+       (or/c 'some 'all) node/formula?
        (or/c node/formula/op||? node/formula/op/&&? exn:fail?))
   (unless (not (and (null? (car decl)) (null? (cdr decl))))
     (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
@@ -346,15 +346,14 @@
            liftedBounds))
     
     (cond [(equal? quantifier 'some) (node/formula/op/|| info subFormulas)]
-          [(equal? quantifier 'all) (node/formula/op/&& info subFormulas)]
-          [else (error (format "desugaring unsupported: ~a" formula))])))
+          [(equal? quantifier 'all) (node/formula/op/&& info subFormulas)])))
 
 ; input:
 ;      expr: A given expression 
 ;
 ; output: returns true if the expression is unary, false if not. 
 (define/contract (checkIfUnary expr)
-  (@-> (or/c node/expr? node/formula? symbol?) boolean?)
+  (@-> (or/c node? symbol?) boolean?)
   (or (node/expr/op/^? expr)
       (node/expr/op/*? expr)
       (node/expr/op/~? expr)
