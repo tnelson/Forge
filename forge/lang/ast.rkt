@@ -74,16 +74,16 @@
                            (datum->syntax #f args (build-source-location-syntax loc)))))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
-       (raise-syntax-error #f (format "join would create a relation of arity 0")
+       (raise-syntax-error #f (format "join would create a relation of arity 0 at loc: ~a" loc)
                            (datum->syntax #f args (build-source-location-syntax loc)))))
   
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)      
-      (raise-syntax-error #f "second argument must have arity 1"
+      (raise-syntax-error #f (format "second argument must have arity 1 at loc: ~a" loc)
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (when domain?
     (unless (equal? (node/expr-arity (car args)) 1)      
-      (raise-syntax-error #f "first argument must have arity 1"
+      (raise-syntax-error #f (format "first argument must have arity 1 at loc: ~a" loc)
                              (datum->syntax #f args (build-source-location-syntax loc))))))
 
 
@@ -95,7 +95,12 @@
 (define (build-box-join sofar todo)
   (cond [(empty? todo) sofar]
         [else
-         (build-box-join (join (first todo) sofar) (rest todo))]))
+         (define loc1 (nodeinfo-loc (node-info sofar)))
+         (define loc2 (nodeinfo-loc (node-info (first todo))))
+         (build-box-join (join/info
+                          (nodeinfo (build-source-location loc1 loc2))
+                                    (first todo) sofar)
+                          (rest todo))]))
 
 (struct node/expr node (arity) #:transparent
   #:property prop:procedure (λ (r . sigs) (build-box-join r sigs))
