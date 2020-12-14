@@ -259,17 +259,18 @@
             ; set comprehension desugar formula
             (@test-case
              "TEST desugar in set comprehension case called from desugar formula"
-             (define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+             ;(define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
 
-             ; x in Node
-             (define fSetComprehension (node/expr/comprehension empty-nodeinfo 1
-                                                   (list (cons qvx Node))
-                                                   (in qvx Node)))
+             ; x in Node (note that the comprehension macro defines x for you!)
+             (define fSetComprehension (set ([x Node]) (in x Node)))
 
+             ; kodkod atoms, tuples: symbols, lists of symbols
+             ;    ^ "semantic" tuples (things that exist in the instances)
+             ; expression atoms, tuples: all are node/expr?
+             ;    ^ "syntactic" tuples (things that you can write formulas/expressions over)
+             
              (define inSetComprehension
-               (node/formula/op/in empty-nodeinfo
-                                   (list (list 'Node0)
-                                         fSetComprehension)))
+               (in (atom 'Node0) fSetComprehension))
            
              (@check-equal?
               (toString (desugarFormula inSetComprehension '() udt #t))
@@ -353,7 +354,7 @@
 (desugarFormula fSomeReachesAll '() udt #t)|#
 (@test-case
              "TEST JOIN on OR with currSign False 2 arguments"
-             (define joinFormulaORFalse (in (list 'Node0)
+             (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
                                             (join Node edges)))
              (@check-equal?
               (toString (desugarFormula joinFormulaORFalse '() udt #f))

@@ -42,15 +42,8 @@
     
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
-     ; We want to pass in the currTupIfAtomic as the implicit LHS
-     ;TODO: CHECK THIS 
-     (define newArgs (map (lambda (x)
-                            (cond
-                              [(equal? (listof symbol?) x) (tup2Expr x runContext info)]
-                              [else x]))
-                              args))
      (desugarFormulaOp
-      formula quantVars newArgs runContext currSign (list (first newArgs)) info)]
+      formula quantVars args runContext currSign info)]
     
     ; multiplicity formula (some, one, ...)
     ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
@@ -183,11 +176,10 @@
 ; output: This function is recursively calling every element in args and pass
 ; it to the original recursive function. 
 (define/contract (desugarFormulaOp formula quantVars args
-                          runContext currSign currTupIfAtomic info)
+                          runContext currSign info)
   (@-> node/formula? list?
        (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
-       forge:Run? boolean?
-       (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
+       forge:Run? boolean?       
        nodeinfo? node/formula?)
   (match formula
 
@@ -428,23 +420,17 @@
        [(@> (length args) 2)
         (define arity (node/expr-arity expr))
         (define newLHS (first args))
+        ; TODO: not same arity for RHS! arity - arity of LHS
         (define newRHS (node/expr/op/-> info arity (rest args)))
         (define newProduct (node/expr/op/-> info arity (list newLHS newRHS)))
         (desugarExpr newProduct quantVars currTupIfAtomic runContext currSign)]
-     
-       [(@>= (node/expr-arity expr) 2)
-        ; TODO: remove call to helper from old implementation, helper no longer necessary
-        (define currentProduct
-        ; get product of first thing in args and second thing in args
-        (productHelper (list (first args)) (second args)
-                          currTupIfAtomic info runContext))
 
-        ; fold over everything else and return the AND of everything in the fold
-        (define foldProduct
-          (foldl (lambda (curr acc)
-                   (productHelper acc curr currTupIfAtomic info runContext))
-                 currentProduct (rest (rest args))))
-        (node/formula/op/&& info foldProduct)]
+       ; TODO: productHelper was DESIGNED TO WORK WITH FOLD.
+       ;  can simplify it (and need to or it'l fail)
+       [(@>= (node/expr-arity expr) 2)          
+        (node/formula/op/&& info
+                            (productHelper (list (first args)) (second args)
+                                           currTupIfAtomic info runContext))]
        [(equal? (node/expr-arity expr) 1)
 
         ; if arity is 1, only call desugarExpr on the first thing
@@ -475,7 +461,6 @@
              (define-values (ta tb) (values (first lstpr) (second lstpr)))
              (define taExpr (tup2Expr ta runContext info))
              (define tbExpr (tup2Expr tb runContext info))
-             (debug-repl)
              (cond
                [(equal? (joinTupleDesugar ta tb) currTupIfAtomic)
                 (node/formula/op/&& info

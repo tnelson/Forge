@@ -54,7 +54,7 @@
                         (datum->syntax #f args (build-source-location-syntax loc))))
   (unless (false? max-length)
     (when (> (length args) max-length)
-      (raise-syntax-error #f (format "too many arguments; maximum ~a, got ~a" max-length args)
+      (raise-syntax-error #f (format "too many arguments; maximum ~a, got ~a at loc: ~a" max-length args loc)
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (for ([a (in-list args)])
     (unless (type? a)
@@ -68,8 +68,8 @@
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
         (unless (equal? (node/expr-arity a) arity)
-          (raise-syntax-error #f (format "arguments must have same arity. got ~a and ~a"
-                                         arity (node/expr-arity a))
+          (raise-syntax-error #f (format "arguments must have same arity. got ~a and ~a at loc: ~a"
+                                         arity (node/expr-arity a) loc)
                            (datum->syntax #f args (build-source-location-syntax loc)))))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
@@ -272,8 +272,20 @@
   [(define (write-proc self port mode)
      (match-define (node/expr/atom info arity name) self)
      (fprintf port "(atom ~a)" name))])
-(define (atom name)
-  (node/expr/atom 1 name))
+
+
+(define-syntax (atom stx)
+  (syntax-case stx ()    
+    [(_ val)
+     (quasisyntax/loc stx (node/expr/atom
+                           (nodeinfo #,(build-source-location stx))
+                           1 val))]))
+
+;(define (atom name)
+;  (node/expr/atom
+;   (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx))
+;   1 name))
+
 (define (atom-name rel)
   (node/expr/atom-name rel))
 

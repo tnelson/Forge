@@ -116,17 +116,17 @@
                                     newSimplePaths)))]))
 
 
-; input: leftTS - left hand side of joined tuple
-;        rightTS - right hand side of joined tuple
+; input: leftT - left hand side of joined tuple
+;        rightT - right hand side of joined tuple
 ; 
-; output: result of the join of leftTS and rightTS
+; output: result of the join of leftT and rightT
 ; Helper to join Tuples together
-; list<tuple>, list<tuple> -> list<tuple>
-(define/contract (joinTupleDesugar leftTS rightTS)
-  (@-> (listof list?) (listof list?) (listof list?))
+; tuple, tuple -> tuple
+(define/contract (joinTupleDesugar leftT rightT)
+  (@-> (listof symbol?) (listof symbol?) (or/c boolean? (listof symbol?)))
   (cond
-    [(equal? (last leftTS) (first rightTS))
-     (append (take leftTS (- (length leftTS) 1)) (rest rightTS))]
+    [(equal? (last leftT) (first rightT))
+     (append (take leftT (- (length leftT) 1)) (rest rightT))]
     [else #f]))
 
 ; input: origExpr - the first argument of transitive closure 
