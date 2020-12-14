@@ -570,7 +570,8 @@
    (with-syntax ([block (my-expand #'block)])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (pred #,(build-source-location stx) name.name block))))]
+       ; preserve stx location in Racket *sub*expression
+       #,(syntax/loc stx (pred name.name block)))))]
 
   [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
@@ -581,7 +582,8 @@
                  [block (my-expand #'block)])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (pred #,(build-source-location stx) decl block))))]))
+       ; preserve stx location in Racket *sub*expression
+       #,(syntax/loc stx (pred decl block)))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)

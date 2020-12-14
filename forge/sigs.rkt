@@ -621,35 +621,22 @@ Returns whether the given run resulted in sat or unsat, respectively.
        (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker))))]))
 
 ; Declare a new predicate
-; (pred loc name cond ...)
-; (pred loc (name var ...) cond ...)
-;   or same without loc
-
-;[(_ ((p v:expr) ...) body:expr)
-;     #:declare p (expr/c #'parameter?
-;                         #:name "parameter argument")
-;     #'(parameterize ([p.c v] ...) body)]))
-
+; (pred info name cond ...)
+; (pred info (name var ...) cond ...)
+;   or same without info
 (define-syntax (pred stx)
   (syntax-parse stx
-    [(pred l name:id conds:expr ...+)
-     #:declare l (expr/c #'srcloc?
-                         #:name "source location")
+    [(pred name:id conds:expr ...+)
      (quasisyntax/loc stx
        (begin
          ; use srcloc of actual predicate, not this location in sigs
-         (define name (&&/loc l conds ...))
+         (define name (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
          (update-state! (state-add-predicate curr-state 'name))))]
-    [(pred l (name:id args:id ...+) conds:expr ...+)
-     #:declare l (expr/c #'srcloc?
-                         #:name "source location")
+    [(pred (name:id args:id ...+) conds:expr ...+)
      (quasisyntax/loc stx
        (begin 
-         (define (name args ...) (&&/loc l conds ...))
-         (update-state! (state-add-predicate curr-state 'name))))]
-    ; likewise, allow caller to either pass or not pass a srcloc
-    [(pred e ...)
-     (quasisyntax/loc stx (pred #,(build-source-location stx) e ...))]))
+         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
+         (update-state! (state-add-predicate curr-state 'name))))]))
                                    
 ; Declare a new function
 ; (fun (name var ...) result)

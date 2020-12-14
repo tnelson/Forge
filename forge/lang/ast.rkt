@@ -45,10 +45,11 @@
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
-(define (check-args loc op args type?
+(define (check-args info op args type?
                     #:same-arity? [same-arity? #f] #:arity [arity #f]
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
+  (define loc (nodeinfo-loc info))
   (when (< (length args) min-length)
     (raise-syntax-error #f (format "not enough arguments; required ~a got ~a" min-length args)
                         (datum->syntax #f args (build-source-location-syntax loc))))
@@ -110,7 +111,7 @@
     [(_ id parent arity checks ... #:lift @op #:type childtype)
      ;(printf "defining: ~a~n" stx)
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
-                   [macroname/loc (format-id #'id "~a/loc" #'id)]
+                   [macroname/info (format-id #'id "~a/info" #'id)]
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
@@ -122,13 +123,13 @@
              (syntax-case stx2 ()
                [(_ e ellip)                
                 (quasisyntax/loc stx2
-                  (macroname/loc #,(build-source-location stx2) e ellip))]))
+                  (macroname/info (nodeinfo #,(build-source-location stx2)) e ellip))]))
            
            ; a macro constructor that also takes a syntax object to use for location
            ;  (good for, e.g., creating a big && in sigs.rkt for predicates)
-           (define-syntax (macroname/loc stx2)                     
+           (define-syntax (macroname/info stx2)                     
              (syntax-case stx2 ()                              
-               [(_ l e ellip)
+               [(_ info e ellip)
                 (quasisyntax/loc stx2
                   ;(printf "in created macro, arg location: ~a~n" (build-source-location stx2))
                   (begin
@@ -143,24 +144,21 @@
                            [args (cond
                                    [(or (not (equal? 1 (length args-raw)))
                                         (not (list? (first args-raw)))) args-raw]
-                                   [else (first args-raw)])]
-                           [my-loc (cond [(srcloc? l) l]
-                                         [(syntax? l) (build-source-location l)]
-                                         [else (error (format "~a unexpected" 'name))])])
+                                   [else (first args-raw)])])
                       (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
                           (apply @op args)
                           (begin
-                            (check-args my-loc 'id args childtype checks ...)
+                            (check-args info 'id args childtype checks ...)
                             (if arity
                                 ; expression
                                 (if (andmap node/expr? args)
                                     ; expression with expression children (common case)
                                     (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                                      (name (nodeinfo my-loc) (apply arity arities) args))
+                                      (name info (apply arity arities) args))
                                     ; expression with non-expression children or const arity (e.g., sing)
-                                    (name (nodeinfo my-loc) (arity) args))
+                                    (name info (arity) args))
                                 ; intexpression or formula
-                                (name (nodeinfo my-loc) args)))))))])))))] 
+                                (name info args)))))))])))))] 
     [(_ id parent arity checks ... #:lift @op)
      (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
      (syntax/loc stx

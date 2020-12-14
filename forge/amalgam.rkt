@@ -136,7 +136,7 @@
     [(node/formula/op/|| info args)
 
      ; length of args
-     (deifne len (length args))
+     (define len (length args))
      
      ; list of not of each arg
      (define LHSArgs (map (lambda (a) (node/formula/op/! info (list a))) args))
