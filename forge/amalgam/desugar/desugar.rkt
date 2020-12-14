@@ -430,8 +430,8 @@
         (define newLHS (first args))
         (define newRHS (node/expr/op/-> info arity (rest args)))
         (define newProduct (node/expr/op/-> info arity (list newLHS newRHS)))
-        (desugarExpr newProduct quantVars currTupIfAtomic runContext currSign)])
-     (cond
+        (desugarExpr newProduct quantVars currTupIfAtomic runContext currSign)]
+     
        [(@>= (node/expr-arity expr) 2)
         ; TODO: remove call to helper from old implementation, helper no longer necessary
         (define currentProduct
@@ -454,16 +454,19 @@
               (format "Expression ~a in product had arity less than 1" expr))])]
     
     ; JOIN
-   [(? node/expr/op/join?)
-     ; Re-write join as an existential formula
+    [(? node/expr/op/join?)
      (cond
-       [(@>= (node/expr-arity expr) 1)
-        ; Example of how to do it like the Java code does:
-        ; t in A.B ~~~~> OR_{ta : UB(A), tb: UB(B) | ta.tb = t } (ta in A
-        ; and tb in B)
-        (debug-repl)
+       [(@> (length args) 2)
+        (define len (length args))
+        (define newLHS (first args))
+        (define arityRHS (apply join-arity (map (lambda (x) (node/expr-arity x))
+                                                (rest args))))
+        (define newRHS (node/expr/op/join info arityRHS (rest args)))
+        (define newJoin (node/expr/op/join info (node/expr-arity expr)
+                                           (list newLHS newRHS)))
+        (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
+       [(equal? (length args) 2)
         (define UBA (liftBoundsExpr (first args) quantVars runContext))
-        (debug-repl)
         (define UBB (liftBoundsExpr (second args) quantVars runContext))
         (define allPairs (cartesian-product UBA UBB))
         (define newArgs
@@ -475,35 +478,19 @@
              (debug-repl)
              (cond
                [(equal? (joinTupleDesugar ta tb) currTupIfAtomic)
-                 (node/formula/op/&& info
-                                      (list
-                                       (node/formula/op/in info
-                                                           (list
-                                                            taExpr (first args)))
-                                       (node/formula/op/in info
-                                                           (list
-                                                            tbExpr (second args)))))]
+                (node/formula/op/&& info
+                                    (list
+                                     (node/formula/op/in info
+                                                         (list
+                                                          taExpr (first args)))
+                                     (node/formula/op/in info
+                                                         (list
+                                                          tbExpr
+                                                          (second args)))))]
                [else #f]))
            allPairs))
-
-        (cond
-          [(@> (length args) 2)
-           (define len (length args))
-           ;(desugarFormula (in iden (join iden iden iden)) '() udt #f)
-           ; (A.B.C.D) ~~~~>
-           ;    A
-           (define newLHS (first args))
-           ;    (B.C.D)
-           ;   TODO: maybe not same arity (consider if arity(A) = 1, but arity(other) = 2)
-           (define arityRHS (apply join-arity (map (lambda (x) (node/expr-arity x)) (rest args))))
-           (define newRHS (node/expr/op/join info arityRHS (rest args)))
-           (define newJoin (node/expr/op/join info (node/expr-arity expr) (list newLHS newRHS)))
-           (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
-           
-          [else
-           ; build the big OR from newargs, call desugarFormula on it
-           (define newOr (node/formula/op/|| info newArgs))
-           (desugarFormula newOr quantVars runContext currSign)])]
+        (define newOr (node/formula/op/|| info newArgs))
+        (desugarFormula newOr quantVars runContext currSign)]
        [else
         (error (format "Expression ~a in join had arity less than 1" expr))])]
     
@@ -519,7 +506,8 @@
 
      ; TODO: is (first uppers) the correct seconda rgument for extendPossible
      ; Paths
-     (define extendResult (extendPossiblePaths uppers (list (first currTupIfAtomic))))
+     (define extendResult (extendPossiblePaths uppers (list
+                                                       (first currTupIfAtomic))))
 
      ; Check the endpoint and remove items that do not match
      (define endPoint (last currTupIfAtomic))

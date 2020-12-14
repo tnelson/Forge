@@ -73,10 +73,10 @@
 ;
 ; output: the formula with target substituted by value
 (define/contract (substituteFormulaOp formula quantvars args info target value)
-  (@-> (or/c node/formula? node/expr?) list?
+  (@-> node/formula? list?
        (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
-       nodeinfo? (or/c node/expr? node/formula?) (or/c node/expr? node/formula?)
-       (or/c node/expr? node/formula?))     
+       nodeinfo? node/expr? node/expr?
+       node/formula?)     
   (match formula
 
     ; AND 
