@@ -5,7 +5,8 @@
 (require syntax/parse/define
          (for-syntax syntax/parse/define))
 (require (for-syntax (for-syntax racket/base)))
-(require (for-syntax racket/function))
+(require (for-syntax racket/function
+                     syntax/srcloc))
 (require "../sigs.rkt")
 ; (require "ast.rkt")
 
@@ -567,9 +568,9 @@
                         name:NameClass
                         block:BlockClass)
    (with-syntax ([block (my-expand #'block)])
-     (syntax/loc stx (begin
+     (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (pred name.name block))))]
+       (pred #,(build-source-location stx) name.name block))))]
 
   [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
@@ -578,9 +579,9 @@
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
                                                    (syntax->list #'decls.translate)))]
                  [block (my-expand #'block)])
-     (syntax/loc stx (begin
+     (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (pred decl block))))]))
+       (pred #,(build-source-location stx) decl block))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)
