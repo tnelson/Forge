@@ -22,7 +22,6 @@
   (cond
     [(empty? decls) '()]
     [else
-     ;(debug-repl)
      (cons (node/formula/op/in info (list (tup2Expr (list (first currTupIfAtomic))
                                                     runContext info)
                                           (cdr (first decls))))
@@ -271,7 +270,7 @@
 ; output: returns true if the expr is ground, false if it isn't, and an
 ; error if something went wrong. 
 (define/contract (isGroundProduct expr)
-  (@-> (or/c node? symbol?) (or/c exn:fail? boolean?))
+  (@-> node? (or/c exn:fail? boolean?))
   (cond
     [(not (or (node/expr? expr) (node/int/constant? expr)))
      (error (format "expression ~a is not an expression or int constant." expr))]
@@ -353,7 +352,7 @@
 ;
 ; output: returns true if the expression is unary, false if not. 
 (define/contract (checkIfUnary expr)
-  (@-> (or/c node? symbol?) boolean?)
+  (@-> node? boolean?)
   (or (node/expr/op/^? expr)
       (node/expr/op/*? expr)
       (node/expr/op/~? expr)

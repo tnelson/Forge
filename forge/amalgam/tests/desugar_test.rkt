@@ -60,11 +60,7 @@
               (toString (desugarFormula andTest '() udt #t))
               (toString (node/formula/op/&& empty-nodeinfo (list true false)))))
 
-            ; Consider De Morgan's Laws: !(a && b)  -----> !a || !b
-            ; not true and false     (#t sign)
-            ; true and false    (#f sign)  <--- this case
-            ; <> or <>
-            ; not true or not false
+
             (@test-case
              "TEST AND formula currSign false"
              (define andTest (and true false))
@@ -120,16 +116,11 @@
                                                               (list LHS RHS)))
                                         liftedUpperBounds))) 
         
-
-
              (@check-equal?
               (toString (desugarFormula inTest '() udt #t))
               (toString (desugarFormula desugaredAnd '() udt #t))))
 
-            ; IN for ground LeftE
-
             ; EQUALS
-            ; The desugared version of EQUALS is: (LHS in RHS) AND (RHS in LHS)
             (@test-case
              "TEST EQUALS formula"
              (define equalsTest (= Node Node))
@@ -141,13 +132,11 @@
               (toString (desugarFormula  desugaredEquals '() udt #t))))
 
             ; NEGATION
-            ; QUESTION: SHOULD THIS BE CALLING DESUGARFORMULAOP INSTEAD?
             (@test-case
              "TEST NEGATION formula"
              (define negationTest (! true))
              (@check-equal?
               (toString (desugarFormula negationTest '() udt #t))
-              ;desugars to (not LHS) OR (RHS) 
               (toString false)))
 
             ; INTEGER <
@@ -259,22 +248,18 @@
             ; set comprehension desugar formula
             (@test-case
              "TEST desugar in set comprehension case called from desugar formula"
-             ;(define qvx (node/expr/quantifier-var empty-nodeinfo 1 'x))
 
-             ; x in Node (note that the comprehension macro defines x for you!)
              (define fSetComprehension (set ([x Node]) (in x Node)))
-
-             ; kodkod atoms, tuples: symbols, lists of symbols
-             ;    ^ "semantic" tuples (things that exist in the instances)
-             ; expression atoms, tuples: all are node/expr?
-             ;    ^ "syntactic" tuples (things that you can write formulas/expressions over)
              
-             (define inSetComprehension
-               (in (atom 'Node0) fSetComprehension))
+             (define inSetComprehension (in (atom 'Node0) fSetComprehension))
+
+             (define liftedUpperBounds (liftBoundsExpr  (atom 'Node0) '() udt))
+
+             (define tupExpr (tup2Expr (first liftedUpperBounds) udt empty-nodeinfo))
            
              (@check-equal?
               (toString (desugarFormula inSetComprehension '() udt #t))
-              (toString '())))
+              (toString (and (in tupExpr Node) (in tupExpr Node)))))
 
             ; desugarExpr test on no currTupIfAtomic
             (@check-exn

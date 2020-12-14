@@ -33,7 +33,7 @@
   ; Checking atom case base case 
   (@test-case
    "TEST liftBoundsExpr on atom base case"
-   (define sampleAtom (node/expr/atom empty-nodeinfo 1 Node))
+   (define sampleAtom (node/expr/atom empty-nodeinfo 1 'Node0))
    (@check-equal?
     (toString (liftBoundsExpr sampleAtom '() udt))
     (toString (list (list (node/expr/atom-name sampleAtom))))))

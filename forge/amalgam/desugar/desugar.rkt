@@ -28,7 +28,6 @@
 ; output: recursively creates restricted AST of the formula passed in
 (define/contract (desugarFormula formula quantVars runContext currSign)
   (@-> node/formula? list? forge:Run? boolean? node/formula?)
-  ;(printf "desugarFormula: ~a~n" formula)
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -216,16 +215,12 @@
     ;     turn into an and-of-implications edges in ~edges <--- same deal, need
     ;     to build an and-of-implications
     [(? node/formula/op/in?)
-     ;(printf "IN CASE: ~a~n" args)     
      (define leftE (first args))
      (define rightE (second args))
      
      ; We don't yet know which relation's bounds will be needed, so just pass
      ; them all in
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
-     ;(printf "liftedUpperBounds: ~a~n" liftedUpperBounds)
-     ;(printf "igp: ~a~n" (isGroundProduct leftE))
-     ;'('Node0) in Node
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
         ; ground case. we have a currentTuple now, and want to desugar the RHS
@@ -286,9 +281,7 @@
 (define/contract (desugarExpr expr quantVars currTupIfAtomic runContext currSign)
   ; Error message to check that we are only taking in expressions
   (@-> node/expr? list? (listof symbol?) forge:Run? boolean? node/formula?)
-  
 
-  ;(printf "desugarExpr: ~a~n" expr)
 
   ; Should always have a currTupIfAtomic when calling
   (mustHaveTupleContext currTupIfAtomic expr)
