@@ -43,9 +43,14 @@
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
      ; We want to pass in the currTupIfAtomic as the implicit LHS
-
+     ;TODO: CHECK THIS 
+     (define newArgs (map (lambda (x)
+                            (cond
+                              [(equal? (listof symbol?) x) (tup2Expr x runContext info)]
+                              [else x]))
+                              args))
      (desugarFormulaOp
-      formula quantVars args runContext currSign (list (first args)) info)]
+      formula quantVars newArgs runContext currSign (list (first newArgs)) info)]
     
     ; multiplicity formula (some, one, ...)
     ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
@@ -220,20 +225,15 @@
     ;     to build an and-of-implications
     [(? node/formula/op/in?)
      ;(printf "IN CASE: ~a~n" args)     
-     (define leftE
-       (cond
-         [(symbol? (first args)) (tup2Expr (first args) runContext info)]
-         [else (first args)]))
-     (define rightE
-       (cond
-         [(symbol? (second args)) (tup2Expr (second args) runContext info)]
-         [else (second args)]))
+     (define leftE (first args))
+     (define rightE (second args))
      
      ; We don't yet know which relation's bounds will be needed, so just pass
      ; them all in
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
      ;(printf "liftedUpperBounds: ~a~n" liftedUpperBounds)
      ;(printf "igp: ~a~n" (isGroundProduct leftE))
+     ;'('Node0) in Node
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
         ; ground case. we have a currentTuple now, and want to desugar the RHS
