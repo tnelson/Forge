@@ -626,13 +626,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (pred stx)
   (syntax-parse stx
     [(pred name:id conds:expr ...+) 
-      #'(begin 
-        (define name (&& conds ...))
-        (update-state! (state-add-predicate curr-state 'name)))]
+     (quasisyntax/loc stx
+       (begin
+         ; use syntax location of actual pred, not this location in sigs
+         (define name (&&/loc #,(build-source-location stx)
+                              conds ...))
+         (update-state! (state-add-predicate curr-state 'name))))]
     [(pred (name:id args:id ...+) conds:expr ...+) 
-      #'(begin 
-        (define (name args ...) (&& conds ...))
-        (update-state! (state-add-predicate curr-state 'name)))]))
+     (quasisyntax/loc stx
+       (begin 
+         (define (name args ...) (&&/loc #,(build-source-location stx)
+                                         conds ...))
+         (update-state! (state-add-predicate curr-state 'name))))]))
 
 ; Declare a new function
 ; (fun (name var ...) result)

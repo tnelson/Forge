@@ -58,7 +58,7 @@
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (for ([a (in-list args)])
     (unless (type? a)
-      (raise-syntax-error #f (format "argument had unexpected type. expected ~a" type?)
+      (raise-syntax-error #f (format "argument had unexpected type. expected ~a. loc: ~a" type? loc)
                           (datum->syntax #f args (build-source-location-syntax loc))))
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
@@ -110,13 +110,25 @@
     [(_ id parent arity checks ... #:lift @op #:type childtype)
      ;(printf "defining: ~a~n" stx)
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
+                   [macroname/loc (format-id #'id "~a/loc" #'id)]
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
            (struct name parent () #:transparent #:reflection-name 'id)
-           (define-syntax (id stx2)                     
+           
+           ; a macro constructor that captures the syntax location of the call site
+           ;  (good for, e.g., test cases + parser)
+           (define-syntax (id stx2)
+             (syntax-case stx2 ()
+               [(_ e ellip)                
+                (quasisyntax/loc stx2
+                  (macroname/loc #,(build-source-location stx2) e ellip))]))
+           
+           ; a macro constructor that also takes a syntax object to use for location
+           ;  (good for, e.g., creating a big && in sigs.rkt for predicates)
+           (define-syntax (macroname/loc stx2)                     
              (syntax-case stx2 ()                              
-               [(_ e ellip)
+               [(_ l e ellip)
                 (quasisyntax/loc stx2
                   ;(printf "in created macro, arg location: ~a~n" (build-source-location stx2))
                   (begin
@@ -131,21 +143,24 @@
                            [args (cond
                                    [(or (not (equal? 1 (length args-raw)))
                                         (not (list? (first args-raw)))) args-raw]
-                                   [else (first args-raw)])])
+                                   [else (first args-raw)])]
+                           [my-loc (cond [(srcloc? l) l]
+                                         [(syntax? l) (build-source-location l)]
+                                         [else (error (format "~a unexpected" 'name))])])
                       (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
                           (apply @op args)
                           (begin
-                            (check-args #,(build-source-location stx2) 'id args childtype checks ...)
+                            (check-args my-loc 'id args childtype checks ...)
                             (if arity
                                 ; expression
                                 (if (andmap node/expr? args)
                                     ; expression with expression children (common case)
                                     (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                                      (name (nodeinfo #,(build-source-location stx2)) (apply arity arities) args))
+                                      (name (nodeinfo my-loc) (apply arity arities) args))
                                     ; expression with non-expression children or const arity (e.g., sing)
-                                    (name (nodeinfo #,(build-source-location stx2)) (arity) args))
+                                    (name (nodeinfo my-loc) (arity) args))
                                 ; intexpression or formula
-                                (name (nodeinfo #,(build-source-location stx2)) args)))))))])))))] 
+                                (name (nodeinfo my-loc) args)))))))])))))] 
     [(_ id parent arity checks ... #:lift @op)
      (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
      (syntax/loc stx
