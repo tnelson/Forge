@@ -126,6 +126,7 @@
    "TEST liftBoundsExpr on set product case"
    (define LHSProductBounds (liftBoundsExpr Node '() udt))
    (define RHSProductBounds (liftBoundsExpr (-> Node univ) '() udt))
+   (debug-repl)
    (define listProductBounds (list LHSProductBounds RHSProductBounds))
    (define productMap (map (lambda (ub) (apply append ub))
                            (apply cartesian-product listProductBounds)))

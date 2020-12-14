@@ -37,8 +37,7 @@
 ; output: Returns a list of tuples (list <tuple>) containing the bounds
 ; of the given expression. 
 (define/contract (liftBoundsExpr expr quantvars runContext)
-  (@-> node/expr? list? forge:Run? (or/c (listof (listof symbol?))
-                                         (listof (listof number?))))
+  (@-> node/expr? list? forge:Run? (listof (or/c (listof number?) (listof symbol?))))
   (match expr
 
     ; atom case (base case)
