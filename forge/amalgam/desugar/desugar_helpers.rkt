@@ -93,7 +93,7 @@
 ;     prefix: the beginning point for all paths
 ; output: constructs all possible paths from <prefix> using <edges>
 ; to build set of paths starting with t0 using upperbnd UBA: (extendPossiblePaths UBA (list t0))
-; TODO: confirm contract for prefix
+
 (define/contract (extendPossiblePaths edges prefix)
   (@-> (listof list?) list? (listof list?))
   (define newSimplePaths
@@ -128,30 +128,6 @@
      (append (take leftT (- (length leftT) 1)) (rest rightT))]
     [else #f]))
 
-; input: origExpr - the first argument of transitive closure 
-;        listOfJoins - list containing all of the previous joins
-;        totalNumOfDots - The total number of dots that we want to see in the
-;        last join 
-;        info - info of the original node 
-; 
-; output: list containing all of the joins of a transitive closure 
-#|(define
-  (transitiveClosureHelper
-   origExpr listOfJoins totalNumOfDots currNumOfDots info)
-  (cond
-    [(equal? currNumOfDots totalNumOfDots) listOfJoins]
-    [(equal? currNumOfDots 0)
-     (transitiveClosureHelper
-      origExpr (append listOfJoins (list origExpr))
-      totalNumOfDots (+ currNumOfDots 1) info)]
-    [else
-     (define nextJoin
-       (node/expr/op/join info (node/expr-arity origExpr)
-                          (list (last listOfJoins) origExpr)))
-     (transitiveClosureHelper
-      origExpr (append listOfJoins (list nextJoin))
-      totalNumOfDots (+ currNumOfDots 1) info)]))|#
-
 ; input: right - arguments
 ;        currTupIfAtomic - implicit LHS of expression
 ;        info - info of original expression
@@ -177,41 +153,6 @@
      (node/formula/op/in info (list
                                (tup2Expr rightTupleContext runContext info) RHS))))
   formulas)
-
-; input:
-;      expr: overall expression of the entire join we are looking at
-;      left: left hand side of our join
-;      right: right hand side of our join
-;      info: info of original Node
-; output: re-writing join as a 'some existential formula. We return a
-;      quantified formula of all of the joins 
-#|(define (joinHelper expr left right info)
-  (define rightColLHS (getColumnRight left))
-  (define leftColRHS (getColumnLeft right))
-  (define listOfColumns (list leftColRHS rightColLHS))
-
-  (define intersectColumns (node/expr/op/& info
-                                           (node/expr-arity expr) listOfColumns))
-  (define quantifiedVarJoin (node/expr/quantifier-var info 1 (gensym "join")))
-  (define newDecls (list (cons quantifiedVarJoin intersectColumns)))
- 
-  (define LHSRange (projectTupleRange quantifiedVarJoin 0
-                                      (- (node/expr-arity left) 1)))
-  (define RHSRange (projectTupleRange quantifiedVarJoin
-                                      (node/expr-arity left)
-                                      (node/expr-arity right)))
-  
-  (define LHSProduct (node/expr/op/-> info
-                                      (node/expr-arity intersectColumns)
-                                      (list LHSRange quantifiedVarJoin)))
-  (define RHSProduct (node/expr/op/-> info
-                                      (node/expr-arity intersectColumns)
-                                      (list quantifiedVarJoin RHSRange)))
-  (define LHSIn (node/formula/op/in info (list LHSProduct left)))
-  (define RHSIn (node/formula/op/in info (list RHSProduct right)))
-
-  (define joinAnd (node/formula/op/&& info (list LHSIn RHSIn)))
-  (node/formula/quantified info 'some newDecls joinAnd))|#
 
 
 ; input: tuple - the tuple that we want to convert into an expression 

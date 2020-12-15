@@ -407,7 +407,6 @@
                      quantVars runContext currSign)]
     
     ; PRODUCT
-    ; TODO: re-implement solution with similar approach as join
     [(? node/expr/op/->?)
      (cond
        [(@> (length args) 2)
@@ -482,11 +481,8 @@
      ; get the upper bound to be called in extendResult
      (define uppers (liftBoundsExpr expr quantVars runContext))
 
-     ; TODO: is (first uppers) the correct seconda rgument for extendPossible
-     ; Paths
      (define extendResult (extendPossiblePaths uppers (list
                                                        (first currTupIfAtomic))))
-
      ; Check the endpoint and remove items that do not match
      (define endPoint (last currTupIfAtomic))
 
@@ -497,7 +493,6 @@
      
      ; Go through everything in filteredExtendResult to create big AND
      ; by calling helper
-     ; TODO: missing big OR wrapping these. one AND per path, each in a big OR
      (define transitiveAnd
        (transitiveClosureAnd
         filteredExtendResult (first args) info runContext '()))
