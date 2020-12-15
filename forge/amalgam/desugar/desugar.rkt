@@ -421,7 +421,7 @@
        ;  can simplify it (and need to or it'l fail)
 
        ; we are in the binary case
-       [(@= (node/expr-arity expr) 2)            
+       [(@= (length args) 2)            
         (node/formula/op/&& info
                             (productHelper (first args) (second args)
                                            currTupIfAtomic info runContext))]
