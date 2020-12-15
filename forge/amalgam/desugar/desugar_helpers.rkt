@@ -174,7 +174,8 @@
 ; output: the tuple as an expression, re-written as a node/expr/atom
 ; NOTE: doesn't handle ints
 (define/contract (tup2Expr tuple context info)
-  (@-> (or/c (listof symbol?) symbol?) forge:Run? nodeinfo? node/expr?)
+  (@-> (or/c (listof symbol?) symbol? (listof number?) number?) forge:Run?
+       nodeinfo? node/expr?)
   (cond
     [(symbol? tuple) (node/expr/atom info 1 tuple)]
     [(equal? (length tuple) 0)
