@@ -125,14 +125,13 @@
   (@test-case
    "TEST liftBoundsExpr on set product case"
    (define LHSProductBounds (liftBoundsExpr Node '() udt))
-   (define RHSProductBounds (liftBoundsExpr (-> Node univ) '() udt))
-   (debug-repl)
+   (define RHSProductBounds (liftBoundsExpr (-> Node Node) '() udt))
    (define listProductBounds (list LHSProductBounds RHSProductBounds))
    (define productMap (map (lambda (ub) (apply append ub))
                            (apply cartesian-product listProductBounds)))
 
    (@check-equal?
-    (toString (liftBoundsExpr (-> Node (-> Node univ)) '() udt))
+    (toString (liftBoundsExpr (-> Node (-> Node Node)) '() udt))
     (toString productMap)))
 
   ; Checking Set Join case

@@ -145,7 +145,7 @@
      ; UB(A->B) = UB(A) x UB(B)
      (define uppers 
        (map (lambda (arg)
-              (liftBoundsExpr arg quantvars runContext)) args))     
+              (liftBoundsExpr arg quantvars runContext)) args))
      (map (lambda (ub) (apply append ub)) (apply cartesian-product uppers))]
 
     ; JOIN
