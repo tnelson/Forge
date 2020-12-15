@@ -128,31 +128,43 @@
      (append (take leftT (- (length leftT) 1)) (rest rightT))]
     [else #f]))
 
-; input: right - arguments
+; input: right - second argument
 ;        currTupIfAtomic - implicit LHS of expression
 ;        info - info of original expression
-;        left - a list of arguments with previous results of the product
+;        left - first argument
 ; 
 ; output: list containing two in nodes
 (define/contract (productHelper left right currTupIfAtomic info runContext)
-  (@-> (listof node/expr?) node/expr? (listof symbol?) nodeinfo?
+  (@-> node/expr? node/expr? (listof symbol?) nodeinfo?
        forge:Run? (listof node/formula/op/in?))
-  (define LHS (last left))
-  (define RHS right)
+
+(printf "second calling projectTupleRange tup: ~a, start: ~a arity: ~a"
+          currTupIfAtomic
+          0
+         (node/expr-arity left))
   (define
     leftTupleContext
-    (projectTupleRange currTupIfAtomic 0 (node/expr-arity LHS)))
+    ; (define/contract (projectTupleRange tup start len)
+    ;  (@-> list? number? number? list?)
+    ;  (take (list-tail tup start) len))
+    (projectTupleRange currTupIfAtomic 0 (node/expr-arity left)))
+
+  (printf "second calling projectTupleRange tup: ~a, start: ~a arity: ~a"
+          currTupIfAtomic
+          (- (node/expr-arity left) 1)
+          (node/expr-arity right))
   (define
     rightTupleContext
     (projectTupleRange currTupIfAtomic
-                       (- (node/expr-arity LHS) 1) (node/expr-arity RHS)))
-  (define formulas
-    (list
+                       (- (node/expr-arity left) 1) (node/expr-arity right)))
+  
+  (list
      (node/formula/op/in info (list
-                               (tup2Expr leftTupleContext runContext info) LHS))
+                               (tup2Expr leftTupleContext runContext info)
+                               left))
      (node/formula/op/in info (list
-                               (tup2Expr rightTupleContext runContext info) RHS))))
-  formulas)
+                               (tup2Expr rightTupleContext runContext info)
+                               right))))
 
 
 ; input: tuple - the tuple that we want to convert into an expression 

@@ -97,9 +97,11 @@
                       edges)))))
 
             ; productHelper
+            ;   this helper only handles the binary case.
             (@test-case
              "TEST productHelper on valid input same arity"
              (define currTupIfAtomic (list 'Node0))
+             (define univRel (rel '(Node) 'univ "Node"))
              (define LHS univ)
              (define RHS Node)
              (define rightTupleContext
@@ -112,50 +114,15 @@
                (list
                 (node/formula/op/in
                  empty-nodeinfo
-                 (list (tup2Expr leftTupleContext udt empty-nodeinfo) LHS))
+                 (list (tup2Expr leftTupleContext udt empty-nodeinfo) univRel))
                 (node/formula/op/in
                  empty-nodeinfo
-                 (list (tup2Expr rightTupleContext udt empty-nodeinfo) RHS))))
+                 (list (tup2Expr rightTupleContext udt empty-nodeinfo) univRel))))
              (@check-equal?
               (toString (productHelper
-                         (list edges Node univ) Node
+                         Node Node
                          currTupIfAtomic empty-nodeinfo udt))
               (toString formulas)))
-
-           (@test-case
-            "TEST productHelper on valid input different arity"
-            (define currTupIfAtomicDifferentArity (list 'Node0 'Node1))
-            ; arity 2
-            (define LHSDifferentArity edges)
-            ; arity 1
-            (define RHSDifferentArity Node)
-            (define
-              rightTupleContextDifferentArity
-              (projectTupleRange
-               currTupIfAtomicDifferentArity
-               (- (node/expr-arity LHSDifferentArity) 1)
-               (node/expr-arity RHSDifferentArity)))
-            (define leftTupleContextDifferentArity
-              (projectTupleRange currTupIfAtomicDifferentArity 0
-                                 (node/expr-arity LHSDifferentArity)))
-            (define
-              formulasDifferentArity
-              (list
-               (node/formula/op/in empty-nodeinfo
-                                   (list
-                                    (tup2Expr leftTupleContextDifferentArity
-                                              udt empty-nodeinfo)
-                                    LHSDifferentArity))
-               (node/formula/op/in empty-nodeinfo
-                                   (list
-                                    (tup2Expr rightTupleContextDifferentArity
-                                              udt empty-nodeinfo)
-                                    RHSDifferentArity))))
-            (@check-equal?
-             (toString
-              (productHelper (list Node edges) Node
-                             currTupIfAtomicDifferentArity empty-nodeinfo udt))
-             (toString formulasDifferentArity)))
 
            ; joinHelper
 

@@ -419,9 +419,11 @@
 
        ; TODO: productHelper was DESIGNED TO WORK WITH FOLD.
        ;  can simplify it (and need to or it'l fail)
-       [(@>= (node/expr-arity expr) 2)          
+
+       ; we are in the binary case
+       [(@= (node/expr-arity expr) 2)            
         (node/formula/op/&& info
-                            (productHelper (list (first args)) (second args)
+                            (productHelper (first args) (second args)
                                            currTupIfAtomic info runContext))]
        [(equal? (node/expr-arity expr) 1)
 
