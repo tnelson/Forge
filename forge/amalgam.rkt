@@ -9,6 +9,7 @@
 
 (require "amalgam/tests/forge_ex.rkt")
 (require racket/hash)
+
 ;(require (only-in "breaks.rkt" sbound))
 ; ^ This will be a *different* struct defn; instead get via sigs
 
@@ -127,25 +128,56 @@
 ;(build-provenances (cons '(Node3 Node3) "edges") #f udt) ; add
 (build-provenances (cons '(Node4 Node5) "edges") #f udt) ; remove
 
+
+; input:
+;        item - a set which is an item in A
+;        B - the set B from union-product
+;
+; output: the set containing the union of
+; each item in B with item
+(define (union-product-helper item B)
+  (cond
+    [(set-empty? B) (list->set '())]
+    [else
+      (set-add (set-union item (set-first B))
+               (union-product-helper item (set-rest B)))]))
+  
+
+; input:
+;        A - a set of sets
+;        B - a set of sets
+;
+; output: the union product of A and B which is defined as:
+;         {a_i ∪ b_j |1 ≤ i ≤ n, 1 ≤ j ≤ m}
+;            where n and m are the lengths of A and B respectively
+(define (union-product A B)
+  (cond
+
+    ; QUESTION: is the below base case correct?
+    [(or (set-empty? A) (set-empty? B)) (list->set '())]
+    [else
+     (set-union
+      (union-product-helper (set-first A) B)
+      (union-product (set-rest A) B))]))
+
 (define (amalgam-descent a-run currTuple node)
   (match node    
     [(node/formula/op/&& info args)
-     
      #t
      ]
     [(node/formula/op/|| info args)
 
      ; length of args
-     (define len (length args))
+     ;(define len (length args))
      
      ; list of not of each arg
-     (define LHSArgs (map (lambda (a) (node/formula/op/! info (list a))) args))
+     ;(define LHSArgs (map (lambda (a) (node/formula/op/! info (list a))) args))
      
      ; Union of not of each arg
-     (define LHS (node/expr/op/+ info LHSArgs))
+     ;(define LHS (node/expr/op/+ info LHSArgs))
 
      ; RHS is a set comprehension
-     (define RHS (node/expr/comprehension info len decls form)) 
+     ;(define RHS (node/expr/comprehension info len decls form)) 
      #t
      ]
     [(node/formula/op/in info args)
