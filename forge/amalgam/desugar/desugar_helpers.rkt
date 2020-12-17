@@ -122,7 +122,8 @@
 ; Helper to join Tuples together
 ; tuple, tuple -> tuple
 (define/contract (joinTupleDesugar leftT rightT)
-  (@-> (listof symbol?) (listof symbol?) (or/c boolean? (listof symbol?)))
+  (@-> (listof (or/c symbol? number?)) (listof (or/c symbol? number?))
+       (or/c boolean? (listof (or/c symbol? number?))))
   (cond
     [(equal? (last leftT) (first rightT))
      (append (take leftT (- (length leftT) 1)) (rest rightT))]
@@ -172,9 +173,8 @@
 ;        info - info of original tuple 
 ; 
 ; output: the tuple as an expression, re-written as a node/expr/atom
-; NOTE: doesn't handle ints
 (define/contract (tup2Expr tuple context info)
-  (@-> (or/c (listof symbol?) symbol? (listof number?) number?) forge:Run?
+  (@-> (or/c (listof (or/c symbol? number?)) symbol? number?) forge:Run?
        nodeinfo? node/expr?)
   (cond
     [(symbol? tuple) (node/expr/atom info 1 tuple)]

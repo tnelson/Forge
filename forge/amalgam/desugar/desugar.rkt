@@ -435,6 +435,7 @@
     
     ; JOIN
     [(? node/expr/op/join?)
+     ; TODO: make sure you have the same arity for currTupleifAtomic
      (cond
        [(@> (length args) 2)
         (define len (length args))
@@ -453,6 +454,7 @@
           (filter-map
            (lambda (lstpr)
              (define-values (ta tb) (values (first lstpr) (second lstpr)))
+             
              (define taExpr (tup2Expr ta runContext info))
              (define tbExpr (tup2Expr tb runContext info))
              (cond
