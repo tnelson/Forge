@@ -36,9 +36,11 @@
 ;; -----------------------------------------------------------------------------
 
 ; Group information in one struct to make change easier
-(struct nodeinfo (loc))
+; TODO TN: should this be transparent? or custom to-string to avoid printing #<nodeinfo>?
+(struct nodeinfo (loc) #:transparent)
 
 ; Base node struct, should be ancestor of all AST node types
+; Should never be directly instantiated
 (struct node (info) #:transparent)
 
 (define empty-nodeinfo (nodeinfo (build-source-location #f)))
@@ -102,12 +104,13 @@
                                     (first todo) sofar)
                           (rest todo))]))
 
+; Should never be directly instantiated
 (struct node/expr node (arity) #:transparent
-  #:property prop:procedure (λ (r . sigs) (build-box-join r sigs))
-)
+  #:property prop:procedure (λ (r . sigs) (build-box-join r sigs)))
 
 ;; -- operators ----------------------------------------------------------------
 
+; Should never be directly instantiated
 (struct node/expr/op node/expr (children) #:transparent)
 
 ; lifted operators are defaults, for when the types aren't as expected
@@ -116,11 +119,16 @@
     [(_ id parent arity checks ... #:lift @op #:type childtype)
      ;(printf "defining: ~a~n" stx)
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
+                   [parentname (format-id #'id "~a" #'parent)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
-           (struct name parent () #:transparent #:reflection-name 'id)
+           (struct name parent () #:transparent #:reflection-name 'id
+             #:methods gen:equal+hash
+             [(define equal-proc (make-robust-node-equal-syntax parentname))
+              (define hash-proc  (make-robust-node-hash-syntax parentname 0))
+              (define hash2-proc (make-robust-node-hash-syntax parentname 3))])
            
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)
@@ -211,7 +219,11 @@
 
 ;; -- quantifier vars ----------------------------------------------------------
 
-(struct node/expr/quantifier-var node/expr (sym) #:transparent)
+(struct node/expr/quantifier-var node/expr (sym) #:transparent
+  #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/expr/quantifier-var))
+   (define hash-proc  (make-robust-node-hash-syntax node/expr/quantifier-var 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/expr/quantifier-var 3))])
 
 ;; -- comprehensions -----------------------------------------------------------
 
@@ -221,7 +233,12 @@
      (fprintf port "(comprehension ~a ~a ~a)" 
               (node/expr-arity self) 
               (node/expr/comprehension-decls self)
-              (node/expr/comprehension-formula self)))])
+              (node/expr/comprehension-formula self)))]
+  #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/expr/comprehension))
+   (define hash-proc  (make-robust-node-hash-syntax node/expr/comprehension 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/expr/comprehension 3))])
+
 (define (comprehension info decls formula)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
@@ -246,7 +263,11 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/expr/relation info arity name typelist parent is-variable) self)
-     (fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))])
+     (fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))]
+  #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/expr/relation))
+   (define hash-proc  (make-robust-node-hash-syntax node/expr/relation 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/expr/relation 3))])
 (define next-name 0)
 
 ; e.g.: (rel '(Node Node) 'Node "edges") to define the usual edges relation
@@ -289,7 +310,11 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/expr/atom info arity name) self)
-     (fprintf port "(atom ~a)" name))])
+     (fprintf port "(atom ~a)" name))]
+  #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/expr/atom))
+   (define hash-proc  (make-robust-node-hash-syntax node/expr/atom 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/expr/atom 3))])
 
 
 (define-syntax (atom stx)
@@ -312,7 +337,11 @@
 (struct node/expr/constant node/expr (type) #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (fprintf port "~v" (node/expr/constant-type self)))])
+     (fprintf port "~v" (node/expr/constant-type self)))]
+  #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/expr/constant))
+   (define hash-proc  (make-robust-node-hash-syntax node/expr/constant 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/expr/constant 3))])
 
 ; Macros in order to capture source location
 ; constants
@@ -330,6 +359,7 @@
 
 ;; INTS ------------------------------------------------------------------------
 
+; Should never be directly instantiated
 (struct node/int node () #:transparent)
 
 ;; -- operators ----------------------------------------------------------------
@@ -363,7 +393,11 @@
 (struct node/int/constant node/int (value) #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (fprintf port "~v" (node/int/constant-value self)))])
+     (fprintf port "~v" (node/int/constant-value self)))]
+  #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/int/constant))
+   (define hash-proc  (make-robust-node-hash-syntax node/int/constant 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/int/constant 3))])
 
 
 (define-syntax (int stx)
@@ -374,12 +408,17 @@
 
 ;; -- sum quantifier -----------------------------------------------------------
 (struct node/int/sum-quant node/int (decls int-expr)
+  #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/int/sum-quant info decls int-expr) self)
      (fprintf port "(sum [~a] ~a)"
                    decls
-                   int-expr))])
+                   int-expr))]
+    #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/int/sum-quant))
+   (define hash-proc  (make-robust-node-hash-syntax node/int/sum-quant 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/int/sum-quant 3))])
 
 (define (sum-quant-expr info decls int-expr)
   (for ([e (map cdr decls)])
@@ -393,6 +432,7 @@
 
 ;; FORMULAS --------------------------------------------------------------------
 
+; Should never be directly instantiated
 (struct node/formula node () #:transparent)
 
 ;; -- constants ----------------------------------------------------------------
@@ -400,7 +440,11 @@
 (struct node/formula/constant node/formula (type) #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (fprintf port "~v" (node/formula/constant-type self)))])
+     (fprintf port "~v" (node/formula/constant-type self)))]
+    #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/formula/constant))
+   (define hash-proc  (make-robust-node-hash-syntax node/formula/constant 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/formula/constant 3))])
 
 (define-syntax true (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx)) 'true))])))
@@ -411,6 +455,7 @@
 
 ;; -- operators ----------------------------------------------------------------
 
+; Should never be directly instantiated
 (struct node/formula/op node/formula (children) #:transparent)
 
 (define-node-op in node/formula/op #f  #:same-arity? #t #:max-length 2 #:type node/expr?)
@@ -486,7 +531,11 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/formula/quantified info quantifier decls formula) self)
-     (fprintf port "(~a [~a] ~a)" quantifier decls formula))])
+     (fprintf port "(~a [~a] ~a)" quantifier decls formula))]
+  #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/formula/quantified))
+   (define hash-proc  (make-robust-node-hash-syntax node/formula/quantified 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/formula/quantified 3))])
 
 (define (quantified-formula info quantifier decls formula)  
   (for ([e (in-list (map cdr decls))])
@@ -507,7 +556,12 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/formula/multiplicity info mult expr) self)
-     (fprintf port "(~a ~a)" mult expr))])
+     (fprintf port "(~a ~a)" mult expr))]
+  #:methods gen:equal+hash
+  [(define equal-proc (make-robust-node-equal-syntax node/formula/multiplicity))
+   (define hash-proc  (make-robust-node-hash-syntax node/formula/multiplicity 0))
+   (define hash2-proc (make-robust-node-hash-syntax node/formula/multiplicity 3))])
+
 (define (multiplicity-formula info mult expr)
   (unless (node/expr? expr)
     (raise-argument-error mult "expr?" expr))
@@ -568,3 +622,49 @@
      (quasisyntax/loc stx
        (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity r1) 'x1)] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx)) (list (cons x1 r1) ...) int-expr)))]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Build syntax for a generic equals/hash that's robust to new node subtypes
+
+; Issue with this approach: struct-accessors is re-called every time equals? is invoked.
+; Leaving it like this for now until it becomes a performance issue.
+
+; Might think to promote struct-accessors into phase 2 and invoke it from within
+;  the builder macros, but since macros work outside-in, can't just do something like
+; (printf "accessors: ~a~n" (struct-accessors #'structname))
+;   ^ the macro gets #'structname, not the actual structure name.
+
+; Macro to get all accessors
+; Thanks to Alexis King:
+; https://stackoverflow.com/questions/41311604/get-a-structs-field-names
+; requires installing syntax-classes package
+(require (for-meta 1 racket/base
+                     syntax/parse/class/struct-id)
+         syntax/parse/define)
+
+  (define-simple-macro (struct-accessors id:struct-id)
+    (begin ;(printf "~a~n" (list id.accessor-id ...))
+           (list id.accessor-id ...)))
+
+; Use this macro to produce syntax (for use in operator-registration macro)
+;   that builds a comparator including all struct fields except for node-info
+(define-syntax (make-robust-node-equal-syntax stx)
+  (syntax-case stx ()
+    [(_ structname)
+     (begin
+       ; don't want to call struct-accessors every time this lambda is invoked,
+       ; so call once at expansion time of make-robust...
+       ;(printf "structname: ~a~n" (syntax->datum #'structname))       
+       #`(lambda (a b equal-proc)         
+           (andmap (lambda (access) (equal-proc (access a) (access b)))
+                   (remove node-info (struct-accessors structname)))))]))
+
+; And similarly for hash
+(define multipliers '(3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71))
+(define-simple-macro (make-robust-node-hash-syntax structname offset)
+  (lambda (a hash-proc)
+    (define multiplied
+      (for/list ([access (remove node-info (struct-accessors structname))]
+                 [multiplier (drop multipliers offset)])
+        (* multiplier (hash-proc (access a)))))
+    (apply @+ multiplied)))

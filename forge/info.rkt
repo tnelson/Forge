@@ -5,6 +5,7 @@
 (define version "0.8.0")
 
 (define deps '("base"
+               "syntax-classes"
                "br-parser-tools-lib"
                "brag-lib"
                "net-lib"

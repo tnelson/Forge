@@ -1356,14 +1356,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (pardinus-print
       (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
 
-
   ; Print solve
   (define (get-next-model)
     (kk-print (kodkod:solve))
     (match-define (cons restype inst) (translate-from-kodkod-cli 'run 
                                                                  (kodkod:read-solution stdout) 
                                                                  all-rels 
-                                                                 all-atoms))
+                                                                 all-atoms))        
     (cons restype inst))
 
   (define (model-stream [prev #f])
@@ -1375,7 +1374,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (stream-cons (get-next-model) (model-stream))))
 
   (values (model-stream) all-atoms (Server-ports stdin stdout) total-bounds))
-
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 

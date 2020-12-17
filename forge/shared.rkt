@@ -23,3 +23,15 @@
   (define parts (regexp-match #px"define\\s+version\\s+\"(\\S+)\"" info-str))
   (set! forge-version (cadr parts))
 )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Returns the difference of two instances (> and < separately)
+(define (instance-diff i1 i2)
+  (values
+   (hash-map i1 (lambda (k v)                                          
+                  (list k (filter (lambda (ele)
+                                    (not (member ele (hash-ref i2 k)))) v))))
+   (hash-map i2 (lambda (k v)                                          
+                  (list k (filter (lambda (ele)
+                                    (not (member ele (hash-ref i1 k)))) v))))))
