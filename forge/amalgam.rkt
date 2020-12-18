@@ -5,7 +5,7 @@
 
 ;(set-verbosity 10)
 
-;(require forge/amalgam/desugar/desugar)
+(require forge/amalgam/desugar/desugar)
 
 (require "amalgam/tests/forge_ex.rkt")
 (require racket/hash)
@@ -110,10 +110,10 @@
 
   ; desugar F
   ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)  
-  ;(define desugared (desugar-formula F '() a-run))
+  (define desugared (desugar-formula F '() a-run))
   
   ; do amalgam descent on desugared F
-  ;(amalgam-descent desugared orig-run alt-run)
+  (amalgam-descent desugared orig-run alt-run tup)
   '())
 
 
@@ -141,26 +141,64 @@
 ; of these two things.
 ; 
 ;   --> will have duplicates for now until equals is implemented
-(define (union-product A B)
+(define (union-product A B) ; TODO add contract!
   (define product (cartesian-product A B))
   (@set-map (lambda (a b) (@set-union a b)) product))
 
 
-(define (amalgam-descent a-run currTuple node)
-  (match node    
+; L is the target of the provenance query
+; fmla is the current target of blame
+(define (amalgam-descent fmla orig-run alt-run L)
+  ; TODO: add contract
+  
+  ; Invariant: instance from orig-run satisfies fmla
+  ;            instance from alt-run does not satisfy fmla
+  ; For debugging purposes, fail noisily if this invariant is violated
+  (unless (evaluate orig-run 'unused fmla)
+    (error (format "amalgam-descent: original instance failed to satisfy ~a~n" fmla)))
+  (when (evaluate alt-run 'unused fmla)
+    (error (format "amalgam-descent: L-alternate (L=~a) instance satisfied ~a~n" L fmla)))  
+  (match fmla
     [(node/formula/op/&& info args)
-     #t
-     ]
+     ; *every* arg must have satisfied the orig instance
+     ; but not every arg necessarily fails in L-alt instance
+     ; each failed arg is its own new provenance-set, which we union together
+     (define failed-args (filter (lambda (arg) (not (evaluate alt-run 'unused arg))) args))
+     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) failed-args))
+     (apply set-union prov-sets)]
     [(node/formula/op/|| info args)
-
-
+     ; orig instance satisfies at least one arg (not necessarily all, but not zero)
+     ; L-alt instance satisfies no args
+     (define-values (orig-true-args orig-false-args) ; filter but return #f args as 2nd value
+       (partition (lambda (arg) (evaluate orig-run 'unused arg)) args))
+     ; This is a big OR, so we can think of it as an implication.
+     ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
+     ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
+     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) orig-true-args))
+     (define new-alpha-set (list->set (map (lambda (arg) (not/info info (list arg))) orig-false-args)))
+     ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
+     (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
+     ; TODO: add prov-sets to each failure-reasons + return (set-map?)
      #t
      ]
+    ; base case: positive literal
     [(node/formula/op/in info args)
-     #f ]
-    ; not a base case in more efficient "desugar as needed only" version
-    [(node/formula/op/! info args)
      ; set of sets
      ; return provenance set containing a provenance with just node in it
-     (list->set '(list->set '(node)))
+     (if (equal? fmla L)
+         (list->set '(list->set '(fmla)))
+         (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]
+    
+    ; not a base case in more efficient "desugar as needed only" version
+    [(node/formula/op/! info args)
+     ; TODO: *similar* to above
+     ;   (also, think there's some need to use sign? why vs. why not?
+     ;     did we ADD L or REMOVE L?)
+     (list->set '(list->set '(fmla)))
      ]))
+
+
+;;;;;;;;;;;;;;;;;;;;;;
+; Possible way to construct set cartesian product without fully converting to list +
+;  calling list's cartesian-product. But is it faster?
+; (foldl set-union (set) (set->list (for/set ([i (set 1 2 3)]) (for/set ([j (set 4 5 6)]) (list i j)))))
