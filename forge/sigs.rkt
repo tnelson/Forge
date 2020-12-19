@@ -926,14 +926,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
                 (list (! (foldr (lambda (a b) (and a b))
                                   true
                                   (Run-spec-preds (Run-run-spec run)))))))
-
+          
           (define new-target
-            (Target
-              (for/hash ([(key value) (cdr model)]
-                         #:when (member key (append (map Sig-rel (get-sigs new-state))
-                                                    (map Relation-rel (get-relations new-state)))))
-                (values key value))
-              distance))
+            (if (equal? 'unsat (car model)) ; if satisfiable, move target
+                (Run-spec-target (Run-run-spec run)) 
+                (Target
+                 (for/hash ([(key value) (cdr model)]
+                            #:when (member key (append (map Sig-rel (get-sigs new-state))
+                                                       (map Relation-rel (get-relations new-state)))))
+                   (values key value))
+                 distance)))
 
           (define contrast-run-spec
             (struct-copy Run-spec (Run-run-spec run)

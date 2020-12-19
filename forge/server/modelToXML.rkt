@@ -59,9 +59,11 @@
 
 (define (model-to-XML-string model relation-map name command filepath bitwidth forge-version)
   (define flag (car model))
-  (define data 
-    (for/hash ([(key value) (cdr model)])
-      (values (hash-ref relation-map (symbol->string key)) value)))
+  (define data
+    (if (not (equal? 'unsat (car model))) ; if satisfiable, can report relations
+        (for/hash ([(key value) (cdr model)])
+          (values (hash-ref relation-map (symbol->string key)) value))
+        #f))
   
   (set! command (clean (clean-syntax command)))
   
