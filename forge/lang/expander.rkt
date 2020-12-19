@@ -768,7 +768,8 @@
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [op #'op.symbol])
-     (syntax/loc stx (! (op expr1 expr2))))]
+     ; Need to preserve srcloc in both the "not" and the "op" nodes
+     (quasisyntax/loc stx (! #,(syntax/loc stx (op expr1 expr2)))))]
 
   [((~literal Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
                           op)
