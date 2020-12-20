@@ -110,7 +110,7 @@
 
   ; desugar F
   ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)  
-  (define desugared (desugar-formula F '() a-run))
+  (define desugared (desugarFormula F '() a-run))
   
   ; do amalgam descent on desugared F
   (amalgam-descent desugared orig-run alt-run tup)
@@ -141,9 +141,12 @@
 ; of these two things.
 ; 
 ;   --> will have duplicates for now until equals is implemented
-(define (union-product A B) ; TODO add contract!
-  (define product (cartesian-product A B))
-  (@set-map (lambda (a b) (@set-union a b)) product))
+(define/contract (union-product A B)
+  (@-> set? set? set?) ; I added this contract 
+  ;(define product (cartesian-product A B))
+  ;(@set-map (lambda (a b) (@set-union a b)) product))
+  (foldl set-union (set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
+
 
 
 ; L is the target of the provenance query
@@ -194,8 +197,9 @@
      ; TODO: *similar* to above
      ;   (also, think there's some need to use sign? why vs. why not?
      ;     did we ADD L or REMOVE L?)
-     (list->set '(list->set '(fmla)))
-     ]))
+     (if (equal? fmla L)
+         (list->set '(list->set '(fmla)))
+         (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;

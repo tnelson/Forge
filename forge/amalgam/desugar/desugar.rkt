@@ -435,7 +435,6 @@
     
     ; JOIN
     [(? node/expr/op/join?)
-     ; TODO: make sure you have the same arity for currTupleifAtomic
      (cond
        [(@> (length args) 2)
         (define len (length args))
@@ -447,6 +446,10 @@
                                            (list newLHS newRHS)))
         (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
        [(equal? (length args) 2)
+
+        (unless (equal? (length currTupIfAtomic) (node/expr-arity (first args)))
+          (error "The arity of the LHS doesn't match the size of currTupIfAtomic"))
+
         (define UBA (liftBoundsExpr (first args) quantVars runContext))
         (define UBB (liftBoundsExpr (second args) quantVars runContext))
         (define allPairs (cartesian-product UBA UBB))
