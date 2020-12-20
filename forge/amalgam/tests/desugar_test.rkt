@@ -57,24 +57,24 @@
              "TEST AND formula currSign true"
              (define andTest (and true false))
              (@check-equal?
-              (toString (desugarFormula andTest '() udt #t))
-              (toString (node/formula/op/&& empty-nodeinfo (list true false)))))
+              (desugarFormula andTest '() udt #t)
+              (node/formula/op/&& empty-nodeinfo (list true false))))
 
 
             (@test-case
              "TEST AND formula currSign false"
              (define andTest (and true false))
              (@check-equal?
-              (toString (desugarFormula andTest '() udt #f))
-              (toString (node/formula/op/|| empty-nodeinfo (list false true)))))
+              (desugarFormula andTest '() udt #f)
+              (node/formula/op/|| empty-nodeinfo (list false true))))
 
             ; OR
             (@test-case
              "TEST OR formula currSign true"
              (define orTest (or true false))
              (@check-equal?
-              (toString (desugarFormula orTest '() udt #t))
-              (toString (node/formula/op/|| empty-nodeinfo (list true false)))))
+              (desugarFormula orTest '() udt #t)
+              (node/formula/op/|| empty-nodeinfo (list true false))))
 
             (@test-case
              "TEST OR formula currSign false"
