@@ -140,9 +140,7 @@
        forge:Run? (listof node/formula/op/in?))
 
 (printf "second calling projectTupleRange tup: ~a, start: ~a arity: ~a"
-          currTupIfAtomic
-          0
-         (node/expr-arity left))
+          currTupIfAtomic 0 (node/expr-arity left))
   (define
     leftTupleContext
     ; (define/contract (projectTupleRange tup start len)
