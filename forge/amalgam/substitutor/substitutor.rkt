@@ -10,7 +10,6 @@
 ; the children of a given formula/expression and puts the children
 ; together with the original operator that was identified. 
 
-(provide substituteFormula toStringSub)
 (require debug/repl)
 (require (prefix-in @ (only-in racket ->)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -27,8 +26,8 @@
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
      (cond 
-           [(equal? (toStringSub formula) (toStringSub target)) value]
-           [(not (equal? (toStringSub formula) (toStringSub target))) formula])]
+           [(equal? formula target) value]
+           [(not (equal?  formula  target)) formula])]
 
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
@@ -47,7 +46,7 @@
      ; error checking
      (for-each
       (lambda (qv)
-        (when (equal? (toStringSub qv) (toStringSub target))
+        (when (equal? qv target)
           (error
            (format
             "substitution encountered quantifier that shadows substitution target ~a"
@@ -151,26 +150,26 @@
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isvar)
        (cond 
-         [(equal? (toStringSub expr) (toStringSub target)) value]
-         [(not(equal? (toStringSub expr) (toStringSub target))) expr])]
+         [(equal? expr target) value]
+         [(not(equal? expr target)) expr])]
 
     ; atom (base case)
     [(node/expr/atom info arity name)
      (cond 
-       [(equal? (toStringSub expr) (toStringSub target)) value]
-       [(not(equal? (toStringSub expr) (toStringSub target))) expr])]
+       [(equal? expr target) value]
+       [(not(equal? expr target)) expr])]
 
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
        (cond 
-         [(equal? (toStringSub expr) (toStringSub target)) value]
-         [(not(equal? (toStringSub expr) (toStringSub target))) expr])]
+         [(equal? expr target) value]
+         [(not(equal? expr target)) expr])]
 
     ; other expression constants
     [(node/expr/constant info arity type)
        (cond 
-         [(equal? (toStringSub expr) (toStringSub target)) value]
-         [(not(equal? (toStringSub expr) (toStringSub target))) expr])]
+         [(equal? expr target) value]
+         [(not(equal? expr target)) expr])]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -179,8 +178,8 @@
     ; quantified variable (depends on scope!)
     ; (another base case)
     [(node/expr/quantifier-var info arity sym)
-     (cond  [(equal? (toStringSub expr) (toStringSub target)) value]
-            [(not (equal? (toStringSub expr) (toStringSub target))) expr])]
+     (cond  [(equal? expr target) value]
+            [(not (equal? expr target)) expr])]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls subform)
@@ -188,7 +187,7 @@
      (define vars (map car decls))
      (for-each
       (lambda (v)
-        (when (equal? (toStringSub v) (toStringSub target))
+        (when (equal? v target)
           (error
            (format
             "substitution encountered quantifier that shadows substitution target ~a" target)))
@@ -301,8 +300,8 @@
     ; CONSTANT INT
     [(node/int/constant info intValue)
        (cond 
-         [(equal? (toStringSub expr) (toStringSub target)) value]
-         [(not(equal? (toStringSub expr) (toStringSub target))) expr])]
+         [(equal? expr target) value]
+         [(not(equal? expr target)) expr])]
     
     ; apply an operator to some integer expressions
     [(node/int/op info args)
@@ -315,7 +314,7 @@
      (define vars (map car decls))
      (for-each
       (lambda (v)
-        (when (equal? (toStringSub v) (toStringSub target))
+        (when (equal? v target)
           (error
            (format
             "substitution encountered quantifier that shadows substitution target ~a"
@@ -384,19 +383,6 @@
     ; sign-of 
     [(? node/int/op/sign?)
      (error "amalgam: int sign-of not supported~n")]))
-
-
-; input: x - the expression/formula to be converted
-;
-; output: string version of x
-;
-; Function to translate the value and expression/formula to string to check for
-; equality. Without translating to a string, we can't check for equality
-; given that the info field makes them different.
-(define (toStringSub x)
-  (format "~v" x))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 

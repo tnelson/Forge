@@ -21,14 +21,14 @@
            "TEST setComprehensionAndHelper test"
            (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
            (@check-equal?
-            (toString (setComprehensionAndHelper (list 'Node0)
+            (setComprehensionAndHelper (list 'Node0)
                                                  (list (cons x Node))
-                                                 empty-nodeinfo udt))
-            (toString (list
+                                                 empty-nodeinfo udt)
+            (list
                        (node/formula/op/in empty-nodeinfo
                                            (list
                                             (tup2Expr (list 'Node0) udt empty-nodeinfo)
-                                            Node))))))
+                                            Node)))))
 
           ; EDGES: (rel '(Node Node) 'Node "edges")
           ; Node: (rel '(Node) univ "Node")
@@ -40,61 +40,50 @@
            (define y (node/expr/quantifier-var empty-nodeinfo 1 'y))
            (define relRes (rel '(Node) 'univ "Node"))
            (@check-equal?
-            (toString (setComprehensionSubHelper
-                       (in x Node) (list 'Node1) '(x) (list (cons x Node)) udt empty-nodeinfo))
-            (toString (node/formula/op/in empty-nodeinfo
-                                          (list (tup2Expr (list 'Node1) udt empty-nodeinfo) relRes)))))
+            (setComprehensionSubHelper
+                       (in x Node) (list 'Node1) '(x) (list (cons x Node)) udt empty-nodeinfo)
+            (node/formula/op/in empty-nodeinfo
+                                          (list (tup2Expr (list 'Node1) udt empty-nodeinfo) relRes))))
 
           ; extendPossiblePaths
           (@test-case
              "TEST extendPossiblePaths on empty list"
              (@check-equal?
-              (toString (extendPossiblePaths '() '(1)))
-              (toString '())))
+              (extendPossiblePaths '() '(1))
+              '()))
 
             (@test-case
              "TEST extendPossiblePaths on length 1 list"
              (@check-equal?
-              (toString  (extendPossiblePaths '((1 2)) '(1)))
-              (toString '((1 2)))))
+              (extendPossiblePaths '((1 2)) '(1))
+              '((1 2))))
 
             (@test-case
              "TEST extendPossiblePaths on valid list"
              (@check-equal?
-              (toString
-               (extendPossiblePaths '((1 2) (2 3) (1 5) (4 7) (7 8)) '(1)))
-              (toString '((1 2) (1 5) (1 2 3)))))
+              (extendPossiblePaths '((1 2) (2 3) (1 5) (4 7) (7 8)) '(1))
+              '((1 2) (1 5) (1 2 3))))
 
             (@test-case
              "TEST extendPossiblePaths on valid list with cycle"
              (@check-equal?
-              (toString
-               (extendPossiblePaths
-                '((1 2) (2 3) (1 5) (4 7) (7 8) (2 5) (2 2)) '(1)))
-              (toString '((1 2) (1 5) (1 2 3) (1 2 5)))))
-
-            ; transitiveClosureAnd
-            #|(@test-case
-             "TEST ClosureAnd on valid input"
-             (@check-equal?
-              (toString ())
-              (toString ())))|#
+              (extendPossiblePaths
+                '((1 2) (2 3) (1 5) (4 7) (7 8) (2 5) (2 2)) '(1))
+              '((1 2) (1 5) (1 2 3) (1 2 5))))
 
             ; transitiveClosureIn
             (@test-case
              "TEST transitiveClosureIn on valid input"
              (@check-equal?
-              (toString
-               (transitiveClosureIn (list 'Node0) (list 'Node1) edges
-                                    empty-nodeinfo udt))
-              (toString
-               (node/formula/op/in
+              (transitiveClosureIn (list 'Node0) (list 'Node1) edges
+                                    empty-nodeinfo udt)
+              (node/formula/op/in
                 empty-nodeinfo
                 (list (node/expr/op/->
                        empty-nodeinfo 2
                        (list (node/expr/atom empty-nodeinfo 1 'Node0)
                              (node/expr/atom empty-nodeinfo 1 'Node1)))
-                      edges)))))
+                      edges))))
 
             ; productHelper
             ;   this helper only handles the binary case.
@@ -119,10 +108,10 @@
                  empty-nodeinfo
                  (list (tup2Expr rightTupleContext udt empty-nodeinfo) univRel))))
              (@check-equal?
-              (toString (productHelper
+              (productHelper
                          Node Node
-                         currTupIfAtomic empty-nodeinfo udt))
-              (toString formulas)))
+                         currTupIfAtomic empty-nodeinfo udt)
+              formulas))
 
            ; joinHelper
 
@@ -133,13 +122,12 @@
             "TEST tup2ExprValid"
             (define tuple (list 'Node0 'Node1 'Node2))
             (@check-equal?
-             (toString (tup2Expr tuple udt empty-nodeinfo))
-             (toString
-              (node/expr/op/-> empty-nodeinfo 3
+             (tup2Expr tuple udt empty-nodeinfo)
+             (node/expr/op/-> empty-nodeinfo 3
                                (list
                                 (node/expr/atom empty-nodeinfo 1 'Node0)
                                 (node/expr/atom empty-nodeinfo 1 'Node1)
-                                (node/expr/atom empty-nodeinfo 1 'Node2))))))
+                                (node/expr/atom empty-nodeinfo 1 'Node2)))))
 
 
            ; element that is a list
@@ -155,8 +143,8 @@
             "TEST transposeTup on valid tuple"
             (define tupArity2 (list 1 2))
             (@check-equal?
-             (toString (transposeTup tupArity2))
-             (toString (list 2 1))))
+             (transposeTup tupArity2)
+             (list 2 1)))
 
            (@test-case
             "TEST transposeTup on validtuple arity 3"
@@ -212,8 +200,8 @@
             (define productExpr
               (node/expr/op/-> empty-nodeinfo 2 (list Node Node)))
             (@check-equal?
-             (toString (isGroundProduct productExpr))
-             (toString #f)))
+             (isGroundProduct productExpr)
+             #f))
 
            ; product case, should return true
            (@test-case
@@ -222,23 +210,23 @@
               (node/expr/op/-> empty-nodeinfo 1
                                (list (node/expr/atom empty-nodeinfo 1 'Node0))))
             (@check-equal?
-             (toString (isGroundProduct quantifierExpr))
-             (toString #t)))
+             (isGroundProduct quantifierExpr)
+             #t))
 
            ; node int constant 
            (@test-case
             "TEST isGroundProduct on valid constant"
             (@check-equal?
-             (toString (isGroundProduct (node/int/constant empty-nodeinfo 1)))
-             (toString #t)))
+             (isGroundProduct (node/int/constant empty-nodeinfo 1))
+             #t))
 
            ; atom
            (@test-case
             "TEST transposeTup on valid tuple"
             (define tupArity2 (list 1 2))
             (@check-equal?
-             (toString (transposeTup tupArity2))
-             (toString (list 2 1))))
+             (transposeTup tupArity2)
+             (list 2 1)))
 
            ; getColumnRight
             (@test-case
@@ -252,8 +240,8 @@
            (@test-case
             "TEST getColumnRight on valid"
             (@check-equal?
-             (toString (getColumnRight edges))
-             (toString (join univ edges))))
+             (getColumnRight edges)
+             (join univ edges)))
 
            ; createNewQuantifier
            (@test-case
@@ -292,11 +280,10 @@
                                         (tup2Expr tup udt empty-nodeinfo)))
                    nodeBound))
             (@check-equal?
-             (toString
-              (createNewQuantifier (cons varx Node)
+             (createNewQuantifier (cons varx Node)
                                    (list varx) (in varx Node)
-                                   udt empty-nodeinfo 'some someFormula))
-             (toString (node/formula/op/|| empty-nodeinfo subformulas)))) 
+                                   udt empty-nodeinfo 'some someFormula)
+             (node/formula/op/|| empty-nodeinfo subformulas)))
 
            ; all case
            (@test-case
@@ -316,11 +303,10 @@
                                         (tup2Expr tup udt empty-nodeinfo)))
                    nodeBound))
             (@check-equal?
-             (toString
-              (createNewQuantifier (cons varx Node)
+             (createNewQuantifier (cons varx Node)
                                    (list varx) (in varx Node)
-                                   udt empty-nodeinfo 'some someFormula))
-             (toString (node/formula/op/|| empty-nodeinfo subformulas))))
+                                   udt empty-nodeinfo 'some someFormula)
+             (node/formula/op/|| empty-nodeinfo subformulas)))
 
            (@test-case
             "TEST createNewQuantifier on 'some' quantifier with just one decl"
@@ -339,8 +325,7 @@
                                         (tup2Expr tup udt empty-nodeinfo)))
                    nodeBound))
             (@check-equal?
-             (toString
-              (createNewQuantifier (cons varx Node)
+             (createNewQuantifier (cons varx Node)
                                    (list varx) (in varx Node)
-                                   udt empty-nodeinfo 'all allFormula))
-             (toString (node/formula/op/&& empty-nodeinfo subformulas))))))
+                                   udt empty-nodeinfo 'all allFormula)
+             (node/formula/op/&& empty-nodeinfo subformulas)))))

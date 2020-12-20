@@ -35,22 +35,22 @@
    "TEST liftBoundsExpr on atom base case"
    (define sampleAtom (node/expr/atom empty-nodeinfo 1 'Node0))
    (@check-equal?
-    (toString (liftBoundsExpr sampleAtom '() udt))
-    (toString (list (list (node/expr/atom-name sampleAtom))))))
+    (liftBoundsExpr sampleAtom '() udt)
+    (list (list (node/expr/atom-name sampleAtom)))))
 
   ; Checking relation name case base case 
   (@test-case
    "TEST liftBoundsExpr on relation base case"
    (@check-equal?
-    (toString (liftBoundsExpr Node '() udt))
-    (toString nodeBound)))
+    (liftBoundsExpr Node '() udt)
+    nodeBound))
 
   ; Checking Int constant case base case
   (@test-case
    "TEST liftBoundsExpr on int constant base case"
    (@check-equal?
-    (toString (liftBoundsExpr varExprConstant '() udt))
-    (toString intBounds)))
+    (liftBoundsExpr varExprConstant '() udt)
+    intBounds))
 
   ; Checking other esxpression constants base case
   ; UNIV
@@ -58,16 +58,16 @@
    "TEST liftBoundsExpr on constant univ base case"
    (define expressionConstantUNIV (node/expr/constant empty-nodeinfo 1 'univ))
    (@check-equal?
-    (toString (liftBoundsExpr expressionConstantUNIV '() udt))
-    (toString (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))
+    (liftBoundsExpr expressionConstantUNIV '() udt)
+    (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
 
   ; IDEN
   (@test-case
    "TEST liftBoundsExpr on constant iden base case"
    (define expressionConstantIDEN (node/expr/constant empty-nodeinfo 1 'iden))
    (@check-equal?
-    (toString (liftBoundsExpr expressionConstantIDEN '() udt))
-    (toString (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))
+    (liftBoundsExpr expressionConstantIDEN '() udt)
+    (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
 
   ; Checking Quantified variable
   (@test-case
@@ -89,9 +89,9 @@
    (define uppersSetComprehension (list (liftBoundsExpr Node '(qvx) udt)))
 
    (@check-equal?
-    (toString (liftBoundsExpr fSetComprehension '() udt))
-    (toString (map (lambda (ub) (apply append ub))
-                   (apply cartesian-product uppersSetComprehension))))))
+    (liftBoundsExpr fSetComprehension '() udt)
+    (map (lambda (ub) (apply append ub))
+                   (apply cartesian-product uppersSetComprehension)))))
 
 
  (@test-suite
@@ -104,22 +104,22 @@
    (define uppersUnion (list nodeBound (map (lambda (x) (list x x))
                                             (forge:Run-atoms udt))))
    (@check-equal?
-    (toString (liftBoundsExpr (+ Node univ) '() udt))
-    (toString (remove-duplicates (apply append uppersUnion)))))
+    (liftBoundsExpr (+ Node univ) '() udt)
+    (remove-duplicates (apply append uppersUnion))))
 
   ; Checking Set minus case
   (@test-case
    "TEST liftBoundsExpr on set minus case"
    (@check-equal?
-    (toString (liftBoundsExpr (- Node univ) '() udt))
-    (toString nodeBound)))
+    (liftBoundsExpr (- Node univ) '() udt)
+    nodeBound))
 
   ; Checking Set intersection case
   (@test-case
    "TEST liftBoundsExpr on set intersection case"
    (@check-equal?
-    (toString (liftBoundsExpr (& Node (- Node (+ Node univ))) '() udt))
-    (toString nodeBound)))
+    (liftBoundsExpr (& Node (- Node (+ Node univ))) '() udt)
+    nodeBound))
 
   ; Checking Set Product case
   (@test-case
@@ -131,8 +131,8 @@
                            (apply cartesian-product listProductBounds)))
 
    (@check-equal?
-    (toString (liftBoundsExpr (-> Node (-> Node Node)) '() udt))
-    (toString productMap)))
+    (liftBoundsExpr (-> Node (-> Node Node)) '() udt)
+    productMap))
 
   ; Checking Set Join case
   ; Error case arity < 1
@@ -150,8 +150,8 @@
    (define newTuples (joinTuple (first listJoin) (second listJoin)))
 
    (@check-equal?
-    (toString (liftBoundsExpr (join edges iden) '() udt))
-    (toString newTuples)))
+    (liftBoundsExpr (join edges iden) '() udt)
+    newTuples))
 
 
   ; Checking join with more than two arguments 
@@ -166,16 +166,16 @@
                                 newTuplesMore (rest (rest listJoinMore))))
 
    (@check-equal?
-    (toString (liftBoundsExpr (join edges iden iden) '() udt))
-    (toString foldNewTuples)))
+    (liftBoundsExpr (join edges iden iden) '() udt)
+    foldNewTuples))
 
   ; Checking Set transitive closure case
   (@test-case
    "TEST liftBoundsExpr on set transitive closure case"
    (define transitiveClosureBounds (liftBoundsExpr edges '() udt))
    (@check-equal?
-    (toString (liftBoundsExpr (^ edges) '() udt))
-    (toString (buildClosureOfTupleSet transitiveClosureBounds))))
+    (liftBoundsExpr (^ edges) '() udt)
+    (buildClosureOfTupleSet transitiveClosureBounds)))
 
   ; Checking Set reflexive transitive closure case
   (@test-case
@@ -185,10 +185,10 @@
      (buildClosureOfTupleSet reflexiveTransitiveClosureBounds))
 
    (@check-equal?
-    (toString (liftBoundsExpr (* edges) '() udt))
-    (toString (remove-duplicates
+    (liftBoundsExpr (* edges) '() udt)
+    (remove-duplicates
                (append closureOfTupleSets
-                       (map (lambda (x) (list x x)) (forge:Run-atoms udt)))))))
+                       (map (lambda (x) (list x x)) (forge:Run-atoms udt))))))
 
 
   ; Checking Set transpose case
@@ -196,15 +196,15 @@
    "TEST liftBoundsExpr on set transpose case"
    (define transposeBounds (list (liftBoundsExpr edges '() udt)))
    (@check-equal?
-    (toString (liftBoundsExpr (~ edges) '() udt))
-    (toString (map (lambda (x) (transposeTup x)) (first transposeBounds)))))
+    (liftBoundsExpr (~ edges) '() udt)
+    (map (lambda (x) (transposeTup x)) (first transposeBounds))))
 
   ; Checking Set singleton case
   (@test-case
    "TEST liftBoundsExpr on set singleton case"
    (@check-equal?
-    (toString (liftBoundsExpr (sing varIntConstX) '() udt))
-    (toString intBounds))))
+    (liftBoundsExpr (sing varIntConstX) '() udt)
+    intBounds)))
 
  (@test-suite
   " liftBoundsInt"
@@ -214,8 +214,8 @@
   (@test-case
    "TEST liftBoundsExpr on const int case"
    (@check-equal?
-    (toString (liftBoundsInt varIntConstX '() udt))
-    (toString intBounds)))
+    (liftBoundsInt varIntConstX '() udt)
+    intBounds))
 
   ; Checking int with operator (should error)
   (@test-case
@@ -243,16 +243,16 @@
                                     (node/int/op/card empty-nodeinfo
                                                       (list (join edges x)))))
    (@check-equal?
-    (toString (liftBoundsInt fSum '() udt))
-    (toString intBounds)))
+    (liftBoundsInt fSum '() udt)
+    intBounds))
 
   ;Checking cardinality case
   (@test-case
    "TEST liftBoundsExpr on cardinality case"
    (define fCardinality (node/int/op/card empty-nodeinfo (list Node)))
    (@check-equal?
-    (toString (liftBoundsInt fCardinality '() udt))
-    (toString intBounds))))
+    (liftBoundsInt fCardinality '() udt)
+    intBounds)))
 
  (@test-suite
   " liftBoundsIntOp"

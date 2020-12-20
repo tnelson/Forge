@@ -23,8 +23,8 @@
              "TEST 1 constant formulas"
              (define const (node/formula/constant empty-nodeinfo Int))
              (@check-equal?
-              (toString (desugarFormula const '() udt #t))
-              (toString const)))
+              (desugarFormula const '() udt #t)
+              const))
 
             ; multiplicity formula
             ; I think this one is working (-ABBY)
@@ -80,17 +80,17 @@
              "TEST OR formula currSign false"
              (define orTest (or true false))
              (@check-equal?
-              (toString (desugarFormula orTest '() udt #f))
-              (toString (node/formula/op/&& empty-nodeinfo (list false true)))))
+              (desugarFormula orTest '() udt #f)
+              (node/formula/op/&& empty-nodeinfo (list false true))))
 
             ; IMPLIES
             (@test-case
              "TEST implies formula"
              (define impliesTest (implies true false))
              (@check-equal?
-              (toString (desugarFormula impliesTest '() udt #t))
+              (desugarFormula impliesTest '() udt #t)
               ;desugars to (not LHS) OR (RHS) 
-              (toString (node/formula/op/|| empty-nodeinfo (list false false)))))
+              (node/formula/op/|| empty-nodeinfo (list false false))))
 
             ; IN For Not Ground LeftE
             (@test-case
@@ -117,8 +117,8 @@
                                         liftedUpperBounds))) 
         
              (@check-equal?
-              (toString (desugarFormula inTest '() udt #t))
-              (toString (desugarFormula desugaredAnd '() udt #t))))
+              (desugarFormula inTest '() udt #t)
+              (desugarFormula desugaredAnd '() udt #t)))
 
             ; EQUALS
             (@test-case
@@ -128,16 +128,16 @@
              (define RHS (node/formula/op/in empty-nodeinfo (list Node Node)))
              (define desugaredEquals (node/formula/op/&& empty-nodeinfo (list LHS RHS)))
              (@check-equal?
-              (toString (desugarFormula equalsTest '() udt #t))
-              (toString (desugarFormula  desugaredEquals '() udt #t))))
+              (desugarFormula equalsTest '() udt #t)
+              (desugarFormula  desugaredEquals '() udt #t)))
 
             ; NEGATION
             (@test-case
              "TEST NEGATION formula"
              (define negationTest (! true))
              (@check-equal?
-              (toString (desugarFormula negationTest '() udt #t))
-              (toString false)))
+              (desugarFormula negationTest '() udt #t)
+              false))
 
             ; INTEGER <
             (@test-case
@@ -155,7 +155,6 @@
              "TEST error >"
              (@check-exn
               exn:fail?
-
               (lambda ()
                 (define varIntConstX (node/int/constant empty-nodeinfo 1))
                 (define varIntConstY  (node/int/constant empty-nodeinfo 2))
@@ -187,14 +186,13 @@
              "TEST RELATION NAME"
              (define relationTest Node)
              (@check-equal?
-              (toString (desugarExpr relationTest '() '(Node) udt #f))
-              (toString
-               (node/formula/op/in
-                empty-nodeinfo
-                (list
-                 (node/expr/op/->
-                  empty-nodeinfo
-                  1 (list (node/expr/atom empty-nodeinfo 1 'Node))) Node)))))
+              (desugarExpr relationTest '() '(Node) udt #f)
+              (node/formula/op/in
+               empty-nodeinfo
+               (list
+                (node/expr/op/->
+                 empty-nodeinfo
+                 1 (list (node/expr/atom empty-nodeinfo 1 'Node))) Node))))
 
             ; atom currSign true
             (@test-case
@@ -204,10 +202,10 @@
                              (list (tup2Expr '(Node) udt empty-nodeinfo)
                                    (node/expr/atom empty-nodeinfo 1 'Node))))
              (@check-equal?
-              (toString (desugarExpr
-                         (node/expr/atom empty-nodeinfo 1 'Node)
-                         '() '(Node) udt #t))
-              (toString result)))
+              (desugarExpr
+               (node/expr/atom empty-nodeinfo 1 'Node)
+               '() '(Node) udt #t)
+              result))
 
             ; atom currSign false
             (@test-case
@@ -221,10 +219,10 @@
                                 '(Node) udt empty-nodeinfo)
                                (node/expr/atom empty-nodeinfo 1 'Node)))))
              (@check-equal?
-              (toString (desugarExpr
-                         (node/expr/atom empty-nodeinfo 1 'Node)
-                         '() '(Node) udt #f))
-              (toString result)))
+              (desugarExpr
+               (node/expr/atom empty-nodeinfo 1 'Node)
+               '() '(Node) udt #f)
+              result))
 
             ; Int constant
             (@test-case
@@ -235,10 +233,10 @@
                               (tup2Expr '(Node) udt empty-nodeinfo)
                               (node/expr/constant empty-nodeinfo 1 'Int))))
              (@check-equal?
-              (toString (desugarExpr
-                         (node/expr/constant empty-nodeinfo 1 'Int)
-                         '() '(Node) udt #f))
-              (toString result)))
+              (desugarExpr
+               (node/expr/constant empty-nodeinfo 1 'Int)
+               '() '(Node) udt #f)
+              result))
 
             ; other expression constants
 
@@ -258,8 +256,8 @@
              (define tupExpr (tup2Expr (first liftedUpperBounds) udt empty-nodeinfo))
            
              (@check-equal?
-              (toString (desugarFormula inSetComprehension '() udt #t))
-              (toString (and (in tupExpr Node) (in tupExpr Node)))))
+              (desugarFormula inSetComprehension '() udt #t)
+              (and (in tupExpr Node) (in tupExpr Node))))
 
             ; desugarExpr test on no currTupIfAtomic
             (@check-exn
@@ -276,8 +274,8 @@
                (node/formula/op/|| empty-nodeinfo
                                    (list desugaredChild desugaredChild)))
              (@check-equal?
-              (toString (desugarExpr unionTest '() '(Node) udt #t))
-              (toString desugaredWithOr)))
+              (desugarExpr unionTest '() '(Node) udt #t)
+              desugaredWithOr))
 
 
             ; SETMINUS
@@ -315,8 +313,8 @@
                                (node/expr/atom empty-nodeinfo 1 'Node)))
                              Node)))))
              (@check-equal?
-              (toString (desugarExpr productTest '() '(Node) udt #t))
-              (toString sol)))
+              (desugarExpr productTest '() '(Node) udt #t)
+              sol))
 
             (@test-case
              "TEST PRODUCT expression on arity 3"
@@ -341,8 +339,8 @@
                               (list Node Node))
                              )))))
              (@check-equal?
-              (toString (desugarExpr productTest '() '(Node) udt #t))
-              (toString sol)))
+              (desugarExpr productTest '() '(Node) udt #t)
+              sol))
 
             ; JOIN
             #|(printf "TEST!!!!!!!")
@@ -362,120 +360,119 @@
             #|(define fSomeReachesAll
   (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 (desugarFormula fSomeReachesAll '() udt #t)|#
-(@test-case
+            (@test-case
              "TEST JOIN on OR with currSign False 2 arguments"
              (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
                                             (join Node edges)))
              (@check-equal?
-              (toString (desugarFormula joinFormulaORFalse '() udt #f))
-              (toString
-               (node/formula/op/&&
-                empty-nodeinfo
-                (list (node/formula/op/||
-                       empty-nodeinfo
-                       (list (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     1 (list (node/expr/atom empty-nodeinfo 1 'Node0)))
-                                    (rel '(Node) 'univ "Node")))
-                             (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     2 (list (node/expr/atom empty-nodeinfo 1 'Node0)
-                                             (node/expr/atom empty-nodeinfo 1 'Node0)))
-                                    (rel '(Node Node) 'Node "edges")))))
-                      (node/formula/op/||
-                       empty-nodeinfo
-                       (list (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     1 (list (node/expr/atom empty-nodeinfo 1 'Node1)))
-                                    (rel '(Node) 'univ "Node")))
-                             (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     2 (list (node/expr/atom empty-nodeinfo 1 'Node1)
-                                             (node/expr/atom empty-nodeinfo 1 'Node0)))
-                                    (rel '(Node Node) 'Node "edges")))))
-                      (node/formula/op/||
-                       empty-nodeinfo
-                       (list (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     1 (list (node/expr/atom empty-nodeinfo 1 'Node2)))
-                                    (rel '(Node) 'univ "Node")))
-                             (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     2 (list (node/expr/atom empty-nodeinfo 1 'Node2)
-                                             (node/expr/atom empty-nodeinfo 1 'Node0)))
-                                    (rel '(Node Node) 'Node "edges")))))
-                      (node/formula/op/||
-                       empty-nodeinfo
-                       (list (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     1 (list (node/expr/atom empty-nodeinfo 1 'Node3)))
-                                    (rel '(Node) 'univ "Node")))
-                             (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     2 (list (node/expr/atom empty-nodeinfo 1 'Node3)
-                                             (node/expr/atom empty-nodeinfo 1 'Node0)))
-                                    (rel '(Node Node) 'Node "edges")))))
-                      (node/formula/op/||
-                       empty-nodeinfo
-                       (list (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     1 (list (node/expr/atom empty-nodeinfo 1 'Node4)))
-                                    (rel '(Node) 'univ "Node")))
-                             (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     2 (list (node/expr/atom empty-nodeinfo 1 'Node4)
-                                             (node/expr/atom empty-nodeinfo 1 'Node0)))
-                                    (rel '(Node Node) 'Node "edges")))))
-                      (node/formula/op/||
-                       empty-nodeinfo
-                       (list (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     1 (list (node/expr/atom empty-nodeinfo 1 'Node5)))
-                                    (rel '(Node) 'univ "Node")))
-                             (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     2 (list (node/expr/atom empty-nodeinfo 1 'Node5)
-                                             (node/expr/atom empty-nodeinfo 1 'Node0)))
-                                    (rel '(Node Node) 'Node "edges")))))
-                      (node/formula/op/||
-                       empty-nodeinfo
-                       (list (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     1 (list (node/expr/atom empty-nodeinfo 1 'Node6)))
-                                    (rel '(Node) 'univ "Node")))
-                             (node/formula/op/in
-                              empty-nodeinfo
-                              (list (node/expr/op/->
-                                     empty-nodeinfo
-                                     2 (list (node/expr/atom empty-nodeinfo 1 'Node6)
-                                             (node/expr/atom empty-nodeinfo 1 'Node0)))
-                                    (rel '(Node Node) 'Node "edges"))))))))))
+              (desugarFormula joinFormulaORFalse '() udt #f)
+              (node/formula/op/&&
+               empty-nodeinfo
+               (list (node/formula/op/||
+                      empty-nodeinfo
+                      (list (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    1 (list (node/expr/atom empty-nodeinfo 1 'Node0)))
+                                   (rel '(Node) 'univ "Node")))
+                            (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    2 (list (node/expr/atom empty-nodeinfo 1 'Node0)
+                                            (node/expr/atom empty-nodeinfo 1 'Node0)))
+                                   (rel '(Node Node) 'Node "edges")))))
+                     (node/formula/op/||
+                      empty-nodeinfo
+                      (list (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    1 (list (node/expr/atom empty-nodeinfo 1 'Node1)))
+                                   (rel '(Node) 'univ "Node")))
+                            (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    2 (list (node/expr/atom empty-nodeinfo 1 'Node1)
+                                            (node/expr/atom empty-nodeinfo 1 'Node0)))
+                                   (rel '(Node Node) 'Node "edges")))))
+                     (node/formula/op/||
+                      empty-nodeinfo
+                      (list (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    1 (list (node/expr/atom empty-nodeinfo 1 'Node2)))
+                                   (rel '(Node) 'univ "Node")))
+                            (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    2 (list (node/expr/atom empty-nodeinfo 1 'Node2)
+                                            (node/expr/atom empty-nodeinfo 1 'Node0)))
+                                   (rel '(Node Node) 'Node "edges")))))
+                     (node/formula/op/||
+                      empty-nodeinfo
+                      (list (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    1 (list (node/expr/atom empty-nodeinfo 1 'Node3)))
+                                   (rel '(Node) 'univ "Node")))
+                            (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    2 (list (node/expr/atom empty-nodeinfo 1 'Node3)
+                                            (node/expr/atom empty-nodeinfo 1 'Node0)))
+                                   (rel '(Node Node) 'Node "edges")))))
+                     (node/formula/op/||
+                      empty-nodeinfo
+                      (list (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    1 (list (node/expr/atom empty-nodeinfo 1 'Node4)))
+                                   (rel '(Node) 'univ "Node")))
+                            (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    2 (list (node/expr/atom empty-nodeinfo 1 'Node4)
+                                            (node/expr/atom empty-nodeinfo 1 'Node0)))
+                                   (rel '(Node Node) 'Node "edges")))))
+                     (node/formula/op/||
+                      empty-nodeinfo
+                      (list (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    1 (list (node/expr/atom empty-nodeinfo 1 'Node5)))
+                                   (rel '(Node) 'univ "Node")))
+                            (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    2 (list (node/expr/atom empty-nodeinfo 1 'Node5)
+                                            (node/expr/atom empty-nodeinfo 1 'Node0)))
+                                   (rel '(Node Node) 'Node "edges")))))
+                     (node/formula/op/||
+                      empty-nodeinfo
+                      (list (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    1 (list (node/expr/atom empty-nodeinfo 1 'Node6)))
+                                   (rel '(Node) 'univ "Node")))
+                            (node/formula/op/in
+                             empty-nodeinfo
+                             (list (node/expr/op/->
+                                    empty-nodeinfo
+                                    2 (list (node/expr/atom empty-nodeinfo 1 'Node6)
+                                            (node/expr/atom empty-nodeinfo 1 'Node0)))
+                                   (rel '(Node Node) 'Node "edges")))))))))
             ; REFLEXIVE-TRANSITIVE CLOSURE
 
             ; TRANSPOSE

@@ -31,12 +31,11 @@
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
-     (define formString (toStringSub formula))
      (cond
-       [(and (equal? formString (toStringSub 'true)) currSign) true]
-       [(and (equal? formString (toStringSub 'false)) currSign) false]
-       [(and (equal? formString (toStringSub 'true)) (not currSign)) false]
-       [(and (equal? formString (toStringSub 'false)) (not currSign)) true]
+       [(and (equal? formula 'true) currSign) true]
+       [(and (equal? formula 'false) currSign) false]
+       [(and (equal? formula 'true) (not currSign)) false]
+       [(and (equal? formula 'false) (not currSign)) true]
        [else formula])]
     
     ; operator formula (and, or, implies, ...)

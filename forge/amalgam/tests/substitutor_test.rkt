@@ -40,24 +40,24 @@
    (@test-case
     "TEST substituteFormula in base cases"
     (@check-equal?
-     (toString (substituteFormula (substituteFormula (no (& edges iden)) '()
-                                                     iden univ) '() univ iden))
-     (toString (no (& edges iden)))))
+     (substituteFormula (substituteFormula (no (& edges iden)) '()
+                                                     iden univ) '() univ iden)
+     (no (& edges iden))))
 
    ; Checking substitution in replacing relation names base case
    (@test-case
     "TEST substituteFormula in relation base case"
     (@check-equal?
-     (toString (substituteFormula (= edges (~ edges)) '() edges varzArity2))
-     (toString (= varzArity2 (~ varzArity2)))))
+     (substituteFormula (= edges (~ edges)) '() edges varzArity2)
+     (= varzArity2 (~ varzArity2))))
 
    ; Checking substitution in join case (more complicated)
    (@test-case
     "TEST substituteFormula in complicated join case"
     (@check-equal?
-     (toString (substituteFormula fSomeReachesAll '() edges varzArity2))
-     (toString (some ([x Node]) (all ([y Node])
-                                     (in y (join x (^ varzArity2))))))))
+     (substituteFormula fSomeReachesAll '() edges varzArity2)
+     (some ([x Node]) (all ([y Node])
+                                     (in y (join x (^ varzArity2)))))))
 
    ; Checking substitution in quantifier-var case. Should not throw
    ; variable shadowing error. 
@@ -65,8 +65,8 @@
     "TEST substituteFormula in quantifier-var case"
     (define freeXReachesAll (all ([y Node]) (in y (join varx (^ edges)))))
     (@check-equal?
-     (toString (substituteFormula freeXReachesAll '() varx varz))
-     (toString (all ([y Node]) (in y (join varz (^ edges)))))))
+     (substituteFormula freeXReachesAll '() varx varz)
+     (all ([y Node]) (in y (join varz (^ edges))))))
 
    ; Checking substitution in and case
    (@test-case
@@ -79,12 +79,12 @@
                                              (in y (join varx (^ edges))))))
     (substituteFormula fSomeReachesAllComplicated '() edges varz)
     (@check-equal?
-     (toString (substituteFormula fSomeReachesAllComplicated
-                                  '() edges varzArity2))
-     (toString (and
+     (substituteFormula fSomeReachesAllComplicated
+                                  '() edges varzArity2)
+     (and
                 (some ([x Node]) (all ([y Node])
                                       (in y (join x (^ varzArity2)))))
-                (all ([y Node]) (in y (join varx (^ varzArity2))))))))
+                (all ([y Node]) (in y (join varx (^ varzArity2)))))))
 
    (@test-case
     "TEST substituteFormula in quantifier-var variable shadowing error." 
@@ -116,11 +116,11 @@
                                                (in y (join varx (^ edges))))))
 
     (@check-equal?
-     (toString (substituteFormula fSomeReachesAllComplicatedOr
-                                  '() edges varzArity2))
-     (toString (or
+     (substituteFormula fSomeReachesAllComplicatedOr
+                                  '() edges varzArity2)
+     (or
                 (some ([x Node]) (all ([y Node]) (in y (join x (^ varzArity2)))))
-                (all ([y Node]) (in y (join varx (^ varzArity2))))))))
+                (all ([y Node]) (in y (join varx (^ varzArity2)))))))
 
 
    ; formula implies
@@ -130,11 +130,11 @@
       (implies (some ([x Node]) (all ([y Node]) (in y (join x (^ edges)))))
                (all ([y Node]) (in y (join varx (^ edges))))))
     (@check-equal?
-     (toString (substituteFormula fSomeReachesAllComplicatedImplies
-                                  '() edges varzArity2))
-     (toString (implies
+     (substituteFormula fSomeReachesAllComplicatedImplies
+                                  '() edges varzArity2)
+     (implies
                 (some ([x Node]) (all ([y Node]) (in y (join x (^ varzArity2)))))
-                (all ([y Node]) (in y (join varx (^ varzArity2))))))))
+                (all ([y Node]) (in y (join varx (^ varzArity2)))))))
 
 
    ; formula in
@@ -144,10 +144,10 @@
                                           (all ([y Node])
                                                (in y (join x (^ edges))))))
     (@check-equal?
-     (toString (substituteFormula fSomeReachesAllSimpleIn
-                                  '() edges varzArity2))
-     (toString (some ([x Node]) (all ([y Node])
-                                     (in y (join x (^ varzArity2))))))))
+     (substituteFormula fSomeReachesAllSimpleIn
+                                  '() edges varzArity2)
+     (some ([x Node]) (all ([y Node])
+                                     (in y (join x (^ varzArity2)))))))
 
    ; formula in
    (@test-case
@@ -156,9 +156,9 @@
                                           (all ([y Node])
                                                (in y (join x (^ edges))))))
     (@check-equal?
-     (toString (substituteFormula (in vary (join varx (^ edges)))
-                                  '() qvx varz))
-     (toString (in vary (join varz (^ edges))))))
+     (substituteFormula (in vary (join varx (^ edges)))
+                                  '() qvx varz)
+     (in vary (join varz (^ edges)))))
 
    (@test-case
     "TEST substituteFormula in complex in case "
@@ -168,12 +168,11 @@
            (no ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
        (all ([x Node]) (all ([y Node]) (in y (join x (^ edges)))))))
     (@check-equal?
-     (toString (substituteFormula fSomeReachesAllComplexIn '() edges varzArity2))
-     (toString
+     (substituteFormula fSomeReachesAllComplexIn '() edges varzArity2)
       (and
        (or (some ([x Node]) (all ([y Node]) (in y (join x (^ varzArity2)))))
            (no ([x Node]) (all ([y Node]) (in y (join x (^ varzArity2))))))
-       (all ([x Node]) (all ([y Node]) (in y (join x (^ varzArity2)))))))))
+       (all ([x Node]) (all ([y Node]) (in y (join x (^ varzArity2))))))))
 
    ; formula negation
    (@test-case
@@ -181,10 +180,8 @@
     (define fSomeReachesAllSimpleNegation
       (not (some ([x Node]) (all ([y Node]) (in y (join x (^ edges)))))))
     (@check-equal?
-     (toString
-      (substituteFormula fSomeReachesAllSimpleNegation '() edges varzArity2))
-     (toString
-      (not (some ([x Node]) (all ([y Node]) (in y (join x (^ varzArity2))))))))))
+      (substituteFormula fSomeReachesAllSimpleNegation '() edges varzArity2)
+      (not (some ([x Node]) (all ([y Node]) (in y (join x (^ varzArity2)))))))))
 
   (@test-suite
    " SubstituteFormula tests"
@@ -194,68 +191,67 @@
    (@test-case
     "TEST substituteExpr in union case"
     (@check-equal?
-     (toString (substituteExpr (+ edges iden) '() edges iden))
-     (toString (+ iden iden))))
+     (substituteExpr (+ edges iden) '() edges iden)
+     (+ iden iden)))
 
    ; Checking substitution in set minus case
    (@test-case
     "TEST substituteExpr in set minus case"
     (@check-equal?
-     (toString (substituteExpr (- iden (+ edges iden)) '() edges iden))
-     (toString (- iden (+ iden iden)))))
+     (substituteExpr (- iden (+ edges iden)) '() edges iden)
+     (- iden (+ iden iden))))
 
    ; Checking substitution in intersection case
    (@test-case
     "TEST substituteExpr in intersection case"
     (@check-equal?
-     (toString
-      (substituteExpr (& edges (- edges (+ edges edges))) '() edges iden))
-     (toString (& iden (- iden (+ iden iden))))))
+      (substituteExpr (& edges (- edges (+ edges edges))) '() edges iden)
+      (& iden (- iden (+ iden iden)))))
 
    ; Checking substitution in product case
    (@test-case
     "TEST substituteExpr in product case"
     (@check-equal?
-     (toString (substituteExpr (-> edges (-> edges Node)) '() Node univ))
-     (toString (-> edges (-> edges univ)))))
+     (substituteExpr (-> edges (-> edges Node)) '() Node univ)
+     (-> edges (-> edges univ))))
 
    ; Checking substitution in join case
    (@test-case
     "TEST substituteExpr in join case"
     (@check-equal?
-     (toString (substituteExpr (join edges iden) '() iden edges))
-     (toString (join edges edges))))
+     (substituteExpr (join edges iden) '() iden edges)
+     (join edges edges)))
 
    ; Checking substitution in transitive closure case
    (@test-case
     "TEST substituteExpr in transitive closure case"
     (@check-equal?
-     (toString (substituteExpr (^ edges) '() edges varzArity2))
-     (toString (^ varzArity2))))
+     (substituteExpr (^ edges) '() edges varzArity2)
+     (^ varzArity2)))
 
    ; Checking substitution in reflexive-transitive closure case
    (@test-case
     "TEST substituteExpr in reflexive-transitive closure case"
     (@check-equal?
-     (toString (substituteExpr (* edges) '() edges varzArity2))
-     (toString (* varzArity2))))
+     (substituteExpr (* edges) '() edges varzArity2)
+     (* varzArity2)))
 
    ; Checking substitution in transpose case
    (@test-case
     "TEST substituteExpr in transpose case"
     (@check-equal?
-     (toString (substituteExpr (~ edges) '() edges varzArity2))
-     (toString (~ varzArity2))))
+     (substituteExpr (~ edges) '() edges varzArity2)
+     (~ varzArity2)))
 
    ; set comprehension
    (@test-case
     "TEST substituteExpr in set comprehension case"
 
     (@check-equal?
-     (toString (substituteExpr fSetComprehension '() edges varzArity2))
-     (toString (node/expr/comprehension empty-nodeinfo 1
+     (substituteExpr fSetComprehension '() edges varzArity2)
+     (node/expr/comprehension empty-nodeinfo 1
                                         (list (cons qvx Node))
-                                        (in qvx (join varzArity2 qvx))))))
+                                        (in qvx (join varzArity2 qvx)))))
 
    (@test-case
     "TEST substituteExpr set comprehension shadowing error"
@@ -311,8 +307,8 @@
     "TEST substituteInt in cardinality case " 
     (define fCardinality (node/int/op/card empty-nodeinfo (list Node)))
     (@check-equal?
-     (toString (substituteInt fCardinality '() Node edges))
-     (toString (node/int/op/card empty-nodeinfo (list edges)))))
+     (substituteInt fCardinality '() Node edges)
+     (node/int/op/card empty-nodeinfo (list edges))))
 
    ; singleton
    #|(@test-case
@@ -331,11 +327,10 @@
                           (node/int/op/card empty-nodeinfo
                                             (list (join edges x)))))
     (@check-equal?
-     (toString (substituteInt fSum '() edges varzArity2))
-     (toString
+     (substituteInt fSum '() edges varzArity2)
       (node/int/sum-quant empty-nodeinfo (list (cons x Node))
                           (node/int/op/card empty-nodeinfo
-                                            (list (join varzArity2 x)))))))
+                                            (list (join varzArity2 x))))))
 
    ; "sum" quantifier case error shadowing
    (@test-case
