@@ -111,7 +111,7 @@
 
   ; desugar F
   ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)  
-  (define desugared (desugarFormula F '() orig-run))
+  (define desugared (desugarFormula F '() orig-run #t))
   
   ; do amalgam descent on desugared F
   (amalgam-descent desugared orig-run alt-run tup)
@@ -179,7 +179,7 @@
      ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
      ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
      (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) orig-true-args))
-     (define new-alpha-set (list->set (map (lambda (arg) (not/info info (list arg))) orig-false-args)))
+     (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
      ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
      (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
      ; add prov-sets to each failure-reasons + return 
