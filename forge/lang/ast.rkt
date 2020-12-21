@@ -258,6 +258,7 @@
 
 ;; -- relations ----------------------------------------------------------------
 
+; Do not use this constructor directly, instead use the rel macro or the build-relation procedure.
 ; The is-variable field allows support for Electrum-style var fields in the core language 
 (struct node/expr/relation node/expr (name typelist parent is-variable) #:transparent #:mutable
   #:methods gen:custom-write
@@ -278,7 +279,7 @@
        (build-relation #,(build-source-location stx) (typelist ...) parent name #f))]
     [(_ (typelist ...) parent name isv)
      (quasisyntax/loc stx       
-       (build-relation #,(build-source-location stx) (typelist ...) parent name #t))]))
+       (build-relation #,(build-source-location stx) (typelist ...) parent name isvar))]))
 
 ; Used by rel macro but *also* by Sig and relation macros in forge/core (sigs.rkt)
 (define (build-relation loc typelist parent [name #f] [is-var #f])
@@ -290,9 +291,12 @@
                       (cond                        
                         [(string? t) t]
                         [(symbol? t) (symbol->string t)]
-                        [else (error (format "build-relation expected list of strings or symbols: ~a" typelist))])) typelist)])
-    (node/expr/relation (nodeinfo loc) (length types) name typelist parent is-var)))
-
+                        [else (error (format "build-relation expected list of strings or symbols: ~a" typelist))])) typelist)]
+        [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
+                               [(string? parent) parent]
+                               [else (error (format "build-relation expected parent as either symbol or string"))])])
+    (node/expr/relation (nodeinfo loc) (length types) name
+                        types scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields
 (define (relation-arity rel)
@@ -655,8 +659,10 @@
        ; don't want to call struct-accessors every time this lambda is invoked,
        ; so call once at expansion time of make-robust...
        ;(printf "structname: ~a~n" (syntax->datum #'structname))       
-       #`(lambda (a b equal-proc)         
-           (andmap (lambda (access) (equal-proc (access a) (access b)))
+       #`(lambda (a b equal-proc)           
+           (andmap (lambda (access)
+                     ;(printf "checking equality for ~a, proc ~a~n" 'structname access)
+                     (equal-proc (access a) (access b)))
                    (remove node-info (struct-accessors structname)))))]))
 
 ; And similarly for hash
