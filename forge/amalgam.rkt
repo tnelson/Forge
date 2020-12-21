@@ -181,8 +181,8 @@
      (define new-alpha-set (list->set (map (lambda (arg) (not/info info (list arg))) orig-false-args)))
      ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
      (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
-     ; TODO: add prov-sets to each failure-reasons + return (set-map?)
-     #t
+     ; add prov-sets to each failure-reasons + return 
+     (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons))
      ]
     ; base case: positive literal
     [(node/formula/op/in info args)
