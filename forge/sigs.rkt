@@ -133,10 +133,10 @@
   sig-order   ; List<Symbol>
   relations   ; Map<Symbol, Relation>
   relation-order ; List<Symbol>
-  predicates  ; Set<Symbol>
-  functions   ; Set<Symbol>
-  constants   ; Set<Symbol>
-  insts       ; Set<Symbol>
+  pred-map  ; Map<Symbol, Predicate>
+  fun-map   ; Map<Symbol, Function>
+  const-map   ; Map<Symbol, Constant>
+  inst-map       ; Map<Symbol, Inst>
   options     ; Options
   runmap      ; Map<Symbol, Run> (as hash)
   ) #:transparent)
@@ -174,16 +174,16 @@
 (define init-sig-order (list 'Int))
 (define init-relations (hash 'succ (Relation 'succ succ '(Int Int) #f)))
 (define init-relation-order (list 'succ))
-(define init-predicates (@set))
-(define init-functions (@set))
-(define init-constants (@set))
-(define init-insts (@set))
+(define init-pred-map (@hash))
+(define init-fun-map (@hash))
+(define init-const-map (@hash))
+(define init-inst-map (@hash))
 (define init-runmap (@hash))
 (define init-options (Options 'SAT4J 'pardinus 5 0 0))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
-                          init-predicates init-functions init-constants 
-                          init-insts
+                          init-pred-map init-fun-map init-const-map
+                          init-inst-map
                           init-options
                           init-runmap))
 
@@ -319,6 +319,30 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define state (get-state run-or-state))
   (map (curry hash-ref (State-relations state) )
        (State-relation-order state)))
+
+; get-pred :: Run-or-State, Symbol -> Predicate
+; Gets a predicate by name from a given state
+(define (get-pred run-or-state name)
+  (define state (get-state run-or-state))
+  (hash-ref (State-pred-map state) name))
+
+; get-fun :: Run-or-State, Symbol -> Function
+; Gets a function by name from a given state
+(define (get-fun run-or-state name)
+  (define state (get-state run-or-state))
+  (hash-ref (State-fun-map state) name))
+
+; get-const :: Run-or-State, Symbol -> Constant
+; Gets a constant by name from a given state
+(define (get-const run-or-state name)
+  (define state (get-state run-or-state))
+  (hash-ref (State-const-map state) name))
+
+; get-inst :: Run-or-State, Symbol -> Inst
+; Gets a inst by name from a given state
+(define (get-inst run-or-state name)
+  (define state (get-state run-or-state))
+  (hash-ref (State-inst-map state) name))
 
 ; get-children :: Run-or-State, Sig* -> List<Sig>
 ; Returns the children Sigs of a Sig.
@@ -506,26 +530,33 @@ Returns whether the given run resulted in sat or unsat, respectively.
                [relations new-state-relations]
                [relation-order new-state-relation-order]))
 
-; state-add-predicate :: State, Symbol -> State
+; state-add-pred :: State, Symbol, Predicate -> State
 ; Adds a new predicate to the given State.
-(define (state-add-predicate state name)
-  (define new-state-predicates (set-add (State-predicates state) name))
+(define (state-add-pred state name pred)
+  (define new-state-pred-map (hash-set (State-pred-map state) name pred))
   (struct-copy State state
-               [predicates new-state-predicates]))
+               [pred-map new-state-pred-map]))
 
-; state-add-function :: State, Symbol -> State
+; state-add-fun :: State, Symbol, Function -> State
 ; Adds a new function to the given State.
-(define (state-add-function state name)
-  (define new-state-functions (set-add (State-functions state) name))
+(define (state-add-fun state name fun)
+  (define new-state-fun-map (hash-set (State-fun-map state) name fun))
   (struct-copy State state
-               [functions new-state-functions]))
+               [fun-map new-state-fun-map]))
 
-; state-add-constant :: State, Symbol -> State
+; state-add-const :: State, Symbol, Constant -> State
 ; Adds a new constant to the given State.
-(define (state-add-constant state name)
-  (define new-state-constants (set-add (State-constants state) name))
+(define (state-add-const state name const)
+  (define new-state-const-map (hash-set (State-const-map state) name const))
   (struct-copy State state
-               [constants new-state-constants]))
+               [const-map new-state-const-map]))
+
+; state-add-inst :: State, Symbol, Inst -> State
+; Adds a new inst to the given State.
+(define (state-add-inst state name inst)
+  (define new-state-inst-map (hash-set (State-inst-map state) name inst))
+  (struct-copy State state
+               [inst-map new-state-inst-map]))
 
 (define (set-option! option value)
   (cond [(or (equal? option 'verbosity)
@@ -648,12 +679,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
        (begin
          ; use srcloc of actual predicate, not this location in sigs
          (define name (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
-         (update-state! (state-add-predicate curr-state 'name))))]
+         (update-state! (state-add-pred curr-state 'name name))))]
     [(pred (name:id args:id ...+) conds:expr ...+)
      (quasisyntax/loc stx
        (begin 
          (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
-         (update-state! (state-add-predicate curr-state 'name))))]))
+         (update-state! (state-add-pred curr-state 'name name))))]))
                                    
 ; Declare a new function
 ; (fun (name var ...) result)
@@ -662,7 +693,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(fun (name:id args:id ...+) result:expr) 
       #'(begin 
         (define (name args ...) result)
-        (update-state! (state-add-function curr-state 'name)))]))
+        (update-state! (state-add-fun curr-state 'name name)))]))
 
 ; Declare a new constant
 ; (const name value)
@@ -671,14 +702,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(const name:id value:expr) 
       #'(begin 
         (define name value)
-        (update-state! (state-add-constant curr-state 'name)))]))
+        (update-state! (state-add-const curr-state 'name name)))]))
 
 ; Define a new bounding instance
 ; (inst name binding ...)
-(define-syntax-rule (inst name binds ...)
-  (define (name scope bound)
-    (set!-values (scope bound) (bind scope bound binds)) ...
-    (values scope bound)))
+(define-syntax (inst stx)
+  (syntax-parse stx
+    [(inst name:id binds:expr ...)
+      #'(begin
+        (define (name scope bound)
+          (set!-values (scope bound) (bind scope bound binds)) ...
+          (values scope bound))
+        (update-state! (state-add-inst curr-state 'name name)))]))
 
 ; Run a given spec
 ; (run name
