@@ -32,10 +32,14 @@
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
      (cond
-       [(and (equal? formula 'true) currSign) true]
-       [(and (equal? formula 'false) currSign) false]
-       [(and (equal? formula 'true) (not currSign)) false]
-       [(and (equal? formula 'false) (not currSign)) true]
+       [(and (equal? (node/formula/constant-type formula) 'true) currSign)
+        true]
+       [(and (equal? (node/formula/constant-type formula) 'false) currSign)
+        false]
+       [(and (equal? (node/formula/constant-type formula) 'true) (not currSign))
+        false]
+       [(and (equal? (node/formula/constant-type formula) 'false) (not currSign))
+        true]
        [else formula])]
     
     ; operator formula (and, or, implies, ...)
