@@ -24,10 +24,9 @@
             (setComprehensionAndHelper (list 'Node0)
                                                  (list (cons x Node))
                                                  empty-nodeinfo udt)
-            (list
-                       (node/formula/op/in empty-nodeinfo
-                                           (list
-                                            (tup2Expr (list 'Node0) udt empty-nodeinfo)
+            (list (node/formula/op/in empty-nodeinfo (list
+                                            (tup2Expr (list 'Node0) udt
+                                                      empty-nodeinfo)
                                             Node)))))
 
           ; EDGES: (rel '(Node Node) 'Node "edges")
