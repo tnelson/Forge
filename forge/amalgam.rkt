@@ -10,6 +10,7 @@
 (require "amalgam/tests/forge_ex.rkt")
 (require racket/hash)
 (require (prefix-in @ racket/set))
+(require (prefix-in @ (only-in racket ->)))
 
 ;(require (only-in "breaks.rkt" sbound))
 ; ^ This will be a *different* struct defn; instead get via sigs
@@ -110,7 +111,7 @@
 
   ; desugar F
   ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)  
-  (define desugared (desugarFormula F '() a-run))
+  (define desugared (desugarFormula F '() orig-run))
   
   ; do amalgam descent on desugared F
   (amalgam-descent desugared orig-run alt-run tup)
@@ -145,7 +146,7 @@
   (@-> set? set? set?) ; I added this contract 
   ;(define product (cartesian-product A B))
   ;(@set-map (lambda (a b) (@set-union a b)) product))
-  (foldl set-union (set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
+  (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
 
 
 
