@@ -151,7 +151,9 @@
 
 (struct Server-ports (
   stdin
-  stdout) #:transparent)
+  stdout
+  shutdown
+  is-running?) #:transparent)
 
 (struct Run (
   name     ; Symbol
@@ -421,11 +423,26 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)
+  (assert-is-running run)
   (Server-ports-stdin (Run-server-ports run)))
 
 ; get-stdin :: Run -> output-port?
 (define (get-stdout run)
+  (assert-is-running run)
   (Server-ports-stdout (Run-server-ports run)))
+
+; close-run :: Run -> void
+(define (close-run run)
+  (assert-is-running run)
+  ((Server-ports-shutdown (Run-server-ports run))))
+
+; is-running :: Run -> Boolean
+(define (is-running? run)
+  ((Server-ports-is-running? (Run-server-ports run))))
+
+(define (assert-is-running run)
+  (unless (is-running? run)
+    (raise "KodKod server is not running.")))
 
 ; get-option :: Run-or-state Symbol -> Any
 (define (get-option run-or-state option)
@@ -1245,7 +1262,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define backend (get-option run-spec 'backend))
-  (define-values (stdin stdout) 
+  (define-values (stdin stdout shutdown is-running?) 
     (cond
       [(equal? backend 'kodkod) (kodkod:start-server)]
       [(equal? backend 'pardinus) (pardinus:start-server 'stepper (Target? (Run-spec-target run-spec)))]
@@ -1360,6 +1377,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   ; Print solve
   (define (get-next-model)
+    (unless (is-running?)
+      (raise "KodKod server is not running."))
     (kk-print (kodkod:solve))
     (match-define (cons restype inst) (translate-from-kodkod-cli 'run 
                                                                  (kodkod:read-solution stdout) 
@@ -1375,7 +1394,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
           rest)
         (stream-cons (get-next-model) (model-stream))))
 
-  (values (model-stream) all-atoms (Server-ports stdin stdout) total-bounds))
+  (values (model-stream) all-atoms (Server-ports stdin stdout shutdown is-running?) total-bounds))
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 

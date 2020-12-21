@@ -13,8 +13,7 @@
 
 (require "server.rkt"
          "server-common.rkt")
-(define stdin-val #false)
-(define stdout-val #false)
+
 (provide start-server) ; stdin stdout)
 (define (start-server)
   (when (>= (get-verbosity) VERBOSITY_HIGH)
@@ -23,9 +22,11 @@
                    [initializer (thunk (kodkod-initializer #f))]
                    [stderr-handler (curry kodkod-stderr-handler "blank")]))
   (send kks initialize)
-  (set! stdin-val (send kks stdin))
-  (set! stdout-val (send kks stdout))
-  (values stdin-val stdout-val))
+  (define stdin-val (send kks stdin))
+  (define stdout-val (send kks stdout))
+  (define close-server (thunk (send kks shutdown)))
+  (define is-running? (thunk (send kks initialized?)))
+  (values stdin-val stdout-val close-server is-running?))
 ; (define (stdin) stdin-val)
 ; (define (stdout) stdout-val)
 
