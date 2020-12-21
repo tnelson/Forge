@@ -479,8 +479,6 @@
 
             ; SINGLETON
 
-            ;;;;;;;;;;;;;;;;;; DESUGAR INT ;;;;;;;;;;;;;;;;;;;;
-
             ; CONSTANT INT
             (@test-case
              "TEST intConstant failure"
