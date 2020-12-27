@@ -285,7 +285,6 @@
   ; Error message to check that we are only taking in expressions
   (@-> node/expr? list? (listof symbol?) forge:Run? boolean? node/formula?)
 
-
   ; Should always have a currTupIfAtomic when calling
   (mustHaveTupleContext currTupIfAtomic expr)
 
@@ -379,7 +378,7 @@
     ; SETMINUS 
     [(? node/expr/op/-?)
      (cond
-       [(!(equal? (length args) 2))
+       [(not (equal? (length args) 2))
         (error("Setminus should not be given more than two arguments ~n"))]
        [else
         ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) and

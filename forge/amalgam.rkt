@@ -129,7 +129,7 @@
 ; these are OK assuming 3, 4, 5, 6 are used
 ;(build-provenances (cons '(Node3 Node3) "edges") #f udt) ; add
 (build-provenances (cons '(Node4 Node5) "edges") #f udt) ; remove
-  
+
 ; input:
 ;        A - a set of sets
 ;        B - a set of sets

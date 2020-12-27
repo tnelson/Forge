@@ -292,8 +292,8 @@
                                                           (list currTupIfAtomicExpr (second args)))))
              (define desugaredSetMinus (node/formula/op/&& empty-nodeinfo (list LHSSetMinus RHSSetMinus)))
              (@check-equal?
-              (toString (desugarExpr setMinusTest '() '(Node) udt #t))
-              (toString (desugarFormula desugaredSetMinus '() udt #t))))
+              (desugarExpr setMinusTest '() '(Node) udt #t)
+              (desugarFormula desugaredSetMinus '() udt #t)))
 
             ; INTERSECTION
             (@test-case
