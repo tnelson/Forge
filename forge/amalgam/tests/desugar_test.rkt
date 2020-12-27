@@ -288,8 +288,8 @@
                                                      (list currTupIfAtomicExpr
                                                            (first args))))
              (define RHSSetMinus (node/formula/op/! empty-nodeinfo
-                                                    (list node/formula/op/in empty-nodeinfo
-                                                          (list currTupIfAtomicExpr (second args)))))
+                                                    (list (node/formula/op/in empty-nodeinfo
+                                                          (list currTupIfAtomicExpr (second args))))))
              (define desugaredSetMinus (node/formula/op/&& empty-nodeinfo (list LHSSetMinus RHSSetMinus)))
              (@check-equal?
               (desugarExpr setMinusTest '() '(Node) udt #t)

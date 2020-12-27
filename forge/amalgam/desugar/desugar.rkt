@@ -44,9 +44,6 @@
     
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
-     (printf "ARGS BEFORE CALLING ~a~n" args)
-     (printf "IS IT A LIST? ~a~n" (list? args))
-     (printf "IS IT A LIST OF FORMULA? ~a~n" ((listof node/formula?) args))
      (desugarFormulaOp
       formula quantVars args runContext currSign info)]
     
@@ -390,9 +387,9 @@
         (define LHS (node/formula/op/in info
                                         (list currTupIfAtomicExpr (first args))))
         (define RHS (!/info info
-                           (list node/formula/op/in info
+                           (list (node/formula/op/in info
                                  (list currTupIfAtomicExpr
-                                                   (second args)))))
+                                                   (second args))))))
         ; Create the final desugared version of SETMINUS by joining LHS and RHS
         ; with an AND and call desugarFormula on it
         (define desugaredSetMinus (node/formula/op/&& info (list LHS RHS)))
