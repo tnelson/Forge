@@ -494,8 +494,22 @@
                                     2 (list (node/expr/atom empty-nodeinfo 1 'Node6)
                                             (node/expr/atom empty-nodeinfo 1 'Node0)))
                                    (rel '(Node Node) 'Node "edges")))))))))
-            ; REFLEXIVE-TRANSITIVE CLOSURE
 
+            ; REFLEXIVE-TRANSITIVE CLOSURE
+            (@test-case
+             "TEST reflexive-transitive closure expression"
+             (define transitiveClosure (^/info empty-nodeinfo (list (first (node/expr/op-children (* edges))))))
+             (define desugaredRClosure
+               (+/info empty-nodeinfo (list iden transitiveClosure)))
+             (define inFormula
+               (node/formula/op/in empty-nodeinfo
+                                   (list (tup2Expr '(Node0 Node1) udt empty-nodeinfo)
+                                         desugaredRClosure)))
+             (define reflexiveEx (* edges))
+             (@check-equal?
+              (desugarExpr reflexiveEx '() '(Node0 Node1) udt #t)
+              (desugarFormula inFormula '()  udt #t)))
+            
             ; TRANSPOSE
             (@test-case
              "TEST Transpose expression"

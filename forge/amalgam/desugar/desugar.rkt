@@ -512,11 +512,9 @@
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
-     (define transitiveClosure
-       (node/expr/op/^ info (node/expr-arity (first args)) (first args)))
+     (define transitiveClosure (^/info info (list (first args))))
      (define desugaredRClosure
-       (node/expr/op/+ info (node/expr-arity transitiveClosure)
-                       (list iden transitiveClosure)))
+       (+/info info (list iden transitiveClosure)))
      (define inFormula
        (node/formula/op/in info
                            (list (tup2Expr currTupIfAtomic runContext info)
