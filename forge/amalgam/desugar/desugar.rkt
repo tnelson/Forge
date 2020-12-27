@@ -44,6 +44,9 @@
     
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
+     (printf "ARGS BEFORE CALLING ~a~n" args)
+     (printf "IS IT A LIST? ~a~n" (list? args))
+     (printf "IS IT A LIST OF FORMULA? ~a~n" ((listof node/formula?) args))
      (desugarFormulaOp
       formula quantVars args runContext currSign info)]
     

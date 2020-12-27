@@ -499,6 +499,13 @@
             ; TRANSPOSE
 
             ; SINGLETON
+            (@test-case
+             "TEST singleton error"
+             (@check-exn
+              exn:fail?
+              (lambda ()
+                (define singletonEx (node/expr/op/sing empty-nodeinfo 1 (list 1)))
+                (desugarExpr singletonEx '() '(Node) udt #t))))
 
             ; CONSTANT INT
             (@test-case
