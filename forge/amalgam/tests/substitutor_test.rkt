@@ -41,7 +41,7 @@
     "TEST substituteFormula in base cases"
     (@check-equal?
      (substituteFormula (substituteFormula (no (& edges iden)) '()
-                                                     iden univ) '() univ iden)
+                                                     iden iden) '() iden iden)
      (no (& edges iden))))
 
    ; Checking substitution in replacing relation names base case
