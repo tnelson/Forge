@@ -497,6 +497,11 @@
             ; REFLEXIVE-TRANSITIVE CLOSURE
 
             ; TRANSPOSE
+            (@test-case
+             "TEST Transpose expression"
+             (@check-equal?
+              (desugarExpr (~ edges) '() '(Node0 Node1) udt #t)
+              (desugarExpr edges '() '(Node1 Node0) udt #t)))
 
             ; SINGLETON
             (@test-case
