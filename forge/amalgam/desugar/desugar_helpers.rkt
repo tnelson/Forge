@@ -143,19 +143,16 @@
           currTupIfAtomic 0 (node/expr-arity left))
   (define
     leftTupleContext
-    ; (define/contract (projectTupleRange tup start len)
-    ;  (@-> list? number? number? list?)
-    ;  (take (list-tail tup start) len))
-    (projectTupleRange currTupIfAtomic 0 1))
+    (projectTupleRange currTupIfAtomic 0 (node/expr-arity left)))
 
   (printf "second calling projectTupleRange tup: ~a, start: ~a arity: ~a"
           currTupIfAtomic
           (- (node/expr-arity left) 1)
-          (node/expr-arity right))
+          (length currTupIfAtomic))
   (define
     rightTupleContext
     (projectTupleRange currTupIfAtomic
-                       0 1))
+                       (- (node/expr-arity left) 1) (length currTupIfAtomic)))
   
   (list
      (node/formula/op/in info (list
