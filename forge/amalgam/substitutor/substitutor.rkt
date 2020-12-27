@@ -82,13 +82,13 @@
      [(? node/formula/op/&&?)
      (define substitutedArgs
        (map (lambda (x) (substituteFormula x quantvars target value)) args))
-     (node/formula/op/&& info substitutedArgs)]
+     (&&/info info substitutedArgs)]
 
     ; OR
      [(? node/formula/op/||?)
      (define substitutedArgs
        (map (lambda (x) (substituteFormula x quantvars target value)) args))
-     (node/formula/op/|| info substitutedArgs)]
+     (||/info info substitutedArgs)]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
@@ -96,7 +96,7 @@
        (substituteFormula  (first args) quantvars target value))
      (define substitutedRHS
        (substituteFormula  (second args) quantvars target value))
-     (node/formula/op/=> info (list substitutedLHS substitutedRHS))]
+     (=>/info info (list substitutedLHS substitutedRHS))]
 
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
@@ -111,7 +111,7 @@
        (error "IN subst produced LHS: ~a ~a~n" (first args) substitutedLHS))
      (unless (node/expr? substitutedRHS)
        (error "IN subst produced RHS: ~a ~a~n" (second args) substitutedRHS))
-     (node/formula/op/in info (list substitutedLHS substitutedRHS))]
+     (in/info info (list substitutedLHS substitutedRHS))]
 
     ; EQUALS 
     [(? node/formula/op/=?)
@@ -119,13 +119,13 @@
        (substituteExpr  (first args) quantvars target value))
      (define substitutedRHS
        (substituteExpr  (second args) quantvars target value))
-     (node/formula/op/= info (list substitutedLHS substitutedRHS))]
+     (=/info info (list substitutedLHS substitutedRHS))]
 
     ; NEGATION
     [(? node/formula/op/!?)
      (define substitutedEntry
        (substituteFormula (first args) quantvars target value))
-     (node/formula/op/! info (list substitutedEntry))]   
+     (!/info info (list substitutedEntry))]   
 
     ; INTEGER >
     [(? node/formula/op/int>?)
@@ -224,7 +224,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substituteExpr child quantvars target value)) args))
-     (node/expr/op/+ info (node/expr-arity expr) substitutedChildren)]
+     (+/info info substitutedChildren)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
@@ -234,7 +234,7 @@
        [else 
         (define LHS (substituteExpr (first args) quantvars target value))
         (define RHS (substituteExpr (second args) quantvars target value))
-        (node/expr/op/- info (node/expr-arity expr) (list LHS RHS))])]
+        (-/info info (list LHS RHS))])]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
@@ -242,7 +242,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substituteExpr child quantvars target value)) args))
-     (node/expr/op/& info (node/expr-arity expr) substitutedChildren)]
+     (&/info info substitutedChildren)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -250,7 +250,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substituteExpr child quantvars target value)) args))
-     (node/expr/op/-> info (node/expr-arity expr) substitutedChildren)]
+     (->/info info substitutedChildren)]
    
     ; JOIN
     [(? node/expr/op/join?)
@@ -258,7 +258,7 @@
      (define substitutedChildren
        (map
         (lambda (child) (substituteExpr child quantvars target value)) args))
-     (node/expr/op/join info (node/expr-arity expr) substitutedChildren)]
+     (join/info info substitutedChildren)]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
