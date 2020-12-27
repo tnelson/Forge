@@ -279,19 +279,45 @@
 
 
             ; SETMINUS
-            ; (currTupIfAtomic in LHS) and (not(currTupIfAtomic in RHS))
-            #|(define setMinusTest (- Node Node))
-            (define LHSSetMinus (node/formula/op/in info (list currTupIfAtomicExpr (first args))))
-            (define RHSSetMinus (node/formula/op/! info (list node/formula/op/in info (list currTupIfAtomicExpr (second args)))))
-            (define desugaredSetMinus (node/formula/op/&& info (list LHSSetMinus RHSSetMinus)))
             (@test-case
              "TEST SETMINUS expression"
+             (define setMinusTest (- Node Node))
+             (define currTupIfAtomicExpr (tup2Expr '(Node) udt empty-nodeinfo))
+             (define args (list Node Node))
+             (define LHSSetMinus (node/formula/op/in empty-nodeinfo
+                                                     (list currTupIfAtomicExpr
+                                                           (first args))))
+             (define RHSSetMinus (node/formula/op/! empty-nodeinfo
+                                                    (list node/formula/op/in empty-nodeinfo
+                                                          (list currTupIfAtomicExpr (second args)))))
+             (define desugaredSetMinus (node/formula/op/&& empty-nodeinfo (list LHSSetMinus RHSSetMinus)))
              (@check-equal?
               (toString (desugarExpr setMinusTest '() '(Node) udt #t))
-              (toString (desugarFormula desugaredSetMinus quantVars runContext currSign))))|#
+              (toString (desugarFormula desugaredSetMinus '() udt #t))))
 
             ; INTERSECTION
-
+            (@test-case
+             "Test INTERSECTION expression"
+             (define intersectionTest (& Node Node))
+             (@check-equal?
+              (toString (desugarExpr intersectionTest '() '(Node) udt #t))
+              (toString (node/formula/op/&& empty-nodeinfo
+                                            (list
+                                             (node/formula/op/in empty-nodeinfo
+                                                                 (list
+                                                                  (node/expr/op/->
+                                                                   empty-nodeinfo 1
+                                                                   (list (node/expr/atom empty-nodeinfo 1 'Node)))
+                                                                     (rel '(Node) 'univ "Node")))
+                                             (node/formula/op/in empty-nodeinfo
+                                                                 (list
+                                                                  (node/expr/op/->
+                                                                   empty-nodeinfo 1
+                                                                   (list (node/expr/atom empty-nodeinfo 1 'Node)))
+                                                                     (rel '(Node) 'univ "Node"))))))))
+                                                                                     
+                         
+            
             ; PRODUCT
             (@test-case
              "TEST PRODUCT expression on arity 2"
@@ -342,24 +368,19 @@
               (desugarExpr productTest '() '(Node) udt #t)
               sol))
 
-            ; JOIN
-            #|(printf "TEST!!!!!!!")
- (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
-                         (join Node edges)))
-(desugarFormula joinFormulaORFalse '() udt #f)
-
-(define joinFormulaORTrue (in (node/expr/atom empty-nodeinfo 1 'Node0)
-                         (join Node edges)))
-(desugarFormula joinFormulaORTrue '() udt #t)
-
-(define joinFormulaORFalseBiggerArity (in (node/expr/atom empty-nodeinfo 1 'Node0)
-                         (join Node edges edges)))
-(desugarFormula joinFormulaORFalseBiggerArity '() udt #t) |#
-
             ; TRANSITIVE CLOSURE
             #|(define fSomeReachesAll
   (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
 (desugarFormula fSomeReachesAll '() udt #t)|#
+
+            ; JOIN
+            (@test-case
+             "TEST JOIN multiple arguments"
+             (define joinTest (join iden iden iden))
+             (@check-equal?
+              (desugarExpr joinTest '() '(list Node0) udt #t)
+              (node/formula/op/|| empty-nodeinfo '())))
+            
             (@test-case
              "TEST JOIN on OR with currSign False 2 arguments"
              (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
@@ -563,11 +584,11 @@
 
             ; int abs
             ; TODO: finish this case 
-            #|(@check-exn
+            (@check-exn
              exn:fail?
              (lambda ()
-               (define intAbs (absolute 1))
-               (desugarInt intAbs '() udt #t)))|#
+               (define intAbs (abs 1))
+               (desugarInt intAbs '() udt #t)))
 
             ; int sign-of
             (@test-case
