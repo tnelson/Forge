@@ -300,22 +300,22 @@
              "Test INTERSECTION expression"
              (define intersectionTest (& Node Node))
              (@check-equal?
-              (toString (desugarExpr intersectionTest '() '(Node) udt #t))
-              (toString (node/formula/op/&& empty-nodeinfo
-                                            (list
-                                             (node/formula/op/in empty-nodeinfo
-                                                                 (list
-                                                                  (node/expr/op/->
-                                                                   empty-nodeinfo 1
-                                                                   (list (node/expr/atom empty-nodeinfo 1 'Node)))
-                                                                     (rel '(Node) 'univ "Node")))
-                                             (node/formula/op/in empty-nodeinfo
-                                                                 (list
-                                                                  (node/expr/op/->
-                                                                   empty-nodeinfo 1
-                                                                   (list (node/expr/atom empty-nodeinfo 1 'Node)))
-                                                                     (rel '(Node) 'univ "Node"))))))))
-                                                                                     
+              (desugarExpr intersectionTest '() '(Node) udt #t)
+              (node/formula/op/&& empty-nodeinfo
+                                  (list
+                                   (node/formula/op/in empty-nodeinfo
+                                                       (list
+                                                        (node/expr/op/->
+                                                         empty-nodeinfo 1
+                                                         (list (node/expr/atom empty-nodeinfo 1 'Node)))
+                                                        (rel '(Node) 'univ "Node")))
+                                   (node/formula/op/in empty-nodeinfo
+                                                       (list
+                                                        (node/expr/op/->
+                                                         empty-nodeinfo 1
+                                                         (list (node/expr/atom empty-nodeinfo 1 'Node)))
+                                                        (rel '(Node) 'univ "Node")))))))
+            
                          
             
             ; PRODUCT
