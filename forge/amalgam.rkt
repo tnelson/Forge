@@ -143,17 +143,13 @@
 ; 
 ;   --> will have duplicates for now until equals is implemented
 (define/contract (union-product A B)
-  (@-> set? set? set?) ; I added this contract 
-  ;(define product (cartesian-product A B))
-  ;(@set-map (lambda (a b) (@set-union a b)) product))
+  (@-> set? set? set?)  
   (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
-
-
 
 ; L is the target of the provenance query
 ; fmla is the current target of blame
-(define (amalgam-descent fmla orig-run alt-run L)
-  ; TODO: add contract
+(define/contract (amalgam-descent fmla orig-run alt-run L)
+  (@-> node/formula? forge:Run? forge:Run? node?)
   
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
@@ -201,9 +197,3 @@
      (if (equal? fmla L)
          (list->set '(list->set '(fmla)))
          (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]))
-
-
-;;;;;;;;;;;;;;;;;;;;;;
-; Possible way to construct set cartesian product without fully converting to list +
-;  calling list's cartesian-product. But is it faster?
-; (foldl set-union (set) (set->list (for/set ([i (set 1 2 3)]) (for/set ([j (set 4 5 6)]) (list i j)))))
