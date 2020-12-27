@@ -389,9 +389,9 @@
         (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext info))
         (define LHS (node/formula/op/in info
                                         (list currTupIfAtomicExpr (first args))))
-        (define RHS (node/formula/op/! info
-                                       (list node/formula/op/in info
-                                             (list currTupIfAtomicExpr
+        (define RHS (!/info info
+                           (list node/formula/op/in info
+                                 (list currTupIfAtomicExpr
                                                    (second args)))))
         ; Create the final desugared version of SETMINUS by joining LHS and RHS
         ; with an AND and call desugarFormula on it
