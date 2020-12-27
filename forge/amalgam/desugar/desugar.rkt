@@ -53,14 +53,10 @@
      (define freshVar (node/expr/quantifier-var info 1 (gensym "m2q")))
      (define uppers (liftBoundsExpr  expr quantVars runContext))
      (define unionOfBounds
-       (node/expr/op/+ info
-                       (node/expr-arity
-                        (tup2Expr (first uppers) runContext info))
-
-                       (map (lambda (tup)
+       (+/info info (map (lambda (tup)
                               (tup2Expr tup runContext info)) uppers)))
      (define domain unionOfBounds) 
-     (define newFormula (node/formula/op/in info (list freshVar expr)))
+     (define newFormula (in/info info (list freshVar expr)))
      (define newDecls (list (cons freshVar domain)))
      (define desugaredMultiplicity
        (node/formula/quantified info mult newDecls newFormula))
@@ -76,7 +72,7 @@
             (cond
               ; no x: A | r.x in q ------> all x: A | not (r.x in q)
               [(equal? quantifier 'no)
-               (define negatedFormula (node/formula/op/! info (list subForm)))
+               (define negatedFormula (!/info info (list subForm)))
                (define newQuantFormula
                  (node/formula/quantified info 'all decls negatedFormula))
                (desugarFormula newQuantFormula quantVars runContext currSign)]
@@ -85,11 +81,10 @@
               ;    (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
               [(equal? quantifier 'one)
                ; This is making the RHS 
-               (define negatedFormula (node/formula/op/! info (list subForm)))
+               (define negatedFormula (!/info info (list subForm)))
                
                (define subtractedDecls
-                 (node/expr/op/- info (node/expr-arity (cdr (car decls)))
-                                 (list (cdr (car decls)) (car (car decls)))))
+                 (-/info info (list (cdr (car decls)) (car (car decls)))))
                (define quantifiedVarOne
                  (node/expr/quantifier-var info 1 (gensym "quantiOne")))
                (define newDecls (list (cons quantifiedVarOne subtractedDecls)))
@@ -98,8 +93,7 @@
                
                ; Put LHS and RHS together 
                (define desugaredAnd
-                 (node/formula/op/&& info
-                                     (list subForm newQuantFormRHS)))
+                 (&&/info info (list subForm newQuantFormRHS)))
       
                (define newQuantFormLHS
                  (node/formula/quantified info 'some decls desugaredAnd))
@@ -114,8 +108,7 @@
                (define newQuantFormRHS
                  (node/formula/quantified info 'one decls subForm))
                (define desugaredOR
-                 (node/formula/op/|| info
-                                     (list newQuantFormLHS newQuantFormRHS)))
+                 (||/info info (list newQuantFormLHS newQuantFormRHS)))
                (desugarFormula desugaredOR quantVars runContext currSign)])]
 
            ; if it's got multiple variables, foldl over the helper that gets
@@ -152,7 +145,7 @@
             ;     AND_{a \in UB(A)} (x in A implies fmla(x->a))
 
             
-            (define unionOfQuants (node/formula/op/|| info quants))
+            (define unionOfQuants (||/info info quants))
             (desugarFormula unionOfQuants quantVars runContext currSign)]
 
            [else
@@ -190,23 +183,23 @@
      (define desugaredArgs
        (map (lambda (x) (desugarFormula x quantVars runContext currSign)) args))
      (cond
-       [currSign (node/formula/op/&& info desugaredArgs)]
-       [else (node/formula/op/|| info desugaredArgs)])]
+       [currSign (&&/info info desugaredArgs)]
+       [else (||/info info desugaredArgs)])]
 
     ; OR
     [(? node/formula/op/||?)
      (define desugaredArgs
        (map (lambda (x) (desugarFormula x quantVars runContext currSign)) args))
      (cond
-       [currSign (node/formula/op/|| info desugaredArgs)]
-       [else (node/formula/op/&& info desugaredArgs)])]
+       [currSign (||/info info desugaredArgs)]
+       [else (&&/info info desugaredArgs)])]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
      ; The desugared version of IMPLIES is: (not LHS) OR (RHS)
-     (define ante (node/formula/op/! info (list (first args))))
+     (define ante (!/info info (list (first args))))
      (define conseq (second args))
-     (define desugaredImplies (node/formula/op/|| info (list ante conseq)))
+     (define desugaredImplies (||/info info (list ante conseq)))
      (desugarFormula desugaredImplies quantVars runContext currSign)]
 
     ; IN (atomic fmla)
@@ -233,27 +226,23 @@
         ; build a big "and" of: for every tuple T in liftedUpperBounds:
         ; (T in leftE) implies (T in rightE)
         (define desugaredAnd
-          (node/formula/op/&& info
-                              (map (lambda (x)
+          (&&/info info (map (lambda (x)
                                      (define tupExpr
                                        (tup2Expr x runContext info))
                                      (define LHS
-                                       (node/formula/op/in info
-                                                           (list tupExpr leftE)))
+                                       (in/info info (list tupExpr leftE)))
                                      (define RHS
-                                       (node/formula/op/in info
-                                                           (list tupExpr rightE)))
-                                     (node/formula/op/=> info
-                                                         (list LHS RHS)))
+                                       (in/info info (list tupExpr rightE)))
+                                     (=>/info info (list LHS RHS)))
                                    liftedUpperBounds))) 
         (desugarFormula desugaredAnd quantVars runContext currSign)])]
 
     ; EQUALS 
     [(? node/formula/op/=?)
      ; The desugared version of EQUALS is: (LHS in RHS) AND (RHS in LHS)
-     (define LHS (node/formula/op/in info (list (first args) (second args))))
-     (define RHS (node/formula/op/in info (list (second args) (first args))))
-     (define desugaredEquals (node/formula/op/&& info (list LHS RHS)))
+     (define LHS (in/info info (list (first args) (second args))))
+     (define RHS (in/info info (list (second args) (first args))))
+     (define desugaredEquals (&&/info info (list LHS RHS)))
      (desugarFormula desugaredEquals quantVars runContext currSign)]
 
     ; NEGATION
@@ -291,30 +280,24 @@
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isVar)
-     (node/formula/op/in info
-                         (list (tup2Expr currTupIfAtomic runContext info) expr))]
+     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; atom (base case)
     [(node/expr/atom info arity name)
      (cond
        [currSign
-        (node/formula/op/in info
-                            (list (tup2Expr currTupIfAtomic runContext info) expr))]
+        (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
        [else
-        (node/formula/op/!
-         info (node/formula/op/in
-               info
+        (!/info info (in/info  info
                (list (tup2Expr currTupIfAtomic runContext info) expr)))])]    
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
-     (node/formula/op/in info
-                         (list (tup2Expr currTupIfAtomic runContext info) expr))]
+     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; other expression constants
     [(node/expr/constant info arity type)
-     (node/formula/op/in info
-                         (list (tup2Expr currTupIfAtomic runContext info) expr))]
+     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -342,7 +325,7 @@
                                     runContext info))
        ; Put both formulas together
        (define setComprehensionAnd
-         (node/formula/op/&& info (append LHSSubformula (list RHSSubformula))))
+         (&&/info info (append LHSSubformula (list RHSSubformula))))
        (desugarFormula setComprehensionAnd quantVars runContext currSign))]))
 
 ; input: expr - the current expression being desugared into simpler AST
@@ -364,16 +347,16 @@
   (match expr
 
     ; UNION
+    ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR
+    ; (currTupIfAtomic in RHS)
     [(? node/expr/op/+?)
      (define desugaredChildren
        (map
         (lambda (child)
           (desugarExpr child quantVars currTupIfAtomic runContext currSign))
         args))
-     ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR
-     ;   (currTupIfAtomic in RHS)
-     (desugarFormula (node/formula/op/|| info desugaredChildren)
-                     quantVars runContext currSign)]
+     (desugarFormula (||/info info desugaredChildren) quantVars
+                     runContext currSign)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
@@ -384,15 +367,13 @@
         ; The desugared version of SETMINUS is: (currTupIfAtomic in LHS) and
         ;  (not(currTupIfAtomic in RHS))
         (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext info))
-        (define LHS (node/formula/op/in info
-                                        (list currTupIfAtomicExpr (first args))))
-        (define RHS (!/info info
-                           (list (node/formula/op/in info
+        (define LHS (in/info info (list currTupIfAtomicExpr (first args))))
+        (define RHS (!/info info (list (in/info info
                                  (list currTupIfAtomicExpr
                                                    (second args))))))
         ; Create the final desugared version of SETMINUS by joining LHS and RHS
         ; with an AND and call desugarFormula on it
-        (define desugaredSetMinus (node/formula/op/&& info (list LHS RHS)))
+        (define desugaredSetMinus (&&/info info (list LHS RHS)))
         (desugarFormula desugaredSetMinus quantVars runContext currSign)])]
     
     ; INTERSECTION
@@ -405,27 +386,21 @@
         args))
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD)
      ; AND (currTupIfAtomic in CHILD)
-     (desugarFormula (node/formula/op/&& info desugaredChildren)
-                     quantVars runContext currSign)]
+     (desugarFormula (&&/info info desugaredChildren) quantVars runContext
+                     currSign)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
      (cond
        [(@> (length args) 2)
-        (define arity (node/expr-arity expr))
         (define newLHS (first args))
-        ; TODO: not same arity for RHS! arity - arity of LHS
-        (define newRHS (node/expr/op/-> info arity (rest args)))
-        (define newProduct (node/expr/op/-> info arity (list newLHS newRHS)))
+        (define newRHS (->/info info (rest args)))
+        (define newProduct (->/info info (list newLHS newRHS)))
         (desugarExpr newProduct quantVars currTupIfAtomic runContext currSign)]
-
-       ; TODO: productHelper was DESIGNED TO WORK WITH FOLD.
-       ;  can simplify it (and need to or it'l fail)
 
        ; we are in the binary case
        [(@= (length args) 2)            
-        (node/formula/op/&& info
-                            (productHelper (first args) (second args)
+        (&&/info info (productHelper (first args) (second args)
                                            currTupIfAtomic info runContext))]
        [(equal? (node/expr-arity expr) 1)
 
@@ -443,9 +418,8 @@
         (define newLHS (first args))
         (define arityRHS (apply join-arity (map (lambda (x) (node/expr-arity x))
                                                 (rest args))))
-        (define newRHS (node/expr/op/join info arityRHS (rest args)))
-        (define newJoin (node/expr/op/join info (node/expr-arity expr)
-                                           (list newLHS newRHS)))
+        (define newRHS (join/info info (rest args)))
+        (define newJoin (join/info info (list newLHS newRHS)))
         (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
        [(equal? (length args) 2)
 
@@ -464,18 +438,12 @@
              (define tbExpr (tup2Expr tb runContext info))
              (cond
                [(equal? (joinTupleDesugar ta tb) currTupIfAtomic)
-                (node/formula/op/&& info
-                                    (list
-                                     (node/formula/op/in info
-                                                         (list
-                                                          taExpr (first args)))
-                                     (node/formula/op/in info
-                                                         (list
-                                                          tbExpr
-                                                          (second args)))))]
+                (&&/info info (list
+                               (in/info info (list taExpr (first args)))
+                               (in/info info (list tbExpr (second args)))))]
                [else #f]))
            allPairs))
-        (define newOr (node/formula/op/|| info newArgs))
+        (define newOr (||/info info newArgs))
         (desugarFormula newOr quantVars runContext currSign)]
        [else
         (error (format "Expression ~a in join had arity less than 1" expr))])]
@@ -506,7 +474,7 @@
        (transitiveClosureAnd
         filteredExtendResult (first args) info runContext '()))
      
-     (define transitiveOr (node/formula/op/|| info (list transitiveAnd)))
+     (define transitiveOr (||/info info (list transitiveAnd)))
      
      (desugarFormula transitiveOr quantVars runContext currSign)]
     
@@ -516,8 +484,7 @@
      (define desugaredRClosure
        (+/info info (list iden transitiveClosure)))
      (define inFormula
-       (node/formula/op/in info
-                           (list (tup2Expr currTupIfAtomic runContext info)
+       (in/info info (list (tup2Expr currTupIfAtomic runContext info)
                                  desugaredRClosure)))
      (desugarFormula inFormula quantVars runContext currSign)]
     
@@ -597,6 +564,5 @@
     [(? node/int/op/sign?)
      (error "amalgam: int signOf not supported~n")]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 

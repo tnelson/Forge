@@ -22,7 +22,7 @@
   (cond
     [(empty? decls) '()]
     [else
-     (cons (node/formula/op/in info (list (tup2Expr (list (first currTupIfAtomic))
+     (cons (in/info info (list (tup2Expr (list (first currTupIfAtomic))
                                                     runContext info)
                                           (cdr (first decls))))
            (setComprehensionAndHelper (rest currTupIfAtomic)
@@ -62,7 +62,7 @@
     [(or
       (empty? filteredExtendResult)
       (equal? (length filteredExtendResult) 1))
-     (node/formula/op/&& info runningArgs)]
+     (&&/info info runningArgs)]
     [else
      (transitiveClosureAnd
       (rest filteredExtendResult) expr info runContext
@@ -83,9 +83,7 @@
 ; called by transitiveClosureAnd
 (define/contract (transitiveClosureIn left right expr info runContext)
   (@-> list? list? node/expr? nodeinfo? forge:Run? node/formula/op/in?)
-  (node/formula/op/in info
-                      (list (tup2Expr (append left right) runContext info)
-                            expr)))
+  (in/info info (list (tup2Expr (append left right) runContext info) expr)))
 
 ; used by desugar. similar logic to buildClosureOfTupleSet
 ; input:
@@ -258,8 +256,7 @@
   (define info (node-info node))
   (cond [(equal? 0 arity) (error (format "getColumnRight arity <1: ~a" node))]
         [(equal? 1 arity) node]
-        [else (getColumnRight (node/expr/op/join info (- arity 1)
-                                                 (list univ node)))]))
+        [else (getColumnRight (join/info info (list univ node)))]))
 
 
 ; input:
@@ -293,8 +290,8 @@
                                 (tup2Expr tup runContext info)))
            liftedBounds))
     
-    (cond [(equal? quantifier 'some) (node/formula/op/|| info subFormulas)]
-          [(equal? quantifier 'all) (node/formula/op/&& info subFormulas)])))
+    (cond [(equal? quantifier 'some) (||/info info subFormulas)]
+          [(equal? quantifier 'all) (&&/info info subFormulas)])))
 
 ; input:
 ;      expr: A given expression 

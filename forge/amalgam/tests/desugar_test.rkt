@@ -212,12 +212,12 @@
              "TEST atom on currSign false"
              (define result (node/formula/op/!
                              empty-nodeinfo
-                             (node/formula/op/in
+                             (list (node/formula/op/in
                               empty-nodeinfo
                               (list
                                (tup2Expr
                                 '(Node) udt empty-nodeinfo)
-                               (node/expr/atom empty-nodeinfo 1 'Node)))))
+                               (node/expr/atom empty-nodeinfo 1 'Node))))))
              (@check-equal?
               (desugarExpr
                (node/expr/atom empty-nodeinfo 1 'Node)
@@ -343,7 +343,7 @@
               sol))
 
             (@test-case
-             "TEST PRODUCT expression on arity 3"
+             "TEST PRODUCT expression on arity 2"
              (define productTest (-> Node Node Node))
              (define sol
                (node/formula/op/&&
@@ -361,26 +361,14 @@
                               (list
                                (node/expr/atom empty-nodeinfo 1 'Node)))
                              (node/expr/op/->
-                              empty-nodeinfo 3
+                              empty-nodeinfo 2
                               (list Node Node))
                              )))))
              (@check-equal?
               (desugarExpr productTest '() '(Node) udt #t)
               sol))
 
-            ; TRANSITIVE CLOSURE
-            #|(define fSomeReachesAll
-  (some ([x Node]) (all ([y Node]) (in y (join x (^ edges))))))
-(desugarFormula fSomeReachesAll '() udt #t)|#
-
-            ; JOIN
-            (@test-case
-             "TEST JOIN multiple arguments"
-             (define joinTest (join iden iden iden))
-             (@check-equal?
-              (desugarExpr joinTest '() '(list Node0) udt #t)
-              (node/formula/op/|| empty-nodeinfo '())))
-            
+            ;JOIN 
             (@test-case
              "TEST JOIN on OR with currSign False 2 arguments"
              (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
