@@ -53,7 +53,8 @@
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
   (define loc (nodeinfo-loc info))
   (when (< (length args) min-length)
-    (raise-syntax-error #f (format "not enough arguments; required ~a got ~a" min-length args)
+    (raise-syntax-error #f (format "building ~a not enough arguments; required ~a got ~a at loc: ~a"
+                                   op min-length args loc)
                         (datum->syntax #f args (build-source-location-syntax loc))))
   (unless (false? max-length)
     (when (> (length args) max-length)

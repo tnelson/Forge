@@ -14,10 +14,10 @@ sig State {
 }
 
 fun neighborhoods[alyv: Int->Int]: Int->Int->Int->Int {
-    { r: Int, c: Int, r': Int, c': Int |
+    { r: Int, c: Int, r2: Int, c2: Int |
         let rows = (sing[add[sum[r], 1]] + r + sing[add[sum[r], -1]]) |
             let cols = (sing[add[sum[c], 1]] + c + sing[add[sum[c], -1]]) |
-                (r'->c') in (alyv & ((rows->cols) - (r->c))) }
+                (r2->c2) in (alyv & ((rows->cols) - (r->c))) }
 }
 
 expect nhood_tests {

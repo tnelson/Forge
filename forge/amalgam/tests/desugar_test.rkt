@@ -330,43 +330,43 @@
                        (list (node/expr/op/->
                               empty-nodeinfo 1
                               (list
-                               (node/expr/atom empty-nodeinfo 1 'Node))) Node))
+                               (node/expr/atom empty-nodeinfo 1 'Node0))) Node))
                       (node/formula/op/in
                        empty-nodeinfo
                        (list (node/expr/op/->
                               empty-nodeinfo 1
                               (list
-                               (node/expr/atom empty-nodeinfo 1 'Node)))
+                               (node/expr/atom empty-nodeinfo 1 'Node0)))
                              Node)))))
              (@check-equal?
-              (desugarExpr productTest '() '(Node) udt #t)
+              (desugarExpr productTest '() '(Node0 Node0) udt #t)
               sol))
 
             (@test-case
              "TEST PRODUCT expression on arity 3"
              (define productTest (-> Node Node Node))
              (define sol
-               (node/formula/op/&&
-                empty-nodeinfo
-                (list (node/formula/op/in
-                       empty-nodeinfo
+               (&&             
+                (list (in
                        (list (node/expr/op/->
                               empty-nodeinfo 1
                               (list
-                               (node/expr/atom empty-nodeinfo 1 'Node))) Node))
-                      (node/formula/op/in
-                       empty-nodeinfo
-                       (list (node/expr/op/->
-                              empty-nodeinfo 1
-                              (list
-                               (node/expr/atom empty-nodeinfo 1 'Node)))
-                             (node/expr/op/->
-                              empty-nodeinfo 2
-                              (list Node Node))
-                             )))))
-             (@check-equal?
-              (desugarExpr productTest '() '(Node) udt #t)
-              sol))
+                               (node/expr/atom empty-nodeinfo 1 'Node0))) Node))
+                      (&& (list
+                           (in                       
+                            (list (node/expr/op/->
+                                   empty-nodeinfo 1
+                                   (list
+                                    (node/expr/atom empty-nodeinfo 1 'Node1))) Node))
+                           (in
+                            (list (node/expr/op/->
+                                   empty-nodeinfo 1
+                                   (list
+                                    (node/expr/atom empty-nodeinfo 1 'Node2))) Node))))
+                          )))
+           (@check-equal?
+            (desugarExpr productTest '() '(Node0 Node1 Node2) udt #t)
+            sol))
 
             ;JOIN 
             (@test-case

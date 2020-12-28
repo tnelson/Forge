@@ -94,20 +94,25 @@
 
 (define/contract (extendPossiblePaths edges prefix)
   (@-> (listof list?) list? (listof list?))
-  (define newSimplePaths
+  (define newPaths
     (filter-map
      (lambda (e)
        (define-values (e0 e1) (values (first e) (second e)))
-       (cond [(member e1 prefix) #f] ; only build simple paths
+       ; Don't build only simple paths at this point
+       (cond ;[(member e1 prefix) #f] ; only build simple paths
              [(equal? (last prefix) e0) (append prefix (list e1))]
              [else #f]))
      edges))
+
+  ; weed out paths that cycle back in last element
+  (define newSimplePaths
+    (filter (lambda (p) (not (member (last p) (drop-right p 1)))) newPaths))
   
-  (cond [(empty? newSimplePaths)
+  (cond [(empty? newPaths)
          empty]
         [else
-         ; keep the new simple paths, but also try to extend them again
-         (append newSimplePaths
+         ; keep ALL the new paths, but also try to extend simple ones again
+         (append newPaths
                  (apply append (map (lambda (newPrefix)
                                       (extendPossiblePaths edges newPrefix))
                                     newSimplePaths)))]))

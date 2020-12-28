@@ -278,11 +278,13 @@
 
   ; Should always have a currTupIfAtomic when calling
   (mustHaveTupleContext currTupIfAtomic expr)
+  (when (not (equal? (length currTupIfAtomic) (node/expr-arity expr)))
+    (error (format "desugarExpr: current tuple had different arity: ~a vs ~a" currTupIfAtomic expr)))
 
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isVar)
-     (printf "~n going into RN ~n")
+     (printf "~n going into RN currenttuple=~a~n" currTupIfAtomic)
      (printf "~n going into relation name, returning ~a~n" (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)))
      (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
@@ -409,8 +411,9 @@
 
        ; we are in the binary case
        [(@= (length args) 2)            
-        (&&/info info (productHelper (first args) (second args)
-                                           currTupIfAtomic info runContext))]
+        (desugarFormula (&&/info info (productHelper (first args) (second args)
+                                                     currTupIfAtomic info runContext))
+                        quantVars runContext currSign)]
        
        [(equal? (node/expr-arity expr) 1)
         ; if arity is 1, only call desugarExpr on the first thing
@@ -469,19 +472,24 @@
      (define uppers (liftBoundsExpr expr quantVars runContext))
      (printf "~n Im after uppers ~n")
 
+     ; build paths starting from LHS of current tuple
      (define extendResult (extendPossiblePaths uppers (list
                                                        (first currTupIfAtomic))))
-     (printf "~n Im after extendResult ~n")
+    ; (printf "~n Im after extendResult, which contained: ~a ~n" extendResult)
      ; Check the endpoint and remove items that do not match
      (define endPoint (last currTupIfAtomic))
 
-     ; A list containing tuples
+     ; A list containing *paths* from (first currentTuple) to (second currentTuple)
      (define filteredExtendResult
        (filter
         (lambda (result) (equal? (last result) endPoint)) extendResult))
-     (printf "~n Im after filteredExtendResult ~n")
+     ;(printf "~n Im after filteredExtendResultm which contained: ~a ~n" filteredExtendResult)
+     ;(printf "currTupIfAtomic was: ~a" currTupIfAtomic)
+     ;(printf "possible edges: ~a" uppers)
+     
      ; Go through everything in filteredExtendResult to create big AND
      ; by calling helper
+     ; TODO: should this be mapping transitiveClosureAnd over every path, one at a time?
      (define transitiveAnd
        (transitiveClosureAnd
         filteredExtendResult (first args) info runContext '()))
