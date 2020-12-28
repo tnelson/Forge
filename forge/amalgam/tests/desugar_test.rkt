@@ -343,7 +343,7 @@
               sol))
 
             (@test-case
-             "TEST PRODUCT expression on arity 2"
+             "TEST PRODUCT expression on arity 3"
              (define productTest (-> Node Node Node))
              (define sol
                (node/formula/op/&&
