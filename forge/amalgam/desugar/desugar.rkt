@@ -219,6 +219,7 @@
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
+        (printf "~n rightE ~a~n" rightE)
         ; ground case. we have a currentTuple now, and want to desugar the RHS
         (desugarExpr rightE quantVars
                      (first liftedUpperBounds) runContext currSign)]
@@ -234,7 +235,8 @@
                                      (define RHS
                                        (in/info info (list tupExpr rightE)))
                                      (=>/info info (list LHS RHS)))
-                                   liftedUpperBounds))) 
+                                   liftedUpperBounds)))
+        (printf " ~n Going out of IN with formula ~n~a" desugaredAnd)
         (desugarFormula desugaredAnd quantVars runContext currSign)])]
 
     ; EQUALS 
@@ -280,6 +282,8 @@
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isVar)
+     (printf "~n going into RN ~n")
+     (printf "~n going into relation name, returning ~a~n" (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)))
      (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; atom (base case)
@@ -297,6 +301,8 @@
 
     ; other expression constants
     [(node/expr/constant info arity type)
+     (printf "~n going into OEC ~n")
+     (printf "~n going into OEC, returning ~a~n" (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)))
      (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
     
     ; expression w/ operator (union, intersect, ~, etc...)
@@ -350,11 +356,14 @@
     ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR
     ; (currTupIfAtomic in RHS)
     [(? node/expr/op/+?)
+     (printf "~n args ~a~n" args)
      (define desugaredChildren
        (map
         (lambda (child)
           (desugarExpr child quantVars currTupIfAtomic runContext currSign))
         args))
+     (printf "Making it out of union, calling with formula ~n")
+
      (desugarFormula (||/info info desugaredChildren) quantVars
                      runContext currSign)]
     
@@ -402,8 +411,8 @@
        [(@= (length args) 2)            
         (&&/info info (productHelper (first args) (second args)
                                            currTupIfAtomic info runContext))]
+       
        [(equal? (node/expr-arity expr) 1)
-
         ; if arity is 1, only call desugarExpr on the first thing
         (desugarExpr (first args)
                      quantVars currTupIfAtomic runContext currSign)]
@@ -454,12 +463,15 @@
      ;^e = e + e.e + e.e.e ... up to firstCol(e)
      ; #dots = #(UB(leftCol)+UB(rightCol)) - 1  ?
      ; #times-e-is-used-in-biggest-join = #(UB(leftCol)+UB(rightCol))
-
+     (printf "~n Im entering transitive closure ~n")
+     
      ; get the upper bound to be called in extendResult
      (define uppers (liftBoundsExpr expr quantVars runContext))
+     (printf "~n Im after uppers ~n")
 
      (define extendResult (extendPossiblePaths uppers (list
                                                        (first currTupIfAtomic))))
+     (printf "~n Im after extendResult ~n")
      ; Check the endpoint and remove items that do not match
      (define endPoint (last currTupIfAtomic))
 
@@ -467,14 +479,15 @@
      (define filteredExtendResult
        (filter
         (lambda (result) (equal? (last result) endPoint)) extendResult))
-     
+     (printf "~n Im after filteredExtendResult ~n")
      ; Go through everything in filteredExtendResult to create big AND
      ; by calling helper
      (define transitiveAnd
        (transitiveClosureAnd
         filteredExtendResult (first args) info runContext '()))
-     
+     (printf "~n transitive and is ~a ~n" transitiveAnd)
      (define transitiveOr (||/info info (list transitiveAnd)))
+     (printf "~n Making it out of transitive closure ~n")
      
      (desugarFormula transitiveOr quantVars runContext currSign)]
     
@@ -486,6 +499,7 @@
      (define inFormula
        (in/info info (list (tup2Expr currTupIfAtomic runContext info)
                                  desugaredRClosure)))
+     (printf "~n Making it out of RTC, calling with formula ~a~n" inFormula)
      (desugarFormula inFormula quantVars runContext currSign)]
     
     ; TRANSPOSE

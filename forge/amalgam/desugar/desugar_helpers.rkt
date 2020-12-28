@@ -145,12 +145,12 @@
 
   (printf "second calling projectTupleRange tup: ~a, start: ~a arity: ~a"
           currTupIfAtomic
-          (- (node/expr-arity left) 1)
-          (length currTupIfAtomic))
+          (node/expr-arity left)
+          (- (length currTupIfAtomic) (node/expr-arity left)))
   (define
     rightTupleContext
     (projectTupleRange currTupIfAtomic
-                       (- (node/expr-arity left) 1) (length currTupIfAtomic)))
+                       (node/expr-arity left) (length currTupIfAtomic)))
   
   (list
      (node/formula/op/in info (list
@@ -243,7 +243,7 @@
 ; output: Returns the range of a given tuple 
 (define/contract (projectTupleRange tup start len)
   (@-> list? number? number? list?)
-  (take (list-tail tup start) len))
+  (take (list-tail tup start) (- len start)))
 
 ; input:
 ;      node: The node that we want to get the right column of 

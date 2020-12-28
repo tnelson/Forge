@@ -11,6 +11,7 @@
 (require racket/hash)
 (require (prefix-in @ racket/set))
 (require (prefix-in @ (only-in racket ->)))
+(require debug/repl)
 
 ;(require (only-in "breaks.rkt" sbound))
 ; ^ This will be a *different* struct defn; instead get via sigs
@@ -110,7 +111,7 @@
   (printf "~n  check-alt: ~a~n" check-alt)
 
   ; desugar F
-  ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)  
+  ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)
   (define desugared (desugarFormula F '() orig-run #t))
   
   ; do amalgam descent on desugared F
