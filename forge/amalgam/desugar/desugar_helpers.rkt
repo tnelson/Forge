@@ -151,11 +151,9 @@
                        (node/expr-arity left) (length currTupIfAtomic)))
   
   (list
-     (node/formula/op/in info (list
-                               (tup2Expr leftTupleContext runContext info)
+     (in/info info (list (tup2Expr leftTupleContext runContext info)
                                left))
-     (node/formula/op/in info (list
-                               (tup2Expr rightTupleContext runContext info)
+     (in/info info (list (tup2Expr rightTupleContext runContext info)
                                right))))
 
 
@@ -180,8 +178,11 @@
           (when (list? tupElem)
             (error (format "tupElem ~a in tuple ~a is a list" tupElem tuple)))
           (node/expr/atom info 1 tupElem))
-        tuple))  
-     (node/expr/op/-> info (length tupRelationList) tupRelationList)]))
+        tuple))
+     (cond
+       [(equal? (length tupRelationList) 1) (first tupRelationList)]
+       [else 
+        (node/expr/op/-> info (length tupRelationList) tupRelationList)])]))
 
 ; input: tuple - the tuple that we want to flip 
 ; 
