@@ -165,9 +165,8 @@
              "TEST RELATION NAME"
              (define relationTest Node)
              (@check-equal?
-              (desugarExpr relationTest '() '(Node) udt #f)
-              (in (list (node/expr/op/-> empty-nodeinfo
-                                         1 (list (node/expr/atom empty-nodeinfo 1 'Node))) Node))))
+              (desugarExpr relationTest '() '(Node0) udt #t)
+              (in (list (node/expr/atom empty-nodeinfo 1 'Node0) Node))))
 
             (@test-case
              "TEST atom on currSign true"
@@ -251,19 +250,15 @@
              "Test INTERSECTION expression"
              (define intersectionTest (& Node Node))
              (@check-equal?
-              (desugarExpr intersectionTest '() '(Node) udt #t)
+              (desugarExpr intersectionTest '() '(Node0) udt #t)
               (&&
                (list
                 (in
-                 (list (node/expr/op/->
-                        empty-nodeinfo 1
-                        (list (node/expr/atom empty-nodeinfo 1 'Node)))
+                 (list (node/expr/atom empty-nodeinfo 1 'Node0)
                        (rel '(Node) 'univ "Node")))
                 (in 
                  (list
-                  (node/expr/op/->
-                   empty-nodeinfo 1
-                   (list (node/expr/atom empty-nodeinfo 1 'Node)))
+                  (node/expr/atom empty-nodeinfo 1 'Node0)
                   (rel '(Node) 'univ "Node")))))))
             
             (@test-case
@@ -271,14 +266,8 @@
              (define productTest (-> Node Node))
              (define sol
                (&& (list (in
-                          (list (node/expr/op/->
-                                 empty-nodeinfo 1
-                                 (list
-                                  (node/expr/atom empty-nodeinfo 1 'Node0))) Node))
-                         (in (list (node/expr/op/->
-                                    empty-nodeinfo 1
-                                    (list
-                                     (node/expr/atom empty-nodeinfo 1 'Node0)))
+                          (list (node/expr/atom empty-nodeinfo 1 'Node0) Node))
+                         (in (list (node/expr/atom empty-nodeinfo 1 'Node0)
                                    Node)))))
              (@check-equal?
               (desugarExpr productTest '() '(Node0 Node0) udt #t)
@@ -290,22 +279,12 @@
              (define sol
                (&&             
                 (list (in
-                       (list (node/expr/op/->
-                              empty-nodeinfo 1
-                              (list
-                               (node/expr/atom empty-nodeinfo 1 'Node0))) Node))
+                       (list (node/expr/atom empty-nodeinfo 1 'Node0) Node))
                       (&& (list
                            (in                       
-                            (list (node/expr/op/->
-                                   empty-nodeinfo 1
-                                   (list
-                                    (node/expr/atom empty-nodeinfo 1 'Node1))) Node))
+                            (list (node/expr/atom empty-nodeinfo 1 'Node1) Node))
                            (in
-                            (list (node/expr/op/->
-                                   empty-nodeinfo 1
-                                   (list
-                                    (node/expr/atom empty-nodeinfo 1 'Node2))) Node))))
-                      )))
+                            (list (node/expr/atom empty-nodeinfo 1 'Node2) Node)))))))
              (@check-equal?
               (desugarExpr productTest '() '(Node0 Node1 Node2) udt #t)
               sol))
@@ -317,63 +296,49 @@
                                             (join Node edges)))
              (@check-equal?
               (desugarFormula joinFormulaORFalse '() udt #f)
-              (&& (list (||(list (in (list (node/expr/op/->
-                                            empty-nodeinfo
-                                            1 (list (node/expr/atom empty-nodeinfo 1 'Node0)))
+              (&& (list (||(list (in (list (node/expr/atom empty-nodeinfo 1 'Node0)
                                            (rel '(Node) 'univ "Node")))
                                  (in (list (node/expr/op/->
                                             empty-nodeinfo
                                             2 (list (node/expr/atom empty-nodeinfo 1 'Node0)
                                                     (node/expr/atom empty-nodeinfo 1 'Node0)))
                                            (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/op/->
-                                             empty-nodeinfo
-                                             1 (list (node/expr/atom empty-nodeinfo 1 'Node1)))
+                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node1)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node1)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/op/->
-                                             empty-nodeinfo
-                                             1 (list (node/expr/atom empty-nodeinfo 1 'Node2)))
+                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node2)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node2)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))
-                        (||(list (in (list (node/expr/op/->
-                                            empty-nodeinfo
-                                            1 (list (node/expr/atom empty-nodeinfo 1 'Node3)))
+                        (||(list (in (list (node/expr/atom empty-nodeinfo 1 'Node3)
                                            (rel '(Node) 'univ "Node")))
                                  (in (list (node/expr/op/->
                                             empty-nodeinfo
                                             2 (list (node/expr/atom empty-nodeinfo 1 'Node3)
                                                     (node/expr/atom empty-nodeinfo 1 'Node0)))
                                            (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/op/->
-                                             empty-nodeinfo
-                                             1 (list (node/expr/atom empty-nodeinfo 1 'Node4)))
+                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node4)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node4)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/op/->
-                                             empty-nodeinfo
-                                             1 (list (node/expr/atom empty-nodeinfo 1 'Node5)))
+                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node5)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node5)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/op/->
-                                             empty-nodeinfo
-                                             1 (list (node/expr/atom empty-nodeinfo 1 'Node6)))
+                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node6)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
