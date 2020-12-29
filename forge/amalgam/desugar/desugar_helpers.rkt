@@ -56,18 +56,18 @@
 ; output: recursively call transitiveClosureIn on first two items in list
 ;         and put in a big AND called by desugar
 (define/contract
-  (transitiveClosureAnd filteredExtendResult expr info runContext runningArgs)
-  (@-> (listof list?) node/expr? nodeinfo? forge:Run? list? node/formula/op/&&?)
+  (transitiveClosureAnd path expr info runContext runningArgs)
+  (@-> list? node/expr? nodeinfo? forge:Run? list? node/formula/op/&&?)
   (cond
     [(or
-      (empty? filteredExtendResult)
-      (equal? (length filteredExtendResult) 1))
+      (empty? path)
+      (equal? (length path) 1))
      (&&/info info runningArgs)]
     [else
      (transitiveClosureAnd
-      (rest filteredExtendResult) expr info runContext
-      (cons (transitiveClosureIn (first filteredExtendResult)
-                                 (second filteredExtendResult)
+      (rest path) expr info runContext
+      (cons (transitiveClosureIn (first path)
+                                 (second path)
                                  expr
                                  info
                                  runContext) runningArgs))]))
@@ -82,8 +82,8 @@
 ; output: an in which looks like (in left->right edges)
 ; called by transitiveClosureAnd
 (define/contract (transitiveClosureIn left right expr info runContext)
-  (@-> list? list? node/expr? nodeinfo? forge:Run? node/formula/op/in?)
-  (in/info info (list (tup2Expr (append left right) runContext info) expr)))
+  (@-> symbol? symbol? node/expr? nodeinfo? forge:Run? node/formula/op/in?)
+  (in/info info (list (tup2Expr (list left right) runContext info) expr)))
 
 ; used by desugar. similar logic to buildClosureOfTupleSet
 ; input:
@@ -141,17 +141,10 @@
 (define/contract (productHelper left right currTupIfAtomic info runContext)
   (@-> node/expr? node/expr? (listof symbol?) nodeinfo?
        forge:Run? (listof node/formula/op/in?))
-
-(printf "second calling projectTupleRange tup: ~a, start: ~a arity: ~a"
-          currTupIfAtomic 0 (node/expr-arity left))
   (define
     leftTupleContext
     (projectTupleRange currTupIfAtomic 0 (node/expr-arity left)))
-
-  (printf "second calling projectTupleRange tup: ~a, start: ~a arity: ~a"
-          currTupIfAtomic
-          (node/expr-arity left)
-          (- (length currTupIfAtomic) (node/expr-arity left)))
+  
   (define
     rightTupleContext
     (projectTupleRange currTupIfAtomic

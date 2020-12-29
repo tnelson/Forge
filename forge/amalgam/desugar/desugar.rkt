@@ -54,7 +54,7 @@
      (define uppers (liftBoundsExpr  expr quantVars runContext))
      (define unionOfBounds
        (+/info info (map (lambda (tup)
-                              (tup2Expr tup runContext info)) uppers)))
+                           (tup2Expr tup runContext info)) uppers)))
      (define domain unionOfBounds) 
      (define newFormula (in/info info (list freshVar expr)))
      (define newDecls (list (cons freshVar domain)))
@@ -171,7 +171,7 @@
 ; output: This function is recursively calling every element in args and pass
 ; it to the original recursive function. 
 (define/contract (desugarFormulaOp formula quantVars args
-                          runContext currSign info)
+                                   runContext currSign info)
   (@-> node/formula? list?
        (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
        forge:Run? boolean?       
@@ -219,7 +219,6 @@
      (define liftedUpperBounds (liftBoundsExpr  leftE '() runContext))
      (cond
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
-        (printf "~n rightE ~a~n" rightE)
         ; ground case. we have a currentTuple now, and want to desugar the RHS
         (desugarExpr rightE quantVars
                      (first liftedUpperBounds) runContext currSign)]
@@ -228,15 +227,14 @@
         ; (T in leftE) implies (T in rightE)
         (define desugaredAnd
           (&&/info info (map (lambda (x)
-                                     (define tupExpr
-                                       (tup2Expr x runContext info))
-                                     (define LHS
-                                       (in/info info (list tupExpr leftE)))
-                                     (define RHS
-                                       (in/info info (list tupExpr rightE)))
-                                     (=>/info info (list LHS RHS)))
-                                   liftedUpperBounds)))
-        (printf " ~n Going out of IN with formula ~n~a" desugaredAnd)
+                               (define tupExpr
+                                 (tup2Expr x runContext info))
+                               (define LHS
+                                 (in/info info (list tupExpr leftE)))
+                               (define RHS
+                                 (in/info info (list tupExpr rightE)))
+                               (=>/info info (list LHS RHS)))
+                             liftedUpperBounds)))
         (desugarFormula desugaredAnd quantVars runContext currSign)])]
 
     ; EQUALS 
@@ -284,8 +282,6 @@
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isVar)
-     (printf "~n going into RN currenttuple=~a~n" currTupIfAtomic)
-     (printf "~n going into relation name, returning ~a~n" (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)))
      (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; atom (base case)
@@ -295,7 +291,7 @@
         (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
        [else
         (!/info info (in/info  info
-               (list (tup2Expr currTupIfAtomic runContext info) expr)))])]    
+                               (list (tup2Expr currTupIfAtomic runContext info) expr)))])]    
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
@@ -303,8 +299,6 @@
 
     ; other expression constants
     [(node/expr/constant info arity type)
-     (printf "~n going into OEC ~n")
-     (printf "~n going into OEC, returning ~a~n" (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)))
      (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
     
     ; expression w/ operator (union, intersect, ~, etc...)
@@ -348,7 +342,7 @@
 ; output: This function is desugaring the current expression (returns simpler
 ;         result of desugared expression)
 (define/contract (desugarExprOp  expr quantVars args
-                        currTupIfAtomic runContext currSign info)
+                                 currTupIfAtomic runContext currSign info)
   (@-> node/expr? list? (listof node/expr?) (listof symbol?)
        forge:Run? boolean? nodeinfo? node/formula?)
   (mustHaveTupleContext currTupIfAtomic expr)
@@ -358,13 +352,11 @@
     ; The desugared version of UNION is: (currTupIfAtomic in LHS) OR
     ; (currTupIfAtomic in RHS)
     [(? node/expr/op/+?)
-     (printf "~n args ~a~n" args)
      (define desugaredChildren
        (map
         (lambda (child)
           (desugarExpr child quantVars currTupIfAtomic runContext currSign))
         args))
-     (printf "Making it out of union, calling with formula ~n")
 
      (desugarFormula (||/info info desugaredChildren) quantVars
                      runContext currSign)]
@@ -380,8 +372,8 @@
         (define currTupIfAtomicExpr (tup2Expr currTupIfAtomic runContext info))
         (define LHS (in/info info (list currTupIfAtomicExpr (first args))))
         (define RHS (!/info info (list (in/info info
-                                 (list currTupIfAtomicExpr
-                                                   (second args))))))
+                                                (list currTupIfAtomicExpr
+                                                      (second args))))))
         ; Create the final desugared version of SETMINUS by joining LHS and RHS
         ; with an AND and call desugarFormula on it
         (define desugaredSetMinus (&&/info info (list LHS RHS)))
@@ -466,16 +458,13 @@
      ;^e = e + e.e + e.e.e ... up to firstCol(e)
      ; #dots = #(UB(leftCol)+UB(rightCol)) - 1  ?
      ; #times-e-is-used-in-biggest-join = #(UB(leftCol)+UB(rightCol))
-     (printf "~n Im entering transitive closure ~n")
      
      ; get the upper bound to be called in extendResult
      (define uppers (liftBoundsExpr expr quantVars runContext))
-     (printf "~n Im after uppers ~n")
 
      ; build paths starting from LHS of current tuple
      (define extendResult (extendPossiblePaths uppers (list
                                                        (first currTupIfAtomic))))
-    ; (printf "~n Im after extendResult, which contained: ~a ~n" extendResult)
      ; Check the endpoint and remove items that do not match
      (define endPoint (last currTupIfAtomic))
 
@@ -483,21 +472,19 @@
      (define filteredExtendResult
        (filter
         (lambda (result) (equal? (last result) endPoint)) extendResult))
-     ;(printf "~n Im after filteredExtendResultm which contained: ~a ~n" filteredExtendResult)
-     ;(printf "currTupIfAtomic was: ~a" currTupIfAtomic)
-     ;(printf "possible edges: ~a" uppers)
      
      ; Go through everything in filteredExtendResult to create big AND
      ; by calling helper
      ; TODO: should this be mapping transitiveClosureAnd over every path, one at a time?
-     (define transitiveAnd
-       (transitiveClosureAnd
-        filteredExtendResult (first args) info runContext '()))
-     (printf "~n transitive and is ~a ~n" transitiveAnd)
-     (define transitiveOr (||/info info (list transitiveAnd)))
-     (printf "~n Making it out of transitive closure ~n")
-     
-     (desugarFormula transitiveOr quantVars runContext currSign)]
+     (cond
+       [(empty? filteredExtendResult) (||/info info #f)]
+       [else 
+        (define resultingAnd
+          (map (lambda (path)
+                 (transitiveClosureAnd
+                  path (first args) info runContext '())) filteredExtendResult))
+        (define transitiveOr (||/info info resultingAnd))
+        (desugarFormula transitiveOr quantVars runContext currSign)])]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
@@ -506,8 +493,7 @@
        (+/info info (list iden transitiveClosure)))
      (define inFormula
        (in/info info (list (tup2Expr currTupIfAtomic runContext info)
-                                 desugaredRClosure)))
-     (printf "~n Making it out of RTC, calling with formula ~a~n" inFormula)
+                           desugaredRClosure)))
      (desugarFormula inFormula quantVars runContext currSign)]
     
     ; TRANSPOSE

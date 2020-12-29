@@ -265,20 +265,20 @@
      (define substitutedChildren
        (map
         (lambda (child) (substituteExpr child quantvars target value)) args))
-     (node/expr/op/^ info (node/expr-arity expr) substitutedChildren)]
+     (^/info info substitutedChildren)]
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (define substitutedChildren
        (map
         (lambda (child) (substituteExpr child quantvars target value)) args))
-     (node/expr/op/* info (node/expr-arity expr) substitutedChildren)]
+     (*/info info substitutedChildren)]
     
     ; TRANSPOSE
     [(? node/expr/op/~?)
      (define substitutedEntry
        (substituteExpr (first args) quantvars target value))
-     (node/expr/op/~ info (node/expr-arity expr) (list substitutedEntry))]
+     (~/info info (list substitutedEntry))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
