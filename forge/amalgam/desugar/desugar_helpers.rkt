@@ -257,6 +257,32 @@
         [(equal? 1 arity) node]
         [else (getColumnRight (join/info info (list univ node)))]))
 
+; input:
+;      node: The node that we want to get the left column of 
+;
+; output: Returns the right column of a given node. For node with arity 3,
+; it returns (node.univ).univ
+(define (getColumnLeft node)
+  (define arity (node/expr-arity node))
+  (define info (node-info node))
+  (cond [(equal? 0 arity) (error (format "getColumnLeft arity <1: ~a" node))]
+        [(equal? 1 arity) node]
+        [else (getColumnLeft (join/info info (list node univ)))]))
+
+; If I want to get the first col, then desCol is 1 and colSoFar is 1 
+(define/contract (getGivenColumn node desCol colSoFar initialArity)
+  (@-> node? number? number? number? (or/c exn:fail? node))
+  (define arity (node/expr-arity node))
+  (define info (node-info node))
+  (cond
+    [(@> desCol initialArity) (error (format "getGivenColumn out of bounds col"))]
+    [(equal? 0 arity) (error (format "getGivenColumn arity <1: ~a" node))]
+    [(equal? 0 desCol) (getColumnLeft node)]
+    [(and (equal? colSoFar desCol) (equal? arity 1)) node]
+    [(and (equal? colSoFar desCol) (not (equal? arity 1))) (getColumnLeft node)]
+    [else (getGivenColumn
+           (join/info info (list univ node)) desCol (+ colSoFar 1) initialArity)]))
+
 
 ; input:
 ;      decl: The original decl for the quantifier that we are trying to re-write

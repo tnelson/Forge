@@ -50,18 +50,20 @@
     ; multiplicity formula (some, one, ...)
     ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
     [(node/formula/multiplicity info mult expr)
-     (define freshVar (node/expr/quantifier-var info 1 (gensym "m2q")))
-     (define uppers (liftBoundsExpr  expr quantVars runContext))
-     (define unionOfBounds
-       (+/info info (map (lambda (tup)
-                           (tup2Expr tup runContext info)) uppers)))
-     (define domain unionOfBounds) 
-     (define newFormula (in/info info (list freshVar expr)))
-     (define newDecls (list (cons freshVar domain)))
-     (define desugaredMultiplicity
-       (node/formula/quantified info mult newDecls newFormula))
-     (desugarFormula desugaredMultiplicity quantVars runContext currSign)]
-    
+      (define arity (node/expr-arity expr))
+      (define newDecls
+        (build-list arity (lambda (i)
+                        (define currColExpr (getGivenColumn expr i 0 arity))
+                        (define uppers (liftBoundsExpr currColExpr quantVars runContext))
+                        (define union-of-bounds
+                          (+/info info (map (lambda (tup)
+                           (tup2Expr tup runContext info)) uppers))) 
+                        (cons (node/expr/quantifier-var info 1 (gensym "m2q")) union-of-bounds))))
+      (define productOfFreshVars (->/info info (map car newDecls)))
+      (define newFormula (in/info info (list productOfFreshVars expr)))
+      (define desugaredMultiplicity
+        (node/formula/quantified info mult newDecls newFormula))
+      (desugarFormula desugaredMultiplicity quantVars runContext currSign)]
 
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified info quantifier decls subForm)

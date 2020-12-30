@@ -204,6 +204,36 @@
              (join univ edges)))
 
            (@test-case
+            "TEST getGivenColum on arity 1"
+            (@check-equal?
+             (getGivenColumn Node 0 0 1)
+             (rel '(Node) 'univ "Node")))
+
+           (@test-case
+            "TEST getGivenColumn on arity 2"
+            (@check-equal?
+             (getGivenColumn edges 1 0 2)
+             (join univ edges)))
+
+           (@test-case
+            "TEST getGivenColumn on arity 2 part 2"
+            (@check-equal?
+             (getGivenColumn edges 0 0 2)
+             (join edges univ)))
+
+           (@test-case
+            "TEST getGivenColumn on arity 3"
+            (@check-equal?
+             (getGivenColumn (-> Node Node Node) 1 0 3)
+             (join (join univ (-> Node Node Node)) univ)))
+
+           (@test-case
+            "TEST getGivenColumn on arity 4"
+            (@check-equal?
+             (getGivenColumn (-> edges edges) 1 0 4)
+             (join (join (join univ (-> edges edges)) univ) univ)))
+
+           (@test-case
             "TEST createNewQuantifier error decl does not contain both things"
             (define form (in edges edges))
             (@check-exn
