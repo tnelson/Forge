@@ -68,15 +68,17 @@
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified info quantifier decls subForm)
      ; In the case where the quantifier is not a 'some or 'all, desugar into
-     ; somes/alls  
+     ; somes/alls
      (cond [(not (or (equal? quantifier 'some)
                      (equal? quantifier 'all)))
             (cond
               ; no x: A | r.x in q ------> all x: A | not (r.x in q)
               [(equal? quantifier 'no)
+               (printf "~n im inside the no case ~n")
                (define negatedFormula (!/info info (list subForm)))
                (define newQuantFormula
                  (node/formula/quantified info 'all decls negatedFormula))
+               (printf "~n going into desugar formula with ~a~n" newQuantFormula)
                (desugarFormula newQuantFormula quantVars runContext currSign)]
 
               ; one x: A | r.x in q ------>
@@ -88,7 +90,8 @@
                (define subtractedDecls
                  (-/info info (list (cdr (car decls)) (car (car decls)))))
                (define quantifiedVarOne
-                 (node/expr/quantifier-var info 1 (gensym "quantiOne")))
+                 ; QQ: the arity used to be 1, changed it 
+                 (node/expr/quantifier-var info (node/expr-arity (cdr (car decls))) (gensym "quantiOne")))
                (define newDecls (list (cons quantifiedVarOne subtractedDecls)))
                (define newQuantFormRHS
                  (node/formula/quantified info 'all newDecls negatedFormula))
@@ -117,8 +120,8 @@
            ; big AND or OR of subformulas 
            [(not (equal? 1 (length decls)))
  
-            (when (and (not (equal? (quantifier 'all)))
-                       (not (equal? (quantifier 'some))))
+            (when (and (not (equal? quantifier 'all))
+                       (not (equal? quantifier 'some)))
               (error
                (format
                 "Multiple quantifiers with something other than all/some: ~a"
@@ -154,6 +157,7 @@
             (define newFormula (createNewQuantifier (first decls)
                                                     quantVars subForm runContext
                                                     info quantifier formula))
+            (printf "coming out of this case with formula ~a~n" newFormula)
             (desugarFormula newFormula quantVars runContext currSign)])]
 
     ; truth and falsity
