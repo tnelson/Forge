@@ -37,7 +37,13 @@
 ; output: Returns a list of tuples (list <tuple>) containing the bounds
 ; of the given expression. 
 (define/contract (liftBoundsExpr expr quantvars runContext)
-  (@-> node/expr? list? forge:Run? (listof (or/c (listof number?) (listof symbol?))))
+  (->i ([EXPR node/expr?] [QUANTVARS list?] [RUNCONTEXT forge:Run?])
+       [RESULT (EXPR QUANTVARS RUNCONTEXT)
+               (and/c (listof (listof (or/c number? symbol?)))
+                      (lambda (r) (or (empty? r)
+                                      ; compromise speed + fidelity: only compare arity of *First* tuple in lifted bound
+                                      (equal? (length (car r)) (node/expr-arity EXPR)))))])
+  ;(printf "lift bounds called with expr=~a~n" expr)
   (match expr
 
     ; atom case (base case)
@@ -79,9 +85,9 @@
     ; other expression constants
     [(node/expr/constant info arity type)
      (cond
-       [(equal? type 'univ) (map (lambda (x) (list x x))
+       [(equal? type 'univ) (map (lambda (x) (list x)) ; turn an atom-symbol into a singleton tuple
                                  (forge:Run-atoms runContext))]
-       [(equal? type 'iden) (map (lambda (x) (list x x))
+       [(equal? type 'iden) (map (lambda (x) (list x x)) ; turn an atom-symbol into a binary tuple
                                  (forge:Run-atoms runContext))]
        [(equal? type 'none) '()])]
     
