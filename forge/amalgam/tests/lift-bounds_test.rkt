@@ -59,7 +59,7 @@
    (define expressionConstantUNIV (node/expr/constant empty-nodeinfo 1 'univ))
    (@check-equal?
     (liftBoundsExpr expressionConstantUNIV '() udt)
-    (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
+    (map (lambda (x) (list x)) (forge:Run-atoms udt))))
 
   ; IDEN
   (@test-case
@@ -101,7 +101,7 @@
   ; Checking Set union case
   (@test-case
    "TEST liftBoundsExpr on set union case"
-   (define uppersUnion (list nodeBound (map (lambda (x) (list x x))
+   (define uppersUnion (list nodeBound (map (lambda (x) (list x))
                                             (forge:Run-atoms udt))))
    (@check-equal?
     (liftBoundsExpr (+ Node univ) '() udt)
