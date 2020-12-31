@@ -126,16 +126,19 @@
                (format
                 "Multiple quantifiers with something other than all/some: ~a"
                 subForm)))
+            (printf "~n I'm in the quantifier case with quantifier ~a~n" quantifier)
             (define currQuantifier
               (list (createNewQuantifier
                      (first decls) quantVars subForm runContext
                      info quantifier formula)))
+            (printf "~n I made it out of createNew quantifier~n")
             (define quants
               (foldl (lambda (curr acc)
                        (append (createNewQuantifier curr quantVars subForm
                                                     runContext info quantifier
                                                     formula) acc))
                      currQuantifier (rest decls)))
+            (printf "~n I made it out of the fold over createNew quantifier~n")
             ; we know this quantifier is either an all or a some
             ; Q x0: A0, x1: A1, ... | fmla(x0, x1, ...)
             ; ~~~~~>
@@ -149,7 +152,7 @@
             ;   all x: A | fmla(x) ~~~>
             ;     AND_{a \in UB(A)} (x in A implies fmla(x->a))
 
-            
+            (printf "~n I'm about to define the union~n")
             (define unionOfQuants (||/info info quants))
             (desugarFormula unionOfQuants quantVars runContext currSign)]
 

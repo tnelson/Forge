@@ -18,7 +18,7 @@
 
 (run udt
      #:preds [isUndirectedTree]
-     #:scope [(Node 7)]) 
+     #:scope [(Node 4)]) 
 
 ; Entry point for Amalgam from forge/core
 ;  This is a sketch for the moment
@@ -121,11 +121,11 @@
 
 ; E.g., at REPL (or in separate module that requires the forge module)
 ; > (require racket/stream racket/base forge/amalgam)
-; > (build-provenances (cons '(Node3 Node1) "edges") #f foo1)
+; > (build-provenances (cons '(Node3 Node1) "edges") #f udt)
 
 ; This will produce an error if Node1 isn't in all-atoms
 ;   TODO
-;(build-provenances (cons '(Node1 Node1) "edges") #f udt)
+(build-provenances (cons '(Node1 Node1) "edges") #f udt)
 
 ; these are OK assuming 3, 4, 5, 6 are used
 ;(build-provenances (cons '(Node3 Node3) "edges") #f udt) ; add

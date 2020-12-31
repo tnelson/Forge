@@ -181,7 +181,7 @@
         tuple))
      (cond
        [(equal? (length tupRelationList) 1) (first tupRelationList)]
-       [else 
+       [else
         (node/expr/op/-> info (length tupRelationList) tupRelationList)])]))
 
 ; input: tuple - the tuple that we want to flip 
@@ -302,19 +302,24 @@
        (or/c node/formula/op||? node/formula/op/&&? exn:fail?))
   (unless (not (and (null? (car decl)) (null? (cdr decl))))
     (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
+  (printf  "~n I'm inside createNewQuantifier ~n")
   (define var (car decl)) 
   (define domain (cdr decl)) 
   (let ([quantVars (cons var quantVars)])  
     ; gives us list of all possible bindings to this variable
     (define liftedBounds (liftBoundsExpr domain quantVars runContext))
+    (printf  "~n I'm after liftbounds ~n")
     ; produce a list of subFormulas each substituted with a possible binding
     ; for the variable
+    (printf  "~n These are the bounds~a ~n" liftedBounds)
+    (printf "~n This is the subformula~a~n" subForm)
     (define subFormulas
       (map (lambda (tup)
+             (printf "~n Calling substitute formula on tup: ~a~n" tup)
              (substituteFormula subForm quantVars var
                                 (tup2Expr tup runContext info)))
            liftedBounds))
-    
+    (printf  "~n I'm after subformulas ~n")
     (cond [(equal? quantifier 'some) (||/info info subFormulas)]
           [(equal? quantifier 'all) (&&/info info subFormulas)])))
 
