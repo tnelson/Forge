@@ -37,7 +37,13 @@
 
 ; Group information in one struct to make change easier
 ; TODO TN: should this be transparent? or custom to-string to avoid printing #<nodeinfo>?
-(struct nodeinfo (loc) #:transparent)
+(struct nodeinfo (loc) #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (match-define (nodeinfo loc) self)
+     ; hide nodeinfo when printing; don't print anything or this will become overwhelming
+     ;(fprintf port "")
+     (void))])
 
 ; Base node struct, should be ancestor of all AST node types
 ; Should never be directly instantiated
@@ -224,7 +230,10 @@
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/quantifier-var))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/quantifier-var 0))
-   (define hash2-proc (make-robust-node-hash-syntax node/expr/quantifier-var 3))])
+   (define hash2-proc (make-robust-node-hash-syntax node/expr/quantifier-var 3))]
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)     
+     (fprintf port "~a" (node/expr/quantifier-var-sym self)))])
 
 ;; -- comprehensions -----------------------------------------------------------
 
