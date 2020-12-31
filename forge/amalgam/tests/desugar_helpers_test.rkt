@@ -315,4 +315,107 @@
              (createNewQuantifier (cons varx Node)
                                    (list varx) (in varx Node)
                                    udt empty-nodeinfo 'all allFormula)
-             (&& subformulas)))))
+             (&& subformulas)))
+
+           (@test-case
+            "TEST createNewQuant on 'some' quantifier with just one decl"
+            (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+            (define
+              nodeBound
+              (list (list 'Node0) (list 'Node1)
+                    (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5)
+                    (list 'Node6)))
+            (define subformulas
+              (map (lambda (tup)
+                     (substituteFormula (in varx Node)
+                                        (list varx) varx
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+            (@check-equal?
+             (createNewQuant (list (cons varx Node))
+                                   (list varx) (in varx Node)
+                                   udt empty-nodeinfo 'some)
+             (|| subformulas)))
+
+           ; all case
+           (@test-case
+            "TEST createNewQuant on 'all' quantifier with just one decl"
+            (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+            (define someFormula (some ([x Node]) (in x Node)))
+            (define allFormula (all ([x Node]) (in x Node)))
+            (define
+              nodeBound
+              (list (list 'Node0) (list 'Node1)
+                    (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5)
+                    (list 'Node6)))
+            (define subformulas
+              (map (lambda (tup)
+                     (substituteFormula (in varx Node)
+                                        (list varx) varx
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+            (@check-equal?
+             (createNewQuant (list (cons varx Node))
+                                   (list varx) (in varx Node)
+                                   udt empty-nodeinfo 'all)
+             (&& subformulas)))
+
+            (@test-case
+            "TEST createNewQuant on 'some' quantifier with two decls"
+            (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+            (define vary (node/expr/quantifier-var empty-nodeinfo 1 'y))
+            (define
+              nodeBound
+              (list (list 'Node0) (list 'Node1)
+                    (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5)
+                    (list 'Node6)))
+            (define subformulas
+              (map (lambda (tup)
+                     (substituteFormula (and (in vary Node) (in varx Node))
+                                        (list varx vary) varx
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+            (define nextSubFormulas (|| subformulas))
+            (define finalSubFormulas
+              (map (lambda (tup)
+                     (substituteFormula nextSubFormulas
+                                        (list varx vary) vary
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+
+            (@check-equal?
+             (createNewQuant (list (cons varx Node) (cons vary Node))
+                                   (list varx vary) (and (in vary Node) (in varx Node))
+                                   udt empty-nodeinfo 'some)
+             (|| finalSubFormulas)))
+
+
+                        (@test-case
+            "TEST createNewQuant on 'all' quantifier with two decls"
+            (define varx (node/expr/quantifier-var empty-nodeinfo 1 'x))
+            (define vary (node/expr/quantifier-var empty-nodeinfo 1 'y))
+            (define
+              nodeBound
+              (list (list 'Node0) (list 'Node1)
+                    (list 'Node2) (list 'Node3) (list 'Node4) (list 'Node5)
+                    (list 'Node6)))
+            (define subformulas
+              (map (lambda (tup)
+                     (substituteFormula (and (in vary Node) (in varx Node))
+                                        (list varx vary) varx
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+            (define nextSubFormulas (&& subformulas))
+            (define finalSubFormulas
+              (map (lambda (tup)
+                     (substituteFormula nextSubFormulas
+                                        (list varx vary) vary
+                                        (tup2Expr tup udt empty-nodeinfo)))
+                   nodeBound))
+
+            (@check-equal?
+             (createNewQuant (list (cons varx Node) (cons vary Node))
+                                   (list varx vary) (and (in vary Node) (in varx Node))
+                                   udt empty-nodeinfo 'all)
+             (&& finalSubFormulas)))
+           ))
