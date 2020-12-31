@@ -22,7 +22,6 @@
 ; output: the formula with target substituted by value
 (define/contract (substituteFormula formula quantvars target value)
   (@-> node/formula? list? node/expr? node/expr? node/formula?)
-  (printf "~n Calling substitute formula on formula ~a ~n" formula)
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
@@ -101,16 +100,10 @@
 
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
-     (printf "~n Going into the in case with formula ~a ~n" formula)
-     (printf "~n Calling substituteExpr within IN case on ~a~n" (first args))
      (define substitutedLHS
        (substituteExpr (first args) quantvars target value))
-     (printf "~n Result of calling substituteFormula on first args is ~a~n" (substituteExpr (first args) quantvars target value))
-     (printf "~n Calling substituteExpr within IN case on ~a~n" (second args))
      (define substitutedRHS
        (substituteExpr (second args) quantvars target value))
-     (printf "~n Result of calling substituteFormula on second args is ~a~n" (substituteExpr (second args) quantvars target value))
-     (printf "~n Made it out of the two calls to substituteExpr ~n")
 
      ;;;; temporary debugging check
      ;;;; ideally, this would be a "is the input type the same as the output type?" contract
@@ -119,8 +112,6 @@
      (unless (node/expr? substitutedRHS)
        (error "IN subst produced RHS: ~a ~a~n" (second args) substitutedRHS))
 
-     (printf "~n arity LHS ~a ~n" (node/expr-arity substitutedLHS))
-     (printf "~n arity RHS ~a~n" (node/expr-arity substitutedRHS))
      (in/info info (list substitutedLHS substitutedRHS))]
 
     ; EQUALS 
@@ -133,11 +124,8 @@
 
     ; NEGATION
     [(? node/formula/op/!?)
-     (printf "~n Calling substituteFormula within negation on ~a~n" (first args))
      (define substitutedEntry
        (substituteFormula (first args) quantvars target value))
-     (printf "~n Made it out of substituteFormula recursive call ~n")
-     (printf "~n Trying to create ~a in negation case~n" (!/info info (list substitutedEntry)))
      (!/info info (list substitutedEntry))]   
 
     ; INTEGER >
@@ -158,13 +146,10 @@
 ; output: the expression with target substituted by value
 (define/contract (substituteExpr expr quantvars target value)
   (@-> node/expr? list? node/expr? node/expr? node/expr?)
-    (printf "~n Calling substitute expr on expr ~a ~n" expr)
-
   (match expr
 
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isvar)
-     (printf "~n I'm in the relation name base case ~n")
        (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) expr])]
@@ -183,7 +168,6 @@
 
     ; other expression constants
     [(node/expr/constant info arity type)
-     (printf "~n I'm in the other expressions constants base case ~n")
        (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) expr])]
@@ -195,7 +179,6 @@
     ; quantified variable (depends on scope!)
     ; (another base case)
     [(node/expr/quantifier-var info arity sym)
-     (printf "~n Within quantifier case in substitutor ~n")
      (cond  [(equal? expr target) value]
             [(not (equal? expr target)) expr])]
 
@@ -257,27 +240,18 @@
     ; INTERSECTION
     [(? node/expr/op/&?)
      ; map over all children of intersection
-     (printf "~n Im in the intersect case of the substitutor ~n")
-     (printf "~n Calling substitute expr on the args ~a~n" args)
      (define substitutedChildren
        (map
         (lambda (child) (substituteExpr child quantvars target value)) args))
-     (printf "~n I came out of the call to substituteExpr on intersect ~n")
-     (printf "~n trying to create ~a~n" (&/info info substitutedChildren))
      (&/info info substitutedChildren)]
     
     ; PRODUCT
     [(? node/expr/op/->?)
      ; map over all children of product
-     (printf "~n I'm in the product case on substitutor with expr ~a ~n" expr)
-     (printf "~n Calling substituteExpr on args ~a~n" args)
      (define substitutedChildren
        (map
         (lambda (child)
-          (printf "~n Currently on the child ~a~n" child)
           (substituteExpr child quantvars target value)) args))
-     (printf "~n I made it out of the call to substituteExpr on product case~n")
-     (printf "~n Trying to create ~a in product case~n" (->/info info substitutedChildren))
      (->/info info substitutedChildren)]
    
     ; JOIN

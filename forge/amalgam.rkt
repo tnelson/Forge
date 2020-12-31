@@ -38,10 +38,80 @@
       (hash-set a-hash r (remove t (hash-ref a-hash r)))
       (hash-set a-hash r (cons t (hash-ref a-hash r)))))
 
+; input:
+;        A - a set of sets
+;        B - a set of sets
+;
+; output: the union product of A and B which is defined as:
+;         {a_i ∪ b_j |1 ≤ i ≤ n, 1 ≤ j ≤ m}
+;            where n and m are the sizes of A and B respectively
+; build set cartesian product of A and B
+; map over the cartesian product of A and B a lambda that takes the union
+; of these two things.
+; 
+;   --> will have duplicates for now until equals is implemented
+(define/contract (union-product A B)
+  (@-> set? set? set?)  
+  (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
+
+; L is the target of the provenance query
+; fmla is the current target of blame
+(define/contract (amalgam-descent fmla orig-run alt-run L)
+  (@-> node/formula? forge:Run? forge:Run? pair? (or/c set? exn:fail?))
+  
+  ; Invariant: instance from orig-run satisfies fmla
+  ;            instance from alt-run does not satisfy fmla
+  ; For debugging purposes, fail noisily if this invariant is violated
+  (unless (evaluate orig-run 'unused fmla)
+    (error (format "amalgam-descent: original instance failed to satisfy ~a~n" fmla)))
+  (when (evaluate alt-run 'unused fmla)
+    (error (format "amalgam-descent: L-alternate (L=~a) instance satisfied ~a~n" L fmla)))  
+  (match fmla
+
+    [(node/formula/op/&& info args)
+     ; *every* arg must have satisfied the orig instance
+     ; but not every arg necessarily fails in L-alt instance
+     ; each failed arg is its own new provenance-set, which we union together
+     (define failed-args (filter (lambda (arg) (not (evaluate alt-run 'unused arg))) args))
+     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) failed-args))
+     (apply set-union prov-sets)]
+
+    [(node/formula/op/|| info args)
+     ; orig instance satisfies at least one arg (not necessarily all, but not zero)
+     ; L-alt instance satisfies no args
+     (define-values (orig-true-args orig-false-args) ; filter but return #f args as 2nd value
+       (partition (lambda (arg) (evaluate orig-run 'unused arg)) args))
+     ; This is a big OR, so we can think of it as an implication.
+     ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
+     ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
+     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) orig-true-args))
+     (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
+     ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
+     (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
+     ; add prov-sets to each failure-reasons + return 
+     (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons))]
+
+    ; base case: positive literal
+    [(node/formula/op/in info args)
+     ; set of sets
+     ; return provenance set containing a provenance with just node in it
+     (if (equal? fmla L)
+         (list->set '(list->set '(fmla)))
+         (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]
+    
+    ; not a base case in more efficient "desugar as needed only" version
+    [(node/formula/op/! info args)
+     ; TODO: *similar* to above
+     ;   (also, think there's some need to use sign? why vs. why not?
+     ;     did we ADD L or REMOVE L?)
+     (if (equal? fmla L)
+         (list->set '(list->set '(fmla)))
+         (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]))
+
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
 ; Due to the way the evaluator works at the moment, this is always
 ; with respect to the current solver state for <a-run>.
-(define (build-provenances tup negate? orig-run)
+(define (build-provenances tup orig-run)
   (printf "build-provenances ~a~n" tup)
   ; get conjunction of predicates F from the run command
   (define spec (forge:Run-run-spec orig-run))
@@ -125,76 +195,8 @@
 
 ; This will produce an error if Node1 isn't in all-atoms
 ;   TODO
-(build-provenances (cons '(Node1 Node1) "edges") #f udt)
+(build-provenances (cons '(Node1 Node1) "edges") udt)
 
 ; these are OK assuming 3, 4, 5, 6 are used
 ;(build-provenances (cons '(Node3 Node3) "edges") #f udt) ; add
-(build-provenances (cons '(Node4 Node5) "edges") #f udt) ; remove
-
-; input:
-;        A - a set of sets
-;        B - a set of sets
-;
-; output: the union product of A and B which is defined as:
-;         {a_i ∪ b_j |1 ≤ i ≤ n, 1 ≤ j ≤ m}
-;            where n and m are the sizes of A and B respectively
-; build set cartesian product of A and B
-; map over the cartesian product of A and B a lambda that takes the union
-; of these two things.
-; 
-;   --> will have duplicates for now until equals is implemented
-(define/contract (union-product A B)
-  (@-> set? set? set?)  
-  (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
-
-; L is the target of the provenance query
-; fmla is the current target of blame
-(define/contract (amalgam-descent fmla orig-run alt-run L)
-  (@-> node/formula? forge:Run? forge:Run? node?)
-  
-  ; Invariant: instance from orig-run satisfies fmla
-  ;            instance from alt-run does not satisfy fmla
-  ; For debugging purposes, fail noisily if this invariant is violated
-  (unless (evaluate orig-run 'unused fmla)
-    (error (format "amalgam-descent: original instance failed to satisfy ~a~n" fmla)))
-  (when (evaluate alt-run 'unused fmla)
-    (error (format "amalgam-descent: L-alternate (L=~a) instance satisfied ~a~n" L fmla)))  
-  (match fmla
-    [(node/formula/op/&& info args)
-     ; *every* arg must have satisfied the orig instance
-     ; but not every arg necessarily fails in L-alt instance
-     ; each failed arg is its own new provenance-set, which we union together
-     (define failed-args (filter (lambda (arg) (not (evaluate alt-run 'unused arg))) args))
-     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) failed-args))
-     (apply set-union prov-sets)]
-    [(node/formula/op/|| info args)
-     ; orig instance satisfies at least one arg (not necessarily all, but not zero)
-     ; L-alt instance satisfies no args
-     (define-values (orig-true-args orig-false-args) ; filter but return #f args as 2nd value
-       (partition (lambda (arg) (evaluate orig-run 'unused arg)) args))
-     ; This is a big OR, so we can think of it as an implication.
-     ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
-     ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
-     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) orig-true-args))
-     (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
-     ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
-     (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
-     ; add prov-sets to each failure-reasons + return 
-     (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons))
-     ]
-    ; base case: positive literal
-    [(node/formula/op/in info args)
-     ; set of sets
-     ; return provenance set containing a provenance with just node in it
-     (if (equal? fmla L)
-         (list->set '(list->set '(fmla)))
-         (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]
-    
-    ; not a base case in more efficient "desugar as needed only" version
-    [(node/formula/op/! info args)
-     ; TODO: *similar* to above
-     ;   (also, think there's some need to use sign? why vs. why not?
-     ;     did we ADD L or REMOVE L?)
-     (if (equal? fmla L)
-         (list->set '(list->set '(fmla)))
-         (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]))
+;(build-provenances (cons '(Node4 Node5) "edges") udt) ; remove

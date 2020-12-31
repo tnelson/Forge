@@ -302,26 +302,47 @@
        (or/c node/formula/op||? node/formula/op/&&? exn:fail?))
   (unless (not (and (null? (car decl)) (null? (cdr decl))))
     (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
-  (printf  "~n I'm inside createNewQuantifier ~n")
   (define var (car decl)) 
-  (define domain (cdr decl)) 
+  (define domain (cdr decl))
   (let ([quantVars (cons var quantVars)])  
     ; gives us list of all possible bindings to this variable
     (define liftedBounds (liftBoundsExpr domain quantVars runContext))
-    (printf  "~n I'm after liftbounds ~n")
     ; produce a list of subFormulas each substituted with a possible binding
     ; for the variable
-    (printf  "~n These are the bounds~a ~n" liftedBounds)
-    (printf "~n This is the subformula~a~n" subForm)
     (define subFormulas
       (map (lambda (tup)
-             (printf "~n Calling substitute formula on tup: ~a~n" tup)
              (substituteFormula subForm quantVars var
                                 (tup2Expr tup runContext info)))
            liftedBounds))
-    (printf  "~n I'm after subformulas ~n")
     (cond [(equal? quantifier 'some) (||/info info subFormulas)]
           [(equal? quantifier 'all) (&&/info info subFormulas)])))
+
+; input:
+;      decls: This takes in the list of decls 
+;      subForm: The formula that we are substituting in (or have substituted already
+;      previously
+;      quantifier: the quantifier from the formula that we are trying to re-write
+;
+; output: Returns a big AND or OR of the subformulas 
+(define (createNewQuant decls quantVars subForm runContext info quantifier)
+  (define var (car (first decls)))
+  (define domain (cdr (first decls)))
+  (let ([quantVars (cons var quantVars)])
+    (define liftedBounds (liftBoundsExpr domain quantVars runContext))
+    (define subFormulas
+      (map (lambda (tup)
+             (substituteFormula subForm quantVars var
+                                (tup2Expr tup runContext info))) liftedBounds))
+    (cond
+      [(and (equal? quantifier 'some) (equal? (length decls) 1))
+       (||/info info subFormulas)]
+      [(and (equal? quantifier 'all) (equal? (length decls) 1))
+       (&&/info info subFormulas)]
+      [(and (equal? quantifier 'some) (not (equal? (length decls) 1)))
+        (createNewQuant (rest decls) quantVars (||/info info subFormulas) runContext info quantifier)]
+      [(and (equal? quantifier 'all) (not (equal? (length decls) 1)))
+       (createNewQuant (rest decls) quantVars (&&/info info subFormulas) runContext info quantifier)])))
+  
 
 ; input:
 ;      expr: A given expression 

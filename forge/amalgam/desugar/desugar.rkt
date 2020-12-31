@@ -74,11 +74,9 @@
             (cond
               ; no x: A | r.x in q ------> all x: A | not (r.x in q)
               [(equal? quantifier 'no)
-               (printf "~n im inside the no case ~n")
                (define negatedFormula (!/info info (list subForm)))
                (define newQuantFormula
                  (node/formula/quantified info 'all decls negatedFormula))
-               (printf "~n going into desugar formula with ~a~n" newQuantFormula)
                (desugarFormula newQuantFormula quantVars runContext currSign)]
 
               ; one x: A | r.x in q ------>
@@ -119,26 +117,32 @@
            ; if it's got multiple variables, foldl over the helper that gets
            ; big AND or OR of subformulas 
            [(not (equal? 1 (length decls)))
- 
             (when (and (not (equal? quantifier 'all))
-                       (not (equal? quantifier 'some)))
-              (error
-               (format
+                       (not (equal? quantifier 'some))) (error (format
                 "Multiple quantifiers with something other than all/some: ~a"
                 subForm)))
-            (printf "~n I'm in the quantifier case with quantifier ~a~n" quantifier)
+
+           #| (printf "The first thing that we are substituting is ~a~n" (first decls))
             (define currQuantifier
               (list (createNewQuantifier
                      (first decls) quantVars subForm runContext
                      info quantifier formula)))
-            (printf "~n I made it out of createNew quantifier~n")
+            (printf "~n this is the current quantifier ~a~n" currQuantifier)
+
+            ; TODO: This is a mistake, instead of passing in subForm again, we
+            ; need to find a way of passing in the formula that was previously
+            ; substituted. We can't just pass in (first currQuantifier) because
+            ; if we have more than 2 quantified vars, we wouldn't be replacing
+            ; all of the elements correctly. 
             (define quants
               (foldl (lambda (curr acc)
-                       (append (createNewQuantifier curr quantVars subForm
+                       (printf "~n This is the first thing of curr quantifier ~a~n" (first currQuantifier))
+                       (append
+                        (list (createNewQuantifier curr quantVars subForm
                                                     runContext info quantifier
-                                                    formula) acc))
+                                                    formula)) acc))
                      currQuantifier (rest decls)))
-            (printf "~n I made it out of the fold over createNew quantifier~n")
+            (printf "~n This is the quants ~n~a" quants) |#
             ; we know this quantifier is either an all or a some
             ; Q x0: A0, x1: A1, ... | fmla(x0, x1, ...)
             ; ~~~~~>
@@ -152,7 +156,10 @@
             ;   all x: A | fmla(x) ~~~>
             ;     AND_{a \in UB(A)} (x in A implies fmla(x->a))
 
-            (printf "~n I'm about to define the union~n")
+            (define quants
+              (list (createNewQuant decls quantVars subForm runContext info
+                                    quantifier)))
+
             (define unionOfQuants (||/info info quants))
             (desugarFormula unionOfQuants quantVars runContext currSign)]
 
@@ -160,7 +167,6 @@
             (define newFormula (createNewQuantifier (first decls)
                                                     quantVars subForm runContext
                                                     info quantifier formula))
-            (printf "coming out of this case with formula ~a~n" newFormula)
             (desugarFormula newFormula quantVars runContext currSign)])]
 
     ; truth and falsity
