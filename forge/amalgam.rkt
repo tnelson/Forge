@@ -1,6 +1,3 @@
-;#lang racket
-;(require "sigs.rkt")
-; Why does the above cause an error?
 #lang forge/core
 
 ;(set-verbosity 10)
@@ -56,8 +53,8 @@
 
 ; L is the target of the provenance query
 ; fmla is the current target of blame
-(define/contract (amalgam-descent fmla orig-run alt-run L)
-  (@-> node/formula? forge:Run? forge:Run? pair? (or/c set? exn:fail?))
+(define/contract (amalgam-descent fmla orig-run alt-run L currSign)
+  (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c set? exn:fail?))
   
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
@@ -73,7 +70,7 @@
      ; but not every arg necessarily fails in L-alt instance
      ; each failed arg is its own new provenance-set, which we union together
      (define failed-args (filter (lambda (arg) (not (evaluate alt-run 'unused arg))) args))
-     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) failed-args))
+     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
      (apply set-union prov-sets)]
 
     [(node/formula/op/|| info args)
@@ -84,7 +81,7 @@
      ; This is a big OR, so we can think of it as an implication.
      ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
      ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
-     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L)) orig-true-args))
+     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) orig-true-args))
      (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
      ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
      (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
@@ -93,10 +90,13 @@
 
     ; base case: positive literal
     [(node/formula/op/in info args)
+     ; TODO: This case should check currSign. If currSign is false, return not formula. else, return formula
      ; set of sets
      ; return provenance set containing a provenance with just node in it
      (if (equal? fmla L)
-         (list->set '(list->set '(fmla)))
+         (cond
+           [currSign (list->set '(list->set '(fmla)))]
+           [else (list->set '(list->set '(not fmla)))])
          (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]
     
     ; not a base case in more efficient "desugar as needed only" version
@@ -104,9 +104,10 @@
      ; TODO: *similar* to above
      ;   (also, think there's some need to use sign? why vs. why not?
      ;     did we ADD L or REMOVE L?)
-     (if (equal? fmla L)
-         (list->set '(list->set '(fmla)))
-         (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]))
+     ;(if (equal? fmla L)
+     ;    (list->set '(list->set '(fmla)))
+     ;   (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))
+     (amalgam-descent fmla orig-run alt-run L (not currSign))]))
 
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
 ; Due to the way the evaluator works at the moment, this is always
@@ -185,7 +186,7 @@
   (define desugared (desugarFormula F '() orig-run #t))
   
   ; do amalgam descent on desugared F
-  (amalgam-descent desugared orig-run alt-run tup)
+  (amalgam-descent desugared orig-run alt-run tup #t)
   '())
 
 
