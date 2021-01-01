@@ -73,8 +73,9 @@
       (define newFormula (in/info info (list productOfFreshVars expr)))
       (define desugaredMultiplicity
         (node/formula/quantified info mult newDecls newFormula))
-      (desugarFormula desugaredMultiplicity quantVars runContext currSign)]
-
+      ;(desugarFormula desugaredMultiplicity quantVars runContext currSign)     
+      desugaredMultiplicity]
+      
     ; quantified formula (some x : ... or all x : ...)
     [(node/formula/quantified info quantifier decls subForm)
      ; In the case where the quantifier is not a 'some or 'all, desugar into
@@ -87,7 +88,8 @@
                (define negatedFormula (!/info info (list subForm)))
                (define newQuantFormula
                  (node/formula/quantified info 'all decls negatedFormula))
-               (desugarFormula newQuantFormula quantVars runContext currSign)]
+               ;(desugarFormula newQuantFormula quantVars runContext currSign)
+               newQuantFormula]
 
               ; one x: A | r.x in q ------>
               ;    (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
@@ -111,7 +113,8 @@
                (define newQuantFormLHS
                  (node/formula/quantified info 'some decls desugaredAnd))
                         
-               (desugarFormula newQuantFormLHS quantVars runContext currSign)]
+               ;(desugarFormula newQuantFormLHS quantVars runContext currSign)
+               newQuantFormLHS]
 
               ; lone x: A | r.x in q ------>
               ;   (no x: A | r.x in q) or (one x: A | r.x in q)
@@ -122,7 +125,8 @@
                  (node/formula/quantified info 'one decls subForm))
                (define desugaredOR
                  (||/info info (list newQuantFormLHS newQuantFormRHS)))
-               (desugarFormula desugaredOR quantVars runContext currSign)])]
+               ;(desugarFormula desugaredOR quantVars runContext currSign)
+               desugaredOR])]
 
            ; if it's got multiple variables, foldl over the helper that gets
            ; big AND or OR of subformulas 
@@ -171,13 +175,17 @@
                                     quantifier)))
 
             (define unionOfQuants (||/info info quants))
-            (desugarFormula unionOfQuants quantVars runContext currSign)]
+            ;(desugarFormula unionOfQuants quantVars runContext currSign)
+            unionOfQuants
+            ]
 
            [else
             (define newFormula (createNewQuantifier (first decls)
                                                     quantVars subForm runContext
                                                     info quantifier formula))
-            (desugarFormula newFormula quantVars runContext currSign)])]    
+            ;(desugarFormula newFormula quantVars runContext currSign)
+            newFormula
+            ])]    
     ))
   
   ; Debug mode will evaluate the formula in the latest instance produced by runContext
@@ -214,20 +222,20 @@
   (match formula
 
     ; AND 
-    [(? node/formula/op/&&?)
-     (define desugaredArgs
-       (map (lambda (x) (desugarFormula x quantVars runContext currSign)) args))
-     (cond
-       [currSign (&&/info info desugaredArgs)]
-       [else (||/info info desugaredArgs)])]
-
-    ; OR
-    [(? node/formula/op/||?)
-     (define desugaredArgs
-       (map (lambda (x) (desugarFormula x quantVars runContext currSign)) args))
-     (cond
-       [currSign (||/info info desugaredArgs)]
-       [else (&&/info info desugaredArgs)])]
+;    [(? node/formula/op/&&?)
+;     (define desugaredArgs
+;       (map (lambda (x) (desugarFormula x quantVars runContext currSign)) args))
+;     (cond
+;       [currSign (&&/info info desugaredArgs)]
+;       [else (||/info info desugaredArgs)])]
+;
+;    ; OR
+;    [(? node/formula/op/||?)
+;     (define desugaredArgs
+;       (map (lambda (x) (desugarFormula x quantVars runContext currSign)) args))
+;     (cond
+;       [currSign (||/info info desugaredArgs)]
+;       [else (&&/info info desugaredArgs)])]
 
     ; IMPLIES
     [(? node/formula/op/=>?)
@@ -235,7 +243,9 @@
      (define ante (!/info info (list (first args))))
      (define conseq (second args))
      (define desugaredImplies (||/info info (list ante conseq)))
-     (desugarFormula desugaredImplies quantVars runContext currSign)]
+     ;(desugarFormula desugaredImplies quantVars runContext currSign)
+     desugaredImplies
+     ]
 
     ; IN (atomic fmla)
     ; This function has two cases, the ground case and the case where we build
@@ -270,7 +280,8 @@
                                  (in/info info (list tupExpr rightE)))
                                (=>/info info (list LHS RHS)))
                              liftedUpperBounds)))
-        (desugarFormula desugaredAnd quantVars runContext currSign)])]
+        ;(desugarFormula desugaredAnd quantVars runContext currSign)
+        desugaredAnd])]
 
     ; EQUALS 
     [(? node/formula/op/=?)
@@ -278,12 +289,13 @@
      (define LHS (in/info info (list (first args) (second args))))
      (define RHS (in/info info (list (second args) (first args))))
      (define desugaredEquals (&&/info info (list LHS RHS)))
-     (desugarFormula desugaredEquals quantVars runContext currSign)]
+     ;(desugarFormula desugaredEquals quantVars runContext currSign)
+     desugaredEquals]
 
     ; NEGATION
-    [(? node/formula/op/!?)
-     ; The desugared version of NEGATION is to flip the currSign type
-     (desugarFormula (first args) quantVars runContext (not currSign))]   
+;    [(? node/formula/op/!?)
+;     ; The desugared version of NEGATION is to flip the currSign type
+;     (desugarFormula (first args) quantVars runContext (not currSign))]   
 
     ; INTEGER >
     [(? node/formula/op/int>?)
@@ -371,7 +383,9 @@
        ; Put both formulas together
        (define setComprehensionAnd
          (&&/info info (append LHSSubformula (list RHSSubformula))))
-       (desugarFormula setComprehensionAnd quantVars runContext currSign))]))
+       ;(desugarFormula setComprehensionAnd quantVars runContext currSign)
+       setComprehensionAnd
+       )]))
 
 ; input: expr - the current expression being desugared into simpler AST
 ;        quantVars - quantified variables
@@ -401,8 +415,9 @@
           (desugarExpr child quantVars currTupIfAtomic runContext currSign))
         args))
 
-     (desugarFormula (||/info info desugaredChildren) quantVars
-                     runContext currSign)]
+     ;(desugarFormula (||/info info desugaredChildren) quantVars
+     ;                runContext currSign)]
+     (||/info info desugaredChildren)]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
@@ -420,7 +435,8 @@
         ; Create the final desugared version of SETMINUS by joining LHS and RHS
         ; with an AND and call desugarFormula on it
         (define desugaredSetMinus (&&/info info (list LHS RHS)))
-        (desugarFormula desugaredSetMinus quantVars runContext currSign)])]
+        ;(desugarFormula desugaredSetMinus quantVars runContext currSign)
+        desugaredSetMinus])]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
@@ -432,8 +448,9 @@
         args))
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD)
      ; AND (currTupIfAtomic in CHILD)
-     (desugarFormula (&&/info info desugaredChildren) quantVars runContext
-                     currSign)]
+     ;(if currSign (&&/info info desugaredChildren) (||/info info desugaredChildren))
+     (&&/info info desugaredChildren)
+     ]
     
     ; PRODUCT
     [(? node/expr/op/->?)

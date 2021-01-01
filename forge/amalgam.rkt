@@ -4,7 +4,7 @@
 
 (require forge/amalgam/desugar/desugar)
 
-(require "amalgam/tests/forge_ex.rkt")
+(require "amalgam/tests/forge_ex2.rkt")
 (require racket/hash)
 (require (prefix-in @ racket/set))
 (require (prefix-in @ (only-in racket ->)))
@@ -14,7 +14,8 @@
 ; ^ This will be a *different* struct defn; instead get via sigs
 
 (run udt
-     #:preds [isUndirectedTree]
+    ; #:preds [isUndirectedTree]
+     #:preds [irreflexive]
      #:scope [(Node 4)]) 
 
 ; Entry point for Amalgam from forge/core
@@ -63,51 +64,50 @@
     (error (format "amalgam-descent: original instance failed to satisfy ~a~n" fmla)))
   (when (evaluate alt-run 'unused fmla)
     (error (format "amalgam-descent: L-alternate (L=~a) instance satisfied ~a~n" L fmla)))  
-  (match fmla
 
+  (define (handleAND info args)
+    ; *every* arg must have satisfied the orig instance
+    ; but not every arg necessarily fails in L-alt instance
+    ; each failed arg is its own new provenance-set, which we union together
+    (define failed-args (filter (lambda (arg) (not (evaluate alt-run 'unused arg))) args))
+    (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
+    (apply set-union prov-sets))
+  
+  (define (handleOR info args)
+    ; orig instance satisfies at least one arg (not necessarily all, but not zero)
+    ; L-alt instance satisfies no args
+    (define-values (orig-true-args orig-false-args) ; filter but return #f args as 2nd value
+      (partition (lambda (arg) (evaluate orig-run 'unused arg)) args))
+    ; This is a big OR, so we can think of it as an implication.
+    ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
+    ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
+    (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) orig-true-args))
+    (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
+    ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
+    (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
+    ; add prov-sets to each failure-reasons + return 
+    (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons)))
+  
+  (match fmla
     [(node/formula/op/&& info args)
-     ; *every* arg must have satisfied the orig instance
-     ; but not every arg necessarily fails in L-alt instance
-     ; each failed arg is its own new provenance-set, which we union together
-     (define failed-args (filter (lambda (arg) (not (evaluate alt-run 'unused arg))) args))
-     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
-     (apply set-union prov-sets)]
+     (if currSign (handleAND info args) (handleOR info args))]
 
     [(node/formula/op/|| info args)
-     ; orig instance satisfies at least one arg (not necessarily all, but not zero)
-     ; L-alt instance satisfies no args
-     (define-values (orig-true-args orig-false-args) ; filter but return #f args as 2nd value
-       (partition (lambda (arg) (evaluate orig-run 'unused arg)) args))
-     ; This is a big OR, so we can think of it as an implication.
-     ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
-     ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
-     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) orig-true-args))
-     (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
-     ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
-     (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
-     ; add prov-sets to each failure-reasons + return 
-     (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons))]
+     (if currSign (handleOR info args) (handleAND info args))]
 
     ; base case: positive literal
     [(node/formula/op/in info args)
-     ; TODO: This case should check currSign. If currSign is false, return not formula. else, return formula
-     ; set of sets
      ; return provenance set containing a provenance with just node in it
      (if (equal? fmla L)
          (cond
            [currSign (list->set '(list->set '(fmla)))]
            [else (list->set '(list->set '(not fmla)))])
          (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]
-    
-    ; not a base case in more efficient "desugar as needed only" version
-    [(node/formula/op/! info args)
-     ; TODO: *similar* to above
-     ;   (also, think there's some need to use sign? why vs. why not?
-     ;     did we ADD L or REMOVE L?)
-     ;(if (equal? fmla L)
-     ;    (list->set '(list->set '(fmla)))
-     ;   (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))
-     (amalgam-descent fmla orig-run alt-run L (not currSign))]))
+   
+    [(node/formula/op/! info args)     
+     (amalgam-descent (first args) orig-run alt-run L (not currSign))]
+    [else
+     (amalgam-descent (desugarFormula fmla '() orig-run currSign) orig-run alt-run L currSign)]))
 
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
 ; Due to the way the evaluator works at the moment, this is always
@@ -183,10 +183,11 @@
 
   ; desugar F
   ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)
-  (define desugared (desugarFormula F '() orig-run #t))
+  ; Don't desugar first; desugar as needed in the amalgam descent
+  ;(define desugared (desugarFormula F '() orig-run #t))
   
   ; do amalgam descent on desugared F
-  (amalgam-descent desugared orig-run alt-run tup #t)
+  (amalgam-descent F orig-run alt-run tup #t)
   '())
 
 
@@ -199,7 +200,7 @@
 ;(build-provenances (cons '(Node1 Node1) "edges") udt)
 
 ; these are OK assuming 3, 4, 5, 6 are used
-;(build-provenances (cons '(Node3 Node3) "edges") #f udt) ; add
+(build-provenances (cons '(Node1 Node1) "edges") udt) ; add
 ;(build-provenances (cons '(Node4 Node5) "edges") udt) ; remove
 
-(desugarFormula (in (-> (atom 'Node0) (atom 'Node1)) (& iden edges)) '() udt #f)
+;(desugarFormula (in (-> (atom 'Node0) (atom 'Node1)) (& iden edges)) '() udt #f)
