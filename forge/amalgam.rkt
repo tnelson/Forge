@@ -55,7 +55,7 @@
 ; fmla is the current target of blame
 (define/contract (amalgam-descent fmla orig-run alt-run L currSign)
   (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c set? exn:fail?))
-  
+
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
   ; For debugging purposes, fail noisily if this invariant is violated

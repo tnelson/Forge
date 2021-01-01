@@ -20,6 +20,11 @@
 (require (prefix-in @ (only-in racket ->)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; This costs a great deal, but forces a noisy failure
+;  Disable for "production"
+(define SANITYCHECK #t)
+(define DEBUG #t)
+
 ; input: formula - the current formula being desugared into simpler AST
 ;        quantVars - quantified variables
 ;        runContext - the context of the current run
@@ -28,7 +33,12 @@
 ; output: recursively creates restricted AST of the formula passed in
 (define/contract (desugarFormula formula quantVars runContext currSign)
   (@-> node/formula? list? forge:Run? boolean? node/formula?)
-  (match formula
+
+  (when DEBUG
+    (printf "~n---- desugarFormula called (sign=~a) with: ~a~n" currSign formula))
+  
+  (define resultFormula
+    (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
      (cond
@@ -173,6 +183,17 @@
     [#t  (printf "desugar true~n")]
     [#f (printf "desugar false~n")]
     ))
+  
+  ; Debug mode will evaluate the formula in the latest instance produced by runContext
+  ;   expecting a currSign result.
+  ; NOTE WELL: this is always with respect to the latest instance.
+  ;  If we fix the evaluator to work with arbitrary instances, we'll need to adapt this to take an instance or #f.  
+  (when SANITYCHECK
+    (unless (equal? (evaluate runContext 'unused formula)
+                    (evaluate runContext 'unused resultFormula))
+      (error (format "desugarFormula would have produced a formula with a different meaning in the latest instance.~nCalled with:~a~nProduced: ~a~n" formula resultFormula))))
+
+  resultFormula)
 
 ; input: formula - the current formula being desugared into simpler AST
 ;        quantVars - quantified variables
