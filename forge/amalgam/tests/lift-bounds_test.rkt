@@ -56,17 +56,15 @@
   ; UNIV
   (@test-case
    "TEST liftBoundsExpr on constant univ base case"
-   (define expressionConstantUNIV (node/expr/constant empty-nodeinfo 1 'univ))
    (@check-equal?
-    (liftBoundsExpr expressionConstantUNIV '() udt)
+    (liftBoundsExpr univ '() udt)
     (map (lambda (x) (list x)) (forge:Run-atoms udt))))
 
   ; IDEN
   (@test-case
    "TEST liftBoundsExpr on constant iden base case"
-   (define expressionConstantIDEN (node/expr/constant empty-nodeinfo 1 'iden))
    (@check-equal?
-    (liftBoundsExpr expressionConstantIDEN '() udt)
+    (liftBoundsExpr iden '() udt)
     (map (lambda (x) (list x x)) (forge:Run-atoms udt))))
 
   ; Checking Quantified variable
