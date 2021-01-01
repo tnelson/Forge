@@ -14,7 +14,7 @@
 ; ^ This will be a *different* struct defn; instead get via sigs
 
 (run udt
-    ; #:preds [isUndirectedTree]
+     ; #:preds [isUndirectedTree]
      #:preds [irreflexive]
      #:scope [(Node 4)]) 
 
