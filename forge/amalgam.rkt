@@ -200,6 +200,8 @@
   ;(printf "~n~n  new-pbindings: ~a~n" new-pbindings)
  
   (define bounds (forge:Bound new-pbindings (forge:Bound-tbindings orig-bounds)))
+  (printf "ORIG BOUNDS ARE ~a~n" orig-bounds)
+  (printf "NEW BOUNDS ARE ~a~n" bounds)
   (define scope (forge:Scope #f #f (hash))) ; empty
   ;(printf "~n  bounds: ~a~n" bounds)
   ; can't use inst syntax here, so construct manually

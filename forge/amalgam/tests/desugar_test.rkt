@@ -52,39 +52,11 @@
             ; (define loneTest (lone ([x Node])  (in x Node)))
 
             (@test-case
-             "TEST AND formula currSign true"
-             (define andTest (and true false))
-             (@check-equal?
-              (desugarFormula andTest '() udt #t)
-              (&& (list true false))))
-
-            (@test-case
-             "TEST AND formula currSign false"
-             (define andTest (and true false))
-             (@check-equal?
-              (desugarFormula andTest '() udt #f)
-              (|| (list false true))))
-
-            (@test-case
-             "TEST OR formula currSign true"
-             (define orTest (or true false))
-             (@check-equal?
-              (desugarFormula orTest '() udt #t)
-              (|| (list true false))))
-
-            (@test-case
-             "TEST OR formula currSign false"
-             (define orTest (or true false))
-             (@check-equal?
-              (desugarFormula orTest '() udt #f)
-              (&& (list false true))))
-
-            (@test-case
              "TEST implies formula"
              (define impliesTest (implies true false))
              (@check-equal?
               (desugarFormula impliesTest '() udt #t)
-              (|| (list false false))))
+              (|| (list (not true) false))))
 
             (@test-case
              "TEST In formula Node relation in univ"
@@ -105,7 +77,7 @@
         
              (@check-equal?
               (desugarFormula inTest '() udt #t)
-              (desugarFormula desugaredAnd '() udt #t)))
+              desugaredAnd))
 
             (@test-case
              "TEST EQUALS formula"
@@ -115,14 +87,7 @@
              (define desugaredEquals (&& (list LHS RHS)))
              (@check-equal?
               (desugarFormula equalsTest '() udt #t)
-              (desugarFormula  desugaredEquals '() udt #t)))
-
-            (@test-case
-             "TEST NEGATION formula"
-             (define negationTest (! true))
-             (@check-equal?
-              (desugarFormula negationTest '() udt #t)
-              false))
+              desugaredEquals))
 
             (@test-case
              "TEST error <"
@@ -194,13 +159,11 @@
             
             (@test-case
              "TEST Int"
-             (define result (in (list (tup2Expr '(Node) udt empty-nodeinfo)
-                                      (node/expr/constant empty-nodeinfo 1 'Int))))
              (@check-equal?
               (desugarExpr
                (node/expr/constant empty-nodeinfo 1 'Int)
-               '() '(Node) udt #f)
-              result))
+               '() '(Node0) udt #f)
+              (not (in (tup2Expr '(Node0) udt empty-nodeinfo) (node/expr/constant empty-nodeinfo 1 'Int)))))
 
             (@test-case
              "TEST desugar in set comprehension case called from desugar formula"
@@ -235,7 +198,7 @@
             (@test-case
              "TEST SETMINUS expression"
              (define setMinusTest (- Node Node))
-             (define currTupIfAtomicExpr (tup2Expr '(Node) udt empty-nodeinfo))
+             (define currTupIfAtomicExpr (tup2Expr '(Node0) udt empty-nodeinfo))
              (define args (list Node Node))
              (define LHSSetMinus (in (list currTupIfAtomicExpr (first args))))
              (define RHSSetMinus
@@ -243,8 +206,8 @@
                        (list (in (list currTupIfAtomicExpr (second args))))))
              (define desugaredSetMinus (&& (list LHSSetMinus RHSSetMinus)))
              (@check-equal?
-              (desugarExpr setMinusTest '() '(Node) udt #t)
-              (desugarFormula desugaredSetMinus '() udt #t)))
+              (desugarExpr setMinusTest '() '(Node0) udt #t)
+              desugaredSetMinus))
 
             (@test-case
              "Test INTERSECTION expression"
@@ -264,11 +227,17 @@
             (@test-case
              "TEST PRODUCT expression on arity 2"
              (define productTest (-> Node Node))
+             (define
+               leftTupleContext
+               (projectTupleRange '(Node0 Node0) 0 (node/expr-arity Node)))
+             (define
+               rightTupleContext
+               (projectTupleRange '(Node0 Node0)
+                                  (node/expr-arity Node) 2))
              (define sol
-               (&& (list (in
-                          (list (node/expr/atom empty-nodeinfo 1 'Node0) Node))
-                         (in (list (node/expr/atom empty-nodeinfo 1 'Node0)
-                                   Node)))))
+               (and
+                (in (tup2Expr leftTupleContext udt empty-nodeinfo) Node)
+                (in (tup2Expr rightTupleContext udt empty-nodeinfo) Node)))
              (@check-equal?
               (desugarExpr productTest '() '(Node0 Node0) udt #t)
               sol))
@@ -276,69 +245,59 @@
             (@test-case
              "TEST PRODUCT expression on arity 3"
              (define productTest (-> Node Node Node))
-             (define sol
-               (&&             
-                (list (in
-                       (list (node/expr/atom empty-nodeinfo 1 'Node0) Node))
-                      (&& (list
-                           (in                       
-                            (list (node/expr/atom empty-nodeinfo 1 'Node1) Node))
-                           (in
-                            (list (node/expr/atom empty-nodeinfo 1 'Node2) Node)))))))
              (@check-equal?
               (desugarExpr productTest '() '(Node0 Node1 Node2) udt #t)
-              sol))
+              (desugarExpr (-> Node (-> Node Node)) '() '(Node0 Node1 Node2) udt #t)))
 
             ;JOIN 
             (@test-case
              "TEST JOIN on OR with currSign False 2 arguments"
-             (define joinFormulaORFalse (in (node/expr/atom empty-nodeinfo 1 'Node0)
-                                            (join Node edges)))
+             (define joinFormula (join Node edges))
              (@check-equal?
-              (desugarFormula joinFormulaORFalse '() udt #f)
-              (&& (list (||(list (in (list (node/expr/atom empty-nodeinfo 1 'Node0)
+              (desugarExpr joinFormula '() '(Node0) udt #f)
+              (|| (list (&&(list (in (list (node/expr/atom empty-nodeinfo 1 'Node0)
                                            (rel '(Node) 'univ "Node")))
                                  (in (list (node/expr/op/->
                                             empty-nodeinfo
                                             2 (list (node/expr/atom empty-nodeinfo 1 'Node0)
                                                     (node/expr/atom empty-nodeinfo 1 'Node0)))
                                            (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node1)
+                        (&& (list (in (list (node/expr/atom empty-nodeinfo 1 'Node1)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node1)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node2)
+                        (&& (list (in (list (node/expr/atom empty-nodeinfo 1 'Node2)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node2)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))
-                        (||(list (in (list (node/expr/atom empty-nodeinfo 1 'Node3)
+                        (&&(list (in (list (node/expr/atom empty-nodeinfo 1 'Node3)
                                            (rel '(Node) 'univ "Node")))
                                  (in (list (node/expr/op/->
                                             empty-nodeinfo
                                             2 (list (node/expr/atom empty-nodeinfo 1 'Node3)
                                                     (node/expr/atom empty-nodeinfo 1 'Node0)))
                                            (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node4)
+                        (&& (list (in (list (node/expr/atom empty-nodeinfo 1 'Node4)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node4)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node5)
+                        (&& (list (in (list (node/expr/atom empty-nodeinfo 1 'Node5)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node5)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))
-                        (|| (list (in (list (node/expr/atom empty-nodeinfo 1 'Node6)
+                        (&& (list (in (list (node/expr/atom empty-nodeinfo 1 'Node6)
                                             (rel '(Node) 'univ "Node")))
                                   (in (list (node/expr/op/->
                                              empty-nodeinfo
@@ -359,7 +318,7 @@
              (define reflexiveEx (* edges))
              (@check-equal?
               (desugarExpr reflexiveEx '() '(Node0 Node1) udt #t)
-              (desugarFormula inFormula '()  udt #t)))
+              inFormula))
             
             (@test-case
              "TEST Transpose expression"

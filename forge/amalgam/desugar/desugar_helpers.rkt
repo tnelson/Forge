@@ -144,17 +144,13 @@
   (define
     leftTupleContext
     (projectTupleRange currTupIfAtomic 0 (node/expr-arity left)))
-  
   (define
     rightTupleContext
     (projectTupleRange currTupIfAtomic
                        (node/expr-arity left) (length currTupIfAtomic)))
-  
   (list
-     (in/info info (list (tup2Expr leftTupleContext runContext info)
-                               left))
-     (in/info info (list (tup2Expr rightTupleContext runContext info)
-                               right))))
+     (in/info info (list (tup2Expr leftTupleContext runContext info) left))
+     (in/info info (list (tup2Expr rightTupleContext runContext info) right))))
 
 
 ; input: tuple - the tuple that we want to convert into an expression 
