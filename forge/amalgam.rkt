@@ -234,7 +234,7 @@
 ;(build-provenances (cons '(Node1 Node1) "edges") udt)
 
 ; these are OK assuming 3, 4, 5, 6 are used
-(build-provenances (cons '(Node1 Node1) "edges") udt) ; add
+(build-provenances (cons '(Node0 Node0) "edges") udt) ; add
 ;(build-provenances (cons '(Node4 Node5) "edges") udt) ; remove
 
 ;(desugarFormula (in (-> (atom 'Node0) (atom 'Node1)) (& iden edges)) '() udt #f)

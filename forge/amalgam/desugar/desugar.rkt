@@ -66,6 +66,7 @@
          (build-list arity (lambda (i)
                              (define currColExpr (getGivenColumn expr i 0 arity))
                              (define uppers (liftBoundsExpr currColExpr quantVars runContext))
+                             (printf "These are the upper bounds ~a~n" uppers)
                              (define union-of-bounds
                                (+/info info (map (lambda (tup)
                                                    (tup2Expr tup runContext info)) uppers))) 
@@ -133,13 +134,13 @@
   ;   expecting the same result (modulo currSign)
   ; NOTE WELL: this is always with respect to the latest instance.
   ;  If we fix the evaluator to work with arbitrary instances, we'll need to adapt this to take an instance or #f.  
-  (when SANITYCHECK
-    (unless (equal? (if currSign
-                        (evaluate runContext 'unused formula)
-                        (not (evaluate runContext 'unused formula)))
-                    (evaluate runContext 'unused resultFormula))
-      (error (format "desugarFormula would have produced a formula (sign=~a) with a different meaning in the latest instance.~nCalled with:~a~nProduced: ~a~n"
-                     currSign formula resultFormula))))
+;  (when SANITYCHECK
+;    (unless (equal? (if currSign
+;                        (evaluate runContext 'unused formula)
+;                        (not (evaluate runContext 'unused formula)))
+;                    (evaluate runContext 'unused resultFormula))
+;      (error (format "desugarFormula would have produced a formula (sign=~a) with a different meaning in the latest instance.~nCalled with:~a~nProduced: ~a~n"
+;                     currSign formula resultFormula))))
 
   resultFormula)
 
