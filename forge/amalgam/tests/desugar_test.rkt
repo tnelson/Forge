@@ -33,7 +33,6 @@
             ; quantified formula
 
             ; no
-            ; QUESTION: THESE RETURN VERY LONG THINGS
             #|(@test-case
               "TEST NO formula currSign true"
              (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
