@@ -52,6 +52,34 @@
   (@-> set? set? set?)  
   (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
 
+
+(define/contract (isLiteralIn fmla)
+  (@-> node/formula? boolean?)
+
+  (define args (node/formula/op-children fmla))
+  (define LHS (first args))
+  (define RHS (second args))
+
+  ; Check if LHS is just a simple tuple 
+  (define evalLHS
+    (cond
+      [(node/expr/op/->? LHS)
+       (define children (node/expr/op-children LHS))
+       ((listof node/expr/atom?) children)]
+      [(node/expr/atom? LHS) #t]))
+
+  ; Check if RHS is either a relation name, atom, the int constant, or other
+  ; expression constants
+  (define evalRHS
+    (or
+     (node/expr/relation? RHS)
+     (node/expr/atom? RHS)
+     (node/expr/constant? RHS)
+     (node/expr/constant? RHS)))
+  (printf "~n Got IN formula ~a (is Literal: ~a) ~n" fmla (and evalLHS evalRHS))
+  (and evalLHS evalRHS)
+  )
+
 ; L is the target of the provenance query
 ; fmla is the current target of blame
 (define/contract (amalgam-descent fmla orig-run alt-run L currSign)
@@ -89,21 +117,25 @@
     (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons)))
   
   (match fmla
+    ; base case: AND 
     [(node/formula/op/&& info args)
      (if currSign (handleAND info args) (handleOR info args))]
 
+    ; base case: OR 
     [(node/formula/op/|| info args)
      (if currSign (handleOR info args) (handleAND info args))]
 
     ; base case: positive literal
     [(node/formula/op/in info args)
-     ; return provenance set containing a provenance with just node in it
+     ; Check that the formula is the simplest case of IN, or take it to desugar
+     #:when (= #t (isLiteralIn fmla))
      (if (equal? fmla L)
          (cond
            [currSign (list->set '(list->set '(fmla)))]
            [else (list->set '(list->set '(not fmla)))])
          (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]
-   
+
+    ; base case: negation
     [(node/formula/op/! info args)     
      (amalgam-descent (first args) orig-run alt-run L (not currSign))]
     [else
