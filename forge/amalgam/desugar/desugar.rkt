@@ -177,21 +177,20 @@
             (define newFormula (createNewQuantifier (first decls)
                                                     quantVars subForm runContext
                                                     info quantifier formula))
-            (desugarFormula newFormula quantVars runContext currSign)])]
-
-    ; truth and falsity
-    [#t  (printf "desugar true~n")]
-    [#f (printf "desugar false~n")]
+            (desugarFormula newFormula quantVars runContext currSign)])]    
     ))
   
   ; Debug mode will evaluate the formula in the latest instance produced by runContext
-  ;   expecting a currSign result.
+  ;   expecting the same result (modulo currSign)
   ; NOTE WELL: this is always with respect to the latest instance.
   ;  If we fix the evaluator to work with arbitrary instances, we'll need to adapt this to take an instance or #f.  
   (when SANITYCHECK
-    (unless (equal? (evaluate runContext 'unused formula)
+    (unless (equal? (if currSign
+                        (evaluate runContext 'unused formula)
+                        (not (evaluate runContext 'unused formula)))
                     (evaluate runContext 'unused resultFormula))
-      (error (format "desugarFormula would have produced a formula with a different meaning in the latest instance.~nCalled with:~a~nProduced: ~a~n" formula resultFormula))))
+      (error (format "desugarFormula would have produced a formula (sign=~a) with a different meaning in the latest instance.~nCalled with:~a~nProduced: ~a~n"
+                     currSign formula resultFormula))))
 
   resultFormula)
 
@@ -296,6 +295,11 @@
     [(? node/formula/op/int=?)
      (error "amalgam: int = not supported ~n")]))
 
+(define (maybe-neg fmla info currSign)
+  (cond
+    [currSign fmla]
+    [else (!/info info fmla)]))
+
 ; input: expr - the current expression being desugared into simpler AST
 ;        quantVars - quantified variables
 ;        runContext - the context of the current run
@@ -310,6 +314,11 @@
   ; Error message to check that we are only taking in expressions
   (@-> node/expr? list? (listof symbol?) forge:Run? boolean? node/formula?)
 
+  (when DEBUG
+    (printf "~n---- desugarExpr called (sign=~a; tuple=~a) with: ~a~n"
+            currSign currTupIfAtomic expr))
+  
+  
   ; Should always have a currTupIfAtomic when calling
   (mustHaveTupleContext currTupIfAtomic expr)
   (when (not (equal? (length currTupIfAtomic) (node/expr-arity expr)))
@@ -318,34 +327,32 @@
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isVar)
-     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
+     (maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
 
     ; atom (base case)
     [(node/expr/atom info arity name)
-     (cond
-       [currSign
-        (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
-       [else
-        (!/info info (in/info  info
-                               (list (tup2Expr currTupIfAtomic runContext info) expr)))])]    
+     (maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]    
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
-     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
+     (maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
 
     ; other expression constants
     [(node/expr/constant info arity type)
-     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
-    
-    ; expression w/ operator (union, intersect, ~, etc...)
-    [(node/expr/op info arity args)
-     (desugarExprOp expr quantVars args currTupIfAtomic runContext currSign info)]
- 
+     (maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
+     
     ; quantified variable (depends on scope!)
     [(node/expr/quantifier-var info arity sym)     
      (error
       "amalgam: A quantified variable was passed into desugarExpr. ~n")]
 
+    ; ^ base cases
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    ; expression w/ operator (union, intersect, ~, etc...)
+    [(node/expr/op info arity args)
+     (desugarExprOp expr quantVars args currTupIfAtomic runContext currSign info)]
+    
     ; set comprehension e.g. {n : Node | some n.edges}
     ; t in {x0: A0, x1: A1, ... | fmla } means:
     ;   t0 in A0 and t0 in A1 and ... fmla[t0/x0, t1/x1, ...] 
