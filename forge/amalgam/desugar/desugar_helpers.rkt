@@ -6,7 +6,7 @@
 (require (prefix-in @ (only-in racket ->)))
 
 (provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct
-         createNewQuantifier projectTupleRange getColumnRight 
+         createNewQuant projectTupleRange getColumnRight 
          productHelper joinTupleDesugar extendPossiblePaths transitiveClosureAnd)
 
 ; input: currTupIfAtomic - implicit LHS
@@ -278,40 +278,6 @@
     [(and (equal? colSoFar desCol) (not (equal? arity 1))) (getColumnLeft node)]
     [else (getGivenColumn
            (join/info info (list univ node)) desCol (+ colSoFar 1) initialArity)]))
-
-
-; input:
-;      decl: The original decl for the quantifier that we are trying to re-write
-;      quantVars: the quantifiable variables of the run that we're calling this
-;        helper from
-;      subForm: the original subformula from the quantifier that we are re-writing
-;      runContext: the context for the program
-;      info: the original info of the node
-;      quantifier: the quantifier from the formula that we are trying to re-write
-;      formula: the quantifier formula 
-;
-; output: Returns a big AND or OR of the subformulas 
-(define/contract
-  (createNewQuantifier decl quantVars subForm runContext info quantifier formula)
-  (@-> pair? list? node/formula? forge:Run? nodeinfo?
-       (or/c 'some 'all) node/formula?
-       (or/c node/formula/op||? node/formula/op/&&? exn:fail?))
-  (unless (not (and (null? (car decl)) (null? (cdr decl))))
-    (error (format "createNewQuantifier: decl ~a is not a tuple" decl)))
-  (define var (car decl)) 
-  (define domain (cdr decl))
-  (let ([quantVars (cons var quantVars)])  
-    ; gives us list of all possible bindings to this variable
-    (define liftedBounds (liftBoundsExpr domain quantVars runContext))
-    ; produce a list of subFormulas each substituted with a possible binding
-    ; for the variable
-    (define subFormulas
-      (map (lambda (tup)
-             (substituteFormula subForm quantVars var
-                                (tup2Expr tup runContext info)))
-           liftedBounds))
-    (cond [(equal? quantifier 'some) (||/info info subFormulas)]
-          [(equal? quantifier 'all) (&&/info info subFormulas)])))
 
 ; input:
 ;      decls: This takes in the list of decls 

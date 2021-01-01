@@ -127,8 +127,7 @@
               (||/info info quants)]
 
              [else
-              (createNewQuantifier (first decls) quantVars subForm runContext
-                                   info quantifier formula)])]))
+              (createNewQuant quantVars subForm runContext info quantifier)])]))
   
   ; Debug mode will evaluate the formula in the latest instance produced by runContext
   ;   expecting the same result (modulo currSign)
