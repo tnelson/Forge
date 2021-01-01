@@ -1,6 +1,6 @@
 #lang forge/core
 
-;(set-verbosity 10)
+(set-verbosity 10)
 
 (require forge/amalgam/desugar/desugar)
 
@@ -88,9 +88,11 @@
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
   ; For debugging purposes, fail noisily if this invariant is violated
-  (unless (evaluate orig-run 'unused fmla)
+  (unless (or (and currSign (evaluate orig-run 'unused fmla))
+              (and (not currSign) (not (evaluate orig-run 'unused fmla))))
     (error (format "amalgam-descent: original instance failed to satisfy ~a~n" fmla)))
-  (when (evaluate alt-run 'unused fmla)
+  (when (or (and currSign (evaluate alt-run 'unused fmla))
+            (and (not currSign) (not (evaluate alt-run 'unused fmla))))
     (error (format "amalgam-descent: L-alternate (L=~a) instance satisfied ~a~n" L fmla)))  
 
   (define (handleAND info args)
