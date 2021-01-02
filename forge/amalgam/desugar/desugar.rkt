@@ -253,20 +253,24 @@
   (match expr
     ; relation name (base case)
     [(node/expr/relation info arity name typelist parent isVar)
-     (maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
+     ;(maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
+     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; atom (base case)
     [(node/expr/atom info arity name)
-     (maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]    
+     ;(maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]    
+     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; The Int constant
     [(node/expr/constant info 1 'Int)
-     (maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
+     ;(maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
+     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
 
     ; other expression constants
     [(node/expr/constant info arity type)
-     (maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
-     
+     ;(maybe-neg (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr)) info currSign)]
+     (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))]
+
     ; quantified variable (depends on scope!)
     [(node/expr/quantifier-var info arity sym)     
      (error

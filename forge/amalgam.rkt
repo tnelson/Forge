@@ -49,10 +49,9 @@
 ; map over the cartesian product of A and B a lambda that takes the union
 ; of these two things.
 ; 
-;   --> will have duplicates for now until equals is implemented
 (define/contract (union-product A B)
   (@-> set? set? set?)  
-  (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
+  (foldl set-union (@set) (set->list (for/set ([i (@set-first A)]) (for/set ([j (@set-first B)]) (list i j))))))
 
 
 (define/contract (isLiteralIn fmla)
@@ -126,7 +125,11 @@
     (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) orig-true-args))
     (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
     ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
-    (define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
+
+    ;(define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
+
+    (define failure-reasons (list (foldl (lambda (x acc) (union-product x acc)) (first prov-sets) (rest prov-sets))))
+
     ; add prov-sets to each failure-reasons + return 
     (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons)))
   
@@ -143,11 +146,11 @@
     [(node/formula/op/in info args)
      ; Check that the formula is the simplest case of IN, or take it to desugar
      #:when (isLiteralIn fmla)
-     (if (equal? fmla L)
+     ; TODO : This is wrong, might need a re-write but the check might just be enough  
+     ;(if (equal? fmla L)
          (cond
-           [currSign (list->set '(list->set '(fmla)))]
-           [else (list->set '(list->set '(not fmla)))])
-         (error (format "unexpected IN formula, not desugared?: ~a; L=~a" fmla L)))]
+           [currSign (list->set (list (list->set (list fmla))))]
+           [else (list->set (list (list->set (list (not fmla)))))])]
 
     ; base case: negation
     [(node/formula/op/! info args)     
