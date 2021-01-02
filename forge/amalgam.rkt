@@ -82,7 +82,7 @@
 ; fmla is the current target of blame
 (define/contract (amalgam-descent fmla orig-run alt-run L currSign)
   (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c set? exn:fail?))
-
+  (printf "In this case, currSign is ~a~n" currSign)
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
   ; For debugging purposes, fail noisily if this invariant is violated
@@ -180,7 +180,7 @@
   ;(printf "~n  orig-bounds: ~a~n" (forge:Run-spec-bounds spec))
   ;(printf "~n  orig-scope: ~a~n" orig-scope) 
   (define new-totals (flip-tuple (cdr orig-inst) (car tup) (cdr tup)))
-  
+  (printf "new-totals is ~a~n" new-totals)
   ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
   ; e.g. (for fixed edge relation)
   ;Original PBindings: 
