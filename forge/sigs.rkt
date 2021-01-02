@@ -1440,21 +1440,33 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define curr-atom-number (make-hash))
   ; Sig -> Symbol
   (define (get-next-name sig)
-    (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) -1)))
+    (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) -1)))    
     (hash-set! curr-atom-number (Sig-name sig) atom-number)
     (define default-name (string->symbol (format "~a~a" (Sig-name sig) atom-number)))
-    (if (hash-has-key? tbindings (Sig-name sig))
-        (let ([bind-names (hash-ref tbindings (Sig-name sig))])
-          (if (@< atom-number (length bind-names))
-              (list-ref bind-names atom-number)
-              (if (member default-name bind-names) ; Avoid clash with user atom names
-                  (get-next-name sig)
-                  default-name)))
-        default-name))
+;    (if (hash-has-key? tbindings (Sig-name sig))
+;        (let ([bind-names (hash-ref tbindings (Sig-name sig))])                 
+;          (if (@< atom-number (length bind-names))
+;              (list-ref bind-names atom-number)
+;              (if (member default-name bind-names) ; Avoid clash with user atom names
+;                  (get-next-name sig)
+;                  default-name)))          
+        default-name)
+  ;)
   
   ; Sig, int -> List<Symbol>
+  ; TN changed this to always use the *lowest* unused atom names first
+  ;   this matters if we're manufacturing an instance I2 from an instance I1 and the bounds
+  ;   need to be identical regardless of how many of a given sig appeared in I1.
   (define (get-next-names sig num)
-    (for/list ([_ (range num)]) (get-next-name sig)))
+    (define bind-names (if (hash-has-key? tbindings (Sig-name sig))
+                           (hash-ref tbindings (Sig-name sig))  ; user-defined names    
+                           empty))
+    (define default-names (for/list ([_ (range num)]) (get-next-name sig)))
+    (define new-names (remove* bind-names default-names)) ; (remove* v-lst lst) removes from lst every element of v-lst
+    (define n-new-needed (- num (length bind-names)))
+    (printf "get-next-names; num=~a, bind-names: ~a, default-names: ~a, new-names: ~a, n-new-needed ~a~n"
+            num bind-names default-names new-names n-new-needed)
+    (append bind-names (take new-names n-new-needed)))
 
   ; Map<Symbol, List<Symbol>
   (define sig-to-lower (make-hash))
@@ -1478,14 +1490,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define (fill-upper sig [parent-names #f])
     (define own-upper-int (Range-upper (get-scope run-spec sig)))
     (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
-    (define difference (@- own-upper-int (length own-lower)))
+    (define difference (@- own-upper-int (length own-lower)))    
     (when (@< difference 0)
       (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
 
     (define new-names 
       (if parent-names
           (take parent-names (@min difference (length parent-names)))
-          (get-next-names sig difference)))
+          (get-next-names sig difference)))    
     (define own-upper (append own-lower new-names))
     (hash-set! sig-to-upper (Sig-name sig) own-upper)
 
