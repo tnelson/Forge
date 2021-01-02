@@ -77,8 +77,7 @@
      (node/expr/constant? RHS)
      (node/expr/constant? RHS)))
   (printf "~n Got IN formula ~a (is Literal: ~a) ~n" fmla (and evalLHS evalRHS))
-  (and evalLHS evalRHS)
-  )
+  (and evalLHS evalRHS))
 
 ; L is the target of the provenance query
 ; fmla is the current target of blame
@@ -99,15 +98,27 @@
     ; *every* arg must have satisfied the orig instance
     ; but not every arg necessarily fails in L-alt instance
     ; each failed arg is its own new provenance-set, which we union together
-    (define failed-args (filter (lambda (arg) (not (evaluate alt-run 'unused arg))) args))
-    (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
+    (define failed-args (filter
+                         (lambda (arg)
+                           (if currSign
+                               (not (evaluate alt-run 'unused arg))
+                               (evaluate alt-run 'unused arg))) args))
+    (printf "failed-args are!!! ~a~n" failed-args)
+    (define prov-sets (map
+                       (lambda (arg)
+                         (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
+    (printf "Passing prov-sets, with prov sets being ~a~n" prov-sets)
     (apply set-union prov-sets))
   
   (define (handleOR info args)
     ; orig instance satisfies at least one arg (not necessarily all, but not zero)
     ; L-alt instance satisfies no args
     (define-values (orig-true-args orig-false-args) ; filter but return #f args as 2nd value
-      (partition (lambda (arg) (evaluate orig-run 'unused arg)) args))
+      (partition
+       (lambda (arg)
+         (if currSign 
+             (evaluate orig-run 'unused arg)
+             (not (evaluate orig-run 'unused arg)))) args))
     ; This is a big OR, so we can think of it as an implication.
     ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
     ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
@@ -131,6 +142,7 @@
     [(node/formula/op/in info args)
      ; Check that the formula is the simplest case of IN, or take it to desugar
      #:when (= #t (isLiteralIn fmla))
+     (printf "We are going into the first IN case ~n")
      (if (equal? fmla L)
          (cond
            [currSign (list->set '(list->set '(fmla)))]
@@ -141,6 +153,7 @@
     [(node/formula/op/! info args)     
      (amalgam-descent (first args) orig-run alt-run L (not currSign))]
     [else
+     (printf "Coming into this case with formula ~a~n" fmla)
      (amalgam-descent (desugarFormula fmla '() orig-run currSign) orig-run alt-run L currSign)]))
 
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
@@ -151,9 +164,7 @@
   ; get conjunction of predicates F from the run command
   (define spec (forge:Run-run-spec orig-run))
   (define Fs (forge:Run-spec-preds spec))
-  ;(define F (and Fs)) ; drake saying no meme
-  (define F (foldl (lambda (f acc) (and f acc)) (first Fs) (rest Fs))); drake saying yes meme
-  ;(printf "  F: ~a~n" F) 
+  (define F (foldl (lambda (f acc) (and f acc)) (first Fs) (rest Fs)))
   
   (define state (forge:Run-spec-state spec))
   (define orig-scope (forge:Run-spec-scope spec))
@@ -200,10 +211,7 @@
   ;(printf "~n~n  new-pbindings: ~a~n" new-pbindings)
  
   (define bounds (forge:Bound new-pbindings (forge:Bound-tbindings orig-bounds)))
-  (printf "ORIG BOUNDS ARE ~a~n" orig-bounds)
-  (printf "NEW BOUNDS ARE ~a~n" bounds)
   (define scope (forge:Scope #f #f (hash))) ; empty
-  ;(printf "~n  bounds: ~a~n" bounds)
   ; can't use inst syntax here, so construct manually
   (define alt-inst
     (lambda (s b) (values scope bounds)))
