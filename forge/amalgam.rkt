@@ -76,7 +76,6 @@
      (node/expr/atom? RHS)
      (node/expr/constant? RHS)
      (node/expr/constant? RHS)))
-  (printf "~n Got IN formula ~a (is Literal: ~a) ~n" fmla (and evalLHS evalRHS))
   (and evalLHS evalRHS))
 
 ; L is the target of the provenance query
@@ -141,8 +140,7 @@
     ; base case: positive literal
     [(node/formula/op/in info args)
      ; Check that the formula is the simplest case of IN, or take it to desugar
-     #:when (= #t (isLiteralIn fmla))
-     (printf "We are going into the first IN case ~n")
+     #:when (isLiteralIn fmla)
      (if (equal? fmla L)
          (cond
            [currSign (list->set '(list->set '(fmla)))]
