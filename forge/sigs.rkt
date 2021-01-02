@@ -1464,8 +1464,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define default-names (for/list ([_ (range num)]) (get-next-name sig)))
     (define new-names (remove* bind-names default-names)) ; (remove* v-lst lst) removes from lst every element of v-lst
     (define n-new-needed (- num (length bind-names)))
-    (printf "get-next-names; num=~a, bind-names: ~a, default-names: ~a, new-names: ~a, n-new-needed ~a~n"
-            num bind-names default-names new-names n-new-needed)
+    ;(printf "get-next-names; num=~a, bind-names: ~a, default-names: ~a, new-names: ~a, n-new-needed ~a~n"
+    ;        num bind-names default-names new-names n-new-needed)
     (append bind-names (take new-names n-new-needed)))
 
   ; Map<Symbol, List<Symbol>
