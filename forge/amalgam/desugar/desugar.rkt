@@ -36,7 +36,7 @@
 
   (when DEBUG
     (printf "~n---- desugarFormula called (sign=~a) with: ~a~n" currSign formula))
-  
+
   (define resultFormula
     (match formula
       ; Constant formulas: already at bottom

@@ -37,15 +37,14 @@
               "TEST NO formula currSign true"
              (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
              (define y (node/expr/quantifier-var empty-nodeinfo 1 'y))
-             (define noTest (no ([x Node]) (all ([y Node]) (in y (join x edges)))))
+             
+             (define noTest (no ([x Node]) (in x (join x edges))))
              (define negatedFormula  (node/formula/op/! empty-nodeinfo (list (in y (join x edges)))))
              (define newQuantFormula (node/formula/quantified empty-nodeinfo 'all (list [y Node] [x Node]) negatedFormula))
              (@check-equal?
               (toString (desugarFormula noTest '() udt #t))
               (toString (desugarFormula newQuantFormula '() udt #t))))|#
 
-            ; one
-            ;(define oneTest (one ([x Node]) (in x Node)))
 
             ; lone
             ; (define loneTest (lone ([x Node])  (in x Node)))
@@ -303,6 +302,26 @@
                                              2 (list (node/expr/atom empty-nodeinfo 1 'Node6)
                                                      (node/expr/atom empty-nodeinfo 1 'Node0)))
                                             (rel '(Node Node) 'Node "edges")))))))))
+
+
+
+            (@test-case
+             "TEST transitive closure expression"
+             
+             (define (createOutput)
+               (define a (list 'Node0 'Node1 'Node2 'Node3 'Node4 'Node5 'Node6))
+               (define product (cartesian-product a a))
+               (&& (map (lambda (pair) (=>
+                                        (in (-> (atom (first pair))
+                                                (atom (second pair))) (^ edges))
+                                        (in (-> (atom (first pair))
+                                                (atom (second pair)))
+                                            (^ edges)))) product)))
+
+             (define transitiveClosure (^ edges))
+             (@check-equal?
+              (desugarFormula (in transitiveClosure transitiveClosure) '() udt #t)
+              (createOutput)))
 
             (@test-case
              "TEST reflexive-transitive closure expression"
