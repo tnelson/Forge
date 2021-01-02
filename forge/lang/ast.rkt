@@ -129,6 +129,7 @@
                    [parentname (format-id #'id "~a" #'parent)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
                    [child-accessor (format-id #'id "~a-children" #'parent)]
+                   [display-id (if (equal? '|| (syntax->datum #'id)) "||" #'id)]
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
@@ -141,7 +142,7 @@
              #:methods gen:custom-write
              [(define (write-proc self port mode)
                 ; all of the /op nodes have their children in a field named "children"
-                (fprintf port "~a" (cons 'id (child-accessor self))))])
+                (fprintf port "~a" (cons 'display-id (child-accessor self))))])
            
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)

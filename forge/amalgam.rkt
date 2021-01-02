@@ -84,7 +84,7 @@
 ; fmla is the current target of blame
 (define/contract (amalgam-descent fmla orig-run alt-run L currSign)
   (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c set? exn:fail?))
-  (printf "In this case, currSign is ~a~n" currSign)
+  (printf "amalgam-descent (currSign is ~a): ~a~n" currSign fmla)
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
   ; For debugging purposes, fail noisily if this invariant is violated
@@ -102,8 +102,8 @@
     (define failed-args (filter
                          (lambda (arg)
                            (if currSign
-                               (not (evaluate alt-run 'unused arg))
-                               (evaluate alt-run 'unused arg))) args))
+                               (not (evaluate alt-run 'unused arg))     ; real "and"
+                               (evaluate alt-run 'unused arg))) args))  ; negated "or"
     (printf "failed-args are!!! ~a~n" failed-args)
     (define prov-sets (map
                        (lambda (arg)
