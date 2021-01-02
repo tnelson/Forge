@@ -1466,7 +1466,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define n-new-needed (- num (length bind-names)))
     ;(printf "get-next-names; num=~a, bind-names: ~a, default-names: ~a, new-names: ~a, n-new-needed ~a~n"
     ;        num bind-names default-names new-names n-new-needed)
-    (append bind-names (take new-names n-new-needed)))
+    (append bind-names (if (@> n-new-needed 0) (take new-names n-new-needed) empty)))
 
   ; Map<Symbol, List<Symbol>
   (define sig-to-lower (make-hash))
