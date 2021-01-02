@@ -10,6 +10,8 @@
 (require (prefix-in @ (only-in racket ->)))
 (require debug/repl)
 
+(require pretty-format)
+
 ;(require (only-in "breaks.rkt" sbound))
 ; ^ This will be a *different* struct defn; instead get via sigs
 
@@ -88,10 +90,10 @@
   ; For debugging purposes, fail noisily if this invariant is violated
   (unless (or (and currSign (evaluate orig-run 'unused fmla))
               (and (not currSign) (not (evaluate orig-run 'unused fmla))))
-    (error (format "amalgam-descent: original instance failed to satisfy ~a~n" fmla)))
+    (error (pretty-format "amalgam-descent (sign=~a): original instance failed to satisfy ~a~n" currSign fmla)))
   (when (or (and currSign (evaluate alt-run 'unused fmla))
             (and (not currSign) (not (evaluate alt-run 'unused fmla))))
-    (error (format "amalgam-descent: L-alternate (L=~a) instance satisfied ~a~n" L fmla)))  
+    (error (pretty-format "amalgam-descent (sign=~a): L-alternate (L=~a) instance satisfied ~a~n" currSign L fmla)))  
 
   (define (handleAND info args)
     ; *every* arg must have satisfied the orig instance

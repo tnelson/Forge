@@ -128,14 +128,20 @@
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
+                   [child-accessor (format-id #'id "~a-children" #'parent)]
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
            (struct name parent () #:transparent #:reflection-name 'id
+             
              #:methods gen:equal+hash
              [(define equal-proc (make-robust-node-equal-syntax parentname))
               (define hash-proc  (make-robust-node-hash-syntax parentname 0))
-              (define hash2-proc (make-robust-node-hash-syntax parentname 3))])
+              (define hash2-proc (make-robust-node-hash-syntax parentname 3))]
+             #:methods gen:custom-write
+             [(define (write-proc self port mode)
+                ; all of the /op nodes have their children in a field named "children"
+                (fprintf port "~a" (cons 'id (child-accessor self))))])
            
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)
@@ -240,8 +246,7 @@
 (struct node/expr/comprehension node/expr (decls formula)
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (fprintf port "(comprehension ~a ~a ~a)" 
-              (node/expr-arity self) 
+     (fprintf port "(comprehension ~a ~a)"               
               (node/expr/comprehension-decls self)
               (node/expr/comprehension-formula self)))]
   #:methods gen:equal+hash
@@ -274,7 +279,8 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/expr/relation info arity name typelist parent is-variable) self)
-     (fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent))]
+     ;(fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent)
+     (fprintf port "(rel ~a)" name))]
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/relation))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/relation 0))
