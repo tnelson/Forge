@@ -149,7 +149,7 @@
     ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
 
     ; TODO: Remove the call to union-product since that isn't what we're doing anymore 
-    ; (define failure-reasons (list (foldl (lambda (x acc) (new-union-product x acc)) (first prov-sets) (rest prov-sets))))
+    (define failure-reasons (list (foldl (lambda (x acc) (new-union-product x acc)) (first prov-sets) (rest prov-sets))))
 
     ; TODO: Is this what we want to return in this case? 
     (ORProof 'orProof new-alpha-set prov-sets)
@@ -179,7 +179,7 @@
     [(node/formula/op/! info args)     
      (amalgam-descent (first args) orig-run alt-run L (not currSign))]
     [else
-     (define desugaredFormula (desugarFormula fmla '() orig-run currSign))
+     (define desugaredFormula (desugarFormula fmla '() orig-run))
      ; TODO: What can we do with this new desugar node? 
      (define newDesugarNode (desugarStep (second desugaredFormula)))
      (amalgam-descent (first desugaredFormula) orig-run alt-run L currSign)]))

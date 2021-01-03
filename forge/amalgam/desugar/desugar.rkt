@@ -28,32 +28,27 @@
 ; input: formula - the current formula being desugared into simpler AST
 ;        quantVars - quantified variables
 ;        runContext - the context of the current run
-;        currSign - the currentSign used for desugaring of NOT
 ;
 ; output: recursively creates restricted AST of the formula passed in
-(define/contract (desugarFormula formula quantVars runContext currSign)
-  (@-> node/formula? list? forge:Run? boolean? (listof (or/c node/formula? symbol?)))
+(define/contract (desugarFormula formula quantVars runContext)
+  (@-> node/formula? list? forge:Run? (listof (or/c node/formula? symbol?)))
 
   (when DEBUG
-    (printf "~n---- desugarFormula called (sign=~a) with: ~a~n" currSign formula))
+    (printf "~n---- desugarFormula called with: ~a~n" formula))
 
   (match formula
     ; Constant formulas: already at bottom
     [(node/formula/constant info type)
      (cond
-       [(and (equal? (node/formula/constant-type formula) 'true) currSign)
+       [(and (equal? (node/formula/constant-type formula) 'true))
         (list true 'constantFormula)]
-       [(and (equal? (node/formula/constant-type formula) 'false) currSign)
+       [(and (equal? (node/formula/constant-type formula) 'false))
         (list false 'constantFormula)]
-       [(and (equal? (node/formula/constant-type formula) 'true) (not currSign))
-        (list false 'constantFormula)]
-       [(and (equal? (node/formula/constant-type formula) 'false) (not currSign))
-        (list true 'constantFormula)]
        [else (list formula 'constantFormula)])]
     
     ; operator formula (and, or, implies, ...)
     [(node/formula/op info args)
-     (desugarFormulaOp formula quantVars args runContext currSign info)]
+     (desugarFormulaOp formula quantVars args runContext info)]
     
     ; multiplicity formula (some, one, ...)
     ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
@@ -139,7 +134,6 @@
 ; input: formula - the current formula being desugared into simpler AST
 ;        quantVars - quantified variables
 ;        runContext - the context of the current run
-;        currSign - the currentSign used for desugaring of NOT
 ;        args - a list of the arguments of the current formula
 ;        currTupIfAtomic - the tuple containing the implicit LHS of the current
 ;                          "in"
@@ -148,10 +142,10 @@
 ; output: This function is recursively calling every element in args and pass
 ; it to the original recursive function. 
 (define/contract (desugarFormulaOp formula quantVars args
-                                   runContext currSign info)
+                                   runContext info)
   (@-> node/formula? list?
        (or/c (listof node/formula?) (listof node/expr?) (listof symbol?))
-       forge:Run? boolean?       
+       forge:Run?       
        nodeinfo? (listof (or/c node/formula? symbol?)))
   (match formula
     
@@ -181,7 +175,7 @@
        [(and (isGroundProduct leftE) (equal? (length liftedUpperBounds) 1))
         ; ground case. we have a currentTuple now, and want to desugar the RHS
         (desugarExpr rightE quantVars
-                     (first liftedUpperBounds) runContext currSign)]
+                     (first liftedUpperBounds) runContext)]
        [else
         ; build a big "and" of: for every tuple T in liftedUpperBounds:
         ; (T in leftE) implies (T in rightE)
@@ -217,20 +211,18 @@
 ; input: expr - the current expression being desugared into simpler AST
 ;        quantVars - quantified variables
 ;        runContext - the context of the current run
-;        currSign - the currentSign used for desugaring of NOT
 ;        args - a list of the arguments of the current expression
 ;        currTupIfAtomic - the tuple containing the implicit LHS of the current
 ;                          "in"
 ;
 ; output: This function is desugaring the current expression (returns simpler
 ;         result of desugared expression)
-(define/contract (desugarExpr expr quantVars currTupIfAtomic runContext currSign)
+(define/contract (desugarExpr expr quantVars currTupIfAtomic runContext)
   ; Error message to check that we are only taking in expressions
-  (@-> node/expr? list? (listof symbol?) forge:Run? boolean? (listof (or/c node/formula? symbol?)))
+  (@-> node/expr? list? (listof symbol?) forge:Run? (listof (or/c node/formula? symbol?)))
 
   (when DEBUG
-    (printf "~n---- desugarExpr called (sign=~a; tuple=~a) with: ~a~n"
-            currSign currTupIfAtomic expr))
+    (printf "~n---- desugarExpr called (tuple=~a) with: ~a~n" currTupIfAtomic expr))
   
   
   ; Should always have a currTupIfAtomic when calling
@@ -273,7 +265,7 @@
 
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
-     (desugarExprOp expr quantVars args currTupIfAtomic runContext currSign info)]
+     (desugarExprOp expr quantVars args currTupIfAtomic runContext info)]
     
     ; set comprehension e.g. {n : Node | some n.edges}
     ; t in {x0: A0, x1: A1, ... | fmla } means:
@@ -298,7 +290,6 @@
 ; input: expr - the current expression being desugared into simpler AST
 ;        quantVars - quantified variables
 ;        runContext - the context of the current run
-;        currSign - the currentSign used for desugaring of NOT
 ;        args - a list of the arguments of the current expression
 ;        currTupIfAtomic - the tuple containing the implicit LHS of the current
 ;                          "in"
@@ -307,9 +298,9 @@
 ; output: This function is desugaring the current expression (returns simpler
 ;         result of desugared expression)
 (define/contract (desugarExprOp  expr quantVars args
-                                 currTupIfAtomic runContext currSign info)
+                                 currTupIfAtomic runContext info)
   (@-> node/expr? list? (listof node/expr?) (listof symbol?)
-       forge:Run? boolean? nodeinfo? (listof (or/c node/formula? symbol?)))
+       forge:Run? nodeinfo? (listof (or/c node/formula? symbol?)))
   (mustHaveTupleContext currTupIfAtomic expr)
   (match expr
 
@@ -320,7 +311,7 @@
      (define desugaredChildren
        (map
         (lambda (child)
-          (first (desugarExpr child quantVars currTupIfAtomic runContext currSign)))
+          (first (desugarExpr child quantVars currTupIfAtomic runContext)))
         args))
      (list (||/info info desugaredChildren) 'unionExpr)]
     
@@ -347,7 +338,7 @@
      (define desugaredChildren
        (map
         (lambda (child)
-          (first (desugarExpr child quantVars currTupIfAtomic runContext currSign)))
+          (first (desugarExpr child quantVars currTupIfAtomic runContext)))
         args))
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD)
      ; AND (currTupIfAtomic in CHILD)
@@ -360,7 +351,7 @@
         (define newLHS (first args))
         (define newRHS (->/info info (rest args)))
         (define newProduct (->/info info (list newLHS newRHS)))
-        (desugarExpr newProduct quantVars currTupIfAtomic runContext currSign)]
+        (desugarExpr newProduct quantVars currTupIfAtomic runContext)]
 
        ; we are in the binary case
        [(@= (length args) 2)            
@@ -372,7 +363,7 @@
        [(equal? (node/expr-arity expr) 1)
         ; if arity is 1, only call desugarExpr on the first thing
         (desugarExpr (first args)
-                     quantVars currTupIfAtomic runContext currSign)]
+                     quantVars currTupIfAtomic runContext)]
        [else (error
               (format "Expression ~a in product had arity less than 1" expr))])]
     
@@ -386,7 +377,7 @@
                                                 (rest args))))
         (define newRHS (join/info info (rest args)))
         (define newJoin (join/info info (list newLHS newRHS)))
-        (desugarExpr newJoin quantVars currTupIfAtomic runContext currSign)]
+        (desugarExpr newJoin quantVars currTupIfAtomic runContext)]
        [(equal? (length args) 2)
 
         (unless (equal? (length currTupIfAtomic) (node/expr-arity (first args)))
@@ -459,7 +450,7 @@
     [(? node/expr/op/~?)
      (define transposedCurrTupIfAtomic (transposeTup currTupIfAtomic))
      (desugarExpr
-      (first args) quantVars transposedCurrTupIfAtomic runContext currSign)]
+      (first args) quantVars transposedCurrTupIfAtomic runContext)]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
