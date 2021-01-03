@@ -32,111 +32,104 @@
 ;
 ; output: recursively creates restricted AST of the formula passed in
 (define/contract (desugarFormula formula quantVars runContext currSign)
-  
   (@-> node/formula? list? forge:Run? boolean? node/formula?)
 
   (when DEBUG
     (printf "~n---- desugarFormula called (sign=~a) with: ~a~n" currSign formula))
 
-
-  (define resultFormula
-    (match formula
-      ; Constant formulas: already at bottom
-      [(node/formula/constant info type)
-       (cond
-         [(and (equal? (node/formula/constant-type formula) 'true) currSign)
-          true]
-         [(and (equal? (node/formula/constant-type formula) 'false) currSign)
-          false]
-         [(and (equal? (node/formula/constant-type formula) 'true) (not currSign))
-          false]
-         [(and (equal? (node/formula/constant-type formula) 'false) (not currSign))
-          true]
-         [else formula])]
+  (match formula
+    ; Constant formulas: already at bottom
+    [(node/formula/constant info type)
+     (cond
+       [(and (equal? (node/formula/constant-type formula) 'true) currSign)
+        true]
+       [(and (equal? (node/formula/constant-type formula) 'false) currSign)
+        false]
+       [(and (equal? (node/formula/constant-type formula) 'true) (not currSign))
+        false]
+       [(and (equal? (node/formula/constant-type formula) 'false) (not currSign))
+        true]
+       [else formula])]
     
-      ; operator formula (and, or, implies, ...)
-      [(node/formula/op info args)
-       (desugarFormulaOp
-        formula quantVars args runContext currSign info)]
+    ; operator formula (and, or, implies, ...)
+    [(node/formula/op info args)
+     (desugarFormulaOp formula quantVars args runContext currSign info)]
     
-      ; multiplicity formula (some, one, ...)
-      ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
-      [(node/formula/multiplicity info mult expr)
-       (printf "Going into the multiplicity case ~n")
-       (define arity (node/expr-arity expr))
-       (define newDecls
-         (build-list arity (lambda (i)
-                             (define currColExpr (getGivenColumn expr i 0 arity))
-                             (define uppers (liftBoundsExpr currColExpr quantVars runContext))
-                             (printf "These are the upper bounds ~a~n" uppers)
-                             (define union-of-bounds
-                               (+/info info (map (lambda (tup)
-                                                   (tup2Expr tup runContext info)) uppers))) 
-                             (cons (node/expr/quantifier-var info 1 (gensym "m2q")) union-of-bounds))))
-       (define productOfFreshVars (->/info info (map car newDecls)))
-       (define newFormula (in/info info (list productOfFreshVars expr)))
-       (printf "About to return from the multiplicity case the formula ~a ~n" (node/formula/quantified info mult newDecls newFormula))
-       (node/formula/quantified info mult newDecls newFormula)]
+    ; multiplicity formula (some, one, ...)
+    ; desugar some e to quantified fmla some x_fresh : union(upperbound(e)) | x_fresh in e
+    [(node/formula/multiplicity info mult expr)
+     (define arity (node/expr-arity expr))
+     (define newDecls
+       (build-list arity (lambda (i)
+                           (define currColExpr (getGivenColumn expr i 0 arity))
+                           (define uppers (liftBoundsExpr currColExpr quantVars runContext))
+                           (define union-of-bounds
+                             (+/info info (map (lambda (tup)
+                                                 (tup2Expr tup runContext info)) uppers))) 
+                           (cons (node/expr/quantifier-var info 1 (gensym "m2q")) union-of-bounds))))
+     (define productOfFreshVars (->/info info (map car newDecls)))
+     (define newFormula (in/info info (list productOfFreshVars expr)))
+     (node/formula/quantified info mult newDecls newFormula)]
       
-      ; quantified formula (some x : ... or all x : ...)
-      [(node/formula/quantified info quantifier decls subForm)
-       ; In the case where the quantifier is not a 'some or 'all, desugar into
-       ; somes/alls
+    ; quantified formula (some x : ... or all x : ...)
+    [(node/formula/quantified info quantifier decls subForm)
+     ; In the case where the quantifier is not a 'some or 'all, desugar into
+     ; somes/alls
 
-       (cond [(not (or (equal? quantifier 'some)
-                       (equal? quantifier 'all)))
-              (cond
-                ; no x: A | r.x in q ------> all x: A | not (r.x in q)
+     (cond [(not (or (equal? quantifier 'some)
+                     (equal? quantifier 'all)))
+            (cond
+              ; no x: A | r.x in q ------> all x: A | not (r.x in q)
                 
-                [(equal? quantifier 'no)
-                 (define negatedFormula (!/info info (list subForm)))
-                 (node/formula/quantified info 'all decls negatedFormula)]
+              [(equal? quantifier 'no)
+               (define negatedFormula (!/info info (list subForm)))
+               (node/formula/quantified info 'all decls negatedFormula)]
 
-                ; one x: A | r.x in q ------>
-                ;    (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
-                [(equal? quantifier 'one)
-                 (define negatedFormula (!/info info (list subForm)))
+              ; one x: A | r.x in q ------>
+              ;    (some x: A | r.x in q and (all y: A-x | not (r.x in q)))
+              [(equal? quantifier 'one)
+               (define negatedFormula (!/info info (list subForm)))
                
-                 (define subtractedDecls
-                   (-/info info (list (cdr (car decls)) (car (car decls)))))
-                 (define quantifiedVarOne
-                   (node/expr/quantifier-var info (node/expr-arity (cdr (car decls))) (gensym "quantiOne")))
-                 (define newDecls (list (cons quantifiedVarOne subtractedDecls)))
-                 (define newQuantFormRHS
-                   (node/formula/quantified info 'all newDecls negatedFormula))
+               (define subtractedDecls
+                 (-/info info (list (cdr (car decls)) (car (car decls)))))
+               (define quantifiedVarOne
+                 (node/expr/quantifier-var info (node/expr-arity (cdr (car decls))) (gensym "quantiOne")))
+               (define newDecls (list (cons quantifiedVarOne subtractedDecls)))
+               (define newQuantFormRHS
+                 (node/formula/quantified info 'all newDecls negatedFormula))
                
-                 ; Put LHS and RHS together 
-                 (define desugaredAnd
-                   (&&/info info (list subForm newQuantFormRHS)))
-                 (node/formula/quantified info 'some decls desugaredAnd)]
+               ; Put LHS and RHS together 
+               (define desugaredAnd
+                 (&&/info info (list subForm newQuantFormRHS)))
+               (node/formula/quantified info 'some decls desugaredAnd)]
 
-                ; lone x: A | r.x in q ------>
-                ;   (no x: A | r.x in q) or (one x: A | r.x in q)
-                [(equal? quantifier 'lone)
-                 (define newQuantFormLHS
-                   (node/formula/quantified info 'no decls subForm))
-                 (define newQuantFormRHS
-                   (node/formula/quantified info 'one decls subForm))
-                 (||/info info (list newQuantFormLHS newQuantFormRHS))])]
+              ; lone x: A | r.x in q ------>
+              ;   (no x: A | r.x in q) or (one x: A | r.x in q)
+              [(equal? quantifier 'lone)
+               (define newQuantFormLHS
+                 (node/formula/quantified info 'no decls subForm))
+               (define newQuantFormRHS
+                 (node/formula/quantified info 'one decls subForm))
+               (||/info info (list newQuantFormLHS newQuantFormRHS))])]
 
-;             [(not (equal? 1 (length decls)))
-;              (when (and (not (equal? quantifier 'all))
-;                         (not (equal? quantifier 'some))) (error (format
-;                                                                  "Multiple quantifiers with something other than all/some: ~a"
-;                                                                  subForm)))
-;
-;              (define quants
-;                (list (createNewQuant decls quantVars subForm runContext info
-;                                      quantifier)))
-;              (||/info info quants)]
+           ;             [(not (equal? 1 (length decls)))
+           ;              (when (and (not (equal? quantifier 'all))
+           ;                         (not (equal? quantifier 'some))) (error (format
+           ;                                                                  "Multiple quantifiers with something other than all/some: ~a"
+           ;                                                                  subForm)))
+           ;
+           ;              (define quants
+           ;                (list (createNewQuant decls quantVars subForm runContext info
+           ;                                      quantifier)))
+           ;              (||/info info quants)]
 
-             [else
-              (createNewQuant decls quantVars subForm runContext info quantifier)])]))
+           [else
+            (createNewQuant decls quantVars subForm runContext info quantifier)])]))
   
-  ; Debug mode will evaluate the formula in the latest instance produced by runContext
-  ;   expecting the same result (modulo currSign)
-  ; NOTE WELL: this is always with respect to the latest instance.
-  ;  If we fix the evaluator to work with arbitrary instances, we'll need to adapt this to take an instance or #f.  
+; Debug mode will evaluate the formula in the latest instance produced by runContext
+;   expecting the same result (modulo currSign)
+; NOTE WELL: this is always with respect to the latest instance.
+;  If we fix the evaluator to work with arbitrary instances, we'll need to adapt this to take an instance or #f.  
 ;  (when SANITYCHECK
 ;    (unless (equal? (if currSign
 ;                        (evaluate runContext 'unused formula)
@@ -144,8 +137,6 @@
 ;                    (evaluate runContext 'unused resultFormula))
 ;      (error (format "desugarFormula would have produced a formula (sign=~a) with a different meaning in the latest instance.~nCalled with:~a~nProduced: ~a~n"
 ;                     currSign formula resultFormula))))
-
-  resultFormula)
 
 ; input: formula - the current formula being desugared into simpler AST
 ;        quantVars - quantified variables

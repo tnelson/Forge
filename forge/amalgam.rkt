@@ -25,6 +25,14 @@
 
 (provide build-provenances)
 
+(struct provenanceNode (annotations) #:transparent)
+(struct contraLeaf provenanceNode () #:transparent)
+(struct alphaLeaf provenanceNode () #:transparent)
+(struct desugarStep provenanceNode () #:transparent)
+(struct ANDProof provenanceNode (options provTrees) #:transparent)
+(struct ORProof provenanceNode (alphas obligations) #:transparent)
+
+ 
 ; takes a hash-table representation of an instance and a tuple and flips the truth of
 ;  that tuple in the instance. The tuple is <t> in <raw-r>.
 (define (flip-tuple a-hash t raw-r)
