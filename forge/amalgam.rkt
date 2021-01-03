@@ -74,7 +74,6 @@
                               (for/set ([j i])
                                 (for/set ([h k])
                                   (list j h))))))))))))
-;(new-union-product (@set (@set 1 2) (@set 3 4)) (@set (@set 5 6)))
 
 (define/contract (isLiteralIn fmla)
   (@-> node/formula? boolean?)
@@ -128,9 +127,9 @@
     (define prov-sets (map
                        (lambda (arg)
                          (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
-    (printf "Passing prov-sets, with prov sets being ~a~n" prov-sets)
-    (printf "We are going to do apply set-union, result is ~a~n" (apply set-union prov-sets))
-    ; This isn't doing anything 
+    ; TODO: Is this what we want to be returning from this case? 
+    (ANDProof 'andProof failed-args prov-sets)
+    ; TODO: Do we need to remove this?
     (apply set-union prov-sets))
   
   (define (handleOR info args)
@@ -149,10 +148,11 @@
     (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
     ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
 
-    ;(define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
+    ; TODO: Remove the call to union-product since that isn't what we're doing anymore 
+    ; (define failure-reasons (list (foldl (lambda (x acc) (new-union-product x acc)) (first prov-sets) (rest prov-sets))))
 
-    (define failure-reasons (list (foldl (lambda (x acc) (new-union-product x acc)) (first prov-sets) (rest prov-sets))))
-
+    ; TODO: Is this what we want to return in this case? 
+    (ORProof 'orProof new-alpha-set prov-sets)
     ; add prov-sets to each failure-reasons + return 
     (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons)))
   
@@ -179,8 +179,10 @@
     [(node/formula/op/! info args)     
      (amalgam-descent (first args) orig-run alt-run L (not currSign))]
     [else
-     (printf "Coming into this case with formula ~a~n" fmla)
-     (amalgam-descent (desugarFormula fmla '() orig-run currSign) orig-run alt-run L currSign)]))
+     (define desugaredFormula (desugarFormula fmla '() orig-run currSign))
+     ; TODO: What can we do with this new desugar node? 
+     (define newDesugarNode (desugarStep (second desugaredFormula)))
+     (amalgam-descent (first desugaredFormula) orig-run alt-run L currSign)]))
 
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
 ; Due to the way the evaluator works at the moment, this is always
