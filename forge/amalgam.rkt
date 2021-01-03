@@ -117,11 +117,12 @@
                            (if currSign
                                (not (evaluate alt-run 'unused arg))     ; real "and"
                                (evaluate alt-run 'unused arg))) args))  ; negated "or"
-    (printf "failed-args are!!! ~a~n" failed-args)
     (define prov-sets (map
                        (lambda (arg)
                          (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
     (printf "Passing prov-sets, with prov sets being ~a~n" prov-sets)
+    (printf "We are going to do apply set-union, result is ~a~n" (apply set-union prov-sets))
+    ; This isn't doing anything 
     (apply set-union prov-sets))
   
   (define (handleOR info args)

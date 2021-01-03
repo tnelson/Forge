@@ -119,16 +119,16 @@
                    (node/formula/quantified info 'one decls subForm))
                  (||/info info (list newQuantFormLHS newQuantFormRHS))])]
 
-             [(not (equal? 1 (length decls)))
-              (when (and (not (equal? quantifier 'all))
-                         (not (equal? quantifier 'some))) (error (format
-                                                                  "Multiple quantifiers with something other than all/some: ~a"
-                                                                  subForm)))
-
-              (define quants
-                (list (createNewQuant decls quantVars subForm runContext info
-                                      quantifier)))
-              (||/info info quants)]
+;             [(not (equal? 1 (length decls)))
+;              (when (and (not (equal? quantifier 'all))
+;                         (not (equal? quantifier 'some))) (error (format
+;                                                                  "Multiple quantifiers with something other than all/some: ~a"
+;                                                                  subForm)))
+;
+;              (define quants
+;                (list (createNewQuant decls quantVars subForm runContext info
+;                                      quantifier)))
+;              (||/info info quants)]
 
              [else
               (createNewQuant decls quantVars subForm runContext info quantifier)])]))
