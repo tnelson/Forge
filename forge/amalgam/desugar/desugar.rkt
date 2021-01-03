@@ -91,12 +91,18 @@
                (define negatedFormula (!/info info (list subForm)))
                
                (define subtractedDecls
-                 (-/info info (list (cdr (car decls)) (car (car decls)))))
-               (define quantifiedVarOne
-                 (node/expr/quantifier-var info (node/expr-arity (cdr (car decls))) (gensym "quantiOne")))
-               (define newDecls (list (cons quantifiedVarOne subtractedDecls)))
+                 (map (lambda (d)
+                        (printf "in map d ~a" d)
+                        (cons
+                         (node/expr/quantifier-var info
+                                                   (node/expr-arity (cdr d))
+                                                   (gensym "quantiOne"))
+                         (-/info info (list (cdr d) (car d))))) decls))
+               (printf "subtractedDecls ~a" subtractedDecls)
+               
+               
                (define newQuantFormRHS
-                 (node/formula/quantified info 'all newDecls negatedFormula))
+                 (node/formula/quantified info 'all subtractedDecls negatedFormula))
                
                ; Put LHS and RHS together 
                (define desugaredAnd

@@ -41,26 +41,17 @@
               (desugarFormula noTest '() udt #t)
               (node/formula/quantified empty-nodeinfo 'all '(x Node) (! (in x x)))))
 
-
             ; lone
             (@test-case
              "TEST LONE formula currSign true"
              (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
-             (define loneTest (node/formula/quantified empty-nodeinfo 'lone '(x Node) (in x x)))
+             (define loneTest (node/formula/quantified empty-nodeinfo 'lone (list (cons x Node)) (in x x)))
              (@check-equal?
               (desugarFormula loneTest '() udt #t)
-              (or (node/formula/quantified empty-nodeinfo 'no '(x Node) (in x x))
-                  (node/formula/quantified empty-nodeinfo 'one '(x Node) (in x x)))))
+              (or (node/formula/quantified empty-nodeinfo 'no (list (cons x Node)) (in x x))
+                  (node/formula/quantified empty-nodeinfo 'one (list (cons x Node)) (in x x)))))
 
-            ; one
-            (@test-case
-             "TEST ONE formula currSign true"
-             (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
-             (define oneTest (node/formula/quantified empty-nodeinfo 'one '(x Node) (in x x)))
-             (@check-equal?
-              (desugarFormula oneTest '() udt #t)
-              (or (no [(x Node)] (in x x)) (one [(x Node)] (in x x)))))
-
+            ; implies
             (@test-case
              "TEST implies formula"
              (define impliesTest (implies true false))
@@ -155,12 +146,11 @@
 
             (@test-case
              "TEST atom on currSign false"
-             (define result (!/info
-                             empty-nodeinfo
-                             (list (node/formula/op/in empty-nodeinfo
-                                                       (list (tup2Expr
-                                                              '(Node) udt empty-nodeinfo)
-                                                             (node/expr/atom empty-nodeinfo 1 'Node))))))
+             (define result
+               (node/formula/op/in empty-nodeinfo
+                                   (list (tup2Expr
+                                          '(Node) udt empty-nodeinfo)
+                                                             (node/expr/atom empty-nodeinfo 1 'Node))))
              (@check-equal?
               (desugarExpr
                (node/expr/atom empty-nodeinfo 1 'Node)
@@ -173,7 +163,7 @@
               (desugarExpr
                (node/expr/constant empty-nodeinfo 1 'Int)
                '() '(Node0) udt #f)
-              (not (in (tup2Expr '(Node0) udt empty-nodeinfo) (node/expr/constant empty-nodeinfo 1 'Int)))))
+              (in (tup2Expr '(Node0) udt empty-nodeinfo) (node/expr/constant empty-nodeinfo 1 'Int))))
 
             (@test-case
              "TEST desugar in set comprehension case called from desugar formula"
