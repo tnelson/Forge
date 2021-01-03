@@ -32,10 +32,12 @@
 ;
 ; output: recursively creates restricted AST of the formula passed in
 (define/contract (desugarFormula formula quantVars runContext currSign)
+  
   (@-> node/formula? list? forge:Run? boolean? node/formula?)
 
   (when DEBUG
     (printf "~n---- desugarFormula called (sign=~a) with: ~a~n" currSign formula))
+
 
   (define resultFormula
     (match formula
@@ -80,10 +82,12 @@
       [(node/formula/quantified info quantifier decls subForm)
        ; In the case where the quantifier is not a 'some or 'all, desugar into
        ; somes/alls
+
        (cond [(not (or (equal? quantifier 'some)
                        (equal? quantifier 'all)))
               (cond
                 ; no x: A | r.x in q ------> all x: A | not (r.x in q)
+                
                 [(equal? quantifier 'no)
                  (define negatedFormula (!/info info (list subForm)))
                  (node/formula/quantified info 'all decls negatedFormula)]
