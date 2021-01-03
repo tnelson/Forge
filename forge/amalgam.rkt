@@ -51,8 +51,22 @@
 ; 
 (define/contract (union-product A B)
   (@-> set? set? set?)  
-  (foldl set-union (@set) (set->list (for/set ([i (@set-first A)]) (for/set ([j (@set-first B)]) (list i j))))))
+  (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
 
+(define/contract (new-union-product A B)
+  (@-> set? set? set?)
+  (foldl set-union (@set)
+         (set->list 
+          (for/set ([i A])
+            (foldl set-union (@set)
+                   (set->list 
+                    (for/set ([k B])
+                      (foldl set-union (@set)
+                             (set->list 
+                              (for/set ([j i])
+                                (for/set ([h k])
+                                  (list j h))))))))))))
+;(new-union-product (@set (@set 1 2) (@set 3 4)) (@set (@set 5 6)))
 
 (define/contract (isLiteralIn fmla)
   (@-> node/formula? boolean?)
