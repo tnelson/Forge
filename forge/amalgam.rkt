@@ -142,7 +142,7 @@
 
     ;(define failure-reasons (foldl (lambda (x acc) union-product (first prov-sets) (rest prov-sets))))
 
-    (define failure-reasons (list (foldl (lambda (x acc) (union-product x acc)) (first prov-sets) (rest prov-sets))))
+    (define failure-reasons (list (foldl (lambda (x acc) (new-union-product x acc)) (first prov-sets) (rest prov-sets))))
 
     ; add prov-sets to each failure-reasons + return 
     (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons)))
@@ -248,8 +248,7 @@
   ;(define desugared (desugarFormula F '() orig-run #t))
   
   ; do amalgam descent on desugared F
-  (amalgam-descent F orig-run alt-run tup #t)
-  '())
+  (amalgam-descent F orig-run alt-run tup #t))
 
 
 ; E.g., at REPL (or in separate module that requires the forge module)
