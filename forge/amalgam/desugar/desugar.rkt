@@ -98,9 +98,7 @@
                          (node/expr/quantifier-var info
                                                    (node/expr-arity (cdr d))
                                                    (gensym "quantiOne"))
-                         (-/info info (list (cdr d) (car d))))) decls))
-               (printf "subtractedDecls ~a" subtractedDecls)
-               
+                         (-/info info (list (cdr d) (car d))))) decls))               
                
                (define newQuantFormRHS
                  (node/formula/quantified info 'all subtractedDecls negatedFormula))
@@ -322,7 +320,7 @@
      (define desugaredChildren
        (map
         (lambda (child)
-          (desugarExpr child quantVars currTupIfAtomic runContext currSign))
+          (first (desugarExpr child quantVars currTupIfAtomic runContext currSign)))
         args))
      (list (||/info info desugaredChildren) 'unionExpr)]
     
@@ -349,7 +347,7 @@
      (define desugaredChildren
        (map
         (lambda (child)
-          (desugarExpr child quantVars currTupIfAtomic runContext currSign))
+          (first (desugarExpr child quantVars currTupIfAtomic runContext currSign)))
         args))
      ; The desugared version of INTERSECTION is: (currTupIfAtomic in CHILD)
      ; AND (currTupIfAtomic in CHILD)
