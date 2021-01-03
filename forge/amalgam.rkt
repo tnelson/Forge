@@ -26,8 +26,8 @@
 (provide build-provenances)
 
 (struct provenanceNode (annotations) #:transparent)
-(struct contraLeaf provenanceNode () #:transparent)
-(struct alphaLeaf provenanceNode () #:transparent)
+(struct contraLeaf provenanceNode (fmla) #:transparent)
+(struct alphaLeaf provenanceNode (alpha) #:transparent)
 (struct desugarStep provenanceNode () #:transparent)
 (struct ANDProof provenanceNode (options provTrees) #:transparent)
 (struct ORProof provenanceNode (alphas obligations) #:transparent)
@@ -57,23 +57,23 @@
 ; map over the cartesian product of A and B a lambda that takes the union
 ; of these two things.
 ; 
-(define/contract (union-product A B)
-  (@-> set? set? set?)  
-  (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
-
-(define/contract (new-union-product A B)
-  (@-> set? set? set?)
-  (foldl set-union (@set)
-         (set->list 
-          (for/set ([i A])
-            (foldl set-union (@set)
-                   (set->list 
-                    (for/set ([k B])
-                      (foldl set-union (@set)
-                             (set->list 
-                              (for/set ([j i])
-                                (for/set ([h k])
-                                  (list j h))))))))))))
+;(define/contract (union-product A B)
+;  (@-> set? set? set?)  
+;  (foldl set-union (@set) (set->list (for/set ([i A]) (for/set ([j B]) (list i j))))))
+;
+;(define/contract (new-union-product A B)
+;  (@-> set? set? set?)
+;  (foldl set-union (@set)
+;         (set->list 
+;          (for/set ([i A])
+;            (foldl set-union (@set)
+;                   (set->list 
+;                    (for/set ([k B])
+;                      (foldl set-union (@set)
+;                             (set->list 
+;                              (for/set ([j i])
+;                                (for/set ([h k])
+;                                  (list j h))))))))))))
 
 (define/contract (isLiteralIn fmla)
   (@-> node/formula? boolean?)
@@ -105,6 +105,7 @@
 (define/contract (amalgam-descent fmla orig-run alt-run L currSign)
   (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c set? exn:fail?))
   (printf "amalgam-descent (currSign is ~a): ~a~n" currSign fmla)
+
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
   ; For debugging purposes, fail noisily if this invariant is violated
@@ -124,13 +125,16 @@
                            (if currSign
                                (not (evaluate alt-run 'unused arg))     ; real "and"
                                (evaluate alt-run 'unused arg))) args))  ; negated "or"
-    (define prov-sets (map
+
+    ; Each call to amalgam-descent is returning a version of the provenanceNode.
+    ; In this case, we are getting the provenances for all of the arguments that
+    ; failed to evaluate to #t. 
+    (define prov-trees (map
                        (lambda (arg)
                          (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
-    ; TODO: Is this what we want to be returning from this case? 
-    (ANDProof 'andProof failed-args prov-sets)
-    ; TODO: Do we need to remove this?
-    (apply set-union prov-sets))
+
+    ; Do we want to do (apply set-union prov-trees)?
+    (ANDProof 'andProof failed-args prov-trees))
   
   (define (handleOR info args)
     ; orig instance satisfies at least one arg (not necessarily all, but not zero)
@@ -141,20 +145,27 @@
          (if currSign 
              (evaluate orig-run 'unused arg)
              (not (evaluate orig-run 'unused arg)))) args))
+
     ; This is a big OR, so we can think of it as an implication.
     ;  furthermore, we're free to shuffle args to the left or right of the => as we see fit
     ; So specialize to the original instance: NOT OR[orig-false-args] ==> OR[orig-true-args]
-    (define prov-sets (map (lambda (arg) (amalgam-descent arg orig-run alt-run L currSign)) orig-true-args))
-    (define new-alpha-set (list->set (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
+    (define prov-sets
+      (map (lambda (arg)
+             (amalgam-descent arg orig-run alt-run L currSign)) orig-true-args))
+;    (define new-alpha-set
+;      (list->set
+;       (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
+    (define alphas
+      (map (lambda (arg)
+             (alphaLeaf 'alphaLeaf (!/info info (list arg)))) orig-false-args))
+
+    (ORProof 'orProof alphas prov-sets))
+    ;;;;;;;; Older comments 
     ; We need *ALL* of orig-true-args to fail, and may have multiple justifications for each (union product)
-
     ; TODO: Remove the call to union-product since that isn't what we're doing anymore 
-    (define failure-reasons (list (foldl (lambda (x acc) (new-union-product x acc)) (first prov-sets) (rest prov-sets))))
-
-    ; TODO: Is this what we want to return in this case? 
-    (ORProof 'orProof new-alpha-set prov-sets)
+    ;(define failure-reasons (list (foldl (lambda (x acc) (new-union-product x acc)) (first prov-sets) (rest prov-sets))))
     ; add prov-sets to each failure-reasons + return 
-    (list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons)))
+    ;(list->set (map (lambda (reason) (set-union new-alpha-set reason)) failure-reasons)))
   
   (match fmla
     ; base case: AND 
@@ -171,13 +182,17 @@
      #:when (isLiteralIn fmla)
      ; TODO : This is wrong, might need a re-write but the check might just be enough  
      ;(if (equal? fmla L)
-         (cond
-           [currSign (list->set (list (list->set (list fmla))))]
-           [else (list->set (list (list->set (list (not fmla)))))])]
+;         (cond
+;           [currSign (list->set (list (list->set (list fmla))))]
+;           [else (list->set (list (list->set (list (not fmla)))))])
+      (cond
+        [currSign (contraLeaf 'contraLeafCurrSignTrue fmla)]
+        [else (contraLeaf 'contraLeafCurrSignFalse (not fmla))])]
 
     ; base case: negation
     [(node/formula/op/! info args)     
      (amalgam-descent (first args) orig-run alt-run L (not currSign))]
+
     [else
      (define desugaredFormula (desugarFormula fmla '() orig-run))
      ; TODO: What can we do with this new desugar node? 
