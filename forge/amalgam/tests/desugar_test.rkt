@@ -33,21 +33,33 @@
             ; quantified formula
 
             ; no
-            #|(@test-case
+            (@test-case
               "TEST NO formula currSign true"
              (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
-             (define y (node/expr/quantifier-var empty-nodeinfo 1 'y))
-             
-             (define noTest (no ([x Node]) (in x (join x edges))))
-             (define negatedFormula  (node/formula/op/! empty-nodeinfo (list (in y (join x edges)))))
-             (define newQuantFormula (node/formula/quantified empty-nodeinfo 'all (list [y Node] [x Node]) negatedFormula))
+             (define noTest (node/formula/quantified empty-nodeinfo 'no '(x Node) (in x x)))
              (@check-equal?
-              (toString (desugarFormula noTest '() udt #t))
-              (toString (desugarFormula newQuantFormula '() udt #t))))|#
+              (desugarFormula noTest '() udt #t)
+              (node/formula/quantified empty-nodeinfo 'all '(x Node) (! (in x x)))))
 
 
             ; lone
-            ; (define loneTest (lone ([x Node])  (in x Node)))
+            (@test-case
+             "TEST LONE formula currSign true"
+             (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
+             (define loneTest (node/formula/quantified empty-nodeinfo 'lone '(x Node) (in x x)))
+             (@check-equal?
+              (desugarFormula loneTest '() udt #t)
+              (or (node/formula/quantified empty-nodeinfo 'no '(x Node) (in x x))
+                  (node/formula/quantified empty-nodeinfo 'one '(x Node) (in x x)))))
+
+            ; one
+            (@test-case
+             "TEST ONE formula currSign true"
+             (define x (node/expr/quantifier-var empty-nodeinfo 1 'x))
+             (define oneTest (node/formula/quantified empty-nodeinfo 'one '(x Node) (in x x)))
+             (@check-equal?
+              (desugarFormula oneTest '() udt #t)
+              (or (no [(x Node)] (in x x)) (one [(x Node)] (in x x)))))
 
             (@test-case
              "TEST implies formula"
