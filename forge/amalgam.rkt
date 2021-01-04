@@ -28,7 +28,7 @@
 (struct provenanceNode (annotations) #:transparent)
 (struct contraLeaf provenanceNode (fmla) #:transparent)
 (struct alphaLeaf provenanceNode (alpha) #:transparent)
-(struct desugarStep provenanceNode () #:transparent)
+(struct desugarStep provenanceNode (provNode) #:transparent)
 (struct ANDProof provenanceNode (options provTrees) #:transparent)
 (struct ORProof provenanceNode (alphas obligations) #:transparent)
 
@@ -185,6 +185,7 @@
 ;         (cond
 ;           [currSign (list->set (list (list->set (list fmla))))]
 ;           [else (list->set (list (list->set (list (not fmla)))))])
+     ; TODO: How can I check if we got to a contradiction?
       (cond
         [currSign (contraLeaf 'contraLeafCurrSignTrue fmla)]
         [else (contraLeaf 'contraLeafCurrSignFalse (not fmla))])]
@@ -195,9 +196,8 @@
 
     [else
      (define desugaredFormula (desugarFormula fmla '() orig-run))
-     ; TODO: What can we do with this new desugar node? 
-     (define newDesugarNode (desugarStep (second desugaredFormula)))
-     (amalgam-descent (first desugaredFormula) orig-run alt-run L currSign)]))
+     (define desugarProvNode (amalgam-descent (first desugaredFormula) orig-run alt-run L currSign))
+     (desugarStep (second desugaredFormula) desugarProvNode)]))
 
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
 ; Due to the way the evaluator works at the moment, this is always
