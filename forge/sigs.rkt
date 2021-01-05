@@ -27,24 +27,12 @@
 ; Instance analysis functions
 (provide is-sat? is-unsat?)
 
-; AST values
-; Expression
-(provide Int iden univ none)
-(provide ^ * ~ + - & join )
-(provide atom)
+; export AST macros and struct definitions (for matching)
+; Make sure that nothing is double-provided
+(provide (all-from-out "lang/ast.rkt"))
 
-; Formula
-(provide true false)
-(provide -> => implies ! and or && || ifte iff <=>)
-(provide = in ni) 
-(provide != !in !ni)
-(provide no some one lone all set) ; two)
-
-; Ints
-(provide < > int= >= <=)
-(provide add subtract multiply divide sign abs remainder)
-(provide card sum sing succ max min sum-quant)
-(provide node/int/constant)
+; helper macros defined in sigs.rkt (it is vital none of these come from AST)
+(provide implies iff <=> ifte >= <= ni != !in !ni)
 
 ; Racket stuff
 (provide let)
@@ -74,9 +62,6 @@
 
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
-
-; export the raw AST for matching vs. the structs
-(provide (all-from-out "lang/ast.rkt"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;

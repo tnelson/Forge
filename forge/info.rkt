@@ -20,4 +20,7 @@
 
 (define compile-omit-paths '("example" "examples" "doc" "tests" "pardinus-cli/out" "kodkod-cli/out"))
 
+(define drracket-tools (list (list "tool.rkt")))
+(define drracket-tool-names (list "Forge DrRacket Integration"))
+
 ;(define test-omit-paths 'all)
