@@ -12,10 +12,11 @@
   ; prevent smuggling back the full link via truthy value
   (not (equal? #f (unbox link))))
 
-(define (do-forge-highlight pos-start pos-end a-color key)
-  (if (is-drracket-linked?)
-      ((vector-ref (unbox link) 0) pos-start pos-end a-color key)
-      (error "do-forge-highlight: DrRacket is not properly linked by the Forge tool.")))
+(define (do-forge-highlight a-srcloc a-color key)
+  (cond [(is-drracket-linked?)         
+         ((vector-ref (unbox link) 0) a-srcloc a-color key)]
+        [else
+         (error "do-forge-highlight: DrRacket is not properly linked by the Forge tool.")]))
 
 (define (do-forge-unhighlight key)
   (if (is-drracket-linked?)

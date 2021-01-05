@@ -5,9 +5,6 @@
 ;; There is a lot of extra code leftover from our tool experiments that I'm keeping in
 ;;   for reference in case it becomes useful later.
 
-; c:\Program Files\racket\share\pkgs\rackunit-gui\rackunit\private\gui\drracket-link.rkt
-
-
 (require drracket/tool
          racket/class
          racket/gui/base
@@ -15,7 +12,6 @@
          mrlib/switchable-button
          framework)
 
-;(require "sigs.rkt")
 (define LINK-MODULE-SPEC 'forge/drracket-link)
 (provide tool@)
  
@@ -25,11 +21,73 @@
     (export drracket:tool-exports^)
     (define (phase1) void)
     (define (phase2) void)
-    ;(define highlight-color-1 (make-object color% 207 255 207))
-    ;(define highlight-color-2 (make-object color% 207 207 255))
-    ;(define hl-thunk-1 #f)
-    ;(define hl-thunk-2 #f)
-    ;(define run-choice #f)
+
+    (define unit-setup-thunk (box #f))
+    
+    (define unit-mixin
+       (mixin (drracket:unit:frame<%>) ()
+      ;(mixin (drracket:unit:frame%) ()
+        (super-new)
+        (inherit get-button-panel
+                 get-definitions-text
+                 get-interactions-text
+                 ;find-matching-tab
+                 ;change-to-tab
+                 )        
+
+        ;;;;;;;;;;;;;;;;;;; FUNCTIONALITY TO EXPOSE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+         
+         (define (do-forge-highlight a-srcloc a-color key)           
+           (when (path? (srcloc-source a-srcloc)) ; locate the appropriate tab, if possible           
+             (define the-tab (send this find-matching-tab (srcloc-source a-srcloc)))
+             (if the-tab
+                 (send this change-to-tab the-tab)
+                 (error (format "Forge tool: couldn't find tab for path: ~a" (srcloc-source a-srcloc)))))
+           
+           (send (get-definitions-text) begin-edit-sequence)          
+           (send (get-definitions-text) highlight-range
+                 (srcloc-position a-srcloc)
+                 (+ (srcloc-position a-srcloc) (srcloc-span a-srcloc))
+                 a-color #:key key)
+           (send (get-definitions-text) end-edit-sequence))
+         
+         (define (do-forge-unhighlight key)
+           (send (get-definitions-text) begin-edit-sequence)          
+           (send (get-definitions-text) unhighlight-ranges/key key)
+           (send (get-definitions-text) end-edit-sequence))
+
+         ;;;;;;;;;;;;;;;;;;;; MACHINERY TO ENABLE SHARING WITH FORGE/CORE ;;;;;;
+         
+         (define (setup-helper-module)
+           (let* ([interactions (get-interactions-text)]
+                  [link (parameterize ((current-namespace (send interactions get-user-namespace)))
+                          (dynamic-require LINK-MODULE-SPEC 'link))])
+             (set-box! link (vector do-forge-highlight do-forge-unhighlight))))
+
+         ; RackUnit extended the REPL, not the frame. 
+         ; We want to do the same so that the REPL can access functionality
+         ; but this particular mixin extends the unit frame, so leave a reference 
+         (set-box! unit-setup-thunk setup-helper-module)))
+
+      (define interactions-text-mixin
+        (mixin ((class->interface drracket:rep:text%)) ()
+          (inherit get-user-namespace)
+          (super-new)
+          
+          (define/override (reset-console)
+            (super reset-console)
+            (if (unbox unit-setup-thunk)
+                ((unbox unit-setup-thunk))
+                (printf "Forge tool: reset-console was called without a unit-setup-thunk populated.")))))
+
+    (drracket:get/extend:extend-interactions-text interactions-text-mixin)      
+    (drracket:get/extend:extend-unit-frame unit-mixin)))
+
+
+
+
+
 
     ; mixing into a frame (so we should have access to all the frame methods)
 ;    (define ping-button-mixin
@@ -119,61 +177,6 @@
 ;                    
 ;          (void))))
 
-    (define unit-setup-thunk (box #f))
-    
-    (define unit-mixin
-       (mixin (drracket:unit:frame<%>) ()
-        (super-new)
-        (inherit get-button-panel
-                 get-definitions-text
-                 get-interactions-text)
-        (inherit register-toolbar-button)
-
-        (define (do-forge-highlight pos-start pos-end a-color key)
-          (send (get-definitions-text) begin-edit-sequence)          
-          (send (get-definitions-text) highlight-range pos-start pos-end a-color #:key key)
-          (send (get-definitions-text) end-edit-sequence))
-         (define (do-forge-unhighlight key)
-          (send (get-definitions-text) begin-edit-sequence)          
-          (send (get-definitions-text) unhighlight-ranges/key key)
-          (send (get-definitions-text) end-edit-sequence))
-        
-         (define (setup-helper-module)
-           (let* ([interactions (get-interactions-text)]
-                  [link (parameterize ((current-namespace (send interactions get-user-namespace)))
-                          (dynamic-require LINK-MODULE-SPEC 'link))])
-             (set-box! link (vector do-forge-highlight do-forge-unhighlight))))
-
-         ; RackUnit extended the REPL, not the frame. 
-         ;(define/override (reset-console)
-         ;  (super reset-console)
-         ;  (setup-helper-module))
-         ;(setup-helper-module)
-         ; We want to do the same so that the REPL can access functionality
-         ; but this particular mixin extends the unit frame, so leave a reference 
-         (set-box! unit-setup-thunk setup-helper-module)))
-
-      (define interactions-text-mixin
-        (mixin ((class->interface drracket:rep:text%)) ()
-          (inherit get-user-namespace)
-          (super-new)
-          
-          (define/override (reset-console)
-            (super reset-console)
-            (if (unbox unit-setup-thunk)
-                ((unbox unit-setup-thunk))
-                (printf "Forge tool: reset-console was called without a unit-setup-thunk populated.")))))
-
-    (drracket:get/extend:extend-interactions-text interactions-text-mixin)      
-    (drracket:get/extend:extend-unit-frame unit-mixin)
-    
     ;(drracket:get/extend:extend-unit-frame ping-button-mixin)
     ;(drracket:get/extend:extend-unit-frame mixin-run-choice)
     ;(drracket:get/extend:extend-unit-frame mixin-menu)
-
-    
-    ))
-
-; At forge/core REPL:
-; (require racket/gui/base)
-; ((vector-ref (unbox link) 0) 0 10 (make-object color% 207 255 207))
