@@ -7,7 +7,8 @@
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
 (provide make-exact-sbound)
-(provide sbound sbound-lower sbound-upper)
+;(provide sbound sbound-lower sbound-upper)
+(provide (struct-out sbound))
 
 ;;;;;;;;;;;;;;
 ;;;; util ;;;;
@@ -362,7 +363,7 @@
             (define vars (for/list ([p prefix]) 
                 (@node/expr/quantifier-var 1 (gensym "v"))
             ))
-            (define new-rel (foldl @join rel vars))   ; rel[a][b]...
+            (define new-rel (@build-box-join rel vars))  ; rel[a][b]...
             (define sub-breaker (f pri new-rel bound postfix-lists postfix))
             
             (define sub-break-graph (breaker-break-graph sub-breaker))

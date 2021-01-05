@@ -3,18 +3,21 @@
 (require (prefix-in @ racket) 
          (prefix-in @ racket/set))
 (require syntax/parse/define)
-(require (for-syntax racket/match))
+(require (for-syntax racket/match syntax/srcloc))
 
 (require "shared.rkt")
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
          "breaks.rkt")
 (require "server/eval-model.rkt")
-(require "server/forgeserver.rkt" ; v long
-         "kodkod-cli/server/kks.rkt" 
-         "kodkod-cli/server/server.rkt"
-         "kodkod-cli/server/server-common.rkt"
-         "translate-to-kodkod-cli.rkt"
+(require "server/forgeserver.rkt") ; v long
+(require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
+         (prefix-in kodkod: "kodkod-cli/server/server.rkt")
+         (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
+(require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
+         (prefix-in pardinus: "pardinus-cli/server/server.rkt")
+         (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
+(require "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
 
 ; Commands
@@ -28,10 +31,11 @@
 ; Expression
 (provide Int iden univ none)
 (provide ^ * ~ + - & join )
+(provide atom)
 
 ; Formula
 (provide true false)
-(provide -> => implies ! not and or && || ifte iff <=>)
+(provide -> => implies ! and or && || ifte iff <=>)
 (provide = in ni) 
 (provide != !in !ni)
 (provide no some one lone all set) ; two)
@@ -48,6 +52,7 @@
 ; Technical stuff
 (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
 (provide set-path!)
+(provide set-option!)
 (define (set-path! path) #f)
 
 ; Data structures
@@ -59,7 +64,8 @@
          (prefix-out forge: (struct-out Options))
          (prefix-out forge: (struct-out State))
          (prefix-out forge: (struct-out Run-spec))
-         (prefix-out forge: (struct-out Run)))
+         (prefix-out forge: (struct-out Run))         
+         (prefix-out forge: (struct-out sbound)))
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
@@ -68,6 +74,9 @@
 
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
+
+; export the raw AST for matching vs. the structs
+(provide (all-from-out "lang/ast.rkt"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
@@ -105,9 +114,15 @@
   tbindings ; Map<Symbol, List<Symbol>>
   ) #:transparent)
 
+(struct Target (
+  instance ; Map<Symbol, List<List<Symbol>>>
+  distance ; 'close | 'far
+  ) #:transparent)
+
 (struct Options (
   solver          ; symbol
  ; verbosity       ; int ; handled in shared.rkt
+  backend         ; symbol
   sb              ; int
   coregranularity ; int
   logtranslation  ; int
@@ -118,10 +133,10 @@
   sig-order   ; List<Symbol>
   relations   ; Map<Symbol, Relation>
   relation-order ; List<Symbol>
-  predicates  ; Set<Symbol>
-  functions   ; Set<Symbol>
-  constants   ; Set<Symbol>
-  insts       ; Set<Symbol>
+  pred-map  ; Map<Symbol, Predicate>
+  fun-map   ; Map<Symbol, Function>
+  const-map   ; Map<Symbol, Constant>
+  inst-map       ; Map<Symbol, Inst>
   options     ; Options
   runmap      ; Map<Symbol, Run> (as hash)
   ) #:transparent)
@@ -131,14 +146,22 @@
   preds   ; Set<node/formula>
   scope   ; Scope
   bounds  ; Bound
+  target  ; Target | #f
   ) #:transparent)
+
+(struct Server-ports (
+  stdin
+  stdout
+  shutdown
+  is-running?) #:transparent)
 
 (struct Run (
   name     ; Symbol
   command  ; String (syntax)
   run-spec ; Run-spec
   result   ; Stream
-  atom-rels ; List<node/expr/relation>
+  server-ports ; Server-ports
+  atoms    ; List<Symbol>
   kodkod-bounds ; List<bound> (lower and upper bounds for each relation)
   ) #:transparent)
 
@@ -151,16 +174,16 @@
 (define init-sig-order (list 'Int))
 (define init-relations (hash 'succ (Relation 'succ succ '(Int Int) #f)))
 (define init-relation-order (list 'succ))
-(define init-predicates (@set))
-(define init-functions (@set))
-(define init-constants (@set))
-(define init-insts (@set))
-(define init-options (Options 'SAT4J 20 0 0))
+(define init-pred-map (@hash))
+(define init-fun-map (@hash))
+(define init-const-map (@hash))
+(define init-inst-map (@hash))
 (define init-runmap (@hash))
+(define init-options (Options 'SAT4J 'pardinus 5 0 0))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
-                          init-predicates init-functions init-constants 
-                          init-insts
+                          init-pred-map init-fun-map init-const-map
+                          init-inst-map
                           init-options
                           init-runmap))
 
@@ -247,7 +270,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
           [(node/expr/relation? sig-name-or-rel)
            (string->symbol (relation-name sig-name-or-rel))]
           [(Sig? sig-name-or-rel)
-           (Sig-name sig-name-or-rel)]))
+           (Sig-name sig-name-or-rel)]
+          [else (error (format "get-sig failed to locate: ~a" sig-name-or-rel))]))
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 
 ; get-sigs :: Run-or-State, Relation*? -> List<Sig>
@@ -295,6 +319,30 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define state (get-state run-or-state))
   (map (curry hash-ref (State-relations state) )
        (State-relation-order state)))
+
+; get-pred :: Run-or-State, Symbol -> Predicate
+; Gets a predicate by name from a given state
+(define (get-pred run-or-state name)
+  (define state (get-state run-or-state))
+  (hash-ref (State-pred-map state) name))
+
+; get-fun :: Run-or-State, Symbol -> Function
+; Gets a function by name from a given state
+(define (get-fun run-or-state name)
+  (define state (get-state run-or-state))
+  (hash-ref (State-fun-map state) name))
+
+; get-const :: Run-or-State, Symbol -> Constant
+; Gets a constant by name from a given state
+(define (get-const run-or-state name)
+  (define state (get-state run-or-state))
+  (hash-ref (State-const-map state) name))
+
+; get-inst :: Run-or-State, Symbol -> Inst
+; Gets a inst by name from a given state
+(define (get-inst run-or-state name)
+  (define state (get-state run-or-state))
+  (hash-ref (State-inst-map state) name))
 
 ; get-children :: Run-or-State, Sig* -> List<Sig>
 ; Returns the children Sigs of a Sig.
@@ -372,7 +420,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (or (Scope-bitwidth scope)
       DEFAULT-BITWIDTH))
 
-; get-all-rels :: (|| Run Run-spec) -> List<node/expr/relation>
+; get-all-rels :: (|| Run Run-spec) -> List<AST-Relation>
 ; Returns a list of all sigs, then all relations, as
 ; their rels in the order they were defined; if given a Run,
 ; includes all of the additional relations used for individual
@@ -389,8 +437,47 @@ Returns whether the given run resulted in sat or unsat, respectively.
                [run-spec (Run-run-spec run-or-spec)])
            (append
              (map Sig-rel (get-sigs run-spec))
-             (map Relation-rel (get-relations run-spec))
-             (Run-atom-rels run)))]))
+             (map Relation-rel (get-relations run-spec))))]))
+
+; get-relation-map :: (|| Run Run-spec) -> Map<Symbol, AST-Relation>
+; Returns a map from names to AST-Relations.
+(define (get-relation-map run-or-spec)
+  (for/hash ([rel (get-all-rels run-or-spec)])
+    (values (relation-name rel) rel)))
+
+; get-stdin :: Run -> input-port?
+(define (get-stdin run)
+  (assert-is-running run)
+  (Server-ports-stdin (Run-server-ports run)))
+
+; get-stdin :: Run -> output-port?
+(define (get-stdout run)
+  (assert-is-running run)
+  (Server-ports-stdout (Run-server-ports run)))
+
+; close-run :: Run -> void
+(define (close-run run)
+  (assert-is-running run)
+  ((Server-ports-shutdown (Run-server-ports run))))
+
+; is-running :: Run -> Boolean
+(define (is-running? run)
+  ((Server-ports-is-running? (Run-server-ports run))))
+
+(define (assert-is-running run)
+  (unless (is-running? run)
+    (raise "KodKod server is not running.")))
+
+; get-option :: Run-or-state Symbol -> Any
+(define (get-option run-or-state option)
+  (define state (get-state run-or-state))
+  (define symbol->proc
+    (hash 'solver Options-solver
+          'backend Options-backend
+          'sb Options-sb
+          'coregranularity Options-coregranularity
+          'logtranslation Options-logtranslation))
+  ((hash-ref symbol->proc option) (State-options state)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -443,71 +530,92 @@ Returns whether the given run resulted in sat or unsat, respectively.
                [relations new-state-relations]
                [relation-order new-state-relation-order]))
 
-; state-add-predicate :: State, Symbol -> State
+; state-add-pred :: State, Symbol, Predicate -> State
 ; Adds a new predicate to the given State.
-(define (state-add-predicate state name)
-  (define new-state-predicates (set-add (State-predicates state) name))
+(define (state-add-pred state name pred)
+  (define new-state-pred-map (hash-set (State-pred-map state) name pred))
   (struct-copy State state
-               [predicates new-state-predicates]))
+               [pred-map new-state-pred-map]))
 
-; state-add-function :: State, Symbol -> State
+; state-add-fun :: State, Symbol, Function -> State
 ; Adds a new function to the given State.
-(define (state-add-function state name)
-  (define new-state-functions (set-add (State-functions state) name))
+(define (state-add-fun state name fun)
+  (define new-state-fun-map (hash-set (State-fun-map state) name fun))
   (struct-copy State state
-               [functions new-state-functions]))
+               [fun-map new-state-fun-map]))
 
-; state-add-constant :: State, Symbol -> State
+; state-add-const :: State, Symbol, Constant -> State
 ; Adds a new constant to the given State.
-(define (state-add-constant state name)
-  (define new-state-constants (set-add (State-constants state) name))
+(define (state-add-const state name const)
+  (define new-state-const-map (hash-set (State-const-map state) name const))
   (struct-copy State state
-               [constants new-state-constants]))
+               [const-map new-state-const-map]))
 
-(define (state-set-option state n v)
-  (define new-state-options
-    (cond [(equal? n 'verbosity)
-           (error "state-set-option called for verbosity, which is handled separately")]
-          [(equal? n 'solver)
-           (struct-copy Options (State-options state) [solver v])]
-          [(equal? n 'sb)
-           (struct-copy Options (State-options state) [sb v])]
-          [(equal? n 'coregranularity)
-           (struct-copy Options (State-options state) [coregranularity v])]
-          [(equal? n 'logtranslation)
-           (struct-copy Options (State-options state) [logtranslation v])]        
-          [else (error (format "unknown option ~a~n" n))]))
+; state-add-inst :: State, Symbol, Inst -> State
+; Adds a new inst to the given State.
+(define (state-add-inst state name inst)
+  (define new-state-inst-map (hash-set (State-inst-map state) name inst))
   (struct-copy State state
-               [options new-state-options]))
+               [inst-map new-state-inst-map]))
 
-; Verbosity is handled externally, in shared.rkt, so that modules sigs.rkt
-; requires can use the setting. Everything else is threaded through via State.
-(define (set-option! n v)
-  (cond [(or (equal? n 'verbose) (equal? n 'verbosity))
-         (set-verbosity v)]
+(define (set-option! option value)
+  (cond [(or (equal? option 'verbosity)
+             (equal? option 'verbose))
+         (set-verbosity value)]
         [else
-         (update-state! (state-set-option curr-state n v))]))
-(provide set-option!)
-(define (get-current-solver)
-  (Options-solver (State-options curr-state)))
-(define (get-current-sb)
-  (Options-sb (State-options curr-state)))
-(define (get-current-coregranularity)
-  (Options-coregranularity (State-options curr-state)))
-(define (get-current-logtranslation)
-  (Options-logtranslation (State-options curr-state)))
+         (update-state! (state-set-option curr-state option value))]))
+
+; state-set-option :: State, Symbol, Symbol -> State
+; Sets option to value for state.
+(define (state-set-option state option value)
+  (define options (State-options state))
+
+  (define option-types
+    (hash 'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
+          'backend symbol?
+          ; 'verbosity exact-nonnegative-integer?
+          'sb exact-nonnegative-integer?
+          'coregranularity exact-nonnegative-integer?
+          'logtranslation exact-nonnegative-integer?))
+  (unless ((hash-ref option-types option) value)
+    (raise (format "Setting option ~a requires ~a; received ~a"
+                   option (hash-ref option-types option) value)))
+
+  (define new-options
+    (cond
+      [(equal? option 'solver)
+       (struct-copy Options options
+                    [solver value])]
+      [(equal? option 'backend)
+       (struct-copy Options options
+                    [backend value])]
+      ; [(equal? option 'verbosity)
+      ;  (struct-copy Options options
+      ;               [verbosity value])]
+      [(equal? option 'sb)
+       (struct-copy Options options
+                    [sb value])]
+      [(equal? option 'coregranularity)
+       (struct-copy Options options
+                    [coregranularity value])]
+      [(equal? option 'logtranslation)
+       (struct-copy Options options
+                    [logtranslation value])]))
+
+  (struct-copy State state
+               [options new-options]))
 
 ;; AST macros
 (define-simple-macro (implies a b) (=> a b))
 (define-simple-macro (iff a b) (and (=> a b) (=> b a)))
 (define-simple-macro (<=> a b) (and (=> a b) (=> b a)))
-(define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
+(define-simple-macro (ifte a b c) (and (=> a b) (=> (! a) c)))
 (define-simple-macro (>= a b) (or (> a b) (int= a b)))
 (define-simple-macro (<= a b) (or (< a b) (int= a b)))
 (define-simple-macro (ni a b) (in b a))
-(define-simple-macro (!= a b) (not (= a b)))
-(define-simple-macro (!in a b) (not (in a b)))
-(define-simple-macro (!ni a b) (not (ni a b)))
+(define-simple-macro (!= a b) (! (= a b)))
+(define-simple-macro (!in a b) (! (in a b)))
+(define-simple-macro (!ni a b) (! (ni a b)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -527,47 +635,57 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(sig name:id (~alt (~optional (~seq #:extends parent:expr))
                         (~optional (~or (~seq (~and #:one one-kw))
                                         (~seq (~and #:abstract abstract-kw))))) ...)
-    #'(begin
+    (quasisyntax/loc stx
+      (begin
         (define true-name 'name)
         (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
         (define true-parent (~? (Sig-name (get-sig curr-state parent))
                                 #f))
-        (define name (declare-relation (list (symbol->string true-name))
+        (define name (build-relation #,(build-source-location stx)
+                                       (list (symbol->string true-name))
                                        (symbol->string (or true-parent 'univ))
                                        (symbol->string true-name)))
-        (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent)))]))
+        (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent))))]))
 
-; Declare a new relation
-; (relation name (sig sig sig ...))
 (define-syntax (relation stx)
   (syntax-parse stx
     [(relation name:id (sig1:id sig2:id sigs ...)
-               (~optional (~seq #:is breaker:id)))
-     #'(begin
+               (~optional (~seq #:is breaker:id))
+               (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
+     (quasisyntax/loc stx
+         (begin
        (define true-name 'name)
        (define true-sigs '(sig1 sig2 sigs ...))
        ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
        ;                                 (curry get-sig curr-state ))
        ;                        (list sig1 sig2 sigs ...)))
        (define true-breaker (~? 'breaker #f))
-       (define name (declare-relation (map symbol->string true-sigs) (symbol->string 'sig1) (symbol->string true-name)))
-       (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker)))]))
+       (define name (build-relation #,(build-source-location stx)
+                                      (map symbol->string true-sigs)
+                                      (symbol->string 'sig1)
+                                      (symbol->string true-name)
+                                      is-var))
+       (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker))))]))
 
 ; Declare a new predicate
-; (pred name cond ...)
-; (pred (name var ...) cond ...)
+; (pred info name cond ...)
+; (pred info (name var ...) cond ...)
+;   or same without info
 (define-syntax (pred stx)
   (syntax-parse stx
-    [(pred name:id conds:expr ...+) 
-      #'(begin 
-        (define name (&& conds ...))
-        (update-state! (state-add-predicate curr-state 'name)))]
-    [(pred (name:id args:id ...+) conds:expr ...+) 
-      #'(begin 
-        (define (name args ...) (&& conds ...))
-        (update-state! (state-add-predicate curr-state 'name)))]))
-
+    [(pred name:id conds:expr ...+)
+     (quasisyntax/loc stx
+       (begin
+         ; use srcloc of actual predicate, not this location in sigs
+         (define name (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
+         (update-state! (state-add-pred curr-state 'name name))))]
+    [(pred (name:id args:id ...+) conds:expr ...+)
+     (quasisyntax/loc stx
+       (begin 
+         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
+         (update-state! (state-add-pred curr-state 'name name))))]))
+                                   
 ; Declare a new function
 ; (fun (name var ...) result)
 (define-syntax (fun stx)
@@ -575,7 +693,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(fun (name:id args:id ...+) result:expr) 
       #'(begin 
         (define (name args ...) result)
-        (update-state! (state-add-function curr-state 'name)))]))
+        (update-state! (state-add-fun curr-state 'name name)))]))
 
 ; Declare a new constant
 ; (const name value)
@@ -584,14 +702,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(const name:id value:expr) 
       #'(begin 
         (define name value)
-        (update-state! (state-add-constant curr-state 'name)))]))
+        (update-state! (state-add-const curr-state 'name name)))]))
 
 ; Define a new bounding instance
 ; (inst name binding ...)
-(define-syntax-rule (inst name binds ...)
-  (define (name scope bound)
-    (set!-values (scope bound) (bind scope bound binds)) ...
-    (values scope bound)))
+(define-syntax (inst stx)
+  (syntax-parse stx
+    [(inst name:id binds:expr ...)
+      #'(begin
+        (define (name scope bound)
+          (set!-values (scope bound) (bind scope bound binds)) ...
+          (values scope bound))
+        (update-state! (state-add-inst curr-state 'name name)))]))
 
 ; Run a given spec
 ; (run name
@@ -604,13 +726,25 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (syntax-parse stx
     [(run name:id
           (~alt
-            (~optional (~seq #:preds (pred ...)))
+            (~optional (~or (~seq #:preds (preds ...))
+                            (~seq #:preds pred)))
             (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
-            (~optional (~seq #:bounds (bound ...)))) ...)
+            (~optional (~or (~seq #:bounds (boundss ...))
+                            (~seq #:bounds bound)))
+            (~optional (~seq #:solver solver-choice))
+            (~optional (~seq #:backend backend-choice))
+            (~optional (~seq #:target target-instance))
+            (~optional (~seq #:target-distance target-distance))
+            (~optional (~or (~and #:target-compare target-compare)
+                            (~and #:target-contrast target-contrast)))) ...)
       #`(begin
         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
         (define run-state curr-state)
-        (define run-preds (~? (~@ (list pred ...)) (~@ (list)))) 
+        (define run-preds (~? (list preds ...) (~? (list pred) (list))))
+
+        (~? (set! run-state (state-set-option run-state 'solver 'solver-choice)))
+        (~? (set! run-state (state-set-option run-state 'backend 'backend-choice)))
+        
 
         (define sig-scopes (~? 
           (~@
@@ -641,17 +775,28 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (for ([sigg (get-sigs run-state)])
             (when (Sig-one sigg)
               (set!-values (scope bounds) (bind scope bounds (one (Sig-rel sigg))))))
-          (~? (~@ (set!-values (scope bounds) (bind scope bounds bound)) ...))
+          (~? (~@ (set!-values (scope bounds) (bind scope bounds boundss)) ...)
+              (~? (set!-values (scope bounds) (bind scope bounds bound))))
           (values scope bounds))
         (define-values (run-scope run-bound)
           (run-inst base-scope default-bound))
 
-        (define run-command #,command)
+        (define run-target 
+          (~? (Target (cdr target-instance)
+                      (~? 'target-distance 'close))
+              #f))
+        (~? (unless (member 'target-distance '(close far))
+              (raise (format "Target distance expected one of (close, far); got ~a." 'target-distance))))
+        (when (~? (or #t 'target-contrast) #f)
+          (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
 
-        (define run-spec (Run-spec run-state run-preds run-scope run-bound))
-        (define-values (run-result atom-rels kodkod-bounds) (send-to-kodkod run-spec))
 
-        (define name (Run run-name run-command run-spec run-result atom-rels kodkod-bounds))        
+        (define run-command #,command)        
+        
+        (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
+        (define-values (run-result atoms server-ports kodkod-bounds) (send-to-kodkod run-spec))
+        
+        (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
 
 ; Test that a spec is sat or unsat
@@ -694,7 +839,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
               (~optional (~seq #:preds (pred ...)))
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
-     #'(run name (~? (~@ #:preds [(not (and pred ...))]))
+     #'(run name (~? (~@ #:preds [(! (and pred ...))]))
                  (~? (~@ #:scope ([sig lower upper] ...)))
                  (~? (~@ #:bounds (bound ...))))]))
 
@@ -710,35 +855,40 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (println "tests")
           (update-state! temp-state))]))
 
+; TODO: instance isn't used
+;  always evaluates with respect to solver's current state
 (define (evaluate run instance expression)
   (unless (is-sat? run)
     (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))
   (define-values (expr-name interpretter)
     (cond [(node/expr? expression) (begin0
-           (values (e (current-expression))
+           (values (kodkod:e (current-expression))
                    interpret-expr)
            (current-expression (add1 (current-expression))))]
           [(node/formula? expression) (begin0
-           (values (f (current-formula))
+           (values (kodkod:f (current-formula))
                    interpret-formula)
            (current-formula (add1 (current-formula))))]
           [(node/int? expression) (begin0
-           (values (i (current-int-expression))
+           (values (kodkod:i (current-int-expression))
                    interpret-int)
-           (current-int-expression (add1 (current-int-expression))))]))
+           (current-int-expression (add1 (current-int-expression))))]
+          [else
+           (error (format "Forge: unexpected input type to evaluate: ~a" expression))]))
 
   (define all-rels (get-all-rels run))
+  (define atom-names (Run-atoms run))
 
-  (cmd 
-    [(stdin)]
-    (print-cmd-cont "(~a " expr-name)
-    (interpretter expression all-rels '())
-    (print-cmd ")")
-    (print-cmd "(evaluate ~a)" expr-name)
-    (print-eof))
+  (kodkod:cmd 
+    [(get-stdin run)]
+    (kodkod:print-cmd-cont "(~a " expr-name)
+    (interpretter expression all-rels atom-names '())
+    (kodkod:print-cmd ")")
+    (kodkod:print-cmd "(evaluate ~a)" expr-name)
+    (kodkod:print-eof))
 
-  (define atom-rels (Run-atom-rels run))
-  (translate-evaluation-from-kodkod-cli (read-evaluation (stdout)) atom-rels))
+  (define run-atoms (Run-atoms run))
+  (translate-evaluation-from-kodkod-cli (kodkod:read-evaluation (get-stdout run)) run-atoms))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -765,21 +915,21 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (set! model-stream (stream-rest model-stream))
     ret))
 
-; make-model-evaluator :: Run -> (String -> ???)
-; Creates an evaluator function for a given Run. 
-; Executes on the most recently generated instance.
-(define (make-model-evaluator run)
-  (lambda (command)
-    (define name (substring command 1 3))
-    (cmd [(stdin)] 
-      (print-cmd command)
-      (print-cmd "(evaluate ~a)" name)
-      (print-eof))
-    (define result (read (stdout)))
-    result))
-    ; (define u (read (open-input-string command)))
-    ; (println u)
-    ; u))
+; ; make-model-evaluator :: Run -> (String -> ???)
+; ; Creates an evaluator function for a given Run. 
+; ; Executes on the most recently generated instance.
+; (define (make-model-evaluator run)
+;   (lambda (command)
+;     (define name (substring command 1 3))
+;     (cmd [(stdin)] 
+;       (print-cmd command)
+;       (print-cmd "(evaluate ~a)" name)
+;       (print-eof))
+;     (define result (read (stdout)))
+;     result))
+;     ; (define u (read (open-input-string command)))
+;     ; (println u)
+;     ; u))
 
 (provide (prefix-out forge: nsa))
 (define nsa (make-parameter #f))
@@ -812,14 +962,57 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (println command)
             (evaluate run '() command)))
 
-        (display-model get-next-model evaluate-str
+        (define (get-contrast-model-generator model compare distance)
+          (unless (member distance '(close far))
+            (raise (format "Contrast model distance expected one of ('close, 'far); got ~a" distance)))
+          (unless (member compare '(compare contrast))
+            (raise (format "Contrast model compare expected one of ('compare, 'contrast); got ~a" compare)))
+
+          (define new-state 
+            (let ([old-state (get-state run)])
+              (state-set-option (state-set-option old-state 'backend 'pardinus)
+                                'solver 'TargetSATSolver)))
+          (define new-preds
+            (if (equal? compare 'compare)
+                (Run-spec-preds (Run-run-spec run))
+                (list (! (foldr (lambda (a b) (and a b))
+                                  true
+                                  (Run-spec-preds (Run-run-spec run)))))))
+          
+          (define new-target
+            (if (equal? 'unsat (car model)) ; if satisfiable, move target
+                (Run-spec-target (Run-run-spec run)) 
+                (Target
+                 (for/hash ([(key value) (cdr model)]
+                            #:when (member key (append (map Sig-rel (get-sigs new-state))
+                                                       (map Relation-rel (get-relations new-state)))))
+                   (values key value))
+                 distance)))
+
+          (define contrast-run-spec
+            (struct-copy Run-spec (Run-run-spec run)
+                         [preds new-preds]
+                         [target new-target]
+                         [state new-state]))
+          (define-values (run-result atom-rels server-ports kodkod-bounds) (send-to-kodkod contrast-run-spec))
+          (define contrast-run 
+            (struct-copy Run run
+                         [name (string->symbol (format "~a-contrast" (Run-name run)))]
+                         [run-spec contrast-run-spec]
+                         [result run-result]
+                         [server-ports server-ports]))
+          (make-model-generator (get-result contrast-run)))
+
+        (display-model get-next-model 
+                       (get-relation-map run)
+                       evaluate-str
                        (Run-name run) 
                        (Run-command run) 
                        "/no-name.rkt" 
-                       (get-bitwidth 
+                       (get-bitwidth
                          (Run-run-spec run)) 
                        empty
-                       (Run-atom-rels run)))))
+                       get-contrast-model-generator))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -995,7 +1188,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Insert missing upper bounds of partial bindings
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define fixed-sigs
-    (for/hash ([(rel pbinding) (in-hash pbindings)])
+    (for/hash ([(rel pbinding) (in-hash pbindings)])      
       (match-define (sbound rel lower upper) pbinding)
       (when (@and (@= (relation-arity rel) 1) (@not upper))
         (define sig (get-sig run-spec (string->symbol (relation-name rel))))
@@ -1005,6 +1198,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define new-upper (set-union lower (list->set new-names)))
         (set! upper new-upper))
       (values rel (sbound rel lower upper))))
+  
   (define fixed-relations
     (for/hash ([(rel pbinding) (in-hash fixed-sigs)])
       (match-define (sbound rel lower upper) pbinding)
@@ -1018,6 +1212,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define new-upper (list->set (apply cartesian-product type-uppers)))
         (set! upper new-upper))
       (values rel (sbound rel lower upper))))
+  
   (set! pbindings fixed-relations)
   ; Send user defined partial bindings to breaks
   (map instance (hash-values pbindings))
@@ -1030,14 +1225,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
         ; this nonsense is just for atom names
         (define name (string->symbol (relation-name rel)))
         (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup))))))
-
+  
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
     (get-sig-bounds run-spec tbindings))
 
   (define relation-to-bound ; Map<Symbol, bound>
     (get-relation-bounds run-spec sig-to-bound))
-
+  
   ; Get new bounds and constraints from breaks
   (define-values (total-bounds break-preds)
     (let* ([sig-bounds (map (compose (curry hash-ref sig-to-bound )
@@ -1101,38 +1296,53 @@ Returns whether the given run resulted in sat or unsat, respectively.
   |#
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
-  (start-server)
+  (define backend (get-option run-spec 'backend))
+  (define-values (stdin stdout shutdown is-running?) 
+    (cond
+      [(equal? backend 'kodkod) (kodkod:start-server)]
+      [(equal? backend 'pardinus) (pardinus:start-server 'stepper (Target? (Run-spec-target run-spec)))]
+      [else (raise (format "Invalid backend: ~a" backend))]))
 
   (define-syntax-rule (kk-print lines ...)
-    (cmd 
-      [(stdin)]
+    (kodkod:cmd 
+      [stdin]
       lines ...))
 
+  ; Confirm that if the user is invoking a custom solver, that custom solver exists
+  (define solverspec (cond [(symbol? (get-option run-spec 'solver))
+                            (get-option run-spec 'solver)]
+                           [else (string-append "\"" (get-option run-spec 'solver) "\"")]))
+  (unless (or (symbol? (get-option run-spec 'solver))
+              (file-exists? (get-option run-spec 'solver)))
+    (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist." 
+                              (get-option run-spec 'solver))))
+  
   ; Print configure and declare univ size
-  (define bitwidth (get-bitwidth run-spec))
+  (define bitwidth (get-bitwidth run-spec)) 
   (kk-print
-    (configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
-                       bitwidth (get-current-solver) (get-current-sb)
-                       (get-current-coregranularity) (get-current-logtranslation)))
-    (declare-univ (length all-atoms)))
+    (kodkod:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
+                               bitwidth 
+                               solverspec 
+                               (get-option run-spec 'sb) 
+                               (get-option run-spec 'coregranularity)
+                               (get-option run-spec 'logtranslation)))
+    (kodkod:declare-univ (length all-atoms)))
 
   ; Declare ints
   (define num-ints (expt 2 bitwidth))
   (kk-print
-    (declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
-                  (range num-ints)))                        ; indexes
+    (kodkod:declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
+                         (range num-ints)))                        ; indexes
 
   ; to-tupleset :: List<List<int>>, int -> tupleset
   (define (to-tupleset arity eles)
     (if (empty? eles)
         (if (@= arity 1)
             'none
-            (product 'none (to-tupleset (sub1 arity) eles)))
-        (tupleset #:tuples eles)))
+            (kodkod:product 'none (to-tupleset (sub1 arity) eles)))
+        (kodkod:tupleset #:tuples eles)))
 
-  (define (get-atoms sig-or-rel atom-names)
-    (define arity 
-      (if (Sig? sig-or-rel) 1 (length (Relation-sigs sig-or-rel))))
+  (define (get-atoms rel atom-names)
     (define atoms 
       (for/list ([tup atom-names])
         (for/list ([atom tup])
@@ -1144,25 +1354,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (raise (format "atom (~a) not in all-atoms (~a)"
                            atom all-atoms)))
           (index-of all-atoms atom))))
-    (define ret (to-tupleset arity atoms))
+    (define ret (to-tupleset (relation-arity rel) atoms))
     ret)
 
-  (for ([sig-or-rel (append (get-sigs run-spec) (get-relations run-spec))]
-        [bound total-bounds]
-        [index (in-naturals)])
+  (for ([rel (get-all-rels run-spec)]
+        [bound total-bounds])    
     (kk-print
-      (declare-rel
-        (r index)
-        (get-atoms sig-or-rel (bound-lower bound))
-        (get-atoms sig-or-rel (bound-upper bound)))))
-
-  (for ([atom all-atoms]
-        [atom-int (in-naturals)]
-        [index (in-naturals (length (get-all-rels run-spec)))])
-    (define tup (to-tupleset 1 (list (list atom-int))))
-    (kk-print
-      (declare-rel (r index) tup tup)))
-  
+      (kodkod:declare-rel
+       (if (node/expr/relation-is-variable rel)
+           (kodkod:x (relation-name rel))
+           (kodkod:r (relation-name rel)))
+        (get-atoms rel (bound-lower bound))
+        (get-atoms rel (bound-upper bound)))))
 
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
@@ -1178,31 +1381,55 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
     (kk-print
-      (print-cmd-cont "(f~a " assertion-number)
-      (translate-to-kodkod-cli p all-rels '())
-      (print-cmd ")")
-      (assert (f assertion-number))
+      (kodkod:print-cmd-cont "(~a " (kodkod:f assertion-number))
+      (translate-to-kodkod-cli p all-rels all-atoms '())
+      (kodkod:print-cmd ")")
+      (kodkod:assert (kodkod:f assertion-number))
       (current-formula (add1 assertion-number))))
 
-  (define atom-rels 
-    (for/list ([atom-name all-atoms])
-      (define atom-name-str 
-        (if (symbol? atom-name)
-            (symbol->string atom-name)
-            (number->string atom-name)))
-      (declare-relation (list atom-name-str) "univ" atom-name-str)))
+  ; Print targets
+  (define-syntax-rule (pardinus-print lines ...)
+    (pardinus:cmd 
+      [stdin]
+      lines ...))
+
+  (define target (Run-spec-target run-spec))
+  (when target
+    (for ([(rel-name atoms) (Target-instance target)])
+      (define relation (hash-ref (get-relation-map run-spec) (symbol->string rel-name)))
+      (define sig-or-rel
+        (if (@= (relation-arity relation) 1)
+            (get-sig run-spec relation)
+            (get-relation run-spec relation)))
+
+      (pardinus-print
+        (pardinus:declare-target 
+          (pardinus:r (relation-name relation))
+          (get-atoms relation atoms))))
+
+    (pardinus-print
+      (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
 
   ; Print solve
   (define (get-next-model)
-    (kk-print (solve))
-    (match-define (cons restype inst) (translate-from-kodkod-cli 'run (read-solution (stdout)) (append all-rels atom-rels) all-atoms))
+    (unless (is-running?)
+      (raise "KodKod server is not running."))
+    (kk-print (kodkod:solve))
+    (match-define (cons restype inst) (translate-from-kodkod-cli 'run 
+                                                                 (kodkod:read-solution stdout) 
+                                                                 all-rels 
+                                                                 all-atoms))        
     (cons restype inst))
 
-  (define (model-stream)
-    (stream-cons (get-next-model) (model-stream)))
+  (define (model-stream [prev #f])
+    (if (and prev
+             (or (equal? (car prev) 'no-more-instances) 
+                 (equal? (car prev) 'unsat)))
+        (letrec ([rest (stream-cons (prev) rest)])
+          rest)
+        (stream-cons (get-next-model) (model-stream))))
 
-  (values (model-stream) atom-rels total-bounds))
-
+  (values (model-stream) all-atoms (Server-ports stdin stdout shutdown is-running?) total-bounds))
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
@@ -1213,20 +1440,33 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define curr-atom-number (make-hash))
   ; Sig -> Symbol
   (define (get-next-name sig)
-    (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) -1)))
+    (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) -1)))    
     (hash-set! curr-atom-number (Sig-name sig) atom-number)
     (define default-name (string->symbol (format "~a~a" (Sig-name sig) atom-number)))
-    (if (hash-has-key? tbindings (Sig-name sig))
-        (let ([bind-names (hash-ref tbindings (Sig-name sig))])
-          (if (@< atom-number (length bind-names))
-              (list-ref bind-names atom-number)
-              (if (member default-name bind-names) ; Avoid clash with user atom names
-                  (get-next-name sig)
-                  default-name)))
-        default-name))
+;    (if (hash-has-key? tbindings (Sig-name sig))
+;        (let ([bind-names (hash-ref tbindings (Sig-name sig))])                 
+;          (if (@< atom-number (length bind-names))
+;              (list-ref bind-names atom-number)
+;              (if (member default-name bind-names) ; Avoid clash with user atom names
+;                  (get-next-name sig)
+;                  default-name)))          
+        default-name)
+  ;)
+  
   ; Sig, int -> List<Symbol>
+  ; TN changed this to always use the *lowest* unused atom names first
+  ;   this matters if we're manufacturing an instance I2 from an instance I1 and the bounds
+  ;   need to be identical regardless of how many of a given sig appeared in I1.
   (define (get-next-names sig num)
-    (for/list ([_ (range num)]) (get-next-name sig)))
+    (define bind-names (if (hash-has-key? tbindings (Sig-name sig))
+                           (hash-ref tbindings (Sig-name sig))  ; user-defined names    
+                           empty))
+    (define default-names (for/list ([_ (range num)]) (get-next-name sig)))
+    (define new-names (remove* bind-names default-names)) ; (remove* v-lst lst) removes from lst every element of v-lst
+    (define n-new-needed (- num (length bind-names)))
+    ;(printf "get-next-names; num=~a, bind-names: ~a, default-names: ~a, new-names: ~a, n-new-needed ~a~n"
+    ;        num bind-names default-names new-names n-new-needed)
+    (append bind-names (if (@> n-new-needed 0) (take new-names n-new-needed) empty)))
 
   ; Map<Symbol, List<Symbol>
   (define sig-to-lower (make-hash))
@@ -1250,14 +1490,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define (fill-upper sig [parent-names #f])
     (define own-upper-int (Range-upper (get-scope run-spec sig)))
     (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
-    (define difference (@- own-upper-int (length own-lower)))
+    (define difference (@- own-upper-int (length own-lower)))    
     (when (@< difference 0)
       (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
 
     (define new-names 
       (if parent-names
           (take parent-names (@min difference (length parent-names)))
-          (get-next-names sig difference)))
+          (get-next-names sig difference)))    
     (define own-upper (append own-lower new-names))
     (hash-set! sig-to-upper (Sig-name sig) own-upper)
 
@@ -1278,6 +1518,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; End: Used to allow extending Ints.
 
   (define top-level-sigs (get-top-level-sigs run-spec))
+  
   (define sig-atoms (apply append
     (for/list ([sig top-level-sigs] 
                #:unless (equal? (Sig-name sig) 'Int))
@@ -1331,8 +1572,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (raise (format (string-append "Upper bound too large for given BitWidth; "
                                     "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                      sig upper (sub1 max-int))))
-    (and (<= (node/int/constant lower) (card (Sig-rel sig)))
-         (<= (card (Sig-rel sig)) (node/int/constant upper)))))
+    (and (<= (int lower) (card (Sig-rel sig)))
+         (<= (card (Sig-rel sig)) (int upper)))))
 
 ; get-extender-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig which has extending Sigs so that:
@@ -1350,7 +1591,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (define (abstract sig extenders)
       (if (@= (length extenders) 1)
           (= sig (car extenders))
-          (= sig (apply + extenders))))
+          (= sig (+ extenders))))
     (define (parent sig1 sig2)
       (in sig2 sig1))
     (define extends-constraints 
@@ -1381,6 +1622,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-relation-preds run-spec)
   (for/list ([relation (get-relations run-spec)])
     (define sig-rels (map Sig-rel (get-sigs run-spec relation)))
-    (in (Relation-rel relation) (apply -> sig-rels))))
+    (in (Relation-rel relation) (-> sig-rels))))
 
 
