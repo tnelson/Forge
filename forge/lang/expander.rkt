@@ -109,11 +109,16 @@
     (pattern decl:InstDeclClass))
     ; (pattern decl:TraceDeclClass))
 
-  ; SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
+  ;Used for Electrum stuff
+  ;Used to declare var Sigs and Relations (so they can change over time)
+  (define-syntax-class VarKeywordClass (pattern "var")) 
+
+  ; SigDecl : ABSTRACT-TOK? Mult? VAR-TOK? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
   (define-syntax-class SigDeclClass
     (pattern ((~literal SigDecl)
               (~optional abstract:abstract-tok)
               (~optional mult:MultClass)
+              (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
               sig-names:NameListClass
               (~optional extends:SigExtClass)
               (~optional relation-decls:ArrowDeclListClass)
@@ -170,7 +175,6 @@
                                                   (syntax->list #'(decls.translate ...)))))))
 
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
-  (define-syntax-class VarKeywordClass (pattern "var")) 
   (define-syntax-class ArrowDeclClass
     (pattern ((~literal ArrowDecl)
               (~optional "disj")
@@ -505,46 +509,50 @@
          (~? (raise (format "Bracketed import not yet implemented. ~a" 'other-names)))
          (~? (raise (format "Importing as not yet implemented. ~a" 'as-name)))))]))
   
-; SigDecl : ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
+; SigDecl : ABSTRACT-TOK? Mult? VAR-TOK? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax (SigDecl stx)
   (syntax-parse stx
     [((~literal SigDecl) (~optional abstract:abstract-tok)
-                       (~optional mult:MultClass)
-                       sig-names:NameListClass
-                       (~optional extends:SigExtClass)
-                       (~optional block:BlockClass))
-   (syntax/loc stx (begin
-     (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
-     (sig sig-names.names (~? mult.symbol) 
-                          (~? abstract.symbol) 
-                          (~? (~@ extends.symbol extends.value))) ...))]
+                         (~optional mult:MultClass)
+                         (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+                         sig-names:NameListClass
+                         (~optional extends:SigExtClass)
+                         (~optional block:BlockClass))
+     (syntax/loc stx (begin
+       (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
+       (sig sig-names.names (~? mult.symbol)
+                            (~? abstract.symbol)
+                            (~? (~@ #:is-var isv))
+                            (~? (~@ extends.symbol extends.value))) ...))]
 
-  [((~literal SigDecl) (~optional abstract:abstract-tok)
-                       (~optional mult:MultClass)
-                       sig-names:NameListClass
-                       (~optional extends:SigExtClass)
-                       ((~literal ArrowDeclList) arrow-decl:ArrowDeclClass ...)
-                       (~optional block:BlockClass))
-   (quasisyntax/loc stx (begin
-     (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
-     (sig sig-names.names (~? mult.symbol) 
-                          (~? abstract.symbol) 
-                          (~? (~@ extends.symbol extends.value))) ...
-   #,@(apply append
-        (for/list ([sig-name (syntax->list #'(sig-names.names ...))]
-                   #:when #t
-                   [relation-names (syntax->list #'(arrow-decl.names ...))]
-                   [relation-types (syntax->list #'(arrow-decl.types ...))]
-                   [relation-is-var  (syntax->list #'(arrow-decl.is-var ...))]
-                   [relation-mult (syntax->list #'((~? arrow-decl.mult default) ...))])
-          (for/list ([relation-name (syntax->list relation-names)])            
-            (with-syntax ([relation-name relation-name]
-                          [relation-types (datum->syntax relation-types 
-                                                         (cons (syntax->datum sig-name)
-                                                               (syntax->list relation-types)))]                          
-                          [relation-mult relation-mult]
-                          [is-var relation-is-var])                                             
-                  #'(relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))]))
+    [((~literal SigDecl) (~optional abstract:abstract-tok)
+                         (~optional mult:MultClass)
+                         (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+                         sig-names:NameListClass
+                         (~optional extends:SigExtClass)
+                         ((~literal ArrowDeclList) arrow-decl:ArrowDeclClass ...)
+                         (~optional block:BlockClass))
+     (quasisyntax/loc stx (begin
+       (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
+       (sig sig-names.names (~? mult.symbol) 
+                            (~? abstract.symbol) 
+                            (~? (~@ #:is-var isv))
+                            (~? (~@ extends.symbol extends.value))) ...
+       #,@(apply append
+            (for/list ([sig-name (syntax->list #'(sig-names.names ...))]
+                       #:when #t
+                       [relation-names (syntax->list #'(arrow-decl.names ...))]
+                       [relation-types (syntax->list #'(arrow-decl.types ...))]
+                       [relation-is-var (syntax->list #'(arrow-decl.is-var ...))]
+                       [relation-mult (syntax->list #'((~? arrow-decl.mult default) ...))])
+              (for/list ([relation-name (syntax->list relation-names)])            
+                (with-syntax ([relation-name relation-name]
+                              [relation-types (datum->syntax relation-types 
+                                                             (cons (syntax->datum sig-name)
+                                                                   (syntax->list relation-types)))]                          
+                              [relation-mult relation-mult]
+                              [is-var relation-is-var])                                             
+                      #'(relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)

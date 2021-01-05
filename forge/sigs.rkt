@@ -210,42 +210,29 @@ type AST-Relation = node/expr/Relation
 type Sig* = (|| Sig AST-Relation)
 type Relation* = (|| Relation AST-Relation)
 type Run-or-State = (|| Run State)
-
 get-state :: Run-or-State -> State
 If run-or-state is a State, returns it;
 if it is a Run-spec or a Run, then returns its state.
-
 ; Sig stuff
-
 get-sig :: Run-or-State (|| Symbol AST-Relation) -> Sig
 Returns the Sig of a given name/ast-relation from a run/state.
-
 get-sigs :: Run-or-State, Relation*? -> List<Sig>
 If a relation is provided, returns the column sigs;
 otherwise, returns the Sigs of the given relation in a run/state.
-
 get-top-level-sigs :: Run-or-State -> List<Sig>
 Returns the Sigs in a run/state that do not extend another Sig.
-
 get-children :: Run-or-State, Sig* -> List<Sig>
 Returns the children Sigs of a Sig.
-
 get-fields :: Run-or-State Sig* -> List<Relation>
 Returns the relations whose first sig is the given sig.
-
 ; Relation stuff
-
 get-relation :: Run-or-State, (|| Symbol AST-Relation) -> Relation
 Returns the Relation of a given name/ast-relation from a run/state.
-
 get-relations :: Run-or-State -> List<Relation>
 Returns the Relations in a run/state.
-
 ; Result stuff
-
 get-result :: Run -> Stream
 Returns a stream of instances for the given run.
-
 is-sat? :: Run -> boolean
 is-unsat? :: Run -> boolean
 Returns whether the given run resulted in sat or unsat, respectively.
@@ -293,14 +280,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; get-fields :: Run-or-State Sig* -> List<Relation>
 ; Returns the relations whose first sig is the given sig.
 (define (get-fields run-or-state sig-or-rel)
-  (define state (get-state run-or-state))
-  (define sig (get-sig state sig-or-rel))
-  (define relations (get-relations state))
+  (define state (get-state run-or-state))
+  (define sig (get-sig state sig-or-rel))
+  (define relations (get-relations state))
 
-  (for/list ([relation relations]
-             #:when (equal? (first (get-sigs state relation))
-                            sig))
-    relation))
+  (for/list ([relation relations]
+             #:when (equal? (first (get-sigs state relation))
+                            sig))
+    relation))
 
 ; get-relation :: Run-or-State, (|| Symbol Relation*) -> Relation
 ; Returns the Relation of a given name/ast-relation from a run/state.
@@ -629,12 +616,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 
 ; Declare a new sig.
-; (sig name [|| [#:one] [#:abstract]] [#:extends parent])
+; (sig name [|| [#:one] [#:abstract]] [#:is-var isv] [#:extends parent])
 (define-syntax (sig stx)
   (syntax-parse stx
     [(sig name:id (~alt (~optional (~seq #:extends parent:expr))
                         (~optional (~or (~seq (~and #:one one-kw))
-                                        (~seq (~and #:abstract abstract-kw))))) ...)
+                                        (~seq (~and #:abstract abstract-kw))))
+                        (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
     (quasisyntax/loc stx
       (begin
         (define true-name 'name)
@@ -645,7 +633,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define name (build-relation #,(build-source-location stx)
                                        (list (symbol->string true-name))
                                        (symbol->string (or true-parent 'univ))
-                                       (symbol->string true-name)))
+                                       (symbol->string true-name)
+                                       is-var))
         (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent))))]))
 
 (define-syntax (relation stx)
@@ -862,15 +851,15 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))
   (define-values (expr-name interpretter)
     (cond [(node/expr? expression) (begin0
-           (values (kodkod:e (current-expression))
+           (values (pardinus:e (current-expression))
                    interpret-expr)
            (current-expression (add1 (current-expression))))]
           [(node/formula? expression) (begin0
-           (values (kodkod:f (current-formula))
+           (values (pardinus:f (current-formula))
                    interpret-formula)
            (current-formula (add1 (current-formula))))]
           [(node/int? expression) (begin0
-           (values (kodkod:i (current-int-expression))
+           (values (pardinus:i (current-int-expression))
                    interpret-int)
            (current-int-expression (add1 (current-int-expression))))]
           [else
@@ -879,16 +868,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define all-rels (get-all-rels run))
   (define atom-names (Run-atoms run))
 
-  (kodkod:cmd 
+  (pardinus:cmd 
     [(get-stdin run)]
-    (kodkod:print-cmd-cont "(~a " expr-name)
+    (pardinus:print-cmd-cont "(~a " expr-name)
     (interpretter expression all-rels atom-names '())
-    (kodkod:print-cmd ")")
-    (kodkod:print-cmd "(evaluate ~a)" expr-name)
-    (kodkod:print-eof))
+    (pardinus:print-cmd ")")
+    (pardinus:print-cmd "(evaluate ~a)" expr-name)
+    (pardinus:print-eof))
 
   (define run-atoms (Run-atoms run))
-  (translate-evaluation-from-kodkod-cli (kodkod:read-evaluation (get-stdout run)) run-atoms))
+  (translate-evaluation-from-kodkod-cli (pardinus:read-evaluation (get-stdout run)) run-atoms))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1281,17 +1270,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
   #| Print to KodKod-CLI
     print configure
     declare univ size
-
     declare ints
-
     print Int sig (r0)
     print other sigs (r2 ... rm)
-
     print succ relation (r(m + 1))
     print other relations (r(m + 2) ... rn)
-
     print formula / assert formula (f0 ... fk)
-
     print solve
   |#
 
@@ -1308,6 +1292,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
       [stdin]
       lines ...))
 
+  ; Print targets
+  (define-syntax-rule (pardinus-print lines ...)
+    (pardinus:cmd 
+      [stdin]
+      lines ...))
+
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
   (define solverspec (cond [(symbol? (get-option run-spec 'solver))
                             (get-option run-spec 'solver)]
@@ -1319,19 +1309,19 @@ Returns whether the given run resulted in sat or unsat, respectively.
   
   ; Print configure and declare univ size
   (define bitwidth (get-bitwidth run-spec)) 
-  (kk-print
-    (kodkod:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
+  (pardinus-print
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
                                bitwidth 
                                solverspec 
                                (get-option run-spec 'sb) 
                                (get-option run-spec 'coregranularity)
                                (get-option run-spec 'logtranslation)))
-    (kodkod:declare-univ (length all-atoms)))
+    (pardinus:declare-univ (length all-atoms)))
 
   ; Declare ints
   (define num-ints (expt 2 bitwidth))
-  (kk-print
-    (kodkod:declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
+  (pardinus-print
+    (pardinus:declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
                          (range num-ints)))                        ; indexes
 
   ; to-tupleset :: List<List<int>>, int -> tupleset
@@ -1339,8 +1329,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (if (empty? eles)
         (if (@= arity 1)
             'none
-            (kodkod:product 'none (to-tupleset (sub1 arity) eles)))
-        (kodkod:tupleset #:tuples eles)))
+            (pardinus:product 'none (to-tupleset (sub1 arity) eles)))
+        (pardinus:tupleset #:tuples eles)))
 
   (define (get-atoms rel atom-names)
     (define atoms 
@@ -1359,11 +1349,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   (for ([rel (get-all-rels run-spec)]
         [bound total-bounds])    
-    (kk-print
-      (kodkod:declare-rel
+    (pardinus-print
+      (pardinus:declare-rel
        (if (node/expr/relation-is-variable rel)
-           (kodkod:x (relation-name rel))
-           (kodkod:r (relation-name rel)))
+           (pardinus:x (relation-name rel))
+           (pardinus:r (relation-name rel)))
         (get-atoms rel (bound-lower bound))
         (get-atoms rel (bound-upper bound)))))
 
@@ -1380,18 +1370,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
-    (kk-print
-      (kodkod:print-cmd-cont "(~a " (kodkod:f assertion-number))
+    (pardinus-print
+      (pardinus:print-cmd-cont "(~a " (pardinus:f assertion-number))
       (translate-to-kodkod-cli p all-rels all-atoms '())
-      (kodkod:print-cmd ")")
-      (kodkod:assert (kodkod:f assertion-number))
+      (pardinus:print-cmd ")")
+      (pardinus:assert (pardinus:f assertion-number))
       (current-formula (add1 assertion-number))))
-
-  ; Print targets
-  (define-syntax-rule (pardinus-print lines ...)
-    (pardinus:cmd 
-      [stdin]
-      lines ...))
 
   (define target (Run-spec-target run-spec))
   (when target
@@ -1414,9 +1398,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define (get-next-model)
     (unless (is-running?)
       (raise "KodKod server is not running."))
-    (kk-print (kodkod:solve))
+    (pardinus-print (pardinus:solve))
     (match-define (cons restype inst) (translate-from-kodkod-cli 'run 
-                                                                 (kodkod:read-solution stdout) 
+                                                                 (pardinus:read-solution stdout) 
                                                                  all-rels 
                                                                  all-atoms))        
     (cons restype inst))
@@ -1623,5 +1607,3 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (for/list ([relation (get-relations run-spec)])
     (define sig-rels (map Sig-rel (get-sigs run-spec relation)))
     (in (Relation-rel relation) (-> sig-rels))))
-
-

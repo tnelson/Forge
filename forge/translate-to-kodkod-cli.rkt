@@ -1,7 +1,7 @@
 #lang racket
 
 ; TODO: change to pardinus-cli
-(require "lang/ast.rkt" "kodkod-cli/server/kks.rkt" (prefix-in @ racket))
+(require "lang/ast.rkt" "pardinus-cli/server/kks.rkt" (prefix-in @ racket))
 
 (provide translate-to-kodkod-cli)
 (provide interpret-formula interpret-expr interpret-int)
