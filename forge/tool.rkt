@@ -25,7 +25,7 @@
     (export drracket:tool-exports^)
     (define (phase1) void)
     (define (phase2) void)
-    (define highlight-color-1 (make-object color% 207 255 207))
+    ;(define highlight-color-1 (make-object color% 207 255 207))
     ;(define highlight-color-2 (make-object color% 207 207 255))
     ;(define hl-thunk-1 #f)
     ;(define hl-thunk-2 #f)
@@ -118,7 +118,8 @@
 ;                    [parent (get-menu-bar)])))
 ;                    
 ;          (void))))
-    
+
+    (define unit-setup-thunk (box #f))
     
     (define unit-mixin
        (mixin (drracket:unit:frame<%>) ()
@@ -128,46 +129,42 @@
                  get-interactions-text)
         (inherit register-toolbar-button)
 
-        (define (do-forge-highlight pos-start pos-end a-color)
+        (define (do-forge-highlight pos-start pos-end a-color key)
           (send (get-definitions-text) begin-edit-sequence)          
-          (send (get-definitions-text) highlight-range pos-start pos-end a-color)
+          (send (get-definitions-text) highlight-range pos-start pos-end a-color #:key key)
+          (send (get-definitions-text) end-edit-sequence))
+         (define (do-forge-unhighlight key)
+          (send (get-definitions-text) begin-edit-sequence)          
+          (send (get-definitions-text) unhighlight-ranges/key key)
           (send (get-definitions-text) end-edit-sequence))
         
-        (define/private (setup-helper-module)
-          (let* ([interactions (get-interactions-text)]
-                 [link (parameterize ((current-namespace (send interactions get-user-namespace)))
-                        (dynamic-require LINK-MODULE-SPEC 'link))])
-            (set-box! link (vector do-forge-highlight))
-            (printf "set link box: ~a~n" link)))
+         (define (setup-helper-module)
+           (let* ([interactions (get-interactions-text)]
+                  [link (parameterize ((current-namespace (send interactions get-user-namespace)))
+                          (dynamic-require LINK-MODULE-SPEC 'link))])
+             (set-box! link (vector do-forge-highlight do-forge-unhighlight))))
 
          ; RackUnit extended the REPL, not the frame. 
-        ;(define/override (reset-console)
-        ;  (super reset-console)
-        ;  (setup-helper-module))
+         ;(define/override (reset-console)
+         ;  (super reset-console)
+         ;  (setup-helper-module))
          ;(setup-helper-module)
+         ; We want to do the same so that the REPL can access functionality
+         ; but this particular mixin extends the unit frame, so leave a reference 
+         (set-box! unit-setup-thunk setup-helper-module)))
 
-         (define button-bitmap
-           (let* ((bmp (make-bitmap 16 16))
-                  (bdc (make-object bitmap-dc% bmp)))
-             (send bdc erase)
-             (send bdc set-smoothing 'smoothed)
-             (send bdc set-pen "red" 1 'transparent)
-             (send bdc set-brush "red" 'solid)
-             (send bdc draw-rectangle 2 2 8 8)            
-             (send bdc set-bitmap #f)
-             bmp))
+      (define interactions-text-mixin
+        (mixin ((class->interface drracket:rep:text%)) ()
+          (inherit get-user-namespace)
+          (super-new)
+          
+          (define/override (reset-console)
+            (super reset-console)
+            (if (unbox unit-setup-thunk)
+                ((unbox unit-setup-thunk))
+                (printf "Forge tool: reset-console was called without a unit-setup-thunk populated.")))))
 
-         (let ((btn
-               (new switchable-button%
-                    (label "Helper")
-                    (callback (λ (button) (setup-helper-module)))
-                    (parent (get-button-panel))
-                    (bitmap button-bitmap))))
-          (register-toolbar-button btn #:number 11)
-          (send (get-button-panel) change-children
-                (λ (l)
-                  (cons btn (remq btn l)))))))
-    
+    (drracket:get/extend:extend-interactions-text interactions-text-mixin)      
     (drracket:get/extend:extend-unit-frame unit-mixin)
     
     ;(drracket:get/extend:extend-unit-frame ping-button-mixin)
