@@ -512,29 +512,29 @@
 
 (define-syntax (@@and stx)
   (syntax-case stx ()
-    [(_) (syntax/loc stx true)] ;#t?
+    [(_) (syntax/loc stx true)] ; Racket treats any non-#f as true
     [(_ a0 a ...)
-     (syntax/loc stx
+     (quasisyntax/loc stx
        (let ([a0* a0])         
          (if (node/formula? a0*)
-             (&& a0* a ...)
+             (&&/info (nodeinfo #,(build-source-location stx)) a0* a ...)
              (and a0* a ...))))]))
 (define-syntax (@@not stx)
   (syntax-case stx ()    
     [(_ a0)
-     (syntax/loc stx
+     (quasisyntax/loc stx
        (let ([a0* a0])
          (if (node/formula? a0*)
-             (! a0*)
+             (!/info (nodeinfo #,(build-source-location stx)) a0*)
              (not a0*))))]))
 (define-syntax (@@or stx)
   (syntax-case stx ()
     [(_) (syntax/loc stx false)]
     [(_ a0 a ...)
-     (syntax/loc stx
+     (quasisyntax/loc stx
        (let ([a0* a0])
          (if (node/formula? a0*)
-             (|| a0* a ...)
+             (||/info (nodeinfo #,(build-source-location stx)) a0* a ...)
              (or a0* a ...))))]))
 
 ; *** WARNING ***

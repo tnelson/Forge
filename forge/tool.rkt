@@ -25,37 +25,37 @@
     (define unit-setup-thunk (box #f))
     
     (define unit-mixin
-       (mixin (drracket:unit:frame<%>) ()
-      ;(mixin (drracket:unit:frame%) ()
+       (mixin (drracket:unit:frame<%>) ()      
         (super-new)
         (inherit get-button-panel
                  get-definitions-text
-                 get-interactions-text
-                 ;find-matching-tab
-                 ;change-to-tab
-                 )        
+                 get-interactions-text)        
 
         ;;;;;;;;;;;;;;;;;;; FUNCTIONALITY TO EXPOSE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
          
-         (define (do-forge-highlight a-srcloc a-color key)           
-           (when (path? (srcloc-source a-srcloc)) ; locate the appropriate tab, if possible           
-             (define the-tab (send this find-matching-tab (srcloc-source a-srcloc)))
-             (if the-tab
-                 (send this change-to-tab the-tab)
-                 (error (format "Forge tool: couldn't find tab for path: ~a" (srcloc-source a-srcloc)))))
+         (define (do-forge-highlight posn span path a-color key)
+           (when (path? path)  
+             (define the-tab (send this find-matching-tab path))
+             (cond [the-tab
+                    (send this change-to-tab the-tab)]
+                   [else                    
+                    (define new-tab (send this open-in-new-tab path))
+                    (send this change-to-tab new-tab)]))
            
            (send (get-definitions-text) begin-edit-sequence)          
            (send (get-definitions-text) highlight-range
-                 (srcloc-position a-srcloc)
-                 (+ (srcloc-position a-srcloc) (srcloc-span a-srcloc))
+                 posn span
                  a-color #:key key)
            (send (get-definitions-text) end-edit-sequence))
          
          (define (do-forge-unhighlight key)
-           (send (get-definitions-text) begin-edit-sequence)          
-           (send (get-definitions-text) unhighlight-ranges/key key)
-           (send (get-definitions-text) end-edit-sequence))
+           ; Unhighlight for every open tab
+           (for-each (lambda (tab)
+                       (send (get-definitions-text) begin-edit-sequence)          
+                       (send (get-definitions-text) unhighlight-ranges/key key)
+                       (send (get-definitions-text) end-edit-sequence))
+                     (send this get-tabs)))
 
          ;;;;;;;;;;;;;;;;;;;; MACHINERY TO ENABLE SHARING WITH FORGE/CORE ;;;;;;
          

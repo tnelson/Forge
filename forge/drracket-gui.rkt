@@ -14,7 +14,12 @@
 
 (define (do-forge-highlight a-srcloc a-color key)
   (cond [(is-drracket-linked?)         
-         ((vector-ref (unbox link) 0) a-srcloc a-color key)]
+         ((vector-ref (unbox link) 0)
+          (srcloc-position a-srcloc)
+          (+ (srcloc-position a-srcloc) (srcloc-span a-srcloc))
+          (srcloc-source a-srcloc)
+          a-color
+          key)]
         [else
          (error "do-forge-highlight: DrRacket is not properly linked by the Forge tool.")]))
 
