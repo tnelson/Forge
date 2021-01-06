@@ -601,10 +601,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 
 ; Declare a new sig.
-; (sig name [|| [#:one] [#:abstract]] [#:is-var isv] [#:extends parent])
+; (sig name [|| [#:one] [#:abstract]] [#:is-var isv] [[|| #:in #:extends] parent])
+; Extending a sig with #:in does NOT work yet,
+; it's only been added here so that it throws the correct error
+; when the Expander tries to do that
 (define-syntax (sig stx)
   (syntax-parse stx
-    [(sig name:id (~alt (~optional (~seq #:extends parent:expr))
+    ; This allows #:in and #:extends,
+    ; but the parser does not currently allow "sig A in B extends C"
+    ; when extendings sigs with in is implemented,
+    ; I think they should be updated to be consistent
+    [(sig name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
+                        (~optional (~seq #:extends parent:expr))
                         (~optional (~or (~seq (~and #:one one-kw))
                                         (~seq (~and #:abstract abstract-kw))))
                         (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
@@ -620,6 +628,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                        (symbol->string (or true-parent 'univ))
                                        (symbol->string true-name)
                                        is-var))
+        ;Currently when lang/expander.rkt calls sig with #:in,
+        ;super-sig is #'(raise "Extending with in not yet implemented.")
+        ;This is just here for now to make sure that error is raised.
+        (~? super-sig)
         (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent))))]))
 
 (define-syntax (relation stx)

@@ -120,6 +120,10 @@
               (~optional mult:MultClass)
               (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
               sig-names:NameListClass
+              ;when extending with in is implemented,
+              ;if "sig A in B extends C" is allowed,
+              ;check if this allows multiple SigExtClasses / how to do that if not
+              ;note the parser currently does not allow that
               (~optional extends:SigExtClass)
               (~optional relation-decls:ArrowDeclListClass)
               (~optional block:BlockClass))))
@@ -516,10 +520,18 @@
                          (~optional mult:MultClass)
                          (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          sig-names:NameListClass
+                         ;when extending with in is implemented,
+                         ;if "sig A in B extends C" is allowed,
+                         ;check if this allows multiple SigExtClasses / how to do that if not
+                         ;note the parser currently does not allow that
                          (~optional extends:SigExtClass)
                          (~optional block:BlockClass))
      (syntax/loc stx (begin
        (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
+       ;when extending with in is implemented,
+       ;if "sig A in B extends C" is allowed,
+       ;check if this allows that and update if needed
+       ;note the parser currently does not allow that
        (sig sig-names.names (~? mult.symbol)
                             (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
@@ -529,11 +541,19 @@
                          (~optional mult:MultClass)
                          (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          sig-names:NameListClass
+                         ;when extending with in is implemented,
+                         ;if "sig A in B extends C" is allowed,
+                         ;check if this allows multiple SigExtClasses / how to do that if not
+                         ;note the parser currently does not allow that
                          (~optional extends:SigExtClass)
                          ((~literal ArrowDeclList) arrow-decl:ArrowDeclClass ...)
                          (~optional block:BlockClass))
      (quasisyntax/loc stx (begin
        (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
+       ;when extending with in is implemented,
+       ;if "sig A in B extends C" is allowed,
+       ;check if this allows that and update if needed
+       ;note the parser currently does not allow that
        (sig sig-names.names (~? mult.symbol) 
                             (~? abstract.symbol) 
                             (~? (~@ #:is-var isv))
