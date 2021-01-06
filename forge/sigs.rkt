@@ -164,7 +164,7 @@
 (define init-const-map (@hash))
 (define init-inst-map (@hash))
 (define init-runmap (@hash))
-(define init-options (Options 'SAT4J 'pardinus 5 0 0))
+(define init-options (Options 'SAT4J 'pardinus 20 0 0))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-pred-map init-fun-map init-const-map
