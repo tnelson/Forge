@@ -6,6 +6,7 @@
 ;;   for reference in case it becomes useful later.
 
 (require drracket/tool
+         drracket/tool-lib
          racket/class
          racket/gui/base
          racket/unit
@@ -29,23 +30,34 @@
         (super-new)
         (inherit get-button-panel
                  get-definitions-text
-                 get-interactions-text)        
+                 get-interactions-text
+                 open-in-new-tab)        
 
         ;;;;;;;;;;;;;;;;;;; FUNCTIONALITY TO EXPOSE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
          
          (define (do-forge-highlight posn span path a-color key)
-           (when (path? path)  
+           (send (get-definitions-text) begin-edit-sequence) 
+           (printf "Forge highlight: ~a ~a ~a ~a ~a~n" posn span path a-color key)
+           (when (path? path)
+             (printf "path: ~a ~n" path)
              (define the-tab (send this find-matching-tab path))
+             (printf "the-tab: ~a ~n" the-tab)
              (cond [the-tab
+                    (printf "tab yes!~n")
                     (send this change-to-tab the-tab)]
-                   [else                    
-                    (define new-tab (send this open-in-new-tab path))
+                   [else
+                    (printf "tab no...path-string? ~a num tabs:~a.~n" (path-string? path) (send this get-tab-count))
+                    (send this move-current-tab-right)
+                    (printf "tabtabtab~n")
+                    ;(define new-tab (send this open-in-new-tab path)) ; this is the call that's failing
+                   ; (define new-tab (send this create-new-tab))
+                    (define new-tab (open-in-new-tab (path->string path)))
+                    (printf "new-tab: ~a ~n" new-tab)
                     (send this change-to-tab new-tab)]))
-           
-           (send (get-definitions-text) begin-edit-sequence)          
+                               
            (send (get-definitions-text) highlight-range
-                 posn span
+                 (- posn 1) (- span 1) ; otherwise we get an offset
                  a-color #:key key)
            (send (get-definitions-text) end-edit-sequence))
          
