@@ -6,19 +6,22 @@
 ;;   for reference in case it becomes useful later.
 
 (require drracket/tool
-         drracket/tool-lib
+         ; 
+         ;drracket/tool-lib
          racket/class
          racket/gui/base
          racket/unit
-         mrlib/switchable-button
-         framework)
+         ;mrlib/switchable-button
+         ;framework
+         )
 
 (define LINK-MODULE-SPEC 'forge/drracket-link)
 (provide tool@)
  
 (define tool@
   (unit
-    (import drracket:tool^ )
+    (import drracket:tool^)
+    
     (export drracket:tool-exports^)
     (define (phase1) void)
     (define (phase2) void)

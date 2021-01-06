@@ -546,6 +546,15 @@
 ; (= #<nodeinfo> '('univ 'univ))
 ; which is the last thing in the list.
 
+
+(require (prefix-in @ (only-in racket ->)))
+(define/contract (maybe-and->list fmla)
+  (@-> node/formula? (listof node/formula?))
+  (cond [(node/formula/op/&&? fmla)
+         (apply append (map maybe-and->list (node/formula/op-children fmla)))]
+        [else
+         (list fmla)]))
+
 ;; -- quantifiers --------------------------------------------------------------
 
 (struct node/formula/quantified node/formula (quantifier decls formula)

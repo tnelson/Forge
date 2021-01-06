@@ -1358,12 +1358,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define all-rels (get-all-rels run-spec))
 
   ; Get and print predicates
-  (define run-constraints 
+  (define raw-run-constraints
     (append (Run-spec-preds run-spec)
             (get-sig-size-preds run-spec)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
             break-preds))
+  (define run-constraints 
+    (apply append (map maybe-and->list raw-run-constraints)))
 
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
