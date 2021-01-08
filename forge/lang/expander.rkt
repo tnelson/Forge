@@ -914,7 +914,7 @@
              #:track-literals
              [((~var macro-id id) . pattern) pattern-directive ... (syntax/loc stx template)]))))]))
 
-
+(dsm-keep (Expr0.5 stx ...) (Expr stx ...))
 (dsm-keep (Expr1 stx ...) (Expr stx ...))
 (dsm-keep (Expr2 stx ...) (Expr stx ...))
 (dsm-keep (Expr3 stx ...) (Expr stx ...))
