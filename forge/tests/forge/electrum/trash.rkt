@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 10
+
 //Taken from https://github.com/haslab/Electrum2/wiki/Trash
 //Goal is to model a trash bin such that files in the trash
 //can be recovered, but only until the trash is emptied
@@ -54,6 +56,7 @@ pred deleteAll {
     always ((File in TrashInFile.Trash and emptyTrash) implies after always no File)
 }
 
+--verf: run {behavior and deleteAll} for exactly 4 File
 --check {behavior implies deleteAll}
 
 pred restoreEnabled[f : File] {

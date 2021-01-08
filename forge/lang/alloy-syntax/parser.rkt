@@ -106,14 +106,14 @@ Expr5   : @Expr6  | NEG-TOK Expr5
                   | EVENTUALLY-TOK Expr5
                   | AFTER-TOK Expr5
 Expr6   : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
-Expr7   : @Expr7.5| (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr8
+Expr7   : @Expr7.5 | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr8
 Expr7.5 : @Expr8  | Expr8 PRIME-TOK ; electrum priming of expressions
 Expr8   : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
 Expr9   : @Expr10 | CARD-TOK Expr9
 Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11  : @Expr12 | Expr11 AMP-TOK Expr12
 Expr12  : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
-Expr13   : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
+Expr13  : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
                   | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
