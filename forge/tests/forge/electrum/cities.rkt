@@ -1,6 +1,6 @@
 #lang forge
 
---option verbose 10
+option verbose 10
 
 abstract sig CitySize {}
 sig Village, Town, Metropolis extends CitySize {}

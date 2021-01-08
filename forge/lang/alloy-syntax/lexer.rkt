@@ -121,7 +121,7 @@
    ["eventually"  (token+ `EVENTUALLY-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["after"  (token+ `AFTER-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["until"  (token+ `UNTIL-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["release"  (token+ `RELEASE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["releases"  (token+ `RELEASE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ; Electrum var relation label
    ["var"  (token+ `VAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ; Electrum prime
@@ -222,7 +222,7 @@
            "eventually"
            "after"
            "until"
-           "release"
+           "releases"
            "var"
            "'"
 

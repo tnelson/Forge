@@ -80,8 +80,8 @@
      ( print-cmd-cont "(after ")
      (map (lambda (x) (interpret-formula x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/release?)
-     ( print-cmd-cont "(release ")
+    [(? node/formula/op/releases?)
+     ( print-cmd-cont "(releases ")
      (map (lambda (x) (interpret-formula x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
     [(? node/formula/op/until?)

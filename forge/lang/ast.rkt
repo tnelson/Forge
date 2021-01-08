@@ -497,7 +497,7 @@
 (define-node-op eventually node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
 (define-node-op after node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
 (define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
-(define-node-op release node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op releases node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
 
 ; --------------------------------------------------------
 
