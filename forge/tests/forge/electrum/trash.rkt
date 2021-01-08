@@ -62,8 +62,8 @@ pred restoreEnabled[f : File] {
 }
 
 //general test for releases
-pred restoreIsPossibleBeforeEmpty {
-    always (all f : File | delete[f] implies (emptyTrash releases restoreEnabled[f]))
-}
+--pred restoreIsPossibleBeforeEmpty {
+--    always (all f : File | delete[f] implies (emptyTrash releases restoreEnabled[f]))
+--}
 
 --check {behavior implies restoreIsPossibleBeforeEmpty}
