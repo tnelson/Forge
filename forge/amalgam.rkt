@@ -104,7 +104,6 @@
 ; fmla is the current target of blame
 (define/contract (amalgam-descent fmla orig-run alt-run L currSign)
   (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c provenanceNode? exn:fail?))
-  (printf "amalgam-descent (currSign is ~a): ~a~n" currSign fmla)
 
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
@@ -202,7 +201,6 @@
 ; Due to the way the evaluator works at the moment, this is always
 ; with respect to the current solver state for <a-run>.
 (define (build-provenances tup orig-run)
-  (printf "build-provenances ~a~n" tup)
   ; get conjunction of predicates F from the run command
   (define spec (forge:Run-run-spec orig-run))
   (define Fs (forge:Run-spec-preds spec))
@@ -219,12 +217,10 @@
   (define orig-inst (stream-first (forge:Run-result orig-run)))
   (unless (symbol=? 'sat (car orig-inst))
     (error "amalgam called on unsat run"))
-  (printf "~n  first orig instance: ~a~n" orig-inst)
   ;(printf "~n  orig-inst: ~a~n" orig-inst)
   ;(printf "~n  orig-bounds: ~a~n" (forge:Run-spec-bounds spec))
   ;(printf "~n  orig-scope: ~a~n" orig-scope) 
   (define new-totals (flip-tuple (cdr orig-inst) (car tup) (cdr tup)))
-  (printf "new-totals is ~a~n" new-totals)
   ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
   ; e.g. (for fixed edge relation)
   ;Original PBindings: 
@@ -261,11 +257,11 @@
   (run alt-run
        #:preds []
        #:bounds alt-inst)
-  (printf "~n  first alt instance: ~a~n" (stream-first (forge:Run-result alt-run)))
+  ;(printf "~n  first alt instance: ~a~n" (stream-first (forge:Run-result alt-run)))
   ;(printf "~n  ALT BOUNDS: ~a~n" (forge:Run-spec-bounds (forge:Run-run-spec alt-run)))
   ; evaluate to make sure tup is locally necessary  
   (define check-alt (evaluate alt-run 'unused F))
-  (printf "~n  check-alt: ~a~n" check-alt)
+  ;(printf "~n  check-alt: ~a~n" check-alt)
 
   ; desugar F
   ; Pass in the run, not the bounds, since we may need more of the run (like atom-rels)
