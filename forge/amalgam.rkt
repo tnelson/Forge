@@ -4,7 +4,7 @@
 
 (require forge/amalgam/desugar/desugar)
 
-(require "amalgam/tests/forge_ex2.rkt")
+(require "amalgam/tests/forge_ex.rkt")
 (require racket/hash)
 (require (prefix-in @ racket/set))
 (require (prefix-in @ (only-in racket ->)))
@@ -17,7 +17,7 @@
 
 (run udt
      ; #:preds [isUndirectedTree]
-     #:preds [irreflexive]
+     #:preds [isUndirectedTree]
      #:scope [(Node 4)]) 
 
 ; Entry point for Amalgam from forge/core
@@ -29,7 +29,7 @@
 (struct contraLeaf provenanceNode (fmla) #:transparent)
 (struct alphaLeaf provenanceNode (alpha) #:transparent)
 (struct desugarStep provenanceNode (provNode) #:transparent)
-(struct ANDProof provenanceNode (options provTrees) #:transparent)
+(struct ANDProof provenanceNode (provTrees) #:transparent)
 (struct ORProof provenanceNode (alphas obligations) #:transparent)
 
  
@@ -103,7 +103,7 @@
 ; L is the target of the provenance query
 ; fmla is the current target of blame
 (define/contract (amalgam-descent fmla orig-run alt-run L currSign)
-  (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c set? exn:fail?))
+  (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c provenanceNode? exn:fail?))
   (printf "amalgam-descent (currSign is ~a): ~a~n" currSign fmla)
 
   ; Invariant: instance from orig-run satisfies fmla
@@ -133,8 +133,9 @@
                        (lambda (arg)
                          (amalgam-descent arg orig-run alt-run L currSign)) failed-args))
 
-    ; Do we want to do (apply set-union prov-trees)?
-    (ANDProof 'andProof failed-args prov-trees))
+    (if (equal? (length prov-trees) 1)
+        (first prov-trees)
+        (ANDProof 'andProof prov-trees)))
   
   (define (handleOR info args)
     ; orig instance satisfies at least one arg (not necessarily all, but not zero)
@@ -152,12 +153,14 @@
     (define prov-sets
       (map (lambda (arg)
              (amalgam-descent arg orig-run alt-run L currSign)) orig-true-args))
-;    (define new-alpha-set
-;      (list->set
-;       (map (lambda (arg) (!/info info (list arg))) orig-false-args)))
+
+    ; we only negate if currSign is true, if false, we don't negate 
     (define alphas
       (map (lambda (arg)
-             (alphaLeaf 'alphaLeaf (!/info info (list arg)))) orig-false-args))
+             (alphaLeaf 'alphaLeaf
+                        (if currSign
+                            (!/info info (list arg))
+                            arg))) orig-false-args))
 
     (ORProof 'orProof alphas prov-sets))
     ;;;;;;;; Older comments 
@@ -180,12 +183,8 @@
     [(node/formula/op/in info args)
      ; Check that the formula is the simplest case of IN, or take it to desugar
      #:when (isLiteralIn fmla)
-     ; TODO : This is wrong, might need a re-write but the check might just be enough  
-     ;(if (equal? fmla L)
-;         (cond
-;           [currSign (list->set (list (list->set (list fmla))))]
-;           [else (list->set (list (list->set (list (not fmla)))))])
-     ; TODO: How can I check if we got to a contradiction?
+     ; TODO: How can I check if we got to a contradiction? -- we can trust this
+     ; based on the invariant 
       (cond
         [currSign (contraLeaf 'contraLeafCurrSignTrue fmla)]
         [else (contraLeaf 'contraLeafCurrSignFalse (not fmla))])]
@@ -195,9 +194,9 @@
      (amalgam-descent (first args) orig-run alt-run L (not currSign))]
 
     [else
-     (define desugaredFormula (desugarFormula fmla '() orig-run))
-     (define desugarProvNode (amalgam-descent (first desugaredFormula) orig-run alt-run L currSign))
-     (desugarStep (second desugaredFormula) desugarProvNode)]))
+     (define desugarPair (desugarFormula fmla '() orig-run))
+     (define desugarProvNode (amalgam-descent (first desugarPair) orig-run alt-run L currSign))
+     (desugarStep (second desugarPair) desugarProvNode)]))
 
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
 ; Due to the way the evaluator works at the moment, this is always
