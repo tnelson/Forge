@@ -16,8 +16,8 @@
 ; ^ This will be a *different* struct defn; instead get via sigs
 
 (run udt
-     ; #:preds [isUndirectedTree]
      #:preds [isUndirectedTree]
+     ;#:preds [irreflexive]
      #:scope [(Node 4)]) 
 
 ; Entry point for Amalgam from forge/core
@@ -281,7 +281,72 @@
 ;(build-provenances (cons '(Node1 Node1) "edges") udt)
 
 ; these are OK assuming 3, 4, 5, 6 are used
-(build-provenances (cons '(Node1 Node1) "edges") udt) ; add
+; add
+(define test_N1N1_edges (build-provenances (cons '(Node1 Node1) "edges") udt))
 ;(build-provenances (cons '(Node4 Node5) "edges") udt) ; remove
 
 ;(desugarFormula (in (-> (atom 'Node0) (atom 'Node1)) (& iden edges)) '() udt #f)
+
+
+
+(define (count-provenances ptree)
+  (match ptree
+    ; A contradiction is itself a proof
+    [(contraLeaf anns f) 1]
+    ; Desugaring doesn't add proofs, just enables them
+    [(desugarStep anns tree) (count-provenances tree)]
+    ; Each child of an AND branch provides proofs that suffice on their own
+    [(ANDProof anns trees) (foldl (lambda (a-tree total) (+ total (count-provenances a-tree))) 0 trees)]
+    ; A proof over an OR branch needs to contain 1 sub-proof from each obligation
+    ; Thus: there are as many (not-unnecessarily-bloated) proofs are there are combinations of 1 from each
+    [(ORProof anns als trees) (foldl (lambda (a-tree total) (* total (count-provenances a-tree))) 1 trees)]
+    ; Should never be called on an alpha node since we're counting productive paths to contradiction
+    [else (error "count-provenances bad arg type" ptree)]))
+
+(require mischief/stream)
+
+; Todo: we might consider building a stream of single provenance trees (i.e., trimming out AND and non-used OR options)
+; https://docs.racket-lang.org/mischief/stream.html#%28def._%28%28lib._mischief%2Fstream..rkt%29._stream-cross-product%29%29
+(define/contract (build-alphaset-stream ptree)
+  (@-> provenanceNode? stream?)  
+  (match ptree
+    ; stream of only one alpha-set, which is empty
+    [(contraLeaf anns f) (stream (list->set '()))]
+    ; bypass desugaring
+    [(desugarStep anns tree) (build-alphaset-stream tree)]
+    ; each AND child is its own source of alpha-sets; build stream for each and then tie together
+    [(ANDProof anns trees) (apply stream-append (map build-alphaset-stream trees))]
+    ; lazily construct the cartesian-product of the child streams, lazily union-product each of them
+    [(ORProof anns als trees)
+     (define sub-proof-streams (map build-alphaset-stream trees))     
+     ; build a lazy stream of LISTS OF ALPHA SETS, where each list can just be unioned directly
+     (define cartesian (foldl (lambda (s acc) (stream-cross-product (lambda (x y) (flatten (list x y))) s acc))
+                              (first sub-proof-streams)
+                              (rest sub-proof-streams)))
+     ;(printf "************~n cartesian: ~a~n" (stream->list cartesian))
+     ; In case of only 1 subtree, above foldl will produce a stream-of-alphasets, not a list-of-streams-of-alphasets
+     (stream-map (lambda (los) (set-union (list->set als)
+                                          (if (list? los)
+                                              (apply set-union los)
+                                              los))) cartesian)]
+    [else (error "build-nth-alphaset bad arg type" ptree)]))
+
+(require pretty-format)
+(pretty-printf "Tree is: ~a~nCount of provenances: ~a~n"
+               test_N1N1_edges
+               (count-provenances test_N1N1_edges))
+(define test_N1_N1_edges_pstream (build-alphaset-stream test_N1N1_edges))
+(pretty-printf "Alpha sets are: ~a~n"
+               (stream->list test_N1_N1_edges_pstream))
+
+; TN NOTE: cannot currently run this, so untested!
+;   sketches how you might highlight the N^th provenance from a tree
+(require forge/drracket-gui)
+(define (highlight-alphaset aset-stream n)
+  (for-each (lambda (alpha)
+              (do-forge-highlight (nodeinfo-loc (node-info (alphaLeaf-alpha alpha))) 'amalgam))
+            (stream-ref aset-stream n)))
+(define (unhighlight-amalgam) (do-forge-unhighlight 'amalgam))
+
+
+; ? Is desugaring quantifiers adding the /\, => needed for the domain?
