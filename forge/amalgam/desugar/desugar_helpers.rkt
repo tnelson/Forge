@@ -301,9 +301,9 @@
                                 (tup2Expr tup runContext info))))]
                [(equal? quantifier 'all)
                 (=>/info info
-                         (list in/info info (list tup domain))
+                         (list (in/info info (list tup domain))
                          (substituteFormula subForm quantVars var
-                                (tup2Expr tup runContext info)))])) liftedBounds))
+                                (tup2Expr tup runContext info))))])) liftedBounds))
     (cond
       [(and (equal? quantifier 'some) (equal? (length decls) 1))
        (||/info info subFormulas)]
