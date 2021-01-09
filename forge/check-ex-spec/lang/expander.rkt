@@ -13,6 +13,8 @@
                     ; AlloyModuleClass
                     ParagraphClass))
 
+(provide define for/list define-values values dynamic-require quote list printf parameterize with-handlers lambda)
+
 (provide (all-from-out forge/lang/expander))
 (provide (all-defined-out))
 
