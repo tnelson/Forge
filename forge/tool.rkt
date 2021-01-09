@@ -39,38 +39,45 @@
         ;;;;;;;;;;;;;;;;;;; FUNCTIONALITY TO EXPOSE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
          
-         (define (do-forge-highlight posn span path a-color key)
-           (send (get-definitions-text) begin-edit-sequence) 
-           (printf "Forge highlight: ~a ~a ~a ~a ~a~n" posn span path a-color key)
+         (define (do-forge-highlight posn span path a-color key)           
+           ;(printf "Forge highlight: ~a ~a ~a ~a ~a~n" posn span path a-color key)
+
+           (define orig-tab (send this get-current-tab))
            (when (path? path)
-             (printf "path: ~a ~n" path)
+             ;(printf "path: ~a ~n" path)
              (define the-tab (send this find-matching-tab path))
-             (printf "the-tab: ~a ~n" the-tab)
+             ;(printf "the-tab: ~a ~n" the-tab)             
              (cond [the-tab
-                    (printf "tab yes!~n")
+                    ;(printf "tab yes!~n")
                     (send this change-to-tab the-tab)]
                    [else
-                    (printf "tab no...path-string? ~a num tabs:~a.~n" (path-string? path) (send this get-tab-count))
-                    (send this move-current-tab-right)
-                    (printf "tabtabtab~n")
+                    ;(printf "tab no...path-string? ~a num tabs:~a.~n" (path-string? path) (send this get-tab-count))
+                    ;(send this move-current-tab-right)
+                    ;(printf "tabtabtab~n")
                     ;(define new-tab (send this open-in-new-tab path)) ; this is the call that's failing
                    ; (define new-tab (send this create-new-tab))
                     (define new-tab (open-in-new-tab (path->string path)))
                     (printf "new-tab: ~a ~n" new-tab)
-                    (send this change-to-tab new-tab)]))
-                               
+                    (send this change-to-tab new-tab)]))           
+
+           (send (get-definitions-text) begin-edit-sequence) 
            (send (get-definitions-text) highlight-range
                  (- posn 1) (- span 1) ; otherwise we get an offset
-                 a-color #:key key)
-           (send (get-definitions-text) end-edit-sequence))
+                 a-color #:key key)           
+           (send (get-definitions-text) end-edit-sequence)
+             ;(send this change-to-tab orig-tab) ; return to original tab after highlighting is done
+           )
          
          (define (do-forge-unhighlight key)
-           ; Unhighlight for every open tab
+           ; Unhighlight for every open tab (and return to the tab we were at when this was called)
+           (define orig-tab (send this get-current-tab))
            (for-each (lambda (tab)
+                       (send this change-to-tab tab)
                        (send (get-definitions-text) begin-edit-sequence)          
                        (send (get-definitions-text) unhighlight-ranges/key key)
                        (send (get-definitions-text) end-edit-sequence))
-                     (send this get-tabs)))
+                     (send this get-tabs))
+           (send this change-to-tab orig-tab))
 
          ;;;;;;;;;;;;;;;;;;;; MACHINERY TO ENABLE SHARING WITH FORGE/CORE ;;;;;;
          

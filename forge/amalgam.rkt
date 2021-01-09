@@ -339,14 +339,18 @@
 (pretty-printf "Alpha sets are: ~a~n"
                (stream->list test_N1_N1_edges_pstream))
 
-; TN NOTE: cannot currently run this, so untested!
-;   sketches how you might highlight the N^th provenance from a tree
-(require forge/drracket-gui)
+; Sketches how you might highlight the N^th provenance from a tree
+; IMPORTANT NOTE: right now the highlighting system requires
+;   (1) all involved files to be open in some tab [not doing so produces a namespace error]
+;   (2) only ONE DrRacket window open at a time
+(require forge/drracket-gui) ; for highlighting
+(require racket/gui/base) ; for color% objects
+(define alpha-color (make-object color% 255 255 100))
 (define (highlight-alphaset aset-stream n)
   (for-each (lambda (alpha)
-              (do-forge-highlight (nodeinfo-loc (node-info (alphaLeaf-alpha alpha))) 'amalgam))
-            (stream-ref aset-stream n)))
-(define (unhighlight-amalgam) (do-forge-unhighlight 'amalgam))
-
-
-; ? Is desugaring quantifiers adding the /\, => needed for the domain?
+              (do-forge-highlight (nodeinfo-loc (node-info (alphaLeaf-alpha alpha))) alpha-color 'amalgam))
+            (set->list (stream-ref aset-stream n))))
+(define (unhighlight-amalgam) (do-forge-unhighlight 'amalgam)) 
+; (highlight-alphaset test_N1_N1_edges_pstream 1)
+; then call
+; (unhighlight-amalgam)
