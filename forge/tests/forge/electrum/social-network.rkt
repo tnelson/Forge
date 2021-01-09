@@ -35,9 +35,9 @@ pred validServer {
     //Each Server has one Capacity
     all s : Server | one s.capacity
     //Each Server's Capacity is Positive
-    --all s : Server | all c : s.capacity | c > 0
+    all s : Server | all c : s.capacity | min[c] > 0
     //Servers cannot exceed their Capacity
-    --all s : Server | all c : s.capacity | #(User.(s.posts)) <= c
+    all s : Server | all c : s.capacity | #(User.(s.posts)) <= min[c]
 }
 
 pred addPost[sn : DistributedSN, u : User, p : Post] {
