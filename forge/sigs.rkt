@@ -31,9 +31,6 @@
 ; Make sure that nothing is double-provided
 (provide (all-from-out "lang/ast.rkt"))
 
-; helper macros defined in sigs.rkt (it is vital none of these come from AST)
-(provide implies iff <=> ifte >= <= ni != !in !ni)
-
 ; Racket stuff
 (provide let)
 
@@ -578,17 +575,37 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (struct-copy State state
                [options new-options]))
 
-;; AST macros
-(define-simple-macro (implies a b) (=> a b))
-(define-simple-macro (iff a b) (and (=> a b) (=> b a)))
-(define-simple-macro (<=> a b) (and (=> a b) (=> b a)))
-(define-simple-macro (ifte a b c) (and (=> a b) (=> (! a) c)))
-(define-simple-macro (>= a b) (or (> a b) (int= a b)))
-(define-simple-macro (<= a b) (or (< a b) (int= a b)))
-(define-simple-macro (ni a b) (in b a))
-(define-simple-macro (!= a b) (! (= a b)))
-(define-simple-macro (!in a b) (! (in a b)))
-(define-simple-macro (!ni a b) (! (ni a b)))
+;; Added sugar over the AST
+;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus on the macro definition point
+(provide implies iff <=> ifte >= <= ni != !in !ni)
+
+(define-syntax (implies stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)) a b))]))
+(define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (and/info (nodeinfo #,(build-source-location stx))
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
+(define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (and/info (nodeinfo #,(build-source-location stx))
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
+(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx (and/info (nodeinfo #,(build-source-location stx))
+                                                                   (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                   (=>/info (nodeinfo #,(build-source-location stx)) (! a) c)))]))
+(define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
+                                                              (int>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
+                                                              (int</info (nodeinfo #,(build-source-location stx)) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx)) b a))]))
+(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
+                                                             (=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (!in stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx))
+                                                              (in/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (!ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
+                                                              (in/info (nodeinfo #,(build-source-location stx)) b a)))]))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

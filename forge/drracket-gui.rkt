@@ -13,7 +13,8 @@
   (not (equal? #f (unbox link))))
 
 (define (do-forge-highlight a-srcloc a-color key)
-  (cond [(is-drracket-linked?)         
+  (cond [(is-drracket-linked?)
+         ;(printf "HIGHLIGHTING LOC: ~a~n" a-srcloc)
          ((vector-ref (unbox link) 0)
           (srcloc-position a-srcloc)
           (+ (srcloc-position a-srcloc) (srcloc-span a-srcloc))
