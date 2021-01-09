@@ -293,8 +293,17 @@
     (define liftedBounds (liftBoundsExpr domain quantVars runContext))
     (define subFormulas
       (map (lambda (tup)
-             (substituteFormula subForm quantVars var
-                                (tup2Expr tup runContext info))) liftedBounds))
+             (cond
+               [(equal? quantifier 'some)
+                (&&/info info
+                         (list (in/info info (list tup domain))
+                               (substituteFormula subForm quantVars var
+                                (tup2Expr tup runContext info))))]
+               [(equal? quantifier 'all)
+                (=>/info info
+                         (list in/info info (list tup domain))
+                         (substituteFormula subForm quantVars var
+                                (tup2Expr tup runContext info)))])) liftedBounds))
     (cond
       [(and (equal? quantifier 'some) (equal? (length decls) 1))
        (||/info info subFormulas)]
