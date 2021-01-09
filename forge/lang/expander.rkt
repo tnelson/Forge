@@ -760,7 +760,7 @@
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (and expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass (~or "release") expr2:ExprClass)
+  [((~literal Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (release expr1 expr2)))]
@@ -914,7 +914,7 @@
              #:track-literals
              [((~var macro-id id) . pattern) pattern-directive ... (syntax/loc stx template)]))))]))
 
-
+(dsm-keep (Expr0.5 stx ...) (Expr stx ...))
 (dsm-keep (Expr1 stx ...) (Expr stx ...))
 (dsm-keep (Expr2 stx ...) (Expr stx ...))
 (dsm-keep (Expr3 stx ...) (Expr stx ...))
