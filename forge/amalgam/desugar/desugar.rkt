@@ -33,8 +33,8 @@
 (define/contract (desugarFormula formula quantVars runContext)
   (@-> node/formula? list? forge:Run? (listof (or/c node/formula? symbol?)))
 
-  (when DEBUG
-    (printf "~n---- desugarFormula called with: ~a~n" formula))
+ ;(when DEBUG
+ ;   (printf "~n---- desugarFormula called with: ~a~n" formula))
 
   (match formula
     ; Constant formulas: already at bottom
@@ -88,7 +88,7 @@
                (define negatedFormula (!/info info (list subForm)))
                (define subtractedDecls
                  (map (lambda (d)
-                        (printf "in map d ~a" d)
+                        ;(printf "in map d ~a" d)
                         (cons
                          (node/expr/quantifier-var info
                                                    (node/expr-arity (cdr d))
@@ -221,8 +221,8 @@
   ; Error message to check that we are only taking in expressions
   (@-> node/expr? list? (listof symbol?) forge:Run? (listof (or/c node/formula? symbol?)))
 
-  (when DEBUG
-    (printf "~n---- desugarExpr called (tuple=~a) with: ~a~n" currTupIfAtomic expr))
+  ;(when DEBUG
+  ;  (printf "~n---- desugarExpr called (tuple=~a) with: ~a~n" currTupIfAtomic expr))
   
   
   ; Should always have a currTupIfAtomic when calling
