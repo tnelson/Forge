@@ -835,12 +835,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; (with path-to-forge-spec commands ...)
 (define-syntax (with stx)
   (syntax-parse stx
-    [(with module-name exprs ...)
+    [(with (ids:id ... #:from module-name) exprs ...+)
       #'(let ([temp-state curr-state])
-          (local-require module-name)
-          exprs ...
-          (println "tests")
-          (update-state! temp-state))]))
+          (define ids (dynamic-require module-name 'ids)) ...
+          (define result
+            (let () exprs ...))
+          (update-state! temp-state)
+          result)]))
 
 ; TODO: instance isn't used
 ;  always evaluates with respect to solver's current state

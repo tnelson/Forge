@@ -1,3 +1,3 @@
 #lang info
 
-(define compile-omit-paths '("encrypt-decrypt"))
+(define compile-omit-paths '("examples"))
