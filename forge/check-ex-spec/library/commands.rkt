@@ -4,7 +4,7 @@
 (require syntax/parse/define)
 
 (provide example)
-(define-simple-macro (example name:id pred bounds)
+(define-simple-macro (example name:id pred bounds ...)
   (test name #:preds [pred]
-             #:bounds bounds
+             #:bounds [bounds ...]
              #:expect sat))

@@ -1,0 +1,3 @@
+[submodule "forge/forge/check-ex-spec/examples/ta-template"]
+	path = forge/forge/check-ex-spec/examples/ta-template
+	url = https://github.com/tdelv/check-ex-spec-ta-template.git

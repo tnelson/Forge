@@ -140,6 +140,11 @@
   shutdown
   is-running?) #:transparent)
 
+(struct Kodkod-current (
+  [formula #:mutable]
+  [expression #:mutable]
+  [int #:mutable]))
+
 (struct Run (
   name     ; Symbol
   command  ; String (syntax)
@@ -147,6 +152,7 @@
   result   ; Stream
   server-ports ; Server-ports
   atoms    ; List<Symbol>
+  kodkod-currents ; Kodkod-current
   kodkod-bounds ; List<bound> (lower and upper bounds for each relation)
   ) #:transparent)
 
@@ -171,11 +177,6 @@
                           init-inst-map
                           init-options
                           init-runmap))
-
-; TODO: GET RID OF THIS
-(define current-formula (make-parameter 0))
-(define current-expression (make-parameter 0))
-(define current-int-expression (make-parameter 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Defaults     ;;;;;;;
@@ -780,9 +781,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
         (define run-command #,command)        
         
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
-        (define-values (run-result atoms server-ports kodkod-bounds) (send-to-kodkod run-spec))
+        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
         
-        (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-bounds))
+        (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
 
 ; Test that a spec is sat or unsat
@@ -834,12 +835,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; (with path-to-forge-spec commands ...)
 (define-syntax (with stx)
   (syntax-parse stx
-    [(with module-name exprs ...)
+    [(with (ids:id ... #:from module-name) exprs ...+)
       #'(let ([temp-state curr-state])
-          (local-require module-name)
-          exprs ...
-          (println "tests")
-          (update-state! temp-state))]))
+          (define ids (dynamic-require module-name 'ids)) ...
+          (define result
+            (let () exprs ...))
+          (update-state! temp-state)
+          result)]))
 
 ; TODO: instance isn't used
 ;  always evaluates with respect to solver's current state
@@ -847,18 +849,24 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (unless (is-sat? run)
     (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))
   (define-values (expr-name interpretter)
-    (cond [(node/expr? expression) (begin0
-           (values (pardinus:e (current-expression))
-                   interpret-expr)
-           (current-expression (add1 (current-expression))))]
-          [(node/formula? expression) (begin0
-           (values (pardinus:f (current-formula))
-                   interpret-formula)
-           (current-formula (add1 (current-formula))))]
-          [(node/int? expression) (begin0
-           (values (pardinus:i (current-int-expression))
-                   interpret-int)
-           (current-int-expression (add1 (current-int-expression))))]
+    (cond [(node/expr? expression) 
+           (define currents (Run-kodkod-currents run))
+           (define expression-number (Kodkod-current-expression currents)) 
+           (set-Kodkod-current-expression! currents (add1 expression-number))
+           (values (pardinus:e expression-number)
+                   interpret-expr)]
+          [(node/formula? expression)
+           (define currents (Run-kodkod-currents run))
+           (define formula-number (Kodkod-current-formula currents)) 
+           (set-Kodkod-current-formula! currents (add1 formula-number))
+           (values (pardinus:f formula-number)
+                   interpret-formula)]
+          [(node/int? expression)
+           (define currents (Run-kodkod-currents run))
+           (define int-number (Kodkod-current-int currents)) 
+           (set-Kodkod-current-int! currents (add1 int-number))
+           (values (pardinus:i int-number)
+                   interpret-int)]
           [else
            (error (format "Forge: unexpected input type to evaluate: ~a" expression))]))
 
@@ -980,13 +988,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
                          [preds new-preds]
                          [target new-target]
                          [state new-state]))
-          (define-values (run-result atom-rels server-ports kodkod-bounds) (send-to-kodkod contrast-run-spec))
+          (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds) (send-to-kodkod contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
                          [name (string->symbol (format "~a-contrast" (Run-name run)))]
                          [run-spec contrast-run-spec]
                          [result run-result]
-                         [server-ports server-ports]))
+                         [server-ports server-ports]
+                         [kodkod-currents kodkod-currents]))
           (make-model-generator (get-result contrast-run)))
 
         (display-model get-next-model 
@@ -1373,8 +1382,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (pardinus:print-cmd-cont "(~a " (pardinus:f assertion-number))
       (translate-to-kodkod-cli p all-rels all-atoms '())
       (pardinus:print-cmd ")")
-      (pardinus:assert (pardinus:f assertion-number))
-      (current-formula (add1 assertion-number))))
+      (pardinus:assert (pardinus:f assertion-number))))
 
   (define target (Run-spec-target run-spec))
   (when target
@@ -1412,7 +1420,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
           rest)
         (stream-cons (get-next-model) (model-stream))))
 
-  (values (model-stream) all-atoms (Server-ports stdin stdout shutdown is-running?) total-bounds))
+  (values (model-stream) 
+          all-atoms 
+          (Server-ports stdin stdout shutdown is-running?) 
+          (Kodkod-current (length run-constraints) 0 0) 
+          total-bounds))
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 

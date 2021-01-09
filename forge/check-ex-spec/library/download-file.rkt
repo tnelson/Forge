@@ -1,11 +1,11 @@
 #lang racket
 
-(provide download-to-syntax)
+(provide get-info)
 
 (require "../../shared.rkt")
 (require net/url)
 (require racket/file)
-(require "encrypt-decrypt/library.rkt")
+(require json)
 
 ; download-file :: string string? string? -> bytes
 ; Downloads a file from the given url.
@@ -15,7 +15,7 @@
 (define (download-file link save-to [backup #f])
   (define url (string->url link))
   ; Shouldn't fire when installing the package; turn up verbosity to show
-  (when (>= (get-verbosity) VERBOSITY_HIGH)
+  (when #t #;(>= (get-verbosity) VERBOSITY_HIGH)
     (printf "download-file link: ~a~n" link))
   (define port
     (with-handlers ([exn:fail:network:errno?
@@ -37,31 +37,27 @@
   contents)
 
 
-(define REPO "tdelv/checkexspec-student")
-(define KEY-PATH "key")
+(define REPO "tdelv/check-ex-spec-student-test")
 
-(define (download-to-syntax assignment)
-  (make-directory* "backups")
-  (define save-to (format "backups/~a" assignment))
+(define (get-info assignment-name)
+  (make-directory* "compiled")
 
-  (define contents 
-    (let ([link (format "https://raw.githubusercontent.com/~a/master/~a/~a" 
-                        REPO assignment assignment)])
-      (download-file link save-to save-to)))
+  (define (download name extension backup?)
+    (define link (format "https://raw.githubusercontent.com/~a/master/~a/~a.~a" 
+                         REPO assignment-name name extension))
+    (define save-to (format "compiled/~a.~a" name extension))
+    
+    (if backup?
+        (download-file link save-to save-to)
+        (download-file link save-to)))
 
-  (define key (read-key-from-file KEY-PATH #t))
-  (define decrypted (decrypt-file key save-to))
+  (define info-string (bytes->string/utf-8 (download (format "summary-~a" assignment-name) "json" #t)))
+  (define info (string->jsexpr info-string))
 
-  (define-values (in-pipe out-pipe) (make-pipe))
-  (write-bytes decrypted out-pipe)
-  (close-output-port out-pipe)
+  (for ([file (append (hash-ref info 'wheats) (hash-ref info 'chaffs))])
+    (download (format "~a_rkt" file) "zo" #f)
+    (download (format "~a_rkt" file) "dep" #f))
 
-  (void (read-language in-pipe))
-  (define result-syntax
-    (for/list ([n (in-naturals)]
-               #:break (eof-object? (peek-bytes 256 0 in-pipe)))
-      (read in-pipe)))
-  (set! result-syntax (remove eof result-syntax))
-  (close-input-port in-pipe)
+  info)
 
-  result-syntax)
+
