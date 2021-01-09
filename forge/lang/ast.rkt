@@ -143,6 +143,8 @@
              [(define (write-proc self port mode)
                 ; all of the /op nodes have their children in a field named "children"
                 (fprintf port "~a" (cons 'display-id (child-accessor self))))])
+           ; Keep this commented-out line for use in emergencies to debug bad source locations:
+           ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self)))))])
            
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)
@@ -654,6 +656,7 @@
          (sum-quant-expr (nodeinfo #,(build-source-location stx)) (list (cons x1 r1) ...) int-expr)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ; Build syntax for a generic equals/hash that's robust to new node subtypes
 
 ; Issue with this approach: struct-accessors is re-called every time equals? is invoked.
