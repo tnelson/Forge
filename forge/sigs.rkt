@@ -101,6 +101,8 @@
   distance ; 'close | 'far
   ) #:transparent)
 
+; If adding new option fields, remember to update all of:
+;  --default value -- state-set-option and -- get-option
 (struct Options (
   solver          ; symbol
  ; verbosity       ; int ; handled in shared.rkt
@@ -108,6 +110,11 @@
   sb              ; int
   coregranularity ; int
   logtranslation  ; int
+  min_tracelength ; int
+  max_tracelength ; int
+  problem_type    ; symbol
+  target_mode     ; symbol
+  core_minimization ; symbol
   ) #:transparent)
 
 (struct State (
@@ -167,7 +174,7 @@
 (define init-const-map (@hash))
 (define init-inst-map (@hash))
 (define init-runmap (@hash))
-(define init-options (Options 'SAT4J 'pardinus 20 0 0))
+(define init-options (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-pred-map init-fun-map init-const-map
@@ -446,7 +453,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
           'backend Options-backend
           'sb Options-sb
           'coregranularity Options-coregranularity
-          'logtranslation Options-logtranslation))
+          'logtranslation Options-logtranslation
+          'min_tracelength Options-min_tracelength
+          'max_tracelength Options-max_tracelength
+          'problem_type Options-problem_type          
+          'target_mode Options-target_mode
+          'core_minimization Options-core_minimization
+          ))
   ((hash-ref symbol->proc option) (State-options state)))
 
 
@@ -546,7 +559,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
           ; 'verbosity exact-nonnegative-integer?
           'sb exact-nonnegative-integer?
           'coregranularity exact-nonnegative-integer?
-          'logtranslation exact-nonnegative-integer?))
+          'logtranslation exact-nonnegative-integer?
+          'min_tracelength exact-nonnegative-integer?
+          'max_tracelength exact-nonnegative-integer?
+          'problem_type symbol?
+          'target_mode symbol?
+          'core_minimization symbol?))
   (unless ((hash-ref option-types option) value)
     (raise (format "Setting option ~a requires ~a; received ~a"
                    option (hash-ref option-types option) value)))
@@ -559,9 +577,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
       [(equal? option 'backend)
        (struct-copy Options options
                     [backend value])]
-      ; [(equal? option 'verbosity)
-      ;  (struct-copy Options options
-      ;               [verbosity value])]
       [(equal? option 'sb)
        (struct-copy Options options
                     [sb value])]
@@ -570,7 +585,22 @@ Returns whether the given run resulted in sat or unsat, respectively.
                     [coregranularity value])]
       [(equal? option 'logtranslation)
        (struct-copy Options options
-                    [logtranslation value])]))
+                    [logtranslation value])]
+      [(equal? option 'min_tracelength)
+       (struct-copy Options options
+                    [min_tracelength value])]
+      [(equal? option 'max_tracelength)
+       (struct-copy Options options
+                    [max_tracelength value])]
+      [(equal? option 'problem_type)
+       (struct-copy Options options
+                    [problem_type value])]
+      [(equal? option 'target_mode)
+       (struct-copy Options options
+                    [target_mode value])]
+      [(equal? option 'core_minimization)
+       (struct-copy Options options
+                    [core_minimization value])]))
 
   (struct-copy State state
                [options new-options]))
@@ -1331,14 +1361,21 @@ Returns whether the given run resulted in sat or unsat, respectively.
                               (get-option run-spec 'solver))))
   
   ; Print configure and declare univ size
+  ; Note that target mode is passed separately, nearer to the (solve) invocation
   (define bitwidth (get-bitwidth run-spec)) 
   (pardinus-print
-    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a ~a ~a"
                                bitwidth 
                                solverspec 
                                (get-option run-spec 'sb) 
                                (get-option run-spec 'coregranularity)
-                               (get-option run-spec 'logtranslation)))
+                               (get-option run-spec 'logtranslation)
+                               (if (equal? 'temporal (get-option run-spec 'problem_type))
+                                   (format ":min-trace-length ~a" (get-option run-spec 'min_tracelength))
+                                   "")
+                               (if (equal? 'temporal (get-option run-spec 'problem_type))
+                                   (format ":max-trace-length ~a" (get-option run-spec 'max_tracelength))
+                                   "")))
     (pardinus:declare-univ (length all-atoms)))
 
   ; Declare ints
