@@ -1336,8 +1336,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define backend (get-option run-spec 'backend))
   (define-values (stdin stdout shutdown is-running?) 
     (cond
-      [(equal? backend 'kodkod) (kodkod:start-server)]
-      [(equal? backend 'pardinus) (pardinus:start-server 'stepper (Target? (Run-spec-target run-spec)))]
+      [(equal? backend 'kodkod)
+       (kodkod:start-server)]
+      [(equal? backend 'pardinus)
+       (pardinus:start-server
+        'stepper
+        (Target? (Run-spec-target run-spec))
+        (equal? 'temporal (get-option run-spec 'problem_type)))]
       [else (raise (format "Invalid backend: ~a" backend))]))
 
   (define-syntax-rule (kk-print lines ...)

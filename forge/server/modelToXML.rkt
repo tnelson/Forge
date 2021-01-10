@@ -58,11 +58,14 @@
                  
 
 (define (model-to-XML-string model relation-map name command filepath bitwidth forge-version)
-  (define flag (car model))
+  (define flag (car model))  
   (define data
     (if (not (equal? 'unsat (car model))) ; if satisfiable, can report relations
         (for/hash ([(key value) (cdr model)])
-          (values (hash-ref relation-map (symbol->string key)) value))
+          ; If no key, this is a relation that the engine has added by itself
+          (if (hash-has-key? relation-map key)
+              (values (hash-ref relation-map (symbol->string key)) value)
+              (values (rel '(univ) 'univ (symbol->string key)) value)))
         #f))
   
   (set! command (clean (clean-syntax command)))
@@ -113,7 +116,7 @@ here-string-delimiter
                         "</instance>\n</alloy>")]
         [else
 
-         ; Do not include unary Skolem relations as sigs! Sterling expects these as <skolem> decls, not <sig> decls
+         ; Do not include unary Skolem relations as sigs! Sterling expects these as <skolem> decls, not <sig> decls          
          ; Remember to use *Racket* not + and here
          (set! data (hash-remove data Int))
 

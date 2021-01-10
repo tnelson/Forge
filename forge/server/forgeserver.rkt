@@ -48,7 +48,7 @@
                        (cons 'compare-max #f)
                        (cons 'contrast-min #f)
                        (cons 'contrast-max #f)))))
-  (make-contrast-model-generators)
+  ;(make-contrast-model-generators)
 
   (define (get-current-contrast-model type)
     (hash-ref contrast-models type))

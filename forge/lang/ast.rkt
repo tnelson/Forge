@@ -313,7 +313,7 @@
                         [else (error (format "build-relation expected list of strings or symbols: ~a" typelist))])) typelist)]
         [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
                                [(string? parent) parent]
-                               [else (error (format "build-relation expected parent as either symbol or string"))])])
+                               [else (error (format "build-relation expected parent as either symbol or string"))])])    
     (node/expr/relation (nodeinfo loc) (length types) name
                         types scrubbed-parent is-var)))
 

@@ -7,7 +7,7 @@
 
 (define-runtime-path pardinus (build-path ".."))
 
-(define (pardinus-initializer solver-type target-oriented)
+(define (pardinus-initializer solver-type target-oriented temporal)
   (unless (member solver-type '(incremental stepper))
     (raise (format  "Invalid solver type: ~a" solver-type)))
   (unless (boolean? target-oriented)
@@ -31,7 +31,10 @@
     (subprocess #f #f #f
                 java "-cp" cp (string-append "-Djava.library.path=" (path->string pardinus/jar))
                 "kodkod.cli.KodkodServer" 
-                (format "-~a" solver-type) (if target-oriented "-target-oriented" "") 
+                (format "-~a" solver-type)
+                (cond [target-oriented "-target-oriented"]
+                      [temporal "-temporal"]
+                      [else ""]) 
                 "-error-out" error-out)))
 
 (define (pardinus-stderr-handler src err)

@@ -8,11 +8,16 @@
 #|
 The kodkod cli only numbers relations and atoms, it doesn't give them names. This is where
 we convert from the numbering scheme to the naming scheme.
+
+Note: sometimes the engine manufactures NEW atoms, as Pardinus does in temporal mode
+  (e.g., Time0_0, Time1_0, etc.) -- hence we allow non-integer atoms to remain themselves.
 |#
 
 
 (define (translate-kodkod-cli-atom univ atom)
-  (list-ref univ atom))
+  (if (exact-nonnegative-integer? atom)
+      (list-ref univ atom)
+      atom))
 
 (define (translate-kodkod-cli-tuple univ tuple)
   (map (curry translate-kodkod-cli-atom univ) tuple))
@@ -116,4 +121,6 @@ This function just recreates the model, but using names instead of numbers.
     [(equal? type 'expression)
      (for/list ([tuple value])
        (for/list ([atom tuple])
-         (list-ref atom-names atom)))]))
+         (if (exact-nonnegative-integer? atom)
+             (list-ref atom-names atom)
+             atom)))]))
