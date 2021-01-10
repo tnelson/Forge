@@ -1369,11 +1369,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Note that target mode is passed separately, nearer to the (solve) invocation
   (define bitwidth (get-bitwidth run-spec)) 
   (pardinus-print
-    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a ~a ~a"
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
                                bitwidth 
                                solverspec 
                                (get-option run-spec 'sb) 
                                (get-option run-spec 'coregranularity)
+                               (get-option run-spec 'core_minimization)
                                (get-option run-spec 'logtranslation)
                                (if (equal? 'temporal (get-option run-spec 'problem_type))
                                    (format ":min-trace-length ~a" (get-option run-spec 'min_tracelength))
