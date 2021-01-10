@@ -58,10 +58,11 @@
                  
 
 (define (model-to-XML-string model relation-map name command filepath bitwidth forge-version)
-  (define flag (car model))  
+  (define flag (car model))
+  (define raw-data (car (cdr model)))
   (define data
     (if (not (equal? 'unsat (car model))) ; if satisfiable, can report relations
-        (for/hash ([(key value) (cdr model)])
+        (for/hash ([(key value) raw-data])
           ; If no key, this is a relation that the engine has added by itself
           (if (hash-has-key? relation-map (symbol->string key))
               (values (hash-ref relation-map (symbol->string key)) value)
@@ -239,12 +240,12 @@ here-string-delimiter
                            "\"></source>\n"
                            "</alloy>"))
                                            
-         (string-append prologue
+         (define result (string-append prologue
                         "\n\n"
                         sig-strings
                         field-strings
                         ; Include these only when question about type of Skolem rels in Sterling is resolved.
                         ; including this beforehand will cause Sterling to error on any instance with a Skolem relation.
                         ;skolem-strings
-                        epilogue
-                        )]))
+                        epilogue))         
+         result]))

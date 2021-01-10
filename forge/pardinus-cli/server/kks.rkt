@@ -163,18 +163,25 @@
 ; instructed to provide cores; it will be empty otherwise.
 (define (read-solution port)
   (define result (read port))
-  (when (>= (get-verbosity) VERBOSITY_LOW)
-    (writeln result))
+  (when (> (get-verbosity) VERBOSITY_LOW)
+    (writeln result)) 
   (match result
-    [(list (== 'sat) (== ':model) (list (list rid val) ...))
+    ;; SAT results with and without statistics
+    [(list (== 'sat) (== ':model) (list (list rid val) ...) (== ':stats) (list stat ...))
      ; We do this because our "pairs" are actually little lists, so we can't use make-hash directly.
-    (cons 'sat (for/hash ([r rid][tuples val]) (values r tuples)))]
+    (list 'sat (for/hash ([r rid][tuples val]) (values r tuples)) stat)]
+    [(list (== 'sat) (== ':model) (list (list rid val) ...) #f)     
+    (list 'sat (for/hash ([r rid][tuples val]) (values r tuples)))]
+    ;; UNSAT results with and without statistics and core
+    [(list (== 'unsat) (== ':core) (list sid ...) (== ':stats) (list stat ...))
+     (list 'unsat sid stat)]
     [(list (== 'unsat) (== ':core) (list sid ...))
-     (cons 'unsat sid)]
+     (list 'unsat sid #f)]
     [(list (== 'unsat))
-     (cons 'unsat #f)]
+     (list 'unsat #f #f)]
+    ;; end of instance stream 
     [(list (== 'no-more-instances))
-     (cons 'no-more-instances #f)]
+     (list 'no-more-instances #f)]
     [(== eof)
      (error "Pardinus CLI shut down unexpectedly while running!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))

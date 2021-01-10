@@ -1024,7 +1024,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (if (equal? 'unsat (car model)) ; if satisfiable, move target
                 (Run-spec-target (Run-run-spec run)) 
                 (Target
-                 (for/hash ([(key value) (cdr model)]
+                 (for/hash ([(key value) (car (cdr model))]
                             #:when (member key (append (map Sig-rel (get-sigs new-state))
                                                        (map Relation-rel (get-relations new-state)))))
                    (values key value))
@@ -1461,16 +1461,22 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (pardinus-print
       (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
 
+  (define (format-statistics stats)
+    (format "Statistics go here~n"))
+  
   ; Print solve
   (define (get-next-model)
     (unless (is-running?)
       (raise "KodKod server is not running."))
     (pardinus-print (pardinus:solve))
-    (match-define (cons restype inst) (translate-from-kodkod-cli 'run 
-                                                                 (pardinus:read-solution stdout) 
-                                                                 all-rels 
-                                                                 all-atoms))        
-    (cons restype inst))
+    (match-define (list restype inst stats) (translate-from-kodkod-cli
+                                             'run 
+                                             (pardinus:read-solution stdout) 
+                                             all-rels 
+                                             all-atoms))
+    (when (@>= (get-verbosity) VERBOSITY_LOW)
+      (displayln (format-statistics stats)))
+    (list restype inst stats))
 
   (define (model-stream [prev #f])
     (if (and prev

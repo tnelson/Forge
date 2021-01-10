@@ -63,18 +63,19 @@ This function just recreates the model, but using names instead of numbers.
 
 (define (translate-from-kodkod-cli runtype model relations inty-univ)
   (define flag (car model))
-  (define data (cdr model))
+  (define data (car (cdr model)))
+  (define stats (car (cdr (cdr model))))
 
   (cond [(and (equal? 'unsat flag) (equal? runtype 'run) data)
-         (cons 'unsat data)]
+         (list 'unsat data stats)]
         [(and (equal? 'unsat flag) (equal? runtype 'run) (not data))
-         (cons 'unsat #f)]
+         (list 'unsat #f stats)]
         [(and (equal? 'unsat flag) (equal? runtype 'check) data)
-          (cons 'no-counterexample data)]
+         (list 'no-counterexample data stats)]
         [(and (equal? 'unsat flag) (equal? runtype 'check) (not data))
-          (cons 'no-counterexample #f)]
+         (list 'no-counterexample #f stats)]
         [(equal? 'no-more-instances flag)
-         (cons 'no-more-instances #f)]
+         (cons 'no-more-instances #f stats)]
         [(equal? 'sat flag)
          #|
          (define translated-model (make-hash))
@@ -111,7 +112,7 @@ This function just recreates the model, but using names instead of numbers.
                       #:unless (equal? key 'succ))
              (values key
                      (translate-kodkod-cli-relation inty-univ value))))
-         (cons 'sat translated-model)]))
+         (list 'sat translated-model stats)]))
 
 (define (translate-evaluation-from-kodkod-cli result atom-names)
   (match-define (cons type value) result)
