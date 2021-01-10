@@ -1462,7 +1462,15 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
 
   (define (format-statistics stats)
-    (format "Statistics go here~n"))
+    (let* ([vars (assoc 'size-variables stats)]
+           [prim (assoc 'size-primary stats)]
+           [clauses (assoc 'size-clauses stats)]
+           [tt (assoc 'time-translation stats)]
+           [ts (assoc 'time-solving stats)]
+           [tcx (assoc 'time-core stats)]
+           [tcstr (if tcx (format " Core min (ms): ~a" tcx) "")])
+      (format "#vars: ~a; #primary: ~a; #clauses: ~a~nTransl (ms): ~a; Solving (ms): ~a~a"
+              vars prim clauses tt ts tcstr)))
   
   ; Print solve
   (define (get-next-model)
