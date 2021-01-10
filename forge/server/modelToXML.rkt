@@ -63,7 +63,7 @@
     (if (not (equal? 'unsat (car model))) ; if satisfiable, can report relations
         (for/hash ([(key value) (cdr model)])
           ; If no key, this is a relation that the engine has added by itself
-          (if (hash-has-key? relation-map key)
+          (if (hash-has-key? relation-map (symbol->string key))
               (values (hash-ref relation-map (symbol->string key)) value)
               (values (rel '(univ) 'univ (symbol->string key)) value)))
         #f))
