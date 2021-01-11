@@ -1,7 +1,7 @@
 #lang forge
 
 option problem_type temporal
-option verbose 10
+--option verbose 10
 
 sig Stepper {
     var step : set Stepper //will be used to restrict posssible transitions
@@ -27,8 +27,10 @@ pred prog1 {
 //so step' cannot be empty, meaning prog1 can't be possible ever again
 pred prog2 {
     some Stepper
-    some step and Stepper.step != Stepper
+    Stepper.step != Stepper
+    some step
     step in step'
+    after always step in step'
 }
 
 //Now, Stepper.step = Stepper,
@@ -38,9 +40,8 @@ pred prog3 {
     some Stepper
     Stepper in Stepper.step
     step' = step
+    after always step' = step
 }
-
---run {prog3 and eventually prog2}
 
 test expect EventuallyGeneral {
     noProg2AfterProg3 : {prog3 and eventually prog2} is unsat
@@ -144,8 +145,9 @@ test expect EventuallyTrueAndEventuallyNotTrue {
 
 //note: this pred is not used in the above test expect
 pred OrangeSwitch {
+    always (no org or Orange in Orange.org)
     no org implies Orange in (Orange.org)'
-    Orange in (Orange.org)' implies no org
+    Orange in (Orange.org) implies org' = org - org
 }
 
 //Since OrangeSwitch switches every time,
@@ -155,17 +157,12 @@ pred OrangeSwitch {
 //true will never be eventually true again
 //What is supposed to happen in that case?
 test expect AlwaysEventuallyTrueButNotAlwaysTrue {
-    noOrgNotAlwaysTrue : {always OrangeSwitch and always (no org)} is unsat
-    allOrangeCoveredByOrgNotAlwaysTrue : {
-        always OrangeSwitch
-        always (Orange in (Orange.org)')
-    } is unsat
     noOrgCanBeAlwaysEventuallyTrue : {
         always OrangeSwitch
         always eventually (no org)
     } is sat
     allOrangeCoveredByOrgCanBeAlwaysEventuallyTrue : {
-        OrangeSwitch
+        always OrangeSwitch
         always eventually (Orange in (Orange.org)')
     } is sat
     noOrgMustBeAlwaysEventuallyTrue : {
@@ -173,7 +170,7 @@ test expect AlwaysEventuallyTrueButNotAlwaysTrue {
         not always eventually (no org)
     } is unsat
     allOrangeCoveredByOrgMustBeAlwaysEventuallyTrue : {
-        OrangeSwitch
+        always OrangeSwitch
         not always eventually (Orange in (Orange.org)')
     } is unsat
 }
