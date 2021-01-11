@@ -28,7 +28,7 @@ pred oneUserPerPost {
 
 pred validFriend {
     //A user cannot be their own friend
-    all sn : DistributedSN | no (sn.friends && iden)
+    all sn : DistributedSN | no (sn.friends & iden)
     //Friendship is symmetric
     all sn : DistributedSN | ~(sn.friends) in sn.friends
 }
