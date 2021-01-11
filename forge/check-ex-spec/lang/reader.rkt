@@ -5,7 +5,7 @@
 (require (only-in forge/lang/reader
                   coerce-ints-to-atoms))
 (require forge/check-ex-spec/library)
-(require racket/function)
+(require (only-in racket/function curry))
 (require racket/match)
 ; (require racket/list)
 
@@ -31,7 +31,8 @@
   (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl InstDecl TestExpectDecl OptionDecl)))))
 
   (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
-                          (require forge/sigs)
+                          (require forge/check-ex-spec/library)
+                          (require (prefix-in @ racket))
 
                           ; Auto-provide all defined values
                           (provide (except-out (all-defined-out)
@@ -41,27 +42,40 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          ; Enable check-ex-spec commands and load TA solution
-                          (define wheat-results
-                            (list
-                              ,@(map (lambda (wheat) 
-                                      `(with (,@provided #:from ,wheat)
-                                         (list ,@(for/list ([test just-tests])
-                                            `(with-handlers ([(lambda (exn) #t) (lambda (exn) #f)])
-                                              ,test
-                                             #t))))) wheats)))
+                          (define wheat-results 
+                            (list ,@(map (lambda (wheat) 
+                                    `(with (,@provided #:from ,wheat)
+                                       (list ,@(for/list ([test just-tests])
+                                                test))))
+                                   wheats)))
 
-                          (define chaff-results
-                            (list
-                              ,@(map (lambda (chaff) 
-                                      `(with (,@provided #:from ,chaff)
-                                         (list ,@(for/list ([test just-tests])
-                                            `(with-handlers ([(lambda (exn) #t) (lambda (exn) #f)])
-                                              ,test
-                                             #t))))) chaffs)))
+                          (define chaff-results 
+                            (list ,@(map (lambda (chaff) 
+                                    `(with (,@provided #:from ,chaff)
+                                       (list ,@(for/list ([test just-tests])
+                                                test))))
+                                   chaffs)))
 
-                          (printf "Wheat results: ~a~n" wheat-results)
-                          (printf "Chaff results: ~a~n" chaff-results)
+                          (for ([wheat-result wheat-results]
+                                [num (in-naturals)])
+                            (for ([test wheat-result])
+                              (unless (test-report-passed? test)
+                                (raise (format "Failed wheat ~a with test '~a'." 
+                                               num (test-report-name test))))))
+
+                          (for ([chaff-result chaff-results]
+                                [num (in-naturals)])
+                            (define test-results
+                              (for/list ([test chaff-result])
+                                (if (test-report-passed? test)
+                                    #f
+                                    (test-report-name test))))
+                            (define catchers (filter (lambda (name) name) test-results))
+                            (if (@> (length catchers) 0)
+                                (displayln (format "Caught chaff ~a with tests ~a."
+                                                   num catchers))
+                                (displayln (format "Missed chaff ~a." 
+                                                   num))))
 
                           #;,ints-coerced))
   (datum->syntax #f module-datum))

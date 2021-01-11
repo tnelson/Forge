@@ -37,7 +37,7 @@
   contents)
 
 
-(define REPO "tdelv/check-ex-spec-student-test")
+(define REPO "tdelv/lfs-2021-check-ex-spec")
 
 (define (get-info assignment-name)
   (make-directory* "compiled")

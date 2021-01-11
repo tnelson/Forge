@@ -22,7 +22,7 @@
 
 ; Commands
 (provide sig relation fun const pred inst)
-(provide run test check display with evaluate)
+(provide run check test example display with evaluate)
 
 ; Instance analysis functions
 (provide is-sat? is-unsat?)
@@ -860,6 +860,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
     [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
                          'expected))]))
+
+(define-simple-macro (example name:id pred bounds ...)
+  (test name #:preds [pred]
+             #:bounds [bounds ...]
+             #:expect sat))
 
 ; Checks that some predicates are always true.
 ; (check name
