@@ -172,13 +172,17 @@
     (list 'sat (for/hash ([r rid][tuples val]) (values r tuples)) stat)]
     [(list (== 'sat) (== ':model) (list (list rid val) ...) #f)     
     (list 'sat (for/hash ([r rid][tuples val]) (values r tuples)))]
+
     ;; UNSAT results with and without statistics and core
     [(list (== 'unsat) (== ':core) (list sid ...) (== ':stats) (list stat ...))
      (list 'unsat sid stat)]
     [(list (== 'unsat) (== ':core) (list sid ...))
      (list 'unsat sid #f)]
+    [(list (== 'unsat) (== ':stats) (list stat ...))
+     (list 'unsat #f stat)]
     [(list (== 'unsat))
      (list 'unsat #f #f)]
+
     ;; end of instance stream 
     [(list (== 'no-more-instances))
      (list 'no-more-instances #f)]
