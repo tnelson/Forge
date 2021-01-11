@@ -35,8 +35,15 @@
   (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
 
 (define (types-to-XML-string rel ID-hash)
+  (define Electrum-time-relation-string "Time")
+  (define xml-expected-types
+    (map (λ (x) (type-to-XML-string x ID-hash)) (relation-typelist rel)))
+  
   (string-append "<types>"
-                 (apply string-append (map (λ (x) (type-to-XML-string x ID-hash)) (relation-typelist rel)))
+                 ; Variable relations (Electrum) will be passed back with an unexpected final column
+                 (if (node/expr/relation-is-variable rel)
+                     (apply string-append (append xml-expected-types (list (type-to-XML-string Electrum-time-relation-string ID-hash))))
+                     (apply string-append xml-expected-types))
                  "</types>\n"))
 
 (define (field-to-XML-string data rel fieldID ID-hash)
