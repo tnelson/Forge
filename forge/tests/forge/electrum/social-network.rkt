@@ -1,5 +1,7 @@
 #lang forge
 
+option problem_type temporal
+
 /*
 Taken from https://github.com/haslab/Electrum2/wiki/Social-Network
 Models a distributed social network

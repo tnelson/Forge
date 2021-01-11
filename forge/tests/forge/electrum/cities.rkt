@@ -1,6 +1,7 @@
 #lang forge
 
 option verbose 10
+option problem_type temporal
 
 abstract sig CitySize {}
 sig Village, Town, Metropolis extends CitySize {}

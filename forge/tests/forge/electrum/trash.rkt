@@ -1,6 +1,7 @@
 #lang forge
 
 --option verbose 10
+option problem_type temporal
 
 //Taken from https://github.com/haslab/Electrum2/wiki/Trash
 //Goal is to model a trash bin such that files in the trash

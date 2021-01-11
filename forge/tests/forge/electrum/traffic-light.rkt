@@ -1,5 +1,7 @@
 #lang forge
 
+option problem_type temporal
+
 sig TrafficLight {
     //all possible colors of the light
     color : set Color,

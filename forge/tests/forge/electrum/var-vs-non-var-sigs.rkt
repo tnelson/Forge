@@ -1,5 +1,9 @@
 #lang forge
 
+//This takes a few minutes to run (on my machine at least)
+
+option problem_type temporal
+
 sig Orange {}
 
 sig Apple {

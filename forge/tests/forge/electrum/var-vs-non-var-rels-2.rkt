@@ -1,5 +1,9 @@
 #lang forge
 
+--Had To Split into part 1/2/3 due to it running out of memory in DrRacket :((
+
+option problem_type temporal
+
 sig nonVarSigNoRels {}
 var sig VarSigNoRels {}
 sig nonVarSigNonVarRels {
@@ -27,6 +31,8 @@ sig VarSigBothRels {
     var varBothToVar : set VarSigNonVarRels
 }
 
+/*
+Part 1
 test expect nonVarRelsDontChange {
     nonVarToNonVarCantChange : {not always nonVarToNonVar' = nonVarToNonVar} is unsat
     nonVarToNonVarCanStay : {always nonVarToNonVar' = nonVarToNonVar} is sat
@@ -41,8 +47,10 @@ test expect nonVarRelsDontChange {
     varBothToNonVarCantChange : {not always varBothToNonVar' = varBothToNonVar} is unsat
     varBothToNonVarCanStay : {always varBothToNonVar' = varBothToNonVar} is sat
 }
+*/
 
 test expect VarRelsMaybeChange {
+    //Part 2
     varFromNonVarToNonVarCanAlwaysChange : {
         always varFromNonVarToNonVar' != varFromNonVarToNonVar
     } is sat
@@ -76,6 +84,8 @@ test expect VarRelsMaybeChange {
     varFromVarToNonVarNoHaveToChange : {
         always varFromVarToNonVar' = varFromVarToNonVar
     } is sat
+    /*
+    Part 3
     varFromVarToVarCanAlwaysChange : {
         always varFromVarToVar' != varFromVarToVar
     } is sat
@@ -109,4 +119,5 @@ test expect VarRelsMaybeChange {
     varBothToVarNoHaveToChange : {
         always varBothToVar' = varBothToVar
     } is sat
+    */
 }
