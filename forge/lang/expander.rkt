@@ -922,6 +922,7 @@
 (dsm-keep (Expr5 stx ...) (Expr stx ...))
 (dsm-keep (Expr6 stx ...) (Expr stx ...))
 (dsm-keep (Expr7 stx ...) (Expr stx ...))
+(dsm-keep (Expr7.5 stx ...) (Expr stx ...))
 (dsm-keep (Expr8 stx ...) (Expr stx ...))
 (dsm-keep (Expr9 stx ...) (Expr stx ...))
 (dsm-keep (Expr10 stx ...) (Expr stx ...))
