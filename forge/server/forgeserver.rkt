@@ -58,7 +58,7 @@
     (hash-ref contrast-models type))
 
   (define (get-xml model)
-    (model-to-XML-string model relation-map name command filepath bitwidth forge-version))
+    (solution-to-XML-string model relation-map name command filepath bitwidth forge-version))
 
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))

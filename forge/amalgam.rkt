@@ -220,7 +220,7 @@
   ;(printf "~n  orig-inst: ~a~n" orig-inst)
   ;(printf "~n  orig-bounds: ~a~n" (forge:Run-spec-bounds spec))
   ;(printf "~n  orig-scope: ~a~n" orig-scope) 
-  (define new-totals (flip-tuple (cdr orig-inst) (car tup) (cdr tup)))
+  (define new-totals (flip-tuple (car (cdr orig-inst)) (car tup) (cdr tup)))
   ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
   ; e.g. (for fixed edge relation)
   ;Original PBindings: 

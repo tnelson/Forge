@@ -160,7 +160,6 @@
   kodkod-bounds ; List<bound> (lower and upper bounds for each relation)
   ) #:transparent)
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;  Initial State  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -844,10 +843,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(member 'expected '(sat unsat))
      (run name args ...)
      (define first-instance (stream-first (Run-result name)))
-     (unless (equal? (car first-instance) 'expected)
+     (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
        (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
                       'name 'expected (car first-instance)
-                      (if (equal? (car first-instance) 'sat)
+                      (if (Sat? first-instance)
                           (format "~nFound instance ~a" (cdr first-instance))
                           ""))))]
 
@@ -940,13 +939,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; Checks if a given run result is 'sat
 (define (is-sat? run)
   (define first-instance (stream-first (Run-result run)))
-  (equal? (car first-instance) 'sat))
+  (Sat? first-instance))
 
 ; is-unsat? :: Run -> boolean
 ; Checks if a given run result is 'unsat
 (define (is-unsat? run)
   (define first-instance (stream-first (Run-result run)))
-  (equal? (car first-instance) 'unsat))
+  (Unsat? first-instance))
 
 ; make-model-generator :: Stream<model> -> (-> model)
 ; Creates a thunk which generates a new model on each call.
@@ -1477,19 +1476,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (unless (is-running?)
       (raise "KodKod server is not running."))
     (pardinus-print (pardinus:solve))
-    (match-define (list restype inst stats) (translate-from-kodkod-cli
-                                             'run 
-                                             (pardinus:read-solution stdout) 
-                                             all-rels 
-                                             all-atoms))
+    (define result (translate-from-kodkod-cli
+                    'run 
+                    (pardinus:read-solution stdout) 
+                    all-rels 
+                    all-atoms))    
     (when (@>= (get-verbosity) VERBOSITY_LOW)
-      (displayln (format-statistics stats)))
-    (list restype inst stats))
+      (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
+    result)
 
   (define (model-stream [prev #f])
     (if (and prev
-             (or (equal? (car prev) 'no-more-instances) 
-                 (equal? (car prev) 'unsat)))
+             (Unsat? prev))
         (letrec ([rest (stream-cons (prev) rest)])
           rest)
         (stream-cons (get-next-model) (model-stream))))
