@@ -106,6 +106,8 @@
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "Eval query: ~a~n" command))
                   (define result (evaluate command))
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else

@@ -1020,7 +1020,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                   (Run-spec-preds (Run-run-spec run)))))))
           
           (define new-target
-            (if (equal? 'unsat (car model)) ; if satisfiable, move target
+            (if (Unsat? model) ; if satisfiable, move target
                 (Run-spec-target (Run-run-spec run)) 
                 (Target
                  (for/hash ([(key value) (car (cdr model))]
@@ -1425,15 +1425,28 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
 
+  (define (maybe-alwaysify fmla)
+    (if (equal? 'temporal (get-option run-spec 'problem_type))
+        (always/info (node-info fmla) fmla)
+        fmla))
+  
   ; Get and print predicates
-  (define raw-run-constraints
-    (append (Run-spec-preds run-spec)
-            (get-sig-size-preds run-spec)
+  ; If in temporal mode, need to always-ify the auto-generated constraints but not the
+  ;   predicates that come from users
+  (define raw-implicit-constraints
+    (append (get-sig-size-preds run-spec)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
             break-preds))
+  (define conjuncts-implicit-constraints
+    (apply append (map maybe-and->list raw-implicit-constraints)))
+  (define implicit-constraints
+    (map maybe-alwaysify conjuncts-implicit-constraints))
+  (define explicit-constraints
+    (apply append (map maybe-and->list (Run-spec-preds run-spec)))) 
+              
   (define run-constraints 
-    (apply append (map maybe-and->list raw-run-constraints)))
+    (append explicit-constraints implicit-constraints))
 
   (for ([p run-constraints]
         [assertion-number (in-naturals)])

@@ -153,7 +153,7 @@ here-string-delimiter
             (apply string-append
                    (map (lambda (ihash) (model-to-XML-string ihash filepath instance-prologue)) data))
             epilogue))
-         (printf "MESSAGE:~n~a~n" message)
+         ;(printf "MESSAGE:~n~a~n" message)
          message]))
 
 (define (model-to-XML-string data filepath prologue)
