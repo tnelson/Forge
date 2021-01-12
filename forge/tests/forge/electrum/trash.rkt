@@ -1,7 +1,11 @@
 #lang forge
 
---option verbose 10
+option verbose 10
 option problem_type temporal
+option min_tracelength 3
+option solver MiniSatProver
+option core_minimization rce
+option logtranslation 1
 
 //Taken from https://github.com/haslab/Electrum2/wiki/Trash
 //Goal is to model a trash bin such that files in the trash
@@ -56,6 +60,11 @@ pred deleteAll {
     //If all files are in Trash,
     //then all files are deleted when trash is emptied
     always ((File in TrashInFile.Trash and emptyTrash) implies after always no File)
+}
+
+run {
+    behavior
+    not deleteAll
 }
 
 test expect deleteCheck {

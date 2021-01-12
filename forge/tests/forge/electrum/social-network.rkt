@@ -1,6 +1,11 @@
 #lang forge
 
 option problem_type temporal
+option min_tracelength 3
+option solver MiniSatProver
+option core_minimization rce
+option logtranslation 1
+option verbose 10
 
 /*
 Taken from https://github.com/haslab/Electrum2/wiki/Social-Network

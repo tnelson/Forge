@@ -31,9 +31,10 @@ pred validCurrentColor {
 }
 
 pred behavior {
-    validColorNext
-    validCurrentColor
+    always validColorNext
+    always validCurrentColor
 }
+
 
 test expect GeneralEventuallyTest {
     someLightReachesAllColorsEventually : {
