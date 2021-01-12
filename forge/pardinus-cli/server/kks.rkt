@@ -166,22 +166,25 @@
   (when (> (get-verbosity) VERBOSITY_LOW)
     (writeln result)) 
   (match result
-    ;; SAT results with and without statistics
-    [(list (== 'sat) (== ':model) (list (list rid val) ...) (== ':stats) (list stat ...))
-     ; We do this because our "pairs" are actually little lists, so we can't use make-hash directly.
-    (list 'sat (for/hash ([r rid][tuples val]) (values r tuples)) stat)]
-    [(list (== 'sat) (== ':model) (list (list rid val) ...) #f)     
-    (list 'sat (for/hash ([r rid][tuples val]) (values r tuples)))]
-
-    ;; UNSAT results with and without statistics and core
-    [(list (== 'unsat) (== ':core) (list sid ...) (== ':stats) (list stat ...))
+    ;; SAT results. Engine MUST provide statistics and metadata elements
+    ; expect a list of instances now (which may be singleton)
+    [(list (== 'sat)
+           (== ':model) (list (list (list rid val) ...) ...)
+           (== ':stats) (list stat ...)
+           (== ':metadata) (list md ...))
+     (list 'sat
+           (for/list ([rs rid][tupless val])     ; create a list
+             (for/hash ([r rs] [tuples tupless]) ; of hashes
+               (values r tuples))) stat md)]     ; of rel->tuple-list entries
+    
+    ;; UNSAT results with and without core
+    [(list (== 'unsat)
+           (== ':core) (list sid ...)
+           (== ':stats) (list stat ...))
      (list 'unsat sid stat)]
-    [(list (== 'unsat) (== ':core) (list sid ...))
-     (list 'unsat sid #f)]
-    [(list (== 'unsat) (== ':stats) (list stat ...))
+    [(list (== 'unsat)
+           (== ':stats) (list stat ...))
      (list 'unsat #f stat)]
-    [(list (== 'unsat))
-     (list 'unsat #f #f)]
 
     ;; end of instance stream 
     [(list (== 'no-more-instances))
