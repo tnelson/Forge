@@ -14,7 +14,7 @@ pred baseProg {
     some edges
     not edges = Node->Node
     no edges'
-    always no edges implies Node->Node in edges
+    always no edges implies Node->Node in edges'
     always Node->Node in edges implies edges' = edges
 }
 
