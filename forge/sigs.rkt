@@ -461,7 +461,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
           ))
   ((hash-ref symbol->proc option) (State-options state)))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -646,6 +645,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (update-state! new-state) 
   (set! curr-state new-state))
 
+; check-temporal-for-var :: Boolean String -> void
+; raises an error if is-var is true and the problem_type option is 'temporal
+; uses the given name in the error message
+; meant to only allow var sigs and relations in temporal specs
+(define (check-temporal-for-var is-var name)
+  (cond
+    [(and is-var
+          (not (equal? (get-option curr-state 'problem_type)
+            'temporal)))
+     (raise (format "Can't have var ~a unless problem_type option is temporal"
+                    name))]))
+
 
 ; Declare a new sig.
 ; (sig name [|| [#:one] [#:abstract]] [#:is-var isv] [[|| #:in #:extends] parent])
@@ -675,6 +686,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                        (symbol->string (or true-parent 'univ))
                                        (symbol->string true-name)
                                        is-var))
+        ;make sure it isn't a var sig if not in temporal mode
+        (~@ (check-temporal-for-var is-var true-name))
         ;Currently when lang/expander.rkt calls sig with #:in,
         ;super-sig is #'(raise "Extending with in not yet implemented.")
         ;This is just here for now to make sure that error is raised.
@@ -699,6 +712,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                       (symbol->string 'sig1)
                                       (symbol->string true-name)
                                       is-var))
+       ;make sure it isn't a var sig if not in temporal mode
+        (~@ (check-temporal-for-var is-var true-name))
        (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker))))]))
 
 ; Declare a new predicate
