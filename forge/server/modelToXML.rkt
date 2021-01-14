@@ -82,7 +82,7 @@
   (define maybe-temporal-metadata
     (string-join 
            (map (lambda (md)
-                  (format "~a=~a"
+                  (format "~a=\"~a\""
                           (first md)
                           (second md)))
                 (Sat-metadata soln))
@@ -93,9 +93,9 @@
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
                                   (car (string-split command)) "\" filename=\"" filepath
                                   
-                                  "\" version=\"" forge-version " "
+                                  "\" version=\"" forge-version "\" "
                                   maybe-temporal-metadata
-                                  "\">\n"
+                                  " >\n"
                                   #<<here-string-delimiter
 
 <sig label="seq/Int" ID="0" parentID="1" builtin="yes">
