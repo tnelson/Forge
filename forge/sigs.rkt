@@ -608,7 +608,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (provide implies iff <=> ifte >= <= ni != !in !ni)
 
 (define-syntax (implies stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)) a b))]))
-(define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (and/info (nodeinfo #,(build-source-location stx))
+(define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) a b)
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
 (define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (and/info (nodeinfo #,(build-source-location stx))
