@@ -119,6 +119,21 @@ test expect IfAfterTrueThenEventuallyTrue {
     } is unsat
 }
 
+test expect afterEventually {
+    canHaveEventuallyNoAlpha : {eventually no Alpha} is sat
+    canHaveAfterEventuallyNoAlpha : {after eventually no Alpha} is sat
+    AfterEventuallyNoAlphaMeansEventuallyNoAlpha : {
+        after eventually no Alpha
+        not (eventually no Alpha)
+    } is unsat
+    canHaveNotEventuallyNoAlpha : {not eventually no Alpha} is sat
+    canHaveNotAfterEventuallyNoAlpha : {not (after eventually no Alpha)} is sat
+    NotAfterEventuallyNoAlphaMeansNotEventuallyNoAlpha : {
+        not (after eventually no Alpha)
+        not (eventually no Alpha)
+    } is unsat
+}
+
 pred alwaysTrue {
     always Alpha = Alpha
 }

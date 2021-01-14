@@ -32,10 +32,14 @@ test expect afterBaseCases {
 
 var sig Table {}
 
+test expect afterTrueOrFalse {
+    noTableCanBecomeSomeTable : {no Table and after some Table} is sat
+    noTableNoHaveToBecomeSomeTable : {no Table and not (after some Table)} is sat
+}
+
 pred tableSwitch {
     always ((no Table implies some Table') and (some Table implies no Table'))
 }
-
 
 test expect afterSwitch {
     noAfterSome : {tableSwitch and some Table and after no Table} is sat
