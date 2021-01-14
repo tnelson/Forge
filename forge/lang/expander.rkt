@@ -7,7 +7,7 @@
 (require (for-syntax (for-syntax racket/base)))
 (require (for-syntax racket/function
                      syntax/srcloc))
-(require forge/check-ex-spec/library)
+(require forge/sigs)
 ; (require "ast.rkt")
 
 
@@ -17,7 +17,7 @@
 (provide require provide all-defined-out except-out prefix-in)
 (provide forge:nsa define-namespace-anchor)
 ; (provide (all-from-out "ast.rkt"))
-(provide (all-from-out forge/check-ex-spec/library))
+(provide (all-from-out forge/sigs))
 (provide (all-defined-out))
 (begin-for-syntax (provide (all-defined-out)))
 
