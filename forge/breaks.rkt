@@ -35,7 +35,17 @@
 ; break-graph       :: break-graph
 ; make-break        :: () -> break
 ; make-default      :: () -> break
-(struct breaker (pri break-graph make-break make-default) #:transparent)
+
+; ORIGINAL CODE
+; (struct breaker (pri break-graph make-break make-default) #:transparent)
+; BEGIN INSERTED TEMPORARY FIX FOR 'FUNC
+(struct breaker (pri break-graph make-break make-default [use-formula #:auto #:mutable]) #:transparent #:auto-value #f)
+
+(define (formula-breaker pri break-graph make-break make-default)
+    (define res (breaker pri break-graph make-break make-default))
+    (set-breaker-use-formula! res #t)
+    res)
+; END INSERTED TEMPORARY FIX FOR 'FUNC
 
 (define (bound->sbound bound) 
     (make-sbound (bound-relation bound)
@@ -238,7 +248,7 @@
             ; break the rest the default way (with get-formulas)
             (define broken defined)
             (for ([breaker breakers])
-                (cond [broken
+                (cond [(or broken (breaker-use-formula breaker))
                     (define default ((breaker-make-default breaker)))
                     (set-union! formulas (break-formulas default))
                 ][else
@@ -601,7 +611,32 @@
         (@all ([a A]) (@one (@join a rel)))    ; @one
     ))
     (if (equal? A B)
-        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+; ORIGINAL CODE
+        ; (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+        ;     (break-graph (set A) (set))
+        ;     (λ () (break ;(bound->sbound bound) formulas))
+        ;         (sbound rel
+        ;             (set)
+        ;             ;(for*/set ([a (length As)]
+        ;             ;           [b (length Bs)] #:when (<= b (+ a 1)))
+        ;             ;    (list (list-ref As a) (list-ref Bs b))))
+        ;             (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+        ;         formulas))
+        ;     (λ () (break bound formulas))
+        ; )
+        ; (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+        ;     (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+        ;     (λ () 
+        ;         ; assume wlog f(a) = b for some a in A, b in B
+        ;         (break 
+        ;             (sbound rel
+        ;                 (set (list (car As) (car Bs)))
+        ;                 (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+        ;             formulas))
+        ;     (λ () (break bound formulas))
+        ; )
+; BEGIN INSERTED TEMPORARY FIX FOR 'FUNC
+        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set A) (set))
             (λ () (break ;(bound->sbound bound) formulas))
                 (sbound rel
@@ -613,7 +648,7 @@
                 formulas))
             (λ () (break bound formulas))
         )
-        (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
             (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
             (λ () 
                 ; assume wlog f(a) = b for some a in A, b in B
@@ -624,6 +659,7 @@
                     formulas))
             (λ () (break bound formulas))
         )
+; END INSERTED TEMPORARY FIX FOR 'FUNC
     )
 ))
 (add-strategy 'surj (λ (pri rel bound atom-lists rel-list) 
