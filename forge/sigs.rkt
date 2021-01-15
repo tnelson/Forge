@@ -60,6 +60,9 @@
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
 
+(provide (struct-out Sat)
+         (struct-out Unsat))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
