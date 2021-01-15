@@ -22,7 +22,7 @@
 
 ; Commands
 (provide sig relation fun const pred inst)
-(provide run test check display with evaluate)
+(provide run check test example display with evaluate)
 
 ; Instance analysis functions
 (provide is-sat? is-unsat?)
@@ -611,10 +611,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) a b)
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
-(define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (and/info (nodeinfo #,(build-source-location stx))
+(define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) a b)
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
-(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx (and/info (nodeinfo #,(build-source-location stx))
+(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
                                                                    (=>/info (nodeinfo #,(build-source-location stx)) a b)
                                                                    (=>/info (nodeinfo #,(build-source-location stx)) (! a) c)))]))
 (define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
@@ -874,6 +874,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
     [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
                          'expected))]))
+
+(define-simple-macro (example name:id pred bounds ...)
+  (test name #:preds [pred]
+             #:bounds [bounds ...]
+             #:expect sat))
 
 ; Checks that some predicates are always true.
 ; (check name

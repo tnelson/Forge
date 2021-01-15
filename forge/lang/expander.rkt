@@ -7,7 +7,7 @@
 (require (for-syntax (for-syntax racket/base)))
 (require (for-syntax racket/function
                      syntax/srcloc))
-(require "../sigs.rkt")
+(require forge/sigs)
 ; (require "ast.rkt")
 
 
@@ -17,7 +17,7 @@
 (provide require provide all-defined-out except-out prefix-in)
 (provide forge:nsa define-namespace-anchor)
 ; (provide (all-from-out "ast.rkt"))
-(provide (all-from-out "../sigs.rkt"))
+(provide (all-from-out forge/sigs))
 (provide (all-defined-out))
 (begin-for-syntax (provide (all-defined-out)))
 
@@ -106,7 +106,8 @@
     ; (pattern decl:TransitionDeclClass)
     (pattern decl:RelDeclClass)
     (pattern decl:OptionDeclClass)
-    (pattern decl:InstDeclClass))
+    (pattern decl:InstDeclClass)
+    (pattern decl:ExampleDeclClass))
     ; (pattern decl:TraceDeclClass))
 
   ;Used for Electrum stuff
@@ -282,6 +283,12 @@
               "expect"
               (~optional name:NameClass)
               test-block:TestBlockClass)))
+
+  (define-syntax-class ExampleDeclClass
+    (pattern ((~literal ExampleDecl)
+              (~optional name:NameClass)
+              pred:ExprClass
+              bounds:BoundsClass)))
 
   ; Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
   ;       | /FOR-TOK @TypescopeList
@@ -693,6 +700,14 @@
    (if (attribute test-tok)
        (syntax/loc stx (begin block.test-decls ...))
        (syntax/loc stx (begin)))]))
+
+(define-syntax-parser ExampleDecl
+  [((~literal ExampleDecl) (~optional name:NameClass)
+                           pred:ExprClass
+                           bounds:BoundsClass)
+   #`(example (~? name.name unnamed-example) 
+              pred
+              #,@#'bounds.translate)])
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
