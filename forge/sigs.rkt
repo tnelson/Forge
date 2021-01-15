@@ -1036,9 +1036,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
           
           (define new-target
             (if (Unsat? model) ; if satisfiable, move target
-                (Run-spec-target (Run-run-spec run)) 
+                (Run-spec-target (Run-run-spec run))
                 (Target
-                 (for/hash ([(key value) (car (cdr model))]
+                 (for/hash ([(key value) (first (Sat-instances model))]
                             #:when (member key (append (map Sig-rel (get-sigs new-state))
                                                        (map Relation-rel (get-relations new-state)))))
                    (values key value))
