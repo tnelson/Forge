@@ -215,12 +215,12 @@
   ; TODO This may only work if the solver state is the *first* instance in the stream
   ;   Confirm + discuss: what's the method by which the generator moves forward?
   (define orig-inst (stream-first (forge:Run-result orig-run)))
-  (unless (symbol=? 'sat (car orig-inst))
+  (unless (Sat? orig-inst)
     (error "amalgam called on unsat run"))
   ;(printf "~n  orig-inst: ~a~n" orig-inst)
   ;(printf "~n  orig-bounds: ~a~n" (forge:Run-spec-bounds spec))
   ;(printf "~n  orig-scope: ~a~n" orig-scope) 
-  (define new-totals (flip-tuple (car (cdr orig-inst)) (car tup) (cdr tup)))
+  (define new-totals (flip-tuple (first (Sat-instances orig-inst)) (car tup) (cdr tup)))
   ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
   ; e.g. (for fixed edge relation)
   ;Original PBindings: 
