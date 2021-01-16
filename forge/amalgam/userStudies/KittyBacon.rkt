@@ -1,78 +1,73 @@
 #lang forge
-
 sig Cat {
-    friends: set Cat
+    friends : set Cat
 }
-
-one sig KittyBacon extends Cat {
-    connectionsOf: set Cat
-}
-
-// Make sure that every cat has at least one friend 
+--run {} -- example of unrestrained friendship
 pred NoLonelyKittens {
-    no c: Cat | no c.friends 
-
+    -- all cats have at least one friend
+    all c: Cat | some c.friends
 }
-
-// Cats are friends with other kittens
 pred OutsideFriends {
-    all c: Cat | c not in c.friends
+    -- no self-friendship     
+    no iden & friends
 }
-
-// Two way street for friendships 
 pred TwoWayStreet {
-    all c1, c2: Cat | c1 in c2.friends iff c2 in c1.friends 
+    -- friendship is symmetric
+    friends = ~friends
 }
-
-// Combination of previous predicates
 pred friendship {
     NoLonelyKittens
     OutsideFriends
     TwoWayStreet
 }
-
-// Define the connections of Kitty Bacon 
+--run friendship -- example of friendship rules
+one sig KittyBacon extends Cat {
+    connectionsOf: set Cat
+}
 pred connectionsOfKittyBacon {
     friendship
-    KittyBacon.connectionsOf = KittyBacon.friends + KittyBacon.friends.friends + KittyBacon.friends.friends.friends - KittyBacon 
+    KittyBacon.connectionsOf = KittyBacon.friends + KittyBacon.friends.friends + KittyBacon.friends.friends.friends - KittyBacon
 }
-
-// Kitty Bacon's connections
 pred ConnectedKittyBacon {
     connectionsOfKittyBacon
-    Cat - KittyBacon = KittyBacon.connectionsOf 
+    Cat - KittyBacon = KittyBacon.connectionsOf
 }
-
-// Equivalent predicate to ConnectedKittyBacon, except using ^
-// instead of union of friends
+--run ConnectedKittyBacon -- example of KB connections
 pred SuperConnected {
     connectionsOfKittyBacon
-    Cat - KittyBacon in KittyBacon.^friends 
+    Cat - KittyBacon in KittyBacon.^friends
 }
-
-// If two predicates are equivalent then there is a bi-implication between both of
-// them. However, if you increase the scope of cat, they stop being equivalent. 
 pred ConnectedKittyBacon_equals_SuperConnected {
     ConnectedKittyBacon iff SuperConnected
 }
+--check ConnectedKittyBacon_equals_SuperConnected for exactly 3 Cat -- no counterexample
+--check ConnectedKittyBacon_equals_SuperConnected for exactly 4 Cat -- no counterexample
+--check ConnectedKittyBacon_equals_SuperConnected for exactly 5 Cat -- gets counterexample!
+-- Example Part 1 Comment
+-- It's not possible to modify KittyBacon.connectionsOf so that it returns no counterexamples for any # of cats 
+-- without using * or ^, since as more cats enter the equation, being friends of friends, etc, 
+-- won't be enough to necessarily connect all cats to Kitty Bacon, unless the scope of 
+-- Kitty Bacon.connectionsOf is adjusted according to the increase in number of cats. 
+-- Even if it worked for a large number of cats, it wouldn't work for ANY number of cats.
 
-// This check breaks for 5 (unless we change the union pred) 
-check ConnectedKittyBacon_equals_SuperConnected for exactly 4 Cat
+-- CoolCatClub
 
-run {ConnectedKittyBacon and connectionsOfKittyBacon}
-run {friendship}
+one sig CCC  {
+    members: set Cat
+} 
 
-pred failure {
-    not ConnectedKittyBacon_equals_SuperConnected
+pred CoolCatClub {
+    ConnectedKittyBacon
+    CCC.members = KittyBacon.connectionsOf + KittyBacon
 }
 
-pred inexactReason{
-    some c:Cat-KittyBacon | c not in KittyBacon.connectionsOf
+pred KittyBaconIsCool {
+    CoolCatClub implies KittyBacon in CCC.members
 }
 
-run { failure and not inexactReason } for exactly 5 Cat
+check KittyBaconIsCool for exactly 4 Cat -- no counterexample 
 
-pred exactReason { /* FILL */ }
-
-check { connectionsOfKittyBacon implies (failure iff exactReason) } for
-exactly 5 Cat
+// Question from handout: Why is this failing? Well, KittyBacon is never part of
+// her connections! So there is an overconstraint. Students need to modify the
+// CoolCatClub predicate to define CCC.members = KittyBacon.connectionsOf + Kitty
+// Bacon 
