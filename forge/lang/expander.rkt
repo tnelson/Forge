@@ -153,7 +153,7 @@
 
   ; ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
   (define-syntax-class ArrowMultClass
-    (pattern ((~literal ArrowMult) "lone") #:attr symbol #'pfunc)
+    (pattern ((~literal ArrowMult) "lone") #:attr symbol #'coinj)
     (pattern ((~literal ArrowMult) "set") #:attr symbol #'default)
     (pattern ((~literal ArrowMult) "one") #:attr symbol #'func)
     (pattern ((~literal ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
