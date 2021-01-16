@@ -68,7 +68,7 @@
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (for ([a (in-list args)])
     (unless (type? a)
-      (raise-syntax-error #f (format "argument had unexpected type. expected ~a. loc: ~a" type? loc)
+      (raise-syntax-error #f (format "argument to ~a had unexpected type. expected ~a. loc: ~a" op type? loc)
                           (datum->syntax #f args (build-source-location-syntax loc))))
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
