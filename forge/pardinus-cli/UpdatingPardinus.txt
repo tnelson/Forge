@@ -1,7 +1,7 @@
 From command line:
 1. cd <pardinus-repo-parent-dir>/Pardinus
 2. git checkout ENGN1970
-3. mvn -Dmaven.test.skip = true install
+3. mvn -Dmaven.test.skip=true install
 	If it runs tests, it fails a couple so the build fails
 	and the jar doesn't appear.
 	However, it compiles properly so we still get a nice jar

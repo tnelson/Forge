@@ -186,9 +186,9 @@
            (== ':stats) (list stat ...))
      (list 'unsat #f stat)]
 
-    ;; end of instance stream 
+    ;; end of instance stream (empty data and empty statistics list)
     [(list (== 'no-more-instances))
-     (list 'no-more-instances #f)]
+     (list 'no-more-instances #f '())]
     [(== eof)
      (error "Pardinus CLI shut down unexpectedly while running!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
