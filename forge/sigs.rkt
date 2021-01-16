@@ -863,9 +863,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
      (define first-instance (stream-first (Run-result name)))
      (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
        (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
-                      'name 'expected (car first-instance)
+                      'name 'expected (if (Sat? first-instance) 'sat 'unsat)
                       (if (Sat? first-instance)
-                          (format "~nFound instance ~a" (cdr first-instance))
+                          (format ". Found instance ~a" first-instance)
                           ""))))]
 
     [(equal? 'expected 'theorem)
