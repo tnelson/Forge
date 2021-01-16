@@ -80,7 +80,7 @@ relation-names is the same, a list of all relation names ordered as they are in 
 This function just recreates the model, but using names instead of numbers.
 |#
 
-(define (translate-from-kodkod-cli runtype model relations inty-univ)
+(define (translate-from-kodkod-cli runtype model relations inty-univ) 
   (define flag (car model))  
   (define data (car (cdr model)))
   (define stats (car (cdr (cdr model))))  
@@ -94,7 +94,7 @@ This function just recreates the model, but using names instead of numbers.
         [(and (equal? 'unsat flag) (equal? runtype 'check) (not data))
          (Unsat #f stats 'no-counterexample)]
         [(equal? 'no-more-instances flag)
-         (Unsat '#f stats 'no-more-instances)]
+         (Unsat #f stats 'no-more-instances)]
         [(equal? 'sat flag)
          #|
          (define translated-model (make-hash))
