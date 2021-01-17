@@ -153,7 +153,7 @@
 
   ; ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
   (define-syntax-class ArrowMultClass
-    (pattern ((~literal ArrowMult) "lone") #:attr symbol #'pfunc)
+    (pattern ((~literal ArrowMult) "lone") #:attr symbol #'coinj)
     (pattern ((~literal ArrowMult) "set") #:attr symbol #'default)
     (pattern ((~literal ArrowMult) "one") #:attr symbol #'func)
     (pattern ((~literal ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
@@ -778,7 +778,7 @@
   [((~literal Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (release expr1 expr2)))]
+     (syntax/loc stx (releases expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -937,6 +937,7 @@
 (dsm-keep (Expr5 stx ...) (Expr stx ...))
 (dsm-keep (Expr6 stx ...) (Expr stx ...))
 (dsm-keep (Expr7 stx ...) (Expr stx ...))
+(dsm-keep (Expr7.5 stx ...) (Expr stx ...))
 (dsm-keep (Expr8 stx ...) (Expr stx ...))
 (dsm-keep (Expr9 stx ...) (Expr stx ...))
 (dsm-keep (Expr10 stx ...) (Expr stx ...))

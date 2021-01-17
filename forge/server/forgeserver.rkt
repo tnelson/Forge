@@ -48,7 +48,7 @@
                        (cons 'compare-max #f)
                        (cons 'contrast-min #f)
                        (cons 'contrast-max #f)))))
-  (make-contrast-model-generators)
+  ;(make-contrast-model-generators)
 
   (define (get-current-contrast-model type)
     (hash-ref contrast-models type))
@@ -58,7 +58,7 @@
     (hash-ref contrast-models type))
 
   (define (get-xml model)
-    (model-to-XML-string model relation-map name command filepath bitwidth forge-version))
+    (solution-to-XML-string model relation-map name command filepath bitwidth forge-version))
 
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -106,6 +106,8 @@
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "Eval query: ~a~n" command))
                   (define result (evaluate command))
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else

@@ -126,6 +126,9 @@
    ["var"  (token+ `VAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ; Electrum prime
    ["'"  (token+ `PRIME-TOK "" lexeme "" lexeme-start lexeme-end)]      
+
+   ; Tokenize this to prevent it from being used as a sig/relation name
+   ["Time"      (token+ `TIME-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ;; int stuff
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
@@ -225,6 +228,7 @@
            "releases"
            "var"
            "'"
+           "Time"
 
            'Int
            'sum

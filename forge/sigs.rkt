@@ -61,6 +61,9 @@
 (provide (prefix-out forge: curr-state)
          (prefix-out forge: update-state!))
 
+(provide (struct-out Sat)
+         (struct-out Unsat))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -160,7 +163,6 @@
   kodkod-currents ; Kodkod-current
   kodkod-bounds ; List<bound> (lower and upper bounds for each relation)
   ) #:transparent)
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;  Initial State  ;;;;;;;
@@ -463,7 +465,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
           ))
   ((hash-ref symbol->proc option) (State-options state)))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -648,6 +649,18 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (update-state! new-state) 
   (set! curr-state new-state))
 
+; check-temporal-for-var :: Boolean String -> void
+; raises an error if is-var is true and the problem_type option is 'temporal
+; uses the given name in the error message
+; meant to only allow var sigs and relations in temporal specs
+(define (check-temporal-for-var is-var name)
+  (cond
+    [(and is-var
+          (not (equal? (get-option curr-state 'problem_type)
+            'temporal)))
+     (raise (format "Can't have var ~a unless problem_type option is temporal"
+                    name))]))
+
 
 ; Declare a new sig.
 ; (sig name [|| [#:one] [#:abstract]] [#:is-var isv] [[|| #:in #:extends] parent])
@@ -677,6 +690,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                        (symbol->string (or true-parent 'univ))
                                        (symbol->string true-name)
                                        is-var))
+        ;make sure it isn't a var sig if not in temporal mode
+        (~@ (check-temporal-for-var is-var true-name))
         ;Currently when lang/expander.rkt calls sig with #:in,
         ;super-sig is #'(raise "Extending with in not yet implemented.")
         ;This is just here for now to make sure that error is raised.
@@ -701,6 +716,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                       (symbol->string 'sig1)
                                       (symbol->string true-name)
                                       is-var))
+       ;make sure it isn't a var sig if not in temporal mode
+        (~@ (check-temporal-for-var is-var true-name))
        (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker))))]))
 
 ; Declare a new predicate
@@ -845,11 +862,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(member 'expected '(sat unsat))
      (run name args ...)
      (define first-instance (stream-first (Run-result name)))
-     (unless (equal? (car first-instance) 'expected)
+     (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
        (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
-                      'name 'expected (car first-instance)
-                      (if (equal? (car first-instance) 'sat)
-                          (format "~nFound instance ~a" (cdr first-instance))
+                      'name 'expected (if (Sat? first-instance) 'sat 'unsat)
+                      (if (Sat? first-instance)
+                          (format ". Found instance ~a" first-instance)
                           ""))))
      (close-run name)]
 
@@ -948,13 +965,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; Checks if a given run result is 'sat
 (define (is-sat? run)
   (define first-instance (stream-first (Run-result run)))
-  (equal? (car first-instance) 'sat))
+  (Sat? first-instance))
 
 ; is-unsat? :: Run -> boolean
 ; Checks if a given run result is 'unsat
 (define (is-unsat? run)
   (define first-instance (stream-first (Run-result run)))
-  (equal? (car first-instance) 'unsat))
+  (Unsat? first-instance))
 
 ; make-model-generator :: Stream<model> -> (-> model)
 ; Creates a thunk which generates a new model on each call.
@@ -1029,10 +1046,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                   (Run-spec-preds (Run-run-spec run)))))))
           
           (define new-target
-            (if (equal? 'unsat (car model)) ; if satisfiable, move target
-                (Run-spec-target (Run-run-spec run)) 
+            (if (Unsat? model) ; if satisfiable, move target
+                (Run-spec-target (Run-run-spec run))
                 (Target
-                 (for/hash ([(key value) (cdr model)]
+                 (for/hash ([(key value) (first (Sat-instances model))]
                             #:when (member key (append (map Sig-rel (get-sigs new-state))
                                                        (map Relation-rel (get-relations new-state)))))
                    (values key value))
@@ -1355,8 +1372,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define backend (get-option run-spec 'backend))
   (define-values (stdin stdout shutdown is-running?) 
     (cond
-      [(equal? backend 'kodkod) (kodkod:start-server)]
-      [(equal? backend 'pardinus) (pardinus:start-server 'stepper (Target? (Run-spec-target run-spec)))]
+      [(equal? backend 'kodkod)
+       (kodkod:start-server)]
+      [(equal? backend 'pardinus)
+       (pardinus:start-server
+        'stepper
+        (Target? (Run-spec-target run-spec))
+        (equal? 'temporal (get-option run-spec 'problem_type)))]
       [else (raise (format "Invalid backend: ~a" backend))]))
 
   (define-syntax-rule (kk-print lines ...)
@@ -1383,11 +1405,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Note that target mode is passed separately, nearer to the (solve) invocation
   (define bitwidth (get-bitwidth run-spec)) 
   (pardinus-print
-    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a ~a ~a"
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
                                bitwidth 
                                solverspec 
                                (get-option run-spec 'sb) 
                                (get-option run-spec 'coregranularity)
+                               (get-option run-spec 'core_minimization)
                                (get-option run-spec 'logtranslation)
                                (if (equal? 'temporal (get-option run-spec 'problem_type))
                                    (format ":min-trace-length ~a" (get-option run-spec 'min_tracelength))
@@ -1439,16 +1462,29 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
 
+  (define (maybe-alwaysify fmla)
+    (if (equal? 'temporal (get-option run-spec 'problem_type))
+        (always/info (node-info fmla) fmla)
+        fmla))
+  
   ; Get and print predicates
-  (define raw-run-constraints
-    (append (Run-spec-preds run-spec)
-            (get-sig-size-preds run-spec)
+  ; If in temporal mode, need to always-ify the auto-generated constraints but not the
+  ;   predicates that come from users
+  (define raw-implicit-constraints
+    (append (get-sig-size-preds run-spec)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
             relation-constraints
             break-preds))
+  (define conjuncts-implicit-constraints
+    (apply append (map maybe-and->list raw-implicit-constraints)))
+  (define implicit-constraints
+    (map maybe-alwaysify conjuncts-implicit-constraints))
+  (define explicit-constraints
+    (apply append (map maybe-and->list (Run-spec-preds run-spec)))) 
+              
   (define run-constraints 
-    (apply append (map maybe-and->list raw-run-constraints)))
+    (append explicit-constraints implicit-constraints))
 
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
@@ -1475,21 +1511,34 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (pardinus-print
       (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
 
+  (define (format-statistics stats)
+    (let* ([vars (assoc 'size-variables stats)]
+           [prim (assoc 'size-primary stats)]
+           [clauses (assoc 'size-clauses stats)]
+           [tt (assoc 'time-translation stats)]
+           [ts (assoc 'time-solving stats)]
+           [tcx (assoc 'time-core stats)]
+           [tcstr (if tcx (format " Core min (ms): ~a" tcx) "")])
+      (format "#vars: ~a; #primary: ~a; #clauses: ~a~nTransl (ms): ~a; Solving (ms): ~a~a"
+              vars prim clauses tt ts tcstr)))
+  
   ; Print solve
   (define (get-next-model)
     (unless (is-running?)
       (raise "KodKod server is not running."))
     (pardinus-print (pardinus:solve))
-    (match-define (cons restype inst) (translate-from-kodkod-cli 'run 
-                                                                 (pardinus:read-solution stdout) 
-                                                                 all-rels 
-                                                                 all-atoms))        
-    (cons restype inst))
+    (define result (translate-from-kodkod-cli
+                    'run 
+                    (pardinus:read-solution stdout) 
+                    all-rels 
+                    all-atoms))    
+    (when (@>= (get-verbosity) VERBOSITY_LOW)
+      (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
+    result)
 
   (define (model-stream [prev #f])
     (if (and prev
-             (or (equal? (car prev) 'no-more-instances) 
-                 (equal? (car prev) 'unsat)))
+             (Unsat? prev))
         (letrec ([rest (stream-cons (prev) rest)])
           rest)
         (stream-cons (get-next-model) (model-stream))))

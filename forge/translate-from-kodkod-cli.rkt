@@ -4,15 +4,39 @@
          (only-in "lang/ast.rkt" univ))   ;relation))
 (provide translate-from-kodkod-cli
          translate-evaluation-from-kodkod-cli )
+(provide (struct-out Sat)
+         (struct-out Unsat))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; For a non-temporal result, just take the first element of instances
+(struct Sat (
+  instances ; list of hashes            
+  stats ; association list
+  metadata ; association list
+  ) #:transparent)
+
+(struct Unsat (
+  core ; (or/c #f list-of-AST-nodes)
+  stats ; association list
+  kind ; symbol
+  ) #:transparent)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 #|
 The kodkod cli only numbers relations and atoms, it doesn't give them names. This is where
 we convert from the numbering scheme to the naming scheme.
+
+Note: sometimes the engine manufactures NEW atoms, as Pardinus does in temporal mode
+  (e.g., Time0_0, Time1_0, etc.) -- hence we allow non-integer atoms to remain themselves.
 |#
 
 
 (define (translate-kodkod-cli-atom univ atom)
-  (list-ref univ atom))
+  (if (exact-nonnegative-integer? atom)
+      (list-ref univ atom)
+      atom))
 
 (define (translate-kodkod-cli-tuple univ tuple)
   (map (curry translate-kodkod-cli-atom univ) tuple))
@@ -56,20 +80,21 @@ relation-names is the same, a list of all relation names ordered as they are in 
 This function just recreates the model, but using names instead of numbers.
 |#
 
-(define (translate-from-kodkod-cli runtype model relations inty-univ)
-  (define flag (car model))
-  (define data (cdr model))
+(define (translate-from-kodkod-cli runtype model relations inty-univ) 
+  (define flag (car model))  
+  (define data (car (cdr model)))
+  (define stats (car (cdr (cdr model))))  
 
   (cond [(and (equal? 'unsat flag) (equal? runtype 'run) data)
-         (cons 'unsat data)]
+         (Unsat data stats 'unsat)]
         [(and (equal? 'unsat flag) (equal? runtype 'run) (not data))
-         (cons 'unsat #f)]
+         (Unsat #f stats 'unsat)]
         [(and (equal? 'unsat flag) (equal? runtype 'check) data)
-          (cons 'no-counterexample data)]
+         (Unsat data stats 'no-counterexample)]
         [(and (equal? 'unsat flag) (equal? runtype 'check) (not data))
-          (cons 'no-counterexample #f)]
+         (Unsat #f stats 'no-counterexample)]
         [(equal? 'no-more-instances flag)
-         (cons 'no-more-instances #f)]
+         (Unsat #f stats 'no-more-instances)]
         [(equal? 'sat flag)
          #|
          (define translated-model (make-hash))
@@ -99,14 +124,18 @@ This function just recreates the model, but using names instead of numbers.
                              (rel arity-types "univ" (symbol->string relation-num))
                              translated-tuples)]))|#
          ;(printf "Translated model: ~a~n" translated-model)
+         
+         (define metadata (car (cdr (cdr (cdr model)))))
 
-         (define translated-model
-           (for/hash ([(key value) data]
-                      #:unless (equal? key 'Int)
-                      #:unless (equal? key 'succ))
-             (values key
-                     (translate-kodkod-cli-relation inty-univ value))))
-         (cons 'sat translated-model)]))
+         ; data will be a list of models         
+         (define translated-models
+           (map (lambda (m)
+                  (for/hash ([(key value) m]
+                             #:unless (equal? key 'Int)
+                             #:unless (equal? key 'succ))
+                    (values key
+                            (translate-kodkod-cli-relation inty-univ value)))) data))
+         (Sat translated-models stats metadata)]))
 
 (define (translate-evaluation-from-kodkod-cli result atom-names)
   (match-define (cons type value) result)
@@ -116,4 +145,6 @@ This function just recreates the model, but using names instead of numbers.
     [(equal? type 'expression)
      (for/list ([tuple value])
        (for/list ([atom tuple])
-         (list-ref atom-names atom)))]))
+         (if (exact-nonnegative-integer? atom)
+             (list-ref atom-names atom)
+             atom)))]))

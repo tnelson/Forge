@@ -15,11 +15,11 @@
          "server-common.rkt")
 
 (provide start-server) ; stdin stdout)
-(define (start-server [solver-type 'stepper] [target-oriented #t])
+(define (start-server [solver-type 'stepper] [target-oriented #f] [temporal #f])
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (displayln "Starting pardinus server."))
   (define kks (new server%
-                   [initializer (thunk (pardinus-initializer solver-type target-oriented))]
+                   [initializer (thunk (pardinus-initializer solver-type target-oriented temporal))]
                    [stderr-handler (curry pardinus-stderr-handler "blank")]))
   (send kks initialize)
   (define stdin-val (send kks stdin))
@@ -163,18 +163,32 @@
 ; instructed to provide cores; it will be empty otherwise.
 (define (read-solution port)
   (define result (read port))
-  (when (>= (get-verbosity) VERBOSITY_LOW)
-    (writeln result))
+  (when (> (get-verbosity) VERBOSITY_LOW)
+    (writeln result)) 
   (match result
-    [(list (== 'sat) (== ':model) (list (list rid val) ...))
-     ; We do this because our "pairs" are actually little lists, so we can't use make-hash directly.
-    (cons 'sat (for/hash ([r rid][tuples val]) (values r tuples)))]
-    [(list (== 'unsat) (== ':core) (list sid ...))
-     (cons 'unsat sid)]
-    [(list (== 'unsat))
-     (cons 'unsat #f)]
+    ;; SAT results. Engine MUST provide statistics and metadata elements
+    ; expect a list of instances now (which may be singleton)
+    [(list (== 'sat)
+           (== ':model) (list (list (list rid val) ...) ...)
+           (== ':stats) (list stat ...)
+           (== ':metadata) (list md ...))
+     (list 'sat
+           (for/list ([rs rid][tupless val])     ; create a list
+             (for/hash ([r rs] [tuples tupless]) ; of hashes
+               (values r tuples))) stat md)]     ; of rel->tuple-list entries
+    
+    ;; UNSAT results with and without core
+    [(list (== 'unsat)
+           (== ':core) (list sid ...)
+           (== ':stats) (list stat ...))
+     (list 'unsat sid stat)]
+    [(list (== 'unsat)
+           (== ':stats) (list stat ...))
+     (list 'unsat #f stat)]
+
+    ;; end of instance stream (empty data and empty statistics list)
     [(list (== 'no-more-instances))
-     (cons 'no-more-instances #f)]
+     (list 'no-more-instances #f '())]
     [(== eof)
      (error "Pardinus CLI shut down unexpectedly while running!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
@@ -190,5 +204,7 @@
      (cons 'int-expression val)]
     [(list (== 'evaluated) (== ':formula) val)
      (cons 'formula (equal? val 'true))]
+    [(list (== 'unsat))
+     (error "Current engine ran out of instances; evaluator is untrustworthy.")]
     [(== eof)
      (error "Pardinus CLI shut down unexpectedly while evaluating!")]))

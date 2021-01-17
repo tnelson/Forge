@@ -68,7 +68,7 @@
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (for ([a (in-list args)])
     (unless (type? a)
-      (raise-syntax-error #f (format "argument had unexpected type. expected ~a. loc: ~a" type? loc)
+      (raise-syntax-error #f (format "argument to ~a had unexpected type. expected ~a. loc: ~a" op type? loc)
                           (datum->syntax #f args (build-source-location-syntax loc))))
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
@@ -313,7 +313,7 @@
                         [else (error (format "build-relation expected list of strings or symbols: ~a" typelist))])) typelist)]
         [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
                                [(string? parent) parent]
-                               [else (error (format "build-relation expected parent as either symbol or string"))])])
+                               [else (error (format "build-relation expected parent as either symbol or string"))])])    
     (node/expr/relation (nodeinfo loc) (length types) name
                         types scrubbed-parent is-var)))
 
@@ -499,7 +499,7 @@
 (define-node-op eventually node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
 (define-node-op after node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
 (define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
-(define-node-op release node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op releases node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
 
 ; --------------------------------------------------------
 
