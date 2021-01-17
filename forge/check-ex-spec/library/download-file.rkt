@@ -51,7 +51,7 @@
         (download-file link save-to save-to)
         (download-file link save-to)))
 
-  (define info-string (bytes->string/utf-8 (download (format "summary-~a" assignment-name) "json" #t)))
+  (define info-string (bytes->string/utf-8 (download (format "summary-~a" (string-replace assignment-name "/" "-")) "json" #t)))
   (define info (string->jsexpr info-string))
 
   (for ([file (append (hash-ref info 'wheats) (hash-ref info 'chaffs))])

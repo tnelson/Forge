@@ -12,15 +12,18 @@
 (define-syntax-rule (test name args ... #:expect expected)
   (cond 
     [(member 'expected '(sat unsat))
-     (let ()
-       (run name args ...)
-       (define first-instance (stream-first (forge:Run-result name)))
-       (test-report 'name (equal? (car first-instance) 'expected)))]
+     (run name args ...)
+     (define first-instance (stream-first (forge:Run-result name)))
+     (define ret (test-report 'name (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)))
+     (forge:close-run name)
+     ret]
 
     [(equal? 'expected 'theorem)
      (check name args ...)
      (define first-instance (stream-first (forge:Run-result name)))
-     (test-report 'name (equal? (car first-instance) 'unsat))]
+     (define ret (test-report 'name (Unsat? first-instance)))
+     (forge:close-run name)
+     ret]
 
     [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
                          'expected))]))

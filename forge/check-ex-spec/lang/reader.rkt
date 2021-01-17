@@ -45,14 +45,14 @@
                           (define wheat-results 
                             (list ,@(map (lambda (wheat) 
                                     `(with (,@provided #:from ,wheat)
-                                       (list ,@(for/list ([test just-tests])
+                                       (@append ,@(for/list ([test just-tests])
                                                 test))))
                                    wheats)))
 
                           (define chaff-results 
                             (list ,@(map (lambda (chaff) 
                                     `(with (,@provided #:from ,chaff)
-                                       (list ,@(for/list ([test just-tests])
+                                       (@append ,@(for/list ([test just-tests])
                                                 test))))
                                    chaffs)))
 

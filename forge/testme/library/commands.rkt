@@ -15,12 +15,12 @@
      (let ()
        (run name args ...)
        (define first-instance (stream-first (forge:Run-result name)))
-       (test-report 'name (equal? (car first-instance) 'expected)))]
+       (test-report 'name (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)))]
 
     [(equal? 'expected 'theorem)
      (check name args ...)
      (define first-instance (stream-first (forge:Run-result name)))
-     (test-report 'name (equal? (car first-instance) 'unsat))]
+     (test-report 'name (Unsat? first-instance))]
 
     [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
                          'expected))]))
