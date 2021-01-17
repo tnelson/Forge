@@ -204,5 +204,7 @@
      (cons 'int-expression val)]
     [(list (== 'evaluated) (== ':formula) val)
      (cons 'formula (equal? val 'true))]
+    [(list (== 'unsat))
+     (error "Current engine ran out of instances; evaluator is untrustworthy.")]
     [(== eof)
      (error "Pardinus CLI shut down unexpectedly while evaluating!")]))
