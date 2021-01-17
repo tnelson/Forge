@@ -873,9 +873,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(equal? 'expected 'theorem)
      (check name args ...)
      (define first-instance (stream-first (Run-result name)))
-     (unless (equal? (car first-instance) 'unsat)
+     (when (Sat? first-instance)
        (raise (format "Theorem ~a failed. Found instance:~n~a"
-                      'name (cdr first-instance))))
+                      'name first-instance)))
      (close-run name)]
 
     [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
