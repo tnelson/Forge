@@ -1,5 +1,7 @@
 #lang forge/core
 
+(set-verbosity 10)
+
 (sig A)
 (relation r (A A) #:is func)
 

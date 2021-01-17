@@ -3,6 +3,7 @@
 (require (prefix-in @ racket) 
          (prefix-in @ racket/set))
 (require syntax/parse/define)
+(require racket/match)
 (require (for-syntax racket/match syntax/srcloc))
 
 (require "shared.rkt")
@@ -849,14 +850,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
                       'name 'expected (car first-instance)
                       (if (equal? (car first-instance) 'sat)
                           (format "~nFound instance ~a" (cdr first-instance))
-                          ""))))]
+                          ""))))
+     (close-run name)]
 
     [(equal? 'expected 'theorem)
      (check name args ...)
      (define first-instance (stream-first (Run-result name)))
      (unless (equal? (car first-instance) 'unsat)
        (raise (format "Theorem ~a failed. Found instance:~n~a"
-                      'name (cdr first-instance))))]
+                      'name (cdr first-instance))))
+     (close-run name)]
 
     [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
                          'expected))]))
@@ -1228,9 +1231,20 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; along with a list of all of the atom names for sig atoms.
 (define (send-to-kodkod run-spec)
   ; Do relation breaks from declarations
-  (for ([relation (get-relations run-spec)])
-    (when (Relation-breaker relation)
-      (break (Relation-rel relation) (Relation-breaker relation))))
+  (define relation-constraints 
+    (apply append
+           (for/list ([relation (get-relations run-spec)])
+             (match (Relation-breaker relation)
+               [#f (list)]
+               ['default (list)]
+               ['pfunc (let* ([rel (Relation-rel relation)]
+                              [sigs (Relation-sigs relation)]
+                              [left-sig (get-sig run-spec (first sigs))]
+                              [sig-rel (Sig-rel left-sig)])
+                         (list (all ([s sig-rel])
+                                 (lone (join s rel)))))]
+               [other (break (Relation-rel relation) other)
+                      (list)]))))
 
   ; Insert missing upper bounds of partial bindings
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
@@ -1431,6 +1445,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (get-sig-size-preds run-spec)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
+            relation-constraints
             break-preds))
   (define run-constraints 
     (apply append (map maybe-and->list raw-run-constraints)))
