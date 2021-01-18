@@ -30,6 +30,8 @@
                           (require (prefix-in @ racket))
                           (require json)
 
+                          (set-verbosity 0)
+
                           ; Auto-provide all defined values
                           (provide (except-out (all-defined-out)
                                                forge:n))
