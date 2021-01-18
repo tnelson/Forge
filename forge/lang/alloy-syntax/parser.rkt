@@ -27,7 +27,7 @@ Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-
           | ExampleDecl ; Added for check-ex-spec
 ;When extending sigs with in is implemented,
 ;if "sig A in B extends C" is allowed, update this to allow multiple SigExt
-SigDecl : ABSTRACT-TOK? Mult? VAR-TOK? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
+SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
 Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
