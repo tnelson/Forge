@@ -3,7 +3,7 @@
 (require racket/runtime-path racket/file)
 
 (provide get-verbosity set-verbosity VERBOSITY_LOW VERBOSITY_HIGH VERBOSITY_DEBUG)
-(provide forge-version)
+(provide forge-version instance-diff)
 
 ; Level of output when running specs
 (define VERBOSITY_SCRIPT 0) ; for test scripts
@@ -28,10 +28,16 @@
 
 ; Returns the difference of two instances (> and < separately)
 (define (instance-diff i1 i2)
-  (values
-   (hash-map i1 (lambda (k v)                                          
-                  (list k (filter (lambda (ele)
-                                    (not (member ele (hash-ref i2 k)))) v))))
-   (hash-map i2 (lambda (k v)                                          
-                  (list k (filter (lambda (ele)
-                                    (not (member ele (hash-ref i1 k)))) v))))))
+  (if (equal? (hash-keys i1) (hash-keys i2))
+      (list
+       'same-signature
+       (hash-map i1 (lambda (k v)                                          
+                      (list k (filter (lambda (ele)
+                                        (not (member ele (hash-ref i2 k)))) v))))
+       (hash-map i2 (lambda (k v)                                          
+                      (list k (filter (lambda (ele)
+                                        (not (member ele (hash-ref i1 k)))) v)))))
+      (list
+       'different-signature
+       (filter (lambda (k) (not (member k (hash-keys i2)))) (hash-keys i1))
+       (filter (lambda (k) (not (member k (hash-keys i1)))) (hash-keys i2)))))

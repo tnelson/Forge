@@ -2,10 +2,12 @@
 
 (require (only-in "lang/ast.rkt" relation-name)
          (only-in "lang/ast.rkt" univ))   ;relation))
+
 (provide translate-from-kodkod-cli
          translate-evaluation-from-kodkod-cli )
 (provide (struct-out Sat)
          (struct-out Unsat))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -79,7 +81,6 @@ So, the proper name of atom 0 is the value of (list-ref univ 0).
 relation-names is the same, a list of all relation names ordered as they are in the model.
 This function just recreates the model, but using names instead of numbers.
 |#
-
 (define (translate-from-kodkod-cli runtype model relations inty-univ) 
   (define flag (car model))  
   (define data (car (cdr model)))
@@ -135,6 +136,7 @@ This function just recreates the model, but using names instead of numbers.
                              #:unless (equal? key 'succ))
                     (values key
                             (translate-kodkod-cli-relation inty-univ value)))) data))
+
          (Sat translated-models stats metadata)]))
 
 (define (translate-evaluation-from-kodkod-cli result atom-names)

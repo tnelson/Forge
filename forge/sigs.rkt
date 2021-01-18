@@ -24,6 +24,7 @@
 ; Commands
 (provide sig relation fun const pred inst)
 (provide run check test example display with evaluate)
+(provide instance-diff)
 
 ; Instance analysis functions
 (provide is-sat? is-unsat?)
@@ -119,6 +120,7 @@
   problem_type    ; symbol
   target_mode     ; symbol
   core_minimization ; symbol
+  skolem_depth ; int
   ) #:transparent)
 
 (struct State (
@@ -177,7 +179,7 @@
 (define init-const-map (@hash))
 (define init-inst-map (@hash))
 (define init-runmap (@hash))
-(define init-options (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast))
+(define init-options (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-pred-map init-fun-map init-const-map
@@ -462,6 +464,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
           'problem_type Options-problem_type          
           'target_mode Options-target_mode
           'core_minimization Options-core_minimization
+          'skolem_depth Options-skolem_depth
           ))
   ((hash-ref symbol->proc option) (State-options state)))
 
@@ -566,7 +569,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
           'max_tracelength exact-nonnegative-integer?
           'problem_type symbol?
           'target_mode symbol?
-          'core_minimization symbol?))
+          'core_minimization symbol?
+          'skolem_depth exact-integer?))
   (unless ((hash-ref option-types option) value)
     (raise (format "Setting option ~a requires ~a; received ~a"
                    option (hash-ref option-types option) value)))
@@ -602,7 +606,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
                     [target_mode value])]
       [(equal? option 'core_minimization)
        (struct-copy Options options
-                    [core_minimization value])]))
+                    [core_minimization value])]
+      [(equal? option 'skolem_depth)
+       (struct-copy Options options
+                    [skolem_depth value])]))
 
   (struct-copy State state
                [options new-options]))
@@ -873,6 +880,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(equal? 'expected 'theorem)
      (check name args ...)
      (define first-instance (stream-first (Run-result name)))
+
      (when (Sat? first-instance)
        (raise (format "Theorem ~a failed. Found instance:~n~a"
                       'name first-instance)))
@@ -1405,9 +1413,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Note that target mode is passed separately, nearer to the (solve) invocation
   (define bitwidth (get-bitwidth run-spec)) 
   (pardinus-print
-    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
                                bitwidth 
-                               solverspec 
+                               solverspec
+                               (get-option run-spec 'skolem_depth)
                                (get-option run-spec 'sb) 
                                (get-option run-spec 'coregranularity)
                                (get-option run-spec 'core_minimization)
