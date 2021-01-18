@@ -172,10 +172,10 @@
            (== ':model) (list (list (list rid val) ...) ...)
            (== ':stats) (list stat ...)
            (== ':metadata) (list md ...))
-     (list 'sat
-           (for/list ([rs rid][tupless val])     ; create a list
-             (for/hash ([r rs] [tuples tupless]) ; of hashes
-               (values r tuples))) stat md)]     ; of rel->tuple-list entries
+     (define data (for/list ([rs rid][tupless val])     ; create a list
+                    (for/hash ([r rs] [tuples tupless]) ; of hashes
+                      (values r tuples))))     
+     (list 'sat data stat md)]     ; of rel->tuple-list entries
     
     ;; UNSAT results with and without core
     [(list (== 'unsat)
