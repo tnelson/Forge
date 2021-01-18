@@ -114,7 +114,7 @@
   ;Used to declare var Sigs and Relations (so they can change over time)
   (define-syntax-class VarKeywordClass (pattern "var")) 
 
-  ; SigDecl : ABSTRACT-TOK? Mult? VAR-TOK? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
+  ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
   (define-syntax-class SigDeclClass
     (pattern ((~literal SigDecl)
               (~optional abstract:abstract-tok)
@@ -520,7 +520,7 @@
          (~? (raise (format "Bracketed import not yet implemented. ~a" 'other-names)))
          (~? (raise (format "Importing as not yet implemented. ~a" 'as-name)))))]))
   
-; SigDecl : ABSTRACT-TOK? Mult? VAR-TOK? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
+; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax (SigDecl stx)
   (syntax-parse stx
     [((~literal SigDecl) (~optional abstract:abstract-tok)
