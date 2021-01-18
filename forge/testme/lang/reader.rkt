@@ -48,6 +48,6 @@
                                                  'passed? passed?)))))
 
 
-                          (@println (jsexpr->string test-results))))
+                          (@displayln (jsexpr->string test-results))))
   (datum->syntax #f module-datum))
 (provide read-syntax)
