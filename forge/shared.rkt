@@ -2,7 +2,7 @@
 
 (require racket/runtime-path racket/file)
 
-(provide get-verbosity set-verbosity VERBOSITY_LOW VERBOSITY_HIGH VERBOSITY_DEBUG)
+(provide get-verbosity set-verbosity VERBOSITY_LOW VERBOSITY_HIGH VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
 (provide forge-version instance-diff)
 
 ; Level of output when running specs
@@ -10,6 +10,10 @@
 (define VERBOSITY_LOW 1)
 (define VERBOSITY_HIGH 5)
 (define VERBOSITY_DEBUG 10)
+
+; Custom settings
+(define VERBOSITY_LASTCHECK 1)
+
 (define verbosityoption VERBOSITY_LOW)
 ; for accessing verbosity in other modules
 (define (get-verbosity) verbosityoption)
