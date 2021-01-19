@@ -14,7 +14,8 @@
 ; Catch potential issues not detected by AST construction + generate warnings 
 
 (define (checkFormula run-or-state formula quantvars)
-  ;(printf "checkFormula: ~a~n" formula)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "last-checker: checkFormula: ~a~n" formula))
   
   (match formula    
     [(node/formula/constant info type)
@@ -51,8 +52,11 @@
 ; This function isn't technically needed at the moment: every branch just recurs
 ; However, keeping the structure here for easy addition of new checks
 (define (checkFormulaOp run-or-state formula quantvars args)  
-  (match formula
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "last-checker: checkFormulaOp: ~a~n" formula))
 
+  (match formula
+    
     ; TEMPORAL OPERATORS
     [(? node/formula/op/always?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
     [(? node/formula/op/eventually?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
@@ -119,7 +123,8 @@
 (define/contract (checkExpression run-or-state expr quantvars)
   (@-> (or/c Run? State? Run-spec?) node/expr? list? (listof (listof symbol?)))
 
-  ;(printf "checkExpression: ~a~n" expr)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "last-checker: checkExpression: ~a~n" expr))
   
   (define (primifyThis n)
     (primify run-or-state n))
@@ -133,7 +138,7 @@
     ; atom (base case)
     [(node/expr/atom info arity name)
      ; overapproximate for now (TODO: get atom's sig)
-     (primify run-or-state (list 'univ))]
+     (primify run-or-state 'univ)]
 
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
@@ -141,7 +146,7 @@
 
     ; other expression constants
     [(node/expr/constant info arity type)
-       (primify run-or-state (list 'univ))]
+       (primify run-or-state 'univ)]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -177,9 +182,11 @@
   (filter (lambda (ele) (member ele keepers)) pool))
 
 (define/contract (checkExpressionOp run-or-state expr quantvars args)
-  (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof node/expr?)       
+  (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?))   
        (listof (listof symbol?)))
-  ;(printf "op: ~a~n" expr)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "last-checker: checkExpressionOp: ~a~n" expr))
+  
   (match expr
 
     ; prime
@@ -226,7 +233,7 @@
     
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
-     (list (list 'univ))]
+     (list (list (primify run-or-state 'univ)))]
 
     ; TRANSPOSE
     [(? node/expr/op/~?)
