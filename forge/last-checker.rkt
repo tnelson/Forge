@@ -104,18 +104,23 @@
   (@-> (or/c Run? State? Run-spec?) (or/c symbol? string?) (listof symbol?))
   (let ([signame (cond [(string? raw-signame) (string->symbol raw-signame)]
                        [(Sig? raw-signame) (Sig-name raw-signame)]
-                       [else raw-signame])])    
-    (define the-sig (get-sig run-or-state signame))
-    (define all-primitive-descendants
-      (remove-duplicates
-       (flatten
-        (map (lambda (n) (primify run-or-state n))
-             (get-children run-or-state signame)))))
-    (cond [(equal? 'Int signame) '(Int)]
-          [(Sig-abstract the-sig)
-           all-primitive-descendants]
-          [else (cons (string->symbol (string-append (symbol->string signame) "_remainder"))
-                      all-primitive-descendants)])))
+                       [else raw-signame])])
+    (cond [(equal? 'Int signame)
+           '(Int)]
+          [(equal? 'univ signame)
+           (remove-duplicates (cons 'Int (map Sig-name (get-sigs run-or-state))))]
+          [else           
+           (define the-sig (get-sig run-or-state signame))
+           (define all-primitive-descendants
+             (remove-duplicates
+              (flatten
+               (map (lambda (n) (primify run-or-state n))
+                    (get-children run-or-state signame)))))
+           (cond
+             [(Sig-abstract the-sig)
+              all-primitive-descendants]
+             [else (cons (string->symbol (string-append (symbol->string signame) "_remainder"))
+                         all-primitive-descendants)])])))
 
 ; For expressions, this descent does two things:
 ;   - collects possible typings of expressions
