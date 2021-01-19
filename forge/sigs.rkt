@@ -593,11 +593,19 @@ Returns whether the given run resulted in sat or unsat, respectively.
        (struct-copy Options options
                     [logtranslation value])]
       [(equal? option 'min_tracelength)
-       (struct-copy Options options
-                    [min_tracelength value])]
+       (let ([max-trace-length (get-option state 'max_tracelength)])
+         (if (@> value max-trace-length)
+             (raise (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
+                            value max-trace-length))
+             (struct-copy Options options
+                          [min_tracelength value])))]
       [(equal? option 'max_tracelength)
-       (struct-copy Options options
-                    [max_tracelength value])]
+       (let ([min-trace-length (get-option state 'min_tracelength)])
+         (if (@< value min-trace-length)
+             (raise (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
+                            value min-trace-length))
+             (struct-copy Options options
+                          [max_tracelength value])))]
       [(equal? option 'problem_type)
        (struct-copy Options options
                     [problem_type value])]
