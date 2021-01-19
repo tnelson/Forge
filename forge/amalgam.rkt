@@ -3,6 +3,7 @@
 (set-verbosity 10)
 
 (require forge/amalgam/desugar/desugar)
+(require "amalgam/lift-bounds/lift-bounds.rkt")
 
 (require "amalgam/tests/forge_ex.rkt")
 (require racket/hash)
@@ -197,6 +198,93 @@
      (define desugarProvNode (amalgam-descent (first desugarPair) orig-run alt-run L currSign))
      (desugarStep (second desugarPair) desugarProvNode)]))
 
+; pair<list<atom>, string>, Run -> Boolean
+; caller of this helper is get-locally-nescessary-list
+; used to generate list of locally necessary literals
+(define (is-locally-necessary tup orig-run)
+  (define spec (forge:Run-run-spec orig-run))
+  (define Fs (forge:Run-spec-preds spec))
+
+  ; and together all of your predicates to get our formula F
+  (define F (foldl (lambda (f acc) (and f acc)) (first Fs) (rest Fs)))
+  
+  (define state (forge:Run-spec-state spec))
+  (define orig-scope (forge:Run-spec-scope spec))
+  (define orig-bounds (forge:Run-spec-bounds spec))
+  (define sigs (forge:State-sigs state))
+
+  ; relations
+  (define relations (forge:State-relations state))
+
+  (define orig-inst (stream-first (forge:Run-result orig-run)))
+  (unless (Sat? orig-inst)
+    (error "amalgam called on unsat run"))
+
+  (define new-totals (flip-tuple (first (Sat-instances orig-inst))
+                                 (car tup) (cdr tup)))
+  ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
+  ; e.g. (for fixed edge relation)
+
+  (define (make-exact-sbound rel tups)
+    (forge:sbound rel (list->set tups) (list->set tups)))
+  
+  ; For reasons passing understanding, get-relation returns a symbol...
+  (define (get-actual-relation relname)
+    (cond [(hash-has-key? sigs relname) (forge:Sig-rel (hash-ref sigs relname))]
+          [(hash-has-key? relations relname) (forge:Relation-rel
+                                              (hash-ref relations relname))]
+          [else (error "unknown relation or sig" relname)]))
+ 
+  (define new-pbindings
+    (for/hash ([k (hash-keys new-totals)]);(hash-keys orig-bounds)])
+      (values (get-actual-relation k)
+              (make-exact-sbound (get-actual-relation k)
+                                 (hash-ref new-totals k)))))
+ 
+ 
+  (define bounds (forge:Bound new-pbindings
+                              (forge:Bound-tbindings orig-bounds)))
+  (define scope (forge:Scope #f #f (hash))) ; empty
+  ; can't use inst syntax here, so construct manually
+  (define alt-inst
+    (lambda (s b) (values scope bounds)))
+  ; Get the solver to produce the L-alternate for us
+  (run alt-run
+       #:preds []
+       #:bounds alt-inst)
+  
+  ; evaluate to see if tup is locally necessary  
+  (not (evaluate alt-run 'unused F)))
+
+
+; Run -> provenance-set
+; Due to the way the evaluator works at the moment, this is always
+; with respect to the current solver state for <a-run>.
+(define (get-locally-necessary-list orig-run)
+  (define spec (forge:Run-run-spec orig-run))
+  
+  (define state (forge:Run-spec-state spec))
+
+  ; list of relations
+  (define relations (hash-values (forge:State-relations state)))
+
+  (define output-list '())
+
+  (for/list ([r relations])
+    (define name (forge:Relation-name r))
+
+    ; we do not want to include succ or Int
+    (unless (or (equal? name 'succ) (equal? name 'Int))
+      (define upper-bounds (liftBoundsExpr (forge:Relation-rel r) '() orig-run))
+      (define curr
+        (filter (lambda (pair)
+                  (is-locally-necessary (cons pair name) orig-run))
+                upper-bounds))
+      (set! output-list (append curr output-list))))
+    
+  output-list)
+
+
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
 ; Due to the way the evaluator works at the moment, this is always
 ; with respect to the current solver state for <a-run>.
@@ -282,7 +370,11 @@
 
 ; these are OK assuming 3, 4, 5, 6 are used
 ; add
+
 (define test_N1N1_edges (build-provenances (cons '(Node1 Node1) "edges") udt))
+
+(define test_local_necessity_udt (get-locally-necessary-list udt))
+(printf "LOCAL NECESSITY TEST --- ~a --- " test_local_necessity_udt)
 ;(build-provenances (cons '(Node4 Node5) "edges") udt) ; remove
 
 ;(desugarFormula (in (-> (atom 'Node0) (atom 'Node1)) (& iden edges)) '() udt #f)
