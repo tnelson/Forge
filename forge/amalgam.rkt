@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-verbosity 10)
+(set-verbosity 1)
 
 (require forge/amalgam/desugar/desugar)
 (require "amalgam/lift-bounds/lift-bounds.rkt")
@@ -10,6 +10,7 @@
 (require (prefix-in @ racket/set))
 (require (prefix-in @ (only-in racket ->)))
 (require debug/repl)
+(require (only-in "amalgam/desugar/desugar_helpers.rkt" tup2Expr))
 
 (require pretty-format)
 
@@ -253,36 +254,60 @@
        #:preds []
        #:bounds alt-inst)
   
-  ; evaluate to see if tup is locally necessary  
-  (not (evaluate alt-run 'unused F)))
+  ; evaluate to see if tup is locally necessary
+  (define result (not (evaluate alt-run 'unused F)))
+  (forge:close-run alt-run)
+  result)
 
 
-; Run -> provenance-set
+; Run -> pair of two lists, first list evaluates to true
+;        second list evaluates to false
 ; Due to the way the evaluator works at the moment, this is always
 ; with respect to the current solver state for <a-run>.
 (define (get-locally-necessary-list orig-run)
   (define spec (forge:Run-run-spec orig-run))
-  
   (define state (forge:Run-spec-state spec))
 
   ; list of relations
   (define relations (hash-values (forge:State-relations state)))
 
-  (define output-list '())
-
-  (for/list ([r relations])
+  (define un-partitioned-list (remove-unused (apply append (for/list ([r relations])
     (define name (forge:Relation-name r))
-
+                                                             
     ; we do not want to include succ or Int
-    (unless (or (equal? name 'succ) (equal? name 'Int))
-      (define upper-bounds (liftBoundsExpr (forge:Relation-rel r) '() orig-run))
-      (define curr
-        (filter (lambda (pair)
-                  (is-locally-necessary (cons pair name) orig-run))
-                upper-bounds))
-      (set! output-list (append curr output-list))))
-    
-  output-list)
+    (if (or (equal? name 'succ) (equal? name 'Int))
+        '()
+        (let ()
+          (define upper-bounds (liftBoundsExpr (forge:Relation-rel r) '()
+                                               orig-run))
+          (define curr
+            (filter-map (lambda (pair)
+                          (if (is-locally-necessary (cons pair name) orig-run)
+                              (cons pair (forge:Relation-rel r))
+                              #f))
+                        upper-bounds))
+          curr)))) orig-run))
+
+  ; partition the list
+  (define-values (yes no) (partition (lambda (pair)
+               
+               (define formula
+                 (in/info empty-nodeinfo (list (tup2Expr (car pair) orig-run empty-nodeinfo)
+                     (cdr pair))))  
+               (evaluate orig-run 'unused formula)) un-partitioned-list))
+  (cons yes no))
+
+
+;  getting rid of tuples involving unused atoms
+(define (remove-unused locally-necessary-list orig-run)
+  ; list of things in univ
+  (define evaluated-univ (evaluate orig-run 'unused univ))
+  (filter
+   ; we want to keep a pair if the nodes are used
+   (lambda (tup)
+     (define pair (car tup))
+     (andmap (lambda (elem) (member (list elem) evaluated-univ)) pair))
+   locally-necessary-list))
 
 
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
