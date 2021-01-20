@@ -1,7 +1,7 @@
 #lang forge
 
 option solver MiniSatProver
-option verbosity 2
+option verbosity 0
 
 sig Color {}
 

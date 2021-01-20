@@ -1,5 +1,6 @@
 #lang forge
 
+option verbose 0
 option solver SAT4J
 
 sig A {

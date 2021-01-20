@@ -9,7 +9,7 @@
 -- by building up univ as it goes, and making iden a restriction of
 -- kodkod's iden to (alloy univ)->(kodkod univ).
 
-option verbosity 10
+option verbosity 0
 
 sig A {}
 sig B {}

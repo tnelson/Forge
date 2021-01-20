@@ -5,6 +5,8 @@
 -- Commented out tests in:
 --   - forge-alloy/expressions/expressionOperators.rkt
 
+option verbose 0
+
 sig Node {
     edges : set Node
 }

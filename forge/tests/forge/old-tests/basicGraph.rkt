@@ -4,7 +4,7 @@
 
 -- Test the option command to switch to core-generating solver
 option solver MiniSatProver
-option verbosity 0
+option verbose 0
 
 sig Node {
   edges: set Node

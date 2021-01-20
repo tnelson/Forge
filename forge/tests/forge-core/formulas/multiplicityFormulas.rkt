@@ -1,5 +1,7 @@
 #lang forge/core
 
+(set-option! 'verbose 0)
+
 (sig Color #:abstract)
 (sig Red #:one #:extends Color)
 (sig Green #:one #:extends Color)

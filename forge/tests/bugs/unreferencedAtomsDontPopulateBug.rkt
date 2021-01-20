@@ -4,7 +4,7 @@
 -- get populated in any instances. The meta-universe is populated 
 -- up to the bounds, but the generated instances don't use unused sigs.
 
-option verbosity 10
+option verbosity 0
 
 -- This sig will be explicitly referenced in our predicate;
 -- it will end up populating instances
