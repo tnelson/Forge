@@ -1,7 +1,6 @@
 #lang forge
 
---Had To Split into part 1/2/3 due to it running out of memory in DrRacket :((
-
+option verbose 0
 option problem_type temporal
 
 sig nonVarSigNoRels {}

@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 -- Taken from Tim's lecture code
 
 ------------------------------------------------------

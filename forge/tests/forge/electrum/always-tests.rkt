@@ -1,5 +1,6 @@
 #lang forge
 
+option verbose 0
 option problem_type temporal
 
 sig Node {

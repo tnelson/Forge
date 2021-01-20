@@ -1,6 +1,7 @@
 #lang forge
 
 option problem_type temporal
+option verbose 0
 
 sig Apple {
     var org : set Orange

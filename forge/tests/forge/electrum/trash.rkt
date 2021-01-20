@@ -1,6 +1,6 @@
 #lang forge
 
-option verbose 10
+option verbose 0
 option problem_type temporal
 option min_tracelength 3
 option solver MiniSatProver
@@ -62,10 +62,12 @@ pred deleteAll {
     always ((File in TrashInFile.Trash and emptyTrash) implies after always no File)
 }
 
+/*
 run {
     behavior
     not deleteAll
 }
+*/
 
 test expect deleteCheck {
     deleteAllIsPossible : {behavior implies deleteAll} is sat

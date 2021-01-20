@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 sig Thing {}
 sig Bag { contents: set Thing }
 

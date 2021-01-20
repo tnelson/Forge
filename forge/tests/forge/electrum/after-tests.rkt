@@ -1,7 +1,7 @@
 #lang forge
 
 option problem_type temporal
---option verbose 10
+option verbose 0
 
 sig Node {
     var edges : set Node

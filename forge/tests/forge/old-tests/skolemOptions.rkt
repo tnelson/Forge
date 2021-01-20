@@ -1,6 +1,6 @@
 #lang forge
 
-option verbosity 2
+option verbose 0
 option sb 0
 option coregranularity 2
 option logtranslation 2

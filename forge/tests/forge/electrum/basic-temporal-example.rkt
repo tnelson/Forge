@@ -1,7 +1,7 @@
 #lang forge
 
 option problem_type temporal
---option verbose 10
+option verbose 0
 option min_tracelength 3
 --option solver MiniSatProver
 --option core_minimization rce
