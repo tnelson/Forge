@@ -37,7 +37,8 @@
             (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
                                 (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
           ; CHECK: recur into domain(s)
-          (checkExpression run-or-state domain quantvars))) decls)
+          (checkExpression run-or-state domain quantvars)))
+      decls)
 
      ; Extend domain environment
      (let ([new-quantvars (append (map assocify decls) quantvars)])       
@@ -101,14 +102,14 @@
 ; Turn signame into list of all primsigs it contains
 ; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
 (define/contract (primify run-or-state raw-signame)
-  (@-> (or/c Run? State? Run-spec?) (or/c symbol? string?) (listof symbol?))
+  (@-> (or/c Run? State? Run-spec?) (or/c symbol? string?) (listof symbol?))  
   (let ([signame (cond [(string? raw-signame) (string->symbol raw-signame)]
                        [(Sig? raw-signame) (Sig-name raw-signame)]
                        [else raw-signame])])
-    (cond [(equal? 'Int signame)
+    (cond [(equal? 'Int signame)           
            '(Int)]
-          [(equal? 'univ signame)
-           (remove-duplicates (cons 'Int (map Sig-name (get-sigs run-or-state))))]
+          [(equal? 'univ signame)           
+           (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int (map Sig-name (get-sigs run-or-state))))))]
           [else           
            (define the-sig (get-sig run-or-state signame))
            (define all-primitive-descendants
@@ -151,7 +152,11 @@
 
     ; other expression constants
     [(node/expr/constant info arity type)
-       (primify run-or-state 'univ)]
+     (let ([prims (primify run-or-state 'univ)])
+       (cond [(equal? arity 1)
+              (map list prims)]
+             [else     
+              (cartesian-product prims prims)]))]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -167,18 +172,25 @@
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info arity decls subform)
-     (for-each
-      (lambda (decl)
-        (let ([var (car decl)]
-              [domain (cdr decl)])
-          ; CHECK: shadowed variables
-          (when (assoc var quantvars)
-            (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-          ; CHECK: recur into domain(s)
-          (checkExpression run-or-state domain quantvars)) decls))
-     ; CHECK: recur into subformula
-     (checkFormula subform quantvars)]
+     (define child-values       
+       (map
+        (lambda (decl)
+          (let ([var (car decl)]
+                [domain (cdr decl)])
+            ; CHECK: shadowed variables
+            (when (assoc var quantvars)
+              (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                  (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
+            ; CHECK: recur into domain(s)
+            (checkExpression run-or-state domain quantvars))) decls))
+
+     ; Extend domain environment
+     (let ([new-quantvars (append (map assocify decls) quantvars)])       
+       ; CHECK: recur into subformula
+       (checkFormula run-or-state subform new-quantvars))
+
+     ; Return type constructed from decls above
+     (map flatten (map append (apply cartesian-product child-values)))]
 
     [else (error (format "no matching case in checkExpression for ~a" expr))]))
 
@@ -191,7 +203,8 @@
        (listof (listof symbol?)))
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkExpressionOp: ~a~n" expr))
-  
+
+  (define RESULT
   (match expr
 
     ; prime
@@ -235,18 +248,22 @@
     [(? node/expr/op/^?)
     (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars)) args)])     
       (check-closure (first child-values)))]
-    
+
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
-     (list (list (primify run-or-state 'univ)))]
+     ; includes iden, so might contain any arity-2 tuple
+     (let ([prims (primify run-or-state 'univ)])
+       (cartesian-product prims prims))]
 
-    ; TRANSPOSE
+    ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
     [(? node/expr/op/~?)
-     (map (lambda (list-2ele) (list (second list-2ele) (first list-2ele))) args)]
+      (map reverse (checkExpression run-or-state (first args) quantvars))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (list (list 'Int))]))
+;  (printf "result for ~a was ~a~n" expr RESULT)
+  RESULT)
 
 (define/contract (check-closure lst)
   (@-> (listof (listof symbol?)) (listof (listof symbol?)))
