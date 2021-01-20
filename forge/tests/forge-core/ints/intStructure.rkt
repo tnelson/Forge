@@ -1,5 +1,7 @@
 #lang forge/core
 
+(set-option! 'verbose 0)
+
 (require (prefix-in @ racket))
 
 (pred SuccStructure

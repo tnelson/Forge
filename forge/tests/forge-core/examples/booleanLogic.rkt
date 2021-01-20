@@ -6,6 +6,8 @@
 -- Formula Type
 ------------------------------------------------------
 
+option verbose 0
+
 abstract sig Formula {
   truth: set Instance -- Instances this is true in
 }

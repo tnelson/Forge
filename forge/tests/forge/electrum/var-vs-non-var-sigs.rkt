@@ -2,6 +2,7 @@
 
 //This takes a few minutes to run (on my machine at least)
 
+option verbose 0
 option problem_type temporal
 
 sig Orange {}
