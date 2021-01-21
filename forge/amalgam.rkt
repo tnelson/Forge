@@ -261,6 +261,7 @@
   (run alt-run
        #:preds []
        #:bounds alt-inst)
+  (printf "~n alt-run is ~a~n" alt-run)
   (printf "I'm right before the evaluate ~n")
   (printf "Return value of evaluate is ~a~n" (not (evaluate alt-run 'unused F)))
   ; evaluate to see if tup is locally necessary
