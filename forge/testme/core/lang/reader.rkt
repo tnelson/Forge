@@ -3,6 +3,7 @@
 (require racket/port)
 (require forge/check-ex-spec/library)
 (require (only-in racket/function curry))
+(require racket/match)
 
 (define (filter-commands parse-tree keep)
   (filter (lambda (line) (member (car line) keep)) parse-tree))

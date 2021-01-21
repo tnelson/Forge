@@ -23,12 +23,15 @@
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
-  (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl InstDecl TestExpectDecl OptionDecl)))))
+  (define non-tests (cdr (syntax->list (filter-commands ints-coerced '(InstDecl OptionDecl)))))
+  (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl TestExpectDecl)))))
 
   (define module-datum `(module forge/testme-mod forge/testme/lang/expander
                           (require forge/testme/library)
                           (require (prefix-in @ racket))
                           (require json)
+
+                          ,@non-tests
 
                           (set-verbosity 0)
 
