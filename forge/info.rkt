@@ -38,14 +38,10 @@
 ;   ???: confirm, fix
 ; omit the examples folder -- these are largely outdated syntax from 2020
 ;   ???: confirm, fix
-; omit the traces tests -- outdated syntax
-; ditto tests/forge-core/examples has some
-;   ???: confirm, fix
 (define test-omit-paths (list "check-ex-spec"
                               "testme"
                               "new-mode"
                               "example/new-mode"
                               "example/store/"
                               "examples"
-                              "tests/forge/traces"
-                              "tests/forge-core/examples"))
+                              "tests/OLD"))
