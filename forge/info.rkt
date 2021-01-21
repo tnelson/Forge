@@ -29,4 +29,23 @@
 (define drracket-tools (list (list "tool.rkt")))
 (define drracket-tool-names (list "Forge DrRacket Integration"))
 
-;(define test-omit-paths 'all)
+; omit the check-ex-spec folder, since those still contain some examples that 404
+; ditto testme folder, related to check-ex-spec
+;   ???: confirm, fix
+; omit the new-mode folder, since this is a bit outdated
+;   ???: confirm, fix
+; omit the example/store files; at least one uses outstated instance syntax
+;   ???: confirm, fix
+; omit the examples folder -- these are largely outdated syntax from 2020
+;   ???: confirm, fix
+; omit the traces tests -- outdated syntax
+; ditto tests/forge-core/examples has some
+;   ???: confirm, fix
+(define test-omit-paths (list "check-ex-spec"
+                              "testme"
+                              "new-mode"
+                              "example/new-mode"
+                              "example/store/"
+                              "examples"
+                              "tests/forge/traces"
+                              "tests/forge-core/examples"))

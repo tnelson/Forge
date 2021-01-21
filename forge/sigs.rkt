@@ -56,6 +56,9 @@
          (prefix-out forge: (struct-out Run))         
          (prefix-out forge: (struct-out sbound)))
 
+(provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
+
+
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
 (provide (prefix-out forge: (struct-out bound)))

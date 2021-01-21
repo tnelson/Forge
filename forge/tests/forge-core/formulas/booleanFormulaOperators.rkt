@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-option 'verbose 0)
+(set-option! 'verbose 0)
 
 (pred TrueFalse
     true
