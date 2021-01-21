@@ -404,8 +404,8 @@
 
 (define test_N1N1_edges (build-provenances (cons '(Node1 Node1) "edges") udt))
 
-(define test_local_necessity_udt (get-locally-necessary-list KB))
-(printf "LOCAL NECESSITY TEST --- ~a --- " test_local_necessity_udt)
+(define test_local_necessity_kittyBacon (get-locally-necessary-list KB))
+(printf "LOCAL NECESSITY TEST --- ~a --- " test_local_necessity_kittyBacon)
 ;(build-provenances (cons '(Node4 Node5) "edges") udt) ; remove
 
 ;(desugarFormula (in (-> (atom 'Node0) (atom 'Node1)) (& iden edges)) '() udt #f)
