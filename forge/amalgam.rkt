@@ -3,7 +3,6 @@
 (set-verbosity 1)
 
 (require forge/amalgam/desugar/desugar)
-
 (require "amalgam/lift-bounds/lift-bounds.rkt")
 
 ;(require "amalgam/tests/forge_ex.rkt")
@@ -229,6 +228,7 @@
 
   (define new-totals (flip-tuple (first (Sat-instances orig-inst))
                                  (car tup) (cdr tup)))
+  (printf "new-totals is ~a~n" new-totals)
   ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
   ; e.g. (for fixed edge relation)
 
@@ -247,12 +247,14 @@
       (values (get-actual-relation k)
               (make-exact-sbound (get-actual-relation k)
                                  (hash-ref new-totals k)))))
- 
+  (printf "new-pbindings are ~a~n" new-pbindings)
  
   (define bounds (forge:Bound new-pbindings
                               (forge:Bound-tbindings orig-bounds)))
+  (printf "new bounds are ~a~n" bounds)
   (define scope (forge:Scope #f #f (hash))) ; empty
   ; can't use inst syntax here, so construct manually
+  (printf "new scope is ~a~n"scope)
   (define alt-inst
     (lambda (s b) (values scope bounds)))
   ; Get the solver to produce the L-alternate for us
