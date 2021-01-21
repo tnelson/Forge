@@ -53,19 +53,22 @@ pred ConnectedKittyBacon_equals_SuperConnected {
 -- CoolCatClub
 
 one sig CCC  {
-    members: set Cat
+    membersOfClub: set Cat
 } 
 
 pred CoolCatClub {
     ConnectedKittyBacon
-    CCC.members = KittyBacon.connectionsOf + KittyBacon
+    CCC.membersOfClub = KittyBacon.connectionsOf + KittyBacon
 }
 
 pred KittyBaconIsCool {
-    CoolCatClub implies KittyBacon in CCC.members
+    CoolCatClub
+    KittyBacon in CCC.membersOfClub
 }
 
-check KittyBaconIsCool for exactly 4 Cat -- no counterexample 
+run KittyBaconIsCool for exactly 4 Cat 
+
+//check KittyBaconIsCool for exactly 4 Cat -- no counterexample 
 
 // Question from handout: Why is this failing? Well, KittyBacon is never part of
 // her connections! So there is an overconstraint. Students need to modify the
