@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 abstract sig Color {}
 one sig Red extends Color {}
 one sig Green extends Color {}

@@ -9,6 +9,8 @@
 -- Ideally we'd like to find UNIQUE-SOLUTION boards (up to isomorphism) but unfortunately that's
 --  harder than we can handle at the moment (needs 2nd order universals and possibly some cleverness around isomorphism)
 
+option verbose 0
+
 sig N {neighbors: set N}
 one sig N1 extends N {}
 one sig N2 extends N {}

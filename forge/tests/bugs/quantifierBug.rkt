@@ -16,7 +16,7 @@
 --   [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a)
 --    (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a)))]
 
-option verbosity 10
+option verbosity 0
 
 sig A {friendA: set B}
 sig B {friendB: set A}

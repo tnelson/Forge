@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 sig ToExtend {}
 sig Extension1 extends ToExtend {}
 sig Extension2 extends ToExtend {}

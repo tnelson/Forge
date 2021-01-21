@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-verbosity 10)
+(set-verbosity 0)
 
 (sig A)
 (relation r (A A) #:is func)

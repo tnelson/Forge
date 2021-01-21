@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 one sig UniqueObject {}
 
 sig Stuff {}

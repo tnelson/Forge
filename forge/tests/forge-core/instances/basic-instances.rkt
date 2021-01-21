@@ -1,5 +1,6 @@
 #lang forge/core
 
+(set-option! 'verbose 0)
 ; (set-verbosity 10)
 
 (sig A)

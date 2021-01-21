@@ -1,6 +1,6 @@
 #lang forge
 
-option verbose 10
+option verbose 0
 option problem_type temporal
 
 abstract sig CitySize {}

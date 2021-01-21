@@ -1,5 +1,7 @@
 #lang forge/core
 
+(set-option! 'verbose 0)
+
 (sig Abstract #:abstract)
 (sig Extension1 #:extends Abstract)
 (sig Extension2 #:extends Abstract)
