@@ -228,7 +228,6 @@
 
   (define new-totals (flip-tuple (first (Sat-instances orig-inst))
                                  (car tup) (cdr tup)))
-  (printf "new-totals is ~a~n" new-totals)
   ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
   ; e.g. (for fixed edge relation)
 
@@ -247,27 +246,25 @@
       (values (get-actual-relation k)
               (make-exact-sbound (get-actual-relation k)
                                  (hash-ref new-totals k)))))
-  (printf "new-pbindings are ~a~n" new-pbindings)
- 
+  
   (define bounds (forge:Bound new-pbindings
                               (forge:Bound-tbindings orig-bounds)))
-  (printf "new bounds are ~a~n" bounds)
   (define scope (forge:Scope #f #f (hash))) ; empty
   ; can't use inst syntax here, so construct manually
-  (printf "new scope is ~a~n"scope)
+
   (define alt-inst
     (lambda (s b) (values scope bounds)))
+
   ; Get the solver to produce the L-alternate for us
   (run alt-run
-       #:preds []
+       #:preds [F]
        #:bounds alt-inst)
-  (printf "~n alt-run is ~a~n" alt-run)
-  (printf "I'm right before the evaluate ~n")
-  (printf "Return value of evaluate is ~a~n" (not (evaluate alt-run 'unused F)))
   ; evaluate to see if tup is locally necessary
-  (define result (not (evaluate alt-run 'unused F)))
-  (forge:close-run alt-run)
-  result)
+  ;(define result (not (evaluate alt-run 'unused F)))
+  ;result
+  (let ([result (not (forge:is-sat? alt-run))]) 
+    (forge:close-run alt-run)
+    result))
 
 
 ; Run -> pair of two lists, first list evaluates to true
