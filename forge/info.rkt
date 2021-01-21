@@ -13,9 +13,12 @@
                "rackunit-lib"
                "syntax-color-lib"
                "web-server-lib"
-               "beautiful-racket" "predicates"
-               "crypto-lib"
-               "mischief"))
+               "beautiful-racket"
+               "predicates"
+               "crypto-lib" ; ???
+               "mischief" ; for amalgam (stream cartesian product)
+               "gui-lib"  ; for syntax highlighting in tool
+               ))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 

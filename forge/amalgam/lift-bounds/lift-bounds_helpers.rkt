@@ -1,5 +1,5 @@
 #lang forge/core
-(require debug/repl)
+
 (provide transposeTup joinTuple buildClosureOfTupleSet)
 
 ; input: tuple - tuple to be flipped

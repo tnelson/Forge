@@ -1,5 +1,5 @@
 #lang forge/core
-(require debug/repl)
+
 (require "forge_ex.rkt")  
 (require "../desugar/desugar.rkt")
 ;----------------------------------------------
