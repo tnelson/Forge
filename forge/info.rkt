@@ -14,7 +14,8 @@
                "syntax-color-lib"
                "web-server-lib"
                "beautiful-racket" "predicates"
-               "crypto-lib"))
+               "crypto-lib"
+               "mischief"))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 

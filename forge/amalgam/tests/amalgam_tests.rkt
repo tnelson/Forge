@@ -9,14 +9,17 @@
      #:preds [isUndirectedTree]
      #:scope [(Node 7)])
 
-(run-tests (@test-suite 
-            " Desugar helpers tests"
-            (lambda () (display "Starting tests for amalgam"))
-            (lambda () (display "All tests for amalgam passed!"))
+(run-tests
+ (@test-suite 
+  " Desugar helpers tests"
+  (lambda () (display "Starting tests for amalgam"))
+  (lambda () (display "All tests for amalgam passed!"))
 
-          ; union-product
-          (@test-case
-           (@check-equal?
-            (union-product (@set 1 2) (@set 1 2))
-            (@set '(1 2) '(2 2) '(2 1) '(1 1)))
-           )))
+  ; Removed; function no longer exists
+  ; union-product
+  ;(@test-case
+  ; (@check-equal?
+  ;  (union-product (@set 1 2) (@set 1 2))
+  ;  (@set '(1 2) '(2 2) '(2 1) '(1 1)))
+   
+  ))
