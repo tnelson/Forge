@@ -3,7 +3,7 @@
 (require "test_helpers.rkt")
 (require "forge_ex.rkt")
 (require (prefix-in @ rackunit))
-(require debug/repl)
+
 (require rackunit/text-ui)
 (run udt
      #:preds [isUndirectedTree]

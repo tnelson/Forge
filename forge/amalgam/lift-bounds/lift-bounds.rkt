@@ -28,7 +28,7 @@
 
 (provide liftBoundsExpr)
 (require "lift-bounds_helpers.rkt")
-(require debug/repl)
+
 
 ; input: expr - the expression that we are trying to get the bounds of 
 ;        quantVars - the quantifiable variables of the expression

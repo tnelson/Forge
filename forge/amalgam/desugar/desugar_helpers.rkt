@@ -1,5 +1,5 @@
 #lang forge/core
-(require debug/repl)
+
 (require "../lift-bounds/lift-bounds.rkt")
 (require "../substitutor/substitutor.rkt")
 (require (prefix-in @ racket))

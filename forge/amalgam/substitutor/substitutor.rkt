@@ -10,7 +10,7 @@
 ; the children of a given formula/expression and puts the children
 ; together with the original operator that was identified. 
 
-(require debug/repl)
+
 (require (prefix-in @ (only-in racket ->)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 

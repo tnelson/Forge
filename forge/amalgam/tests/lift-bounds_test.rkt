@@ -6,7 +6,7 @@
 (require "forge_ex.rkt")
 (require (prefix-in @ rackunit))
 (require rackunit/text-ui)
-(require debug/repl)
+
 (run udt
      #:preds [isUndirectedTree]
      #:scope [(Node 7)])

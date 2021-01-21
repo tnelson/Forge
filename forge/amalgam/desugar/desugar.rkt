@@ -15,7 +15,7 @@
 (require "desugar_helpers.rkt")
 (require "../substitutor/substitutor.rkt")
 (provide desugarFormula)
-(require debug/repl)
+
 (require (prefix-in @ racket))
 (require (prefix-in @ (only-in racket ->)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;

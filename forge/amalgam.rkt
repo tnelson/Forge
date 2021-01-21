@@ -9,7 +9,7 @@
 (require racket/hash)
 (require (prefix-in @ racket/set))
 (require (prefix-in @ (only-in racket ->)))
-(require debug/repl)
+
 (require (only-in "amalgam/desugar/desugar_helpers.rkt" tup2Expr))
 
 (require pretty-format)
