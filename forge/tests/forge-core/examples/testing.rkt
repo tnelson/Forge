@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-verbosity 10)
+(set-verbosity 0)
 
 (sig Node)
 (sig Root #:one #:extends Node)
@@ -10,5 +10,5 @@
 (pred acyclic (no (& iden (^ edges))))
 (pred root-connected (in Node (join Root (* edges))))
 
-(run rooted-acyclic-run #:preds [acyclic root-connected] #:bounds ([Node 4 6]))
-(display rooted-acyclic-run)
+(run rooted-acyclic-run #:preds [acyclic root-connected] #:scope ([Node 4 6]))
+;(display rooted-acyclic-run)

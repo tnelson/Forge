@@ -4,6 +4,7 @@
 (require "alloy-syntax/parser.rkt")
 (require "alloy-syntax/tokenizer.rkt")
 
+(provide coerce-ints-to-atoms)
 (define (coerce-ints-to-atoms tree)
   (define (replace-ints-expr expr)
     ; (printf "Replace-int-expr: ~a~n~n" expr)
@@ -71,5 +72,7 @@
                           ,@final))
   ; (printf "Ints-coerced: ~a~n" ints-coerced)
   ; (raise "STOP")
-  (datum->syntax #f module-datum))
+  (define result (datum->syntax #f module-datum))
+  ;(printf "debug result of expansion: ~a~n" result)
+  result)
 (provide read-syntax)

@@ -1,14 +1,16 @@
 #lang forge/core
 
+(set-option! 'verbose 0)
+
 (sig UniqueObject #:one)
 
 (sig Stuff)
 
 (test oneSigEnforced
-      #:preds [(= (card UniqueObject) (node/int/constant 1))]
+      #:preds [(= (card UniqueObject) (int 1))]
       #:expect theorem)
 (test oneSigIsntPersistent
-      #:preds [(= (card Stuff) (node/int/constant 2))]
+      #:preds [(= (card Stuff) (int 2))]
       #:expect sat)
 
 
@@ -20,8 +22,8 @@
       #:preds [(in SpecialThing Thing)]
       #:expect theorem)
 (test oneExtendEnforced
-      #:preds [(= (card SpecialThing) (node/int/constant 1))]
+      #:preds [(= (card SpecialThing) (int 1))]
       #:expect theorem)
 (test oneExtendDoesntSpread
-      #:preds [(= (card UnspecialThing) (node/int/constant 2))] 
+      #:preds [(= (card UnspecialThing) (int 2))] 
       #:expect sat)

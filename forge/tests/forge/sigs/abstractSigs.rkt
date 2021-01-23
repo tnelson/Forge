@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 abstract sig Abstract {}
 sig Extension1 extends Abstract {}
 sig Extension2 extends Abstract {}

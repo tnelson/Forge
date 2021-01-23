@@ -1,42 +1,44 @@
 #lang forge/core
 
+(set-option! 'verbose 0)
+
 ; abs, sign
 
 (pred Abs
-    (= (abs (node/int/constant -8)) (node/int/constant -8))
-    (= (abs (node/int/constant -7)) (node/int/constant 7))
-    (= (abs (node/int/constant -6)) (node/int/constant 6))
-    (= (abs (node/int/constant -5)) (node/int/constant 5))
-    (= (abs (node/int/constant -4)) (node/int/constant 4))
-    (= (abs (node/int/constant -3)) (node/int/constant 3))
-    (= (abs (node/int/constant -2)) (node/int/constant 2))
-    (= (abs (node/int/constant -1)) (node/int/constant 1))
-    (= (abs (node/int/constant 0)) (node/int/constant 0))
-    (= (abs (node/int/constant 1)) (node/int/constant 1))
-    (= (abs (node/int/constant 2)) (node/int/constant 2))
-    (= (abs (node/int/constant 3)) (node/int/constant 3))
-    (= (abs (node/int/constant 4)) (node/int/constant 4))
-    (= (abs (node/int/constant 5)) (node/int/constant 5))
-    (= (abs (node/int/constant 6)) (node/int/constant 6))
-    (= (abs (node/int/constant 7)) (node/int/constant 7)))
+    (= (abs (int -8)) (int -8))
+    (= (abs (int -7)) (int 7))
+    (= (abs (int -6)) (int 6))
+    (= (abs (int -5)) (int 5))
+    (= (abs (int -4)) (int 4))
+    (= (abs (int -3)) (int 3))
+    (= (abs (int -2)) (int 2))
+    (= (abs (int -1)) (int 1))
+    (= (abs (int 0)) (int 0))
+    (= (abs (int 1)) (int 1))
+    (= (abs (int 2)) (int 2))
+    (= (abs (int 3)) (int 3))
+    (= (abs (int 4)) (int 4))
+    (= (abs (int 5)) (int 5))
+    (= (abs (int 6)) (int 6))
+    (= (abs (int 7)) (int 7)))
 
 (pred Sign
-    (= (sign (node/int/constant -8)) (node/int/constant -1))
-    (= (sign (node/int/constant -7)) (node/int/constant -1))
-    (= (sign (node/int/constant -6)) (node/int/constant -1))
-    (= (sign (node/int/constant -5)) (node/int/constant -1))
-    (= (sign (node/int/constant -4)) (node/int/constant -1))
-    (= (sign (node/int/constant -3)) (node/int/constant -1))
-    (= (sign (node/int/constant -2)) (node/int/constant -1))
-    (= (sign (node/int/constant -1)) (node/int/constant -1))
-    (= (sign (node/int/constant 0)) (node/int/constant 0))
-    (= (sign (node/int/constant 1)) (node/int/constant 1))
-    (= (sign (node/int/constant 2)) (node/int/constant 1))
-    (= (sign (node/int/constant 3)) (node/int/constant 1))
-    (= (sign (node/int/constant 4)) (node/int/constant 1))
-    (= (sign (node/int/constant 5)) (node/int/constant 1))
-    (= (sign (node/int/constant 6)) (node/int/constant 1))
-    (= (sign (node/int/constant 7)) (node/int/constant 1)))
+    (= (sign (int -8)) (int -1))
+    (= (sign (int -7)) (int -1))
+    (= (sign (int -6)) (int -1))
+    (= (sign (int -5)) (int -1))
+    (= (sign (int -4)) (int -1))
+    (= (sign (int -3)) (int -1))
+    (= (sign (int -2)) (int -1))
+    (= (sign (int -1)) (int -1))
+    (= (sign (int 0)) (int 0))
+    (= (sign (int 1)) (int 1))
+    (= (sign (int 2)) (int 1))
+    (= (sign (int 3)) (int 1))
+    (= (sign (int 4)) (int 1))
+    (= (sign (int 5)) (int 1))
+    (= (sign (int 6)) (int 1))
+    (= (sign (int 7)) (int 1)))
 
 ; add, subtract, multiply, divide, remainder
 
@@ -52,7 +54,7 @@
 
 (pred Add
     (all ([i Int])
-        (int= (add (sum i) (node/int/constant 0))
+        (int= (add (sum i) (int 0))
               (sum i)))
 
     (let ([succ2 (+ succ (-> (- Int (join succ Int))
@@ -76,8 +78,8 @@
 
 (pred Multiply
     (all ([i Int])
-        (int= (multiply (sum i) (node/int/constant 0))
-              (node/int/constant 0)))
+        (int= (multiply (sum i) (int 0))
+              (int 0)))
 
     (let ([succ2 (+ succ (-> (- Int (join succ Int))
                              (- Int (join Int succ))))])
@@ -105,15 +107,15 @@
 
 (pred DivideRemainder
     (all ([i1 Int]
-          [i2 (- Int (sing (node/int/constant 0)))])
+          [i2 (- Int (sing (int 0)))])
         (let ([x (sum i1)]
               [y (sum i2)])
             (let ([q (divide x y)]
                   [r (remainder x y)])
                 (and (or (= (sign r) (sign x))
-                         (= (sign r) (node/int/constant 0)))
+                         (= (sign r) (int 0)))
                      (or (< (abs r) (abs y))
-                         (int= y (node/int/constant -8)))
+                         (int= y (int -8)))
                      (int= x (add (multiply y q) r)))))))
 
 

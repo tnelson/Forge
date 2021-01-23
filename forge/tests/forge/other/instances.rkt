@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 sig BasicA {
     friendA: set BasicA
 }

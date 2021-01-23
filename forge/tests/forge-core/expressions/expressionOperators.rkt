@@ -1,5 +1,7 @@
 #lang forge/core
 
+(set-option! 'verbose 0)
+
 (sig Node)
 (relation edges (Node Node))
 
@@ -11,7 +13,7 @@
            (in (-> n2 n1) edges))))
 
 (pred Caret
-    (implies (< (card Node) (node/int/constant 4))
+    (implies (< (card Node) (int 4))
              (= (^ edges)
                 (+ (+ edges
                       (join edges edges))
@@ -92,5 +94,6 @@ pred ColonGreater {
 (test ampersandd #:preds [Ampersand] #:expect theorem)
 (test arrow #:preds [Arrow] #:expect theorem)
 (test dot #:preds [Dot] #:expect theorem)
+
 ; (test lessColon #:preds [LessColon] #:expect theorem)
 ; (test colonGreater #:preds [ColonGreater] #:expect theorem)

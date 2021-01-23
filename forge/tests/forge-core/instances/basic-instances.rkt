@@ -1,5 +1,6 @@
 #lang forge/core
 
+(set-option! 'verbose 0)
 ; (set-verbosity 10)
 
 (sig A)
@@ -14,7 +15,7 @@
 
 (test basic1 #:bounds [inst1] #:expect sat)
 (test basic-sizes
-      #:preds [(int= (card A) (node/int/constant 3))]
+      #:preds [(int= (card A) (int 3))]
       #:bounds [inst1]
       #:expect theorem)
 
@@ -24,12 +25,12 @@
 
 (test basic2 #:bounds [inst2] #:expect sat)
 (test basic-set-size
-      #:preds [(int= (card A) (node/int/constant 3))]
+      #:preds [(int= (card A) (int 3))]
       #:bounds [inst2]
       #:expect theorem)
 (test basic-unset-size
-      #:preds [(int= (card B) (node/int/constant 2))
-               (int= (card R) (node/int/constant 5))]
+      #:preds [(int= (card B) (int 2))
+               (int= (card R) (int 5))]
       #:bounds [inst2]
       #:expect sat)
 

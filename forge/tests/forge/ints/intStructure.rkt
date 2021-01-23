@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 pred SuccStructure {
     all i: Int | -- partial function
         lone i.succ

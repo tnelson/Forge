@@ -1,0 +1,121 @@
+<alloy builddate="2018-04-08T17:20:06.754Z">
+
+<instance bitwidth="4" maxseq="4" command="Run showDense for 1 Matrix, 0 ELL, 0 CSR, exactly 5 Value" filename="/home/tristan/research/alloy-lib/publish/structure.als">
+
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<sig label="this/Zero" ID="4" parentID="5" one="yes">
+   <atom label="Zero$0"/>
+</sig>
+
+<sig label="this/Value" ID="5" parentID="2">
+   <atom label="Value$0"/>
+   <atom label="Value$1"/>
+   <atom label="Value$2"/>
+   <atom label="Value$3"/>
+</sig>
+
+<sig label="this/Matrix" ID="6" parentID="2">
+   <atom label="Matrix$0"/>
+</sig>
+
+<field label="rows" ID="7" parentID="6">
+   <tuple> <atom label="Matrix$0"/> <atom label="3"/> </tuple>
+   <types> <type ID="6"/> <type ID="1"/> </types>
+</field>
+
+<field label="cols" ID="8" parentID="6">
+   <tuple> <atom label="Matrix$0"/> <atom label="3"/> </tuple>
+   <types> <type ID="6"/> <type ID="1"/> </types>
+</field>
+
+<field label="vals" ID="9" parentID="6">
+   <tuple> <atom label="Matrix$0"/> <atom label="0"/> <atom label="0"/> <atom label="Zero$0"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="0"/> <atom label="1"/> <atom label="Value$3"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="0"/> <atom label="2"/> <atom label="Zero$0"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="1"/> <atom label="0"/> <atom label="Value$2"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="1"/> <atom label="1"/> <atom label="Value$1"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="1"/> <atom label="2"/> <atom label="Zero$0"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="2"/> <atom label="0"/> <atom label="Zero$0"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="2"/> <atom label="1"/> <atom label="Value$0"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="2"/> <atom label="2"/> <atom label="Value$2"/> </tuple>
+   <types> <type ID="6"/> <type ID="1"/> <type ID="1"/> <type ID="5"/> </types>
+</field>
+
+<sig label="this/ELL" ID="10" parentID="2">
+</sig>
+
+<field label="rows" ID="11" parentID="10">
+   <types> <type ID="10"/> <type ID="1"/> </types>
+</field>
+
+<field label="cols" ID="12" parentID="10">
+   <types> <type ID="10"/> <type ID="1"/> </types>
+</field>
+
+<field label="maxnz" ID="13" parentID="10">
+   <types> <type ID="10"/> <type ID="1"/> </types>
+</field>
+
+<field label="coef" ID="14" parentID="10">
+   <types> <type ID="10"/> <type ID="1"/> <type ID="1"/> <type ID="5"/> </types>
+</field>
+
+<field label="jcoef" ID="15" parentID="10">
+   <types> <type ID="10"/> <type ID="1"/> <type ID="1"/> <type ID="1"/> </types>
+</field>
+
+<sig label="this/CSR" ID="16" parentID="2">
+</sig>
+
+<field label="rows" ID="17" parentID="16">
+   <types> <type ID="16"/> <type ID="1"/> </types>
+</field>
+
+<field label="cols" ID="18" parentID="16">
+   <types> <type ID="16"/> <type ID="1"/> </types>
+</field>
+
+<field label="A" ID="19" parentID="16">
+   <types> <type ID="16"/> <type ID="1"/> <type ID="5"/> </types>
+</field>
+
+<field label="IA" ID="20" parentID="16">
+   <types> <type ID="16"/> <type ID="1"/> <type ID="1"/> </types>
+</field>
+
+<field label="JA" ID="21" parentID="16">
+   <types> <type ID="16"/> <type ID="1"/> <type ID="1"/> </types>
+</field>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+<skolem label="$showDense_m" ID="22">
+   <tuple> <atom label="Matrix$0"/> </tuple>
+   <types> <type ID="6"/> </types>
+</skolem>
+
+<skolem label="$showDense_nonzero" ID="23">
+   <tuple> <atom label="Matrix$0"/> <atom label="0"/> <atom label="1"/> <atom label="Value$3"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="1"/> <atom label="0"/> <atom label="Value$2"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="1"/> <atom label="1"/> <atom label="Value$1"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="2"/> <atom label="1"/> <atom label="Value$0"/> </tuple>
+   <tuple> <atom label="Matrix$0"/> <atom label="2"/> <atom label="2"/> <atom label="Value$2"/> </tuple>
+   <types> <type ID="6"/> <type ID="1"/> <type ID="1"/> <type ID="5"/> </types>
+</skolem>
+
+</instance>
+
+<source filename="/home/tristan/research/alloy-lib/publish/structure.als" content="module structure&#x000a;&#x000a;/*&#x000a; * Specification of dense matrices and ELL and CSR sparse&#x000a; * format representations&#x000a; * &#x000a; * Authors: Tristan Dyer, Alper Altunutas, John Baugh&#x000a; * Date: August 16, 2019&#x000a; * Alloy Analyzer 5.0.0.201804081720&#x000a; *&#x000a; * For a detailed description, see:&#x000a; * &#x000a; *  Bounded Verification of Sparse Matrix Computations&#x000a; *  Third International Workshop on Software Correctness for HPC Applications&#x000a; *  (submitted)&#x000a; *   &#x000a; *    =&gt; Section III. Matrix Structure&#x000a; */&#x000a;&#x000a;sig Value {}&#x000a;one sig Zero extends Value {}&#x000a;&#x000a;sig Matrix {&#x000a;  rows, cols: Int,&#x000a;  vals: Int-&gt;Int-&gt;lone Value&#x000a;}&#x000a;&#x000a;sig ELL {&#x000a;  rows, cols, maxnz: Int,&#x000a;  coef: Int-&gt;Int-&gt;lone Value,&#x000a;  jcoef: Int-&gt;Int-&gt;lone Int&#x000a;}&#x000a;&#x000a;sig CSR {&#x000a;  rows, cols: Int,&#x000a;  A: Int-&gt;lone Value,&#x000a;  IA, JA: Int-&gt;lone Int&#x000a;}&#x000a;&#x000a;-- arrays of the ELL format are 2D, arrays of CSR format are 1D&#x000a;fact {&#x000a;  all e: ELL | Array2D[e.coef] and Array2D[e.jcoef]&#x000a;  all c: CSR | Array1D[c.A] and Array1D[c.IA] and Array1D[c.JA]&#x000a;}&#x000a;&#x000a;-- dense matrix abstract invariant&#x000a;pred I [m: Matrix] {&#x000a;  m.rows &gt;= 0&#x000a;  m.cols &gt;= 0&#x000a;  m.vals.univ = range[m.rows]-&gt;range[m.cols]&#x000a;}&#x000a;&#x000a;-- ELL concrete invariant&#x000a;pred I [e: ELL] {&#x000a;  e.rows &gt;= 0&#x000a;  e.cols &gt;= 0&#x000a;  e.maxnz &gt;= 0&#x000a;  e.maxnz &lt;= e.cols&#x000a;  e.coef.univ = range[e.rows]-&gt;range[e.maxnz]   -- set i-&gt;j for coef&#x000a;  e.jcoef.univ = range[e.rows]-&gt;range[e.maxnz]  -- set i-&gt;j for jcoef&#x000a;&#x000a;  -- column indices are valid (include -1 placeholder)&#x000a;  all j: e.jcoef[Int][Int] |&#x000a;    j in range[-1, e.cols]&#x000a;&#x000a;  -- column indices can appear once per row (-1 excepted)&#x000a;  all i: range[e.rows] |&#x000a;    all j: range[e.cols] |&#x000a;      #e.jcoef[i].j &lt;= 1&#x000a;&#x000a;  -- enforce placeholders are at same locations within coef and jcoef&#x000a;  all i: range[e.rows] |&#x000a;    all k: range[e.maxnz] |&#x000a;      e.coef[i][k] = Zero &lt;=&gt; e.jcoef[i][k] = -1&#x000a;}&#x000a;&#x000a;-- CSR concrete invariant&#x000a;pred I [c: CSR] {&#x000a;  c.rows &gt;= 0&#x000a;  c.cols &gt;= 0&#x000a;  c.IA[0] = 0&#x000a;  c.IA.end = #c.A        -- last value of IA is length of A&#x000a;  #c.IA = c.rows.add[1]  -- length of IA is rows + 1&#x000a;  #c.A = #c.JA           -- A and JA are same length&#x000a;  Zero not in c.A[Int]   -- A cannot contain 0&#x000a;&#x000a;  -- values of IA are monotonically increasing&#x000a;  all i: range[c.rows] |&#x000a;    c.IA[i] &lt;= c.IA[i.add[1]]&#x000a;&#x000a;  -- column indices are valid&#x000a;  all j: c.JA[Int] |&#x000a;    j in range[c.cols]&#x000a;&#x000a;  -- column indices appear once per row&#x000a;  all i: range[c.rows] |&#x000a;    let a = c.IA[i], b = c.IA[i.add[1]] |&#x000a;      c.JA.slice[a, b].valsUnique&#x000a;}&#x000a;&#x000a;-- relation is a 1D array (indices range from 0 to n-1)&#x000a;pred Array1D [a: Int-&gt;univ] {&#x000a;  a.univ = range[#a]&#x000a;}&#x000a;&#x000a;-- relation is a 2D array (indices range from 0 to rows-1, 0 cols-1)&#x000a;pred Array2D [a: Int-&gt;Int-&gt;univ] {&#x000a;  a.univ.univ = range[#a.univ.univ]&#x000a;  let s = #a[0] | all i: a.univ.univ | a[i].univ = range[s]&#x000a;}&#x000a;&#x000a;-- values in 1D array are unique&#x000a;pred valsUnique [s: Int-&gt;univ] {&#x000a;  #s = #s[Int]&#x000a;}&#x000a;&#x000a;-- retrieve last value in 1D array&#x000a;fun end [s: Int-&gt;univ]: univ {&#x000a;  s[max[s.univ]]&#x000a;}&#x000a;&#x000a;-- retrieve subset of 1D array in range [m, n-1]&#x000a;fun slice [s: Int-&gt;univ, m, n: Int]: Int-&gt;univ {&#x000a;  0 &lt;= m and m &lt; n and n &lt;= #s =&gt; { i: Int, v: univ |&#x000a;      (i.add[m])-&gt;v in s and i in range[n.sub[m]] } else {none-&gt;none}&#x000a;}&#x000a;&#x000a;-- generate the set [0, n-1]&#x000a;fun range [n: Int]: set Int {&#x000a;  { i: Int | 0 &lt;= i and i &lt; n }&#x000a;}&#x000a;&#x000a;-- generate the set [m, n-1]&#x000a;fun range [m, n: Int]: set Int {&#x000a;  { i: Int | m &lt;= i and i &lt; n }&#x000a;}&#x000a;&#x000a;-- generate a 3x3 dense matrix with some nonzero values&#x000a;pred showDense {&#x000a;  some m: Matrix {&#x000a;    m.rows = 3&#x000a;    m.cols = 3&#x000a;    I[m]&#x000a;  }&#x000a;  Value in vals[Matrix][Int][Int]&#x000a;  some nonzero: vals { &#x000a;    #nonzero &gt; 1&#x000a;    Zero not in nonzero[Matrix][Int][Int]&#x000a;    (vals-nonzero)[Matrix][Int][Int] = Zero&#x000a;  }&#x000a;}&#x000a;&#x000a;run showDense for 1 Matrix, 0 ELL, 0 CSR, exactly 5 Value&#x000a;&#x000a;-- generate a 5x5 ELL matrix&#x000a;pred showELL {&#x000a;  some e: ELL {&#x000a;    e.rows = 5&#x000a;    e.cols = 5&#x000a;    I[e]&#x000a;  }&#x000a;}&#x000a;&#x000a;run showELL for 0 Matrix, 1 ELL, 0 CSR, 5 Value&#x000a;&#x000a;-- generate a 5x5 CSR matrix&#x000a;pred showCSR {&#x000a;  some c: CSR {&#x000a;    c.rows = 5&#x000a;    c.cols = 5&#x000a;    I[c]&#x000a;  }&#x000a;}&#x000a;&#x000a;run showCSR for 0 Matrix, 0 ELL, 1 CSR, 5 Value&#x000a;"/>
+
+<source filename="/$alloy4$/models/util/integer.als" content="module util/integer&#x000a;&#x000a;/*&#x000a; * A collection of utility functions for using Integers in Alloy.&#x000a; * Note that integer overflows are silently truncated to the current bitwidth&#x000a; * using the 2&apos;s complement arithmetic, unless the &quot;forbid overfows&quot; option is&#x000a; * turned on, in which case only models that don&apos;t have any overflows are &#x000a; * analyzed. &#x000a; */&#x000a;&#x000a;fun add  [n1, n2: Int] : Int { this/plus[n1, n2] }&#x000a;fun plus [n1, n2: Int] : Int { n1 fun/add n2 }&#x000a;&#x000a;fun sub   [n1, n2: Int] : Int { this/minus[n1, n2] }&#x000a;fun minus [n1, n2: Int] : Int { n1 fun/sub n2 }&#x000a;&#x000a;fun mul [n1, n2: Int] : Int { n1 fun/mul n2 }&#x000a;&#x000a;/**&#x000a; * Performs the division with &quot;round to zero&quot; semantics, except the following 3 cases&#x000a; * 1) if a is 0, then it returns 0&#x000a; * 2) else if b is 0, then it returns 1 if a is negative and -1 if a is positive&#x000a; * 3) else if a is the smallest negative integer, and b is -1, then it returns a&#x000a; */&#x000a;fun div [n1, n2: Int] : Int { n1 fun/div n2 }&#x000a;&#x000a;/** answer is defined to be the unique integer that satisfies &quot;a = ((a/b)*b) + remainder&quot; */&#x000a;fun rem [n1, n2: Int] : Int { n1 fun/rem n2 }&#x000a;&#x000a;/** negate */&#x000a;fun negate [n: Int] : Int { 0 fun/sub n }&#x000a;&#x000a;/** equal to */&#x000a;pred eq [n1, n2: Int] { int[n1] = int[n2] }&#x000a;&#x000a;/** greater than */&#x000a;pred gt [n1, n2: Int] { n1 &gt; n2 }&#x000a;&#x000a;/** less then */&#x000a;pred lt [n1, n2: Int] { n1 &lt; n2 }&#x000a;&#x000a;/** greater than or equal */&#x000a;pred gte [n1, n2: Int] { n1 &gt;= n2 }&#x000a;&#x000a;/** less than or equal */&#x000a;pred lte [n1, n2: Int] { n1 &lt;= n2 }&#x000a;&#x000a;/** integer is zero */&#x000a;pred zero [n: Int] { n = 0 }&#x000a;&#x000a;/** positive */&#x000a;pred pos  [n: Int] { n &gt; 0 }&#x000a;&#x000a;/** negative */&#x000a;pred neg  [n: Int] { n &lt; 0 }&#x000a;&#x000a;/** non-positive */&#x000a;pred nonpos [n: Int] { n &lt;= 0 }&#x000a;&#x000a;/** non-negative */&#x000a;pred nonneg [n: Int] { n &gt;= 0 }&#x000a;&#x000a;/** signum (aka sign or sgn) */&#x000a;fun signum [n: Int] : Int { n&lt;0 =&gt; (0 fun/sub 1) else (n&gt;0 =&gt; 1 else 0) }&#x000a;&#x000a;/**&#x000a; * returns the ith element (zero-based) from the set s&#x000a; * in the ordering of &apos;next&apos;, which is a linear ordering&#x000a; * relation like that provided by util/ordering&#x000a; */&#x000a;fun int2elem[i: Int, next: univ-&gt;univ, s: set univ] : lone s {&#x000a;  {e: s | #^next.e = int i }&#x000a;}&#x000a;&#x000a;/**&#x000a; * returns the index of the element (zero-based) in the&#x000a; * ordering of next, which is a linear ordering relation&#x000a; * like that provided by util/ordering&#x000a; */&#x000a;fun elem2int[e: univ, next: univ-&gt;univ] : lone Int {&#x000a;  Int[#^next.e]&#x000a;}&#x000a;&#x000a;/** returns the largest integer in the current bitwidth */&#x000a;fun max:one Int { fun/max }&#x000a;&#x000a;/** returns the smallest integer in the current bitwidth */&#x000a;fun min:one Int { fun/min }&#x000a;&#x000a;/** maps each integer (except max) to the integer after it */&#x000a;fun next:Int-&gt;Int { fun/next }&#x000a;&#x000a;/** maps each integer (except min) to the integer before it */&#x000a;fun prev:Int-&gt;Int { ~next }&#x000a;&#x000a;/** given a set of integers, return the largest element */&#x000a;fun max [es: set Int]: lone Int { es - es.^prev }&#x000a;&#x000a;/** given a set of integers, return the smallest element */&#x000a;fun min [es: set Int]: lone Int { es - es.^next }&#x000a;&#x000a;/** given an integer, return all integers prior to it */&#x000a;fun prevs [e: Int]: set Int { e.^prev }&#x000a;&#x000a;/** given an integer, return all integers following it */&#x000a;fun nexts [e: Int]: set Int { e.^next }&#x000a;&#x000a;/** returns the larger of the two integers */&#x000a;fun larger [e1, e2: Int]: Int { let a=int[e1], b=int[e2] | (a&lt;b =&gt; b else a) }&#x000a;&#x000a;/** returns the smaller of the two integers */&#x000a;fun smaller [e1, e2: Int]: Int { let a=int[e1], b=int[e2] | (a&lt;b =&gt; a else b) }&#x000a;"/>
+
+</alloy>

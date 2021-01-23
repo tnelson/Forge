@@ -1,5 +1,7 @@
 #lang forge
 
+option verbose 0
+
 -- Taken from Tim's lecture code
 
 ------------------------------------------------------
@@ -74,7 +76,7 @@ pred localTautology[f: Formula] {
 pred generateInstances {
   -- force the existence of all instances needed
   all i: Instance | all v: Var |
-      some i': Instance-i | v in i.trueVars => i'.trueVars = i.trueVars - v else i'.trueVars = i.trueVars + v 
+      some i2: Instance-i | v in i.trueVars => i2.trueVars = i.trueVars - v else i2.trueVars = i.trueVars + v 
 }
 
 

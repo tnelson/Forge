@@ -20,17 +20,45 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-model evaluate name command filepath bitwidth funs-n-preds atom-rels)
-  (define model (get-next-model))
+(define (display-model get-next-unclean-model relation-map evaluate name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
-  ; Begin hack to remove helper relations
-  (define (clean-model)
-    (when (equal? (car model) 'sat)
-    (define instance (cdr model))
-    (for ([rel atom-rels])
-      (hash-remove! instance rel))))
-  (clean-model)
-  ; End hack to remove helper relations
+  (define model #f)
+  (define (get-current-model)
+    model)
+  (define (get-next-model)
+    (set! model (get-next-unclean-model))
+    model)
+  (get-next-model)
+
+  ; For compare/contrast models.
+  ; Map of generators
+  (define contrast-model-generators #f)
+  (define contrast-models #f)
+
+  (define (make-contrast-model-generators)
+    (define make-generator (curry get-contrast-model-generator model))
+    (set! contrast-model-generators
+      (hash 'compare-min (make-generator 'compare 'close)
+            'compare-max (make-generator 'compare 'far)
+            'contrast-min (make-generator 'contrast 'close)
+            'contrast-max (make-generator 'contrast 'far)))
+
+    (set! contrast-models
+      (make-hash (list (cons 'compare-min #f)
+                       (cons 'compare-max #f)
+                       (cons 'contrast-min #f)
+                       (cons 'contrast-max #f)))))
+  ;(make-contrast-model-generators)
+
+  (define (get-current-contrast-model type)
+    (hash-ref contrast-models type))
+  (define (get-next-contrast-model type)
+    (hash-set! contrast-models type 
+               ((hash-ref contrast-model-generators type)))
+    (hash-ref contrast-models type))
+
+  (define (get-xml model)
+    (solution-to-XML-string model relation-map name command filepath bitwidth forge-version))
 
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -52,18 +80,39 @@
            (cond [(equal? m "ping")
                   (ws-send! connection "pong")]
                  [(equal? m "current")
-                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
+                  (ws-send! connection (get-xml model))]
+
                  [(equal? m "next")
-                  (set! model (get-next-model))
-                  (clean-model)
-                  (ws-send! connection (model-to-XML-string model name command filepath bitwidth forge-version))]
+                  (get-next-model)
+                  (make-contrast-model-generators)
+                  (ws-send! connection (get-xml model))]
+
+                 [(equal? m "compare-min")
+                  (define contrast-model (get-next-contrast-model 'compare-min))
+                  (ws-send! connection (string-append "CMP:MIN:" (get-xml contrast-model)))]
+
+                 [(equal? m "compare-max")
+                  (define contrast-model (get-next-contrast-model 'compare-max))
+                  (ws-send! connection (string-append "CMP:MAX:" (get-xml contrast-model)))]
+
+                 [(equal? m "contrast-min")
+                  (define contrast-model (get-next-contrast-model 'contrast-min))
+                  (ws-send! connection (string-append "CST:MIN:" (get-xml contrast-model)))]
+
+                 [(equal? m "contrast-max")
+                  (define contrast-model (get-next-contrast-model 'contrast-max))
+                  (ws-send! connection (string-append "CST:MAX:" (get-xml contrast-model)))]
+
                  [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
                   (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
                   (define command (third parts))
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "Eval query: ~a~n" command))
                   (define result (evaluate command))
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else
-                  (ws-send! "BAD REQUEST")])
+                  (ws-send! connection "BAD REQUEST")
+                  (printf "Bad request: ~a~n" m)])
            (loop))))
      #:port 0 #:confirmation-channel chan))
 
