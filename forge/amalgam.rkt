@@ -5,7 +5,7 @@
 (require forge/amalgam/desugar/desugar)
 (require "amalgam/lift-bounds/lift-bounds.rkt")
 
-(require "amalgam/tests/forge_ex.rkt")
+;(require "amalgam/tests/forge_ex.rkt")
 (require "amalgam/userStudies/KittyBacon.rkt")
 (require racket/hash)
 (require (prefix-in @ racket/set))
@@ -18,11 +18,10 @@
 ;(require (only-in "breaks.rkt" sbound))
 ; ^ This will be a *different* struct defn; instead get via sigs
 
-(run udt
-     #:preds [isUndirectedTree]
-     ;#:preds [irreflexive]
-     #:scope [(Node 4)])
-
+; TODO: Comment this out later 
+;(run udt
+;     #:preds[isUndirectedTree]
+;     #:scope[(Node 4)])
 
 (run KB
      #:preds[KittyBaconIsCool]
@@ -247,23 +246,25 @@
       (values (get-actual-relation k)
               (make-exact-sbound (get-actual-relation k)
                                  (hash-ref new-totals k)))))
- 
- 
+  
   (define bounds (forge:Bound new-pbindings
                               (forge:Bound-tbindings orig-bounds)))
   (define scope (forge:Scope #f #f (hash))) ; empty
   ; can't use inst syntax here, so construct manually
+
   (define alt-inst
     (lambda (s b) (values scope bounds)))
+
   ; Get the solver to produce the L-alternate for us
   (run alt-run
-       #:preds []
+       #:preds [F]
        #:bounds alt-inst)
-  
   ; evaluate to see if tup is locally necessary
-  (define result (not (evaluate alt-run 'unused F)))
-  (forge:close-run alt-run)
-  result)
+  ;(define result (not (evaluate alt-run 'unused F)))
+  ;result
+  (let ([result (not (forge:is-sat? alt-run))]) 
+    (forge:close-run alt-run)
+    result))
 
 
 ; Run -> pair of two lists, first list evaluates to true
@@ -288,6 +289,7 @@
                                                orig-run))
           (define curr
             (filter-map (lambda (pair)
+                          (printf "Current pair is ~a~n" pair)
                           (if (is-locally-necessary (cons pair name) orig-run)
                               (cons pair (forge:Relation-rel r))
                               #f))
@@ -402,7 +404,11 @@
 ; these are OK assuming 3, 4, 5, 6 are used
 ; add
 
-(define test_N1N1_edges (build-provenances (cons '(Node1 Node1) "edges") udt))
+; TODO: uncomment this later 
+;(define test_N1N1_edges (build-provenances (cons '(Node1 Node1) "edges") udt))
+
+(stream-first (forge:Run-result KB))
+;(define test_local_necessity_udt (get-locally-necessary-list udt))
 
 (define test_local_necessity_kittyBacon (get-locally-necessary-list KB))
 (printf "LOCAL NECESSITY TEST --- ~a --- " test_local_necessity_kittyBacon)
@@ -454,13 +460,14 @@
                                               los))) cartesian)]
     [else (error "build-nth-alphaset bad arg type" ptree)]))
 
-(require pretty-format)
-(pretty-printf "Tree is: ~a~nCount of provenances: ~a~n"
-               test_N1N1_edges
-               (count-provenances test_N1N1_edges))
-(define test_N1_N1_edges_pstream (build-alphaset-stream test_N1N1_edges))
-(pretty-printf "Alpha sets are: ~a~n"
-               (stream->list test_N1_N1_edges_pstream))
+; TODO: UNCOMMENT THIS LATER 
+;(require pretty-format)
+;(pretty-printf "Tree is: ~a~nCount of provenances: ~a~n"
+;               test_N1N1_edges
+;               (count-provenances test_N1N1_edges))
+;(define test_N1_N1_edges_pstream (build-alphaset-stream test_N1N1_edges))
+;(pretty-printf "Alpha sets are: ~a~n"
+;               (stream->list test_N1_N1_edges_pstream))
 
 ; Sketches how you might highlight the N^th provenance from a tree
 ; IMPORTANT NOTE: right now the highlighting system requires

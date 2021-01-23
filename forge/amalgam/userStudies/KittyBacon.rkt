@@ -66,7 +66,7 @@ pred KittyBaconIsCool {
     KittyBacon in CCC.membersOfClub
 }
 
-run KittyBaconIsCool for exactly 4 Cat 
+//run KittyBaconIsCool for exactly 4 Cat 
 
 //check KittyBaconIsCool for exactly 4 Cat -- no counterexample 
 

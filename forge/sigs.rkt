@@ -608,7 +608,7 @@
   (pardinus:cmd 
     [(get-stdin run)]
     (pardinus:print-cmd-cont "(~a " expr-name)
-    (interpretter expression all-rels atom-names '())
+    (interpretter run expression all-rels atom-names '())
     (pardinus:print-cmd ")")
     (pardinus:print-cmd "(evaluate ~a)" expr-name)
     (pardinus:print-eof))
@@ -1154,7 +1154,7 @@
         [assertion-number (in-naturals)])
     (pardinus-print
       (pardinus:print-cmd-cont "(~a " (pardinus:f assertion-number))
-      (translate-to-kodkod-cli p all-rels all-atoms '())
+      (translate-to-kodkod-cli run-spec p all-rels all-atoms '())
       (pardinus:print-cmd ")")
       (pardinus:assert (pardinus:f assertion-number))))
 
