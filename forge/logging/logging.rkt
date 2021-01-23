@@ -3,8 +3,10 @@
 (require forge/data-structures)
 (require json)
 (require basedir)
+(require request)
+(require net/url-string)
 
-(provide log-execution log-run log-errors)
+(provide log-execution log-run log-test log-errors flush-logs)
 
 (define user-data-file (writable-config-file "user-data.json" #:program "forge"))
 (unless (file-exists? user-data-file)
@@ -16,15 +18,16 @@
 (define log-file (writable-data-file "user-logs.log" #:program "forge"))
 (make-parent-directory* log-file)
 
-; (define logging-mode 'none)
-; (define modes '(forge/lfs
-;                 forge/check-ex-spec
-;                 forge/core))
-; (define (set-logging-mode value)
-;   (unless (member value modes)
-;     (raise (format "Invalid mode ~a; expected one of ~a." value modes)))
-;   (set! logging-mode value))
 
+(define log-post-url 
+  (string->url "https://us-east1-testing-postgres.cloudfunctions.net/logging-function"))
+(define (flush-logs)
+  (println
+    (with-handlers ([exn:fail:network? (thunk* #f)])
+      (define payload (jsexpr->bytes (map string->jsexpr (file->lines log-file))))
+      (define response (post http-requester log-post-url payload))
+      (and (equal? (http-response-code response) 201)
+           (call-with-output-file log-file (thunk* #t) #:exists 'replace)))))
 
 (define (write-log value)
   (call-with-output-file log-file 
@@ -102,7 +105,7 @@
   (define filename (path->string (path->complete-path (find-system-path 'run-file))))
   (define project (format "~a" (first datum)))
   (define time (current-seconds))
-  (define raw (format "~a" (list* '|#lang| language datum)))
+  (define raw (file->string filename))
   (define mode (format "~a" language))
 
   (verify-header user project filename)
@@ -218,9 +221,26 @@
 ;             "bounds": ["..."],
 ;         },
 ; }
-; (define (log-test test)
+(define (log-test test instance expected)
+  (define passed
+    (cond
+      [(equal? expected 'sat) (equal? (car instance) 'sat)]
+      [(equal? expected 'unsat) (equal? (car instance) 'unsat)]
+      [(equal? expected 'theorem) (equal? (car instance) 'unsat)]))
 
-;   )
+  (define sigs (map (compose symbol->string Sig-name)
+                    (get-sigs test)))
+  (define relations (map (compose symbol->string Relation-name)
+                         (get-relations test)))
+
+  (write-log (hash 'log-type "test"
+                   'raw (format "~a" (syntax->datum (Run-command test)))
+                   'expected (symbol->string expected)
+                   'passed passed
+                   'spec (hash 'sigs sigs
+                               'relations relations
+                               'predicates '()
+                               'bounds '()))))
 
 (define (log-error err)
   (write-log (hash 'log-type "error"
@@ -230,4 +250,5 @@
 (require syntax/parse/define)
 (define-simple-macro (log-errors commands ...)
   (with-handlers ([(thunk* #t) log-error])
-    commands ...))
+    commands ...
+    (void)))

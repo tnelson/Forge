@@ -32,18 +32,6 @@ CREATE TABLE files (
     current_contents TEXT
 );
 
-/*
- * Diffs
- *  - id
- *  - file_id
- *  - diff e.g. "-asdf\n+asd"
- */
-CREATE TABLE diffs (
-    id SERIAL PRIMARY KEY,
-    file_id INTEGER REFERENCES files(id),
-    diff TEXT
-);
-
 /* Executions
  *  - id
  *  - file_id
@@ -52,7 +40,8 @@ CREATE TABLE diffs (
  */
 CREATE TABLE executions (
     id SERIAL PRIMARY KEY,
-    diff_id INTEGER REFERENCES diffs(id),
+    file_id INTEGER REFERENCES files(id),
+    snapshot TEXT,
     time TIME,
     mode TEXT
 );

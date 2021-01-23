@@ -17,7 +17,7 @@
          "kodkod-cli/server/server-common.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
-(require "logging/logging.rkt")
+(require (prefix-in logging: "logging/logging.rkt"))
 
 ; Commands
 (provide sig relation fun const pred inst)
@@ -222,7 +222,7 @@
         (define run-spec (Run-spec run-state run-preds run-scope run-bound))
         (define-values (run-result atom-rels) (send-to-kodkod run-spec))
 
-        (define name (log-run (Run run-name run-command run-spec run-result atom-rels))))]))
+        (define name (logging:log-run (Run run-name run-command run-spec run-result atom-rels))))]))
 
 ; Test that a spec is sat or unsat
 ; (test name
@@ -235,6 +235,7 @@
     [(member 'expected '(sat unsat))
      (run name args ...)
      (define first-instance (stream-first (Run-result name)))
+     (logging:log-test name first-instance 'expected)
      (unless (equal? (car first-instance) 'expected)
        (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
                       'name 'expected (car first-instance)
@@ -245,6 +246,7 @@
     [(equal? 'expected 'theorem)
      (check name args ...)
      (define first-instance (stream-first (Run-result name)))
+     (logging:log-test name first-instance 'expected)
      (unless (equal? (car first-instance) 'unsat)
        (raise (format "Theorem ~a failed. Found instance:~n~a"
                       'name (cdr first-instance))))]
