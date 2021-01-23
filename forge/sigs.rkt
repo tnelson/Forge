@@ -209,15 +209,15 @@
           'sb exact-nonnegative-integer?
           'coregranularity exact-nonnegative-integer?
           'logtranslation exact-nonnegative-integer?
-          'min_tracelength exact-nonnegative-integer?
-          'max_tracelength exact-nonnegative-integer?
+          'min_tracelength exact-positive-integer?
+          'max_tracelength exact-positive-integer?
           'problem_type symbol?
           'target_mode symbol?
           'core_minimization symbol?
           'skolem_depth exact-integer?))
   (unless ((hash-ref option-types option) value)
-    (raise (format "Setting option ~a requires ~a; received ~a"
-                   option (hash-ref option-types option) value)))
+    (raise-user-error (format "Setting option ~a requires ~a; received ~a"
+                              option (hash-ref option-types option) value)))
 
   (define new-options
     (cond
