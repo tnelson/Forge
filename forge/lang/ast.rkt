@@ -120,6 +120,43 @@
 ; Should never be directly instantiated
 (struct node/expr/op node/expr (children) #:transparent)
 
+;; if-then-else *expression*, which is different from an if-then-else formula
+;   The formula version is just sugar, the expression version is a basic expr type
+;   that Kodkod/Pardinus understand and is hard to emulate generically.
+(struct node/expr/ite node/expr (condition thene elsee) #:transparent #:reflection-name 'ite             
+             #:methods gen:equal+hash
+             [(define equal-proc (make-robust-node-equal-syntax node/expr))
+              (define hash-proc  (make-robust-node-hash-syntax node/expr 0))
+              (define hash2-proc (make-robust-node-hash-syntax node/expr 3))]
+             #:methods gen:custom-write
+             [(define (write-proc self port mode)                
+                (fprintf port "~a" (list 'ite (node/expr/ite-condition self)
+                                         (node/expr/ite-thene self)
+                                         (node/expr/ite-elsee self))))])
+
+(define-syntax (ite/info stx)
+  (syntax-case stx ()
+    [(_ info a b c)
+     (quasisyntax/loc stx
+       (begin
+         (unless (node/formula? a)
+           (raise-syntax-error #f (format "If-then-else expression requires first argument to be a formula")
+                               (datum->syntax #f a (build-source-location-syntax (nodeinfo-loc info)))))
+         (unless (node/expr? b)
+           (raise-syntax-error #f (format "If-then-else expression requires second argument to be an expression")
+                               (datum->syntax #f b (build-source-location-syntax (nodeinfo-loc info)))))
+         (unless (node/expr? c)
+           (raise-syntax-error #f (format "If-then-else expression requires third argument to be an expression")
+                               (datum->syntax #f c (build-source-location-syntax (nodeinfo-loc info)))))
+         (unless (equal? (node/expr-arity b) (node/expr-arity c))
+           (raise-syntax-error #f (format "If-then-else expression requires expression arguments to have same arity")
+                               (datum->syntax #f c (build-source-location-syntax (nodeinfo-loc info)))))
+         (node/expr/ite info (node/expr-arity b) a b c)))]))
+
+(define-syntax (ite stx)
+  (syntax-case stx ()
+    [(_ a b c) (quasisyntax/loc stx (ite/info (nodeinfo #,(build-source-location stx)) a b c))]))
+
 ; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-node-op stx)
   (syntax-case stx ()
@@ -232,6 +269,9 @@
   (define-node-op id node/expr/op (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:lift @op #:type node/expr?))
 (define-op/closure ^ #f)
 (define-op/closure * @*)
+
+
+
 
 ;; -- quantifier vars ----------------------------------------------------------
 

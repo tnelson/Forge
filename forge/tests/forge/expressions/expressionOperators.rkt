@@ -50,6 +50,13 @@ pred Dot {
     edges.edges = {n1: Node, n2: Node | some n3: Node | n3 in n1.edges and n3 in edges.n2}
 }
 
+pred IfThenElse1 {
+    no (edges in edges => univ else none)
+}
+
+pred IfThenElse2 {
+    some (some Node & Int => univ else none)
+}
 
 
 /* CURRENTLY BUGGED?
@@ -64,7 +71,6 @@ pred ColonGreater {
 }
 */
 
-
 test expect ExpressionOperators {
     tilde : Tilde is theorem
     caret : Caret is theorem
@@ -76,4 +82,7 @@ test expect ExpressionOperators {
     dot : Dot is theorem
     --lessColon : LessColon is theorem
     --colonGreater : ColonGreater is theorem
+
+    ite1 : IfThenElse1 is unsat
+    ite2 : IfThenElse2 is unsat
 }

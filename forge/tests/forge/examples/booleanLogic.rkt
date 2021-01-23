@@ -57,8 +57,8 @@ pred GiveMeABigFormula {
 }
 
 test expect gimme_big {
- GiveMeABigFormula for 8 Formula, 2 Instance is sat
- GiveMeABigFormula for 8 Formula, 1 Instance is unsat
+ GiveMeABigFormula for 8 Formula, 2 Instance, 5 Int is sat
+ GiveMeABigFormula for 8 Formula, 1 Instance, 5 Int is unsat
 }
 
 test expect {
