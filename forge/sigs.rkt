@@ -679,21 +679,17 @@
             ; Read command as syntax from pipe
             (define expr
               (with-handlers ([(lambda (x) #t) (lambda (exn) 
-                               (println exn)
                                (read-syntax 'Evaluator pipe1))])
                 (last (syntax->datum (read-surface-syntax 'Evaluator pipe2)))))
 
             ; Evaluate command
-            (println expr)
             (define full-command (datum->syntax #f `(let
               ,(for/list ([atom (Run-atoms run)]
                           #:when (symbol? atom))
                  `[,atom (atom ',atom)])
                  ,expr)))
-            (println full-command)
             (define ns (namespace-anchor->namespace (nsa)))
             (define command (eval full-command ns))
-            (println command)
             (evaluate run '() command)))
 
         (define (get-contrast-model-generator model compare distance)
