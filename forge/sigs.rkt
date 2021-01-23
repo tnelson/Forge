@@ -277,9 +277,15 @@
 (define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) a b)
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
-(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
-                                                                   (=>/info (nodeinfo #,(build-source-location stx)) a b)
-                                                                   (=>/info (nodeinfo #,(build-source-location stx)) (! a) c)))]))
+
+; for ifte, use struct type to decide whether this is a formula (sugar) or expression form (which has its own AST node)
+(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx
+                                                           (if (node/formula? b)
+                                                               (&&/info (nodeinfo #,(build-source-location stx))
+                                                                        (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                        (=>/info (nodeinfo #,(build-source-location stx)) (! a) c))
+                                                               (ite/info (nodeinfo #,(build-source-location stx)) a b c)))]))
+
 (define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
                                                               (int>/info (nodeinfo #,(build-source-location stx)) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
