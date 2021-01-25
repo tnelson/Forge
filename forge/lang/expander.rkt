@@ -493,8 +493,10 @@
      (~? module-decl)
      import ...
      paragraph ...))]
-    [((~literal AlloyModule) (~seq eval-decl:EvalDeclClass ...))
-     (syntax/loc stx (raise "Evaluating in #lang forge not yet implemented."))]))
+    [((~literal AlloyModule) ((~literal EvalDecl) "eval" expr:ExprClass))
+     (syntax/loc stx expr)]
+    [((~literal AlloyModule) ((~literal EvalDecl) "eval" expr:ExprClass) ...+)
+     (syntax/loc stx (raise "Can't eval multiple expressions."))]))
 
 ; ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
 (define-syntax (ModuleDecl stx)

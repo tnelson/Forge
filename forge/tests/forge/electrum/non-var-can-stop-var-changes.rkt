@@ -10,7 +10,7 @@ sig Apple {
 sig Orange {}
 
 pred prog {
-    Orange' = Orange - Apple.org
+    always (Orange' = Orange - Apple.org)
 }
 
 test expect nonVarSigStopsVarRelChanges {
@@ -18,12 +18,12 @@ test expect nonVarSigStopsVarRelChanges {
     orangeCantChange : {not always Orange' = Orange} is unsat
     orangeStaysSame : {always Orange' = Orange} is sat
     //If org is non-empty, then Orange' = Orange,
-    //so org must always be empty
-    orgMustBeEmpty : {prog and (not always no org)} is unsat
-    orgIsEmpty : {prog and (always no org)} is sat
-    //Since org is always empty, it never changes even though it is var
-    orgCantChange : {prog and (not always org' = org)} is unsat
-    orgStaysSame : {prog and (always org' = org)} is sat
+    //so org must be empty
+    orgMustBeEmpty : {prog and not (always no org)} is unsat
+    orgIsEmpty : {prog and always no org} is sat
+    //Since org is empty, it doesn't change even though it is var
+    orgCantChange : {prog and not (always org' = org)} is unsat
+    orgStaysSame : {prog and always org' = org} is sat
 }
 
 sig Banana {

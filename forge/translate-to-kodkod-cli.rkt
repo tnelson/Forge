@@ -135,6 +135,12 @@
     [(node/expr/atom info arity name)
      (unless (member name atom-names) (raise (format "Atom ~a not in available atoms ~a" name atom-names)))
      ( print-cmd-cont (format "~a " (a (index-of atom-names name))))]
+    [(node/expr/ite info arity a b c)     
+     ( print-cmd-cont "(ite ")
+     (interpret-formula run-or-state a relations atom-names quantvars)
+     (interpret-expr run-or-state b relations atom-names quantvars)
+     (interpret-expr run-or-state c relations atom-names quantvars)
+     ( print-cmd-cont ") ")]
     [(node/expr/constant info 1 'Int)
      ( print-cmd-cont "ints ")]
     [(node/expr/constant info arity type)

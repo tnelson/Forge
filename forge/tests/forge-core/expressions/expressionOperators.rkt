@@ -72,9 +72,19 @@
                (and (in n3 (join n1 edges))
                     (in n3 (join edges n2)))))))
 
+(pred IfThenElse1
+      (no (ite (in edges edges)
+                 univ
+                 none)))
+(pred IfThenElse2
+      (some (ite (some (& Node Int))
+                 univ
+                 none)))
 
 
-#| CURRENTLY BUGGED?
+
+#|
+CURRENTLY BUGGED?
 pred LessColon {
     all n: Node |
         n.edges <: edges = {n1: Node, n2: Node | n1->n2 in edges and n1 in n.edges}
@@ -94,6 +104,11 @@ pred ColonGreater {
 (test ampersandd #:preds [Ampersand] #:expect theorem)
 (test arrow #:preds [Arrow] #:expect theorem)
 (test dot #:preds [Dot] #:expect theorem)
+
+(test ite1 #:preds [IfThenElse1] #:expect unsat)
+(test ite2 #:preds [IfThenElse2] #:expect unsat)
+
+
 
 ; (test lessColon #:preds [LessColon] #:expect theorem)
 ; (test colonGreater #:preds [ColonGreater] #:expect theorem)
