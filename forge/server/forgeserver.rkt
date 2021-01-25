@@ -78,28 +78,43 @@
          (unless (eof-object? m)
            ;(println m)
            (cond [(equal? m "ping")
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: ping~n"))
                   (ws-send! connection "pong")]
                  [(equal? m "current")
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: current~n"))
                   (ws-send! connection (get-xml model))]
 
                  [(equal? m "next")
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: next~n"))
                   (get-next-model)
-                  (make-contrast-model-generators)
+                  ; TN disabled for now 01/25/2021
+                  ;(make-contrast-model-generators)
                   (ws-send! connection (get-xml model))]
 
                  [(equal? m "compare-min")
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: compare-min~n"))
                   (define contrast-model (get-next-contrast-model 'compare-min))
                   (ws-send! connection (string-append "CMP:MIN:" (get-xml contrast-model)))]
 
                  [(equal? m "compare-max")
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: compare-max~n"))
                   (define contrast-model (get-next-contrast-model 'compare-max))
                   (ws-send! connection (string-append "CMP:MAX:" (get-xml contrast-model)))]
 
                  [(equal? m "contrast-min")
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: contrast-min~n"))
                   (define contrast-model (get-next-contrast-model 'contrast-min))
                   (ws-send! connection (string-append "CST:MIN:" (get-xml contrast-model)))]
 
                  [(equal? m "contrast-max")
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: contrast-max~n"))
                   (define contrast-model (get-next-contrast-model 'contrast-max))
                   (ws-send! connection (string-append "CST:MAX:" (get-xml contrast-model)))]
 
