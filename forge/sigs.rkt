@@ -1279,22 +1279,41 @@
   ; Map<Symbol, List<List<Symbol>>
   (define sig-to-upper (make-hash))
   ; Sig, List<Symbol>? -> List<Symbol>
-  (define (fill-upper sig [parent-names #f])
+  (define (fill-upper-top sig)
     (define own-upper-int (Range-upper (get-scope run-spec sig)))
     (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
     (define difference (@- own-upper-int (length own-lower)))    
     (when (@< difference 0)
       (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
 
-    (define new-names 
-      (if parent-names
-          (take parent-names (@min difference (length parent-names)))
-          (get-next-names sig difference)))    
+    (define new-names (get-next-names sig difference))
     (define own-upper (append own-lower new-names))
     (hash-set! sig-to-upper (Sig-name sig) own-upper)
 
-    (for ([child (get-children run-spec sig)]) (fill-upper child new-names))
+    (for ([child (get-children run-spec sig)]) (fill-upper-extender child own-upper))
     own-upper)
+
+  (define (fill-upper-extender sig upper)
+    (hash-set! sig-to-upper (Sig-name sig) upper)
+    (for ([child (get-children run-spec sig)]) (fill-upper-extender child upper)))
+
+  ; (define (fill-upper sig [parent-names #f])
+    ; (printf "~n~nTEST3: ~a~n~a~n~n" sig parent-names)
+    ; (define own-upper-int (Range-upper (get-scope run-spec sig)))
+    ; (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
+    ; (define difference (@- own-upper-int (length own-lower)))    
+    ; (when (@< difference 0)
+    ;   (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
+
+    ; (define new-names 
+    ;   (if parent-names
+    ;       (take parent-names (@min difference (length parent-names)))
+    ;       (get-next-names sig difference)))    
+    ; (define own-upper (append own-lower new-names))
+    ; (hash-set! sig-to-upper (Sig-name sig) own-upper)
+
+    ; (for ([child (get-children run-spec sig)]) (fill-upper child new-names))
+    ; own-upper)
 
   (define int-atoms
     (let* ([bitwidth (get-bitwidth run-spec)]
@@ -1315,7 +1334,7 @@
     (for/list ([sig top-level-sigs] 
                #:unless (equal? (Sig-name sig) 'Int))
       (fill-lower sig)
-      (fill-upper sig))))
+      (fill-upper-top sig))))
 
   (define all-atoms (append int-atoms sig-atoms))
 
