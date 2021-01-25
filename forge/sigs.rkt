@@ -10,6 +10,7 @@
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
          "breaks.rkt")
+(require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
 (require "server/eval-model.rkt")
 (require "server/forgeserver.rkt") ; v long
 (require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
@@ -36,7 +37,7 @@
 (provide (all-from-out "lang/ast.rkt"))
 
 ; Racket stuff
-(provide let)
+(provide let quote)
 
 ; Technical stuff
 (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
@@ -676,22 +677,25 @@
         (define model-stream (Run-result run))
         (define get-next-model (make-model-generator model-stream))
         (define (evaluate-str str-command)
-          (define-values (in-pipe out-pipe) (make-pipe))
-
-          ; Write string command to pipe
-          (write-string str-command out-pipe)
-          (close-output-port out-pipe)
+          (define pipe1 (open-input-string str-command))
+          (define pipe2 (open-input-string (format "eval ~a" str-command)))
 
           (with-handlers ([(lambda (x) #t) 
                            (lambda (exn) (exn-message exn))])
             ; Read command as syntax from pipe
-            (define command-syntax (read-syntax 'eval-pipe in-pipe))
-            (close-input-port in-pipe)
+            (define expr
+              (with-handlers ([(lambda (x) #t) (lambda (exn) 
+                               (read-syntax 'Evaluator pipe1))])
+                (last (syntax->datum (read-surface-syntax 'Evaluator pipe2)))))
 
             ; Evaluate command
+            (define full-command (datum->syntax #f `(let
+              ,(for/list ([atom (Run-atoms run)]
+                          #:when (symbol? atom))
+                 `[,atom (atom ',atom)])
+                 ,expr)))
             (define ns (namespace-anchor->namespace (nsa)))
-            (define command (eval command-syntax ns))
-            (println command)
+            (define command (eval full-command ns))
             (evaluate run '() command)))
 
         (define (get-contrast-model-generator model compare distance)
