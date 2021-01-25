@@ -390,9 +390,9 @@
   (define-splicing-syntax-class pred-type
     #:description "optional pred flag"
     #:attributes ((seal 0))
-    (pattern wheat
+    (pattern (~datum wheat)
       #:attr seal #'make-wheat)
-    (pattern chaff
+    (pattern (~datum chaff)
       #:attr seal #'make-chaff)
     (pattern (~seq)
       #:attr seal #'values)))
