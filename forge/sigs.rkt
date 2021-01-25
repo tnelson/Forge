@@ -1142,7 +1142,7 @@
   ; If in temporal mode, need to always-ify the auto-generated constraints but not the
   ;   predicates that come from users
   (define raw-implicit-constraints
-    (append (get-sig-size-preds run-spec)
+    (append (get-sig-size-preds run-spec total-bounds)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
             relation-constraints
@@ -1356,17 +1356,30 @@
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig to restrict
 ; it to the correct lower/upper bound.
-(define (get-sig-size-preds run-spec) 
+(define (get-sig-size-preds run-spec total-bounds) 
   (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
-  (for/list ([sig (get-sigs run-spec)]
-             #:unless (equal? (Sig-name sig) 'Int))
-    (match-define (Range lower upper) (get-scope run-spec sig))
-    (unless (@< upper max-int)
-      (raise (format (string-append "Upper bound too large for given BitWidth; "
-                                    "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
-                     sig upper (sub1 max-int))))
-    (and (<= (int lower) (card (Sig-rel sig)))
-         (<= (card (Sig-rel sig)) (int upper)))))
+  (apply append
+    (for/list ([sig (get-sigs run-spec)]
+               #:unless (equal? (Sig-name sig) 'Int))
+      (match-define (Range int-lower int-upper) (get-scope run-spec sig))
+      
+      (append
+        (if (equal? int-lower 0)
+            (list)
+            (let ()
+              (unless (@< int-lower max-int)
+                (raise (format (string-append "Lower bound too large for given BitWidth; "
+                                              "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
+                               sig int-lower (sub1 max-int))))
+              (list (<= (int int-lower) (card (Sig-rel sig))))))
+        (if (@not (Sig-extends sig))
+            (list)
+            (let ()
+              (unless (@< int-upper max-int)
+                (raise (format (string-append "Upper bound too large for given BitWidth; "
+                                              "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
+                               sig int-upper (sub1 max-int))))
+              (list (<= (card (Sig-rel sig)) (int int-upper)))))))))
 
 ; get-extender-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig which has extending Sigs so that:
