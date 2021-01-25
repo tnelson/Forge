@@ -973,7 +973,7 @@
         ; this nonsense is just for atom names
         (define name (string->symbol (relation-name rel)))
         (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup))))))
-  
+
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
     (get-sig-bounds run-spec tbindings))
@@ -1296,24 +1296,6 @@
   (define (fill-upper-extender sig upper)
     (hash-set! sig-to-upper (Sig-name sig) upper)
     (for ([child (get-children run-spec sig)]) (fill-upper-extender child upper)))
-
-  ; (define (fill-upper sig [parent-names #f])
-    ; (printf "~n~nTEST3: ~a~n~a~n~n" sig parent-names)
-    ; (define own-upper-int (Range-upper (get-scope run-spec sig)))
-    ; (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
-    ; (define difference (@- own-upper-int (length own-lower)))    
-    ; (when (@< difference 0)
-    ;   (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
-
-    ; (define new-names 
-    ;   (if parent-names
-    ;       (take parent-names (@min difference (length parent-names)))
-    ;       (get-next-names sig difference)))    
-    ; (define own-upper (append own-lower new-names))
-    ; (hash-set! sig-to-upper (Sig-name sig) own-upper)
-
-    ; (for ([child (get-children run-spec sig)]) (fill-upper child new-names))
-    ; own-upper)
 
   (define int-atoms
     (let* ([bitwidth (get-bitwidth run-spec)]
