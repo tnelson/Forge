@@ -10,6 +10,7 @@
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
          "breaks.rkt")
+(require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
 (require "server/eval-model.rkt")
 (require "server/forgeserver.rkt") ; v long
 (require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
@@ -36,7 +37,7 @@
 (provide (all-from-out "lang/ast.rkt"))
 
 ; Racket stuff
-(provide let)
+(provide let quote)
 
 ; Technical stuff
 (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
@@ -209,15 +210,15 @@
           'sb exact-nonnegative-integer?
           'coregranularity exact-nonnegative-integer?
           'logtranslation exact-nonnegative-integer?
-          'min_tracelength exact-nonnegative-integer?
-          'max_tracelength exact-nonnegative-integer?
+          'min_tracelength exact-positive-integer?
+          'max_tracelength exact-positive-integer?
           'problem_type symbol?
           'target_mode symbol?
           'core_minimization symbol?
           'skolem_depth exact-integer?))
   (unless ((hash-ref option-types option) value)
-    (raise (format "Setting option ~a requires ~a; received ~a"
-                   option (hash-ref option-types option) value)))
+    (raise-user-error (format "Setting option ~a requires ~a; received ~a"
+                              option (hash-ref option-types option) value)))
 
   (define new-options
     (cond
@@ -239,15 +240,15 @@
       [(equal? option 'min_tracelength)
        (let ([max-trace-length (get-option state 'max_tracelength)])
          (if (@> value max-trace-length)
-             (raise (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
-                            value max-trace-length))
+             (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
+                                       value max-trace-length))
              (struct-copy Options options
                           [min_tracelength value])))]
       [(equal? option 'max_tracelength)
        (let ([min-trace-length (get-option state 'min_tracelength)])
          (if (@< value min-trace-length)
-             (raise (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
-                            value min-trace-length))
+             (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
+                                       value min-trace-length))
              (struct-copy Options options
                           [max_tracelength value])))]
       [(equal? option 'problem_type)
@@ -277,9 +278,15 @@
 (define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) a b)
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
-(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
-                                                                   (=>/info (nodeinfo #,(build-source-location stx)) a b)
-                                                                   (=>/info (nodeinfo #,(build-source-location stx)) (! a) c)))]))
+
+; for ifte, use struct type to decide whether this is a formula (sugar) or expression form (which has its own AST node)
+(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx
+                                                           (if (node/formula? b)
+                                                               (&&/info (nodeinfo #,(build-source-location stx))
+                                                                        (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                        (=>/info (nodeinfo #,(build-source-location stx)) (! a) c))
+                                                               (ite/info (nodeinfo #,(build-source-location stx)) a b c)))]))
+
 (define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
                                                               (int>/info (nodeinfo #,(build-source-location stx)) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
@@ -317,8 +324,8 @@
     [(and is-var
           (not (equal? (get-option curr-state 'problem_type)
             'temporal)))
-     (raise (format "Can't have var ~a unless problem_type option is temporal"
-                    name))]))
+     (raise-user-error (format "Can't have var ~a unless problem_type option is temporal"
+                               name))]))
 
 
 ; Declare a new sig.
@@ -670,22 +677,25 @@
         (define model-stream (Run-result run))
         (define get-next-model (make-model-generator model-stream))
         (define (evaluate-str str-command)
-          (define-values (in-pipe out-pipe) (make-pipe))
-
-          ; Write string command to pipe
-          (write-string str-command out-pipe)
-          (close-output-port out-pipe)
+          (define pipe1 (open-input-string str-command))
+          (define pipe2 (open-input-string (format "eval ~a" str-command)))
 
           (with-handlers ([(lambda (x) #t) 
                            (lambda (exn) (exn-message exn))])
             ; Read command as syntax from pipe
-            (define command-syntax (read-syntax 'eval-pipe in-pipe))
-            (close-input-port in-pipe)
+            (define expr
+              (with-handlers ([(lambda (x) #t) (lambda (exn) 
+                               (read-syntax 'Evaluator pipe1))])
+                (last (syntax->datum (read-surface-syntax 'Evaluator pipe2)))))
 
             ; Evaluate command
+            (define full-command (datum->syntax #f `(let
+              ,(for/list ([atom (Run-atoms run)]
+                          #:when (symbol? atom))
+                 `[,atom (atom ',atom)])
+                 ,expr)))
             (define ns (namespace-anchor->namespace (nsa)))
-            (define command (eval command-syntax ns))
-            (println command)
+            (define command (eval full-command ns))
             (evaluate run '() command)))
 
         (define (get-contrast-model-generator model compare distance)

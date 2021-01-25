@@ -79,7 +79,13 @@ pred alphaStaysCleared {
     //it will be empty forever
     no Alpha implies Alpha' = Alpha - Alpha
 }
-
+/*
+run {
+    not (after eventually no Alpha)
+    eventually no Alpha
+    no Alpha
+}
+*/
 test expect EventuallyIncludesCurrentState {
     clearAlphaCanBeTrue : {clearAlpha and alphaStaysCleared} is sat
     //After clearAlpha, Alpha will be empty forever
@@ -122,15 +128,20 @@ test expect IfAfterTrueThenEventuallyTrue {
 test expect afterEventually {
     canHaveEventuallyNoAlpha : {eventually no Alpha} is sat
     canHaveAfterEventuallyNoAlpha : {after eventually no Alpha} is sat
-    AfterEventuallyNoAlphaMeansEventuallyNoAlpha : {
+    afterEventuallyNoAlphaMeansEventuallyNoAlpha : {
         after eventually no Alpha
         not (eventually no Alpha)
     } is unsat
     canHaveNotEventuallyNoAlpha : {not eventually no Alpha} is sat
     canHaveNotAfterEventuallyNoAlpha : {not (after eventually no Alpha)} is sat
-    NotAfterEventuallyNoAlphaMeansNotEventuallyNoAlpha : {
+    notAfterEventuallyNoAlphaCanHaveEventuallyNoAlpha : {
         not (after eventually no Alpha)
-        not (eventually no Alpha)
+        eventually no Alpha
+    } is sat
+    someAlphaAndNotAfterEventuallyNoAlphaMeansNotEventuallyNoAlpha : {
+        not (after eventually no Alpha)
+        eventually no Alpha
+        some Alpha
     } is unsat
 }
 

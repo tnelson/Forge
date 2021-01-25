@@ -145,7 +145,14 @@
     [(node/expr/atom info arity name)
      ; overapproximate for now (TODO: get atom's sig)
      (primify run-or-state 'univ)]
-
+    
+    [(node/expr/ite info arity a b c)     
+     (checkFormula run-or-state a quantvars) ; Check condition formula
+     (let ([b-potentials (checkExpression run-or-state b quantvars)]
+           [c-potentials (checkExpression run-or-state c quantvars)])
+       ; Might be a or b, we don't know
+       (remove-duplicates (append b-potentials c-potentials)))]
+    
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
        (list (list 'Int))]
@@ -213,6 +220,9 @@
 
     ; UNION
     [(? node/expr/op/+?)
+     (remove-duplicates (apply append (map (lambda (x) (checkExpression run-or-state x quantvars)) args)))]
+
+    [(? node/expr/op/<:?)
      (remove-duplicates (apply append (map (lambda (x) (checkExpression run-or-state x quantvars)) args)))]
     
     ; SETMINUS 
