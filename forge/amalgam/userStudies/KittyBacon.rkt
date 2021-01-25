@@ -52,9 +52,7 @@ pred ConnectedKittyBacon_equals_SuperConnected {
 
 -- FancyFelineFoundation
 
-one sig FFF  {
-    membersOfClub: set Cat
-} 
+one sig FFF  { membersOfClub: set Cat } 
 
 pred FancyFelineFoundation {
     ConnectedKittyBacon
@@ -64,6 +62,7 @@ pred FancyFelineFoundation {
 pred KittyBaconIsAFancyFeline {
     FancyFelineFoundation implies KittyBacon in FFF.membersOfClub
 }
+
 
 //run KittyBaconIsAFancyFeline for exactly 4 Cat 
 
