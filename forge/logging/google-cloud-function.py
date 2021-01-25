@@ -27,8 +27,8 @@ def access_secret_version(project_id, secret_id, version_id):
     payload = response.payload.data.decode('UTF-8')
     return payload
 
-db_user = access_secret_version("testing-postgres", "DB_USER", "latest")
-db_pass = access_secret_version("testing-postgres", "DB_PASS", "latest")
+db_user = access_secret_version("pyret-examples", "FORGE_LOGGING_DB_USER", "latest")
+db_pass = access_secret_version("pyret-examples", "FORGE_LOGGING_DB_PASS", "latest")
 db_name = os.environ["DB_NAME"]
 db_socket_dir = os.environ.get("DB_SOCKET_DIR", "/cloudsql")
 cloud_sql_connection_name = os.environ["CLOUD_SQL_CONNECTION_NAME"]

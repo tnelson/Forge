@@ -1,6 +1,6 @@
 #lang racket
 
-(require forge/data-structures)
+(require forge/sigs-structs)
 (require json)
 (require basedir)
 (require request)
@@ -20,7 +20,7 @@
 
 
 (define log-post-url 
-  (string->url "https://us-east1-testing-postgres.cloudfunctions.net/logging-function"))
+  (string->url "https://us-central1-pyret-examples.cloudfunctions.net/forge-logging"))
 (define (flush-logs)
   (println
     (with-handlers ([exn:fail:network? (thunk* #f)])
@@ -30,11 +30,12 @@
            (call-with-output-file log-file (thunk* #t) #:exists 'replace)))))
 
 (define (write-log value)
-  (call-with-output-file log-file 
-                         (lambda (port)
-                           (write-json value port)
-                           (newline port)) 
-                         #:exists 'append))
+  (when (logging-on?)
+    (call-with-output-file log-file 
+                           (lambda (port)
+                             (write-json value port)
+                             (newline port)) 
+                           #:exists 'append)))
 
 (define (verify-header source-user source-project filename)
   (define user-data (call-with-input-file user-data-file read-json))
@@ -91,6 +92,8 @@
                          (curry write-json updated-user-data)
                          #:exists 'replace))
 
+(define logging-on? (make-parameter #f))
+
 ; {
 ;     "log-type": "execution",
 ;     "user": "<student>@cs.brown.edu",
@@ -101,24 +104,31 @@
 ;     "mode": "forge/core",
 ; }
 (define (log-execution language datum)
-  (define user (format "~a" (second datum)))
-  (define filename (path->string (path->complete-path (find-system-path 'run-file))))
-  (define project (format "~a" (first datum)))
-  (define time (current-seconds))
-  (define raw (file->string filename))
-  (define mode (format "~a" language))
+  (define project (first datum))
+  (define user (second datum))
+  (if (and (string? project) (string? user))
+      (let ()
+        (logging-on? #t)
+        (define filename (path->string (path->complete-path (find-system-path 'run-file))))
+        (define time (current-seconds))
+        (define raw (file->string filename))
+        (define mode (format "~a" language))
 
-  (verify-header user project filename)
+        (verify-header user project filename)
 
-  (write-log (hash 'log-type "execution"
-                   'user user
-                   'filename filename
-                   'project project
-                   'time time
-                   'raw raw
-                   'mode mode))
+        (write-log (hash 'log-type "execution"
+                         'user user
+                         'filename filename
+                         'project project
+                         'time time
+                         'raw raw
+                         'mode mode))
 
-  (drop datum 2))
+        (drop datum 2))
+
+      (let ()
+        (logging-on? #f)
+        datum)))
 
 ; (struct Run (
 ;   name     ; Symbol
