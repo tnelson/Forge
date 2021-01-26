@@ -33,7 +33,7 @@ check ConnectedKittyBacon_equals_SuperConnected for exactly 5 Cat
 one sig FFF  {membersOfFoundation: set Cat} 
 pred FancyFelineFoundation {
     ConnectedKittyBacon
-    FFF.membersOfFoundation = KittyBacon.connectionsOf
+    FFF.membersOfFoundation = KittyBacon.connectionsOf 
 }
 pred KittyBaconIsAFancyFeline {
     FancyFelineFoundation implies KittyBacon in FFF.membersOfFoundation

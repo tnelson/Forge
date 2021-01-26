@@ -63,12 +63,16 @@ pred KittyBaconIsAFancyFeline {
     FancyFelineFoundation implies KittyBacon in FFF.membersOfFoundation
 }
 
-
---run KittyBaconIsAFancyFeline for exactly 4 Cat 
-
-check KittyBaconIsAFancyFeline for exactly 4 Cat -- no counterexample
-
+--check KittyBaconIsAFancyFeline for exactly 4 Cat -- no counterexample
 // Question from handout: Why is this failing? Well, KittyBacon is never part of
 // her connections! So there is an overconstraint. Students need to modify the
 // FancyFelineFoundation predicate to define FFF.membersOfFoundation = KittyBacon.connectionsOf + Kitty
-// Bacon 
+// Bacon
+
+pred seeAllCats {
+    FancyFelineFoundation
+    KittyBacon in FFF.membersOfFoundation
+}
+
+run seeAllCats for exactly 4 Cat 
+
