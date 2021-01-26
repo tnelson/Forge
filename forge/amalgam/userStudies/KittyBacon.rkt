@@ -75,4 +75,3 @@ pred seeAllCats {
 }
 
 run seeAllCats for exactly 4 Cat 
-
