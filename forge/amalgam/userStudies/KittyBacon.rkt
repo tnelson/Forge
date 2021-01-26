@@ -52,23 +52,23 @@ pred ConnectedKittyBacon_equals_SuperConnected {
 
 -- FancyFelineFoundation
 
-one sig FFF  { membersOfClub: set Cat } 
+one sig FFF  { membersOfFoundation: set Cat } 
 
 pred FancyFelineFoundation {
     ConnectedKittyBacon
-    FFF.membersOfClub = KittyBacon.connectionsOf + KittyBacon
+    FFF.membersOfFoundation = KittyBacon.connectionsOf + KittyBacon
 }
 
 pred KittyBaconIsAFancyFeline {
-    FancyFelineFoundation implies KittyBacon in FFF.membersOfClub
+    FancyFelineFoundation implies KittyBacon in FFF.membersOfFoundation
 }
 
 
-//run KittyBaconIsAFancyFeline for exactly 4 Cat 
+--run KittyBaconIsAFancyFeline for exactly 4 Cat 
 
-check KittyBaconIsAFancyFeline for exactly 4 Cat -- no counterexample 
+check KittyBaconIsAFancyFeline for exactly 4 Cat -- no counterexample
 
 // Question from handout: Why is this failing? Well, KittyBacon is never part of
 // her connections! So there is an overconstraint. Students need to modify the
-// FancyFelineFoundation predicate to define FFF.membersOfClub = KittyBacon.connectionsOf + Kitty
+// FancyFelineFoundation predicate to define FFF.membersOfFoundation = KittyBacon.connectionsOf + Kitty
 // Bacon 
