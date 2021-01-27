@@ -1,6 +1,7 @@
 #lang racket
 
 (require forge/sigs-structs)
+(require forge/translate-from-kodkod-cli)
 (require json)
 (require basedir)
 (require request)
@@ -22,12 +23,14 @@
 (define log-post-url 
   (string->url "https://us-central1-pyret-examples.cloudfunctions.net/forge-logging"))
 (define (flush-logs)
-  (println
-    (with-handlers ([exn:fail:network? (thunk* #f)])
-      (define payload (jsexpr->bytes (map string->jsexpr (file->lines log-file))))
-      (define response (post http-requester log-post-url payload))
-      (and (equal? (http-response-code response) 201)
-           (call-with-output-file log-file (thunk* #t) #:exists 'replace)))))
+  (when (logging-on?)
+    (println
+      (with-handlers ([exn:fail:network? (thunk* #f)])
+        (define payload (jsexpr->bytes (map string->jsexpr (file->lines log-file))))
+        (define response (post http-requester log-post-url payload))
+        (println response)
+        (and (equal? (http-response-code response) 201)
+             (call-with-output-file log-file (thunk* #t) #:exists 'replace))))))
 
 (define (write-log value)
   (when (logging-on?)
@@ -103,9 +106,9 @@
 ;     "raw": "#lang forge/core\n...",
 ;     "mode": "forge/core",
 ; }
-(define (log-execution language datum)
-  (define project (first datum))
-  (define user (second datum))
+(define (log-execution language stx)
+  (define project (syntax->datum (first stx)))
+  (define user (syntax->datum (second stx)))
   (if (and (string? project) (string? user))
       (let ()
         (logging-on? #t)
@@ -124,11 +127,11 @@
                          'raw raw
                          'mode mode))
 
-        (drop datum 2))
+        (drop stx 2))
 
       (let ()
         (logging-on? #f)
-        datum)))
+        stx)))
 
 ; (struct Run (
 ;   name     ; Symbol
@@ -186,37 +189,30 @@
 ;         },
 ; }
 (define (log-instance run-id run instance)
-  (define label (car instance))
   (cond
-    [(equal? label 'unsat)
-     (define core (cdr instance))
-     (write-log (hash 'log-type "instance"
-                      'run-id run-id
-                      'label "unsat"
-                      'core core))]
-    [(equal? label 'no-more-instances)
+    [(and (Unsat? instance) (equal? (Unsat-kind instance) 'no-more-instances))
      (write-log (hash 'log-type "instance"
                       'run-id run-id
                       'label "no-more-instances"))]
-    [(equal? label 'sat)
-     (define true-instance (cdr instance))
-     (define sig-map
-       (for/hash ([sig (get-sigs run)]
-                  #:unless (equal? (Sig-name sig) 'Int))
-         (values (Sig-name sig)
-                 (map (curry map (curry format "~a"))
-                      (hash-ref true-instance (Sig-rel sig))))))
-     (define relation-map
-       (for/hash ([relation (get-relations run)]
-                  #:unless (equal? (Relation-name relation) 'succ))
-         (values (Relation-name relation)
-                 (map (curry map (curry format "~a"))
-                      (hash-ref true-instance (Relation-rel relation))))))
+    [(Unsat? instance)
+     (write-log (hash 'log-type "instance"
+                      'run-id run-id
+                      'label "unsat"
+                      'core (format "~a" (Unsat-core instance))))]
+     
+    [(Sat? instance)
+     (define true-instances 
+       (for/list ([true-instance (Sat-instances instance)])
+         (for/hash ([(name atoms) true-instance])
+           (values name 
+                   (for/list ([tuple atoms])
+                     (for/list ([atom tuple])
+                       (symbol->string atom)))))))
+     
      (write-log (hash 'log-type "instance"
                       'run-id run-id
                       'label "sat"
-                      'sigs sig-map
-                      'relations relation-map))])
+                      'instances true-instances))])
   instance)
 
 ; {
@@ -234,9 +230,9 @@
 (define (log-test test instance expected)
   (define passed
     (cond
-      [(equal? expected 'sat) (equal? (car instance) 'sat)]
-      [(equal? expected 'unsat) (equal? (car instance) 'unsat)]
-      [(equal? expected 'theorem) (equal? (car instance) 'unsat)]))
+      [(equal? expected 'sat) (Sat? instance)]
+      [(equal? expected 'unsat) (Unsat? instance)]
+      [(equal? expected 'theorem) (Unsat? instance)]))
 
   (define sigs (map (compose symbol->string Sig-name)
                     (get-sigs test)))
@@ -244,7 +240,7 @@
                          (get-relations test)))
 
   (write-log (hash 'log-type "test"
-                   'raw (format "~a" (syntax->datum (Run-command test)))
+                   'raw (syntax->datum (Run-command test))
                    'expected (symbol->string expected)
                    'passed passed
                    'spec (hash 'sigs sigs
@@ -259,6 +255,8 @@
 
 (require syntax/parse/define)
 (define-simple-macro (log-errors commands ...)
-  (with-handlers ([(thunk* #t) log-error])
+  (begin
+    (define old-exception-handler (uncaught-exception-handler))
+    (uncaught-exception-handler log-error)
     commands ...
-    (void)))
+    (uncaught-exception-handler old-exception-handler)))

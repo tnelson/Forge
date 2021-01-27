@@ -100,7 +100,7 @@
 
 (struct Run (
   name     ; Symbol
-  command  ; String (syntax)
+  command  ; Syntax
   run-spec ; Run-spec
   result   ; Stream
   server-ports ; Server-ports

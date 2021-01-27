@@ -42,7 +42,7 @@ CREATE TABLE executions (
     id SERIAL PRIMARY KEY,
     file_id INTEGER REFERENCES files(id),
     snapshot TEXT,
-    time TIME,
+    time INTEGER,
     mode TEXT
 );
 

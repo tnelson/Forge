@@ -439,7 +439,7 @@
 ;      [#:scope [((sig [lower 0] upper) ...)]]
 ;      [#:inst instance-name])
 (define-syntax (run stx)
-  (define command (format "~a" stx))
+  (define command stx)
 
   (syntax-parse stx
     [(run name:id
@@ -508,7 +508,7 @@
         (when (~? (or #t 'target-contrast) #f)
           (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
 
-        (define run-command #,command)        
+        (define run-command #'#,command)        
         
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
         (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))

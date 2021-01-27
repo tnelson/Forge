@@ -92,7 +92,7 @@ def handle(request):
     try:
         for execution in executions:
             add_to_database(execution)
-    except:
+    except Exception as err:
         print(f"ERROR (in writing to database): {err}")
         return ("Error when writing to database.", 400, {})
 
@@ -150,13 +150,7 @@ input:
         "log-type": "instance",
         "run-id": 0,
         "label": "sat",
-        "sigs": {
-                "A": ["A0", "A1", "A2"],
-                "B": ["B0", "B1"],
-            },
-        "relations": {
-                "r": [["A0", "B0"], ["A0", "B1"], ["A1", "B1"]],
-            },
+        "instancs": [...]
     }
     {
         "log-type": "instance",
@@ -175,14 +169,7 @@ def load_instance(log, execution):
     label = log["label"]
     if label == "sat":
         run["result"] = "sat"
-
-        instances = run.get("instances", [])
-        instances.append({
-                "sigs": log["sigs"],
-                "relations": log["relations"]
-            })
-        run["instances"] = instances
-
+        run["instances"] = run.get("instances", []) + log["instances"]
         run["no-more-instances"] = False
     elif label == "no-more-instances":
         run["no-more-instances"] = True
@@ -213,6 +200,10 @@ def load_test(log, execution):
             "passed": log["passed"]
         })
 
+def get_column(result_proxy, column):
+    tuples = result_proxy.fetchall()
+    return [tup[column] for tup in tuples]
+
 """
 input:
     {
@@ -228,20 +219,20 @@ input:
 """
 def add_to_database(execution):
     def get_user_id(connection, user_name):
-        command = text("""
+        command = sqlalchemy.text("""
             SELECT id 
             FROM students 
             WHERE email=:email
             """)
-        user_id_list = connection.execute(command, email=user_name)
+        user_id_list = get_column(connection.execute(command, email=user_name), 'id')
 
         if len(user_id_list) == 0:
-            command = text("""
+            command = sqlalchemy.text("""
                 INSERT INTO students(email) 
                 VALUES (:email)
                 RETURNING id
                 """)
-            return connection.execute(command, email=user_name)
+            return get_column(connection.execute(command, email=user_name), 'id')[0]
         elif len(user_id_list) == 1:
             return user_id_list[0]
         else:
@@ -249,52 +240,52 @@ def add_to_database(execution):
 
 
     def get_project_id(connection, project_name):
-        command = text("""
+        command = sqlalchemy.text("""
             SELECT id 
             FROM projects 
             WHERE name=:name
             """)
-        project_id_list = connection.execute(command, name=project_name)
+        project_id_list = get_column(connection.execute(command, name=project_name), 'id')
 
         if len(project_id_list) == 0:
-            command = text("""
+            command = sqlalchemy.text("""
                 INSERT INTO projects(name) 
                 VALUES (:name)
                 RETURNING id
                 """)
-            return connection.execute(command, name=project_name)
+            return get_column(connection.execute(command, name=project_name), 'id')[0]
         elif len(project_id_list) == 1:
             return project_id_list[0]
         else:
             raise Exception("Found multiple projects with that name.")
 
 
-    def get_file_id_and_contents(connection, file_name, user_id, project_id):
-        command = text("""
-            SELECT id, current_contents
+    def get_file_id(connection, file_name, raw, user_id, project_id):
+        command = sqlalchemy.text("""
+            SELECT id
             FROM files 
             WHERE name=:name
             AND   student_id=:student_id
             AND   project_id=:project_id
             """)
-        file_id_list = connection.execute(
+        file_id_list = get_column(connection.execute(
             command, 
-            name=project_name,
+            name=file_name,
             student_id=user_id,
-            project_id=project_id)
+            project_id=project_id), 'id')
 
         if len(file_id_list) == 0:
-            command = text("""
+            command = sqlalchemy.text("""
                 INSERT INTO files(name, student_id, project_id, current_contents) 
                 VALUES (:name, :student_id, :project_id, :current_contents)
                 RETURNING id, current_contents
                 """)
-            return connection.execute(
+            return get_column(connection.execute(
                 command, 
-                name=project_name,
+                name=file_name,
                 student_id=user_id,
                 project_id=project_id,
-                current_contents="")
+                current_contents=raw), 'id')[0]
 
         elif len(file_id_list) == 1:
             return file_id_list[0]
@@ -302,31 +293,32 @@ def add_to_database(execution):
             raise Exception("Found multiple files with that name for given user and project.")
 
     def get_execution_id(connection, time, mode, contents, file_id):
-        command = text("""
+        command = sqlalchemy.text("""
             INSERT INTO executions(file_id, snapshot, time, mode)
             VALUES (:file_id, :snapshot, :time, :mode)
             RETURNING id
             """)
-        return connection.execute(
+        result = connection.execute(
             command,
             file_id=file_id,
             snapshot=contents,
             time=time,
             mode=mode)
+        return get_column(result, 'id')[0]
 
     def add_runs(connection, runs, execution_id):
         for run in runs:
-            command = text("""
+            command = sqlalchemy.text("""
                 INSERT INTO commands(execution_id, command)
                 VALUES (:execution_id, :command)
                 RETURNING id
                 """)
-            command_id = connection.execute(
+            command_id = get_column(connection.execute(
                 command,
                 execution_id=execution_id,
-                command=run["raw"])
+                command=run["raw"]), 'id')[0]
 
-            command = text("""
+            command = sqlalchemy.text("""
                 INSERT INTO runs(command_id, result)
                 VALUES (:command_id, :result)
                 """)
@@ -336,7 +328,7 @@ def add_to_database(execution):
                 result=run["result"])
 
             if run["result"] == "core":
-                command = text("""
+                command = sqlalchemy.text("""
                     INSERT INTO cores(command_id, core)
                     VALUES (:command_id, :core)
                     """)
@@ -346,7 +338,7 @@ def add_to_database(execution):
                     core=run["core"])
             elif run["result"] == "sat":
                 for instance in run["instances"]:
-                    command = text("""
+                    command = sqlalchemy.text("""
                         INSERT INTO instances(command_id, model)
                         VALUES (:command_id, :model)
                         """)
@@ -357,17 +349,17 @@ def add_to_database(execution):
 
     def add_tests(connection, tests, execution_id):
         for test in tests:
-            command = text("""
+            command = sqlalchemy.text("""
                 INSERT INTO commands(execution_id, command)
                 VALUES (:execution_id, :command)
                 RETURNING id
                 """)
-            command_id = connection.execute(
+            command_id = get_column(connection.execute(
                 command,
                 execution_id=execution_id,
-                command=test["raw"])
+                command=test["raw"]), 'id')[0]
 
-            command = text("""
+            command = sqlalchemy.text("""
                 INSERT INTO tests(command_id, expected, passed)
                 VALUES (:command_id, :expected, :passed)
                 """)
@@ -377,14 +369,14 @@ def add_to_database(execution):
                 expected=test["expected"],
                 passed=test["passed"])
 
-    with engin.begin() as connection:
+    with engine.begin() as connection:
         user_id = get_user_id(connection, execution["user"])
         project_id = \
             get_project_id(
                 connection, 
                 execution["project"])
-        file_id, prev_file_contents = \
-            get_file_id_and_contents(
+        file_id = \
+            get_file_id(
                 connection, 
                 execution["filename"], 
                 execution["raw"], 
