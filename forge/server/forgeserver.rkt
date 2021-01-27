@@ -57,8 +57,10 @@
                ((hash-ref contrast-model-generators type)))
     (hash-ref contrast-models type))
 
+  (define command-string (format "~a" (syntax->datum command)))
+
   (define (get-xml model)
-    (solution-to-XML-string model relation-map name command filepath bitwidth forge-version))
+    (solution-to-XML-string model relation-map name command-string filepath bitwidth forge-version))
 
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))

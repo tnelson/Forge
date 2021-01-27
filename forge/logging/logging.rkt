@@ -106,12 +106,17 @@
 ;     "raw": "#lang forge/core\n...",
 ;     "mode": "forge/core",
 ; }
-(define (log-execution language stx)
-  (define project (syntax->datum (first stx)))
-  (define user (syntax->datum (second stx)))
+(define (log-execution language port)
+  (define peek-port (peeking-input-port port))
+  (define project (read peek-port))
+  (define user (read peek-port))
+  (close-input-port peek-port)
+
   (if (and (string? project) (string? user))
       (let ()
         (logging-on? #t)
+        (read port)
+        (read port)
         (define filename (path->string (path->complete-path (find-system-path 'run-file))))
         (define time (current-seconds))
         (define raw (file->string filename))
@@ -125,13 +130,10 @@
                          'project project
                          'time time
                          'raw raw
-                         'mode mode))
-
-        (drop stx 2))
+                         'mode mode)))
 
       (let ()
-        (logging-on? #f)
-        stx)))
+        (logging-on? #f))))
 
 ; (struct Run (
 ;   name     ; Symbol
@@ -240,7 +242,7 @@
                          (get-relations test)))
 
   (write-log (hash 'log-type "test"
-                   'raw (syntax->datum (Run-command test))
+                   'raw (format "~a" (syntax->datum (Run-command test)))
                    'expected (symbol->string expected)
                    'passed passed
                    'spec (hash 'sigs sigs
