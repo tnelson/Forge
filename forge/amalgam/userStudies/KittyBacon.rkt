@@ -50,27 +50,28 @@ pred ConnectedKittyBacon_equals_SuperConnected {
 -- Kitty Bacon.connectionsOf is adjusted according to the increase in number of cats. 
 -- Even if it worked for a large number of cats, it wouldn't work for ANY number of cats.
 
--- CoolCatClub
+-- FancyFelineFoundation
 
-one sig CCC  {
-    membersOfClub: set Cat
-} 
+one sig FFF  { membersOfFoundation: set Cat } 
 
-pred CoolCatClub {
+pred FancyFelineFoundation {
     ConnectedKittyBacon
-    CCC.membersOfClub = KittyBacon.connectionsOf + KittyBacon
+    FFF.membersOfFoundation = KittyBacon.connectionsOf + KittyBacon
 }
 
-pred KittyBaconIsCool {
-    CoolCatClub
-    KittyBacon in CCC.membersOfClub
+pred KittyBaconIsAFancyFeline {
+    FancyFelineFoundation implies KittyBacon in FFF.membersOfFoundation
 }
 
-//run KittyBaconIsCool for exactly 4 Cat 
-
-//check KittyBaconIsCool for exactly 4 Cat -- no counterexample 
-
+--check KittyBaconIsAFancyFeline for exactly 4 Cat -- no counterexample
 // Question from handout: Why is this failing? Well, KittyBacon is never part of
 // her connections! So there is an overconstraint. Students need to modify the
-// CoolCatClub predicate to define CCC.members = KittyBacon.connectionsOf + Kitty
-// Bacon 
+// FancyFelineFoundation predicate to define FFF.membersOfFoundation = KittyBacon.connectionsOf + Kitty
+// Bacon
+
+pred seeAllCats {
+    FancyFelineFoundation
+    KittyBacon in FFF.membersOfFoundation
+}
+
+run seeAllCats for exactly 4 Cat 
