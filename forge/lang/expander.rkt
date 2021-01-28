@@ -321,8 +321,12 @@
              #:attr v #'value)
     (pattern ((~literal OptionDecl) name:QualNameClass value:NumberClass)
              #:attr n #'name.name
-             #:attr v #'value.value))
+             #:attr v #'value.value)
+    (pattern ((~literal OptionDecl) name:QualNameClass "-" value:NumberClass)
+             #:attr n #'name.name
+             #:attr v (quasisyntax #,(* -1 (syntax->datum #'value.value)))))
 
+ 
   ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
   (define-syntax-class BlockClass
     (pattern ((~literal Block)
