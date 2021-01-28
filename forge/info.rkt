@@ -5,18 +5,47 @@
 (define version "0.8.1")
 
 (define deps '("base"
-               "br-parser-tools-lib"
-               "brag-lib"
-               "net-lib"
-               "profile-lib"
-               "rackunit-lib"
-               "syntax-color-lib"
-               "web-server-lib"
-               "beautiful-racket" "predicates"))
+               "syntax-classes"       ; used in parser and expander
+               "br-parser-tools-lib"  ; used in parser
+               "brag-lib"             ; used in parser
+               "beautiful-racket"     ; used in indenter
+               "syntax-color-lib"     ; used in syntax coloring for #lang forge
+               "net-lib"              ; ???
+               "profile-lib"          ; ???
+               "crypto-lib"           ; ???
+               "rackunit-lib"         ; used for Forge tests               
+               "web-server-lib"       ; used for Sterling server                                             
+               "mischief"             ; for amalgam (stream cartesian product)
+               "gui-lib"              ; for syntax highlighting in tool
+               "drracket-plugin-lib"  ; for tool
+               "pretty-format"        ; for occasional wrapping of large formulas
+               "predicates"           ; for occasional ease of defining boolean-valued functions
+               ))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
-(define compile-omit-paths '("examples" "doc" "tests"))
+(define compile-omit-paths '("example" "examples" "doc" "tests" 
+                             "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"
+                             ; TODO: remove solver invocations/slow runs from this file
+                             "amalgam.rkt"
+                             ))
 
-(define test-omit-paths '("compiled" "demo" "docs" "examples" "kodkod-cli"
-	                      "racket-rfc6455" "server" "sterling" "sterling-js"))
+(define drracket-tools (list (list "tool.rkt")))
+(define drracket-tool-names (list "Forge DrRacket Integration"))
+
+; omit the check-ex-spec folder, since those still contain some examples that 404
+; ditto testme folder, related to check-ex-spec
+;   ???: confirm, fix
+; omit the new-mode folder, since this is a bit outdated
+;   ???: confirm, fix
+; omit the example/store files; at least one uses outstated instance syntax
+;   ???: confirm, fix
+; omit the examples folder -- these are largely outdated syntax from 2020
+;   ???: confirm, fix
+(define test-omit-paths (list "check-ex-spec"
+                              "testme"
+                              "new-mode"
+                              "example/new-mode"
+                              "example/store/"
+                              "examples"
+                              "OLD"))

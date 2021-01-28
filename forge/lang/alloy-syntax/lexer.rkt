@@ -1,4 +1,5 @@
-#lang br/quicklang
+#lang racket/base
+
 (require brag/support)
 (require (rename-in br-parser-tools/lex-sre [- :-] [+ :+]))
 
@@ -39,7 +40,7 @@
     (token+ 'RESERVED-TOK "" lexeme "" lexeme-start lexeme-end)]
    ;; numeric
    [(or "0" (: (char-range "1" "9") (* (char-range "0" "9"))))
-    (token+ 'NUM-CONST-TOK "" lexeme "" lexeme-start lexeme-end)]
+    (token+ 'NUM-CONST-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
 
    ["->" (token+ 'ARROW-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["." (token+ 'DOT-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -75,7 +76,8 @@
    ["disj"      (token+ `DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["else"      (token+ `ELSE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)]   
+   ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)] 
+   ["example"   (token+ `EXAMPLE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["expect"    (token+ `EXPECT-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["extends"   (token+ `EXTENDS-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["fact"      (token+ `FACT-TOK "" lexeme "" lexeme-start lexeme-end)]  
@@ -100,6 +102,7 @@
    ["some"      (token+ `SOME-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["sum"       (token+ `SUM-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    ["test"      (token+ `TEST-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["theorem"   (token+ `THEOREM-TOK "" lexeme "" lexeme-start lexeme-end)] 
    ["two"       (token+ `TWO-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
@@ -113,6 +116,20 @@
    ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
 
+   ; Electrum operators
+   ["always"  (token+ `ALWAYS-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["eventually"  (token+ `EVENTUALLY-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["after"  (token+ `AFTER-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["until"  (token+ `UNTIL-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["releases"  (token+ `RELEASE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ; Electrum var relation label
+   ["var"  (token+ `VAR-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ; Electrum prime
+   ["'"  (token+ `PRIME-TOK "" lexeme "" lexeme-start lexeme-end)]      
+
+   ; Tokenize this to prevent it from being used as a sig/relation name
+   ["Time"      (token+ `TIME-TOK "" lexeme "" lexeme-start lexeme-end)]
+   
    ;; int stuff
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -134,7 +151,9 @@
    ;["_" (token+ 'UNDERSCORE-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; identifiers
-   [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
+   ;[(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
+   ; Don't allow priming
+   [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -155,7 +174,10 @@
            "check"
            "disj"
            "else"
+           "eval"
            "exactly"
+           "example"
+           "expect"
            "extends"
            "fact"
            "for"
@@ -187,6 +209,7 @@
            "expect"
            "sat"
            "unsat"
+           "theorem"
            "univ"
            "break"
            
@@ -197,6 +220,15 @@
            "bind"
            "option"
            "inst"
+
+           "always"
+           "eventually"
+           "after"
+           "until"
+           "releases"
+           "var"
+           "'"
+           "Time"
 
            'Int
            'sum
@@ -231,7 +263,9 @@
   (let ([l0 (string-length left)] 
         [l1 (string-length right)]
         [trimmed (trim-ends left lex right)])
-    (token type (if sym? (string->symbol trimmed) trimmed)
+    (token type (cond [(and sym? (string->number trimmed)) (string->number trimmed)]
+                      [sym? (string->symbol trimmed)]
+                      [else trimmed])
            #:position (+ (pos lex-start) l0)
            #:line (line lex-start)
            #:column (+ (col lex-start) l0)

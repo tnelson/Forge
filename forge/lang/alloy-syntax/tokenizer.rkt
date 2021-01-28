@@ -1,4 +1,6 @@
-#lang br/quicklang
+#lang racket/base
+
+(require racket/string)
 (require brag/support)
 (require (rename-in br-parser-tools/lex-sre [- :-] [+ :+]) "lexer.rkt")
 

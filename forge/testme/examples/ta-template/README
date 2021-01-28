@@ -1,0 +1,19 @@
+
+## One-time setup
+
+1. Use this template to make private TA repo.
+2. Make a public student repo.
+3. Run "bash setup.sh <student repo url>".
+
+## New assignment
+
+1. Create a new directory "assignments/<assignment name>/".
+2. Create sub-directories "wheats" and "chaffs".
+
+OR
+
+1. Run "bash new.sh <assignment name>".
+
+## Publish assignment
+
+1. Run "bash publish.sh <assignment name>".

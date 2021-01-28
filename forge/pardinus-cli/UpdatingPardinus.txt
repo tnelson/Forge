@@ -1,0 +1,17 @@
+From command line:
+1. cd <pardinus-repo-parent-dir>/Pardinus
+2. git checkout ENGN1970
+3. mvn -Dmaven.test.skip=true install
+	If it runs tests, it fails a couple so the build fails
+	and the jar doesn't appear.
+	However, it compiles properly so we still get a nice jar
+	if we skip running the tests.
+	This will create pardinus-1.2.3.jar in the Pardinus/target directory.
+4. cd <forge-reop-parent-dir>/Forge/forge/pardinus-cli/jar
+5. cp <pardinus-repo-parent-dir>/Pardinus/target/pardinus-1.2.3.jar kodkod.jar
+	For now, I'm still calling it kodkod.jar -
+	I'll deal with renaming after we know it works.
+	Also, you don't need kodkod-cli.jar anymore if it's in there.
+6. cd ../..
+7. raco pkg remove forge
+8. raco pkg install

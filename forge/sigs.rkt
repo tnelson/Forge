@@ -1,1385 +1,1431 @@
 #lang racket
 
-(require "lang/ast.rkt" "lang/bounds.rkt" (prefix-in @ racket) "server/forgeserver.rkt"
-         "kodkod-cli/server/kks.rkt" "kodkod-cli/server/server.rkt"
-         "kodkod-cli/server/server-common.rkt" "translate-to-kodkod-cli.rkt" "translate-from-kodkod-cli.rkt" racket/stxparam br/datum
-         "breaks.rkt"
-         "demo/life.rkt")
+(require (prefix-in @ racket) 
+         (prefix-in @ racket/set))
+(require syntax/parse/define)
+(require racket/match)
+(require (for-syntax racket/match syntax/srcloc))
 
-; racket/string needed for replacing transpose operator (~) with escaped version in error messages
-(require (for-syntax racket/syntax)
-         (for-syntax racket/string))
-(require racket/trace)
-
-(provide break instance quote begin println filepath set-path! let void)
-
-(define filepath #f)
-(define (set-path! path)
-  (set! filepath path))
-
-(define lower-bounds (make-hash))
-(define upper-bounds (make-hash))
-(define top-level-leftovers (make-hash))
-(define top-extras (make-hash))
-
-(define-for-syntax sig-to-fields (make-hash))
-
-;Default bound
-(define top-level-bound 4)
-;Track what sigs exist in the universe (ints always do)
-(define sigs '())
-;Track singletons to instantiate an ocelot universe
-(define working-universe '())
-;Map from relations to lists of types
-(define relations-store (make-hash))
-;Map from sigs to sigs to track hierarchy
-(define extensions-store (make-hash))
-;Opposite direction of extensions-store
-(define parents (make-hash))
-;Map from relations to explicit bounds
-(define bounds-store (make-hash))
-;Map from relations to int bounds
-(define int-bounds-store (make-hash))
-;Extra constraints on the model (e.g. facts, relation constraints, etc.)
-(define constraints '())
-(define run-constraints '())  ; just for a single run
-;Run names
-(define run-names '())
-;Bitwidth
-(define bitwidth 4)
-
-;Solver choice: default to MiniSat (no cores, so no proof overhead, faster than SAT4J)
-; ^ Except that MiniSat isn't built for 64 bit windows, so maximize chances of working
-(define solveroption 'SAT4J)
-; max symmetry-breaking predicate size. Alloy's default was 20; set to 0 to disable SB
-(define sboption 20)
-; core granularity and log translation --- affect core quality (see kodkod docs)
-(define coregranoption 0)
-(define logtransoption 1)
-(define demo #f)
-
-; set of one sigs
-(define one-sigs (mutable-set))
-; set of abstract sigs
-(define abstract-sigs (mutable-set))
-; is the current command using exactly
-(define is-exact #f)
-(define (set-is-exact) (set! is-exact #t))
-; user defined exact bindings
-(define bindings (make-hash))
-; user defined partial bindings
-(define pbindings (make-hash))
-; function and predicate datums for evaluator
-(define funs-n-preds (make-hash))
-
-(define (clear-state)
-  (clear-breaker-state) ; breakers has done its job if this command had fancy-bounds; clean for next command
-  (set! working-universe empty) ; clear out the working universe for next command or else "(univ X)" will grow in kk
-  (set! int-bounds-store (make-hash))
-  (set! is-exact #f)
-  (set! lower-bounds (make-hash))
-  (set! upper-bounds (make-hash))
-  (set! top-level-leftovers (make-hash))
-  (set! top-extras (make-hash))
-  (set! run-constraints '())
-  (set! bindings (make-hash))
-  (set! pbindings (make-hash)))
-
-(provide define-for-evaluator)
-(define (define-for-evaluator name args block) (hash-set! funs-n-preds name (list args block)))
-
-; For verbosity, etc. that must be shared without cyclic dependency
 (require "shared.rkt")
+(require "lang/ast.rkt"
+         "lang/bounds.rkt"
+         "breaks.rkt")
+(require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
+(require "server/eval-model.rkt")
+(require "server/forgeserver.rkt") ; v long
+(require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
+         (prefix-in kodkod: "kodkod-cli/server/server.rkt")
+         (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
+(require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
+         (prefix-in pardinus: "pardinus-cli/server/server.rkt")
+         (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
+(require "translate-to-kodkod-cli.rkt"
+         "translate-from-kodkod-cli.rkt"
+         "last-checker.rkt"
+         "sigs-structs.rkt")
 
-(define-syntax-rule (debug x) (begin (printf "~a: ~a~n" 'x x) x))
+; Commands
+(provide sig relation fun const pred inst)
+(provide run check test example display with evaluate)
+(provide instance-diff)
 
-; Filter options to prevent user from rewriting any global
-; Note that we cannot use dash in option names
-(define (set-option key val)
-  (println key)
-  (println val)
-  (match key
-    ['solver (set! solveroption val)]
-    ['verbosity (set-verbosity val)]
-    ['verbose (set-verbosity val)]
-    ['coregranularity (set! coregranoption val)]
-    ['sb (set! sboption val)]
-    ['logtranslation (set! logtransoption val)]
-    ['demo
-     (match val
-       ['life (set! demo 'life)]
-       [else (error (format "Invalid option key: ~a" key))])]
-    [else (error (format "Invalid option key: ~a" key))]))
+; Instance analysis functions
+(provide is-sat? is-unsat?)
 
-(define (set-bitwidth i) (set! bitwidth i))
+; export AST macros and struct definitions (for matching)
+; Make sure that nothing is double-provided
+(provide (all-from-out "lang/ast.rkt"))
 
-(struct int-bound (lower upper) #:transparent)
+; Racket stuff
+(provide let quote)
 
-; Deprecated - we've removed facts from the surface language and also I'm not sure they work with state-cleaning
-(define (fact form)
-  (set! constraints (cons form constraints)))
+; Technical stuff
+(provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
+(provide set-path!)
+(provide set-option!)
+(define (set-path! path) #f)
 
+; Data structures
+(provide (prefix-out forge: (struct-out Sig))
+         (prefix-out forge: (struct-out Relation))
+         (prefix-out forge: (struct-out Range))
+         (prefix-out forge: (struct-out Scope))
+         (prefix-out forge: (struct-out Bound))
+         (prefix-out forge: (struct-out Options))
+         (prefix-out forge: (struct-out State))
+         (prefix-out forge: (struct-out Run-spec))
+         (prefix-out forge: (struct-out Run))         
+         (prefix-out forge: (struct-out sbound)))
 
-(provide pre-declare-sig declare-one-sig declare-sig set-top-level-bound sigs pred)
-(provide run check test fact)
-(provide Int iden univ none)
-(provide no some one lone all two)
-(provide + - ^ & ~ join !)
-(provide set in )
-(provide = -> * => not and or)
-(provide set-bitwidth)
-(provide < > int=)
-(provide add subtract multiply divide sign abs remainder)
-(provide card sum sing succ max min)
-(provide add-relation set-option)
-
-(define (add-relation rel types)
-  (hash-set! relations-store rel types))
-
-(define-syntax (pred stx)
-  (syntax-case stx ()
-    [(_ (name vars ...) form) #'(define (name vars ...) form)]
-    [(_ name form) #'(define name form)]))
-
-(define (add-constraint c) (set! constraints (cons c constraints)))
-(define (add-constraints cs) (set! constraints (append cs constraints)))
-(define (add-run-constraint c) (set! run-constraints (cons c run-constraints)))
-(define (add-run-constraints cs) (set! run-constraints (append cs run-constraints)))
-
-(define (add-extension child parent)
-  (if (equal? parent univ)
-      #f
-      (if (hash-has-key? parents parent)
-          (hash-set! parents parent (cons child (hash-ref parents parent)))
-          (hash-set! parents parent (list child))))
-  (hash-set! extensions-store child parent))
-
-(define (update-int-bound rel new)
-  ; if int-bounds are already defined, intersect the old/new intervals
-  (cond [(hash-has-key? int-bounds-store rel)
-         (define old (hash-ref int-bounds-store rel))
-         (define lower (@max (int-bound-lower old) (int-bound-lower new)))
-         (define upper (@min (int-bound-upper old) (int-bound-upper new)))
-         (when (@> lower upper) (error (format "conflicting int-bounds: no [~a, ~a] & [~a, ~a]"
-                                               (int-bound-lower old) (int-bound-upper old) (int-bound-lower new) (int-bound-upper new))))
-         (hash-set! int-bounds-store rel (int-bound lower upper))
-         ][else
-           (hash-set! int-bounds-store rel new)]))
-
-; It's possible for there to exist reference cycles in sig fields.
-; The reader lifts sig declarations to the top level to ensure that
-; sigs are bound before all the relation declarations occur.
-(define-syntax (pre-declare-sig stx)
-  (syntax-case stx ($remainder-sig$)
-    [(_ name)
-     #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) "univ" (symbol->string 'name)))
-         (add-sig name))]
-    [(_ name #:extends parent)
-     #'(begin
-         (define name (declare-relation (list (symbol->string 'name)) (symbol->string 'parent) (symbol->string 'name)))
-         (add-sig name (symbol->string 'parent)))]))
-
-(define-syntax (declare-field stx)
-  (syntax-case stx (set one lone two)
-    [(_ set name field r ...)
-     #'(begin
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
-         (add-relation field (list name r ...))
-         (add-constraint (in field (-> name r ...))))]
-    [(_ one name field r ...)
-     #'(begin
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
-         (add-relation field (list name r ...))
-         (add-constraint (in field (-> name r ...)))
-         (add-constraint (all ([n name]) (one (join n field)))))]
-    [(_ two name field r ...)
-     #'(begin
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
-         (add-relation field (list name r ...))
-         (add-constraint (in field (-> name r ...)))
-         (add-constraint (all ([n name]) (two (join n field)))))]
-    [(_ lone name field r ...)
-     #'(begin
-         (define field (declare-relation (list (symbol->string 'name) (symbol->string 'r) ...) (symbol->string 'name) (symbol->string 'field)))
-         (add-relation field (list name r ...))
-         (add-constraint (in field (-> name r ...)))
-         (add-constraint (all ([n name]) (lone (join n field)))))]))
-
-(define-syntax (declare-sig stx)
-  (syntax-case stx ()
-    [(_ name ((field mult r ...) ...))
-     (hash-set! sig-to-fields (syntax->datum #'name)
-                (syntax->datum #'(field ...)))
-     #'(begin
-         (declare-field mult name field r ...) ...)]
-    [(_ name ((field mult r ...) ...) #:extends parent)
-     (hash-set! sig-to-fields (syntax->datum #'name)
-                (append (syntax->datum #'(field ...)) (hash-ref sig-to-fields (syntax->datum #'parent))))
-     #'(begin
-         (declare-field mult name field r ...) ...
-         (add-extension name parent)
-         (add-constraint (in name parent)))]
-    [(_ name)
-     (hash-set! sig-to-fields (syntax->datum #'name) (list))
-     #'(begin)]
-    [(_ name #:extends parent)
-     (hash-set! sig-to-fields (syntax->datum #'name)
-                (hash-ref sig-to-fields (syntax->datum #'parent)))
-     #'(begin
-         (add-extension name parent)
-         (add-constraint (in name parent)))]))
-
-(define-syntax (declare-one-sig stx)
-  (define result
-    (syntax-case stx ()
-      [(_ name ((field mult r ...) ...))
-       (hash-set! sig-to-fields (syntax->datum #'name)
-                  (syntax->datum #'(field ...)))
-       #'(begin
-           (declare-field mult name field r ...) ...
-           (set-add! one-sigs name))]
-      [(_ name ((field mult r ...) ...) #:extends parent)
-       (hash-set! sig-to-fields (syntax->datum #'name)
-                  (append (syntax->datum #'(field ...)) (hash-ref sig-to-fields (syntax->datum #'parent))))
-       #'(begin
-           (declare-field mult name field r ...) ...
-           (set-add! one-sigs name)
-           (add-extension name parent)
-           (add-constraint (in name parent)))]
-      [(_ name)
-       (hash-set! sig-to-fields (syntax->datum #'name) (list))
-       #'(begin
-           (set-add! one-sigs name))]
-      [(_ name #:extends parent)
-       (hash-set! sig-to-fields (syntax->datum #'name)
-                  (hash-ref sig-to-fields (syntax->datum #'parent)))
-       #'(begin
-           (set-add! one-sigs name)
-           (add-extension name parent)
-           (add-constraint (in name parent)))]))
-  result)
-
-(define (add-sig name [parent "univ"])
-  (set! sigs (cons name sigs)))
-
-(define (set-top-level-bound b) (set! top-level-bound b))
-
-; Produce a list of constraints enforcing that <sigs> is pairwise disjoint
-(define (disjoint-list sigs)
-  (if (empty? sigs) (list true) (append (disjoint-one-list (first sigs) (rest sigs)) (disjoint-list (rest sigs)))))
-
-; Produce a list of constraints enforcing that <sig> is disjoint from everything in <sigs>
-(define (disjoint-one-list sig sigs)
-  (if (empty? sigs) (list true) (cons (no (& sig (first sigs))) (disjoint-one-list sig (rest sigs)))))
+(provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 
 
-; Recursively generates atoms that can possibly exist in a sig
-; Depracated - use next-atoms instead
-(define (generate-atoms sig lower upper)
-  (define sig-name (string->symbol (relation-name sig)))
-  (define syms (if (and (hash-has-key? bindings sig-name)
-                        (cons? (hash-ref bindings sig-name))
-                        (symbol? (caar (hash-ref bindings sig-name))))
-                   (map first (hash-ref bindings sig-name))
-                   (list)))
+; Export everything for doing scripting
+(provide (prefix-out forge: (all-defined-out)))
+(provide (prefix-out forge: (struct-out bound)))
+(provide (prefix-out forge: relation-name))
 
-  (printf "sig : ~v~n" sig)
-  (printf "syms : ~v~n" syms)
+(provide (prefix-out forge: curr-state)
+         (prefix-out forge: update-state!))
 
-  (map
-   (lambda (n)
-     (if (@< n (length syms))
-         (list-ref syms n)
-         (string->symbol (string-append (relation-name sig) (number->string n)))))
-   (range lower upper)))
+(provide (struct-out Sat)
+         (struct-out Unsat))
 
 
-; Generates the lowest n atoms for sig not already contained in lower
-(define (next-atoms sig lower ind n)
-  (if (@= n 0)
-      '()
-      (let ([name (if (and (hash-has-key? bindings sig)
-                           (@< ind (length (hash-ref bindings sig))))
-                      (list-ref (hash-ref bindings sig) ind)
-                      (string->symbol (string-append (relation-name sig) (number->string ind))))])
-        (if (member name lower)
-            (next-atoms sig lower (@+ ind 1) n)
-            (cons name (next-atoms sig (cons name lower) (@+ ind 1) (@- n 1)))))))
+; get-stdin :: Run -> input-port?
+(define (get-stdin run)
+  (assert-is-running run)
+  (Server-ports-stdin (Run-server-ports run)))
 
-; Returns a list of symbols representing atoms
-(define (compute-lower-bound parent-sig hashy-bounds)
-  (if (hash-has-key? lower-bounds parent-sig) (hash-ref lower-bounds parent-sig)
-      (let ()
-        (define lower-bound '())
-        (if (hash-has-key? parents parent-sig)
-            ; If the sig is not a leaf sig, figure out all the atoms that must be in a child sig
-            (begin
-              (for ([child (hash-ref parents parent-sig)])
-                (set! lower-bound (append (compute-lower-bound child hashy-bounds) lower-bound)))
-              (let ([additional-lower-bound (int-bound-lower (get-bound parent-sig hashy-bounds))])
-                (hash-set! top-extras parent-sig '())
-                (when (@> additional-lower-bound (length lower-bound))
-                  (let* ([extras (next-atoms parent-sig lower-bound 0 (@- additional-lower-bound (length lower-bound)))])
-                    (hash-set! top-extras parent-sig extras)
-                    (set! lower-bound (append extras lower-bound))
-                    (set! working-universe (append extras working-universe)))))
-              (hash-set! lower-bounds parent-sig lower-bound)
-              lower-bound)
-            ; Otherwise, return the lower bounds for this sig
-            (begin
-              (hash-set! top-extras parent-sig '())
-              (set! lower-bound (next-atoms parent-sig '() 0 (int-bound-lower (get-bound parent-sig hashy-bounds))))
-              (set! working-universe (append lower-bound working-universe))
-              (hash-set! lower-bounds parent-sig lower-bound)
-              lower-bound)))))
+; get-stdin :: Run -> output-port?
+(define (get-stdout run)
+  (assert-is-running run)
+  (Server-ports-stdout (Run-server-ports run)))
 
-; Populates the universe with atoms up to each sig's upper bound.
-; Because of the nasty stateful nature of this implementation, this
-; needs to be called after compute-lower-bound :(
-(define (fill-leftovers sig hashy-bounds)
-  (if (hash-has-key? top-level-leftovers sig) (append (hash-ref top-extras sig) (hash-ref top-level-leftovers sig))
-      ; If the sig is not top-level, get the leftovers for its parent and mooch off of them.
-      ; If the sig is top-level, add atoms to the universe to represent its leftovers
-      (if (hash-has-key? extensions-store sig)
-          (let ([parent-leftovers (fill-leftovers (hash-ref extensions-store sig) hashy-bounds)]
-                ;[how-many (@- (int-bound-upper (get-bound sig hashy-bounds)) (int-bound-lower (get-bound sig hashy-bounds)))]
-                [int-upper (int-bound-upper (get-bound sig hashy-bounds))])
-            (define atoms parent-leftovers)
-            (hash-set! top-level-leftovers sig atoms)
-            (add-run-constraint (<= (card sig) (node/int/constant int-upper)))
-            (hash-set! upper-bounds sig (append atoms (hash-ref lower-bounds sig)))
-            atoms)
-          (let ([upper (int-bound-upper (get-bound sig hashy-bounds))] [lower (length (hash-ref lower-bounds sig))])
-            (define leftovers '())
-            (when (@> upper lower) (set! leftovers (next-atoms sig (hash-ref lower-bounds sig) 0 (@- upper lower))))
-            (set! working-universe (append leftovers working-universe))
-            (hash-set! top-level-leftovers sig leftovers)
-            (hash-set! upper-bounds sig (append (hash-ref lower-bounds sig) leftovers))
-            (append (hash-ref top-extras sig) leftovers)))))
+; close-run :: Run -> void
+(define (close-run run)
+  (assert-is-running run)
+  ((Server-ports-shutdown (Run-server-ports run))))
 
-; Populates the universe with atoms according to the bounds specified by a run statement
-; Returns a list of bounds objects
-; This is pre-erasure of unused atoms
-(define (bind-sigs hashy-bounds)
-  (set! lower-bounds (make-hash))
-  (set! upper-bounds (make-hash))
-  (set! top-level-leftovers (make-hash))
+; is-running :: Run -> Boolean
+(define (is-running? run)
+  ((Server-ports-is-running? (Run-server-ports run))))
 
-  (define out-bounds '())
-  (define roots (filter (lambda (x) (@not (hash-has-key? extensions-store x))) sigs))
+(define (assert-is-running run)
+  (unless (is-running? run)
+    (raise "KodKod server is not running.")))
 
-  (for ([root roots]) (compute-lower-bound root hashy-bounds))
+; get-option :: Run-or-state Symbol -> Any
+(define (get-option run-or-state option)
+  (define state (get-state run-or-state))
+  (define symbol->proc
+    (hash 'solver Options-solver
+          'backend Options-backend
+          'sb Options-sb
+          'coregranularity Options-coregranularity
+          'logtranslation Options-logtranslation
+          'min_tracelength Options-min_tracelength
+          'max_tracelength Options-max_tracelength
+          'problem_type Options-problem_type          
+          'target_mode Options-target_mode
+          'core_minimization Options-core_minimization
+          'skolem_depth Options-skolem_depth
+          ))
+  ((hash-ref symbol->proc option) (State-options state)))
 
-  (for ([sig sigs])
-    (fill-leftovers sig hashy-bounds) ; mutation!
-    (set! out-bounds (cons
-                      (make-bound sig
-                                  (map (lambda (x) (list x)) (hash-ref lower-bounds sig))
-                                  (map (lambda (x) (list x)) (hash-ref upper-bounds sig)))
-                      out-bounds)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;; State Updaters  ;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  ; Create remainder sigs
-  ; Add disjunction constraints
-  (define disj-cs
-    (for/fold ([cs '()]) ([par (hash-keys parents)])
-      ; disjoint-list returns a list of constraints; combine all such
-      (append (disjoint-list (hash-ref parents par)) cs)))
-  (cons out-bounds disj-cs))
+; sig-add-extender :: Sig, Symbol -> Sig
+; Adds a new extender to the given Sig.
+(define (sig-add-extender sig extender)
+  (define new-extenders (append (Sig-extenders sig) (list extender)))
+  (struct-copy Sig sig
+               [extenders new-extenders]))
 
-; Finds and returns the specified or implicit int-bounds object for the given sig
-(define (get-bound sig hashy-bounds)
-  (cond
-    [(hash-has-key? hashy-bounds sig)
-     (hash-ref hashy-bounds sig)]
-    [(hash-has-key? int-bounds-store sig)
-     (hash-ref int-bounds-store sig)]
-    [else
-     (int-bound 0 top-level-bound)]))
+; state-add-runmap :: State, symbol, Run -> State
+(define (state-add-runmap state name r)
+  (struct-copy State state
+               [runmap (hash-set (State-runmap state) name r)]))
 
-(define (strip-remainder str)
-  (if (@< (string-length str) 10) str
-      (if (equal? (substring str 0 10) "remainder-") (substring str 10) str)))
+; state-add-sig :: State, Symbol, bool, bool, (Symbol | #f) -> State
+; Adds a new Sig to the given State; if new Sig extends some
+; other Sig, then updates that Sig with extension.
+(define (state-add-sig state name rel one abstract extends)
+  (when (member name (State-sig-order state))
+    (error (format "tried to add sig ~a, but it already existed" name)))
+  (define new-sig (Sig name rel one abstract extends empty))
+  (when (@and extends (@not (member extends (State-sig-order state))))
+    (raise "Can't extend nonexistent sig."))
 
-(define (append-run name)
-  (if (member name run-names) (error (format "Non-unique run name specified: ~a" name)) (set! run-names (cons name run-names))))
+  (define sigs-with-new-sig (hash-set (State-sigs state) name new-sig))
+  (define new-state-sigs
+    (if extends
+        (hash-set sigs-with-new-sig extends 
+                                    (sig-add-extender (hash-ref (State-sigs state) extends) name))
+        sigs-with-new-sig))
+  (define new-state-sig-order (append (State-sig-order state) (list name)))
 
+  (struct-copy State state
+               [sigs new-state-sigs]
+               [sig-order new-state-sig-order]))
 
-(define (run-spec hashy name command filepath runtype . assumptions)
-  (when (@>= (get-verbosity) VERBOSITY_HIGH) ; Racket >=
-    (printf "ABSTRACT sigs known: ~a~n" abstract-sigs)
-    (printf "bindings : ~v~n" bindings)
-    (printf "pbindings : ~v~n" pbindings)
-    (printf "int-bounds-store : ~v~n" int-bounds-store))
-  (append-run name)
+; state-add-relation :: State, Symbol, List<Sig>, Symbol?-> State
+; Adds a new relation to the given State.
+(define (state-add-relation state name rel rel-sigs [breaker #f])
+  (when (member name (State-relation-order state))
+    (error (format "tried to add relation ~a, but it already existed" name)))
+  (define new-relation (Relation name rel rel-sigs breaker))
+  (define new-state-relations (hash-set (State-relations state) name new-relation))
+  (define new-state-relation-order (append (State-relation-order state) (list name)))
+  (struct-copy State state
+               [relations new-state-relations]
+               [relation-order new-state-relation-order]))
 
-  (map instance (hash-values pbindings))
-  (for ([(rel sb) (in-hash pbindings)])
-    (hash-set! bindings rel (for/list ([tup (sbound-upper sb)]) (car tup))) ; this nonsense is just for atom names
-  )
+; state-add-pred :: State, Symbol, Predicate -> State
+; Adds a new predicate to the given State.
+(define (state-add-pred state name pred)
+  (define new-state-pred-map (hash-set (State-pred-map state) name pred))
+  (struct-copy State state
+               [pred-map new-state-pred-map]))
 
-  ;(error "stop")
+; state-add-fun :: State, Symbol, Function -> State
+; Adds a new function to the given State.
+(define (state-add-fun state name fun)
+  (define new-state-fun-map (hash-set (State-fun-map state) name fun))
+  (struct-copy State state
+               [fun-map new-state-fun-map]))
 
-  (set! run-constraints (append constraints assumptions))
+; state-add-const :: State, Symbol, Constant -> State
+; Adds a new constant to the given State.
+(define (state-add-const state name const)
+  (define new-state-const-map (hash-set (State-const-map state) name const))
+  (struct-copy State state
+               [const-map new-state-const-map]))
 
-  (for ([rel (in-set one-sigs)]) (update-int-bound rel (int-bound 1 1)))
-  (for ([sig (in-set abstract-sigs)]) 
-    (define extenders (for/list ([(k v) (in-hash extensions-store)] #:when (equal? v sig)) k))
-    ;(when (empty? extenders) (raise-syntax-error 'abstract (format "Abstract sig not extended ~a" sig)))
-    (define c (in sig (for/fold ([res none]) ([x extenders]) (+ x res))))
-    (set! run-constraints (cons c run-constraints))
-  )
-  
-  (define intmax (expt 2 (sub1 bitwidth)))
-  (define int-range (range (- intmax) intmax)) ; The range of integer *values* we can represent
-  (define int-indices (range (expt 2 bitwidth))) ; The integer *indices* used to represent those values, in kodkod-cli, which doesn't permit negative atoms.
-  (define int-range-singletons (map list int-range))
+; state-add-inst :: State, Symbol, Inst -> State
+; Adds a new inst to the given State.
+(define (state-add-inst state name inst)
+  (define new-state-inst-map (hash-set (State-inst-map state) name inst))
+  (struct-copy State state
+               [inst-map new-state-inst-map]))
 
+(define (set-option! option value)
+  (cond [(or (equal? option 'verbosity)
+             (equal? option 'verbose))
+         (set-verbosity value)]
+        [else
+         (update-state! (state-set-option curr-state option value))]))
 
-  (match-define (cons sig-bounds disj-cs) (bind-sigs hashy)) ; TODO: look here!!!!!!!!!!!!!!!
-  (set! run-constraints (append run-constraints disj-cs))
-  (define inty-univ (append int-range working-universe)) ; A universe of all possible atoms, including integers (actual values, not kodkod-cli indices)
+; state-set-option :: State, Symbol, Symbol -> State
+; Sets option to value for state.
+(define (state-set-option state option value)
+  (define options (State-options state))
 
-  ; Add integer atoms forcefully because they always exist
-  (set! sig-bounds (cons (bound Int int-range-singletons int-range-singletons) sig-bounds))
-  (hash-set! bounds-store Int int-range) ; Set an exact bount on Int to contain int-range
-  (hash-set! upper-bounds Int int-range)
-  (hash-set! lower-bounds Int int-range)
+  (define option-types
+    (hash 'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
+          'backend symbol?
+          ; 'verbosity exact-nonnegative-integer?
+          'sb exact-nonnegative-integer?
+          'coregranularity exact-nonnegative-integer?
+          'logtranslation exact-nonnegative-integer?
+          'min_tracelength exact-positive-integer?
+          'max_tracelength exact-positive-integer?
+          'problem_type symbol?
+          'target_mode symbol?
+          'core_minimization symbol?
+          'skolem_depth exact-integer?))
+  (unless ((hash-ref option-types option) value)
+    (raise-user-error (format "Setting option ~a requires ~a; received ~a"
+                              option (hash-ref option-types option) value)))
 
-  ; Int needs to be in upper-bounds, lower-bounds, and sig-bounds
-  (define total-bounds (append (map relation->bounds (hash-keys relations-store)) sig-bounds))
-  (define rels (append (hash-keys relations-store) sigs (list Int)))
-
-  ; Add the successor relation on integers (and it's exact)
-  (define successor-rel (map list (take int-range (sub1 (length int-range))) (rest int-range)))
-  (set! total-bounds (append total-bounds (list (bound succ successor-rel successor-rel))))
-  (set! rels (append rels (list succ)))
-
-  ; Initializing our kodkod-cli process, and getting ports for communication with it
-  (define kks (new server%
-                   [initializer (thunk (kodkod-initializer #f))]
-                   [stderr-handler (curry kodkod-stderr-handler "blank")]))
-  (send kks initialize)
-  (define stdin (send kks stdin))
-  (define stdout (send kks stdout))
-
-  (cmd
-   [stdin]
-   ; Stepper problems in kodkod-cli ignore max-solutions, and 7 is max verbosity.
-   ; TODO: use our verbosity setting? (unclear how kodkod differs by verbosity)
-   (configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :sb ~a :core-gran ~a :log-trans ~a"
-                      bitwidth solveroption sboption coregranoption logtransoption))
-   (declare-univ (length inty-univ))
-   (declare-ints int-range int-indices))
-  (define (get-atom atom)
-    (define result (index-of inty-univ atom))
-    (cond [result result]
-          [else (error (format "Error: reference to unknown atom: ~a. Known atoms were: ~a" atom inty-univ))]))
-  (define (n-arity-none arity)
+  (define new-options
     (cond
-      [(equal? arity 1) 'none]
-      [(@> arity 0) (product 'none (n-arity-none (@- arity 1)))]
-      [else (error "Error: Relation with negative or 0 arity specified.")]))
+      [(equal? option 'solver)
+       (struct-copy Options options
+                    [solver value])]
+      [(equal? option 'backend)
+       (struct-copy Options options
+                    [backend value])]
+      [(equal? option 'sb)
+       (struct-copy Options options
+                    [sb value])]
+      [(equal? option 'coregranularity)
+       (struct-copy Options options
+                    [coregranularity value])]
+      [(equal? option 'logtranslation)
+       (struct-copy Options options
+                    [logtranslation value])]
+      [(equal? option 'min_tracelength)
+       (let ([max-trace-length (get-option state 'max_tracelength)])
+         (if (@> value max-trace-length)
+             (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
+                                       value max-trace-length))
+             (struct-copy Options options
+                          [min_tracelength value])))]
+      [(equal? option 'max_tracelength)
+       (let ([min-trace-length (get-option state 'min_tracelength)])
+         (if (@< value min-trace-length)
+             (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
+                                       value min-trace-length))
+             (struct-copy Options options
+                          [max_tracelength value])))]
+      [(equal? option 'problem_type)
+       (struct-copy Options options
+                    [problem_type value])]
+      [(equal? option 'target_mode)
+       (struct-copy Options options
+                    [target_mode value])]
+      [(equal? option 'core_minimization)
+       (struct-copy Options options
+                    [core_minimization value])]
+      [(equal? option 'skolem_depth)
+       (struct-copy Options options
+                    [skolem_depth value])]))
 
-  (define (adj-bound accessor bound)
-    ; "int-atoms" here means the int representations at the kodkod level, not Int/int integers
-    (define int-atoms (map (lambda (x) (map get-atom x))
-                           (accessor bound)))
-    (if (empty? int-atoms)
-        (n-arity-none (relation-arity (bound-relation bound)))
-        (tupleset #:tuples int-atoms)))
+  (struct-copy State state
+               [options new-options]))
+
+;; Added sugar over the AST
+;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus on the macro definition point
+(provide implies iff <=> ifte >= <= ni != !in !ni)
+
+(define-syntax (implies stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)) a b))]))
+(define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
+(define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
+
+; for ifte, use struct type to decide whether this is a formula (sugar) or expression form (which has its own AST node)
+(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx
+                                                           (if (node/formula? b)
+                                                               (&&/info (nodeinfo #,(build-source-location stx))
+                                                                        (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                        (=>/info (nodeinfo #,(build-source-location stx)) (! a) c))
+                                                               (ite/info (nodeinfo #,(build-source-location stx)) a b c)))]))
+
+(define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
+                                                              (int>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
+                                                              (int</info (nodeinfo #,(build-source-location stx)) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx)) b a))]))
+(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
+                                                             (=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (!in stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx))
+                                                              (in/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (!ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
+                                                              (in/info (nodeinfo #,(build-source-location stx)) b a)))]))
 
 
-  (define-values (new-total-bounds new-formulas)
-    (constrain-bounds total-bounds sigs upper-bounds relations-store extensions-store))
-  (set! total-bounds new-total-bounds)
-  (set! run-constraints (append run-constraints new-formulas))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (when is-exact
-    (for ([b total-bounds])
-      (unless (exact-bound? b) (error (format "bounds declared exactly but ~a not exact"
-                                              (relation-name (bound-relation b)))))
-      )
-    )
 
-  (for ([bound total-bounds])
-    (cmd
-     [stdin]
-     (declare-rel
-      (r (index-of rels (bound-relation bound)))
 
-      (adj-bound bound-lower bound)  ; if empty, need to give proper arity emptiness
-      (adj-bound bound-upper bound))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;; Forge Commands  ;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  ;;;;;;;;;;;;;;;;;;;;;;;;;
+; The environment threaded through commands
+(define curr-state init-state)
+(define (update-state! new-state) 
+  (set! curr-state new-state))
 
-  (for ([c run-constraints] [i (range (length run-constraints))])
-    (cmd
-     [stdin]
-     (print-cmd-cont (format "(f~a " i)) ; extra space in case forthcoming formula is "true" with no leading space
-     (translate-to-kodkod-cli c rels '())
-     (print-cmd ")")
-     (print-cmd (format "(assert f~a)" i))))
+; check-temporal-for-var :: Boolean String -> void
+; raises an error if is-var is true and the problem_type option is 'temporal
+; uses the given name in the error message
+; meant to only allow var sigs and relations in temporal specs
+(define (check-temporal-for-var is-var name)
+  (cond
+    [(and is-var
+          (not (equal? (get-option curr-state 'problem_type)
+            'temporal)))
+     (raise-user-error (format "Can't have var ~a unless problem_type option is temporal"
+                               name))]))
 
-  (clear-state) ; breakers has done its job if this command had fancy-bounds; clean for next command
 
-  (match runtype
-    ['test
-     (cmd [stdin] (solve))
-     (car (read-solution stdout))]
-    [_
-     (define (get-next-model)
-       (cmd [stdin] (solve))
-       (match-define (cons restype inst) (translate-from-kodkod-cli runtype (read-solution stdout) rels inty-univ))
-       (when (and demo (equal? restype 'sat))
-         (match demo
-           ['life (output-life inst)]))
-       (cons restype inst))
-     (display-model get-next-model name command filepath bitwidth funs-n-preds)]))
+; Declare a new sig.
+; (sig name [|| [#:one] [#:abstract]] [#:is-var isv] [[|| #:in #:extends] parent])
+; Extending a sig with #:in does NOT work yet,
+; it's only been added here so that it throws the correct error
+; when the Expander tries to do that
+(define-syntax (sig stx)
+  (syntax-parse stx
+    ; This allows #:in and #:extends,
+    ; but the parser does not currently allow "sig A in B extends C"
+    ; when extendings sigs with in is implemented,
+    ; I think they should be updated to be consistent
+    [(sig name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
+                        (~optional (~seq #:extends parent:expr))
+                        (~optional (~or (~seq (~and #:one one-kw))
+                                        (~seq (~and #:abstract abstract-kw))))
+                        (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
+    (quasisyntax/loc stx
+      (begin
+        (define true-name 'name)
+        (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
+        (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
+        (define true-parent (~? (Sig-name (get-sig curr-state parent))
+                                #f))
+        (define name (build-relation #,(build-source-location stx)
+                                       (list (symbol->string true-name))
+                                       (symbol->string (or true-parent 'univ))
+                                       (symbol->string true-name)
+                                       is-var))
+        ;make sure it isn't a var sig if not in temporal mode
+        (~@ (check-temporal-for-var is-var true-name))
+        ;Currently when lang/expander.rkt calls sig with #:in,
+        ;super-sig is #'(raise "Extending with in not yet implemented.")
+        ;This is just here for now to make sure that error is raised.
+        (~? super-sig)
+        (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent))))]))
 
+(define-syntax (relation stx)
+  (syntax-parse stx
+    [(relation name:id (sig1:id sig2:id sigs ...)
+               (~optional (~seq #:is breaker:id))
+               (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
+     (quasisyntax/loc stx
+         (begin
+       (define true-name 'name)
+       (define true-sigs '(sig1 sig2 sigs ...))
+       ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
+       ;                                 (curry get-sig curr-state ))
+       ;                        (list sig1 sig2 sigs ...)))
+       (define true-breaker (~? 'breaker #f))
+       (define name (build-relation #,(build-source-location stx)
+                                      (map symbol->string true-sigs)
+                                      (symbol->string 'sig1)
+                                      (symbol->string true-name)
+                                      is-var))
+       ;make sure it isn't a var sig if not in temporal mode
+        (~@ (check-temporal-for-var is-var true-name))
+       (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker))))]))
+
+; Declare a new predicate
+; (pred info name cond ...)
+; (pred info (name var ...) cond ...)
+;   or same without info
+(define-syntax (pred stx)
+  (syntax-parse stx
+    [(pred name:id conds:expr ...+)
+     (quasisyntax/loc stx
+       (begin
+         ; use srcloc of actual predicate, not this location in sigs
+         (define name (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
+         (update-state! (state-add-pred curr-state 'name name))))]
+    [(pred (name:id args:id ...+) conds:expr ...+)
+     (quasisyntax/loc stx
+       (begin 
+         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
+         (update-state! (state-add-pred curr-state 'name name))))]))
+                                   
+; Declare a new function
+; (fun (name var ...) result)
+(define-syntax (fun stx)
+  (syntax-parse stx
+    [(fun (name:id args:id ...+) result:expr) 
+      #'(begin 
+        (define (name args ...) result)
+        (update-state! (state-add-fun curr-state 'name name)))]))
+
+; Declare a new constant
+; (const name value)
+(define-syntax (const stx)
+  (syntax-parse stx
+    [(const name:id value:expr) 
+      #'(begin 
+        (define name value)
+        (update-state! (state-add-const curr-state 'name name)))]))
+
+; Define a new bounding instance
+; (inst name binding ...)
+(define-syntax (inst stx)
+  (syntax-parse stx
+    [(inst name:id binds:expr ...)
+      #'(begin
+        (define (name scope bound)
+          (set!-values (scope bound) (bind scope bound binds)) ...
+          (values scope bound))
+        (update-state! (state-add-inst curr-state 'name name)))]))
+
+; Run a given spec
+; (run name
+;      [#:pred [(pred ...)]] 
+;      [#:scope [((sig [lower 0] upper) ...)]]
+;      [#:inst instance-name])
 (define-syntax (run stx)
   (define command (format "~a" stx))
-  (syntax-case stx ()
-    [(_ name ((sig lower upper) ...))
-     #`(begin
-         (define hashy (make-hash))
-         (if (equal? sig Int)
-             (set-bitwidth upper)
-             (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
-                                                                                                          (run-spec hashy name #,command filepath 'run))]
-    [(_ name (preds ...) ((sig lower upper) ...))
-     #`(begin
-         (define hashy (make-hash))
-         (if (equal? sig Int)
-             (set-bitwidth upper)
-             (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
-                                                                                                          (run-spec hashy name #,command filepath 'run preds ...))]
-    [(_ name)
-     #`(begin
-         (run-spec (make-hash) name #,command filepath 'run))]
-    [(_ name (preds ...))
-     #`(begin
-         (run-spec (make-hash) name #,command filepath 'run preds ...))]
-    [(_ name (preds ...) ((sig lower upper) ...) (facty ...))
-     #`(begin
-         (define hashy (make-hash))
-         (if (equal? sig Int)
-             (set-bitwidth upper)
-             (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper)))) ...
-                                                                                                          (run-spec hashy name #,command filepath 'run preds ... facty ...))]
-    [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
-    [(_ pred) #'(error "Run statements require a unique name specification")]
-    [(_) #'(error "Run statements require a unique name specification")]
-    [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
+
+  (syntax-parse stx
+    [(run name:id
+          (~alt
+            (~optional (~or (~seq #:preds (preds ...))
+                            (~seq #:preds pred)))
+            (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+            (~optional (~or (~seq #:bounds (boundss ...))
+                            (~seq #:bounds bound)))
+            (~optional (~seq #:solver solver-choice))
+            (~optional (~seq #:backend backend-choice))
+            (~optional (~seq #:target target-instance))
+            (~optional (~seq #:target-distance target-distance))
+            (~optional (~or (~and #:target-compare target-compare)
+                            (~and #:target-contrast target-contrast)))) ...)
+      #`(begin
+        (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
+        (define run-state curr-state)
+        (define run-preds (~? (list preds ...) (~? (list pred) (list))))
+
+        (~? (set! run-state (state-set-option run-state 'solver 'solver-choice)))
+        (~? (set! run-state (state-set-option run-state 'backend 'backend-choice)))
+        
+
+        (define sig-scopes (~? 
+          (~@
+            (for/hash ([name (list (Sig-name (get-sig curr-state sig)) ...)]
+                       [lo (list lower ...)]
+                       [hi (list upper ...)])
+              (values name (Range lo hi))))
+          (~@ (hash))))
+        (define bitwidth (if (hash-has-key? sig-scopes 'Int)
+                             (begin0 (Range-upper (hash-ref sig-scopes 'Int))
+                                     (set! sig-scopes (hash-remove sig-scopes 'Int)))
+                             #f))
+        (define default-sig-scope (if (hash-has-key? sig-scopes 'default)
+                                      (begin0 (hash-ref sig-scopes 'default)
+                                              (set! sig-scopes (hash-remove sig-scopes 'default)))
+                                      #f))
+        (define base-scope (Scope default-sig-scope bitwidth sig-scopes))
+
+        (define default-bound
+          (let* ([max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
+                 [ints (map int-atom (range (- max-int) max-int))]
+                 [succs (map list (reverse (rest (reverse ints)))
+                                    (rest ints))])
+            (Bound (hash)
+                   (hash 'Int (map list ints)
+                         'succ succs))))
+        (define (run-inst scope bounds)
+          (for ([sigg (get-sigs run-state)])
+            (when (Sig-one sigg)
+              (set!-values (scope bounds) (bind scope bounds (one (Sig-rel sigg))))))
+          (~? (~@ (set!-values (scope bounds) (bind scope bounds boundss)) ...)
+              (~? (set!-values (scope bounds) (bind scope bounds bound))))
+          (values scope bounds))
+        (define-values (run-scope run-bound)
+          (run-inst base-scope default-bound))
+
+        (define run-target 
+          (~? (Target (cdr target-instance)
+                      (~? 'target-distance 'close))
+              #f))
+        (~? (unless (member 'target-distance '(close far))
+              (raise (format "Target distance expected one of (close, far); got ~a." 'target-distance))))
+        (when (~? (or #t 'target-contrast) #f)
+          (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
 
 
+        (define run-command #,command)        
+        
+        (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
+        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
+        
+        (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
+        (update-state! (state-add-runmap curr-state 'name name)))]))
+
+; Test that a spec is sat or unsat
+; (test name
+;       [#:preds [(pred ...)]] 
+;       [#:scope [((sig [lower 0] upper) ...)]]
+;       [#:bounds [bound ...]]
+;       [|| sat unsat]))
+(define-syntax-rule (test name args ... #:expect expected)
+  (cond 
+    [(member 'expected '(sat unsat))
+     (run name args ...)
+     (define first-instance (stream-first (Run-result name)))
+     (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
+       (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
+                      'name 'expected (if (Sat? first-instance) 'sat 'unsat)
+                      (if (Sat? first-instance)
+                          (format ". Found instance ~a" first-instance)
+                          ""))))
+     (close-run name)]
+
+    [(equal? 'expected 'theorem)
+     (check name args ...)
+     (define first-instance (stream-first (Run-result name)))
+
+     (when (Sat? first-instance)
+       (raise (format "Theorem ~a failed. Found instance:~n~a"
+                      'name first-instance)))
+     (close-run name)]
+
+    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                         'expected))]))
+
+(define-simple-macro (example name:id pred bounds ...)
+  (test name #:preds [pred]
+             #:bounds [bounds ...]
+             #:expect sat))
+
+; Checks that some predicates are always true.
+; (check name
+;        #:preds [(pred ...)]
+;        [#:scope [((sig [lower 0] upper) ...)]]
+;        [#:bounds [bound ...]]))
 (define-syntax (check stx)
-  (define command (format "~a" stx))
-  (syntax-case stx ()
-    [(_ name ((sig lower upper) ...))
-     #`(begin
-         (define hashy (make-hash))
-         (if (equal? sig Int)
-             (set-bitwidth upper)
-             (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))))
-         ...
-         (run-spec hashy name #,command filepath 'check))]
-    [(_ name (preds ...) ((sig lower upper) ...))
-     #`(begin
-         (define hashy (make-hash))
-         (if (equal? sig Int)
-             (set-bitwidth upper)
-             (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))))
-         ...
-         (run-spec hashy name #,command filepath 'check (or (not preds) ...)))]
-    [(_ name)
-     #`(begin
-         (run-spec (make-hash) name #,command filepath 'check))]
-    [(_ name (preds ...))
-     #`(begin
-         (run-spec (make-hash) name #,command filepath 'check (or (not preds) ...)))]
-    [(_ name (preds ...) ((sig lower upper) ...) (facty ...))
-     #`(begin
-         (define hashy (make-hash))
-         (if (equal? sig Int)
-             (set-bitwidth upper)
-             (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))))
-         ...
-         (run-spec hashy name #,command filepath 'check (and (and facty ...) (or (not preds) ...))))]
-    [(_ pred ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]
-    [(_ pred) #'(error "Check statements require a unique name specification")]
-    [(_) #'(error "Check statements require a unique name specification")]
-    [(_ ((sig lower upper) ...)) #'(error "Check statements require a unique name specification")]))
-
-(define-syntax (test stx)
-  (define command (string-replace (format "~a" stx) "~" "~~" #:all? #t))
-  (syntax-case stx ()
-    [(_ name ((sig lower upper) ...) expect)
-     #`(begin
-         (define hashy (make-hash))
-         (if (equal? sig Int)
-             (set-bitwidth upper)
-             (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))))
-         ...
-         (define res (run-spec hashy name #,command filepath 'test))
-         (unless (equal? res expect)
-           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n ~a" expect res #,command))))]
-    [(_ name (preds ...) ((sig lower upper) ...) expect)
-     #`(begin
-         (define hashy (make-hash))
-         (if (equal? sig Int)
-             (set-bitwidth upper)
-             (unless (hash-has-key? int-bounds-store sig) (hash-set! hashy sig (int-bound lower upper))))
-         ...
-         (define res (run-spec hashy name #,command filepath 'test preds ...))
-         (unless (equal? res expect)
-           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n~a" expect res #,command))))]
-    [(_ name expect)
-     #`(begin
-         (define res (run-spec (make-hash) name #,command filepath 'test))
-         (unless (equal? res expect)
-           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in\n~a" expect res #,command))))]
-    [(_ name (preds ...) expect)
-     #`(begin
-         (define res (run-spec (make-hash) name #,command filepath 'test preds ...))
-         (unless (equal? res expect)
-           (error (format-datum '~a-~a "test" name) (format "expected ~a, got ~a in ~a" expect res #,command))))]
-    [(_ pred ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]
-    [(_ pred) #'(error "Run statements require a unique name specification")]
-    [(_) #'(error "Run statements require a unique name specification")]
-    [(_ ((sig lower upper) ...)) #'(error "Run statements require a unique name specification")]))
+  (syntax-parse stx
+    [(check name:id
+            (~alt
+              (~optional (~seq #:preds (pred ...)))
+              (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+              (~optional (~seq #:bounds (bound ...)))) ...)
+     #'(run name (~? (~@ #:preds [(! (and pred ...))]))
+                 (~? (~@ #:scope ([sig lower upper] ...)))
+                 (~? (~@ #:bounds (bound ...))))]))
 
 
-(define (relation->bounds rel)
-  (make-bound rel '() (apply cartesian-product (map (lambda (x) (hash-ref upper-bounds x)) (hash-ref relations-store rel)))))
+; Exprimental: Run in the context of a given external Forge spec
+; (with path-to-forge-spec commands ...)
+(define-syntax (with stx)
+  (syntax-parse stx
+    [(with (ids:id ... #:from module-name) exprs ...+)
+      #'(let ([temp-state curr-state])
+          (define ids (dynamic-require module-name 'ids)) ...
+          (define result
+            (let () exprs ...))
+          (update-state! temp-state)
+          result)]))
+
+; TODO: instance isn't used
+;  always evaluates with respect to solver's current state
+(define (evaluate run instance expression)
+  (unless (is-sat? run)
+    (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))
+  (define-values (expr-name interpretter)
+    (cond [(node/expr? expression) 
+           (define currents (Run-kodkod-currents run))
+           (define expression-number (Kodkod-current-expression currents)) 
+           (set-Kodkod-current-expression! currents (add1 expression-number))
+           (values (pardinus:e expression-number)
+                   interpret-expr)]
+          [(node/formula? expression)
+           (define currents (Run-kodkod-currents run))
+           (define formula-number (Kodkod-current-formula currents)) 
+           (set-Kodkod-current-formula! currents (add1 formula-number))
+           (values (pardinus:f formula-number)
+                   interpret-formula)]
+          [(node/int? expression)
+           (define currents (Run-kodkod-currents run))
+           (define int-number (Kodkod-current-int currents)) 
+           (set-Kodkod-current-int! currents (add1 int-number))
+           (values (pardinus:i int-number)
+                   interpret-int)]
+          [else
+           (error (format "Forge: unexpected input type to evaluate: ~a" expression))]))
+
+  (define all-rels (get-all-rels run))
+  (define atom-names (Run-atoms run))
+
+  (pardinus:cmd 
+    [(get-stdin run)]
+    (pardinus:print-cmd-cont "(~a " expr-name)
+    (interpretter run expression all-rels atom-names '())
+    (pardinus:print-cmd ")")
+    (pardinus:print-cmd "(evaluate ~a)" expr-name)
+    (pardinus:print-eof))
+
+  (define run-atoms (Run-atoms run))
+  (translate-evaluation-from-kodkod-cli (pardinus:read-evaluation (get-stdout run)) run-atoms))
 
 
-;;;;;;;;;;;;;;;;;
-;;;; FORGE 2 ;;;;
-;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;; Result Functions ;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(require syntax/parse/define)
-(require (for-meta 1 racket/port racket/list))
+; is-sat? :: Run -> boolean
+; Checks if a given run result is 'sat
+(define (is-sat? run)
+  (define first-instance (stream-first (Run-result run)))
+  (Sat? first-instance))
 
-(provide node/int/constant ModuleDecl SexprDecl Sexpr SigDecl CmdDecl TestExpectDecl TestDecl TestBlock PredDecl Block BlockOrBar
-         AssertDecl BreakDecl InstanceDecl QueryDecl FunDecl ;ArrowExpr
-         StateDecl TransitionDecl RelDecl OptionDecl InstDecl TraceDecl
-         Expr Name QualName Const Number iff ifte >= <= ni)
+; is-unsat? :: Run -> boolean
+; Checks if a given run result is 'unsat
+(define (is-unsat? run)
+  (define first-instance (stream-first (Run-result run)))
+  (Unsat? first-instance))
 
-;;;;
+; make-model-generator :: Stream<model> -> (-> model)
+; Creates a thunk which generates a new model on each call.
+(define (make-model-generator model-stream)
+  (thunk
+    (define ret (stream-first model-stream))
+    (set! model-stream (stream-rest model-stream))
+    ret))
 
-(define-for-syntax (map-stx f . stx) (datum->syntax (car stx) (apply f (map syntax->datum stx)) (car stx)))
-(define-for-syntax (at stx datum) (datum->syntax stx datum stx))
-(define-for-syntax (replace-ints datum)
-  (cond
-    [(list? datum)
-     (if (equal? (car datum) 'run)
-         datum
-         (map replace-ints datum))]
-    [(integer? datum)
-     `(node/int/constant ,datum)]
-    [else datum]))
-(define-for-syntax (process-DeclList d)
-  (define ret (syntax-case d
-                (NameList Mult SigExt DeclList ArrowDeclList ArrowExpr Block ArrowMult QualName)
-                [(ArrowDeclList (_ (NameList nss ...) (ArrowMult mults) (ArrowExpr (QualName ess) ...)) ...)
-                 (apply append (map (lambda (ns m es) (map (lambda (n)
-                                                             `(,n ,(string->symbol m) ,@es)) ns))
-                                    (syntax->datum #'((nss ...) ...))
-                                    (syntax->datum #'(mults ...))
-                                    (syntax->datum #'((ess ...) ...))))]
-                [(DeclList (_ (NameList nss ...) es) ...)
-                 (apply append (map (lambda (ns e) (map (lambda (n) `(,n ,e)) ns))
-                                    (syntax->datum #'((nss ...) ...))
-                                    (syntax->datum #'(es ...))))]))
-  ret)
-(define-for-syntax (use-ctxt stx1 stx2)
-  (datum->syntax stx1 (syntax->datum stx2)))
+; ; make-model-evaluator :: Run -> (String -> ???)
+; ; Creates an evaluator function for a given Run. 
+; ; Executes on the most recently generated instance.
+; (define (make-model-evaluator run)
+;   (lambda (command)
+;     (define name (substring command 1 3))
+;     (cmd [(stdin)] 
+;       (print-cmd command)
+;       (print-cmd "(evaluate ~a)" name)
+;       (print-eof))
+;     (define result (read (stdout)))
+;     result))
+;     ; (define u (read (open-input-string command)))
+;     ; (println u)
+;     ; u))
 
-(define (process-fp fp)
-  (define path (path->string (expand-user-path (string->path fp))))
-  (if (string-contains? path "/")
-      path
-      (string-append "./" path)))
+(provide (prefix-out forge: nsa))
+(define nsa (make-parameter #f))
+; display :: Run -> void
+; Lifted function which, when provided a Run,
+; generates a Sterling instance for it.
+(define (display arg1 [arg2 #f])
+  (if (@not (Run? arg1))
+      (if arg2 (@display arg1 arg2) (@display arg1))
+      (let ()
+        (define run arg1)
+        (define model-stream (Run-result run))
+        (define get-next-model (make-model-generator model-stream))
+        (define (evaluate-str str-command)
+          (define pipe1 (open-input-string str-command))
+          (define pipe2 (open-input-string (format "eval ~a" str-command)))
 
-(define-syntax (OptionDecl stx)
-  (map-stx (lambda (d)
-             (define key (syntax-case (first (rest d)) (QualName)
-                           [(QualName n) #''n]))
-             (define val (syntax-case (second (rest d)) (QualName Number)
-                           [(QualName n) #''n]
-                           [(Number n) #'(string->number n)]
-                           [fp #'(string-append "\"" (process-fp fp) "\"")]))
-             `(set-option ,key ,val)) stx))
+          (with-handlers ([(lambda (x) #t) 
+                           (lambda (exn) (exn-message exn))])
+            ; Read command as syntax from pipe
+            (define expr
+              (with-handlers ([(lambda (x) #t) (lambda (exn) 
+                               (read-syntax 'Evaluator pipe1))])
+                (last (syntax->datum (read-surface-syntax 'Evaluator pipe2)))))
 
-(define-syntax (ModuleDecl stx) (datum->syntax stx '(begin))) ;; nop
-(define-syntax (SexprDecl stx) (map-stx cadr stx))
-(define-syntax (Sexpr stx)
-  (map-stx (lambda (d)
-             (replace-ints (cons 'begin (port->list read (open-input-string (cadr d)))))
-             ) stx))
-(define-syntax (SigDecl stx)
-             (define-values (abstract one names qualName decls exprs) (values #f #f '() #f '() '()))
-             (for ([arg (cdr (syntax->list stx))])
-               (syntax-case arg (NameList Mult SigExt ArrowDeclList Block)
-                 ["abstract" (set! abstract #t)]
-                 [(Mult "one") (set! one #t)]
-                 [(NameList ns ...) (set! names #'(ns ...))]
-                 [(SigExt "extends" qn) (set! qualName #'qn)]
-                 [(ArrowDeclList _ ...) (set! decls (process-DeclList arg))]
-                 [(Block es ...) (set! exprs #'(es ...))]
-                 [_ #f]
-                 )
-               )
-             (set! names (syntax->list names))
-             (if qualName (set! qualName (cadr (syntax->list qualName))) #f)
+            ; Evaluate command
+            (define full-command (datum->syntax #f `(let
+              ,(for/list ([atom (Run-atoms run)]
+                          #:when (symbol? atom))
+                 `[,atom (atom ',atom)])
+                 ,expr)))
+            (define ns (namespace-anchor->namespace (nsa)))
+            (define command (eval full-command ns))
+            (evaluate run '() command)))
 
-             (define op (if one 'declare-one-sig 'declare-sig))
-             (define ret
-               (if qualName
-                   (if (= 0 (length decls))
-                       (cons 'begin (map (lambda (name) `(,op ,name #:extends ,qualName)) names))
-                       (cons 'begin (map (lambda (name) `(,op ,name ,decls #:extends ,qualName)) names))
-                       )
-                   (if (= 0 (length decls))
-                       (cons 'begin (map (lambda (name) `(,op ,name)) names))
-                       (cons 'begin (map (lambda (name) `(,op ,name ,decls)) names)))))
-             (set! ret #`(begin
-               #,(at stx ret)
-               #,@(if abstract (for/list ([name names]) #`(set-add! abstract-sigs #,name)) '())
-             ))
-             ;(printf "ret : ~v~n" ret)
-             ret
-             )
+        (define (get-contrast-model-generator model compare distance)
+          (unless (member distance '(close far))
+            (raise (format "Contrast model distance expected one of ('close, 'far); got ~a" distance)))
+          (unless (member compare '(compare contrast))
+            (raise (format "Contrast model compare expected one of ('compare, 'contrast); got ~a" compare)))
 
-; See note in parser.rkt about difference between InstanceDecl and InstDecl
-(define-syntax-rule (InstanceDecl i) (instance i))
+          (define new-state 
+            (let ([old-state (get-state run)])
+              (state-set-option (state-set-option old-state 'backend 'pardinus)
+                                'solver 'TargetSATSolver)))
+          (define new-preds
+            (if (equal? compare 'compare)
+                (Run-spec-preds (Run-run-spec run))
+                (list (! (foldr (lambda (a b) (and a b))
+                                  true
+                                  (Run-spec-preds (Run-run-spec run)))))))
+          
+          (define new-target
+            (if (Unsat? model) ; if satisfiable, move target
+                (Run-spec-target (Run-run-spec run))
+                (Target
+                 (for/hash ([(key value) (first (Sat-instances model))]
+                            #:when (member key (append (map Sig-rel (get-sigs new-state))
+                                                       (map Relation-rel (get-relations new-state)))))
+                   (values key value))
+                 distance)))
 
-(define-syntax (CmdDecl stx)
-             (define-values (name cmd arg scope block bounds facty-params) (values #f #f #f '() '() '() #'()))
-             (define (make-typescope x)
-               (syntax-case x (Typescope)
-                 [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
-                 [(Typescope n things) (syntax->datum #'(things 0 n))]))
-             (for ([arg (cdr (syntax->list stx))])
-               (syntax-case arg (Name Typescope Scope Block QualName Parameters)
-                 [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
-                 ["run"   (set! cmd 'run)]
-                 ["check" (set! cmd 'check)]
-                 [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
-                 ;[(Block (Expr (QualName ns)) ...) (set! block #'(ns ...))]
-                 [(Block b ...) (set! block #'(b ...))]
-                 [(QualName n) (set! block (list #'n))]
-                 [(Parameters ps ...) (set! facty-params #'(ps ...))] ; Traces should go in here - anything in params will be considered a fact in a check block.
-                 [(Bounds bs ...) (set! bounds #'(bs ...))]
-                 [_ #f]))
-             ; Duplicate with TestDecl
-             (define param-facts (for/list ([p (syntax->list facty-params)]) 
-                                   (at p `(Expr (QualName ,(string->symbol (format "~a_fact" (syntax->datum p))))))))
-             (define param-insts (for/list ([p (syntax->list facty-params)]) 
-                                   (at p `(Expr (QualName ,(string->symbol (format "~a_inst" (syntax->datum p))))))))
-             (set! bounds `(Bounds ,@param-insts ,@bounds))
+          (define contrast-run-spec
+            (struct-copy Run-spec (Run-run-spec run)
+                         [preds new-preds]
+                         [target new-target]
+                         [state new-state]))
+          (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds) (send-to-kodkod contrast-run-spec))
+          (define contrast-run 
+            (struct-copy Run run
+                         [name (string->symbol (format "~a-contrast" (Run-name run)))]
+                         [run-spec contrast-run-spec]
+                         [result run-result]
+                         [server-ports server-ports]
+                         [kodkod-currents kodkod-currents]))
+          (make-model-generator (get-result contrast-run)))
 
-             (if name #f (set! name (symbol->string (gensym))))
-             (define ret (at stx `(begin
-                              (void ,@(syntax->list facty-params)) ;; noop but fails early if undefined
-                              ,bounds
-                              (,cmd ,name ,block ,scope ,param-facts))))
-             ;(printf "ret : ~v~n" ret)
-             ret)
-
-(define-syntax (TestDecl stx)
-  (map-stx (lambda (d)
-             (define-values (name cmd arg scope block bounds params expect) (values #f 'test #f '() '() '() #'() #f))  
-             (define (make-typescope x)
-               (syntax-case x (Typescope)
-                 [(Typescope "exactly" n things) (syntax->datum #'(things n n))]
-                 [(Typescope n things) (syntax->datum #'(things 0 n))]))
-             (for ([arg (cdr d)])
-               (syntax-case arg (Name Typescope Scope Block QualName Parameters)
-                 [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
-                 ["sat" (set! expect 'sat)]
-                 ["unsat" (set! expect 'unsat)]
-                 [(Scope s ...) (set! scope (map make-typescope (syntax->datum #'(s ...))))]
-                 [(Block (Expr (QualName ns)) ...) (set! block (syntax->datum #'(ns ...)))]
-                 [(Block b ...) (set! block (syntax->datum #'(b ...)))]
-                 [(QualName n) (set! block (list (syntax->datum #'n)))]
-                 [(Parameters ps ...) (set! params #'(ps ...))]
-                 [(Bounds bs ...) (set! bounds (syntax->datum #'(bs ...)))]
-                 [_ #f]))
-                                           
-             ; Duplicate with CmdDecl
-             (define param-facts (for/list ([p (syntax->datum params)]) 
-                                   `(Expr (QualName ,(string->symbol (format "~a_fact" p))))))
-             (define param-insts (for/list ([p (syntax->datum params)]) 
-                                   `(Expr (QualName ,(string->symbol (format "~a_inst" p))))))
-                                         
-             (set! block (append block param-facts))
-             (set! bounds `(Bounds ,@param-insts ,@bounds))
-                                         
-             (if name #f (set! name (symbol->string (gensym))))
-             (define datum (if bounds  ; copied from CmdDecl
-                               `(begin
-                                  ,bounds
-                                  (,cmd ,name ,block ,scope ',expect))
-                               `(,cmd ,name ,block ,scope ',expect)))
-             datum) stx))
-
-(define-syntax (TestExpectDecl stx)
-  (map-stx (lambda (d)
-             (define-values (name active? block) (values #f #f '()))
-             (for ([arg (cdr d)])
-               (syntax-case arg (Name TestBlock)
-                 [(Name n) (set! name (symbol->string (syntax->datum #'n)))]
-                 ["test" (set! active? #t)]
-                 [(TestBlock bs ...) (set! block #'(bs ...))]
-                 [_ #f]))
-             (if name #f (set! name (symbol->string (gensym))))
-             (when active?
-               (define datum `(begin ,@(syntax->datum block)))
-               datum)) stx))
-
-(define-syntax (PredDecl stx)
-             (define-values (name paras block) (values #f '() '()))
-             (for ([arg (cdr (syntax->list stx))])
-               (syntax-case arg (Name ParaDecls Decl NameList Block)
-                 [(Name n) (set! name (syntax->datum #'n))]
-                 [(ParaDecls (Decl (NameList ps) _ ...) ...)
-                  (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block #'(bs ...))]
-                 [_ #f]))
-             (define datum (if (empty? paras)
-                   (at stx `(begin 
-                     (pred ,name (and ,@(syntax->list block)))
-                     (define-for-evaluator ',name '() '(Block ,@(syntax->datum block)))))
-                   (at stx `(begin
-                     (pred (,name ,@paras) (and ,@(syntax->list block)))
-                     (define-for-evaluator ',name ',paras '(Block ,@(syntax->datum block)))))))
-             datum)
-
-(define-syntax (AssertDecl stx)
-  (map-stx (lambda (d)
-             (define-values (name paras block) (values #f '() '()))
-             (for ([arg (cdr d)])
-               (syntax-case arg (Name ParaDecls Decl NameList Block)
-                 [(Name n) (set! name (syntax->datum #'n))]
-                 [(ParaDecls (Decl (NameList ps) _ ...) ...)
-                  (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block #'(bs ...))]
-                 [_ #f]))
-             (define datum (if (empty? paras)
-                               `(assert ,name (and ,@(syntax->datum block)))
-                               `(assert (,name ,@paras) (and ,@(syntax->datum block)))))
-             datum) stx))
-
-(define-syntax (FunDecl stx)
-  (map-stx (lambda (d)
-             (define-values (name paras block) (values #f '() '()))
-             (for ([arg (cdr d)])
-               (syntax-case arg (Name ParaDecls Decl NameList Block)
-                 [(Name n) (set! name (syntax->datum #'n))]
-                 [(ParaDecls (Decl (NameList ps) _ ...) ...)
-                  (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block #'(bs ...))]
-                 [_ #f]))
-
-             (define datum (if (empty? paras)
-                               `(begin 
-                                  (pred ,name (and ,@(syntax->datum block)))
-                                  (define-for-evaluator ',name '() ',(car (syntax->datum block))))
-                               `(begin
-                                  (pred (,name ,@paras) (and ,@(syntax->datum block)))
-                                  (define-for-evaluator ',name ',paras ',(car (syntax->datum block))))))
-             datum) stx))
-
-(define-syntax (StateDecl stx)
-             (define-values (name paras block sig) (values #f '() '() #f))
-             (for ([arg (cdr (syntax->list stx))])
-               (syntax-case arg (Name ParaDecls Decl NameList Block QualName)
-                 [(Name n) (set! name (syntax->datum #'n))]
-                 [(QualName n) (set! sig (syntax->datum #'n))]
-                 [(ParaDecls (Decl (NameList ps) _ ...) ...)
-                  (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block #'(bs ...))]
-                 [_ #f]))
-
-             (unless (hash-has-key? sig-to-fields sig)
-               (raise-user-error (format "Unknown sig in state predicate (~a) declaration: ~a" name sig)))
-             (define fields (hash-ref sig-to-fields sig))
-             (define (at- f) (string->symbol (string-append "@" (symbol->string f))))
-             (define lets (append
-                           (for/list ([f fields]) `[,f (join this ,f)])
-                           (for/list ([f fields]) `[,(at- f) ,f])))
-             (define ret (at stx 
-              `(pred (,name this ,@paras) (let ,lets (and ,@(syntax->list block))))))
-             ret)
-
-(define-syntax (TransitionDecl stx)
-             (define-values (name paras block sig) (values #f '() '() #f))
-             (for ([arg (cdr (syntax->list stx))])
-               (syntax-case arg (Name ParaDecls Decl NameList Block QualName)
-                 [(Name n) (set! name (syntax->datum #'n))]
-                 [(QualName n) (set! sig (syntax->datum #'n))]
-                 [(ParaDecls (Decl (NameList ps) _ ...) ...)
-                  (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Block bs ...) (set! block #'(bs ...))]
-                 [_ #f]))
-
-             (define fields (hash-ref sig-to-fields sig))
-             (define (post f) (string->symbol (string-append (symbol->string f) "'")))
-             (define (at- f) (string->symbol (string-append "@" (symbol->string f))))
-             (define posts (map post fields))
-             (define lets (append* (for/list ([f fields] [p posts])
-                                     (list
-                                      `[,f (join  this   ,f)]
-                                      `[,p (join |this'| ,f)]
-                                      `[,(at- f) ,f]
-                                      ))))
-             (define ret (at stx 
-               `(pred (,name this |this'| ,@paras) (let ,lets (and ,@(syntax->list block))))))
-
-             ; require either this' or all f', g', ... to be used in block
-             ; this is checked at macro-expansion, but raised at run-time
-             (define (find-syms term)
-               (define syms (list))
-               (define (find-syms b)
-                 (syntax-case b (QualName)
-                   [(QualName n) (set! syms (cons (syntax->datum #'n) syms))]
-                   [(_ ...) (map find-syms b)]
-                   [_ #f]
-                   ))
-               (find-syms term)
-               syms)
-             (define syms (find-syms (syntax->datum block)))
-             (unless (or (member '|this'| syms) (for/and ([f posts]) (member f syms)))
-               (define unspec (for/list ([f posts] #:unless (member f syms)) f))
-               (raise-syntax-error name
-                (format "Underspecified transition predicate. Please specify these fields: ~a" unspec)
-                stx))
-
-             ;; DON'T DELETE! Just temporarily commenting out until we decide on behavior.  
-             ;(for ([clause block])
-             ;  (define syms (find-syms clause))
-             ;  (unless (or (member '|this'| syms)
-             ;              (foldl (λ (x y) (or x y)) #f (for/list ([s syms])
-             ;                                             (or (member s posts) (member s paras)))))
-             ;    (raise (string-append "Irrelevant clause in: " (symbol->string name)))))
-             ;(printf "ret : ~v~n" ret)
-             ret)
-
-(define-for-syntax using-traces #f)
-(define-syntax (TraceDecl stx)
-             (define-values (name paras block sig params strat) (values #f '() '() #f #f 'plinear))
-             (for ([arg (cdr (syntax->list stx))])
-               (syntax-case arg (Name ParaDecls Decl NameList Block QualName Parameters Expr)
-                 [(Name n) (set! name (syntax->datum #'n))]
-                 [(QualName n) (set! sig (syntax->datum #'n))]
-                 [(ParaDecls (Decl (NameList ps) _ ...) ...)
-                  (set! paras (flatten (syntax->datum #'(ps ...))))]
-                 [(Parameters ps ...) (set! params (syntax->datum #'(ps ...)))]
-                 [(Block bs ...) (set! block #'(bs ...))]
-                 [(Expr (QualName s)) (set! strat (syntax->datum #'s))]
-                 [_ #f]
-                 )
-               )
-
-             (define L (length params))
-             (define S      (if (> L 0) (list-ref params 0) (error 'trace "no state sig specified for ~a" name)))
-             (define S_init (if (> L 1) (list-ref params 1) '_))
-             (define S_tran (if (> L 2) (list-ref params 2) '_))
-             (define S_term (if (> L 3) (list-ref params 3) '_))
-             (define S_inva (if (> L 4) (list-ref params 4) '_))
-
-             (define T name)
-             (define T_pred (string->symbol (format "~a_pred" name)))
-             (define T_fact (string->symbol (format "~a_fact" name)))
-             (define T_inst (string->symbol (format "~a_inst" name)))
-
-             (define init 'init)
-             (define tran 'tran)
-             (define term 'term)
-
-             (define ret
-               (at stx `(begin
-                  ,@(if using-traces '() `(
-                    (pre-declare-sig TraceBase #:extends univ)
-                    (SigDecl 
-                      "abstract"
-                      (NameList TraceBase)
-                      (ArrowDeclList 
-                        (ArrowDecl (NameList ,init) (ArrowMult "set") (ArrowExpr (QualName ,S))) 
-                        (ArrowDecl (NameList ,tran) (ArrowMult "set") (ArrowExpr (QualName ,S) (QualName ,S))) 
-                        (ArrowDecl (NameList ,term) (ArrowMult "set") (ArrowExpr (QualName ,S)))))))
-                  (pre-declare-sig ,T #:extends TraceBase)
-                  (SigDecl (Mult "one") (NameList ,T) (SigExt "extends" (QualName TraceBase)))
-                  (StateDecl
-                   "facts"
-                   (QualName ,T)
-                   (Name ,T_pred)
-                   (Block 
-                    ,@(syntax->list block)
-                    (Expr (Expr4 "some" (Expr8 (QualName ,tran))) 
-                          "=>" (Expr3 (Block 
-                                       (Expr (Expr6 (QualName ,S)) (CompareOp "=") 
-                                             (Expr7 (Expr8 (Expr15 (QualName ,tran)) "." (Expr16 (QualName ,S))) "+" 
-                                                    (Expr10 (Expr15 (QualName ,S)) "." (Expr16 (QualName ,tran))))) 
-                                       (Expr (Expr6 (QualName ,init)) (CompareOp "=") 
-                                             (Expr7 (Expr8 (Expr15 (QualName ,tran)) "." (Expr16 (QualName ,S))) "-" 
-                                                    (Expr10 (Expr15 (QualName ,S)) "." (Expr16 (QualName ,tran))))) 
-                                       (Expr (Expr6 (QualName ,term)) (CompareOp "=") 
-                                             (Expr7 (Expr8 (Expr15 (QualName ,S)) "." (Expr16 (QualName ,tran))) "-" 
-                                                    (Expr10 (Expr15 (QualName ,tran)) "." (Expr16 (QualName ,S))))))) 
-                          "else" (Expr3 (Block 
-                                         (Expr "one" (Expr8 (QualName ,S))) 
-                                         (Expr (Expr6 (QualName ,init)) (CompareOp "=") (Expr7 (QualName ,S))) 
-                                         (Expr (Expr6 (QualName ,term)) (CompareOp "=") (Expr7 (QualName ,S)))))) 
-                    ,@(if (equal? S_init '_) '()
-                          `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,init)))) 
-                                  (BlockOrBar "|" (Expr (Expr14 (QualName ,S_init)) 
-                                                        "[" (ExprList (Expr (QualName s))) "]"))))) 
-                    ,@(if (equal? S_tran '_) '()
-                          `((Expr (Quant "all") (DeclList 
-                                                 (Decl (NameList s) (Expr (QualName ,S))) 
-                                                 (Decl (NameList |s'|) (Expr (Expr15 (QualName s)) "." (Expr16 (QualName ,tran))))) 
-                                  (BlockOrBar "|" (Expr (Expr14 (QualName ,S_tran)) 
-                                                        "[" (ExprList (Expr (QualName s)) (Expr (QualName |s'|))) "]")))))
-                    ,@(if (equal? S_term '_) '()
-                          `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,term)))) 
-                                  (BlockOrBar "|" (Expr (Expr14 (QualName ,S_term)) 
-                                                        "[" (ExprList (Expr (QualName s))) "]")))))
-                    ,@(if (equal? S_inva '_) '()
-                          `((Expr (Quant "all") (DeclList (Decl (NameList s) (Expr (QualName ,S)))) 
-                                  (BlockOrBar "|" (Expr (Expr14 (QualName ,S_inva)) 
-                                                        "[" (ExprList (Expr (QualName s))) "]")))))))
-                  (PredDecl (Name ,T_fact) (Block 
-                                            (Expr (Quant "all") (DeclList (Decl (NameList t) (Expr (QualName ,T)))) 
-                                                  (BlockOrBar "|" (Expr (Expr14 (QualName ,T_pred)) 
-                                                                        "[" (ExprList (Expr (QualName t))) "]")))))
-                  (InstDecl (Name ,T_inst) (Bounds 
-                                            (Expr (Expr6 (QualName ,tran)) (CompareOp "is") (Expr7 (QualName ,strat))))))))
-             (set! using-traces #t)
-             ;(printf "ret : ~v~n" ret)
-             ret)
-
-(define-syntax (RelDecl stx)
-  (define ret (syntax-case stx (set one lone ArrowDecl NameList ArrowMult)
-                [(_ (ArrowDecl (NameList name) (ArrowMult "set") (ArrowExpr r ...)))
-                 #`(begin
-                     (define rel (declare-relation (list r ...) "univ" name))
-                     (add-relation rel (list r ...)))]
-                [(_ (ArrowDecl (NameList name) (ArrowMult "one") (ArrowExpr r ...)))
-                 #`(begin
-                     (define rel (declare-relation (list r ...) "univ" name))
-                     (add-relation rel (list r ...))
-                     (add-constraint (one rel)))]
-                [(_ (ArrowDecl (NameList name) (ArrowMult "lone") (ArrowExpr r ...)))
-                 #`(begin
-                     (define rel (declare-relation (list r ...) "univ" name))
-                     (add-relation rel (list r ...))
-                     (add-constraint (lone rel)))]))
-  ret)
-
-(define-syntax (TestBlock stx)
-  (define ret (syntax-case stx ()
-                [(_ b ...) #'(begin b ...)]))
-  ret)
-
-(define-syntax (Block stx)
-  (define ret (syntax-case stx ()
-                [(_ a ...) #'(and a ...)]))
-  ret)
-(define-syntax (BlockOrBar stx)
-  (define ret (syntax-case stx (Block)
-                [(_ (Block a ...)) #'(Block a ...)]
-                [(_ BAR-TOK e) #'e]))
-  ret)
-
-(define-syntax-rule (BreakDecl x ys ...) (break x 'ys ...))
-
-(define-syntax (QueryDecl stx) (map-stx (lambda (d)
-                                          (define name (second d))
-                                          (define type (third d))
-                                          (define expr (fourth d))
-                                          (define rel (string->symbol (string-append "_" (symbol->string name))))
-                                          (define datum `(begin
-                                                           (pre-declare-sig ,name)
-                                                           (SigDecl (NameList ,name) (ArrowDeclList (ArrowDecl (NameList ,rel) (ArrowMult "set") ,type)))
-                                                           (fact (one ,name))
-                                                           (fact (= (join ,name ,rel) ,expr))))
-                                          datum) stx))
+        (display-model get-next-model 
+                       (get-relation-map run)
+                       evaluate-str
+                       (Run-name run) 
+                       (Run-command run) 
+                       "/no-name.rkt" 
+                       (get-bitwidth
+                         (Run-run-spec run)) 
+                       empty
+                       get-contrast-model-generator))))
 
 
-(define-for-syntax (sym n)  (map-stx string->symbol n))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;; Scope/Bound Updaters ;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-syntax (Q stx)
-  (define ret (syntax-case stx (sum)
-                [(_ "all" n e a) (syntax/loc stx (all ([n e]) a))]
-                [(_ "no" n e a) (syntax/loc stx (no ([n e]) a))]
-                [(_ "lone" n e a) (syntax/loc stx (lone ([n e]) a))]
-                [(_ "some" n e a) (syntax/loc stx (some ([n e]) a))]
-                [(_ "one" n e a) (syntax/loc stx (one ([n e]) a))]
-                [(_ "two" n e a) (syntax/loc stx (two ([n e]) a))]
-                [(_ sum n e a) (syntax/loc stx (sum-quant ([n e]) a))]
-                [(_ q n "set" e a)
-                 (raise-syntax-error (string->symbol (syntax->datum #'q)) 
-                  "Higher-order quantification not supported" stx)]))
-  ret)
+; set-bitwidth :: Scope, int -> Scope
+; Updates the bitwidth for the given Scope.
+(define (set-bitwidth scope n)
+  (struct-copy Scope scope
+               [bitwidth n]))
 
-(define-syntax (Expr stx)
-  ;(printf "stx : ~v~n" stx)
-  (define ret (syntax-case stx (Quant DeclList Decl NameList CompareOp ArrowOp ExprList QualName
-                                      LetDeclList LetDecl)
-                [(_ "let" (LetDeclList (LetDecl n e) ...) block) 
-                 (syntax/loc stx (let ([n e] ...) block))]
-                [(_ "bind" (LetDeclList (LetDecl n e) ...) block) 
-                 (syntax/loc stx (bind ([n e] ...) block))]
-                [(_ "{" (DeclList (Decl (NameList n) e) ...) block "}") 
-                 (syntax/loc stx (set ([n e] ...) block))]
+; update-int-bound :: Scope, node/expr/relation, Range -> Scope
+; Updates the scope (range) for a given sig in scope.
+(define (update-int-bound scope rel given-scope)
+  (define name (string->symbol (relation-name rel)))
+  (define old-scope (get-scope scope name))
 
-                [(_ (Quant q) (DeclList (Decl (NameList n) e ...)) a)
-                 (syntax/loc stx (Q q n e ... a))]
-                [(_ (Quant q) (DeclList (Decl (NameList n) e ...) ds ...) a)
-                 (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList ds ...) a)))]
-                [(_ (Quant q) (DeclList (Decl (NameList n ns ...) e ...) ds ...) a)
-                 (syntax/loc stx (Q q n e ... (Expr (Quant q) (DeclList (Decl (NameList ns ...) e ...) ds ...) a)))]
+  (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
+  (define upper (@min (Range-upper given-scope) (Range-upper old-scope)))
+  (when (@< upper lower)
+    (raise "Bound conflict."))
 
-                [(_ a "or" b) (syntax/loc stx (or a b))]
-                [(_ a "||" b) (syntax/loc stx (or a b))]
-                [(_ a "iff" b) (syntax/loc stx (iff a b))]
-                [(_ a "<=>" b) (syntax/loc stx (iff a b))]
-                [(_ a "implies" b "else" c) (syntax/loc stx (ifte a b c))]
-                [(_ a "=>" b "else" c) (syntax/loc stx (ifte a b c))]
-                [(_ a "implies" b) (syntax/loc stx (=> a b))]
-                [(_ a "=>" b) (syntax/loc stx (=> a b))]
-                [(_ a "and" b) (syntax/loc stx (and a b))]
-                [(_ a "&&" b) (syntax/loc stx (and a b))]
-                [(_ "!" a) (syntax/loc stx (! a))]
-                [(_ "not" a) (syntax/loc stx (! a))]
-                [(_ a "!" (CompareOp op) b) (syntax/loc stx (! (Expr a (CompareOp op) b)))]
-                [(_ a "not" (CompareOp op) b) (syntax/loc stx (! (Expr a (CompareOp op) b)))]
-                [(_ a (CompareOp op) b) (quasisyntax/loc stx (#,(sym #'op) a b))]
-                [(_ "no" a) (syntax/loc stx (no a))]
-                [(_ "some" a) (syntax/loc stx (some a))]
-                [(_ "lone" a) (syntax/loc stx (lone a))]
-                [(_ "one" a) (syntax/loc stx (one a))]
-                [(_ "two" a) (syntax/loc stx (two a))]
-                [(_ "set" a) (syntax/loc stx (set a))]
-                [(_ a "+" b) (syntax/loc stx (+ a b))]
-                [(_ a "-" b) (syntax/loc stx (- a b))]
-                [(_ "#" a) (syntax/loc stx (card a))]
-                [(_ a "++" b) (syntax/loc stx (++ a b))]
-                [(_ a "&" b) (syntax/loc stx (& a b))]
-                [(_ a (ArrowOp _ ...) b) (syntax/loc stx (-> a b))]
-                [(_ a "<:" b) (syntax/loc stx (<: a b))]
-                [(_ a ":>" b) (syntax/loc stx (<: b a))]
-                [(_ a "[" (ExprList bs ...) "]") (syntax/loc stx (a bs ...))]
-                [(_ a "." b) (syntax/loc stx (join a b))]
-                [(_ "~" a) (syntax/loc stx (~ a))]
-                [(_ "^" a) (syntax/loc stx (^ a))]
-                [(_ "*" a) (syntax/loc stx (* a))]
-                [(_ a) (syntax/loc stx a)]))
-  ;(printf "ret : ~v~n" ret)
-  ret)
+  (define new-scope (Range lower upper))
+  (define new-sig-scopes (hash-set (Scope-sig-scopes scope) name new-scope))
 
-(provide Expr1  Expr2  Expr3  Expr4  Expr5  Expr6  Expr7  Expr8
-         Expr9  Expr10 Expr11 Expr12 Expr13 Expr14 Expr15 Expr16 Expr17)
-(define-syntax-rule (Expr1  x ...) (Expr x ...))
-(define-syntax-rule (Expr2  x ...) (Expr x ...))
-(define-syntax-rule (Expr3  x ...) (Expr x ...))
-(define-syntax-rule (Expr4  x ...) (Expr x ...))
-(define-syntax-rule (Expr5  x ...) (Expr x ...))
-(define-syntax-rule (Expr6  x ...) (Expr x ...))
-(define-syntax-rule (Expr7  x ...) (Expr x ...))
-(define-syntax-rule (Expr8  x ...) (Expr x ...))
-(define-syntax-rule (Expr9  x ...) (Expr x ...))
-(define-syntax-rule (Expr10 x ...) (Expr x ...))
-(define-syntax-rule (Expr11 x ...) (Expr x ...))
-(define-syntax-rule (Expr12 x ...) (Expr x ...))
-(define-syntax-rule (Expr13 x ...) (Expr x ...))
-(define-syntax-rule (Expr14 x ...) (Expr x ...))
-(define-syntax-rule (Expr15 x ...) (Expr x ...))
-(define-syntax-rule (Expr16 x ...) (Expr x ...))
-(define-syntax-rule (Expr17 x ...) (Expr x ...))
+  (struct-copy Scope scope
+               [sig-scopes new-sig-scopes]))
 
-(define-syntax-rule (Name n) n)
-(define-syntax-rule (QualName n) n)
-(define-syntax (Number stx)
-  (syntax-case stx ()
-    [(_ n) (map-stx (lambda (d) (string->number (cadr d))) stx)]))
-(define-syntax (Const stx)
-  (syntax-case stx ()
-    [(_ (Number n)) #'(node/int/constant (Number n))]
-    [(_ "-" (Number n)) #'(node/int/constant (* -1 (Number n)))]
-    [(_ c) (datum->syntax stx (string->symbol (syntax->datum #'c)))]))
-
-(define-simple-macro (iff a b) (and (=> a b) (=> b a)))
-(define-simple-macro (ifte a b c) (and (=> a b) (=> (not a) c)))
-(define-simple-macro (>= a b) (or (> a b) (int= a b)))
-(define-simple-macro (<= a b) (or (< a b) (int= a b)))
-(define-simple-macro (ni a b) (in b a))
-
-(require "server/eval-model.rkt")
-(provide make-exact-sbound Bounds make-hash printf)
-(define-syntax-rule (bind ([rel expr] ...) block)
-  (let ([bind (make-hash)])
-    (let ([tups (eval-exp (alloy->kodkod 'expr) bind 8 #f)])
-      (instance (make-exact-sbound rel tups))
-      (hash-set! bind 'rel tups)
-      ) ...
-    block))
-
-(define (update-bindings rel lower [upper #f])
+; update-bindings :: Bound, node/expr/relation, List<Symbol>, List<Symbol>? -> Bound
+; Updates the partial binding for a given sig or relation.
+; If a binding already exists, takes the intersection.
+; If this results in an exact bound, adds it to the total bounds.
+(define (update-bindings bound rel lower [upper #f])
   (set! lower (list->set lower))
   (when upper (set! upper (list->set upper)))
-  (if (hash-has-key? pbindings rel)
-      (let ([old (hash-ref pbindings rel)])
-        (set! lower (set-union lower (sbound-lower old)))
-        (set! upper (if upper
-                        (set-intersect upper (sbound-upper old))
-                        (sbound-upper old))))
-      (unless upper (begin
-        (let* ([uppers (for/list ([type (hash-ref relations-store rel)]) 
-                (for/list ([tup (sbound-upper (hash-ref pbindings type))]) (car tup))
-              )]
-             [cart (list->set (apply cartesian-product uppers))])
-          (set! upper cart)))))
-  (hash-set! pbindings rel (sbound rel lower upper))
-  ;; when exact bounds, put in bindings
-  (when (equal? lower upper) 
-    (hash-set! bindings (string->symbol (relation-name rel)) (set->list lower))
-  )
-)
-(define (update-bindings-at rel focus lower [upper #f])
-  (set! lower (for/set ([tup lower]) (cons focus tup)))
-  (when upper (set! upper (for/set ([tup upper]) (cons focus tup))))
-  (if (hash-has-key? pbindings rel)
-      (let ([old (hash-ref pbindings rel)])
-        (set! lower (set-union lower (sbound-lower old)))
-        (set! upper (if upper
-                        (for/list ([tup (sbound-upper old)] #:when 
-                          (or (@not (equal? (car tup) focus))
-                              (set-member? upper tup))
-                          ) tup)
-                        (sbound-upper old))))
-      (let* ([uppers (for/list ([type (hash-ref relations-store rel)]) 
-                (for/list ([tup (sbound-upper (hash-ref pbindings type))]) (car tup))
-              )]
-             [cart (list->set (apply cartesian-product uppers))])
-        (set! upper (if upper 
-                        (for/list ([tup cart] #:when
-                          (or (@not (equal? (car tup) focus))
-                              (set-member? upper tup))
-                          ) tup)
-                        cart))))
-  (hash-set! pbindings rel (sbound rel lower upper))
-  ;; when exact bounds, put in bindings
-  (when (equal? lower upper) 
-    (hash-set! bindings (string->symbol (relation-name rel)) (set->list lower))
-  )
-)
-(define (rel-is-exact rel) (hash-has-key? bindings (string->symbol (relation-name rel))))
 
-(define-syntax (Bounds stx)
-  (define ret (syntax-case stx ()
-                  [(_ "exactly" lines ...)
-                   #'(begin
-                       (Bind lines) ...
-                       (set-is-exact))]
-                  [(_ lines ...)
-                   #'(begin (Bind lines) ...)]))
-  ret)
-(define-syntax-rule (InstDecl (Name name) (Bounds lines ...))
-  (define (name B)
-    (Bind lines) ...))
-(define-syntax (Bind stx)
-  (set! stx (second (syntax-e stx)))
-  (define datum (syntax-case stx (CompareOp QualName Const)
-                  [(_ "no" rel) (syntax/loc stx (Bind (Expr rel (CompareOp "=") none)))]
-                  [(_ "one" rel) 
-                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "1"))))))]
-                  [(_ "two" rel) 
-                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "=") (Expr (Const (Number "2"))))))]
-                  [(_ "lone" rel) 
-                   (syntax/loc stx (Bind (Expr (Expr "#" rel) (CompareOp "<=") (Expr (Const (Number "1"))))))]
-                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "=") expr) (syntax/loc stx (begin 
-                    (define exact (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
-                    (update-int-bound rel (int-bound exact exact)) ))]
-                    ;(define dummies (for/list ([i exact]) (list i))) ;; dummy atoms so #rel works
-                    ;(update-bindings rel dummies dummies)))]
-                  [(_ (_ "#" (_ (QualName rel))) (CompareOp "<=") expr) (syntax/loc stx (begin 
-                    (define upper (caar (eval-exp (alloy->kodkod 'expr) bindings 8 #f)))
-                    (update-int-bound rel (int-bound 0 upper)) ))]
-                    ;(define dummies (for/set ([i upper]) (list i))) ;; dummy atoms so #rel works
-                    ;(update-bindings rel (@set) dummies)))]
-                  [(_ (_ expr1 (CompareOp "<=") (_ "#" (_ (QualName rel)))) (CompareOp "<=") expr2)
-                   (syntax/loc stx (begin 
-                    (define lower (caar (eval-exp (alloy->kodkod 'expr1) bindings 8 #f)))
-                    (define upper (caar (eval-exp (alloy->kodkod 'expr2) bindings 8 #f)))
-                    (update-int-bound rel (int-bound lower upper)) ))]
-                    ;(define ldummies (for/set ([i lower]) (list i))) ;; dummy atoms so #rel works
-                    ;(define udummies (for/set ([i upper]) (list i))) ;; dummy atoms so #rel works
-                    ;(update-bindings rel ldummies udummies)))]
-                  [(_ (_ "~" rel) (CompareOp "is") (_ (QualName strat))) 
-                   (syntax/loc stx (break rel (get-co 'strat)))]
-                  [(_ rel (CompareOp "is") (_ (QualName strat))) (syntax/loc stx (break rel 'strat))]
-                  [(_ (QualName f)) (syntax/loc stx (f bindings))]
-                  [(_ (_ (QualName rel)) (CompareOp cmp) expr)
-                   (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
-                      ;(set! tups (for/list ([tup tups]) (for/list ([e tup]) 
-                      ;  (if (int-atom? e) (int-atom-n e) e)
-                      ;)))
-                      (when (equal? (relation-arity rel) 1)
-                        ;; make sure all sub-sigs exactly defined
-                        (for ([(sub sup) (in-hash extensions-store)] #:when (equal? sup rel))
-                          (unless (rel-is-exact sub)
-                            (error 'inst "sub-sig ~a must be exactly specified before super-sig ~a" 
-                              (relation-name sub) (relation-name sup))))
-                        (let ([exact (length tups)]) (update-int-bound rel (int-bound exact exact)))
-                      )
-                      (when (equal? cmp "=")  (update-bindings rel tups tups))
-                      (when (equal? cmp "in") (update-bindings rel (@set) tups))
-                      (when (equal? cmp "ni") (update-bindings rel tups))
-                    ))]
-                  [(_ (_ (_ (QualName A)) "." (_ (QualName B))) (CompareOp cmp) expr)
-                    (syntax/loc stx (let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+  (define old-pbindings (Bound-pbindings bound))
+  (define old-tbindings (Bound-tbindings bound))
 
-                      #| FIXME: this is intentionally wrong to maintain backwards compatibility during
-                          the L4S final projects. I accidentally got the join backwards, so the
-                          implementation below swaps A and B to do `foc.rel = ...` depending on which
-                          of A/B is the relation. This can be fixed after the final as just:
+  ; New bindings can only strengthen old ones
+  (when (hash-has-key? old-pbindings rel)
+    (let ([old (hash-ref old-pbindings rel)])
+      (set! lower (set-union lower (sbound-lower old)))
+      (set! upper (cond [(@and upper (sbound-upper old))
+                         (set-intersect upper (sbound-upper old))]
+                        [else (@or upper (sbound-upper old))]))))
+  
 
-                          (when (equal? cmp "=")  (update-bindings-at B 'A tups tups))
-                          (when (equal? cmp "in") (update-bindings-at B 'A (@set) tups))
-                          (when (equal? cmp "ni") (update-bindings-at B 'A tups))
+  (unless (@or (@not upper) (subset? lower upper))
+    (raise "Bound conflict."))
 
-                          or `update-bindings-at` can be generalized to allow `rel.foc = ...`
-                      |#
+  (define new-pbindings
+    (hash-set old-pbindings rel (sbound rel lower upper)))
 
-                      (define nameA (symbol->string 'A))
-                      (define nameB (symbol->string 'B))
-                      (define rels (hash-keys relations-store))
-                      (define relA (findf (λ (x) (equal? (relation-name x) nameA)) rels))
-                      (define relB (findf (λ (x) (equal? (relation-name x) nameB)) rels))
-                      (match-define-values (rel foc) (cond
-                        [relA (values relA 'B)]
-                        [relB (values relB 'A)]
-                        [else (error 'inst "one of ~a or ~a must be a relation" 'A 'B)]))
+  ; when exact bounds, put in bindings
+  (define new-tbindings 
+    (if (equal? lower upper) 
+        (hash-set old-tbindings (string->symbol (relation-name rel)) 
+                                (set->list lower))
+        old-tbindings))
 
-                      (when (equal? cmp "=")  (update-bindings-at rel foc tups tups))
-                      (when (equal? cmp "in") (update-bindings-at rel foc (@set) tups))
-                      (when (equal? cmp "ni") (update-bindings-at rel foc tups))
-                  ))]
-                  [(_ (_ (QualName Int)) "[" (_ (_ (Const (Number i)))) "]")
-                   (quasisyntax/loc stx (set-bitwidth #,(string->number (syntax-e #'i))))]
-                  [(_ a "and" b) (syntax/loc stx (begin (Bind a) (Bind b)))]
-                  [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") stx)]))
-  datum)
+  (define new-bound (Bound new-pbindings new-tbindings))
+  new-bound)
 
-(define-syntax (two stx)
-  (syntax-case stx ()
-    [(_ ([v0 e0]) pred) (syntax/loc stx 
-     (some ([v0 e0]) (and pred 
-      (one ([v1 (- e0 v0)]) (let ([v0 v1]) pred))
-     )))]
-    [(_ expr) (syntax/loc stx 
-     (some ([x expr]) (one (- expr x))))]))
+; update-bindings-at :: Bound, node/expr/relation, node/expr/relation, 
+;                       List<Symbol>, List<Symbol>? 
+;                         -> Bound
+; To be implemented.
+; Updates the partial binding for a given focused relation.
+; Example use is (ni (join Thomas mentors) (+ Tim Shriram)).
+; (define (update-bindings-at bound rel foc lower [upper #f])
+;   scope)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;  Bound Declarations  ;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; (bind scope bound bind-expression)
+(define-syntax (bind stx)
+  (match-define (list b scope bound binding) (syntax-e stx))
+  (syntax-parse binding #:datum-literals (no one two lone <= = card is ~ join Int CompareOp QualName Const)
+    
+    ; Cardinality bindings
+    [(no rel) #`(bind #,scope #,bound (= rel none))]
+    [(one rel) #`(bind #,scope #,bound (= (card rel) 1))]
+    [(two rel) #`(bind #,scope #,bound (= (card rel) 2))]
+    [(lone rel) #`(bind #,scope #,bound (<= (card rel) 1))]
+
+    [(= (card rel) n)
+     #`(let* ([exact (eval-int-expr 'n (Bound-tbindings #,bound) 8)]
+              [new-scope (update-int-bound #,scope rel (Range exact exact))])
+         (values new-scope #,bound))]
+
+    [(<= (card rel) upper)
+     #`(let* ([upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
+              [new-scope (update-int-bound #,scope rel (Range 0 upper-val))])
+         (values new-scope #,bound))]
+
+    [(<= lower (card rel) upper)
+     #`(let* ([lower-val (eval-int-expr 'lower (Bound-tbindings #,bound) 8)]
+              [upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
+              [new-scope (update-int-bound #,scope rel (Range lower-val upper-val))])
+         (values new-scope #,bound))]
+
+    ; Strategies
+    [(is (~ rel) strat)
+     #`(begin
+       (break rel (get-co 'strat))
+       (values #,scope #,bound))]
+
+    [(is rel strat)
+     #`(begin
+       (break rel 'strat)
+       (values #,scope #,bound))]
+
+    ; Other instances
+    [f:id #`(f #,scope #,bound)]
+
+    ; Particular bounds
+    [(cmp rel expr)
+     #:fail-unless (member (syntax->datum #'cmp) '(= in ni)) "expected a comparator"
+     #`(let ([tups (eval-exp 'expr (Bound-tbindings #,bound) 8 #f)]) ; LOOK HERE
+         (define new-scope #,scope)
+           ; (if (@not (equal? (relation-arity rel) 1))
+           ;     #,scope
+           ;     (begin
+           ;       ;; make sure all sub-sigs exactly defined
+           ;       ; (for ([(sub sup) (in-hash extensions-store)] #:when (equal? sup rel))
+           ;       ;   (unless (rel-is-exact sub)
+           ;       ;           (error 'inst "sub-sig ~a must be exactly specified before super-sig ~a" 
+           ;       ;                  (relation-name sub) (relation-name sup))))
+           ;       (let ([exact (length tups)]) 
+           ;         (update-int-bound #,scope rel (Range exact exact))))))
+
+         (define new-bound (cond
+           [(equal? 'cmp '=)  (update-bindings #,bound rel tups tups)]
+           [(equal? 'cmp 'in) (update-bindings #,bound rel (@set) tups)]
+           [(equal? 'cmp 'ni) (update-bindings #,bound rel tups)]))
+
+         (values new-scope new-bound))]
+
+    ; [(cmp (join foc rel) expr)
+    ;  #`(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
+    ;      (define new-bound (cond
+    ;        [(equal? 'cmp '=)  (update-bindings-at #,bound rel 'foc tups tups)]
+    ;        [(equal? 'cmp 'in) (update-bindings-at #,bound rel 'foc (@set) tups)]
+    ;        [(equal? 'cmp 'ni) (update-bindings-at #,bound rel 'foc tups)]))
+    ;      (values #,scope new-bound))]
+
+    ; Bitwidth
+    [(Int n:nat)
+     #'(values (set-bitwidth #,scope n) #,bound)]
+
+    [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") binding)]))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;    Run Logic    ;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; send-to-kodkod :: Run-spec -> Stream<model>, List<Symbol>
+; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;
+; then produces a stream to produce instances generated by KodKod, 
+; along with a list of all of the atom names for sig atoms.
+(define (send-to-kodkod run-spec)
+  ; Do relation breaks from declarations
+  (define relation-constraints 
+    (apply append
+           (for/list ([relation (get-relations run-spec)])
+             (match (Relation-breaker relation)
+               [#f (list)]
+               ['default (list)]
+               ['pfunc (let* ([rel (Relation-rel relation)]
+                              [sigs (Relation-sigs relation)]
+                              [left-sig (get-sig run-spec (first sigs))]
+                              [sig-rel (Sig-rel left-sig)])
+                         (list (all ([s sig-rel])
+                                 (lone (join s rel)))))]
+               [other (break (Relation-rel relation) other)
+                      (list)]))))
+
+  ; Insert missing upper bounds of partial bindings
+  (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
+  (define fixed-sigs
+    (for/hash ([(rel pbinding) (in-hash pbindings)])      
+      (match-define (sbound rel lower upper) pbinding)
+      (when (@and (@= (relation-arity rel) 1) (@not upper))
+        (define sig (get-sig run-spec (string->symbol (relation-name rel))))
+        (define sig-scope (get-scope run-spec sig))
+        (define new-atoms (range (set-count lower) (Range-upper sig-scope)))
+        (define new-names (map (lambda (n) (list (string->symbol (format "~a~a" (Sig-name sig) n)))) new-atoms))
+        (define new-upper (set-union lower (list->set new-names)))
+        (set! upper new-upper))
+      (values rel (sbound rel lower upper))))
+  
+  (define fixed-relations
+    (for/hash ([(rel pbinding) (in-hash fixed-sigs)])
+      (match-define (sbound rel lower upper) pbinding)
+      (when (@and (@> (relation-arity rel) 1) (@not upper))
+        (define relation (get-relation run-spec (string->symbol (relation-name rel))))
+        (define types (get-sigs run-spec relation))
+        (define type-uppers (map (compose set->list
+                                          sbound-upper
+                                          (curry hash-ref fixed-sigs ))
+                                 types))
+        (define new-upper (list->set (apply cartesian-product type-uppers)))
+        (set! upper new-upper))
+      (values rel (sbound rel lower upper))))
+  
+  (set! pbindings fixed-relations)
+  ; Send user defined partial bindings to breaks
+  (map instance (hash-values pbindings))
+
+  (define tbindings 
+    (let* ([init-tbindings (Bound-tbindings (Run-spec-bounds run-spec))]
+           [fixed-init-tbindings (hash-remove (hash-remove init-tbindings 'Int) 'succ)])
+      (for/fold ([tbindings fixed-init-tbindings])
+                ([(rel sb) (in-hash pbindings)])
+        ; this nonsense is just for atom names
+        (define name (string->symbol (relation-name rel)))
+        (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup))))))
+
+  ; Get KodKod names, min sets, and max sets of Sigs and Relations
+  (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
+    (get-sig-bounds run-spec tbindings))
+
+  (define relation-to-bound ; Map<Symbol, bound>
+    (get-relation-bounds run-spec sig-to-bound))
+  
+  ; Get new bounds and constraints from breaks
+  (define-values (total-bounds break-preds)
+    (let* ([sig-bounds (map (compose (curry hash-ref sig-to-bound )
+                                     Sig-name)
+                            (get-sigs run-spec))]
+           [relation-bounds (map (compose (curry hash-ref relation-to-bound )
+                                          Relation-name)
+                                 (get-relations run-spec))]
+           [total-bounds (append sig-bounds relation-bounds)]
+           [sigs (get-sigs run-spec)]
+           [sig-rels (map Sig-rel (filter (lambda (sig) (@not (equal? (Sig-name sig) 'Int))) sigs))]
+           [upper-bounds (for/hash ([sig sigs]) 
+                           (values (Sig-rel sig) 
+                                   (map car (bound-upper (hash-ref sig-to-bound (Sig-name sig))))))]
+           [relations-store (for/hash ([relation (get-relations run-spec)]
+                                       #:unless (equal? (Relation-name relation) 'succ))
+                              (values (Relation-rel relation) (map Sig-rel (get-sigs run-spec relation))))]
+           [extensions-store (for/hash ([sig sigs]
+                                        #:when (Sig-extends sig))
+                               (values (Sig-rel sig) (Sig-rel (get-sig run-spec (Sig-extends sig)))))])
+      (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
+  (clear-breaker-state)
+
+  (define sigs-and-rels
+    (append (State-sig-order (Run-spec-state run-spec))
+            (State-relation-order (Run-spec-state run-spec))))
+  (set! total-bounds (map (lambda (name) 
+                            (findf (lambda (b) 
+                                     (equal? name (string->symbol (relation-name (bound-relation b)))))
+                                   total-bounds)) 
+                          sigs-and-rels))
+
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (displayln "--------------------------")
+    (printf "Original PBindings: ~n~a~n~n" (Bound-pbindings (Run-spec-bounds run-spec)))
+    (printf "Fixed PBindings: ~n~a~n~n" pbindings)
+    (printf "Original TBindings: ~n~a~n~n" (Bound-tbindings (Run-spec-bounds run-spec)))
+    (printf "Fixed TBindings: ~n~a~n~n" tbindings)
+    (printf "sig-to-bound: ~n~a~n~n" sig-to-bound)
+    (printf "relation-to-bound: ~n~a~n~n" relation-to-bound)
+    (printf "all-atoms: ~n~a~n~n" all-atoms)
+    (printf "total-bounds: ~n~a~n~n" total-bounds)
+    (displayln "--------------------------"))
+
+
+  #| Print to KodKod-CLI
+    print configure
+    declare univ size
+    declare ints
+    print Int sig (r0)
+    print other sigs (r2 ... rm)
+    print succ relation (r(m + 1))
+    print other relations (r(m + 2) ... rn)
+    print formula / assert formula (f0 ... fk)
+    print solve
+  |#
+
+  ; Initializing our kodkod-cli process, and getting ports for communication with it
+  (define backend (get-option run-spec 'backend))
+  (define-values (stdin stdout shutdown is-running?) 
+    (cond
+      [(equal? backend 'kodkod)
+       (kodkod:start-server)]
+      [(equal? backend 'pardinus)
+       (pardinus:start-server
+        'stepper
+        (Target? (Run-spec-target run-spec))
+        (equal? 'temporal (get-option run-spec 'problem_type)))]
+      [else (raise (format "Invalid backend: ~a" backend))]))
+
+  (define-syntax-rule (kk-print lines ...)
+    (kodkod:cmd 
+      [stdin]
+      lines ...))
+
+  ; Print targets
+  (define-syntax-rule (pardinus-print lines ...)
+    (pardinus:cmd 
+      [stdin]
+      lines ...))
+
+  ; Confirm that if the user is invoking a custom solver, that custom solver exists
+  (define solverspec (cond [(symbol? (get-option run-spec 'solver))
+                            (get-option run-spec 'solver)]
+                           [else (string-append "\"" (get-option run-spec 'solver) "\"")]))
+  (unless (or (symbol? (get-option run-spec 'solver))
+              (file-exists? (get-option run-spec 'solver)))
+    (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist." 
+                              (get-option run-spec 'solver))))
+  
+  ; Print configure and declare univ size
+  ; Note that target mode is passed separately, nearer to the (solve) invocation
+  (define bitwidth (get-bitwidth run-spec)) 
+  (pardinus-print
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
+                               bitwidth 
+                               solverspec
+                               (get-option run-spec 'skolem_depth)
+                               (get-option run-spec 'sb) 
+                               (get-option run-spec 'coregranularity)
+                               (get-option run-spec 'core_minimization)
+                               (get-option run-spec 'logtranslation)
+                               (if (equal? 'temporal (get-option run-spec 'problem_type))
+                                   (format ":min-trace-length ~a" (get-option run-spec 'min_tracelength))
+                                   "")
+                               (if (equal? 'temporal (get-option run-spec 'problem_type))
+                                   (format ":max-trace-length ~a" (get-option run-spec 'max_tracelength))
+                                   "")))
+    (pardinus:declare-univ (length all-atoms)))
+
+  ; Declare ints
+  (define num-ints (expt 2 bitwidth))
+  (pardinus-print
+    (pardinus:declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
+                         (range num-ints)))                        ; indexes
+
+  ; to-tupleset :: List<List<int>>, int -> tupleset
+  (define (to-tupleset arity eles)
+    (if (empty? eles)
+        (if (@= arity 1)
+            'none
+            (pardinus:product 'none (to-tupleset (sub1 arity) eles)))
+        (pardinus:tupleset #:tuples eles)))
+
+  (define (get-atoms rel atom-names)
+    (define atoms 
+      (for/list ([tup atom-names])
+        (for/list ([atom tup])
+          ; Used to allow using ints in instances.
+          (when (int-atom? atom)
+            (set! atom (int-atom-n atom)))
+
+          (unless (member atom all-atoms)
+            (raise (format "atom (~a) not in all-atoms (~a)"
+                           atom all-atoms)))
+          (index-of all-atoms atom))))
+    (define ret (to-tupleset (relation-arity rel) atoms))
+    ret)
+
+  (for ([rel (get-all-rels run-spec)]
+        [bound total-bounds])    
+    (pardinus-print
+      (pardinus:declare-rel
+       (if (node/expr/relation-is-variable rel)
+           (pardinus:x (relation-name rel))
+           (pardinus:r (relation-name rel)))
+        (get-atoms rel (bound-lower bound))
+        (get-atoms rel (bound-upper bound)))))
+
+  ; Declare assertions
+  (define all-rels (get-all-rels run-spec))
+
+  (define (maybe-alwaysify fmla)
+    (if (equal? 'temporal (get-option run-spec 'problem_type))
+        (always/info (node-info fmla) fmla)
+        fmla))
+  
+  ; Get and print predicates
+  ; If in temporal mode, need to always-ify the auto-generated constraints but not the
+  ;   predicates that come from users
+  (define raw-implicit-constraints
+    (append (get-sig-size-preds run-spec total-bounds)
+            (get-relation-preds run-spec)
+            (get-extender-preds run-spec)
+            relation-constraints
+            break-preds))
+  (define conjuncts-implicit-constraints
+    (apply append (map maybe-and->list raw-implicit-constraints)))
+  (define implicit-constraints
+    (map maybe-alwaysify conjuncts-implicit-constraints))
+  (define explicit-constraints
+    (apply append (map maybe-and->list (Run-spec-preds run-spec)))) 
+              
+  (define run-constraints 
+    (append explicit-constraints implicit-constraints))
+
+  ; Run last-minute checks for errors  
+  (for-each (lambda (c) (checkFormula run-spec c '())) run-constraints) 
+  
+  (for ([p run-constraints]
+        [assertion-number (in-naturals)])
+    (pardinus-print
+      (pardinus:print-cmd-cont "(~a " (pardinus:f assertion-number))
+      (translate-to-kodkod-cli run-spec p all-rels all-atoms '())
+      (pardinus:print-cmd ")")
+      (pardinus:assert (pardinus:f assertion-number))))
+
+  (define target (Run-spec-target run-spec))
+  (when target
+    (for ([(rel-name atoms) (Target-instance target)])
+      (define relation (hash-ref (get-relation-map run-spec) (symbol->string rel-name)))
+      (define sig-or-rel
+        (if (@= (relation-arity relation) 1)
+            (get-sig run-spec relation)
+            (get-relation run-spec relation)))
+
+      (pardinus-print
+        (pardinus:declare-target 
+          (pardinus:r (relation-name relation))
+          (get-atoms relation atoms))))
+
+    (pardinus-print
+      (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
+
+  (define (format-statistics stats)
+    (let* ([vars (assoc 'size-variables stats)]
+           [prim (assoc 'size-primary stats)]
+           [clauses (assoc 'size-clauses stats)]
+           [tt (assoc 'time-translation stats)]
+           [ts (assoc 'time-solving stats)]
+           [tcx (assoc 'time-core stats)]
+           [tcstr (if tcx (format " Core min (ms): ~a" tcx) "")])
+      (format "#vars: ~a; #primary: ~a; #clauses: ~a~nTransl (ms): ~a; Solving (ms): ~a~a"
+              vars prim clauses tt ts tcstr)))
+  
+  ; Print solve
+  (define (get-next-model)
+    (unless (is-running?)
+      (raise "KodKod server is not running."))
+    (pardinus-print (pardinus:solve))
+    (define result (translate-from-kodkod-cli
+                    'run 
+                    (pardinus:read-solution stdout) 
+                    all-rels 
+                    all-atoms))    
+    (when (@>= (get-verbosity) VERBOSITY_LOW)
+      (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
+    result)
+
+  (define (model-stream [prev #f])
+    (if (and prev
+             (Unsat? prev))
+        (letrec ([rest (stream-cons (prev) rest)])
+          rest)
+        (stream-cons (get-next-model) (model-stream))))
+
+  (values (model-stream) 
+          all-atoms 
+          (Server-ports stdin stdout shutdown is-running?) 
+          (Kodkod-current (length run-constraints) 0 0) 
+          total-bounds))
+
+; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
+; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
+; sets of atoms for each, and find the total number of atoms needed (including ints).
+(define (get-sig-bounds run-spec tbindings)
+
+  ; Map<Symbol, int>
+  (define curr-atom-number (make-hash))
+  ; Sig -> Symbol
+  (define (get-next-name sig)
+    (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) -1)))    
+    (hash-set! curr-atom-number (Sig-name sig) atom-number)
+    (define default-name (string->symbol (format "~a~a" (Sig-name sig) atom-number)))
+;    (if (hash-has-key? tbindings (Sig-name sig))
+;        (let ([bind-names (hash-ref tbindings (Sig-name sig))])                 
+;          (if (@< atom-number (length bind-names))
+;              (list-ref bind-names atom-number)
+;              (if (member default-name bind-names) ; Avoid clash with user atom names
+;                  (get-next-name sig)
+;                  default-name)))          
+        default-name)
+  ;)
+  
+  ; Sig, int -> List<Symbol>
+  ; TN changed this to always use the *lowest* unused atom names first
+  ;   this matters if we're manufacturing an instance I2 from an instance I1 and the bounds
+  ;   need to be identical regardless of how many of a given sig appeared in I1.
+  (define (get-next-names sig num)
+    (define bind-names (if (hash-has-key? tbindings (Sig-name sig))
+                           (hash-ref tbindings (Sig-name sig))  ; user-defined names    
+                           empty))
+    (define default-names (for/list ([_ (range num)]) (get-next-name sig)))
+    (define new-names (remove* bind-names default-names)) ; (remove* v-lst lst) removes from lst every element of v-lst
+    (define n-new-needed (- num (length bind-names)))
+    ;(printf "get-next-names; num=~a, bind-names: ~a, default-names: ~a, new-names: ~a, n-new-needed ~a~n"
+    ;        num bind-names default-names new-names n-new-needed)
+    (append bind-names (if (@> n-new-needed 0) (take new-names n-new-needed) empty)))
+
+  ; Map<Symbol, List<Symbol>
+  (define sig-to-lower (make-hash))
+  ; Sig -> List<Symbol>
+  (define (fill-lower sig)
+    (define own-lower-int (Range-lower (get-scope run-spec sig)))
+    (define children-lower (apply append (map fill-lower (get-children run-spec sig))))
+
+    (define own-lower
+      (let ([difference (@- own-lower-int (length children-lower))])
+        (if (@> difference 0)
+            (append (get-next-names sig difference) children-lower)
+            children-lower)))
+
+    (hash-set! sig-to-lower (Sig-name sig) own-lower)
+    own-lower)
+
+  ; Map<Symbol, List<List<Symbol>>
+  (define sig-to-upper (make-hash))
+  ; Sig, List<Symbol>? -> List<Symbol>
+  (define (fill-upper-top sig)
+    (define own-upper-int (Range-upper (get-scope run-spec sig)))
+    (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
+    (define difference (@- own-upper-int (length own-lower)))    
+    (when (@< difference 0)
+      (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
+
+    (define new-names (get-next-names sig difference))
+    (define own-upper (append own-lower new-names))
+    (hash-set! sig-to-upper (Sig-name sig) own-upper)
+
+    (for ([child (get-children run-spec sig)]) (fill-upper-extender child own-upper))
+    own-upper)
+
+  (define (fill-upper-extender sig upper)
+    (hash-set! sig-to-upper (Sig-name sig) upper)
+    (for ([child (get-children run-spec sig)]) (fill-upper-extender child upper)))
+
+  (define int-atoms
+    (let* ([bitwidth (get-bitwidth run-spec)]
+           [max-int (expt 2 (sub1 bitwidth))])
+      (range (- max-int) max-int)))
+  (hash-set! sig-to-lower 'Int int-atoms)
+  (hash-set! sig-to-upper 'Int int-atoms)
+
+  ; Start: Used to allow extending Ints.
+  (for ([sig (get-children run-spec Int)])
+    (hash-set! sig-to-lower (Sig-name sig) '())
+    (hash-set! sig-to-upper (Sig-name sig) int-atoms))
+  ; End: Used to allow extending Ints.
+
+  (define top-level-sigs (get-top-level-sigs run-spec))
+  
+  (define sig-atoms (apply append
+    (for/list ([sig top-level-sigs] 
+               #:unless (equal? (Sig-name sig) 'Int))
+      (fill-lower sig)
+      (fill-upper-top sig))))
+
+  (define all-atoms (append int-atoms sig-atoms))
+
+  ; Map<Symbol, bound>
+  (define bounds-hash
+    (for/hash ([sig (get-sigs run-spec)])
+      (let* ([name (Sig-name sig)]
+             [rel (Sig-rel sig)]
+             [lower (map list (hash-ref sig-to-lower name))]
+             [upper (map list (hash-ref sig-to-upper name))])
+        (values name (bound rel lower upper)))))
+
+  (values bounds-hash all-atoms))
+
+; get-relation-info :: Run-spec -> Map<Symbol, bound>
+; Given a Run-spec, the atoms assigned to each sig, the atoms assigned to each name,
+; and the starting relation name, assigns names to each relation
+; and minimum and maximum sets of atoms for each relation.
+(define (get-relation-bounds run-spec sig-to-bound)
+  (define without-succ
+    (for/hash ([relation (get-relations run-spec)]
+               #:unless (equal? (Relation-name relation) 'succ))
+      (define sigs (get-sigs run-spec relation))
+      (define sig-atoms (map (compose (curry map car )
+                                      bound-upper
+                                      (curry hash-ref sig-to-bound )
+                                      Sig-name) 
+                             sigs))
+      (define upper (apply cartesian-product sig-atoms))
+      (define lower empty)
+      (values (Relation-name relation) 
+              (bound (Relation-rel relation) lower upper))))
+  (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
+  (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
+  (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
+
+; get-sig-size-preds :: Run-spec -> List<node/formula>
+; Creates assertions for each Sig to restrict
+; it to the correct lower/upper bound.
+(define (get-sig-size-preds run-spec total-bounds) 
+  (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
+  (apply append
+    (for/list ([sig (get-sigs run-spec)]
+               #:unless (equal? (Sig-name sig) 'Int))
+      (match-define (Range int-lower int-upper) (get-scope run-spec sig))
+      
+      (append
+        (if (equal? int-lower 0)
+            (list)
+            (let ()
+              (unless (@< int-lower max-int)
+                (raise (format (string-append "Lower bound too large for given BitWidth; "
+                                              "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
+                               sig int-lower (sub1 max-int))))
+              (list (<= (int int-lower) (card (Sig-rel sig))))))
+        (if (@not (Sig-extends sig))
+            (list)
+            (let ()
+              (unless (@< int-upper max-int)
+                (raise (format (string-append "Upper bound too large for given BitWidth; "
+                                              "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
+                               sig int-upper (sub1 max-int))))
+              (list (<= (card (Sig-rel sig)) (int int-upper)))))))))
+
+; get-extender-preds :: Run-spec -> List<node/formula>
+; Creates assertions for each Sig which has extending Sigs so that:
+; - if it is abstract, then it must equal the sum of its extenders
+; -                    else it must contain the sum of its extenders
+; - all extenders are pair-wise disjoint.
+(define (get-extender-preds run-spec)
+  (define sig-constraints (for/list ([sig (get-sigs run-spec)])
+    ; get children information
+    (define children-rels (map Sig-rel (get-children run-spec sig)))
+
+    ; abstract and sig1, ... extend => (= sig (+ sig1 ...))
+    ; not abstract and sig is parent of sig1 => (in sig1 sig)
+    ; TODO: optimize by identifying abstract sigs as sum of children
+    (define (abstract sig extenders)
+      (if (@= (length extenders) 1)
+          (= sig (car extenders))
+          (= sig (+ extenders))))
+    (define (parent sig1 sig2)
+      (in sig2 sig1))
+    (define extends-constraints 
+      (if (and (Sig-abstract sig) (cons? (Sig-extenders sig)))
+          (list (abstract (Sig-rel sig) children-rels))
+          (map (curry parent (Sig-rel sig)) children-rels)))
+
+    ; sig1 and sig2 extend sig => (no (& sig1 sig2))
+    (define (disjoin-pair sig1 sig2)
+      (no (& sig1 sig2)))
+    (define (disjoin-list a-sig a-list)
+      (map (curry disjoin-pair a-sig) a-list))
+    (define (disjoin a-list)
+      (if (empty? a-list)
+          empty
+          (append (disjoin-list (first a-list) (rest a-list))
+                  (disjoin (rest a-list)))))
+    (define disjoint-constraints (disjoin children-rels))
+
+    (append extends-constraints disjoint-constraints)))
+
+  ; combine all constraints together
+  (apply append sig-constraints))
+
+; get-relation-preds :: Run-spec -> List<node/formula>
+; Creates assertions for each Relation to ensure that it does not
+; contain any atoms which don't populate their Sig.
+(define (get-relation-preds run-spec)
+  (for/list ([relation (get-relations run-spec)])
+    (define sig-rels (map Sig-rel (get-sigs run-spec relation)))
+    (in (Relation-rel relation) (-> sig-rels))))

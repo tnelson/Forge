@@ -1,0 +1,69 @@
+<alloy builddate="2018-04-08T17:20:06.754Z">
+
+<instance bitwidth="4" maxseq="6" command="Run Show for 6 expect 1" filename="/home/tristan/Desktop/genealogy.als">
+
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<sig label="this/Adam" ID="4" parentID="5" one="yes">
+   <atom label="Adam$0"/>
+</sig>
+
+<sig label="this/Man" ID="5" parentID="6">
+   <atom label="Man$0"/>
+   <atom label="Man$1"/>
+</sig>
+
+<sig label="this/Eve" ID="7" parentID="8" one="yes">
+   <atom label="Eve$0"/>
+</sig>
+
+<sig label="this/Woman" ID="8" parentID="6">
+   <atom label="Woman$0"/>
+   <atom label="Woman$1"/>
+</sig>
+
+<sig label="this/Person" ID="6" parentID="2" abstract="yes">
+</sig>
+
+<field label="spouse" ID="9" parentID="6">
+   <tuple> <atom label="Adam$0"/> <atom label="Eve$0"/> </tuple>
+   <tuple> <atom label="Eve$0"/> <atom label="Adam$0"/> </tuple>
+   <tuple> <atom label="Woman$0"/> <atom label="Man$1"/> </tuple>
+   <tuple> <atom label="Man$1"/> <atom label="Woman$0"/> </tuple>
+   <types> <type ID="6"/> <type ID="6"/> </types>
+</field>
+
+<field label="parents" ID="10" parentID="6">
+   <tuple> <atom label="Woman$0"/> <atom label="Adam$0"/> </tuple>
+   <tuple> <atom label="Woman$0"/> <atom label="Eve$0"/> </tuple>
+   <tuple> <atom label="Woman$1"/> <atom label="Eve$0"/> </tuple>
+   <tuple> <atom label="Woman$1"/> <atom label="Man$0"/> </tuple>
+   <tuple> <atom label="Man$0"/> <atom label="Adam$0"/> </tuple>
+   <tuple> <atom label="Man$0"/> <atom label="Woman$0"/> </tuple>
+   <tuple> <atom label="Man$1"/> <atom label="Woman$1"/> </tuple>
+   <tuple> <atom label="Man$1"/> <atom label="Man$0"/> </tuple>
+   <types> <type ID="6"/> <type ID="6"/> </types>
+</field>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+<skolem label="$Show_p" ID="11">
+   <tuple> <atom label="Woman$0"/> </tuple>
+   <types> <type ID="6"/> </types>
+</skolem>
+
+</instance>
+
+<source filename="/home/tristan/Desktop/genealogy.als" content="/**&#x000a;model author: Daniel Jackson, 11/13/01&#x000a;&#x000a;The purpose of this model is to introduce basic concepts in Alloy. &#x000a;The signature Person introduces a set of persons; this is paritioned &#x000a;into two subsets, Man and Woman. The subsignature Adam declares a &#x000a;set of men with one element -- that is, a scalar. Similarly, Eve &#x000a;declares a single woman. The Person signature declares two fields: a&#x000a;person has one or zero spouses and a set of parents.&#x000a;&#x000a;The facts should be self-explanatory. Note that the constraint that &#x000a;spouse is a symmetric relation (that is, p is a spouse of q if q is &#x000a;a spouse of p) is written by equating the field, viewed as a &#x000a;relation, to its transpose. Since signatures have their own &#x000a;namespaces, and the same field name can refer to different fields in &#x000a;different relations, it is necessary to indicate which signature the &#x000a;field belongs to. This is not necessary when dereferencing a field, &#x000a;because the appropriate field is automatically determined by the type &#x000a;of the referencing expression.&#x000a;&#x000a;The command has no solutions. Given only 5 persons, it&apos;s not possible &#x000a;to have a couple distinct from Adam and Eve without incest. To &#x000a;understand the model, try weakening the constraints by commenting &#x000a;lines out (just put two hyphens at the start of a line) and rerunning &#x000a;the command.&#x000a;*/&#x000a;&#x000a;abstract sig Person {spouse: lone Person, parents: set Person}&#x000a;sig Man, Woman extends Person {}&#x000a;one sig Eve extends Woman {}&#x000a;one sig Adam extends Man {}&#x000a;&#x000a;fact Biology {&#x000a;    -- nobody is his or her own ancestor&#x000a;    no p: Person | p in p.^parents&#x000a;    }&#x000a;&#x000a;fact Bible {&#x000a;    -- every person except Adam and Eve has a mother and father&#x000a;    all p: Person - (Adam + Eve) | one mother: Woman, father: Man |&#x000a;        p.parents = mother + father&#x000a;    -- Adam and Eve have no parents&#x000a;    no (Adam + Eve).parents&#x000a;    -- Adam&apos;s spouse is Eve&#x000a;    Adam.spouse = Eve&#x000a;    }&#x000a;&#x000a;fact SocialNorms {&#x000a;    -- nobody is his or her own spouse&#x000a;    no p: Person | p.spouse = p&#x000a;    -- spouse is symmetric&#x000a;    spouse = ~spouse&#x000a;    -- a man&apos;s spouse is a woman and vice versa&#x000a;    Man.spouse in Woman &amp;&amp; Woman.spouse in Man&#x000a;    }&#x000a;&#x000a;fact NoIncest {&#x000a;    -- can&apos;t marry a sibling&#x000a;    no p: Person | some p.spouse.parents &amp; p.parents&#x000a;    -- can&apos;t marry a parent&#x000a;    no p: Person | some p.spouse &amp; p.parents&#x000a;    }&#x000a;&#x000a;pred Show {&#x000a;    some p: Person - (Adam + Eve) | some p.spouse&#x000a;    }&#x000a;run Show for 6 expect 1"/>
+
+<source filename="/$alloy4$/models/util/integer.als" content="module util/integer&#x000a;&#x000a;/*&#x000a; * A collection of utility functions for using Integers in Alloy.&#x000a; * Note that integer overflows are silently truncated to the current bitwidth&#x000a; * using the 2&apos;s complement arithmetic, unless the &quot;forbid overfows&quot; option is&#x000a; * turned on, in which case only models that don&apos;t have any overflows are &#x000a; * analyzed. &#x000a; */&#x000a;&#x000a;fun add  [n1, n2: Int] : Int { this/plus[n1, n2] }&#x000a;fun plus [n1, n2: Int] : Int { n1 fun/add n2 }&#x000a;&#x000a;fun sub   [n1, n2: Int] : Int { this/minus[n1, n2] }&#x000a;fun minus [n1, n2: Int] : Int { n1 fun/sub n2 }&#x000a;&#x000a;fun mul [n1, n2: Int] : Int { n1 fun/mul n2 }&#x000a;&#x000a;/**&#x000a; * Performs the division with &quot;round to zero&quot; semantics, except the following 3 cases&#x000a; * 1) if a is 0, then it returns 0&#x000a; * 2) else if b is 0, then it returns 1 if a is negative and -1 if a is positive&#x000a; * 3) else if a is the smallest negative integer, and b is -1, then it returns a&#x000a; */&#x000a;fun div [n1, n2: Int] : Int { n1 fun/div n2 }&#x000a;&#x000a;/** answer is defined to be the unique integer that satisfies &quot;a = ((a/b)*b) + remainder&quot; */&#x000a;fun rem [n1, n2: Int] : Int { n1 fun/rem n2 }&#x000a;&#x000a;/** negate */&#x000a;fun negate [n: Int] : Int { 0 fun/sub n }&#x000a;&#x000a;/** equal to */&#x000a;pred eq [n1, n2: Int] { int[n1] = int[n2] }&#x000a;&#x000a;/** greater than */&#x000a;pred gt [n1, n2: Int] { n1 &gt; n2 }&#x000a;&#x000a;/** less then */&#x000a;pred lt [n1, n2: Int] { n1 &lt; n2 }&#x000a;&#x000a;/** greater than or equal */&#x000a;pred gte [n1, n2: Int] { n1 &gt;= n2 }&#x000a;&#x000a;/** less than or equal */&#x000a;pred lte [n1, n2: Int] { n1 &lt;= n2 }&#x000a;&#x000a;/** integer is zero */&#x000a;pred zero [n: Int] { n = 0 }&#x000a;&#x000a;/** positive */&#x000a;pred pos  [n: Int] { n &gt; 0 }&#x000a;&#x000a;/** negative */&#x000a;pred neg  [n: Int] { n &lt; 0 }&#x000a;&#x000a;/** non-positive */&#x000a;pred nonpos [n: Int] { n &lt;= 0 }&#x000a;&#x000a;/** non-negative */&#x000a;pred nonneg [n: Int] { n &gt;= 0 }&#x000a;&#x000a;/** signum (aka sign or sgn) */&#x000a;fun signum [n: Int] : Int { n&lt;0 =&gt; (0 fun/sub 1) else (n&gt;0 =&gt; 1 else 0) }&#x000a;&#x000a;/**&#x000a; * returns the ith element (zero-based) from the set s&#x000a; * in the ordering of &apos;next&apos;, which is a linear ordering&#x000a; * relation like that provided by util/ordering&#x000a; */&#x000a;fun int2elem[i: Int, next: univ-&gt;univ, s: set univ] : lone s {&#x000a;  {e: s | #^next.e = int i }&#x000a;}&#x000a;&#x000a;/**&#x000a; * returns the index of the element (zero-based) in the&#x000a; * ordering of next, which is a linear ordering relation&#x000a; * like that provided by util/ordering&#x000a; */&#x000a;fun elem2int[e: univ, next: univ-&gt;univ] : lone Int {&#x000a;  Int[#^next.e]&#x000a;}&#x000a;&#x000a;/** returns the largest integer in the current bitwidth */&#x000a;fun max:one Int { fun/max }&#x000a;&#x000a;/** returns the smallest integer in the current bitwidth */&#x000a;fun min:one Int { fun/min }&#x000a;&#x000a;/** maps each integer (except max) to the integer after it */&#x000a;fun next:Int-&gt;Int { fun/next }&#x000a;&#x000a;/** maps each integer (except min) to the integer before it */&#x000a;fun prev:Int-&gt;Int { ~next }&#x000a;&#x000a;/** given a set of integers, return the largest element */&#x000a;fun max [es: set Int]: lone Int { es - es.^prev }&#x000a;&#x000a;/** given a set of integers, return the smallest element */&#x000a;fun min [es: set Int]: lone Int { es - es.^next }&#x000a;&#x000a;/** given an integer, return all integers prior to it */&#x000a;fun prevs [e: Int]: set Int { e.^prev }&#x000a;&#x000a;/** given an integer, return all integers following it */&#x000a;fun nexts [e: Int]: set Int { e.^next }&#x000a;&#x000a;/** returns the larger of the two integers */&#x000a;fun larger [e1, e2: Int]: Int { let a=int[e1], b=int[e2] | (a&lt;b =&gt; b else a) }&#x000a;&#x000a;/** returns the smaller of the two integers */&#x000a;fun smaller [e1, e2: Int]: Int { let a=int[e1], b=int[e2] | (a&lt;b =&gt; a else b) }&#x000a;"/>
+
+</alloy>

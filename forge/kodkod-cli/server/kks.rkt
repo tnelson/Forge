@@ -6,7 +6,29 @@
 
 (require "../../shared.rkt")
 
-(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ declare-rel read-solution solve v r tupleset (rename-out [-> product]))
+(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ
+         declare-rel read-solution solve v r x tupleset (rename-out [-> product]))
+(provide assert e f i a define-const)
+(provide read-evaluation)
+
+(require "server.rkt"
+         "server-common.rkt")
+
+(provide start-server) ; stdin stdout)
+(define (start-server)
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (displayln "Starting kodkod server."))
+  (define kks (new server%
+                   [initializer (thunk (kodkod-initializer #f))]
+                   [stderr-handler (curry kodkod-stderr-handler "blank")]))
+  (send kks initialize)
+  (define stdin-val (send kks stdin))
+  (define stdout-val (send kks stdout))
+  (define close-server (thunk (send kks shutdown)))
+  (define is-running? (thunk (send kks initialized?)))
+  (values stdin-val stdout-val close-server is-running?))
+; (define (stdin) stdin-val)
+; (define (stdout) stdout-val)
 
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
@@ -48,6 +70,8 @@
   (print-cmd "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs)))
 
 (define (assert val)      (print-cmd "(assert ~a)" val))
+(define (evaluate val)    (print-cmd "(evaluate ~a)" val))
+
 (define (solve)
   (print-cmd "(solve)")
   (print-eof))
@@ -74,11 +98,13 @@
   (print-cmd "(~a ~a)" id val))
 
 ; Identifiers
-(define (r idx) (format-symbol "r~a" idx))  ; relational constant
-(define (e idx) (format-symbol "e~a" idx))  ; relational expression
-(define (f idx) (format-symbol "f~a" idx))  ; boolean expression
-(define (i idx) (format-symbol "i~a" idx))  ; bitvector expression
-(define (v idx) (format-symbol "v~a" idx))  ; bitvector expression
+(define (r idx) (format-symbol "r:~a" idx))  ; relational constant
+(define (x idx) (format-symbol "x:~a" idx))  ; time-variable relational constant (Pardinus)
+(define (e idx) (format-symbol "e:~a" idx))  ; relational expression
+(define (f idx) (format-symbol "f:~a" idx))  ; boolean expression
+(define (i idx) (format-symbol "i:~a" idx))  ; bitvector expression
+(define (v idx) (format-symbol "v:~a" idx))  ; bitvector expression
+(define (a idx) (format-symbol "a:~a" idx))  ; atom expression
 
 ; Built-in constants
 (define-values (TRUE FALSE UNIV NONE IDEN INTS)
@@ -147,5 +173,19 @@
     [(list (== 'no-more-instances))
      (cons 'no-more-instances #f)]
     [(== eof)
-     (error "Kodkod CLI shut down unexpectedly!")]
+     (error "Kodkod CLI shut down unexpectedly while running!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
+
+(define (read-evaluation port)
+  (define result (read port))
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (writeln result))
+  (match result
+    [(list (== 'evaluated) (== ':expression) atoms)
+     (cons 'expression atoms)]
+    [(list (== 'evaluated) (== ':int-expression) val)
+     (cons 'int-expression val)]
+    [(list (== 'evaluated) (== ':formula) val)
+     (cons 'formula (equal? val 'true))]
+    [(== eof)
+     (error "Kodkod CLI shut down unexpectedly while evaluating!")]))

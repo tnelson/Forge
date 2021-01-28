@@ -1,0 +1,28 @@
+How do I want to refactor?
+
+well, exactly what functionality do we need from this?
+
+we need a different kind of server mode.
+
+well, not exactly. We still want to use the repl version.
+
+but the parser/problem should be better adapted to this. How?
+Well, we should have a different kind of problem, not complete or incremental,
+maybe called stepper, where you can step through solutions.
+
+and for a stepper, having the parser complete and getting EOI doesn't kill the problem.
+It only kills the problem when you get EOI twice after a solve.
+or (exit) EOI. yeah, I like that idea.
+
+
+and I want to clean up the parser a tiny bit, cuz there are pieces that seem like bad ideas.
+
+what else? I want the option of logging kodkod inputs, but that should be a racket thing.
+
+better error messages would be fantastic. Could we do that with a parse tree?
+
+and making sure that the syntax makes sense.
+
+
+
+Also, add documentation!

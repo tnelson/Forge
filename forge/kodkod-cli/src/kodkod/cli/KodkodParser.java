@@ -157,8 +157,8 @@ public class KodkodParser extends BaseParser<Object> {
     public Rule StepperServe() {
         return Sequence(
                 Space(),
-                Solve(),
-                Optional(FirstOf(Clear(), Exit())),
+                FirstOf(Sequence(Solve(), Optional(FirstOf(Clear(), Exit()))),
+                        Sequence(ZeroOrMore(DefNode()), Evaluate())),
                 EOI);
     }
 
@@ -446,6 +446,19 @@ public class KodkodParser extends BaseParser<Object> {
                 LPAR,
                 ASSERT,
                 OneOrMore(Use('f'), problem.assertFormula(popFormula())),
+                RPAR);
+    }
+
+    /**
+     * @return LPAR EVALUATE Use('e') | Use('i') | Use('f') RPAR
+     */
+    Rule Evaluate() {
+        return Sequence(
+                LPAR,
+                EVALUATE,
+                FirstOf(Sequence(Use('e'), problem.evaluate(popExpr())),
+                        Sequence(Use('i'), problem.evaluate(popIntExpr())),
+                        Sequence(Use('f'), problem.evaluate(popFormula()))),
                 RPAR);
     }
 
@@ -999,6 +1012,7 @@ public class KodkodParser extends BaseParser<Object> {
     //-------------------------------------------------------------------------
     final Rule CONFIG = Keyword("configure");
     final Rule ASSERT = Keyword("assert");
+    final Rule EVALUATE = Keyword("evaluate");
     final Rule SOLVE = Keyword("solve");
     final Rule CLEAR = Keyword("clear");
     final Rule EXIT = Keyword("exit");
