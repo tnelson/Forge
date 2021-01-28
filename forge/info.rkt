@@ -24,7 +24,11 @@
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
-(define compile-omit-paths '("example" "examples" "doc" "tests" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"))
+(define compile-omit-paths '("example" "examples" "doc" "tests" 
+                             "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"
+                             ; TODO: remove solver invocations/slow runs from this file
+                             "amalgam.rkt"
+                             ))
 
 (define drracket-tools (list (list "tool.rkt")))
 (define drracket-tool-names (list "Forge DrRacket Integration"))
@@ -44,4 +48,4 @@
                               "example/new-mode"
                               "example/store/"
                               "examples"
-                              "tests/OLD"))
+                              "OLD"))
