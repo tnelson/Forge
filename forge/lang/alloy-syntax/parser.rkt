@@ -66,7 +66,7 @@ QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK | SUM-TOK
 BreakDecl : /FACT-TOK /BREAK-TOK? Expr /COLON-TOK @NameList
           | /BREAK-TOK Expr /COLON-TOK @NameList
 
-OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
+OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | MINUS-TOK? Number)
 
 Name : IDENTIFIER-TOK
 NameList : @Name
