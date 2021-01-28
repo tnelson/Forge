@@ -1,0 +1,12 @@
+At the moment, Forge has a workflow with two Github Actions:
+
+(1) continuous integration
+(2) semantic version renaming. 
+
+The semantic version renaming action will look for the following tags, which correspond to increments of different tiers of version number:
+[major] (+.x.x)
+[minor] (x.+.x)
+[patch] (x.x.+)
+
+Placing the correct tag in a commit message, pushing to a branch, making a pull request into master, and approving the request will run the action and increment the version number kept in info.rkt.
+

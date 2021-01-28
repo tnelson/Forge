@@ -973,7 +973,7 @@
         ; this nonsense is just for atom names
         (define name (string->symbol (relation-name rel)))
         (hash-set tbindings name (for/list ([tup (sbound-upper sb)]) (car tup))))))
-  
+
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
     (get-sig-bounds run-spec tbindings))
@@ -1142,7 +1142,7 @@
   ; If in temporal mode, need to always-ify the auto-generated constraints but not the
   ;   predicates that come from users
   (define raw-implicit-constraints
-    (append (get-sig-size-preds run-spec)
+    (append (get-sig-size-preds run-spec total-bounds)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
             relation-constraints
@@ -1279,22 +1279,23 @@
   ; Map<Symbol, List<List<Symbol>>
   (define sig-to-upper (make-hash))
   ; Sig, List<Symbol>? -> List<Symbol>
-  (define (fill-upper sig [parent-names #f])
+  (define (fill-upper-top sig)
     (define own-upper-int (Range-upper (get-scope run-spec sig)))
     (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
     (define difference (@- own-upper-int (length own-lower)))    
     (when (@< difference 0)
       (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
 
-    (define new-names 
-      (if parent-names
-          (take parent-names (@min difference (length parent-names)))
-          (get-next-names sig difference)))    
+    (define new-names (get-next-names sig difference))
     (define own-upper (append own-lower new-names))
     (hash-set! sig-to-upper (Sig-name sig) own-upper)
 
-    (for ([child (get-children run-spec sig)]) (fill-upper child new-names))
+    (for ([child (get-children run-spec sig)]) (fill-upper-extender child own-upper))
     own-upper)
+
+  (define (fill-upper-extender sig upper)
+    (hash-set! sig-to-upper (Sig-name sig) upper)
+    (for ([child (get-children run-spec sig)]) (fill-upper-extender child upper)))
 
   (define int-atoms
     (let* ([bitwidth (get-bitwidth run-spec)]
@@ -1315,7 +1316,7 @@
     (for/list ([sig top-level-sigs] 
                #:unless (equal? (Sig-name sig) 'Int))
       (fill-lower sig)
-      (fill-upper sig))))
+      (fill-upper-top sig))))
 
   (define all-atoms (append int-atoms sig-atoms))
 
@@ -1355,17 +1356,30 @@
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig to restrict
 ; it to the correct lower/upper bound.
-(define (get-sig-size-preds run-spec) 
+(define (get-sig-size-preds run-spec total-bounds) 
   (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
-  (for/list ([sig (get-sigs run-spec)]
-             #:unless (equal? (Sig-name sig) 'Int))
-    (match-define (Range lower upper) (get-scope run-spec sig))
-    (unless (@< upper max-int)
-      (raise (format (string-append "Upper bound too large for given BitWidth; "
-                                    "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
-                     sig upper (sub1 max-int))))
-    (and (<= (int lower) (card (Sig-rel sig)))
-         (<= (card (Sig-rel sig)) (int upper)))))
+  (apply append
+    (for/list ([sig (get-sigs run-spec)]
+               #:unless (equal? (Sig-name sig) 'Int))
+      (match-define (Range int-lower int-upper) (get-scope run-spec sig))
+      
+      (append
+        (if (equal? int-lower 0)
+            (list)
+            (let ()
+              (unless (@< int-lower max-int)
+                (raise (format (string-append "Lower bound too large for given BitWidth; "
+                                              "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
+                               sig int-lower (sub1 max-int))))
+              (list (<= (int int-lower) (card (Sig-rel sig))))))
+        (if (@not (Sig-extends sig))
+            (list)
+            (let ()
+              (unless (@< int-upper max-int)
+                (raise (format (string-append "Upper bound too large for given BitWidth; "
+                                              "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
+                               sig int-upper (sub1 max-int))))
+              (list (<= (card (Sig-rel sig)) (int int-upper)))))))))
 
 ; get-extender-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig which has extending Sigs so that:

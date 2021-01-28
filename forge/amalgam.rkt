@@ -24,7 +24,7 @@
 ;     #:scope[(Node 4)])
 
 (run KB
-     #:preds[KittyBaconIsCool]
+     #:preds[KittyBaconIsAFancyFeline]
      #:scope[(Cat 4)])
 
 ; Entry point for Amalgam from forge/core
