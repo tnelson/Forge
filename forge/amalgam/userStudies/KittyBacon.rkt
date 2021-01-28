@@ -26,7 +26,8 @@ one sig KittyBacon extends Cat {
 }
 pred connectionsOfKittyBacon {
     friendship
-    KittyBacon.connectionsOf = KittyBacon.friends + KittyBacon.friends.friends + KittyBacon.friends.friends.friends - KittyBacon
+    KittyBacon.connectionsOf = KittyBacon.friends + KittyBacon.friends.friends
+    + KittyBacon.friends.friends.friends - KittyBacon
 }
 pred ConnectedKittyBacon {
     connectionsOfKittyBacon
@@ -59,15 +60,18 @@ pred FancyFelineFoundation {
     FFF.membersOfFoundation = KittyBacon.connectionsOf + KittyBacon
 }
 
+
 pred KittyBaconIsAFancyFeline {
     FancyFelineFoundation implies KittyBacon in FFF.membersOfFoundation
 }
 
 --check KittyBaconIsAFancyFeline for exactly 4 Cat -- no counterexample
+
 // Question from handout: Why is this failing? Well, KittyBacon is never part of
-// her connections! So there is an overconstraint. Students need to modify the
-// FancyFelineFoundation predicate to define FFF.membersOfFoundation = KittyBacon.connectionsOf + Kitty
-// Bacon
+// her connections! So there is an overconstraint in how we define the members
+// of the foundation. Students need to modify the members of the foundation to
+// include KittyBacon by either getting the union of KittyBacon.connectionsOf
+// + KittyBacon or by doing membersOfFoundation = KittyBacon.connectionsOf.friends
 
 pred seeAllCats {
     FancyFelineFoundation
