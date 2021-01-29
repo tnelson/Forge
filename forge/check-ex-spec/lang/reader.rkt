@@ -28,7 +28,8 @@
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
-  (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl InstDecl TestExpectDecl OptionDecl)))))
+  (define not-tests (cdr (syntax->list (filter-commands ints-coerced '(InstDecl OptionDecl)))))
+  (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl TestExpectDecl)))))
 
   (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
                           (require forge/check-ex-spec/library)
@@ -45,6 +46,7 @@
                           (define wheat-results 
                             (list ,@(map (lambda (wheat) 
                                     `(with (,@provided #:from ,wheat)
+                                       ,@not-tests
                                        (@append ,@(for/list ([test just-tests])
                                                 test))))
                                    wheats)))
@@ -52,6 +54,7 @@
                           (define chaff-results 
                             (list ,@(map (lambda (chaff) 
                                     `(with (,@provided #:from ,chaff)
+                                       ,@not-tests
                                        (@append ,@(for/list ([test just-tests])
                                                 test))))
                                    chaffs)))
