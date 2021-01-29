@@ -60,18 +60,19 @@ pred FancyFelineFoundation {
     FFF.membersOfFoundation = KittyBacon.connectionsOf + KittyBacon
 }
 
-
 pred KittyBaconIsAFancyFeline {
     FancyFelineFoundation implies KittyBacon in FFF.membersOfFoundation
 }
 
 --check KittyBaconIsAFancyFeline for exactly 4 Cat -- no counterexample
 
-// Question from handout: Why is this failing? Well, KittyBacon is never part of
-// her connections! So there is an overconstraint in how we define the members
-// of the foundation. Students need to modify the members of the foundation to
-// include KittyBacon by either getting the union of KittyBacon.connectionsOf
-// + KittyBacon or by doing membersOfFoundation = KittyBacon.connectionsOf.friends
+// KittyBaconIsAFancyFeling was failing because FFF.membersOfFoundation
+// only included KittyBacon's connectionsOf. However, because KittyBacon
+// is not a part of his connections, KittyBacon was not being included
+// in the foundation. My fix was to define FFF.membersOfFoundation
+// as the union of KittyBacon.connectionsOf and KittyBacon.
+// An alternative fix could be to define FFF.membersOfFoundation as
+// the union between KittyBacon.connectionsOf and KittyBacon.connectionsOf.friends
 
 pred seeAllCats {
     FancyFelineFoundation
