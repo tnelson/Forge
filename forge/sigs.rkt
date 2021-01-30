@@ -7,6 +7,7 @@
 (require (for-syntax racket/match syntax/srcloc))
 
 (require "shared.rkt")
+(require "drracket-gui.rkt")
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
          "breaks.rkt")
@@ -1158,10 +1159,16 @@
     (append explicit-constraints implicit-constraints))
 
   ; Run last-minute checks for errors  
-  (for-each (lambda (c) (checkFormula run-spec c '())) run-constraints) 
-  
+  (for-each (lambda (c) (checkFormula run-spec c '())) run-constraints)
+
+  ; Keep track of which formula corresponds to which CLI assert
+  ; for highlighting unsat cores. TODO: map back from CLI output
+  ; constraints later
+  (define core-map (make-hash))
+    
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
+    (hash-set! core-map assertion-number p)
     (pardinus-print
       (pardinus:print-cmd-cont "(~a " (pardinus:f assertion-number))
       (translate-to-kodkod-cli run-spec p all-rels all-atoms '())
@@ -1205,7 +1212,15 @@
                     'run 
                     (pardinus:read-solution stdout) 
                     all-rels 
-                    all-atoms))    
+                    all-atoms))
+
+    
+    ; Here's where we need to parse the cores - right now I'm just telling it to highlight everything,
+    ; instead use the core-map (defined above) to filter the run-constraints by label.  Tricky part is
+    ; parsing the core output and getting the labels.
+    (if (Unsat? result)
+        (apply do-forge-highlight (map (λ (formula) (nodeinfo-loc (node-info formula))) run-constraints))) 
+    
     (when (@>= (get-verbosity) VERBOSITY_LOW)
       (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
     result)
