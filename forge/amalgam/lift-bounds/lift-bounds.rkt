@@ -1,4 +1,4 @@
-#lang forge/core
+#lang racket ;forge/core
 (require (prefix-in @ racket))
 
 ; Bounds lifting functions for Amalgam
@@ -28,7 +28,9 @@
 
 (provide liftBoundsExpr)
 (require "lift-bounds_helpers.rkt")
-
+(require (prefix-in forge: forge/sigs-structs)
+         (prefix-in forge: (only-in forge/lang/bounds bound-relation bound-upper))
+         forge/lang/ast)
 
 ; input: expr - the expression that we are trying to get the bounds of 
 ;        quantVars - the quantifiable variables of the expression
@@ -58,7 +60,7 @@
      (define filteredBounds
        (filter (lambda (b)
                  (equal? name
-                         (forge:relation-name (forge:bound-relation b))))
+                         (relation-name (forge:bound-relation b))))
                allBounds))
      (cond [(equal? (length filteredBounds) 1)
             (forge:bound-upper (first filteredBounds))]
@@ -73,7 +75,7 @@
      (define filteredBounds
        (filter (lambda (b)
                  (equal? "Int"
-                         (forge:relation-name (forge:bound-relation b))))
+                         (relation-name (forge:bound-relation b))))
                allBounds))
      (cond [(equal? (length filteredBounds) 1)
             (forge:bound-upper (first filteredBounds))]
@@ -209,7 +211,7 @@
      (define allBounds (forge:Run-kodkod-bounds runContext)) 
      (define filteredBounds (filter
                              (lambda (b) (equal? "Int"
-                                                 (forge:relation-name
+                                                 (relation-name
                                                   (forge:bound-relation b))))
                              allBounds))
      (cond [(equal? (length filteredBounds) 1)
@@ -266,7 +268,7 @@
      (define filteredBounds (filter
                              (lambda (b)
                                (equal? "Int"
-                                       (forge:relation-name
+                                       (relation-name
                                         (forge:bound-relation b))))
                              allBounds))
      (cond [(equal? (length filteredBounds) 1)

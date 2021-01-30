@@ -1,7 +1,7 @@
 #lang racket
 
 (require "../lang/ast.rkt" racket/date xml racket/string
-         "../translate-from-kodkod-cli.rkt" ; for Sat/Unsat
+         "../sigs-structs.rkt" ; for Sat/Unsat
          (prefix-in @ (only-in racket and or not)))
 
 (provide solution-to-XML-string)
@@ -9,28 +9,34 @@
 (define (atom-to-XML-string atom)
   (string-append "<atom label=\"" (format "~a" atom) "\"/>"))
 
-(define (sig-contents-to-XML-string data sig-rel)  
+(define (sig-contents-to-XML-string data sig-rel tuple-annotations)
+  ;; TODO annotate: currently nowhere to put metadata at the tuple level
   (apply string-append (map (λ (x) (atom-to-XML-string (first x))) (reverse (hash-ref data sig-rel)))))
 
-(define (sig-to-XML-string data sig-rel sigID ID-hash)
+(define (sig-to-XML-string data sig-rel sigID ID-hash tuple-annotations)
   (string-append "<sig label=\"" (relation-name sig-rel) "\" ID=\"" (number->string sigID) "\" parentID=\"" (number->string (hash-ref ID-hash (relation-parent sig-rel))) "\">\n"
-                 (sig-contents-to-XML-string data sig-rel)
+                 (sig-contents-to-XML-string data sig-rel tuple-annotations)
                  "\n</sig>\n\n"))
 
-(define (skolem-to-XML-string data skolem-rel skolemID ID-hash)
+(define (skolem-to-XML-string data skolem-rel skolemID ID-hash r-tuple-annotations)
   ; No parent for skolems + use relation-to-xml (set of tuples, not set)
   (string-append "<skolem label=\"" (relation-name skolem-rel) "\" ID=\"" (number->string skolemID) "\">\n"
-                 (relation-to-XML-string data skolem-rel)
+                 (relation-to-XML-string data skolem-rel r-tuple-annotations)
                  (types-to-XML-string skolem-rel ID-hash)
                  "\n</skolem>\n\n"))
 
-(define (tuple-to-XML-string tuple)
-  (string-append "<tuple>"
+(define (tuple-to-XML-string r-tuple-annotations tuple)  
+  ; Tuple is a list of atom symbols
+  ; r-tuple-annotations is a map from lists-of-symbols to lists-of-symbols
+  (define annotations (if (hash-has-key? r-tuple-annotations tuple)
+                          (hash-ref r-tuple-annotations tuple)
+                          empty))
+  (string-append (format "<tuple~a>" (string-join annotations " " #:before-first " "))
                  (apply string-append (map atom-to-XML-string tuple))
                  "</tuple>\n"))
 
-(define (relation-to-XML-string data rel)  
-  (apply string-append (map tuple-to-XML-string (hash-ref data rel))))
+(define (relation-to-XML-string data rel r-tuple-annotations)  
+  (apply string-append (map (curry tuple-to-XML-string r-tuple-annotations) (hash-ref data rel))))
 
 (define (type-to-XML-string typestring ID-hash)
   (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
@@ -43,9 +49,12 @@
                      (apply string-append xml-expected-types)
                  "</types>\n"))
 
-(define (field-to-XML-string data rel fieldID ID-hash)
+(define (field-to-XML-string data rel fieldID ID-hash tuple-annotations)
+  (define r-tuple-annotations (if (hash-has-key? tuple-annotations (relation-name rel))                                  
+                                  (hash-ref tuple-annotations (relation-name rel))
+                                  (hash)))
   (string-append "<field label=\"" (relation-name rel) "\" ID=\"" (number->string fieldID) "\" parentID=\"" (number->string (hash-ref ID-hash (first (relation-typelist rel)))) "\">\n"
-                 (relation-to-XML-string data rel)
+                 (relation-to-XML-string data rel r-tuple-annotations)
                  (types-to-XML-string rel ID-hash)
                  "\n</field>\n\n"))
 
@@ -61,7 +70,7 @@
       (string-append (first lines) "\r\n" (agg-lines (rest lines)))))
                  
 
-(define (solution-to-XML-string soln relation-map name command filepath bitwidth forge-version)    
+(define (solution-to-XML-string soln relation-map name command filepath bitwidth forge-version #:tuple-annotations [tuple-annotations (hash)])    
   (define data
     (if (Sat? soln) ; if satisfiable, can report relations
         (map (lambda (a-subinstance) 
@@ -153,12 +162,12 @@ here-string-delimiter
            (string-append
             prologue
             (apply string-append
-                   (map (lambda (ihash) (model-to-XML-string ihash filepath instance-prologue)) data))
+                   (map (lambda (ihash) (model-to-XML-string ihash filepath instance-prologue tuple-annotations)) data))
             epilogue))
          
          message]))
 
-(define (model-to-XML-string data filepath prologue)
+(define (model-to-XML-string data filepath prologue tuple-annotations)
   
   ; Do not include unary Skolem relations as sigs! Sterling expects these as <skolem> decls, not <sig> decls          
   ; Remember to use *Racket* not + and here
@@ -247,19 +256,19 @@ here-string-delimiter
   (define sig-strings (apply string-append (map
                                             (λ (sig id)
                                               (hash-set! ID-hash (relation-name sig) id)
-                                              (sig-to-XML-string cleaned-model sig id ID-hash))
+                                              (sig-to-XML-string cleaned-model sig id ID-hash tuple-annotations))
                                             sigs
                                             (range 4 (+ 4 sigs#)))))
   
   (define field-strings (apply string-append (map
                                               (λ (field id)
-                                                (field-to-XML-string data field id ID-hash))
+                                                (field-to-XML-string data field id ID-hash tuple-annotations))
                                               fields
                                               (range (+ 4 sigs#) (+ 4 sigs# (length fields))))))
 
   ; Remember to use "data", not "cleaned-model" -- the cleaned model won't have tuples for Skolem relations
   (define skolem-strings (apply string-append (map
-                                               (lambda (skolem id) (skolem-to-XML-string data skolem id ID-hash))
+                                               (lambda (skolem id) (skolem-to-XML-string data skolem id ID-hash tuple-annotations))
                                                skolems
                                                (range (+ 4 sigs# (length fields)) (+ 4 sigs# (length fields) (length skolems))))))
          

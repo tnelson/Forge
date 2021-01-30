@@ -7,11 +7,12 @@
          racket/hash)
 (require "eval-model.rkt")
 (require "../kodkod-cli/server/kks.rkt")
-; TODO: remove this once evaluator is in; just want to show we can evaluate something
 
 (require "../lang/reader.rkt")
 (require "../shared.rkt")
 (require "../lang/reader.rkt")
+(require "../sigs-structs.rkt")
+(require forge/amalgam)
 
 (provide display-model)
 
@@ -20,7 +21,7 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model get-next-unclean-model relation-map evaluate name command filepath bitwidth funs-n-preds get-contrast-model-generator)
+(define (display-model the-run get-next-unclean-model relation-map evaluate name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
   (define model #f)
   (define (get-current-model)
@@ -57,8 +58,27 @@
                ((hash-ref contrast-model-generators type)))
     (hash-ref contrast-models type))
 
-  (define (get-xml model)
-    (solution-to-XML-string model relation-map name command filepath bitwidth forge-version))
+  ; Define a hashof(relname-symbol, hashof(listof(atom-symbol), listof(annotation-symbol))    
+  (define (build-tuple-annotations-for-ln model)
+    (define (build-tann-hash pair-list sym)
+      (for/hash ([pr pair-list])
+        (values (car pr) sym)))
+    
+    ; only for the first element of a trace TODO
+    (when (> (get-verbosity) VERBOSITY_LOW)
+      (printf "generating locally-necessary tuples...model field unused...~n"))
+    (match-define (cons yes no) (get-locally-necessary-list the-run))
+    ; To ease building annotation hash, just discover which relations are present in advance
+    (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])
+     (values relname (hash-union (build-tann-hash yes 'ln+) (build-tann-hash no 'ln-)))))
+  
+  (define (get-xml model)    
+    (define tuple-annotations (if (equal? 'on (get-option the-run 'local_necessity))
+                                  (build-tuple-annotations-for-ln model)
+                                  (hash)))
+    (when (> (get-verbosity) VERBOSITY_LOW)
+      (printf "tuple annotations were: ~a~n" tuple-annotations))
+    (solution-to-XML-string model relation-map name command filepath bitwidth forge-version #:tuple-annotations tuple-annotations))
 
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -94,6 +114,19 @@
                   ;(make-contrast-model-generators)
                   (ws-send! connection (get-xml model))]
 
+                 ; Sterling is notifying Forge of some event, so that Forge can log or take action
+                 ;“NOTIFY:${view}:${LN}“, so you’ll have four possible messages:
+                 ;NOTIFY:GRAPH:LN+
+                 ;NOTIFY:GRAPH:LN-
+                 ;NOTIFY:TABLE:LN+
+                 ;NOTIFY:TABLE:LN-
+                 [(string-prefix? m "NOTIFY:")
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: notification (TODO: log if enabled)~n"))
+                  ;; TODO Log )
+                  ; No reply needed
+                  ]
+                 
                  [(equal? m "compare-min")
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: compare-min~n"))

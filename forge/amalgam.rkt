@@ -1,36 +1,39 @@
-#lang forge/core
+#lang racket ;forge/core
 
-(set-verbosity 1)
+;(set-verbosity 1)
 
 (require forge/amalgam/desugar/desugar)
-(require "amalgam/lift-bounds/lift-bounds.rkt")
+(require forge/amalgam/lift-bounds/lift-bounds)
+(require forge/send-to-kodkod)
 
 ;(require "amalgam/tests/forge_ex.rkt")
-(require "amalgam/userStudies/KittyBacon.rkt")
+;(require "amalgam/userStudies/KittyBacon.rkt")
 (require racket/hash)
 (require (prefix-in @ racket/set))
-(require (prefix-in @ (only-in racket ->)))
+(require (prefix-in @ (only-in racket -> >=)))
 
 (require (only-in "amalgam/desugar/desugar_helpers.rkt" tup2Expr))
-
+(require forge/sigs-structs
+         forge/lang/ast
+         forge/evaluator
+         (only-in forge/breaks sbound))
+(require forge/shared)
 (require pretty-format)
-
-;(require (only-in "breaks.rkt" sbound))
-; ^ This will be a *different* struct defn; instead get via sigs
 
 ; TODO: Comment this out later 
 ;(run udt
 ;     #:preds[isUndirectedTree]
 ;     #:scope[(Node 4)])
 
-(run KB
-     #:preds[KittyBaconIsAFancyFeline]
-     #:scope[(Cat 4)])
+;(run KB
+;     #:preds[KittyBaconIsAFancyFeline]
+;     #:scope[(Cat 4)])
 
 ; Entry point for Amalgam from forge/core
 ;  This is a sketch for the moment
 
-(provide build-provenances)
+(provide build-provenances
+         get-locally-necessary-list)
 
 (struct provenanceNode (annotations) #:transparent)
 (struct contraLeaf provenanceNode (fmla) #:transparent)
@@ -39,7 +42,15 @@
 (struct ANDProof provenanceNode (provTrees) #:transparent)
 (struct ORProof provenanceNode (alphas obligations) #:transparent)
 
- 
+
+(define (build-alternate-run orig-run F scope bounds)
+  ; We have the orig-run without using the run macro
+  ; which means we have its Run-spec
+  ; which is post-processing by the run macro
+  (define modified-run-spec (struct-copy Run-spec (Run-run-spec orig-run) [scope scope] [bounds bounds]))
+  (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod modified-run-spec))        
+  (Run (Run-name orig-run) (Run-command orig-run) modified-run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
+
 ; takes a hash-table representation of an instance and a tuple and flips the truth of
 ;  that tuple in the instance. The tuple is <t> in <raw-r>.
 (define (flip-tuple a-hash t raw-r)
@@ -110,7 +121,7 @@
 ; L is the target of the provenance query
 ; fmla is the current target of blame
 (define/contract (amalgam-descent fmla orig-run alt-run L currSign)
-  (@-> node/formula? forge:Run? forge:Run? pair? boolean? (or/c provenanceNode? exn:fail?))
+  (@-> node/formula? Run? Run? pair? boolean? (or/c provenanceNode? exn:fail?))
 
   ; Invariant: instance from orig-run satisfies fmla
   ;            instance from alt-run does not satisfy fmla
@@ -208,21 +219,21 @@
 ; caller of this helper is get-locally-nescessary-list
 ; used to generate list of locally necessary literals
 (define (is-locally-necessary tup orig-run)
-  (define spec (forge:Run-run-spec orig-run))
-  (define Fs (forge:Run-spec-preds spec))
+  (define spec (Run-run-spec orig-run))
+  (define Fs (Run-spec-preds spec))
 
   ; and together all of your predicates to get our formula F
   (define F (foldl (lambda (f acc) (and f acc)) (first Fs) (rest Fs)))
   
-  (define state (forge:Run-spec-state spec))
-  (define orig-scope (forge:Run-spec-scope spec))
-  (define orig-bounds (forge:Run-spec-bounds spec))
-  (define sigs (forge:State-sigs state))
+  (define state (Run-spec-state spec))
+  (define orig-scope (Run-spec-scope spec))
+  (define orig-bounds (Run-spec-bounds spec))
+  (define sigs (State-sigs state))
 
   ; relations
-  (define relations (forge:State-relations state))
+  (define relations (State-relations state))
 
-  (define orig-inst (stream-first (forge:Run-result orig-run)))
+  (define orig-inst (stream-first (Run-result orig-run)))
   (unless (Sat? orig-inst)
     (error "amalgam called on unsat run"))
 
@@ -232,12 +243,12 @@
   ; e.g. (for fixed edge relation)
 
   (define (make-exact-sbound rel tups)
-    (forge:sbound rel (list->set tups) (list->set tups)))
+    (sbound rel (list->set tups) (list->set tups)))
   
   ; For reasons passing understanding, get-relation returns a symbol...
   (define (get-actual-relation relname)
-    (cond [(hash-has-key? sigs relname) (forge:Sig-rel (hash-ref sigs relname))]
-          [(hash-has-key? relations relname) (forge:Relation-rel
+    (cond [(hash-has-key? sigs relname) (Sig-rel (hash-ref sigs relname))]
+          [(hash-has-key? relations relname) (Relation-rel
                                               (hash-ref relations relname))]
           [else (error "unknown relation or sig" relname)]))
  
@@ -247,23 +258,24 @@
               (make-exact-sbound (get-actual-relation k)
                                  (hash-ref new-totals k)))))
   
-  (define bounds (forge:Bound new-pbindings
-                              (forge:Bound-tbindings orig-bounds)))
-  (define scope (forge:Scope #f #f (hash))) ; empty
+  (define bounds (Bound new-pbindings
+                              (Bound-tbindings orig-bounds)))
+  (define scope (Scope #f #f (hash))) ; empty
   ; can't use inst syntax here, so construct manually
 
   (define alt-inst
     (lambda (s b) (values scope bounds)))
 
   ; Get the solver to produce the L-alternate for us
-  (run alt-run
-       #:preds [F]
-       #:bounds alt-inst)
+  (define alt-run (build-alternate-run orig-run F scope bounds))
+  ;(run alt-run
+  ;     #:preds [F]
+  ;     #:bounds alt-inst)
   ; evaluate to see if tup is locally necessary
   ;(define result (not (evaluate alt-run 'unused F)))
   ;result
-  (let ([result (not (forge:is-sat? alt-run))]) 
-    (forge:close-run alt-run)
+  (let ([result (not (is-sat? alt-run))]) 
+    (close-run alt-run)
     result))
 
 
@@ -272,30 +284,32 @@
 ; Due to the way the evaluator works at the moment, this is always
 ; with respect to the current solver state for <a-run>.
 (define (get-locally-necessary-list orig-run)
-  (define spec (forge:Run-run-spec orig-run))
-  (define state (forge:Run-spec-state spec))
+  (define spec (Run-run-spec orig-run))
+  (define state (Run-spec-state spec))
 
   ; list of relations
-  (define relations (hash-values (forge:State-relations state)))
+  (define relations (hash-values (State-relations state)))
 
   (define un-partitioned-list (remove-unused (apply append (for/list ([r relations])
-    (define name (forge:Relation-name r))
+    (define name (Relation-name r))
                                                              
     ; we do not want to include succ or Int
     (if (or (equal? name 'succ) (equal? name 'Int))
         '()
         (let ()
-          (define upper-bounds (liftBoundsExpr (forge:Relation-rel r) '()
+          (define upper-bounds (liftBoundsExpr (Relation-rel r) '()
                                                orig-run))
           (define curr
             (filter-map (lambda (pair)
-                          (printf "Current pair is ~a~n" pair)
+                          (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+                            (printf "Current pair is ~a~n" pair))
                           (if (is-locally-necessary (cons pair name) orig-run)
-                              (cons pair (forge:Relation-rel r))
+                              (cons pair (Relation-rel r))
                               #f))
                         upper-bounds))
           curr)))) orig-run))
 
+ 
   ; partition the list
   (define-values (yes no) (partition (lambda (pair)
                
@@ -323,23 +337,23 @@
 ; with respect to the current solver state for <a-run>.
 (define (build-provenances tup orig-run)
   ; get conjunction of predicates F from the run command
-  (define spec (forge:Run-run-spec orig-run))
-  (define Fs (forge:Run-spec-preds spec))
+  (define spec (Run-run-spec orig-run))
+  (define Fs (Run-spec-preds spec))
   (define F (foldl (lambda (f acc) (and f acc)) (first Fs) (rest Fs)))
   
-  (define state (forge:Run-spec-state spec))
-  (define orig-scope (forge:Run-spec-scope spec))
-  (define orig-bounds (forge:Run-spec-bounds spec))
-  (define sigs (forge:State-sigs state))
-  (define relations (forge:State-relations state))
+  (define state (Run-spec-state spec))
+  (define orig-scope (Run-spec-scope spec))
+  (define orig-bounds (Run-spec-bounds spec))
+  (define sigs (State-sigs state))
+  (define relations (State-relations state))
   
   ; TODO This may only work if the solver state is the *first* instance in the stream
   ;   Confirm + discuss: what's the method by which the generator moves forward?
-  (define orig-inst (stream-first (forge:Run-result orig-run)))
+  (define orig-inst (stream-first (Run-result orig-run)))
   (unless (Sat? orig-inst)
     (error "amalgam called on unsat run"))
   ;(printf "~n  orig-inst: ~a~n" orig-inst)
-  ;(printf "~n  orig-bounds: ~a~n" (forge:Run-spec-bounds spec))
+  ;(printf "~n  orig-bounds: ~a~n" (Run-spec-bounds spec))
   ;(printf "~n  orig-scope: ~a~n" orig-scope) 
   (define new-totals (flip-tuple (first (Sat-instances orig-inst)) (car tup) (cdr tup)))
   ; no. "total bindings" is a misnomer. instead need to provide sbounds in pbindings
@@ -349,16 +363,16 @@
   ;   #(struct:sbound (relation 2 "edges" (Node Node) Node)
   ;   #<set: (Node0 Node1)> #<set: (Node0 Node1)>))
   ;    ...
-  ;(define bounds (forge:Bound (hash) new-totals))
+  ;(define bounds (Bound (hash) new-totals))
   ;(define all-rels (hash-union sigs relations))
   
   (define (make-exact-sbound rel tups)
-    (forge:sbound rel (list->set tups) (list->set tups)))
+    (sbound rel (list->set tups) (list->set tups)))
   
   ; For reasons passing understanding, get-relation returns a symbol...
   (define (get-actual-relation relname)
-    (cond [(hash-has-key? sigs relname) (forge:Sig-rel (hash-ref sigs relname))]
-          [(hash-has-key? relations relname) (forge:Relation-rel (hash-ref relations relname))]
+    (cond [(hash-has-key? sigs relname) (Sig-rel (hash-ref sigs relname))]
+          [(hash-has-key? relations relname) (Relation-rel (hash-ref relations relname))]
           [else (error "unknown relation or sig" relname)]))
  
   (define new-pbindings
@@ -366,20 +380,21 @@
       (values (get-actual-relation k)
               (make-exact-sbound (get-actual-relation k)
                                  (hash-ref new-totals k)))))
-  
-  ;(printf "~n~n  new-pbindings: ~a~n" new-pbindings)
- 
-  (define bounds (forge:Bound new-pbindings (forge:Bound-tbindings orig-bounds)))
-  (define scope (forge:Scope #f #f (hash))) ; empty
+  (define bounds (Bound new-pbindings (Bound-tbindings orig-bounds)))
+  (define scope (Scope #f #f (hash))) ; empty
   ; can't use inst syntax here, so construct manually
   (define alt-inst
     (lambda (s b) (values scope bounds)))
+  
+  ;(printf "~n~n  new-pbindings: ~a~n" new-pbindings)  
+  
+  (define alt-run (build-alternate-run orig-run true scope bounds))
   ; Get the solver to produce the L-alternate for us
-  (run alt-run
-       #:preds []
-       #:bounds alt-inst)
-  ;(printf "~n  first alt instance: ~a~n" (stream-first (forge:Run-result alt-run)))
-  ;(printf "~n  ALT BOUNDS: ~a~n" (forge:Run-spec-bounds (forge:Run-run-spec alt-run)))
+  ;(run alt-run
+  ;     #:preds []
+  ;     #:bounds alt-inst)
+  ;(printf "~n  first alt instance: ~a~n" (stream-first (Run-result alt-run)))
+  ;(printf "~n  ALT BOUNDS: ~a~n" (Run-spec-bounds (Run-run-spec alt-run)))
   ; evaluate to make sure tup is locally necessary  
   (define check-alt (evaluate alt-run 'unused F))
   ;(printf "~n  check-alt: ~a~n" check-alt)
@@ -407,11 +422,11 @@
 ; TODO: uncomment this later 
 ;(define test_N1N1_edges (build-provenances (cons '(Node1 Node1) "edges") udt))
 
-(stream-first (forge:Run-result KB))
+;(stream-first (Run-result KB))
 ;(define test_local_necessity_udt (get-locally-necessary-list udt))
 
-(define test_local_necessity_kittyBacon (get-locally-necessary-list KB))
-(printf "LOCAL NECESSITY TEST --- ~a --- " test_local_necessity_kittyBacon)
+;(define test_local_necessity_kittyBacon (get-locally-necessary-list KB))
+;(printf "LOCAL NECESSITY TEST --- ~a --- " test_local_necessity_kittyBacon)
 ;(build-provenances (cons '(Node4 Node5) "edges") udt) ; remove
 
 ;(desugarFormula (in (-> (atom 'Node0) (atom 'Node1)) (& iden edges)) '() udt #f)
@@ -473,14 +488,14 @@
 ; IMPORTANT NOTE: right now the highlighting system requires
 ;   (1) all involved files to be open in some tab [not doing so produces a namespace error]
 ;   (2) only ONE DrRacket window open at a time
-(require forge/drracket-gui) ; for highlighting
-(require racket/gui/base) ; for color% objects
-(define alpha-color (make-object color% 255 255 100))
-(define (highlight-alphaset aset-stream n)
-  (for-each (lambda (alpha)
-              (do-forge-highlight (nodeinfo-loc (node-info (alphaLeaf-alpha alpha))) alpha-color 'amalgam))
-            (set->list (stream-ref aset-stream n))))
-(define (unhighlight-amalgam) (do-forge-unhighlight 'amalgam)) 
+;(require forge/drracket-gui) ; for highlighting
+;(require racket/gui/base) ; for color% objects
+;(define alpha-color (make-object color% 255 255 100))
+;(define (highlight-alphaset aset-stream n)
+;  (for-each (lambda (alpha)
+;              (do-forge-highlight (nodeinfo-loc (node-info (alphaLeaf-alpha alpha))) alpha-color 'amalgam))
+;            (set->list (stream-ref aset-stream n))))
+;(define (unhighlight-amalgam) (do-forge-unhighlight 'amalgam)) 
 ; (highlight-alphaset test_N1_N1_edges_pstream 1)
 ; then call
 ; (unhighlight-amalgam)
