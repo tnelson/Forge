@@ -7,6 +7,7 @@
 (require forge/check-ex-spec/library)
 (require (only-in racket/function curry))
 (require racket/match)
+(require (prefix-in logging: forge/logging/logging))
 ; (require racket/list)
 
 (define (filter-commands stx keep)
@@ -16,7 +17,7 @@
   (datum->syntax stx (cons alloy-module filtered) stx stx stx))
 
 (define (read-syntax path port)
-  (define assignment-name (read port))
+  (define-values (logging-on? assignment-name user) (logging:log-execution 'forge/check-ex-spec port path))
   (unless (string? assignment-name)
     (raise (format "Argument error: expected string after #lang forge/check-ex-spec; received ~a.~n" assignment-name)))
 
@@ -38,47 +39,54 @@
                           ; Auto-provide all defined values
                           (provide (except-out (all-defined-out)
                                                forge:n))
-
+                          
                           ; Used for evaluator
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          (define wheat-results 
-                            (list ,@(map (lambda (wheat) 
-                                    `(with (,@provided #:from ,wheat)
-                                       ,@not-tests
-                                       (@append ,@(for/list ([test just-tests])
-                                                test))))
-                                   wheats)))
+                          (require (prefix-in logging: forge/logging/logging))
 
-                          (define chaff-results 
-                            (list ,@(map (lambda (chaff) 
-                                    `(with (,@provided #:from ,chaff)
-                                       ,@not-tests
-                                       (@append ,@(for/list ([test just-tests])
-                                                test))))
-                                   chaffs)))
+                          (logging:log-errors
+                            (define wheat-results 
+                              (list ,@(map (lambda (wheat) 
+                                      `(with (,@provided #:from ,wheat)
+                                         ,@not-tests
+                                         (@append ,@(for/list ([test just-tests])
+                                                  test))))
+                                     wheats)))
 
-                          (for ([wheat-result wheat-results]
-                                [num (in-naturals)])
-                            (for ([test wheat-result])
-                              (unless (test-report-passed? test)
-                                (raise (format "Failed wheat ~a with test '~a'." 
-                                               num (test-report-name test))))))
+                            (define chaff-results 
+                              (list ,@(map (lambda (chaff) 
+                                      `(with (,@provided #:from ,chaff)
+                                         ,@not-tests
+                                         (@append ,@(for/list ([test just-tests])
+                                                  test))))
+                                     chaffs)))
 
-                          (for ([chaff-result chaff-results]
-                                [num (in-naturals)])
-                            (define test-results
-                              (for/list ([test chaff-result])
-                                (if (test-report-passed? test)
-                                    #f
-                                    (test-report-name test))))
-                            (define catchers (filter (lambda (name) name) test-results))
-                            (if (@> (length catchers) 0)
-                                (displayln (format "Caught chaff ~a with tests ~a."
-                                                   num catchers))
-                                (displayln (format "Missed chaff ~a." 
-                                                   num))))
+                            (logging:log-check-ex-spec wheat-results chaff-results)
+
+                            (for ([wheat-result wheat-results]
+                                  [num (in-naturals)])
+                              (for ([test wheat-result])
+                                (unless (test-report-passed? test)
+                                  (raise (format "Failed wheat ~a with test '~a'." 
+                                                 num (test-report-name test))))))
+
+                            (for ([chaff-result chaff-results]
+                                  [num (in-naturals)])
+                              (define test-results
+                                (for/list ([test chaff-result])
+                                  (if (test-report-passed? test)
+                                      #f
+                                      (test-report-name test))))
+                              (define catchers (filter (lambda (name) name) test-results))
+                              (if (@> (length catchers) 0)
+                                  (displayln (format "Caught chaff ~a with tests ~a."
+                                                     num catchers))
+                                  (displayln (format "Missed chaff ~a." 
+                                                     num)))))
+
+                          (logging:flush-logs)
 
                           #;,ints-coerced))
   (datum->syntax #f module-datum))

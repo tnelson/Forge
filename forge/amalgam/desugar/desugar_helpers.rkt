@@ -1,13 +1,18 @@
-#lang forge/core
+#lang racket ;forge/core
 
 (require "../lift-bounds/lift-bounds.rkt")
 (require "../substitutor/substitutor.rkt")
 (require (prefix-in @ racket))
 (require (prefix-in @ (only-in racket ->)))
+(require (prefix-in forge: forge/sigs-structs)
+         forge/lang/ast)
+
 
 (provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct
          createNewQuant projectTupleRange getColumnRight 
-         productHelper joinTupleDesugar extendPossiblePaths transitiveClosureAnd)
+         productHelper joinTupleDesugar extendPossiblePaths transitiveClosureAnd
+         getGivenColumn setComprehensionAndHelper setComprehensionSubHelper
+         transitiveClosureIn)
 
 ; input: currTupIfAtomic - implicit LHS
 ;        quantVars - 

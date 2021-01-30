@@ -4,7 +4,7 @@
                     ParagraphClass TestDeclClass TestBlockClass TestExpectDeclClass ExampleDeclClass
                     AlloyModule TestDecl TestExpectDecl ExampleDecl
                     test example))
-(require forge/check-ex-spec/library)
+(require (only-in forge/check-ex-spec/library test example))
 (require syntax/parse/define
          (for-syntax syntax/parse/define))
 

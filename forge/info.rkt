@@ -20,6 +20,8 @@
                "drracket-plugin-lib"  ; for tool
                "pretty-format"        ; for occasional wrapping of large formulas
                "predicates"           ; for occasional ease of defining boolean-valued functions
+               "basedir"              ; used in logging
+               "request"             ; used in logging
                ))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))

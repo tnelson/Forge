@@ -1,4 +1,4 @@
-#lang forge/core
+#lang racket ;forge/core
 
 ; This recursive tree is meant to act as a substitutor from variables
 ; to a given value. If given a formula, this tree is going to return a
@@ -12,6 +12,10 @@
 
 
 (require (prefix-in @ (only-in racket ->)))
+(require (prefix-in forge: forge/sigs-structs)
+         forge/lang/ast)
+(provide substituteFormula substituteExpr substituteInt)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; input: formula - the formula we are substituting in
