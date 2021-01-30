@@ -27,16 +27,26 @@
 
 (define (tuple-to-XML-string r-tuple-annotations tuple)  
   ; Tuple is a list of atom symbols
-  ; r-tuple-annotations is a map from lists-of-symbols to lists-of-symbols
+  ; r-tuple-annotations is a map from lists-of-symbols to lists-of-pairs-of-symbols
   (define annotations (if (hash-has-key? r-tuple-annotations tuple)
                           (hash-ref r-tuple-annotations tuple)
                           empty))
-  (string-append (format "<tuple~a>" (string-join annotations " " #:before-first " "))
+  (string-append (format "<tuple~a>" (if (empty? annotations) ""
+                                         (string-join (map (lambda (a)
+                                                             (format "~a=\"~a\""
+                                                                     (symbol->string (car a))
+                                                                     (symbol->string (cdr a))))
+                                                           annotations) " " #:before-first " ")))
                  (apply string-append (map atom-to-XML-string tuple))
                  "</tuple>\n"))
 
-(define (relation-to-XML-string data rel r-tuple-annotations)  
-  (apply string-append (map (curry tuple-to-XML-string r-tuple-annotations) (hash-ref data rel))))
+(define (relation-to-XML-string data rel r-tuple-annotations)
+  (define rdata (hash-ref data rel))
+  ; *FORCE INCLUSION* of any tuple with an annotation, even if it's not in the instance
+  ; TODO: this will not be safe in Electrum, since LN may vary between timeslots.
+  (define rdata-plus (remove-duplicates (append rdata (hash-keys r-tuple-annotations))))
+  (printf "rdata-plus: ~a~n" rdata-plus)
+  (apply string-append (map (curry tuple-to-XML-string r-tuple-annotations) rdata-plus)))
 
 (define (type-to-XML-string typestring ID-hash)
   (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
@@ -49,10 +59,12 @@
                      (apply string-append xml-expected-types)
                  "</types>\n"))
 
+; Jan 30 '21, TN: Currently Sterling supports annotations on tuples (not individual atoms, so only fields for now)
 (define (field-to-XML-string data rel fieldID ID-hash tuple-annotations)
-  (define r-tuple-annotations (if (hash-has-key? tuple-annotations (relation-name rel))                                  
-                                  (hash-ref tuple-annotations (relation-name rel))
+  (define r-tuple-annotations (if (hash-has-key? tuple-annotations rel)
+                                  (hash-ref tuple-annotations rel)
                                   (hash)))
+  (printf "r: ~a; ann: ~a; rann: ~a~n" rel tuple-annotations r-tuple-annotations)
   (string-append "<field label=\"" (relation-name rel) "\" ID=\"" (number->string fieldID) "\" parentID=\"" (number->string (hash-ref ID-hash (first (relation-typelist rel)))) "\">\n"
                  (relation-to-XML-string data rel r-tuple-annotations)
                  (types-to-XML-string rel ID-hash)

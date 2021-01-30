@@ -60,9 +60,10 @@
 
   ; Define a hashof(relname-symbol, hashof(listof(atom-symbol), listof(annotation-symbol))    
   (define (build-tuple-annotations-for-ln model)
-    (define (build-tann-hash pair-list sym)
+    (define (build-tann-hash pair-list ksym vsym)
       (for/hash ([pr pair-list])
-        (values (car pr) sym)))
+        ; build *LIST* of annotations, each of which is a pair
+        (values (car pr) (list (cons ksym vsym))))) 
     
     ; only for the first element of a trace TODO
     (when (> (get-verbosity) VERBOSITY_LOW)
@@ -70,7 +71,8 @@
     (match-define (cons yes no) (get-locally-necessary-list the-run))
     ; To ease building annotation hash, just discover which relations are present in advance
     (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])
-     (values relname (hash-union (build-tann-hash yes 'ln+) (build-tann-hash no 'ln-)))))
+      ; uppercase
+      (values relname (hash-union (build-tann-hash yes 'LN 'true) (build-tann-hash no 'LN 'false)))))
   
   (define (get-xml model)    
     (define tuple-annotations (if (equal? 'on (get-option the-run 'local_necessity))

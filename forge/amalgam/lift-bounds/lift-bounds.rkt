@@ -26,7 +26,7 @@
 ; https://github.com/transclosure/amalgam/blob/master/src/edu/mit/csail/sdg/
 ; alloy4compiler/translator/AmalgamUpperBoundVisitor.java
 
-(provide liftBoundsExpr)
+(provide liftBoundsExpr liftBoundsInt)
 (require "lift-bounds_helpers.rkt")
 (require (prefix-in forge: forge/sigs-structs)
          (prefix-in forge: (only-in forge/lang/bounds bound-relation bound-upper))

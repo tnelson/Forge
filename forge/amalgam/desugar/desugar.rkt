@@ -14,7 +14,7 @@
 (require "../lift-bounds/lift-bounds.rkt")
 (require "desugar_helpers.rkt")
 (require "../substitutor/substitutor.rkt")
-(provide desugarFormula)
+(provide desugarFormula desugarExpr desugarInt)
 
 (require (prefix-in @ racket))
 (require (prefix-in @ (only-in racket ->)))

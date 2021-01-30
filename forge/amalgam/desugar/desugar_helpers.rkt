@@ -11,7 +11,8 @@
 (provide tup2Expr transposeTup mustHaveTupleContext isGroundProduct
          createNewQuant projectTupleRange getColumnRight 
          productHelper joinTupleDesugar extendPossiblePaths transitiveClosureAnd
-         getGivenColumn setComprehensionAndHelper setComprehensionSubHelper)
+         getGivenColumn setComprehensionAndHelper setComprehensionSubHelper
+         transitiveClosureIn)
 
 ; input: currTupIfAtomic - implicit LHS
 ;        quantVars - 
