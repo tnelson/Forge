@@ -43,7 +43,8 @@ CREATE TABLE executions (
     file_id INTEGER REFERENCES files(id),
     snapshot TEXT,
     time INTEGER,
-    mode TEXT
+    mode TEXT,
+    error TEXT
 );
 
 /* Commands

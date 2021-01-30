@@ -85,6 +85,10 @@ def handle(request):
                 load_test(log, current_execution)
             elif log_type == "check-ex-spec":
                 load_check_ex_spec(log, current_execution)
+            elif log_type == "error":
+                load_error(log, current_execution)
+            elif log_type == "notification":
+                load_notification(log, current_execution)
             else:
                 raise Exception("Unrecognized log type.")
     except Exception as err:
@@ -123,7 +127,9 @@ def load_execution(log):
             "mode": log["mode"],
             "runs": [],
             "tests": [],
-            "check-ex-spec": None
+            "check-ex-spec": None,
+            "error": None,
+            "notifications": []
         }
 
 """
@@ -144,7 +150,7 @@ def load_run(log, execution):
     execution["runs"].append({
             "raw": log["raw"],
             "spec": log["spec"],
-            "result": "unknown",
+            "result": "unknown"
         })
 
 """
@@ -172,7 +178,12 @@ def load_instance(log, execution):
     label = log["label"]
     if label == "sat":
         run["result"] = "sat"
-        run["instances"] = run.get("instances", []) + log["instances"]
+        if "instances" not in run:
+            run["instances"] = []
+        run["instances"].append({
+                "instances": log["instances"],
+                "notifications": []
+            })
         run["no-more-instances"] = False
     elif label == "no-more-instances":
         run["no-more-instances"] = True
@@ -209,6 +220,16 @@ def load_check_ex_spec(log, execution):
         "wheat-results": log["wheat-results"],
         "chaff-results": log["chaff-results"]
     }
+
+def load_error(log, execution):
+    execution["error"] = log["message"]
+
+def load_notification(log, execution):
+    execution["runs"][-1]["instances"][-1]["notifications"].append({
+            "message": log["message"],
+            "data": log["data"] if log["data"] else None,
+            "time": log["time"]
+        })
 
 def get_column(result_proxy, column):
     tuples = result_proxy.fetchall()
@@ -302,10 +323,10 @@ def add_to_database(execution):
         else:
             raise Exception("Found multiple files with that name for given user and project.")
 
-    def get_execution_id(connection, time, mode, contents, file_id):
+    def get_execution_id(connection, time, mode, contents, file_id, error):
         command = sqlalchemy.text("""
-            INSERT INTO executions(file_id, snapshot, time, mode)
-            VALUES (:file_id, :snapshot, :time, :mode)
+            INSERT INTO executions(file_id, snapshot, time, mode, error)
+            VALUES (:file_id, :snapshot, :time, :mode, :error)
             RETURNING id
             """)
         result = connection.execute(
@@ -313,7 +334,8 @@ def add_to_database(execution):
             file_id=file_id,
             snapshot=contents,
             time=time,
-            mode=mode)
+            mode=mode,
+            error=error)
         return get_column(result, 'id')[0]
 
     def add_runs(connection, runs, execution_id):
@@ -351,11 +373,23 @@ def add_to_database(execution):
                     command = sqlalchemy.text("""
                         INSERT INTO instances(command_id, model)
                         VALUES (:command_id, :model)
+                        RETURNING id
                         """)
-                    connection.execute(
+                    instance_id = get_column(connection.execute(
                         command,
                         command_id=command_id,
-                        model=json.dumps(instance))
+                        model=json.dumps(instance["instances"])), 'id')[0]
+                    for notification in instance["notifications"]:
+                        command = sqlalchemy.text("""
+                            INSERT INTO notifications(instance_id, message, data, time)
+                            VALUES (:instance_id, :message, :data, :time)
+                            """)
+                        connection.execute(
+                            command,
+                            instance_id=instance_id,
+                            message=notification["message"],
+                            data=notification["data"],
+                            time=notification["time"])
 
     def add_tests(connection, tests, execution_id):
         for test in tests:
@@ -410,7 +444,8 @@ def add_to_database(execution):
                 execution["time"], 
                 execution["mode"], 
                 execution["raw"], 
-                file_id)
+                file_id,
+                execution["error"])
         add_runs(connection, execution["runs"], execution_id)
         add_tests(connection, execution["tests"], execution_id)
         add_check_ex_spec(connection, execution["check-ex-spec"], execution_id)
