@@ -12,7 +12,6 @@
          "breaks.rkt")
 (require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
 (require "server/eval-model.rkt")
-(require (prefix-in logging: "logging/logging.rkt"))
 (require "server/forgeserver.rkt") ; v long
 (require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
          (prefix-in kodkod: "kodkod-cli/server/server.rkt")
@@ -513,7 +512,7 @@
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
         (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
         
-        (define name (logging:log-run (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds)))
+        (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
 
 ; Test that a spec is sat or unsat
@@ -527,19 +526,19 @@
     [(member 'expected '(sat unsat))
      (run name args ...)
      (define first-instance (stream-first (Run-result name)))
-     (logging:log-test name first-instance 'expected)
      (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
        (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
                       'name 'expected (if (Sat? first-instance) 'sat 'unsat)
                       (if (Sat? first-instance)
-                          (format ". Found instance ~a" first-instance)
-                          ""))))
+                          (format " Found instance ~a" first-instance)
+                          (if (Unsat-core first-instance)
+                              (format " Core: ~a" (Unsat-core first-instance))
+                              "")))))
      (close-run name)]
 
     [(equal? 'expected 'theorem)
      (check name args ...)
      (define first-instance (stream-first (Run-result name)))
-     (logging:log-test name first-instance 'expected)
      (when (Sat? first-instance)
        (raise (format "Theorem ~a failed. Found instance:~n~a"
                       'name first-instance)))

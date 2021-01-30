@@ -23,10 +23,13 @@
 (define log-post-url 
   (string->url "https://us-central1-pyret-examples.cloudfunctions.net/forge-logging"))
 (define (flush-logs)
-  (when (logging-on?)
+  (when #f #;(logging-on?)
     (println
       (with-handlers ([exn:fail:network? (thunk* #f)])
-        (define payload (jsexpr->bytes (map string->jsexpr (file->lines log-file))))
+        (define log-lines (file->lines log-file))
+        (define filtered (filter jsexpr? log-lines))
+        (printf "LOGGING: Found ~a logs; ~a valid.~n" (length log-lines) (length filtered))
+        (define payload (jsexpr->bytes (map string->jsexpr filtered)))
         (define response (post http-requester log-post-url payload))
         (println response)
         (and (equal? (http-response-code response) 201)
@@ -130,10 +133,12 @@
                          'project project
                          'time time
                          'raw raw
-                         'mode mode)))
+                         'mode mode))
+        (values #t project user))
 
       (let ()
-        (logging-on? #f))))
+        (logging-on? #f)
+        (values #f #f #f))))
 
 ; (struct Run (
 ;   name     ; Symbol
@@ -159,24 +164,27 @@
     (set! curr-run-id (add1 curr-run-id))))
 
 (define (log-run run)
-  (define run-id (next-run-id))
+  (if (logging-on?)
+      (let ()
+        (define run-id (next-run-id))
 
-  (define logged-result (stream-map (curry log-instance run-id run )
-                                    (Run-result run)))
+        (define logged-result (stream-map (curry log-instance run-id run )
+                                          (Run-result run)))
 
-  (define sigs (map (compose symbol->string Sig-name)
-                    (get-sigs run)))
-  (define relations (map (compose symbol->string Relation-name)
-                         (get-relations run)))
-  (write-log (hash 'log-type "run"
-                   'raw (format "~a" (syntax->datum (Run-command run)))
-                   'run-id run-id
-                   'spec (hash 'sigs sigs
-                               'relations relations
-                               'predicates '()
-                               'bounds '())))
-  (struct-copy Run run
-               [result logged-result]))
+        (define sigs (map (compose symbol->string Sig-name)
+                          (get-sigs run)))
+        (define relations (map (compose symbol->string Relation-name)
+                               (get-relations run)))
+        (write-log (hash 'log-type "run"
+                         'raw (format "~a" (syntax->datum (Run-command run)))
+                         'run-id run-id
+                         'spec (hash 'sigs sigs
+                                     'relations relations
+                                     'predicates '()
+                                     'bounds '())))
+        (struct-copy Run run
+                     [result logged-result]))
+      run))
 
 ; {
 ;     "log-type": "instance",
@@ -191,30 +199,31 @@
 ;         },
 ; }
 (define (log-instance run-id run instance)
-  (cond
-    [(and (Unsat? instance) (equal? (Unsat-kind instance) 'no-more-instances))
-     (write-log (hash 'log-type "instance"
-                      'run-id run-id
-                      'label "no-more-instances"))]
-    [(Unsat? instance)
-     (write-log (hash 'log-type "instance"
-                      'run-id run-id
-                      'label "unsat"
-                      'core (format "~a" (Unsat-core instance))))]
-     
-    [(Sat? instance)
-     (define true-instances 
-       (for/list ([true-instance (Sat-instances instance)])
-         (for/hash ([(name atoms) true-instance])
-           (values name 
-                   (for/list ([tuple atoms])
-                     (for/list ([atom tuple])
-                       (symbol->string atom)))))))
-     
-     (write-log (hash 'log-type "instance"
-                      'run-id run-id
-                      'label "sat"
-                      'instances true-instances))])
+  (when (logging-on?)
+    (cond
+      [(and (Unsat? instance) (equal? (Unsat-kind instance) 'no-more-instances))
+       (write-log (hash 'log-type "instance"
+                        'run-id run-id
+                        'label "no-more-instances"))]
+      [(Unsat? instance)
+       (write-log (hash 'log-type "instance"
+                        'run-id run-id
+                        'label "unsat"
+                        'core (format "~a" (Unsat-core instance))))]
+       
+      [(Sat? instance)
+       (define true-instances 
+         (for/list ([true-instance (Sat-instances instance)])
+           (for/hash ([(name atoms) true-instance])
+             (values name 
+                     (for/list ([tuple atoms])
+                       (for/list ([atom tuple])
+                         (symbol->string atom)))))))
+       
+       (write-log (hash 'log-type "instance"
+                        'run-id run-id
+                        'label "sat"
+                        'instances true-instances))]))
   instance)
 
 ; {
@@ -229,30 +238,29 @@
 ;             "bounds": ["..."],
 ;         },
 ; }
-(define (log-test test instance expected)
-  (define passed
-    (cond
-      [(equal? expected 'sat) (Sat? instance)]
-      [(equal? expected 'unsat) (Unsat? instance)]
-      [(equal? expected 'theorem) (Unsat? instance)]))
+(define (log-test test expected passed command data)
+  (when (logging-on?)
 
-  (define sigs (map (compose symbol->string Sig-name)
-                    (get-sigs test)))
-  (define relations (map (compose symbol->string Relation-name)
-                         (get-relations test)))
+    (define sigs (map (compose symbol->string Sig-name)
+                      (get-sigs test)))
+    (define relations (map (compose symbol->string Relation-name)
+                           (get-relations test)))
 
-  (write-log (hash 'log-type "test"
-                   'raw (format "~a" (syntax->datum (Run-command test)))
-                   'expected (symbol->string expected)
-                   'passed passed
-                   'spec (hash 'sigs sigs
-                               'relations relations
-                               'predicates '()
-                               'bounds '()))))
+    (write-log (hash 'log-type "test"
+                     'raw (format "~a" command)
+                     'expected (symbol->string expected)
+                     'passed passed
+                     'data data
+                     'spec (hash 'sigs sigs
+                                 'relations relations
+                                 'predicates '()
+                                 'bounds '())))))
 
 (define (log-error err)
-  (write-log (hash 'log-type "error"
-                   'message (format "~a" err)))
+  (when (logging-on?)
+    (write-log (hash 'log-type "error"
+                     'message (format "~a" err)))
+    (flush-logs))
   (raise err))
 
 (require syntax/parse/define)
@@ -262,3 +270,16 @@
     (uncaught-exception-handler log-error)
     commands ...
     (uncaught-exception-handler old-exception-handler)))
+
+(define (log-check-ex-spec wheat-results chaff-results)
+  (when (logging-on?)
+    (define get-name (dynamic-require 'forge/check-ex-spec/library/commands 'test-report-name))
+    (define get-passed? (dynamic-require 'forge/check-ex-spec/library/commands 'test-report-passed?))
+    (define (to-jsexpr data)
+      (for/list ([file data])
+        (for/list ([test file])
+          (hash 'test-name (get-name test)
+                'passed (get-passed? test)))))
+    (write-log (hash 'log-type "check-ex-spec"
+                     'wheat-results (to-jsexpr wheat-results)
+                     'chaff-results (to-jsexpr chaff-results)))))

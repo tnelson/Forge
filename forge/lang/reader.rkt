@@ -58,8 +58,7 @@
                       paragraphs ...))]))
 
 (define (read-syntax path port)
-  (logging:flush-logs)
-  (logging:log-execution 'forge port)
+  (define-values (logging-on? project email) (logging:log-execution 'forge port))
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 

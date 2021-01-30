@@ -5,13 +5,12 @@
 (require (prefix-in @ (only-in racket/base read-syntax)))
 
 (define (read-syntax path port)
-  (logging:flush-logs)
-  (logging:log-execution 'forge/core port)
+  (define-values (logging-on? project email) (logging:log-execution 'forge/core port))
 
   ; Using "read" will not bring in syntax location info
   (define parse-tree (port->list (lambda (x) (@read-syntax path x)) port))
   (define module-datum `(module forge-core-mod racket
-                          (require forge/sigs)
+                          (require forge/logging/sigs)
                           (provide (except-out (all-defined-out)
                                                forge:n))
 

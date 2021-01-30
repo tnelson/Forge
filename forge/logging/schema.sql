@@ -97,3 +97,13 @@ CREATE TABLE tests (
     passed BOOL
 );
 
+
+CREATE TABLE notifications (
+    id SERIAL PRIMARY KEY,
+    instance_id INTEGER REFERENCES instances(id),
+    message TEXT,
+    data JSONB,
+    time INTEGER
+);
+
+
