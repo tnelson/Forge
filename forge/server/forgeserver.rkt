@@ -6,7 +6,8 @@
          racket/async-channel
          racket/hash)
 (require "eval-model.rkt")
-(require "../kodkod-cli/server/kks.rkt")
+
+(require "../pardinus-cli/server/kks.rkt")
 
 (require "../lang/reader.rkt")
 (require "../shared.rkt")
@@ -21,7 +22,7 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model the-run get-next-unclean-model relation-map evaluate name command filepath bitwidth funs-n-preds get-contrast-model-generator)
+(define (display-model the-run get-next-unclean-model relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
   (define model #f)
   (define (get-current-model)
@@ -81,7 +82,7 @@
       (values relname (hash-union true-hash false-hash)))))
   
   (define (get-xml model)    
-    (define tuple-annotations (if (equal? 'on (get-option the-run 'local_necessity))
+    (define tuple-annotations (if (and (Sat? model) (equal? 'on (get-option the-run 'local_necessity)))
                                   (build-tuple-annotations-for-ln model)
                                   (hash)))
     (when (> (get-verbosity) VERBOSITY_LOW)
@@ -165,7 +166,7 @@
                   (define command (third parts))
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "Eval query: ~a~n" command))
-                  (define result (evaluate command))
+                  (define result (evaluate-func command))
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else
                   (ws-send! connection "BAD REQUEST")

@@ -573,8 +573,10 @@
                           #:when (symbol? atom))
                  `[,atom (atom ',atom)])
                  ,expr)))
+            
             (define ns (namespace-anchor->namespace (nsa)))
             (define command (eval full-command ns))
+            
             (evaluate run '() command)))
 
         (define (get-contrast-model-generator model compare distance)
