@@ -109,7 +109,7 @@
 ;     "raw": "#lang forge/core\n...",
 ;     "mode": "forge/core",
 ; }
-(define (log-execution language port)
+(define (log-execution language port path)
   (define peek-port (peeking-input-port port))
   (define project (read peek-port))
   (define user (read peek-port))
@@ -120,7 +120,9 @@
         (logging-on? #t)
         (read port)
         (read port)
-        (define filename (path->string (path->complete-path (find-system-path 'run-file))))
+        (define filename (format "~a" path))
+        (when (string-contains? filename "unsaved-editor")
+          (raise "Please save file before running."))
         (define time (current-seconds))
         (define raw (file->string filename))
         (define mode (format "~a" language))

@@ -25,6 +25,8 @@
          "sigs-structs.rkt"
          "evaluator.rkt"
          "send-to-kodkod.rkt")
+(require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
+         (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
 
 ; Commands
 (provide sig relation fun const pred inst)
@@ -563,7 +565,7 @@
             (define expr
               (with-handlers ([(lambda (x) #t) (lambda (exn) 
                                (read-syntax 'Evaluator pipe1))])
-                (last (syntax->datum (read-surface-syntax 'Evaluator pipe2)))))
+                (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))))
 
             ; Evaluate command
             (define full-command (datum->syntax #f `(let

@@ -5,7 +5,7 @@
 (require (prefix-in @ (only-in racket/base read-syntax)))
 
 (define (read-syntax path port)
-  (define-values (logging-on? project email) (logging:log-execution 'forge/core port))
+  (define-values (logging-on? project email) (logging:log-execution 'forge/core port path))
 
   ; Using "read" will not bring in syntax location info
   (define parse-tree (port->list (lambda (x) (@read-syntax path x)) port))

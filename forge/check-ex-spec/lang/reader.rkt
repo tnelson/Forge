@@ -17,7 +17,7 @@
   (datum->syntax stx (cons alloy-module filtered) stx stx stx))
 
 (define (read-syntax path port)
-  (define-values (logging-on? assignment-name user) (logging:log-execution 'forge/check-ex-spec port))
+  (define-values (logging-on? assignment-name user) (logging:log-execution 'forge/check-ex-spec port path))
   (unless (string? assignment-name)
     (raise (format "Argument error: expected string after #lang forge/check-ex-spec; received ~a.~n" assignment-name)))
 
