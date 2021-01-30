@@ -4,7 +4,7 @@
                     ParagraphClass TestDeclClass TestBlockClass TestExpectDeclClass ExampleDeclClass
                     AlloyModule TestDecl TestExpectDecl ExampleDecl
                     test example))
-(require forge/testme/library)
+(require (only-in forge/testme/library test example))
 (require syntax/parse/define
          (for-syntax syntax/parse/define))
 

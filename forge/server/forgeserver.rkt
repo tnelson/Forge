@@ -6,7 +6,8 @@
          racket/async-channel
          racket/hash)
 (require "eval-model.rkt")
-(require "../kodkod-cli/server/kks.rkt")
+
+(require "../pardinus-cli/server/kks.rkt")
 
 (require "../lang/reader.rkt")
 (require "../shared.rkt")
@@ -21,7 +22,7 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model the-run get-next-unclean-model relation-map evaluate name command filepath bitwidth funs-n-preds get-contrast-model-generator)
+(define (display-model the-run get-next-unclean-model relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
   (define model #f)
   (define (get-current-model)
@@ -58,6 +59,8 @@
                ((hash-ref contrast-model-generators type)))
     (hash-ref contrast-models type))
 
+  (define command-string (format "~a" (syntax->datum command)))
+
   ; Define a hashof(relname-symbol, hashof(listof(atom-symbol), listof(annotation-symbol))    
   (define (build-tuple-annotations-for-ln model)
     (define (build-tann-hash relname pair-list ksym vsym)
@@ -79,12 +82,13 @@
       (values relname (hash-union true-hash false-hash)))))
   
   (define (get-xml model)    
-    (define tuple-annotations (if (equal? 'on (get-option the-run 'local_necessity))
+    (define tuple-annotations (if (and (Sat? model) (equal? 'on (get-option the-run 'local_necessity)))
                                   (build-tuple-annotations-for-ln model)
                                   (hash)))
     (when (> (get-verbosity) VERBOSITY_LOW)
       (printf "tuple annotations were: ~a~n" tuple-annotations))
-    (solution-to-XML-string model relation-map name command filepath bitwidth forge-version #:tuple-annotations tuple-annotations))
+    (solution-to-XML-string model relation-map name command-string filepath bitwidth forge-version #:tuple-annotations tuple-annotations))
+
 
   ;(printf "Instance : ~a~n" model)
   (define chan (make-async-channel))
@@ -162,7 +166,7 @@
                   (define command (third parts))
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "Eval query: ~a~n" command))
-                  (define result (evaluate command))
+                  (define result (evaluate-func command))
                   (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
                  [else
                   (ws-send! connection "BAD REQUEST")

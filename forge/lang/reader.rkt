@@ -3,6 +3,7 @@
 (require syntax/parse)
 (require "alloy-syntax/parser.rkt")
 (require "alloy-syntax/tokenizer.rkt")
+(require (prefix-in logging: forge/logging/logging))
 
 (provide coerce-ints-to-atoms)
 (define (coerce-ints-to-atoms tree)
@@ -57,6 +58,7 @@
                       paragraphs ...))]))
 
 (define (read-syntax path port)
+  (define-values (logging-on? project email) (logging:log-execution 'forge port path))
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
@@ -66,7 +68,13 @@
                   (define-namespace-anchor forge:n) ; Used for evaluator
                   (forge:nsa forge:n)
 
-                  ,ints-coerced))
+                  (require (only-in forge/logging/logging 
+                                    [flush-logs logging:flush-logs]
+                                    [log-errors logging:log-errors]))
+
+                  (logging:log-errors
+                    ,ints-coerced)
+                  (logging:flush-logs)))
 
   (define module-datum `(module forge-mod forge/lang/expander
                           ,@final))

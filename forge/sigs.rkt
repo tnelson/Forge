@@ -25,6 +25,8 @@
          "sigs-structs.rkt"
          "evaluator.rkt"
          "send-to-kodkod.rkt")
+(require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
+         (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
 
 ; Commands
 (provide sig relation fun const pred inst)
@@ -62,7 +64,6 @@
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 ; Export these from structs without forge: prefix
 (provide implies iff <=> ifte >= <= ni != !in !ni)
-
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
@@ -370,7 +371,7 @@
 ;      [#:scope [((sig [lower 0] upper) ...)]]
 ;      [#:inst instance-name])
 (define-syntax (run stx)
-  (define command (format "~a" stx))
+  (define command stx)
 
   (syntax-parse stx
     [(run name:id
@@ -439,8 +440,7 @@
         (when (~? (or #t 'target-contrast) #f)
           (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
 
-
-        (define run-command #,command)        
+        (define run-command #'#,command)        
         
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
         (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
@@ -463,14 +463,15 @@
        (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
                       'name 'expected (if (Sat? first-instance) 'sat 'unsat)
                       (if (Sat? first-instance)
-                          (format ". Found instance ~a" first-instance)
-                          ""))))
+                          (format " Found instance ~a" first-instance)
+                          (if (Unsat-core first-instance)
+                              (format " Core: ~a" (Unsat-core first-instance))
+                              "")))))
      (close-run name)]
 
     [(equal? 'expected 'theorem)
      (check name args ...)
      (define first-instance (stream-first (Run-result name)))
-
      (when (Sat? first-instance)
        (raise (format "Theorem ~a failed. Found instance:~n~a"
                       'name first-instance)))
@@ -564,7 +565,7 @@
             (define expr
               (with-handlers ([(lambda (x) #t) (lambda (exn) 
                                (read-syntax 'Evaluator pipe1))])
-                (last (syntax->datum (read-surface-syntax 'Evaluator pipe2)))))
+                (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))))
 
             ; Evaluate command
             (define full-command (datum->syntax #f `(let
@@ -572,8 +573,10 @@
                           #:when (symbol? atom))
                  `[,atom (atom ',atom)])
                  ,expr)))
+            
             (define ns (namespace-anchor->namespace (nsa)))
             (define command (eval full-command ns))
+            
             (evaluate run '() command)))
 
         (define (get-contrast-model-generator model compare distance)
@@ -785,4 +788,3 @@
      #'(values (set-bitwidth #,scope n) #,bound)]
 
     [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") binding)]))
-
