@@ -1,4 +1,4 @@
-#lang forge/core forge1 thomas_del_vecchio@brown.edu
+#lang forge/core "forge1" "thomas_del_vecchio@brown.edu"
 
 (sig A)
 (sig B)

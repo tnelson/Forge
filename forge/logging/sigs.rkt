@@ -17,7 +17,7 @@
 (define-simple-macro (check name args ...)
   (begin
     (unlogged:check name args ...)
-    (set! name (logging:log-check name))))
+    (set! name (logging:log-run name "check"))))
 
 (define (get-unsat-data first-instance)
   (if (Unsat-core first-instance)
