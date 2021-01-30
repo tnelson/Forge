@@ -60,8 +60,8 @@
 
   ; Define a hashof(relname-symbol, hashof(listof(atom-symbol), listof(annotation-symbol))    
   (define (build-tuple-annotations-for-ln model)
-    (define (build-tann-hash pair-list ksym vsym)
-      (for/hash ([pr pair-list])
+    (define (build-tann-hash relname pair-list ksym vsym)
+      (for/hash ([pr (filter (lambda (maybe-pr) (equal? relname (cdr maybe-pr))) pair-list)])
         ; build *LIST* of annotations, each of which is a pair
         (values (car pr) (list (cons ksym vsym))))) 
     
@@ -70,9 +70,13 @@
       (printf "generating locally-necessary tuples...model field unused...~n"))
     (match-define (cons yes no) (get-locally-necessary-list the-run))
     ; To ease building annotation hash, just discover which relations are present in advance
+    ;(printf "LNtuples+: ~a~n LNtuples-: ~a~n" yes no)
     (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])
+      (let ([true-hash (build-tann-hash relname yes 'LN 'true)]
+            [false-hash (build-tann-hash relname no 'LN 'false)])
       ; uppercase
-      (values relname (hash-union (build-tann-hash yes 'LN 'true) (build-tann-hash no 'LN 'false)))))
+      ;(printf "building union of ~a~n  and ~a~n" true-hash false-hash)
+      (values relname (hash-union true-hash false-hash)))))
   
   (define (get-xml model)    
     (define tuple-annotations (if (equal? 'on (get-option the-run 'local_necessity))

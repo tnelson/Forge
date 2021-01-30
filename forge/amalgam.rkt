@@ -298,7 +298,7 @@
         '()
         (let ()
           (define upper-bounds (liftBoundsExpr (Relation-rel r) '()
-                                               orig-run))
+                                               orig-run))          
           (define curr
             (filter-map (lambda (pair)
                           (when (@>= (get-verbosity) VERBOSITY_DEBUG)
@@ -308,7 +308,6 @@
                               #f))
                         upper-bounds))
           curr)))) orig-run))
-
  
   ; partition the list
   (define-values (yes no) (partition (lambda (pair)

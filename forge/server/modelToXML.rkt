@@ -2,7 +2,8 @@
 
 (require "../lang/ast.rkt" racket/date xml racket/string
          "../sigs-structs.rkt" ; for Sat/Unsat
-         (prefix-in @ (only-in racket and or not)))
+         "../shared.rkt"
+         (prefix-in @ (only-in racket and or not >)))
 
 (provide solution-to-XML-string)
 
@@ -45,7 +46,11 @@
   ; *FORCE INCLUSION* of any tuple with an annotation, even if it's not in the instance
   ; TODO: this will not be safe in Electrum, since LN may vary between timeslots.
   (define rdata-plus (remove-duplicates (append rdata (hash-keys r-tuple-annotations))))
-  (printf "rdata-plus: ~a~n" rdata-plus)
+  (when (and (@> (get-verbosity) VERBOSITY_LOW)
+             (@> (length rdata-plus) (length rdata)))
+    (printf "Forcing inclusion of LN- tuples: ~a~n" (remove* rdata rdata-plus)))
+
+  ;(printf "rdata-plus: ~a~n" rdata-plus)
   (apply string-append (map (curry tuple-to-XML-string r-tuple-annotations) rdata-plus)))
 
 (define (type-to-XML-string typestring ID-hash)
@@ -63,8 +68,7 @@
 (define (field-to-XML-string data rel fieldID ID-hash tuple-annotations)
   (define r-tuple-annotations (if (hash-has-key? tuple-annotations rel)
                                   (hash-ref tuple-annotations rel)
-                                  (hash)))
-  (printf "r: ~a; ann: ~a; rann: ~a~n" rel tuple-annotations r-tuple-annotations)
+                                  (hash)))  
   (string-append "<field label=\"" (relation-name rel) "\" ID=\"" (number->string fieldID) "\" parentID=\"" (number->string (hash-ref ID-hash (first (relation-typelist rel)))) "\">\n"
                  (relation-to-XML-string data rel r-tuple-annotations)
                  (types-to-XML-string rel ID-hash)
