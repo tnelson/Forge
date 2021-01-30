@@ -167,7 +167,7 @@
     curr-run-id
     (set! curr-run-id (add1 curr-run-id))))
 
-(define (log-run run [log-type "run"])
+(define (log-run run [log-type "run"]) ; TODO: MAKE WORK FOR CHECKS
   (if (logging-on?)
       (let ()
         (define run-id (next-run-id))
@@ -179,7 +179,7 @@
                           (get-sigs run)))
         (define relations (map (compose symbol->string Relation-name)
                                (get-relations run)))
-        (write-log (hash 'log-type log-type
+        (write-log (hash 'log-type "run" ; log-type TODO
                          'raw (format "~a" (syntax->datum (Run-command run)))
                          'run-id run-id
                          'spec (hash 'sigs sigs
