@@ -7,7 +7,7 @@
 (require request)
 (require net/url-string)
 
-(provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec)
+(provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec log-notification)
 
 (define user-data-file (writable-config-file "user-data.json" #:program "forge"))
 (unless (file-exists? user-data-file)
@@ -260,18 +260,27 @@
                                  'predicates '()
                                  'bounds '())))))
 
-(define (log-error err)
+(define ((log-error default-exception-handler) err)
   (when (logging-on?)
     (write-log (hash 'log-type "error"
-                     'message (format "~a" err)))
+                     'message (if (exn? err)
+                                  (exn-message err)
+                                  (format "~a" err))))
     (flush-logs))
-  (raise err))
+  (default-exception-handler err))
+
+(define (log-notification message data)
+  (when (logging-on?)
+    (write-log (hash 'log-type "notification"
+                     'message message
+                     'data data
+                     'time (current-seconds)))))
 
 (require syntax/parse/define)
 (define-simple-macro (log-errors commands ...)
   (begin
     (define old-exception-handler (uncaught-exception-handler))
-    (uncaught-exception-handler log-error)
+    (uncaught-exception-handler (log-error old-exception-handler))
     commands ...
     (uncaught-exception-handler old-exception-handler)))
 
