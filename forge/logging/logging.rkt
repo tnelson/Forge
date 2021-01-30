@@ -7,7 +7,7 @@
 (require request)
 (require net/url-string)
 
-(provide log-execution log-run log-test log-errors flush-logs)
+(provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec)
 
 (define user-data-file (writable-config-file "user-data.json" #:program "forge"))
 (unless (file-exists? user-data-file)
@@ -23,7 +23,7 @@
 (define log-post-url 
   (string->url "https://us-central1-pyret-examples.cloudfunctions.net/forge-logging"))
 (define (flush-logs)
-  (when #f #;(logging-on?)
+  (when (logging-on?)
     (println
       (with-handlers ([exn:fail:network? (thunk* #f)])
         (define log-lines (file->lines log-file))
@@ -138,7 +138,9 @@
 
       (let ()
         (logging-on? #f)
-        (values #f #f #f))))
+        (if (equal? language 'forge/check-ex-spec)
+            (values #f (read port) #f)
+            (values #f #f #f)))))
 
 ; (struct Run (
 ;   name     ; Symbol
@@ -278,7 +280,7 @@
     (define (to-jsexpr data)
       (for/list ([file data])
         (for/list ([test file])
-          (hash 'test-name (get-name test)
+          (hash 'test-name (symbol->string (get-name test))
                 'passed (get-passed? test)))))
     (write-log (hash 'log-type "check-ex-spec"
                      'wheat-results (to-jsexpr wheat-results)

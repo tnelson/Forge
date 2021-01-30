@@ -94,7 +94,14 @@ CREATE TABLE instances (
 CREATE TABLE tests (
     command_id INTEGER REFERENCES commands(id),
     expected TEXT,
-    passed BOOL
+    passed BOOL,
+    data JSONB
+);
+
+CREATE TABLE check_ex_spec (
+    id SERIAL PRIMARY KEY,
+    execution_id INTEGER REFERENCES executons(id),
+    results JSONB
 );
 
 

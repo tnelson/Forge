@@ -83,6 +83,8 @@ def handle(request):
                 load_instance(log, current_execution)
             elif log_type == "test":
                 load_test(log, current_execution)
+            elif log_type == "check-ex-spec":
+                load_check_ex_spec(log, current_execution)
             else:
                 raise Exception("Unrecognized log type.")
     except Exception as err:
@@ -120,7 +122,8 @@ def load_execution(log):
             "raw": log["raw"],
             "mode": log["mode"],
             "runs": [],
-            "tests": []
+            "tests": [],
+            "check-ex-spec": None
         }
 
 """
@@ -193,12 +196,19 @@ input:
     }
 """
 def load_test(log, execution):
-    return execution["tests"].append({
+    execution["tests"].append({
             "raw": log["raw"],
             "spec": log["spec"],
             "expected": log["expected"],
-            "passed": log["passed"]
+            "passed": log["passed"],
+            "data": log["data"] if log["data"] else None
         })
+
+def load_check_ex_spec(log, execution):
+    execution["check-ex-spec"] = {
+        "wheat-results": log["wheat-results"],
+        "chaff-results": log["chaff-results"]
+    }
 
 def get_column(result_proxy, column):
     tuples = result_proxy.fetchall()
@@ -360,14 +370,26 @@ def add_to_database(execution):
                 command=test["raw"]), 'id')[0]
 
             command = sqlalchemy.text("""
-                INSERT INTO tests(command_id, expected, passed)
-                VALUES (:command_id, :expected, :passed)
+                INSERT INTO tests(command_id, expected, passed, data)
+                VALUES (:command_id, :expected, :passed, :data)
                 """)
             connection.execute(
                 command,
                 command_id=command_id,
                 expected=test["expected"],
-                passed=test["passed"])
+                passed=test["passed"],
+                data=json.dumps(test["data"]))
+
+    def add_check_ex_spec(connection, results, execution_id):
+        if results:
+            command = sqlalchemy.text("""
+                INSERT INTO check_ex_spec(execution_id, results)
+                VALUES (:execution_id, :results)
+                """)
+            connection.execute(
+                command,
+                execution_id=execution_id,
+                results=json.dumps(results))
 
     with engine.begin() as connection:
         user_id = get_user_id(connection, execution["user"])
@@ -391,6 +413,7 @@ def add_to_database(execution):
                 file_id)
         add_runs(connection, execution["runs"], execution_id)
         add_tests(connection, execution["tests"], execution_id)
+        add_check_ex_spec(connection, execution["check-ex-spec"], execution_id)
 
 
 
