@@ -54,7 +54,9 @@
   (apply string-append (map (curry tuple-to-XML-string r-tuple-annotations) rdata-plus)))
 
 (define (type-to-XML-string typestring ID-hash)
-  (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
+  ;(string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
+  ; Always give univ as parent type, to avoid LN- causing a type error in Sterling (TN Jan 30 '21)
+  (string-append "<type ID=\"" (number->string 2) "\"/>"))
 
 (define (types-to-XML-string rel ID-hash)  
   (define xml-expected-types
@@ -139,6 +141,7 @@
 </field>
 here-string-delimiter
                                   ))
+  ; Note in the above, univ is always ID=2
   (cond [(and (Unsat? soln) (equal? (Unsat-kind soln) 'unsat))
          (string-append prologue instance-prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
