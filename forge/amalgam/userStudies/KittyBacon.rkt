@@ -1,4 +1,5 @@
 #lang forge
+option local_necessity on 
 sig Cat {
     friends : set Cat
 }
