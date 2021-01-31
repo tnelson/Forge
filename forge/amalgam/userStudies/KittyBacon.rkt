@@ -60,7 +60,7 @@ one sig FFF  { membersOfFoundation: set Cat }
 
 pred FancyFelineFoundation {
     ConnectedKittyBacon
-    FFF.membersOfFoundation = KittyBacon.connectionsOf
+    FFF.membersOfFoundation = KittyBacon.connectionsOf + KittyBacon
 }
 
 pred KittyBaconIsAFancyFeline {
