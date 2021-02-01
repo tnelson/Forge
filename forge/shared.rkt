@@ -1,9 +1,13 @@
 #lang racket/base
 
 (require racket/runtime-path racket/file)
+(require (only-in racket/draw color%)
+         (only-in racket make-object))
 
 (provide get-verbosity set-verbosity VERBOSITY_LOW VERBOSITY_HIGH VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
-(provide forge-version instance-diff)
+(provide forge-version instance-diff CORE-HIGHLIGHT-COLOR)
+
+(define CORE-HIGHLIGHT-COLOR (make-object color% 230 150 150))
 
 ; Level of output when running specs
 (define VERBOSITY_SCRIPT 0) ; for test scripts

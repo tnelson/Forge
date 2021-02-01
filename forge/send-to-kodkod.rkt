@@ -16,6 +16,7 @@
          (prefix-in kodkod: "kodkod-cli/server/server.rkt")
          (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
 (require "server/eval-model.rkt")
+(require "drracket-gui.rkt")
 
 (provide send-to-kodkod)
 
@@ -270,9 +271,15 @@
 
   ; Run last-minute checks for errors  
   (for-each (lambda (c) (checkFormula run-spec c '())) run-constraints) 
+
+  ; Keep track of which formula corresponds to which CLI assert
+  ; for highlighting unsat cores. TODO: map back from CLI output
+  ; constraints later
+  (define core-map (make-hash))
   
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
+    (hash-set! core-map assertion-number p)
     (pardinus-print
       (pardinus:print-cmd-cont "(~a " (pardinus:f assertion-number))
       (translate-to-kodkod-cli run-spec p all-rels all-atoms '())
@@ -316,7 +323,28 @@
                     'run 
                     (pardinus:read-solution stdout) 
                     all-rels 
-                    all-atoms))    
+                    all-atoms))
+
+    
+    ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
+    (define (do-core-highlight loc)
+      (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core))        
+    (when (and (is-drracket-linked?) (Unsat? result))
+      (printf "core-map: ~a~n" core-map)
+      (printf "core: ~a~n" (Unsat-core result))
+      (do-forge-unhighlight 'core)
+      (for-each do-core-highlight
+                (filter-map (λ (id)
+                              (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
+                                (cond [(member fmla-num (hash-keys core-map))
+                                       ; This is a formula ID and we know it
+                                       (nodeinfo-loc (node-info (hash-ref core-map fmla-num)))]
+                                      [else
+                                       ; This is NOT a known formula id, but it's part of the core
+                                       (printf "WARNING: Core also contained: ~a~n" id)
+                                       #f])))
+                            (Unsat-core result))))
+    
     (when (@>= (get-verbosity) VERBOSITY_LOW)
       (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
     result)

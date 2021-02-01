@@ -7,7 +7,6 @@
 (require (for-syntax racket/match syntax/srcloc))
 
 (require "shared.rkt")
-(require "drracket-gui.rkt")
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
          "breaks.rkt")
