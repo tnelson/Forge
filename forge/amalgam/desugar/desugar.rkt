@@ -1,4 +1,4 @@
-#lang forge/core
+#lang racket ;forge/core
 
 ; Desugaring functions for Amalgam
 ; (full AST) -> (restricted AST without stuff like implies)
@@ -14,10 +14,12 @@
 (require "../lift-bounds/lift-bounds.rkt")
 (require "desugar_helpers.rkt")
 (require "../substitutor/substitutor.rkt")
-(provide desugarFormula)
+(provide desugarFormula desugarExpr desugarInt)
 
 (require (prefix-in @ racket))
 (require (prefix-in @ (only-in racket ->)))
+(require (prefix-in forge: forge/sigs-structs)
+         forge/lang/ast)
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; This costs a great deal, but forces a noisy failure

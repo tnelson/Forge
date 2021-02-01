@@ -12,6 +12,25 @@
 ;;;;;; Data Structures ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Results from solver
+
+; For a non-temporal result, just take the first element of instances
+(struct Sat (
+  instances ; list of hashes            
+  stats ; association list
+  metadata ; association list
+  ) #:transparent)
+
+(struct Unsat (
+  core ; (or/c #f list-of-AST-nodes)
+  stats ; association list
+  kind ; symbol
+  ) #:transparent)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (struct Sig (
   name       ; Symbol
   rel        ; node/expr/relation
@@ -64,6 +83,7 @@
   target_mode     ; symbol
   core_minimization ; symbol
   skolem_depth ; int
+  local_necessity ; symbol
   ) #:transparent)
 
 (struct State (
@@ -100,7 +120,7 @@
 
 (struct Run (
   name     ; Symbol
-  command  ; String (syntax)
+  command  ; Syntax
   run-spec ; Run-spec
   result   ; Stream
   server-ports ; Server-ports
@@ -122,7 +142,7 @@
 (define init-const-map (@hash))
 (define init-inst-map (@hash))
 (define init-runmap (@hash))
-(define init-options (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0))
+(define init-options (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-pred-map init-fun-map init-const-map
@@ -369,3 +389,95 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-relation-map run-or-spec)
   (for/hash ([rel (get-all-rels run-or-spec)])
     (values (relation-name rel) rel)))
+
+; get-option :: Run-or-state Symbol -> Any
+(define (get-option run-or-state option)
+  (define state (get-state run-or-state))
+  (define symbol->proc
+    (hash 'solver Options-solver
+          'backend Options-backend
+          'sb Options-sb
+          'coregranularity Options-coregranularity
+          'logtranslation Options-logtranslation
+          'min_tracelength Options-min_tracelength
+          'max_tracelength Options-max_tracelength
+          'problem_type Options-problem_type          
+          'target_mode Options-target_mode
+          'core_minimization Options-core_minimization
+          'skolem_depth Options-skolem_depth
+          'local_necessity Options-local_necessity
+          ))
+  ((hash-ref symbol->proc option) (State-options state)))
+
+; is-sat? :: Run -> boolean
+; Checks if a given run result is 'sat
+(define (is-sat? run)
+  (define first-instance (stream-first (Run-result run)))
+  (Sat? first-instance))
+
+; is-unsat? :: Run -> boolean
+; Checks if a given run result is 'unsat
+(define (is-unsat? run)
+  (define first-instance (stream-first (Run-result run)))
+  (Unsat? first-instance))
+
+
+
+; get-stdin :: Run -> input-port?
+(define (get-stdin run)
+  (assert-is-running run)
+  (Server-ports-stdin (Run-server-ports run)))
+
+; get-stdin :: Run -> output-port?
+(define (get-stdout run)
+  (assert-is-running run)
+  (Server-ports-stdout (Run-server-ports run)))
+
+; close-run :: Run -> void
+(define (close-run run)
+  (assert-is-running run)
+  ((Server-ports-shutdown (Run-server-ports run))))
+
+; is-running :: Run -> Boolean
+(define (is-running? run)
+  ((Server-ports-is-running? (Run-server-ports run))))
+
+(define (assert-is-running run)
+  (unless (is-running? run)
+    (raise "KodKod server is not running.")))
+
+(require (for-syntax syntax/srcloc)) ; for these macros
+
+;; Added sugar over the AST
+;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus on the macro definition point
+(provide implies iff <=> ifte >= <= ni != !in !ni)
+
+(define-syntax (implies stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)) a b))]))
+(define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
+(define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
+
+; for ifte, use struct type to decide whether this is a formula (sugar) or expression form (which has its own AST node)
+(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx
+                                                           (if (node/formula? b)
+                                                               (&&/info (nodeinfo #,(build-source-location stx))
+                                                                        (=>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                                        (=>/info (nodeinfo #,(build-source-location stx)) (! a) c))
+                                                               (ite/info (nodeinfo #,(build-source-location stx)) a b c)))]))
+
+(define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx)) b a))]))
+(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
+                                                             (=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (!in stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx))
+                                                              (in/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (!ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
+                                                              (in/info (nodeinfo #,(build-source-location stx)) b a)))]))
+(define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
+                                                              (int>/info (nodeinfo #,(build-source-location stx)) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
+                                                              (int</info (nodeinfo #,(build-source-location stx)) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))

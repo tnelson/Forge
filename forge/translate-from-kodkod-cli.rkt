@@ -2,27 +2,10 @@
 
 (require (only-in "lang/ast.rkt" relation-name)
          (only-in "lang/ast.rkt" univ))   ;relation))
+(require forge/sigs-structs)
 
 (provide translate-from-kodkod-cli
          translate-evaluation-from-kodkod-cli )
-(provide (struct-out Sat)
-         (struct-out Unsat))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; For a non-temporal result, just take the first element of instances
-(struct Sat (
-  instances ; list of hashes            
-  stats ; association list
-  metadata ; association list
-  ) #:transparent)
-
-(struct Unsat (
-  core ; (or/c #f list-of-AST-nodes)
-  stats ; association list
-  kind ; symbol
-  ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
