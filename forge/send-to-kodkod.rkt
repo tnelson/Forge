@@ -332,7 +332,7 @@
       (if (is-drracket-linked?) 
           (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
           (when (@>= (get-verbosity) VERBOSITY_LOW)        
-        (printf "  Core contained location: ~a~n" loc))))  
+            (printf "  Core contained location: ~a~n" (srcloc->string loc)))))  
     (when (Unsat? result)
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
@@ -340,7 +340,8 @@
       (cond [(is-drracket-linked?) 
              (do-forge-unhighlight 'core)]
             [else
-             (printf "No DrRacket linked, could not highlight core. Will print instead.~n")])
+             (when (@>= (get-verbosity) VERBOSITY_LOW) 
+               (printf "No DrRacket linked, could not highlight core. Will print instead.~n"))])
       (for-each do-core-highlight
                 (filter-map (λ (id)
                               (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
