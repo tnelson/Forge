@@ -468,10 +468,10 @@
                               (rest sub-proof-streams)))
      ;(printf "************~n cartesian: ~a~n" (stream->list cartesian))
      ; In case of only 1 subtree, above foldl will produce a stream-of-alphasets, not a list-of-streams-of-alphasets
-     (stream-map (lambda (los) (set-union (list->set als)
-                                          (if (list? los)
-                                              (apply set-union los)
-                                              los))) cartesian)]
+     (stream-map/once (lambda (los) (set-union (list->set als)
+                                               (if (list? los)
+                                                   (apply set-union los)
+                                                   los))) cartesian)]
     [else (error "build-nth-alphaset bad arg type" ptree)]))
 
 ; TODO: UNCOMMENT THIS LATER 
