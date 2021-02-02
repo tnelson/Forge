@@ -259,15 +259,14 @@
                                  (hash-ref new-totals k)))))
   
   (define bounds (Bound new-pbindings
-                              (Bound-tbindings orig-bounds)))
-  (define scope (Scope #f #f (hash))) ; empty
+                              (Bound-tbindings orig-bounds))) 
   ; can't use inst syntax here, so construct manually
-
-  (define alt-inst
-    (lambda (s b) (values scope bounds)))
+;  (define alt-inst
+;    (lambda (s b) (values scope bounds)))
 
   ; Get the solver to produce the L-alternate for us
-  (define alt-run (build-alternate-run orig-run F scope bounds))
+  ; Preserve scope and t-bounds from original run
+  (define alt-run (build-alternate-run orig-run F orig-scope bounds))
   ;(run alt-run
   ;     #:preds [F]
   ;     #:bounds alt-inst)
