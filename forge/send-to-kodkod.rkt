@@ -333,7 +333,7 @@
           (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
           (when (@>= (get-verbosity) VERBOSITY_LOW)        
             (printf "  Core contained location: ~a~n" (srcloc->string loc)))))  
-    (when (Unsat? result)
+    (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
         (printf "core: ~a~n" (Unsat-core result)))
