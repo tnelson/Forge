@@ -1,9 +1,11 @@
 #lang racket/base
 
 (require racket/runtime-path racket/file)
+(require racket/stream)
 
 (provide get-verbosity set-verbosity VERBOSITY_LOW VERBOSITY_HIGH VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
 (provide forge-version instance-diff)
+(provide stream-map/once)
 
 ; Level of output when running specs
 (define VERBOSITY_SCRIPT 0) ; for test scripts
@@ -45,3 +47,7 @@
        'different-signature
        (filter (lambda (k) (not (member k (hash-keys i2)))) (hash-keys i1))
        (filter (lambda (k) (not (member k (hash-keys i1)))) (hash-keys i2)))))
+
+(define (stream-map/once func strm)
+  (stream-cons (func (stream-first strm))
+               (stream-map/once func (stream-rest strm))))

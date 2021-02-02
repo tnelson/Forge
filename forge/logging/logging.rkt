@@ -2,6 +2,7 @@
 
 (require forge/sigs-structs)
 (require forge/translate-from-kodkod-cli)
+(require forge/shared)
 (require json)
 (require basedir)
 (require request)
@@ -171,12 +172,9 @@
   (if (logging-on?)
       (let ()
         (define run-id (next-run-id))
-        (define (my-stream-map func strm)
-          (stream-cons (func (stream-first strm))
-                       (my-stream-map func (stream-rest strm))))
 
-        (define logged-result (my-stream-map (curry log-instance run-id run )
-                                             (Run-result run)))
+        (define logged-result (stream-map/once (curry log-instance run-id run )
+                                               (Run-result run)))
 
         (define sigs (map (compose symbol->string Sig-name)
                           (get-sigs run)))
