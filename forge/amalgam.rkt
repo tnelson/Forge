@@ -259,7 +259,8 @@
                                  (hash-ref new-totals k)))))
   
   (define bounds (Bound new-pbindings
-                              (Bound-tbindings orig-bounds))) 
+                              (Bound-tbindings orig-bounds)))
+  
   ; can't use inst syntax here, so construct manually
 ;  (define alt-inst
 ;    (lambda (s b) (values scope bounds)))

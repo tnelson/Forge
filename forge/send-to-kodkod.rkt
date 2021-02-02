@@ -420,11 +420,10 @@
     (define children-lower (apply append (map fill-lower (get-children run-spec sig))))
 
     (define own-lower
-      (let ([difference (@- own-lower-int (length children-lower))])
+      (let ([difference (@- own-lower-int (length children-lower))])        
         (if (@> difference 0)
-            (append (get-next-names sig difference) children-lower)
-            children-lower)))
-
+            (remove-duplicates (append (get-next-names sig difference) children-lower))
+            children-lower)))    
     (hash-set! sig-to-lower (Sig-name sig) own-lower)
     own-lower)
 
@@ -436,7 +435,10 @@
     (define own-lower (hash-ref sig-to-lower (Sig-name sig)))
     (define difference (@- own-upper-int (length own-lower)))    
     (when (@< difference 0)
-      (raise (format "Illegal bounds for sig ~a" (Sig-name sig))))
+      (raise (format "Illegal bounds for sig ~a. own-upper-int: ~a, own-lower: ~a"
+                     (Sig-name sig)
+                     own-upper-int
+                     own-lower)))
 
     (define new-names (get-next-names sig difference))
     (define own-upper (append own-lower new-names))
