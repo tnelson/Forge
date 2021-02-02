@@ -1,4 +1,6 @@
-#lang forge "lab1" "lucia_reyes@brown.edu"
+#lang forge
+-- Do not uncomment; will freeze installation of Forge package
+--#lang forge "lab1" "lucia_reyes@brown.edu"
 
 option local_necessity on 
 
