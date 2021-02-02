@@ -16,6 +16,7 @@
          (prefix-in kodkod: "kodkod-cli/server/server.rkt")
          (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
 (require "server/eval-model.rkt")
+(require "drracket-gui.rkt")
 
 (provide send-to-kodkod)
 
@@ -252,6 +253,7 @@
   ; Get and print predicates
   ; If in temporal mode, need to always-ify the auto-generated constraints but not the
   ;   predicates that come from users
+  ; !!!
   (define raw-implicit-constraints
     (append (get-sig-size-preds run-spec total-bounds)
             (get-relation-preds run-spec)
@@ -270,9 +272,15 @@
 
   ; Run last-minute checks for errors  
   (for-each (lambda (c) (checkFormula run-spec c '())) run-constraints) 
+
+  ; Keep track of which formula corresponds to which CLI assert
+  ; for highlighting unsat cores. TODO: map back from CLI output
+  ; constraints later
+  (define core-map (make-hash))
   
   (for ([p run-constraints]
         [assertion-number (in-naturals)])
+    (hash-set! core-map assertion-number p)
     (pardinus-print
       (pardinus:print-cmd-cont "(~a " (pardinus:f assertion-number))
       (translate-to-kodkod-cli run-spec p all-rels all-atoms '())
@@ -316,7 +324,37 @@
                     'run 
                     (pardinus:read-solution stdout) 
                     all-rels 
-                    all-atoms))    
+                    all-atoms))
+
+    
+    ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
+    (define (do-core-highlight loc)
+      (if (is-drracket-linked?) 
+          (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
+          (when (@>= (get-verbosity) VERBOSITY_LOW)        
+            (printf "  Core contained location: ~a~n" (srcloc->string loc)))))  
+    (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
+      (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+        (printf "core-map: ~a~n" core-map)
+        (printf "core: ~a~n" (Unsat-core result)))
+      (cond [(is-drracket-linked?) 
+             (do-forge-unhighlight 'core)]
+            [else
+             (when (@>= (get-verbosity) VERBOSITY_LOW) 
+               (printf "No DrRacket linked, could not highlight core. Will print instead.~n"))])
+      (for-each do-core-highlight
+                (filter-map (λ (id)
+                              (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
+                                (cond [(member fmla-num (hash-keys core-map))
+                                       ; This is a formula ID and we know it
+                                       ;(printf "LOC: ~a~n" (nodeinfo-loc (node-info (hash-ref core-map fmla-num))))
+                                       (nodeinfo-loc (node-info (hash-ref core-map fmla-num)))]
+                                      [else
+                                       ; This is NOT a known formula id, but it's part of the core
+                                       (printf "WARNING: Core also contained: ~a~n" id)
+                                       #f])))
+                            (Unsat-core result))))
+    
     (when (@>= (get-verbosity) VERBOSITY_LOW)
       (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
     result)
@@ -494,6 +532,14 @@
                                               "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                sig int-upper (sub1 max-int))))
               (list (<= (card (Sig-rel sig)) (int int-upper)))))))))
+
+
+; TN TODO
+; For many implicit constraints, it's either difficult or impossible to
+; produce a *single* location to blame the formula on. For instance,
+; the constraint that forces two sigs to be disjoint from one another
+; can't be blamed solely on one of the two sigs.
+; Instead, keep track of lists of sites for each implicit formula.
 
 ; get-extender-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig which has extending Sigs so that:

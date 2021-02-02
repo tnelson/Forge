@@ -23,8 +23,8 @@
   metadata ; association list
   ) #:transparent)
 
-(struct Unsat (
-  core ; (or/c #f list-of-AST-nodes)
+(struct Unsat (               
+  core ; (or/c #f list-of-Formula-string-or-formulaID)
   stats ; association list
   kind ; symbol
   ) #:transparent)

@@ -27,6 +27,7 @@
     (define (phase2) void)
 
     (define unit-setup-thunk (box #f))
+    (define local-vector (box #f))
     
     (define unit-mixin
        (mixin (drracket:unit:frame<%>) ()      
@@ -45,10 +46,8 @@
            (define orig-tab (send this get-current-tab))
            (when (path? path)
              ;(printf "path: ~a ~n" path)
-             (define the-tab (send this find-matching-tab path))
-             ;(printf "the-tab: ~a ~n" the-tab)             
-             (cond [the-tab
-                    ;(printf "tab yes!~n")
+             (define the-tab (send this find-matching-tab path))             
+             (cond [the-tab                   
                     (send this change-to-tab the-tab)]
                    [else
                     ;(printf "tab no...path-string? ~a num tabs:~a.~n" (path-string? path) (send this get-tab-count))
@@ -56,9 +55,12 @@
                     ;(printf "tabtabtab~n")
                     ;(define new-tab (send this open-in-new-tab path)) ; this is the call that's failing
                    ; (define new-tab (send this create-new-tab))
-                    (define new-tab (open-in-new-tab (path->string path)))
-                    (printf "new-tab: ~a ~n" new-tab)
-                    (send this change-to-tab new-tab)]))           
+
+                    ;(define new-tab (open-in-new-tab (path->string path)))
+                    ;(printf "new-tab: ~a ~n" new-tab)
+                    ;(send this change-to-tab new-tab)                    
+                    ; Do nothing for now if the tab isn't already open
+                    (printf "Failed to open tab for path: ~a~n" path)]))           
 
            (send (get-definitions-text) begin-edit-sequence) 
            (send (get-definitions-text) highlight-range
@@ -68,16 +70,21 @@
              ;(send this change-to-tab orig-tab) ; return to original tab after highlighting is done
            )
          
-         (define (do-forge-unhighlight key)
-           ; Unhighlight for every open tab (and return to the tab we were at when this was called)
-           (define orig-tab (send this get-current-tab))
-           (for-each (lambda (tab)
-                       (send this change-to-tab tab)
-                       (send (get-definitions-text) begin-edit-sequence)          
-                       (send (get-definitions-text) unhighlight-ranges/key key)
-                       (send (get-definitions-text) end-edit-sequence))
-                     (send this get-tabs))
-           (send this change-to-tab orig-tab))
+         (define (do-forge-unhighlight key [in-all-tabs #f])
+           (cond [in-all-tabs 
+                  ; Unhighlight for every open tab (and return to the tab we were at when this was called)
+                  (define orig-tab (send this get-current-tab))
+                  (for-each (lambda (tab)
+                              (send this change-to-tab tab)
+                              (send (get-definitions-text) begin-edit-sequence)          
+                              (send (get-definitions-text) unhighlight-ranges/key key)
+                              (send (get-definitions-text) end-edit-sequence))
+                            (send this get-tabs))
+                  (send this change-to-tab orig-tab)]
+                 [else
+                  (send (get-definitions-text) begin-edit-sequence)          
+                  (send (get-definitions-text) unhighlight-ranges/key key)
+                  (send (get-definitions-text) end-edit-sequence)]))
 
          ;;;;;;;;;;;;;;;;;;;; MACHINERY TO ENABLE SHARING WITH FORGE/CORE ;;;;;;
          
@@ -85,7 +92,8 @@
            (let* ([interactions (get-interactions-text)]
                   [link (parameterize ((current-namespace (send interactions get-user-namespace)))
                           (dynamic-require LINK-MODULE-SPEC 'link))])
-             (set-box! link (vector do-forge-highlight do-forge-unhighlight))))
+             (set-box! link (vector do-forge-highlight do-forge-unhighlight))
+             (set-box! local-vector (vector do-forge-highlight do-forge-unhighlight))))
 
          ; RackUnit extended the REPL, not the frame. 
          ; We want to do the same so that the REPL can access functionality
@@ -103,7 +111,18 @@
                 ((unbox unit-setup-thunk))
                 (printf "Forge tool: reset-console was called without a unit-setup-thunk populated.")))))
 
-    (drracket:get/extend:extend-interactions-text interactions-text-mixin)      
+      ; Auto-unhighlight when someone edits a tab
+      (define definitions-text-mixin
+        (mixin (drracket:unit:definitions-text<%> editor<%>) ()      
+          (super-new)
+          (define/override (on-char ev)
+            (super on-char ev)
+            (when (unbox local-vector)
+              (let ([unhighlighter (vector-ref (unbox local-vector) 1)])
+                (unhighlighter 'core))))))
+      
+    (drracket:get/extend:extend-interactions-text interactions-text-mixin)
+    (drracket:get/extend:extend-definitions-text definitions-text-mixin)
     (drracket:get/extend:extend-unit-frame unit-mixin)))
 
 
