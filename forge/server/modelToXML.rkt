@@ -310,6 +310,7 @@ here-string-delimiter
                                 field-strings
                                 ; Include these only when question about type of Skolem rels in Sterling is resolved.
                                 ; including this beforehand will cause Sterling to error on any instance with a Skolem relation.
-                                ;skolem-strings
+                                ;   Re-adding because everything has type univ for the moment TN 2/3/21
+                                skolem-strings
                                 epilogue))         
   result)
