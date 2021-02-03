@@ -11,12 +11,30 @@
 
 (provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec log-notification)
 
-(define user-data-file (writable-config-file "user-data.json" #:program "forge"))
-(unless (file-exists? user-data-file)
-  (make-parent-directory* user-data-file)
-  (call-with-output-file user-data-file
-                         (curry write-json (hash 'users '()
-                                                 'projects '()))))
+(define (drracket-background-expanding? data-file)
+  ;; alternate idea: look for the "drracket-background-compilation" logger ... try `log-level?` or looking for events with a `make-log-receiver`
+  (with-handlers ([drracket-access-exn? (lambda (x) #true)])
+    (with-output-to-file data-file #:exists 'append (lambda () (void)))
+    #false))
+
+(define (drracket-access-exn? x)
+  (and (exn:fail? x)
+       (regexp-match? #rx"forbidden .* access" (exn-message x))))
+
+(define user-data-file
+  (let ([user-data-file (writable-config-file "user-data.json" #:program "forge")])
+    (cond
+      [(file-exists? user-data-file)
+       (and (not (drracket-background-expanding? user-data-file))
+            user-data-file)]
+      [else
+       (make-parent-directory* user-data-file)
+       (and (not (drracket-background-expanding? user-data-file))
+            (call-with-output-file user-data-file
+                                   #:exists 'append
+                                   (curry write-json (hash 'users '()
+                                                           'projects '())))
+            user-data-file)])))
 
 (define log-file (writable-data-file "user-logs.log" #:program "forge"))
 (make-parent-directory* log-file)
@@ -117,7 +135,7 @@
   (define user (read peek-port))
   (close-input-port peek-port)
 
-  (if (and (string? project) (string? user))
+  (if (and (string? project) (string? user) (path-string? user-data-file))
       (let ()
         (logging-on? #t)
         (read port)
