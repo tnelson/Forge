@@ -456,7 +456,7 @@
 ;       [#:bounds [bound ...]]
 ;       [|| sat unsat]))
 (define-syntax-rule (test name args ... #:expect expected)
-  (module+ main
+  (module+ execs
     (cond 
       [(member 'expected '(sat unsat))
        (run name args ...)
@@ -520,7 +520,7 @@
 ; (execute "<path/to/file.rkt>")
 (define-syntax (execute stx)
   (syntax-case stx ()
-    [(_ m) (replace-context stx #'(module+ main (require (submod m main))))]))
+    [(_ m) (replace-context stx #'(module+ execs (require (submod m execs))))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -642,7 +642,7 @@
                        get-contrast-model-generator))))
 
 (define-simple-macro (display args ...)
-  (module+ main
+  (module+ execs
     (true-display args ...)))
 
 

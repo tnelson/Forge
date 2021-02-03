@@ -86,7 +86,10 @@
                                   (displayln (format "Missed chaff ~a." 
                                                      num)))))
 
-                          (logging:flush-logs)
+                          (module+ execs)
+                          (module+ main
+                            (require (submod ".." execs))
+                            (logging:flush-logs)))
 
                           #;,ints-coerced))
   (datum->syntax #f module-datum))
