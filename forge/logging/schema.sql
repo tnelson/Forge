@@ -114,4 +114,8 @@ CREATE TABLE notifications (
     time INTEGER
 );
 
+CREATE TABLE failed_logs (
+    id SERIAL PRIMARY KEY,
+    log JSONB
+);
 
