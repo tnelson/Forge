@@ -116,6 +116,7 @@ CREATE TABLE notifications (
 
 CREATE TABLE failed_logs (
     id SERIAL PRIMARY KEY,
-    log JSONB
+    log JSONB,
+    error TEXT
 );
 
