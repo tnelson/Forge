@@ -46,11 +46,14 @@
                           (require ,test-file)
 
                           (@define test-results
-                            (@list ,@(for/list ([test just-tests])
-                                       `(let ()
-                                          (@match-define (test-report name passed?) ,test)
-                                          (@hash 'name (@symbol->string name)
-                                                 'passed? passed?)))))
+                            (@map (@lambda (test-result)
+                                    (@match-define (test-report name passed?) test-result)
+                                    (@hash 'name (@symbol->string name)
+                                                   'passed? passed?))
+                                  (@apply @append
+                                          (for/list ([test-list (list ,@just-tests)])
+                                            (for/list ([test test-list])
+                                              test)))))
 
 
                           (@displayln (jsexpr->string test-results))))
