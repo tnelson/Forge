@@ -441,7 +441,7 @@
                      own-lower)))
 
     (define new-names (get-next-names sig difference))
-    (define own-upper (append own-lower new-names))
+    (define own-upper (remove-duplicates (append own-lower new-names)))
     (hash-set! sig-to-upper (Sig-name sig) own-upper)
 
     (for ([child (get-children run-spec sig)]) (fill-upper-extender child own-upper))

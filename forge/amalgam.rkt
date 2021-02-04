@@ -287,27 +287,37 @@
   (define spec (Run-run-spec orig-run))
   (define state (Run-spec-state spec))
 
+  ;; Which atoms were actually used?
+  ;; ASSUMPTION: we're only checking fields, not sig relations
+  ;;   if those have to vary, this technique is too coarse
+  (define evaluated-univ (evaluate orig-run 'unused univ))
+  
   ; list of relations
   (define relations (hash-values (State-relations state)))
 
-  (define un-partitioned-list (remove-unused (apply append (for/list ([r relations])
+  (define un-partitioned-list (apply append (for/list ([r relations])
     (define name (Relation-name r))
                                                              
     ; we do not want to include succ or Int
     (if (or (equal? name 'succ) (equal? name 'Int))
         '()
         (let ()
+          ;; these are the orig bounds (not exact)
+          ;;   but when we get to building the new bounds in is-locally-necessary
+          ;;   those sigs are fixed, so the extras dont exist          
           (define upper-bounds (liftBoundsExpr (Relation-rel r) '()
                                                orig-run))          
           (define curr
-            (filter-map (lambda (pair)
+            (filter-map (lambda (tuple)
                           (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-                            (printf "Current pair is ~a~n" pair))
-                          (if (is-locally-necessary (cons pair name) orig-run)
-                              (cons pair (Relation-rel r))
+                            (printf "Current tuple is ~a~n" tuple))      
+                          (define present
+                            (andmap (lambda (atomsym) (member (list atomsym) evaluated-univ)) tuple))
+                          (if (and present (is-locally-necessary (cons tuple name) orig-run))
+                              (cons tuple (Relation-rel r))
                               #f))
                         upper-bounds))
-          curr)))) orig-run))
+          curr)))))
  
   ; partition the list
   (define-values (yes no) (partition (lambda (pair)
@@ -320,15 +330,15 @@
 
 
 ;  getting rid of tuples involving unused atoms
-(define (remove-unused locally-necessary-list orig-run)
-  ; list of things in univ
-  (define evaluated-univ (evaluate orig-run 'unused univ))
-  (filter
-   ; we want to keep a pair if the nodes are used
-   (lambda (tup)
-     (define pair (car tup))
-     (andmap (lambda (elem) (member (list elem) evaluated-univ)) pair))
-   locally-necessary-list))
+;(define (remove-unused locally-necessary-list orig-run)
+;  ; list of things in univ
+;  (define evaluated-univ (evaluate orig-run 'unused univ))
+;  (filter
+;   ; we want to keep a pair if the nodes are used
+;   (lambda (tup)
+;     (define pair (car tup))
+;     (andmap (lambda (elem) (member (list elem) evaluated-univ)) pair))
+;   locally-necessary-list))
 
 
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
