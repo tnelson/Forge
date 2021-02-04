@@ -7,6 +7,7 @@
 (require basedir)
 (require request)
 (require net/url-string)
+(require sha)
 
 (provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec log-notification)
 
@@ -124,6 +125,8 @@
         (define filename (format "~a" path))
         (when (string-contains? filename "unsaved-editor")
           (raise "Please save file before running."))
+        (define logged-name (format "~a.~a" (file-name-from-path path) 
+                                            (sha256 (string->bytes/utf-8 filename))))
         (define time (current-seconds))
         (define raw (file->string filename))
         (define mode (format "~a" language))
@@ -132,7 +135,7 @@
 
         (write-log (hash 'log-type "execution"
                          'user user
-                         'filename filename
+                         'filename logged-name
                          'project project
                          'time time
                          'raw raw
