@@ -86,5 +86,5 @@ pred seeAllCats {
 }
 
 
-run seeAllCats for exactly 3 Cat 
+run seeAllCats for exactly 3 Cat  
 
