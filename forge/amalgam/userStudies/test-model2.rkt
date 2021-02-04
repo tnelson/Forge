@@ -1,6 +1,6 @@
 #lang forge
-option verbose 2
 
+option local_necessity on 
 sig WeHangUser {
     follows: set WeHangUser,
     isVerified: one Bool,
