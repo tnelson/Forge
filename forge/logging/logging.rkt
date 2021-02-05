@@ -49,17 +49,20 @@
 (define log-post-url 
   (string->url "https://us-central1-pyret-examples.cloudfunctions.net/forge-logging"))
 (define (flush-logs)
-  (when (logging-on?)
+  (when (and (logging-on?) (file-exists? log-file))
     (println
       (with-handlers ([exn:fail:network? (thunk* #f)])
         (define log-lines (file->lines log-file))
         (define filtered (filter jsexpr? log-lines))
-        (printf "LOGGING: Found ~a logs; ~a valid.~n" (length log-lines) (length filtered))
-        (define payload (jsexpr->bytes (map string->jsexpr filtered)))
-        (define response (post http-requester log-post-url payload))
-        (println response)
-        (and (equal? (http-response-code response) 201)
-             (call-with-output-file log-file (thunk* #t) #:exists 'replace))))))
+        (define num-all-logs (length log-lines))
+        (define num-good-logs (length filtered))
+        (when (> num-good-logs 0)
+          (printf "LOGGING: Found ~a logs; ~a valid.~n" num-all-logs num-good-logs)
+          (define payload (jsexpr->bytes (map string->jsexpr filtered)))
+          (define response (post http-requester log-post-url payload))
+          (println response)
+          (and (equal? (http-response-code response) 201)
+               (call-with-output-file log-file (thunk* #t) #:exists 'replace)))))))
 
 (define (write-log value)
   (when (logging-on?)
@@ -157,6 +160,7 @@
         (define mode (format "~a" language))
 
         (when got-data-file?
+          (flush-logs)
           (verify-header user project filename)
 
           (write-log (hash 'log-type "execution"
