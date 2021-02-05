@@ -22,8 +22,8 @@
        (regexp-match? #rx"forbidden .* access" (exn-message x))))
 
 (define (safe-make-parent-directory* filename)
-  ;; TODO try to set permissions before returning #false
-  (with-handlers ([exn:fail:filesystem? (lambda (x) #false)])
+  (with-handlers ([exn:fail? (lambda (x) #false)])
+    (file-or-directory-permissions (path-only filename) #o777)
     (make-parent-directory* filename)
     filename))
 
