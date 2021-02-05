@@ -11,16 +11,40 @@
 
 (provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec log-notification)
 
-(define user-data-file (writable-config-file "user-data.json" #:program "forge"))
-(unless (file-exists? user-data-file)
-  (make-parent-directory* user-data-file)
-  (call-with-output-file user-data-file
-                         (curry write-json (hash 'users '()
-                                                 'projects '()))))
+(define (drracket-background-expanding? data-file)
+  ;; alternate idea: look for the "drracket-background-compilation" logger ... try `log-level?` or looking for events with a `make-log-receiver`
+  (with-handlers ([drracket-access-exn? (lambda (x) #true)])
+    (with-output-to-file data-file #:exists 'append (lambda () (void)))
+    #false))
 
-(define log-file (writable-data-file "user-logs.log" #:program "forge"))
-(make-parent-directory* log-file)
+(define (drracket-access-exn? x)
+  (and (exn:fail? x)
+       (regexp-match? #rx"forbidden .* access" (exn-message x))))
 
+(define (safe-make-parent-directory* filename)
+  (with-handlers ([exn:fail? (lambda (x) #false)])
+    (file-or-directory-permissions (path-only filename) #o777)
+    (make-parent-directory* filename)
+    filename))
+
+(define user-data-file
+  (let ([user-data-file (writable-config-file "user-data.json" #:program "forge")])
+    (cond
+      [(file-exists? user-data-file)
+       (and (not (drracket-background-expanding? user-data-file))
+            user-data-file)]
+      [else
+       (and (safe-make-parent-directory* user-data-file)
+            (not (drracket-background-expanding? user-data-file))
+            (call-with-output-file user-data-file
+                                   #:exists 'append
+                                   (curry write-json (hash 'users '()
+                                                           'projects '())))
+            user-data-file)])))
+
+(define log-file
+  (safe-make-parent-directory*
+    (writable-data-file "user-logs.log" #:program "forge")))
 
 (define log-post-url 
   (string->url "https://us-central1-pyret-examples.cloudfunctions.net/forge-logging"))
@@ -118,8 +142,9 @@
   (close-input-port peek-port)
 
   (if (and (string? project) (string? user))
-      (let ()
-        (logging-on? #t)
+      (let ((got-data-file? (and (path-string? user-data-file)
+                                 (path-string? log-file))))
+        (logging-on? got-data-file?)
         (read port)
         (read port)
         (define filename (format "~a" path))
@@ -131,16 +156,17 @@
         (define raw (file->string filename))
         (define mode (format "~a" language))
 
-        (verify-header user project filename)
+        (when got-data-file?
+          (verify-header user project filename)
 
-        (write-log (hash 'log-type "execution"
-                         'user user
-                         'filename logged-name
-                         'project project
-                         'time time
-                         'raw raw
-                         'mode mode))
-        (values #t project user))
+          (write-log (hash 'log-type "execution"
+                           'user user
+                           'filename logged-name
+                           'project project
+                           'time time
+                           'raw raw
+                           'mode mode)))
+        (values got-data-file? project user))
 
       (let ()
         (logging-on? #f)
