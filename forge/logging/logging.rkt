@@ -21,6 +21,12 @@
   (and (exn:fail? x)
        (regexp-match? #rx"forbidden .* access" (exn-message x))))
 
+(define (safe-make-parent-directory* filename)
+  ;; TODO try to set permissions before returning #false
+  (with-handlers ([exn:fail:filesystem? (lambda (x) #false)])
+    (make-parent-directory* filename)
+    filename))
+
 (define user-data-file
   (let ([user-data-file (writable-config-file "user-data.json" #:program "forge")])
     (cond
@@ -28,17 +34,17 @@
        (and (not (drracket-background-expanding? user-data-file))
             user-data-file)]
       [else
-       (make-parent-directory* user-data-file)
-       (and (not (drracket-background-expanding? user-data-file))
+       (and (safe-make-parent-directory* user-data-file)
+            (not (drracket-background-expanding? user-data-file))
             (call-with-output-file user-data-file
                                    #:exists 'append
                                    (curry write-json (hash 'users '()
                                                            'projects '())))
             user-data-file)])))
 
-(define log-file (writable-data-file "user-logs.log" #:program "forge"))
-(make-parent-directory* log-file)
-
+(define log-file
+  (safe-make-parent-directory*
+    (writable-data-file "user-logs.log" #:program "forge")))
 
 (define log-post-url 
   (string->url "https://us-central1-pyret-examples.cloudfunctions.net/forge-logging"))
@@ -136,7 +142,8 @@
   (close-input-port peek-port)
 
   (if (and (string? project) (string? user))
-      (let ((got-data-file? (path-string? user-data-file)))
+      (let ((got-data-file? (and (path-string? user-data-file)
+                                 (path-string? log-file))))
         (logging-on? got-data-file?)
         (read port)
         (read port)
