@@ -7,7 +7,8 @@
 (require forge/check-ex-spec/library)
 (require (only-in racket/function curry))
 (require racket/match)
-(require (prefix-in logging: forge/logging/logging))
+(require (prefix-in logging: forge/logging/logging)
+         (prefix-in logging:check-ex-spec: forge/logging/check-ex-spec/main))
 ; (require racket/list)
 
 (define (filter-commands stx keep)
@@ -32,6 +33,11 @@
   (define not-tests (cdr (syntax->list (filter-commands ints-coerced '(InstDecl OptionDecl)))))
   (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl TestExpectDecl)))))
 
+  (define compile-time (current-seconds))
+
+  (when logging-on?
+    (logging:check-ex-spec:register-run compile-time assignment-name user path))
+
   (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
                           (require forge/check-ex-spec/library)
                           (require (prefix-in @ racket))
@@ -44,7 +50,8 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          (require (prefix-in logging: forge/logging/logging))
+                          (require (prefix-in logging: forge/logging/logging)
+                                   (prefix-in logging:check-ex-spec: forge/logging/check-ex-spec/main))
 
                           (logging:log-errors
                             (define wheat-results 
@@ -86,6 +93,7 @@
                                   (displayln (format "Missed chaff ~a." 
                                                      num)))))
 
+                          (logging:check-ex-spec:flush-logs ',compile-time wheat-results chaff-results)
                           (logging:flush-logs)
 
                           #;,ints-coerced))

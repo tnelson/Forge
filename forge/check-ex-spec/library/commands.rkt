@@ -7,7 +7,7 @@
          test example
          (struct-out test-report))
 
-(struct test-report (name passed?) #:transparent)
+(struct test-report (name passed?) #:prefab)
 
 (define-syntax-rule (test name args ... #:expect expected)
   (cond 
