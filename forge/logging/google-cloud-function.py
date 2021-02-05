@@ -459,10 +459,13 @@ def add_failure_to_database(log, error):
                 """)
             connection.execute(
                 command,
-                log=log,
+                log=json.dumps(log),
                 error=error)
         return ("There was an error, but logs were saved to database.", 201, {})
     except Exception as err:
+        print(f"Error in logging failed log: {err}")
+        print(f"Log: {log}")
+        print(f"Original error: {error}")
         return ("Something went wrong.", 400, {})
 
 

@@ -16,6 +16,15 @@
                            commands))
   (datum->syntax stx (cons alloy-module filtered) stx stx stx))
 
+(define (filter-names commands provided)
+  (filter (lambda (command)
+            (let ([command (syntax->datum command)])
+              (not (and (member (car command) '(PredDecl FunDecl))
+                        (if (symbol? (cadr command))
+                            (member (cadr command) provided)
+                            (member (cadadr command) provided))))))
+          commands))
+
 (define (read-syntax path port)
   (define-values (logging-on? assignment-name user) (logging:log-execution 'forge/check-ex-spec port path))
   (unless (string? assignment-name)
@@ -29,7 +38,8 @@
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
-  (define not-tests (cdr (syntax->list (filter-commands ints-coerced '(InstDecl OptionDecl)))))
+  (define not-tests (cdr (syntax->list (filter-commands ints-coerced '(InstDecl OptionDecl PredDecl FunDecl)))))
+  (define safe-not-tests (filter-names not-tests provided))
   (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl TestExpectDecl)))))
 
   (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
@@ -50,7 +60,7 @@
                             (define wheat-results 
                               (list ,@(map (lambda (wheat) 
                                       `(with (,@provided #:from ,wheat)
-                                         ,@not-tests
+                                         ,@safe-not-tests
                                          (@append ,@(for/list ([test just-tests])
                                                   test))))
                                      wheats)))
@@ -58,7 +68,7 @@
                             (define chaff-results 
                               (list ,@(map (lambda (chaff) 
                                       `(with (,@provided #:from ,chaff)
-                                         ,@not-tests
+                                         ,@safe-not-tests
                                          (@append ,@(for/list ([test just-tests])
                                                   test))))
                                      chaffs)))
