@@ -135,9 +135,9 @@
   (define user (read peek-port))
   (close-input-port peek-port)
 
-  (if (and (string? project) (string? user) (path-string? user-data-file))
-      (let ()
-        (logging-on? #t)
+  (if (and (string? project) (string? user))
+      (let ((got-data-file? (path-string? user-data-file)))
+        (logging-on? got-data-file?)
         (read port)
         (read port)
         (define filename (format "~a" path))
@@ -149,16 +149,17 @@
         (define raw (file->string filename))
         (define mode (format "~a" language))
 
-        (verify-header user project filename)
+        (when got-data-file?
+          (verify-header user project filename)
 
-        (write-log (hash 'log-type "execution"
-                         'user user
-                         'filename logged-name
-                         'project project
-                         'time time
-                         'raw raw
-                         'mode mode))
-        (values #t project user))
+          (write-log (hash 'log-type "execution"
+                           'user user
+                           'filename logged-name
+                           'project project
+                           'time time
+                           'raw raw
+                           'mode mode)))
+        (values got-data-file? project user))
 
       (let ()
         (logging-on? #f)
