@@ -93,17 +93,17 @@ def handle(request):
                 raise Exception("Unrecognized log type.")
     except Exception as err:
         print(f"ERROR (in translating json): {err}")
-        return ("Logs were malformed.", 400, {})
+        return add_failure_to_database(data, f"ERROR (in translating json): {err}")
 
     try:
         for execution in executions:
             add_to_database(execution)
     except Exception as err:
         print(f"ERROR (in writing to database): {err}")
-        return ("Error when writing to database.", 400, {})
+        return add_failure_to_database(data, f"ERROR (in writing to database): {err}")
 
     
-    return ("", 201, {})
+    return ("Successfully logged data.", 201, {})
 
 """
 input:
@@ -449,6 +449,24 @@ def add_to_database(execution):
         add_runs(connection, execution["runs"], execution_id)
         add_tests(connection, execution["tests"], execution_id)
         add_check_ex_spec(connection, execution["check-ex-spec"], execution_id)
+
+def add_failure_to_database(log, error):
+    try:
+        with engine.begin() as connection:
+            command = sqlalchemy.text("""
+                INSERT INTO failed_logs(log, error)
+                VALUES (:log, :error)
+                """)
+            connection.execute(
+                command,
+                log=json.dumps(log),
+                error=error)
+        return ("There was an error, but logs were saved to database.", 201, {})
+    except Exception as err:
+        print(f"Error in logging failed log: {err}")
+        print(f"Log: {log}")
+        print(f"Original error: {error}")
+        return ("Something went wrong.", 400, {})
 
 
 

@@ -114,13 +114,13 @@
                               (~optional name:NameClass)
                               block:TestBlockClass)
    (if (attribute test-tok)
-       (syntax/loc stx (begin block.test-decls ...))
-       (syntax/loc stx (begin)))]))
+       (syntax/loc stx (list block.test-decls ...))
+       (syntax/loc stx (list)))]))
 
 (define-syntax-parser ExampleDecl
   [((~literal ExampleDecl) (~optional name:NameClass)
                            pred:ExprClass
                            bounds:BoundsClass)
-   #`(example (~? name.name unnamed-example) 
+   #`(list (example (~? name.name unnamed-example) 
               pred
-              #,@#'bounds.translate)])
+              #,@#'bounds.translate))])

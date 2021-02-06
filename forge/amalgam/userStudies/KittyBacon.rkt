@@ -1,4 +1,10 @@
 #lang forge
+
+-- Do not uncomment; will freeze installation of Forge package
+--#lang forge "lab1" "lucia_reyes@brown.edu"
+
+option local_necessity on 
+
 sig Cat {
     friends : set Cat
 }
@@ -64,7 +70,7 @@ pred KittyBaconIsAFancyFeline {
     FancyFelineFoundation implies KittyBacon in FFF.membersOfFoundation
 }
 
---check KittyBaconIsAFancyFeline for exactly 4 Cat -- no counterexample
+--check KittyBaconIsAFancyFeline for exactly 3 Cat -- no counterexample
 
 // KittyBaconIsAFancyFeling was failing because FFF.membersOfFoundation
 // only included KittyBacon's connectionsOf. However, because KittyBacon
@@ -79,4 +85,6 @@ pred seeAllCats {
     KittyBacon in FFF.membersOfFoundation
 }
 
-run seeAllCats for exactly 4 Cat 
+
+run seeAllCats for exactly 3 Cat  
+

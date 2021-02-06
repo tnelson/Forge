@@ -182,6 +182,7 @@
          (displayln "NO PORTS AVAILABLE!!")]
         [else
          (send-url/file sterling-path #f #:query (number->string port))
-         (printf "Sterling running. Hit enter to stop service.\n")
+         (printf "Sterling running. Hit enter to stop service.\n")         
+         (flush-output)
          (void (read-char))
          (stop-service)]))

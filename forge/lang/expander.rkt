@@ -751,7 +751,7 @@
    (syntax/loc stx (raise "bind not implemented."))]
 
   [((~literal Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)
-   (syntax/loc #'q (q.symbol decls.translate bob.exprs))]
+   (syntax/loc stx (q.symbol decls.translate bob.exprs))] ; stx, not #'q
 
 
   [((~literal Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)

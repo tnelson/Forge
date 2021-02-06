@@ -2,38 +2,67 @@
 
 (require forge/sigs-structs)
 (require forge/translate-from-kodkod-cli)
+(require forge/shared)
 (require json)
 (require basedir)
 (require request)
 (require net/url-string)
+(require sha)
 
 (provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec log-notification)
 
-(define user-data-file (writable-config-file "user-data.json" #:program "forge"))
-(unless (file-exists? user-data-file)
-  (make-parent-directory* user-data-file)
-  (call-with-output-file user-data-file
-                         (curry write-json (hash 'users '()
-                                                 'projects '()))))
+(define (drracket-background-expanding? data-file)
+  ;; alternate idea: look for the "drracket-background-compilation" logger ... try `log-level?` or looking for events with a `make-log-receiver`
+  (with-handlers ([drracket-access-exn? (lambda (x) #true)])
+    (with-output-to-file data-file #:exists 'append (lambda () (void)))
+    #false))
 
-(define log-file (writable-data-file "user-logs.log" #:program "forge"))
-(make-parent-directory* log-file)
+(define (drracket-access-exn? x)
+  (and (exn:fail? x)
+       (regexp-match? #rx"forbidden .* access" (exn-message x))))
 
+(define (safe-make-parent-directory* filename)
+  (with-handlers ([exn:fail? (lambda (x) #false)])
+    (file-or-directory-permissions (path-only filename) #o777)
+    (make-parent-directory* filename)
+    filename))
+
+(define user-data-file
+  (let ([user-data-file (writable-config-file "user-data.json" #:program "forge")])
+    (cond
+      [(file-exists? user-data-file)
+       (and (not (drracket-background-expanding? user-data-file))
+            user-data-file)]
+      [else
+       (and (safe-make-parent-directory* user-data-file)
+            (not (drracket-background-expanding? user-data-file))
+            (call-with-output-file user-data-file
+                                   #:exists 'append
+                                   (curry write-json (hash 'users '()
+                                                           'projects '())))
+            user-data-file)])))
+
+(define log-file
+  (safe-make-parent-directory*
+    (writable-data-file "user-logs.log" #:program "forge")))
 
 (define log-post-url 
   (string->url "https://us-central1-pyret-examples.cloudfunctions.net/forge-logging"))
 (define (flush-logs)
-  (when (logging-on?)
+  (when (and (logging-on?) (file-exists? log-file))
     (println
       (with-handlers ([exn:fail:network? (thunk* #f)])
         (define log-lines (file->lines log-file))
         (define filtered (filter jsexpr? log-lines))
-        (printf "LOGGING: Found ~a logs; ~a valid.~n" (length log-lines) (length filtered))
-        (define payload (jsexpr->bytes (map string->jsexpr filtered)))
-        (define response (post http-requester log-post-url payload))
-        (println response)
-        (and (equal? (http-response-code response) 201)
-             (call-with-output-file log-file (thunk* #t) #:exists 'replace))))))
+        (define num-all-logs (length log-lines))
+        (define num-good-logs (length filtered))
+        (when (> num-good-logs 0)
+          (printf "LOGGING: Found ~a logs; ~a valid.~n" num-all-logs num-good-logs)
+          (define payload (jsexpr->bytes (map string->jsexpr filtered)))
+          (define response (post http-requester log-post-url payload))
+          (println response)
+          (and (equal? (http-response-code response) 201)
+               (call-with-output-file log-file (thunk* #t) #:exists 'replace)))))))
 
 (define (write-log value)
   (when (logging-on?)
@@ -116,27 +145,32 @@
   (close-input-port peek-port)
 
   (if (and (string? project) (string? user))
-      (let ()
-        (logging-on? #t)
+      (let ((got-data-file? (and (path-string? user-data-file)
+                                 (path-string? log-file))))
+        (logging-on? got-data-file?)
         (read port)
         (read port)
         (define filename (format "~a" path))
         (when (string-contains? filename "unsaved-editor")
           (raise "Please save file before running."))
+        (define logged-name (format "~a.~a" (file-name-from-path path) 
+                                            (sha256 (string->bytes/utf-8 filename))))
         (define time (current-seconds))
         (define raw (file->string filename))
         (define mode (format "~a" language))
 
-        (verify-header user project filename)
+        (when got-data-file?
+          (flush-logs)
+          (verify-header user project filename)
 
-        (write-log (hash 'log-type "execution"
-                         'user user
-                         'filename filename
-                         'project project
-                         'time time
-                         'raw raw
-                         'mode mode))
-        (values #t project user))
+          (write-log (hash 'log-type "execution"
+                           'user user
+                           'filename logged-name
+                           'project project
+                           'time time
+                           'raw raw
+                           'mode mode)))
+        (values got-data-file? project user))
 
       (let ()
         (logging-on? #f)
@@ -172,8 +206,8 @@
       (let ()
         (define run-id (next-run-id))
 
-        (define logged-result (stream-map (curry log-instance run-id run )
-                                          (Run-result run)))
+        (define logged-result (stream-map/once (curry log-instance run-id run )
+                                               (Run-result run)))
 
         (define sigs (map (compose symbol->string Sig-name)
                           (get-sigs run)))
