@@ -74,7 +74,11 @@
 
                   (logging:log-errors
                     ,ints-coerced)
-                  (logging:flush-logs)))
+
+                  (module+ execs)
+                  (module+ main
+                    (require (submod ".." execs))
+                    (logging:flush-logs))))
 
   (define module-datum `(module forge-mod forge/lang/expander
                           ,@final))

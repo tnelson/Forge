@@ -5,6 +5,7 @@
 (require syntax/parse/define)
 (require racket/match)
 (require (for-syntax racket/match syntax/srcloc))
+(require (for-syntax syntax/strip-context))
 
 (require "shared.rkt")
 (require "lang/ast.rkt"
@@ -29,8 +30,8 @@
          (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
 
 ; Commands
-(provide sig relation fun const pred inst)
-(provide run check test example display with)
+(provide sig relation fun const pred inst with)
+(provide run check test example display execute)
 (provide instance-diff)
 
 ; Instance analysis functions
@@ -454,31 +455,34 @@
 ;       [#:scope [((sig [lower 0] upper) ...)]]
 ;       [#:bounds [bound ...]]
 ;       [|| sat unsat]))
-(define-syntax-rule (test name args ... #:expect expected)
-  (cond 
-    [(member 'expected '(sat unsat))
-     (run name args ...)
-     (define first-instance (stream-first (Run-result name)))
-     (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
-       (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
-                      'name 'expected (if (Sat? first-instance) 'sat 'unsat)
-                      (if (Sat? first-instance)
-                          (format " Found instance ~a" first-instance)
-                          (if (Unsat-core first-instance)
-                              (format " Core: ~a" (Unsat-core first-instance))
-                              "")))))
-     (close-run name)]
+(define-syntax (test stx)
+  (syntax-case stx ()
+    [(test name args ... #:expect expected)
+     (add-to-execs
+       #'(cond 
+          [(member 'expected '(sat unsat))
+           (run name args ...)
+           (define first-instance (stream-first (Run-result name)))
+           (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
+             (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
+                            'name 'expected (if (Sat? first-instance) 'sat 'unsat)
+                            (if (Sat? first-instance)
+                                (format " Found instance ~a" first-instance)
+                                (if (Unsat-core first-instance)
+                                    (format " Core: ~a" (Unsat-core first-instance))
+                                    "")))))
+           (close-run name)]
 
-    [(equal? 'expected 'theorem)
-     (check name args ...)
-     (define first-instance (stream-first (Run-result name)))
-     (when (Sat? first-instance)
-       (raise (format "Theorem ~a failed. Found instance:~n~a"
-                      'name first-instance)))
-     (close-run name)]
+          [(equal? 'expected 'theorem)
+           (check name args ...)
+           (define first-instance (stream-first (Run-result name)))
+           (when (Sat? first-instance)
+             (raise (format "Theorem ~a failed. Found instance:~n~a"
+                            'name first-instance)))
+           (close-run name)]
 
-    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
-                         'expected))]))
+          [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                               'expected))]))]))
 
 (define-simple-macro (example name:id pred bounds ...)
   (test name #:preds [pred]
@@ -514,6 +518,17 @@
           (update-state! temp-state)
           result)]))
 
+(define-for-syntax (add-to-execs stx)
+  (if (equal? (syntax-local-context) 'module)
+      #`(module+ execs #,stx)
+      stx))
+
+; Experimental: Execute a forge file (but don't require any of the spec)
+; (execute "<path/to/file.rkt>")
+(define-syntax (execute stx)
+  (syntax-case stx ()
+    [(_ m) (replace-context stx (add-to-execs #'(require (submod m execs))))]))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Result Functions ;;;;;;;
@@ -548,7 +563,7 @@
 ; display :: Run -> void
 ; Lifted function which, when provided a Run,
 ; generates a Sterling instance for it.
-(define (display arg1 [arg2 #f])
+(define (true-display arg1 [arg2 #f])
   (if (@not (Run? arg1))
       (if arg2 (@display arg1 arg2) (@display arg1))
       (let ()
@@ -632,6 +647,11 @@
                          (Run-run-spec run)) 
                        empty
                        get-contrast-model-generator))))
+
+(define-syntax (display stx)
+  (syntax-case stx ()
+    [(display args ...)
+      (add-to-execs #'(true-display args ...))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
