@@ -3,11 +3,13 @@
 option local_necessity on 
 sig WeHangUser {
     follows: set WeHangUser,
-    isVerified: lone Bool,
-    hasProfilePic: lone Bool
+    isVerified: one Bool,
+    hasProfilePic: one Bool
 }
 
-one sig Bool {} 
+abstract sig Bool {} 
+one sig Yes extends Bool {}
+one sig No extends Bool {}
 one sig Owner extends WeHangUser {}
 
 -- Properties that hold: 
@@ -17,24 +19,25 @@ one sig Owner extends WeHangUser {}
 -- (4) weHang users (excluding the owner) are verified if they have more than 2 followers
 --     and have a profile pic
 -- (5) The Owner is always verified
+-- (6) The owner needs to have a profile picture 
 
 -- Properties that don't hold:
 -- (1) follows is a symmetric relation
 -- (2) not all users can be verified 
 -- (4) weHang users can have no followers
--- (5) The owner needs to have a profile picture 
 
 pred noSelfFollower {
     no iden & follows
 }
 
 pred verifiedWeHangUser {
-    all w:WeHangUser - Owner | ((#(follows.w) > 2) and w.hasProfilePic = Bool) iff  w.isVerified = Bool
+    all w:WeHangUser - Owner | ((#(follows.w) > 2) and w.hasProfilePic = Yes) iff w.isVerified = Yes
 }
 
 pred OwnerRestriction {
     no follows.Owner
-    Owner.isVerified = Bool
+    Owner.isVerified = Yes
+    Owner.hasProfilePic = Yes 
 }
 
 pred OwnerFollowsAll {
