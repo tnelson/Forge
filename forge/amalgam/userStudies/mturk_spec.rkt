@@ -3,14 +3,12 @@
 option local_necessity on 
 sig WeHangUser {
     follows: set WeHangUser,
-    isVerified: one Bool,
-    hasProfilePic: one Bool
+    isVerified: lone Bool,
+    hasProfilePic: lone Bool
 }
 
-abstract sig Bool {} 
-one sig Yes extends Bool {}
-one sig No extends Bool {}
-one sig Owner extends WeHangUser {} 
+one sig Bool {} 
+one sig Owner extends WeHangUser {}
 
 -- Properties that hold: 
 -- (1) weHang users (excluding the owner) can follow nobody
@@ -31,12 +29,12 @@ pred noSelfFollower {
 }
 
 pred verifiedWeHangUser {
-    all w:WeHangUser - Owner | ((#(follows.w) > 2) and w.hasProfilePic = Yes) iff w.isVerified = Yes
+    all w:WeHangUser - Owner | ((#(follows.w) > 2) and w.hasProfilePic = Bool) iff  w.isVerified = Bool
 }
 
 pred OwnerRestriction {
     no follows.Owner
-    Owner.isVerified = Yes
+    Owner.isVerified = Bool
 }
 
 pred OwnerFollowsAll {
