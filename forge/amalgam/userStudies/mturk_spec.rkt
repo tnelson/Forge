@@ -1,8 +1,8 @@
 #lang forge
 
 option local_necessity on 
-sig WeHangUser {
-    follows: set WeHangUser,
+sig NetworkUser {
+    follows: set NetworkUser,
     isVerified: one Bool,
     hasProfilePic: one Bool
 }
@@ -10,16 +10,16 @@ sig WeHangUser {
 abstract sig Bool {} 
 one sig Yes extends Bool {}
 one sig No extends Bool {}
-one sig Owner extends WeHangUser {}
+one sig NetworkOwner extends NetworkUser {}
 
 -- Properties that hold: 
--- (1) weHang users (excluding the owner) can follow nobody
--- (2) The Owner needs to follow all weHang users  
+-- (1) weHang users (excluding the NetworkOwner) can follow nobody
+-- (2) The NetworkOwner needs to follow all weHang users  
 -- (3) weHang users can't follow themselves
--- (4) weHang users (excluding the owner) are verified if they have more than 2 followers
+-- (4) weHang users (excluding the NetworkOwner) are verified if they have more than 2 followers
 --     and have a profile pic
--- (5) The Owner is always verified
--- (6) The owner needs to have a profile picture 
+-- (5) The NetworkOwner is always verified
+-- (6) The NetworkOwner needs to have a profile picture 
 
 -- Properties that don't hold:
 -- (1) follows is a symmetric relation
@@ -30,26 +30,26 @@ pred noSelfFollower {
     no iden & follows
 }
 
-pred verifiedWeHangUser {
-    all w:WeHangUser - Owner | ((#(follows.w) > 2) and w.hasProfilePic = Yes) iff w.isVerified = Yes
+pred verifiedNetworkUser {
+    all w:NetworkUser - NetworkOwner | ((#(follows.w) > 2) and w.hasProfilePic = Yes) iff w.isVerified = Yes
 }
 
-pred OwnerRestriction {
-    no follows.Owner
-    Owner.isVerified = Yes
-    Owner.hasProfilePic = Yes 
+pred NetworkOwnerRestriction {
+    no follows.NetworkOwner
+    NetworkOwner.isVerified = Yes
+    NetworkOwner.hasProfilePic = Yes 
 }
 
-pred OwnerFollowsAll {
-    all w:WeHangUser - Owner | w in Owner.follows
+pred NetworkOwnerFollowsAll {
+    all w:NetworkUser - NetworkOwner | w in NetworkOwner.follows
 }
 
 pred weHangSimulation {
     noSelfFollower
-    verifiedWeHangUser
-    OwnerFollowsAll
-    OwnerRestriction
+    verifiedNetworkUser
+    NetworkOwnerFollowsAll
+    NetworkOwnerRestriction
 }
 
-run weHangSimulation for exactly 4 WeHangUser
+run weHangSimulation for exactly 4 NetworkUser
 
