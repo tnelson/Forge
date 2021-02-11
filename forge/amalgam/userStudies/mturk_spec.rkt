@@ -61,7 +61,7 @@ example tryingBreakingInstance is not weHangSimulation for {
     hasProfilePic = NetworkOwner0->Yes + NetworkUser0->Yes + NetworkUser1->Yes + NetworkUser2->No
 }
 
-example tryingBreakingInstance is  weHangSimulation for {
+example tryingBreakingInstance2 is  weHangSimulation for {
     NetworkOwner = NetworkOwner0
     NetworkUser = NetworkUser0 + NetworkUser1 + NetworkUser2 + NetworkOwner0
     No = No0
