@@ -71,5 +71,6 @@ example tryingBreakingInstance2 is  weHangSimulation for {
     hasProfilePic = NetworkOwner0->Yes + NetworkUser0->Yes + NetworkUser1->Yes + NetworkUser2->No
 }
 
---run weHangSimulation for exactly 4 NetworkUser, 4 Int
+option verbose 2
+run weHangSimulation for exactly 4 NetworkUser, 4 Int
 
