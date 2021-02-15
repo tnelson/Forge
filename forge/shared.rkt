@@ -55,7 +55,3 @@
 (define (stream-map/once func strm)
   (stream-cons (func (stream-first strm))
                (stream-map/once func (stream-rest strm))))
-
-; Print version number, so students know to update
-(when (>= (get-verbosity) VERBOSITY_LOW)
-  (printf "Forge version: ~a~n" forge-version))
