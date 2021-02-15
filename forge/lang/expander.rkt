@@ -14,7 +14,8 @@
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
 
-(provide require provide all-defined-out except-out prefix-in only-in)
+(provide require provide all-defined-out except-out prefix-in only-in
+         module+ submod)
 (provide forge:nsa define-namespace-anchor)
 ; (provide (all-from-out "ast.rkt"))
 (provide (all-from-out forge/logging/sigs))

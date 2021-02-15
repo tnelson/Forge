@@ -10,7 +10,7 @@
 ;(require "amalgam/userStudies/KittyBacon.rkt")
 (require racket/hash)
 (require (prefix-in @ racket/set))
-(require (prefix-in @ (only-in racket -> >=)))
+(require (prefix-in @ (only-in racket -> >= >)))
 
 (require (only-in "amalgam/desugar/desugar_helpers.rkt" tup2Expr))
 (require forge/sigs-structs
@@ -218,7 +218,7 @@
 ; pair<list<atom>, string>, Run -> Boolean
 ; caller of this helper is get-locally-nescessary-list
 ; used to generate list of locally necessary literals
-(define (is-locally-necessary tup orig-run)
+(define (is-locally-necessary tup orig-run instance-index)
   (define spec (Run-run-spec orig-run))
   (define Fs (Run-spec-preds spec))
 
@@ -233,9 +233,11 @@
   ; relations
   (define relations (State-relations state))
 
-  (define orig-inst (stream-first (Run-result orig-run)))
+  (define orig-inst (stream-ref (Run-result orig-run) instance-index))
   (unless (Sat? orig-inst)
     (error "amalgam called on unsat run"))
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "LN: orig instance (index=~a) had hash: ~a~n" instance-index (equal-hash-code (format "~a" orig-inst))))
 
   (define new-totals (flip-tuple (first (Sat-instances orig-inst))
                                  (car tup) (cdr tup)))
@@ -283,7 +285,7 @@
 ;        second list evaluates to false
 ; Due to the way the evaluator works at the moment, this is always
 ; with respect to the current solver state for <a-run>.
-(define (get-locally-necessary-list orig-run)
+(define (get-locally-necessary-list orig-run instance-index)
   (define spec (Run-run-spec orig-run))
   (define state (Run-spec-state spec))
 
@@ -310,10 +312,10 @@
           (define curr
             (filter-map (lambda (tuple)
                           (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-                            (printf "Current tuple is ~a~n" tuple))      
+                            (printf "LN: considering tuple ~a in ~a~n" tuple name))
                           (define present
                             (andmap (lambda (atomsym) (member (list atomsym) evaluated-univ)) tuple))
-                          (if (and present (is-locally-necessary (cons tuple name) orig-run))
+                          (if (and present (is-locally-necessary (cons tuple name) orig-run instance-index))
                               (cons tuple (Relation-rel r))
                               #f))
                         upper-bounds))
