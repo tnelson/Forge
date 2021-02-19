@@ -673,7 +673,7 @@
   (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
   (define upper (@min (Range-upper given-scope) (Range-upper old-scope)))
   (when (@< upper lower)
-    (raise "Bound conflict."))
+    (raise (format "Bound conflict: numeric upper bound on ~a was less than numeric lower bound (~a vs. ~a)." rel upper lower)))
 
   (define new-scope (Range lower upper))
   (define new-sig-scopes (hash-set (Scope-sig-scopes scope) name new-scope))
@@ -702,7 +702,7 @@
   
 
   (unless (@or (@not upper) (subset? lower upper))
-    (raise "Bound conflict."))
+    (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." rel lower upper)))
 
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))
