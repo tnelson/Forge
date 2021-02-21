@@ -143,8 +143,8 @@
 
     ; atom (base case)
     [(node/expr/atom info arity name)
-     ; overapproximate for now (TODO: get atom's sig)
-     (primify run-or-state 'univ)]
+     ; overapproximate for now (TODO: get atom's sig)     
+     (map list (primify run-or-state 'univ))]
     
     [(node/expr/ite info arity a b c)     
      (checkFormula run-or-state a quantvars) ; Check condition formula
