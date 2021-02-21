@@ -2,7 +2,7 @@
 
 (define collection "forge")
 
-(define version "0.9.1")
+(define version "0.11.1")
 
 (define deps '("base"
                "syntax-classes"       ; used in parser and expander
@@ -28,9 +28,8 @@
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
 (define compile-omit-paths '("example" "examples" "doc" "tests" 
-                             "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"
-                             ; TODO: remove solver invocations/slow runs from this file
-                             "amalgam.rkt"
+                             "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"                            
+                             "amalgam/tests"
                              ))
 
 (define drracket-tools (list (list "tool.rkt")))

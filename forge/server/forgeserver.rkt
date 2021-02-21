@@ -26,10 +26,12 @@
 (define (display-model the-run get-next-unclean-model relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
   (define model #f)
+  (define stream-index -1)
   (define (get-current-model)
     model)
   (define (get-next-model)
     (set! model (get-next-unclean-model))
+    (set! stream-index (+ stream-index 1))
     model)
   (get-next-model)
 
@@ -72,7 +74,7 @@
     ; only for the first element of a trace TODO
     (when (> (get-verbosity) VERBOSITY_LOW)
       (printf "generating locally-necessary tuples...model field unused...~n"))
-    (match-define (cons yes no) (get-locally-necessary-list the-run))
+    (match-define (cons yes no) (get-locally-necessary-list the-run stream-index))
     ; To ease building annotation hash, just discover which relations are present in advance
     ;(printf "LNtuples+: ~a~n LNtuples-: ~a~n" yes no)
     (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])

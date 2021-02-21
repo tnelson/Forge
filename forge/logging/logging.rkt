@@ -256,7 +256,7 @@
              (values name 
                      (for/list ([tuple atoms])
                        (for/list ([atom tuple])
-                         (symbol->string atom)))))))
+                         (format "~a" atom)))))))
        
        (write-log (hash 'log-type "instance"
                         'run-id run-id

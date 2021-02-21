@@ -22,7 +22,7 @@ jobs:
         python-version: '3.8'
         architecture: 'x64'
     - name: Get version
-      run: echo "UPDATE_TYPE=$(python .github/workflows/semanticVersionUpdater/get-update-type.py ${{ github.event.pull_request.title }})" >> $GITHUB_ENV
+      run: echo "UPDATE_TYPE=$(python .github/workflows/semanticVersionUpdater/get-update-type.py "${{ github.event.pull_request.title }}")" >> $GITHUB_ENV
     - name: Update version
       run: echo "NEW_VERSION=$(python .github/workflows/semanticVersionUpdater/read-version.py forge/info.rkt $UPDATE_TYPE)" >> $GITHUB_ENV
     - name: Commit files

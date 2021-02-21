@@ -18,10 +18,9 @@
   net/uri-codec
   net/url
   racket/list
-  (only-in file/gzip gzip-through-ports)
   (only-in racket/format ~s ~r)
-  (only-in racket/file make-parent-directory*)
-  (only-in racket/port with-input-from-string call-with-output-string)
+  (only-in racket/file make-parent-directory* file->string)
+  (only-in racket/port with-input-from-string)
   (only-in racket/path file-name-from-path path-only))
 
 ;; -----------------------------------------------------------------------------
@@ -95,11 +94,7 @@
 (define (compress-and-anonymize path)
   (define anon-filename (anonymize-path path))
   (define mod-seconds (file-or-directory-modify-seconds path))
-  (call-with-output-string
-    (lambda (out-port)
-      (call-with-input-file path
-        (lambda (in-port)
-          (gzip-through-ports in-port out-port anon-filename mod-seconds))))))
+  (format "~a	~a	~s" anon-filename mod-seconds (file->string path)))
 
 (define (anonymize-path path)
   (let* ((str (if (path? path) (path->string path) path))
