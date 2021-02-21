@@ -767,8 +767,10 @@
 
     [(= (card rel) n)
      #`(let* ([exact (eval-int-expr 'n (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range exact exact))])
-         (values new-scope #,bound))]
+              [new-scope (if (equal? (relation-name rel) "Int")
+                             (set-bitwidth #,scope exact)
+                             (update-int-bound #,scope rel (Range exact exact)))])
+          (values new-scope #,bound))]
 
     [(<= (card rel) upper)
      #`(let* ([upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
