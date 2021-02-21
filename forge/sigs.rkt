@@ -667,15 +667,38 @@
 ; update-int-bound :: Scope, node/expr/relation, Range -> Scope
 ; Updates the scope (range) for a given sig in scope.
 (define (update-int-bound scope rel given-scope)
+  (define old-sig-scopes (Scope-sig-scopes scope))
   (define name (string->symbol (relation-name rel)))
-  (define old-scope (get-scope scope name))
+  (define-values (new-lower new-upper)
+    (if (@not (hash-has-key? old-sig-scopes name))
+        (values (Range-lower given-scope) (Range-upper given-scope))
+        (let ([old-scope (hash-ref old-sig-scopes name)])
+          (let ([old-lower (Range-lower old-scope)]
+                [old-upper (Range-upper old-scope)]
+                [given-lower (Range-lower given-scope)]
+                [given-upper (Range-upper given-scope)])
 
-  (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
-  (define upper (@min (Range-upper given-scope) (Range-upper old-scope)))
-  (when (@< upper lower)
-    (raise (format "Bound conflict: numeric upper bound on ~a was less than numeric lower bound (~a vs. ~a)." rel upper lower)))
+            (define new-lower 
+              (cond 
+                [(and old-lower new-lower) (@max old-lower new-lower)]
+                [old-lower old-lower]
+                [new-lower new-lower]
+                [else #f]))
+            (define new-upper 
+              (cond 
+                [(and old-upper new-upper) (@min old-upper new-upper)]
+                [old-lower old-upper]
+                [new-lower new-upper]
+                [else #f]))
+            (values new-lower new-upper)))))
 
-  (define new-scope (Range lower upper))
+  
+  (when (@< new-upper new-lower)
+    (raise (format (string-append "Bound conflict: numeric upper bound on ~a was"
+                                  " less than numeric lower bound (~a vs. ~a).") 
+                   rel new-upper new-lower)))
+
+  (define new-scope (Range new-lower new-upper))
   (define new-sig-scopes (hash-set (Scope-sig-scopes scope) name new-scope))
 
   (struct-copy Scope scope
@@ -749,7 +772,12 @@
 
     [(<= (card rel) upper)
      #`(let* ([upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range 0 upper-val))])
+              [new-scope (update-int-bound #,scope rel (Range #f upper-val))])
+         (values new-scope #,bound))]
+
+    [(<= lower (card rel))
+     #`(let* ([lower-val (eval-int-expr 'lower (Bound-tbindings #,bound) 8)]
+              [new-scope (update-int-bound #,scope rel (Range lower-val #f))])
          (values new-scope #,bound))]
 
     [(<= lower (card rel) upper)
