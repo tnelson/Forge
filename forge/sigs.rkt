@@ -444,7 +444,7 @@
         (define run-command #'#,command)        
         
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
-        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
+        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec run-command))
         
         (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
@@ -501,9 +501,10 @@
               (~optional (~seq #:preds (pred ...)))
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
-     #'(run name (~? (~@ #:preds [(! (and pred ...))]))
+     (syntax/loc stx
+       (run name (~? (~@ #:preds [(! (and pred ...))]))
                  (~? (~@ #:scope ([sig lower upper] ...)))
-                 (~? (~@ #:bounds (bound ...))))]))
+                 (~? (~@ #:bounds (bound ...)))))]))
 
 
 ; Exprimental: Run in the context of a given external Forge spec
@@ -652,7 +653,6 @@
   (syntax-case stx ()
     [(display args ...)
       (add-to-execs #'(true-display args ...))]))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Scope/Bound Updaters ;;;;;;;
