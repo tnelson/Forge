@@ -31,6 +31,7 @@
 
 ; Commands
 (provide sig relation fun const pred inst with)
+(provide form-inst)
 (provide run check test example display execute)
 (provide instance-diff)
 
@@ -366,6 +367,12 @@
           (values scope bound))
         (update-state! (state-add-inst curr-state 'name name)))]))
 
+; TEMPORARY - Formulaic inst
+(define-syntax (form-inst stx)
+  (syntax-parse stx
+    [(form-inst name:id binds:expr ...)
+     #'(define name (&&/info empty-nodeinfo binds ...))]))
+
 ; Run a given spec
 ; (run name
 ;      [#:pred [(pred ...)]] 
@@ -382,6 +389,7 @@
             (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
             (~optional (~or (~seq #:bounds (boundss ...))
                             (~seq #:bounds bound)))
+            (~optional (~seq #:trace (trace-insts ...)))
             (~optional (~seq #:solver solver-choice))
             (~optional (~seq #:backend backend-choice))
             (~optional (~seq #:target target-instance))
@@ -422,6 +430,7 @@
             (Bound (hash)
                    (hash 'Int (map list ints)
                          'succ succs))))
+        ;if using electrum inst, sets the domain inst
         (define (run-inst scope bounds)
           (for ([sigg (get-sigs run-state)])
             (when (Sig-one sigg)
@@ -441,9 +450,34 @@
         (when (~? (or #t 'target-contrast) #f)
           (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
 
-        (define run-command #'#,command)        
+        ;add more formulas in case of formulaic instance
+        (define base-trace-formulas
+          (~? (list trace-insts ...) (list)))
+
+        ; wrap-trace-inst-in-after : &&/info, Number -> after/info
+        ; wraps the given &&/info formula in after/info num times
+        (define (wrap-trace-inst-in-after fmla num)
+          (if (@<= num 0)
+              fmla
+              (wrap-trace-inst-in-after (after/info empty-nodeinfo fmla) (- num 1))))
+
+        ;for formulaic instances,
+        ;wrap them in after as necessary
+        ;so that the first formula describes the first state,
+        ;the second formula describes the second state, etc.
+        (define final-trace-formulas
+          (map wrap-trace-inst-in-after
+               base-trace-formulas
+               (range (length base-trace-formulas))))
+
+        (define final-run-preds
+          (append final-trace-formulas run-preds))
+
+        (print final-trace-formulas)
+
+        (define run-command #'#,command)
         
-        (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
+        (define run-spec (Run-spec run-state final-run-preds run-scope run-bound run-target))        
         (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
         
         (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
