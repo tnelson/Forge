@@ -1,0 +1,22 @@
+#lang forge/core
+(require forge/evaluator)
+(require (only-in rackunit check-not-exn))
+
+(set-option! 'verbose 0)
+(sig A)
+
+; If any issues arise, use this verbosity to get the forge->kodkod strings
+; and test them on the JAR directly using the java invocation below.
+;(set-option! 'verbose 5)
+(run  forEval
+      #:preds [(= (atom 'A0) (atom 'A0))]
+      #:scope [(A 3 3)])
+
+(check-not-exn (lambda () (evaluate forEval 'unusedTODO A)))
+(check-not-exn (lambda () (evaluate forEval 'unusedTODO (= (atom 'A0) (atom 'A0)))))
+(check-not-exn (lambda () (evaluate forEval 'unusedTODO (atom 'A0))))
+
+;FOR TESTING AT COMMAND LINE (without closing after first solve)
+; Note this may require some changes on other machines, but the pattern is correct.
+; (IntelliJ will terminate after a ^D, rather than moving to processing next command.)
+;java  -classpath /Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/charsets.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/deploy.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/cldrdata.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/dnsns.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/jaccess.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/jfxrt.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/localedata.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/nashorn.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/sunec.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/sunjce_provider.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/sunpkcs11.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/ext/zipfs.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/javaws.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/jce.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/jfr.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/jfxswt.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/jsse.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/management-agent.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/plugin.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/resources.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/jre/lib/rt.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/lib/ant-javafx.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/lib/dt.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/lib/javafx-mx.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/lib/jconsole.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/lib/packager.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/lib/sa-jdi.jar:/Library/Java/JavaVirtualMachines/jdk1.8.0_181.jdk/Contents/Home/lib/tools.jar:/Users/tim/repos/Pardinus/target/classes:/Users/tim/.m2/repository/org/parboiled/parboiled-core/1.3.1/parboiled-core-1.3.1.jar:/Users/tim/.m2/repository/org/parboiled/parboiled-java/1.3.1/parboiled-java-1.3.1.jar:/Users/tim/.m2/repository/org/ow2/asm/asm/7.1/asm-7.1.jar:/Users/tim/.m2/repository/org/ow2/asm/asm-tree/7.1/asm-tree-7.1.jar:/Users/tim/.m2/repository/org/ow2/asm/asm-analysis/7.1/asm-analysis-7.1.jar:/Users/tim/.m2/repository/org/ow2/asm/asm-util/7.1/asm-util-7.1.jar:/Users/tim/.m2/repository/org/sat4j/org.sat4j.maxsat/2.3.1/org.sat4j.maxsat-2.3.1.jar:/Users/tim/.m2/repository/commons-cli/commons-cli/1.1/commons-cli-1.1.jar:/Users/tim/.m2/repository/org/sat4j/org.sat4j.pb/2.3.1/org.sat4j.pb-2.3.1.jar:/Users/tim/.m2/repository/org/sat4j/org.sat4j.core/2.3.1/org.sat4j.core-2.3.1-tests.jar:/Users/tim/.m2/repository/org/sat4j/org.sat4j.core/2.3.1/org.sat4j.core-2.3.1.jar:/Users/tim/.m2/repository/ch/qos/logback/logback-classic/1.1.7/logback-classic-1.1.7.jar:/Users/tim/.m2/repository/org/slf4j/slf4j-api/1.7.20/slf4j-api-1.7.20.jar:/Users/tim/.m2/repository/ch/qos/logback/logback-core/1.1.7/logback-core-1.1.7.jar kodkod.cli.KodkodServer -stepper -temporal

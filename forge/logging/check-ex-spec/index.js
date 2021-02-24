@@ -7,7 +7,7 @@ const mysql = require("mysql");
 
 function getConnection () {
   const options = 
-  {  
+  {
     host: "34.75.228.82",
     socketPath: "/cloudsql/" + PROJECT_ID + ":us-east1:" + SQL_ID,
     user: 'root',
@@ -40,7 +40,7 @@ exports.recv = (req, res) => {
       local_id: data.local_id,
       student: data.student,
       project: data.project,
-      input: data.input,
+      input: data.input[0] <= "\xF0" ? data.input : "",
       output: data.output
     };
     conn.query("INSERT INTO " + TABLE_ID + " SET ?", post, function(err, result) {
