@@ -680,15 +680,15 @@
 
             (define new-lower 
               (cond 
-                [(and old-lower new-lower) (@max old-lower new-lower)]
+                [(and old-lower given-lower) (@max old-lower given-lower)]
                 [old-lower old-lower]
-                [new-lower new-lower]
+                [given-lower given-lower]
                 [else #f]))
             (define new-upper 
               (cond 
-                [(and old-upper new-upper) (@min old-upper new-upper)]
-                [old-lower old-upper]
-                [new-lower new-upper]
+                [(and old-upper given-upper) (@min old-upper given-upper)]
+                [old-upper old-upper]
+                [given-upper given-upper]
                 [else #f]))
             (values new-lower new-upper)))))
 
