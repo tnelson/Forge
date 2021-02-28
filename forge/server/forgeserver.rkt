@@ -21,6 +21,28 @@
 ;(define-runtime-path sterling-path "../sterling-js/dist/index.html")
 (define-runtime-path sterling-path "../sterling/build/index.html")
 
+;;;;;;;;;;;;;;;;;;;;
+; Sent to Sterling before the instance XML for temporal problems only
+  (define temporal-setup "{\n\
+    \"type\": \"buttons\",\n\
+    \"buttons\": [\n\
+    {\n\
+      \"text\": \"Next Config\",\n\
+      \"command\": \"next-cfg\",\n\
+      \"icon\": \"circle-arrow-right\",\n\
+      \"disabled\": false\n\
+    },\n\
+    {\n\
+      \"text\": \"Next\",\n\
+      \"command\": \"next\",\n\
+      \"icon\": \"circle-arrow-right\",\n\
+      \"disabled\": false\n\
+    }\n\
+    ] }\n")
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
 (define (display-model the-run get-next-unclean-model relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
@@ -103,6 +125,10 @@
      ; the connection closes. The server generates a new handler thread for this function
      ; every time a connection is initiated.
      (λ (connection _)
+       (when (equal? (get-option the-run 'problem_type) 'temporal)
+                     (printf "~a~n" temporal-setup)
+                     (ws-send! connection temporal-setup))                    
+
        (let loop ()
 
          ; The only thing we should be receiving is next-model requests, current requests (from a new connection), and pings.
@@ -117,6 +143,18 @@
                  [(equal? m "current")
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: current~n"))
+                  (when (equal? (get-option the-run 'problem_type) 'temporal)
+                    (printf "~a~n" temporal-setup)
+                    (ws-send! connection temporal-setup))                    
+                  (ws-send! connection (get-xml model))
+                  ]
+
+                 [(equal? m "next-cfg") 
+                  (when (> (get-verbosity) VERBOSITY_LOW)
+                    (printf "RECEIVED: next~n"))
+                  (get-next-model)
+                  ; TN disabled for now 01/25/2021
+                  ;(make-contrast-model-generators)
                   (ws-send! connection (get-xml model))]
 
                  [(equal? m "next")
