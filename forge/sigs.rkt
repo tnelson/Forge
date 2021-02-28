@@ -31,7 +31,7 @@
 
 ; Commands
 (provide sig relation fun const pred inst with)
-(provide form-inst)
+(provide form-inst trace)
 (provide run check test example display execute)
 (provide instance-diff)
 
@@ -156,6 +156,13 @@
   (struct-copy State state
                [inst-map new-state-inst-map]))
 
+; state-add-trace :: State, Symbol, Trace -> State
+; Adds a new trace to the given State.
+(define (state-add-trace state name trace)
+  (define new-state-trace-map (hash-set (State-trace-map state) name trace))
+  (struct-copy State state
+               [inst-map new-state-trace-map]))
+
 (define (set-option! option value)
   (cond [(or (equal? option 'verbosity)
              (equal? option 'verbose))
@@ -235,6 +242,23 @@
 
   (struct-copy State state
                [options new-options]))
+
+; state-set-min-and-max-tracelengths : State, Number, Number -> State
+; simultaneously updates the min and max tracelengths
+; different from state-set-option as that only sets one at a time
+(define (state-set-min-and-max-tracelengths state min-length max-length)
+  (cond [(@or (@not (exact-nonnegative-integer? min-length))
+              (@not (exact-nonnegative-integer? max-length)))
+         (raise-user-error (format "Tracelength cannot be negative. Attempted to set min_tracelength: ~a and max_tracelength: ~a"
+                                   min-length max-length))]
+        [(@> min-length max-length)
+         (raise-user-error (format "Cannot set min_tracelength to ~a and max_tracelength to ~a - min_tracelength can't be greater than max_tracelength"
+                                   min-length max-length))]
+        [else
+         (struct-copy State state
+                      [options (struct-copy Options (State-options state)
+                                            [min_tracelength min-length]
+                                            [max_tracelength max-length])])]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -373,6 +397,28 @@
     [(form-inst name:id binds:expr ...)
      #'(define name (&&/info empty-nodeinfo binds ...))]))
 
+; Define a new trace with instances as states
+; (trace name loopback inst-names ...)
+(define-syntax (trace stx)
+  (syntax-parse stx
+    [(trace name:id loopback:nat inst-names:id ...+)
+     #'(begin
+         (define base-fmla-list (list inst-names ...))
+         (define trace-length (length base-fmla-list))
+         (when (@>= loopback trace-length)
+           (raise-user-error (format "Loopback is 0-indexed; can't have loopback >= trace-length in trace ~a with loopback ~a and length ~a"
+                                     'name loopback trace-length)))
+         (define fmla-list
+           (append base-fmla-list
+                   (list (list-ref base-fmla-list loopback))))
+         (define (wrap-in-after fmla num)
+           (if (@<= num 0)
+               fmla
+               (wrap-in-after (after/info empty-nodeinfo fmla) (- num 1))))
+         (define name
+           (map wrap-in-after fmla-list (range (+ trace-length 1))))
+         (update-state! (state-add-trace curr-state 'name name)))]))
+
 ; Run a given spec
 ; (run name
 ;      [#:pred [(pred ...)]] 
@@ -389,7 +435,7 @@
             (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
             (~optional (~or (~seq #:bounds (boundss ...))
                             (~seq #:bounds bound)))
-            (~optional (~seq #:trace (trace-insts ...)))
+            (~optional (~seq #:trace trace-name))
             (~optional (~seq #:solver solver-choice))
             (~optional (~seq #:backend backend-choice))
             (~optional (~seq #:target target-instance))
@@ -404,7 +450,6 @@
         (~? (set! run-state (state-set-option run-state 'solver 'solver-choice)))
         (~? (set! run-state (state-set-option run-state 'backend 'backend-choice)))
         
-
         (define sig-scopes (~? 
           (~@
             (for/hash ([name (list (Sig-name (get-sig curr-state sig)) ...)]
@@ -450,33 +495,21 @@
         (when (~? (or #t 'target-contrast) #f)
           (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
 
-        ;add more formulas in case of formulaic instance
-        (define base-trace-formulas
-          (~? (list trace-insts ...) (list)))
+        (define run-command #'#,command)
 
-        ; wrap-trace-inst-in-after : &&/info, Number -> after/info
-        ; wraps the given &&/info formula in after/info num times
-        (define (wrap-trace-inst-in-after fmla num)
-          (if (@<= num 0)
-              fmla
-              (wrap-trace-inst-in-after (after/info empty-nodeinfo fmla) (- num 1))))
-
-        ;for formulaic instances,
-        ;wrap them in after as necessary
-        ;so that the first formula describes the first state,
-        ;the second formula describes the second state, etc.
-        (define final-trace-formulas
-          (map wrap-trace-inst-in-after
-               base-trace-formulas
-               (range (length base-trace-formulas))))
+        (define-values (trace-fmlas min-trace-length max-trace-length)
+          ; the formulas in trace-name include the lasso so the
+          ; length of the trace itself is 1 less than that
+          (~? (values trace-name (- (length trace-name) 1) (- (length trace-name) 1))
+              (values (list)
+                      (get-option run-state 'min_tracelength)
+                      (get-option run-state 'max_tracelength))))
 
         (define final-run-preds
-          (append final-trace-formulas run-preds))
+          (append trace-fmlas run-preds))
 
-        (print final-trace-formulas)
+        (set! run-state (state-set-min-and-max-tracelengths run-state min-trace-length max-trace-length))
 
-        (define run-command #'#,command)
-        
         (define run-spec (Run-spec run-state final-run-preds run-scope run-bound run-target))        
         (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
         

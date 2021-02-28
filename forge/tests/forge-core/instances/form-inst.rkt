@@ -21,7 +21,9 @@
            (= edges (+ (-> (atom 'Node0) (atom 'Node1))
                        (-> (atom 'Node1) (atom 'Node0)))))
 
+(trace okay 1 state0 state1 state2)
+
 #;(run happy
      #:bounds [domain]
-     #:trace [state0 state1 state2])
+     #:trace okay)
 ;(display happy)

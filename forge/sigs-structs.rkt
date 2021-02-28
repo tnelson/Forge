@@ -95,6 +95,7 @@
   fun-map   ; Map<Symbol, Function>
   const-map   ; Map<Symbol, Constant>
   inst-map       ; Map<Symbol, Inst>
+  trace-map   ; Map<Symbol, Trace>
   options     ; Options
   runmap      ; Map<Symbol, Run> (as hash)
   ) #:transparent)
@@ -141,12 +142,13 @@
 (define init-fun-map (@hash))
 (define init-const-map (@hash))
 (define init-inst-map (@hash))
+(define init-trace-map (@hash))
 (define init-runmap (@hash))
 (define init-options (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off))
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-pred-map init-fun-map init-const-map
-                          init-inst-map
+                          init-inst-map init-trace-map
                           init-options
                           init-runmap))
 
