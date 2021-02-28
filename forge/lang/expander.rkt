@@ -788,11 +788,20 @@
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (releases expr1 expr2)))]
-
   [((~literal Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (until expr1 expr2)))]
+
+  [((~literal Expr) expr1:ExprClass (~or "since") expr2:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
+     (syntax/loc stx (since expr1 expr2)))]
+  [((~literal Expr) expr1:ExprClass (~or "triggered") expr2:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
+     (syntax/loc stx (triggered expr1 expr2)))]
+
     
   [((~literal Expr) (~or "!" "not") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
@@ -807,6 +816,16 @@
   [((~literal Expr) (~or "after") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
        (syntax/loc stx (after expr1)))]
+
+  [((~literal Expr) (~or "historically") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+     (syntax/loc stx (historically expr1)))]
+  [((~literal Expr) (~or "once") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+     (syntax/loc stx (once expr1)))]
+  [((~literal Expr) (~or "before") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+       (syntax/loc stx (before expr1)))]       
     
   [((~literal Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
