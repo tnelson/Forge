@@ -96,6 +96,8 @@ Expr    : @Expr0.5
 ; Electrum binary operators (these may be on the wrong side of OR/IFF/etc.)
 Expr0.5 : @Expr1  | Expr0.5 UNTIL-TOK Expr1
                   | Expr0.5 RELEASE-TOK Expr1
+                  | Expr0.5 SINCE-TOK Expr1
+                  | Expr0.5 TRIGGERED-TOK Expr1
 
 Expr1   : @Expr2  | Expr1 OR-TOK Expr2
 Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
@@ -105,6 +107,9 @@ Expr5   : @Expr6  | NEG-TOK Expr5
                   | ALWAYS-TOK Expr5
                   | EVENTUALLY-TOK Expr5
                   | AFTER-TOK Expr5
+                  | BEFORE-TOK Expr5
+                  | ONCE-TOK Expr5
+                  | HISTORICALLY-TOK Expr5
 Expr6   : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
 Expr7   : @Expr7.5 | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr7.5
 Expr7.5 : @Expr8  | Expr7.5 PRIME-TOK ; electrum priming of expressions

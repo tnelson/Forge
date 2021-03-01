@@ -65,6 +65,12 @@
     [(? node/formula/op/releases?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
     [(? node/formula/op/after?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
     
+    [(? node/formula/op/historically?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+    [(? node/formula/op/once?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+    [(? node/formula/op/before?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+    [(? node/formula/op/since?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+    [(? node/formula/op/triggered?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+    
     ; AND 
      [(? node/formula/op/&&?)
       (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
