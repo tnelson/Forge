@@ -63,6 +63,12 @@
   tbindings ; Map<Symbol, List<Symbol>>
   ) #:transparent)
 
+(struct Trace (
+  formula-list ; List<.../info>
+  domain ; Inst
+  loopback ; Natural Number
+  ) #:transparent)
+
 (struct Target (
   instance ; Map<Symbol, List<List<Symbol>>>
   distance ; 'close | 'far

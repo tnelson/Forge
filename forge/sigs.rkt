@@ -30,8 +30,7 @@
          (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
 
 ; Commands
-(provide sig relation fun const pred inst with)
-(provide form-inst trace)
+(provide sig relation fun const pred inst trace with)
 (provide run check test example display execute)
 (provide instance-diff)
 
@@ -386,38 +385,56 @@
   (syntax-parse stx
     [(inst name:id binds:expr ...)
       #'(begin
-        (define (name scope bound)
-          (set!-values (scope bound) (bind scope bound binds)) ...
-          (values scope bound))
+        (define (name scope bound fmlas)
+          ; if fmla-list contains #f, it is most likely because
+          ; strategies and Int things bindings don't really make
+          ; sense as formulas right now - that will be fixed later
+          (set!-values (scope bound fmlas) (bind scope bound binds fmlas)) ...
+          (values scope bound fmlas))
         (update-state! (state-add-inst curr-state 'name name)))]))
 
-; TEMPORARY - Formulaic inst
-(define-syntax (form-inst stx)
-  (syntax-parse stx
-    [(form-inst name:id binds:expr ...)
-     #'(define name (&&/info empty-nodeinfo binds ...))]))
-
-; Define a new trace with instances as states
-; (trace name loopback inst-names ...)
+; Define a new Trace with instances as states
+; (trace name domain loopback inst-names ...)
 (define-syntax (trace stx)
   (syntax-parse stx
-    [(trace name:id loopback:nat inst-names:id ...+)
-     #'(begin
-         (define base-fmla-list (list inst-names ...))
-         (define trace-length (length base-fmla-list))
-         (when (@>= loopback trace-length)
-           (raise-user-error (format "Loopback is 0-indexed; can't have loopback >= trace-length in trace ~a with loopback ~a and length ~a"
-                                     'name loopback trace-length)))
-         (define fmla-list
+    [(trace name:id domain:id loopback:nat inst-name:id ...+)
+      #'(begin
+          (define inst-list (list inst-name ...))
+          (define default-bound
+            (let* ([max-int (expt 2 (sub1 DEFAULT-BITWIDTH))]
+                   [ints (map int-atom (range (- max-int) max-int))]
+                   [succs (map list (reverse (rest (reverse ints)))
+                                      (rest ints))])
+              (Bound (hash)
+                     (hash 'Int (map list ints)
+                           'succ succs))))
+          (define-values (new-scope new-bound not-used)
+            (domain (Scope #f #f (hash)) default-bound (list)))
+          (define base-fmla-list
+            (map (lambda (i)
+                   (define-values (scope bound fmlas)
+                     ; Dangerous defaults but we only care about the 
+                     ; formula list not the Scope or Bound here
+                     ; so it's hopefully fine for now
+                     (i new-scope new-bound (list)))
+                   (&&/info empty-nodeinfo fmlas))
+                 inst-list))
+          (define trace-length (length base-fmla-list))
+          (when (@>= loopback trace-length)
+            (raise-user-error (format "Loopback is 0-indexed; can't have loopback >= trace-length in trace ~a with loopback ~a and length ~a"
+                                      'name loopback trace-length)))
+          (define fmla-list-stateless
            (append base-fmla-list
                    (list (list-ref base-fmla-list loopback))))
-         (define (wrap-in-after fmla num)
+          (define (wrap-in-after fmla num)
            (if (@<= num 0)
                fmla
                (wrap-in-after (after/info empty-nodeinfo fmla) (- num 1))))
-         (define name
-           (map wrap-in-after fmla-list (range (+ trace-length 1))))
-         (update-state! (state-add-trace curr-state 'name name)))]))
+          (define fmla-list-with-state
+            (map wrap-in-after fmla-list-stateless (range (+ trace-length 1))))
+          (define name
+            (Trace fmla-list-with-state domain loopback))
+          (update-state! (state-add-trace curr-state 'name name)))]))
 
 ; Run a given spec
 ; (run name
@@ -476,15 +493,18 @@
                    (hash 'Int (map list ints)
                          'succ succs))))
         ;if using electrum inst, sets the domain inst
-        (define (run-inst scope bounds)
+        (define (run-inst scope bounds fmlas)
+          ; if fmlas contains #f, it is most likely because
+          ; strategies and Int things bindings don't really make
+          ; sense as formulas right now - that will be fixed later
           (for ([sigg (get-sigs run-state)])
             (when (Sig-one sigg)
-              (set!-values (scope bounds) (bind scope bounds (one (Sig-rel sigg))))))
-          (~? (~@ (set!-values (scope bounds) (bind scope bounds boundss)) ...)
-              (~? (set!-values (scope bounds) (bind scope bounds bound))))
+              (set!-values (scope bounds fmlas) (bind scope bounds (one (Sig-rel sigg)) fmlas))))
+          (~? (~@ (set!-values (scope bounds fmlas) (bind scope bounds boundss fmlas)) ...)
+              (~? (set!-values (scope bounds fmlas) (bind scope bounds bound fmlas))))
           (values scope bounds))
         (define-values (run-scope run-bound)
-          (run-inst base-scope default-bound))
+          (run-inst base-scope default-bound (list)))
 
         (define run-target 
           (~? (Target (cdr target-instance)
@@ -500,7 +520,9 @@
         (define-values (trace-fmlas min-trace-length max-trace-length)
           ; the formulas in trace-name include the lasso so the
           ; length of the trace itself is 1 less than that
-          (~? (values trace-name (- (length trace-name) 1) (- (length trace-name) 1))
+          (~? (values (Trace-formula-list trace-name)
+                      (- (length (Trace-formula-list trace-name)) 1)
+                      (- (length (Trace-formula-list trace-name)) 1))
               (values (list)
                       (get-option run-state 'min_tracelength)
                       (get-option run-state 'max_tracelength))))
@@ -823,51 +845,63 @@
 
 ; (bind scope bound bind-expression)
 (define-syntax (bind stx)
-  (match-define (list b scope bound binding) (syntax-e stx))
+  (match-define (list b scope bound binding fmla-list) (syntax-e stx))
   (syntax-parse binding #:datum-literals (no one two lone <= = card is ~ join Int CompareOp QualName Const)
     
     ; Cardinality bindings
-    [(no rel) #`(bind #,scope #,bound (= rel none))]
-    [(one rel) #`(bind #,scope #,bound (= (card rel) 1))]
-    [(two rel) #`(bind #,scope #,bound (= (card rel) 2))]
-    [(lone rel) #`(bind #,scope #,bound (<= (card rel) 1))]
+    [(no rel) #`(bind #,scope #,bound (= rel none) #,fmla-list)]
+    [(one rel) #`(bind #,scope #,bound (= (card rel) 1) #,fmla-list)]
+    [(two rel) #`(bind #,scope #,bound (= (card rel) 2) #,fmla-list)]
+    [(lone rel) #`(bind #,scope #,bound (<= (card rel) 1) #,fmla-list)]
 
     [(= (card rel) n)
      #`(let* ([exact (eval-int-expr 'n (Bound-tbindings #,bound) 8)]
               [new-scope (if (equal? (relation-name rel) "Int")
                              (set-bitwidth #,scope exact)
-                             (update-int-bound #,scope rel (Range exact exact)))])
-          (values new-scope #,bound))]
+                             (update-int-bound #,scope rel (Range exact exact)))]
+              [new-fmla-list (cons (= (card rel) n) #,fmla-list)])
+          (values new-scope #,bound new-fmla-list))]
 
     [(<= (card rel) upper)
      #`(let* ([upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range #f upper-val))])
-         (values new-scope #,bound))]
+              [new-scope (update-int-bound #,scope rel (Range #f upper-val))]
+              [new-fmla-list (cons (<= (card rel) upper) #,fmla-list)])
+         (values new-scope #,bound new-fmla-list))]
 
     [(<= lower (card rel))
      #`(let* ([lower-val (eval-int-expr 'lower (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range lower-val #f))])
-         (values new-scope #,bound))]
+              [new-scope (update-int-bound #,scope rel (Range lower-val #f))]
+              [new-fmla-list (cons (<= lower (card rel)) #,fmla-list)])
+         (values new-scope #,bound new-fmla-list))]
 
     [(<= lower (card rel) upper)
      #`(let* ([lower-val (eval-int-expr 'lower (Bound-tbindings #,bound) 8)]
               [upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range lower-val upper-val))])
-         (values new-scope #,bound))]
+              [new-scope (update-int-bound #,scope rel (Range lower-val upper-val))]
+              [new-fmla-list (cons (and (<= lower (card rel))
+                                        (<= (card rel) upper))
+                                   #,fmla-list)])
+         (values new-scope #,bound new-fmla-list))]
 
     ; Strategies
+    ; UNCLEAR HOW TO TRANSLATE THIS TO A FORMULA
+    ; SO FOR NOW WE WILL USE #f
+    ; TODO: FIX THAT
     [(is (~ rel) strat)
      #`(begin
        (break rel (get-co 'strat))
-       (values #,scope #,bound))]
+       (values #,scope #,bound (cons #f #,fmla-list)))]
 
+    ; UNCLEAR HOW TO TRANSLATE THIS TO A FORMULA
+    ; SO FOR NOW WE WILL USE #f
+    ; TODO: FIX THAT
     [(is rel strat)
      #`(begin
        (break rel 'strat)
-       (values #,scope #,bound))]
+       (values #,scope #,bound (cons #f #,fmla-list)))]
 
     ; Other instances
-    [f:id #`(f #,scope #,bound)]
+    [f:id #`(f #,scope #,bound #,fmla-list)]
 
     ; Particular bounds
     [(cmp rel expr)
@@ -890,7 +924,37 @@
            [(equal? 'cmp 'in) (update-bindings #,bound rel (@set) tups)]
            [(equal? 'cmp 'ni) (update-bindings #,bound rel tups)]))
 
-         (values new-scope new-bound))]
+         (print "tups")
+         (print tups)
+
+         (define atom-tups
+           (map (lambda (node-name-list)
+                  (map (lambda (node-name) (atom node-name)) node-name-list))
+                tups))
+
+         (define (cross-prod-atoms atom-list)
+           (cond [(empty? atom-list) atom-list]
+                 [(empty? (rest atom-list)) (first atom-list)]
+                 [else (-> (first atom-list)
+                           (cross-prod-atoms (rest atom-list)))]))
+
+         (define cross-prod-atom-tups (map cross-prod-atoms atom-tups))
+
+         (define (distribute-plus atom-fmla-list)
+           (cond [(empty? atom-fmla-list) atom-fmla-list]
+                 [(empty? (rest atom-fmla-list)) (first atom-fmla-list)]
+                 [else (+ (first atom-fmla-list)
+                          (distribute-plus (rest atom-fmla-list)))]))
+
+         (define new-fmla
+           (if (empty? cross-prod-atom-tups)
+               (no rel)
+               (= rel (distribute-plus cross-prod-atom-tups))))
+
+         (print "new-fmla")
+         (print new-fmla)
+
+         (values new-scope new-bound (cons new-fmla #,fmla-list)))]
 
     ; [(cmp (join foc rel) expr)
     ;  #`(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
@@ -900,8 +964,11 @@
     ;        [(equal? 'cmp 'ni) (update-bindings-at #,bound rel 'foc tups)]))
     ;      (values #,scope new-bound))]
 
+    ; UNCLEAR HOW TO TRANSLATE THIS TO A FORMULA
+    ; SO FOR NOW WE WILL USE #f
+    ; TODO: FIX THAT
     ; Bitwidth
     [(Int n:nat)
-     #'(values (set-bitwidth #,scope n) #,bound)]
+     #'(values (set-bitwidth #,scope n) #,bound (cons #f #,fmla-list))]
 
     [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") binding)]))
