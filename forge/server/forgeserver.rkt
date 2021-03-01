@@ -28,7 +28,7 @@
     \"buttons\": [\n\
     {\n\
       \"text\": \"Next Config\",\n\
-      \"command\": \"next-cfg\",\n\
+      \"command\": \"next-C\",\n\
       \"icon\": \"circle-arrow-right\",\n\
       \"disabled\": false\n\
     },\n\
@@ -51,8 +51,9 @@
   (define stream-index -1)
   (define (get-current-model)
     model)
-  (define (get-next-model)
-    (set! model (get-next-unclean-model))
+  (define (get-next-model [next-mode 'P])
+    ;(set! model (get-next-unclean-model next-mode))
+    (set! model (get-next-unclean-model)) ; stream based for the moment
     (set! stream-index (+ stream-index 1))
     model)
   (get-next-model)
@@ -143,16 +144,12 @@
                  [(equal? m "current")
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: current~n"))
-                  (when (equal? (get-option the-run 'problem_type) 'temporal)
-                    (printf "~a~n" temporal-setup)
-                    (ws-send! connection temporal-setup))                    
-                  (ws-send! connection (get-xml model))
-                  ]
+                  (ws-send! connection (get-xml model))]
 
-                 [(equal? m "next-cfg") 
+                 [(equal? m "next-C") 
                   (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: next~n"))
-                  (get-next-model)
+                    (printf "RECEIVED: next-C~n"))
+                  (get-next-model 'C)
                   ; TN disabled for now 01/25/2021
                   ;(make-contrast-model-generators)
                   (ws-send! connection (get-xml model))]
