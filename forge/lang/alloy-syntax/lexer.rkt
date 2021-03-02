@@ -122,6 +122,13 @@
    ["after"  (token+ `AFTER-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["until"  (token+ `UNTIL-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["releases"  (token+ `RELEASE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   
+   ["historically"  (token+ `HISTORICALLY-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["once"  (token+ `ONCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["before"  (token+ `BEFORE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["since"  (token+ `SINCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["triggered"  (token+ `TRIGGERED-TOK "" lexeme "" lexeme-start lexeme-end)]
+   
    ; Electrum var relation label
    ["var"  (token+ `VAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ; Electrum prime

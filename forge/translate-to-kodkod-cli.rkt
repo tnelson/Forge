@@ -89,6 +89,27 @@
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
 
+    [(? node/formula/op/historically?)
+     ( print-cmd-cont "(historically ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/once?)
+     ( print-cmd-cont "(once ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/before?)
+     ( print-cmd-cont "(before ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/since?)
+     ( print-cmd-cont "(since ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/triggered?)
+     ( print-cmd-cont "(triggered ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+
     
     [(? node/formula/op/in?)
      (print-cmd-cont "(in ")

@@ -35,7 +35,7 @@
 (provide instance-diff)
 
 ; Instance analysis functions
-(provide is-sat? is-unsat?)
+(provide is-unsat? is-sat?)
 
 ; export AST macros and struct definitions (for matching)
 ; Make sure that nothing is double-provided
@@ -445,7 +445,7 @@
         (define run-command #'#,command)        
         
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
-        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
+        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec run-command))
         
         (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
@@ -502,9 +502,10 @@
               (~optional (~seq #:preds (pred ...)))
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
-     #'(run name (~? (~@ #:preds [(! (and pred ...))]))
+     (syntax/loc stx
+       (run name (~? (~@ #:preds [(! (and pred ...))]))
                  (~? (~@ #:scope ([sig lower upper] ...)))
-                 (~? (~@ #:bounds (bound ...))))]))
+                 (~? (~@ #:bounds (bound ...)))))]))
 
 
 ; Exprimental: Run in the context of a given external Forge spec
@@ -654,7 +655,6 @@
     [(display args ...)
       (add-to-execs #'(true-display args ...))]))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Scope/Bound Updaters ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -681,15 +681,15 @@
 
             (define new-lower 
               (cond 
-                [(and old-lower new-lower) (@max old-lower new-lower)]
+                [(and old-lower given-lower) (@max old-lower given-lower)]
                 [old-lower old-lower]
-                [new-lower new-lower]
+                [given-lower given-lower]
                 [else #f]))
             (define new-upper 
               (cond 
-                [(and old-upper new-upper) (@min old-upper new-upper)]
-                [old-lower old-upper]
-                [new-lower new-upper]
+                [(and old-upper given-upper) (@min old-upper given-upper)]
+                [old-upper old-upper]
+                [given-upper given-upper]
                 [else #f]))
             (values new-lower new-upper)))))
 

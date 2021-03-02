@@ -105,6 +105,21 @@ def handle(request):
     
     return ("Successfully logged data.", 201, {})
 
+def fix(filename):
+    parts = filename.split(".")
+    real_name = f"{parts[0]}.{parts[1]}"
+    fixed_hash = str(hash(".".join(parts[2:])))
+    return f"{real_name}.{fixed_hash}"
+
+# fix all filenames in a list or dict by mutating the input
+def fix_filenames(data):
+    if isinstance(data, list):
+        for log in data:
+            fix_filenames(log)
+    elif isinstance(data, dict) and "filename" in data:
+        data["filename"] = fix(data["filename"])
+    return
+
 """
 input:
     {
@@ -120,7 +135,7 @@ input:
 def load_execution(log):
     return {
             "user": log["user"],
-            "filename": log["filename"],
+            "filename": fix(log["filename"]),
             "project": log["project"],
             "time": log["time"],
             "raw": log["raw"],
@@ -452,6 +467,7 @@ def add_to_database(execution):
 
 def add_failure_to_database(log, error):
     try:
+        fix_filenames(log)
         with engine.begin() as connection:
             command = sqlalchemy.text("""
                 INSERT INTO failed_logs(log, error)
