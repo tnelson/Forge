@@ -6,19 +6,18 @@
 (sig Node #:is-var "var")
 
 
-(form-inst state0
-           (= Node (atom 'Node0)))
+(inst state0
+      (= Node Node0))
 
-(form-inst state1
-           (= Node (atom 'Node1)))
+(inst state1
+      (= Node Node1))
 
 (inst domain
       (in Node (+ Node0 (+ Node1 (+ Node2 Node3)))))
 
-(trace bagel 0 state0 state1 state0 state1)
+(trace bagel domain 0 state0 state1 state0 state1)
 
 #;(run woah
      #:preds [(some Node)]
-     #:bounds domain
-     #:trace bagel)
+     #:bounds bagel)
 ;(display woah)

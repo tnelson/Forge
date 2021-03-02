@@ -25,7 +25,6 @@
 
 (trace some-reps domain 3 state0 state1 state2 state3 state4)
 
-(run no-preds
-     #:bounds domain
-     #:trace some-reps)
-(display no-preds)
+#;(run no-preds
+     #:bounds [some-reps])
+;(display no-preds)

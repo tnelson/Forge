@@ -68,6 +68,7 @@
   ) #:transparent)
 
 (struct Trace (
+  name ; Symbol
   formula-list ; List<.../info>
   domain ; Inst
   loopback ; Natural Number

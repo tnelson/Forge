@@ -118,7 +118,6 @@
 
 #;(run vis-grow
      #:preds [apple-rels orange-rels pear-rels mango-rels]
-     #:bounds [domain]
-     #:scope [(Apple 6) (Orange 6) (Pear 6) (Mango 6)]
-     #:trace order)
+     #:bounds order
+     #:scope [(Apple 6) (Orange 6) (Pear 6) (Mango 6)])
 ;(display vis-grow)

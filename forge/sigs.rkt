@@ -429,7 +429,7 @@
           (define fmla-list-with-state
             (map wrap-in-after fmla-list-stateless (range (+ trace-length 1))))
           (define name
-            (Trace fmla-list-with-state domain loopback))
+            (Trace 'name fmla-list-with-state domain loopback))
           (update-state! (state-add-trace curr-state 'name name)))]))
 
 ; Run a given spec
@@ -489,19 +489,45 @@
                    (hash 'Int (map list ints)
                          'succ succs))))
 
+        (define bounds-list
+          (~? (list boundss ...)
+              (~? (list bound) (list))))
+
+        ; #t if the bound is a trace
+        ; raises an error if a trace and other bounds is given
+        ; #f otherwise
+        (define bound-is-trace
+          (if (empty? bounds-list)
+              #f
+              (let ([traces-in-bounds-list (filter (lambda (elt) (Trace? elt)) bounds-list)]
+                    [bound-length (length bounds-list)])
+                (if (empty? traces-in-bounds-list)
+                    #f
+                    (or (@= bound-length 1)
+                        (raise-user-error (format "Can't run trace ~a at same time as other bounds."
+                                                  (Trace-name (first traces-in-bounds-list)))))))))
+
         ;if using electrum inst, sets the domain inst
-        (define (run-inst scope bounds fmlas)
+        (define (run-inst scope bounds fmlas inst-list)
           ; if fmlas contains #f, it is most likely because
           ; strategies and Int things bindings don't really make
           ; sense as formulas right now - that will be fixed later
           (for ([sigg (get-sigs run-state)])
             (when (Sig-one sigg)
               (set!-values (scope bounds fmlas) (bind scope bounds (one (Sig-rel sigg)) fmlas))))
-          (~? (~@ (set!-values (scope bounds fmlas) (bind scope bounds boundss fmlas)) ...)
-              (~? (set!-values (scope bounds fmlas) (bind scope bounds bound fmlas))))
+          (map (lambda (b)
+                 (set!-values (scope bounds fmlas) (bind scope bounds b fmlas)))
+               inst-list)
           (values scope bounds))
+
         (define-values (run-scope run-bound)
-          (run-inst base-scope default-bound (list)))
+          (if bound-is-trace
+              ; At least for now, bound-list always contains exactly one element
+              ; when bound-is-trace is true
+              ; so that one element is the name of the trace
+              (let ([domain-inst (Trace-domain (first bounds-list))])
+                (run-inst base-scope default-bound (list) (list domain-inst)))
+              (run-inst base-scope default-bound (list) bounds-list)))
 
         (define run-target 
           (~? (Target (cdr target-instance)
@@ -515,11 +541,14 @@
         (define run-command #'#,command)
 
         (define-values (trace-fmlas min-trace-length max-trace-length)
-          ; the formulas in trace-name include the lasso so the
-          ; length of the trace itself is 1 less than that
-          (~? (values (Trace-formula-list trace-name)
-                      (- (length (Trace-formula-list trace-name)) 1)
-                      (- (length (Trace-formula-list trace-name)) 1))
+          (if bound-is-trace
+              ; At least for now, bound-list always contains exactly one element
+              ; when bound-is-trace is true
+              ; so that one element is the name of the trace
+              (let ([the-trace (first bounds-list)])
+                (values (Trace-formula-list the-trace)
+                        (- (length (Trace-formula-list the-trace)) 1)
+                        (- (length (Trace-formula-list the-trace)) 1)))
               (values (list)
                       (get-option run-state 'min_tracelength)
                       (get-option run-state 'max_tracelength))))

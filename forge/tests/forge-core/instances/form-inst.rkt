@@ -24,6 +24,6 @@
 (trace okay domain 0 state0 state1 state2)
 
 #;(run happy
-     #:bounds [domain]
-     #:trace okay)
+     #:bounds [okay])
 ;(display happy)
+
