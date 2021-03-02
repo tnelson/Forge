@@ -63,6 +63,10 @@
   tbindings ; Map<Symbol, List<Symbol>>
   ) #:transparent)
 
+(struct Inst (
+  get-scope-bound-formulas ; Scope Bound Fmla -> Scope Bound Fmla
+  ) #:transparent)
+
 (struct Trace (
   formula-list ; List<.../info>
   domain ; Inst

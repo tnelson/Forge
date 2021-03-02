@@ -30,59 +30,59 @@
 (relation mp (Mango Pear) #:is-var "var")
 (relation mm (Mango Mango) #:is-var "var")
 
-(form-inst state-0
+(inst state-0
       (no Apple)
       (no Orange)
       (no Pear)
       (no Mango))
 
-(form-inst state-1
-      (= Apple (atom 'Apple0))
-      (= Orange (atom 'Orange0))
-      (= Pear (atom 'Pear0))
-      (= Mango (atom 'Mango0)))
+(inst state-1
+      (= Apple Apple0)
+      (= Orange Orange0)
+      (= Pear Pear0)
+      (= Mango Mango0))
 
-(form-inst state-2
-      (= Apple (+ (atom 'Apple0) (atom 'Apple1)))
-      (= Orange (+ (atom 'Orange0) (atom 'Orange1)))
-      (= Pear (+ (atom 'Pear0) (atom 'Pear1)))
-      (= Mango (+ (atom 'Mango0) (atom 'Mango1))))
+(inst state-2
+      (= Apple (+ Apple0 Apple1))
+      (= Orange (+ Orange0 Orange1))
+      (= Pear (+ Pear0 Pear1))
+      (= Mango (+ Mango0 Mango1)))
 
-(form-inst state-3
-      (= Apple (+ (+ (atom 'Apple0) (atom 'Apple1)) (atom 'Apple2)))
-      (= Orange (+ (+ (atom 'Orange0) (atom 'Orange1)) (atom 'Orange2)))
-      (= Pear (+ (+ (atom 'Pear0) (atom 'Pear1)) (atom 'Pear2)))
-      (= Mango (+ (+ (atom 'Mango0) (atom 'Mango1)) (atom 'Mango2))))
+(inst state-3
+      (= Apple (+ (+ Apple0 Apple1) Apple2))
+      (= Orange (+ (+ Orange0 Orange1) Orange2))
+      (= Pear (+ (+ Pear0 Pear1) Pear2))
+      (= Mango (+ (+ Mango0 Mango1) Mango2)))
 
-(form-inst state-4
+(inst state-4
       (= Apple
-         (+ (+ (+ (atom 'Apple0) (atom 'Apple1)) (atom 'Apple2)) (atom 'Apple3)))
+         (+ (+ (+ Apple0 Apple1) Apple2) Apple3))
       (= Orange
-         (+ (+ (+ (atom 'Orange0) (atom 'Orange1)) (atom 'Orange2)) (atom 'Orange3)))
+         (+ (+ (+ Orange0 Orange1) Orange2) Orange3))
       (= Pear
-         (+ (+ (+ (atom 'Pear0) (atom 'Pear1)) (atom 'Pear2)) (atom 'Pear3)))
+         (+ (+ (+ Pear0 Pear1) Pear2) Pear3))
       (= Mango
-         (+ (+ (+ (atom 'Mango0) (atom 'Mango1)) (atom 'Mango2)) (atom 'Mango3))))
+         (+ (+ (+ Mango0 Mango1) Mango2) Mango3)))
 
-(form-inst state-5
+(inst state-5
       (= Apple
-         (+ (+ (+ (+ (atom 'Apple0) (atom 'Apple1)) (atom 'Apple2)) (atom 'Apple3)) (atom 'Apple4)))
+         (+ (+ (+ (+ Apple0 Apple1) Apple2) Apple3) Apple4))
       (= Orange
-         (+ (+ (+ (+ (atom 'Orange0) (atom 'Orange1)) (atom 'Orange2)) (atom 'Orange3)) (atom 'Orange4)))
+         (+ (+ (+ (+ Orange0 Orange1) Orange2) Orange3) Orange4))
       (= Pear
-         (+ (+ (+ (+ (atom 'Pear0) (atom 'Pear1)) (atom 'Pear2)) (atom 'Pear3)) (atom 'Pear4)))
+         (+ (+ (+ (+ Pear0 Pear1) Pear2) Pear3) Pear4))
       (= Mango
-         (+ (+ (+ (+ (atom 'Mango0) (atom 'Mango1)) (atom 'Mango2)) (atom 'Mango3)) (atom 'Mango4))))
+         (+ (+ (+ (+ Mango0 Mango1) Mango2) Mango3) Mango4)))
 
-(form-inst state-6
+(inst state-6
       (= Apple
-         (+ (+ (+ (+ (+ (atom 'Apple0) (atom 'Apple1)) (atom 'Apple2)) (atom 'Apple3)) (atom 'Apple4)) (atom 'Apple5)))
+         (+ (+ (+ (+ (+ Apple0 Apple1) Apple2) Apple3) Apple4) Apple5))
       (= Orange
-         (+ (+ (+ (+ (+ (atom 'Orange0) (atom 'Orange1)) (atom 'Orange2)) (atom 'Orange3)) (atom 'Orange4)) (atom 'Orange5)))
+         (+ (+ (+ (+ (+ Orange0 Orange1) Orange2) Orange3) Orange4) Orange5))
       (= Pear
-         (+ (+ (+ (+ (+ (atom 'Pear0) (atom 'Pear1)) (atom 'Pear2)) (atom 'Pear3)) (atom 'Pear4)) (atom 'Pear5)))
+         (+ (+ (+ (+ (+ Pear0 Pear1) Pear2) Pear3) Pear4) Pear5))
       (= Mango
-         (+ (+ (+ (+ (+ (atom 'Mango0) (atom 'Mango1)) (atom 'Mango2)) (atom 'Mango3)) (atom 'Mango4)) (atom 'Mango5))))
+         (+ (+ (+ (+ (+ Mango0 Mango1) Mango2) Mango3) Mango4) Mango5)))
 
 (pred apple-rels
       (always (in (-> Apple Apple) aa))
@@ -114,7 +114,7 @@
       (in Pear (+ Pear0 (+ Pear1 (+ Pear2 (+ Pear3 (+ Pear4 (+ Pear5 Pear6)))))))
       (in Mango (+ Mango0 (+ Mango1 (+ Mango2 (+ Mango3 (+ Mango4 (+ Mango5 Mango6))))))))
 
-(trace order 6 state-0 state-1 state-2 state-3 state-4 state-5 state-6)
+(trace order domain 6 state-0 state-1 state-2 state-3 state-4 state-5 state-6)
 
 #;(run vis-grow
      #:preds [apple-rels orange-rels pear-rels mango-rels]

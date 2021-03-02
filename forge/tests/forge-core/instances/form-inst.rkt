@@ -26,5 +26,4 @@
 #;(run happy
      #:bounds [domain]
      #:trace okay)
-;(stream-ref (forge:get-result happy) 0)
 ;(display happy)

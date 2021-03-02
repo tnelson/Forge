@@ -380,18 +380,15 @@
         (update-state! (state-add-const curr-state 'name name)))]))
 
 ; Define a new bounding instance
-; (inst name binding ...)
 (define-syntax (inst stx)
   (syntax-parse stx
     [(inst name:id binds:expr ...)
-      #'(begin
-        (define (name scope bound fmlas)
-          ; if fmla-list contains #f, it is most likely because
-          ; strategies and Int things bindings don't really make
-          ; sense as formulas right now - that will be fixed later
-          (set!-values (scope bound fmlas) (bind scope bound binds fmlas)) ...
-          (values scope bound fmlas))
-        (update-state! (state-add-inst curr-state 'name name)))]))
+     #'(begin
+         (define (bind-scope-bound-formulas scope bound fmlas)
+           (set!-values (scope bound fmlas) (bind scope bound binds fmlas)) ...
+           (values scope bound fmlas))
+         (define name (Inst bind-scope-bound-formulas))
+         (update-state! (state-add-inst curr-state 'name name)))]))
 
 ; Define a new Trace with instances as states
 ; (trace name domain loopback inst-names ...)
@@ -408,15 +405,14 @@
               (Bound (hash)
                      (hash 'Int (map list ints)
                            'succ succs))))
-          (define-values (new-scope new-bound not-used)
-            (domain (Scope #f #f (hash)) default-bound (list)))
           (define base-fmla-list
             (map (lambda (i)
                    (define-values (scope bound fmlas)
                      ; Dangerous defaults but we only care about the 
                      ; formula list not the Scope or Bound here
                      ; so it's hopefully fine for now
-                     (i new-scope new-bound (list)))
+                     ((Inst-get-scope-bound-formulas i)
+                      (Scope #f #f (hash)) default-bound (list)))
                    (&&/info empty-nodeinfo fmlas))
                  inst-list))
           (define trace-length (length base-fmla-list))
@@ -492,6 +488,7 @@
             (Bound (hash)
                    (hash 'Int (map list ints)
                          'succ succs))))
+
         ;if using electrum inst, sets the domain inst
         (define (run-inst scope bounds fmlas)
           ; if fmlas contains #f, it is most likely because
@@ -901,7 +898,7 @@
        (values #,scope #,bound (cons #f #,fmla-list)))]
 
     ; Other instances
-    [f:id #`(f #,scope #,bound #,fmla-list)]
+    [f:id #`((Inst-get-scope-bound-formulas f) #,scope #,bound #,fmla-list)]
 
     ; Particular bounds
     [(cmp rel expr)
@@ -923,9 +920,6 @@
            [(equal? 'cmp '=)  (update-bindings #,bound rel tups tups)]
            [(equal? 'cmp 'in) (update-bindings #,bound rel (@set) tups)]
            [(equal? 'cmp 'ni) (update-bindings #,bound rel tups)]))
-
-         (print "tups")
-         (print tups)
 
          (define atom-tups
            (map (lambda (node-name-list)
@@ -950,9 +944,6 @@
            (if (empty? cross-prod-atom-tups)
                (no rel)
                (= rel (distribute-plus cross-prod-atom-tups))))
-
-         (print "new-fmla")
-         (print new-fmla)
 
          (values new-scope new-bound (cons new-fmla #,fmla-list)))]
 
