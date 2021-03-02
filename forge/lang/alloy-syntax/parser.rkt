@@ -56,7 +56,6 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
 # BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
-        | STAR-TOK
 CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
