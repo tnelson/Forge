@@ -77,6 +77,8 @@
 (provide (struct-out Sat)
          (struct-out Unsat))
 
+(provide (for-syntax add-to-execs))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
