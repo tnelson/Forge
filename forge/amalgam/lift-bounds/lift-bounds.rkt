@@ -98,10 +98,10 @@
      (liftBoundsExprOp expr quantvars args runContext)]
     
     ; quantified variable
-    [(node/expr/quantifier-var info arity sym)
+    [(node/expr/quantifier-var info arity sym name)
      (error (format
              "We should not be getting the bounds of a quantified variable ~a"
-             sym))]
+             name))]
     
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info len decls form)

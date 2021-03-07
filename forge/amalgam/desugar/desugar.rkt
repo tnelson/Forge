@@ -63,7 +63,7 @@
                            (define union-of-bounds
                              (+/info info (map (lambda (tup)
                                                  (tup2Expr tup runContext info)) uppers))) 
-                           (cons (node/expr/quantifier-var info 1 (gensym "m2q")) union-of-bounds))))
+                           (cons (node/expr/quantifier-var info 1 (gensym "m2q") 'm2q) union-of-bounds))))
      (define productOfFreshVars (->/info info (map car newDecls)))
      (define newFormula (in/info info (list productOfFreshVars expr)))
      (list (node/formula/quantified info mult newDecls newFormula) 'multiplicityFormula)]
@@ -94,7 +94,8 @@
                         (cons
                          (node/expr/quantifier-var info
                                                    (node/expr-arity (cdr d))
-                                                   (gensym "quantiOne"))
+                                                   (gensym "quantiOne")
+                                                   'quantiOne)
                          (-/info info (list (cdr d) (car d))))) decls))               
                
                (define newQuantFormRHS
@@ -258,7 +259,7 @@
       'otherExprConstantExpr)]
 
     ; quantified variable (depends on scope!)
-    [(node/expr/quantifier-var info arity sym)     
+    [(node/expr/quantifier-var info arity sym name)     
      (error
       "amalgam: A quantified variable was passed into desugarExpr. ~n")]
 
