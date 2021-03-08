@@ -40,7 +40,7 @@ exports.recv = (req, res) => {
       local_id: data.local_id,
       student: data.student,
       project: data.project,
-      input: data.input[0] < "\xF0" ? data.input : "",
+      input: (data.input.charCodeAt(0) < 130 && data.input.charCodeAt(1) < 130 && data.input.charCodeAt(2) < 130 && data.input.charCodeAt(3) < 130) ? data.input : "",
       output: data.output
     };
     conn.query("INSERT INTO " + TABLE_ID + " SET ?", post, function(err, result) {

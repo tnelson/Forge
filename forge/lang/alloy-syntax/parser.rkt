@@ -5,8 +5,8 @@
 AlloyModule : ModuleDecl? Import* Paragraph*
             | EvalDecl*
 ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
-Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
-       | OPEN-TOK FILE-PATH-TOK (AS-TOK Name)?
+Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
+       | /OPEN-TOK FILE-PATH-TOK (AS-TOK Name)?
 @Paragraph : SigDecl 
           | FactDecl 
           | PredDecl 
@@ -56,7 +56,6 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
 # BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
-        | STAR-TOK
 CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK

@@ -18,7 +18,6 @@ test expect {
   triggeredTest: {(some A since some B) implies (some A triggered some B)} is theorem  
 }
 
-expect {
-  -- "before true" is sat, even though before F is false canonically regardless of F
+test expect {
   before0: {before true} is unsat
 }

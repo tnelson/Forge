@@ -35,7 +35,7 @@
 (provide instance-diff)
 
 ; Instance analysis functions
-(provide is-sat? is-unsat?)
+(provide is-unsat? is-sat?)
 
 ; export AST macros and struct definitions (for matching)
 ; Make sure that nothing is double-provided
@@ -76,6 +76,8 @@
 
 (provide (struct-out Sat)
          (struct-out Unsat))
+
+(provide (for-syntax add-to-execs))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
