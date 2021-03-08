@@ -5,8 +5,8 @@
 AlloyModule : ModuleDecl? Import* Paragraph*
             | EvalDecl*
 ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
-Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
-       | OPEN-TOK FILE-PATH-TOK (AS-TOK Name)?
+Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
+       | /OPEN-TOK FILE-PATH-TOK (AS-TOK Name)?
 @Paragraph : SigDecl 
           | FactDecl 
           | PredDecl 
