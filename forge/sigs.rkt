@@ -25,6 +25,7 @@
          ;"last-checker.rkt"
          "sigs-structs.rkt"
          "evaluator.rkt"
+         (prefix-in tree: "lazy-tree.rkt")
          "send-to-kodkod.rkt")
 (require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
          (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
@@ -61,6 +62,9 @@
          (prefix-out forge: (struct-out Run-spec))
          (prefix-out forge: (struct-out Run))         
          (prefix-out forge: (struct-out sbound)))
+
+; Let forge/core work with the model tree without having to require helpers
+(provide (prefix-out tree: (all-from-out "lazy-tree.rkt")))
 
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 ; Export these from structs without forge: prefix
@@ -464,7 +468,7 @@
        #'(cond 
           [(member 'expected '(sat unsat))
            (run name args ...)
-           (define first-instance (stream-first (Run-result name)))
+           (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
              (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
                             'name 'expected (if (Sat? first-instance) 'sat 'unsat)
@@ -477,7 +481,7 @@
 
           [(equal? 'expected 'theorem)
            (check name args ...)
-           (define first-instance (stream-first (Run-result name)))
+           (define first-instance (tree:get-value (Run-result name)))
            (when (Sat? first-instance)
              (raise (format "Theorem ~a failed. Found instance:~n~a"
                             'name first-instance)))
@@ -539,10 +543,10 @@
 
 ; make-model-generator :: Stream<model> -> (-> model)
 ; Creates a thunk which generates a new model on each call.
-(define (make-model-generator model-stream)
+(define (make-model-generator model-lazy-tree [mode 'next])
   (thunk
-    (define ret (stream-first model-stream))
-    (set! model-stream (stream-rest model-stream))
+    (define ret (tree:get-value model-lazy-tree))
+    (set! model-lazy-tree (tree:get-child model-lazy-tree mode))
     ret))
 
 ; ; make-model-evaluator :: Run -> (String -> ???)
@@ -571,8 +575,7 @@
       (if arg2 (@display arg1 arg2) (@display arg1))
       (let ()
         (define run arg1)
-        (define model-stream (Run-result run))
-        (define get-next-model (make-model-generator model-stream))
+        (define model-lazy-tree (Run-result run))        
         (define (evaluate-str str-command)
           (define pipe1 (open-input-string str-command))
           (define pipe2 (open-input-string (format "eval ~a" str-command)))
@@ -637,10 +640,10 @@
                          [result run-result]
                          [server-ports server-ports]
                          [kodkod-currents kodkod-currents]))
-          (make-model-generator (get-result contrast-run)))
+          (get-result contrast-run))
 
         (display-model run
-                       get-next-model 
+                       model-lazy-tree 
                        (get-relation-map run)
                        evaluate-str
                        (Run-name run) 

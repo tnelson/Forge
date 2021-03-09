@@ -4,6 +4,7 @@
 (require (except-in forge/sigs 
                     run check test example)
          (prefix-in unlogged: forge/sigs)
+         (prefix-in tree: "../lazy-tree.rkt")                    
          (for-syntax (only-in forge/sigs add-to-execs)))
 (require syntax/parse/define)
 
@@ -52,7 +53,7 @@
       #`(cond 
           [(member 'expected '(sat unsat))
            #,(syntax/loc stx (unlogged:run name args ...))
-           (define first-instance (stream-first (forge:Run-result name)))
+           (define first-instance (tree:get-value (forge:Run-result name)))
            (define passed (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected))
            (logging:log-test name 'expected passed '(test name args ... #:expected expected)
                              (if (Sat? first-instance)
@@ -70,7 +71,7 @@
 
           [(equal? 'expected 'theorem)
            #,(syntax/loc stx (unlogged:check name args ...))
-           (define first-instance (stream-first (forge:Run-result name)))
+           (define first-instance (tree:get-value (forge:Run-result name)))
            (logging:log-test name 'theorem (Unsat? first-instance) '(test name args ... #:expected expected)
                                   (if (Sat? first-instance)
                                       (get-sat-data first-instance)
@@ -91,7 +92,7 @@
           #,(syntax/loc stx
             (unlogged:run name #:preds [ex-pred]
                              #:bounds [ex-bounds ...]))
-          (define first-instance (stream-first (forge:Run-result name)))
+          (define first-instance (tree:get-value (forge:Run-result name)))
           (logging:log-test name 'example (Sat? first-instance) '(example name ex-pred ex-bounds ...)
                                  (hash 'pred (format "~a" 'ex-pred)
                                        'bounds (for/list ([bound '(ex-bounds ...)]) (format "~a" bound))))

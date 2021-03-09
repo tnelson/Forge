@@ -5,7 +5,8 @@
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel
          racket/hash)
-(require "eval-model.rkt")
+(require "eval-model.rkt"
+         (prefix-in tree: "../lazy-tree.rkt"))
 
 (require "../pardinus-cli/server/kks.rkt")
 
@@ -45,25 +46,24 @@
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
-(define (display-model the-run get-next-unclean-model relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
+(define (display-model the-run orig-lazy-tree relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
-  (define model #f)
-  (define stream-index -1)
+  (define current-tree orig-lazy-tree)  
+  (define stream-index 0)
   (define (get-current-model)
-    model)
-  (define (get-next-model [next-mode 'P])
-    ;(set! model (get-next-unclean-model next-mode))
-    (set! model (get-next-unclean-model)) ; stream based for the moment
+    (tree:get-value current-tree))
+  (define (get-next-model [next-mode 'P])    
+    (set! current-tree (tree:get-child current-tree next-mode))
     (set! stream-index (+ stream-index 1))
-    model)
-  (get-next-model)
+    (get-current-model))
 
   ; For compare/contrast models.
   ; Map of generators
   (define contrast-model-generators #f)
   (define contrast-models #f)
 
-  (define (make-contrast-model-generators)
+  ; TODO: TN, re-enable these
+  #;(define (make-contrast-model-generators)
     (define make-generator (curry get-contrast-model-generator model))
     (set! contrast-model-generators
       (hash 'compare-min (make-generator 'compare 'close)
@@ -126,8 +126,8 @@
      ; the connection closes. The server generates a new handler thread for this function
      ; every time a connection is initiated.
      (λ (connection _)
-       (when (equal? (get-option the-run 'problem_type) 'temporal)
-                     (printf "~a~n" temporal-setup)
+       ; Enable custom temporal exploration buttons for temporal mode
+       (when (equal? (get-option the-run 'problem_type) 'temporal)                     
                      (ws-send! connection temporal-setup))                    
 
        (let loop ()
@@ -144,15 +144,13 @@
                  [(equal? m "current")
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: current~n"))
-                  (ws-send! connection (get-xml model))]
+                  (ws-send! connection (get-xml (get-current-model)))]
 
                  [(equal? m "next-C") 
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: next-C~n"))
-                  (get-next-model 'C)
-                  ; TN disabled for now 01/25/2021
-                  ;(make-contrast-model-generators)
-                  (ws-send! connection (get-xml model))]
+                  (get-next-model 'C)                  
+                  (ws-send! connection (get-xml (get-current-model)))]
 
                  [(equal? m "next")
                   (when (> (get-verbosity) VERBOSITY_LOW)
@@ -160,7 +158,7 @@
                   (get-next-model)
                   ; TN disabled for now 01/25/2021
                   ;(make-contrast-model-generators)
-                  (ws-send! connection (get-xml model))]
+                  (ws-send! connection (get-xml (get-current-model)))]
 
                  ; Sterling is notifying Forge of some event, so that Forge can log or take action
                  ;“NOTIFY:${view}:${LN}“, so you’ll have four possible messages:
