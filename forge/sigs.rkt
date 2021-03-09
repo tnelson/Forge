@@ -33,7 +33,7 @@
 ; Commands
 (provide sig relation fun const pred inst with)
 (provide run check test example display execute)
-(provide instance-diff evaluate)
+(provide instance-diff solution-diff evaluate)
 
 ; Instance analysis functions
 (provide is-unsat? is-sat?)
@@ -844,3 +844,6 @@
      #'(values (set-bitwidth #,scope n) #,bound)]
 
     [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") binding)]))
+
+(define (solution-diff s1 s2)
+  (map instance-diff (Sat-instances s1) (Sat-instances s2)))
