@@ -33,7 +33,7 @@
 ; Commands
 (provide sig relation fun const pred inst with)
 (provide run check test example display execute)
-(provide instance-diff)
+(provide instance-diff evaluate)
 
 ; Instance analysis functions
 (provide is-unsat? is-sat?)
@@ -64,7 +64,8 @@
          (prefix-out forge: (struct-out sbound)))
 
 ; Let forge/core work with the model tree without having to require helpers
-(provide (prefix-out tree: (all-from-out "lazy-tree.rkt")))
+; Don't prefix with tree:, that's already been done when importing
+(provide (all-from-out "lazy-tree.rkt"))
 
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 ; Export these from structs without forge: prefix

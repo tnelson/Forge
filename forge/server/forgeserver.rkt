@@ -48,13 +48,11 @@
 ; get-next-model returns the next model each time it is called, or #f.
 (define (display-model the-run orig-lazy-tree relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
-  (define current-tree orig-lazy-tree)  
-  (define stream-index 0)
+  (define current-tree orig-lazy-tree)    
   (define (get-current-model)
     (tree:get-value current-tree))
   (define (get-next-model [next-mode 'P])    
-    (set! current-tree (tree:get-child current-tree next-mode))
-    (set! stream-index (+ stream-index 1))
+    (set! current-tree (tree:get-child current-tree next-mode))    
     (get-current-model))
 
   ; For compare/contrast models.
@@ -97,7 +95,7 @@
     ; only for the first element of a trace TODO
     (when (> (get-verbosity) VERBOSITY_LOW)
       (printf "generating locally-necessary tuples...model field unused...~n"))
-    (match-define (cons yes no) (get-locally-necessary-list the-run stream-index))
+    (match-define (cons yes no) (get-locally-necessary-list the-run (get-current-model)))
     ; To ease building annotation hash, just discover which relations are present in advance
     ;(printf "LNtuples+: ~a~n LNtuples-: ~a~n" yes no)
     (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])

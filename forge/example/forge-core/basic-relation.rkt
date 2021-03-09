@@ -12,6 +12,6 @@
 (run my-run
      #:preds [P] 
      #:backend pardinus)
-(define f (stream-first (forge:get-result my-run)))
+(define f (tree:get-value (forge:get-result my-run)))
 
 (printf "RESULT:~n~a~n" f)
