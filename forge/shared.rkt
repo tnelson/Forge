@@ -37,7 +37,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Returns the difference of two instances (> and < separately)
-(define (instance-diff i1 i2)
+(define (instance-diff i1 i2)  
   (if (equal? (hash-keys i1) (hash-keys i2))
       (list
        'same-signature

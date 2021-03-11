@@ -72,8 +72,9 @@
 (define (assert val)      (print-cmd "(assert ~a)" val))
 (define (evaluate val)    (print-cmd "(evaluate ~a)" val))
 
-(define (solve)
-  (print-cmd "(solve)")
+; The solve-type parameter communicates an exploration mode for the next iteration to Pardinus
+(define (solve [solve-type ""])
+  (print-cmd (format "(solve ~a)" solve-type))
   (print-eof))
 (define (clear)
   (print-cmd "(clear)")

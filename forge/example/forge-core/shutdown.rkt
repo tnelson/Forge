@@ -5,8 +5,8 @@
 
 (define res (forge:get-result my-run))
 
-(stream-first res)
+(tree:get-value res)
 
 (forge:close-run my-run)
 
-(stream-first (stream-rest res))
+(tree:get-value (tree:get-child res 'next))

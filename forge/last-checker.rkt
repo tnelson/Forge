@@ -33,7 +33,7 @@
         (let ([var (car decl)]
               [domain (cdr decl)])
           ; CHECK: shadowed variables
-          (when (assoc var quantvars)
+          #;(when (assoc var quantvars)
             (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
                                 (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
           ; CHECK: recur into domain(s)
@@ -176,12 +176,12 @@
      (checkExpressionOp run-or-state expr quantvars args)]
  
     ; quantifier variable
-    [(node/expr/quantifier-var info arity sym)
+    [(node/expr/quantifier-var info arity sym name)
      ; Look up in quantvars association list, type is type of domain
      (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
          (checkExpression run-or-state (second (assoc expr quantvars)) quantvars)
          (raise-syntax-error #f (format "Variable ~a used but was unbound in overall formula being checked. Bound variables: ~a" sym (map car quantvars) )
-                             (datum->syntax #f sym (build-source-location-syntax (nodeinfo-loc info)))))]
+                             (datum->syntax #f name (build-source-location-syntax (nodeinfo-loc info)))))]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info arity decls subform)

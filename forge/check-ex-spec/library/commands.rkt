@@ -2,7 +2,8 @@
 
 (require syntax/parse/define)
 
-(require (except-in forge/sigs test example))
+(require (except-in forge/sigs test example)
+         (prefix-in tree: "../../lazy-tree.rkt"))
 (provide (all-from-out forge/sigs)
          test example
          (struct-out test-report))
@@ -13,14 +14,14 @@
   (cond 
     [(member 'expected '(sat unsat))
      (run name args ...)
-     (define first-instance (stream-first (forge:Run-result name)))
+     (define first-instance (tree:get-value (forge:Run-result name)))
      (define ret (test-report 'name (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)))
      (forge:close-run name)
      ret]
 
     [(equal? 'expected 'theorem)
      (check name args ...)
-     (define first-instance (stream-first (forge:Run-result name)))
+     (define first-instance (tree:get-value (forge:Run-result name)))
      (define ret (test-report 'name (Unsat? first-instance)))
      (forge:close-run name)
      ret]

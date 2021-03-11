@@ -13,7 +13,7 @@
 
 (define result (forge:get-result my-run))
 (display my-run)
-(define t (stream-ref result 5))
+(define t (tree:get-value (tree:get-child result 'next)))
 
 (run my-run2
      #:preds [(= (join AA r) B)]

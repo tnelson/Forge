@@ -5,6 +5,7 @@
 (require "lang/ast.rkt")
 (require "lang/bounds.rkt")
 (require "shared.rkt"
+         (prefix-in tree: "lazy-tree.rkt")
          "last-checker.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
@@ -282,10 +283,10 @@
               vars prim clauses tt ts tcstr)))
   
   ; Print solve
-  (define (get-next-model)
+  (define (get-next-model [mode ""])
     (unless (is-running?)
       (raise "KodKod server is not running."))
-    (pardinus-print (pardinus:solve))
+    (pardinus-print (pardinus:solve mode))
     (define result (translate-from-kodkod-cli
                     'run 
                     (pardinus:read-solution stdout) 
@@ -325,14 +326,19 @@
       (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
     result)
 
-  (define (model-stream [prev #f])
-    (if (and prev
-             (Unsat? prev))
-        (letrec ([rest (stream-cons (prev) rest)])
-          rest)
-        (stream-cons (get-next-model) (model-stream))))
+  ;(define (model-stream [prev #f])
+  ;  (if (and prev
+  ;           (Unsat? prev))
+  ;      (letrec ([rest (stream-cons (prev) rest)])
+  ;        rest)
+  ;      (stream-cons (get-next-model) (model-stream))))
 
-  (values (model-stream) 
+  (define (next-button type)
+    (tree:make-node (get-next-model type) next-button))
+  (define results
+    (tree:make-node (get-next-model 'start) next-button))
+
+  (values results 
           all-atoms 
           (Server-ports stdin stdout shutdown is-running?) 
           (Kodkod-current (length run-constraints) 0 0) 

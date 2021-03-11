@@ -8,6 +8,7 @@
 (require request)
 (require net/url-string)
 (require sha)
+(require (prefix-in tree: "../lazy-tree.rkt"))
 
 (provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec log-notification)
 
@@ -206,8 +207,8 @@
       (let ()
         (define run-id (next-run-id))
 
-        (define logged-result (stream-map/once (curry log-instance run-id run )
-                                               (Run-result run)))
+        (define logged-result (tree:lazy-tree-map (curry log-instance run-id run )
+                                                  (Run-result run)))
 
         (define sigs (map (compose symbol->string Sig-name)
                           (get-sigs run)))

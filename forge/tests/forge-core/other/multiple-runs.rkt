@@ -10,8 +10,9 @@
 (run unsat-run
      #:preds [(some A) (some B) (= A B)])
 
-(define sat-gen (forge:make-model-generator (forge:get-result sat-run)))
-(define unsat-gen (forge:make-model-generator (forge:get-result unsat-run)))
+; Model-generator produces a stream
+(define sat-gen (forge:make-model-generator (forge:get-result sat-run) 'next))
+(define unsat-gen (forge:make-model-generator (forge:get-result unsat-run) 'next))
 
 (unsat-gen)
 (sat-gen)

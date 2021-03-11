@@ -5,6 +5,7 @@
          "breaks.rkt")
 (require (prefix-in @ racket) 
          (prefix-in @ racket/set))
+(require (prefix-in tree: "lazy-tree.rkt"))
 
 (provide (all-defined-out))
 
@@ -412,13 +413,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; is-sat? :: Run -> boolean
 ; Checks if a given run result is 'sat
 (define (is-sat? run)
-  (define first-instance (stream-first (Run-result run)))
+  (define first-instance (tree:get-value (Run-result run)))
   (Sat? first-instance))
 
 ; is-unsat? :: Run -> boolean
 ; Checks if a given run result is 'unsat
 (define (is-unsat? run)
-  (define first-instance (stream-first (Run-result run)))
+  (define first-instance (tree:get-value (Run-result run)))
   (Unsat? first-instance))
 
 
