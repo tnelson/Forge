@@ -182,7 +182,7 @@
  
     ; quantified variable (depends on scope!)
     ; (another base case)
-    [(node/expr/quantifier-var info arity sym)
+    [(node/expr/quantifier-var info arity sym name)
      (cond  [(equal? expr target) value]
             [(not (equal? expr target)) expr])]
 

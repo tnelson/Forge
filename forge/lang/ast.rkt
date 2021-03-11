@@ -277,14 +277,14 @@
 
 ;; -- quantifier vars ----------------------------------------------------------
 
-(struct node/expr/quantifier-var node/expr (sym) #:transparent
+(struct node/expr/quantifier-var node/expr (sym name) #:transparent
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/quantifier-var))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/quantifier-var 0))
    (define hash2-proc (make-robust-node-hash-syntax node/expr/quantifier-var 3))]
   #:methods gen:custom-write
   [(define (write-proc self port mode)     
-     (fprintf port "~a" (node/expr/quantifier-var-sym self)))])
+     (fprintf port "~a" (node/expr/quantifier-var-name self)))])
 
 ;; -- comprehensions -----------------------------------------------------------
 
@@ -313,7 +313,7 @@
   (syntax-case stx ()
     [(_ ([r0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'r0)] ... )
+       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
          (comprehension (nodeinfo #,(build-source-location stx)) (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
@@ -654,14 +654,14 @@
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax???? 
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-all" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'all (list (cons v0 e0) ...) pred)))]))
 
 (define-syntax (some stx)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)     
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-some" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'some (list (cons v0 e0) ...) pred)))]
     [(_ expr)
      (quasisyntax/loc stx
@@ -671,7 +671,7 @@
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-no" 'v0)) 'v0)] ...)
          (! (quantified-formula (nodeinfo #,(build-source-location stx)) 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
      (quasisyntax/loc stx
@@ -702,7 +702,7 @@
   (syntax-case stx ()
     [(_ ([x1 r1] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity r1) 'x1)] ...)
+       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity r1) (gensym (format "~a-sum" 'x1)) 'x1)] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx)) (list (cons x1 r1) ...) int-expr)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

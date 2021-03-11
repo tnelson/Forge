@@ -178,7 +178,7 @@
         (print-cmd-cont (format "~a " type))])]
     [(node/expr/op info arity args)
      (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
-    [(node/expr/quantifier-var info arity sym)     
+    [(node/expr/quantifier-var info arity sym name)     
      (print-cmd-cont (symbol->string (v sym #;(get-var-idx expr quantvars))))
      (print-cmd-cont " ")]
     [(node/expr/comprehension info len decls form)     
