@@ -14,7 +14,8 @@
                "profile-lib"          ; ???
                "crypto-lib"           ; ???
                "rackunit-lib"         ; used for Forge tests               
-               "web-server-lib"       ; used for Sterling server                                             
+               "web-server-lib"       ; used for Sterling server
+               "draw-lib"             ; ???                                             
                "mischief"             ; for amalgam (stream cartesian product)
                "gui-lib"              ; for syntax highlighting in tool
                "drracket-plugin-lib"  ; for tool
