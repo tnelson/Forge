@@ -51,4 +51,5 @@
                               "example/new-mode"
                               "example/store/"
                               "examples"
+                              "amalgam"
                               "OLD"))
