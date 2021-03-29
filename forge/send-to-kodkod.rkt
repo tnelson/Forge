@@ -372,6 +372,7 @@
   (define (get-bound-upper sig)
     (define pbinding (hash-ref pbindings (Sig-rel sig) #f))
     (@and pbinding
+          (sbound-upper pbinding)
           (map car (set->list (sbound-upper pbinding)))))
 
   (define scopes (Run-spec-scope run-spec))
@@ -401,7 +402,7 @@
     (apply append (for/list ([sig (get-sigs run-spec)]
                              #:when (hash-has-key? pbindings (Sig-rel sig)))
       (define bound (hash-ref pbindings (Sig-rel sig)))
-      (map car (set->list (set-union (sbound-lower bound) (sbound-upper bound)))))))
+      (map car (set->list (@or (sbound-upper bound) (sbound-lower bound)))))))
   (define (get-next-name sig)
     (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) -1)))    
     (let loop ([atom-number atom-number])
