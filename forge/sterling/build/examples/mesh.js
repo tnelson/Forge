@@ -1,10 +1,4 @@
 /**
- * This script uses an SVG stage to render
- * an instance of the finite element mesh
- * model as a planar embedding. Ensure that
- * <svg> is selected at the top of this
- * editor before running the script.
- * 
  * Click the execute button at the top of
  * this editor to run the script, or
  * press Ctrl + Enter.
@@ -181,10 +175,7 @@ function layoutMesh (mesh) {
 function renderMesh (mesh) {
   
   const stage = d3.select(svg);
-  
-  const line = d3.line()
-    .x(d => d.x)
-    .y(d => d.y);
+  stage.selectAll('*').remove();
   
   stage.call(d3.drag()
             .container(svg)
@@ -244,8 +235,7 @@ function renderMesh (mesh) {
       .attr('x', element => centroidX(Object.values(element.nodes)) || 0)
       .attr('y', element => centroidY(Object.values(element.nodes)) || 0)
   }
-  
-  stage.selectAll('g').remove();
+
   const links = stage.append('g').attr('id', 'links');
   const nodes = stage.append('g').attr('id', 'nodes');
   
