@@ -166,6 +166,7 @@
      ;(printf "defining: ~a~n" stx)
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
+                   [macroname/info-help (format-id #'id "~a/info-help" #'id)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
                    [child-accessor (format-id #'id "~a-children" #'parent)]
                    [display-id (if (equal? '|| (syntax->datum #'id)) "||" #'id)]
@@ -183,7 +184,7 @@
                 ; all of the /op nodes have their children in a field named "children"
                 (fprintf port "~a" (cons 'display-id (child-accessor self))))])
            ; Keep this commented-out line for use in emergencies to debug bad source locations:
-           ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self)))))])
+           ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self))))
            
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)
@@ -192,7 +193,27 @@
                [(_ e ellip)                
                 (quasisyntax/loc stx2
                   (macroname/info (nodeinfo #,(build-source-location stx2)) e ellip))]))
-           
+
+           (define (macroname/info-help info args-raw)
+             (let* ([args (cond
+                            [(or (not (equal? 1 (length args-raw)))
+                                 (not (list? (first args-raw)))) args-raw]
+                            [else (first args-raw)])])
+               (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
+                   (apply @op args)
+                   (begin
+                     (check-args info 'id args childtype checks ...)
+                     (if arity
+                         ; expression
+                         (if (andmap node/expr? args)
+                             ; expression with expression children (common case)
+                             (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
+                               (name info (apply arity arities) args))
+                             ; expression with non-expression children or const arity (e.g., sing)
+                             (name info (arity) args))
+                         ; intexpression or formula
+                         (name info args))))))
+
            ; a macro constructor that also takes a syntax object to use for location
            ;  (good for, e.g., creating a big && in sigs.rkt for predicates)
            (define-syntax (macroname/info stx2)                     
@@ -208,25 +229,7 @@
                     ;(printf "debug2, in ~a: ~a~n" id (list e ellip))
                     
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
-                    (let* ([args-raw (list e ellip)]
-                           [args (cond
-                                   [(or (not (equal? 1 (length args-raw)))
-                                        (not (list? (first args-raw)))) args-raw]
-                                   [else (first args-raw)])])
-                      (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
-                          (apply @op args)
-                          (begin
-                            (check-args info 'id args childtype checks ...)
-                            (if arity
-                                ; expression
-                                (if (andmap node/expr? args)
-                                    ; expression with expression children (common case)
-                                    (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                                      (name info (apply arity arities) args))
-                                    ; expression with non-expression children or const arity (e.g., sing)
-                                    (name info (arity) args))
-                                ; intexpression or formula
-                                (name info args)))))))])))))] 
+                    (macroname/info-help info (list e ellip))))])))))]
     [(_ id parent arity checks ... #:lift @op)
      (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
      (syntax/loc stx
