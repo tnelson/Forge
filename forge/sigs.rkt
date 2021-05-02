@@ -80,13 +80,6 @@
 ;;;;;; State Updaters  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; sig-add-extender :: Sig, Symbol -> Sig
-; Adds a new extender to the given Sig.
-(define (sig-add-extender sig extender)
-  (define new-extenders (append (Sig-extenders sig) (list extender)))
-  (struct-copy Sig sig
-               [extenders new-extenders]))
-
 ; state-add-runmap :: State, symbol, Run -> State
 (define (state-add-runmap state name r)
   (struct-copy State state
@@ -98,16 +91,11 @@
 (define (state-add-sig state name rel one abstract extends)
   (when (member name (State-sig-order state))
     (error (format "tried to add sig ~a, but it already existed" name)))
-  (define new-sig (Sig name rel one abstract extends empty))
+  (define new-sig (Sig name rel one abstract extends))
   (when (@and extends (@not (member extends (State-sig-order state))))
     (raise "Can't extend nonexistent sig."))
 
-  (define sigs-with-new-sig (hash-set (State-sigs state) name new-sig))
-  (define new-state-sigs
-    (if extends
-        (hash-set sigs-with-new-sig extends 
-                                    (sig-add-extender (hash-ref (State-sigs state) extends) name))
-        sigs-with-new-sig))
+  (define new-state-sigs (hash-set (State-sigs state) name new-sig))
   (define new-state-sig-order (append (State-sig-order state) (list name)))
 
   (struct-copy State state

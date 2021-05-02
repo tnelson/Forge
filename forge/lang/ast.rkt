@@ -3,7 +3,7 @@
 (require (for-syntax racket/syntax syntax/srcloc)
          syntax/srcloc (prefix-in @ racket) (prefix-in $ racket))
 
-(provide (except-out (all-defined-out) next-name @@and @@or @@not int< int>)
+(provide (except-out (all-defined-out) next-name @@and @@or @@not int< int> cast-to-expr)
          (rename-out [@@and and] [@@or or] [@@not not] [int< <] [int> >]))
 
 ; Forge's AST is based on Ocelot's AST, with modifications.
@@ -95,7 +95,6 @@
       (raise-syntax-error #f (format "first argument must have arity 1 at loc: ~a" loc)
                              (datum->syntax #f args (build-source-location-syntax loc))))))
 
-
 ;; EXPRESSIONS -----------------------------------------------------------------
 
 ; Previously, this would be: 
@@ -114,6 +113,8 @@
 ; Should never be directly instantiated
 (struct node/expr node (arity) #:transparent
   #:property prop:procedure (λ (r . sigs) (build-box-join r sigs)))
+
+(define extended-node/expr? (dynamic-require 'forge/sigs-structs 'extended-node/expr?))
 
 ;; -- operators ----------------------------------------------------------------
 
@@ -207,10 +208,11 @@
                     
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
                     (let* ([args-raw (list e ellip)]
-                           [args (cond
-                                   [(or (not (equal? 1 (length args-raw)))
-                                        (not (list? (first args-raw)))) args-raw]
-                                   [else (first args-raw)])])
+                           [args-spliced (cond
+                                           [(or (not (equal? 1 (length args-raw)))
+                                                (not (list? (first args-raw)))) args-raw]
+                                           [else (first args-raw)])]
+                           [args (map cast-to-expr args-spliced)])
                       (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
                           (apply @op args)
                           (begin
@@ -367,6 +369,9 @@
 (define (relation-parent rel)
   (node/expr/relation-parent rel))
 
+; (define cast-to-expr (dynamic-require 'forge/sigs-structs 'cast-to-expr))
+(define (cast-to-expr val [on-fail #f]) val)
+
 ;; -- relations ----------------------------------------------------------------
 
 (struct node/expr/atom node/expr (name) #:transparent #:mutable
@@ -407,6 +412,8 @@
    (define hash2-proc (make-robust-node-hash-syntax node/expr/constant 3))])
 
 ; Macros in order to capture source location
+; (define Sig (dynamic-require 'forge/sigs-structs 'Sig))
+
 ; constants
 (define-syntax none (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 1 'none))])))
@@ -415,8 +422,11 @@
 (define-syntax iden (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 2 'iden))])))
 ; relations, not constants
-(define-syntax Int (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f))])))
+; (define-syntax Int (lambda (stx) (syntax-case stx ()    
+;     [val (identifier? (syntax val)) (quasisyntax/loc stx 
+;       (Sig 'Int 
+;             (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f)
+;             #f #f #f))])))
 (define-syntax succ (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
 
@@ -609,12 +619,14 @@
    (define hash-proc  (make-robust-node-hash-syntax node/formula/quantified 0))
    (define hash2-proc (make-robust-node-hash-syntax node/formula/quantified 3))])
 
-(define (quantified-formula info quantifier decls formula)  
-  (for ([e (in-list (map cdr decls))])
-    (unless (node/expr? e)
-      (raise-argument-error quantifier "expr?" e))
-    #'(unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error quantifier "decl of arity 1" e)))
+(define (quantified-formula info quantifier raw-decls formula)
+  (define decls  
+    (for/list ([decl (in-list decls)])
+      (match-define (cons var raw-val) decl)
+      (define casted-val (cast-to-expr raw-val (thunk* (raise-argument-error quantifier "expr?" raw-val))))
+      ; ;(unless (equal? (node/expr-arity e) 1) ; Don't know what this is for
+      ;   (raise-argument-error quantifier "decl of arity 1" raw-val))
+      (cons var casted-val)))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified info quantifier decls formula))
@@ -634,9 +646,8 @@
    (define hash-proc  (make-robust-node-hash-syntax node/formula/multiplicity 0))
    (define hash2-proc (make-robust-node-hash-syntax node/formula/multiplicity 3))])
 
-(define (multiplicity-formula info mult expr)
-  (unless (node/expr? expr)
-    (raise-argument-error mult "expr?" expr))
+(define (multiplicity-formula info mult raw-expr)
+  (define expr (cast-to-expr (thunk* (raise-argument-error mult "expr?" raw-expr))))
   (node/formula/multiplicity info mult expr))
 
 (define-syntax (all stx)
@@ -743,3 +754,18 @@
                  [multiplier (drop multipliers offset)])
         (* multiplier (hash-proc (access a)))))
     (apply @+ multiplied)))
+
+
+;; BREAKERS --------------------------------------------------------------------
+
+(struct node/breaking node () #:transparent)
+(struct node/breaking/op node (children) #:transparent)
+(define-node-op is node/breaking/op #f #:max-length 2 #:type (lambda (n) (@or (node/expr? n) (node/breaking/break? n))))
+(struct node/breaking/break node/breaking (break) #:transparent)
+(define-syntax (make-breaker stx)
+  (syntax-case stx ()
+    [(make-breaker id sym) 
+      #'(define-syntax id (lambda (stx) (syntax-case stx ()    
+          [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx)) sym))])))]))
+(make-breaker linear 'linear)
+; TODO: Add rest of breakers

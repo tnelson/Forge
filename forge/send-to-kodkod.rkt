@@ -563,7 +563,7 @@
     (define (parent sig1 sig2)
       (in sig2 sig1))
     (define extends-constraints 
-      (if (and (Sig-abstract sig) (cons? (Sig-extenders sig)))
+      (if (and (Sig-abstract sig) (cons? (get-children run-spec sig)))
           (list (abstract (Sig-rel sig) children-rels))
           (map (curry parent (Sig-rel sig)) children-rels)))
 
