@@ -461,13 +461,19 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) a b)
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
 
-; for ifte, use struct type to decide whether this is a formula (sugar) or expression form (which has its own AST node)
-(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx
-                                                           (if (node/formula? b)
-                                                               (&&/info (nodeinfo #,(build-source-location stx))
-                                                                        (=>/info (nodeinfo #,(build-source-location stx)) a b)
-                                                                        (=>/info (nodeinfo #,(build-source-location stx)) (! a) c))
-                                                               (ite/info (nodeinfo #,(build-source-location stx)) a b c)))]))
+; for ifte, use struct type to decide whether this is a formula (sugar)
+; or expression form (which has its own AST node). Avoid exponential
+; blowup from chained IFTEs by expanding to a chain of function calls.
+(define (ifte-disambiguator info a b c)
+  (if (node/formula? b)
+      (&&/info info
+               (=>/info info a b)
+               (=>/info info (! a) c))
+      (ite/info info a b c)))
+(define-syntax (ifte stx)
+  (syntax-case stx ()
+    [(_ a b c) (quasisyntax/loc stx
+                 (ifte-disambiguator (nodeinfo #,(build-source-location stx)) a b c))]))
 
 (define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx)) b a))]))
 (define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
