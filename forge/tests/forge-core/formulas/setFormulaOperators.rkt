@@ -20,7 +20,7 @@
     ; anti-symmetric
     (all ([n1 Node] 
           [n2 Node])
-        (implies (and (in (join n1 edges) (join n2 edges)) 
+        (implies (&&  (in (join n1 edges) (join n2 edges)) 
                       (in (join n2 edges) (join n1 edges))) 
                  (= (join n1 edges) (join n2 edges))))
 
@@ -28,7 +28,7 @@
     (all ([n1 Node]
           [n2 Node]
           [n3 Node])
-        (implies (and (in (join n1 edges) (join n2 edges)) 
+        (implies (&&  (in (join n1 edges) (join n2 edges)) 
                       (in (join n2 edges) (join n3 edges)))
                  (in (join n1 edges) (join n3 edges))))
 
@@ -56,7 +56,7 @@
     (all ([n1 Node]
           [n2 Node]
           [n3 Node])
-        (=> (and (= (join n1 edges) (join n2 edges)) 
+        (=> (&&  (= (join n1 edges) (join n2 edges)) 
                  (= (join n2 edges) (join n3 edges)))
             (= (join n1 edges) (join n3 edges)))))
 
@@ -64,17 +64,17 @@
     (all ([n1 Node]
           [n2 Node])
         (implies (!= (join n1 edges) (join n2 edges))
-                 (not (= (join n1 edges) (join n2 edges)))))
+                 (! (= (join n1 edges) (join n2 edges)))))
 
     (all ([n1 Node]
           [n2 Node])
         (implies (!in (join n1 edges) (join n2 edges))
-                 (not (in (join n1 edges) (join n2 edges)))))
+                 (! (in (join n1 edges) (join n2 edges)))))
 
     (all ([n1 Node]
           [n2 Node])
         (implies (!ni (join n1 edges) (join n2 edges))
-                 (not (ni (join n1 edges) (join n2 edges))))))
+                 (! (ni (join n1 edges) (join n2 edges))))))
 
 (test InOps 
       #:preds [In] 

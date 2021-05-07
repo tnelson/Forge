@@ -16,7 +16,7 @@ sig Color {
 
 pred validColorNext {
     //a color cannot be succeeded by itself
-    no (iden && next)
+    no (iden & next)
     //Color succession is a ring
     all c : Color | (Color in c.^next) and (one c.next)
 }

@@ -446,7 +446,7 @@
         (~? (unless (member 'target-distance '(close far))
               (raise (format "Target distance expected one of (close, far); got ~a." 'target-distance))))
         (when (~? (or #t 'target-contrast) #f)
-          (set! run-preds (~? (list (! (and preds ...))) (~? (list (! pred)) (list false)))))
+          (set! run-preds (~? (list (! (&& preds ...))) (~? (list (! pred)) (list false)))))
 
         (define run-command #'#,command)        
         
@@ -509,7 +509,7 @@
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
      (syntax/loc stx
-       (run name (~? (~@ #:preds [(! (and pred ...))]))
+       (run name (~? (~@ #:preds [(! (&& pred ...))]))
                  (~? (~@ #:scope ([sig lower upper] ...)))
                  (~? (~@ #:bounds (bound ...)))))]))
 
@@ -614,7 +614,7 @@
           (define new-preds
             (if (equal? compare 'compare)
                 (Run-spec-preds (Run-run-spec run))
-                (list (! (foldr (lambda (a b) (and a b))
+                (list (! (foldr (lambda (a b) (&& a b))
                                   true
                                   (Run-spec-preds (Run-run-spec run)))))))
           

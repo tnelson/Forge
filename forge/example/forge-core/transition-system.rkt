@@ -24,7 +24,7 @@
 ; USER INPUT HERE
 ; Transitions must change contents 
 (pred (legal-transition pre post)
-  (not (= (join pre contains) (join post contains))))
+  (! (= (join pre contains) (join post contains))))
 
 
 ; Enforce above predicates

@@ -32,7 +32,7 @@
                (get-graph c2))))))
 
 (run equivalent-disjoint 
-     #:preds [(not (<=> disjoint-colors disjoint-colors2))])
+     #:preds [(! (<=> disjoint-colors disjoint-colors2))])
 (unless (is-unsat? equivalent-disjoint)
   (displayln "The two disjoints were not equivalent!")
   (display equivalent-disjoint))
@@ -59,7 +59,7 @@
       (spanning graph)
       (no (& iden (^ graph)))
       (all ([n1 Node] [n2 (join n1 graph)])
-        (not (spanning (- graph (-> n1 n2))))))))
+        (! (spanning (- graph (-> n1 n2))))))))
 
 (pred distinct-spanning-trees
   disjoint-colors
