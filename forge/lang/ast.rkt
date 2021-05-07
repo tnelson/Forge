@@ -616,7 +616,7 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/formula/quantified info quantifier decls formula) self)
-     (fprintf port "(~a [~a] ~a)" quantifier decls formula))]
+     (fprintf port "(~a ~a ~a)" quantifier decls formula))]
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/formula/quantified))
    (define hash-proc  (make-robust-node-hash-syntax node/formula/quantified 0))
@@ -662,7 +662,8 @@
 
 (define-syntax (some stx)
   (syntax-case stx ()
-    [(_ ([v0 e0] ...) pred)     
+    [(_ () pred) #'pred] ; ignore quantifier over no variables
+    [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-some" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'some (list (cons v0 e0) ...) pred)))]
