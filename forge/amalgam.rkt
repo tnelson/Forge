@@ -10,7 +10,7 @@
 ;(require "amalgam/userStudies/KittyBacon.rkt")
 (require racket/hash)
 (require (prefix-in @ racket/set))
-(require (prefix-in @ (only-in racket -> >=)))
+(require (prefix-in @ (only-in racket -> >= >)))
 
 (require (only-in "amalgam/desugar/desugar_helpers.rkt" tup2Expr))
 (require forge/sigs-structs
@@ -48,7 +48,7 @@
   ; which means we have its Run-spec
   ; which is post-processing by the run macro
   (define modified-run-spec (struct-copy Run-spec (Run-run-spec orig-run) [scope scope] [bounds bounds]))
-  (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod modified-run-spec))        
+  (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod modified-run-spec (Run-command orig-run)))        
   (Run (Run-name orig-run) (Run-command orig-run) modified-run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
 
 ; takes a hash-table representation of an instance and a tuple and flips the truth of
@@ -218,7 +218,7 @@
 ; pair<list<atom>, string>, Run -> Boolean
 ; caller of this helper is get-locally-nescessary-list
 ; used to generate list of locally necessary literals
-(define (is-locally-necessary tup orig-run)
+(define (is-locally-necessary tup orig-run orig-inst)
   (define spec (Run-run-spec orig-run))
   (define Fs (Run-spec-preds spec))
 
@@ -233,9 +233,10 @@
   ; relations
   (define relations (State-relations state))
 
-  (define orig-inst (stream-first (Run-result orig-run)))
   (unless (Sat? orig-inst)
     (error "amalgam called on unsat run"))
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "LN: orig instance had hash: ~a~n" (equal-hash-code (format "~a" orig-inst))))
 
   (define new-totals (flip-tuple (first (Sat-instances orig-inst))
                                  (car tup) (cdr tup)))
@@ -282,7 +283,7 @@
 ;        second list evaluates to false
 ; Due to the way the evaluator works at the moment, this is always
 ; with respect to the current solver state for <a-run>.
-(define (get-locally-necessary-list orig-run)
+(define (get-locally-necessary-list orig-run instance-index)
   (define spec (Run-run-spec orig-run))
   (define state (Run-spec-state spec))
 
@@ -309,10 +310,10 @@
           (define curr
             (filter-map (lambda (tuple)
                           (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-                            (printf "Current tuple is ~a~n" tuple))      
+                            (printf "LN: considering tuple ~a in ~a~n" tuple name))
                           (define present
                             (andmap (lambda (atomsym) (member (list atomsym) evaluated-univ)) tuple))
-                          (if (and present (is-locally-necessary (cons tuple name) orig-run))
+                          (if (and present (is-locally-necessary (cons tuple name) orig-run instance-index))
                               (cons tuple r)
                               #f))
                         upper-bounds))
@@ -343,7 +344,7 @@
 ; pair<list<atom>, string>, boolean, Run -> provenance-set
 ; Due to the way the evaluator works at the moment, this is always
 ; with respect to the current solver state for <a-run>.
-(define (build-provenances tup orig-run)
+(define (build-provenances tup orig-run orig-inst)
   ; get conjunction of predicates F from the run command
   (define spec (Run-run-spec orig-run))
   (define Fs (Run-spec-preds spec))
@@ -355,9 +356,6 @@
   (define sigs (State-sigs state))
   (define relations (State-relations state))
   
-  ; TODO This may only work if the solver state is the *first* instance in the stream
-  ;   Confirm + discuss: what's the method by which the generator moves forward?
-  (define orig-inst (stream-first (Run-result orig-run)))
   (unless (Sat? orig-inst)
     (error "amalgam called on unsat run"))
   ;(printf "~n  orig-inst: ~a~n" orig-inst)
@@ -401,7 +399,6 @@
   ;(run alt-run
   ;     #:preds []
   ;     #:bounds alt-inst)
-  ;(printf "~n  first alt instance: ~a~n" (stream-first (Run-result alt-run)))
   ;(printf "~n  ALT BOUNDS: ~a~n" (Run-spec-bounds (Run-run-spec alt-run)))
   ; evaluate to make sure tup is locally necessary  
   (define check-alt (evaluate alt-run 'unused F))
@@ -417,7 +414,7 @@
 
 
 ; E.g., at REPL (or in separate module that requires the forge module)
-; > (require racket/stream racket/base forge/amalgam)
+; > (require "lazy-tree.rkt" racket/base forge/amalgam)
 ; > (build-provenances (cons '(Node3 Node1) "edges") #f udt)
 
 ; This will produce an error if Node1 isn't in all-atoms
@@ -430,7 +427,7 @@
 ; TODO: uncomment this later 
 ;(define test_N1N1_edges (build-provenances (cons '(Node1 Node1) "edges") udt))
 
-;(stream-first (Run-result KB))
+;(tree:get-value (Run-result KB))
 ;(define test_local_necessity_udt (get-locally-necessary-list udt))
 
 ;(define test_local_necessity_kittyBacon (get-locally-necessary-list KB))

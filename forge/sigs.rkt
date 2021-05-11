@@ -5,6 +5,7 @@
 (require syntax/parse/define)
 (require racket/match)
 (require (for-syntax racket/match syntax/srcloc))
+(require (for-syntax syntax/strip-context))
 
 (require "shared.rkt")
 (require "lang/ast.rkt"
@@ -24,17 +25,18 @@
          ;"last-checker.rkt"
          "sigs-structs.rkt"
          "evaluator.rkt"
+         (prefix-in tree: "lazy-tree.rkt")
          "send-to-kodkod.rkt")
 (require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
          (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
 
 ; Commands
-(provide sig relation fun const pred inst)
-(provide run check test example display with)
-(provide instance-diff)
+(provide sig relation fun const pred inst with)
+(provide run check test example display execute)
+(provide instance-diff solution-diff evaluate)
 
 ; Instance analysis functions
-(provide is-sat? is-unsat?)
+(provide is-unsat? is-sat?)
 
 ; export AST macros and struct definitions (for matching)
 ; Make sure that nothing is double-provided
@@ -61,6 +63,10 @@
          (prefix-out forge: (struct-out Run))         
          (prefix-out forge: (struct-out sbound)))
 
+; Let forge/core work with the model tree without having to require helpers
+; Don't prefix with tree:, that's already been done when importing
+(provide (all-from-out "lazy-tree.rkt"))
+
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 ; Export these from structs without forge: prefix
 (provide implies iff <=> ifte >= <= ni != !in !ni)
@@ -75,6 +81,8 @@
 
 (provide (struct-out Sat)
          (struct-out Unsat))
+
+(provide (for-syntax add-to-execs))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
@@ -431,7 +439,7 @@
         (define run-command #'#,command)        
         
         (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
-        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec))
+        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec run-command))
         
         (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
@@ -442,31 +450,34 @@
 ;       [#:scope [((sig [lower 0] upper) ...)]]
 ;       [#:bounds [bound ...]]
 ;       [|| sat unsat]))
-(define-syntax-rule (test name args ... #:expect expected)
-  (cond 
-    [(member 'expected '(sat unsat))
-     (run name args ...)
-     (define first-instance (stream-first (Run-result name)))
-     (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
-       (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
-                      'name 'expected (if (Sat? first-instance) 'sat 'unsat)
-                      (if (Sat? first-instance)
-                          (format " Found instance ~a" first-instance)
-                          (if (Unsat-core first-instance)
-                              (format " Core: ~a" (Unsat-core first-instance))
-                              "")))))
-     (close-run name)]
+(define-syntax (test stx)
+  (syntax-case stx ()
+    [(test name args ... #:expect expected)
+     (add-to-execs
+       #'(cond 
+          [(member 'expected '(sat unsat))
+           (run name args ...)
+           (define first-instance (tree:get-value (Run-result name)))
+           (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
+             (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
+                            'name 'expected (if (Sat? first-instance) 'sat 'unsat)
+                            (if (Sat? first-instance)
+                                (format " Found instance ~a" first-instance)
+                                (if (Unsat-core first-instance)
+                                    (format " Core: ~a" (Unsat-core first-instance))
+                                    "")))))
+           (close-run name)]
 
-    [(equal? 'expected 'theorem)
-     (check name args ...)
-     (define first-instance (stream-first (Run-result name)))
-     (when (Sat? first-instance)
-       (raise (format "Theorem ~a failed. Found instance:~n~a"
-                      'name first-instance)))
-     (close-run name)]
+          [(equal? 'expected 'theorem)
+           (check name args ...)
+           (define first-instance (tree:get-value (Run-result name)))
+           (when (Sat? first-instance)
+             (raise (format "Theorem ~a failed. Found instance:~n~a"
+                            'name first-instance)))
+           (close-run name)]
 
-    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
-                         'expected))]))
+          [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                               'expected))]))]))
 
 (define-simple-macro (example name:id pred bounds ...)
   (test name #:preds [pred]
@@ -485,9 +496,10 @@
               (~optional (~seq #:preds (pred ...)))
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
-     #'(run name (~? (~@ #:preds [(! (and pred ...))]))
+     (syntax/loc stx
+       (run name (~? (~@ #:preds [(! (and pred ...))]))
                  (~? (~@ #:scope ([sig lower upper] ...)))
-                 (~? (~@ #:bounds (bound ...))))]))
+                 (~? (~@ #:bounds (bound ...)))))]))
 
 
 ; Exprimental: Run in the context of a given external Forge spec
@@ -502,6 +514,17 @@
           (update-state! temp-state)
           result)]))
 
+(define-for-syntax (add-to-execs stx)
+  (if (equal? (syntax-local-context) 'module)
+      #`(module+ execs #,stx)
+      stx))
+
+; Experimental: Execute a forge file (but don't require any of the spec)
+; (execute "<path/to/file.rkt>")
+(define-syntax (execute stx)
+  (syntax-case stx ()
+    [(_ m) (replace-context stx (add-to-execs #'(require (submod m execs))))]))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Result Functions ;;;;;;;
@@ -509,10 +532,10 @@
 
 ; make-model-generator :: Stream<model> -> (-> model)
 ; Creates a thunk which generates a new model on each call.
-(define (make-model-generator model-stream)
+(define (make-model-generator model-lazy-tree [mode 'next])
   (thunk
-    (define ret (stream-first model-stream))
-    (set! model-stream (stream-rest model-stream))
+    (define ret (tree:get-value model-lazy-tree))
+    (set! model-lazy-tree (tree:get-child model-lazy-tree mode))
     ret))
 
 ; ; make-model-evaluator :: Run -> (String -> ???)
@@ -536,13 +559,12 @@
 ; display :: Run -> void
 ; Lifted function which, when provided a Run,
 ; generates a Sterling instance for it.
-(define (display arg1 [arg2 #f])
+(define (true-display arg1 [arg2 #f])
   (if (@not (Run? arg1))
       (if arg2 (@display arg1 arg2) (@display arg1))
       (let ()
         (define run arg1)
-        (define model-stream (Run-result run))
-        (define get-next-model (make-model-generator model-stream))
+        (define model-lazy-tree (Run-result run))        
         (define (evaluate-str str-command)
           (define pipe1 (open-input-string str-command))
           (define pipe2 (open-input-string (format "eval ~a" str-command)))
@@ -607,10 +629,10 @@
                          [result run-result]
                          [server-ports server-ports]
                          [kodkod-currents kodkod-currents]))
-          (make-model-generator (get-result contrast-run)))
+          (get-result contrast-run))
 
         (display-model run
-                       get-next-model 
+                       model-lazy-tree 
                        (get-relation-map run)
                        evaluate-str
                        (Run-name run) 
@@ -621,6 +643,10 @@
                        empty
                        get-contrast-model-generator))))
 
+(define-syntax (display stx)
+  (syntax-case stx ()
+    [(display args ...)
+      (add-to-execs #'(true-display args ...))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Scope/Bound Updaters ;;;;;;;
@@ -635,15 +661,38 @@
 ; update-int-bound :: Scope, node/expr/relation, Range -> Scope
 ; Updates the scope (range) for a given sig in scope.
 (define (update-int-bound scope rel given-scope)
+  (define old-sig-scopes (Scope-sig-scopes scope))
   (define name (string->symbol (relation-name rel)))
-  (define old-scope (get-scope scope name))
+  (define-values (new-lower new-upper)
+    (if (@not (hash-has-key? old-sig-scopes name))
+        (values (Range-lower given-scope) (Range-upper given-scope))
+        (let ([old-scope (hash-ref old-sig-scopes name)])
+          (let ([old-lower (Range-lower old-scope)]
+                [old-upper (Range-upper old-scope)]
+                [given-lower (Range-lower given-scope)]
+                [given-upper (Range-upper given-scope)])
 
-  (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
-  (define upper (@min (Range-upper given-scope) (Range-upper old-scope)))
-  (when (@< upper lower)
-    (raise "Bound conflict."))
+            (define new-lower 
+              (cond 
+                [(and old-lower given-lower) (@max old-lower given-lower)]
+                [old-lower old-lower]
+                [given-lower given-lower]
+                [else #f]))
+            (define new-upper 
+              (cond 
+                [(and old-upper given-upper) (@min old-upper given-upper)]
+                [old-upper old-upper]
+                [given-upper given-upper]
+                [else #f]))
+            (values new-lower new-upper)))))
 
-  (define new-scope (Range lower upper))
+  
+  (when (@< new-upper new-lower)
+    (raise (format (string-append "Bound conflict: numeric upper bound on ~a was"
+                                  " less than numeric lower bound (~a vs. ~a).") 
+                   rel new-upper new-lower)))
+
+  (define new-scope (Range new-lower new-upper))
   (define new-sig-scopes (hash-set (Scope-sig-scopes scope) name new-scope))
 
   (struct-copy Scope scope
@@ -670,7 +719,7 @@
   
 
   (unless (@or (@not upper) (subset? lower upper))
-    (raise "Bound conflict."))
+    (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." rel lower upper)))
 
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))
@@ -712,12 +761,19 @@
 
     [(= (card rel) n)
      #`(let* ([exact (eval-int-expr 'n (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range exact exact))])
-         (values new-scope #,bound))]
+              [new-scope (if (equal? (relation-name rel) "Int")
+                             (set-bitwidth #,scope exact)
+                             (update-int-bound #,scope rel (Range exact exact)))])
+          (values new-scope #,bound))]
 
     [(<= (card rel) upper)
      #`(let* ([upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range 0 upper-val))])
+              [new-scope (update-int-bound #,scope rel (Range #f upper-val))])
+         (values new-scope #,bound))]
+
+    [(<= lower (card rel))
+     #`(let* ([lower-val (eval-int-expr 'lower (Bound-tbindings #,bound) 8)]
+              [new-scope (update-int-bound #,scope rel (Range lower-val #f))])
          (values new-scope #,bound))]
 
     [(<= lower (card rel) upper)
@@ -776,3 +832,6 @@
      #'(values (set-bitwidth #,scope n) #,bound)]
 
     [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") binding)]))
+
+(define (solution-diff s1 s2)
+  (map instance-diff (Sat-instances s1) (Sat-instances s2)))

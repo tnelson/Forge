@@ -5,8 +5,8 @@
 AlloyModule : ModuleDecl? Import* Paragraph*
             | EvalDecl*
 ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
-Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
-       | OPEN-TOK FILE-PATH-TOK (AS-TOK Name)?
+Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
+       | /OPEN-TOK FILE-PATH-TOK (AS-TOK Name)?
 @Paragraph : SigDecl 
           | FactDecl 
           | PredDecl 
@@ -56,7 +56,6 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
 # BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
-        | STAR-TOK
 CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
@@ -96,6 +95,8 @@ Expr    : @Expr0.5
 ; Electrum binary operators (these may be on the wrong side of OR/IFF/etc.)
 Expr0.5 : @Expr1  | Expr0.5 UNTIL-TOK Expr1
                   | Expr0.5 RELEASE-TOK Expr1
+                  | Expr0.5 SINCE-TOK Expr1
+                  | Expr0.5 TRIGGERED-TOK Expr1
 
 Expr1   : @Expr2  | Expr1 OR-TOK Expr2
 Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
@@ -105,6 +106,9 @@ Expr5   : @Expr6  | NEG-TOK Expr5
                   | ALWAYS-TOK Expr5
                   | EVENTUALLY-TOK Expr5
                   | AFTER-TOK Expr5
+                  | BEFORE-TOK Expr5
+                  | ONCE-TOK Expr5
+                  | HISTORICALLY-TOK Expr5
 Expr6   : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
 Expr7   : @Expr7.5 | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr7.5
 Expr7.5 : @Expr8  | Expr7.5 PRIME-TOK ; electrum priming of expressions

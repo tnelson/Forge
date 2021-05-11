@@ -7,7 +7,8 @@
 (require forge/check-ex-spec/library)
 (require (only-in racket/function curry))
 (require racket/match)
-(require (prefix-in logging: forge/logging/logging))
+(require (prefix-in logging: forge/logging/logging)
+         (prefix-in logging:check-ex-spec: forge/logging/check-ex-spec/main))
 ; (require racket/list)
 
 (define (filter-commands stx keep)
@@ -15,6 +16,15 @@
   (define filtered (filter (lambda (line) (member (car (syntax->datum line)) keep))
                            commands))
   (datum->syntax stx (cons alloy-module filtered) stx stx stx))
+
+(define (filter-names commands provided)
+  (filter (lambda (command)
+            (let ([command (syntax->datum command)])
+              (not (and (member (car command) '(PredDecl FunDecl))
+                        (if (symbol? (cadr command))
+                            (member (cadr command) provided)
+                            (member (cadadr command) provided))))))
+          commands))
 
 (define (read-syntax path port)
   (define-values (logging-on? assignment-name user) (logging:log-execution 'forge/check-ex-spec port path))
@@ -29,8 +39,14 @@
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
 
-  (define not-tests (cdr (syntax->list (filter-commands ints-coerced '(InstDecl OptionDecl)))))
+  (define not-tests (cdr (syntax->list (filter-commands ints-coerced '(InstDecl OptionDecl PredDecl FunDecl)))))
+  (define safe-not-tests (filter-names not-tests provided))
   (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl TestExpectDecl)))))
+
+  (define compile-time (current-seconds))
+
+  (when logging-on?
+    (logging:check-ex-spec:register-run compile-time assignment-name user path))
 
   (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
                           (require forge/check-ex-spec/library)
@@ -44,13 +60,14 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          (require (prefix-in logging: forge/logging/logging))
+                          (require (prefix-in logging: forge/logging/logging)
+                                   (prefix-in logging:check-ex-spec: forge/logging/check-ex-spec/main))
 
                           (logging:log-errors
                             (define wheat-results 
                               (list ,@(map (lambda (wheat) 
                                       `(with (,@provided #:from ,wheat)
-                                         ,@not-tests
+                                         ,@safe-not-tests
                                          (@append ,@(for/list ([test just-tests])
                                                   test))))
                                      wheats)))
@@ -58,7 +75,7 @@
                             (define chaff-results 
                               (list ,@(map (lambda (chaff) 
                                       `(with (,@provided #:from ,chaff)
-                                         ,@not-tests
+                                         ,@safe-not-tests
                                          (@append ,@(for/list ([test just-tests])
                                                   test))))
                                      chaffs)))
@@ -86,7 +103,11 @@
                                   (displayln (format "Missed chaff ~a." 
                                                      num)))))
 
-                          (logging:flush-logs)
+                          (module+ execs)
+                          (module+ main
+                            (require (submod ".." execs))
+                            (logging:check-ex-spec:flush-logs ',compile-time wheat-results chaff-results)
+                            (logging:flush-logs))
 
                           #;,ints-coerced))
   (datum->syntax #f module-datum))

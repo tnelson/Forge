@@ -1,0 +1,149 @@
+<alloy builddate="2018-04-08T17:20:06.754Z">
+
+<instance bitwidth="4" maxseq="4" command="Run dinnerParty for exactly 5 Philosopher, 5 Fork, exactly 7 State" filename="/Users/atdyer/research/alloy/models/philosophers.als">
+
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<sig label="this/Philosopher" ID="4" parentID="2">
+   <atom label="Philosopher$0"/>
+   <atom label="Philosopher$1"/>
+   <atom label="Philosopher$2"/>
+   <atom label="Philosopher$3"/>
+   <atom label="Philosopher$4"/>
+</sig>
+
+<field label="leftFork" ID="5" parentID="4">
+   <tuple> <atom label="Philosopher$0"/> <atom label="Fork$4"/> </tuple>
+   <tuple> <atom label="Philosopher$1"/> <atom label="Fork$3"/> </tuple>
+   <tuple> <atom label="Philosopher$2"/> <atom label="Fork$2"/> </tuple>
+   <tuple> <atom label="Philosopher$3"/> <atom label="Fork$1"/> </tuple>
+   <tuple> <atom label="Philosopher$4"/> <atom label="Fork$0"/> </tuple>
+   <types> <type ID="4"/> <type ID="6"/> </types>
+</field>
+
+<field label="rightFork" ID="7" parentID="4">
+   <tuple> <atom label="Philosopher$0"/> <atom label="Fork$3"/> </tuple>
+   <tuple> <atom label="Philosopher$1"/> <atom label="Fork$2"/> </tuple>
+   <tuple> <atom label="Philosopher$2"/> <atom label="Fork$1"/> </tuple>
+   <tuple> <atom label="Philosopher$3"/> <atom label="Fork$0"/> </tuple>
+   <tuple> <atom label="Philosopher$4"/> <atom label="Fork$4"/> </tuple>
+   <types> <type ID="4"/> <type ID="6"/> </types>
+</field>
+
+<field label="leftPhil" ID="8" parentID="4">
+   <tuple> <atom label="Philosopher$0"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="Philosopher$1"/> <atom label="Philosopher$0"/> </tuple>
+   <tuple> <atom label="Philosopher$2"/> <atom label="Philosopher$1"/> </tuple>
+   <tuple> <atom label="Philosopher$3"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="Philosopher$4"/> <atom label="Philosopher$3"/> </tuple>
+   <types> <type ID="4"/> <type ID="4"/> </types>
+</field>
+
+<field label="rightPhil" ID="9" parentID="4">
+   <tuple> <atom label="Philosopher$0"/> <atom label="Philosopher$1"/> </tuple>
+   <tuple> <atom label="Philosopher$1"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="Philosopher$2"/> <atom label="Philosopher$3"/> </tuple>
+   <tuple> <atom label="Philosopher$3"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="Philosopher$4"/> <atom label="Philosopher$0"/> </tuple>
+   <types> <type ID="4"/> <type ID="4"/> </types>
+</field>
+
+<sig label="this/Fork" ID="6" parentID="2">
+   <atom label="Fork$0"/>
+   <atom label="Fork$1"/>
+   <atom label="Fork$2"/>
+   <atom label="Fork$3"/>
+   <atom label="Fork$4"/>
+</sig>
+
+<sig label="this/State" ID="10" parentID="2">
+   <atom label="State$0"/>
+   <atom label="State$1"/>
+   <atom label="State$2"/>
+   <atom label="State$3"/>
+   <atom label="State$4"/>
+   <atom label="State$5"/>
+   <atom label="State$6"/>
+</sig>
+
+<field label="using" ID="11" parentID="10">
+   <tuple> <atom label="State$1"/> <atom label="Fork$0"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="State$1"/> <atom label="Fork$2"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="State$2"/> <atom label="Fork$0"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="State$2"/> <atom label="Fork$1"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="State$2"/> <atom label="Fork$2"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="State$2"/> <atom label="Fork$4"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="State$3"/> <atom label="Fork$0"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="State$3"/> <atom label="Fork$3"/> <atom label="Philosopher$1"/> </tuple>
+   <tuple> <atom label="State$3"/> <atom label="Fork$4"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="State$4"/> <atom label="Fork$0"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="State$4"/> <atom label="Fork$2"/> <atom label="Philosopher$1"/> </tuple>
+   <tuple> <atom label="State$4"/> <atom label="Fork$3"/> <atom label="Philosopher$1"/> </tuple>
+   <tuple> <atom label="State$4"/> <atom label="Fork$4"/> <atom label="Philosopher$4"/> </tuple>
+   <tuple> <atom label="State$5"/> <atom label="Fork$1"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="State$6"/> <atom label="Fork$0"/> <atom label="Philosopher$3"/> </tuple>
+   <tuple> <atom label="State$6"/> <atom label="Fork$1"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="State$6"/> <atom label="Fork$2"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="State$6"/> <atom label="Fork$3"/> <atom label="Philosopher$0"/> </tuple>
+   <types> <type ID="10"/> <type ID="6"/> <type ID="4"/> </types>
+</field>
+
+<sig label="so/Ord" ID="12" parentID="2" one="yes" private="yes">
+   <atom label="so/Ord$0"/>
+</sig>
+
+<field label="First" ID="13" parentID="12" private="yes">
+   <tuple> <atom label="so/Ord$0"/> <atom label="State$0"/> </tuple>
+   <types> <type ID="12"/> <type ID="10"/> </types>
+</field>
+
+<field label="Next" ID="14" parentID="12" private="yes">
+   <tuple> <atom label="so/Ord$0"/> <atom label="State$0"/> <atom label="State$1"/> </tuple>
+   <tuple> <atom label="so/Ord$0"/> <atom label="State$1"/> <atom label="State$2"/> </tuple>
+   <tuple> <atom label="so/Ord$0"/> <atom label="State$2"/> <atom label="State$3"/> </tuple>
+   <tuple> <atom label="so/Ord$0"/> <atom label="State$3"/> <atom label="State$4"/> </tuple>
+   <tuple> <atom label="so/Ord$0"/> <atom label="State$4"/> <atom label="State$5"/> </tuple>
+   <tuple> <atom label="so/Ord$0"/> <atom label="State$5"/> <atom label="State$6"/> </tuple>
+   <types> <type ID="12"/> <type ID="10"/> <type ID="10"/> </types>
+</field>
+
+<sig label="po/Ord" ID="15" parentID="2" one="yes" private="yes">
+   <atom label="po/Ord$0"/>
+</sig>
+
+<field label="First" ID="16" parentID="15" private="yes">
+   <tuple> <atom label="po/Ord$0"/> <atom label="Philosopher$0"/> </tuple>
+   <types> <type ID="15"/> <type ID="4"/> </types>
+</field>
+
+<field label="Next" ID="17" parentID="15" private="yes">
+   <tuple> <atom label="po/Ord$0"/> <atom label="Philosopher$0"/> <atom label="Philosopher$1"/> </tuple>
+   <tuple> <atom label="po/Ord$0"/> <atom label="Philosopher$1"/> <atom label="Philosopher$2"/> </tuple>
+   <tuple> <atom label="po/Ord$0"/> <atom label="Philosopher$2"/> <atom label="Philosopher$3"/> </tuple>
+   <tuple> <atom label="po/Ord$0"/> <atom label="Philosopher$3"/> <atom label="Philosopher$4"/> </tuple>
+   <types> <type ID="15"/> <type ID="4"/> <type ID="4"/> </types>
+</field>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+</instance>
+
+<source filename="/Users/atdyer/research/alloy/models/philosophers.als" content="open util/graph[Philosopher]&#x000a;open util/ordering[State] as so&#x000a;open util/ordering[Philosopher] as po&#x000a;&#x000a;-- a philosopher has a fork and another philosopher on either side&#x000a;sig Philosopher {&#x000a;  disj leftFork, rightFork: one Fork,&#x000a;  disj leftPhil, rightPhil: one Philosopher&#x000a;}&#x000a;&#x000a;-- a fork&#x000a;sig Fork {}&#x000a;&#x000a;-- at every state, a fork can be in use by a single philosopher&#x000a;sig State {&#x000a;  using: Fork -&gt; lone Philosopher&#x000a;}&#x000a;&#x000a;-- if a philospher is using a fork, it must be one of the two next to them&#x000a;fact {&#x000a;  all s: State |&#x000a;    all p: Philosopher |&#x000a;      let fork = using[s].p | fork in p.(leftFork + rightFork)&#x000a;}&#x000a;&#x000a;-- a predicate that describes the initial table setting&#x000a;pred setTheTable {&#x000a;  #Fork = #Philosopher&#x000a;  stronglyConnected[leftPhil]&#x000a;  ring[leftPhil]&#x000a;  leftPhil = ~rightPhil&#x000a;  all p: Philosopher {&#x000a;    p.leftPhil.rightFork = p.leftFork&#x000a;    p.rightPhil.leftFork = p.rightFork&#x000a;  }&#x000a;  Fork in Philosopher.leftFork&#x000a;  Fork in Philosopher.rightFork&#x000a;  all f: Fork {&#x000a;    one p: Philosopher | p.leftFork = f&#x000a;    one p: Philosopher | p.rightFork = f&#x000a;  }&#x000a;  no using[so/first] -- all forks are initially on the table&#x000a;  po/next in rightPhil -- order the philosophers, just to cut down on the number of instances&#x000a;}&#x000a;&#x000a;-- the fork is available&#x000a;pred available [s: State, f: Fork] {&#x000a;  f not in using[s].Philosopher&#x000a;}&#x000a;&#x000a;-- the philosopher is eating&#x000a;pred eating [s: State, p: Philosopher] {&#x000a;  using[s].p = { p.leftFork + p.rightFork }&#x000a;}&#x000a;&#x000a;-- the philosopher is thinking&#x000a;pred thinking [s: State, p: Philosopher ] {&#x000a;  no using[s].p&#x000a;}&#x000a;&#x000a;-- the philosopher can participate in the dinner party&#x000a;pred canParty [s: State, p: Philosopher] {&#x000a;  eating[s, p] or available[s, p.leftFork] or available[s, p.rightFork]&#x000a;}&#x000a;&#x000a;-- the philosopher takes their left fork&#x000a;pred takeLeft [s, s&apos;: State, p: Philosopher] {&#x000a;  let fork = p.leftFork {&#x000a;    available[s, fork]&#x000a;-- using[s&apos;][fork] = p  -- this was an easy bug to find with the vis... philosopher immediately takes two forks&#x000a;    using[s&apos;].p = using[s].p + fork&#x000a;  }&#x000a;}&#x000a;&#x000a;-- the philosopher takes their right fork&#x000a;pred takeRight [s, s&apos;: State, p: Philosopher] {&#x000a;  let fork = p.rightFork {&#x000a;    available[s, fork]&#x000a;-- using[s&apos;][fork] = p&#x000a;    using[s&apos;].p = using[s].p + fork&#x000a;  }&#x000a;}&#x000a;&#x000a;-- the philosopher puts down their forks&#x000a;pred release [s, s&apos;: State, p: Philosopher] {&#x000a;  eating[s, p]&#x000a;  thinking[s&apos;, p]&#x000a;}&#x000a;&#x000a;-- the philosopher waits a tick&#x000a;pred wait [s, s&apos;: State, p: Philosopher] {&#x000a;  using[s].p = using[s&apos;].p&#x000a;}&#x000a;&#x000a;-- the philosopher participates in the dinner party&#x000a;pred party [s, s&apos;: State, p: Philosopher] {&#x000a;  release[s, s&apos;, p] or takeLeft[s, s&apos;, p] or takeRight[s, s&apos;, p] or wait[s, s&apos;, p]&#x000a;}&#x000a;&#x000a;-- a dinner party in which philosophers aren&apos;t greedy&#x000a;pred dinnerParty {&#x000a;  setTheTable&#x000a;  all s: State, s&apos;: so/next[s] {&#x000a;    all p: Philosopher {&#x000a;      party[s, s&apos;, p]&#x000a;    }&#x000a;  }&#x000a;}&#x000a;&#x000a;-- check for deadlock&#x000a;assert partyGoesOn {&#x000a;  dinnerParty =&gt; all s: State | some p: Philosopher | canParty[s, p]&#x000a;}&#x000a;&#x000a;-- host a dinner party&#x000a;run dinnerParty for exactly 5 Philosopher, 5 Fork, exactly 7 State&#x000a;&#x000a;-- check that the party never reaches deadlock&#x000a;check partyGoesOn for 5 Philosopher, 5 Fork, exactly 7 State&#x000a;"/>
+
+<source filename="/$alloy4$/models/util/integer.als" content="module util/integer&#x000a;&#x000a;/*&#x000a; * A collection of utility functions for using Integers in Alloy.&#x000a; * Note that integer overflows are silently truncated to the current bitwidth&#x000a; * using the 2&apos;s complement arithmetic, unless the &quot;forbid overfows&quot; option is&#x000a; * turned on, in which case only models that don&apos;t have any overflows are &#x000a; * analyzed. &#x000a; */&#x000a;&#x000a;fun add  [n1, n2: Int] : Int { this/plus[n1, n2] }&#x000a;fun plus [n1, n2: Int] : Int { n1 fun/add n2 }&#x000a;&#x000a;fun sub   [n1, n2: Int] : Int { this/minus[n1, n2] }&#x000a;fun minus [n1, n2: Int] : Int { n1 fun/sub n2 }&#x000a;&#x000a;fun mul [n1, n2: Int] : Int { n1 fun/mul n2 }&#x000a;&#x000a;/**&#x000a; * Performs the division with &quot;round to zero&quot; semantics, except the following 3 cases&#x000a; * 1) if a is 0, then it returns 0&#x000a; * 2) else if b is 0, then it returns 1 if a is negative and -1 if a is positive&#x000a; * 3) else if a is the smallest negative integer, and b is -1, then it returns a&#x000a; */&#x000a;fun div [n1, n2: Int] : Int { n1 fun/div n2 }&#x000a;&#x000a;/** answer is defined to be the unique integer that satisfies &quot;a = ((a/b)*b) + remainder&quot; */&#x000a;fun rem [n1, n2: Int] : Int { n1 fun/rem n2 }&#x000a;&#x000a;/** negate */&#x000a;fun negate [n: Int] : Int { 0 fun/sub n }&#x000a;&#x000a;/** equal to */&#x000a;pred eq [n1, n2: Int] { int[n1] = int[n2] }&#x000a;&#x000a;/** greater than */&#x000a;pred gt [n1, n2: Int] { n1 &gt; n2 }&#x000a;&#x000a;/** less then */&#x000a;pred lt [n1, n2: Int] { n1 &lt; n2 }&#x000a;&#x000a;/** greater than or equal */&#x000a;pred gte [n1, n2: Int] { n1 &gt;= n2 }&#x000a;&#x000a;/** less than or equal */&#x000a;pred lte [n1, n2: Int] { n1 &lt;= n2 }&#x000a;&#x000a;/** integer is zero */&#x000a;pred zero [n: Int] { n = 0 }&#x000a;&#x000a;/** positive */&#x000a;pred pos  [n: Int] { n &gt; 0 }&#x000a;&#x000a;/** negative */&#x000a;pred neg  [n: Int] { n &lt; 0 }&#x000a;&#x000a;/** non-positive */&#x000a;pred nonpos [n: Int] { n &lt;= 0 }&#x000a;&#x000a;/** non-negative */&#x000a;pred nonneg [n: Int] { n &gt;= 0 }&#x000a;&#x000a;/** signum (aka sign or sgn) */&#x000a;fun signum [n: Int] : Int { n&lt;0 =&gt; (0 fun/sub 1) else (n&gt;0 =&gt; 1 else 0) }&#x000a;&#x000a;/**&#x000a; * returns the ith element (zero-based) from the set s&#x000a; * in the ordering of &apos;next&apos;, which is a linear ordering&#x000a; * relation like that provided by util/ordering&#x000a; */&#x000a;fun int2elem[i: Int, next: univ-&gt;univ, s: set univ] : lone s {&#x000a;  {e: s | #^next.e = int i }&#x000a;}&#x000a;&#x000a;/**&#x000a; * returns the index of the element (zero-based) in the&#x000a; * ordering of next, which is a linear ordering relation&#x000a; * like that provided by util/ordering&#x000a; */&#x000a;fun elem2int[e: univ, next: univ-&gt;univ] : lone Int {&#x000a;  Int[#^next.e]&#x000a;}&#x000a;&#x000a;/** returns the largest integer in the current bitwidth */&#x000a;fun max:one Int { fun/max }&#x000a;&#x000a;/** returns the smallest integer in the current bitwidth */&#x000a;fun min:one Int { fun/min }&#x000a;&#x000a;/** maps each integer (except max) to the integer after it */&#x000a;fun next:Int-&gt;Int { fun/next }&#x000a;&#x000a;/** maps each integer (except min) to the integer before it */&#x000a;fun prev:Int-&gt;Int { ~next }&#x000a;&#x000a;/** given a set of integers, return the largest element */&#x000a;fun max [es: set Int]: lone Int { es - es.^prev }&#x000a;&#x000a;/** given a set of integers, return the smallest element */&#x000a;fun min [es: set Int]: lone Int { es - es.^next }&#x000a;&#x000a;/** given an integer, return all integers prior to it */&#x000a;fun prevs [e: Int]: set Int { e.^prev }&#x000a;&#x000a;/** given an integer, return all integers following it */&#x000a;fun nexts [e: Int]: set Int { e.^next }&#x000a;&#x000a;/** returns the larger of the two integers */&#x000a;fun larger [e1, e2: Int]: Int { let a=int[e1], b=int[e2] | (a&lt;b =&gt; b else a) }&#x000a;&#x000a;/** returns the smaller of the two integers */&#x000a;fun smaller [e1, e2: Int]: Int { let a=int[e1], b=int[e2] | (a&lt;b =&gt; a else b) }&#x000a;"/>
+
+<source filename="/$alloy4$/models/util/graph.als" content="module util/graph[node]&#x000a;&#x000a;/*&#x000a; * Utilities for some common operations and contraints&#x000a; * on graphs.&#x000a; *&#x000a; * author: Greg Dennis&#x000a; */&#x000a;&#x000a;open util/relation as rel&#x000a;&#x000a;/** graph in undirected */&#x000a;pred undirected [r: node-&gt;node] {&#x000a;  symmetric[r]&#x000a;}&#x000a;&#x000a;/** graph has no self-loops */&#x000a;pred noSelfLoops[r: node-&gt;node] {&#x000a;  irreflexive[r]&#x000a;}&#x000a;&#x000a;/** graph is weakly connected */&#x000a;pred weaklyConnected[r: node-&gt;node] {&#x000a;  all n1, n2: node | n1 in n2.*(r + ~r)  // Changed from ^ to * to permit singleton&#x000a;}&#x000a;&#x000a;/** graph is strongly connected */&#x000a;pred stronglyConnected[r: node-&gt;node] {&#x000a;  all n1, n2: node | n1 in n2.*r         // Changed from ^ to * to permit singleton&#x000a;}&#x000a;&#x000a;/** graph is rooted at root */&#x000a;pred rootedAt[r: node-&gt;node, root: node] {&#x000a;  node in root.*r&#x000a;}&#x000a;&#x000a;/** graph is a ring */&#x000a;pred ring [r: node-&gt;node] {&#x000a;  all n: node | one n.r &amp;&amp; rootedAt[r, n]&#x000a;}&#x000a;&#x000a;/** graph is a dag */&#x000a;pred dag [r: node-&gt;node] {&#x000a;  acyclic[r, node]&#x000a;}&#x000a;&#x000a;/** graph is a forest */&#x000a;pred forest [r: node-&gt;node] {&#x000a;  dag[r]&#x000a;  all n: node | lone r.n&#x000a;}&#x000a;&#x000a;/** graph is a tree */&#x000a;pred tree [r: node-&gt;node] {&#x000a;  forest[r]&#x000a;  lone root: node | no r.root&#x000a;}&#x000a;&#x000a;/** graph is a tree rooted at root */&#x000a;pred treeRootedAt[r: node-&gt;node, root: node] {&#x000a;  forest[r]&#x000a;  rootedAt[r, root]&#x000a;}&#x000a;&#x000a;/** returns the roots of the graph */&#x000a;fun roots [r: node-&gt;node] : set node {&#x000a;  node - node.^r&#x000a;}&#x000a;&#x000a;/** returns the leaves of the grpah */&#x000a;fun leaves [r: node-&gt;node] : set node {&#x000a;  node - node.^~r&#x000a;}&#x000a;&#x000a;/** returns the inner nodes (non-leaves) of the graph */&#x000a;fun  innerNodes [r: node-&gt;node] : set node {&#x000a;  node - leaves[r]&#x000a;}&#x000a;"/>
+
+<source filename="/$alloy4$/models/util/relation.als" content="module util/relation&#x000a;&#x000a;/*&#x000a; * Utilities for some common operations and constraints&#x000a; * on binary relations. The keyword &apos;univ&apos; represents the&#x000a; * top-level type, which all other types implicitly extend.&#x000a; * Therefore, all the functions and predicates in this model&#x000a; * may be applied to binary relations of any type.&#x000a; *&#x000a; * author: Greg Dennis&#x000a; */&#x000a;&#x000a;/** returns the domain of a binary relation */&#x000a;fun dom [r: univ-&gt;univ] : set (r.univ) { r.univ }&#x000a;&#x000a;/** returns the range of a binary relation */&#x000a;fun ran [r: univ-&gt;univ] : set (univ.r) { univ.r }&#x000a;&#x000a;/** r is total over the domain s */&#x000a;pred total [r: univ-&gt;univ, s: set univ] {&#x000a;  all x: s | some x.r&#x000a;}&#x000a;&#x000a;/** r is a partial function over the domain s */&#x000a;pred functional [r: univ-&gt;univ, s: set univ] {&#x000a;  all x: s | lone x.r&#x000a;}&#x000a;&#x000a;/** r is a total function over the domain s */&#x000a;pred function [r: univ-&gt;univ, s: set univ] {&#x000a;  all x: s | one x.r&#x000a;}&#x000a;&#x000a;/** r is surjective over the codomain s */&#x000a;pred surjective [r: univ-&gt;univ, s: set univ] {&#x000a;  all x: s | some r.x&#x000a;}&#x000a;&#x000a;/** r is injective */&#x000a;pred injective [r: univ-&gt;univ, s: set univ] {&#x000a;  all x: s | lone r.x&#x000a;}&#x000a;&#x000a;/** r is bijective over the codomain s */&#x000a;pred bijective[r: univ-&gt;univ, s: set univ] {&#x000a;  all x: s | one r.x&#x000a;}&#x000a;&#x000a;/** r is a bijection over the domain d and the codomain c */&#x000a;pred bijection[r: univ-&gt;univ, d, c: set univ] {&#x000a;  function[r, d] &amp;&amp; bijective[r, c]&#x000a;}&#x000a;&#x000a;/** r is reflexive over the set s */&#x000a;pred reflexive [r: univ -&gt; univ, s: set univ] {s&lt;:iden in r}&#x000a;&#x000a;/** r is irreflexive */&#x000a;pred irreflexive [r: univ -&gt; univ] {no iden &amp; r}&#x000a;&#x000a;/** r is symmetric */&#x000a;pred symmetric [r: univ -&gt; univ] {~r in r}&#x000a;&#x000a;/** r is anti-symmetric */&#x000a;pred antisymmetric [r: univ -&gt; univ] {~r &amp; r in iden}&#x000a;&#x000a;/** r is transitive */&#x000a;pred transitive [r: univ -&gt; univ] {r.r in r}&#x000a;&#x000a;/** r is acyclic over the set s */&#x000a;pred acyclic[r: univ-&gt;univ, s: set univ] {&#x000a;  all x: s | x !in x.^r&#x000a;}&#x000a;&#x000a;/** r is complete over the set s */&#x000a;pred complete[r: univ-&gt;univ, s: univ] {&#x000a;  all x,y:s | (x!=y =&gt; x-&gt;y in (r + ~r))&#x000a;}&#x000a;&#x000a;/** r is a preorder (or a quasi-order) over the set s */&#x000a;pred preorder [r: univ -&gt; univ, s: set univ] {&#x000a;  reflexive[r, s]&#x000a;  transitive[r]&#x000a;}&#x000a;&#x000a;/** r is an equivalence relation over the set s */&#x000a;pred equivalence [r: univ-&gt;univ, s: set univ] {&#x000a;  preorder[r, s]&#x000a;  symmetric[r]&#x000a;}&#x000a;&#x000a;/** r is a partial order over the set s */&#x000a;pred partialOrder [r: univ -&gt; univ, s: set univ] {&#x000a;  preorder[r, s]&#x000a;  antisymmetric[r]&#x000a;}&#x000a;&#x000a;/** r is a total order over the set s */&#x000a;pred totalOrder [r: univ -&gt; univ, s: set univ] {&#x000a;  partialOrder[r, s]&#x000a;  complete[r, s]&#x000a;}&#x000a;"/>
+
+<source filename="/$alloy4$/models/util/ordering.als" content="module util/ordering[exactly elem]&#x000a;&#x000a;/*&#x000a; * Creates a single linear ordering over the atoms in elem. It also constrains all&#x000a; * the atoms to exist that are permitted by the scope on elem. That is, if the scope&#x000a; * on a signature S is 5, opening util/ordering[S] will force S to have 5 elements&#x000a; * and create a linear ordering over those five elements. The predicates and&#x000a; * functions below provide access to properties of the linear ordering, such as&#x000a; * which element is first in the ordering, or whether a given element precedes&#x000a; * another. You cannotcreate multiple linear orderings over the same signature with&#x000a; * this model. If you that functionality, try using the util/sequence module instead.&#x000a; *&#x000a; * Technical comment:&#x000a; * An important constraint: elem must contain all atoms permitted by the scope.&#x000a; * This is to let the analyzer optimize the analysis by setting all fields of each&#x000a; * instantiation of Ord to predefined values: e.g. by setting &apos;last&apos; to the highest&#x000a; * atom of elem and by setting &apos;next&apos; to {&lt;T0,T1&gt;,&lt;T1,T2&gt;,...&lt;Tn-1,Tn&gt;}, where n is&#x000a; * the scope of elem. Without this constraint, it might not be true that Ord.last is&#x000a; * a subset of elem, and that the domain and range of Ord.next lie inside elem.&#x000a; *&#x000a; * author: Ilya Shlyakhter&#x000a; * revisions: Daniel jackson&#x000a; */&#x000a;&#x000a;private one sig Ord {&#x000a;   First: set elem,&#x000a;   Next: elem -&gt; elem&#x000a;} {&#x000a;   pred/totalOrder[elem,First,Next]&#x000a;}&#x000a;&#x000a;/** first */&#x000a;fun first: one elem { Ord.First }&#x000a;&#x000a;/** last */&#x000a;fun last: one elem { elem - (next.elem) }&#x000a;&#x000a;/** return a mapping from each element to its predecessor */&#x000a;fun prev : elem-&gt;elem { ~(Ord.Next) }&#x000a;&#x000a;/** return a mapping from each element to its successor */&#x000a;fun next : elem-&gt;elem { Ord.Next }&#x000a;&#x000a;/** return elements prior to e in the ordering */&#x000a;fun prevs [e: elem]: set elem { e.^(~(Ord.Next)) }&#x000a;&#x000a;/** return elements following e in the ordering */&#x000a;fun nexts [e: elem]: set elem { e.^(Ord.Next) }&#x000a;&#x000a;/** e1 is less than e2 in the ordering */&#x000a;pred lt [e1, e2: elem] { e1 in prevs[e2] }&#x000a;&#x000a;/** e1 is greater than e2 in the ordering */&#x000a;pred gt [e1, e2: elem] { e1 in nexts[e2] }&#x000a;&#x000a;/** e1 is less than or equal to e2 in the ordering */&#x000a;pred lte [e1, e2: elem] { e1=e2 || lt [e1,e2] }&#x000a;&#x000a;/** e1 is greater than or equal to e2 in the ordering */&#x000a;pred gte [e1, e2: elem] { e1=e2 || gt [e1,e2] }&#x000a;&#x000a;/** returns the larger of the two elements in the ordering */&#x000a;fun larger [e1, e2: elem]: elem { lt[e1,e2] =&gt; e2 else e1 }&#x000a;&#x000a;/** returns the smaller of the two elements in the ordering */&#x000a;fun smaller [e1, e2: elem]: elem { lt[e1,e2] =&gt; e1 else e2 }&#x000a;&#x000a;/**&#x000a; * returns the largest element in es&#x000a; * or the empty set if es is empty&#x000a; */&#x000a;fun max [es: set elem]: lone elem { es - es.^(~(Ord.Next)) }&#x000a;&#x000a;/**&#x000a; * returns the smallest element in es&#x000a; * or the empty set if es is empty&#x000a; */&#x000a;fun min [es: set elem]: lone elem { es - es.^(Ord.Next) }&#x000a;&#x000a;assert correct {&#x000a;  let mynext = Ord.Next |&#x000a;  let myprev = ~mynext | {&#x000a;     ( all b:elem | (lone b.next) &amp;&amp; (lone b.prev) &amp;&amp; (b !in b.^mynext) )&#x000a;     ( (no first.prev) &amp;&amp; (no last.next) )&#x000a;     ( all b:elem | (b!=first &amp;&amp; b!=last) =&gt; (one b.prev &amp;&amp; one b.next) )&#x000a;     ( !one elem =&gt; (one first &amp;&amp; one last &amp;&amp; first!=last &amp;&amp; one first.next &amp;&amp; one last.prev) )&#x000a;     ( one elem =&gt; (first=elem &amp;&amp; last=elem &amp;&amp; no myprev &amp;&amp; no mynext) )&#x000a;     ( myprev=~mynext )&#x000a;     ( elem = first.*mynext )&#x000a;     (all disj a,b:elem | a in b.^mynext or a in b.^myprev)&#x000a;     (no disj a,b:elem | a in b.^mynext and a in b.^myprev)&#x000a;     (all disj a,b,c:elem | (b in a.^mynext and c in b.^mynext) =&gt;(c in a.^mynext))&#x000a;     (all disj a,b,c:elem | (b in a.^myprev and c in b.^myprev) =&gt;(c in a.^myprev))&#x000a;  }&#x000a;}&#x000a;run {} for exactly 0 elem expect 0&#x000a;run {} for exactly 1 elem expect 1&#x000a;run {} for exactly 2 elem expect 1&#x000a;run {} for exactly 3 elem expect 1&#x000a;run {} for exactly 4 elem expect 1&#x000a;check correct for exactly 0 elem&#x000a;check correct for exactly 1 elem&#x000a;check correct for exactly 2 elem&#x000a;check correct for exactly 3 elem&#x000a;check correct for exactly 4 elem&#x000a;check correct for exactly 5 elem&#x000a;"/>
+
+</alloy>

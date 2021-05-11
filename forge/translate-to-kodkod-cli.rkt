@@ -89,6 +89,27 @@
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
 
+    [(? node/formula/op/historically?)
+     ( print-cmd-cont "(historically ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/once?)
+     ( print-cmd-cont "(once ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/before?)
+     ( print-cmd-cont "(before ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/since?)
+     ( print-cmd-cont "(since ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+    [(? node/formula/op/triggered?)
+     ( print-cmd-cont "(triggered ")
+     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
+     ( print-cmd-cont ")")]
+
     
     [(? node/formula/op/in?)
      (print-cmd-cont "(in ")
@@ -157,7 +178,7 @@
         (print-cmd-cont (format "~a " type))])]
     [(node/expr/op info arity args)
      (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
-    [(node/expr/quantifier-var info arity sym)     
+    [(node/expr/quantifier-var info arity sym name)     
      (print-cmd-cont (symbol->string (v sym #;(get-var-idx expr quantvars))))
      (print-cmd-cont " ")]
     [(node/expr/comprehension info len decls form)     

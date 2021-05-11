@@ -37,7 +37,7 @@
 (inst my-inst2
   (ni A (+ Albert Anna)))
 
-(run my-run #:inst my-inst2)
+(run my-run #:bounds my-inst2)
 (display my-run)
 
 

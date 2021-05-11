@@ -12,5 +12,5 @@
   PopularAKing])
 
 (is-sat? new-run)
-(define instance-stream (Run-result new-run))
-(display (stream-first instance-stream))
+(define instance-tree (Run-result new-run))
+(display (tree:get-value instance-tree))

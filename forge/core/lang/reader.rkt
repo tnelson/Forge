@@ -26,7 +26,11 @@
                           ,@parse-tree
                           #;(logging:log-errors
                             ,@parse-tree)
-                          #;(logging:flush-logs)))
+                          
+                          (module+ execs)
+                          (module+ main
+                            (require (submod ".." execs))
+                            #;(logging:flush-logs))))
 
   (datum->syntax #f module-datum))
 

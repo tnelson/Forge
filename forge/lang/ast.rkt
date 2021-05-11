@@ -58,41 +58,43 @@
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
   (define loc (nodeinfo-loc info))
+  (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+  
   (when (< (length args) min-length)
-    (raise-syntax-error #f (format "building ~a not enough arguments; required ~a got ~a at loc: ~a"
-                                   op min-length args loc)
+    (raise-syntax-error #f (format "building ~a; not enough arguments: required ~a got ~a at loc: ~a"
+                                   op min-length args locstr)
                         (datum->syntax #f args (build-source-location-syntax loc))))
   (unless (false? max-length)
     (when (> (length args) max-length)
-      (raise-syntax-error #f (format "too many arguments; maximum ~a, got ~a at loc: ~a" max-length args loc)
+      (raise-syntax-error #f (format "too many arguments to ~a; maximum ~a, got ~a at loc: ~a" op max-length args locstr)
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (for ([a (in-list args)])
     (unless (type? a)
-      (raise-syntax-error #f (format "argument to ~a had unexpected type. expected ~a. loc: ~a" op type? loc)
+      (raise-syntax-error #f (format "argument to ~a had unexpected type. expected ~a, got ~a. loc: ~a" op type? a locstr)
                           (datum->syntax #f args (build-source-location-syntax loc))))
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
-        (raise-syntax-error #f (format "expression with arity ~v" arity)
+        (raise-syntax-error #f (format "argument to ~a was not expression with arity ~v (got: ~a) at loc: ~a" op arity a locstr)
                             (datum->syntax #f args (build-source-location-syntax loc))))))
   (when same-arity?
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
         (unless (equal? (node/expr-arity a) arity)
-          (raise-syntax-error #f (format "arguments must have same arity. got ~a and ~a at loc: ~a"
-                                         arity (node/expr-arity a) loc)
+          (raise-syntax-error #f (format "arguments to ~a must have same arity. got ~a and ~a at loc: ~a"
+                                         op arity (node/expr-arity a) locstr)
                            (datum->syntax #f args (build-source-location-syntax loc)))))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
-       (raise-syntax-error #f (format "join would create a relation of arity 0 at loc: ~a" loc)
+       (raise-syntax-error #f (format "join would create a relation of arity 0 at loc: ~a" locstr)
                            (datum->syntax #f args (build-source-location-syntax loc)))))
   
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)      
-      (raise-syntax-error #f (format "second argument must have arity 1 at loc: ~a" loc)
+      (raise-syntax-error #f (format "second argument to ~a must have arity 1 at loc: ~a" op locstr)
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (when domain?
     (unless (equal? (node/expr-arity (car args)) 1)      
-      (raise-syntax-error #f (format "first argument must have arity 1 at loc: ~a" loc)
+      (raise-syntax-error #f (format "first argument to ~a must have arity 1 at loc: ~a" op locstr)
                              (datum->syntax #f args (build-source-location-syntax loc))))))
 
 ;; EXPRESSIONS -----------------------------------------------------------------
@@ -164,6 +166,7 @@
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
                    [functionname (format-id #'id "~a/func" #'id)]
+                   [macroname/info-help (format-id #'id "~a/info-help" #'id)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
                    [child-accessor (format-id #'id "~a-children" #'parent)]
                    [display-id (if (equal? '|| (syntax->datum #'id)) "||" #'id)]
@@ -181,7 +184,7 @@
                 ; all of the /op nodes have their children in a field named "children"
                 (fprintf port "~a" (cons 'display-id (child-accessor self))))])
            ; Keep this commented-out line for use in emergencies to debug bad source locations:
-           ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self)))))])
+           ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self))))
            
            (define (functionname #:info [info empty-nodeinfo] . args)
              (check-args info 'id args childtype checks ...)
@@ -203,7 +206,16 @@
                [(_ e ellip)                
                 (quasisyntax/loc stx2
                   (macroname/info (nodeinfo #,(build-source-location stx2)) e ellip))]))
-           
+
+           (define (macroname/info-help info args-raw)
+             (let* ([args (cond
+                            [(or (not (equal? 1 (length args-raw)))
+                                (not (list? (first args-raw)))) args-raw]
+                            [else (first args-raw)])])
+              (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
+                  (apply @op args)
+                  (apply functionname #:info info args))))
+
            ; a macro constructor that also takes a syntax object to use for location
            ;  (good for, e.g., creating a big && in sigs.rkt for predicates)
            (define-syntax (macroname/info stx2)                     
@@ -219,14 +231,8 @@
                     ;(printf "debug2, in ~a: ~a~n" id (list e ellip))
                     
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
-                    (let* ([args-raw (list e ellip)]
-                           [args (cond
-                                   [(or (not (equal? 1 (length args-raw)))
-                                        (not (list? (first args-raw)))) args-raw]
-                                   [else (first args-raw)])])
-                      (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
-                          (apply @op args)
-                          (apply functionname #:info info args)))))])))))]
+                    (macroname/info-help info (list e ellip))))])))))]
+
     [(_ id parent arity checks ... #:lift @op)
      (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
      (syntax/loc stx
@@ -277,14 +283,14 @@
 
 ;; -- quantifier vars ----------------------------------------------------------
 
-(struct node/expr/quantifier-var node/expr (sym) #:transparent
+(struct node/expr/quantifier-var node/expr (sym name) #:transparent
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/quantifier-var))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/quantifier-var 0))
    (define hash2-proc (make-robust-node-hash-syntax node/expr/quantifier-var 3))]
   #:methods gen:custom-write
   [(define (write-proc self port mode)     
-     (fprintf port "~a" (node/expr/quantifier-var-sym self)))])
+     (fprintf port "~a" (node/expr/quantifier-var-name self)))])
 
 ;; -- comprehensions -----------------------------------------------------------
 
@@ -313,7 +319,7 @@
   (syntax-case stx ()
     [(_ ([r0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'r0)] ... )
+       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
          (comprehension (nodeinfo #,(build-source-location stx)) (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
@@ -544,6 +550,14 @@
 (define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
 (define-node-op releases node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
 
+; Electrum past-time temporal operators
+(define-node-op historically node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op once node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+; Note that before F is false in state 0 for any F
+(define-node-op before node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op since node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op triggered node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+
 ; --------------------------------------------------------
 
 (define (int=-lifter i1 i2)
@@ -606,7 +620,7 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/formula/quantified info quantifier decls formula) self)
-     (fprintf port "(~a [~a] ~a)" quantifier decls formula))]
+     (fprintf port "(~a ~a ~a)" quantifier decls formula))]
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/formula/quantified))
    (define hash-proc  (make-robust-node-hash-syntax node/formula/quantified 0))
@@ -647,14 +661,15 @@
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax???? 
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-all" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'all (list (cons v0 e0) ...) pred)))]))
 
 (define-syntax (some stx)
   (syntax-case stx ()
-    [(_ ([v0 e0] ...) pred)     
+    [(_ () pred) #'pred] ; ignore quantifier over no variables
+    [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-some" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'some (list (cons v0 e0) ...) pred)))]
     [(_ expr)
      (quasisyntax/loc stx
@@ -664,7 +679,7 @@
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-no" 'v0)) 'v0)] ...)
          (! (quantified-formula (nodeinfo #,(build-source-location stx)) 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
      (quasisyntax/loc stx
@@ -695,7 +710,7 @@
   (syntax-case stx ()
     [(_ ([x1 r1] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity r1) 'x1)] ...)
+       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity r1) (gensym (format "~a-sum" 'x1)) 'x1)] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx)) (list (cons x1 r1) ...) int-expr)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

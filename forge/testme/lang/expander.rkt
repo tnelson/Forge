@@ -14,7 +14,8 @@
          dynamic-require quote list printf 
          parameterize lambda 
          for/list for in-naturals
-         unless when)
+         unless when
+         module+ submod)
 
 (provide (all-from-out forge/lang/expander)
          (for-syntax ParagraphClass TestDeclClass TestBlockClass TestExpectDeclClass ExampleDeclClass)

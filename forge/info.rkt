@@ -2,7 +2,7 @@
 
 (define collection "forge")
 
-(define version "0.9.1")
+(define version "0.14.2")
 
 (define deps '("base"
                "syntax-classes"       ; used in parser and expander
@@ -14,7 +14,8 @@
                "profile-lib"          ; ???
                "crypto-lib"           ; ???
                "rackunit-lib"         ; used for Forge tests               
-               "web-server-lib"       ; used for Sterling server                                             
+               "web-server-lib"       ; used for Sterling server
+               "draw-lib"             ; ???                                             
                "mischief"             ; for amalgam (stream cartesian product)
                "gui-lib"              ; for syntax highlighting in tool
                "drracket-plugin-lib"  ; for tool
@@ -28,9 +29,8 @@
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
 (define compile-omit-paths '("example" "examples" "doc" "tests" 
-                             "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"
-                             ; TODO: remove solver invocations/slow runs from this file
-                             "amalgam.rkt"
+                             "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"                            
+                             "amalgam/tests"
                              ))
 
 (define drracket-tools (list (list "tool.rkt")))
@@ -51,4 +51,5 @@
                               "example/new-mode"
                               "example/store/"
                               "examples"
+                              "amalgam"
                               "OLD"))

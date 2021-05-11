@@ -14,7 +14,8 @@
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
 
-(provide require provide all-defined-out except-out prefix-in only-in)
+(provide require provide all-defined-out except-out prefix-in only-in
+         module+ submod)
 (provide forge:nsa define-namespace-anchor)
 ; (provide (all-from-out "ast.rkt"))
 (provide (all-from-out forge/logging/sigs))
@@ -670,11 +671,11 @@
                                          (string->symbol (syntax->datum #'cmd-type)))]
                  [name #'(~? name.name temporary-name)]
                  [preds (my-expand #'(~? pred.name preds))])
-     (syntax/loc stx (begin
-       (cmd-type name (~? (~@ #:preds [preds]))
+    #`(begin
+       #,(syntax/loc stx (cmd-type name (~? (~@ #:preds [preds]))
                       (~? (~@ #:scope scope.translate))
-                      (~? (~@ #:bounds bounds.translate)))
-       (display name))))]))
+                      (~? (~@ #:bounds bounds.translate))))
+       #,(syntax/loc stx (display name))))]))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 (define-syntax (TestDecl stx)
@@ -690,11 +691,11 @@
                  [preds (my-expand #'(~? pred.name preds))]
                  [expected (datum->syntax #'expected
                                           (string->symbol (syntax->datum #'expected)))])
-     (syntax/loc stx (begin
+     (syntax/loc stx
        (test name (~? (~@ #:preds [preds]))
                   (~? (~@ #:scope scope.translate))
                   (~? (~@ #:bounds bounds.translate))
-                  #:expect expected))))]))
+                  #:expect expected)))]))
 
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 (define-syntax (TestExpectDecl stx)
@@ -707,13 +708,15 @@
        (syntax/loc stx (begin block.test-decls ...))
        (syntax/loc stx (begin)))]))
 
-(define-syntax-parser ExampleDecl
+(define-syntax (ExampleDecl stx)
+  (syntax-parse stx
   [((~literal ExampleDecl) (~optional name:NameClass)
                            pred:ExprClass
                            bounds:BoundsClass)
-   #`(example (~? name.name unnamed-example) 
-              pred
-              #,@#'bounds.translate)])
+   (quasisyntax/loc stx
+    (example (~? name.name unnamed-example) 
+      pred
+      #,@(syntax/loc stx bounds.translate)))]))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
@@ -785,11 +788,20 @@
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (releases expr1 expr2)))]
-
   [((~literal Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (until expr1 expr2)))]
+
+  [((~literal Expr) expr1:ExprClass (~or "since") expr2:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
+     (syntax/loc stx (since expr1 expr2)))]
+  [((~literal Expr) expr1:ExprClass (~or "triggered") expr2:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
+     (syntax/loc stx (triggered expr1 expr2)))]
+
     
   [((~literal Expr) (~or "!" "not") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
@@ -804,6 +816,16 @@
   [((~literal Expr) (~or "after") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
        (syntax/loc stx (after expr1)))]
+
+  [((~literal Expr) (~or "historically") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+     (syntax/loc stx (historically expr1)))]
+  [((~literal Expr) (~or "once") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+     (syntax/loc stx (once expr1)))]
+  [((~literal Expr) (~or "before") expr1:ExprClass)
+   (with-syntax ([expr1 (my-expand #'expr1)])
+       (syntax/loc stx (before expr1)))]       
     
   [((~literal Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
