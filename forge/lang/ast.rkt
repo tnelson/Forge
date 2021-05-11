@@ -292,6 +292,12 @@
   [(define (write-proc self port mode)     
      (fprintf port "~a" (node/expr/quantifier-var-name self)))])
 
+(define (var [raw-sym #f] #:info [node-info empty-nodeinfo])
+  (define sym (@or raw-sym (gensym 'var)))
+  (node/expr/quantifier-var node-info
+                            1 ; TODO: Allow arbitrary arity?
+                            sym sym))
+
 ;; -- comprehensions -----------------------------------------------------------
 
 (struct node/expr/comprehension node/expr (decls formula)
@@ -315,12 +321,15 @@
     (raise-argument-error 'set "formula?" formula))
   (node/expr/comprehension info (length decls) decls formula))
 
+(define (set/func decls formula #:info [node-info empty-nodeinfo])
+  (comprehension node-info decls formula))
+
 (define-syntax (set stx)
   (syntax-case stx ()
     [(_ ([r0 e0] ...) pred)
      (quasisyntax/loc stx
        (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
-         (comprehension (nodeinfo #,(build-source-location stx)) (list (cons r0 e0) ...) pred)))]))
+         (set/func #:info (nodeinfo #,(build-source-location stx)) (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 
@@ -387,18 +396,14 @@
    (define hash-proc  (make-robust-node-hash-syntax node/expr/atom 0))
    (define hash2-proc (make-robust-node-hash-syntax node/expr/atom 3))])
 
+(define (atom/func name #:info [node-info empty-nodeinfo])
+  (node/expr/atom node-info 1 name))
 
 (define-syntax (atom stx)
   (syntax-case stx ()    
-    [(_ val)
-     (quasisyntax/loc stx (node/expr/atom
-                           (nodeinfo #,(build-source-location stx))
-                           1 val))]))
-
-;(define (atom name)
-;  (node/expr/atom
-;   (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx))
-;   1 name))
+    [(_ name)
+     (quasisyntax/loc stx (atom/func #:info (nodeinfo #,(build-source-location stx))
+                                     name))]))
 
 (define (atom-name rel)
   (node/expr/atom-name rel))
@@ -471,12 +476,14 @@
    (define hash-proc  (make-robust-node-hash-syntax node/int/constant 0))
    (define hash2-proc (make-robust-node-hash-syntax node/int/constant 3))])
 
+(define (int/func n #:info [node-info empty-nodeinfo])
+  (node/int/constant node-info n))
 
 (define-syntax (int stx)
   (syntax-case stx ()
     [(_ n)
      (quasisyntax/loc stx       
-         (node/int/constant (nodeinfo #,(build-source-location stx)) n))]))
+         (int/func #:info (nodeinfo #,(build-source-location stx)) n))]))
 
 ;; -- sum quantifier -----------------------------------------------------------
 (struct node/int/sum-quant node/int (decls int-expr)
@@ -492,7 +499,7 @@
    (define hash-proc  (make-robust-node-hash-syntax node/int/sum-quant 0))
    (define hash2-proc (make-robust-node-hash-syntax node/int/sum-quant 3))])
 
-(define (sum-quant-expr info decls int-expr)
+(define (sum-quant/func decls int-expr #:info [node-info empty-nodeinfo])
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-argument-error 'set "expr?" e))
@@ -500,7 +507,10 @@
       (raise-argument-error 'set "decl of arity 1" e)))
   (unless (node/int? int-expr)
     (raise-argument-error 'set "int-expr?" int-expr))
-  (node/int/sum-quant info decls int-expr))
+  (node/int/sum-quant node-info decls int-expr))
+
+(define (sum-quant-expr info decls int-expr)
+  (sum-quant/func decls int-expr #:info info))
 
 ;; FORMULAS --------------------------------------------------------------------
 
@@ -636,7 +646,6 @@
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified info quantifier decls formula))
 
-
 ;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
 
 ;; -- multiplicities -----------------------------------------------------------
@@ -656,6 +665,10 @@
     (raise-argument-error mult "expr?" expr))
   (node/formula/multiplicity info mult expr))
 
+
+(define (all-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (quantified-formula node-info 'all decls formula))
+
 (define-syntax (all stx)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
@@ -663,6 +676,12 @@
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-all" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'all (list (cons v0 e0) ...) pred)))]))
+
+(define (some-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (quantified-formula node-info 'some decls formula))
+
+(define (some/func expr #:info [node-info empty-nodeinfo])
+  (multiplicity-formula node-info 'some expr))
 
 (define-syntax (some stx)
   (syntax-case stx ()
@@ -675,6 +694,12 @@
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'some expr))]))
 
+(define (no-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (quantified-formula node-info 'no decls formula))
+
+(define (no/func expr #:info [node-info empty-nodeinfo])
+  (multiplicity-formula node-info 'no expr))
+
 (define-syntax (no stx)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
@@ -684,6 +709,12 @@
     [(_ expr)
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'no expr))]))
+
+(define (one/func expr #:info [node-info empty-nodeinfo])
+  (multiplicity-formula node-info 'one expr))
+
+(define (one-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (one/func #:info node-info (set/func #:info node-info decls formula)))
 
 (define-syntax (one stx)
   (syntax-case stx ()
@@ -695,6 +726,12 @@
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'one expr))]))
 
+(define (lone/func expr #:info [node-info empty-nodeinfo])
+  (multiplicity-formula node-info 'lone expr))
+
+(define (lone-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (lone/func #:info node-info (set/func #:info node-info decls formula)))
+
 (define-syntax (lone stx)
   (syntax-case stx ()
     [(_ ([x1 r1] ...) pred)
@@ -704,6 +741,8 @@
     [(_ expr)
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'lone expr))]))
+
+; sum-quant/func defined above
 
 ; sum quantifier macro
 (define-syntax (sum-quant stx)
