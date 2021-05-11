@@ -102,53 +102,68 @@
 ;                                name))]))
 
 
-(define/contract (make-sig name #:one [one #f] 
-                                #:abstract [abstract #f] 
-                                #:is-var [is-var #f] 
-                                #:in [in #f] 
-                                #:extends [extends #f] 
-                                #:srcloc [srcloc #f])
-  (->* (symbol?)
-       (#:one boolean?
+(define/contract (make-sig [raw-name #f] 
+                           #:one [one #f] 
+                           #:abstract [abstract #f] 
+                           #:is-var [is-var #f] 
+                           #:in [in #f] 
+                           #:extends [extends #f] 
+                           #:info [node-info empty-nodeinfo])
+  (->* ()
+       (symbol?
+        #:one boolean?
         #:abstract boolean?
         #:is-var boolean?
         #:in (or/c Sig? #f)
         #:extends (or/c Sig? #f)
-        #:srcloc (or/c syntax? #f))
+        #:info (or/c nodeinfo? #f))
        Sig?)
-  (define rel (ast:build-relation srcloc 
-                                  (list (symbol->string name))
-                                  (if extends (symbol->string (Sig-name extends)) 'univ)
-                                  (symbol->string name)
-                                  is-var))
   ; (check-temporal-for-var is-var name)
-  (Sig name
-       rel
+  (define name (or raw-name (gensym 'sig)))
+  (Sig node-info ; info
+        
+       1 ; arity
+       
+       (symbol->string name) ; name
+       (list (symbol->string name)) ; typelist 
+       (if extends (symbol->string (Sig-name extends)) "univ") ; parent 
+       is-var ; is-variable
+
+       name
        one
        abstract
        extends)
   )
 
-
-(define/contract (make-relation name sigs #:is [breaker #f] 
-                                          #:is-var [is-var #f] 
-                                          #:srcloc [srcloc #f])
-  (->* (symbol? 
-        (non-empty-listof Sig?))
-       (#:is (or/c symbol? #f)
+(define/contract (make-relation name/sigs 
+                                [raw-sigs #f] 
+                                #:is [breaker #f] 
+                                #:is-var [is-var #f] 
+                                #:info [node-info empty-nodeinfo])
+  (->* ((or/c symbol? (non-empty-listof Sig?)))
+       ((non-empty-listof Sig?)
+        #:is (or/c node/breaking/break? #f)
         #:is-var boolean?
-        #:srcloc (or/c syntax? #f))
+        #:info (or/c nodeinfo? #f))
 
        Relation?)
-  (define sig-names (map Sig-name sigs))
-  (define rel (ast:build-relation srcloc 
-                                  (map symbol->string sig-names)
-                                  (symbol->string (Sig-name (car sigs)))
-                                  (symbol->string name)
-                                  is-var))
+
+  (define-values (name sigs)
+    (if raw-sigs
+        (values name/sigs raw-sigs)
+        (values (gensym 'relation) name/sigs)))
+
   ; (check-temporal-for-var is-var name)
-  (Relation name
-            rel
+  (Relation node-info ; info
+        
+            (length sigs) ; arity
+            
+            (symbol->string name) ; name
+            (map (compose symbol->string Sig-name) sigs) ; typelist 
+            (symbol->string (Sig-name (first sigs))) ; parent 
+            is-var ; is-variable
+
+            name
             sigs
             breaker)
   )
@@ -485,8 +500,8 @@
                 (Run-spec-target (Run-run-spec run))
                 (Target
                  (for/hash ([(key value) (first (Sat-instances model))]
-                            #:when (member key (append (map Sig-rel (get-sigs new-state))
-                                                       (map Relation-rel (get-relations new-state)))))
+                            #:when (member key (append (get-sigs new-state)
+                                                       (get-relations new-state))))
                    (values key value))
                  distance)))
 

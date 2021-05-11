@@ -3,7 +3,7 @@
 (require (for-syntax racket/syntax syntax/srcloc)
          syntax/srcloc (prefix-in @ racket) (prefix-in $ racket))
 
-(provide (except-out (all-defined-out) next-name @@and @@or @@not int< int> cast-to-expr)
+(provide (except-out (all-defined-out) next-name @@and @@or @@not int< int>)
          (rename-out [@@and and] [@@or or] [@@not not] [int< <] [int> >]))
 
 ; Forge's AST is based on Ocelot's AST, with modifications.
@@ -114,8 +114,6 @@
 (struct node/expr node (arity) #:transparent
   #:property prop:procedure (λ (r . sigs) (build-box-join r sigs)))
 
-(define extended-node/expr? (dynamic-require 'forge/sigs-structs 'extended-node/expr?))
-
 ;; -- operators ----------------------------------------------------------------
 
 ; Should never be directly instantiated
@@ -165,6 +163,7 @@
      ;(printf "defining: ~a~n" stx)
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
+                   [functionname (format-id #'id "~a/func" #'id)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
                    [child-accessor (format-id #'id "~a-children" #'parent)]
                    [display-id (if (equal? '|| (syntax->datum #'id)) "||" #'id)]
@@ -184,6 +183,19 @@
            ; Keep this commented-out line for use in emergencies to debug bad source locations:
            ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self)))))])
            
+           (define (functionname #:info [info empty-nodeinfo] . args)
+             (check-args info 'id args childtype checks ...)
+             (if arity
+                ; expression
+                (if (andmap node/expr? args)
+                    ; expression with expression children (common case)
+                    (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
+                      (name info (apply arity arities) args))
+                    ; expression with non-expression children or const arity (e.g., sing)
+                    (name info (arity) args))
+                ; intexpression or formula
+                (name info args)))
+
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)
            (define-syntax (id stx2)
@@ -208,25 +220,13 @@
                     
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
                     (let* ([args-raw (list e ellip)]
-                           [args-spliced (cond
-                                           [(or (not (equal? 1 (length args-raw)))
-                                                (not (list? (first args-raw)))) args-raw]
-                                           [else (first args-raw)])]
-                           [args (map cast-to-expr args-spliced)])
+                           [args (cond
+                                   [(or (not (equal? 1 (length args-raw)))
+                                        (not (list? (first args-raw)))) args-raw]
+                                   [else (first args-raw)])])
                       (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
                           (apply @op args)
-                          (begin
-                            (check-args info 'id args childtype checks ...)
-                            (if arity
-                                ; expression
-                                (if (andmap node/expr? args)
-                                    ; expression with expression children (common case)
-                                    (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                                      (name info (apply arity arities) args))
-                                    ; expression with non-expression children or const arity (e.g., sing)
-                                    (name info (arity) args))
-                                ; intexpression or formula
-                                (name info args)))))))])))))] 
+                          (apply functionname #:info info args)))))])))))]
     [(_ id parent arity checks ... #:lift @op)
      (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
      (syntax/loc stx
@@ -369,9 +369,6 @@
 (define (relation-parent rel)
   (node/expr/relation-parent rel))
 
-; (define cast-to-expr (dynamic-require 'forge/sigs-structs 'cast-to-expr))
-(define (cast-to-expr val [on-fail #f]) val)
-
 ;; -- relations ----------------------------------------------------------------
 
 (struct node/expr/atom node/expr (name) #:transparent #:mutable
@@ -412,7 +409,6 @@
    (define hash2-proc (make-robust-node-hash-syntax node/expr/constant 3))])
 
 ; Macros in order to capture source location
-; (define Sig (dynamic-require 'forge/sigs-structs 'Sig))
 
 ; constants
 (define-syntax none (lambda (stx) (syntax-case stx ()    
@@ -422,13 +418,10 @@
 (define-syntax iden (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 2 'iden))])))
 ; relations, not constants
-; (define-syntax Int (lambda (stx) (syntax-case stx ()    
-;     [val (identifier? (syntax val)) (quasisyntax/loc stx 
-;       (Sig 'Int 
-;             (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f)
-;             #f #f #f))])))
-(define-syntax succ (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
+; (define-syntax Int (lambda (stx) (syntax-case stx ()
+;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f))])))
+; (define-syntax succ (lambda (stx) (syntax-case stx ()    
+;     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -456,10 +449,10 @@
 ;(define-node-op max node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
 ;(define-node-op min node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
 
-(define (max s-int)
-  (sum (- s-int (join (^ succ) s-int))))
-(define (min s-int)
-  (sum (- s-int (join s-int (^ succ)))))
+; (define (max s-int)
+;   (sum (- s-int (join (^ succ) s-int))))
+; (define (min s-int)
+;   (sum (- s-int (join s-int (^ succ)))))
 
 ;; -- constants ----------------------------------------------------------------
 
@@ -619,14 +612,12 @@
    (define hash-proc  (make-robust-node-hash-syntax node/formula/quantified 0))
    (define hash2-proc (make-robust-node-hash-syntax node/formula/quantified 3))])
 
-(define (quantified-formula info quantifier raw-decls formula)
-  (define decls  
-    (for/list ([decl (in-list decls)])
-      (match-define (cons var raw-val) decl)
-      (define casted-val (cast-to-expr raw-val (thunk* (raise-argument-error quantifier "expr?" raw-val))))
-      ; ;(unless (equal? (node/expr-arity e) 1) ; Don't know what this is for
-      ;   (raise-argument-error quantifier "decl of arity 1" raw-val))
-      (cons var casted-val)))
+(define (quantified-formula info quantifier decls formula)
+  (for ([e (in-list (map cdr decls))])
+    (unless (node/expr? e)
+      (raise-argument-error quantifier "expr?" e))
+    #'(unless (equal? (node/expr-arity e) 1)
+      (raise-argument-error quantifier "decl of arity 1" e)))
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified info quantifier decls formula))
@@ -646,8 +637,9 @@
    (define hash-proc  (make-robust-node-hash-syntax node/formula/multiplicity 0))
    (define hash2-proc (make-robust-node-hash-syntax node/formula/multiplicity 3))])
 
-(define (multiplicity-formula info mult raw-expr)
-  (define expr (cast-to-expr (thunk* (raise-argument-error mult "expr?" raw-expr))))
+(define (multiplicity-formula info mult expr)
+  (unless (node/expr? expr)
+    (raise-argument-error mult "expr?" expr))
   (node/formula/multiplicity info mult expr))
 
 (define-syntax (all stx)

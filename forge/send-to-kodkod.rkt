@@ -36,13 +36,13 @@
              (match (Relation-breaker relation)
                [#f (list)]
                ['default (list)]
-               ['pfunc (let* ([rel (Relation-rel relation)]
+               ['pfunc (let* ([rel relation]
                               [sigs (Relation-sigs relation)]
                               [left-sig (get-sig run-spec (first sigs))]
-                              [sig-rel (Sig-rel left-sig)])
+                              [sig-rel left-sig])
                          (list (all ([s sig-rel])
                                  (lone (join s rel)))))]
-               [other (break (Relation-rel relation) other)
+               [other (break relation other)
                       (list)]))))
 
   ; Insert missing upper bounds of partial bindings
@@ -103,16 +103,16 @@
                                  (get-relations run-spec))]
            [total-bounds (append sig-bounds relation-bounds)]
            [sigs (get-sigs run-spec)]
-           [sig-rels (map Sig-rel (filter (lambda (sig) (@not (equal? (Sig-name sig) 'Int))) sigs))]
+           [sig-rels (filter (lambda (sig) (@not (equal? (Sig-name sig) 'Int))) sigs)]
            [upper-bounds (for/hash ([sig sigs]) 
-                           (values (Sig-rel sig) 
+                           (values sig
                                    (map car (bound-upper (hash-ref sig-to-bound (Sig-name sig))))))]
            [relations-store (for/hash ([relation (get-relations run-spec)]
                                        #:unless (equal? (Relation-name relation) 'succ))
-                              (values (Relation-rel relation) (map Sig-rel (get-sigs run-spec relation))))]
+                              (values relation (get-sigs run-spec relation)))]
            [extensions-store (for/hash ([sig sigs]
                                         #:when (Sig-extends sig))
-                               (values (Sig-rel sig) (Sig-rel (get-sig run-spec (Sig-extends sig)))))])
+                               (values sig (get-sig run-spec (Sig-extends sig))))])
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
   (clear-breaker-state)
 
@@ -478,7 +478,7 @@
   (define bounds-hash
     (for/hash ([sig (get-sigs run-spec)])
       (let* ([name (Sig-name sig)]
-             [rel (Sig-rel sig)]
+             [rel sig]
              [lower (map list (hash-ref sig-to-lower name))]
              [upper (map list (hash-ref sig-to-upper name))])
         (values name (bound rel lower upper)))))
@@ -502,7 +502,7 @@
       (define upper (apply cartesian-product sig-atoms))
       (define lower empty)
       (values (Relation-name relation) 
-              (bound (Relation-rel relation) lower upper))))
+              (bound relation lower upper))))
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
   (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
@@ -525,7 +525,7 @@
                 (raise (format (string-append "Lower bound too large for given BitWidth; "
                                               "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
                                sig int-lower (sub1 max-int))))
-              (list (<= (int int-lower) (card (Sig-rel sig))))))
+              (list (<= (int int-lower) (card sig)))))
         (if (@not (Sig-extends sig))
             (list)
             (let ()
@@ -533,7 +533,7 @@
                 (raise (format (string-append "Upper bound too large for given BitWidth; "
                                               "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                sig int-upper (sub1 max-int))))
-              (list (<= (card (Sig-rel sig)) (int int-upper)))))))))
+              (list (<= (card sig) (int int-upper)))))))))
 
 
 ; TN TODO
@@ -551,7 +551,7 @@
 (define (get-extender-preds run-spec)
   (define sig-constraints (for/list ([sig (get-sigs run-spec)])
     ; get children information
-    (define children-rels (map Sig-rel (get-children run-spec sig)))
+    (define children-rels (get-children run-spec sig))
 
     ; abstract and sig1, ... extend => (= sig (+ sig1 ...))
     ; not abstract and sig is parent of sig1 => (in sig1 sig)
@@ -564,8 +564,8 @@
       (in sig2 sig1))
     (define extends-constraints 
       (if (and (Sig-abstract sig) (cons? (get-children run-spec sig)))
-          (list (abstract (Sig-rel sig) children-rels))
-          (map (curry parent (Sig-rel sig)) children-rels)))
+          (list (abstract sig children-rels))
+          (map (curry parent sig) children-rels)))
 
     ; sig1 and sig2 extend sig => (no (& sig1 sig2))
     (define (disjoin-pair sig1 sig2)
@@ -589,5 +589,5 @@
 ; contain any atoms which don't populate their Sig.
 (define (get-relation-preds run-spec)
   (for/list ([relation (get-relations run-spec)])
-    (define sig-rels (map Sig-rel (get-sigs run-spec relation)))
-    (in (Relation-rel relation) (-> sig-rels))))
+    (define sig-rels (get-sigs run-spec relation))
+    (in relation (-> sig-rels))))

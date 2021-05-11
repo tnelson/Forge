@@ -126,7 +126,7 @@
   (define the-sigs (get-sigs run-or-state)) ; includes Int
   (format
    "(+ ~a ) "
-   (string-join (map (lambda (s) (format-relname (node/expr/relation-is-variable (Sig-rel s)) (Sig-name s) "")) the-sigs) " ")))
+   (string-join (map (lambda (s) (format-relname (node/expr/relation-is-variable s) (Sig-name s) "")) the-sigs) " ")))
 
 (define (interpret-expr run-or-state expr relations atom-names quantvars)
   (match expr

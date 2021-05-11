@@ -9,6 +9,31 @@
 (require (for-syntax racket/syntax syntax/srcloc))
 
 (provide (all-defined-out))
+; (provide (except-out (all-defined-out) (struct-out Sig) (struct-out Relation)))
+; (provide (contract-out (struct Sig ([info nodeinfo?]
+                                    
+;                                     [arity nonnegative-integer?]
+;                                     [name string?]
+;                                     [typelist (listof string?)]
+;                                     [parent string?]
+;                                     [is-variable boolean?]
+
+;                                     [name symbol?]
+;                                     [one boolean?]
+;                                     [abstract boolean?]
+;                                     [extends (or/c Sig? #f)]))))
+; (provide (contract-out (struct Relation ([info nodeinfo?]
+                                    
+;                                          [arity nonnegative-integer?]
+;                                          [name string?]
+;                                          [typelist (listof string?)]
+;                                          [parent string?]
+;                                          [is-variable boolean?]
+                                    
+;                                          [name symbol?]
+;                                          [sigs (listof Sig?)]
+;                                          [breaker (or/c node/breaking/break? #f)]))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
@@ -35,20 +60,24 @@
 
 
 
-(struct/contract Sig (
-  [name symbol?]
-  [rel node/expr/relation?]
-  [one boolean?]
-  [abstract boolean?]
-  [extends (or/c symbol? #f)]
-  ) #:transparent)
+(struct Sig node/expr/relation (
+  name ; symbol?
+  one ; boolean?
+  abstract ; boolean?
+  extends ; (or/c Sig? #f)
+  ) #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (fprintf port "(Sig ~a)" (Sig-name self)))])
 
-(struct/contract Relation (
-  [name symbol?]
-  [rel node/expr/relation?]
-  [sigs (listof Sig?)]
-  [breaker (or/c symbol? #f)]
-  ) #:transparent)
+(struct Relation node/expr/relation (
+  name ; symbol?
+  sigs ; (listof Sig?)
+  breaker ; (or/c node/breaking/break? #f)
+  ) #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (fprintf port "(Relation ~a)" (Relation-name self)))])
 
 (struct/contract Range (
   [lower (or/c nonnegative-integer? #f)]
@@ -146,11 +175,20 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define-syntax Int (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx 
-      (Sig 'Int 
-            (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f)
-            #f #f #f))])))
+(define-syntax Int (lambda (stx) (syntax-case stx ()
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f 'Sig #f #f #f))])))
+(define-syntax succ (lambda (stx) (syntax-case stx ()    
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f 'succ (list Int Int) #f))])))
+
+(define (max s-int)
+  (sum (- s-int (join (^ succ) s-int))))
+(define (min s-int)
+  (sum (- s-int (join s-int (^ succ)))))
+; (define-syntax Int (lambda (stx) (syntax-case stx ()    
+;     [val (identifier? (syntax val)) (quasisyntax/loc stx 
+;       (Sig 'Int 
+;             (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f)
+;             #f #f #f))])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;  Initial State  ;;;;;;;
@@ -158,7 +196,7 @@
 
 (define init-sigs (hash 'Int Int))
 (define init-sig-order (list 'Int))
-(define init-relations (hash 'succ (Relation 'succ succ (list Int Int) #f)))
+(define init-relations (hash 'succ succ))
 (define init-relation-order (list 'succ))
 (define init-pred-map (@hash))
 (define init-fun-map (@hash))
@@ -211,18 +249,6 @@ is-sat? :: Run -> boolean
 is-unsat? :: Run -> boolean
 Returns whether the given run resulted in sat or unsat, respectively.
 |#
-
-(define (extended-node/expr? thing)
-  (or/c node/expr?
-        Sig?
-        Relation?))
-
-(define (cast-to-expr thing [on-fail (lambda (x) x)])
-  (cond
-    [(Sig? thing) (Sig-rel thing)]
-    [(Relation? thing) (Relation-rel thing)]
-    [(node/expr? thing) thing]
-    [else (on-fail thing)]))
 
 ; get-state :: Run-or-State -> State
 ; If run-or-state is a State, returns it;
@@ -401,16 +427,17 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; Used for translate to kodkod-cli.
 (define (get-all-rels run-or-spec)
   (cond [(Run-spec? run-or-spec)
+         
          (let ([run-spec run-or-spec])
            (append
-             (map Sig-rel (get-sigs run-spec))
-             (map Relation-rel (get-relations run-spec))))]
+             (get-sigs run-spec)
+             (get-relations run-spec)))]
         [(Run? run-or-spec)
          (let ([run run-or-spec]
                [run-spec (Run-run-spec run-or-spec)])
            (append
-             (map Sig-rel (get-sigs run-spec))
-             (map Relation-rel (get-relations run-spec))))]))
+             (get-sigs run-spec)
+             (get-relations run-spec)))]))
 
 ; get-relation-map :: (|| Run Run-spec) -> Map<Symbol, AST-Relation>
 ; Returns a map from names to AST-Relations.
