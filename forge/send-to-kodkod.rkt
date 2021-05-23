@@ -125,9 +125,10 @@
        (kodkod:start-server)]
       [(equal? backend 'pardinus)
        (pardinus:start-server
-        'stepper
-        (Target? (Run-spec-target run-spec))
-        (equal? 'temporal (get-option run-spec 'problem_type)))]
+        'stepper ; always a stepper problem (there is a "next" button)
+        ; 'default, 'temporal, or 'target (tells Pardinus which solver to load,
+        ;  and affects parsing so needs to be known at invocation time)
+        (get-option run-spec 'problem_type))]
       [else (raise (format "Invalid backend: ~a" backend))]))
 
   (define-syntax-rule (kk-print lines ...)
@@ -254,22 +255,30 @@
       (pardinus:print-cmd ")")
       (pardinus:assert (pardinus:f assertion-number))))
 
-  (define target (Run-spec-target run-spec))
-  (when target
-    (for ([(rel-name atoms) (Target-instance target)])
-      (define relation (hash-ref (get-relation-map run-spec) (symbol->string rel-name)))
-      (define sig-or-rel
-        (if (@= (relation-arity relation) 1)
-            (get-sig run-spec relation)
-            (get-relation run-spec relation)))
-
-      (pardinus-print
-        (pardinus:declare-target 
+  ; target-oriented model finding may not impose an initial target, but might
+  ; be used just to implement custom "next" strategies
+  (when (equal? 'target (get-option run-spec 'problem_type))
+    (define target (Run-spec-target run-spec))    
+    (when target
+      (for ([(rel-name atoms) (Target-instance target)])
+        (define relation (hash-ref (get-relation-map run-spec) (symbol->string rel-name)))
+        (define sig-or-rel
+          (if (@= (relation-arity relation) 1)
+              (get-sig run-spec relation)
+              (get-relation run-spec relation)))
+        
+        (pardinus-print
+         (pardinus:declare-target 
           (pardinus:r (relation-name relation))
-          (get-atoms relation atoms))))
+          (get-atoms relation atoms)))))
 
+    ; Always say what mode; admittedly this won't always make sense if untargeted
+    ; Conflate "target distance" declared with a concrete target and global mode
     (pardinus-print
-      (pardinus:print-cmd "(target-option target-mode ~a)" (Target-distance target))))
+     (pardinus:print-cmd "(target-option target-mode ~a)"
+                         (if target
+                             (Target-distance target)
+                             (get-option run-spec 'target_mode)))))
 
   (define (format-statistics stats)
     (let* ([vars (assoc 'size-variables stats)]

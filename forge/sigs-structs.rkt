@@ -143,7 +143,20 @@
 (define init-const-map (@hash))
 (define init-inst-map (@hash))
 (define init-runmap (@hash))
-(define init-options (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off))
+(define init-options (Options 'SAT4J     ; solver
+                              'pardinus  ; backend
+                              20         ; symmetry-breaking
+                              0          ; core granularity
+                              0          ; translation logging
+                              1          ; minimum tracelength (if temporal)
+                              5          ; maximum tracelength (if temporal)
+                              'default   ; Pardinus solver type (default, temporal, target)
+                              'close_noretarget ; targeting strategy (if target-oriented)
+                              'fast      ; core minimization strategy
+                              0          ; skolem depth
+                              'off       ; local necessity info (experimental)
+                              ))
+
 (define init-state (State init-sigs init-sig-order
                           init-relations init-relation-order
                           init-pred-map init-fun-map init-const-map
