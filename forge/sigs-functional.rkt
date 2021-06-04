@@ -29,10 +29,12 @@
          "send-to-kodkod.rkt")
 (require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
          (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
+(require (prefix-in tree: "lazy-tree.rkt"))
 
 ; Commands
 (provide make-sig make-relation make-inst)
-(provide run run-from-state)
+(provide make-run run-from-state display)
+(provide Int succ)
 
 ; ; Instance analysis functions
 ; (provide is-sat? is-unsat?)
@@ -169,7 +171,7 @@
   )
 
 (define/contract (do-bind bind scope bound)
-  (-> (or/c ast:node/formula? Inst?)
+  (-> (or/c ast:node/formula? ast:node/breaking/op? Inst?)
       Scope?
       Bound?
       (values Scope? Bound?))
@@ -234,7 +236,7 @@
 
     [(Inst func) (func scope bound)]
 
-    [(ast:node/formula/op/= left right) 
+    [(ast:node/formula/op/= info (list left right))
       (unless (ast:node/expr/relation? left)
         (fail))
 
@@ -281,8 +283,8 @@
   (-> Scope? Sig? nonnegative-integer? nonnegative-integer?
       Scope?)
   (define old-sig-scopes (Scope-sig-scopes base-scope))
-  (match-define (Range old-lower old-upper) (hash-ref old-sig-scopes (Sig-name sig)))
-  (define new-sig-scope (Range (max old-lower lower) (min old-upper upper)))
+  (match-define (Range old-lower old-upper) (hash-ref old-sig-scopes (Sig-name sig) (Range lower upper)))
+  (define new-sig-scope (Range (@max old-lower lower) (@min old-upper upper)))
   (define new-sig-scopes (hash-set old-sig-scopes (Sig-name sig) new-sig-scope))
   (struct-copy Scope base-scope
                [sig-scopes new-sig-scopes]))
@@ -294,7 +296,7 @@
                               #:solver [solver #f]
                               #:backend [backend #f]
                               #:target [target #f]
-                              #:command [command #f])
+                              #:command [command #'(run a b c)])
   (->* (State?)
        (#:name symbol?
         #:preds (listof ast:node/formula)
@@ -304,7 +306,7 @@
         #:solver (or/c symbol? #f)
         #:backend (or/c symbol? #f)
         #:target (or/c Target? #f)
-        #:command (or/c symbol? #f))
+        #:command syntax?)
 
        Run?)
 
@@ -347,23 +349,23 @@
         (make-inst bounds-input)))
 
   (define-values (scope bounds) 
-    (Inst-func wrapped-bounds-inst scope-with-ones default-bounds))
+    ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds))
+  (println bounds)
 
-
-  (define spec (Run-spec state preds scope bound target))        
-  (define-values (result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod spec))
+  (define spec (Run-spec state preds scope bounds target))        
+  (define-values (result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod spec command))
   
   (Run name command spec result server-ports atoms kodkod-currents kodkod-bounds))
 
 
-(define/contract (run #:name [name 'unnamed-run]
-                      #:preds [preds (list)]
-                      #:scope [scope-input (list)]
-                      #:bounds [bounds-input (list)]
-                      #:target [target #f]
-                      #:sigs [sigs-input (list)]
-                      #:relations [relations-input (list)]
-                      #:options [options-input #f])
+(define/contract (make-run #:name [name 'unnamed-run]
+                           #:preds [preds (list)]
+                           #:scope [scope-input (list)]
+                           #:bounds [bounds-input (list)]
+                           #:target [target #f]
+                           #:sigs [sigs-input (list)]
+                           #:relations [relations-input (list)]
+                           #:options [options-input #f])
   (->* () 
        (#:name symbol?
         #:preds (listof ast:node/formula)
@@ -377,15 +379,17 @@
 
        Run?)
 
+  (define sigs-with-Int (append sigs-input (list Int)))
   (define sigs
-    (for/hash ([sig sigs-input])
+    (for/hash ([sig sigs-with-Int])
       (values (Sig-name sig) sig)))
-  (define sig-order (map Sig-name sigs-input))
+  (define sig-order (map Sig-name sigs-with-Int))
 
+  (define relations-with-succ (append relations-input (list succ)))
   (define relations
-    (for/hash ([relation relations-input])
+    (for/hash ([relation relations-with-succ])
       (values (Relation-name relation) relation)))
-  (define relation-order (map Relation-name relations-input))
+  (define relation-order (map Relation-name relations-with-succ))
 
   (define pred-map (hash))
   (define fun-map (hash))
@@ -420,10 +424,10 @@
 
 ; make-model-generator :: Stream<model> -> (-> model)
 ; Creates a thunk which generates a new model on each call.
-(define (make-model-generator model-stream)
+(define (make-model-generator model-lazy-tree [mode 'next])
   (thunk
-    (define ret (stream-first model-stream))
-    (set! model-stream (stream-rest model-stream))
+    (define ret (tree:get-value model-lazy-tree))
+    (set! model-lazy-tree (tree:get-child model-lazy-tree mode))
     ret))
 
 ; ; make-model-evaluator :: Run -> (String -> ???)
@@ -452,8 +456,7 @@
       (if arg2 (@display arg1 arg2) (@display arg1))
       (let ()
         (define run arg1)
-        (define model-stream (Run-result run))
-        (define get-next-model (make-model-generator model-stream))
+        (define model-lazy-tree (Run-result run))      
         (define (evaluate-str str-command)
           (define pipe1 (open-input-string str-command))
           (define pipe2 (open-input-string (format "eval ~a" str-command)))
@@ -521,7 +524,7 @@
           (make-model-generator (get-result contrast-run)))
 
         (display-model run
-                       get-next-model 
+                       model-lazy-tree 
                        (get-relation-map run)
                        evaluate-str
                        (Run-name run) 
@@ -584,7 +587,7 @@
     (raise "Bound conflict."))
 
   (define new-pbindings
-    (hash-set old-pbindings rel (sbound rel lower upper)))
+    (hash-set old-pbindings (string->symbol (ast:relation-name rel)) (sbound rel lower upper)))
 
   ; when exact bounds, put in bindings
   (define new-tbindings 

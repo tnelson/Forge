@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
+(require  (prefix-in ast: "../lang/ast.rkt"))
 (require "../shared.rkt")
 (require racket/struct)
 
@@ -75,22 +76,22 @@
     (printf "evaluating expr : ~v~n" exp))
   (define result (match exp
                    ; Conversion from int values
-                   [`(sing ,ix1) (int-atom (eval-int-expr ix1 bind bitwidth))]
+                   [(ast:node/expr/op/sing _ _ `(,ix1)) (int-atom (eval-int-expr ix1 bind bitwidth))]
                    ; Binary set operations
-                   [`(+ ,exp-1 ,exp-2) (append                                        
+                   [(ast:node/expr/op/+ _ _ `(,exp-1 ,exp-2)) (append                                        
                                          (eval-exp exp-1 bind bitwidth safe)
                                          (eval-exp exp-2 bind bitwidth safe))]
-                   [`(- ,exp-1 ,exp-2) (set->list (set-subtract
+                   [(ast:node/expr/op/- _ _ `(,exp-1 ,exp-2)) (set->list (set-subtract
                                                    (list->set (eval-exp exp-1 bind bitwidth safe))
                                                    (list->set (eval-exp exp-2 bind bitwidth safe))))]
-                   [`(& ,exp-1 ,exp-2) (set->list (set-intersect
+                   [(ast:node/expr/op/& _ _ `(,exp-1 ,exp-2)) (set->list (set-intersect
                                                    (list->set (eval-exp exp-1 bind bitwidth safe))
                                                    (list->set (eval-exp exp-2 bind bitwidth safe))))]
-                   [`(-> ,exp-1 ,exp-2) (map flatten (foldl append '()
+                   [(ast:node/expr/op/-> _ _ `(,exp-1 ,exp-2)) (map flatten (foldl append '()
                                                             (map (lambda (x)
                                                                    (map (lambda (y) `(,x ,y))
                                                                         (eval-exp exp-2 bind bitwidth safe))) (eval-exp exp-1 bind bitwidth safe))))]
-                   [`(join ,exp-1 ,exp-2) 
+                   [(ast:node/expr/op/join _ _ `(,exp-1 ,exp-2))
                     (foldl append '() 
                            (map (lambda (x) 
                                         (map (lambda (y)
@@ -110,6 +111,7 @@
                    [`none empty]
                    [`univ (build-univ bind)]
                    [`iden (build-iden bind)]
+                   [(ast:node/expr/atom _ _ name) `((,name))]
                    [`(,p ,vals ...) ;#:when (hash-has-key? bind p)
                     (with-handlers ([exn:fail? (λ (exn) 
                       (define joined (foldl (λ (x y) `(join ,x ,y)) p vals))

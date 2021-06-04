@@ -93,7 +93,7 @@
 
 (struct/contract Bound (
   [pbindings (hash/c symbol? sbound?)]
-  [tbindings (hash/c symbol? (listof symbol?))]
+  [tbindings (hash/c symbol? any/c)] ; (hash/c symbol? (listof symbol?))] ; TODO
   ) #:transparent)
 
 (struct/contract Inst (
@@ -158,9 +158,9 @@
   [name symbol?]
   [command syntax?]
   [run-spec Run-spec?]
-  [result (stream/c any/c)] ; TODO: specify
+  [result tree:node?] ; TODO: specify
   [server-ports Server-ports?]
-  [atoms (listof symbol?)]
+  [atoms (listof (or/c symbol? number?))]
   [kodkod-currents Kodkod-current?]
   [kodkod-bounds (listof any/c)] ; TODO: specify
   ) #:transparent)
@@ -177,7 +177,7 @@
 ;;;;;;    Constants    ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax Int (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f 'Sig #f #f #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f 'Int #f #f #f))])))
 (define-syntax succ (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f 'succ (list Int Int) #f))])))
 
