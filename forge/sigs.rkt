@@ -420,7 +420,7 @@
         (define (run-inst scope bounds)
           (for ([sigg (get-sigs run-state)])
             (when (Sig-one sigg)
-              (set!-values (scope bounds) (bind scope bounds (one (Sig-rel sigg))))))
+              (set!-values (scope bounds) (bind scope bounds (one sigg)))))
           (~? (~@ (set!-values (scope bounds) (bind scope bounds boundss)) ...)
               (~? (set!-values (scope bounds) (bind scope bounds bound))))
           (values scope bounds))
@@ -611,8 +611,8 @@
                 (Run-spec-target (Run-run-spec run))
                 (Target
                  (for/hash ([(key value) (first (Sat-instances model))]
-                            #:when (member key (append (map Sig-rel (get-sigs new-state))
-                                                       (map Relation-rel (get-relations new-state)))))
+                            #:when (member key (append (get-sigs new-state)
+                                                       (get-relations new-state))))
                    (values key value))
                  distance)))
 
