@@ -204,7 +204,7 @@
                ; do we need the if (equal? (relation-name rel) "Int")
                ; case that sigs.rkt has?
                [new-scope (update-int-bound scope left-rel (Range exact exact))])
-          (value new-scope bound))]
+          (values new-scope bound))]
        [_ (fail)])]
 
     ; (<= (card rel) upper)
@@ -267,7 +267,7 @@
      (match left
        [(? ast:node/expr/relation?) (break left right)]
        [(ast:node/expr/op/~ info arity (list left-rel))
-        (break left-rel (get-co right-rel))]
+        (break left-rel (get-co right))]
        [_ (fail)])
      ; hopefully the above calls to break update these somehow
      ; and hopefully they don't rely on state :(
@@ -287,13 +287,13 @@
 
     ; rel in expr
     ; expr ni rel
-    [(ast:node/expr/relation? info (list left right))
+    [(ast:node/formula/op/in info (list left right))
      (cond
        [(ast:node/expr/relation? left)
          (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
            (define new-bound (update-bindings bound left (@set) tups))
            (values scope new-bound))]
-       [(ast:node/expr/relation? right) 
+       [(ast:node/expr/relation? right)
          (let ([tups (eval-exp left (Bound-tbindings bound) 8 #f)])
            (define new-bound (update-bindings bound right tups))
            (values scope new-bound))]
