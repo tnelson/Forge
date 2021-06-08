@@ -232,7 +232,6 @@
                     
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
                     (macroname/info-help info (list e ellip))))])))))]
-
     [(_ id parent arity checks ... #:lift @op)
      (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
      (syntax/loc stx

@@ -97,19 +97,17 @@
 ; meant to only allow var sigs and relations in temporal specs
 ; (define (check-temporal-for-var is-var name)
 ;   (cond
-;     [(and is-var
-;           (not (equal? (get-option curr-state 'problem_type)
-;             'temporal)))
+;     [(and is-var (not (equal? (get-option curr-state 'problem_type) 'temporal)))
 ;      (raise-user-error (format "Can't have var ~a unless problem_type option is temporal"
 ;                                name))]))
 
 
-(define/contract (make-sig [raw-name #f] 
-                           #:one [one #f] 
-                           #:abstract [abstract #f] 
-                           #:is-var [is-var #f] 
-                           #:in [in #f] 
-                           #:extends [extends #f] 
+(define/contract (make-sig [raw-name #f]
+                           #:one [one #f]
+                           #:abstract [abstract #f]
+                           #:is-var [is-var #f]
+                           #:in [in #f]
+                           #:extends [extends #f]
                            #:info [node-info empty-nodeinfo])
   (->* ()
        (symbol?
@@ -134,8 +132,7 @@
        name
        one
        abstract
-       extends)
-  )
+       extends))
 
 (define/contract (make-relation name/sigs 
                                 [raw-sigs #f] 
@@ -147,7 +144,6 @@
         #:is (or/c node/breaking/break? #f)
         #:is-var boolean?
         #:info (or/c nodeinfo? #f))
-
        Relation?)
 
   (define-values (name sigs)
@@ -167,54 +163,94 @@
 
             name
             sigs
-            breaker)
-  )
+            breaker))
 
 (define/contract (do-bind bind scope bound)
   (-> (or/c ast:node/formula? ast:node/breaking/op? Inst?)
       Scope?
       Bound?
       (values Scope? Bound?))
+
   (define (fail [cond #f])
     (unless cond
       (raise (format "Invalid bind: ~a" bind))))
 
   (match bind
+    ; no rel, one rel, two rel, lone rel, some rel
     [(ast:node/formula/multiplicity info mult rel)
-      (do-bind 
-        (match mult
-          ['no (ast:= rel ast:none)]
-          ['lone (ast:<= (ast:card rel) 1)]
-          ['one (ast:= (ast:card rel) 1)]
-          ['two (ast:= (ast:card rel) 2)]
-          ['some (ast:>= (ast:card rel) 1)])
-        scope bound)]
+     ; is it safe to use the info from above here?
+     ; ASK TIM ABOUT (list rel)
+     (let ([rel-card (ast:node/int/op/card info (list rel))])
+       (do-bind
+         (match mult
+           ['no (ast:node/formula/op/= info (list rel none))]
+           ['one (ast:node/formula/op/int= info (list rel-card 1))]
+           ['two (ast:node/formula/op/int= info (list rel-card 2))]
+           ['lone
+             (ast:node/formula/op/|| info
+               (list (ast:node/formula/op/int< info (list rel-card 1))
+                     (ast:node/formula/op/int= info (list rel-card 1))))]
+           ; Why was some not in original sigs.rkt?? Does it need new tests?
+           #;['some
+             (ast:node/formula/op/|| info
+               (list (ast:node/formula/op/int= info (list rel-card 1))
+                     (ast:node/formula/op/int> info (list rel-card 1))))])))]
 
-    [(ast:node/formula/op/int= left right)
-      (match left
-        [(ast:node/int/op/card info left-rel)
-          (let* ([exact (eval-int-expr right (Bound-tbindings bound) 8)]
-                 [new-scope (update-int-bound scope left-rel (Range exact exact))])
-             (values new-scope bound))]
-        [_ (fail)])]
+    ; (= (card rel) n)
+    [(ast:node/formula/op/int= eq-info (list left right))
+     (match left
+       [(ast:node/int/op/card c-info (list left-rel))
+        (let* ([exact (eval-int-expr right (Bound-tbindings bound) 8)]
+               ; do we need the if (equal? (relation-name rel) "Int")
+               ; case that sigs.rkt has?
+               [new-scope (update-int-bound scope left-rel (Range exact exact))])
+          (value new-scope bound))]
+       [_ (fail)])]
 
-    [(ast:node/formula/op/|| (ast:node/formula/op/int< left right) 
-                             (ast:node/formula/op/int= left2 right2))
-      (unless (@and (equal? left left2) (equal? right right2))
-        (fail))
+    ; (<= (card rel) upper)
+    [(ast:node/formula/op/|| or-info
+       (list (ast:node/formula/op/int< lt-info (list lt-left lt-right))
+             (ast:node/formula/op/int= eq-info (list eq-left eq-right))))
+     (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
+       (fail))
+     (match lt-left
+       [(ast:node/int/op/card c-info (list left-rel))
+        (let* ([upper-val (eval-int-expr lt-right (Bound-tbindings bound) 8)]
+               ; Thomas originally used 0 here not #f - does it matter?
+               ; original sigs.rkt uses #f
+               [new-scope (update-int-bound scope left-rel (Range #f upper-val))])
+          (values new-scope bound))]
+       [_ (fail)])]
 
-      (match left
-        [(ast:node/int/op/card info left-rel)
-          (let* ([upper-val (eval-int-expr right (Bound-tbindings bound) 8)]
-                 [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
-            (values new-scope bound))]
-        [_ (fail)])]
+    ; (<= lower (card-rel))
+    [(ast:node/formula/op/|| or-info
+       (list (ast:node/formula/op/int< lt-info (list lt-left lt-right))
+             (ast:node/formula/op/int= eq-info (list eq-left eq-right))))
+     (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
+       (fail))
+     (match lt-right
+       [(ast:node/int/op/card c-info (list right-rel))
+        (let* ([lower-val (eval-int-expr lt-left (Bound-tbindings bound) 8)]
+               [new-scope (update-int-bound scope right-rel (Range lower-val #f))])
+          (values new-scope bound))]
+       [_ (fail)])]
 
+    ; (<= lower (card rel) upper)
+    ; Ask Tim is (<= a b c) equivalent to (and (<= a b) (<= a c))?
+    ; so then in the ast would this be
+    ; (node/formula/op/&& and-info
+    ;   (list (node/formula/op/|| or1-info
+    ;           (list (node/formula/op/int< lt1-info (list a b))
+    ;                 (node/formula/op/int= eq1-info (list a b))))
+    ;         (node/formula/op/|| or2-info
+    ;           (list (node/formula/op/int< lt2-info (list b c))
+    ;                 (node/formula/op/int= eq2-info (list b c))))))
+
+    ; need this in order to use some
     ; [(node/formula/op/|| (node/formula/op/int> left1 right1)  ; TODO: Add lower bounds
     ;                      (node/formula/op/int= left2 right2))
     ;   (unless (@and (equal? left left) (equal? right1 right2))
     ;     (fail))
-
     ;   (match left
     ;     [(node/int/op/card info left-rel)
     ;       (let* ([upper-val (eval-int-expr right (Bound-tbindings bound) 8)]
@@ -222,46 +258,53 @@
     ;         (values new-scope bound))]
     ;     [_ (fail)])]
 
-    [(ast:node/breaking/op/is left right)
-      (define breaker 
-        (match right
-          [(ast:node/breaking/break _ breaker) breaker]
-          [_ (fail)]))
+    ; Strategies
+    [(ast:node/breaking/op/is info (list left right))
+     (define breaker
+       (match right
+         [(ast:node/breaking/break _ breaker) breaker]
+         [_ (fail)]))
+     (match left
+       [(? ast:node/expr/relation?) (break left right)]
+       [(ast:node/expr/op/~ info arity (list left-rel))
+        (break left-rel (get-co right-rel))]
+       [_ (fail)])
+     ; hopefully the above calls to break update these somehow
+     ; and hopefully they don't rely on state :(
+     (values scope bound)]
 
-      (match left
-        [(? ast:node/expr/relation?) (break left right)]
-        [(ast:node/expr/op/~ info arity (list left-rel)) (break left-rel (get-co right))]
-        [_ (fail)])
-      (values scope bound)]
-
+    ; Other instances
     [(Inst func) (func scope bound)]
 
+    ; rel = expr
     [(ast:node/formula/op/= info (list left right))
-      (unless (ast:node/expr/relation? left)
-        (fail))
+     (unless (ast:node/expr/relation? left)
+       (fail))
+     (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
+        (define new-scope scope)
+        (define new-bound (update-bindings bound left tups tups))
+        (values new-scope new-bound))]
 
-      (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
-         (define new-scope scope)
-         (define new-bound (update-bindings bound left tups tups))
-         (values new-scope new-bound))]
+    ; rel in expr
+    ; expr ni rel
+    [(ast:node/expr/relation? info (list left right))
+     (cond
+       [(ast:node/expr/relation? left)
+         (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
+           (define new-bound (update-bindings bound left (@set) tups))
+           (values scope new-bound))]
+       [(ast:node/expr/relation? right) 
+         (let ([tups (eval-exp left (Bound-tbindings bound) 8 #f)])
+           (define new-bound (update-bindings bound right tups))
+           (values scope new-bound))]
+       [else (fail)])]
 
-    [(ast:node/formula/op/in left right)
-      (cond
-        [(ast:node/expr/relation? left)
-          (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
-            (define new-bound (update-bindings bound left (@set) tups))
-            (values scope new-bound))
-          ]
-        [(ast:node/expr/relation? right) 
-          (let ([tups (eval-exp left (Bound-tbindings bound) 8 #f)])
-            (define new-bound (update-bindings bound right tups))
-            (values scope new-bound))
-          ]
-        [else (fail)])]
+    ; original sigs.rkt has (cmp (join foc rel) expr) commented out here
 
-    [_ (fail)]
-  ))
+    ; Bitwidth
+    ; what does (Int n:nat) look like in the AST?
 
+    [_ (fail)]))
 
 (define (make-inst binds)
   (-> (listof (or/c ast:node/formula? Inst?))
@@ -271,10 +314,11 @@
     (for/fold ([scope scope] [bound bound])
               ([bind binds])
       (do-bind bind scope bound)))
+
   (Inst inst-func))
 
 (define (update-bitwidth base-scope bitwidth)
-  (-> Scope? nonnegative-integer? 
+  (-> Scope? nonnegative-integer?
       Scope?)
   (struct-copy Scope base-scope
                [bitwidth bitwidth]))
@@ -297,7 +341,7 @@
                               #:backend [backend #f]
                               #:target [target #f]
                               #:command [command #'(run a b c)])
-  (->* (State?)
+  (->* (State?) ;todo: try this with State? instead of (State?)
        (#:name symbol?
         #:preds (listof ast:node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
@@ -307,7 +351,6 @@
         #:backend (or/c symbol? #f)
         #:target (or/c Target? #f)
         #:command syntax?)
-
        Run?)
 
   (define/contract base-scope Scope?
@@ -330,8 +373,6 @@
       (if (Sig-one sig)
           (update-scope scope sig 1 1)
           scope)))
-
-
 
   (define/contract default-bounds Bound?
     (let* ([bitwidth (Scope-bitwidth scope-with-ones)]
@@ -376,7 +417,6 @@
         #:sigs (listof Sig?)
         #:relations (listof Relation?)
         #:options (or/c Options? #f))
-
        Run?)
 
   (define sigs-with-Int (append sigs-input (list Int)))
