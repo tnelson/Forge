@@ -33,7 +33,13 @@
 
 ; Commands
 (provide make-sig make-relation make-inst)
-(provide make-run run-from-state display)
+(provide make-run
+         run-from-state
+         make-check
+         check-from-state
+         make-test
+         test-from-state
+         display)
 (provide Int succ)
 
 ; ; Instance analysis functions
@@ -42,6 +48,7 @@
 ; ; export AST macros and struct definitions (for matching)
 ; ; Make sure that nothing is double-provided
 (require (except-in "lang/ast.rkt" ->))
+(provide (rename-out [ast:-> ->]))
 (provide (all-from-out "lang/ast.rkt"))
 
 ; ; Racket stuff
@@ -50,7 +57,7 @@
 ; ; Technical stuff
 ; (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
 ; (provide set-path!)
-; (provide set-option!)
+(provide set-option!)
 ; (define (set-path! path) #f)
 
 ; ; Data structures
@@ -67,7 +74,7 @@
 
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 ; ; Export these from structs without forge: prefix
-; (provide implies iff <=> ifte >= <= ni != !in !ni)
+(provide implies iff <=> ifte >= <= ni != !in !ni)
 
 ; ; Export everything for doing scripting
 ; (provide (prefix-out forge: (all-defined-out)))
@@ -182,19 +189,19 @@
      ; ASK TIM ABOUT (list rel)
      (let ([rel-card (ast:node/int/op/card info (list rel))])
        (do-bind
-         (match mult
-           ['no (ast:node/formula/op/= info (list rel none))]
-           ['one (ast:node/formula/op/int= info (list rel-card 1))]
-           ['two (ast:node/formula/op/int= info (list rel-card 2))]
-           ['lone
+        (match mult
+          ['no (ast:node/formula/op/= info (list rel none))]
+          ['one (ast:node/formula/op/int= info (list rel-card 1))]
+          ['two (ast:node/formula/op/int= info (list rel-card 2))]
+          ['lone
+           (ast:node/formula/op/|| info
+                                   (list (ast:node/formula/op/int< info (list rel-card 1))
+                                         (ast:node/formula/op/int= info (list rel-card 1))))]
+          ; Why was some not in original sigs.rkt?? Does it need new tests?
+          #;['some
              (ast:node/formula/op/|| info
-               (list (ast:node/formula/op/int< info (list rel-card 1))
-                     (ast:node/formula/op/int= info (list rel-card 1))))]
-           ; Why was some not in original sigs.rkt?? Does it need new tests?
-           #;['some
-             (ast:node/formula/op/|| info
-               (list (ast:node/formula/op/int= info (list rel-card 1))
-                     (ast:node/formula/op/int> info (list rel-card 1))))])))]
+                                     (list (ast:node/formula/op/int= info (list rel-card 1))
+                                           (ast:node/formula/op/int> info (list rel-card 1))))])))]
 
     ; (= (card rel) n)
     [(ast:node/formula/op/int= eq-info (list left right))
@@ -209,8 +216,8 @@
 
     ; (<= (card rel) upper)
     [(ast:node/formula/op/|| or-info
-       (list (ast:node/formula/op/int< lt-info (list lt-left lt-right))
-             (ast:node/formula/op/int= eq-info (list eq-left eq-right))))
+                             (list (ast:node/formula/op/int< lt-info (list lt-left lt-right))
+                                   (ast:node/formula/op/int= eq-info (list eq-left eq-right))))
      (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail))
      (match lt-left
@@ -224,8 +231,8 @@
 
     ; (<= lower (card-rel))
     [(ast:node/formula/op/|| or-info
-       (list (ast:node/formula/op/int< lt-info (list lt-left lt-right))
-             (ast:node/formula/op/int= eq-info (list eq-left eq-right))))
+                             (list (ast:node/formula/op/int< lt-info (list lt-left lt-right))
+                                   (ast:node/formula/op/int= eq-info (list eq-left eq-right))))
      (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail))
      (match lt-right
@@ -281,22 +288,22 @@
      (unless (ast:node/expr/relation? left)
        (fail))
      (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
-        (define new-scope scope)
-        (define new-bound (update-bindings bound left tups tups))
-        (values new-scope new-bound))]
+       (define new-scope scope)
+       (define new-bound (update-bindings bound left tups tups))
+       (values new-scope new-bound))]
 
     ; rel in expr
     ; expr ni rel
     [(ast:node/formula/op/in info (list left right))
      (cond
        [(ast:node/expr/relation? left)
-         (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
-           (define new-bound (update-bindings bound left (@set) tups))
-           (values scope new-bound))]
+        (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
+          (define new-bound (update-bindings bound left (@set) tups))
+          (values scope new-bound))]
        [(ast:node/expr/relation? right)
-         (let ([tups (eval-exp left (Bound-tbindings bound) 8 #f)])
-           (define new-bound (update-bindings bound right tups))
-           (values scope new-bound))]
+        (let ([tups (eval-exp left (Bound-tbindings bound) 8 #f)])
+          (define new-bound (update-bindings bound right tups))
+          (values scope new-bound))]
        [else (fail)])]
 
     ; original sigs.rkt has (cmp (join foc rel) expr) commented out here
@@ -306,7 +313,7 @@
 
     [_ (fail)]))
 
-(define (make-inst binds)
+(define/contract (make-inst binds)
   (-> (listof (or/c ast:node/formula? Inst?))
       Inst?)
 
@@ -333,15 +340,56 @@
   (struct-copy Scope base-scope
                [sig-scopes new-sig-scopes]))
 
+; used by make-run and make-check and make-test
+; so that they can call run-from-state and check-from-state and test-from-state
+(define/contract (make-state-for-run #:sigs [sigs-input (list)]
+                                     #:relations [relations-input (list)]
+                                     #:options [options-input #f])
+  (->* () 
+       (#:sigs (listof Sig?)
+        #:relations (listof Relation?)
+        #:options (or/c Options? #f))
+       State?)
+
+  (define sigs-with-Int (append sigs-input (list Int)))
+  (define sigs
+    (for/hash ([sig sigs-with-Int])
+      (values (Sig-name sig) sig)))
+  (define sig-order (map Sig-name sigs-with-Int))
+
+  (define relations-with-succ (append relations-input (list succ)))
+  (define relations
+    (for/hash ([relation relations-with-succ])
+      (values (Relation-name relation) relation)))
+  (define relation-order (map Relation-name relations-with-succ))
+
+  (define pred-map (hash))
+  (define fun-map (hash))
+  (define const-map (hash))
+  (define inst-map (hash))
+  (define options (or options-input DEFAULT-OPTIONS))
+  (define run-map (hash))
+
+  (State sigs
+         sig-order
+         relations
+         relation-order
+         pred-map
+         fun-map
+         const-map
+         inst-map
+         options
+         run-map))
+
 (define (run-from-state state #:name [name 'unnamed-run]
-                              #:preds [preds (list)]
-                              #:scope [scope-input (list)]
-                              #:bounds [bounds-input (make-inst (list))] 
-                              #:solver [solver #f]
-                              #:backend [backend #f]
-                              #:target [target #f]
-                              #:command [command #'(run a b c)])
-  (->* (State?) ;todo: try this with State? instead of (State?)
+                        #:preds [preds (list)]
+                        #:scope [scope-input (list)]
+                        #:bounds [bounds-input (make-inst (list))] 
+                        #:solver [solver #f]
+                        #:backend [backend #f]
+                        #:target [target #f]
+                        #:command [command #'(run a b c)])
+  (->* (State?)
        (#:name symbol?
         #:preds (listof ast:node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
@@ -357,15 +405,15 @@
     (cond
       [(Scope? scope-input) scope-input]
       [(list? scope-input)
-        (for/fold ([scope (Scope #f #f (hash))])
-                  ([triple scope-input])
-          (match triple
-            [(list sig upper) 
-              (if (equal? sig Int)
-                  (update-bitwidth scope upper) 
-                  (update-scope scope sig 0 upper))]
-            [(list sig lower upper) (update-scope scope sig lower upper)]
-            [_ (raise (format "Invalid scope: ~a" triple))]))]))
+       (for/fold ([scope (Scope #f #f (hash))])
+                 ([triple scope-input])
+         (match triple
+           [(list sig upper) 
+            (if (equal? sig Int)
+                (update-bitwidth scope upper) 
+                (update-scope scope sig 0 upper))]
+           [(list sig lower upper) (update-scope scope sig lower upper)]
+           [_ (raise (format "Invalid scope: ~a" triple))]))]))
 
   (define/contract scope-with-ones Scope?
     (for/fold ([scope base-scope])
@@ -379,7 +427,7 @@
            [max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
            [ints (map int-atom (range (- max-int) max-int))]
            [succs (map list (reverse (rest (reverse ints)))
-                              (rest ints))])
+                       (rest ints))])
       (Bound (hash)
              (hash 'Int (map list ints)
                    'succ succs))))
@@ -419,44 +467,173 @@
         #:options (or/c Options? #f))
        Run?)
 
-  (define sigs-with-Int (append sigs-input (list Int)))
-  (define sigs
-    (for/hash ([sig sigs-with-Int])
-      (values (Sig-name sig) sig)))
-  (define sig-order (map Sig-name sigs-with-Int))
+  (define state (make-state-for-run #:sigs sigs-input
+                                    #:relations relations-input
+                                    #:options options-input))
 
-  (define relations-with-succ (append relations-input (list succ)))
-  (define relations
-    (for/hash ([relation relations-with-succ])
-      (values (Relation-name relation) relation)))
-  (define relation-order (map Relation-name relations-with-succ))
-
-  (define pred-map (hash))
-  (define fun-map (hash))
-  (define const-map (hash))
-  (define inst-map (hash))
-  (define options (or options-input DEFAULT-OPTIONS))
-  (define run-map (hash))
-
-  (define state 
-    (State 
-      sigs
-      sig-order
-      relations
-      relation-order
-      pred-map
-      fun-map
-      const-map
-      inst-map
-      options
-      run-map))
-
+  ;what about the other arguments to run-from-state?
   (run-from-state state 
                   #:name name
                   #:preds preds
                   #:scope scope-input
                   #:bounds bounds-input))
 
+(define/contract (check-from-state state
+                                   #:name [name 'unnamed-check]
+                                   #:preds [preds (list)]
+                                   #:scope [scope-input (list)]
+                                   #:bounds [bounds-input (make-inst (list))] 
+                                   #:solver [solver #f]
+                                   #:backend [backend #f]
+                                   #:target [target #f]
+                                   #:command [command #'(run a b c)])
+  (->* (State?) ;todo: try this with State? instead of (State?)
+       (#:name symbol?
+        #:preds (listof ast:node/formula)
+        #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
+                                           (list/c Sig? nonnegative-integer? nonnegative-integer?))))
+        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:solver (or/c symbol? #f)
+        #:backend (or/c symbol? #f)
+        #:target (or/c Target? #f)
+        #:command syntax?)
+       Run?)
+  (let ([new-preds (list (! (apply &&/func preds)))])
+    (run-from-state state
+                    #:name name
+                    #:preds new-preds
+                    #:scope scope-input
+                    #:bounds bounds-input
+                    #:solver solver
+                    #:backed backend
+                    #:target target
+                    #:command command)))
+
+(define/contract (make-check #:name [name 'unnamed-run]
+                             #:preds [preds (list)]
+                             #:scope [scope-input (list)]
+                             #:bounds [bounds-input (list)]
+                             #:target [target #f]
+                             #:sigs [sigs-input (list)]
+                             #:relations [relations-input (list)]
+                             #:options [options-input #f])
+  (->* () 
+       (#:name symbol?
+        #:preds (listof ast:node/formula)
+        #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
+                                           (list/c Sig? nonnegative-integer? nonnegative-integer?))))
+        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:target (or/c Target? #f)
+        #:sigs (listof Sig?)
+        #:relations (listof Relation?)
+        #:options (or/c Options? #f))
+       Run?)
+  (let ([state (make-state-for-run #:sigs sigs-input
+                                   #:relations relations-input
+                                   #:options options-input)])
+    ;what about the other arguments to check-from-state?
+    (check-from-state state 
+                      #:name name
+                      #:preds preds
+                      #:scope scope-input
+                      #:bounds bounds-input)))
+
+(define/contract (test-from-state state
+                                  #:expect expected
+                                  #:name [name 'unnamed-check]
+                                  #:preds [preds (list)]
+                                  #:scope [scope-input (list)]
+                                  #:bounds [bounds-input (make-inst (list))] 
+                                  #:solver [solver #f]
+                                  #:backend [backend #f]
+                                  #:target [target #f]
+                                  #:command [command #'(run a b c)])
+  ; TODO: make #:expect only accept 'sat or 'unsat or 'theorem
+  ; through its contract, not just by throwing an error
+  (->* (State?
+        #:expect symbol?)
+       (#:name symbol?
+        #:preds (listof ast:node/formula)
+        #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
+                                           (list/c Sig? nonnegative-integer? nonnegative-integer?))))
+        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:solver (or/c symbol? #f)
+        #:backend (or/c symbol? #f)
+        #:target (or/c Target? #f)
+        #:command syntax?)
+       void?)
+  (cond
+    [(equal? expected 'theorem)
+     (let* ([test-check (check-from-state state
+                                          #:name name
+                                          #:preds preds
+                                          #:scope scope-input
+                                          #:bounds bounds-input
+                                          #:solver solver
+                                          #:backed backend
+                                          #:target target
+                                          #:command command)]
+            [first-instance (tree:get-value (Run-result test-check))])
+       (if (Sat? first-instance)
+           (raise (format "Theorem ~a failed. Found instance:~n~a"
+                          'name first-instance))
+           (close-run name)))]
+    [(or (equal? expected 'sat) (equal? expected 'unsat))
+     (let* ([test-run (run-from-state state
+                                      #:name name
+                                      #:preds preds
+                                      #:scope scope-input
+                                      #:bounds bounds-input
+                                      #:solver solver
+                                      #:backed backend
+                                      #:target target
+                                      #:command command)]
+            [first-instance (tree:get-value (Run-result test-run))])
+       (if (equal? (if (Sat? first-instance) 'sat 'unsat) expected)
+           (close-run name)
+           (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
+                          name expected (if (Sat? first-instance) 'sat 'unsat)
+                          (if (Sat? first-instance)
+                              (format " Found instance ~a" first-instance)
+                              (if (Unsat-core first-instance)
+                                  (format " Core: ~a" (Unsat-core first-instance))
+                                  ""))))))]
+    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                         expected))]))
+
+; Creates a new run to use for a test, then calls test-from-run
+; to execute the test
+(define/contract (make-test #:expect expected
+                            #:name [name 'unamed-test]
+                            #:preds [preds (list)]
+                            #:scope [scope-input (list)]
+                            #:bounds [bounds-input (list)]
+                            #:target [target #f]
+                            #:sigs [sigs-input (list)]
+                            #:relations [relations-input (list)]
+                            #:options [options-input #f])
+  ; TODO: make #:expect only accept 'sat or 'unsat or 'theorem
+  ; through its contract, not just by throwing an error
+  (->* (#:expect symbol?)
+       (#:name symbol?
+        #:preds (listof ast:node/formula)
+        #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
+                                           (list/c Sig? nonnegative-integer? nonnegative-integer?))))
+        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:target (or/c Target? #f)
+        #:sigs (listof Sig?)
+        #:relations (listof Relation?)
+        #:options (or/c Options? #f))
+       void?)
+  (let ([state (make-state-for-run #:sigs sigs-input
+                                   #:relations relations-input
+                                   #:options options-input)])
+    ;what about the other arguments to test-from-state?
+    (test-from-state state 
+                     #:name name
+                     #:preds preds
+                     #:scope scope-input
+                     #:bounds bounds-input)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Result Functions ;;;;;;;
@@ -466,9 +643,9 @@
 ; Creates a thunk which generates a new model on each call.
 (define (make-model-generator model-lazy-tree [mode 'next])
   (thunk
-    (define ret (tree:get-value model-lazy-tree))
-    (set! model-lazy-tree (tree:get-child model-lazy-tree mode))
-    ret))
+   (define ret (tree:get-value model-lazy-tree))
+   (set! model-lazy-tree (tree:get-child model-lazy-tree mode))
+   ret))
 
 ; ; make-model-evaluator :: Run -> (String -> ???)
 ; ; Creates an evaluator function for a given Run. 
@@ -506,15 +683,15 @@
             ; Read command as syntax from pipe
             (define expr
               (with-handlers ([(lambda (x) #t) (lambda (exn) 
-                               (read-syntax 'Evaluator pipe1))])
+                                                 (read-syntax 'Evaluator pipe1))])
                 (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))))
 
             ; Evaluate command
             (define full-command (datum->syntax #f `(let
-              ,(for/list ([atom (Run-atoms run)]
-                          #:when (symbol? atom))
-                 `[,atom (atom ',atom)])
-                 ,expr)))
+                                                        ,(for/list ([atom (Run-atoms run)]
+                                                                    #:when (symbol? atom))
+                                                           `[,atom (atom ',atom)])
+                                                      ,expr)))
             
             (define ns (namespace-anchor->namespace (nsa)))
             (define command (eval full-command ns))
@@ -535,8 +712,8 @@
             (if (equal? compare 'compare)
                 (Run-spec-preds (Run-run-spec run))
                 (list (ast:! (foldr (lambda (a b) (ast:and a b))
-                                     true
-                                     (Run-spec-preds (Run-run-spec run)))))))
+                                    true
+                                    (Run-spec-preds (Run-run-spec run)))))))
           
           (define new-target
             (if (Unsat? model) ; if satisfiable, move target
@@ -571,7 +748,7 @@
                        (Run-command run) 
                        "/no-name.rkt" 
                        (get-bitwidth
-                         (Run-run-spec run)) 
+                        (Run-run-spec run)) 
                        empty
                        get-contrast-model-generator))))
 
@@ -633,7 +810,7 @@
   (define new-tbindings 
     (if (equal? lower upper) 
         (hash-set old-tbindings (string->symbol (ast:relation-name rel)) 
-                                (set->list lower))
+                  (set->list lower))
         old-tbindings))
 
   (define new-bound (Bound new-pbindings new-tbindings))
