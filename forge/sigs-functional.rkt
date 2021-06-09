@@ -498,6 +498,7 @@
         #:target (or/c Target? #f)
         #:command syntax?)
        Run?)
+  ;; FIX THIS TO TRACK SOURCE LOCATION
   (let ([new-preds (list (! (apply &&/func preds)))])
     (run-from-state state
                     #:name name
@@ -505,7 +506,7 @@
                     #:scope scope-input
                     #:bounds bounds-input
                     #:solver solver
-                    #:backed backend
+                    #:backend backend
                     #:target target
                     #:command command)))
 
@@ -570,14 +571,14 @@
                                           #:scope scope-input
                                           #:bounds bounds-input
                                           #:solver solver
-                                          #:backed backend
+                                          #:backend backend
                                           #:target target
                                           #:command command)]
             [first-instance (tree:get-value (Run-result test-check))])
        (if (Sat? first-instance)
            (raise (format "Theorem ~a failed. Found instance:~n~a"
                           'name first-instance))
-           (close-run name)))]
+           (close-run test-check)))]
     [(or (equal? expected 'sat) (equal? expected 'unsat))
      (let* ([test-run (run-from-state state
                                       #:name name
@@ -585,12 +586,12 @@
                                       #:scope scope-input
                                       #:bounds bounds-input
                                       #:solver solver
-                                      #:backed backend
+                                      #:backend backend
                                       #:target target
                                       #:command command)]
             [first-instance (tree:get-value (Run-result test-run))])
        (if (equal? (if (Sat? first-instance) 'sat 'unsat) expected)
-           (close-run name)
+           (close-run test-run)
            (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
                           name expected (if (Sat? first-instance) 'sat 'unsat)
                           (if (Sat? first-instance)
@@ -629,11 +630,12 @@
                                    #:relations relations-input
                                    #:options options-input)])
     ;what about the other arguments to test-from-state?
-    (test-from-state state 
+    (test-from-state state
                      #:name name
                      #:preds preds
                      #:scope scope-input
-                     #:bounds bounds-input)))
+                     #:bounds bounds-input
+                     #:expect expected)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Result Functions ;;;;;;;
