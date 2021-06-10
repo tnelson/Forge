@@ -367,7 +367,6 @@
                [(> ix1-val 0) 1]
                [(= ix1-val 0) 0]
                [(< ix1-val 0) -1]) bitwidth))]
-    [n (print n)
-       (cond
+    [n (cond
          [(number? n) (wraparound n bitwidth)]
          [else (raise-user-error (format "Invalid int expression ~a" n))])]))
