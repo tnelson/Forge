@@ -2,19 +2,22 @@
 
 (set-option! 'verbose 0)
 
-(define A (sig 'A))
-(define B (sig 'B))
+(define A (make-sig 'A))
+(define B (make-sig 'B))
 
-(test singleSig 
-      #:preds [(some A)] 
-      #:expect sat)
-(test doubleSig 
-      #:preds [(some A) (some B)] 
-      #:expect sat)
+(make-test #:name 'singleSig 
+           #:preds (list (some A))
+           #:sigs (list A B)
+           #:expect 'sat)
+(make-test #:name 'doubleSig 
+           #:preds (list (some A) (some B))
+           #:sigs (list A B)
+           #:expect 'sat)
 
-(test sigsDisjoint 
-      #:preds [(no (& A B))]
-      #:expect theorem)
+(make-test #:name 'sigsDisjoint 
+           #:preds (list (no (& A B)))
+           #:sigs (list A B)
+           #:expect 'theorem)
 
 ; (test sigsSpanUniv
 ;       #:preds [(= univ (+ A B Int))]

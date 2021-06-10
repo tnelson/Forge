@@ -6,24 +6,28 @@
 
 (define Stuff (make-sig 'Stuff))
 
-(test oneSigEnforced
-      #:preds [(= (card UniqueObject) (int 1))]
-      #:expect theorem)
-(test oneSigIsntPersistent
-      #:preds [(= (card Stuff) (int 2))]
-      #:expect sat)
-
+(make-test #:name 'oneSigEnforced
+           #:preds (list (= (card UniqueObject) (int 1)))
+           #:sigs (list UniqueObject Stuff)
+           #:expect 'theorem)
+(make-test #:name 'oneSigIsntPersistent
+           #:preds (list (= (card Stuff) (int 2)))
+           #:sigs (list UniqueObject Stuff)
+           #:expect 'sat)
 
 (define Thing (make-sig 'Thing))
 (define SpecialThing (make-sig 'SpecialThing #:one #t #:extends Thing))
 (define UnspecialThing (make-sig 'UnspecialThing #:extends Thing))
 
-(test oneExtendActuallyExtends
-      #:preds [(in SpecialThing Thing)]
-      #:expect theorem)
-(test oneExtendEnforced
-      #:preds [(= (card SpecialThing) (int 1))]
-      #:expect theorem)
-(test oneExtendDoesntSpread
-      #:preds [(= (card UnspecialThing) (int 2))] 
-      #:expect sat)
+(make-test #:name 'oneExtendActuallyExtends
+           #:preds (list (in SpecialThing Thing))
+           #:sigs (list UniqueObject Stuff Thing SpecialThing UnspecialThing)
+           #:expect 'theorem)
+(make-test #:name 'oneExtendEnforced
+           #:preds (list (= (card SpecialThing) (int 1)))
+           #:sigs (list UniqueObject Stuff Thing SpecialThing UnspecialThing)
+           #:expect 'theorem)
+(make-test #:name 'oneExtendDoesntSpread
+           #:preds (list (= (card UnspecialThing) (int 2)))
+           #:sigs (list UniqueObject Stuff Thing SpecialThing UnspecialThing)
+           #:expect 'sat)
