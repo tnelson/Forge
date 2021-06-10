@@ -456,8 +456,8 @@
 (define-node-op sign node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 
 ; min and max are now *defined*, not declared:
-;(define-node-op max node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
-;(define-node-op min node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
+(define-node-op max node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
+(define-node-op min node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
 
 ; (define (max s-int)
 ;   (sum (- s-int (join (^ succ) s-int))))

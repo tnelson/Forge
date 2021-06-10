@@ -362,7 +362,6 @@
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
 ; sets of atoms for each, and find the total number of atoms needed (including ints).
 (define (get-sig-bounds run-spec raise-run-error)
-
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define (get-bound-lower sig)
     (define pbinding (hash-ref pbindings sig #f))

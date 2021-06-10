@@ -320,7 +320,6 @@
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating int-expr : ~v~n" int-expr))
   (match int-expr
-
     [`(node/int/constant ,info ,n) (eval-int-expr n bind bitwidth)] ; Temporary fix for lang forge instances
     [`(node/int/constant50 ,info ,n) (eval-int-expr n bind bitwidth)]
     [`(int ,n) (eval-int-expr n bind bitwidth)]
@@ -368,6 +367,7 @@
                [(> ix1-val 0) 1]
                [(= ix1-val 0) 0]
                [(< ix1-val 0) -1]) bitwidth))]
-    [n (cond
+    [n (print n)
+       (cond
          [(number? n) (wraparound n bitwidth)]
          [else (raise-user-error (format "Invalid int expression ~a" n))])]))

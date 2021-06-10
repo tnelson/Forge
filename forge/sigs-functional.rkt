@@ -429,8 +429,8 @@
            [succs (map list (reverse (rest (reverse ints)))
                        (rest ints))])
       (Bound (hash)
-             (hash 'Int (map list ints)
-                   'succ succs))))
+             (hash Int (map list ints)
+                   succ succs))))
 
   (define/contract wrapped-bounds-inst Inst?
     (if (Inst? bounds-input)
@@ -577,7 +577,7 @@
             [first-instance (tree:get-value (Run-result test-check))])
        (if (Sat? first-instance)
            (raise (format "Theorem ~a failed. Found instance:~n~a"
-                          'name first-instance))
+                          name first-instance))
            (close-run test-check)))]
     [(or (equal? expected 'sat) (equal? expected 'unsat))
      (let* ([test-run (run-from-state state
@@ -806,13 +806,12 @@
     (raise "Bound conflict."))
 
   (define new-pbindings
-    (hash-set old-pbindings (string->symbol (ast:relation-name rel)) (sbound rel lower upper)))
+    (hash-set old-pbindings rel (sbound rel lower upper)))
 
   ; when exact bounds, put in bindings
   (define new-tbindings 
     (if (equal? lower upper) 
-        (hash-set old-tbindings (string->symbol (ast:relation-name rel)) 
-                  (set->list lower))
+        (hash-set old-tbindings rel (set->list lower))
         old-tbindings))
 
   (define new-bound (Bound new-pbindings new-tbindings))

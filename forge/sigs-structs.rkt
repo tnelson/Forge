@@ -92,8 +92,8 @@
   ) #:transparent)
 
 (struct/contract Bound (
-  [pbindings (hash/c symbol? sbound?)]
-  [tbindings (hash/c symbol? any/c)] ; (hash/c symbol? (listof symbol?))] ; TODO
+  [pbindings (hash/c node/expr/relation? sbound?)]
+  [tbindings (hash/c node/expr/relation? any/c)] ; (hash/c symbol? (listof symbol?))] ; TODO
   ) #:transparent)
 
 (struct/contract Inst (
@@ -181,9 +181,9 @@
 (define-syntax succ (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f 'succ (list Int Int) #f))])))
 
-(define (max s-int)
+#;(define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
-(define (min s-int)
+#;(define (min s-int)
   (sum (- s-int (join s-int (^ succ)))))
 ; (define-syntax Int (lambda (stx) (syntax-case stx ()    
 ;     [val (identifier? (syntax val)) (quasisyntax/loc stx 
