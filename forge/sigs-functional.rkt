@@ -74,7 +74,7 @@
 
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 ; ; Export these from structs without forge: prefix
-(provide implies iff <=> ifte >= <= ni != !in !ni)
+(provide implies iff <=> ifte >= <= ni != !in !ni min max)
 
 ; ; Export everything for doing scripting
 ; (provide (prefix-out forge: (all-defined-out)))

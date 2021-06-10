@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-option! 'verbose 0)
+(set-option! 'verbose 10)
 ; (set-verbosity 10)
 
 (define A (make-sig 'A))
@@ -11,30 +11,44 @@
   (make-inst (list
               (= A (+ (atom 'Aaron) (+ (atom 'Alice) (atom 'Andy))))
               (= B (+ (atom 'Betty) (+ (atom 'Bob) (atom 'Bennett))))
-              (= R (+ (-> (+ (atom 'Aaron) (atom 'Alice) (atom 'Bob)))
+              (= R (+ (-> (+ (atom 'Aaron) (atom 'Alice)) (atom 'Bob))
                       (-> (atom 'Andy) (+ (atom 'Betty) (atom 'Bennett))))))))
 
-(test basic1 #:bounds [inst1] #:expect sat)
-(test basic-sizes
-      #:preds [(int= (card A) (int 3))]
-      #:bounds [inst1]
-      #:expect theorem)
+(make-test #:name 'basic1
+           #:bounds (list inst1)
+           #:sigs (list A B)
+           #:relations (list R)
+           #:expect 'sat)
+(make-test #:name 'basic-sizes
+           #:preds (list (int= (card A) (int 3)))
+           #:bounds (list inst1)
+           #:sigs (list A B)
+           ;#:relations (list R)
+           #:expect 'theorem)
 
 
 (define inst2
   (make-inst (list
               (= A (+ (atom 'A1) (+ (atom 'A2) (atom 'A3)))))))
 
-(test basic2 #:bounds [inst2] #:expect sat)
-(test basic-set-size
-      #:preds [(int= (card A) (int 3))]
-      #:bounds [inst2]
-      #:expect theorem)
-(test basic-unset-size
-      #:preds [(int= (card B) (int 2))
-               (int= (card R) (int 5))]
-      #:bounds [inst2]
-      #:expect sat)
+(make-test #:name 'basic2
+           #:bounds (list inst2)
+           #:sigs (list A B)
+           #:relations (list R)
+           #:expect 'sat)
+(make-test #:name 'basic-set-size
+           #:preds (list (int= (card A) (int 3)))
+           #:bounds (list inst2)
+           #:sigs (list A B)
+           #:relations (list R)
+           #:expect 'theorem)
+(make-test #:name 'basic-unset-size
+           #:preds (list (int= (card B) (int 2))
+                         (int= (card R) (int 5)))
+           #:bounds (list inst2)
+           #:sigs (list A B)
+           #:relations (list R)
+           #:expect 'sat)
 
 (define inst3
   (make-inst (list

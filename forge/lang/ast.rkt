@@ -431,7 +431,7 @@
 ; (define-syntax Int (lambda (stx) (syntax-case stx ()
 ;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f))])))
 ; (define-syntax succ (lambda (stx) (syntax-case stx ()    
-;     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
+;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -456,8 +456,8 @@
 (define-node-op sign node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 
 ; min and max are now *defined*, not declared:
-(define-node-op max node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
-(define-node-op min node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
+; (define-node-op max node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
+; (define-node-op min node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
 
 ; (define (max s-int)
 ;   (sum (- s-int (join (^ succ) s-int))))

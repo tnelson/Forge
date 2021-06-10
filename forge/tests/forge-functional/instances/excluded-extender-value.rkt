@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-option! 'verbose 10)
+(set-option! 'verbose 0)
 ; (set-verbosity 10)
 
 (define A (make-sig 'A))

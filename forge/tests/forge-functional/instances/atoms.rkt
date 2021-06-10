@@ -21,23 +21,31 @@
 
 ; Dangerous to use atom names without a concrete instance to force existence
 
-(test explicitAtomsSat3
-      #:preds [AtomsIn]
-      #:scope ([Node 3 3])
-      #:expect sat)
+(make-test #:name 'explicitAtomsSat3
+           #:preds (list AtomsIn)
+           #:scope (list (list Node 3 3))
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'sat)
 
-(test explicitAtomsUnsat3
-      #:preds [AtomsNotIn]
-      #:scope ([Node 3 3])
-      #:expect unsat)
+(make-test #:name 'explicitAtomsUnsat3
+           #:preds (list AtomsNotIn)
+           #:scope (list (list Node 3 3))
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'unsat)
 
-(test explicitAtomsSat4
-      #:preds [AtomsIn]
-      #:scope ([Node 4])
-      #:expect sat)
+(make-test #:name 'explicitAtomsSat4
+           #:preds (list AtomsIn)
+           #:scope (list (list Node 4))
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'sat)
 
-(test explicitAtomsSat4
-      #:preds [AtomsNotIn]
-      #:scope ([Node 4])
-      #:expect sat)
+(make-test #:name 'explicitAtomsSat4
+           #:preds (list AtomsNotIn)
+           #:scope (list (list Node 4))
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'sat)
 ; Potential bug: [Node 3 4] doesn't mean 3--4 anymore; it means 3

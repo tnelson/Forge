@@ -178,12 +178,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax Int (lambda (stx) (syntax-case stx ()
   [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f 'Int #f #f #f))])))
-(define-syntax succ (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f 'succ (list Int Int) #f))])))
+(define-syntax succ (lambda (stx) (syntax-case stx ()
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f 'succ (list Int Int) #f))])))
 
-#;(define (max s-int)
+(define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
-#;(define (min s-int)
+(define (min s-int)
   (sum (- s-int (join s-int (^ succ)))))
 ; (define-syntax Int (lambda (stx) (syntax-case stx ()    
 ;     [val (identifier? (syntax val)) (quasisyntax/loc stx 

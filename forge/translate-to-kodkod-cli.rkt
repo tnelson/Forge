@@ -307,8 +307,7 @@
        (interpret-expr run-or-state (cdr (car decls)) relations atom-names quantvars)
        ( print-cmd-cont "]) ")
        (interpret-int run-or-state int-expr relations atom-names quantvars)
-       ( print-cmd-cont ")"))]
-    ))
+       ( print-cmd-cont ")"))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

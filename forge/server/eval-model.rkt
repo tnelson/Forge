@@ -319,9 +319,11 @@
 (define (eval-int-expr int-expr bind bitwidth)
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating int-expr : ~v~n" int-expr))
+  (printf "int-expr: ~a" (ast:node/int/constant? int-expr))
   (match int-expr
-    [`(node/int/constant ,info ,n) (eval-int-expr n bind bitwidth)] ; Temporary fix for lang forge instances
-    [`(node/int/constant50 ,info ,n) (eval-int-expr n bind bitwidth)]
+    [(ast:node/int/constant _ n) (eval-int-expr n bind bitwidth)]
+    #;[`(node/int/constant ,info ,n) (eval-int-expr n bind bitwidth)] ; Temporary fix for lang forge instances
+    #;[`(node/int/constant50 ,info ,n) (eval-int-expr n bind bitwidth)]
     [`(int ,n) (eval-int-expr n bind bitwidth)]
     
     [`(sum ,var ,lst ,ie)
