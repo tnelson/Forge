@@ -14,16 +14,17 @@
 
 (define edges (make-relation 'edges (list Node Node Color)))
 
-(inst test-inst
-      (= edges (+ (-> (+ (-> N10 N20) 
-                         (+ (-> N10 N30)
-                            (+ (-> N20 N30)
-                               (-> N30 N30)))) Red0)
-                  (-> (+ (-> N10 N10)
-                         (+ (-> N10 N20)
-                            (+ (-> N10 N30)
-                               (+ (-> N20 N30)
-                                  (-> N30 N20))))) Green0))))
+(define test-inst
+  (make-inst (list
+              (= edges (+ (-> (+ (-> (atom 'N10) (atom 'N20))
+                                 (+ (-> (atom 'N10) (atom 'N30))
+                                    (+ (-> (atom 'N20) (atom 'N30))
+                                       (-> (atom 'N30) (atom 'N30))))) (atom 'Red0))
+                          (-> (+ (-> (atom 'N10) (atom 'N10))
+                                 (+ (-> (atom 'N10) (atom 'N20))
+                                    (+ (-> (atom 'N10) (atom 'N30))
+                                       (+ (-> (atom 'N20) (atom 'N30))
+                                          (-> (atom 'N30) (atom 'N20)))))) (atom 'Green0)))))))
 
 (define Some
   (&&/func
@@ -128,25 +129,33 @@
 
 
 
-(test someAsMultiplicity
-      #:preds [Some]
-      #:bounds [test-inst]
-      #:expect theorem)
+(make-test #:name 'someAsMultiplicity
+           #:preds (list Some)
+           #:bounds (list test-inst)
+           #:sigs (list Color Red Green Blue Node N1 N2 N3)
+           #:relations (list edges)
+           #:expect 'theorem)
 
-(test noAsMultiplicity
-      #:preds [No]
-      #:bounds [test-inst]
-      #:expect theorem)
+(make-test #:name 'noAsMultiplicity
+           #:preds (list No)
+           #:bounds (list test-inst)
+           #:sigs (list Color Red Green Blue Node N1 N2 N3)
+           #:relations (list edges)
+           #:expect 'theorem)
 
-(test oneAsMultiplicity
-      #:preds [One1]
-      #:bounds [test-inst]
-      #:expect theorem)
+(make-test #:name 'oneAsMultiplicity
+           #:preds (list One1)
+           #:bounds (list test-inst)
+           #:sigs (list Color Red Green Blue Node N1 N2 N3)
+           #:relations (list edges)
+           #:expect 'theorem)
 
-(test loneAsMultiplicity
-      #:preds [Lone1]
-      #:bounds [test-inst]
-      #:expect theorem)
+(make-test #:name 'loneAsMultiplicity
+           #:preds (list Lone1)
+           #:bounds (list test-inst)
+           #:sigs (list Color Red Green Blue Node N1 N2 N3)
+           #:relations (list edges)
+           #:expect 'theorem)
 
 ; (test oneAsQuantifer ; CUURRENTLY BUGGED
 ;       #:preds [One2]
@@ -158,6 +167,8 @@
 ;       #:bounds [test-inst]
 ;       #:expect theorem)
 
-(test loneEquivalentOneNo
-      #:preds [Equivalence]
-      #:expect theorem)
+(make-test #:name 'loneEquivalentOneNo
+           #:preds (list Equivalence)
+           #:sigs (list Color Red Green Blue Node N1 N2 N3)
+           #:relations (list edges)
+           #:expect 'theorem)

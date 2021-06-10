@@ -11,20 +11,21 @@
 
 (define edges (make-relation 'edges (list Node Node Color)))
 
-(inst test-inst
-      (= Node (+ N1 (+ N2 (+ N3 N4))))
+(define test-inst
+  (make-inst (list
+              (= Node (+ (atom 'N1) (+ (atom 'N2) (+ (atom 'N3) (atom 'N4)))))
 
-      (= edges (+ (-> (+ (-> N1 N2) ; cycle
-                         (+ (-> N2 N3)
-                            (+ (-> N3 N4)
-                               (-> N4 N1)))) Red0)
+              (= edges (+ (-> (+ (-> (atom 'N1) (atom 'N2)) ; cycle
+                                 (+ (-> (atom 'N2) (atom 'N3))
+                                    (+ (-> (atom 'N3) (atom 'N4))
+                                       (-> (atom 'N4) (atom 'N1))))) (atom 'Red0))
 
-                  (+ (-> (-> Node Node) Green0) ; complete
+                          (+ (-> (-> Node Node) (atom 'Green0)) ; complete
 
-                     (-> (+ (-> N1 (+ N1 (+ N2 (+ N3 N4)))) ; <= relation
-                            (+ (-> N2 (+ N2 (+ N3 N4)))
-                               (+ (-> N3 (+ N3 N4))
-                                  (-> N4 N4)))) Blue0)))))
+                             (-> (+ (-> (atom 'N1) (+ (atom 'N1) (+ (atom 'N2) (+ (atom 'N3) (atom 'N4))))) ; <= relation
+                                    (+ (-> (atom 'N2) (+ (atom 'N2) (+ (atom 'N3) (atom 'N4))))
+                                       (+ (-> (atom 'N3) (+ (atom 'N3) (atom 'N4)))
+                                          (-> (atom 'N4) (atom 'N4))))) (atom 'Blue0))))))))
 
 (define All
   (&&/func
@@ -91,22 +92,30 @@
         (not (no ([n Node])
                  (SomePred n))))))
 
-(test AllQuant
-      #:preds [All]
-      #:bounds [test-inst]
-      #:expect theorem)
+(make-test #:name 'AllQuant
+           #:preds (list All)
+           #:bounds (list test-inst)
+           #:sigs (list Node Color Red Green Blue)
+           #:relations (list edges)
+           #:expect 'theorem)
 
-(test SomeQuant
-      #:preds [Some]
-      #:bounds [test-inst]
-      #:expect theorem)
+(make-test #:name 'SomeQuant
+           #:preds (list Some)
+           #:bounds (list test-inst)
+           #:sigs (list Node Color Red Green Blue)
+           #:relations (list edges)
+           #:expect 'theorem)
 
-(test NoQuant
-      #:preds [No]
-      #:bounds [test-inst]
-      #:expect theorem)
+(make-test #:name 'NoQuant
+           #:preds (list No)
+           #:bounds (list test-inst)
+           #:sigs (list Node Color Red Green Blue)
+           #:relations (list edges)
+           #:expect 'theorem)
 
 
-(test QuantifierEquivalences
-      #:preds [Equivalences]
-      #:expect theorem)
+(make-test #:name 'QuantifierEquivalences
+           #:preds (list Equivalences)
+           #:sigs (list Node Color Red Green Blue)
+           #:relations (list edges)
+           #:expect 'theorem)

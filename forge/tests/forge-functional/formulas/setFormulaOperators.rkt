@@ -74,14 +74,20 @@
         (implies (!ni (join n1 edges) (join n2 edges))
                  (not (ni (join n1 edges) (join n2 edges)))))))
 
-(test InOps 
-      #:preds [In] 
-      #:expect theorem)
+(make-test #:name 'InOps 
+      #:preds (list In)
+      #:sigs (list Node)
+      #:relations (list edges)
+      #:expect 'theorem)
 
-(test EqualsOp 
-      #:preds [Equals] 
-      #:expect theorem)
+(make-test #:name 'EqualsOp 
+      #:preds (list Equals)
+      #:sigs (list Node)
+      #:relations (list edges)
+      #:expect 'theorem)
 
-(test ComboNotOps 
-      #:preds [ComboNot] 
-      #:expect theorem)
+(make-test #:name 'ComboNotOps 
+      #:preds (list ComboNot)
+      #:sigs (list Node)
+      #:relations (list edges)
+      #:expect 'theorem)

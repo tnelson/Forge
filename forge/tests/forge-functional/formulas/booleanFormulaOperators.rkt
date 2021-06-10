@@ -69,18 +69,18 @@
    (ifte false false true)
    (not (ifte false false false))))
 
-(test basicTrueFalse 
-      #:preds [TrueFalse]
-      #:expect theorem)
-(test notOps 
-      #:preds [Not]
-      #:expect theorem)
-(test andOps 
-      #:preds [And]
-      #:expect theorem)
-(test orOps 
-      #:preds [Or]
-      #:expect theorem)
-(test impliesOps 
-      #:preds [Implies]
-      #:expect theorem)
+(make-test #:name 'basicTrueFalse
+           #:preds (list TrueFalse)
+           #:expect 'theorem)
+(make-test #:name 'notOps
+           #:preds (list Not)
+           #:expect 'theorem)
+(make-test #:name 'andOps 
+           #:preds (list And)
+           #:expect 'theorem)
+(make-test #:name 'orOps 
+           #:preds (list Or)
+           #:expect 'theorem)
+(make-test #:name 'impliesOps 
+           #:preds (list Implies)
+           #:expect 'theorem)
