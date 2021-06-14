@@ -2,84 +2,95 @@
 
 (set-option! 'verbose 0)
 
-(sig Node)
-(relation edges (Node Node))
+(define Node (make-sig 'Node))
+(define edges (make-relation 'edges (list Node Node)))
 
 ; Unary operators
 
-(pred Tilde
-    (= (~ edges) 
-       (set ([n1 Node] [n2 Node]) 
-           (in (-> n2 n1) edges))))
+(define Tilde
+  (&&
+   (= (~ edges) 
+      (set ([n1 Node] [n2 Node])
+           (in (-> n2 n1) edges)))))
 
-(pred Caret
-    (implies (< (card Node) (int 4))
-             (= (^ edges)
-                (+ (+ edges
-                      (join edges edges))
-                   (+ (join edges (join edges edges))
-                      (join edges (join edges (join edges edges))))))))
+(define Caret
+  (&&
+   (implies (< (card Node) (int 4))
+            (= (^ edges)
+               (+ (+ edges
+                     (join edges edges))
+                  (+ (join edges (join edges edges))
+                     (join edges (join edges (join edges edges)))))))))
 
-(pred Star
-    (= (* edges)
-       (+ (^ edges) iden)))
+(define Star
+  (&&
+   (= (* edges)
+      (+ (^ edges) iden))))
 
 
 ; Binary operators
 
-(pred Plus
-    (all ([n1 Node]
-          [n2 Node])
+(define Plus
+  (&&
+   (all ([n1 Node]
+         [n2 Node])
         (= (+ (join n1 edges)
               (join n2 edges))
            (set ([n Node])
-               (or (in n (join n1 edges))
-                   (in n (join n2 edges)))))))
+                (or (in n (join n1 edges))
+                    (in n (join n2 edges))))))))
 
-(pred Minus
-    (all ([n1 Node]
-          [n2 Node])
+(define Minus
+  (&&
+   (all ([n1 Node]
+         [n2 Node])
         (= (- (join n1 edges)
               (join n2 edges))
            (set ([n Node])
-               (and (in n (join n1 edges))
-                    (!in n (join n2 edges)))))))
+                (and (in n (join n1 edges))
+                     (!in n (join n2 edges))))))))
 
-(pred Ampersand
-    (all ([n1 Node]
-          [n2 Node])
+(define Ampersand
+  (&&
+   (all ([n1 Node]
+         [n2 Node])
         (= (& (join n1 edges)
               (join n2 edges))
            (set ([n Node])
-               (and (in n (join n1 edges))
-                    (in n (join n2 edges)))))))
+                (and (in n (join n1 edges))
+                     (in n (join n2 edges))))))))
 
-(pred Arrow
-    (all ([n1 Node]
-          [n2 Node])
+(define Arrow
+  (&&
+   (all ([n1 Node]
+         [n2 Node])
         (= (-> (join n1 edges)
                (join n2 edges))
            (set ([n3 Node]
                  [n4 Node])
-               (and (in n3 (join n1 edges))
-                    (in n4 (join n2 edges)))))))
+                (and (in n3 (join n1 edges))
+                     (in n4 (join n2 edges))))))))
 
-(pred Dot
-    (= (join edges edges)
-       (set ([n1 Node]
-             [n2 Node])
+(define Dot
+  (&&
+   (= (join edges edges)
+      (set ([n1 Node]
+            [n2 Node])
            (some ([n3 Node])
-               (and (in n3 (join n1 edges))
-                    (in n3 (join edges n2)))))))
+                 (and (in n3 (join n1 edges))
+                      (in n3 (join edges n2))))))))
 
-(pred IfThenElse1
-      (no (ite (in edges edges)
-                 univ
-                 none)))
-(pred IfThenElse2
-      (some (ite (some (& Node Int))
-                 univ
-                 none)))
+(define IfThenElse1
+  (&&
+   (no (ite (in edges edges)
+            univ
+            none))))
+
+(define IfThenElse2
+  (&&
+   (some (ite (some (& Node Int))
+              univ
+              none))))
 
 
 
@@ -96,17 +107,57 @@ pred ColonGreater {
 }
 |#
 
-(test tilde #:preds [Tilde] #:expect theorem)
-(test caret #:preds [Caret] #:expect theorem)
-(test star #:preds [Star] #:expect theorem)
-(test plus #:preds [Plus] #:expect theorem)
-(test minus #:preds [Minus] #:expect theorem)
-(test ampersandd #:preds [Ampersand] #:expect theorem)
-(test arrow #:preds [Arrow] #:expect theorem)
-(test dot #:preds [Dot] #:expect theorem)
+(make-test #:name 'tilde
+           #:preds (list Tilde)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'theorem)
+(make-test #:name 'caret
+           #:preds (list Caret)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'theorem)
+(make-test #:name 'star
+           #:preds (list Star)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'theorem)
+(make-test #:name 'plus
+           #:preds (list Plus)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'theorem)
+(make-test #:name 'minus
+           #:preds (list Minus)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'theorem)
+(make-test #:name 'ampersand
+           #:preds (list Ampersand)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'theorem)
+(make-test #:name 'arrow
+           #:preds (list Arrow)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'theorem)
+(make-test #:name 'dot
+           #:preds (list Dot)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'theorem)
 
-(test ite1 #:preds [IfThenElse1] #:expect unsat)
-(test ite2 #:preds [IfThenElse2] #:expect unsat)
+(make-test #:name 'ite1
+           #:preds (list IfThenElse1)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'unsat)
+(make-test #:name 'ite2
+           #:preds (list IfThenElse2)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'unsat)
 
 
 

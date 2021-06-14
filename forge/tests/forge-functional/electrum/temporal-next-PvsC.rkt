@@ -3,14 +3,21 @@
 (require (prefix-in ru: rackunit))
 
 (set-option! 'verbose 0)
-(set-option! 'problem_type 'temporal)
+;(set-option! 'problem_type 'temporal)
 
-(sig A #:one)
-(sig B)
-(relation r1 (A B) #:is-var "var")
-(relation r2 (A B))
+(define A (make-sig 'A #:one #t))
+(define B (make-sig 'B))
+(define r1 (make-relation 'r1 (list A B) #:is-var #t))
+(define r2 (make-relation 'r2 (list A B)))
 
-(run myrun #:preds [(some r1) (some r2)])
+(define myrun-options
+  (struct-copy forge:Options forge:DEFAULT-OPTIONS [problem_type 'temporal]))
+
+(define myrun (make-run #:name 'myrun
+                        #:preds (list (some r1) (some r2))
+                        #:sigs (list A B)
+                        #:relations (list r1 r2)
+                        #:options myrun-options))
 
 (ru:check-equal? (forge:is-sat? myrun) #t)
 (define results (forge:Run-result myrun))

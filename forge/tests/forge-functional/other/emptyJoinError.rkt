@@ -3,29 +3,36 @@
 (require (only-in rackunit check-exn))
 
 (set-option! 'verbose 2) ; needed in order to do last-checking now
-(sig Person)
-(sig Marker)
-(sig Node)
-(sig Color)
-(sig CoastalTown #:extends Node)
 
-(relation markers (Person Marker))
-(relation city (Marker Node))
-(relation edges (Marker Node))
-(relation colorOf (Node Color))
+(define Person (make-sig 'Person))
+(define Marker (make-sig 'Marker))
+(define Node (make-sig 'Node))
+(define Color (make-sig 'Color))
+(define CoastalTown (make-sig 'CoastalTown #:extends Node))
 
-(test testOK
-      #:preds [(some (join Marker (+ markers city colorOf)))]
-      #:expect sat)
+(define markers (make-relation 'markers (list Person Marker)))
+(define city (make-relation 'city (list Marker Node)))
+(define edges (make-relation 'edges (list Marker Node)))
+(define colorOf (make-relation 'colorOf (list Node Color)))
+
+(make-test #:name 'testOK
+           #:preds (list (some (join Marker (+ markers city colorOf))))
+           #:sigs (list Person Marker Node Color CoastalTown)
+           #:relations (list markers city edges colorOf)
+           #:expect 'sat)
 
 (check-exn exn:fail?
            (lambda () 
-             (test testEmptyJoin
-                   #:preds [(no (join city markers))]
-                   #:expect sat)))
+             (make-test #:name 'testEmptyJoin
+                        #:preds (list (no (join city markers)))
+                        #:sigs (list Person Marker Node Color CoastalTown)
+                        #:relations (list markers city edges colorOf)
+                        #:expect 'sat)))
            
 (check-exn exn:fail?
            (lambda () 
-             (test testEmptyJoin
-                   #:preds [(no (join Color markers))]
-                   #:expect sat)))
+             (make-test #:name 'testEmptyJoin
+                        #:preds (list (no (join Color markers)))
+                        #:sigs (list Person Marker Node Color CoastalTown)
+                        #:relations (list markers city edges colorOf)
+                        #:expect 'sat)))

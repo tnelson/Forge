@@ -2,49 +2,59 @@
 
 (set-option! 'verbose 0)
 
-(sig A)
-(relation otherA (A A))
+(define A (make-sig 'A))
+(define otherA (make-relation 'otherA (list A A)))
 
-(sig B)
-(relation otherB (B A))
+(define B (make-sig 'B))
+(define otherB (make-relation 'otherB (list B A)))
 
-(inst relations
-    (is otherA func)
-    (is otherB func))
+(define relations
+  (make-inst (list
+              (is otherA func)
+              (is otherB func))))
 
-(pred ComprehensionsOnSigs
-    (= (set ([a A])
+(define ComprehensionsOnSigs
+  (&&
+   (= (set ([a A])
            (in (-> a a) otherA))
-       (join A (& otherA iden))))
+      (join A (& otherA iden)))))
 
-(pred ComprehensionsOnSets
-    (= (set ([x (+ A B)])
+(define ComprehensionsOnSets
+  (&&
+   (= (set ([x (+ A B)])
            (some ([y A])
-               (or (= (join x otherA)
-                      y)
-                   (= (join x otherB)
-                      y))))
-       (join (+ otherA otherB)
-             A)))
+                 (or (= (join x otherA)
+                        y)
+                     (= (join x otherB)
+                        y))))
+      (join (+ otherA otherB)
+            A))))
 
-(pred MultiComprehension
-    (= (set ([b B] [a A])
+(define MultiComprehension
+  (&&
+   (= (set ([b B] [a A])
            (some ([c A])
-               (and (in (-> b c)
-                        otherB)
-                    (in (-> c a)
-                        otherA))))
-       (join otherB otherA)))
+                 (and (in (-> b c)
+                          otherB)
+                      (in (-> c a)
+                          otherA))))
+      (join otherB otherA))))
 
-(test comprehensionsOnSigs 
-      #:preds [ComprehensionsOnSigs]
-      #:bounds [relations]
-      #:expect theorem)
-(test comprehensionsOnSets
-      #:preds [ComprehensionsOnSets]
-      #:bounds [relations]
-      #:expect theorem)
-(test multiComprehension
-      #:preds [MultiComprehension]
-      #:bounds [relations]
-      #:expect theorem)
+(make-test #:name 'comprehensionsOnSigs 
+           #:preds (list ComprehensionsOnSigs)
+           #:bounds (list relations)
+           #:sigs (list A B)
+           #:relations (list otherA otherB)
+           #:expect 'theorem)
+(make-test #:name 'comprehensionsOnSets
+           #:preds (list ComprehensionsOnSets)
+           #:bounds (list relations)
+           #:sigs (list A B)
+           #:relations (list otherA otherB)
+           #:expect 'theorem)
+(make-test #:name 'multiComprehension
+           #:preds (list MultiComprehension)
+           #:bounds (list relations)
+           #:sigs (list A B)
+           #:relations (list otherA otherB)
+           #:expect 'theorem)

@@ -1,5 +1,11 @@
 #lang forge/core
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; WITH THE WAY FUNCTIONAL FORGE SETS OPTIONS
+; THESE TESTS ARE NOW MEANINGLESS
+; TODO: DECIDE WHEN TO THROW THESE ERRORS / IF THEY ARE STILL NEEDED
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#|
 (require (only-in rackunit check-exn))
 
 (set-option! 'verbose 0)
@@ -75,3 +81,4 @@ WHICH IS GOOD but not really testable afaik cuz it's raised before run
 (test usingVarAndNonVarStuff
       #:preds [fluffyCat]
       #:expect sat)
+|#

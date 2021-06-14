@@ -1,14 +1,19 @@
 #lang forge/core
 
-(set-verbosity 0)
+(set-option! 'verbose 0)
+;(set-verbosity 0)
 
-(sig Node)
-(sig Root #:one #:extends Node)
+(define Node (make-sig 'Node))
+(define Root (make-sig 'Root #:one #t #:extends Node))
 
-(relation edges (Node Node))
+(define edges (make-relation 'edges (list Node Node)))
 
-(pred acyclic (no (& iden (^ edges))))
-(pred root-connected (in Node (join Root (* edges))))
+(define acyclic (no (& iden (^ edges))))
+(define root-connected (in Node (join Root (* edges))))
 
-(run rooted-acyclic-run #:preds [acyclic root-connected] #:scope ([Node 4 6]))
+(define rooted-acyclic-run (make-run #:name 'rooted-acyclic-run
+                                     #:preds (list acyclic root-connected)
+                                     #:scope (list (list Node 4 6))
+                                     #:sigs (list Node Root)
+                                     #:relations (list edges)))
 ;(display rooted-acyclic-run)

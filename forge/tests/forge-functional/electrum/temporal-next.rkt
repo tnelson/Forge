@@ -3,12 +3,18 @@
 (require (prefix-in ru: rackunit))
 
 (set-option! 'verbose 0)
-(set-option! 'problem_type 'temporal)
+;(set-option! 'problem_type 'temporal)
 
-(sig Constant)
-(sig Variable #:is-var "var")
+(define Constant (make-sig 'Constant))
+(define Variable (make-sig 'Variable #:is-var #t))
 
-(run myrun #:preds [(some Constant) (some Variable)])
+(define var-opt
+  (struct-copy forge:Options forge:DEFAULT-OPTIONS [problem_type 'temporal]))
+
+(define myrun (make-run #:name 'myrun
+                        #:preds (list (some Constant) (some Variable))
+                        #:sigs (list Constant Variable)
+                        #:options var-opt))
 
 (ru:check-equal? (forge:is-sat? myrun) #t)
 (define results (forge:Run-result myrun))

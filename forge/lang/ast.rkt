@@ -809,8 +809,9 @@
 (struct node/breaking/break node/breaking (break) #:transparent)
 (define-syntax (make-breaker stx)
   (syntax-case stx ()
-    [(make-breaker id sym) 
+    [(make-breaker id sym)
       #'(define-syntax id (lambda (stx) (syntax-case stx ()    
           [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx)) sym))])))]))
 (make-breaker linear 'linear)
+(make-breaker func 'func)
 ; TODO: Add rest of breakers

@@ -64,12 +64,10 @@
 (define (sbound+ . sbounds)
     (make-bound (break-relation (first sbounds)) ; TODO: assert all same relations
                 (apply set-union     (map break-lower sbounds))
-                (apply set-intersect (map break-lower sbounds)))
-)
+                (apply set-intersect (map break-lower sbounds))))
 (define (break+ . breaks)
     (make-break (apply sbound+ breaks)
-                (apply set-union (map break-formulas breaks)))
-)
+                (apply set-union (map break-formulas breaks))))
 
 (define (make-exact-break relation contents [formulas (set)])
   (break (sbound relation contents contents) formulas))
@@ -105,8 +103,7 @@
     (set! instances empty)
     (set! rel-breaks (make-hash))
     (set! rel-break-pri (make-hash))
-    (set! pri_c 0)
-)
+    (set! pri_c 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; methods for defining breaks ;;;;
@@ -180,9 +177,17 @@
     (when changed (min-breaks! breaks break-pris))
 )
 
-(define (break-rel rel . breaks) ; renamed-out to 'break for use in forge
-    (for ([break breaks]) 
-        (unless (hash-has-key? strategies break) (error "break not implemented:" break))
+; renamed-out to 'break for use in forge
+(define/contract (break-rel rel . breaks)
+    (-> @node/expr? (or/c symbol? @node/breaking/break?)
+        void?)
+    (for ([break breaks])
+        (define break-key
+            (cond [(symbol? break) break]
+                  [(@node/breaking/break? break) (@node/breaking/break-break break)]
+                  [else (raise-user-error (format "Not a valid break name: ~a~n" break))]))
+        (unless (hash-has-key? strategies break-key)
+                (error (format "break not implemented among ~a" strategies) break-key))
         (hash-add! rel-breaks rel break)
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
 (define (add-instance i) (cons! instances i))
@@ -237,11 +242,15 @@
             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
 
             ; make all breakers
-            (define breakers (for/list ([sym (set->list breaks)]) 
-                (define strategy (hash-ref strategies sym))
-                (define pri (hash-ref break-pris sym))
-                (strategy pri rel bound atom-lists rel-list)
-            ))
+            (define breakers (for/list ([break (set->list breaks)])
+                (define break-sym
+                    (cond [(symbol? break) break]
+                          [(@node/breaking/break? break) (@node/breaking/break-break break)]
+                          [else (raise-user-error (format "constrain-bounds: not a valid break name: ~a~n"
+                                                          break))]))
+                (define strategy (hash-ref strategies break-sym))
+                (define pri (hash-ref break-pris break))
+                (strategy pri rel bound atom-lists rel-list)))
             (set! breakers (sort breakers < #:key breaker-pri))
 
             ; propose highest pri breaker that breaks only leaf sigs

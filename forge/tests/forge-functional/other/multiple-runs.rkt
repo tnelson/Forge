@@ -2,13 +2,15 @@
 
 (set-option! 'verbose 0)
 
-(sig A)
-(sig B)
-(relation r (A B))
+(define A (make-sig 'A))
+(define B (make-sig 'B))
+(define r (make-relation 'r (list A B)))
 
-(run sat-run)
-(run unsat-run
-     #:preds [(some A) (some B) (= A B)])
+(define sat-run (make-run #:name 'sat-run #:sigs (list A B) #:relations (list r)))
+(define unsat-run (make-run #:name 'unsat-run
+                            #:preds (list (some A) (some B) (= A B))
+                            #:sigs (list A B)
+                            #:relations (list r)))
 
 ; Model-generator produces a stream
 (define sat-gen (forge:make-model-generator (forge:get-result sat-run) 'next))

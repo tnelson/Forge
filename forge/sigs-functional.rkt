@@ -42,6 +42,9 @@
          display)
 (provide Int succ)
 
+(provide solution-diff)
+         ;instance-diff evaluate)
+
 ; ; Instance analysis functions
 ; (provide is-sat? is-unsat?)
 
@@ -75,6 +78,10 @@
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 ; ; Export these from structs without forge: prefix
 (provide implies iff <=> ifte >= <= ni != !in !ni min max)
+
+; Let forge/core work with the model tree without having to require helpers
+; Don't prefix with tree:, that's already been done when importing
+(provide (all-from-out "lazy-tree.rkt"))
 
 ; ; Export everything for doing scripting
 ; (provide (prefix-out forge: (all-defined-out)))
@@ -314,7 +321,7 @@
     [_ (fail)]))
 
 (define/contract (make-inst binds)
-  (-> (listof (or/c ast:node/formula? Inst?))
+  (-> (listof (or/c ast:node/formula? ast:node/breaking/op? Inst?))
       Inst?)
 
   (define (inst-func scope bound)
@@ -439,7 +446,6 @@
 
   (define-values (scope bounds) 
     ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds))
-  (println bounds)
 
   (define spec (Run-spec state preds scope bounds target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod spec command))
@@ -753,6 +759,9 @@
                         (Run-run-spec run)) 
                        empty
                        get-contrast-model-generator))))
+
+(define (solution-diff s1 s2)
+  (map instance-diff (Sat-instances s1) (Sat-instances s2)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

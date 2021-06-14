@@ -4,9 +4,11 @@
 
 (set-option! 'verbose 0)
 
-(sig A)
+(define A (make-sig 'A))
 
-(run myrun #:preds [(some A)])
+(define myrun (make-run #:name 'myrun
+                        #:preds (list (some A))
+                        #:sigs (list A)))
 
 (ru:check-equal? (forge:is-sat? myrun) #t)
 (define results (forge:Run-result myrun))

@@ -1,5 +1,9 @@
 #lang forge/core
 
+; THANKS TO FUNCTIONAL FORGE, THERE ARE SEVERELY CLEANER WAYS TO TEST THIS
+; TODO: WRITE THOSE
+
+#|
 (require (only-in rackunit check-exn))
 
 (set-option! 'verbose 0)
@@ -50,3 +54,4 @@
 (set-option! 'max_tracelength 25)
 (set-option! 'min_tracelength 14)
 (set-option! 'max_tracelength 40)
+|#

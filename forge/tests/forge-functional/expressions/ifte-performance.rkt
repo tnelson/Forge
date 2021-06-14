@@ -8,10 +8,10 @@
 (require (only-in rackunit [check @check]))
 (require (only-in racket [< @<]))
 
-(sig N1)
-(sig N2)
-(sig N3)
-(sig Thing)
+(define N1 (make-sig 'N1))
+(define N2 (make-sig 'N2))
+(define N3 (make-sig 'N3))
+(define Thing (make-sig 'Thing))
 
 (define test-stx3 
       #'(ifte (some N1)

@@ -1,6 +1,6 @@
 #lang forge/core
 
-(set-option! 'verbose 10)
+(set-option! 'verbose 0)
 ; (set-verbosity 10)
 
 (define A (make-sig 'A))
@@ -23,7 +23,7 @@
            #:preds (list (int= (card A) (int 3)))
            #:bounds (list inst1)
            #:sigs (list A B)
-           ;#:relations (list R)
+           #:relations (list R)
            #:expect 'theorem)
 
 
