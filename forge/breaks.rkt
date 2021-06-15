@@ -220,8 +220,7 @@
         (set-add! defined-relations rel)
         (define typelist (@node/expr/relation-typelist rel))
         (for ([t typelist]) (when (hash-has-key? name-to-rel t)
-            (set-remove! sigs (hash-ref name-to-rel t))))
-    )
+            (set-remove! sigs (hash-ref name-to-rel t)))))
 
     ; proposed breakers from each relation
     (define candidates (list))

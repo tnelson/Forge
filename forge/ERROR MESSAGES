@@ -1,0 +1,4 @@
+ERROR MESSAGES
+
+server/eval-model.rkt: catch-all on eval-exp match (especially set comprehension)
+using Int in instances: Int is already bound

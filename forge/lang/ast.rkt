@@ -20,7 +20,7 @@
 ;     * node/expr/comprehension (decls formula)  -- set comprehension
 ;     * node/expr/relation (name typelist parent)  -- leaf relation
 ;     * node/expr/constant (type) -- relational constant [type serves purpose of name?]
-;     * node/expr/quantifier-var (sym) -- variable for quantifying over
+;     * node/expr/quantifier-var (sym name) -- variable for quantifying over
 ;   * node/formula  -- formulas
 ;     * node/formula/op  -- simple operators
 ;       * node/formula/op/and
