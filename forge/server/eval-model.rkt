@@ -127,7 +127,7 @@
                           [else (printf "Not a valid constant: ~a~n" type)])]
                    [(ast:node/expr/atom _ _ name) `((,name))]
                    ; probably supports box join
-                   ; wouldn't be needed in forge-functional then
+                   ; won't be needed in forge-functional then
                    #;[`(,p ,vals ...) ;#:when (hash-has-key? bind p)
                       ; is this one a node/expr/quantifier-var
                       (with-handlers ([exn:fail? (λ (exn) 
@@ -140,10 +140,9 @@
                         (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
                         (define kodkod (alloy->kodkod alloy))
                         (eval-exp kodkod bind2 bitwidth))]
-                   ;This case doesn't make sense if we don't allow set comprehension
-                   #;[(ast:node/expr/quantifier-var _ _ id name) 
+                   [id
                     (cond
-                      [(relation? id) (error "Implicit set comprehension is disallowed - use \"set\"")]                      
+                      [(relation? id) (raise-user-error "Implicit set comprehension is disallowed - use \"set\"")]                      
                       ; relation name
                       [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name
@@ -344,9 +343,9 @@
   (match int-expr
     ; works assuming (int n) requires n to be an int
     [(ast:node/int/constant _ n)
-     (println "node/int/constant")
      (eval-int-expr n bind bitwidth)]
-    ; Why were there originally two sum cases?
+    ; DO WE NEED sum-quant in INSTANCES?
+    ; similar to set comprehension
     #;[`(sum ,var ,lst ,ie)
        (foldl (λ (x res) (+ res (eval-int-expr ie (hash-set bind var (list x)) bitwidth)))
               0
@@ -358,57 +357,27 @@
                               (+ ret (int-atom-n (first x)))
                               ret))
                0 expr-val)) bitwidth)]
-    ; min and max sugar into a join / succ thing
-    ; so these might not be necessary
-    #;[(ast:node/int/op/max _ `(,child-exp))
-     (println "node/int/op/max")
-     (let ([expr-val (filter (λ (a) (and (= 1 (length a)) (int-atom? (first a)))) 
-                             (eval-exp child-exp bind bitwidth))])
-       (if (empty? expr-val) 0
-           (foldl (λ (a ret) 
-                    (let ([n (int-atom-n (first a))])
-                      (if (> n ret) n ret)))
-                  (- (expt 2 (sub1 bitwidth))) ; min-int
-                  expr-val)))]
-    #;[(ast:node/int/op/min _ `(,child-exp))
-     (println "node/int/op/min")
-     (let ([expr-val (filter (λ (a) (and (= 1 (length a)) (int-atom? (first a)))) 
-                             (eval-exp child-exp bind bitwidth))])
-       (if (empty? expr-val) 0
-           (foldl (λ (a ret)
-                    (let ([n (int-atom-n (first a))])
-                      (if (< n ret) n ret)))
-                  (- (expt 2 (sub1 bitwidth)) 1) ; max-int
-                  expr-val)))]
     [(ast:node/int/op/card _ `(,child-exp))
-     (println "node/int/op/card")
      (wraparound (length (eval-exp child-exp bind bitwidth)) bitwidth)]
     [(ast:node/int/op/add _ `(,ix1 ,ix2))
-     (println "node/int/op/add")
      (wraparound (+ (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [(ast:node/int/op/subtract _ `(,ix1 ,ix2))
-     (println "node/int/op/subtract")
      (wraparound (- (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [(ast:node/int/op/multiply _ `(,ix1 ,ix2))
-     (println "node/int/op/multiply")
      (wraparound (* (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [(ast:node/int/op/divide _ `(,ix1 ,ix2))
-     (println "node/int/op/divide")
      (wraparound (quotient (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [(ast:node/int/op/remainder _ `(,ix1 ,ix2))
-     (println "node/int/op/remainder")
      (wraparound (remainder (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [(ast:node/int/op/abs _ `(,ix1))
-     (println "node/int/op/abs")
      (let ([ix1-val (eval-int-expr ix1 bind bitwidth)])
        (wraparound (racket-abs ix1-val)
                    bitwidth))]
     [(ast:node/int/op/sign _ `(,ix1))
-     (println "node/int/op/sign")
      (let ([ix1-val (eval-int-expr ix1 bind bitwidth)])
-       (wraparound (case [(> ix1-val 0) 1]
-                     [(= ix1-val 0) 0]
-                     [(< ix1-val 0) -1])
+       (wraparound (cond [(> ix1-val 0) 1]
+                         [(= ix1-val 0) 0]
+                         [(< ix1-val 0) -1])
                    bitwidth))]
     [n (cond
          [(number? n) (wraparound n bitwidth)]

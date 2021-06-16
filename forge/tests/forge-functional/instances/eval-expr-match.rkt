@@ -2,10 +2,8 @@
 
 (set-option! 'verbose 0)
 
-; Tests the pattern-matching in eval-exp and eval-int from server/eval-model.rkt
+; Tests the pattern-matching in eval-exp from server/eval-model.rkt
 ; to make sure that all exprs drop into the correct branch
-
-; Need to update these tests to use sigs instead of atoms when that is fixed
 
 (define Node (make-sig 'Node))
 (define Child (make-sig 'Child #:extends Node))
@@ -47,8 +45,7 @@
 
 (define inst-expr-
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
-		             (= Child (- (+ (atom 'N1) (+ (atom 'N2) (atom 'N3)))
-		             	         (atom 'N3))))))
+		             (= Child (- Node (atom 'N3))))))
 (make-test #:name '--test-sat
 	       #:bounds (list inst-expr-)
 	       #:sigs (list Node Child)
@@ -68,9 +65,7 @@
 (define inst-intersect
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
 		             (= Child (atom 'N1))
-		             (= edges (-> (+ (atom 'N1) (+ (atom 'N2) (atom 'N3)))
-		             	          (& (+ (atom 'N1) (+ (atom 'N2) (atom 'N3)))
-		             	          	 (atom 'N1)))))))
+		             (= edges (-> Node (& Node (atom 'N1)))))))
 (make-test #:name 'intersect-test-sat
 	       #:bounds (list inst-intersect)
 	       #:sigs (list Node Child)
@@ -86,8 +81,7 @@
 
 (define inst-cross-prod
 	(make-inst (list (= Node (+ (atom 'N1) (atom 'N2)))
-		             (= edges (-> (+ (atom 'N1) (atom 'N2))
-		             	          (+ (atom 'N1) (atom 'N2)))))))
+		             (= edges (-> Node Node)))))
 (make-test #:name 'cross-prod-sat
 	       #:bounds (list inst-cross-prod)
 	       #:sigs (list Node Child)
@@ -105,7 +99,7 @@
 	(make-inst (list (= Node (+ (atom 'Node1) (atom 'Node2)))
 		             (= edges (+ (-> (atom 'Node1) (atom 'Node1))
 		             	         (-> (atom 'Node2) (atom 'Node1))))
-		             (= Child (join (+ (atom 'Node1) (atom 'Node2))
+		             (= Child (join Node
 		             	            (+ (-> (atom 'Node1) (atom 'Node1))
 		             	               (-> (atom 'Node2) (atom 'Node1))))))))
 (make-test #:name 'join-sat
@@ -127,16 +121,14 @@
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
 		             (= edges (+ (-> (atom 'N1) (atom 'N2))
 		             	         (-> (atom 'N2) (atom 'N3))))
-		             (= Child (join (+ (atom 'N1) (+ (atom 'N2) (atom 'N3)))
-		             	            (^ (+ (-> (atom 'N1) (atom 'N2))
-		             	            	  (-> (atom 'N2) (atom 'N3)))))))))
+		             (= Child (join (atom 'N1) (^ edges))))))
 (make-test #:name '^-sat
 	       #:bounds (list inst-transitive-closure)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (one (set ([n Node])
 	       	                    (not (in n Child))))
-	                     (= Child (join Node (^ edges))))
+	                     (= Child (join Node edges)))
 	       #:expect 'sat)
 (make-test #:name '^-theorem
 	       #:bounds (list inst-transitive-closure)
@@ -144,16 +136,14 @@
 	       #:relations (list edges node-int)
 	       #:preds (list (one (set ([n Node])
 	       	                    (not (in n Child))))
-	                     (= Child (join Node (^ edges))))
+	                     (= Child (join Node edges)))
 	       #:expect 'theorem)
 
 (define inst-reflexive-transitive-closure
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
 		             (= edges (+ (-> (atom 'N1) (atom 'N2))
 		             	         (-> (atom 'N2) (atom 'N3))))
-		             (= Child (join (+ (atom 'N1) (+ (atom 'N2) (atom 'N3)))
-		             	            (* (+ (-> (atom 'N1) (atom 'N2))
-		             	            	  (-> (atom 'N2) (atom 'N3)))))))))
+		             (= Child (join (atom 'N1) (* edges))))))
 (make-test #:name '*-sat
 	       #:bounds (list inst-reflexive-transitive-closure)
 	       #:sigs (list Node Child)
@@ -192,12 +182,9 @@
 
 (define inst-constant
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
-		             (= Child (& (+ (atom 'N1) (+ (atom 'N2) (atom 'N3)))
-		             	         univ))
+		             (= Child (& Node univ))
 		             (= node-int (-> none none))
-		             (= edges (-> (+ (atom 'N1) (+ (atom 'N2) (atom 'N3)))
-		             	          (join (+ (atom 'N1) (+ (atom 'N2) (atom 'N3)))
-		             	          	    iden))))))
+		             (= edges (-> Node (join Node iden))))))
 (make-test #:name 'constant-sat
 	       #:bounds (list inst-constant)
 	       #:sigs (list Node Child)

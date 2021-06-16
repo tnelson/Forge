@@ -11,7 +11,7 @@
 (@check-equal? (join iden iden) (join iden iden))
 (@check-equal? (in (join iden iden) (join iden iden))
                (in (join iden iden) (join iden iden)))
-(@check-equal? (some ([x univ]) (in x x))
+#;(@check-equal? (some ([x univ]) (in x x))
                (some ([x univ]) (in x x)))
 (@check-equal? (some univ)
                (some univ))
