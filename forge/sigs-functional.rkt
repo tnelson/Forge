@@ -41,7 +41,7 @@
          test-from-state
          display)
 (provide Int succ)
-
+(provide (prefix-out forge: make-model-generator))
 (provide solution-diff)
          ;instance-diff evaluate)
 
