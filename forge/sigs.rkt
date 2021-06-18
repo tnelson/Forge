@@ -29,6 +29,19 @@
          "send-to-kodkod.rkt")
 (require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
          (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
+(require (only-in "sigs-functional.rkt"
+                  make-sig
+                  make-relation
+                  make-inst
+                  run-from-state
+                  ; the next ones are not used in this file
+                  ; but are required so that they can be provided,
+                  ; allowing users to use them in forge/core programs
+                  make-run
+                  check-from-state
+                  make-check
+                  test-from-state
+                  make-test))
 
 ; Commands
 (provide sig relation fun const pred inst with)
@@ -68,8 +81,22 @@
 (provide (all-from-out "lazy-tree.rkt"))
 
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
+
 ; Export these from structs without forge: prefix
 (provide implies iff <=> ifte >= <= ni != !in !ni)
+(provide Int succ min max)
+
+; Export these from sigs-functional
+; so that they can be used for scripting in forge/core
+(provide make-sig
+         make-relation
+         make-inst
+         run-from-state
+         make-run
+         check-from-state
+         make-check
+         test-from-state
+         make-test)
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
@@ -88,20 +115,20 @@
 ;;;;;; State Updaters  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; state-add-runmap :: State, symbol, Run -> State
+; state-add-runmap :: State, Symbol, Run -> State
 (define (state-add-runmap state name r)
   (struct-copy State state
                [runmap (hash-set (State-runmap state) name r)]))
 
-; state-add-sig :: State, Symbol, bool, bool, (Symbol | #f) -> State
+; state-add-sig :: State, Symbol, Sig, (Symbol | #f) -> State
 ; Adds a new Sig to the given State; if new Sig extends some
 ; other Sig, then updates that Sig with extension.
-(define (state-add-sig state name rel one abstract extends)
+(define (state-add-sig state name new-sig extends)
   (when (member name (State-sig-order state))
-    (error (format "tried to add sig ~a, but it already existed" name)))
-  (define new-sig (Sig name rel one abstract extends))
+    (raise-user-error (format "tried to add sig ~a, but it already existed" name)))
+  ;(define new-sig (Sig name rel one abstract extends))
   (when (@and extends (@not (member extends (State-sig-order state))))
-    (raise "Can't extend nonexistent sig."))
+    (raise-user-error "Can't extend nonexistent sig."))
 
   (define new-state-sigs (hash-set (State-sigs state) name new-sig))
   (define new-state-sig-order (append (State-sig-order state) (list name)))
@@ -110,12 +137,12 @@
                [sigs new-state-sigs]
                [sig-order new-state-sig-order]))
 
-; state-add-relation :: State, Symbol, List<Sig>, Symbol?-> State
+; state-add-relation :: State, Symbol, Relation -> State
 ; Adds a new relation to the given State.
-(define (state-add-relation state name rel rel-sigs [breaker #f])
+(define (state-add-relation state name new-relation)
   (when (member name (State-relation-order state))
     (error (format "tried to add relation ~a, but it already existed" name)))
-  (define new-relation (Relation name rel rel-sigs breaker))
+  ;(define new-relation (Relation name rel rel-sigs breaker))
   (define new-state-relations (hash-set (State-relations state) name new-relation))
   (define new-state-relation-order (append (State-relation-order state) (list name)))
   (struct-copy State state
@@ -255,7 +282,6 @@
      (raise-user-error (format "Can't have var ~a unless problem_type option is temporal"
                                name))]))
 
-
 ; Declare a new sig.
 ; (sig name [|| [#:one] [#:abstract]] [#:is-var isv] [[|| #:in #:extends] parent])
 ; Extending a sig with #:in does NOT work yet,
@@ -263,56 +289,72 @@
 ; when the Expander tries to do that
 (define-syntax (sig stx)
   (syntax-parse stx
-    ; This allows #:in and #:extends,
-    ; but the parser does not currently allow "sig A in B extends C"
-    ; when extendings sigs with in is implemented,
-    ; I think they should be updated to be consistent
     [(sig name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
                         (~optional (~seq #:extends parent:expr))
                         (~optional (~or (~seq (~and #:one one-kw))
                                         (~seq (~and #:abstract abstract-kw))))
                         (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
-    (quasisyntax/loc stx
-      (begin
-        (define true-name 'name)
-        (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
-        (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
-        (define true-parent (~? (Sig-name (get-sig curr-state parent))
-                                #f))
-        (define name (build-relation #,(build-source-location stx)
-                                       (list (symbol->string true-name))
-                                       (symbol->string (or true-parent 'univ))
-                                       (symbol->string true-name)
-                                       is-var))
-        ;make sure it isn't a var sig if not in temporal mode
-        (~@ (check-temporal-for-var is-var true-name))
-        ;Currently when lang/expander.rkt calls sig with #:in,
-        ;super-sig is #'(raise "Extending with in not yet implemented.")
-        ;This is just here for now to make sure that error is raised.
-        (~? super-sig)
-        (update-state! (state-add-sig curr-state true-name name true-one true-abstract true-parent))))]))
+     (quasisyntax/loc stx
+       (begin
+         (define true-name 'name)
+         (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
+         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
+         (define true-parent (~? (get-sig curr-state parent)
+                                 #f))
+         (define true-parent-name
+           (if true-parent (Sig-name true-parent) #f))
+         ; Temporary fix: if-for-bool :(
+         ; needed for now because when Forge expands into core,
+         ; is-var comes in as "var" instead of #t
+         ; so the contract on make-sig break
+         (define isv
+           (if is-var #t #f))
+         (define name (make-sig true-name
+                                #:one true-one
+                                #:abstract true-abstract
+                                #:is-var isv
+                                ;let #:in default to #f until it is implemented
+                                #:extends true-parent
+                                #:info (nodeinfo #,(build-source-location stx))))
+         ;make sure it isn't a var sig if not in temporal mode
+         (~@ (check-temporal-for-var is-var true-name))
+         ;Currently when lang/expander.rkt calls sig with #:in,
+         ;super-sig is #'(raise "Extending with in not yet implemented.")
+         ;This is just here for now to make sure that error is raised.
+         (~? super-sig)
+         (update-state! (state-add-sig curr-state true-name name true-parent-name))))]))
 
+; Declare a new relation
+; (relation name (sig1 sig2 sigs ...) [|| [#:is breaker] [#:is-var isv]])
 (define-syntax (relation stx)
   (syntax-parse stx
     [(relation name:id (sig1:id sig2:id sigs ...)
                (~optional (~seq #:is breaker:id))
                (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
      (quasisyntax/loc stx
-         (begin
-       (define true-name 'name)
-       (define true-sigs '(sig1 sig2 sigs ...))
-       ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
-       ;                                 (curry get-sig curr-state ))
-       ;                        (list sig1 sig2 sigs ...)))
-       (define true-breaker (~? 'breaker #f))
-       (define name (build-relation #,(build-source-location stx)
-                                      (map symbol->string true-sigs)
-                                      (symbol->string 'sig1)
-                                      (symbol->string true-name)
-                                      is-var))
-       ;make sure it isn't a var sig if not in temporal mode
-        (~@ (check-temporal-for-var is-var true-name))
-       (update-state! (state-add-relation curr-state true-name name true-sigs true-breaker))))]))
+       (begin
+         (define true-name 'name)
+         (define true-sigs (list (get-sig curr-state sig1)
+                                 (get-sig curr-state sig2)
+                                 (get-sig curr-state sigs) ...))
+         ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
+         ;                                 (curry get-sig curr-state ))
+         ;                        (list sig1 sig2 sigs ...)))
+         (define true-breaker (~? 'breaker #f))
+         ; Temporary fix: if-for-bool :(
+         ; needed for now because when Forge expands into core,
+         ; is-var comes in as "var" instead of #t
+         ; so the contract on make-sig break
+         (define isv
+           (if is-var #t #f))
+         (define name (make-relation true-name
+                                     true-sigs
+                                     #:is true-breaker
+                                     #:is-var isv
+                                     #:info (nodeinfo #,(build-source-location stx))))
+         ;make sure it isn't a var sig if not in temporal mode
+         (~@ (check-temporal-for-var is-var true-name))
+         (update-state! (state-add-relation curr-state true-name name))))]))
 
 ; Declare a new predicate
 ; (pred info name cond ...)
@@ -337,9 +379,9 @@
 (define-syntax (fun stx)
   (syntax-parse stx
     [(fun (name:id args:id ...+) result:expr) 
-      #'(begin 
-        (define (name args ...) result)
-        (update-state! (state-add-fun curr-state 'name name)))]))
+      #'(begin
+          (define (name args ...) result)
+          (update-state! (state-add-fun curr-state 'name name)))]))
 
 ; Declare a new constant
 ; (const name value)
@@ -347,19 +389,17 @@
   (syntax-parse stx
     [(const name:id value:expr) 
       #'(begin 
-        (define name value)
-        (update-state! (state-add-const curr-state 'name name)))]))
+          (define name value)
+          (update-state! (state-add-const curr-state 'name name)))]))
 
 ; Define a new bounding instance
 ; (inst name binding ...)
 (define-syntax (inst stx)
   (syntax-parse stx
     [(inst name:id binds:expr ...)
-      #'(begin
-        (define (name scope bound)
-          (set!-values (scope bound) (bind scope bound binds)) ...
-          (values scope bound))
-        (update-state! (state-add-inst curr-state 'name name)))]))
+     #'(begin
+         (define name (make-inst (list binds ...)))
+         (update-state! (state-add-inst curr-state 'name name)))]))
 
 ; Run a given spec
 ; (run name
@@ -368,7 +408,57 @@
 ;      [#:inst instance-name])
 (define-syntax (run stx)
   (define command stx)
+  (syntax-parse stx
+    [(run name:id
+          (~alt
+            (~optional (~or (~seq #:preds (preds ...))
+                            (~seq #:preds pred)))
+            (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+            (~optional (~or (~seq #:bounds (boundss ...))
+                            (~seq #:bounds bound)))
+            (~optional (~seq #:solver solver-choice)) ;unused
+            (~optional (~seq #:backend backend-choice)) ;unused
+            (~optional (~seq #:target target-instance))
+            ;the last 3 appear to be unused in functional forge
+            (~optional (~seq #:target-distance target-distance))
+            (~optional (~or (~and #:target-compare target-compare)
+                            (~and #:target-contrast target-contrast)))) ...)
+     #`(begin
+         (define run-state curr-state)
+         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
+         (define run-preds (~? (list preds ...) (~? (list pred) (list))))
+         (define run-scope
+           (~? (~@ (list (~? (~@ (list sig lower upper))
+                             (~@ (list sig upper))) ...))
+               (~@ (list))))
+         (define run-bounds (~? (list boundss ...) (~? (list bound) (list))))
+         (define run-solver (~? 'solver-choice #f))
+         (define run-backend (~? 'backend #f))
+         (define run-target
+           (~? (Target (cdr target-instance)
+                       (~? 'target-distance 'close))
+               #f))
+         (define run-command #'#,command)
+         (define name
+           (run-from-state run-state
+                           #:name run-name
+                           #:preds run-preds
+                           #:scope run-scope
+                           #:bounds run-bounds
+                           #:solver run-solver
+                           #:backend run-backend
+                           #:target run-target
+                           #:command run-command))
+         (update-state! (state-add-runmap curr-state 'name name)))]))
 
+#|
+; Run a given spec
+; (run name
+;      [#:pred [(pred ...)]] 
+;      [#:scope [((sig [lower 0] upper) ...)]]
+;      [#:inst instance-name])
+(define-syntax (run stx)
+  (define command stx)
   (syntax-parse stx
     [(run name:id
           (~alt
@@ -380,25 +470,26 @@
             (~optional (~seq #:solver solver-choice))
             (~optional (~seq #:backend backend-choice))
             (~optional (~seq #:target target-instance))
+            ;the last 3 appear to be unused (maybe they were used pre-functional-forge?)
             (~optional (~seq #:target-distance target-distance))
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
-      #`(begin
-        (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
-        (define run-state curr-state)
-        (define run-preds (~? (list preds ...) (~? (list pred) (list))))
+     #`(begin
+         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
+         (define run-state curr-state)
+         (define run-preds (~? (list preds ...) (~? (list pred) (list))))
 
-        (~? (set! run-state (state-set-option run-state 'solver 'solver-choice)))
-        (~? (set! run-state (state-set-option run-state 'backend 'backend-choice)))
-        
+         (~? (set! run-state (state-set-option run-state 'solver 'solver-choice)))
+         (~? (set! run-state (state-set-option run-state 'backend 'backend-choice)))
 
-        (define sig-scopes (~? 
-          (~@
-            (for/hash ([name (list (Sig-name (get-sig curr-state sig)) ...)]
-                       [lo (list lower ...)]
-                       [hi (list upper ...)])
-              (values name (Range lo hi))))
-          (~@ (hash))))
+         (define sig-scopes
+          (~?
+            (~@
+              (for/hash ([name (list (Sig-name (get-sig curr-state sig)) ...)]
+                         [lo (list lower ...)]
+                         [hi (list upper ...)])
+                (values name (Range lo hi))))
+            (~@ (hash))))
         (define bitwidth (if (hash-has-key? sig-scopes 'Int)
                              (begin0 (Range-upper (hash-ref sig-scopes 'Int))
                                      (set! sig-scopes (hash-remove sig-scopes 'Int)))
@@ -443,6 +534,7 @@
         
         (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
         (update-state! (state-add-runmap curr-state 'name name)))]))
+|#
 
 ; Test that a spec is sat or unsat
 ; (test name
@@ -507,12 +599,12 @@
 (define-syntax (with stx)
   (syntax-parse stx
     [(with (ids:id ... #:from module-name) exprs ...+)
-      #'(let ([temp-state curr-state])
-          (define ids (dynamic-require module-name 'ids)) ...
-          (define result
-            (let () exprs ...))
-          (update-state! temp-state)
-          result)]))
+     #'(let ([temp-state curr-state])
+         (define ids (dynamic-require module-name 'ids)) ...
+         (define result
+           (let () exprs ...))
+         (update-state! temp-state)
+         result)]))
 
 (define-for-syntax (add-to-execs stx)
   (if (equal? (syntax-local-context) 'module)
@@ -748,6 +840,9 @@
 ;;;;;;  Bound Declarations  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+#|
+Originally needed for inst,
+Now with functional forge, do-bind is used instead
 ; (bind scope bound bind-expression)
 (define-syntax (bind stx)
   (match-define (list b scope bound binding) (syntax-e stx))
@@ -832,6 +927,7 @@
      #'(values (set-bitwidth #,scope n) #,bound)]
 
     [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") binding)]))
+|#
 
 (define (solution-diff s1 s2)
   (map instance-diff (Sat-instances s1) (Sat-instances s2)))

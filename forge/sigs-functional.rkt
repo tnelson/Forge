@@ -33,12 +33,12 @@
 
 ; Commands
 (provide make-sig make-relation make-inst)
-(provide make-run
-         run-from-state
-         make-check
+(provide run-from-state
+         make-run
          check-from-state
-         make-test
+         make-check
          test-from-state
+         make-test
          display)
 (provide Int succ)
 (provide (prefix-out forge: make-model-generator))
@@ -209,7 +209,6 @@
              (ast:node/formula/op/|| info
                                      (list (ast:node/formula/op/int= info (list rel-card 1))
                                            (ast:node/formula/op/int> info (list rel-card 1))))])))]
-
     ; (= (card rel) n)
     [(ast:node/formula/op/int= eq-info (list left right))
      (match left

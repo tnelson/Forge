@@ -8,9 +8,11 @@
 (sig C #:extends B)
 
 (inst my-inst
-    (= C (+ C1 C2))
-    (= B (+ B1 (+ B2 C1))) ; Missing C2 here
-    (= A (+ A1 (+ A2 (+ B1 (+ B2 (+ C1 C2)))))))
+      (= C (+ (atom 'C1) (atom 'C2)))
+      (= B (+ (atom 'B1) (+ (atom 'B2) (atom 'C1)))) ; Missing C2 here
+      (= A (+ (atom 'A1) (+ (atom 'A2)
+                            (+ (atom 'B1) (+ (atom 'B2)
+                                             (+ (atom 'C1) (atom 'C2))))))))
 
 (test my-test
      #:bounds [my-inst]

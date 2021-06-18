@@ -10,8 +10,8 @@
   ; Using "read" will not bring in syntax location info
   (define parse-tree (port->list (lambda (x) (@read-syntax path x)) port))
   (define module-datum `(module forge-core-mod racket
-                          #;(require forge/logging/sigs)
-                          (require forge/sigs-functional)
+                          (require forge/logging/sigs)
+                          #;(require forge/sigs-functional)
                           (provide (except-out (all-defined-out)
                                                forge:n))
 

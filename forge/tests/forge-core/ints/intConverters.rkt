@@ -52,15 +52,12 @@
 ; sum-quant set -> int
 
 (inst sum-inst
-    (= ints (+ (-> S20 (sing (int 6)))
-            (+ (-> S30 (+ (sing (int 1))
-                       (+ (sing (int 2))
-                          (sing (int 3)))))
-            (+ (-> S40 (+ (sing (int -5))
-                       (+ (sing (int -1))
-                          (sing (int 3)))))
-               (-> S50 (+ (sing (int 7))
-                          (sing (int 1)))))))))
+    (= ints (+ (-> (atom 'S20) (sing (int 6)))
+               (+ (-> (atom 'S30)
+                      (+ (sing (int 1)) (+ (sing (int 2)) (sing (int 3)))))
+                  (+ (-> (atom 'S40)
+                         (+ (sing (int -5)) (+ (sing (int -1)) (sing (int 3)))))
+                     (-> (atom 'S50) (+ (sing (int 7)) (sing (int 1)))))))))
 
 (pred Sum
     (all ([i Int])
@@ -100,16 +97,14 @@
 ; card      set -> int
 
 (inst card-inst
-    (= ints (+ (-> S20 (sing (int -5)))
-            (+ (-> S30 (+ (sing (int -3))
-                          (sing (int 0))))
-            (+ (-> S40 (+ (sing (int -8))
-                       (+ (sing (int 7))
-                          (sing (int 1)))))
-               (-> S50 (+ (sing (int 4))
-                       (+ (sing (int 3))
-                       (+ (sing (int 2))
-                          (sing (int 1)))))))))))
+    (= ints (+ (-> (atom 'S20) (sing (int -5)))
+               (+ (-> (atom 'S30) (+ (sing (int -3)) (sing (int 0))))
+                  (+ (-> (atom 'S40)
+                         (+ (sing (int -8)) (+ (sing (int 7)) (sing (int 1)))))
+                     (-> (atom 'S50)
+                         (+ (sing (int 4))
+                            (+ (sing (int 3))
+                               (+ (sing (int 2)) (sing (int 1)))))))))))
 
 (pred Card
     (all ([i Int])
@@ -131,40 +126,40 @@
 ; max, min  set -> int
 
 (inst max-min-inst
-    (= ints (+ (-> S10 (sing (int 0)))
-            (+ (-> S20 (+ (sing (int 0))
-                          (sing (int 1))))
-            (+ (-> S30 (+ (sing (int -5))
-                       (+ (sing (int -2))
-                       (+ (sing (int 0))
-                          (sing (int 4))))))
-            (+ (-> S40 (sing (int 7)))
-               (-> S50 Int)))))))
+    (= ints (+ (-> (atom 'S10) (sing (int 0)))
+               (+ (-> (atom 'S20) (+ (sing (int 0)) (sing (int 1))))
+                  (+ (-> (atom 'S30)
+                         (+ (sing (int -5))
+                            (+ (sing (int -2))
+                               (+ (sing (int 0))
+                                  (sing (int 4))))))
+                     (+ (-> (atom 'S40) (sing (int 7)))
+                        (-> (atom 'S50) Int)))))))
 
 (pred MaxMin
-    (int= (min (join S1 ints))
+    (int= (forge:min (join S1 ints))
           (int 0))
-    (int= (max (join S1 ints))
+    (int= (forge:max (join S1 ints))
           (int 0))
 
-    (int= (min (join S2 ints))
+    (int= (forge:min (join S2 ints))
           (int 0))
-    (int= (max (join S2 ints))
+    (int= (forge:max (join S2 ints))
           (int 1))
 
-    (int= (min (join S3 ints))
+    (int= (forge:min (join S3 ints))
           (int -5))
-    (int= (max (join S3 ints))
+    (int= (forge:max (join S3 ints))
           (int 4))
 
-    (int= (min (join S4 ints))
+    (int= (forge:min (join S4 ints))
           (int 7))
-    (int= (max (join S4 ints))
+    (int= (forge:max (join S4 ints))
           (int 7))
 
-    (int= (min (join S5 ints))
+    (int= (forge:min (join S5 ints))
           (int -8))
-    (int= (max (join S5 ints))
+    (int= (forge:max (join S5 ints))
           (int 7)))
 
 

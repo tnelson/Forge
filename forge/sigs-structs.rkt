@@ -127,7 +127,8 @@
   [sig-order (listof symbol?)]
   [relations (hash/c symbol? Relation?)]
   [relation-order (listof symbol?)]
-  [pred-map (hash/c symbol? (unconstrained-domain-> node/formula?))]
+  [pred-map (hash/c symbol? (or/c (unconstrained-domain-> node/formula?)
+                                  node/formula?))]
   [fun-map (hash/c symbol? (unconstrained-domain-> node?))]
   [const-map (hash/c symbol? node?)]
   [inst-map (hash/c symbol? Inst?)]

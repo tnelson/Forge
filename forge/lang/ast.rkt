@@ -356,7 +356,8 @@
      (quasisyntax/loc stx       
        (build-relation #,(build-source-location stx) (typelist ...) parent name isvar))]))
 
-; Used by rel macro but *also* by Sig and relation macros in forge/core (sigs.rkt)
+; Used by rel macro
+; pre-functional: *also* used by Sig and relation macros in forge/core (sigs.rkt)
 (define (build-relation loc typelist parent [name #f] [is-var #f])
   (let ([name (cond [(false? name) 
                      (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))]
