@@ -140,6 +140,7 @@
        
        (symbol->string name) ; name
        (list (symbol->string name)) ; typelist 
+
        (if extends (symbol->string (Sig-name extends)) "univ") ; parent 
        is-var ; is-variable
 
@@ -171,7 +172,9 @@
             (length sigs) ; arity
             
             (symbol->string name) ; name
-            (map (compose symbol->string Sig-name) sigs) ; typelist 
+
+            (map (compose symbol->string Sig-name) sigs) ; typelist
+
             (symbol->string (Sig-name (first sigs))) ; parent 
             is-var ; is-variable
 
@@ -340,8 +343,10 @@
   (-> Scope? Sig? nonnegative-integer? nonnegative-integer?
       Scope?)
   (define old-sig-scopes (Scope-sig-scopes base-scope))
+
   (match-define (Range old-lower old-upper) (hash-ref old-sig-scopes (Sig-name sig) (Range lower upper)))
   (define new-sig-scope (Range (@max old-lower lower) (@min old-upper upper)))
+
   (define new-sig-scopes (hash-set old-sig-scopes (Sig-name sig) new-sig-scope))
   (struct-copy Scope base-scope
                [sig-scopes new-sig-scopes]))
@@ -416,9 +421,12 @@
          (match triple
            [(list sig upper) 
             (if (equal? sig Int)
-                (update-bitwidth scope upper) 
+                (update-bitwidth scope upper)
                 (update-scope scope sig 0 upper))]
-           [(list sig lower upper) (update-scope scope sig lower upper)]
+           [(list sig lower upper)
+            (if (equal? sig Int)
+                (update-bitwidth scope upper)
+                (update-scope scope sig lower upper))]
            [_ (raise (format "Invalid scope: ~a" triple))]))]))
 
   (define/contract scope-with-ones Scope?

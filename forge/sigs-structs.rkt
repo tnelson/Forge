@@ -268,10 +268,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-sig run-or-state sig-name-or-rel)
   (define sig-name
     (cond [(symbol? sig-name-or-rel) sig-name-or-rel]
-          [(node/expr/relation? sig-name-or-rel)
-           (string->symbol (relation-name sig-name-or-rel))]
           [(Sig? sig-name-or-rel)
            (Sig-name sig-name-or-rel)]
+          [(node/expr/relation? sig-name-or-rel)
+           (string->symbol (relation-name sig-name-or-rel))]
           [else (error (format "get-sig failed to locate: ~a" sig-name-or-rel))]))
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 

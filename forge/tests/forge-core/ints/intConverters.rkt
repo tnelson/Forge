@@ -137,29 +137,29 @@
                         (-> (atom 'S50) Int)))))))
 
 (pred MaxMin
-    (int= (forge:min (join S1 ints))
+    (int= (min (join S1 ints))
           (int 0))
-    (int= (forge:max (join S1 ints))
+    (int= (max (join S1 ints))
           (int 0))
 
-    (int= (forge:min (join S2 ints))
+    (int= (min (join S2 ints))
           (int 0))
-    (int= (forge:max (join S2 ints))
+    (int= (max (join S2 ints))
           (int 1))
 
-    (int= (forge:min (join S3 ints))
+    (int= (min (join S3 ints))
           (int -5))
-    (int= (forge:max (join S3 ints))
+    (int= (max (join S3 ints))
           (int 4))
 
-    (int= (forge:min (join S4 ints))
+    (int= (min (join S4 ints))
           (int 7))
-    (int= (forge:max (join S4 ints))
+    (int= (max (join S4 ints))
           (int 7))
 
-    (int= (forge:min (join S5 ints))
+    (int= (min (join S5 ints))
           (int -8))
-    (int= (forge:max (join S5 ints))
+    (int= (max (join S5 ints))
           (int 7)))
 
 

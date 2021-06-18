@@ -45,12 +45,12 @@
 
 (pred (Size lower upper)
     ; lower
-    (no (make-n (sub1 lower)))
-    (some (make-n lower))
+    (no (make-n (sub1 lower))) ; no -2
+    (some (make-n lower)) ; some -1
 
     ; upper
-    (some (make-n upper))
-    (no (make-n (add1 upper))))
+    (some (make-n upper)) ; some 0
+    (no (make-n (add1 upper)))) ; no 1)
 
 (test size1
       #:preds [(Size -1 0)]

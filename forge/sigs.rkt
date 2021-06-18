@@ -413,7 +413,7 @@
           (~alt
             (~optional (~or (~seq #:preds (preds ...))
                             (~seq #:preds pred)))
-            (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+            (~optional (~seq #:scope ((sig:id (~optional lower:nat) upper:nat) ...)))
             (~optional (~or (~seq #:bounds (boundss ...))
                             (~seq #:bounds bound)))
             (~optional (~seq #:solver solver-choice)) ;unused
@@ -431,6 +431,10 @@
            (~? (~@ (list (~? (~@ (list sig lower upper))
                              (~@ (list sig upper))) ...))
                (~@ (list))))
+         #;(define run-scope
+           (~? (list (list sig (~? lower) upper) ...) (list)))
+         #;(define run-scope
+           (~? (list (~? (list sig lower upper) (list sig upper)) ...) (list)))
          (define run-bounds (~? (list boundss ...) (~? (list bound) (list))))
          (define run-solver (~? 'solver-choice #f))
          (define run-backend (~? 'backend #f))
