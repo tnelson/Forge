@@ -579,14 +579,17 @@
                        [relation-types (syntax->list #'(arrow-decl.types ...))]
                        [relation-is-var (syntax->list #'(arrow-decl.is-var ...))]
                        [relation-mult (syntax->list #'((~? arrow-decl.mult default) ...))])
-              (for/list ([relation-name (syntax->list relation-names)])            
+              (for/list ([relation-name (syntax->list relation-names)])
                 (with-syntax ([relation-name relation-name]
                               [relation-types (datum->syntax relation-types 
-                                                             (cons (syntax->datum sig-name)
+                                                             (cons sig-name ;(syntax->datum sig-name)
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])                                             
-                      #'(relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))]))
+                      #'(relation relation-name
+                                  relation-types
+                                  ;#:is relation-mult
+                                  #:is-var is-var)))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
