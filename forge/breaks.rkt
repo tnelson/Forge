@@ -841,7 +841,8 @@ ADDING BREAKS
     - a > b        |- a = a + b
     - a > b, b > c |- a > c
 - note, however:
-    - a = a + b   !|- a > b   
+    - a = a + b   !|- a > b
+- add a call to make-breaker to the bottom of ast.rkt for your new breaker
 
 TODO:
 - prove correctness

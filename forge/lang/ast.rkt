@@ -813,7 +813,22 @@
     [(make-breaker id sym)
       #'(define-syntax id (lambda (stx) (syntax-case stx ()    
           [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx)) sym))])))]))
+
+(make-breaker cotree 'cotree)
+(make-breaker cofunc 'cofunc)
+(make-breaker cosurj 'cosurj)
+(make-breaker coinj 'coinj)
+
+(make-breaker ireff 'ireff)
+(make-breaker ref 'ref)
 (make-breaker linear 'linear)
+(make-breaker plinear 'plinear)
+(make-breaker acyclic 'acyclic)
+(make-breaker tree 'tree)
 (make-breaker func 'func)
+(make-breaker surj 'surj)
+(make-breaker inj 'inj)
+(make-breaker bij 'bij)
+(make-breaker pbij 'pbij)
+
 (make-breaker default 'default)
-; TODO: Add rest of breakers
