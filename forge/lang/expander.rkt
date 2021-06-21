@@ -586,10 +586,7 @@
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])                                             
-                      #'(relation relation-name
-                                  relation-types
-                                  ;#:is relation-mult
-                                  #:is-var is-var)))))))]))
+                      #'(relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)

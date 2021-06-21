@@ -340,11 +340,11 @@
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
-         (define true-breaker (~? 'breaker #f))
+         (define true-breaker (~? breaker #f))
          ; Temporary fix: if-for-bool :(
          ; needed for now because when Forge expands into core,
          ; is-var comes in as "var" instead of #t
-         ; so the contract on make-sig break
+         ; so the contract on make-sig breaks
          (define isv
            (if is-var #t #f))
          (define name (make-relation true-name

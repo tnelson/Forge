@@ -815,4 +815,5 @@
           [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx)) sym))])))]))
 (make-breaker linear 'linear)
 (make-breaker func 'func)
+(make-breaker default 'default)
 ; TODO: Add rest of breakers
