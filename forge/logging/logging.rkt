@@ -146,7 +146,8 @@
   (close-input-port peek-port)
 
   (if (and (string? project) (string? user))
-      (let ((got-data-file? (and (path-string? user-data-file)
+      (let ((got-data-file? (and #f ;; 2021-06-23 disable logging
+                                 (path-string? user-data-file)
                                  (path-string? log-file))))
         (logging-on? got-data-file?)
         (read port)
