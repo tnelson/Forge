@@ -144,8 +144,8 @@
   (match expr
 
     ; relation name (base case)
-    [(node/expr/relation info arity name typelist parent isvar)     
-     (apply cartesian-product (map primifyThis typelist))]
+    [(node/expr/relation info arity name typelist-thunk parent isvar)     
+     (apply cartesian-product (map primifyThis (typelist-thunk)))]
 
     ; atom (base case)
     [(node/expr/atom info arity name)

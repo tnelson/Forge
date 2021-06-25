@@ -151,7 +151,7 @@
 
 (define (interpret-expr run-or-state expr relations atom-names quantvars)
   (match expr
-    [(node/expr/relation info arity name typelist parent isvar)
+    [(node/expr/relation info arity name typelist-thunk parent isvar)
      (print-cmd-cont (format-relname isvar name " "))]
     [(node/expr/atom info arity name)
      (unless (member name atom-names) (raise (format "Atom ~a not in available atoms ~a" name atom-names)))

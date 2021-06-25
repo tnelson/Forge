@@ -153,7 +153,7 @@
   (match expr
 
     ; relation name (base case)
-    [(node/expr/relation info arity name typelist parent isvar)
+    [(node/expr/relation info arity name typelist-thunk parent isvar)
        (cond 
          [(equal? expr target) value]
          [(not(equal? expr target)) expr])]

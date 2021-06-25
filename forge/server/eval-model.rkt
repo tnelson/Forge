@@ -142,7 +142,7 @@
                         (eval-exp kodkod bind2 bitwidth))]
                    [id
                     (cond
-                      [(relation? id) (raise-user-error "Implicit set comprehension is disallowed - use \"set\"")]                      
+                      [(relation? id) (raise-user-error "Implicit set comprehension is disallowed - use \"set\"")]               
                       ; relation name
                       [(hash-has-key? bind id) (hash-ref bind id)]
                       ; atom name

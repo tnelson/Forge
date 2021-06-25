@@ -48,7 +48,8 @@
                [#f (list)]
                ['default (list)]
                ['pfunc (let* ([rel relation]
-                              [sigs (Relation-sigs relation)]
+                              [sigs (map (lambda (sig-thunk) (sig-thunk))
+                                         (Relation-sigs-thunks relation))]
                               [left-sig (get-sig run-spec (first sigs))]
                               [sig-rel left-sig])
                          (list (all ([s sig-rel])

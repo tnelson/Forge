@@ -334,9 +334,9 @@
      (quasisyntax/loc stx
        (begin
          (define true-name 'name)
-         (define true-sigs (list (get-sig curr-state sig1)
-                                 (get-sig curr-state sig2)
-                                 (get-sig curr-state sigs) ...))
+         (define true-sigs (list (thunk (get-sig curr-state sig1))
+                                 (thunk (get-sig curr-state sig2))
+                                 (thunk (get-sig curr-state sigs)) ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))

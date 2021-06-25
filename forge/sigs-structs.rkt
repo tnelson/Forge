@@ -73,7 +73,7 @@
 
 (struct Relation node/expr/relation (
   name ; symbol?
-  sigs ; (listof Sig?)
+  sigs-thunks ; (listof (-> Sig?))
   breaker ; (or/c node/breaking/break? #f)
   ) #:transparent
   #:methods gen:custom-write
@@ -178,9 +178,9 @@
 ;;;;;;    Constants    ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax Int (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f 'Int #f #f #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" (thunk '(Int)) "univ" #f 'Int #f #f #f))])))
 (define-syntax succ (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f 'succ (list Int Int) #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" (thunk '(Int Int)) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
 
 (define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
@@ -281,9 +281,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-sigs run-or-state [relation #f])
   (define state (get-state run-or-state))
   (if relation
-      (map (curry get-sig state) 
-           (Relation-sigs (get-relation state relation)))
-      (map (curry hash-ref (State-sigs state )) 
+      (map (compose (curry get-sig state) (lambda (sig-thunk) (sig-thunk)))
+           (Relation-sigs-thunks (get-relation state relation)))
+      (map (curry hash-ref (State-sigs state))
            (State-sig-order state))))
 
 ; get-top-level-sigs :: Run-or-State -> List<Sig>

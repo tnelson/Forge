@@ -139,7 +139,9 @@
        1 ; arity
        
        (symbol->string name) ; name
-       (list (symbol->string name)) ; typelist 
+
+       ;see make-relation to see why this is a thunk
+       (thunk (list (symbol->string name))) ; typelist 
 
        (if extends (symbol->string (Sig-name extends)) "univ") ; parent 
        is-var ; is-variable
@@ -155,7 +157,7 @@
                                 #:is-var [is-var #f] 
                                 #:info [node-info empty-nodeinfo])
   (->* ((or/c symbol? (non-empty-listof Sig?)))
-       ((non-empty-listof Sig?)
+       ((non-empty-listof (or/c Sig? (-> Sig?)))
         #:is (or/c node/breaking/break? #f)
         #:is-var boolean?
         #:info (or/c nodeinfo? #f))
@@ -166,20 +168,44 @@
         (values name/sigs raw-sigs)
         (values (gensym 'relation) name/sigs)))
 
+  ; sigs can contain sigs or thunks which return sigs
+  ; in order to allow mutual references between sigs in forge surface
+  ; while still being convenient for scripting in forge/core
+  ; this makes sure every element of the sigs list is a thunk
+  ; in order to ensure type consistency
+  (define sigs-thunks
+    (map (lambda (sig-or-thunk)
+           (if (Sig? sig-or-thunk)
+               (thunk sig-or-thunk)
+               sig-or-thunk))
+         sigs))
+
   ; (check-temporal-for-var is-var name)
   (Relation node-info ; info
         
-            (length sigs) ; arity
+            (length sigs-thunks) ; arity
             
             (symbol->string name) ; name
 
-            (map (compose symbol->string Sig-name) sigs) ; typelist
+            ; this needs to be a thunk because in order to use Sig-name
+            ; you need to execute the thunk which returns a Sig, and
+            ; we can't guarantee all Sigs that are used are bound yet
+            ; (in mutual references from forge surface,
+            ; they won't all be bound yet)
+            (thunk (map (compose symbol->string
+                                 Sig-name
+                                 (lambda (s) (s)))
+                        sigs-thunks)) ; typelist-thunk
 
-            (symbol->string (Sig-name (first sigs))) ; parent 
+            ; In forge surface, the parent sig will always be defined
+            ; before the relation is created, and it is possible to do that
+            ; when scripting as well, so we can assume ((first sigs))
+            ; is always bound here, which means this doesn't need to be a thunk
+            (symbol->string (Sig-name ((first sigs-thunks)))) ; parent 
             is-var ; is-variable
 
             name
-            sigs
+            sigs-thunks
             breaker))
 
 (define/contract (do-bind bind scope bound)
@@ -419,7 +445,7 @@
        (for/fold ([scope (Scope #f #f (hash))])
                  ([triple scope-input])
          (match triple
-           [(list sig upper) 
+           [(list sig upper)
             (if (equal? sig Int)
                 (update-bitwidth scope upper)
                 (update-scope scope sig 0 upper))]

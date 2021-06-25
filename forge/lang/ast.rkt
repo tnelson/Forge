@@ -18,7 +18,7 @@
 ;       * node/expr/op/-
 ;       * ...
 ;     * node/expr/comprehension (decls formula)  -- set comprehension
-;     * node/expr/relation (name typelist parent)  -- leaf relation
+;     * node/expr/relation (name typelist-thunk parent is-variable)  -- leaf relation
 ;     * node/expr/constant (type) -- relational constant [type serves purpose of name?]
 ;     * node/expr/quantifier-var (sym name) -- variable for quantifying over
 ;   * node/formula  -- formulas
@@ -333,11 +333,14 @@
 ;; -- relations ----------------------------------------------------------------
 
 ; Do not use this constructor directly, instead use the rel macro or the build-relation procedure.
-; The is-variable field allows support for Electrum-style var fields in the core language 
-(struct node/expr/relation node/expr (name typelist parent is-variable) #:transparent #:mutable
+; The is-variable field allows support for Electrum-style var fields in the core language
+; typelist-thunk is a thunk so that relations can be defined before all of the
+; sigs they relate are bound (so long as those sigs are bound later)
+; this is necessary to allow for mutual references between sigs in surface
+(struct node/expr/relation node/expr (name typelist-thunk parent is-variable) #:transparent #:mutable
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/expr/relation info arity name typelist parent is-variable) self)
+     (match-define (node/expr/relation info arity name typelist-thunk parent is-variable) self)
      ;(fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent)
      (fprintf port "(rel ~a)" name))]
   #:methods gen:equal+hash
@@ -346,6 +349,7 @@
    (define hash2-proc (make-robust-node-hash-syntax node/expr/relation 3))])
 (define next-name 0)
 
+; Is this used anywhere?
 ; e.g.: (rel '(Node Node) 'Node "edges") to define the usual edges relation
 (define-syntax (rel stx)
   (syntax-case stx ()
@@ -372,15 +376,15 @@
                                [(string? parent) parent]
                                [else (error (format "build-relation expected parent as either symbol or string"))])])    
     (node/expr/relation (nodeinfo loc) (length types) name
-                        types scrubbed-parent is-var)))
+                        (thunk types) scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields
 (define (relation-arity rel)
   (node/expr-arity rel))
 (define (relation-name rel)
   (node/expr/relation-name rel))
-(define (relation-typelist rel)
-  (node/expr/relation-typelist rel))
+(define (relation-typelist-thunk rel)
+  (node/expr/relation-typelist-thunk rel))
 (define (relation-parent rel)
   (node/expr/relation-parent rel))
 
@@ -788,7 +792,9 @@
        #`(lambda (a b equal-proc)           
            (andmap (lambda (access)
                      ;(printf "checking equality for ~a, proc ~a~n" 'structname access)
-                     (equal-proc (access a) (access b)))
+                     (if (equal? access node/expr/relation-typelist-thunk)
+                         (equal-proc ((access a)) ((access b)))
+                         (equal-proc (access a) (access b))))
                    (remove node-info (struct-accessors structname)))))]))
 
 ; And similarly for hash
