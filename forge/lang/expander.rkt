@@ -31,9 +31,6 @@
 
   (make-token abstract-tok "abstract" #:abstract))
 
-(define-for-syntax (my-expand stx) stx)
-
-#|
 (define-for-syntax (my-expand stx)
   (define core-funcs-and-macros
     (map (curry datum->syntax stx)
@@ -49,7 +46,6 @@
 
   (define result (local-expand stx 'expression core-funcs-and-macros))
   result)
-|#
 
 (begin-for-syntax
   ; AlloyModule : ModuleDecl? Import* Paragraph*
