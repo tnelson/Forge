@@ -124,10 +124,11 @@ Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
 Expr16  : @Expr17 | (TILDE-TOK | EXP-TOK | STAR-TOK) Expr16
 Expr17  : Const 
         | QualName 
-        | AT-TOK Name 
+        | AT-TOK Name
+        | BACKQUOTE-TOK Name
         | THIS-TOK
         | LEFT-CURLY-TOK DeclList BlockOrBar RIGHT-CURLY-TOK
-        | /LEFT-PAREN-TOK @Expr /RIGHT-PAREN-TOK 
+        | /LEFT-PAREN-TOK @Expr /RIGHT-PAREN-TOK
         | Block
         | Sexpr
 

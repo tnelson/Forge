@@ -222,7 +222,6 @@
     ; no rel, one rel, two rel, lone rel, some rel
     [(ast:node/formula/multiplicity info mult rel)
      ; is it safe to use the info from above here?
-     ; ASK TIM ABOUT (list rel)
      (let ([rel-card (ast:node/int/op/card info (list rel))])
        (do-bind
         (match mult
@@ -237,7 +236,9 @@
           #;['some
              (ast:node/formula/op/|| info
                                      (list (ast:node/formula/op/int= info (list rel-card 1))
-                                           (ast:node/formula/op/int> info (list rel-card 1))))])))]
+                                           (ast:node/formula/op/int> info (list rel-card 1))))])
+        scope
+        bound))]
     ; (= (card rel) n)
     [(ast:node/formula/op/int= eq-info (list left right))
      (match left

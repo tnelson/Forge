@@ -11,3 +11,5 @@ sig Node {
 pred secondIsFirst {
     first = second implies first' = second'
 }
+
+// WHOOPS I NEVER FINISHED THIS ONE

@@ -16,10 +16,10 @@ one sig N2 extends Node {}
 one sig N3 extends Node {}
 
 inst TestInst {
-    edges = (N10->N20 + N10->N30 + N20->N30 + N30->N30)->Red0 +
-            (N10->N10 + N10->N20 + N10->N30 + 
-             N20->N30 + 
-             N30->N20)->Green0
+    edges = (`N10->`N20 + `N10->`N30 + `N20->`N30 + `N30->`N30)->`Red0 +
+            (`N10->`N10 + `N10->`N20 + `N10->`N30 + 
+             `N20->`N30 + 
+             `N30->`N20)->`Green0
 }
 
 pred Some {

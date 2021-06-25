@@ -140,6 +140,9 @@
    ;; int stuff
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
+
+   ; Backquote to make atom names
+   ["`" (token+ `BACKQUOTE-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ;; punctuation
    ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -249,6 +252,8 @@
            'max
            'min
            "#"
+
+           "`"
 
            '_
            'this

@@ -31,6 +31,9 @@
 
   (make-token abstract-tok "abstract" #:abstract))
 
+(define-for-syntax (my-expand stx) stx)
+
+#|
 (define-for-syntax (my-expand stx)
   (define core-funcs-and-macros
     (map (curry datum->syntax stx)
@@ -46,7 +49,7 @@
 
   (define result (local-expand stx 'expression core-funcs-and-macros))
   result)
-
+|#
 
 (begin-for-syntax
   ; AlloyModule : ModuleDecl? Import* Paragraph*
@@ -402,7 +405,7 @@
     (pattern ((~literal Bounds)
               (~optional "exactly")
               exprs:ExprClass ...)
-      #:attr translate (datum->syntax #'(exprs ...) 
+      #:attr translate (datum->syntax #'(exprs ...)
                                       (map my-expand (syntax->list #'(exprs ...))))))
 
   ; EXPRESSIONS
@@ -931,6 +934,9 @@
 
   [((~literal Expr) "this")
    (syntax/loc stx this)]
+
+  [((~literal Expr) "`" name:NameClass)
+   (syntax/loc stx (atom 'name.name))]
 
   [((~literal Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
    (syntax/loc stx (set decls.translate bob.exprs))]
