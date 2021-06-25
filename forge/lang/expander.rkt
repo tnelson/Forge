@@ -757,86 +757,86 @@
 
 
   [((~literal Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (or expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (iff expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])     
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])     
      (syntax/loc stx (implies expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
                                     "else" expr3:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2]
-                 [expr3 #'expr3])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)]
+                 [expr3 (my-expand #'expr3)])
      (syntax/loc stx (ifte expr1 expr2 expr3)))]
 
   [((~literal Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (and expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (releases expr1 expr2)))]
   [((~literal Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (until expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "since") expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (since expr1 expr2)))]
   [((~literal Expr) expr1:ExprClass (~or "triggered") expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (triggered expr1 expr2)))]
 
     
   [((~literal Expr) (~or "!" "not") expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (! expr1)))]
 
   [((~literal Expr) (~or "always") expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (always expr1)))]
   [((~literal Expr) (~or "eventually") expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (eventually expr1)))]
   [((~literal Expr) (~or "after") expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
        (syntax/loc stx (after expr1)))]
 
   [((~literal Expr) (~or "historically") expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (historically expr1)))]
   [((~literal Expr) (~or "once") expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (once expr1)))]
   [((~literal Expr) (~or "before") expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
        (syntax/loc stx (before expr1)))]       
     
   [((~literal Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2]
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)]
                  [op #'op.symbol])
      (syntax/loc stx (op expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass 
                     (~or "!" "not") op:CompareOpClass 
                     expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2]
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)]
                  [op #'op.symbol])
      ; Need to preserve srcloc in both the "not" and the "op" nodes
      (quasisyntax/loc stx (! #,(syntax/loc stx (op expr1 expr2)))))]
@@ -844,82 +844,82 @@
   [((~literal Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
                           op)
                     expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1]
+   (with-syntax ([expr1 (my-expand #'expr1)]
                  [op (datum->syntax #'op (string->symbol (syntax->datum #'op)))])
      (syntax/loc stx (op expr1)))]
 
   [((~literal Expr) "#" expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (card expr1)))]
 
   ; Semantic priming as in Electrum
   [((~literal Expr) expr1:ExprClass "'")
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (prime expr1)))]
 
   [((~literal Expr) expr1:ExprClass "+" expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (+ expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "-" expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (- expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "++" expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (++ expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "&" expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (& expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (-> expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass ":>" expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (:> expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "<:" expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (<: expr1 expr2)))]
 
   [((~literal Expr) "[" exprs:ExprListClass "]")
    (syntax/loc stx (raise (format "Unimplemented ~a" exprs)))]
 
   [((~literal Expr) expr1:ExprClass "." expr2:ExprClass)
-   (with-syntax ([expr1 #'expr1]
-                 [expr2 #'expr2])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [expr2 (my-expand #'expr2)])
      (syntax/loc stx (join expr1 expr2)))]
 
   [((~literal Expr) name:NameClass "[" exprs:ExprListClass "]")
    (with-syntax ([name #'name.name]
-                 [(exprs ...) (datum->syntax #f (syntax->list #'(exprs.exprs ...)))])
+                 [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (name exprs ...)))]
 
   [((~literal Expr) expr1:ExprClass "[" exprs:ExprListClass "]")
-   (with-syntax ([expr1 #'expr1]
-                 [(exprs ...) (datum->syntax #f (syntax->list #'(exprs.exprs ...)))])
+   (with-syntax ([expr1 (my-expand #'expr1)]
+                 [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (expr1 exprs ...)))]
 
   [((~literal Expr) "~" expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (~ expr1)))]
 
   [((~literal Expr) "^" expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (^ expr1)))]
 
   [((~literal Expr) "*" expr1:ExprClass)
-   (with-syntax ([expr1 #'expr1])
+   (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (* expr1)))]
 
   [((~literal Expr) const:ConstClass)   
@@ -938,12 +938,10 @@
    (syntax/loc stx (set decls.translate bob.exprs))]
 
   [((~literal Expr) block:BlockClass)
-   (syntax/loc stx block)]
+   (my-expand (syntax/loc stx block))]
 
   [((~literal Expr) sexpr:SexprClass)
-   (syntax/loc stx (read sexpr))]
-
-  ))
+   (syntax/loc stx (read sexpr))]))
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't

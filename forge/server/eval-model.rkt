@@ -76,7 +76,6 @@
 (define (eval-exp exp bind bitwidth [safe #t])
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating expr : ~v~n" exp))
-  (printf "evaluating expr : ~v~n" exp)
   (define result (match exp
                    ; Conversion from int values
                    [(ast:node/expr/op/sing _ _ `(,ix1))

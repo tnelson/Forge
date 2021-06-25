@@ -173,8 +173,7 @@
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
-           (struct name parent () #:transparent #:reflection-name 'id
-             
+           (struct name parent () #:transparent #:reflection-name 'id  
              #:methods gen:equal+hash
              [(define equal-proc (make-robust-node-equal-syntax parentname))
               (define hash-proc  (make-robust-node-hash-syntax parentname 0))
