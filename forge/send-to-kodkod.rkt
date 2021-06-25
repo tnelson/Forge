@@ -200,7 +200,7 @@
     ret)
 
   (for ([rel (get-all-rels run-spec)]
-        [bound total-bounds])    
+        [bound total-bounds])
     (pardinus-print
       (pardinus:declare-rel
        (if (node/expr/relation-is-variable rel)
