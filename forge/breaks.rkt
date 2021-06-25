@@ -161,7 +161,6 @@
     [(_ a < bs ...) (weaker a bs ...)]
     [(_ a = bs ...) (equiv a bs ...)]))
 
-
 (define (min-breaks! breaks break-pris)
     (define changed false)
     (hash-for-each compos (λ (k v)
@@ -610,7 +609,7 @@
 ))
 
 ;;; A->B Strategies ;;;
-(add-strategy 'func (λ (pri rel bound atom-lists rel-list) 
+(add-strategy 'func (λ (pri rel bound atom-lists rel-list)
     (define A (first rel-list))
     (define B (second rel-list))
     (define As (first atom-lists))
@@ -670,6 +669,37 @@
 ; END INSERTED TEMPORARY FIX FOR 'FUNC
     )
 ))
+
+(add-strategy 'pfunc (λ (pri rel bound atom-lists rel-list)
+    (define A (first rel-list))
+    (define B (second rel-list))
+    (define As (first atom-lists))
+    (define Bs (second atom-lists))
+    (define formulas
+        (set (@all ([a A]) (@lone (@join a rel)))))
+    (if (equal? A B)
+        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set A) (set))
+            (λ () (break ;(bound->sbound bound) formulas))
+                (sbound rel
+                    (set)
+                    ;(for*/set ([a (length As)]
+                    ;           [b (length Bs)] #:when (<= b (+ a 1)))
+                    ;    (list (list-ref As a) (list-ref Bs b))))
+                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                formulas))
+            (λ () (break bound formulas)))
+        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+            (λ () 
+                ; assume wlog f(a) = b for some a in A, b in B
+                (break 
+                    (sbound rel
+                        (set (list (car As) (car Bs)))
+                        (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                    formulas))
+            (λ () (break bound formulas))))))
+
 (add-strategy 'surj (λ (pri rel bound atom-lists rel-list) 
     (define A (first rel-list))
     (define B (second rel-list))
@@ -799,6 +829,7 @@
 (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
 (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
 (add-strategy 'func (variadic 2 (hash-ref strategies 'func)))
+(add-strategy 'pfunc (variadic 2 (hash-ref strategies 'pfunc)))
 (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
 (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
 (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
@@ -809,7 +840,7 @@
 (declare 'linear > 'tree)
 (declare 'tree > 'acyclic)
 (declare 'acyclic > 'irref)
-(declare 'func < 'surj 'inj)
+(declare 'func < 'surj 'inj 'pfunc)
 (declare 'bij = 'surj 'inj)
 (declare 'linear = 'tree 'cotree)
 (declare 'bij = 'func 'cofunc)

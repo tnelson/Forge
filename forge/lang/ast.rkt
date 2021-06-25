@@ -832,6 +832,7 @@
 (make-breaker acyclic 'acyclic)
 (make-breaker tree 'tree)
 (make-breaker func 'func)
+(make-breaker pfunc 'pfunc)
 (make-breaker surj 'surj)
 (make-breaker inj 'inj)
 (make-breaker bij 'bij)
