@@ -804,6 +804,7 @@
       (for/list ([access (remove node-info (struct-accessors structname))]
                  [multiplier (drop multipliers offset)])
         (* multiplier (hash-proc (access a)))))
+    (printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    
     (apply @+ multiplied)))
 
 
