@@ -803,8 +803,8 @@
                              (equal? (procedure-arity vala) 0)
                              (equal? (procedure-arity valb) 0))
                          (equal-proc (vala) (valb))]
-                       [(and (not (procedure? vala))
-                             (not (procedure? valb)))
+                       [(and (or (node/expr? vala) (not (procedure? vala)))
+                             (or (node/expr? valb) (not (procedure? valb))))
                          (equal-proc vala valb)]
                        [else (raise (format "Mismatched procedure fields when checking equality for ~a. Got: ~a and ~a"
                                             structname vala valb))]))                                              
@@ -818,12 +818,15 @@
       (for/list ([access (remove node-info (struct-accessors structname))]
                  [multiplier (drop multipliers offset)])
         ; Some AST fields may be thunkified
+        ; Also, any node/expr is a procedure? since that's how we impl. box join
+        ; ASSUME: node/expr will never be an exactly-arity-0 procedure.
         (define vala (access a))
         (cond                         
-          [(and (procedure? vala)
+          [(and (procedure? vala)                
                 (equal? (procedure-arity vala) 0))
             (* multiplier (hash-proc (vala)))]
-          [(not (procedure? vala))
+          [(or (node/expr? vala) 
+               (not (procedure? vala)))
             (* multiplier (hash-proc vala))]
           [else (raise (format "Non-thunk procedure field when hashing for ~a. Got: ~a"
                               structname vala))])))
