@@ -178,9 +178,9 @@
 ;;;;;;    Constants    ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax Int (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" (thunk '("Int")) "univ" #f 'Int #f #f #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" (thunk '(Int)) "univ" #f 'Int #f #f #f))])))
 (define-syntax succ (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" (thunk '("Int" "Int")) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" (thunk '(Int Int)) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
 
 (define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
