@@ -781,9 +781,9 @@
 
 ; Use this macro to produce syntax (for use in operator-registration macro)
 ;   that builds a comparator including all struct fields except for node-info
-; TODO: smell (attach equals? method to relation, get accessors at runtime...)
-; Note that extenders will get all their fields included in the equality check
-; e.g., new fields of Sig will be included in the equals? for node/expr/relation.
+; Note that extenders, like Sig (which extends node/expr/relation) *MUST* 
+; provide an equals method in the same manner, otherwise when comparing
+; two Sigs, only the underlying relation fields will be considered.
 (define-syntax (make-robust-node-equal-syntax stx)
   (syntax-case stx ()
     [(_ structname)
