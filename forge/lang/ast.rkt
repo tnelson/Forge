@@ -781,6 +781,9 @@
 
 ; Use this macro to produce syntax (for use in operator-registration macro)
 ;   that builds a comparator including all struct fields except for node-info
+; TODO: smell (attach equals? method to relation, get accessors at runtime...)
+; Note that extenders will get all their fields included in the equality check
+; e.g., new fields of Sig will be included in the equals? for node/expr/relation.
 (define-syntax (make-robust-node-equal-syntax stx)
   (syntax-case stx ()
     [(_ structname)
@@ -789,11 +792,22 @@
        ; so call once at expansion time of make-robust...
        ;(printf "structname: ~a~n" (syntax->datum #'structname))       
        #`(lambda (a b equal-proc)           
-           (andmap (lambda (access)
-                     ;(printf "checking equality for ~a, proc ~a~n" 'structname access)
-                     (if (equal? access node/expr/relation-typelist-thunk)
-                         (equal-proc ((access a)) ((access b)))
-                         (equal-proc (access a) (access b))))
+           (andmap (lambda (access)           
+                     ;(printf "checking equality for ~a, proc ~a~n" structname access)
+                     (define vala (access a))
+                     (define valb (access b))
+                     ; Some AST fields may be thunkified
+                     (cond                         
+                       [(and (procedure? vala)
+                             (procedure? valb)
+                             (equal? (procedure-arity vala) 0)
+                             (equal? (procedure-arity valb) 0))
+                         (equal-proc (vala) (valb))]
+                       [(and (not (procedure? vala))
+                             (not (procedure? valb)))
+                         (equal-proc vala valb)]
+                       [else (raise (format "Mismatched procedure fields when checking equality for ~a. Got: ~a and ~a"
+                                            structname vala valb))]))                                              
                    (remove node-info (struct-accessors structname)))))]))
 
 ; And similarly for hash
@@ -803,8 +817,17 @@
     (define multiplied
       (for/list ([access (remove node-info (struct-accessors structname))]
                  [multiplier (drop multipliers offset)])
-        (* multiplier (hash-proc (access a)))))
-    (printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    
+        ; Some AST fields may be thunkified
+        (define vala (access a))
+        (cond                         
+          [(and (procedure? vala)
+                (equal? (procedure-arity vala) 0))
+            (* multiplier (hash-proc (vala)))]
+          [(not (procedure? vala))
+            (* multiplier (hash-proc vala))]
+          [else (raise (format "Non-thunk procedure field when hashing for ~a. Got: ~a"
+                              structname vala))])))
+    ;(printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    
     (apply @+ multiplied)))
 
 
