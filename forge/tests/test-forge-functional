@@ -1,0 +1,4 @@
+for i in ./forge-functional/*/*.rkt; do 
+  echo "******************** testing $i"; 
+  racket $i; 
+done

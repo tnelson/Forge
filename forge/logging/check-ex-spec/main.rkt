@@ -1,5 +1,7 @@
 #lang racket/base
 
+;; 2021-06-23 : DISABLED need to make a new cloud function to use this!
+
 ;; Logging tools for check-ex-spec
 ;; - "register" logs a file snapshot
 ;; - "flush" does two things: appends wheat/chaff results and posts logs

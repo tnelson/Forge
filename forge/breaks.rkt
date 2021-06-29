@@ -64,12 +64,10 @@
 (define (sbound+ . sbounds)
     (make-bound (break-relation (first sbounds)) ; TODO: assert all same relations
                 (apply set-union     (map break-lower sbounds))
-                (apply set-intersect (map break-lower sbounds)))
-)
+                (apply set-intersect (map break-lower sbounds))))
 (define (break+ . breaks)
     (make-break (apply sbound+ breaks)
-                (apply set-union (map break-formulas breaks)))
-)
+                (apply set-union (map break-formulas breaks))))
 
 (define (make-exact-break relation contents [formulas (set)])
   (break (sbound relation contents contents) formulas))
@@ -105,8 +103,7 @@
     (set! instances empty)
     (set! rel-breaks (make-hash))
     (set! rel-break-pri (make-hash))
-    (set! pri_c 0)
-)
+    (set! pri_c 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; methods for defining breaks ;;;;
@@ -164,7 +161,6 @@
     [(_ a < bs ...) (weaker a bs ...)]
     [(_ a = bs ...) (equiv a bs ...)]))
 
-
 (define (min-breaks! breaks break-pris)
     (define changed false)
     (hash-for-each compos (λ (k v)
@@ -180,9 +176,17 @@
     (when changed (min-breaks! breaks break-pris))
 )
 
-(define (break-rel rel . breaks) ; renamed-out to 'break for use in forge
-    (for ([break breaks]) 
-        (unless (hash-has-key? strategies break) (error "break not implemented:" break))
+; renamed-out to 'break for use in forge
+(define/contract (break-rel rel . breaks)
+    (-> @node/expr? (or/c symbol? @node/breaking/break?)
+        void?)
+    (for ([break breaks])
+        (define break-key
+            (cond [(symbol? break) break]
+                  [(@node/breaking/break? break) (@node/breaking/break-break break)]
+                  [else (raise-user-error (format "Not a valid break name: ~a~n" break))]))
+        (unless (hash-has-key? strategies break-key)
+                (error (format "break not implemented among ~a" strategies) break-key))
         (hash-add! rel-breaks rel break)
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
 (define (add-instance i) (cons! instances i))
@@ -213,10 +217,9 @@
         (cons! new-total-bounds (sbound->bound b))
         (define rel (sbound-relation b))
         (set-add! defined-relations rel)
-        (define typelist (@node/expr/relation-typelist rel))
+        (define typelist ((@node/expr/relation-typelist-thunk rel)))
         (for ([t typelist]) (when (hash-has-key? name-to-rel t)
-            (set-remove! sigs (hash-ref name-to-rel t))))
-    )
+            (set-remove! sigs (hash-ref name-to-rel t)))))
 
     ; proposed breakers from each relation
     (define candidates (list))
@@ -237,11 +240,15 @@
             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
 
             ; make all breakers
-            (define breakers (for/list ([sym (set->list breaks)]) 
-                (define strategy (hash-ref strategies sym))
-                (define pri (hash-ref break-pris sym))
-                (strategy pri rel bound atom-lists rel-list)
-            ))
+            (define breakers (for/list ([break (set->list breaks)])
+                (define break-sym
+                    (cond [(symbol? break) break]
+                          [(@node/breaking/break? break) (@node/breaking/break-break break)]
+                          [else (raise-user-error (format "constrain-bounds: not a valid break name: ~a~n"
+                                                          break))]))
+                (define strategy (hash-ref strategies break-sym))
+                (define pri (hash-ref break-pris break))
+                (strategy pri rel bound atom-lists rel-list)))
             (set! breakers (sort breakers < #:key breaker-pri))
 
             ; propose highest pri breaker that breaks only leaf sigs
@@ -602,7 +609,7 @@
 ))
 
 ;;; A->B Strategies ;;;
-(add-strategy 'func (λ (pri rel bound atom-lists rel-list) 
+(add-strategy 'func (λ (pri rel bound atom-lists rel-list)
     (define A (first rel-list))
     (define B (second rel-list))
     (define As (first atom-lists))
@@ -662,6 +669,37 @@
 ; END INSERTED TEMPORARY FIX FOR 'FUNC
     )
 ))
+
+(add-strategy 'pfunc (λ (pri rel bound atom-lists rel-list)
+    (define A (first rel-list))
+    (define B (second rel-list))
+    (define As (first atom-lists))
+    (define Bs (second atom-lists))
+    (define formulas
+        (set (@all ([a A]) (@lone (@join a rel)))))
+    (if (equal? A B)
+        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set A) (set))
+            (λ () (break ;(bound->sbound bound) formulas))
+                (sbound rel
+                    (set)
+                    ;(for*/set ([a (length As)]
+                    ;           [b (length Bs)] #:when (<= b (+ a 1)))
+                    ;    (list (list-ref As a) (list-ref Bs b))))
+                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                formulas))
+            (λ () (break bound formulas)))
+        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+            (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+            (λ () 
+                ; assume wlog f(a) = b for some a in A, b in B
+                (break 
+                    (sbound rel
+                        (set (list (car As) (car Bs)))
+                        (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+                    formulas))
+            (λ () (break bound formulas))))))
+
 (add-strategy 'surj (λ (pri rel bound atom-lists rel-list) 
     (define A (first rel-list))
     (define B (second rel-list))
@@ -791,6 +829,7 @@
 (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
 (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
 (add-strategy 'func (variadic 2 (hash-ref strategies 'func)))
+(add-strategy 'pfunc (variadic 2 (hash-ref strategies 'pfunc)))
 (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
 (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
 (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
@@ -801,7 +840,7 @@
 (declare 'linear > 'tree)
 (declare 'tree > 'acyclic)
 (declare 'acyclic > 'irref)
-(declare 'func < 'surj 'inj)
+(declare 'func < 'surj 'inj 'pfunc)
 (declare 'bij = 'surj 'inj)
 (declare 'linear = 'tree 'cotree)
 (declare 'bij = 'func 'cofunc)
@@ -833,7 +872,8 @@ ADDING BREAKS
     - a > b        |- a = a + b
     - a > b, b > c |- a > c
 - note, however:
-    - a = a + b   !|- a > b   
+    - a = a + b   !|- a > b
+- add a call to make-breaker to the bottom of ast.rkt for your new breaker
 
 TODO:
 - prove correctness

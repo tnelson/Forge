@@ -7,8 +7,7 @@
 (require forge/check-ex-spec/library)
 (require (only-in racket/function curry))
 (require racket/match)
-(require (prefix-in logging: forge/logging/logging)
-         (prefix-in logging:check-ex-spec: forge/logging/check-ex-spec/main))
+(require (prefix-in logging: forge/logging/logging))
 ; (require racket/list)
 
 (define (filter-commands stx keep)
@@ -45,7 +44,7 @@
 
   (define compile-time (current-seconds))
 
-  (when logging-on?
+  #;(when logging-on?
     (logging:check-ex-spec:register-run compile-time assignment-name user path))
 
   (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
@@ -60,8 +59,7 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          (require (prefix-in logging: forge/logging/logging)
-                                   (prefix-in logging:check-ex-spec: forge/logging/check-ex-spec/main))
+                          (require (prefix-in logging: forge/logging/logging))
 
                           (logging:log-errors
                             (define wheat-results 
@@ -106,7 +104,7 @@
                           (module+ execs)
                           (module+ main
                             (require (submod ".." execs))
-                            (logging:check-ex-spec:flush-logs ',compile-time wheat-results chaff-results)
+                            #;(logging:check-ex-spec:flush-logs ',compile-time wheat-results chaff-results)
                             (logging:flush-logs))
 
                           #;,ints-coerced))

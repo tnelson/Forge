@@ -21,9 +21,9 @@
 ;       * node/expr/op/-
 ;       * ...
 ;     * node/expr/comprehension (decls formula)  -- set comprehension
-;     * node/expr/relation (name typelist parent)  -- leaf relation
+;     * node/expr/relation (name typelist-thunk parent is-variable)  -- leaf relation
 ;     * node/expr/constant (type) -- relational constant [type serves purpose of name?]
-;     * node/expr/quantifier-var (sym) -- variable for quantifying over
+;     * node/expr/quantifier-var (sym name) -- variable for quantifying over
 ;   * node/formula  -- formulas
 ;     * node/formula/op  -- simple operators
 ;       * node/formula/op/and
@@ -100,7 +100,6 @@
       (raise-syntax-error #f (format "first argument to ~a must have arity 1 at loc: ~a" op locstr)
                              (datum->syntax #f args (build-source-location-syntax loc))))))
 
-
 ;; EXPRESSIONS -----------------------------------------------------------------
 
 ; Previously, this would be: 
@@ -171,6 +170,7 @@
      ;(printf "defining: ~a~n" stx)
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
+                   [functionname (format-id #'id "~a/func" #'id)]
                    [macroname/info-help (format-id #'id "~a/info-help" #'id)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
                    [child-accessor (format-id #'id "~a-children" #'parent)]
@@ -178,8 +178,7 @@
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
-           (struct name parent () #:transparent #:reflection-name 'id
-             
+           (struct name parent () #:transparent #:reflection-name 'id  
              #:methods gen:equal+hash
              [(define equal-proc (make-robust-node-equal-syntax parentname))
               (define hash-proc  (make-robust-node-hash-syntax parentname 0))
@@ -191,6 +190,19 @@
            ; Keep this commented-out line for use in emergencies to debug bad source locations:
            ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self))))
            
+           (define (functionname #:info [info empty-nodeinfo] . args)
+             (check-args info 'id args childtype checks ...)
+             (if arity
+                ; expression
+                (if (andmap node/expr? args)
+                    ; expression with expression children (common case)
+                    (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
+                      (name info (apply arity arities) args))
+                    ; expression with non-expression children or const arity (e.g., sing)
+                    (name info (arity) args))
+                ; intexpression or formula
+                (name info args)))
+
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)
            (define-syntax (id stx2)
@@ -202,22 +214,11 @@
            (define (macroname/info-help info args-raw)
              (let* ([args (cond  ; support passing chain of args OR a list of them
                             [(or (not (equal? 1 (length args-raw)))
-                                 (not (list? (first args-raw)))) args-raw]
+                                (not (list? (first args-raw)))) args-raw]
                             [else (first args-raw)])])
-               (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
-                   (apply @op args)
-                   (begin
-                     (check-args info 'id args childtype checks ...)
-                     (if arity
-                         ; expression
-                         (if (andmap node/expr? args)
-                             ; expression with expression children (common case)
-                             (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                               (name info (apply arity arities) args))
-                             ; expression with non-expression children or const arity (e.g., sing)
-                             (name info (arity) args))
-                         ; intexpression or formula
-                         (name info args))))))
+              (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
+                  (apply @op args)
+                  (apply functionname #:info info args))))
 
            ; a macro constructor that also takes a syntax object to use for location
            ;  (good for, e.g., creating a big && in sigs.rkt for predicates)
@@ -294,6 +295,12 @@
   [(define (write-proc self port mode)     
      (fprintf port "~a" (node/expr/quantifier-var-name self)))])
 
+(define (var [raw-sym #f] #:info [node-info empty-nodeinfo])
+  (define sym (@or raw-sym (gensym 'var)))
+  (node/expr/quantifier-var node-info
+                            1 ; TODO: Allow arbitrary arity?
+                            sym sym))
+
 ;; -- comprehensions -----------------------------------------------------------
 
 (struct node/expr/comprehension node/expr (decls formula)
@@ -317,21 +324,27 @@
     (raise-argument-error 'set "formula?" formula))
   (node/expr/comprehension info (length decls) decls formula))
 
+(define (set/func decls formula #:info [node-info empty-nodeinfo])
+  (comprehension node-info decls formula))
+
 (define-syntax (set stx)
   (syntax-case stx ()
     [(_ ([r0 e0] ...) pred)
      (quasisyntax/loc stx
        (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
-         (comprehension (nodeinfo #,(build-source-location stx)) (list (cons r0 e0) ...) pred)))]))
+         (set/func #:info (nodeinfo #,(build-source-location stx)) (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 
 ; Do not use this constructor directly, instead use the rel macro or the build-relation procedure.
-; The is-variable field allows support for Electrum-style var fields in the core language 
-(struct node/expr/relation node/expr (name typelist parent is-variable) #:transparent #:mutable
+; The is-variable field allows support for Electrum-style var fields in the core language
+; typelist-thunk is a thunk so that relations can be defined before all of the
+; sigs they relate are bound (so long as those sigs are bound later)
+; this is necessary to allow for mutual references between sigs in surface
+(struct node/expr/relation node/expr (name typelist-thunk parent is-variable) #:transparent #:mutable
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (node/expr/relation info arity name typelist parent is-variable) self)
+     (match-define (node/expr/relation info arity name typelist-thunk parent is-variable) self)
      ;(fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent)
      (fprintf port "(rel ~a)" name))]
   #:methods gen:equal+hash
@@ -340,6 +353,7 @@
    (define hash2-proc (make-robust-node-hash-syntax node/expr/relation 3))])
 (define next-name 0)
 
+; Is this used anywhere?
 ; e.g.: (rel '(Node Node) 'Node "edges") to define the usual edges relation
 (define-syntax (rel stx)
   (syntax-case stx ()
@@ -350,7 +364,8 @@
      (quasisyntax/loc stx       
        (build-relation #,(build-source-location stx) (typelist ...) parent name isvar))]))
 
-; Used by rel macro but *also* by Sig and relation macros in forge/core (sigs.rkt)
+; Used by rel macro
+; pre-functional: *also* used by Sig and relation macros in forge/core (sigs.rkt)
 (define (build-relation loc typelist parent [name #f] [is-var #f])
   (let ([name (cond [(false? name) 
                      (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))]
@@ -365,15 +380,15 @@
                                [(string? parent) parent]
                                [else (error (format "build-relation expected parent as either symbol or string"))])])    
     (node/expr/relation (nodeinfo loc) (length types) name
-                        types scrubbed-parent is-var)))
+                        (thunk types) scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields
 (define (relation-arity rel)
   (node/expr-arity rel))
 (define (relation-name rel)
   (node/expr/relation-name rel))
-(define (relation-typelist rel)
-  (node/expr/relation-typelist rel))
+(define (relation-typelist-thunk rel)
+  (node/expr/relation-typelist-thunk rel))
 (define (relation-parent rel)
   (node/expr/relation-parent rel))
 
@@ -389,18 +404,14 @@
    (define hash-proc  (make-robust-node-hash-syntax node/expr/atom 0))
    (define hash2-proc (make-robust-node-hash-syntax node/expr/atom 3))])
 
+(define (atom/func name #:info [node-info empty-nodeinfo])
+  (node/expr/atom node-info 1 name))
 
 (define-syntax (atom stx)
   (syntax-case stx ()    
-    [(_ val)
-     (quasisyntax/loc stx (node/expr/atom
-                           (nodeinfo #,(build-source-location stx))
-                           1 val))]))
-
-;(define (atom name)
-;  (node/expr/atom
-;   (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx))
-;   1 name))
+    [(_ name)
+     (quasisyntax/loc stx (atom/func #:info (nodeinfo #,(build-source-location stx))
+                                     name))]))
 
 (define (atom-name rel)
   (node/expr/atom-name rel))
@@ -417,6 +428,7 @@
    (define hash2-proc (make-robust-node-hash-syntax node/expr/constant 3))])
 
 ; Macros in order to capture source location
+
 ; constants
 (define-syntax none (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 1 'none))])))
@@ -425,10 +437,10 @@
 (define-syntax iden (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx)) 2 'iden))])))
 ; relations, not constants
-(define-syntax Int (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f))])))
-(define-syntax succ (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
+; (define-syntax Int (lambda (stx) (syntax-case stx ()
+;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f))])))
+; (define-syntax succ (lambda (stx) (syntax-case stx ()    
+;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -453,13 +465,13 @@
 (define-node-op sign node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 
 ; min and max are now *defined*, not declared:
-;(define-node-op max node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
-;(define-node-op min node/int/op #:min-length 1 #:max-length 1 #:type node/int?)
+; (define-node-op max node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
+; (define-node-op min node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
 
-(define (max s-int)
-  (sum (- s-int (join (^ succ) s-int))))
-(define (min s-int)
-  (sum (- s-int (join s-int (^ succ)))))
+; (define (max s-int)
+;   (sum (- s-int (join (^ succ) s-int))))
+; (define (min s-int)
+;   (sum (- s-int (join s-int (^ succ)))))
 
 ;; -- constants ----------------------------------------------------------------
 
@@ -472,12 +484,14 @@
    (define hash-proc  (make-robust-node-hash-syntax node/int/constant 0))
    (define hash2-proc (make-robust-node-hash-syntax node/int/constant 3))])
 
+(define (int/func n #:info [node-info empty-nodeinfo])
+  (node/int/constant node-info n))
 
 (define-syntax (int stx)
   (syntax-case stx ()
     [(_ n)
      (quasisyntax/loc stx       
-         (node/int/constant (nodeinfo #,(build-source-location stx)) n))]))
+         (int/func #:info (nodeinfo #,(build-source-location stx)) n))]))
 
 ;; -- sum quantifier -----------------------------------------------------------
 (struct node/int/sum-quant node/int (decls int-expr)
@@ -493,7 +507,7 @@
    (define hash-proc  (make-robust-node-hash-syntax node/int/sum-quant 0))
    (define hash2-proc (make-robust-node-hash-syntax node/int/sum-quant 3))])
 
-(define (sum-quant-expr info decls int-expr)
+(define (sum-quant/func decls int-expr #:info [node-info empty-nodeinfo])
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-argument-error 'set "expr?" e))
@@ -501,7 +515,10 @@
       (raise-argument-error 'set "decl of arity 1" e)))
   (unless (node/int? int-expr)
     (raise-argument-error 'set "int-expr?" int-expr))
-  (node/int/sum-quant info decls int-expr))
+  (node/int/sum-quant node-info decls int-expr))
+
+(define (sum-quant-expr info decls int-expr)
+  (sum-quant/func decls int-expr #:info info))
 
 ;; FORMULAS --------------------------------------------------------------------
 
@@ -661,7 +678,7 @@
    (define hash-proc  (make-robust-node-hash-syntax node/formula/quantified 0))
    (define hash2-proc (make-robust-node-hash-syntax node/formula/quantified 3))])
 
-(define (quantified-formula info quantifier decls formula)  
+(define (quantified-formula info quantifier decls formula)
   (for ([e (in-list (map cdr decls))])
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
@@ -670,7 +687,6 @@
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified info quantifier decls formula))
-
 
 ;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
 
@@ -691,6 +707,10 @@
     (raise-argument-error mult "expr?" expr))
   (node/formula/multiplicity info mult expr))
 
+
+(define (all-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (quantified-formula node-info 'all decls formula))
+
 (define-syntax (all stx)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
@@ -698,6 +718,12 @@
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-all" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'all (list (cons v0 e0) ...) pred)))]))
+
+(define (some-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (quantified-formula node-info 'some decls formula))
+
+(define (some/func expr #:info [node-info empty-nodeinfo])
+  (multiplicity-formula node-info 'some expr))
 
 (define-syntax (some stx)
   (syntax-case stx ()
@@ -710,6 +736,12 @@
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'some expr))]))
 
+(define (no-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (quantified-formula node-info 'no decls formula))
+
+(define (no/func expr #:info [node-info empty-nodeinfo])
+  (multiplicity-formula node-info 'no expr))
+
 (define-syntax (no stx)
   (syntax-case stx ()
     [(_ ([v0 e0] ...) pred)
@@ -719,6 +751,12 @@
     [(_ expr)
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'no expr))]))
+
+(define (one/func expr #:info [node-info empty-nodeinfo])
+  (multiplicity-formula node-info 'one expr))
+
+(define (one-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (one/func #:info node-info (set/func #:info node-info decls formula)))
 
 (define-syntax (one stx)
   (syntax-case stx ()
@@ -731,6 +769,12 @@
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'one expr))]))
 
+(define (lone/func expr #:info [node-info empty-nodeinfo])
+  (multiplicity-formula node-info 'lone expr))
+
+(define (lone-quant/func decls formula #:info [node-info empty-nodeinfo])
+  (lone/func #:info node-info (set/func #:info node-info decls formula)))
+
 (define-syntax (lone stx)
   (syntax-case stx ()
     [(_ ([x1 r1] ...) pred)
@@ -741,6 +785,8 @@
     [(_ expr)
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'lone expr))]))
+
+; sum-quant/func defined above
 
 ; sum quantifier macro
 (define-syntax (sum-quant stx)
@@ -776,6 +822,9 @@
 
 ; Use this macro to produce syntax (for use in operator-registration macro)
 ;   that builds a comparator including all struct fields except for node-info
+; Note that extenders, like Sig (which extends node/expr/relation) *MUST* 
+; provide an equals method in the same manner, otherwise when comparing
+; two Sigs, only the underlying relation fields will be considered.
 (define-syntax (make-robust-node-equal-syntax stx)
   (syntax-case stx ()
     [(_ structname)
@@ -784,9 +833,22 @@
        ; so call once at expansion time of make-robust...
        ;(printf "structname: ~a~n" (syntax->datum #'structname))       
        #`(lambda (a b equal-proc)           
-           (andmap (lambda (access)
-                     ;(printf "checking equality for ~a, proc ~a~n" 'structname access)
-                     (equal-proc (access a) (access b)))
+           (andmap (lambda (access)           
+                     ;(printf "checking equality for ~a, proc ~a~n" structname access)
+                     (define vala (access a))
+                     (define valb (access b))
+                     ; Some AST fields may be thunkified
+                     (cond                         
+                       [(and (procedure? vala)
+                             (procedure? valb)
+                             (equal? (procedure-arity vala) 0)
+                             (equal? (procedure-arity valb) 0))
+                         (equal-proc (vala) (valb))]
+                       [(and (or (node/expr? vala) (not (procedure? vala)))
+                             (or (node/expr? valb) (not (procedure? valb))))
+                         (equal-proc vala valb)]
+                       [else (raise (format "Mismatched procedure fields when checking equality for ~a. Got: ~a and ~a"
+                                            structname vala valb))]))                                              
                    (remove node-info (struct-accessors structname)))))]))
 
 ; And similarly for hash
@@ -796,5 +858,51 @@
     (define multiplied
       (for/list ([access (remove node-info (struct-accessors structname))]
                  [multiplier (drop multipliers offset)])
-        (* multiplier (hash-proc (access a)))))
+        ; Some AST fields may be thunkified
+        ; Also, any node/expr is a procedure? since that's how we impl. box join
+        ; ASSUME: node/expr will never be an exactly-arity-0 procedure.
+        (define vala (access a))
+        (cond                         
+          [(and (procedure? vala)                
+                (equal? (procedure-arity vala) 0))
+            (* multiplier (hash-proc (vala)))]
+          [(or (node/expr? vala) 
+               (not (procedure? vala)))
+            (* multiplier (hash-proc vala))]
+          [else (raise (format "Non-thunk procedure field when hashing for ~a. Got: ~a"
+                              structname vala))])))
+    ;(printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    
     (apply @+ multiplied)))
+
+
+;; BREAKERS --------------------------------------------------------------------
+
+(struct node/breaking node () #:transparent)
+(struct node/breaking/op node (children) #:transparent)
+(define-node-op is node/breaking/op #f #:max-length 2 #:type (lambda (n) (@or (node/expr? n) (node/breaking/break? n))))
+(struct node/breaking/break node/breaking (break) #:transparent)
+(define-syntax (make-breaker stx)
+  (syntax-case stx ()
+    [(make-breaker id sym)
+      #'(define-syntax id (lambda (stx) (syntax-case stx ()    
+          [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx)) sym))])))]))
+
+(make-breaker cotree 'cotree)
+(make-breaker cofunc 'cofunc)
+(make-breaker cosurj 'cosurj)
+(make-breaker coinj 'coinj)
+
+(make-breaker ireff 'ireff)
+(make-breaker ref 'ref)
+(make-breaker linear 'linear)
+(make-breaker plinear 'plinear)
+(make-breaker acyclic 'acyclic)
+(make-breaker tree 'tree)
+(make-breaker func 'func)
+(make-breaker pfunc 'pfunc)
+(make-breaker surj 'surj)
+(make-breaker inj 'inj)
+(make-breaker bij 'bij)
+(make-breaker pbij 'pbij)
+
+(make-breaker default 'default)

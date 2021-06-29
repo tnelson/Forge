@@ -15,15 +15,15 @@
 (relation edges (Node Node Color))
 
 (inst test-inst
-    (= edges (+ (-> (+ (-> N10 N20) 
-                    (+ (-> N10 N30)
-                    (+ (-> N20 N30)
-                       (-> N30 N30)))) Red0)
-                (-> (+ (-> N10 N10)
-                    (+ (-> N10 N20)
-                    (+ (-> N10 N30)
-                    (+ (-> N20 N30)
-                       (-> N30 N20))))) Green0))))
+    (= edges (+ (-> (+ (-> (atom 'N10) (atom 'N20)) 
+                    (+ (-> (atom 'N10) (atom 'N30))
+                    (+ (-> (atom 'N20) (atom 'N30))
+                       (-> (atom 'N30) (atom 'N30))))) (atom 'Red0))
+                (-> (+ (-> (atom 'N10) (atom 'N10))
+                    (+ (-> (atom 'N10) (atom 'N20))
+                    (+ (-> (atom 'N10) (atom 'N30))
+                    (+ (-> (atom 'N20) (atom 'N30))
+                       (-> (atom 'N30) (atom 'N20)))))) (atom 'Green0)))))
 
 (pred Some
     (some      (join N1 (join edges Red)))

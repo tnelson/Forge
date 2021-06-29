@@ -13,15 +13,15 @@ one sig Blue extends Color {}
 
 
 inst TestInst {
-    Node = N1 + N2 + N3 + N4
-    edges = (N1->N2 + N2->N3 + N3->N4 + N4->N1) -> Red0 + -- Cycle
+    Node = `N1 + `N2 + `N3 + `N4
+    edges = (`N1->`N2 + `N2->`N3 + `N3->`N4 + `N4->`N1) -> `Red0 + -- Cycle
 
-            (Node->Node) -> Green0 + -- Complete
+            (Node->Node) -> `Green0 + -- Complete
 
-            (N1->(N1 + N2 + N3 + N4) + -- <= relation
-             N2->(N2 + N3 + N4) + 
-             N3->(N3 + N4) + 
-             N4->N4) -> Blue0
+            (`N1->(`N1 + `N2 + `N3 + `N4) + -- <= relation
+             `N2->(`N2 + `N3 + `N4) + 
+             `N3->(`N3 + `N4) + 
+             `N4->`N4) -> `Blue0
 }
 
 pred All {

@@ -24,11 +24,11 @@ test expect {
 
 -- Basic Insts
 inst basicInst {
-    BasicA = BasicA1 + BasicA2 + BasicA3
-    BasicB = BasicB1 + BasicB2 + BasicB3
+    BasicA = `BasicA1 + `BasicA2 + `BasicA3
+    BasicB = `BasicB1 + `BasicB2 + `BasicB3
 
-    friendA = BasicA1->BasicA1 + BasicA2->BasicA2 + BasicA3->BasicA3
-    friendB = BasicB1->BasicA2->BasicB3 + BasicB2->BasicA3->BasicB2
+    friendA = `BasicA1->`BasicA1 + `BasicA2->`BasicA2 + `BasicA3->`BasicA3
+    friendB = `BasicB1->`BasicA2->`BasicB3 + `BasicB2->`BasicA3->`BasicB2
 }
 
 test expect Basic {
@@ -43,7 +43,7 @@ test expect Basic {
 -- Empty Sig Insts
 inst emptySigInst {
     no BasicA
-    BasicB = BasicB1 + BasicB2 + BasicB3
+    BasicB = `BasicB1 + `BasicB2 + `BasicB3
 
     no friendA
     no friendB
@@ -57,10 +57,10 @@ test expect EmptySig {
 
 -- Empty Relation Insts
 inst emptyRelationInst {
-    BasicA = BasicA1 + BasicA2 + BasicA3
-    BasicB = BasicB1 + BasicB2 + BasicB3
+    BasicA = `BasicA1 + `BasicA2 + `BasicA3
+    BasicB = `BasicB1 + `BasicB2 + `BasicB3
 
-    friendA = BasicA1->BasicA1 + BasicA2->BasicA2 + BasicA3->BasicA3
+    friendA = `BasicA1->`BasicA1 + `BasicA2->`BasicA2 + `BasicA3->`BasicA3
     no friendB
 }
 
@@ -71,9 +71,9 @@ test expect EmptyRelation {
 
 -- Partial Insts
 inst partialInst1 {
-    BasicA = BasicA1 + BasicA2 + BasicA3
+    BasicA = `BasicA1 + `BasicA2 + `BasicA3
 
-    friendA = BasicA1->BasicA1 + BasicA2->BasicA2 + BasicA3->BasicA3
+    friendA = `BasicA1->`BasicA1 + `BasicA2->`BasicA2 + `BasicA3->`BasicA3
 }
 
 test expect Partial {
@@ -87,7 +87,7 @@ test expect Partial {
 
 -- Insts extending other Insts
 inst partialInst2 {
-    BasicB = BasicB1 + BasicB2 + BasicB3
+    BasicB = `BasicB1 + `BasicB2 + `BasicB3
 }
 
 inst jointInst {
@@ -109,9 +109,9 @@ sig AnExtension extends ToExtend {}
 sig AnotherExtension extends ToExtend {}
 
 inst extendSigInst {
-    AnExtension = Atom1
-    AnotherExtension = Atom3
-    ToExtend = Atom1 + Atom2 + Atom3
+    AnExtension = `Atom1
+    AnotherExtension = `Atom3
+    ToExtend = `Atom1 + `Atom2 + `Atom3
 }
 
 test expect ExtendingSigs {
@@ -123,7 +123,7 @@ test expect ExtendingSigs {
 one sig OneSig {}
 
 inst oneSigInst {
-    OneSig = OneSig1
+    OneSig = `OneSig1
 }
 
 test expect OneSigs {
@@ -137,9 +137,9 @@ sig AbstractExtension1 extends Abstract {}
 sig AbstractExtension2 extends Abstract {}
 
 inst abstractSigInst {
-    AbstractExtension1 = Atom1 + Atom2
-    AbstractExtension2 = Atom3 + Atom4
-    Abstract = Atom1 + Atom2 + Atom3 + Atom4
+    AbstractExtension1 = `Atom1 + `Atom2
+    AbstractExtension2 = `Atom3 + `Atom4
+    Abstract = `Atom1 + `Atom2 + `Atom3 + `Atom4
 }
 
 test expect AbstractSigs {
@@ -151,20 +151,20 @@ test expect AbstractSigs {
 -- You have to specify every sig, but relations inferred to be emptyInst
 --   if one of columns is specified as empty
 inst exactInst {
-    BasicA = BasicA1 + BasicA2 + BasicA3
+    BasicA = `BasicA1 + `BasicA2 + `BasicA3
     no BasicB
-    friendA = BasicA1->BasicA2 + BasicA2->BasicA3 + BasicA3->BasicA1
+    friendA = `BasicA1->`BasicA2 + `BasicA2->`BasicA3 + `BasicA3->`BasicA1
     -- no friendB
 
-    AnExtension = Atom1
-    AnotherExtension = Atom3
-    ToExtend = Atom1 + Atom2 + Atom3
+    AnExtension = `Atom1
+    AnotherExtension = `Atom3
+    ToExtend = `Atom1 + `Atom2 + `Atom3
 
-    OneSig = OneSig1
+    OneSig = `OneSig1
 
-    AbstractExtension1 = Atom1 + Atom2
-    AbstractExtension2 = Atom3 + Atom4
-    Abstract = Atom1 + Atom2 + Atom3 + Atom4
+    AbstractExtension1 = `Atom1 + `Atom2
+    AbstractExtension2 = `Atom3 + `Atom4
+    Abstract = `Atom1 + `Atom2 + `Atom3 + `Atom4
 }
 
 test expect ExactlyKeyword {
