@@ -15,11 +15,11 @@
          "server-common.rkt")
 
 (provide start-server) ; stdin stdout)
-(define (start-server [solver-type 'stepper] [target-oriented #f] [temporal #f])
+(define (start-server [solver-type 'stepper] [solver-subtype 'default])
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (displayln "Starting pardinus server."))
   (define kks (new server%
-                   [initializer (thunk (pardinus-initializer solver-type target-oriented temporal))]
+                   [initializer (thunk (pardinus-initializer solver-type solver-subtype))]
                    [stderr-handler (curry pardinus-stderr-handler "blank")]))
   (send kks initialize)
   (define stdin-val (send kks stdin))

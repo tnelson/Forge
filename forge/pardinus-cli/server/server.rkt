@@ -1,17 +1,15 @@
 #lang racket
 
-(require racket/runtime-path "log.rkt" "server-common.rkt")
+(require racket/runtime-path "log.rkt" "server-common.rkt" "../../shared.rkt")
 ; (require "kks.rkt") <-- unnecessary and causes cycle
 
 (provide pardinus-initializer pardinus-stderr-handler server%)
 
 (define-runtime-path pardinus (build-path ".."))
 
-(define (pardinus-initializer solver-type target-oriented temporal)
+(define (pardinus-initializer solver-type solver-subtype)
   (unless (member solver-type '(incremental stepper))
     (raise (format  "Invalid solver type: ~a" solver-type)))
-  (unless (boolean? target-oriented)
-    (raise (format "target-oriented should be boolean; received ~a" target-oriented)))
 
   (let* ([pardinus/jar (build-path pardinus "jar")]
          [jars (map (curry build-path pardinus/jar)
@@ -27,14 +25,18 @@
                                                      ;[(windows) "win_x86_64"])))]
          ;[-Djava.library.path (string-append "-Djava.library.path=" lib)]
          [error-out (build-path (find-system-path 'home-dir) "error-output.txt")])
+    
+    (when (> (get-verbosity) VERBOSITY_LOW)        
+      (printf "  Starting solver process. subtype: ~a~n" solver-subtype))
 
     (subprocess #f #f #f
                 java "-cp" cp (string-append "-Djava.library.path=" (path->string pardinus/jar))
                 "kodkod.cli.KodkodServer" 
                 (format "-~a" solver-type)
-                (cond [target-oriented "-target-oriented"]
-                      [temporal "-temporal"]
-                      [else ""]) 
+                (cond [(equal? solver-subtype 'target) "-target-oriented"]
+                      [(equal? solver-subtype 'temporal) "-temporal"]
+                      [(equal? solver-subtype 'default) ""]
+                      [else (error (format "Bad solver subtype: ~a" solver-subtype))]) 
                 "-error-out" error-out)))
 
 (define (pardinus-stderr-handler src err)
