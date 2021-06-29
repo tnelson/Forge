@@ -7,5 +7,5 @@ sig A {
 sig B {}
 
 example AnExample is A = A for {
-    A = A0 + A1
+    A = `A0 + `A1
 }
