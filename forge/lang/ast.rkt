@@ -553,7 +553,8 @@
 ; TODO: what is this for?
 (define-node-op ordered node/formula/op #f #:max-length 2 #:type node/expr?)
 
-(define-node-op && node/formula/op #f #:min-length 1 #:lift #f #:type node/formula?)
+; allow empty && to facilitate  {} blocks
+(define-node-op && node/formula/op #f #:min-length 0 #:lift #f #:type node/formula?)
 (define-node-op || node/formula/op #f #:min-length 1 #:lift #f #:type node/formula?)
 (define-node-op => node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/formula?)
 (define-node-op ! node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)

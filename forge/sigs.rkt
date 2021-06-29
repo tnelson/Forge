@@ -423,10 +423,10 @@
             (~optional (~seq #:target-distance target-distance))
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
-     #`(begin
+     #`(begin         
          (define run-state curr-state)
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
-         (define run-preds (~? (list preds ...) (~? (list pred) (list))))
+         (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
          (define run-scope
            (~? (~@ (list (~? (~@ (list sig lower upper))
                              (~@ (list sig upper))) ...))
@@ -442,7 +442,7 @@
            (~? (Target (cdr target-instance)
                        (~? 'target-distance 'close))
                #f))
-         (define run-command #'#,command)
+         (define run-command #'#,command)         
          (define name
            (run-from-state run-state
                            #:name run-name
@@ -548,7 +548,7 @@
 ;       [|| sat unsat]))
 (define-syntax (test stx)
   (syntax-case stx ()
-    [(test name args ... #:expect expected)
+    [(test name args ... #:expect expected)  
      (add-to-execs
        #'(cond 
           [(member 'expected '(sat unsat))

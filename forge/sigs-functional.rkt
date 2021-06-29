@@ -753,7 +753,7 @@
           (define new-preds
             (if (equal? compare 'compare)
                 (Run-spec-preds (Run-run-spec run))
-                (list (ast:! (foldr (lambda (a b) (ast:and a b))
+                (list (ast:! (foldr (lambda (a b) (ast:&& a b))
                                     true
                                     (Run-spec-preds (Run-run-spec run)))))))
           

@@ -742,7 +742,7 @@
   (syntax-parse stx
     [((~literal Block) exprs:ExprClass ...)
      (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
-       (syntax/loc stx (and exprs ...)))]))
+       (syntax/loc stx (&& exprs ...)))]))
 
 (define-syntax (Expr stx)
   (syntax-parse stx
@@ -759,7 +759,7 @@
   [((~literal Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (or expr1 expr2)))]
+     (syntax/loc stx (|| expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -781,7 +781,7 @@
   [((~literal Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (and expr1 expr2)))]
+     (syntax/loc stx (&& expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
