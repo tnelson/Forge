@@ -110,8 +110,7 @@ Expr5   : @Expr6  | NEG-TOK Expr5
                   | ONCE-TOK Expr5
                   | HISTORICALLY-TOK Expr5
 Expr6   : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
-Expr7   : @Expr7.5 | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr7.5
-Expr7.5 : @Expr8  | Expr7.5 PRIME-TOK ; electrum priming of expressions
+Expr7   : @Expr8 | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr8
 Expr8   : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
 Expr9   : @Expr10 | CARD-TOK Expr9
 Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11
@@ -122,7 +121,8 @@ Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
                   | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr16  : @Expr17 | (TILDE-TOK | EXP-TOK | STAR-TOK) Expr16
-Expr17  : Const 
+Expr17  : @Expr18 | Expr17 PRIME-TOK
+Expr18  : Const 
         | QualName 
         | AT-TOK Name
         | BACKQUOTE-TOK Name
