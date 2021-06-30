@@ -120,8 +120,8 @@ Expr13  : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
                   | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
-Expr16  : @Expr17 | (TILDE-TOK | EXP-TOK | STAR-TOK) Expr16
-Expr17  : @Expr18 | Expr17 PRIME-TOK
+Expr16  : @Expr17 | Expr16 PRIME-TOK
+Expr17  : @Expr18 | (TILDE-TOK | EXP-TOK | STAR-TOK) Expr17
 Expr18  : Const 
         | QualName 
         | AT-TOK Name
