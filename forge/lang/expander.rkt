@@ -228,7 +228,7 @@
               name:NameClass
               (~optional decls:ParaDeclsClass)
               output:ExprClass
-              block:BlockClass)))
+              body:ExprClass)))
 
   ; ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
   ;           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
@@ -632,11 +632,11 @@
   [((~literal FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        output:ExprClass
-                       block:BlockClass)
-   (with-syntax ([block #'block])
+                       body:ExprClass)
+   (with-syntax ([body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (const name.name block))))]
+       (const name.name body))))]
 
   [((~literal FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
@@ -736,13 +736,23 @@
        (~? (raise (format "Scope not implemented for bounds ~a" 'scope)))
        (inst name.name bounds ...))))]))
 
+(define (disambiguate-block xs)
+  (cond [(empty? xs) 
+         ; {} always means the formula true
+         true]
+        [(and (equal? 1 (length xs)) (node/expr? (first xs)))
+         (first xs)]
+        [(node/formula? (first xs))
+         (&& xs)]
+        [else 
+         (raise-user-error (first xs) (format "Ill-formed block"))]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (Block stx)
   (syntax-parse stx
     [((~literal Block) exprs:ExprClass ...)
      (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
-       (syntax/loc stx (&& exprs ...)))]))
+       (syntax/loc stx (disambiguate-block (list exprs ...))))]))
 
 (define-syntax (Expr stx)
   (syntax-parse stx
