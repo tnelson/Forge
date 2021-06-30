@@ -190,7 +190,8 @@
   (define options (State-options state))
 
   (define option-types
-    (hash 'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
+    (hash 'eval-language symbol?
+          'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
           'backend symbol?
           ; 'verbosity exact-nonnegative-integer?
           'sb exact-nonnegative-integer?
@@ -209,6 +210,12 @@
 
   (define new-options
     (cond
+      [(equal? option 'eval-language)
+       (unless (or (equal? value 'surface) (equal? value 'core))
+         (raise-user-error (format "Invalid evaluator language ~a; must be surface or core.~n"
+                                   value)))
+       (struct-copy Options options
+                    [eval-language value])]
       [(equal? option 'solver)
        (struct-copy Options options
                     [solver value])]
@@ -455,91 +462,6 @@
                            #:command run-command))
          (update-state! (state-add-runmap curr-state 'name name)))]))
 
-#|
-; Run a given spec
-; (run name
-;      [#:pred [(pred ...)]] 
-;      [#:scope [((sig [lower 0] upper) ...)]]
-;      [#:inst instance-name])
-(define-syntax (run stx)
-  (define command stx)
-  (syntax-parse stx
-    [(run name:id
-          (~alt
-            (~optional (~or (~seq #:preds (preds ...))
-                            (~seq #:preds pred)))
-            (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
-            (~optional (~or (~seq #:bounds (boundss ...))
-                            (~seq #:bounds bound)))
-            (~optional (~seq #:solver solver-choice))
-            (~optional (~seq #:backend backend-choice))
-            (~optional (~seq #:target target-instance))
-            ;the last 3 appear to be unused (maybe they were used pre-functional-forge?)
-            (~optional (~seq #:target-distance target-distance))
-            (~optional (~or (~and #:target-compare target-compare)
-                            (~and #:target-contrast target-contrast)))) ...)
-     #`(begin
-         (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
-         (define run-state curr-state)
-         (define run-preds (~? (list preds ...) (~? (list pred) (list))))
-
-         (~? (set! run-state (state-set-option run-state 'solver 'solver-choice)))
-         (~? (set! run-state (state-set-option run-state 'backend 'backend-choice)))
-
-         (define sig-scopes
-          (~?
-            (~@
-              (for/hash ([name (list (Sig-name (get-sig curr-state sig)) ...)]
-                         [lo (list lower ...)]
-                         [hi (list upper ...)])
-                (values name (Range lo hi))))
-            (~@ (hash))))
-        (define bitwidth (if (hash-has-key? sig-scopes 'Int)
-                             (begin0 (Range-upper (hash-ref sig-scopes 'Int))
-                                     (set! sig-scopes (hash-remove sig-scopes 'Int)))
-                             #f))
-        (define default-sig-scope (if (hash-has-key? sig-scopes 'default)
-                                      (begin0 (hash-ref sig-scopes 'default)
-                                              (set! sig-scopes (hash-remove sig-scopes 'default)))
-                                      #f))
-        (define base-scope (Scope default-sig-scope bitwidth sig-scopes))
-
-        (define default-bound
-          (let* ([max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
-                 [ints (map int-atom (range (- max-int) max-int))]
-                 [succs (map list (reverse (rest (reverse ints)))
-                                    (rest ints))])
-            (Bound (hash)
-                   (hash 'Int (map list ints)
-                         'succ succs))))
-        (define (run-inst scope bounds)
-          (for ([sigg (get-sigs run-state)])
-            (when (Sig-one sigg)
-              (set!-values (scope bounds) (bind scope bounds (one sigg)))))
-          (~? (~@ (set!-values (scope bounds) (bind scope bounds boundss)) ...)
-              (~? (set!-values (scope bounds) (bind scope bounds bound))))
-          (values scope bounds))
-        (define-values (run-scope run-bound)
-          (run-inst base-scope default-bound))
-
-        (define run-target 
-          (~? (Target (cdr target-instance)
-                      (~? 'target-distance 'close))
-              #f))
-        (~? (unless (member 'target-distance '(close far))
-              (raise (format "Target distance expected one of (close, far); got ~a." 'target-distance))))
-        (when (~? (or #t 'target-contrast) #f)
-          (set! run-preds (~? (list (! (&& preds ...))) (~? (list (! pred)) (list false)))))
-
-        (define run-command #'#,command)        
-        
-        (define run-spec (Run-spec run-state run-preds run-scope run-bound run-target))        
-        (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod run-spec run-command))
-        
-        (define name (Run run-name run-command run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
-        (update-state! (state-add-runmap curr-state 'name name)))]))
-|#
-
 ; Test that a spec is sat or unsat
 ; (test name
 ;       [#:preds [(pred ...)]] 
@@ -665,13 +587,17 @@
           (define pipe1 (open-input-string str-command))
           (define pipe2 (open-input-string (format "eval ~a" str-command)))
 
+          (printf "LANGUAGE: ~a~n" (get-option curr-state 'eval-language))  
+
           (with-handlers ([(lambda (x) #t) 
                            (lambda (exn) (exn-message exn))])
             ; Read command as syntax from pipe
             (define expr
-              (with-handlers ([(lambda (x) #t) (lambda (exn) 
-                               (read-syntax 'Evaluator pipe1))])
-                (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))))
+              (cond [(equal? (get-option curr-state 'eval-language) 'surface)
+                     (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))]
+                    [(equal? (get-option curr-state 'eval-language) 'core)
+                     (read-syntax 'Evaluator pipe1)]
+                    [else (raise-user-error "Could not evaluate in current language - must be surface or core.")]))
 
             ; Evaluate command
             (define full-command (datum->syntax #f `(let

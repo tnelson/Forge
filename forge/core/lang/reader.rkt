@@ -23,6 +23,8 @@
                           #;(require (only-in forge/logging/logging 
                                             [flush-logs logging:flush-logs]
                                             [log-errors logging:log-errors]))
+  
+                          (set-option! 'eval-language 'core)
                           ,@parse-tree
                           #;(logging:log-errors
                             ,@parse-tree)

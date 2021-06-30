@@ -108,6 +108,7 @@
 ; If adding new option fields, remember to update all of:
 ;  --default value -- state-set-option and -- get-option
 (struct/contract Options (
+  [eval-language symbol?]
   [solver symbol?]
   [backend symbol?]
   [sb nonnegative-integer?]
@@ -172,7 +173,7 @@
 
 (define DEFAULT-BITWIDTH 4)
 (define DEFAULT-SIG-SCOPE (Range 0 4))
-(define DEFAULT-OPTIONS (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off))
+(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -451,7 +452,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-option run-or-state option)
   (define state (get-state run-or-state))
   (define symbol->proc
-    (hash 'solver Options-solver
+    (hash 'eval-language Options-eval-language
+          'solver Options-solver
           'backend Options-backend
           'sb Options-sb
           'coregranularity Options-coregranularity
@@ -462,8 +464,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
           'target_mode Options-target_mode
           'core_minimization Options-core_minimization
           'skolem_depth Options-skolem_depth
-          'local_necessity Options-local_necessity
-          ))
+          'local_necessity Options-local_necessity))
   ((hash-ref symbol->proc option) (State-options state)))
 
 ; is-sat? :: Run -> boolean
