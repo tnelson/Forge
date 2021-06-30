@@ -190,7 +190,8 @@
   (define options (State-options state))
 
   (define option-types
-    (hash 'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
+    (hash 'eval-language symbol?
+          'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
           'backend symbol?
           ; 'verbosity exact-nonnegative-integer?
           'sb exact-nonnegative-integer?
@@ -209,6 +210,12 @@
 
   (define new-options
     (cond
+      [(equal? option 'eval-language)
+       (unless (or (equal? value 'surface) (equal? value 'core))
+         (raise-user-error (format "Invalid evaluator language ~a; must be surface or core.~n"
+                                   value)))
+       (struct-copy Options options
+                    [eval-language value])]
       [(equal? option 'solver)
        (struct-copy Options options
                     [solver value])]
@@ -665,13 +672,17 @@
           (define pipe1 (open-input-string str-command))
           (define pipe2 (open-input-string (format "eval ~a" str-command)))
 
+          (printf "LANGUAGE: ~a~n" (get-option curr-state 'eval-language))  
+
           (with-handlers ([(lambda (x) #t) 
                            (lambda (exn) (exn-message exn))])
             ; Read command as syntax from pipe
             (define expr
-              (with-handlers ([(lambda (x) #t) (lambda (exn) 
-                               (read-syntax 'Evaluator pipe1))])
-                (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))))
+              (cond [(equal? (get-option curr-state 'eval-language) 'surface)
+                     (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))]
+                    [(equal? (get-option curr-state 'eval-language) 'core)
+                     (read-syntax 'Evaluator pipe1)]
+                    [else (raise-user-error "Could not evaluate in current language - must be surface or core.")]))
 
             ; Evaluate command
             (define full-command (datum->syntax #f `(let
