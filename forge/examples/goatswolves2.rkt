@@ -42,7 +42,7 @@
                (all ([s state])
                     (and
                      (lone (join s next))
-                     (not (in s (join s (^ next))))))
+                     (! (in s (join s (^ next))))))
                (one ([s state]) (no (join s next)))
                (one ([s state]) (no (join next s)))
                (no (& iden next))))

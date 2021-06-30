@@ -14,8 +14,8 @@
       (all ([n Node])
            (all ([m Node])
                 (implies (in (+ (-> n m) (-> m n)) graph)
-                         (not (in (+ (-> n m) (-> m n))
-                                  (^ (- graph (+ (-> n m) (-> m n)))))))))))
+                         (! (in (+ (-> n m) (-> m n))
+                                (^ (- graph (+ (-> n m) (-> m n)))))))))))
 
 (define (spans graph1 graph2)
   (&& (= (+ (join Node graph1) (join graph1 Node))
@@ -23,8 +23,8 @@
       (in graph1 graph2)))
 
 (define twoSpanningTrees
-  (&& (and (isUndirectedTree t1) (spans t1 g))
-      (and (isUndirectedTree t2) (spans t2 g))
+  (&& (&& (isUndirectedTree t1) (spans t1 g))
+      (&& (isUndirectedTree t2) (spans t2 g))
       (!= t1 t2)))
 
 (define fruit

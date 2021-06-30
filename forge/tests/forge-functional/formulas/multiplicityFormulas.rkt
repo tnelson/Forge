@@ -31,36 +31,36 @@
    (some      (join N1 (join edges Red)))
    (some      (join N2 (join edges Red)))
    (some      (join N3 (join edges Red)))
-   (not (some (join (join edges Red) N1)))
+   (! (some (join (join edges Red) N1)))
    (some      (join (join edges Red) N2))
    (some      (join (join edges Red) N3))))
 
 (define No
   (&&/func
-   (not (no (join N1 (join edges Red))))
-   (not (no (join N2 (join edges Red))))
-   (not (no (join N3 (join edges Red))))
+   (! (no (join N1 (join edges Red))))
+   (! (no (join N2 (join edges Red))))
+   (! (no (join N3 (join edges Red))))
    (no      (join (join edges Red) N1))
-   (not (no (join (join edges Red) N2)))
-   (not (no (join (join edges Red) N3)))))
+   (! (no (join (join edges Red) N2)))
+   (! (no (join (join edges Red) N3)))))
 
 (define One1
   (&&/func
-   (not (one (join N1 (join edges Red))))
+   (! (one (join N1 (join edges Red))))
    (one      (join N2 (join edges Red)))
    (one      (join N3 (join edges Red)))
-   (not (one (join (join edges Red) N1)))
+   (! (one (join (join edges Red) N1)))
    (one      (join (join edges Red) N2))
-   (not (one (join (join edges Red) N3)))))
+   (! (one (join (join edges Red) N3)))))
 
 (define Lone1
   (&&/func
-   (not (lone (join N1 (join edges Red))))
+   (! (lone (join N1 (join edges Red))))
    (lone      (join N2 (join edges Red)))
    (lone      (join N3 (join edges Red)))
    (lone      (join (join edges Red) N1))
    (lone      (join (join edges Red) N2))
-   (not (lone (join (join edges Red) N3)))))
+   (! (lone (join (join edges Red) N3)))))
 
 ; These are treated as multiplicity formulas by ast.rkt,
 ; rather than quantifier formulas.
@@ -73,7 +73,7 @@
 
    (one ([n1 Node]
          [n2 Node])
-        (and (!= n1 n2)
+        (&& (!= n1 n2)
              (in (+ (-> n1 n2) (-> n2 n1))
                  (join edges Green))))
 
@@ -95,7 +95,7 @@
 
    (lone ([n1 Node] ; one
           [n2 Node])
-         (and (!= n1 n2)
+         (&& (!= n1 n2)
               (in (+ (-> n1 n2) (-> n2 n1))
                   (join edges Green))))
 
@@ -124,7 +124,7 @@
 (define Equivalence
   (&&/func
    (iff (lone ([n Node]) (SomePred n))
-        (or (no ([n Node]) (SomePred n))
+        (|| (no ([n Node]) (SomePred n))
             (one ([n Node]) (SomePred n))))))
 
 

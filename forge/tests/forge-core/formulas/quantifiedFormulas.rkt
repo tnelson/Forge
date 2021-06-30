@@ -49,13 +49,13 @@
 
     (some ([n1 Node]
            [n2 Node])
-        (and (!= n1 n2)
+        (&&  (!= n1 n2)
              (in (-> (-> n1 n2) Color)
                  edges)))
 
     (some ([n Node]
            [c Color])
-        (and (in (-> (-> Node n) c)
+        (&&  (in (-> (-> Node n) c)
                  edges)
              (!in (-> (-> n Node) c)
                   edges))))
@@ -67,7 +67,7 @@
 
     (no ([n1 Node]
          [n2 Node])
-        (and (!= n1 n2)
+        (&&  (!= n1 n2)
              (= n1 n2)))
 
     (no ([n Node]
@@ -81,17 +81,17 @@
 (pred Equivalences
     (iff (all ([n Node]) 
              (SomePred n))
-         (not (some ([n Node]) 
-                  (not (SomePred n)))))
+         (! (some ([n Node]) 
+                  (! (SomePred n)))))
 
     (iff (all ([n Node])
              (SomePred n))
          (no ([n Node])
-             (not (SomePred n))))
+             (! (SomePred n))))
 
     (iff (some ([n Node])
              (SomePred n))
-         (not (no ([n Node])
+         (! (no ([n Node])
                   (SomePred n)))))
 
 

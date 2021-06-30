@@ -51,15 +51,15 @@
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (one (set ([n Node])
-	       	                    (not (in n Child)))))
+	       	                    (! (in n Child)))))
 	       #:expect 'sat)
 (make-test #:name '--test-theorem
 	       #:bounds (list inst-expr-)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (one (set ([n Node])
-	       	                    (and (in n Node)
-	       	                    	 (not (in n Child))))))
+	       	                    (&& (in n Node)
+	       	                    	 (! (in n Child))))))
 	       #:expect 'theorem)
 
 (define inst-intersect
@@ -127,7 +127,7 @@
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (one (set ([n Node])
-	       	                    (not (in n Child))))
+	       	                    (! (in n Child))))
 	                     (= Child (join Node edges)))
 	       #:expect 'sat)
 (make-test #:name '^-theorem
@@ -135,7 +135,7 @@
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (one (set ([n Node])
-	       	                    (not (in n Child))))
+	       	                    (! (in n Child))))
 	                     (= Child (join Node edges)))
 	       #:expect 'theorem)
 

@@ -430,10 +430,10 @@
             (~optional (~seq #:target-distance target-distance))
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
-     #`(begin
+     #`(begin         
          (define run-state curr-state)
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
-         (define run-preds (~? (list preds ...) (~? (list pred) (list))))
+         (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
          (define run-scope
            (~? (~@ (list (~? (~@ (list sig lower upper))
                              (~@ (list sig upper))) ...))
@@ -449,7 +449,7 @@
            (~? (Target (cdr target-instance)
                        (~? 'target-distance 'close))
                #f))
-         (define run-command #'#,command)
+         (define run-command #'#,command)         
          (define name
            (run-from-state run-state
                            #:name run-name
@@ -470,7 +470,7 @@
 ;       [|| sat unsat]))
 (define-syntax (test stx)
   (syntax-case stx ()
-    [(test name args ... #:expect expected)
+    [(test name args ... #:expect expected)  
      (add-to-execs
        #'(cond 
           [(member 'expected '(sat unsat))
@@ -515,7 +515,7 @@
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
      (syntax/loc stx
-       (run name (~? (~@ #:preds [(! (and pred ...))]))
+       (run name (~? (~@ #:preds [(! (&& pred ...))]))
                  (~? (~@ #:scope ([sig lower upper] ...)))
                  (~? (~@ #:bounds (bound ...)))))]))
 
@@ -624,7 +624,7 @@
           (define new-preds
             (if (equal? compare 'compare)
                 (Run-spec-preds (Run-run-spec run))
-                (list (! (foldr (lambda (a b) (and a b))
+                (list (! (foldr (lambda (a b) (&& a b))
                                   true
                                   (Run-spec-preds (Run-run-spec run)))))))
           

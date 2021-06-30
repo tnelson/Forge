@@ -23,7 +23,7 @@
   (&&
    (= (set ([x (+ A B)])
            (some ([y A])
-                 (or (= (join x otherA)
+                 (|| (= (join x otherA)
                         y)
                      (= (join x otherB)
                         y))))
@@ -34,7 +34,7 @@
   (&&
    (= (set ([b B] [a A])
            (some ([c A])
-                 (and (in (-> b c)
+                 (&& (in (-> b c)
                           otherB)
                       (in (-> c a)
                           otherA))))

@@ -38,7 +38,8 @@ Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
 ArrowDecl : DISJ-TOK? VAR-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
 FactDecl : FACT-TOK Name? Block
 PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
-FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
+; A function declaration should only ever contain a single expression in its body
+FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
 ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
 AssertDecl : /ASSERT-TOK Name? Block

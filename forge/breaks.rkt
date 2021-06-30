@@ -519,12 +519,12 @@
         (break-graph (set sig) (set))
         (λ () (make-exact-break rel (map list (drop-right atoms 1) (cdr atoms))))
         (λ () (break bound (set
-            (@some ([init sig]) (@and
+            (@some ([init sig]) (@&&
                 (@no (@join rel init))
                 (@all ([x (@- sig init)]) (@one (@join rel x)))
                 (@= (@join init (@* rel)) sig)
             ))
-            (@some ([term sig]) (@and
+            (@some ([term sig]) (@&&
                 (@no (@join term rel))
                 (@all ([x (@- sig term)]) (@one (@join x rel)))
                 (@= (@join (@* rel) term) sig)
@@ -570,7 +570,7 @@
                     )
                 )))
         (λ () (break bound (set
-            (@some ([n sig]) (@and
+            (@some ([n sig]) (@&&
                 (@no (@join rel n))
                 (@all ([m (@- sig n)]) 
                     (@one (@join rel m))
@@ -590,7 +590,7 @@
                 (map list (drop-right atoms 1) (cdr atoms))
             )
             (set
-                (@lone ([init sig]) (@and
+                (@lone ([init sig]) (@&&
                     (@no (@join rel init))
                     (@some (@join init rel))
                 ))
@@ -600,7 +600,7 @@
             (@lone (@- (@join rel sig) (@join sig rel)))    ; lone init
             (@lone (@- (@join sig rel) (@join rel sig)))    ; lone term
             (@no (@& @iden (@^ rel)))   ; acyclic
-            (@all ([x sig]) (@and       ; all x have
+            (@all ([x sig]) (@&&       ; all x have
                 (@lone (@join x rel))   ; lone successor
                 (@lone (@join rel x))   ; lone predecessor
             ))

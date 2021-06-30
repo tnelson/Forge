@@ -3,8 +3,11 @@
 (require (for-syntax racket/syntax syntax/srcloc)
          syntax/srcloc (prefix-in @ racket) (prefix-in $ racket))
 
-(provide (except-out (all-defined-out) next-name @@and @@or @@not int< int>)
-         (rename-out [@@and and] [@@or or] [@@not not] [int< <] [int> >]))
+(provide (except-out (all-defined-out) next-name
+                     ;@@and @@or @@not
+                     int< int>)
+         (rename-out ;[@@and and] [@@or or] [@@not not]
+          [int< <] [int> >]))
 
 ; Forge's AST is based on Ocelot's AST, with modifications.
 
@@ -135,24 +138,26 @@
                                          (node/expr/ite-thene self)
                                          (node/expr/ite-elsee self))))])
 
+(define (ite/info-helper info a b c)
+  (unless (node/formula? a)
+    (raise-syntax-error #f (format "If-then-else expression requires first argument to be a formula")
+                        (datum->syntax #f a (build-source-location-syntax (nodeinfo-loc info)))))
+  (unless (node/expr? b)
+    (raise-syntax-error #f (format "If-then-else expression requires second argument to be an expression")
+                               (datum->syntax #f b (build-source-location-syntax (nodeinfo-loc info)))))
+  (unless (node/expr? c)
+    (raise-syntax-error #f (format "If-then-else expression requires third argument to be an expression")
+                        (datum->syntax #f c (build-source-location-syntax (nodeinfo-loc info)))))
+  (unless (equal? (node/expr-arity b) (node/expr-arity c))
+    (raise-syntax-error #f (format "If-then-else expression requires expression arguments to have same arity")
+                        (datum->syntax #f c (build-source-location-syntax (nodeinfo-loc info)))))
+  (node/expr/ite info (node/expr-arity b) a b c))
+
 (define-syntax (ite/info stx)
   (syntax-case stx ()
     [(_ info a b c)
      (quasisyntax/loc stx
-       (begin
-         (unless (node/formula? a)
-           (raise-syntax-error #f (format "If-then-else expression requires first argument to be a formula")
-                               (datum->syntax #f a (build-source-location-syntax (nodeinfo-loc info)))))
-         (unless (node/expr? b)
-           (raise-syntax-error #f (format "If-then-else expression requires second argument to be an expression")
-                               (datum->syntax #f b (build-source-location-syntax (nodeinfo-loc info)))))
-         (unless (node/expr? c)
-           (raise-syntax-error #f (format "If-then-else expression requires third argument to be an expression")
-                               (datum->syntax #f c (build-source-location-syntax (nodeinfo-loc info)))))
-         (unless (equal? (node/expr-arity b) (node/expr-arity c))
-           (raise-syntax-error #f (format "If-then-else expression requires expression arguments to have same arity")
-                               (datum->syntax #f c (build-source-location-syntax (nodeinfo-loc info)))))
-         (node/expr/ite info (node/expr-arity b) a b c)))]))
+       (ite/info-helper info a b c))]))
 
 (define-syntax (ite stx)
   (syntax-case stx ()
@@ -207,7 +212,7 @@
                   (macroname/info (nodeinfo #,(build-source-location stx2)) e ellip))]))
 
            (define (macroname/info-help info args-raw)
-             (let* ([args (cond
+             (let* ([args (cond  ; support passing chain of args OR a list of them
                             [(or (not (equal? 1 (length args-raw)))
                                 (not (list? (first args-raw)))) args-raw]
                             [else (first args-raw)])])
@@ -548,7 +553,8 @@
 ; TODO: what is this for?
 (define-node-op ordered node/formula/op #f #:max-length 2 #:type node/expr?)
 
-(define-node-op && node/formula/op #f #:min-length 1 #:lift #f #:type node/formula?)
+; allow empty && to facilitate  {} blocks
+(define-node-op && node/formula/op #f #:min-length 0 #:lift #f #:type node/formula?)
 (define-node-op || node/formula/op #f #:min-length 1 #:lift #f #:type node/formula?)
 (define-node-op => node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/formula?)
 (define-node-op ! node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
@@ -581,42 +587,76 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Lift the "and", "or" and "not" procedures
-
-(define-syntax (@@and stx)
-  (syntax-case stx ()
-    [(_) (syntax/loc stx true)] ; Racket treats any non-#f as true
-    [(_ a0 a ...)
-     (quasisyntax/loc stx
-       (let ([a0* a0])         
-         (if (node/formula? a0*)
-             (&&/info (nodeinfo #,(build-source-location stx)) a0* a ...)
-             (and a0* a ...))))]))
-(define-syntax (@@not stx)
-  (syntax-case stx ()    
-    [(_ a0)
-     (quasisyntax/loc stx
-       (let ([a0* a0])
-         (if (node/formula? a0*)
-             (!/info (nodeinfo #,(build-source-location stx)) a0*)
-             (not a0*))))]))
-(define-syntax (@@or stx)
-  (syntax-case stx ()
-    [(_) (syntax/loc stx false)]
-    [(_ a0 a ...)
-     (quasisyntax/loc stx
-       (let ([a0* a0])
-         (if (node/formula? a0*)
-             (||/info (nodeinfo #,(build-source-location stx)) a0* a ...)
-             (or a0* a ...))))]))
-
-; *** WARNING ***
-; Because of the way this is set up, if you're running tests in the REPL on the ast.rkt tab,
-; you need to use @@and (etc.) not and (etc.) to construct formulas. If you try to use and, etc.
-; you'll get the boolean behavior, which short-circuits. E.g.
-; (and (= iden iden) (= univ univ))
-; evaluates to 
-; (= #<nodeinfo> '('univ 'univ))
-; which is the last thing in the list.
+;
+; Still broken in two ways:
+;   - (<fmla> <non-fmla>) produces an erorr
+;    [this could be fixed by folding over the args]
+;   - What does a list of formulas produce? The conjunction of that list?
+;     Or the last element being folded over logical-and-style?
+;(define (@@and-helper info as)
+;  (printf "helper: ~a~n" as)
+;  (cond [(empty? as) true] 
+;        [else         
+;         (let ([result1 ((first as))])
+;         (cond
+;           [(node/formula? result1)
+;            (&&/info info (cons result1 (map (lambda (t) (t)) (rest as))))]
+;           ; Can't soundly use (and as) because as is a non-#f value
+;           ; Racket "and" is a macro, so can't (apply and as)
+;           ; Can't do (andmap values as) because then you lose short-circuiting
+;           ;   (as soon as this helper needs to be called, and thus its arguments
+;           ;    need evaluation, we've lost the game. Need to trap the values.)
+;           ;  So instead: thunkify everything first
+;           [else (and result1 (andmap (lambda (t) (t)) (rest as)))]))]))
+;
+;
+;(define-syntax (@@and stx)
+;  (printf "and: ~a~n" stx)
+;  (syntax-case stx ()
+;    [(_) (syntax/loc stx true)] ; Racket treats any non-#f as true    
+;    [(_ a0 a ...)
+;     (quasisyntax/loc stx
+;       (@@and-helper (nodeinfo #,(build-source-location stx))
+;                     (list (lambda () a0) (lambda () a) ...)))]))
+;
+;     ;(quasisyntax/loc stx
+;     ;  (let ([a0* a0])         
+;     ;    (if (node/formula? a0*)
+;     ;        (&&/info (nodeinfo #,(build-source-location stx)) a0* a ...)
+;     ;        (and a0* a ...))))]))
+;
+;; TEMPORARY
+;(require
+;  (only-in
+;    macro-debugger/analysis/profile
+;    term-size))
+;
+;(define-syntax (@@not stx)
+;  (syntax-case stx ()    
+;    [(_ a0)
+;     (quasisyntax/loc stx
+;       (let ([a0* a0])
+;         (if (node/formula? a0*)
+;             (!/info (nodeinfo #,(build-source-location stx)) a0*)
+;             (not a0*))))]))
+;(define-syntax (@@or stx)
+;  (syntax-case stx ()
+;    [(_) (syntax/loc stx false)]
+;    [(_ a0 a ...)
+;     (quasisyntax/loc stx
+;       (let ([a0* a0])
+;         (if (node/formula? a0*)
+;             (||/info (nodeinfo #,(build-source-location stx)) a0* a ...)
+;             (or a0* a ...))))]))
+;
+;; *** WARNING ***
+;; Because of the way this is set up, if you're running tests in the REPL on the ast.rkt tab,
+;; you need to use @@and (etc.) not and (etc.) to construct formulas. If you try to use and, etc.
+;; you'll get the boolean behavior, which short-circuits. E.g.
+;; (and (= iden iden) (= univ univ))
+;; evaluates to 
+;; (= #<nodeinfo> '('univ 'univ))
+;; which is the last thing in the list.
 
 
 (require (prefix-in @ (only-in racket ->)))
@@ -723,7 +763,8 @@
   (syntax-case stx ()
     [(_ ([x1 r1] ...) pred)
      (quasisyntax/loc stx
-       ; TODO TN: is this right? shouldn't it be a quantified-formula?
+       ; Kodkod doesn't have a "one" quantifier natively.
+       ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'one (set ([x1 r1] ...) pred)))]
     [(_ expr)
      (quasisyntax/loc stx
@@ -739,7 +780,8 @@
   (syntax-case stx ()
     [(_ ([x1 r1] ...) pred)
      (quasisyntax/loc stx
-       ; TODO TN: is this right? 
+       ; Kodkod doesn't have a lone quantifier natively.
+       ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'lone (set ([x1 r1] ...) pred)))]
     [(_ expr)
      (quasisyntax/loc stx

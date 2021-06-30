@@ -30,7 +30,7 @@
     (int= (sum (join S4 ints)) (node/int/constant -3))
     (int= (sum (join S5 ints)) (node/int/constant 8)))
 
-(run sums #:preds ((and (not Sum))) #:scope ((IntSet 0 5)) #:bounds (SumInst))
+(run sums #:preds ((and (! Sum))) #:scope ((IntSet 0 5)) #:bounds (SumInst))
 (display sums)
 
 ; (sig A)

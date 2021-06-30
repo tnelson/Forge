@@ -42,32 +42,32 @@
     (all ([i1 Int]
           [i2 Int])
         (iff (!= (sum i1) (sum i2))
-             (not (= (sum i1) (sum i2))))))
+             (! (= (sum i1) (sum i2))))))
 
 ; Commented out ones are not defined in forge/core
 ; (pred NGT
 ;     (all ([i1 Int]
 ;           [i2 Int])
 ;         (iff (!> (sum i1) (sum i2))
-;              (not (> (sum i1) (sum i2))))))
+;              (! (> (sum i1) (sum i2))))))
 
 ; (pred NLT
 ;     (all ([i1 Int]
 ;           [i2 Int])
 ;         (iff (!< (sum i1) (sum i2))
-;              (not (< (sum i1) (sum i2))))))
+;              (! (< (sum i1) (sum i2))))))
 
 ; (pred NGTE
 ;     (all ([i1 Int]
 ;           [i2 Int])
 ;         (iff (!>= (sum i1) (sum i2))
-;              (not (>= (sum i1) (sum i2))))))
+;              (! (>= (sum i1) (sum i2))))))
 
 ; (pred NTLE
 ;     (all ([i1 Int]
 ;           [i2 Int])
 ;         (iff (!<= (sum i1) (sum i2))
-;              (not (<= (sum i1) (sum i2))))))
+;              (! (<= (sum i1) (sum i2))))))
 
 (test equal #:preds [EQ] #:expect theorem)
 (test greaterThan #:preds [GT] #:expect theorem)
