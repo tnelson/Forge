@@ -30,7 +30,7 @@
 
 (define compile-omit-paths '("example" "examples" "doc" "tests" 
                              "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"                            
-                             "amalgam/tests"
+                             "amalgam/tests" "amalgam"
                              ))
 
 (define drracket-tools (list (list "tool.rkt")))
