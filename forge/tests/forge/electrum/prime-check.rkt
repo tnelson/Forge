@@ -4,8 +4,8 @@ option problem_type temporal
 option min_tracelength 4
 
 var sig Node {
-	var edges : set Node,
-	fruit : set Node
+	--var edges : set Node,
+	--fruit : set Node
 }
 
 pred plusPrime {
@@ -24,21 +24,4 @@ pred plusPrime {
 test expect {
 	--Time is 0 indexed in this title
 	threeNodeInTime2 : {plusPrime implies (#(Node'') = 3)} is theorem
-}
-
-pred tildePrime {
-	some n0, n1, n2 : Node {
-		n0 != n1 and n0 != n2 and n1 != n2
-		Node = n0 + n1 + n2
-		Node' = n0 + n1 + n2
-		edges = n0->n1
-		edges' = n1->n2
-		-- if ~edges' is ~(edges') then fruit is n2->n1
-		-- if ~edges' is (~edges)' then fruit is n1->n0
-		fruit = ~edges'
-	}
-}
-
-test expect {
-	idCloserToPrimeThanTilde : {tildePrime implies (fruit = ~(edges'))} is theorem
 }
