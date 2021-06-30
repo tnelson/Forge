@@ -43,10 +43,11 @@ test expect GeneralEventuallyTest {
         all tl : TrafficLight |
             all c : Color | always eventually c in tl.current
     } is sat
+    -- this is NOT a theorem, because of "current" vs. "color"
     allLightsReachAllColorsEventually : {
         behavior
         not (all tl : TrafficLight |
             all c : Color | always eventually c in tl.current
             )
-    } is unsat
+    } is sat
 }
