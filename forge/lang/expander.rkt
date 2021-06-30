@@ -642,13 +642,13 @@
                        name:NameClass
                        decls:ParaDeclsClass
                        output:ExprClass
-                       block:BlockClass)
+                       body:ExprClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
                                                    (syntax->list #'decls.translate)))]
-                 [block #'block])
+                 [body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (fun decl block))))]))
+       (fun decl body))))]))
 
 ; AssertDecl : /ASSERT-TOK Name? Block
 (define-syntax (AssertDecl stx)
