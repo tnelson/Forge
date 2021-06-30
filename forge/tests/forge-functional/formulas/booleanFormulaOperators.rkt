@@ -10,9 +10,6 @@
 (define Not ; !, not
   (&&/func
    (! (! true))
-   (! false)
-
-   (! (! true))
    (! false)))
 
 (define And ; &&, -and-
@@ -20,24 +17,14 @@
    (&& true true)
    (! (&& true false))
    (! (&& false true))
-   (! (&& false false))
-
-   (and true true)
-   (! (and true false))
-   (! (and false true))
-   (! (and false false))))
+   (! (&& false false))))
 
 (define Or ; ||, -or-
   (&&/func
    (|| true true)
    (|| true false)
    (|| false true)
-   (! (|| false false))
-
-   (or true true)
-   (or true false)
-   (or false true)
-   (! (or false false))))
+   (! (|| false false))))
 
 (define Implies ; =>, implies, <=>, iff, ifte
   (&&/func

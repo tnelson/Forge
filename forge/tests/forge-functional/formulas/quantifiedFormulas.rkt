@@ -49,12 +49,12 @@
              (join edges Blue)))
    (some ([n1 Node]
           [n2 Node])
-         (and (!= n1 n2)
+         (&& (!= n1 n2)
               (in (-> (-> n1 n2) Color)
                   edges)))
    (some ([n Node]
           [c Color])
-         (and (in (-> (-> Node n) c)
+         (&& (in (-> (-> Node n) c)
                   edges)
               (!in (-> (-> n Node) c)
                    edges)))))
@@ -66,7 +66,7 @@
            edges))
    (no ([n1 Node]
         [n2 Node])
-       (and (!= n1 n2)
+       (&& (!= n1 n2)
             (= n1 n2)))
    (no ([n Node]
         [c Color])

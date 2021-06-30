@@ -118,9 +118,9 @@
               [y (sum i2)])
           (let ([q (divide x y)]
                 [r (remainder x y)])
-            (and (or (= (sign r) (sign x))
+            (&& (|| (= (sign r) (sign x))
                      (= (sign r) (int 0)))
-                 (or (< (abs r) (abs y))
+                 (|| (< (abs r) (abs y))
                      (int= y (int -8)))
                  (int= x (add (multiply y q) r))))))))
 

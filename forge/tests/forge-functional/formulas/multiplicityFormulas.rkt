@@ -73,7 +73,7 @@
 
    (one ([n1 Node]
          [n2 Node])
-        (and (!= n1 n2)
+        (&& (!= n1 n2)
              (in (+ (-> n1 n2) (-> n2 n1))
                  (join edges Green))))
 
@@ -95,7 +95,7 @@
 
    (lone ([n1 Node] ; one
           [n2 Node])
-         (and (!= n1 n2)
+         (&& (!= n1 n2)
               (in (+ (-> n1 n2) (-> n2 n1))
                   (join edges Green))))
 
@@ -124,7 +124,7 @@
 (define Equivalence
   (&&/func
    (iff (lone ([n Node]) (SomePred n))
-        (or (no ([n Node]) (SomePred n))
+        (|| (no ([n Node]) (SomePred n))
             (one ([n Node]) (SomePred n))))))
 
 

@@ -12,7 +12,7 @@
            #:sigs (list ToExtend Extension1 Extension2 Extension3)
            #:expect 'theorem)
 (make-test #:name 'multipleExtensions 
-           #:preds (list (and (some Extension1) (some Extension2)))
+           #:preds (list (&& (some Extension1) (some Extension2)))
            #:sigs (list ToExtend Extension1 Extension2 Extension3)
            #:expect 'sat)
 (make-test #:name 'extensionsDisjoint 
@@ -24,7 +24,7 @@
            #:sigs (list ToExtend Extension1 Extension2 Extension3)
            #:expect 'sat)
 (make-test #:name 'doubleExtendingWorks 
-           #:preds (list (and (in Extension3 Extension2) (in Extension2 ToExtend)))
+           #:preds (list (&& (in Extension3 Extension2) (in Extension2 ToExtend)))
            #:sigs (list ToExtend Extension1 Extension2 Extension3)
            #:expect 'theorem)
 

@@ -37,7 +37,7 @@
         (= (+ (join n1 edges)
               (join n2 edges))
            (set ([n Node])
-                (or (in n (join n1 edges))
+                (|| (in n (join n1 edges))
                     (in n (join n2 edges))))))))
 
 (define Minus
@@ -47,7 +47,7 @@
         (= (- (join n1 edges)
               (join n2 edges))
            (set ([n Node])
-                (and (in n (join n1 edges))
+                (&& (in n (join n1 edges))
                      (!in n (join n2 edges))))))))
 
 (define Ampersand
@@ -57,7 +57,7 @@
         (= (& (join n1 edges)
               (join n2 edges))
            (set ([n Node])
-                (and (in n (join n1 edges))
+                (&& (in n (join n1 edges))
                      (in n (join n2 edges))))))))
 
 (define Arrow
@@ -68,7 +68,7 @@
                (join n2 edges))
            (set ([n3 Node]
                  [n4 Node])
-                (and (in n3 (join n1 edges))
+                (&& (in n3 (join n1 edges))
                      (in n4 (join n2 edges))))))))
 
 (define Dot
@@ -77,7 +77,7 @@
       (set ([n1 Node]
             [n2 Node])
            (some ([n3 Node])
-                 (and (in n3 (join n1 edges))
+                 (&& (in n3 (join n1 edges))
                       (in n3 (join edges n2))))))))
 
 (define IfThenElse1

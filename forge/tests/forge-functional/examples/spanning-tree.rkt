@@ -23,8 +23,8 @@
       (in graph1 graph2)))
 
 (define twoSpanningTrees
-  (&& (and (isUndirectedTree t1) (spans t1 g))
-      (and (isUndirectedTree t2) (spans t2 g))
+  (&& (&& (isUndirectedTree t1) (spans t1 g))
+      (&& (isUndirectedTree t2) (spans t2 g))
       (!= t1 t2)))
 
 (define fruit

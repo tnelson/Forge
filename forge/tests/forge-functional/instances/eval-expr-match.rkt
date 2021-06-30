@@ -58,7 +58,7 @@
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (one (set ([n Node])
-	       	                    (and (in n Node)
+	       	                    (&& (in n Node)
 	       	                    	 (! (in n Child))))))
 	       #:expect 'theorem)
 
