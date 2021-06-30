@@ -81,15 +81,15 @@
   (&&/func
    (iff (all ([n Node])
              (SomePred n))
-        (not (some ([n Node])
-                   (not (SomePred n)))))
+        (! (some ([n Node])
+                   (! (SomePred n)))))
    (iff (all ([n Node])
              (SomePred n))
         (no ([n Node])
-            (not (SomePred n))))
+            (! (SomePred n))))
    (iff (some ([n Node])
               (SomePred n))
-        (not (no ([n Node])
+        (! (no ([n Node])
                  (SomePred n))))))
 
 (make-test #:name 'AllQuant

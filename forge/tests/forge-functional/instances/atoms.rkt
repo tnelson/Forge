@@ -14,9 +14,9 @@
 
 (define AtomsNotIn
   (&&/func
-   (not (in        (atom 'Node0) Node))
-   (not (in        (atom 'Node1) Node))    
-   (not (in        (atom 'Node2) Node))
+   (! (in        (atom 'Node0) Node))
+   (! (in        (atom 'Node1) Node))    
+   (! (in        (atom 'Node2) Node))
    (some Node)))
 
 ; Dangerous to use atom names without a concrete instance to force existence

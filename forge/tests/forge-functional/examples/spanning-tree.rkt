@@ -14,8 +14,8 @@
       (all ([n Node])
            (all ([m Node])
                 (implies (in (+ (-> n m) (-> m n)) graph)
-                         (not (in (+ (-> n m) (-> m n))
-                                  (^ (- graph (+ (-> n m) (-> m n)))))))))))
+                         (! (in (+ (-> n m) (-> m n))
+                                (^ (- graph (+ (-> n m) (-> m n)))))))))))
 
 (define (spans graph1 graph2)
   (&& (= (+ (join Node graph1) (join graph1 Node))
