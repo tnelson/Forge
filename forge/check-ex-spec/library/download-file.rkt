@@ -37,7 +37,8 @@
   contents)
 
 
-(define REPO "tdelv/lfs-2021-check-ex-spec")
+;(define REPO "tdelv/lfs-2021-check-ex-spec")
+(define REPO "tnelson/cxs-compiled")
 
 (define (get-info assignment-name)
   (make-directory* "compiled")
