@@ -1,0 +1,1 @@
+{"assignment": "electrum1", "sub-assignment": "buffer", "provides": ["Value", "Cell", "next", "content", "Pointer", "ref", "Read", "Write", "isRing", "init", "writeValue", "readValue", "traces"], "wheats": ["electrum1-buffer-wheats-0"], "chaffs": ["electrum1-buffer-chaffs-0", "electrum1-buffer-chaffs-1", "electrum1-buffer-chaffs-2", "electrum1-buffer-chaffs-3"]}
