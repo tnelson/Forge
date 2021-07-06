@@ -471,8 +471,8 @@
       #:attr symbol (syntax/loc #'q sum-quant)))
 
   (define-syntax-class ExprClass
-    (pattern ((~or (~literal Expr) (~literal Expr0.5) (~literal Expr1) (~literal Expr2) (~literal Expr3)
-                   (~literal Expr4) (~literal Expr5) (~literal Expr6) (~literal Expr7) (~literal Expr7.5)
+    (pattern ((~or (~literal Expr) (~literal Expr1) (~literal Expr2) (~literal Expr3)
+                   (~literal Expr4) (~literal Expr4.5) (~literal Expr5) (~literal Expr6) (~literal Expr7) (~literal Expr7.5)
                    (~literal Expr8) (~literal Expr9) (~literal Expr10) (~literal Expr11)
                    (~literal Expr12) (~literal Expr13) (~literal Expr14) (~literal Expr15)
                    (~literal Expr16) (~literal Expr17))
@@ -967,11 +967,12 @@
              #:track-literals
              [((~var macro-id id) . pattern) pattern-directive ... (syntax/loc stx template)]))))]))
 
-(dsm-keep (Expr0.5 stx ...) (Expr stx ...))
+
 (dsm-keep (Expr1 stx ...) (Expr stx ...))
 (dsm-keep (Expr2 stx ...) (Expr stx ...))
 (dsm-keep (Expr3 stx ...) (Expr stx ...))
 (dsm-keep (Expr4 stx ...) (Expr stx ...))
+(dsm-keep (Expr4.5 stx ...) (Expr stx ...))
 (dsm-keep (Expr5 stx ...) (Expr stx ...))
 (dsm-keep (Expr6 stx ...) (Expr stx ...))
 (dsm-keep (Expr7 stx ...) (Expr stx ...))

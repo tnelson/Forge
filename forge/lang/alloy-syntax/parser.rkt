@@ -89,20 +89,19 @@ ExprList : Expr
 ;; this mess is the only way I know of to do operator precedence well in brag
 ;; goes from weakest to strongest binding
 ;; imagine a coin rolling over a coin sorter and falling into the first slot that fits
-Expr    : @Expr0.5
+Expr    : @Expr1
         | LET-TOK LetDeclList BlockOrBar
         | BIND-TOK LetDeclList BlockOrBar
         | Quant DeclList BlockOrBar
-; Electrum binary operators (these may be on the wrong side of OR/IFF/etc.)
-Expr0.5 : @Expr1  | Expr0.5 UNTIL-TOK Expr1
-                  | Expr0.5 RELEASE-TOK Expr1
-                  | Expr0.5 SINCE-TOK Expr1
-                  | Expr0.5 TRIGGERED-TOK Expr1
-
 Expr1   : @Expr2  | Expr1 OR-TOK Expr2
 Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
 Expr3   : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
-Expr4   : @Expr5  | Expr4 AND-TOK Expr5
+Expr4   : @Expr4.5  | Expr4 AND-TOK Expr4.5
+; Electrum binary operators (these may be on the wrong side of OR/IFF/etc.)
+Expr4.5 : @Expr5  | Expr4.5 UNTIL-TOK Expr5
+                  | Expr4.5 RELEASE-TOK Expr5
+                  | Expr4.5 SINCE-TOK Expr5
+                  | Expr4.5 TRIGGERED-TOK Expr5
 Expr5   : @Expr6  | NEG-TOK Expr5
                   | ALWAYS-TOK Expr5
                   | EVENTUALLY-TOK Expr5
