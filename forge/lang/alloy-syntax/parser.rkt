@@ -32,10 +32,12 @@ SigExt : EXTENDS-TOK QualName
        | IN-TOK QualName (PLUS-TOK QualName)*
 Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
 ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
-Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
+;Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
+Decl : NameList /COLON-TOK SET-TOK? Expr
 ; ArrowDecl should only be used by sig field declaration right now; note the optional VAR for Electrum
 ; Remember that a preceding / means to cut the token; it won't get included in the AST.
-ArrowDecl : DISJ-TOK? VAR-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
+;ArrowDecl : DISJ-TOK? VAR-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
+ArrowDecl : VAR-TOK? NameList /COLON-TOK ArrowMult ArrowExpr
 FactDecl : FACT-TOK Name? Block
 PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
 ; A function declaration should only ever contain a single expression in its body
@@ -55,7 +57,7 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
 # BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK
-#       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | SUBT-TOK | SUPT-TOK | DOT-TOK
+#       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | DOT-TOK ;SUBT-TOK | SUPT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
 CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK
 LetDecl : @Name /EQ-TOK Expr
@@ -116,7 +118,7 @@ Expr9   : @Expr10 | CARD-TOK Expr9
 Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11  : @Expr12 | Expr11 AMP-TOK Expr12
 Expr12  : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
-Expr13  : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
+Expr13  : @Expr14 ;| Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
                   | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
@@ -158,8 +160,8 @@ TransitionDecl : TRANSITION-TOK /LEFT-SQUARE-TOK QualName /RIGHT-SQUARE-TOK
 TraceDecl : TRACE-TOK Parameters
     (QualName DOT-TOK)? Name ParaDecls? (/COLON-TOK Expr)? Block
 Parameters : /LeftAngle @QualNameList /RightAngle 
-LeftAngle : LT-TOK | LEFT-TRIANGLE-TOK
-RightAngle: GT-TOK | RIGHT-TRIANGLE-TOK
+LeftAngle : LT-TOK ;| LEFT-TRIANGLE-TOK
+RightAngle: GT-TOK ;| RIGHT-TRIANGLE-TOK
 
 RelDecl : ArrowDecl
 

@@ -90,7 +90,6 @@ test expect {
 -- there currently is no way to test in forge surface if something raises an error
 -- so instead we will add a forge/core test to check this
 -- and to check oOps we will see that intersection is tighter than union
--- as well
 
 test expect {
 	intersectionTighterThanUnionSat : {

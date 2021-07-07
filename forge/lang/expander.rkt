@@ -161,9 +161,9 @@
   ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
   (define-syntax-class DeclClass
     (pattern ((~literal Decl)
-              (~optional "disj")
+              ;(~optional "disj")
               names:NameListClass
-              (~optional "disj")
+              ;(~optional "disj")
               (~optional "set")
               expr:ExprClass)
       #:attr translate (with-syntax ([expr #'expr])
@@ -182,10 +182,10 @@
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
   (define-syntax-class ArrowDeclClass
     (pattern ((~literal ArrowDecl)
-              (~optional "disj")
+              ;(~optional "disj")
               (~optional isv:VarKeywordClass #:defaults ([isv #'#f])) ; electrum
               name-list:NameListClass
-              (~optional "disj") 
+              ;(~optional "disj") 
               mult-class:ArrowMultClass
               type-list:ArrowExprClass)
       #:attr names #'(name-list.names ...)

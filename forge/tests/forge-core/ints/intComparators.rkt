@@ -1,5 +1,7 @@
 #lang forge/core
 
+(require (only-in rackunit check-exn))
+
 (set-option! 'verbose 0)
 
 ; > < =
@@ -80,3 +82,9 @@
 ; (test notLessThan #:preds [NLT] #:expect theorem)
 ; (test notGreaterThanEqual #:preds [NGTE] #:expect theorem)
 ; (test notLessThanEqual #:preds [NLTE] #:expect theorem)
+
+; + is union not addition
+(check-exn exn:fail:contract?
+           (lambda ()
+             (pred meow
+                   (= (int 5) (+ (int 3) (int 2))))))
