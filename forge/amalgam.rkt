@@ -248,9 +248,8 @@
   
   ; For reasons passing understanding, get-relation returns a symbol...
   (define (get-actual-relation relname)
-    (cond [(hash-has-key? sigs relname) (Sig-rel (hash-ref sigs relname))]
-          [(hash-has-key? relations relname) (Relation-rel
-                                              (hash-ref relations relname))]
+    (cond [(hash-has-key? sigs relname) (hash-ref sigs relname)]
+          [(hash-has-key? relations relname) (hash-ref relations relname)]
           [else (error "unknown relation or sig" relname)]))
  
   (define new-pbindings
@@ -306,7 +305,7 @@
           ;; these are the orig bounds (not exact)
           ;;   but when we get to building the new bounds in is-locally-necessary
           ;;   those sigs are fixed, so the extras dont exist          
-          (define upper-bounds (liftBoundsExpr (Relation-rel r) '()
+          (define upper-bounds (liftBoundsExpr r '()
                                                orig-run))          
           (define curr
             (filter-map (lambda (tuple)
@@ -315,7 +314,7 @@
                           (define present
                             (andmap (lambda (atomsym) (member (list atomsym) evaluated-univ)) tuple))
                           (if (and present (is-locally-necessary (cons tuple name) orig-run instance-index))
-                              (cons tuple (Relation-rel r))
+                              (cons tuple r)
                               #f))
                         upper-bounds))
           curr)))))
@@ -378,8 +377,8 @@
   
   ; For reasons passing understanding, get-relation returns a symbol...
   (define (get-actual-relation relname)
-    (cond [(hash-has-key? sigs relname) (Sig-rel (hash-ref sigs relname))]
-          [(hash-has-key? relations relname) (Relation-rel (hash-ref relations relname))]
+    (cond [(hash-has-key? sigs relname) (hash-ref sigs relname)]
+          [(hash-has-key? relations relname) (hash-ref relations relname)]
           [else (error "unknown relation or sig" relname)]))
  
   (define new-pbindings

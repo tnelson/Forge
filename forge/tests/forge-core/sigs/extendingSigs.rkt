@@ -11,7 +11,7 @@
       #:preds [(in (+ Extension1 Extension2) ToExtend)]
       #:expect theorem)
 (test multipleExtensions 
-      #:preds [(and (some Extension1) (some Extension2))]
+      #:preds [(&& (some Extension1) (some Extension2))]
       #:expect sat)
 (test extensionsDisjoint 
       #:preds [(some (& Extension1 Extension2))]
@@ -20,7 +20,7 @@
       #:preds [(some (- ToExtend (+ Extension1 Extension2)))]
       #:expect sat)
 (test doubleExtendingWorks 
-      #:preds [(and (in Extension3 Extension2) (in Extension2 ToExtend))]
+      #:preds [(&& (in Extension3 Extension2) (in Extension2 ToExtend))]
       #:expect theorem)
 
 

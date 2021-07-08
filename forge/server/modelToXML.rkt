@@ -60,7 +60,7 @@
 
 (define (types-to-XML-string rel ID-hash)  
   (define xml-expected-types
-    (map (λ (x) (type-to-XML-string x ID-hash)) (relation-typelist rel)))
+    (map (λ (x) (type-to-XML-string x ID-hash)) ((relation-typelist-thunk rel))))
   
   (string-append "<types>"                                     
                      (apply string-append xml-expected-types)
@@ -71,7 +71,7 @@
   (define r-tuple-annotations (if (hash-has-key? tuple-annotations rel)
                                   (hash-ref tuple-annotations rel)
                                   (hash)))  
-  (string-append "<field label=\"" (relation-name rel) "\" ID=\"" (number->string fieldID) "\" parentID=\"" (number->string (hash-ref ID-hash (first (relation-typelist rel)))) "\">\n"
+  (string-append "<field label=\"" (relation-name rel) "\" ID=\"" (number->string fieldID) "\" parentID=\"" (number->string (hash-ref ID-hash (first ((relation-typelist-thunk rel))))) "\">\n"
                  (relation-to-XML-string data rel r-tuple-annotations)
                  (types-to-XML-string rel ID-hash)
                  "\n</field>\n\n"))

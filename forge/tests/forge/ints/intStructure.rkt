@@ -27,7 +27,7 @@ pred Size1 {
     no   sing[0].succ
 
     -- min int -1
-    some succ.     (sing[0])
+    some succ.(sing[0])
     no   succ.succ.(sing[0])
 }
 
@@ -37,7 +37,7 @@ pred Size2 {
     no   sing[0].succ.succ
 
     -- min int -2
-    some succ.succ.     (sing[0])
+    some succ.succ.(sing[0])
     no   succ.succ.succ.(sing[0])
 }
 
@@ -47,7 +47,7 @@ pred Size3 {
     no   sing[0].succ.succ.succ.succ
 
     -- min int -4
-    some succ.succ.succ.succ.     (sing[0])
+    some succ.succ.succ.succ.(sing[0])
     no   succ.succ.succ.succ.succ.(sing[0])
 }
 
@@ -57,7 +57,7 @@ pred Size4 {
     no   sing[0].succ.succ.succ.succ.succ.succ.succ.succ
 
     -- min int -8
-    some succ.succ.succ.succ.succ.succ.succ.succ.     (sing[0])
+    some succ.succ.succ.succ.succ.succ.succ.succ.(sing[0])
     no   succ.succ.succ.succ.succ.succ.succ.succ.succ.(sing[0])
 }
 

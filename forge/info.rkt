@@ -28,9 +28,9 @@
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
-(define compile-omit-paths '("example" "examples" "doc" "tests" 
+(define compile-omit-paths '("example" "examples" "doc" "tests" "check-ex-spec/demo"
                              "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"                            
-                             "amalgam/tests"
+                             "amalgam/tests" "amalgam"
                              ))
 
 (define drracket-tools (list (list "tool.rkt")))

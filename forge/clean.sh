@@ -11,4 +11,4 @@ rm -rf check-ex-spec/library/compiled
 # actually
 rm -rf `find . -name compiled -type d -exec echo {} \;`
 rm -rf `find . -name "*.bak" -type f -exec echo {} \;`
-
+rm -rf `find . -name "*.rkt~" -type f -exec echo {} \;`

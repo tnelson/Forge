@@ -12,19 +12,19 @@
 (relation edges (Node Node Color))
 
 (inst test-inst
-    (= Node (+ N1 (+ N2 (+ N3 N4))))
+    (= Node (+ (atom 'N1) (+ (atom 'N2) (+ (atom 'N3) (atom 'N4)))))
 
-    (= edges (+ (-> (+ (-> N1 N2) ; cycle
-                    (+ (-> N2 N3)
-                    (+ (-> N3 N4)
-                       (-> N4 N1)))) Red0)
-
-             (+ (-> (-> Node Node) Green0) ; complete
-
-                (-> (+ (-> N1 (+ N1 (+ N2 (+ N3 N4)))) ; <= relation
-                    (+ (-> N2 (+ N2 (+ N3 N4)))
-                    (+ (-> N3 (+ N3 N4))
-                       (-> N4 N4)))) Blue0)))))
+    (= edges (+ (-> (+ (-> (atom 'N1) (atom 'N2)) ; cycle
+                       (+ (-> (atom 'N2) (atom 'N3))
+                          (+ (-> (atom 'N3) (atom 'N4))
+                             (-> (atom 'N4) (atom 'N1)))))
+                    (atom 'Red0))
+                (+ (-> (-> Node Node) (atom 'Green0)) ; complete
+                   (-> (+ (-> (atom 'N1) (+ (atom 'N1) (+ (atom 'N2) (+ (atom 'N3) (atom 'N4))))) ; <= relation
+                          (+ (-> (atom 'N2) (+ (atom 'N2) (+ (atom 'N3) (atom 'N4))))
+                             (+ (-> (atom 'N3) (+ (atom 'N3) (atom 'N4)))
+                                (-> (atom 'N4) (atom 'N4)))))
+                        (atom 'Blue0))))))
 
 (pred All
     (all ([n Node])
@@ -49,13 +49,13 @@
 
     (some ([n1 Node]
            [n2 Node])
-        (and (!= n1 n2)
+        (&&  (!= n1 n2)
              (in (-> (-> n1 n2) Color)
                  edges)))
 
     (some ([n Node]
            [c Color])
-        (and (in (-> (-> Node n) c)
+        (&&  (in (-> (-> Node n) c)
                  edges)
              (!in (-> (-> n Node) c)
                   edges))))
@@ -67,7 +67,7 @@
 
     (no ([n1 Node]
          [n2 Node])
-        (and (!= n1 n2)
+        (&&  (!= n1 n2)
              (= n1 n2)))
 
     (no ([n Node]
@@ -81,17 +81,17 @@
 (pred Equivalences
     (iff (all ([n Node]) 
              (SomePred n))
-         (not (some ([n Node]) 
-                  (not (SomePred n)))))
+         (! (some ([n Node]) 
+                  (! (SomePred n)))))
 
     (iff (all ([n Node])
              (SomePred n))
          (no ([n Node])
-             (not (SomePred n))))
+             (! (SomePred n))))
 
     (iff (some ([n Node])
              (SomePred n))
-         (not (no ([n Node])
+         (! (no ([n Node])
                   (SomePred n)))))
 
 

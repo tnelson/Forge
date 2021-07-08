@@ -2,68 +2,57 @@
 
 (set-option! 'verbose 0)
 
+; No more overloading (<and> and <or> are normal Racket operators now)
+
 (pred TrueFalse
     true
     (! false))
 
-(pred Not ; !, not
+(pred Not 
     (! (! true))
-    (! false)
+    (! false))
 
-    (not (not true))
-    (not false))
-
-(pred And ; &&, -and-
+(pred And 
     (&& true true)
-    (not (&& true false))
-    (not (&& false true))
-    (not (&& false false))
+    (! (&& true false))
+    (! (&& false true))
+    (! (&& false false)))
 
-    (and true true)
-    (not (and true false))
-    (not (and false true))
-    (not (and false false)))
-
-(pred Or ; ||, -or-
+(pred Or
     (|| true true)
     (|| true false)
     (|| false true)
-    (not (|| false false))
-
-    (or true true)
-    (or true false)
-    (or false true)
-    (not (or false false)))
+    (! (|| false false)))
 
 (pred Implies ; =>, implies, <=>, iff, ifte
     (=> true true)
-    (not (=> true false))
+    (! (=> true false))
     (=> false true)
     (=> false false)
 
     (implies true true)
-    (not (implies true false))
+    (! (implies true false))
     (implies false true)
     (implies false false)
 
     (<=> true true)
-    (not (<=> true false))
-    (not (<=> false true))
+    (! (<=> true false))
+    (! (<=> false true))
     (<=> false false)
 
     (iff true true)
-    (not (iff true false))
-    (not (iff false true))
+    (! (iff true false))
+    (! (iff false true))
     (iff false false)
 
     (ifte true true true)
     (ifte true true false)
-    (not (ifte true false true))
-    (not (ifte true false false))
+    (! (ifte true false true))
+    (! (ifte true false false))
     (ifte false true true)
-    (not (ifte false true false))
+    (! (ifte false true false))
     (ifte false false true)
-    (not (ifte false false false)))
+    (! (ifte false false false)))
 
 (test basicTrueFalse 
       #:preds [TrueFalse]

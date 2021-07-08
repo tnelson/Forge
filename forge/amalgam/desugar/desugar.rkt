@@ -235,7 +235,7 @@
 
   (match expr
     ; relation name (base case)
-    [(node/expr/relation info arity name typelist parent isVar)
+    [(node/expr/relation info arity name typelist-thunk parent isVar)
      (list
       (in/info info (list (tup2Expr currTupIfAtomic runContext info) expr))
       'relationNameExpr)]

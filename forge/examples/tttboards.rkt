@@ -71,8 +71,8 @@
 (run "DiagsEquiv?" (at-most-one-mark-per-square
                     fix-inverses
                     (some ([b Board])
-                          (or (and (winD b O) (not (winDBroken b O)))
-                              (and (winDBroken b O) (not (winD b O))))))
+                          (or (and (winD b O) (! (winDBroken b O)))
+                              (and (winDBroken b O) (! (winD b O))))))
      ((Player 2 2) (Index 3 3) (Board 1 1)))
 
 

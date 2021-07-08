@@ -52,8 +52,8 @@
    ["*" (token+ 'STAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["^" (token+ 'EXP-TOK "" lexeme "" lexeme-start lexeme-end)]
    [">=" (token+ 'GEQ-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["<:" (token+ 'SUBT-TOK "" lexeme "" lexeme-start lexeme-end)]
-   [":>" (token+ 'SUPT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["<:" (token+ 'SUBT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;[":>" (token+ 'SUPT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["++" (token+ 'PPLUS-TOK "" lexeme "" lexeme-start lexeme-end)]       
    ["<" (token+ 'LT-TOK "" lexeme "" lexeme-start lexeme-end)]
    [">" (token+ 'GT-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -73,7 +73,7 @@
    ["assert"    (token+ `ASSERT-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["but"       (token+ `BUT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["check"     (token+ `CHECK-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["disj"      (token+ `DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ;["disj"      (token+ `DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["else"      (token+ `ELSE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)] 
@@ -140,6 +140,9 @@
    ;; int stuff
    ["Int"       (token+ `INT-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    ["#"         (token+ `CARD-TOK "" lexeme "" lexeme-start lexeme-end)]
+
+   ; Backquote to make atom names
+   ["`" (token+ `BACKQUOTE-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ;; punctuation
    ["(" (token+ 'LEFT-PAREN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -148,8 +151,8 @@
    ["}" (token+ 'RIGHT-CURLY-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["[" (token+ 'LEFT-SQUARE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["]" (token+ 'RIGHT-SQUARE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["<|" (token+ 'LEFT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["|>" (token+ 'RIGHT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["<|" (token+ 'LEFT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["|>" (token+ 'RIGHT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["," (token+ 'COMMA-TOK "" lexeme "" lexeme-start lexeme-end)]
    [";" (token+ 'SEMICOLON-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["/" (token+ 'SLASH-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -179,7 +182,7 @@
            "assert"
            "but"
            "check"
-           "disj"
+           ;"disj"
            "else"
            "eval"
            "exactly"
@@ -250,6 +253,8 @@
            'min
            "#"
 
+           "`"
+
            '_
            'this
            '|this'|
@@ -262,9 +267,9 @@
                 "{"
                 "}"
                 "["
-                "]"
-                "<|"
-                "|>")))
+                "]")))
+                ;"<|"
+                ;"|>")))
 
 (define (token+ type left lex right lex-start lex-end [skip? #f] [sym? #f])
   (let ([l0 (string-length left)] 

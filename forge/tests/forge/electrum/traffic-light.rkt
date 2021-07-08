@@ -16,7 +16,7 @@ sig Color {
 
 pred validColorNext {
     //a color cannot be succeeded by itself
-    no (iden && next)
+    no (iden & next)
     //Color succession is a ring
     all c : Color | (Color in c.^next) and (one c.next)
 }
@@ -43,10 +43,11 @@ test expect GeneralEventuallyTest {
         all tl : TrafficLight |
             all c : Color | always eventually c in tl.current
     } is sat
+    -- this is NOT a theorem, because of "current" vs. "color"
     allLightsReachAllColorsEventually : {
         behavior
         not (all tl : TrafficLight |
             all c : Color | always eventually c in tl.current
             )
-    } is unsat
+    } is sat
 }

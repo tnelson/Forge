@@ -3,7 +3,7 @@
 (require racket/contract)
 (require syntax/parse/define)
 
-(provide make-node get-child get-children get-value lazy-tree-map)
+(provide node? make-node get-child get-children get-value lazy-tree-map)
 
 (struct computation ())
 (struct computation/delayed computation (thnk))

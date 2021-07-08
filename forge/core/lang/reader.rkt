@@ -11,6 +11,7 @@
   (define parse-tree (port->list (lambda (x) (@read-syntax path x)) port))
   (define module-datum `(module forge-core-mod racket
                           (require forge/logging/sigs)
+                          #;(require forge/sigs-functional)
                           (provide (except-out (all-defined-out)
                                                forge:n))
 
@@ -19,17 +20,19 @@
                           (forge:nsa forge:n)
 
                           ; For logging
-                          (require (only-in forge/logging/logging 
+                          #;(require (only-in forge/logging/logging 
                                             [flush-logs logging:flush-logs]
                                             [log-errors logging:log-errors]))
-
-                          (logging:log-errors
+  
+                          (set-option! 'eval-language 'core)
+                          ,@parse-tree
+                          #;(logging:log-errors
                             ,@parse-tree)
                           
                           (module+ execs)
                           (module+ main
                             (require (submod ".." execs))
-                            (logging:flush-logs))))
+                            #;(logging:flush-logs))))
 
   (datum->syntax #f module-datum))
 

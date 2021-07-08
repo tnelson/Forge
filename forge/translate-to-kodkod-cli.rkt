@@ -147,11 +147,11 @@
   (define the-sigs (get-sigs run-or-state)) ; includes Int
   (format
    "(+ ~a ) "
-   (string-join (map (lambda (s) (format-relname (node/expr/relation-is-variable (Sig-rel s)) (Sig-name s) "")) the-sigs) " ")))
+   (string-join (map (lambda (s) (format-relname (node/expr/relation-is-variable s) (Sig-name s) "")) the-sigs) " ")))
 
 (define (interpret-expr run-or-state expr relations atom-names quantvars)
   (match expr
-    [(node/expr/relation info arity name typelist parent isvar)
+    [(node/expr/relation info arity name typelist-thunk parent isvar)
      (print-cmd-cont (format-relname isvar name " "))]
     [(node/expr/atom info arity name)
      (unless (member name atom-names) (raise (format "Atom ~a not in available atoms ~a" name atom-names)))
@@ -307,8 +307,7 @@
        (interpret-expr run-or-state (cdr (car decls)) relations atom-names quantvars)
        ( print-cmd-cont "]) ")
        (interpret-int run-or-state int-expr relations atom-names quantvars)
-       ( print-cmd-cont ")"))]
-    ))
+       ( print-cmd-cont ")"))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

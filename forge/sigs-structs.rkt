@@ -1,13 +1,40 @@
 #lang racket
 
-(require "lang/ast.rkt"
+(require (except-in "lang/ast.rkt" ->)
          "lang/bounds.rkt"
          "breaks.rkt")
 (require (prefix-in @ racket) 
          (prefix-in @ racket/set))
+(require racket/contract)
+(require (for-syntax racket/syntax syntax/srcloc))
 (require (prefix-in tree: "lazy-tree.rkt"))
 
 (provide (all-defined-out))
+; (provide (except-out (all-defined-out) (struct-out Sig) (struct-out Relation)))
+; (provide (contract-out (struct Sig ([info nodeinfo?]
+                                    
+;                                     [arity nonnegative-integer?]
+;                                     [name string?]
+;                                     [typelist (listof string?)]
+;                                     [parent string?]
+;                                     [is-variable boolean?]
+
+;                                     [name symbol?]
+;                                     [one boolean?]
+;                                     [abstract boolean?]
+;                                     [extends (or/c Sig? #f)]))))
+; (provide (contract-out (struct Relation ([info nodeinfo?]
+                                    
+;                                          [arity nonnegative-integer?]
+;                                          [name string?]
+;                                          [typelist (listof string?)]
+;                                          [parent string?]
+;                                          [is-variable boolean?]
+                                    
+;                                          [name symbol?]
+;                                          [sigs (listof Sig?)]
+;                                          [breaker (or/c node/breaking/break? #f)]))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
@@ -18,94 +45,104 @@
 ; Results from solver
 
 ; For a non-temporal result, just take the first element of instances
-(struct Sat (
-  instances ; list of hashes            
-  stats ; association list
-  metadata ; association list
+(struct/contract Sat (
+  [instances any/c] ; list of hashes            
+  [stats any/c]     ; association list
+  [metadata any/c]  ; association list
   ) #:transparent)
 
-(struct Unsat (               
-  core ; (or/c #f list-of-Formula-string-or-formulaID)
-  stats ; association list
-  kind ; symbol
+(struct/contract Unsat (               
+  [core (or/c #f (listof any/c))]; list-of-Formula-string-or-formulaID)]
+  [stats any/c] ; association list
+  [kind symbol?] ; symbol
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(struct Sig (
-  name       ; Symbol
-  rel        ; node/expr/relation
-  one        ; Boolean
-  abstract   ; Boolean
-  extends    ; Symbol | #f
-  extenders  ; List<Symbol>
+
+
+(struct Sig node/expr/relation (
+  name ; symbol?
+  one ; boolean?
+  abstract ; boolean?
+  extends ; (or/c Sig? #f)
+  ) #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (fprintf port "(Sig ~a)" (Sig-name self)))])
+
+(struct Relation node/expr/relation (
+  name ; symbol?
+  sigs-thunks ; (listof (-> Sig?))
+  breaker ; (or/c node/breaking/break? #f)
+  ) #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc self port mode)
+     (fprintf port "(Relation ~a)" (Relation-name self)))])
+
+(struct/contract Range (
+  [lower (or/c nonnegative-integer? #f)]
+  [upper (or/c nonnegative-integer? #f)]
   ) #:transparent)
 
-(struct Relation (
-  name  ; Symbol
-  rel   ; node/expr/relation
-  sigs  ; List<Symbol>
-  breaker ; Symbol
+(struct/contract Scope (
+  [default-scope (or/c Range? #f)]
+  [bitwidth (or/c nonnegative-integer? #f)]
+  [sig-scopes (hash/c symbol? Range?)]
   ) #:transparent)
 
-(struct Range (
-  lower ; int
-  upper ; int
+(struct/contract Bound (
+  [pbindings (hash/c node/expr/relation? sbound?)]
+  [tbindings (hash/c node/expr/relation? any/c)] ; (hash/c symbol? (listof symbol?))] ; TODO
   ) #:transparent)
 
-(struct Scope (
-  default-scope  ; Range | #f
-  bitwidth       ; int | #f
-  sig-scopes     ; Map<Symbol, Range>
+(struct/contract Inst (
+  [func (Scope? Bound? . -> . (values Scope? Bound?))]
   ) #:transparent)
 
-(struct Bound (
-  pbindings ; Map<Symbol, sbound>
-  tbindings ; Map<Symbol, List<Symbol>>
-  ) #:transparent)
-
-(struct Target (
-  instance ; Map<Symbol, List<List<Symbol>>>
-  distance ; 'close | 'far
+(struct/contract Target (
+  [instance (hash/c symbol? (listof (listof symbol?)))]
+  [distance (or/c 'close 'far)]
   ) #:transparent)
 
 ; If adding new option fields, remember to update all of:
 ;  --default value -- state-set-option and -- get-option
-(struct Options (
-  solver          ; symbol
- ; verbosity       ; int ; handled in shared.rkt
-  backend         ; symbol
-  sb              ; int
-  coregranularity ; int
-  logtranslation  ; int
-  min_tracelength ; int
-  max_tracelength ; int
-  problem_type    ; symbol
-  target_mode     ; symbol
-  core_minimization ; symbol
-  skolem_depth ; int
-  local_necessity ; symbol
+(struct/contract Options (
+  [eval-language symbol?]
+  [solver symbol?]
+  [backend symbol?]
+  [sb nonnegative-integer?]
+  [coregranularity nonnegative-integer?]
+  [logtranslation nonnegative-integer?]
+  [min_tracelength nonnegative-integer?]
+  [max_tracelength nonnegative-integer?]
+  [problem_type symbol?]
+  [target_mode symbol?]
+  [core_minimization symbol?]
+  [skolem_depth nonnegative-integer?]
+  [local_necessity symbol?]
   ) #:transparent)
 
-(struct State (
-  sigs        ; Map<Symbol, Sig>
-  sig-order   ; List<Symbol>
-  relations   ; Map<Symbol, Relation>
-  relation-order ; List<Symbol>
-  pred-map  ; Map<Symbol, Predicate>
-  fun-map   ; Map<Symbol, Function>
-  const-map   ; Map<Symbol, Constant>
-  inst-map       ; Map<Symbol, Inst>
-  options     ; Options
-  runmap      ; Map<Symbol, Run> (as hash)
+(struct/contract State (
+  [sigs (hash/c symbol? Sig?)]
+  [sig-order (listof symbol?)]
+  [relations (hash/c symbol? Relation?)]
+  [relation-order (listof symbol?)]
+  [pred-map (hash/c symbol? (or/c (unconstrained-domain-> node/formula?)
+                                  node/formula?))]
+  [fun-map (hash/c symbol? (unconstrained-domain-> node?))]
+  [const-map (hash/c symbol? node?)]
+  [inst-map (hash/c symbol? Inst?)]
+  [options Options?]
+  [runmap (hash/c symbol? any/c)] ; TODO: any/c -> Run?
   ) #:transparent)
 
-(struct Run-spec (
-  state   ; State
-  preds   ; Set<node/formula>
-  scope   ; Scope
-  bounds  ; Bound
-  target  ; Target | #f
+(struct/contract Run-spec (
+  [state State?]
+  [preds (listof node/formula?)]
+  [scope Scope?]
+  [bounds Bound?]
+  [target (or/c Target? #f)]
   ) #:transparent)
 
 (struct Server-ports (
@@ -114,42 +151,21 @@
   shutdown
   is-running?) #:transparent)
 
-(struct Kodkod-current (
-  [formula #:mutable]
-  [expression #:mutable]
-  [int #:mutable]))
+(struct/contract Kodkod-current (
+  [[formula #:mutable] nonnegative-integer?]
+  [[expression #:mutable] nonnegative-integer?]
+  [[int #:mutable] nonnegative-integer?]))
 
-(struct Run (
-  name     ; Symbol
-  command  ; Syntax
-  run-spec ; Run-spec
-  result   ; Stream
-  server-ports ; Server-ports
-  atoms    ; List<Symbol>
-  kodkod-currents ; Kodkod-current
-  kodkod-bounds ; List<bound> (lower and upper bounds for each relation)
+(struct/contract Run (
+  [name symbol?]
+  [command syntax?]
+  [run-spec Run-spec?]
+  [result tree:node?] ; TODO: specify
+  [server-ports Server-ports?]
+  [atoms (listof (or/c symbol? number?))]
+  [kodkod-currents Kodkod-current?]
+  [kodkod-bounds (listof any/c)] ; TODO: specify
   ) #:transparent)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;  Initial State  ;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define init-sigs (hash 'Int (Sig 'Int Int  #f #f #f empty)))
-(define init-sig-order (list 'Int))
-(define init-relations (hash 'succ (Relation 'succ succ '(Int Int) #f)))
-(define init-relation-order (list 'succ))
-(define init-pred-map (@hash))
-(define init-fun-map (@hash))
-(define init-const-map (@hash))
-(define init-inst-map (@hash))
-(define init-runmap (@hash))
-(define init-options (Options 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off))
-(define init-state (State init-sigs init-sig-order
-                          init-relations init-relation-order
-                          init-pred-map init-fun-map init-const-map
-                          init-inst-map
-                          init-options
-                          init-runmap))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Defaults     ;;;;;;;
@@ -157,6 +173,46 @@
 
 (define DEFAULT-BITWIDTH 4)
 (define DEFAULT-SIG-SCOPE (Range 0 4))
+(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;    Constants    ;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define-syntax Int (lambda (stx) (syntax-case stx ()
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" (thunk '("Int")) "univ" #f 'Int #f #f #f))])))
+(define-syntax succ (lambda (stx) (syntax-case stx ()
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" (thunk '("Int" "Int")) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
+
+(define (max s-int)
+  (sum (- s-int (join (^ succ) s-int))))
+(define (min s-int)
+  (sum (- s-int (join s-int (^ succ)))))
+; (define-syntax Int (lambda (stx) (syntax-case stx ()    
+;     [val (identifier? (syntax val)) (quasisyntax/loc stx 
+;       (Sig 'Int 
+;             (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f)
+;             #f #f #f))])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;  Initial State  ;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define init-sigs (hash 'Int Int))
+(define init-sig-order (list 'Int))
+(define init-relations (hash 'succ succ))
+(define init-relation-order (list 'succ))
+(define init-pred-map (@hash))
+(define init-fun-map (@hash))
+(define init-const-map (@hash))
+(define init-inst-map (@hash))
+(define init-runmap (@hash))
+(define init-options DEFAULT-OPTIONS)
+(define init-state (State init-sigs init-sig-order
+                          init-relations init-relation-order
+                          init-pred-map init-fun-map init-const-map
+                          init-inst-map
+                          init-options
+                          init-runmap))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -213,10 +269,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-sig run-or-state sig-name-or-rel)
   (define sig-name
     (cond [(symbol? sig-name-or-rel) sig-name-or-rel]
-          [(node/expr/relation? sig-name-or-rel)
-           (string->symbol (relation-name sig-name-or-rel))]
           [(Sig? sig-name-or-rel)
            (Sig-name sig-name-or-rel)]
+          [(node/expr/relation? sig-name-or-rel)
+           (string->symbol (relation-name sig-name-or-rel))]
           [else (error (format "get-sig failed to locate: ~a" sig-name-or-rel))]))
   (hash-ref (State-sigs (get-state run-or-state)) sig-name))
 
@@ -226,9 +282,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-sigs run-or-state [relation #f])
   (define state (get-state run-or-state))
   (if relation
-      (map (curry get-sig state) 
-           (Relation-sigs (get-relation state relation)))
-      (map (curry hash-ref (State-sigs state )) 
+      (map (compose (curry get-sig state) (lambda (sig-thunk) (sig-thunk)))
+           (Relation-sigs-thunks (get-relation state relation)))
+      (map (curry hash-ref (State-sigs state))
            (State-sig-order state))))
 
 ; get-top-level-sigs :: Run-or-State -> List<Sig>
@@ -293,9 +349,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; get-children :: Run-or-State, Sig* -> List<Sig>
 ; Returns the children Sigs of a Sig.
 (define (get-children run-or-state sig-or-rel)
-  (define children-names (Sig-extenders (get-sig run-or-state sig-or-rel)))
-  (define sig-map (State-sigs (get-state run-or-state)))
-  (map (curry hash-ref sig-map) children-names))
+  (define sigs (get-sigs run-or-state))
+  (define parent (get-sig run-or-state sig-or-rel))
+  (filter (lambda (sig) (equal? (Sig-extends sig) parent)) sigs))
 
 ; get-result :: Run -> Stream
 ; Returns a stream of instances for the given run.
@@ -374,16 +430,17 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; Used for translate to kodkod-cli.
 (define (get-all-rels run-or-spec)
   (cond [(Run-spec? run-or-spec)
+         
          (let ([run-spec run-or-spec])
            (append
-             (map Sig-rel (get-sigs run-spec))
-             (map Relation-rel (get-relations run-spec))))]
+             (get-sigs run-spec)
+             (get-relations run-spec)))]
         [(Run? run-or-spec)
          (let ([run run-or-spec]
                [run-spec (Run-run-spec run-or-spec)])
            (append
-             (map Sig-rel (get-sigs run-spec))
-             (map Relation-rel (get-relations run-spec))))]))
+             (get-sigs run-spec)
+             (get-relations run-spec)))]))
 
 ; get-relation-map :: (|| Run Run-spec) -> Map<Symbol, AST-Relation>
 ; Returns a map from names to AST-Relations.
@@ -395,7 +452,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (get-option run-or-state option)
   (define state (get-state run-or-state))
   (define symbol->proc
-    (hash 'solver Options-solver
+    (hash 'eval-language Options-eval-language
+          'solver Options-solver
           'backend Options-backend
           'sb Options-sb
           'coregranularity Options-coregranularity
@@ -406,8 +464,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
           'target_mode Options-target_mode
           'core_minimization Options-core_minimization
           'skolem_depth Options-skolem_depth
-          'local_necessity Options-local_necessity
-          ))
+          'local_necessity Options-local_necessity))
   ((hash-ref symbol->proc option) (State-options state)))
 
 ; is-sat? :: Run -> boolean
@@ -461,13 +518,19 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) a b)
                                                                 (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
 
-; for ifte, use struct type to decide whether this is a formula (sugar) or expression form (which has its own AST node)
-(define-syntax (ifte stx) (syntax-case stx () [(_ a b c) (quasisyntax/loc stx
-                                                           (if (node/formula? b)
-                                                               (&&/info (nodeinfo #,(build-source-location stx))
-                                                                        (=>/info (nodeinfo #,(build-source-location stx)) a b)
-                                                                        (=>/info (nodeinfo #,(build-source-location stx)) (! a) c))
-                                                               (ite/info (nodeinfo #,(build-source-location stx)) a b c)))]))
+; for ifte, use struct type to decide whether this is a formula (sugar)
+; or expression form (which has its own AST node). Avoid exponential
+; blowup from chained IFTEs by expanding to a chain of function calls.
+(define (ifte-disambiguator info a b c)
+  (if (node/formula? b)
+      (&&/info info
+               (=>/info info a b)
+               (=>/info info (! a) c))
+      (ite/info info a b c)))
+(define-syntax (ifte stx)
+  (syntax-case stx ()
+    [(_ a b c) (quasisyntax/loc stx
+                 (ifte-disambiguator (nodeinfo #,(build-source-location stx)) a b c))]))
 
 (define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx)) b a))]))
 (define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))

@@ -42,7 +42,11 @@ pred traces {
 pred roadsOnlyCrossPolities {
   traces
   always {
-      no disj c1, c2: City | c1->c2 in roads and c1->c2 in polity
+      --no disj c1, c2: City | c1->c2 in roads and c1->c2 in polity
+      no c1, c2: City | {
+        c1 != c2
+        c1->c2 in roads and c1->c2 in polity
+      }
   }
 }
 

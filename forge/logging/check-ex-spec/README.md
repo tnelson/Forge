@@ -18,3 +18,12 @@ There are two goals:
 Hope to delete this backup eventually,
 Ben G
 
+
+## Cloud Function
+
+Used to have a cloud function
+
+- name = cs1710_check-ex-spec ?
+- trigger = https://us-east1-pyret-examples.cloudfunctions.net/cs1710-2021-examplar
+- source = index.js (here)
+- deps = package.js (here)

@@ -47,7 +47,6 @@
   (define result (local-expand stx 'expression core-funcs-and-macros))
   result)
 
-
 (begin-for-syntax
   ; AlloyModule : ModuleDecl? Import* Paragraph*
   ;             | EvalDecl*
@@ -162,12 +161,12 @@
   ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
   (define-syntax-class DeclClass
     (pattern ((~literal Decl)
-              (~optional "disj")
+              ;(~optional "disj")
               names:NameListClass
-              (~optional "disj")
+              ;(~optional "disj")
               (~optional "set")
               expr:ExprClass)
-      #:attr translate (with-syntax ([expr (my-expand #'expr)])
+      #:attr translate (with-syntax ([expr #'expr])
                          #'((names.names expr) ...))))
 
   ; DeclList : Decl
@@ -183,10 +182,10 @@
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
   (define-syntax-class ArrowDeclClass
     (pattern ((~literal ArrowDecl)
-              (~optional "disj")
+              ;(~optional "disj")
               (~optional isv:VarKeywordClass #:defaults ([isv #'#f])) ; electrum
               name-list:NameListClass
-              (~optional "disj") 
+              ;(~optional "disj") 
               mult-class:ArrowMultClass
               type-list:ArrowExprClass)
       #:attr names #'(name-list.names ...)
@@ -229,7 +228,7 @@
               name:NameClass
               (~optional decls:ParaDeclsClass)
               output:ExprClass
-              block:BlockClass)))
+              body:ExprClass)))
 
   ; ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
   ;           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
@@ -402,8 +401,8 @@
     (pattern ((~literal Bounds)
               (~optional "exactly")
               exprs:ExprClass ...)
-      #:attr translate (datum->syntax #'(exprs ...) 
-                                      (map my-expand (syntax->list #'(exprs ...))))))
+      #:attr translate (datum->syntax #'(exprs ...)
+                                      (syntax->list #'(exprs ...)))))
 
   ; EXPRESSIONS
 
@@ -444,7 +443,7 @@
     (pattern ((~literal LetDecl)
               name:id
               exp:ExprClass)
-      #:attr translate (with-syntax ([exp (my-expand #'exp)]) 
+      #:attr translate (with-syntax ([exp #'exp]) 
                          #'(name exp))))
 
   ; LetDeclList : LetDecl
@@ -458,9 +457,9 @@
   (define-syntax-class BlockOrBarClass
       #:attributes (exprs)
     (pattern ((~literal BlockOrBar) block:BlockClass)
-      #:attr exprs (my-expand #'block))
+      #:attr exprs #'block)
     (pattern ((~literal BlockOrBar) "|" exp:ExprClass)
-      #:attr exprs (my-expand #'exp)))
+      #:attr exprs #'exp))
 
   ; Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
   (define-syntax-class QuantClass
@@ -472,8 +471,8 @@
       #:attr symbol (syntax/loc #'q sum-quant)))
 
   (define-syntax-class ExprClass
-    (pattern ((~or (~literal Expr) (~literal Expr0.5) (~literal Expr1) (~literal Expr2) (~literal Expr3)
-                   (~literal Expr4) (~literal Expr5) (~literal Expr6) (~literal Expr7) (~literal Expr7.5)
+    (pattern ((~or (~literal Expr) (~literal Expr1) (~literal Expr2) (~literal Expr3)
+                   (~literal Expr4) (~literal Expr4.5) (~literal Expr5) (~literal Expr6) (~literal Expr7) (~literal Expr7.5)
                    (~literal Expr8) (~literal Expr9) (~literal Expr10) (~literal Expr11)
                    (~literal Expr12) (~literal Expr13) (~literal Expr14) (~literal Expr15)
                    (~literal Expr16) (~literal Expr17))
@@ -579,10 +578,10 @@
                        [relation-types (syntax->list #'(arrow-decl.types ...))]
                        [relation-is-var (syntax->list #'(arrow-decl.is-var ...))]
                        [relation-mult (syntax->list #'((~? arrow-decl.mult default) ...))])
-              (for/list ([relation-name (syntax->list relation-names)])            
+              (for/list ([relation-name (syntax->list relation-names)])
                 (with-syntax ([relation-name relation-name]
                               [relation-types (datum->syntax relation-types 
-                                                             (cons (syntax->datum sig-name)
+                                                             (cons sig-name ;(syntax->datum sig-name)
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])                                             
@@ -609,7 +608,7 @@
   [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         block:BlockClass)
-   (with-syntax ([block (my-expand #'block)])
+   (with-syntax ([block #'block])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
@@ -621,7 +620,7 @@
                         block:BlockClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
                                                    (syntax->list #'decls.translate)))]
-                 [block (my-expand #'block)])
+                 [block #'block])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
@@ -633,23 +632,23 @@
   [((~literal FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        output:ExprClass
-                       block:BlockClass)
-   (with-syntax ([block (my-expand #'block)])
+                       body:ExprClass)
+   (with-syntax ([body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (const name.name block))))]
+       (const name.name body))))]
 
   [((~literal FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        decls:ParaDeclsClass
                        output:ExprClass
-                       block:BlockClass)
+                       body:ExprClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
                                                    (syntax->list #'decls.translate)))]
-                 [block (my-expand #'block)])
+                 [body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (fun decl block))))]))
+       (fun decl body))))]))
 
 ; AssertDecl : /ASSERT-TOK Name? Block
 (define-syntax (AssertDecl stx)
@@ -670,7 +669,7 @@
    (with-syntax ([cmd-type (datum->syntax #'cmd-type
                                          (string->symbol (syntax->datum #'cmd-type)))]
                  [name #'(~? name.name temporary-name)]
-                 [preds (my-expand #'(~? pred.name preds))])
+                 [preds #'(~? pred.name preds)])
     #`(begin
        #,(syntax/loc stx (cmd-type name (~? (~@ #:preds [preds]))
                       (~? (~@ #:scope scope.translate))
@@ -688,7 +687,7 @@
                         (~optional bounds:BoundsClass)
                         (~and expected (~or "sat" "unsat" "theorem")))
    (with-syntax ([name #'(~? name.name temporary-name)]
-                 [preds (my-expand #'(~? pred.name preds))]
+                 [preds #'(~? pred.name preds)]
                  [expected (datum->syntax #'expected
                                           (string->symbol (syntax->datum #'expected)))])
      (syntax/loc stx
@@ -737,13 +736,23 @@
        (~? (raise (format "Scope not implemented for bounds ~a" 'scope)))
        (inst name.name bounds ...))))]))
 
+(define (disambiguate-block xs)
+  (cond [(empty? xs) 
+         ; {} always means the formula true
+         true]
+        [(and (equal? 1 (length xs)) (node/expr? (first xs)))
+         (first xs)]
+        [(node/formula? (first xs))
+         (&& xs)]
+        [else 
+         (raise-user-error (first xs) (format "Ill-formed block"))]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (Block stx)
   (syntax-parse stx
     [((~literal Block) exprs:ExprClass ...)
-     (with-syntax ([(exprs ...) (map my-expand (syntax->list #'(exprs ...)))])
-       (syntax/loc stx (and exprs ...)))]))
+     (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
+       (syntax/loc stx (disambiguate-block (list exprs ...))))]))
 
 (define-syntax (Expr stx)
   (syntax-parse stx
@@ -760,7 +769,7 @@
   [((~literal Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (or expr1 expr2)))]
+     (syntax/loc stx (|| expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -782,7 +791,7 @@
   [((~literal Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (and expr1 expr2)))]
+     (syntax/loc stx (&& expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -932,6 +941,9 @@
   [((~literal Expr) "this")
    (syntax/loc stx this)]
 
+  [((~literal Expr) "`" name:NameClass)
+   (syntax/loc stx (atom 'name.name))]
+
   [((~literal Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
    (syntax/loc stx (set decls.translate bob.exprs))]
 
@@ -939,9 +951,7 @@
    (my-expand (syntax/loc stx block))]
 
   [((~literal Expr) sexpr:SexprClass)
-   (syntax/loc stx (read sexpr))]
-
-  ))
+   (syntax/loc stx (read sexpr))]))
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't
@@ -957,11 +967,12 @@
              #:track-literals
              [((~var macro-id id) . pattern) pattern-directive ... (syntax/loc stx template)]))))]))
 
-(dsm-keep (Expr0.5 stx ...) (Expr stx ...))
+
 (dsm-keep (Expr1 stx ...) (Expr stx ...))
 (dsm-keep (Expr2 stx ...) (Expr stx ...))
 (dsm-keep (Expr3 stx ...) (Expr stx ...))
 (dsm-keep (Expr4 stx ...) (Expr stx ...))
+(dsm-keep (Expr4.5 stx ...) (Expr stx ...))
 (dsm-keep (Expr5 stx ...) (Expr stx ...))
 (dsm-keep (Expr6 stx ...) (Expr stx ...))
 (dsm-keep (Expr7 stx ...) (Expr stx ...))
