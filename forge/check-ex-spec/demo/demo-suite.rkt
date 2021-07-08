@@ -1,6 +1,6 @@
 #lang forge/check-ex-spec "forge1/directed_tree" "anon@gmail.com"
 
-/*
+
 --     A0
 --    /  \
 --   A1  A2
@@ -52,4 +52,4 @@ example forest is not isDirectedTree[edges] for {
 	Atom = `A0 + `A1 + `A2 + `A3 + `A4
 	edges = `A0->`A1 + `A2->`A3 + `A2->`A4
 }
-*/
+
