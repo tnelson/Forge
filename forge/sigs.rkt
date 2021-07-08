@@ -587,8 +587,6 @@
           (define pipe1 (open-input-string str-command))
           (define pipe2 (open-input-string (format "eval ~a" str-command)))
 
-          (printf "LANGUAGE: ~a~n" (get-option curr-state 'eval-language))  
-
           (with-handlers ([(lambda (x) #t) 
                            (lambda (exn) (exn-message exn))])
             ; Read command as syntax from pipe
