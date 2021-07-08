@@ -7,7 +7,7 @@ From command line:
 	However, it compiles properly so we still get a nice jar
 	if we skip running the tests.
 	This will create pardinus-1.2.3.jar in the Pardinus/target directory.
-4. cd <forge-reop-parent-dir>/Forge/forge/pardinus-cli/jar
+4. cd <forge-repo-parent-dir>/Forge/forge/pardinus-cli/jar
 5. cp <pardinus-repo-parent-dir>/Pardinus/target/pardinus-1.2.3.jar kodkod.jar
 	For now, I'm still calling it kodkod.jar -
 	I'll deal with renaming after we know it works.
