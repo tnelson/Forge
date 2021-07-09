@@ -55,9 +55,26 @@
   (define info-string (bytes->string/utf-8 (download (format "summary-~a" (string-replace assignment-name "/" "-")) "json" #t)))
   (define info (string->jsexpr info-string))
 
-  (for ([file (append (hash-ref info 'wheats) (hash-ref info 'chaffs))])
-    (download (format "~a_rkt" file) "zo" #f)
-    (download (format "~a_rkt" file) "dep" #f))
+
+
+  (define old_checksum_string 
+    (with-handlers ([exn? (lambda (e) "a")])
+     (with-input-from-file "compiled/sum.txt" (lambda () (port->string)))))
+
+  (with-handlers ()
+    (download "sum" "txt" #f))
+  
+  (define new_checksum_string 
+    (with-handlers ([exn? (lambda (e) (println e) "b")])
+     (with-input-from-file "compiled/sum.txt" (lambda () (port->string)))))
+
+  (println old_checksum_string)
+  (println new_checksum_string)
+
+  (unless (equal? old_checksum_string new_checksum_string)
+    (for ([file (append (hash-ref info 'wheats) (hash-ref info 'chaffs))])
+      (download (format "~a_rkt" file) "zo" #f)
+      (download (format "~a_rkt" file) "dep" #f)))
 
   info)
 
