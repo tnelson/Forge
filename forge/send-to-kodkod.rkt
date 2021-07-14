@@ -241,6 +241,7 @@
 
   ; Run last-minute checks for errors  
   (for-each (lambda (c)
+              (printf "run-constraint: ~a~n" c)
               (checkFormula run-spec c '() checks:checker-hash))
             run-constraints)
 

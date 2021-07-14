@@ -27,7 +27,7 @@
        (or/c node/formula? node/expr?)
        list?
        hash?
-       (or/c boolean? (listof (listof symbol?))))
+       (or/c boolean? void? (listof (listof symbol?))))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkFormula: ~a~n" formula))
@@ -81,8 +81,8 @@
        (or/c node/formula? node/expr?)
        list?
        (listof (or/c node/expr? node/int?))
-       hash?   
-       (listof (listof symbol?)))
+       hash?
+       (or/c void? (listof (listof symbol?))))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkFormulaOp: ~a~n" formula))
@@ -168,14 +168,14 @@
      (check-and-output formula
                        node/formula/op/in
                        checker-hash
-                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+                       (for-each (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))]
     
     ; EQUALS 
     [(? node/formula/op/=?)
      (check-and-output formula
                        node/formula/op/=
                        checker-hash
-                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+                       (for-each (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))]
 
     ; NEGATION
     [(? node/formula/op/!?)
@@ -375,7 +375,7 @@
                        (foldl
                          (lambda (x acc)
                            (keep-only (checkExpression run-or-state x quantvars checker-hash) acc))
-                         (checkExpression run-or-state (first args) quantvars)
+                         (checkExpression run-or-state (first args) quantvars checker-hash)
                          (rest args)))]
     
     ; PRODUCT
@@ -390,7 +390,7 @@
     ; JOIN
     [(? node/expr/op/join?)
      (check-and-output expr
-                       node/expr/op/join?
+                       node/expr/op/join
                        checker-hash
                        (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)]
                               [join-result (check-join child-values)])
