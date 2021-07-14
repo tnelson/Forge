@@ -1,7 +1,7 @@
 #lang forge
 
 sig Node {
-  edges: Node
+  edges: set Node
          }
 
 pred symmetric {
@@ -13,7 +13,7 @@ pred noselfloops {
                   }
 
 pred nexus {
-  some n: Node | all n': Node-n | n' in n.^edges
+  some n1: Node | all n2: Node-n1 | n2 in n1.^edges
            }
 
 -- disj

@@ -11,39 +11,63 @@
 (provide checkFormula checkExpression primify)
 
 ; Recursive descent for last-minute consistency checking
-; Catch potential issues not detected by AST construction + generate warnings 
+; Catch potential issues not detected by AST construction + generate warnings
 
-(define (checkFormula run-or-state formula quantvars)
+; This function only exists for code-reuse - it's so that we don't
+; need to use begin and hash-ref in every single branch of the match
+; Given a struct to handle, a hashtable to search for a handler in,
+; and an output to return, executes the check in the handler
+; then returns the output
+(define (check-and-output ast-node to-handle checker-hash output)
+  (begin ((hash-ref checker-hash to-handle) ast-node)
+         output))
+
+(define/contract (checkFormula run-or-state formula quantvars checker-hash)
+  (@-> (or/c Run? State? Run-spec?)
+       (or/c node/formula? node/expr?)
+       list?
+       hash?
+       (or/c boolean? (listof (listof symbol?))))
+
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkFormula: ~a~n" formula))
   
   (match formula    
     [(node/formula/constant info type)
-     #f]
+     (check-and-output formula node/formula/constant checker-hash #f)]
     
     [(node/formula/op info args)
-     (checkFormulaOp run-or-state formula quantvars args)]
+     (check-and-output formula
+                       node/formula/op
+                       checker-hash
+                       (checkFormulaOp run-or-state formula quantvars args checker-hash))]
         
     [(node/formula/multiplicity info mult expr)
-      (checkExpression run-or-state expr quantvars)]
+     (check-and-output formula
+                       node/formula/multiplicity
+                       checker-hash
+                       (checkExpression run-or-state expr quantvars checker-hash))]
     
     [(node/formula/quantified info quantifier decls subform)
-     (for-each
-      (lambda (decl)
-        (let ([var (car decl)]
-              [domain (cdr decl)])
-          ; CHECK: shadowed variables
-          #;(when (assoc var quantvars)
-            (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-          ; CHECK: recur into domain(s)
-          (checkExpression run-or-state domain quantvars)))
-      decls)
-
-     ; Extend domain environment
-     (let ([new-quantvars (append (map assocify decls) quantvars)])       
-       ; CHECK: recur into subformula
-       (checkFormula run-or-state subform new-quantvars))]    
+     (check-and-output formula
+                       node/formula/quantified
+                       checker-hash
+                       (begin (for-each
+                                (lambda (decl)
+                                  (let ([var (car decl)]
+                                        [domain (cdr decl)])
+                                    ; CHECK: shadowed variables
+                                    (when (assoc var quantvars)
+                                      (raise-syntax-error #f
+                                                          (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                                          (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
+                                    ; CHECK: recur into domain(s)
+                                    (checkExpression run-or-state domain quantvars checker-hash)))
+                                decls)
+                              ; Extend domain environment
+                              (let ([new-quantvars (append (map assocify decls) quantvars)])       
+                                ; CHECK: recur into subformula
+                                (checkFormula run-or-state subform new-quantvars checker-hash))))]
     [else (error (format "no matching case in checkFormula for ~a" formula))]))
 
 (define (assocify a-pair)  
@@ -52,48 +76,113 @@
 
 ; This function isn't technically needed at the moment: every branch just recurs
 ; However, keeping the structure here for easy addition of new checks
-(define (checkFormulaOp run-or-state formula quantvars args)  
+(define/contract (checkFormulaOp run-or-state formula quantvars args checker-hash)
+  (@-> (or/c Run? State? Run-spec?)
+       (or/c node/formula? node/expr?)
+       list?
+       (listof (or/c node/expr? node/int?))
+       hash?   
+       (listof (listof symbol?)))
+
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkFormulaOp: ~a~n" formula))
 
   (match formula
     
     ; TEMPORAL OPERATORS
-    [(? node/formula/op/always?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
-    [(? node/formula/op/eventually?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
-    [(? node/formula/op/until?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
-    [(? node/formula/op/releases?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
-    [(? node/formula/op/after?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+    [(? node/formula/op/always?)
+     (check-and-output formula
+                       node/formula/op/always
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+    [(? node/formula/op/eventually?)
+     (check-and-output formula
+                       node/formula/op/eventually
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+    [(? node/formula/op/until?)
+     (check-and-output formula
+                       node/formula/op/until
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+    [(? node/formula/op/releases?)
+     (check-and-output formula
+                       node/formula/op/releases
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+    [(? node/formula/op/after?)
+     (check-and-output formula
+                       node/formula/op/after
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
-    [(? node/formula/op/historically?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
-    [(? node/formula/op/once?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
-    [(? node/formula/op/before?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
-    [(? node/formula/op/since?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
-    [(? node/formula/op/triggered?) (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+    [(? node/formula/op/historically?)
+     (check-and-output formula
+                       node/formula/op/historically
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+    [(? node/formula/op/once?)
+     (check-and-output formula
+                       node/formula/op/once
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+    [(? node/formula/op/before?)
+     (check-and-output formula
+                       node/formula/op/before
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+    [(? node/formula/op/since?)
+     (check-and-output formula
+                       node/formula/op/since
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
+    [(? node/formula/op/triggered?)
+     (check-and-output formula
+                       node/formula/op/triggered
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; AND 
      [(? node/formula/op/&&?)
-      (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+      (check-and-output formula
+                        node/formula/op/&&
+                        checker-hash
+                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
 
     ; OR
     [(? node/formula/op/||?)
-     (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+     (check-and-output formula
+                       node/formula/op/||
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; IMPLIES
     [(? node/formula/op/=>?)
-     (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+     (check-and-output formula
+                       node/formula/op/=>
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
-     (for-each (lambda (x) (checkExpression run-or-state x quantvars)) args)]
+     (check-and-output formula
+                       node/formula/op/in
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; EQUALS 
     [(? node/formula/op/=?)
-     (for-each (lambda (x) (checkExpression run-or-state x quantvars)) args)]
+     (check-and-output formula
+                       node/formula/op/=
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
 
     ; NEGATION
     [(? node/formula/op/!?)
-     (for-each (lambda (x) (checkFormula run-or-state x quantvars)) args)]
+     (check-and-output formula
+                       node/formula/op/!
+                       checker-hash
+                       (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; INTEGER >
     [(? node/formula/op/int>?)
@@ -132,8 +221,12 @@
 ; For expressions, this descent does two things:
 ;   - collects possible typings of expressions
 ;   - throws syntax errors as needed (using typing info from children)
-(define/contract (checkExpression run-or-state expr quantvars)
-  (@-> (or/c Run? State? Run-spec?) node/expr? list? (listof (listof symbol?)))
+(define/contract (checkExpression run-or-state expr quantvars checker-hash)
+  (@-> (or/c Run? State? Run-spec?)
+       node/expr?
+       list?
+       hash?
+       (listof (listof symbol?)))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkExpression: ~a~n" expr))
@@ -144,66 +237,86 @@
   (match expr
 
     ; relation name (base case)
-    [(node/expr/relation info arity name typelist-thunk parent isvar)     
-     (apply cartesian-product (map primifyThis (typelist-thunk)))]
+    [(node/expr/relation info arity name typelist-thunk parent isvar)
+     (check-and-output expr
+                       node/expr/relation
+                       checker-hash
+                       (apply cartesian-product (map primifyThis (typelist-thunk))))]
 
     ; atom (base case)
     [(node/expr/atom info arity name)
-     ; overapproximate for now (TODO: get atom's sig)     
-     (map list (primify run-or-state 'univ))]
+     (check-and-output expr
+                       node/expr/atom
+                       checker-hash
+                       ; overapproximate for now (TODO: get atom's sig)     
+                       (map list (primify run-or-state 'univ)))]
     
-    [(node/expr/ite info arity a b c)     
-     (checkFormula run-or-state a quantvars) ; Check condition formula
-     (let ([b-potentials (checkExpression run-or-state b quantvars)]
-           [c-potentials (checkExpression run-or-state c quantvars)])
-       ; Might be a or b, we don't know
-       (remove-duplicates (append b-potentials c-potentials)))]
+    [(node/expr/ite info arity a b c)
+     (check-and-output expr
+                       node/expr/ite
+                       checker-hash
+                       (begin (checkFormula run-or-state a quantvars checker-hash) ; Check condition formula
+                              (let ([b-potentials (checkExpression run-or-state b quantvars checker-hash)]
+                                    [c-potentials (checkExpression run-or-state c quantvars checker-hash)])
+                                ; Might be a or b, we don't know
+                                (remove-duplicates (append b-potentials c-potentials)))))]
     
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
-       (list (list 'Int))]
+     (check-and-output expr
+                       node/expr/constant
+                       checker-hash
+                       (list (list 'Int)))]
 
     ; other expression constants
     [(node/expr/constant info arity type)
-     (let ([prims (primify run-or-state 'univ)])
-       (cond [(equal? arity 1)
-              (map list prims)]
-             [else     
-              (cartesian-product prims prims)]))]
+     (check-and-output expr
+                       node/expr/constant
+                       checker-hash
+                       (let ([prims (primify run-or-state 'univ)])
+                         (cond [(equal? arity 1) (map list prims)]
+                               [else (cartesian-product prims prims)])))]
     
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
-     (checkExpressionOp run-or-state expr quantvars args)]
+     (check-and-output expr
+                       node/expr/op
+                       checker-hash
+                       (checkExpressionOp run-or-state expr quantvars args checker-hash))]
  
     ; quantifier variable
     [(node/expr/quantifier-var info arity sym name)
-     ; Look up in quantvars association list, type is type of domain
-     (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
-         (checkExpression run-or-state (second (assoc expr quantvars)) quantvars)
-         (raise-syntax-error #f (format "Variable ~a used but was unbound in overall formula being checked. Bound variables: ~a" sym (map car quantvars) )
-                             (datum->syntax #f name (build-source-location-syntax (nodeinfo-loc info)))))]
+     (check-and-output expr
+                       node/expr/quantifier-var
+                       checker-hash
+                       ; Look up in quantvars association list, type is type of domain
+                       (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
+                           (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
+                           (raise-syntax-error #f (format "Variable ~a used but was unbound in overall formula being checked. Bound variables: ~a" sym (map car quantvars) )
+                             (datum->syntax #f name (build-source-location-syntax (nodeinfo-loc info))))))]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info arity decls subform)
-     (define child-values       
-       (map
-        (lambda (decl)
-          (let ([var (car decl)]
-                [domain (cdr decl)])
-            ; CHECK: shadowed variables
-            (when (assoc var quantvars)
-              (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                  (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-            ; CHECK: recur into domain(s)
-            (checkExpression run-or-state domain quantvars))) decls))
-
-     ; Extend domain environment
-     (let ([new-quantvars (append (map assocify decls) quantvars)])       
-       ; CHECK: recur into subformula
-       (checkFormula run-or-state subform new-quantvars))
-
-     ; Return type constructed from decls above
-     (map flatten (map append (apply cartesian-product child-values)))]
+     (check-and-output expr
+                       node/expr/comprehension
+                       checker-hash
+                       (let ([child-values
+                              (map (lambda (decl)
+                                     (let ([var (car decl)]
+                                           [domain (cdr decl)])
+                                       ; CHECK: shadowed variables
+                                       (when (assoc var quantvars)
+                                         (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                           (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
+                                       ; CHECK: recur into domain(s)
+                                       (checkExpression run-or-state domain quantvars checker-hash)))
+                                   decls)]
+                             ; Extend domain environment
+                             [new-quantvars (append (map assocify decls) quantvars)])
+                         ; CHECK: recur into subformula
+                         (checkFormula run-or-state subform new-quantvars checker-hash)
+                         ; Return type constructed from decls above
+                         (map flatten (map append (apply cartesian-product child-values)))))]
 
     [else (error (format "no matching case in checkExpression for ~a" expr))]))
 
@@ -211,8 +324,8 @@
 (define (keep-only keepers pool)
   (filter (lambda (ele) (member ele keepers)) pool))
 
-(define/contract (checkExpressionOp run-or-state expr quantvars args)
-  (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?))   
+(define/contract (checkExpressionOp run-or-state expr quantvars args checker-hash)
+  (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?)) hash?   
        (listof (listof symbol?)))
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkExpressionOp: ~a~n" expr))
@@ -222,62 +335,101 @@
 
     ; prime
     [(? node/expr/op/prime?)
-     (checkExpression run-or-state (first args) quantvars)]
+     (check-and-output expr
+                       node/expr/op/prime
+                       checker-hash
+                       (checkExpression run-or-state (first args) quantvars checker-hash))]
 
     ; UNION
     [(? node/expr/op/+?)
-     (remove-duplicates (apply append (map (lambda (x) (checkExpression run-or-state x quantvars)) args)))]
+     (check-and-output expr
+                       node/expr/op/+
+                       checker-hash
+                       (remove-duplicates (apply append
+                                                 (map (lambda (x)
+                                                        (checkExpression run-or-state x quantvars checker-hash))
+                                                      args))))]
 
     [(? node/expr/op/<:?)
-     (remove-duplicates (apply append (map (lambda (x) (checkExpression run-or-state x quantvars)) args)))]
+     (check-and-output expr
+                       node/expr/op/<:
+                       checker-hash
+                       (remove-duplicates (apply append
+                                                 (map (lambda (x)
+                                                        (checkExpression run-or-state x quantvars checker-hash))
+                                                      args))))]
     
     ; SETMINUS 
     [(? node/expr/op/-?)
-     ; A-B should have only 2 children. B may be empty.
-     (checkExpression run-or-state (first args) quantvars)]
+     (check-and-output expr
+                       node/expr/op/-
+                       checker-hash
+                       ; A-B should have only 2 children. B may be empty.
+                       (checkExpression run-or-state (first args) quantvars checker-hash))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
-     (foldl
-      (lambda (x acc)
-        (keep-only (checkExpression run-or-state x quantvars) acc))
-      (checkExpression run-or-state (first args) quantvars)
-      (rest args))]
+     (check-and-output expr
+                       node/expr/op/&
+                       checker-hash
+                       (foldl
+                         (lambda (x acc)
+                           (keep-only (checkExpression run-or-state x quantvars checker-hash) acc))
+                         (checkExpression run-or-state (first args) quantvars)
+                         (rest args)))]
     
     ; PRODUCT
     [(? node/expr/op/->?)
-     (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars)) args)]
-            [result (map flatten (map append (apply cartesian-product child-values)))])       
-       result)]
+     (check-and-output expr
+                       node/expr/op/->
+                       checker-hash
+                       (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)]
+                              [result (map flatten (map append (apply cartesian-product child-values)))])       
+                         result))]
    
     ; JOIN
     [(? node/expr/op/join?)
-     (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars)) args)]
-            [join-result (check-join child-values)])
-       (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
-         (when (empty? join-result)
-           (raise-syntax-error #f (format "join always results in an empty relation")
-                               (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr)))))))
-         join-result)]
+     (check-and-output expr
+                       node/expr/op/join?
+                       checker-hash
+                       (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)]
+                              [join-result (check-join child-values)])
+                         (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
+                           (when (empty? join-result)
+                             (raise-syntax-error #f (format "join always results in an empty relation")
+                                                 (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr)))))))
+                           join-result))]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
-    (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars)) args)])     
-      (check-closure (first child-values)))]
+     (check-and-output expr
+                       node/expr/op/^
+                       checker-hash
+                       (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)])     
+                         (check-closure (first child-values))))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
-     ; includes iden, so might contain any arity-2 tuple
-     (let ([prims (primify run-or-state 'univ)])
-       (cartesian-product prims prims))]
+     (check-and-output expr
+                       node/expr/op/*
+                       checker-hash
+                       ; includes iden, so might contain any arity-2 tuple
+                       (let ([prims (primify run-or-state 'univ)])
+                         (cartesian-product prims prims)))]
 
     ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
     [(? node/expr/op/~?)
-      (map reverse (checkExpression run-or-state (first args) quantvars))]
+     (check-and-output expr
+                       node/expr/op/~
+                       checker-hash
+                       (map reverse (checkExpression run-or-state (first args) quantvars checker-hash)))]
     
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
-     (list (list 'Int))]))
+     (check-and-output expr
+                       node/expr/op/sing
+                       checker-hash
+                       (list (list 'Int)))]))
 ;  (printf "result for ~a was ~a~n" expr RESULT)
   RESULT)
 

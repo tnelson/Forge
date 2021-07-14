@@ -7,6 +7,7 @@
 (require "shared.rkt"
          (prefix-in tree: "lazy-tree.rkt")
          "last-checker.rkt"
+         (prefix-in checks: "lang/lang-specific-checks.rkt")
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
 (require (prefix-in @ racket))
@@ -239,7 +240,9 @@
     (append explicit-constraints implicit-constraints))
 
   ; Run last-minute checks for errors  
-  (for-each (lambda (c) (checkFormula run-spec c '())) run-constraints) 
+  (for-each (lambda (c)
+              (checkFormula run-spec c '() checks:checker-hash))
+            run-constraints)
 
   ; Keep track of which formula corresponds to which CLI assert
   ; for highlighting unsat cores. TODO: map back from CLI output
