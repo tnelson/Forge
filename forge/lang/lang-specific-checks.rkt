@@ -114,7 +114,7 @@
 (define (check-node-expr-op-join expr-node)
   (define left-hand-side (first (node/expr/op-children expr-node)))
   (unless (or (node/expr/quantifier-var? left-hand-side)
-          (and (node/expr/relation? left-hand-side) (Sig-one left-hand-side)))
+          (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
     (raise-user-error "Left hand side of field acess must be a sig")))
 
 (define (check-node-expr-op-^ expr-node)
