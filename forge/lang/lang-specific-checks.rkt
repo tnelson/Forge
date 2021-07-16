@@ -1,6 +1,7 @@
 #lang racket
 
 (require "ast.rkt")
+(require forge/sigs-structs)
 
 (define (check-node-formula-constant formula-node)
   (void))
@@ -112,9 +113,9 @@
 
 (define (check-node-expr-op-join expr-node)
   (define left-hand-side (first (node/expr/op-children expr-node)))
-  (unless (and (equal? 1 (node/expr-arity left-hand-side))
-               (node/expr/relation? left-hand-side))
-    (raise-user-error "Left hand side of join must be sig name")))
+  (unless (or (node/expr/quantifier-var? left-hand-side)
+          (and (node/expr/relation? left-hand-side) (Sig-one left-hand-side)))
+    (raise-user-error "Left hand side of field acess must be a sig")))
 
 (define (check-node-expr-op-^ expr-node)
   (void))
