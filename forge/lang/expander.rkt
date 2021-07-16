@@ -765,6 +765,8 @@
   [((~literal Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (q.symbol decls.translate bob.exprs))] ; stx, not #'q
 
+  [((~literal Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
+   (syntax/loc stx (q.symbol #:disj decls.translate bob.exprs))] ; stx, not #'q
 
   [((~literal Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]

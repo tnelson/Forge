@@ -708,12 +708,22 @@
     (raise-argument-error mult "expr?" expr))
   (node/formula/multiplicity info mult expr))
 
+(define (no-pairwise-intersect vars)
+  (apply &&/func (no-pairwise-intersect-recursive-helper vars)))
+
+(define (no-pairwise-intersect-recursive-helper vars)
+  (cond [(empty? vars) (raise-user-error "Cannot take pairwise intersection of empty list")]
+        [(empty? (rest vars)) (list true)]
+        [else (append (map (lambda (elt) (no (& (first vars) elt))) (rest vars))
+                      (no-pairwise-intersect-recursive-helper (rest vars)))]))
 
 (define (all-quant/func decls formula #:info [node-info empty-nodeinfo])
   (quantified-formula node-info 'all decls formula))
 
 (define-syntax (all stx)
   (syntax-case stx ()
+    [(_ #:disj ([v0 e0] ...) pred)
+     #'(all ([v0 e0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax???? 
      (quasisyntax/loc stx
@@ -729,10 +739,13 @@
 (define-syntax (some stx)
   (syntax-case stx ()
     [(_ () pred) #'pred] ; ignore quantifier over no variables
+    [(_ #:disj () pred) #'pred]
     [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-some" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx)) 'some (list (cons v0 e0) ...) pred)))]
+    [(_ #:disj ([v0 e0] ...) pred)
+     #'(some ([v0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
     [(_ expr)
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'some expr))]))
@@ -745,6 +758,8 @@
 
 (define-syntax (no stx)
   (syntax-case stx ()
+    [(_ #:disj ([v0 e0] ...) pred)
+     #'(! (some #:disj ([v0 e0] ...) pred))]
     [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx)) (node/expr-arity e0) (gensym (format "~a-no" 'v0)) 'v0)] ...)
@@ -761,6 +776,11 @@
 
 (define-syntax (one stx)
   (syntax-case stx ()
+    [(_ #:disj ([x1 r1] ...) pred)
+     (quasisyntax/loc stx
+       ; Kodkod doesn't have a "one" quantifier natively.
+       ; Instead, desugar as a multiplicity of a set comprehension
+       (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'one (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
     [(_ ([x1 r1] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
@@ -778,6 +798,11 @@
 
 (define-syntax (lone stx)
   (syntax-case stx ()
+    [(_ #:disj ([x1 r1] ...) pred)
+     (quasisyntax/loc stx
+       ; Kodkod doesn't have a lone quantifier natively.
+       ; Instead, desugar as a multiplicity of a set comprehension
+       (multiplicity-formula (nodeinfo #,(build-source-location stx)) 'lone (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
     [(_ ([x1 r1] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
