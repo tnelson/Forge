@@ -61,7 +61,6 @@
   (define-values (logging-on? project email) (logging:log-execution 'forge port path))
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
-
   (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                        forge:n))
 
@@ -71,10 +70,18 @@
                   (require (only-in forge/logging/logging 
                                     [flush-logs logging:flush-logs]
                                     [log-errors logging:log-errors]))
+                  (require (only-in racket printf))
 
+                  (require forge/choose-lang-specific)
+                  (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
+                  ; ANSWER: maybe using dynamic-require
+                  (set-checker-hash! checker-hash)
+                  
+                  ;(printf "ch = ~a~n" checker-hash)   
+                  
                   (logging:log-errors
                     ,ints-coerced)
-
+                  
                   (module+ execs)
                   (module+ main
                     (require (submod ".." execs))

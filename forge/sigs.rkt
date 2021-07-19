@@ -7,6 +7,8 @@
 (require (for-syntax racket/match syntax/srcloc))
 (require (for-syntax syntax/strip-context))
 
+(require forge/choose-lang-specific)
+
 (require "shared.rkt")
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
@@ -430,7 +432,9 @@
             (~optional (~seq #:target-distance target-distance))
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
-     #`(begin         
+     #`(begin
+         (define checker-hash (get-checker-hash))
+         (printf "run ch: ~a~n" checker-hash)
          (define run-state curr-state)
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
          (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
