@@ -272,6 +272,7 @@
 
 (define-node-op <: node/expr/op get-second #:max-length 2 #:domain? #t #:type node/expr?)
 (define-node-op :> node/expr/op get-first  #:max-length 2 #:range? #t #:type node/expr?)
+(define-node-op ++ node/expr/op get-first #:same-arity? #t #:min-length 2 #:max-length 2 #:type node/expr?)
 (define-node-op sing node/expr/op (const 1) #:min-length 1 #:max-length 1 #:type node/int?)
 
 (define-node-op prime node/expr/op get-first #:min-length 1 #:max-length 1 #:type node/expr?)

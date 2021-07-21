@@ -182,7 +182,7 @@
            "assert"
            "but"
            "check"
-           ;"disj"
+           "disj"
            "else"
            "eval"
            "exactly"
