@@ -6,6 +6,7 @@
 (require syntax/parse/define)
 (require racket/match)
 (require (for-syntax racket/match syntax/srcloc))
+(require syntax/srcloc)
 
 (require "shared.rkt")
 (require (prefix-in ast: "lang/ast.rkt")
@@ -134,6 +135,13 @@
        Sig?)
   ; (check-temporal-for-var is-var name)
   (define name (or raw-name (gensym 'sig)))
+
+  (define source-info-loc (nodeinfo-loc node-info))
+  (printf "SIG NAME: ~a.~n" name)
+  (printf "SIG SOURCE LINE: ~a.~n" (source-location-line source-info-loc))
+  (printf "SIG SOURCE COLUMN: ~a.~n" (source-location-column source-info-loc))
+  (printf "SIG SOURCE SPAN: ~a.~n" (source-location-span source-info-loc))
+
   (Sig node-info ; info
         
        1 ; arity
@@ -167,6 +175,12 @@
     (if raw-sigs
         (values name/sigs raw-sigs)
         (values (gensym 'relation) name/sigs)))
+
+  (define source-info-loc (nodeinfo-loc node-info))
+  (printf "RELATION NAME: ~a.~n" name)
+  (printf "RELATION SOURCE LINE: ~a.~n" (source-location-line source-info-loc))
+  (printf "RELATION SOURCE COLUMN: ~a.~n" (source-location-column source-info-loc))
+  (printf "RELATION SOURCE SPAN: ~a.~n" (source-location-span source-info-loc))
 
   ; sigs can contain sigs or thunks which return sigs
   ; in order to allow mutual references between sigs in forge surface

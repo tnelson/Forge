@@ -117,9 +117,9 @@
   ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
   (define-syntax-class SigDeclClass
     (pattern ((~literal SigDecl)
+              (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
               (~optional abstract:abstract-tok)
               (~optional mult:MultClass)
-              (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
               sig-names:NameListClass
               ;when extending with in is implemented,
               ;if "sig A in B extends C" is allowed,
@@ -529,9 +529,9 @@
 ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax (SigDecl stx)
   (syntax-parse stx
-    [((~literal SigDecl) (~optional abstract:abstract-tok)
+    [((~literal SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+                         (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
-                         (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          sig-names:NameListClass
                          ;when extending with in is implemented,
                          ;if "sig A in B extends C" is allowed,
@@ -545,14 +545,14 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       (sig sig-names.names (~? mult.symbol)
+       #'(syntax/loc stx (sig sig-names.names (~? mult.symbol)
                             (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
-                            (~? (~@ extends.symbol extends.value))) ...))]
+                            (~? (~@ extends.symbol extends.value))) ...)))]
 
-    [((~literal SigDecl) (~optional abstract:abstract-tok)
+    [((~literal SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+                         (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
-                         (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          sig-names:NameListClass
                          ;when extending with in is implemented,
                          ;if "sig A in B extends C" is allowed,
@@ -567,8 +567,15 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       (sig sig-names.names (~? mult.symbol) 
-                            (~? abstract.symbol) 
+       #;#,(syntax/loc stx
+           (begin
+             (sig sig-names.names (~? mult.symbol)
+                                  (~? abstract.symbol)
+                                  (~? (~@ #:is-var isv))
+                                  (~? (~@ extends.symbol extends.value)))
+             ...))
+       (sig sig-names.names (~? mult.symbol)
+                            (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
                             (~? (~@ extends.symbol extends.value))) ...
        #,@(apply append
@@ -584,8 +591,8 @@
                                                              (cons sig-name ;(syntax->datum sig-name)
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
-                              [is-var relation-is-var])                                             
-                      #'(relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))]))
+                              [is-var relation-is-var])
+                      (syntax/loc stx (relation relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
