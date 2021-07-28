@@ -16,7 +16,7 @@
   (unless (is-sat? run)
     (raise (format "Can't evaluate on unsat run. Expression: ~a" expression)))
   (define-values (expr-name interpretter)
-    (cond [(node/expr? expression) 
+    (cond [(node/expr? expression)
            (define currents (Run-kodkod-currents run))
            (define expression-number (Kodkod-current-expression currents)) 
            (set-Kodkod-current-expression! currents (add1 expression-number))
