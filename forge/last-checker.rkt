@@ -228,8 +228,8 @@
     [(? node/expr/op/+?)
      (remove-duplicates (apply append (map (lambda (x) (checkExpression run-or-state x quantvars)) args)))]
 
-    [(? node/expr/op/<:?)
-     (remove-duplicates (apply append (map (lambda (x) (checkExpression run-or-state x quantvars)) args)))]
+    ;[(? node/expr/op/<:?)
+    ; (remove-duplicates (apply append (map (lambda (x) (checkExpression run-or-state x quantvars)) args)))]
     
     ; SETMINUS 
     [(? node/expr/op/-?)

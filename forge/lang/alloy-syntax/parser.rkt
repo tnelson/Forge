@@ -118,7 +118,7 @@ Expr9   : @Expr10 | CARD-TOK Expr9
 Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11  : @Expr12 | Expr11 AMP-TOK Expr12
 Expr12  : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
-Expr13  : @Expr14 ;| Expr13 (SUBT-TOK | SUPT-TOK) Expr14
+Expr13  : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
                   | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
