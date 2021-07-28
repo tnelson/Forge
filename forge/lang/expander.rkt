@@ -117,9 +117,9 @@
   ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
   (define-syntax-class SigDeclClass
     (pattern ((~literal SigDecl)
+              (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
               (~optional abstract:abstract-tok)
               (~optional mult:MultClass)
-              (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
               sig-names:NameListClass
               ;when extending with in is implemented,
               ;if "sig A in B extends C" is allowed,
@@ -529,9 +529,9 @@
 ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax (SigDecl stx)
   (syntax-parse stx
-    [((~literal SigDecl) (~optional abstract:abstract-tok)
+    [((~literal SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+                         (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
-                         (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          sig-names:NameListClass
                          ;when extending with in is implemented,
                          ;if "sig A in B extends C" is allowed,
@@ -545,14 +545,14 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       (sig sig-names.names (~? mult.symbol)
+       #'(syntax/loc stx (sig sig-names.names (~? mult.symbol)
                             (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
-                            (~? (~@ extends.symbol extends.value))) ...))]
+                            (~? (~@ extends.symbol extends.value))) ...)))]
 
-    [((~literal SigDecl) (~optional abstract:abstract-tok)
+    [((~literal SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+                         (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
-                         (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          sig-names:NameListClass
                          ;when extending with in is implemented,
                          ;if "sig A in B extends C" is allowed,
@@ -567,25 +567,32 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       (sig sig-names.names (~? mult.symbol) 
-                            (~? abstract.symbol) 
-                            (~? (~@ #:is-var isv))
-                            (~? (~@ extends.symbol extends.value))) ...
+       
        #,@(apply append
+            ; for each sig in this declaration (e.g., "sig A, B, C { ...")
             (for/list ([sig-name (syntax->list #'(sig-names.names ...))]
                        #:when #t
                        [relation-names (syntax->list #'(arrow-decl.names ...))]
                        [relation-types (syntax->list #'(arrow-decl.types ...))]
                        [relation-is-var (syntax->list #'(arrow-decl.is-var ...))]
                        [relation-mult (syntax->list #'((~? arrow-decl.mult default) ...))])
-              (for/list ([relation-name (syntax->list relation-names)])
-                (with-syntax ([relation-name relation-name]
+              (cons
+               (with-syntax ([sig-name-p0 sig-name])
+                 (syntax/loc sig-name
+                   (sig sig-name-p0 (~? mult.symbol)
+                        (~? abstract.symbol)
+                        (~? (~@ #:is-var isv))
+                        (~? (~@ extends.symbol extends.value)))))
+
+              ; for each field declared
+              (for/list ([relation-name-p1 (syntax->list relation-names)])
+                (with-syntax ([relation-name relation-name-p1]
                               [relation-types (datum->syntax relation-types 
                                                              (cons sig-name ;(syntax->datum sig-name)
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
-                              [is-var relation-is-var])                                             
-                      #'(relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))]))
+                              [is-var relation-is-var])
+                      (syntax/loc relation-name-p1 (relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)

@@ -256,7 +256,7 @@
             [join-result (check-join child-values)])
        (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
          (when (empty? join-result)
-           (raise-syntax-error #f (format "join always results in an empty relation")
+           (raise-syntax-error 'join (format "join always results in an empty relation")
                                (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr)))))))
          join-result)]
     
@@ -274,7 +274,31 @@
     ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
     [(? node/expr/op/~?)
       (map reverse (checkExpression run-or-state (first args) quantvars))]
-    
+
+    ; RELATIONAL OVERRIDE
+    ; AST already checks that both arguments have the same arity
+    ; Need to check that the left sub-expression has arity at least 2
+    ; Need to check the the left and right sub-expressions have the same types
+    ; (which is much easier thanks to the AST checking that they have the same arity)
+    [(? node/expr/op/++?)
+     (let ([left-arity (node/expr-arity (first args))]
+           [left-tuples (checkExpression run-or-state (first args) quantvars)]
+           [right-tuples (checkExpression run-or-state (second args) quantvars)]
+           [syn-loc (nodeinfo-loc (node-info expr))])
+       (let ([src-line (source-location-line syn-loc)]
+             [src-col (source-location-column syn-loc)]
+             [src-span (source-location-span syn-loc)])
+         ; FIX ERROR MESSAGES
+         (unless (@>= left-arity 2)
+           (raise-user-error (format "++: arguments must have arity at least 2: got arity 1 on line ~a, column ~a, span ~a."
+                                     src-line src-col src-span)))
+         (when (set-empty? (set-intersect (list->set left-tuples)
+                                          (list->set right-tuples)))
+           (raise-user-error (format "++: right argument will never override anything in left argument on line ~a, column ~a, span ~a."
+                                     src-line src-col src-span)))
+         ; ++ has a maximum of two arguments so this should get everything
+         (remove-duplicates (append left-tuples right-tuples))))]
+
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (list (list 'Int))]))

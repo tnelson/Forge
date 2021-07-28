@@ -597,12 +597,16 @@
                      (read-syntax 'Evaluator pipe1)]
                     [else (raise-user-error "Could not evaluate in current language - must be surface or core.")]))
 
+            (printf "Run Atoms: ~a~n" (Run-atoms run))
+
             ; Evaluate command
             (define full-command (datum->syntax #f `(let
               ,(for/list ([atom (Run-atoms run)]
                           #:when (symbol? atom))
                  `[,atom (atom ',atom)])
                  ,expr)))
+
+            (printf "full-command: ~a~n" full-command)
             
             (define ns (namespace-anchor->namespace (nsa)))
             (define command (eval full-command ns))
