@@ -1,7 +1,7 @@
 #lang forge
 
 option problem_type temporal
-
+/*
 sig A {}
 sig B {}
 sig C {}
@@ -18,8 +18,8 @@ abstract sig G {}
 var sig X {}
 var one sig Y {}
 var abstract sig Z {}
+*/
 
-/*
 sig A {
 	a: set A
 }
@@ -62,4 +62,4 @@ var one sig Y {
 var abstract sig Z {
 	z: set Z
 }
-*/
+
