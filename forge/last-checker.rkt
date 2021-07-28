@@ -256,7 +256,7 @@
             [join-result (check-join child-values)])
        (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
          (when (empty? join-result)
-           (raise-syntax-error #f (format "join always results in an empty relation")
+           (raise-syntax-error 'join (format "join always results in an empty relation")
                                (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr)))))))
          join-result)]
     

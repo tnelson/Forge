@@ -64,40 +64,40 @@
   (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
   
   (when (< (length args) min-length)
-    (raise-syntax-error #f (format "building ~a; not enough arguments: required ~a got ~a at loc: ~a"
+    (raise-syntax-error op (format "building ~a; not enough arguments: required ~a got ~a at loc: ~a"
                                    op min-length args locstr)
                         (datum->syntax #f args (build-source-location-syntax loc))))
   (unless (false? max-length)
     (when (> (length args) max-length)
-      (raise-syntax-error #f (format "too many arguments to ~a; maximum ~a, got ~a at loc: ~a" op max-length args locstr)
+      (raise-syntax-error op (format "too many arguments to ~a; maximum ~a, got ~a at loc: ~a" op max-length args locstr)
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (for ([a (in-list args)])
     (unless (type? a)
-      (raise-syntax-error #f (format "argument to ~a had unexpected type. expected ~a, got ~a. loc: ~a" op type? a locstr)
+      (raise-syntax-error op (format "argument to ~a had unexpected type. expected ~a, got ~a. loc: ~a" op type? a locstr)
                           (datum->syntax #f args (build-source-location-syntax loc))))
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
-        (raise-syntax-error #f (format "argument to ~a was not expression with arity ~v (got: ~a) at loc: ~a" op arity a locstr)
+        (raise-syntax-error op (format "argument to ~a was not expression with arity ~v (got: ~a) at loc: ~a" op arity a locstr)
                             (datum->syntax #f args (build-source-location-syntax loc))))))
   (when same-arity?
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
         (unless (equal? (node/expr-arity a) arity)
-          (raise-syntax-error #f (format "arguments to ~a must have same arity. got ~a and ~a at loc: ~a"
+          (raise-syntax-error op (format "arguments to ~a must have same arity. got ~a and ~a at loc: ~a"
                                          op arity (node/expr-arity a) locstr)
                            (datum->syntax #f args (build-source-location-syntax loc)))))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
-       (raise-syntax-error #f (format "join would create a relation of arity 0 at loc: ~a" locstr)
+       (raise-syntax-error op (format "join would create a relation of arity 0 at loc: ~a" locstr)
                            (datum->syntax #f args (build-source-location-syntax loc)))))
   
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)      
-      (raise-syntax-error #f (format "second argument to ~a must have arity 1 at loc: ~a" op locstr)
+      (raise-syntax-error op (format "second argument to ~a must have arity 1 at loc: ~a" op locstr)
                           (datum->syntax #f args (build-source-location-syntax loc)))))
   (when domain?
     (unless (equal? (node/expr-arity (car args)) 1)      
-      (raise-syntax-error #f (format "first argument to ~a must have arity 1 at loc: ~a" op locstr)
+      (raise-syntax-error op (format "first argument to ~a must have arity 1 at loc: ~a" op locstr)
                              (datum->syntax #f args (build-source-location-syntax loc))))))
 
 ;; EXPRESSIONS -----------------------------------------------------------------
