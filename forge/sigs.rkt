@@ -434,7 +434,7 @@
                             (~and #:target-contrast target-contrast)))) ...)
      #`(begin
          (define checker-hash (get-checker-hash))
-         (printf "run ch: ~a~n" checker-hash)
+         ;(printf "run ~n ch= ~a~n" checker-hash)
          (define run-state curr-state)
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
          (define run-preds (~? (list preds ...) (~? (list pred) (list))))         

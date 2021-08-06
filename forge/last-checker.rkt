@@ -80,7 +80,7 @@
   (@-> (or/c Run? State? Run-spec?)
        (or/c node/formula? node/expr?)
        list?
-       (listof (or/c node/expr? node/int?))
+       (listof (or/c node/expr? node/int? node/formula?))
        hash?
        (or/c void? (listof (listof symbol?))))
 

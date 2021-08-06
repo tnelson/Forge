@@ -7,7 +7,7 @@
 (require "shared.rkt"
          (prefix-in tree: "lazy-tree.rkt")
          "last-checker.rkt"
-         (prefix-in checks: "lang/lang-specific-checks.rkt")
+         "choose-lang-specific.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
 (require (prefix-in @ racket))
@@ -242,7 +242,7 @@
   ; Run last-minute checks for errors  
   (for-each (lambda (c)
               (printf "run-constraint: ~a~n" c)
-              (checkFormula run-spec c '() checks:checker-hash))
+              (checkFormula run-spec c '() (get-checker-hash)))
             run-constraints)
 
   ; Keep track of which formula corresponds to which CLI assert

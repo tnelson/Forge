@@ -1,8 +1,8 @@
 #lang racket/base
 
 (require syntax/parse)
-(require "alloy-syntax/parser.rkt")
-(require "alloy-syntax/tokenizer.rkt")
+(require forge/lang/alloy-syntax/parser)
+(require forge/lang/alloy-syntax/tokenizer)
 (require (prefix-in logging: forge/logging/logging))
 
 (provide coerce-ints-to-atoms)
@@ -73,12 +73,13 @@
                   (require (only-in racket printf))
 
                   (require forge/choose-lang-specific)
-                  (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
+                  (require forge/bsl/lang/bsl-lang-specific-checks) ; TODO: can this be relative?
                   ; ANSWER: maybe using dynamic-require
-                  (set-checker-hash! forge-checker-hash)
+                  (set-checker-hash! bsl-checker-hash)
                   
-                  ;(printf "ch = ~a~n" checker-hash)   
-                  
+                  ;(printf "ch = ~a~n" bsl-checker-hash) 
+                  ;(printf "ch = ~a~n" (get-checker-hash))
+
                   (logging:log-errors
                     ,ints-coerced)
                   
