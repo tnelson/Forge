@@ -495,7 +495,7 @@
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))))
     (define curr-lower (hash-ref lower-bounds sig))
     (hash-set! upper-bounds sig (append curr-lower shared))
-    (map (lambda (child) (fill-upper-no-bound child shared))
+    (map (lambda (child) (fill-upper-no-bound child (append curr-lower shared)))
          (get-children run-spec sig)))
 
   (define sig-atoms (list))
@@ -580,7 +580,7 @@
 
       (match-define (Range int-lower int-upper) 
         (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (Range #f #f)))
-
+      
       (append
         (if (@and int-lower (@> int-lower bound-lower-size))
             (let ()

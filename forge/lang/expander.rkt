@@ -545,10 +545,10 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       #'(syntax/loc stx (sig sig-names.names (~? mult.symbol)
+       (sig sig-names.names (~? mult.symbol)
                             (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
-                            (~? (~@ extends.symbol extends.value))) ...)))]
+                            (~? (~@ extends.symbol extends.value))) ...))]
 
     [((~literal SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          (~optional abstract:abstract-tok)
