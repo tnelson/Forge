@@ -114,6 +114,7 @@
   (void))
 
 (define (check-node-expr-op-join expr-node)
+  ;(printf "checking join: ~a~n" expr-node)
   (define left-hand-side (first (node/expr/op-children expr-node)))
   (define loc (nodeinfo-loc (node-info left-hand-side)))
   (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
@@ -182,9 +183,21 @@
 (define (bsl-ast-arg-checks args)
   (void))
 
+(define (check-node-expr-op-join-args expr-args)
+  ;(printf "checking join: ~a~n" expr-args)
+  (define left-hand-side (first expr-args))
+  (define loc (nodeinfo-loc (node-info left-hand-side)))
+  (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+  (unless (or (node/expr/quantifier-var? left-hand-side)
+          (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
+    (raise-user-error (format "Left hand side to field access at ~a must be a sig at loc: ~a" expr-args locstr))))
+
+  ;NOTE: make better error message 
+
+
 (define bsl-ast-checker-hash (make-hash))
 (hash-set! bsl-ast-checker-hash "check-args" bsl-ast-arg-checks)
-(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join)
-(hash-set! bsl-ast-checker-hash node/formula/op/in check-node-formula-op-in)
+(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
+
 
 (provide bsl-ast-checker-hash)

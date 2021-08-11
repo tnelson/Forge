@@ -168,6 +168,7 @@
 (define (empty-check node) (lambda ()(void)))
 
 (define (check-and-output ast-node to-handle checker-hash)
+    ;(printf "checking ast-node:~a  to-handle:~a  has-key? ~a ~n" ast-node to-handle (hash-has-key? checker-hash to-handle))
     (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node)))
 
 ; lifted operators are defaults, for when the types aren't as expected
@@ -181,6 +182,7 @@
                    [macroname/info-help (format-id #'id "~a/info-help" #'id)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
                    [child-accessor (format-id #'id "~a-children" #'parent)]
+                   [key (format-id #'id "~a/~a" #'parent #'id)]
                    [display-id (if (equal? '|| (syntax->datum #'id)) "||" #'id)]
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
@@ -200,8 +202,8 @@
            (define (functionname #:info [info empty-nodeinfo] . args)
              (define ast-checker-hash (get-ast-checker-hash))
              ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
-             (printf "args: ~a    parent:~a ~n" args  parent)
-             (check-and-output args parent ast-checker-hash)
+             ;(printf "args: ~a    key:~a ~n" args  key)
+             (check-and-output args key ast-checker-hash)
              (check-args info 'id args childtype checks ...)
              (if arity
                 ; expression
