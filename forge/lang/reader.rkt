@@ -75,9 +75,10 @@
                   (require forge/choose-lang-specific)
                   (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
                   ; ANSWER: maybe using dynamic-require
+                  ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
                   (set-checker-hash! forge-checker-hash)
-                  
-                  ;(printf "ch = ~a~n" checker-hash)   
+                  (set-ast-checker-hash! forge-ast-checker-hash)
+                  ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
                   
                   (logging:log-errors
                     ,ints-coerced)

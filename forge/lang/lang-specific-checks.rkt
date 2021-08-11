@@ -2,6 +2,8 @@
 
 (require "ast.rkt")
 (require forge/sigs-structs)
+(require (for-syntax racket/syntax syntax/srcloc)
+         syntax/srcloc (prefix-in @ racket) (prefix-in $ racket))
 
 (define (check-node-formula-constant formula-node)
   (void))
@@ -170,3 +172,11 @@
 (hash-set! forge-checker-hash node/expr/op/sing check-node-expr-op-sing)
 
 (provide forge-checker-hash)
+
+(define (forge-ast-arg-checks args)
+  (void))
+
+(define forge-ast-checker-hash (make-hash))
+(hash-set! forge-ast-checker-hash "check-args" forge-ast-arg-checks)
+
+(provide forge-ast-checker-hash)

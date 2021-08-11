@@ -9,6 +9,8 @@
          (rename-out ;[@@and and] [@@or or] [@@not not]
           [int< <] [int> >]))
 
+(require forge/choose-lang-specific)
+
 ; Forge's AST is based on Ocelot's AST, with modifications.
 
 ; Ocelot ASTs are made up of expressions (which evaluate to relations) and
@@ -163,6 +165,11 @@
   (syntax-case stx ()
     [(_ a b c) (quasisyntax/loc stx (ite/info (nodeinfo #,(build-source-location stx)) a b c))]))
 
+(define (empty-check node) (lambda ()(void)))
+
+(define (check-and-output ast-node to-handle checker-hash)
+    (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node)))
+
 ; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-node-op stx)
   (syntax-case stx ()
@@ -191,6 +198,10 @@
            ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self))))
            
            (define (functionname #:info [info empty-nodeinfo] . args)
+             (define ast-checker-hash (get-ast-checker-hash))
+             ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
+             (printf "args: ~a    parent:~a ~n" args  parent)
+             (check-and-output args parent ast-checker-hash)
              (check-args info 'id args childtype checks ...)
              (if arity
                 ; expression

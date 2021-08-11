@@ -177,3 +177,14 @@
 (hash-set! bsl-checker-hash node/expr/op/sing check-node-expr-op-sing)
 
 (provide bsl-checker-hash)
+
+
+(define (bsl-ast-arg-checks args)
+  (void))
+
+(define bsl-ast-checker-hash (make-hash))
+(hash-set! bsl-ast-checker-hash "check-args" bsl-ast-arg-checks)
+(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join)
+(hash-set! bsl-ast-checker-hash node/formula/op/in check-node-formula-op-in)
+
+(provide bsl-ast-checker-hash)

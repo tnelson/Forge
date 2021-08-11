@@ -76,9 +76,8 @@
                   (require forge/bsl/lang/bsl-lang-specific-checks) ; TODO: can this be relative?
                   ; ANSWER: maybe using dynamic-require
                   (set-checker-hash! bsl-checker-hash)
-                  
+                  (set-ast-checker-hash! bsl-ast-checker-hash)
                   ;(printf "ch = ~a~n" bsl-checker-hash) 
-                  ;(printf "ch = ~a~n" (get-checker-hash))
 
                   (logging:log-errors
                     ,ints-coerced)
