@@ -1,5 +1,6 @@
 #lang racket
 
+(require forge/lang/deparser)
 (require forge/lang/ast)
 (require forge/sigs-structs)
 (require (for-syntax racket/syntax syntax/srcloc)
@@ -93,7 +94,7 @@
   (void))
 
 (define (check-node-expr-comprehension expr-node)
-  (void))
+  ((raise-user-error (format "Comprehension at ~a  " (deparse expr-node)))))
 
 (define (check-node-expr-op-prime expr-node)
   (void))
@@ -120,7 +121,7 @@
   (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
   (unless (or (node/expr/quantifier-var? left-hand-side)
           (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
-    (raise-user-error (format "Left hand side to field access at ~a must be a sig at loc: ~a" expr-node locstr))))
+    (raise-user-error (format "Left hand side to field access at ~a must be a sig at loc: ~a" (deparse expr-node) locstr))))
 
 (define (check-node-expr-op-^ expr-node)
   (void))
@@ -183,7 +184,7 @@
 (define (bsl-ast-arg-checks args)
   (void))
 
-(define (check-node-expr-op-join-args expr-args)
+#;(define (check-node-expr-op-join-args expr-args)
   ;(printf "checking join: ~a~n" expr-args)
   (define left-hand-side (first expr-args))
   (define loc (nodeinfo-loc (node-info left-hand-side)))
@@ -197,7 +198,7 @@
 
 (define bsl-ast-checker-hash (make-hash))
 (hash-set! bsl-ast-checker-hash "check-args" bsl-ast-arg-checks)
-(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
+;(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
 
 
 (provide bsl-ast-checker-hash)

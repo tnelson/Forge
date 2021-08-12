@@ -19,6 +19,7 @@
          (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
 (require "server/eval-model.rkt")
 (require "drracket-gui.rkt")
+;(require forge/lang/deparser)
 
 (provide send-to-kodkod)
 
@@ -242,6 +243,7 @@
   ; Run last-minute checks for errors  
   (for-each (lambda (c)
               (printf "run-constraint: ~a~n" c)
+              ;(printf "deparse-constraint: ~a~n" (deparse c))
               (checkFormula run-spec c '() (get-checker-hash)))
             run-constraints)
 
