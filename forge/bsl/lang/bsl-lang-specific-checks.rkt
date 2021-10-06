@@ -94,7 +94,8 @@
   (void))
 
 (define (check-node-expr-comprehension expr-node)
-  ((raise-user-error (format "Comprehension at ~a  " (deparse expr-node)))))
+  (void))
+    ;((raise-user-error (format "Comprehension at ~a  " (deparse expr-node)))))
 
 (define (check-node-expr-op-prime expr-node)
   (void))
@@ -115,13 +116,14 @@
   (void))
 
 (define (check-node-expr-op-join expr-node)
-  ;(printf "checking join: ~a~n" expr-node)
-  (define left-hand-side (first (node/expr/op-children expr-node)))
-  (define loc (nodeinfo-loc (node-info left-hand-side)))
-  (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-  (unless (or (node/expr/quantifier-var? left-hand-side)
-          (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
-    (raise-user-error (format "Left hand side to field access at ~a must be a sig at loc: ~a" (deparse expr-node) locstr))))
+  (void))
+  ; ;(printf "checking join: ~a~n" expr-node)
+  ; (define left-hand-side (first (node/expr/op-children expr-node)))
+  ; (define loc (nodeinfo-loc (node-info left-hand-side)))
+  ; (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+  ; (unless (or (node/expr/quantifier-var? left-hand-side)
+  ;         (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
+  ;   (raise-user-error (format "Left hand side to field access at ~a must be a sig at loc: ~a" (deparse expr-node) locstr))))
 
 (define (check-node-expr-op-^ expr-node)
   (void))

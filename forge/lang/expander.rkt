@@ -156,6 +156,8 @@
     (pattern ((~literal ArrowMult) "lone") #:attr symbol #'pfunc)
     (pattern ((~literal ArrowMult) "set") #:attr symbol #'default)
     (pattern ((~literal ArrowMult) "one") #:attr symbol #'func)
+    (pattern ((~literal ArrowMult) "func") #:attr symbol #'func)
+    (pattern ((~literal ArrowMult) "pfunc") #:attr symbol #'pfunc)
     (pattern ((~literal ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
 
   ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
