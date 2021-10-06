@@ -242,10 +242,13 @@
             ; make all breakers
             (define breakers (for/list ([break (set->list breaks)])
                 (define break-sym
+                    (begin (printf "break: ~a~n" break)
+                    (printf "rl: ~a~n" rel-list)
+                    (printf "break-pris: ~a~n" break-pris)
                     (cond [(symbol? break) break]
                           [(@node/breaking/break? break) (@node/breaking/break-break break)]
                           [else (raise-user-error (format "constrain-bounds: not a valid break name: ~a~n"
-                                                          break))]))
+                                                          break))])))
                 (define strategy (hash-ref strategies break-sym))
                 (define pri (hash-ref break-pris break))
                 (strategy pri rel bound atom-lists rel-list)))
@@ -376,13 +379,13 @@
             (define postfix (take-right rel-list n))
             (define prefix-lists (drop-right atom-lists n))
             (define postfix-lists (take-right atom-lists n))
-
+            ; added @empty-nodeinfo and name argument to make compatible with current structs
             (define vars (for/list ([p prefix]) 
-                (@node/expr/quantifier-var 1 (gensym "v"))
+                (let ([symv (gensym "v")])
+                    (@node/expr/quantifier-var @empty-nodeinfo 1 symv symv))
             ))
             (define new-rel (@build-box-join rel vars))  ; rel[a][b]...
             (define sub-breaker (f pri new-rel bound postfix-lists postfix))
-            
             (define sub-break-graph (breaker-break-graph sub-breaker))
             (define sigs (break-graph-sigs sub-break-graph))
             (define edges (break-graph-edges sub-break-graph))
@@ -390,7 +393,6 @@
                 sigs
                 (set-union edges (for/set ([sig sigs] [p prefix]) (set sig p)))
             ))
-
             (breaker pri
                 new-break-graph
                 (λ ()
@@ -408,8 +410,9 @@
                         (define bound (sbound rel lower upper))
 
                         (define sub-formulas (break-formulas sub-break))
+                         ; added @empty-nodeinfo to make compatible with current structs
                         (define formulas (for/set ([f sub-formulas])
-                            (@quantified-formula 'all (map cons vars prefix) f)
+                            (@quantified-formula @empty-nodeinfo 'all (map cons vars prefix) f)
                         ))
 
                         (break bound formulas)
@@ -430,8 +433,9 @@
                             (break-formulas sub-break)
                         ))
                         ; wrap each formula in foralls for each prefix rel
+                         ; added @empty-nodeinfo to make compatible with current structs
                         (define formulas (for/set ([f sub-formulas])
-                            (@quantified-formula 'all (map cons vars prefix) f)
+                            (@quantified-formula @empty-nodeinfo 'all (map cons vars prefix) f)
                         ))
 
                         (break bound formulas)
@@ -440,8 +444,9 @@
                 (λ ()
                     (define sub-break ((breaker-make-default sub-breaker)));
                     (define sub-formulas (break-formulas sub-break))
+                     ; added @empty-nodeinfo to make compatible with current structs
                     (define formulas (for/set ([f sub-formulas])
-                        (@quantified-formula 'all (map cons vars prefix) f)
+                        (@quantified-formula @empty-nodeinfo 'all (map cons vars prefix) f)
                     ))
                     (break bound formulas)
                 )

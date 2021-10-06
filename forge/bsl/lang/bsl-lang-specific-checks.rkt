@@ -195,9 +195,15 @@
 
   ;NOTE: make better error message 
 
+(define (bsl-field-decl-func true-breaker)
+  (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
+  (raise-user-error (format "Field declaration is not a function"))))
+
+
 
 (define bsl-ast-checker-hash (make-hash))
 (hash-set! bsl-ast-checker-hash "check-args" bsl-ast-arg-checks)
+(hash-set! bsl-ast-checker-hash 'field-decl bsl-field-decl-func)
 ;(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
 
 

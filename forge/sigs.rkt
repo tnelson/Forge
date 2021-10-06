@@ -44,6 +44,7 @@
                   make-check
                   test-from-state
                   make-test))
+(require forge/choose-lang-specific)
 
 ; Commands
 (provide sig relation fun const pred inst with)
@@ -346,10 +347,14 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
+         (printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
+         (printf "relatoin breaker: ~a~n" true-breaker)
+         (define checker-hash (get-ast-checker-hash))
+         (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
          ; Temporary fix: if-for-bool :(
          ; needed for now because when Forge expands into core,
          ; is-var comes in as "var" instead of #t
