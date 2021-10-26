@@ -286,7 +286,7 @@
      (match lt-right
        [(ast:node/int/op/card c-info (list right-rel))
         (let* ([lower-val (eval-int-expr lt-left (Bound-tbindings bound) 8)]
-               [new-scope (update-int-bound scope right-rel (Range lower-val #f))])
+               [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
        [_ (fail)])]
 

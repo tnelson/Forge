@@ -579,7 +579,7 @@
               (cons
                (with-syntax ([sig-name-p0 sig-name])
                  (syntax/loc sig-name
-                   (sig sig-name-p0 (~? mult.symbol)
+                   '(sig sig-name-p0 (~? mult.symbol)
                         (~? abstract.symbol)
                         (~? (~@ #:is-var isv))
                         (~? (~@ extends.symbol extends.value)))))
@@ -592,7 +592,7 @@
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])
-                      (syntax/loc relation-name-p1 (relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))))]))
+                      (syntax/loc relation-name-p1 '(relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
