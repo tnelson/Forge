@@ -347,12 +347,12 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         (printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
+         ;(printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
-         (printf "relatoin breaker: ~a~n" true-breaker)
+         ;(printf "relatoin breaker: ~a~n" true-breaker)
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
          ; Temporary fix: if-for-bool :(

@@ -242,9 +242,10 @@
             ; make all breakers
             (define breakers (for/list ([break (set->list breaks)])
                 (define break-sym
-                    (begin (printf "break: ~a~n" break)
-                    (printf "rl: ~a~n" rel-list)
-                    (printf "break-pris: ~a~n" break-pris)
+                    (begin 
+                    ;(printf "break: ~a~n" break)
+                    ;(printf "rl: ~a~n" rel-list)
+                    ;(printf "break-pris: ~a~n" break-pris)
                     (cond [(symbol? break) break]
                           [(@node/breaking/break? break) (@node/breaking/break-break break)]
                           [else (raise-user-error (format "constrain-bounds: not a valid break name: ~a~n"
