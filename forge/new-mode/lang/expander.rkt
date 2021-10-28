@@ -58,7 +58,7 @@
                            pred:ExprClass
                            bounds:BoundsClass)
    (syntax/loc this-syntax
-     '(test (~? name.name unnamed-example)
+     (test (~? name.name unnamed-example)
             #:preds [pred]
             #:bounds bounds.translate
             #:expect sat))])
