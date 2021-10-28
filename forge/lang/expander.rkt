@@ -567,7 +567,13 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       
+       #,@(for/list ([sig-name (syntax-e #'(sig-names.names ...))])
+            (with-syntax ([sig-name-p0 sig-name])
+              (syntax/loc sig-name
+                (sig sig-name-p0 (~? mult.symbol)
+                     (~? abstract.symbol)
+                     (~? (~@ #:is-var isv))
+                     (~? (~@ extends.symbol extends.value))))))
        #,@(apply append
             ; for each sig in this declaration (e.g., "sig A, B, C { ...")
             (for/list ([sig-name (syntax->list #'(sig-names.names ...))]
@@ -576,14 +582,6 @@
                        [relation-types (syntax->list #'(arrow-decl.types ...))]
                        [relation-is-var (syntax->list #'(arrow-decl.is-var ...))]
                        [relation-mult (syntax->list #'((~? arrow-decl.mult default) ...))])
-              (cons
-               (with-syntax ([sig-name-p0 sig-name])
-                 (syntax/loc sig-name
-                   (sig sig-name-p0 (~? mult.symbol)
-                        (~? abstract.symbol)
-                        (~? (~@ #:is-var isv))
-                        (~? (~@ extends.symbol extends.value)))))
-
               ; for each field declared
               (for/list ([relation-name-p1 (syntax->list relation-names)])
                 (with-syntax ([relation-name relation-name-p1]
@@ -592,7 +590,7 @@
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])
-                      (syntax/loc relation-name-p1 (relation relation-name relation-types #:is relation-mult #:is-var is-var)))))))))]))
+                      (syntax/loc relation-name-p1 (relation relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
