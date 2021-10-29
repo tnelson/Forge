@@ -341,7 +341,7 @@
        (values new-scope new-bound))]
 
     ; rel in expr
-    ; expr ni rel
+    ; expr in rel
     [(ast:node/formula/op/in info (list left right))
      (cond
        [(ast:node/expr/relation? left)
