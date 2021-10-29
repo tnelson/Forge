@@ -350,7 +350,7 @@
           (values scope new-bound))]
        [(ast:node/expr/relation? right)
         (let ([tups (eval-exp left (Bound-tbindings bound) 8 #f)])
-          (define new-bound (update-bindings bound right tups))
+          (define new-bound (update-bindings bound right (@set) tups))
           (values scope new-bound))]
        [else (fail)])]
 
