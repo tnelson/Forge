@@ -83,7 +83,9 @@
            [extensions-store (for/hash ([sig sigs]
                                         #:when (Sig-extends sig))
                                (values sig (get-sig run-spec (Sig-extends sig))))])
+      ;(printf "args-- total-bounds : ~a~n args-- sig-rels : ~a~n args-- upper-bounds : ~a~n" total-bounds sig-rels upper-bounds )
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
+  ;(printf "after-- total-bounds : ~a~n" total-bounds)
   (clear-breaker-state)
 
   (define sigs-and-rels
@@ -103,7 +105,6 @@
     (printf "all-atoms: ~n~a~n~n" all-atoms)
     (printf "total-bounds: ~n~a~n~n" total-bounds)
     (displayln "--------------------------"))
-
 
   #| Print to KodKod-CLI
     print configure
@@ -513,7 +514,6 @@
                 (@max lower-size
                       (get-scope-upper-default root))))
 
-
           (define shared (generate-names root (@- upper-size lower-size)))
           (fill-upper-no-bound root shared)))
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
@@ -550,6 +550,17 @@
 ; and the starting relation name, assigns names to each relation
 ; and minimum and maximum sets of atoms for each relation.
 (define (get-relation-bounds run-spec sig-to-bound)
+  (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
+  (define (get-bound-lower rel)
+    (define pbinding (hash-ref pbindings rel #f))
+    (@and pbinding
+          (sbound-lower pbinding)))
+  (define (get-bound-upper rel)
+    (define pbinding (hash-ref pbindings rel #f))
+    (@and pbinding
+          (sbound-upper pbinding)
+          (sbound-upper pbinding)))
+
   (define without-succ
     (for/hash ([relation (get-relations run-spec)]
                #:unless (equal? (Relation-name relation) 'succ))
@@ -559,8 +570,21 @@
                                       (curry hash-ref sig-to-bound )
                                       Sig-name) 
                              sigs))
-      (define upper (apply cartesian-product sig-atoms))
-      (define lower empty)
+      (define upper                   
+        (let ([bound-upper (get-bound-upper relation)])
+            (if bound-upper
+                (set->list (set-intersect bound-upper (list->set (apply cartesian-product sig-atoms))))
+                (apply cartesian-product sig-atoms))))                     
+      ;(define upper (set->list (set-intersect (get-bound-upper relation) (list->set (apply cartesian-product sig-atoms)))))
+      ;(printf "upper bound : ~a~n" (get-bound-upper relation))
+      ;(printf "lower bound : ~a~n" (get-bound-lower relation))
+      ;(printf "relation : ~a~n" relation)
+      (define lower                   
+        (let ([bound-lower (get-bound-lower relation)])
+            (if bound-lower
+                (set->list (set-union bound-lower (list->set empty)))
+                (list->set empty))))      
+      ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
       (values (Relation-name relation) 
               (bound relation lower upper))))
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
