@@ -218,8 +218,10 @@
             (define rel (bound-relation bound))
             (when (equal? rel-inst rel) 
                   (begin
-                    (cons! new-total-bounds bound)
                     (define rel (sbound-relation b))
+                    (if (equal? 'Sig (object-name rel))
+                        (cons! new-total-bounds (sbound->bound b))
+                        (cons! new-total-bounds bound))
                     (set-add! defined-relations rel)
                     (define typelist ((@node/expr/relation-typelist-thunk rel)))
                     (for ([t typelist]) (when (hash-has-key? name-to-rel t)
