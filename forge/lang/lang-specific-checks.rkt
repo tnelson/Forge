@@ -101,9 +101,6 @@
 (define (check-node-expr-op-+ expr-node)
   (void))
 
-(define (check-node-expr-op-<: expr-node)
-  (void))
-
 (define (check-node-expr-op-- expr-node)
   (void))
 
@@ -161,7 +158,6 @@
 (hash-set! forge-checker-hash node/expr/comprehension check-node-expr-comprehension)
 (hash-set! forge-checker-hash node/expr/op/prime check-node-expr-op-prime)
 (hash-set! forge-checker-hash node/expr/op/+ check-node-expr-op-+)
-(hash-set! forge-checker-hash node/expr/op/<: check-node-expr-op-<:)
 (hash-set! forge-checker-hash node/expr/op/- check-node-expr-op--)
 (hash-set! forge-checker-hash node/expr/op/& check-node-expr-op-&)
 (hash-set! forge-checker-hash node/expr/op/-> check-node-expr-op-->)
