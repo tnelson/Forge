@@ -57,8 +57,9 @@
   [((~literal ExampleDecl) (~optional name:NameClass)
                            pred:ExprClass
                            bounds:BoundsClass)
-   #'(test (~? name.name unnamed-example) 
-           #:preds [pred] 
-           #:bounds bounds.translate 
-           #:expect sat)])
+   (syntax/loc this-syntax
+     (test (~? name.name unnamed-example)
+            #:preds [pred]
+            #:bounds bounds.translate
+            #:expect sat))])
 

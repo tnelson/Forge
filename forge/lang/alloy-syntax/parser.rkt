@@ -33,7 +33,7 @@ SigExt : EXTENDS-TOK QualName
 Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
 ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK | FUNC-TOK | PFUNC-TOK
 ;Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
-Decl : NameList /COLON-TOK SET-TOK? Expr
+Decl : DISJ-TOK? NameList /COLON-TOK SET-TOK? Expr
 ; ArrowDecl should only be used by sig field declaration right now; note the optional VAR for Electrum
 ; Remember that a preceding / means to cut the token; it won't get included in the AST.
 ;ArrowDecl : DISJ-TOK? VAR-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
@@ -49,7 +49,7 @@ CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Bloc
 TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK | THEOREM-TOK)
 TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
-Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
+Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)?
       | /FOR-TOK @TypescopeList
 Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
@@ -94,7 +94,7 @@ ExprList : Expr
 Expr    : @Expr1
         | LET-TOK LetDeclList BlockOrBar
         | BIND-TOK LetDeclList BlockOrBar
-        | Quant DeclList BlockOrBar
+        | Quant DISJ-TOK? DeclList BlockOrBar
 Expr1   : @Expr2  | Expr1 OR-TOK Expr2
 Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
 Expr3   : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
@@ -118,7 +118,7 @@ Expr9   : @Expr10 | CARD-TOK Expr9
 Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11  : @Expr12 | Expr11 AMP-TOK Expr12
 Expr12  : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
-Expr13  : @Expr14 ;| Expr13 (SUBT-TOK | SUPT-TOK) Expr14
+Expr13  : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
                   | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK

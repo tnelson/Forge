@@ -213,13 +213,21 @@
         (if (sbound? i) (list i) (xml->breakers i name-to-rel)))))
     (define defined-relations (mutable-set))
     (for ([b instance-bounds])
-        ;(printf "constraining bounds: ~v~n" b)
-        (cons! new-total-bounds (sbound->bound b))
-        (define rel (sbound-relation b))
-        (set-add! defined-relations rel)
-        (define typelist ((@node/expr/relation-typelist-thunk rel)))
-        (for ([t typelist]) (when (hash-has-key? name-to-rel t)
-            (set-remove! sigs (hash-ref name-to-rel t)))))
+        (define rel-inst (sbound-relation b))
+        (for ([bound total-bounds])
+            (define rel (bound-relation bound))
+            (when (equal? rel-inst rel) 
+                  (begin
+                    (define rel (sbound-relation b))
+                    (if (equal? 'Sig (object-name rel))
+                        (cons! new-total-bounds (sbound->bound b))
+                        (cons! new-total-bounds bound))
+                    (set-add! defined-relations rel)
+                    (define typelist ((@node/expr/relation-typelist-thunk rel)))
+                    (for ([t typelist]) (when (hash-has-key? name-to-rel t)
+                        (set-remove! sigs (hash-ref name-to-rel t))))))))
+
+        
 
     ; proposed breakers from each relation
     (define candidates (list))
@@ -231,7 +239,7 @@
         (define break-pris (hash-ref rel-break-pri rel (make-hash)))
         ; compose breaks
         (min-breaks! breaks break-pris)
-
+        ;(printf "bound in total-bounds: ~a~n" bound)
         (define defined (set-member? defined-relations rel))
         (cond [(set-empty? breaks)
             (unless defined (cons! new-total-bounds bound))
@@ -277,6 +285,7 @@
             (unless (or broken defined) (cons! new-total-bounds bound))
         ])     
     )
+    ;(printf "new-total-bounds: ~a~n" new-total-bounds)
     
     #|
         Now we try to use candidate breakers, starting with highest priority.

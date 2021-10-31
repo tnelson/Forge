@@ -59,7 +59,7 @@ pred IfThenElse2 {
 }
 
 
-/* CURRENTLY BUGGED?
+--CURRENTLY BUGGED?
 pred LessColon {
     all n: Node |
         n.edges <: edges = {n1: Node, n2: Node | n1->n2 in edges and n1 in n.edges}
@@ -69,7 +69,7 @@ pred ColonGreater {
     all n: Node |
         edges :> n.edges = {n1: Node, n2: Node | n1->n2 in edges and n2 in n.edges}
 }
-*/
+
 
 test expect ExpressionOperators {
     tilde : Tilde is theorem
@@ -80,8 +80,8 @@ test expect ExpressionOperators {
     ampersand : Ampersand is theorem
     arrow : Arrow is theorem
     dot : Dot is theorem
-    --lessColon : LessColon is theorem
-    --colonGreater : ColonGreater is theorem
+    lessColon : LessColon is theorem
+    colonGreater : ColonGreater is theorem
 
     ite1 : IfThenElse1 is unsat
     ite2 : IfThenElse2 is unsat

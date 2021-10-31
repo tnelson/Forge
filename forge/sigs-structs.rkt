@@ -8,6 +8,7 @@
 (require racket/contract)
 (require (for-syntax racket/syntax syntax/srcloc))
 (require (prefix-in tree: "lazy-tree.rkt"))
+(require syntax/srcloc)
 
 (provide (all-defined-out))
 ; (provide (except-out (all-defined-out) (struct-out Sig) (struct-out Relation)))
@@ -508,7 +509,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ;; Added sugar over the AST
 ;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus on the macro definition point
-(provide implies iff <=> ifte >= <= ni != !in !ni)
+(provide implies iff <=> ifte >= <= ni != !in !ni <: :>)
 
 (define-syntax (implies stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)) a b))]))
 (define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
@@ -545,3 +546,43 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
                                                               (int</info (nodeinfo #,(build-source-location stx)) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+
+(define-syntax (<: stx) 
+  (syntax-case stx () 
+    [(_ a b) 
+      (quasisyntax/loc stx 
+        (<:helper a b (nodeinfo #,(build-source-location stx))))]))
+
+(define (<:helper a b info)
+  (domain-check<: a b (nodeinfo-loc info))
+  (&/info info
+            b 
+            (->/info info a univ)))
+
+(define-syntax (:> stx) 
+  (syntax-case stx () 
+    [(_ a b) 
+      (quasisyntax/loc stx 
+        (:>helper a b (nodeinfo #,(build-source-location stx))))]))
+
+(define (:>helper a b info)
+  (domain-check:> a b (nodeinfo-loc info))
+  (&/info info
+            a 
+            (->/info info univ b)))
+
+(define (domain-check<: a b loc) 
+  (let ([src-line (source-location-line loc)]
+        [src-col (source-location-column loc)]
+        [src-span (source-location-span loc)])
+    (unless (equal? (node/expr-arity b)
+                    (+ 1 (node/expr-arity a))) 
+                    (raise-user-error (format ":> argument has incorrect arity on line ~a, column ~a, span~a" src-line src-col src-span)))))
+
+(define (domain-check:> a b loc) 
+  (let ([src-line (source-location-line loc)]
+        [src-col (source-location-column loc)]
+        [src-span (source-location-span loc)])
+    (unless (equal? (node/expr-arity a)
+                    (+ 1 (node/expr-arity b))) 
+                    (raise-user-error (format "<: argument has incorrect arity on line ~a, column ~a, span~a" src-line src-col src-span)))))

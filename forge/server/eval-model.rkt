@@ -5,6 +5,7 @@
 (require "../shared.rkt")
 (require racket/struct)
 (require (only-in racket/base [abs racket-abs]))
+(require syntax/srcloc)
 
 (provide eval-exp eval-unknown eval-int-expr model->binding)
 ;(provide eval-exp eval-form eval-unknown eval-int-expr model->binding alloy->kodkod)
@@ -99,6 +100,14 @@
                                                (map (lambda (y) `(,x ,y))
                                                     (eval-exp exp-2 bind bitwidth safe)))
                                              (eval-exp exp-1 bind bitwidth safe))))]
+                   [(ast:node/expr/op/++ _ _ `(,exp-1 ,exp-2))
+                    (let* ([right-tuples (eval-exp exp-2 bind bitwidth safe)]
+                           [to-override (map (lambda (t) (first t)) right-tuples)]
+                           [left-tuples (eval-exp exp-1 bind bitwidth safe)]
+                           [left-after-removal
+                            (filter (lambda (t) (not (member (first t) right-tuples)))
+                                    left-tuples)])
+                      (append left-after-removal right-tuples))]
                    [(ast:node/expr/op/join _ _ `(,exp-1 ,exp-2))
                     (foldl append
                            '() 
@@ -174,7 +183,7 @@
        (map list universe universe)))
 
 ; Sort an evaluation result lexicographically
-(define (canonicalize-result l)  
+(define (canonicalize-result l)
   (sort l tuple<?))
 
 ; may be a number, not a symbol
@@ -182,21 +191,39 @@
   (cond [(int-atom? v) (int-atom->string v)]
         [(symbol? v) (symbol->string v)]
         [(number? v) (number->string v)]
-        [else v]))
+        [(string? v) v]
+        [else
+         (let* ([v-loc (ast:nodeinfo-loc (ast:node-info v))]
+                [v-line (source-location-line v-loc)]
+                [v-col (source-location-column v-loc)]
+                [v-span (source-location-span v-loc)])
+           (raise-user-error (format "Please contact the Forge dev team - something very unexpected happened at line ~a column ~a span ~a"
+                                     v-line v-col v-span)))]))
+
+(define (raise-bounds-not-specified-error bad-node)
+  (let* ([bad-loc (ast:nodeinfo-loc (ast:node-info bad-node))]
+         [bad-line (source-location-line bad-loc)]
+         [bad-col (source-location-column bad-loc)]
+         [bad-span (source-location-span bad-loc)])
+    (raise-user-error (format "Bounds for ~a must be specified before it can be used to bind other things at line ~a column ~a span ~a."
+                              bad-node bad-line bad-col bad-span))))
 
 ; is t1 < t2?
 ; Note: weird 3-valued logic being folded here due to need to represent "equal...so far"
 (define (tuple<? t1 t2)
-  ;(printf "t1: ~a, t2: ~a~n" t1 t2)
   (define result
-    (foldl (lambda (p acc)  
-             (cond [(eq? acc #t) #t] ; already known (some prior component was <)
-                   [(eq? acc #f) #f] ; already known (some prior component was >)
-                   [(string=? (->string (first p)) (->string (second p))) 0] ; don't know yet
-                   [else (string<? (->string (first p)) (->string (second p)))]))
-           ; assume same to start
-           0
-           (map list t1 t2)))
+    (let ([t1-node-exprs (filter (lambda (t) (ast:node/expr? t)) t1)]
+          [t2-node-exprs (filter (lambda (t) (ast:node/expr? t)) t2)])
+      (cond [(not (empty? t1-node-exprs)) (raise-bounds-not-specified-error (first t1-node-exprs))]
+            [(not (empty? t2-node-exprs)) (raise-bounds-not-specified-error (first t2-node-exprs))]
+            [else (foldl (lambda (p acc)
+                           (cond [(eq? acc #t) #t] ; already known (some prior component was <)
+                                 [(eq? acc #f) #f] ; already known (some prior component was >)
+                                 [(string=? (->string (first p)) (->string (second p))) 0] ; don't know yet
+                                 [else (string<? (->string (first p)) (->string (second p)))]))
+                         ; assume same to start
+                         0
+                         (map list t1 t2))])))
   (cond
     [(and (= (length t1) 1) (= (length t2) 1) (int-atom? (first t1)) (int-atom? (first t2)))
      (< (int-atom-n (first t1)) (int-atom-n (first t2)))] 

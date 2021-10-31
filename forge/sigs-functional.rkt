@@ -6,6 +6,7 @@
 (require syntax/parse/define)
 (require racket/match)
 (require (for-syntax racket/match syntax/srcloc))
+(require syntax/srcloc)
 
 (require "shared.rkt")
 (require (prefix-in ast: "lang/ast.rkt")
@@ -145,6 +146,13 @@
        Sig?)
   ; (check-temporal-for-var is-var name)
   (define name (or raw-name (gensym 'sig)))
+
+  ;(define source-info-loc (nodeinfo-loc node-info))
+  ;(printf "SIG NAME: ~a.~n" name)
+  ;(printf "SIG SOURCE LINE: ~a.~n" (source-location-line source-info-loc))
+  ;(printf "SIG SOURCE COLUMN: ~a.~n" (source-location-column source-info-loc))
+  ;(printf "SIG SOURCE SPAN: ~a.~n" (source-location-span source-info-loc))
+
   (Sig node-info ; info
         
        1 ; arity
@@ -178,6 +186,12 @@
     (if raw-sigs
         (values name/sigs raw-sigs)
         (values (gensym 'relation) name/sigs)))
+
+  ;(define source-info-loc (nodeinfo-loc node-info))
+  ;(printf "RELATION NAME: ~a.~n" name)
+  ;(printf "RELATION SOURCE LINE: ~a.~n" (source-location-line source-info-loc))
+  ;(printf "RELATION SOURCE COLUMN: ~a.~n" (source-location-column source-info-loc))
+  ;(printf "RELATION SOURCE SPAN: ~a.~n" (source-location-span source-info-loc))
 
   ; sigs can contain sigs or thunks which return sigs
   ; in order to allow mutual references between sigs in forge surface
@@ -270,9 +284,7 @@
      (match lt-left
        [(ast:node/int/op/card c-info (list left-rel))
         (let* ([upper-val (eval-int-expr lt-right (Bound-tbindings bound) 8)]
-               ; Thomas originally used 0 here not #f - does it matter?
-               ; original sigs.rkt uses #f
-               [new-scope (update-int-bound scope left-rel (Range #f upper-val))])
+               [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
        [_ (fail)])]
 
@@ -285,7 +297,7 @@
      (match lt-right
        [(ast:node/int/op/card c-info (list right-rel))
         (let* ([lower-val (eval-int-expr lt-left (Bound-tbindings bound) 8)]
-               [new-scope (update-int-bound scope right-rel (Range lower-val #f))])
+               [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
        [_ (fail)])]
 
@@ -340,7 +352,7 @@
        (values new-scope new-bound))]
 
     ; rel in expr
-    ; expr ni rel
+    ; expr in rel
     [(ast:node/formula/op/in info (list left right))
      (cond
        [(ast:node/expr/relation? left)
