@@ -182,6 +182,7 @@
 (define (bsl-ast-arg-checks args)
   (void))
 
+; motivation: if student use join on relations and get arity error, that could be confusing
 #;(define (check-node-expr-op-join-args expr-args)
   ;(printf "checking join: ~a~n" expr-args)
   (define left-hand-side (first expr-args))
