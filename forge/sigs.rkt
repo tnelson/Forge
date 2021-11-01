@@ -872,3 +872,21 @@ Now with functional forge, do-bind is used instead
 
 (define (solution-diff s1 s2)
   (map instance-diff (Sat-instances s1) (Sat-instances s2)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; Seq Library  ;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(provide seqFirst isSeqOf)
+
+(define (isSeqOf r1 d)
+  (in r1 (-> Int univ))
+
+  )
+
+(define (seqFirst r)
+  (join (sing (int 0)) r))
+
+; (define (seqLast r)
+;   (join (sing (int 0)) r))
