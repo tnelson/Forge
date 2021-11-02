@@ -878,15 +878,45 @@ Now with functional forge, do-bind is used instead
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(provide seqFirst isSeqOf)
+(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
 
 (define (isSeqOf r1 d)
-  (in r1 (-> Int univ))
-
-  )
+  (&& (in r1 (-> Int univ))
+      (in (join Int r1) d)
+      (all ([i1 (join r1 univ)])
+           (&& (>= (sum i1) (int 0))
+               (lone (join i1 r1))))
+      (all ([e (join Int r1)])
+           (some (join r1 e)))
+      (all ([i1 (join r1 univ)])
+           (implies (!= i1 (sing (int 0))) 
+                    (some (join (sing (subtract (sum i1) (int 1))) r1))))))
 
 (define (seqFirst r)
   (join (sing (int 0)) r))
 
-; (define (seqLast r)
-;   (join (sing (int 0)) r))
+(define (seqLast r)
+  (join (sing (subtract (card r) (int 1))) r))
+
+(define (indsOf r e)
+        (join r e))
+
+(define (idxOf r e)
+        (min (join r e)))
+
+(define (lastIdxOf r e)
+        (max (join r e)))
+
+(define (elems r)
+  (join Int r))
+
+(define (inds r)
+  (join r univ))
+
+(define (isEmpty r)
+  (no r))
+
+(define (hasDups r)
+  (some ([e (elems r)])
+        (some ([num1 (indsOf r e)] [num2 (indsOf r e)])
+              (!= num1 num2))))

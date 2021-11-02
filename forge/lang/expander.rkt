@@ -10,6 +10,8 @@
 (require forge/logging/sigs)
 ; (require "ast.rkt")
 
+(require (only-in forge/sigs isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups))
+(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
 
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
