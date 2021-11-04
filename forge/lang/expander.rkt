@@ -551,7 +551,7 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       (sig  sig-names.names (~? mult.symbol)
+       (sig (get-check-lang) sig-names.names (~? mult.symbol)
                             (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
                             (~? (~@ extends.symbol extends.value))) ...))]
@@ -596,7 +596,7 @@
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])
-                      (syntax/loc relation-name-p1 (relation  relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
+                      (syntax/loc relation-name-p1 (relation (get-check-lang) relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
@@ -787,12 +787,12 @@
   [((~literal Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (iff expr1 expr2)))]
+     (syntax/loc stx (iff (get-check-lang) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])     
-     (syntax/loc stx (implies expr1 expr2)))]
+     (syntax/loc stx (implies (get-check-lang) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
                                     "else" expr3:ExprClass)
@@ -903,7 +903,7 @@
   [((~literal Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (-> expr1 expr2)))]
+     (syntax/loc stx (-> ((get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass ":>" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]

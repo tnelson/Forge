@@ -220,9 +220,13 @@
            ;  (good for, e.g., test cases + parser)
            (define-syntax (id stx2)
              (syntax-case stx2 ()
-               [(_ e ellip)                
-                (quasisyntax/loc stx2
-                  (macroname/info (nodeinfo #,(build-source-location stx2) 'checklangplaceholder) e ellip))]))
+                [(_ (check-lang) e ellip)                
+                  (quasisyntax/loc stx2
+                    (macroname/info (nodeinfo #,(build-source-location stx2) check-lang) e ellip))]
+                [(_ e ellip)                
+                  (quasisyntax/loc stx2
+                    (macroname/info (nodeinfo #,(build-source-location stx2) 'checklangplaceholder) e ellip))]))
+
 
            (define (macroname/info-help info args-raw)
              (let* ([args (cond  ; support passing chain of args OR a list of them
@@ -239,8 +243,10 @@
              (syntax-case stx2 ()                              
                [(_ info e ellip)
                 (quasisyntax/loc stx2
-                  ;(printf "in created macro, arg location: ~a~n" (build-source-location stx2))
+                  ;(printf "all args ~a ;   ~a ;  ~a ~n" info e ellip))]))
+                  ; (printf "in created macro, arg location: ~a~n" (build-source-location stx2))
                   (begin
+           
                     ; Keeping this comment in case these macros need to be maintained:
                     ; This line will cause a bad syntax error without any real error-message help.
                     ; The problem is that "id" is the thing defined by this define-stx
@@ -249,6 +255,7 @@
                     
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
                     (macroname/info-help info (list e ellip))))])))))]
+                  ;)))]
     [(_ id parent arity checks ... #:lift @op)
      (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
      (syntax/loc stx

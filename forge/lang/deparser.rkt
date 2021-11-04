@@ -266,7 +266,7 @@
             (format "(~a ~a)" '~ child)
             (format "~a ~a" '~ child)))]
     [(? node/expr/op/sing?)
-     (let ([child (deparse-expr (first (node/expr/op-children expr)) 0)])
+     (let ([child (deparse-int (first (node/expr/op-children expr)) 0)])
             (format "sing[~a]" child))]))
 
 
@@ -302,7 +302,7 @@
 (define (deparse-int expr parent-priority)
   (match expr
     [(node/int/constant info value)
-     (format "~a " value)]
+     (format "~a" value)]
     [(node/int/op info args)
      (deparse-int-op expr parent-priority)]
     [(node/int/sum-quant info decls int-expr)

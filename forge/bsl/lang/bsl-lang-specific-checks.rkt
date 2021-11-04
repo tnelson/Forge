@@ -94,8 +94,10 @@
   (void))
 
 (define (check-node-expr-comprehension expr-node)
-  (void))
-    ;((raise-user-error (format "Comprehension at ~a  " (deparse expr-node)))))
+    (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+      (define loc (nodeinfo-loc (node-info expr-node)))
+      (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+      (raise-user-error (format "Set Comprehension not allowed in beginner level at ~a at loc: ~a" (deparse expr-node) locstr))))
 
 (define (check-node-expr-op-prime expr-node)
   (void))
@@ -110,6 +112,7 @@
   (void))
 
 (define (check-node-expr-op--> expr-node)
+  (printf "nodeinfo-lang: ~a~n" (nodeinfo-lang (node-info expr-node)))
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
