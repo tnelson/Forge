@@ -167,9 +167,9 @@
 
 (define (empty-check node) (lambda ()(void)))
 
-(define (check-and-output ast-node to-handle checker-hash)
+(define (check-and-output ast-node to-handle checker-hash info)
     ;(printf "checking ast-node:~a  to-handle:~a  has-key? ~a ~n" ast-node to-handle (hash-has-key? checker-hash to-handle))
-    (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node)))
+    (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node info)))
 
 ; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-node-op stx)
@@ -203,7 +203,7 @@
              (define ast-checker-hash (get-ast-checker-hash))
              ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
              ;(printf "args: ~a    key:~a ~n" args  key)
-             (check-and-output args key ast-checker-hash)
+             (check-and-output args key ast-checker-hash info)
              (check-args info 'id args childtype checks ...)
              (if arity
                 ; expression
@@ -215,6 +215,12 @@
                     (name info (arity) args))
                 ; intexpression or formula
                 (name info args)))
+
+
+
+           ; For expander to use check-lang on this macro, use the format
+           ; (id ((get-check-lang)) args ...) 
+           ; the additional pair of parens is for pattern matching
 
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)

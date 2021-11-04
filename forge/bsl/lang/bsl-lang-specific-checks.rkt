@@ -97,7 +97,8 @@
     (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
       (define loc (nodeinfo-loc (node-info expr-node)))
       (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-      (raise-user-error (format "Set Comprehension not allowed in beginner level at ~a at loc: ~a" (deparse expr-node) locstr))))
+      (printf "Set Comprehension at ~a at loc: ~a" (deparse expr-node) locstr)))
+      ;(raise-user-error (format "Set Comprehension at ~a at loc: ~a" (deparse expr-node) locstr))))
 
 (define (check-node-expr-op-prime expr-node)
   (void))
@@ -112,7 +113,6 @@
   (void))
 
 (define (check-node-expr-op--> expr-node)
-  (printf "nodeinfo-lang: ~a~n" (nodeinfo-lang (node-info expr-node)))
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
@@ -200,6 +200,13 @@
 
   ;NOTE: make better error message 
 
+(define (check-args-node-expr-op--> expr-args info)
+  (when (eq? (nodeinfo-lang info) 'bsl)
+    (define left-hand-side (first expr-args))
+    (define loc (nodeinfo-loc (node-info left-hand-side)))
+    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+    (raise-user-error (format "Direct use of -> is not allowed at beginner level in ~a -> ~a at loc: ~a" (deparse (first expr-args)) (deparse (first (rest expr-args)))  locstr))))
+
 (define (bsl-field-decl-func true-breaker)
   (void))
   ; (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
@@ -210,6 +217,7 @@
 (define bsl-ast-checker-hash (make-hash))
 (hash-set! bsl-ast-checker-hash "check-args" bsl-ast-arg-checks)
 (hash-set! bsl-ast-checker-hash 'field-decl bsl-field-decl-func)
+(hash-set! bsl-ast-checker-hash node/expr/op/-> check-args-node-expr-op-->)
 ;(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
 
 
