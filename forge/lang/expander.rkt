@@ -12,6 +12,8 @@
 
 (require (only-in forge/sigs isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups))
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
+(require forge/choose-lang-specific)
+
 
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
@@ -549,7 +551,7 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       (sig sig-names.names (~? mult.symbol)
+       (sig  sig-names.names (~? mult.symbol)
                             (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
                             (~? (~@ extends.symbol extends.value))) ...))]
@@ -574,7 +576,7 @@
        #,@(for/list ([sig-name (syntax-e #'(sig-names.names ...))])
             (with-syntax ([sig-name-p0 sig-name])
               (syntax/loc sig-name
-                (sig sig-name-p0 (~? mult.symbol)
+                (sig  sig-name-p0 (~? mult.symbol)
                      (~? abstract.symbol)
                      (~? (~@ #:is-var isv))
                      (~? (~@ extends.symbol extends.value))))))
@@ -594,7 +596,7 @@
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])
-                      (syntax/loc relation-name-p1 (relation relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
+                      (syntax/loc relation-name-p1 (relation  relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
@@ -603,7 +605,7 @@
    (quasisyntax/loc stx (begin
    #,@(for/list ([name (syntax->list #'arrow-decl.names)])
         (with-syntax ([name name])
-          (syntax/loc stx (relation name arrow-decl.types))))))]))
+          (syntax/loc stx (relation (get-check-lang) name arrow-decl.types))))))]))
 
 ; FactDecl : FACT-TOK Name? Block
 (define-syntax (FactDecl stx)
@@ -621,7 +623,7 @@
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred name.name block)))))]
+       #,(syntax/loc stx (pred (get-check-lang) name.name block)))))]
 
   [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
@@ -633,7 +635,7 @@
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred decl block)))))]))
+       #,(syntax/loc stx (pred (get-check-lang) decl block)))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)

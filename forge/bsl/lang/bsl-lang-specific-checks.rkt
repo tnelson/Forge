@@ -110,10 +110,10 @@
   (void))
 
 (define (check-node-expr-op--> expr-node)
-  (void))
-  ; (define loc (nodeinfo-loc (node-info expr-node)))
-  ; (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-  ; (raise-user-error (format "Direct use of -> is not allowed at beginner level in ~a at loc: ~a" (deparse expr-node) locstr)))
+  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+    (raise-user-error (format "Direct use of -> is not allowed at beginner level in ~a at loc: ~a" (deparse expr-node) locstr))))
 
 (define (check-node-expr-op-join expr-node)
   (void))

@@ -180,9 +180,9 @@
 ;;;;;;    Constants    ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax Int (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx)) 1 "Int" (thunk '("Int")) "univ" #f 'Int #f #f #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 "Int" (thunk '("Int")) "univ" #f 'Int #f #f #f))])))
 (define-syntax succ (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx)) 2 "succ" (thunk '("Int" "Int")) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 2 "succ" (thunk '("Int" "Int")) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
 
 (define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
@@ -511,13 +511,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus on the macro definition point
 (provide implies iff <=> ifte >= <= ni != !in !ni <: :>)
 
-(define-syntax (implies stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)) a b))]))
-(define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
-                                                                (=>/info (nodeinfo #,(build-source-location stx)) a b)
-                                                                (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
-(define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx))
-                                                                (=>/info (nodeinfo #,(build-source-location stx)) a b)
-                                                                (=>/info (nodeinfo #,(build-source-location stx)) b a)))]))
+(define-syntax (implies stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b))]))
+(define-syntax (iff stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
+                                                                (=>/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)
+                                                                (=>/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a)))]))
+(define-syntax (<=> stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
+                                                                (=>/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)
+                                                                (=>/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a)))]))
 
 ; for ifte, use struct type to decide whether this is a formula (sugar)
 ; or expression form (which has its own AST node). Avoid exponential
@@ -533,25 +533,25 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(_ a b c) (quasisyntax/loc stx
                  (ifte-disambiguator (nodeinfo #,(build-source-location stx)) a b c))]))
 
-(define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx)) b a))]))
-(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
-                                                             (=/info (nodeinfo #,(build-source-location stx)) a b)))]))
-(define-syntax (!in stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx))
-                                                              (in/info (nodeinfo #,(build-source-location stx)) a b)))]))
-(define-syntax (!ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx))
-                                                              (in/info (nodeinfo #,(build-source-location stx)) b a)))]))
-(define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
-                                                              (int>/info (nodeinfo #,(build-source-location stx)) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+(define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a))]))
+(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
+                                                             (=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]))
+(define-syntax (!in stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
+                                                              (in/info (nodeinfo #,(build-source-location stx)) a b) 'checklangplaceholder))]))
+(define-syntax (!ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
+                                                              (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a)))]))
+(define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
+                                                              (int>/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]))
 (define-syntax (<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx))
-                                                              (int</info (nodeinfo #,(build-source-location stx)) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx)) a b)))]))
+                                                              (int</info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]))
 
 (define-syntax (<: stx) 
   (syntax-case stx () 
     [(_ a b) 
       (quasisyntax/loc stx 
-        (<:helper a b (nodeinfo #,(build-source-location stx))))]))
+        (<:helper a b (nodeinfo #,(build-source-location stx) 'checklangplaceholder)))]))
 
 (define (<:helper a b info)
   (domain-check<: a b (nodeinfo-loc info))
@@ -563,7 +563,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (syntax-case stx () 
     [(_ a b) 
       (quasisyntax/loc stx 
-        (:>helper a b (nodeinfo #,(build-source-location stx))))]))
+        (:>helper a b (nodeinfo #,(build-source-location stx) 'checklangplaceholder)))]))
 
 (define (:>helper a b info)
   (domain-check:> a b (nodeinfo-loc info))
