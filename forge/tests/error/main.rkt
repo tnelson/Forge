@@ -23,6 +23,7 @@
 (define REGISTRY
   (list
     (list "hello.frg" #rx"parsing error")
+    (list "arrow.frg" #rx"Direct use of ->")
   ))
 
 ;; -----------------------------------------------------------------------------
