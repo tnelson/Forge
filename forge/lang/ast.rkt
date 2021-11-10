@@ -228,6 +228,8 @@
              (syntax-case stx2 ()
                 [(_ (check-lang) e ellip)                
                   (quasisyntax/loc stx2
+                    ;(begin
+                    ;(printf "arguments:~a ; ~a ; ~a ~n" check-lang e ellip)
                     (macroname/info (nodeinfo #,(build-source-location stx2) check-lang) e ellip))]
                 [(_ e ellip)                
                   (quasisyntax/loc stx2

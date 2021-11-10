@@ -606,7 +606,6 @@
                #:unless (equal? (Sig-name sig) 'Int))
       (match-define (bound rel bound-lower bound-upper) (hash-ref sig-to-bound (Sig-name sig)))
       (define-values (bound-lower-size bound-upper-size) (values (length bound-lower) (length bound-upper)))
-
       (match-define (Range int-lower int-upper) 
         (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (Range #f #f)))
       

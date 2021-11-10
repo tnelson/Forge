@@ -424,8 +424,8 @@
     ; (which is much easier thanks to the AST checking that they have the same arity)
     [(? node/expr/op/++?)
      (let ([left-arity (node/expr-arity (first args))]
-           [left-tuples (checkExpression run-or-state (first args) quantvars)]
-           [right-tuples (checkExpression run-or-state (second args) quantvars)]
+           [left-tuples (checkExpression run-or-state (first args) quantvars checker-hash)]
+           [right-tuples (checkExpression run-or-state (second args) quantvars checker-hash)]
            [syn-loc (nodeinfo-loc (node-info expr))])
        (let ([src-line (source-location-line syn-loc)]
              [src-col (source-location-column syn-loc)]
