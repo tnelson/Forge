@@ -935,15 +935,15 @@
 
   [((~literal Expr) "~" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (~ expr1)))]
+     (syntax/loc stx (~ ((get-check-lang)) expr1)))]
 
   [((~literal Expr) "^" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (^ expr1)))]
+     (syntax/loc stx (^ ((get-check-lang)) expr1)))]
 
   [((~literal Expr) "*" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (* expr1)))]
+     (syntax/loc stx (* ((get-check-lang)) expr1)))]
 
   [((~literal Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
@@ -958,7 +958,7 @@
    (syntax/loc stx (atom 'name.name))]
 
   [((~literal Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
-   (syntax/loc stx (set decls.translate bob.exprs))]
+   (syntax/loc stx (set ((get-check-lang))  decls.translate bob.exprs))]
 
   [((~literal Expr) block:BlockClass)
    (my-expand (syntax/loc stx block))]

@@ -24,6 +24,11 @@
   (list
     (list "hello.frg" #rx"parsing error")
     (list "arrow.frg" #rx"Direct use of ->")
+    (list "join.frg" #rx"join must be")
+    (list "join-right.frg" #rx"join must be")
+    (list "set.frg" #rx"set comprehension")
+    (list "int-minus.frg" #rx"integer")
+    (list "set-single-equal.frg" #rx"set")
   ))
 
 ;; -----------------------------------------------------------------------------

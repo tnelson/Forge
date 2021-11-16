@@ -358,6 +358,10 @@
 
 (define-syntax (set stx)
   (syntax-case stx ()
+    [(_ (check-lang) ([r0 e0] ...) pred)
+      (quasisyntax/loc stx
+        (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
+          (set/func #:info (nodeinfo #,(build-source-location stx) check-lang) (list (cons r0 e0) ...) pred)))]
     [(_ ([r0 e0] ...) pred)
      (quasisyntax/loc stx
        (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
