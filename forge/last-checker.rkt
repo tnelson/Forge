@@ -9,19 +9,18 @@
   (prefix-in @ (only-in racket -> >=)))
 
 (provide checkFormula checkExpression primify)
-
-; Recursive descent for last-minute consistency checking
-; Catch potential issues not detected by AST construction + generate warnings
-
 ; This function only exists for code-reuse - it's so that we don't
 ; need to use begin and hash-ref in every single branch of the match
 ; Given a struct to handle, a hashtable to search for a handler in,
 ; and an output to return, executes the check in the handler
 ; then returns the output
 (define (check-and-output ast-node to-handle checker-hash output)
-  (begin ((hash-ref checker-hash to-handle) ast-node)
+  (begin (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node))
          output))
 
+
+; Recursive descent for last-minute consistency checking
+; Catch potential issues not detected by AST construction + generate warnings
 (define/contract (checkFormula run-or-state formula quantvars checker-hash)
   (@-> (or/c Run? State? Run-spec?)
        (or/c node/formula? node/expr?)

@@ -45,7 +45,7 @@
 (struct nodeinfo (loc lang) #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (nodeinfo loc 'checklangplaceholder) self)
+     (match-define (nodeinfo loc lang) self)
      ; hide nodeinfo when printing; don't print anything or this will become overwhelming
      ;(fprintf port "")
      (void))])
