@@ -174,7 +174,7 @@
      (check-and-output formula
                        node/formula/op/=
                        checker-hash
-                       (for-each (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))]
+                       (for-each (lambda (x) (checkExpression-top run-or-state x quantvars checker-hash)) args))]
 
     ; NEGATION
     [(? node/formula/op/!?)
@@ -219,8 +219,13 @@
 
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output;
-; TODO -- check
 (define (checkExpression run-or-state expr quantvars checker-hash)
+  (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
+    (first output)))
+
+; similar except that this is called from a formula, so in bsl 
+; it should check that the multiplicity of the overall expr is 1 
+(define (checkExpression-top run-or-state expr quantvars checker-hash)
   (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
       ; insert check for (first here)
     (first output)))
