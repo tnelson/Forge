@@ -303,8 +303,7 @@
      (check-and-output expr
                        node/expr/op
                        checker-hash
-                       (cons (checkExpressionOp run-or-state expr quantvars args checker-hash)
-                             #t))]
+                       (checkExpressionOp run-or-state expr quantvars args checker-hash))]
  
     ; quantifier variable
     [(node/expr/quantifier-var info arity sym name)
@@ -350,7 +349,8 @@
 
 (define/contract (checkExpressionOp run-or-state expr quantvars args checker-hash)
   (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?)) hash?   
-       (listof (listof symbol?)))
+       any)
+       ;(listof (listof symbol?)))
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkExpressionOp: ~a~n" expr))
 
@@ -362,17 +362,19 @@
      (check-and-output expr
                        node/expr/op/prime
                        checker-hash
-                       (checkExpression run-or-state (first args) quantvars checker-hash))]
+                       (cons (checkExpression run-or-state (first args) quantvars checker-hash) 
+                             #t))]
 
     ; UNION
     [(? node/expr/op/+?)
      (check-and-output expr
                        node/expr/op/+
                        checker-hash
-                       (remove-duplicates (apply append
+                       (cons (remove-duplicates (apply append
                                                  (map (lambda (x)
                                                         (checkExpression run-or-state x quantvars checker-hash))
-                                                      args))))]
+                                                      args)))
+                              #t))]
 
     
     ; SETMINUS 
@@ -381,48 +383,53 @@
                        node/expr/op/-
                        checker-hash
                        ; A-B should have only 2 children. B may be empty.
-                       (checkExpression run-or-state (first args) quantvars checker-hash))]
+                       (cons (checkExpression run-or-state (first args) quantvars checker-hash)
+                              #t))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
      (check-and-output expr
                        node/expr/op/&
                        checker-hash
-                       (foldl
-                         (lambda (x acc)
-                           (keep-only (checkExpression run-or-state x quantvars checker-hash) acc))
-                         (checkExpression run-or-state (first args) quantvars checker-hash)
-                         (rest args)))]
+                       (cons (foldl
+                              (lambda (x acc)
+                                (keep-only (checkExpression run-or-state x quantvars checker-hash) acc))
+                              (checkExpression run-or-state (first args) quantvars checker-hash)
+                              (rest args))
+                              #t))]
     
     ; PRODUCT
     [(? node/expr/op/->?)
      (check-and-output expr
                        node/expr/op/->
                        checker-hash
-                       (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)]
-                              [result (map flatten (map append (apply cartesian-product child-values)))])       
-                         result))]
+                       (cons (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)]
+                                  [result (map flatten (map append (apply cartesian-product child-values)))])       
+                            result)
+                              #t))]
    
     ; JOIN
     [(? node/expr/op/join?)
      (check-and-output expr
                        node/expr/op/join
                        checker-hash
-                       (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)]
-                              [join-result (check-join child-values)])
+                       (let* ([child-values (map (lambda (x) (checkExpression-mult run-or-state x quantvars checker-hash)) args)]
+                              [join-result (check-join (map car child-values))])
                          (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
                            (when (empty? join-result)
                              (raise-syntax-error #f (format "join always results in an empty relation")
                                                  (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr)))))))
-                           join-result))]
+                           (cons join-result
+                                 (cdr (first child-values)))))]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (check-and-output expr
                        node/expr/op/^
                        checker-hash
-                       (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)])     
-                         (check-closure (first child-values))))]
+                       (cons (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)])     
+                               (check-closure (first child-values)))
+                              #t))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
@@ -430,15 +437,17 @@
                        node/expr/op/*
                        checker-hash
                        ; includes iden, so might contain any arity-2 tuple
-                       (let ([prims (primify run-or-state 'univ)])
-                         (cartesian-product prims prims)))]
+                       (cons (let ([prims (primify run-or-state 'univ)])
+                              (cartesian-product prims prims))
+                              #t))]
 
     ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
     [(? node/expr/op/~?)
      (check-and-output expr
                        node/expr/op/~
                        checker-hash
-                       (map reverse (checkExpression run-or-state (first args) quantvars checker-hash)))]
+                       (cons (map reverse (checkExpression run-or-state (first args) quantvars checker-hash))
+                              #t))]
     
 
     ; RELATIONAL OVERRIDE
@@ -463,14 +472,15 @@
            (raise-user-error (format "++: right argument will never override anything in left argument on line ~a, column ~a, span ~a."
                                      src-line src-col src-span)))
          ; ++ has a maximum of two arguments so this should get everything
-         (remove-duplicates (append left-tuples right-tuples))))]
+         (cons (remove-duplicates (append left-tuples right-tuples))
+                #t)))]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
      (check-and-output expr
                        node/expr/op/sing
                        checker-hash
-                       (list (list 'Int)))]))
+                       (cons (list (list 'Int) #t)))]))
 ;  (printf "result for ~a was ~a~n" expr RESULT)
   RESULT)
 
