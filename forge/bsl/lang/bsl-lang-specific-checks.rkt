@@ -57,8 +57,13 @@
 (define (check-node-formula-op-=> formula-node)
   (void))
 
+; the only place where we sould use this is transitive closure
+; but probably we should implement a library "is reacheable from"
 (define (check-node-formula-op-in formula-node)
-  (void))
+  (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
+    (define loc (nodeinfo-loc (node-info formula-node)))
+    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+    (raise-user-error (format "Use of relational operator \"in\" is not allowed at beginner level in ~a at loc: ~a" (deparse formula-node) locstr))))
 
 (define (check-node-formula-op-= formula-node)
   (void))
@@ -191,6 +196,14 @@
 (hash-set! bsl-checker-hash node/expr/op/~ check-node-expr-op-~)
 (hash-set! bsl-checker-hash node/expr/op/sing check-node-expr-op-sing)
 
+
+(define (check-expr-mult expr-node sing)
+  (when (and sing (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)) 
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+    (raise-user-error (format "Not a singleton in ~a at loc: ~a" (deparse expr-node) locstr))))
+
+(hash-set! bsl-checker-hash 'expr-mult check-expr-mult)
 (provide bsl-checker-hash)
 
 

@@ -45,7 +45,7 @@
      (check-and-output formula
                        node/formula/multiplicity
                        checker-hash
-                       (checkExpression run-or-state expr quantvars checker-hash))]
+                       (checkExpression-top run-or-state expr quantvars checker-hash))]
     
     [(node/formula/quantified info quantifier decls subform)
      (check-and-output formula
@@ -221,14 +221,16 @@
 ; while throwing the multiplicity away in output;
 (define (checkExpression run-or-state expr quantvars checker-hash)
   (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
-    (first output)))
+    (car output)))
 
 ; similar except that this is called from a formula, so in bsl 
 ; it should check that the multiplicity of the overall expr is 1 
 (define (checkExpression-top run-or-state expr quantvars checker-hash)
   (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
       ; insert check for (first here)
-    (first output)))
+    ;(printf "checkExpression-top; node: ~a  ; mult: ~a" expr (cdr output))
+    (when (hash-has-key? checker-hash 'expr-mult) ((hash-ref checker-hash 'expr-mult) expr (cdr output)))
+    (car output)))
 
 ; For expressions, this descent does two things:
 ;   - collects possible typings of expressions
@@ -238,7 +240,8 @@
        node/expr?
        list?
        hash?
-       (listof (listof symbol?)))
+       any)
+       ;(listof (listof (listof symbol?)))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkExpression: ~a~n" expr))
@@ -253,9 +256,9 @@
      (check-and-output expr
                        node/expr/relation
                        checker-hash
-                       (list (apply cartesian-product (map primifyThis (typelist-thunk))) 
+                       (cons (apply cartesian-product (map primifyThis (typelist-thunk))) 
                              ; TODO refine
-                             (Relation-breaker expr)))]
+                             (and (equal? 1 (node/expr-arity expr)) (Sig-one expr))))]
 
     ; atom (base case)
     [(node/expr/atom info arity name)
@@ -263,42 +266,45 @@
                        node/expr/atom
                        checker-hash
                        ; overapproximate for now (TODO: get atom's sig)     
-                       (list (map list (primify run-or-state 'univ))
-                             'one)]
+                       (cons (map list (primify run-or-state 'univ))
+                             #t))]
     
     [(node/expr/ite info arity a b c)
      (check-and-output expr
                        node/expr/ite
                        checker-hash
-                       (begin (checkFormula-mult run-or-state a quantvars checker-hash) ; Check condition formula
+                       (begin (checkFormula run-or-state a quantvars checker-hash) ; Check condition formula
                               (let ([b-potentials (checkExpression-mult run-or-state b quantvars checker-hash)]
                                     [c-potentials (checkExpression-mult run-or-state c quantvars checker-hash)])
                                 ; Might be a or b, we don't know
-                                (remove-duplicates (append b-potentials c-potentials)))))]
+                                (cons (remove-duplicates (append (car b-potentials) (car c-potentials)))
+                                      (and (cdr b-potentials) (cdr c-potentials))))))]
     
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
      (check-and-output expr
                        node/expr/constant
                        checker-hash
-                       (list (list (list 'Int))
-                             'one)]
+                       (cons (list (list 'Int))
+                             #t))]
 
     ; other expression constants
     [(node/expr/constant info arity type)
      (check-and-output expr
                        node/expr/constant
                        checker-hash
-                       (let ([prims (primify run-or-state 'univ)])
-                         (cond [(equal? arity 1) (map list prims)]
-                               [else (cartesian-product prims prims)])))]
-    
+                       (cons (let ([prims (primify run-or-state 'univ)])
+                              (cond [(equal? arity 1) (map list prims)]
+                                    [else (cartesian-product prims prims)]))
+                              #t))]
+          
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
      (check-and-output expr
                        node/expr/op
                        checker-hash
-                       (checkExpressionOp run-or-state expr quantvars args checker-hash))]
+                       (cons (checkExpressionOp run-or-state expr quantvars args checker-hash)
+                             #t))]
  
     ; quantifier variable
     [(node/expr/quantifier-var info arity sym name)
@@ -306,33 +312,35 @@
                        node/expr/quantifier-var
                        checker-hash
                        ; Look up in quantvars association list, type is type of domain
-                       (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
-                           (checkExpression-mult run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
-                           (raise-syntax-error #f (format "Variable ~a used but was unbound in overall formula being checked. Bound variables: ~a" sym (map car quantvars) )
-                             (datum->syntax #f name (build-source-location-syntax (nodeinfo-loc info))))))]
+                       (cons (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
+                              (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
+                              (raise-syntax-error #f (format "Variable ~a used but was unbound in overall formula being checked. Bound variables: ~a" sym (map car quantvars) )
+                                (datum->syntax #f name (build-source-location-syntax (nodeinfo-loc info)))))
+                              #t))]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info arity decls subform)
      (check-and-output expr
                        node/expr/comprehension
                        checker-hash
-                       (let ([child-values
-                              (map (lambda (decl)
-                                     (let ([var (car decl)]
-                                           [domain (cdr decl)])
-                                       ; CHECK: shadowed variables
-                                       (when (assoc var quantvars)
-                                         (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                           (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-                                       ; CHECK: recur into domain(s)
-                                       (checkExpression-mult run-or-state domain quantvars checker-hash)))
-                                   decls)]
-                             ; Extend domain environment
-                             [new-quantvars (append (map assocify decls) quantvars)])
-                         ; CHECK: recur into subformula
-                         (checkFormula-mult run-or-state subform new-quantvars checker-hash)
-                         ; Return type constructed from decls above
-                         (map flatten (map append (apply cartesian-product child-values)))))]
+                       (cons (let ([child-values
+                                    (map (lambda (decl)
+                                          (let ([var (car decl)]
+                                                [domain (cdr decl)])
+                                            ; CHECK: shadowed variables
+                                            (when (assoc var quantvars)
+                                              (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                                (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
+                                            ; CHECK: recur into domain(s)
+                                            (checkExpression run-or-state domain quantvars checker-hash)))
+                                        decls)]
+                                  ; Extend domain environment
+                                  [new-quantvars (append (map assocify decls) quantvars)])
+                              ; CHECK: recur into subformula
+                              (checkFormula run-or-state subform new-quantvars checker-hash)
+                              ; Return type constructed from decls above
+                              (map flatten (map append (apply cartesian-product child-values))))
+                              #f))]
 
     [else (error (format "no matching case in checkExpression for ~a" expr))]))
 
