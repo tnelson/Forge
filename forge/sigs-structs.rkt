@@ -550,17 +550,25 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 (define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a))]))
 (define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
-                                                             (=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]))
+                                                             (=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]
+                                            [(_ (check-lang) a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang)
+                                                             (=/info (nodeinfo #,(build-source-location stx) '(check-lang)) a b)))]))
 (define-syntax (!in stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
                                                               (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]))
 (define-syntax (!ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
                                                               (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a)))]))
 (define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
                                                               (int>/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]))
+                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]
+                                            [(_ (check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
+                                                              (int>/info (nodeinfo #,(build-source-location stx) '(check-lang)) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) '(check-lang)) a b)))]))
 (define-syntax (<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
                                                               (int</info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]))
+                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]
+                                            [(_ (check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
+                                                              (int</info (nodeinfo #,(build-source-location stx) '(check-lang)) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) '(check-lang)) a b)))]))
 
 (define-syntax (<: stx) 
   (syntax-case stx () 
