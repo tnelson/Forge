@@ -1,5 +1,6 @@
 #lang racket
 
+(require forge/lang/deparser)
 (require 
   "sigs-structs.rkt"
   "lang/ast.rkt"
@@ -67,7 +68,7 @@
                               (let ([new-quantvars (append (map assocify decls) quantvars)])       
                                 ; CHECK: recur into subformula
                                 (checkFormula run-or-state subform new-quantvars checker-hash))))]
-    [else (error (format "no matching case in checkFormula for ~a" formula))]))
+    [else (error (format "no matching case in checkFormula for ~a" (deparse formula)))]))
 
 (define (assocify a-pair)  
   (list (car a-pair) (cdr a-pair)))
@@ -341,7 +342,7 @@
                               (map flatten (map append (apply cartesian-product child-values))))
                               #f))]
 
-    [else (error (format "no matching case in checkExpression for ~a" expr))]))
+    [else (error (format "no matching case in checkExpression for ~a" (deparse expr)))]))
 
 
 (define (keep-only keepers pool)

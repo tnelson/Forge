@@ -963,6 +963,7 @@ Now with functional forge, do-bind is used instead
 ;;;;;;;; Seq Library  ;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; need to provide through expander
 
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
 
@@ -1006,3 +1007,22 @@ Now with functional forge, do-bind is used instead
   (some ([e (elems r)])
         (some ([num1 (indsOf r e)] [num2 (indsOf r e)])
               (!= num1 num2))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; Reachability Library  ;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(provide reachable)
+
+(define (reachable a b r)
+  (in a (join b (^ r))))
+; (define-syntax (reachable stx)
+;   (syntax-case stx ()
+;     [(_ a b r)
+;       (quasisyntax/loc stx
+;         (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
+;             a 
+;             (join/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
+;                         b 
+;                        (^/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) r))))]))
+

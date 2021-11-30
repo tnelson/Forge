@@ -10,8 +10,8 @@
 (require forge/logging/sigs)
 ; (require "ast.rkt")
 
-(require (only-in forge/sigs isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups))
-(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
+(require (only-in forge/sigs isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable))
+(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
 (require forge/choose-lang-specific)
 
 
