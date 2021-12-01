@@ -3,6 +3,7 @@
 (require (except-in "lang/ast.rkt" ->)
          "lang/bounds.rkt"
          "breaks.rkt")
+(require forge/lang/deparser)
 (require (prefix-in @ racket) 
          (prefix-in @ racket/set))
 (require racket/contract)
