@@ -43,18 +43,25 @@
 (define (get-info assignment-name)
   (make-directory* "compiled")
 
+  (define (format-link name extension)
+    (format "https://raw.githubusercontent.com/~a/master/~a/~a.~a"
+                       REPO assignment-name name extension))
   (define (download name extension backup?)
-    (define link (format "https://raw.githubusercontent.com/~a/master/~a/~a.~a" 
-                         REPO assignment-name name extension))
+    (define link (format-link name extension))
     (define save-to (format "compiled/~a.~a" name extension))
-    
     (if backup?
         (download-file link save-to save-to)
         (download-file link save-to)))
 
-  (define info-string (bytes->string/utf-8 (download (format "summary-~a" (string-replace assignment-name "/" "-")) "json" #t)))
+  (define name (format "summary-~a" (string-replace assignment-name "/" "-")))
+  (define extension "json")
+  (define info-string (bytes->string/utf-8 (download name extension #t)))
   (define info (string->jsexpr info-string))
-
+  (unless (assignment-info-hash? info)
+    (raise-arguments-error 'check-ex-spec
+                           "failed to download assignment info"
+                           "url" (format-link name extension)
+                           "response" info))
 
 
   (define old_checksum_string 
@@ -78,4 +85,9 @@
 
   info)
 
+(define (assignment-info-hash? val)
+  (and (hash? val)
+       (hash-has-key? val 'wheats)
+       (hash-has-key? val 'chaffs)
+       (hash-has-key? val 'provides)))
 
