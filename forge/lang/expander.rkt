@@ -551,7 +551,7 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       (sig (get-check-lang) sig-names.names (~? mult.symbol)
+       (sig ((get-check-lang)) sig-names.names (~? mult.symbol)
                             (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
                             (~? (~@ extends.symbol extends.value))) ...))]
@@ -576,7 +576,7 @@
        #,@(for/list ([sig-name (syntax-e #'(sig-names.names ...))])
             (with-syntax ([sig-name-p0 sig-name])
               (syntax/loc sig-name
-                (sig  sig-name-p0 (~? mult.symbol)
+                (sig sig-name-p0 (~? mult.symbol)
                      (~? abstract.symbol)
                      (~? (~@ #:is-var isv))
                      (~? (~@ extends.symbol extends.value))))))
@@ -623,7 +623,7 @@
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred (get-check-lang) name.name block)))))]
+       #,(syntax/loc stx (pred ((get-check-lang)) name.name block)))))]
 
   [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
@@ -635,7 +635,7 @@
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred (get-check-lang) decl block)))))]))
+       #,(syntax/loc stx (pred ((get-check-lang)) decl block)))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)
@@ -787,12 +787,12 @@
   [((~literal Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (iff (get-check-lang) expr1 expr2)))]
+     (syntax/loc stx (iff ((get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])     
-     (syntax/loc stx (implies (get-check-lang) expr1 expr2)))]
+     (syntax/loc stx (implies ((get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
                                     "else" expr3:ExprClass)

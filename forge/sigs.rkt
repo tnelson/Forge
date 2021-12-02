@@ -462,13 +462,13 @@
          (update-state! (state-add-pred curr-state 'name name))))]
 
     ; Case: check-lang
-    [(pred check-lang name:id conds:expr ...+)
+    [(pred (check-lang) name:id conds:expr ...+)
      (quasisyntax/loc stx
        (begin
          ; use srcloc of actual predicate, not this location in sigs
          (define name (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
          (update-state! (state-add-pred curr-state 'name name))))]
-    [(pred check-lang (name:id args:id ...+) conds:expr ...+)
+    [(pred (check-lang) (name:id args:id ...+) conds:expr ...+)
      (quasisyntax/loc stx
        (begin 
          (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
