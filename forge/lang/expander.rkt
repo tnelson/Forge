@@ -576,7 +576,7 @@
        #,@(for/list ([sig-name (syntax-e #'(sig-names.names ...))])
             (with-syntax ([sig-name-p0 sig-name])
               (syntax/loc sig-name
-                (sig sig-name-p0 (~? mult.symbol)
+                (sig ((get-check-lang)) sig-name-p0 (~? mult.symbol)
                      (~? abstract.symbol)
                      (~? (~@ #:is-var isv))
                      (~? (~@ extends.symbol extends.value))))))

@@ -27,7 +27,7 @@
     (list "join.frg" #rx"join must be")
     (list "join-right.frg" #rx"join must be")
     (list "set.frg" #rx"set comprehension")
-    (list "int-minus.frg" #rx"integer")
+    (list "int-minus.frg" #rx"beginner")
     (list "set-single-equal.frg" #rx"set")
   ))
 
