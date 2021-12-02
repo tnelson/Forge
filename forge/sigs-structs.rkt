@@ -549,7 +549,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
     [(_ a b c) (quasisyntax/loc stx
                  (ifte-disambiguator (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b c))]))
 
-(define-syntax (ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a))]))
+(define-syntax (ni stx) (syntax-case stx () 
+      [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a))]
+      [(_ (check-lang) a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a))]))
 (define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
                                                              (=/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]
                                             [(_ (check-lang) a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang)

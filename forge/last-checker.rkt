@@ -481,7 +481,7 @@
      (check-and-output expr
                        node/expr/op/sing
                        checker-hash
-                       (cons (list (list 'Int) #t)))]))
+                       (cons (list (list 'Int)) #t))]))
 ;  (printf "result for ~a was ~a~n" expr RESULT)
   RESULT)
 
