@@ -29,7 +29,10 @@
 
   (define contents (port->bytes port))
   (close-input-port port)
-  
+  (when (equal? contents #"404: Not Found")
+    (raise-arguments-error 'check-ex-spec
+                           "file not found"
+                           "url" link))
   (define (write-contents port)
     (void (write-bytes contents port)))
   (call-with-output-file save-to write-contents #:exists 'replace)
@@ -39,13 +42,14 @@
 
 ;(define REPO "tdelv/lfs-2021-check-ex-spec")
 (define REPO "tnelson/cxs-compiled")
+(define BRANCH "main")
 
 (define (get-info assignment-name)
   (make-directory* "compiled")
 
   (define (format-link name extension)
-    (format "https://raw.githubusercontent.com/~a/master/~a/~a.~a"
-                       REPO assignment-name name extension))
+    (format "https://raw.githubusercontent.com/~a/~a/~a/~a.~a"
+                       REPO BRANCH assignment-name name extension))
   (define (download name extension backup?)
     (define link (format-link name extension))
     (define save-to (format "compiled/~a.~a" name extension))
