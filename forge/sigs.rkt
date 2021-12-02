@@ -340,7 +340,7 @@
          (update-state! (state-add-sig curr-state true-name name true-parent-name))))]
     
     ; CASE: check-lang, which means it came from expander
-    [(sig check-lang name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
+    [(sig (check-lang) name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
                         (~optional (~seq #:extends parent:expr))
                         (~optional (~or (~seq (~and #:one one-kw))
                                         (~seq (~and #:abstract abstract-kw))))
@@ -411,7 +411,7 @@
          (~@ (check-temporal-for-var is-var true-name))
          (update-state! (state-add-relation curr-state true-name name))))]
     ; Case: check-lang
-    [(relation check-lang name:id (sig1:id sig2:id sigs ...)
+    [(relation (check-lang) name:id (sig1:id sig2:id sigs ...)
                (~optional (~seq #:is breaker:id))
                (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
      (quasisyntax/loc stx

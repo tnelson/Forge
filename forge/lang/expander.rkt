@@ -596,7 +596,7 @@
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])
-                      (syntax/loc relation-name-p1 (relation (get-check-lang) relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
+                      (syntax/loc relation-name-p1 (relation ((get-check-lang)) relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
@@ -605,7 +605,7 @@
    (quasisyntax/loc stx (begin
    #,@(for/list ([name (syntax->list #'arrow-decl.names)])
         (with-syntax ([name name])
-          (syntax/loc stx (relation (get-check-lang) name arrow-decl.types))))))]))
+          (syntax/loc stx (relation ((get-check-lang)) name arrow-decl.types))))))]))
 
 ; FactDecl : FACT-TOK Name? Block
 (define-syntax (FactDecl stx)
