@@ -340,7 +340,7 @@
          (update-state! (state-add-sig curr-state true-name name true-parent-name))))]
     
     ; CASE: check-lang, which means it came from expander
-    [(sig (check-lang) name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
+    [(sig (#:lang check-lang) name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
                         (~optional (~seq #:extends parent:expr))
                         (~optional (~or (~seq (~and #:one one-kw))
                                         (~seq (~and #:abstract abstract-kw))))
@@ -411,7 +411,7 @@
          (~@ (check-temporal-for-var is-var true-name))
          (update-state! (state-add-relation curr-state true-name name))))]
     ; Case: check-lang
-    [(relation (check-lang) name:id (sig1:id sig2:id sigs ...)
+    [(relation (#:lang check-lang) name:id (sig1:id sig2:id sigs ...)
                (~optional (~seq #:is breaker:id))
                (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
      (quasisyntax/loc stx
@@ -462,13 +462,13 @@
          (update-state! (state-add-pred curr-state 'name name))))]
 
     ; Case: check-lang
-    [(pred (check-lang) name:id conds:expr ...+)
+    [(pred (#:lang check-lang) name:id conds:expr ...+)
      (quasisyntax/loc stx
        (begin
          ; use srcloc of actual predicate, not this location in sigs
          (define name (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
          (update-state! (state-add-pred curr-state 'name name))))]
-    [(pred (check-lang) (name:id args:id ...+) conds:expr ...+)
+    [(pred (#:lang check-lang) (name:id args:id ...+) conds:expr ...+)
      (quasisyntax/loc stx
        (begin 
          (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
