@@ -6,8 +6,8 @@ sig Node {
 
 one sig A, B extends Node {}
 
-pred leftjoin {
+pred joinRight {
     some next.B
 }
 
-run {join-right}
+run {joinRight}

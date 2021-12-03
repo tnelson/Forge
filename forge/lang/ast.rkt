@@ -225,7 +225,7 @@
            ;  (good for, e.g., test cases + parser)
            (define-syntax (id stx2)
              (syntax-case stx2 ()
-                [(_ (#:lang (check-lang)) e ellip)                
+                [(_ (#:lang check-lang) e ellip)                
                   (quasisyntax/loc stx2
                     ;(begin
                     ;(printf "arguments:~a ; ~a ; ~a ~n" check-lang e ellip))]
