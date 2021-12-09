@@ -189,21 +189,6 @@
 (define (state-set-option state option value)
   (define options (State-options state))
 
-  (define option-types
-    (hash 'eval-language symbol?
-          'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
-          'backend symbol?
-          ; 'verbosity exact-nonnegative-integer?
-          'sb exact-nonnegative-integer?
-          'coregranularity exact-nonnegative-integer?
-          'logtranslation exact-nonnegative-integer?
-          'min_tracelength exact-positive-integer?
-          'max_tracelength exact-positive-integer?
-          'problem_type symbol?
-          'target_mode symbol?
-          'core_minimization symbol?
-          'skolem_depth exact-integer?
-          'local_necessity symbol?))
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
                               option (hash-ref option-types option) value)))
@@ -259,7 +244,10 @@
                     [core_minimization value])]
       [(equal? option 'skolem_depth)
        (struct-copy Options options
-                    [skolem_depth value])]))
+                    [skolem_depth value])]
+      [(equal? option 'run_sterling)
+       (struct-copy Options options
+                    [run_sterling value])]))
 
   (struct-copy State state
                [options new-options]))

@@ -122,6 +122,7 @@
   [core_minimization symbol?]
   [skolem_depth nonnegative-integer?]
   [local_necessity symbol?]
+  [run_sterling symbol?]
   ) #:transparent)
 
 (struct/contract State (
@@ -174,7 +175,7 @@
 
 (define DEFAULT-BITWIDTH 4)
 (define DEFAULT-SIG-SCOPE (Range 0 4))
-(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off))
+(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off 'on))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -193,6 +194,39 @@
 ;       (Sig 'Int 
 ;             (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f)
 ;             #f #f #f))])))
+
+(define symbol->proc
+  (hash 'eval-language Options-eval-language
+        'solver Options-solver
+        'backend Options-backend
+        'sb Options-sb
+        'coregranularity Options-coregranularity
+        'logtranslation Options-logtranslation
+        'min_tracelength Options-min_tracelength
+        'max_tracelength Options-max_tracelength
+        'problem_type Options-problem_type
+        'target_mode Options-target_mode
+        'core_minimization Options-core_minimization
+        'skolem_depth Options-skolem_depth
+        'local_necessity Options-local_necessity
+        'run_sterling Options-run_sterling))
+
+(define option-types
+  (hash 'eval-language symbol?
+        'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
+        'backend symbol?
+        ; 'verbosity exact-nonnegative-integer?
+        'sb exact-nonnegative-integer?
+        'coregranularity exact-nonnegative-integer?
+        'logtranslation exact-nonnegative-integer?
+        'min_tracelength exact-positive-integer?
+        'max_tracelength exact-positive-integer?
+        'problem_type symbol?
+        'target_mode symbol?
+        'core_minimization symbol?
+        'skolem_depth exact-integer?
+        'local_necessity symbol?
+        'run_sterling symbol?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;  Initial State  ;;;;;;;
@@ -452,20 +486,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; get-option :: Run-or-state Symbol -> Any
 (define (get-option run-or-state option)
   (define state (get-state run-or-state))
-  (define symbol->proc
-    (hash 'eval-language Options-eval-language
-          'solver Options-solver
-          'backend Options-backend
-          'sb Options-sb
-          'coregranularity Options-coregranularity
-          'logtranslation Options-logtranslation
-          'min_tracelength Options-min_tracelength
-          'max_tracelength Options-max_tracelength
-          'problem_type Options-problem_type          
-          'target_mode Options-target_mode
-          'core_minimization Options-core_minimization
-          'skolem_depth Options-skolem_depth
-          'local_necessity Options-local_necessity))
   ((hash-ref symbol->proc option) (State-options state)))
 
 ; is-sat? :: Run -> boolean
