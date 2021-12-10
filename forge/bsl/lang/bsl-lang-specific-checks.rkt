@@ -243,6 +243,10 @@
 ;(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
 
 
+; BE CAREFUL WHEN ADDING AST-CHECKS!!
+; could break inst checking; we don't want all bsl rules to 
+; apply to inst. For example, even in BSL we could say 
+; next = `Node1->`Node2
 (provide bsl-ast-checker-hash)
 
 
