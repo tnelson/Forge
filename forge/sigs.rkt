@@ -448,7 +448,6 @@
 ; (pred info (name var ...) cond ...)
 ;   or same without info
 (define-syntax (pred stx)
-(println stx)
   (syntax-parse stx
     [(pred name:id conds:expr ...+)
      (quasisyntax/loc stx

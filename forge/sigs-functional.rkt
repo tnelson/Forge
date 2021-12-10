@@ -96,12 +96,15 @@
 ;; Language-Specific Checks ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (require forge/choose-lang-specific)
-(require forge/lang/lang-specific-checks) ; TODO: can this be relative?
-; ANSWER: maybe using dynamic-require
-;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
-(set-checker-hash! forge-checker-hash)
-(set-ast-checker-hash! forge-ast-checker-hash)
-;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
+
+; TODO: Question: This part was not commented out; was there a reason to set forge-checker-hash?
+
+; (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
+; ; ANSWER: maybe using dynamic-require
+; ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
+; (set-checker-hash! forge-checker-hash)
+; (set-ast-checker-hash! forge-ast-checker-hash)
+; ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
@@ -242,7 +245,10 @@
   (define (fail [cond #f])
     (unless cond
       (raise (format "Invalid bind: ~a" bind))))
-
+  (define inst-checker-hash (get-inst-checker-hash))
+  ;(when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
+  (define (inst-check formula to-handle)
+    (when (hash-has-key? inst-checker-hash to-handle) ((hash-ref inst-checker-hash to-handle) formula)))
   (match bind
     ; no rel, one rel, two rel, lone rel, some rel
     [(ast:node/formula/multiplicity info mult rel)
@@ -354,6 +360,7 @@
     ; rel in expr
     ; expr in rel
     [(ast:node/formula/op/in info (list left right))
+     (inst-check bind ast:node/formula/op/in)
      (cond
        [(ast:node/expr/relation? left)
         (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])

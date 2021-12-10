@@ -276,7 +276,7 @@
     [(node/expr/relation info arity name typelist-thunk parent isvar)
      name]
     [(node/expr/atom info arity name)
-     (format "`~a")]
+     (format "`~a" name)]
     [(node/expr/ite info arity a b c)
      (format "~a => { ~a } else { ~a }"
              (deparse-formula a PRIORITY-IMPLIES)

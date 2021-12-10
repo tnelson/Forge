@@ -77,6 +77,7 @@
                   ; ANSWER: maybe using dynamic-require
                   (set-checker-hash! bsl-checker-hash)
                   (set-ast-checker-hash! bsl-ast-checker-hash)
+                  (set-inst-checker-hash! bsl-inst-checker-hash)
                   (set-check-lang! 'bsl)
                   ;(printf "ch = ~a~n" bsl-checker-hash) 
 
