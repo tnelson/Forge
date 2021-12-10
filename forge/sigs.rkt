@@ -448,6 +448,7 @@
 ; (pred info (name var ...) cond ...)
 ;   or same without info
 (define-syntax (pred stx)
+(println stx)
   (syntax-parse stx
     [(pred name:id conds:expr ...+)
      (quasisyntax/loc stx
@@ -1014,15 +1015,35 @@ Now with functional forge, do-bind is used instead
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide reachable)
 
-(define (reachable a b r)
-  (in a (join b (^ r))))
-; (define-syntax (reachable stx)
+(define-syntax (reachable stx)
+  (syntax-parse stx
+   [reachable
+   (quasisyntax/loc stx
+     (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
+
+(define (reachablefun loc a b r)
+  (in/info (nodeinfo loc 'checklangNoCheck) 
+           a 
+           (join/info (nodeinfo loc 'checklangNoCheck) 
+                      b 
+                      (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
+
+(define (union-relations loc r)
+  (cond
+    [(empty? r) (raise-user-error "contact course staff. Shouldn't have union of none")]
+    [(empty? (rest r)) (first r)]
+    [else (+/info (nodeinfo loc 'checklangNoCheck) (first r) (union-relations loc (rest r)))]))
+  ; (in a (join b (^ r))))
+; (define (reachable a b r)
+;   (reachable2 a b r))
+; (define-syntax (reachable2 stx)
+; (println stx)
 ;   (syntax-case stx ()
-;     [(_ a b r)
+;     [(_ a b r ...)
 ;       (quasisyntax/loc stx
 ;         (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
 ;             a 
 ;             (join/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
 ;                         b 
-;                        (^/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) r))))]))
+;                        (^/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (+/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) r ...)))))]))
 
