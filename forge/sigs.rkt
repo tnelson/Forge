@@ -967,7 +967,13 @@ Now with functional forge, do-bind is used instead
 
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
 
-(define (isSeqOf r1 d)
+(define-syntax (isSeqOf stx)
+  (syntax-parse stx
+   [isSeqOf
+   (quasisyntax/loc stx
+     (lambda (r1 d) (isSeqOfFun #,(build-source-location stx) r1 d)))]))
+
+(define (isSeqOfFun r1 d)
   (&& (in r1 (-> Int univ))
       (in (join Int r1) d)
       (all ([i1 (join r1 univ)])
@@ -979,31 +985,90 @@ Now with functional forge, do-bind is used instead
            (implies (!= i1 (sing (int 0))) 
                     (some (join (sing (subtract (sum i1) (int 1))) r1))))))
 
-(define (seqFirst r)
+(define-syntax (seqFirst stx)
+  (syntax-parse stx
+   [seqFirst
+   (quasisyntax/loc stx
+     (lambda (r) (seqFirstFun #,(build-source-location stx) r)))]))
+
+(define (seqFirstFun r)
   (join (sing (int 0)) r))
 
-(define (seqLast r)
+
+(define-syntax (seqLast stx)
+  (syntax-parse stx
+   [seqLast
+   (quasisyntax/loc stx
+     (lambda (r) (seqLastFun #,(build-source-location stx) r)))]))
+
+
+(define (seqLastFun r)
   (join (sing (subtract (card r) (int 1))) r))
 
-(define (indsOf r e)
+(define-syntax (indsOf stx)
+  (syntax-parse stx
+   [indsOf
+   (quasisyntax/loc stx
+     (lambda (r e) (indsOfFun #,(build-source-location stx) r e)))]))
+
+(define (indsOfFun r e)
         (join r e))
 
-(define (idxOf r e)
+(define-syntax (idxOf stx)
+  (syntax-parse stx
+   [idxOf
+   (quasisyntax/loc stx
+     (lambda (r e) (idxOfFun #,(build-source-location stx) r e)))]))
+
+(define (idxOfFun r e)
         (min (join r e)))
 
-(define (lastIdxOf r e)
+(define-syntax (lastIdxOf stx)
+  (syntax-parse stx
+   [lastIdxOf
+   (quasisyntax/loc stx
+     (lambda (r e) (lastIdxOfFun #,(build-source-location stx) r e)))]))
+
+
+(define (lastIdxOfFun r e)
         (max (join r e)))
 
-(define (elems r)
+
+(define-syntax (elems stx)
+  (syntax-parse stx
+   [elems
+   (quasisyntax/loc stx
+     (lambda (r) (elemsFun #,(build-source-location stx) r)))]))
+
+(define (elemsFun r)
   (join Int r))
 
-(define (inds r)
+
+(define-syntax (inds stx)
+  (syntax-parse stx
+   [inds
+   (quasisyntax/loc stx
+     (lambda (r) (indsFun #,(build-source-location stx) r)))]))
+
+(define (indsFun r)
   (join r univ))
 
-(define (isEmpty r)
+(define-syntax (isEmpty stx)
+  (syntax-parse stx
+   [isEmpty
+   (quasisyntax/loc stx
+     (lambda (r) (isEmptyFun #,(build-source-location stx) r)))]))
+
+(define (isEmptyFun r)
   (no r))
 
-(define (hasDups r)
+
+(define-syntax (hasDups stx)
+  (syntax-parse stx
+   [hasDups
+   (quasisyntax/loc stx
+     (lambda (r) (hasDupsFun #,(build-source-location stx) r)))]))
+(define (hasDupsFun r)
   (some ([e (elems r)])
         (some ([num1 (indsOf r e)] [num2 (indsOf r e)])
               (!= num1 num2))))
