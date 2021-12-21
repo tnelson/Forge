@@ -973,17 +973,20 @@ Now with functional forge, do-bind is used instead
    (quasisyntax/loc stx
      (lambda (r1 d) (isSeqOfFun #,(build-source-location stx) r1 d)))]))
 
-(define (isSeqOfFun r1 d)
-  (&& (in r1 (-> Int univ))
-      (in (join Int r1) d)
-      (all ([i1 (join r1 univ)])
-           (&& (>= (sum i1) (int 0))
-               (lone (join i1 r1))))
-      (all ([e (join Int r1)])
-           (some (join r1 e)))
-      (all ([i1 (join r1 univ)])
-           (implies (!= i1 (sing (int 0))) 
-                    (some (join (sing (subtract (sum i1) (int 1))) r1))))))
+(define (isSeqOfFun loc r1 d)
+  (&&/info (nodeinfo loc 'checklangNoCheck)  (in/info (nodeinfo loc 'checklangNoCheck)  r1 (-> Int univ))
+      (in/info (nodeinfo loc 'checklangNoCheck)  (join/info (nodeinfo loc 'checklangNoCheck)  Int r1) d)
+      (all ([i1 (join/info (nodeinfo loc 'checklangNoCheck)  r1 univ)])
+           (&&/info (nodeinfo loc 'checklangNoCheck)  (>= (sum/info (nodeinfo loc 'checklangNoCheck)  i1) (int 0))
+               (lone (join/info (nodeinfo loc 'checklangNoCheck)  i1 r1))))
+      (all ([e (join/info (nodeinfo loc 'checklangNoCheck)  Int r1)])
+           (some (join/info (nodeinfo loc 'checklangNoCheck)  r1 e)))
+      (all ([i1 (join/info (nodeinfo loc 'checklangNoCheck)  r1 univ)])
+           (implies (!= i1 (sing/info (nodeinfo loc 'checklangNoCheck)  (int 0))) 
+                    (some (join/info (nodeinfo loc 'checklangNoCheck) 
+                     (sing/info (nodeinfo loc 'checklangNoCheck)  
+                      (subtract/info (nodeinfo loc 'checklangNoCheck) 
+                       (sum/info (nodeinfo loc 'checklangNoCheck)  i1) (int 1))) r1))))))
 
 (define-syntax (seqFirst stx)
   (syntax-parse stx
@@ -991,8 +994,10 @@ Now with functional forge, do-bind is used instead
    (quasisyntax/loc stx
      (lambda (r) (seqFirstFun #,(build-source-location stx) r)))]))
 
-(define (seqFirstFun r)
-  (join (sing (int 0)) r))
+(define (seqFirstFun loc r)
+  (join/info (nodeinfo loc 'checklangNoCheck) 
+   (sing/info (nodeinfo loc 'checklangNoCheck)  (int 0))
+  r))
 
 
 (define-syntax (seqLast stx)
@@ -1002,8 +1007,12 @@ Now with functional forge, do-bind is used instead
      (lambda (r) (seqLastFun #,(build-source-location stx) r)))]))
 
 
-(define (seqLastFun r)
-  (join (sing (subtract (card r) (int 1))) r))
+(define (seqLastFun loc r)
+  (join/info (nodeinfo loc 'checklangNoCheck)  
+    (sing/info (nodeinfo loc 'checklangNoCheck) 
+     (subtract/info (nodeinfo loc 'checklangNoCheck) 
+      (card/info (nodeinfo loc 'checklangNoCheck)  r) (int 1)))
+    r))
 
 (define-syntax (indsOf stx)
   (syntax-parse stx
@@ -1011,8 +1020,8 @@ Now with functional forge, do-bind is used instead
    (quasisyntax/loc stx
      (lambda (r e) (indsOfFun #,(build-source-location stx) r e)))]))
 
-(define (indsOfFun r e)
-        (join r e))
+(define (indsOfFun loc r e)
+        (join/info (nodeinfo loc 'checklangNoCheck) r e))
 
 (define-syntax (idxOf stx)
   (syntax-parse stx
@@ -1020,8 +1029,8 @@ Now with functional forge, do-bind is used instead
    (quasisyntax/loc stx
      (lambda (r e) (idxOfFun #,(build-source-location stx) r e)))]))
 
-(define (idxOfFun r e)
-        (min (join r e)))
+(define (idxOfFun loc r e)
+        (min (join/info (nodeinfo loc 'checklangNoCheck)  r e)))
 
 (define-syntax (lastIdxOf stx)
   (syntax-parse stx
@@ -1030,8 +1039,8 @@ Now with functional forge, do-bind is used instead
      (lambda (r e) (lastIdxOfFun #,(build-source-location stx) r e)))]))
 
 
-(define (lastIdxOfFun r e)
-        (max (join r e)))
+(define (lastIdxOfFun loc r e)
+        (max (join/info (nodeinfo loc 'checklangNoCheck)  r e)))
 
 
 (define-syntax (elems stx)
@@ -1040,8 +1049,8 @@ Now with functional forge, do-bind is used instead
    (quasisyntax/loc stx
      (lambda (r) (elemsFun #,(build-source-location stx) r)))]))
 
-(define (elemsFun r)
-  (join Int r))
+(define (elemsFun loc r)
+  (join/info (nodeinfo loc 'checklangNoCheck)  Int r))
 
 
 (define-syntax (inds stx)
@@ -1050,8 +1059,8 @@ Now with functional forge, do-bind is used instead
    (quasisyntax/loc stx
      (lambda (r) (indsFun #,(build-source-location stx) r)))]))
 
-(define (indsFun r)
-  (join r univ))
+(define (indsFun loc r)
+  (join/info (nodeinfo loc 'checklangNoCheck)  r univ))
 
 (define-syntax (isEmpty stx)
   (syntax-parse stx
@@ -1059,7 +1068,7 @@ Now with functional forge, do-bind is used instead
    (quasisyntax/loc stx
      (lambda (r) (isEmptyFun #,(build-source-location stx) r)))]))
 
-(define (isEmptyFun r)
+(define (isEmptyFun loc r)
   (no r))
 
 
@@ -1068,9 +1077,10 @@ Now with functional forge, do-bind is used instead
    [hasDups
    (quasisyntax/loc stx
      (lambda (r) (hasDupsFun #,(build-source-location stx) r)))]))
-(define (hasDupsFun r)
-  (some ([e (elems r)])
-        (some ([num1 (indsOf r e)] [num2 (indsOf r e)])
+
+(define (hasDupsFun loc r)
+  (some ([e (elemsFun loc r)])
+        (some ([num1 (indsOfFun loc r e)] [num2 (indsOfFun loc r e)])
               (!= num1 num2))))
 
 
