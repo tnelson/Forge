@@ -330,7 +330,7 @@
                                 #:is-var isv
                                 ;let #:in default to #f until it is implemented
                                 #:extends true-parent
-                                #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)))
+                                #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var is-var true-name))
          ;Currently when lang/expander.rkt calls sig with #:in,
@@ -406,7 +406,7 @@
                                      true-sigs
                                      #:is true-breaker
                                      #:is-var isv
-                                     #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)))
+                                     #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var is-var true-name))
          (update-state! (state-add-relation curr-state true-name name))))]
@@ -453,12 +453,12 @@
      (quasisyntax/loc stx
        (begin
          ; use srcloc of actual predicate, not this location in sigs
-         (define name (&&/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) conds ...))
+         (define name (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) conds ...))
          (update-state! (state-add-pred curr-state 'name name))))]
     [(pred (name:id args:id ...+) conds:expr ...+)
      (quasisyntax/loc stx
        (begin 
-         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) conds ...))
+         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) conds ...))
          (update-state! (state-add-pred curr-state 'name name))))]
 
     ; Case: check-lang

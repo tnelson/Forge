@@ -232,7 +232,7 @@
                     (macroname/info (nodeinfo #,(build-source-location stx2) check-lang) e ellip))]
                 [(_ e ellip)                
                   (quasisyntax/loc stx2
-                    (macroname/info (nodeinfo #,(build-source-location stx2) 'checklangplaceholder) e ellip))]))
+                    (macroname/info (nodeinfo #,(build-source-location stx2) 'checklangNoCheck) e ellip))]))
 
 
            (define (macroname/info-help info args-raw)
@@ -363,8 +363,8 @@
           (set/func #:info (nodeinfo #,(build-source-location stx) check-lang) (list (cons r0 e0) ...) pred)))]
     [(_ ([r0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
-         (set/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (list (cons r0 e0) ...) pred)))]))
+       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
+         (set/func #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 
@@ -795,7 +795,7 @@
     [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a-no" 'v0)) 'v0)] ...)
-         (! (quantified-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'some (list (cons v0 e0) ...) pred))))]
+         (! (quantified-formula (nodeinfo #,(build-source-location stx) 'checklang) 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
      (quasisyntax/loc stx
        (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'no expr))]))

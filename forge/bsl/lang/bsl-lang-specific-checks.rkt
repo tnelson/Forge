@@ -4,7 +4,7 @@
 (require forge/lang/ast)
 (require forge/sigs-structs)
 (require (for-syntax racket/syntax syntax/srcloc)
-         syntax/srcloc (prefix-in @ racket) (prefix-in $ racket))
+         syntax/srcloc)
 
 (define (check-node-formula-constant formula-node)
   (void))
