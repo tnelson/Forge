@@ -623,4 +623,4 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [src-span (source-location-span loc)])
     (unless (equal? (node/expr-arity a)
                     (+ 1 (node/expr-arity b))) 
-                    (raise-user-error (format ">: argument has incorrect arity in ~a >: ~a on line ~a, column ~a, span~a" (deparse a) (deparse b) src-line src-col src-span)))))
+                    (raise-user-error (format ":> argument has incorrect arity in ~a :> ~a on line ~a, column ~a, span~a" (deparse a) (deparse b) src-line src-col src-span)))))

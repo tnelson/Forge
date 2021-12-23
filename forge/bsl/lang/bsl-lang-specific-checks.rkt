@@ -57,8 +57,6 @@
 (define (check-node-formula-op-=> formula-node)
   (void))
 
-; the only place where we sould use this is transitive closure
-; but probably we should implement a library "is reacheable from"
 (define (check-node-formula-op-in formula-node)
   (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info formula-node)))

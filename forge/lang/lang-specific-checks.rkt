@@ -176,3 +176,6 @@
 (hash-set! forge-ast-checker-hash "check-args" forge-ast-arg-checks)
 
 (provide forge-ast-checker-hash)
+
+(define forge-inst-checker-hash (make-hash))
+(provide forge-inst-checker-hash)

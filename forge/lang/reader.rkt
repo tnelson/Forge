@@ -78,6 +78,7 @@
                   ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
                   (set-checker-hash! forge-checker-hash)
                   (set-ast-checker-hash! forge-ast-checker-hash)
+                  (set-inst-checker-hash! forge-inst-checker-hash)
                   (set-check-lang! 'forge)
                   ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
                   

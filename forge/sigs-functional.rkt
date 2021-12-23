@@ -97,14 +97,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (require forge/choose-lang-specific)
 
-; TODO: Question: This part was not commented out; was there a reason to set forge-checker-hash?
-
-; (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
-; ; ANSWER: maybe using dynamic-require
-; ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
-; (set-checker-hash! forge-checker-hash)
-; (set-ast-checker-hash! forge-ast-checker-hash)
-; ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
