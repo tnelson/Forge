@@ -149,6 +149,7 @@
 (struct Server-ports (
   stdin
   stdout
+  stderr
   shutdown
   is-running?) #:transparent)
 
@@ -487,10 +488,15 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (assert-is-running run)
   (Server-ports-stdin (Run-server-ports run)))
 
-; get-stdin :: Run -> output-port?
+; get-stdout :: Run -> output-port?
 (define (get-stdout run)
   (assert-is-running run)
   (Server-ports-stdout (Run-server-ports run)))
+
+; get-stderr :: Run -> output-port?
+(define (get-stderr run)
+  (assert-is-running run)
+  (Server-ports-stderr (Run-server-ports run)))
 
 ; close-run :: Run -> void
 (define (close-run run)

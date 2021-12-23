@@ -1,9 +1,8 @@
 #lang racket
 
-(require racket/runtime-path "log.rkt" "server-common.rkt")
-; (require "kks.rkt") <-- unnecessary and causes cycle
+(require racket/runtime-path "server-common.rkt")
 
-(provide kodkod-initializer kodkod-stderr-handler server%)
+(provide kodkod-initializer server%)
 
 (define-runtime-path kodkod (build-path ".."))
 
@@ -32,10 +31,3 @@
                     java "-cp" cp (string-append "-Djava.library.path=" (path->string kodkod/jar))
                     "kodkod.cli.KodkodServer" "-stepper" "-error-out" error-out))))
 
-(define (kodkod-stderr-handler src err)
-  (match (read-line err)
-    [(pregexp #px"\\s*\\[INFO\\]\\s*(.+)" (list _ info)) (log-info [src] info) (println info)]
-    [(pregexp #px"\\s*\\[WARNING\\]\\s*(.+)" (list _ warning)) (log-warning [src] warning)]
-    [(pregexp #px"\\s*\\[SEVERE\\]\\s*(.+)" (list _ severe)) (log-error [src] severe)]
-    [(? eof-object?) (void)]
-    [line (log-debug [src] line)]))

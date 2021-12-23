@@ -120,7 +120,7 @@
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define backend (get-option run-spec 'backend))
-  (define-values (stdin stdout shutdown is-running?) 
+  (define-values (stdin stdout stderr shutdown is-running?) 
     (cond
       [(equal? backend 'kodkod)
        (kodkod:start-server)]
@@ -299,7 +299,7 @@
     (pardinus-print (pardinus:solve mode))
     (define result (translate-from-kodkod-cli
                     'run 
-                    (pardinus:read-solution stdout) 
+                    (pardinus:read-solution stdout stderr) 
                     all-rels 
                     all-atoms))
 
@@ -350,7 +350,7 @@
 
   (values results 
           all-atoms 
-          (Server-ports stdin stdout shutdown is-running?) 
+          (Server-ports stdin stdout stderr shutdown is-running?) 
           (Kodkod-current (length run-constraints) 0 0) 
           total-bounds))
 
