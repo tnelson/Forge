@@ -7,7 +7,7 @@
 
 (provide get-verbosity set-verbosity VERBOSITY_LOW VERBOSITY_HIGH VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
 (provide forge-version instance-diff CORE-HIGHLIGHT-COLOR)
-(provide stream-map/once)
+(provide stream-map/once port-echo)
 
 (define CORE-HIGHLIGHT-COLOR (make-object color% 230 150 150))
 
@@ -55,3 +55,10 @@
 (define (stream-map/once func strm)
   (stream-cons (func (stream-first strm))
                (stream-map/once func (stream-rest strm))))
+
+(define (port-echo in-port out-port #:title [title #f])
+  (when title
+    (fprintf out-port "~a logs:~n" title))
+  (for ([ln (in-lines in-port)])
+    (displayln ln out-port)))
+

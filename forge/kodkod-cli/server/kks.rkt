@@ -19,16 +19,14 @@
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (displayln "Starting kodkod server."))
   (define kks (new server%
-                   [initializer (thunk (kodkod-initializer #f))]
-                   [stderr-handler (curry kodkod-stderr-handler "blank")]))
+                   [initializer (thunk (kodkod-initializer #f))]))
   (send kks initialize)
   (define stdin-val (send kks stdin))
+  (define stderr-val (send kks stderr))
   (define stdout-val (send kks stdout))
   (define close-server (thunk (send kks shutdown)))
   (define is-running? (thunk (send kks initialized?)))
-  (values stdin-val stdout-val close-server is-running?))
-; (define (stdin) stdin-val)
-; (define (stdout) stdout-val)
+  (values stdin-val stdout-val stderr-val close-server is-running?))
 
 ; Prints all Kodkod commands issued during the dynamic
 ; extent of the given expressions to the provided port.
@@ -158,7 +156,7 @@
 ; that form a minimal unsatisfiable core.  The produced
 ; list will be non-empty if the underlying solver was
 ; instructed to provide cores; it will be empty otherwise.
-(define (read-solution port)
+(define (read-solution port err-port)
   (define result (read port))
   (when (>= (get-verbosity) VERBOSITY_LOW)
     (writeln result))
@@ -173,10 +171,11 @@
     [(list (== 'no-more-instances))
      (cons 'no-more-instances #f)]
     [(== eof)
+     (port-echo err-port (current-error-port) #:title "Kodkod")
      (error "Kodkod CLI shut down unexpectedly while running!")]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
 
-(define (read-evaluation port)
+(define (read-evaluation port err-port)
   (define result (read port))
   (when (>= (get-verbosity) VERBOSITY_LOW)
     (writeln result))
@@ -188,4 +187,5 @@
     [(list (== 'evaluated) (== ':formula) val)
      (cons 'formula (equal? val 'true))]
     [(== eof)
+     (port-echo err-port (current-error-port) #:title "Kodkod")
      (error "Kodkod CLI shut down unexpectedly while evaluating!")]))

@@ -1,9 +1,8 @@
 #lang racket
 
-(require racket/runtime-path "log.rkt" "server-common.rkt" "../../shared.rkt")
-; (require "kks.rkt") <-- unnecessary and causes cycle
+(require racket/runtime-path "server-common.rkt" "../../shared.rkt")
 
-(provide pardinus-initializer pardinus-stderr-handler server%)
+(provide pardinus-initializer server%)
 
 (define-runtime-path pardinus (build-path ".."))
 
@@ -39,10 +38,3 @@
                       [else (error (format "Bad solver subtype: ~a" solver-subtype))]) 
                 "-error-out" error-out)))
 
-(define (pardinus-stderr-handler src err)
-  (match (read-line err)
-    [(pregexp #px"\\s*\\[INFO\\]\\s*(.+)" (list _ info)) (log-info [src] info) (println info)]
-    [(pregexp #px"\\s*\\[WARNING\\]\\s*(.+)" (list _ warning)) (log-warning [src] warning)]
-    [(pregexp #px"\\s*\\[SEVERE\\]\\s*(.+)" (list _ severe)) (log-error [src] severe)]
-    [(? eof-object?) (void)]
-    [line (log-debug [src] line)]))
