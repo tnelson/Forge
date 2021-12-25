@@ -28,13 +28,20 @@
     (when (> (get-verbosity) VERBOSITY_LOW)        
       (printf "  Starting solver process. subtype: ~a~n" solver-subtype))
 
+    (define lib-path (string-append "-Djava.library.path=" (path->string pardinus/jar)))
+    (define solver-subtype-str (cond [(equal? solver-subtype 'target) "-target-oriented"]
+                                     [(equal? solver-subtype 'temporal) "-temporal"]
+                                     [(equal? solver-subtype 'default) ""]
+                                     [else (error (format "Bad solver subtype: ~a" solver-subtype))]))
+    
+    (when (> (get-verbosity) VERBOSITY_HIGH)        
+      (printf "  Subprocess invocation information: ~a~n"
+              (list java "-cp" cp "kodkod.cli.KodkodServer" (format "-~a" solver-type) solver-subtype-str "-error-out" error-out)))
+
     (subprocess #f #f #f
-                java "-cp" cp (string-append "-Djava.library.path=" (path->string pardinus/jar))
+                java "-cp" cp lib-path
                 "kodkod.cli.KodkodServer" 
                 (format "-~a" solver-type)
-                (cond [(equal? solver-subtype 'target) "-target-oriented"]
-                      [(equal? solver-subtype 'temporal) "-temporal"]
-                      [(equal? solver-subtype 'default) ""]
-                      [else (error (format "Bad solver subtype: ~a" solver-subtype))]) 
+                solver-subtype-str 
                 "-error-out" error-out)))
 
