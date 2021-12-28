@@ -10,4 +10,4 @@ pred arrow {
     A->B in next
 }
 
-run {}
+run {arrow}
