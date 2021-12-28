@@ -93,6 +93,8 @@
    ["no"        (token+ `NO-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["none"      (token+ `NONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["one"       (token+ `ONE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["func"       (token+ `FUNC-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["pfunc"       (token+ `PFUNC-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["open"      (token+ `OPEN-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["pred"      (token+ `PRED-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["run"       (token+ `RUN-TOK "" lexeme "" lexeme-start lexeme-end)]

@@ -7,6 +7,8 @@
 (require (for-syntax racket/match syntax/srcloc))
 (require (for-syntax syntax/strip-context))
 
+;(require forge/choose-lang-specific)
+
 (require "shared.rkt")
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
@@ -42,6 +44,7 @@
                   make-check
                   test-from-state
                   make-test))
+(require forge/choose-lang-specific)
 
 ; Commands
 (provide sig relation fun const pred inst with)
@@ -296,6 +299,11 @@
 ; when the Expander tries to do that
 (define-syntax (sig stx)
   (syntax-parse stx
+    ; the two cases here are identical except check-lang argument
+    ; the aim is to make check-lang optional
+    ; could probably make it more concise in the future
+
+    ; CASE: NO check-lang; builtin/default
     [(sig name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
                         (~optional (~seq #:extends parent:expr))
                         (~optional (~or (~seq (~and #:one one-kw))
@@ -322,7 +330,43 @@
                                 #:is-var isv
                                 ;let #:in default to #f until it is implemented
                                 #:extends true-parent
-                                #:info (nodeinfo #,(build-source-location stx))))
+                                #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))
+         ;make sure it isn't a var sig if not in temporal mode
+         (~@ (check-temporal-for-var is-var true-name))
+         ;Currently when lang/expander.rkt calls sig with #:in,
+         ;super-sig is #'(raise "Extending with in not yet implemented.")
+         ;This is just here for now to make sure that error is raised.
+         (~? super-sig)
+         (update-state! (state-add-sig curr-state true-name name true-parent-name))))]
+    
+    ; CASE: check-lang, which means it came from expander
+    [(sig (#:lang check-lang) name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
+                        (~optional (~seq #:extends parent:expr))
+                        (~optional (~or (~seq (~and #:one one-kw))
+                                        (~seq (~and #:abstract abstract-kw))))
+                        (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
+     (quasisyntax/loc stx
+       (begin
+         (define true-name 'name)
+         (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
+         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
+         (define true-parent (~? (get-sig curr-state parent)
+                                 #f))
+         (define true-parent-name
+           (if true-parent (Sig-name true-parent) #f))
+         ; Temporary fix: if-for-bool :(
+         ; needed for now because when Forge expands into core,
+         ; is-var comes in as "var" instead of #t
+         ; so the contract on make-sig break
+         (define isv
+           (if is-var #t #f))
+         (define name (make-sig true-name
+                                #:one true-one
+                                #:abstract true-abstract
+                                #:is-var isv
+                                ;let #:in default to #f until it is implemented
+                                #:extends true-parent
+                                #:info (nodeinfo #,(build-source-location stx) check-lang)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var is-var true-name))
          ;Currently when lang/expander.rkt calls sig with #:in,
@@ -344,10 +388,14 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
+         ;(printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
+         ;(printf "relatoin breaker: ~a~n" true-breaker)
+         (define checker-hash (get-ast-checker-hash))
+         (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
          ; Temporary fix: if-for-bool :(
          ; needed for now because when Forge expands into core,
          ; is-var comes in as "var" instead of #t
@@ -358,7 +406,39 @@
                                      true-sigs
                                      #:is true-breaker
                                      #:is-var isv
-                                     #:info (nodeinfo #,(build-source-location stx))))
+                                     #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))
+         ;make sure it isn't a var sig if not in temporal mode
+         (~@ (check-temporal-for-var is-var true-name))
+         (update-state! (state-add-relation curr-state true-name name))))]
+    ; Case: check-lang
+    [(relation (#:lang check-lang) name:id (sig1:id sig2:id sigs ...)
+               (~optional (~seq #:is breaker:id))
+               (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
+     (quasisyntax/loc stx
+       (begin
+         (define true-name 'name)
+         (define true-sigs (list (thunk (get-sig curr-state sig1))
+                                 (thunk (get-sig curr-state sig2))
+                                 (thunk (get-sig curr-state sigs)) ...))
+         ;(printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
+         ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
+         ;                                 (curry get-sig curr-state ))
+         ;                        (list sig1 sig2 sigs ...)))
+         (define true-breaker (~? breaker #f))
+         ;(printf "relatoin breaker: ~a~n" true-breaker)
+         (define checker-hash (get-ast-checker-hash))
+         (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
+         ; Temporary fix: if-for-bool :(
+         ; needed for now because when Forge expands into core,
+         ; is-var comes in as "var" instead of #t
+         ; so the contract on make-sig breaks
+         (define isv
+           (if is-var #t #f))
+         (define name (make-relation true-name
+                                     true-sigs
+                                     #:is true-breaker
+                                     #:is-var isv
+                                     #:info (nodeinfo #,(build-source-location stx) check-lang)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var is-var true-name))
          (update-state! (state-add-relation curr-state true-name name))))]))
@@ -373,12 +453,25 @@
      (quasisyntax/loc stx
        (begin
          ; use srcloc of actual predicate, not this location in sigs
-         (define name (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
+         (define name (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) conds ...))
          (update-state! (state-add-pred curr-state 'name name))))]
     [(pred (name:id args:id ...+) conds:expr ...+)
      (quasisyntax/loc stx
        (begin 
-         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx)) conds ...))
+         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) conds ...))
+         (update-state! (state-add-pred curr-state 'name name))))]
+
+    ; Case: check-lang
+    [(pred (#:lang check-lang) name:id conds:expr ...+)
+     (quasisyntax/loc stx
+       (begin
+         ; use srcloc of actual predicate, not this location in sigs
+         (define name (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
+         (update-state! (state-add-pred curr-state 'name name))))]
+    [(pred (#:lang check-lang) (name:id args:id ...+) conds:expr ...+)
+     (quasisyntax/loc stx
+       (begin 
+         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
          (update-state! (state-add-pred curr-state 'name name))))]))
                                    
 ; Declare a new function
@@ -430,7 +523,9 @@
             (~optional (~seq #:target-distance target-distance))
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
-     #`(begin         
+     #`(begin
+         ;(define checker-hash (get-ast-checker-hash))
+         ;(printf "sigs run ~n ch= ~a~n" checker-hash)
          (define run-state curr-state)
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
          (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
@@ -863,3 +958,166 @@ Now with functional forge, do-bind is used instead
 
 (define (solution-diff s1 s2)
   (map instance-diff (Sat-instances s1) (Sat-instances s2)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; Seq Library  ;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; need to provide through expander
+
+(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
+
+(define-syntax (isSeqOf stx)
+  (syntax-parse stx
+   [isSeqOf
+   (quasisyntax/loc stx
+     (lambda (r1 d) (isSeqOfFun #,(build-source-location stx) r1 d)))]))
+
+(define (isSeqOfFun loc r1 d)
+  (&&/info (nodeinfo loc 'checklangNoCheck)  (in/info (nodeinfo loc 'checklangNoCheck)  r1 (-> Int univ))
+      (in/info (nodeinfo loc 'checklangNoCheck)  (join/info (nodeinfo loc 'checklangNoCheck)  Int r1) d)
+      (all ([i1 (join/info (nodeinfo loc 'checklangNoCheck)  r1 univ)])
+           (&&/info (nodeinfo loc 'checklangNoCheck)  (>= (sum/info (nodeinfo loc 'checklangNoCheck)  i1) (int 0))
+               (lone (join/info (nodeinfo loc 'checklangNoCheck)  i1 r1))))
+      (all ([e (join/info (nodeinfo loc 'checklangNoCheck)  Int r1)])
+           (some (join/info (nodeinfo loc 'checklangNoCheck)  r1 e)))
+      (all ([i1 (join/info (nodeinfo loc 'checklangNoCheck)  r1 univ)])
+           (implies (!= i1 (sing/info (nodeinfo loc 'checklangNoCheck)  (int 0))) 
+                    (some (join/info (nodeinfo loc 'checklangNoCheck) 
+                     (sing/info (nodeinfo loc 'checklangNoCheck)  
+                      (subtract/info (nodeinfo loc 'checklangNoCheck) 
+                       (sum/info (nodeinfo loc 'checklangNoCheck)  i1) (int 1))) r1))))))
+
+(define-syntax (seqFirst stx)
+  (syntax-parse stx
+   [seqFirst
+   (quasisyntax/loc stx
+     (lambda (r) (seqFirstFun #,(build-source-location stx) r)))]))
+
+(define (seqFirstFun loc r)
+  (join/info (nodeinfo loc 'checklangNoCheck) 
+   (sing/info (nodeinfo loc 'checklangNoCheck)  (int 0))
+  r))
+
+
+(define-syntax (seqLast stx)
+  (syntax-parse stx
+   [seqLast
+   (quasisyntax/loc stx
+     (lambda (r) (seqLastFun #,(build-source-location stx) r)))]))
+
+
+(define (seqLastFun loc r)
+  (join/info (nodeinfo loc 'checklangNoCheck)  
+    (sing/info (nodeinfo loc 'checklangNoCheck) 
+     (subtract/info (nodeinfo loc 'checklangNoCheck) 
+      (card/info (nodeinfo loc 'checklangNoCheck)  r) (int 1)))
+    r))
+
+(define-syntax (indsOf stx)
+  (syntax-parse stx
+   [indsOf
+   (quasisyntax/loc stx
+     (lambda (r e) (indsOfFun #,(build-source-location stx) r e)))]))
+
+(define (indsOfFun loc r e)
+        (join/info (nodeinfo loc 'checklangNoCheck) r e))
+
+(define-syntax (idxOf stx)
+  (syntax-parse stx
+   [idxOf
+   (quasisyntax/loc stx
+     (lambda (r e) (idxOfFun #,(build-source-location stx) r e)))]))
+
+(define (idxOfFun loc r e)
+        (min (join/info (nodeinfo loc 'checklangNoCheck)  r e)))
+
+(define-syntax (lastIdxOf stx)
+  (syntax-parse stx
+   [lastIdxOf
+   (quasisyntax/loc stx
+     (lambda (r e) (lastIdxOfFun #,(build-source-location stx) r e)))]))
+
+
+(define (lastIdxOfFun loc r e)
+        (max (join/info (nodeinfo loc 'checklangNoCheck)  r e)))
+
+
+(define-syntax (elems stx)
+  (syntax-parse stx
+   [elems
+   (quasisyntax/loc stx
+     (lambda (r) (elemsFun #,(build-source-location stx) r)))]))
+
+(define (elemsFun loc r)
+  (join/info (nodeinfo loc 'checklangNoCheck)  Int r))
+
+
+(define-syntax (inds stx)
+  (syntax-parse stx
+   [inds
+   (quasisyntax/loc stx
+     (lambda (r) (indsFun #,(build-source-location stx) r)))]))
+
+(define (indsFun loc r)
+  (join/info (nodeinfo loc 'checklangNoCheck)  r univ))
+
+(define-syntax (isEmpty stx)
+  (syntax-parse stx
+   [isEmpty
+   (quasisyntax/loc stx
+     (lambda (r) (isEmptyFun #,(build-source-location stx) r)))]))
+
+(define (isEmptyFun loc r)
+  (no r))
+
+
+(define-syntax (hasDups stx)
+  (syntax-parse stx
+   [hasDups
+   (quasisyntax/loc stx
+     (lambda (r) (hasDupsFun #,(build-source-location stx) r)))]))
+
+(define (hasDupsFun loc r)
+  (some ([e (elemsFun loc r)])
+        (some ([num1 (indsOfFun loc r e)] [num2 (indsOfFun loc r e)])
+              (!= num1 num2))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;; Reachability Library  ;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(provide reachable)
+
+(define-syntax (reachable stx)
+  (syntax-parse stx
+   [reachable
+   (quasisyntax/loc stx
+     (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
+
+(define (reachablefun loc a b r)
+  (in/info (nodeinfo loc 'checklangNoCheck) 
+           a 
+           (join/info (nodeinfo loc 'checklangNoCheck) 
+                      b 
+                      (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
+
+(define (union-relations loc r)
+  (cond
+    [(empty? r) (raise-user-error "contact course staff. Shouldn't have union of none")]
+    [(empty? (rest r)) (first r)]
+    [else (+/info (nodeinfo loc 'checklangNoCheck) (first r) (union-relations loc (rest r)))]))
+  ; (in a (join b (^ r))))
+; (define (reachable a b r)
+;   (reachable2 a b r))
+; (define-syntax (reachable2 stx)
+; (println stx)
+;   (syntax-case stx ()
+;     [(_ a b r ...)
+;       (quasisyntax/loc stx
+;         (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
+;             a 
+;             (join/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
+;                         b 
+;                        (^/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (+/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) r ...)))))]))
+

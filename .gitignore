@@ -31,3 +31,4 @@ forge/kodkod-cli/kodkod-cli.iml
 forge/kodkod-cli/out/
 forge/pardinus-cli/out
 forge/pardinus-cli/classes
+*.icloud

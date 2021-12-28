@@ -7,6 +7,7 @@
 (require "shared.rkt"
          (prefix-in tree: "lazy-tree.rkt")
          "last-checker.rkt"
+         "choose-lang-specific.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
 (require (prefix-in @ racket))
@@ -18,6 +19,7 @@
          (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
 (require "server/eval-model.rkt")
 (require "drracket-gui.rkt")
+;(require forge/lang/deparser)
 
 (provide send-to-kodkod)
 
@@ -240,7 +242,10 @@
     (append explicit-constraints implicit-constraints))
 
   ; Run last-minute checks for errors  
-  (for-each (lambda (c) (checkFormula run-spec c '())) run-constraints) 
+  (for-each (lambda (c)
+              ;(printf "deparse-constraint: ~a~n" (deparse c))
+              (checkFormula run-spec c '() (get-checker-hash)))
+            run-constraints)
 
   ; Keep track of which formula corresponds to which CLI assert
   ; for highlighting unsat cores. TODO: map back from CLI output
@@ -601,7 +606,6 @@
                #:unless (equal? (Sig-name sig) 'Int))
       (match-define (bound rel bound-lower bound-upper) (hash-ref sig-to-bound (Sig-name sig)))
       (define-values (bound-lower-size bound-upper-size) (values (length bound-lower) (length bound-upper)))
-
       (match-define (Range int-lower int-upper) 
         (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (Range #f #f)))
       

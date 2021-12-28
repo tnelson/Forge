@@ -4,9 +4,9 @@ sig A {}
 sig S { stuff: set A }
 
 pred myInit[s: S] { no s.stuff }
-pred myTran[s: S, s': S, a: A] {
-    s'.stuff = s.stuff+a
-    a not in s.stuff
+pred myTran[s1: S, s2: S, a: A] {
+    s2.stuff = s1.stuff+a
+    a not in s1.stuff
 }
 pred myTerm[s: S] { s.stuff = A }
 
