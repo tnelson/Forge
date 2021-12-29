@@ -299,52 +299,13 @@
 ; when the Expander tries to do that
 (define-syntax (sig stx)
   (syntax-parse stx
-    ; the two cases here are identical except check-lang argument
-    ; the aim is to make check-lang optional
-    ; could probably make it more concise in the future
-
-    ; CASE: NO check-lang; builtin/default
-    [(sig name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
-                        (~optional (~seq #:extends parent:expr))
-                        (~optional (~or (~seq (~and #:one one-kw))
-                                        (~seq (~and #:abstract abstract-kw))))
-                        (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
-     (quasisyntax/loc stx
-       (begin
-         (define true-name 'name)
-         (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
-         (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
-         (define true-parent (~? (get-sig curr-state parent)
-                                 #f))
-         (define true-parent-name
-           (if true-parent (Sig-name true-parent) #f))
-         ; Temporary fix: if-for-bool :(
-         ; needed for now because when Forge expands into core,
-         ; is-var comes in as "var" instead of #t
-         ; so the contract on make-sig break
-         (define isv
-           (if is-var #t #f))
-         (define name (make-sig true-name
-                                #:one true-one
-                                #:abstract true-abstract
-                                #:is-var isv
-                                ;let #:in default to #f until it is implemented
-                                #:extends true-parent
-                                #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))
-         ;make sure it isn't a var sig if not in temporal mode
-         (~@ (check-temporal-for-var is-var true-name))
-         ;Currently when lang/expander.rkt calls sig with #:in,
-         ;super-sig is #'(raise "Extending with in not yet implemented.")
-         ;This is just here for now to make sure that error is raised.
-         (~? super-sig)
-         (update-state! (state-add-sig curr-state true-name name true-parent-name))))]
-    
-    ; CASE: check-lang, which means it came from expander
-    [(sig (#:lang check-lang) name:id (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
-                        (~optional (~seq #:extends parent:expr))
-                        (~optional (~or (~seq (~and #:one one-kw))
-                                        (~seq (~and #:abstract abstract-kw))))
-                        (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
+    [(sig (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
+          name:id
+          (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
+                (~optional (~seq #:extends parent:expr))
+                (~optional (~or (~seq (~and #:one one-kw))
+                                (~seq (~and #:abstract abstract-kw))))
+                (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
      (quasisyntax/loc stx
        (begin
          (define true-name 'name)
