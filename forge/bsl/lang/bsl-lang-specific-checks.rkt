@@ -6,6 +6,17 @@
 (require (for-syntax racket/syntax syntax/srcloc)
          syntax/srcloc)
 
+(define (raise-bsl-error message node loc)
+  (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message (deparse node) (srcloc->string loc))))
+
+(define (raise-bsl-relational-error rel-str node loc)
+  (raise-bsl-error (format "Use of relational operator ~a is not allowed at beginner level" rel-str) node loc))
+
+(define (srcloc->string loc)
+  (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+
+;; ---
+
 (define (check-node-formula-constant formula-node)
   (void))
 
@@ -60,8 +71,7 @@
 (define (check-node-formula-op-in formula-node)
   (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info formula-node)))
-    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Use of relational operator \"in\" is not allowed at beginner level in ~a at loc: ~a" (deparse formula-node) locstr))))
+    (raise-bsl-relational-error "\"in\"" formula-node loc)))
 
 (define (check-node-formula-op-= formula-node)
   (void))
@@ -100,8 +110,8 @@
     (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
       (define loc (nodeinfo-loc (node-info expr-node)))
       (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-      (printf "Set Comprehension at ~a at loc: ~a" (deparse expr-node) locstr)))
-      ;(raise-user-error (format "Set Comprehension at ~a at loc: ~a" (deparse expr-node) locstr))))
+      (printf "Set Comprehension at ~a at loc: ~a~n" (deparse expr-node) locstr)))
+      ;(raise-bsl-error "Set Comprehension" expr-node loc)
 
 (define (check-node-expr-op-prime expr-node)
   (void))
@@ -109,26 +119,22 @@
 (define (check-node-expr-op-+ expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Use of relational operator + is not allowed at beginner level in ~a at loc: ~a" (deparse expr-node) locstr))))
+    (raise-bsl-relational-error "+" expr-node loc)))
 
 (define (check-node-expr-op-- expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Use of relational operator - is not allowed at beginner level in ~a at loc: ~a" (deparse expr-node) locstr))))
+    (raise-bsl-relational-error "-" expr-node loc)))
 
 (define (check-node-expr-op-& expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Use of relational operator & is not allowed at beginner level in ~a at loc: ~a" (deparse expr-node) locstr))))
+    (raise-bsl-relational-error "&" expr-node loc)))
 
 (define (check-node-expr-op--> expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Direct use of -> is not allowed at beginner level in ~a at loc: ~a" (deparse expr-node) locstr))))
+    (raise-bsl-error "Direct use of -> is not allowed at beginner level" expr-node loc)))
 
 (define (check-node-expr-op-join expr-node)
   (void))
@@ -138,7 +144,7 @@
   ; (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
   ; (unless (or (node/expr/quantifier-var? left-hand-side)
   ;         (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
-  ;   (raise-user-error (format "Left hand side to field access at ~a must be a sig at loc: ~a" (deparse expr-node) locstr))))
+  ;   (raise-bsl-error "Left hand side to field access must be a sig" expr-node loc))
 
 (define (check-node-expr-op-^ expr-node)
   (void))
@@ -198,8 +204,7 @@
 (define (check-expr-mult expr-node sing)
   (when (and (not sing) (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)) 
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Beginner Studetn Language : not a singleton in ~a at loc: ~a" (deparse expr-node) locstr))))
+    (raise-bsl-error "Beginner Student Language : not a singleton" expr-node loc)))
 
 (hash-set! bsl-checker-hash 'expr-mult check-expr-mult)
 (provide bsl-checker-hash)
@@ -253,8 +258,7 @@
 (define (inst-check-node-formula-op-in formula-node)
   (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info formula-node)))
-    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Use of relational operator \"in\" in instance is not allowed at beginner level in ~a at loc: ~a" (deparse formula-node) locstr))))
+    (raise-bsl-relational-error "\"in\"" formula-node loc)))
 
 (hash-set! bsl-inst-checker-hash node/formula/op/in inst-check-node-formula-op-in)
 (provide bsl-inst-checker-hash)
