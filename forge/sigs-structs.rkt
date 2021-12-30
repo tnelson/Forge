@@ -510,7 +510,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 (define (assert-is-running run)
   (unless (is-running? run)
-    (raise "KodKod server is not running.")))
+    (raise-user-error "KodKod server is not running.")))
 
 (require (for-syntax syntax/srcloc)) ; for these macros
 

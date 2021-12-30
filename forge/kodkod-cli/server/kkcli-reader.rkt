@@ -13,7 +13,8 @@
   ; don't use format-datums, because it's awful with quotes.
   (define src-datums0 (formatem src-lines))
   (define src-datums (append '((require "server.rkt" "kks.rkt" "server-common.rkt")
-                               (define kks (new server% 
+                               (define kks (new server%
+                                                [name "Kodkod"]
                                                 [initializer (thunk (kodkod-initializer #f))]))
                                (send kks initialize)
                                (define stdin (send kks stdin))
