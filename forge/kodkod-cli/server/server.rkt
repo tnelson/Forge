@@ -1,6 +1,6 @@
 #lang racket
 
-(require racket/runtime-path "server-common.rkt")
+(require racket/runtime-path "server-common.rkt" forge/shared)
 
 (provide kodkod-initializer server%)
 
@@ -15,19 +15,16 @@
          [java (find-executable-path (if windows? "java.exe" "java"))]
          [path-separator (if windows? ";" ":")]
          [cp (foldl string-append "" (add-between (map path->string jars) path-separator))]
-         ;[lib (path->string (build-path kodkod/jni (case (system-type)
-                                                     ;[(macosx) "darwin_x86_64"]
-                                                     ;[(unix) "linux_x86_64"]
-                                                     ;[(windows) "win_x86_64"])))]
-         ;[-Djava.library.path (string-append "-Djava.library.path=" lib)]
+         [lib-path (string-append "-Djava.library.path=" (path->string kodkod/jar))]
          [error-out (build-path (find-system-path 'home-dir) "error-output.txt")])
 
-
-    (if incremental?
-        (subprocess #f #f #f
-                    java "-cp" cp "--add-opens" "java.base/java.lang=ALL-UNNAMED" (string-append "-Djava.library.path=" (path->string kodkod/jar))
-                    "kodkod.cli.KodkodServer" "-incremental" "-error-out" error-out)
-        (subprocess #f #f #f
-                    java "-cp" cp "--add-opens" "java.base/java.lang=ALL-UNNAMED" (string-append "-Djava.library.path=" (path->string kodkod/jar))
-                    "kodkod.cli.KodkodServer" "-stepper" "-error-out" error-out))))
+    (apply
+      subprocess #f #f #f java
+      (append
+        (if (java>=1.9? java) (list "--add-opens" "java.base/java.lang=ALL-UNNAMED") '())
+        (list "-cp" cp
+              lib-path
+              "kodkod.cli.KodkodServer"
+              (if incremental? "-incremental" "-stepper")
+              "-error-out" error-out)))))
 

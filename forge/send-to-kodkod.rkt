@@ -300,7 +300,7 @@
   ; Print solve
   (define (get-next-model [mode ""])
     (unless (is-running?)
-      (raise "KodKod server is not running."))
+      (raise-user-error "KodKod server is not running."))
     (pardinus-print (pardinus:solve mode))
     (define result (translate-from-kodkod-cli
                     'run 

@@ -14,11 +14,14 @@
 (require "server.rkt"
          "server-common.rkt")
 
+(define server-name "Kodkod")
+
 (provide start-server) ; stdin stdout)
 (define (start-server)
   (when (>= (get-verbosity) VERBOSITY_HIGH)
-    (displayln "Starting kodkod server."))
+    (printf "Starting ~a server.~n" server-name))
   (define kks (new server%
+                   [name server-name]
                    [initializer (thunk (kodkod-initializer #f))]))
   (send kks initialize)
   (define stdin-val (send kks stdin))
@@ -171,8 +174,8 @@
     [(list (== 'no-more-instances))
      (cons 'no-more-instances #f)]
     [(== eof)
-     (port-echo err-port (current-error-port) #:title "Kodkod")
-     (error "Kodkod CLI shut down unexpectedly while running!")]
+     (port-echo err-port (current-error-port) #:title server-name)
+     (error (format "~a CLI shut down unexpectedly while running!" server-name))]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
 
 (define (read-evaluation port err-port)
@@ -187,5 +190,5 @@
     [(list (== 'evaluated) (== ':formula) val)
      (cons 'formula (equal? val 'true))]
     [(== eof)
-     (port-echo err-port (current-error-port) #:title "Kodkod")
-     (error "Kodkod CLI shut down unexpectedly while evaluating!")]))
+     (port-echo err-port (current-error-port) #:title server-name)
+     (error (format "~a CLI shut down unexpectedly while evaluating!" server-name))]))

@@ -1,6 +1,7 @@
 #lang racket
 
-(require racket/runtime-path)
+(require racket/runtime-path
+         (only-in forge/shared port-echo))
 
 (provide server%)
 
@@ -15,19 +16,28 @@
   (class* object% (writable<%>)
     
     ; A no-argument procedure that produces 4 values, like subprocess
-    [init-field initializer]
+    [init-field name initializer]
 
     (define-values (cust server out in err) (values #f #f #f #f #f))
     (super-new)
-    
+
     ; Returns true if the server has been initialized.
     (define/public (initialized?)
-      (and server (equal? (subprocess-status server) 'running)))
-    
+      (and server
+           (let ([current-status (subprocess-status server)])
+             (case current-status
+               [(running) #true]
+               [else
+                 (unless (equal? 0 current-status)
+                   (printf "~a server terminated with exit code ~a; flushing logs~n" name current-status)
+                   (port-echo out (current-output-port) #:title (format "~a output" name))
+                   (port-echo err (current-output-port) #:title (format "~a error" name)))
+                 #false]))))
+
     ; Initializes the current server by starting a new process, unless 
     ; the server is already managing a process.
     (define/public (initialize)
-      (unless (initialized?) 
+      (unless (initialized?)
         (set! cust (make-custodian))
         (parameterize ([current-custodian cust])
           (define-values (p p-out p-in p-err) (initializer))

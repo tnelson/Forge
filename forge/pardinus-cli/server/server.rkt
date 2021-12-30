@@ -38,10 +38,13 @@
       (printf "  Subprocess invocation information: ~a~n"
               (list java "-cp" cp "kodkod.cli.KodkodServer" (format "-~a" solver-type) solver-subtype-str "-error-out" error-out)))
 
-    (subprocess #f #f #f
-                java "-cp" cp "--add-opens" "java.base/java.lang=ALL-UNNAMED" lib-path
-                "kodkod.cli.KodkodServer" 
-                (format "-~a" solver-type)
-                solver-subtype-str 
-                "-error-out" error-out)))
+    (apply
+      subprocess #f #f #f java
+      (append
+        (if (java>=1.9? java) (list "--add-opens" "java.base/java.lang=ALL-UNNAMED") '())
+        (list "-cp" cp
+              lib-path
+              "kodkod.cli.KodkodServer"
+              (format "-~a" solver-type) solver-subtype-str
+              "-error-out" error-out)))))
 

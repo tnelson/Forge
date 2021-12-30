@@ -14,11 +14,14 @@
 (require "server.rkt"
          "server-common.rkt")
 
+(define server-name "Pardinus")
+
 (provide start-server) ; stdin stdout)
 (define (start-server [solver-type 'stepper] [solver-subtype 'default])
   (when (>= (get-verbosity) VERBOSITY_HIGH)
-    (displayln "Starting pardinus server."))
+    (printf "Starting ~a server.~n" server-name))
   (define kks (new server%
+                   [name server-name]
                    [initializer (thunk (pardinus-initializer solver-type solver-subtype))]))
   (send kks initialize)
   (define stdin-val (send kks stdin))
@@ -189,8 +192,8 @@
     [(list (== 'no-more-instances))
      (list 'no-more-instances #f '())]
     [(== eof)
-     (port-echo err-port (current-error-port) #:title "Pardinus")
-     (error "Pardinus CLI shut down unexpectedly while running!")]
+     (port-echo err-port (current-error-port) #:title server-name)
+     (error (format "~a CLI shut down unexpectedly while running!" server-name))]
     [other (error 'read-solution "Unrecognized solver output: ~a" other)]))
 
 (define (read-evaluation port err-port)
@@ -207,5 +210,5 @@
     [(list (== 'unsat))
      (error "Current engine ran out of instances; evaluator is untrustworthy.")]
     [(== eof)
-     (port-echo err-port (current-error-port) #:title "Pardinus")
-     (error "Pardinus CLI shut down unexpectedly while evaluating!")]))
+     (port-echo err-port (current-error-port) #:title server-name)
+     (error (format "~a CLI shut down unexpectedly while evaluating!" server-name))]))
