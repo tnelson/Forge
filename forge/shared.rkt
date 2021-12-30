@@ -68,12 +68,12 @@
   (define version-str (shell java-exe "-version"))
   (define major-nums
     (let ([m (or
-               (regexp-match #rx"java version \"([0-9+]).([0-9+])." version-str)
+               (regexp-match #rx"(java|openjdk) version \"([0-9+]).([0-9+])." version-str)
                (raise-arguments-error 'forge/shared
                                       "Error checking Java version"
                                       "java exe" java-exe
                                       "version string" version-str))])
-      (map string->number (cdr m))))
+      (map string->number (cddr m))))
   (and (<= 1 (car major-nums))
        (<= 9 (cadr major-nums))))
 
