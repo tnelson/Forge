@@ -39,7 +39,7 @@
               (list java "-cp" cp "kodkod.cli.KodkodServer" (format "-~a" solver-type) solver-subtype-str "-error-out" error-out)))
 
     (subprocess #f #f #f
-                java "-cp" cp lib-path
+                java "-cp" cp "--add-opens" "java.base/java.lang=ALL-UNNAMED" lib-path
                 "kodkod.cli.KodkodServer" 
                 (format "-~a" solver-type)
                 solver-subtype-str 

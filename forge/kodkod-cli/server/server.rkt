@@ -25,9 +25,9 @@
 
     (if incremental?
         (subprocess #f #f #f
-                    java "-cp" cp (string-append "-Djava.library.path=" (path->string kodkod/jar))
+                    java "-cp" cp "--add-opens" "java.base/java.lang=ALL-UNNAMED" (string-append "-Djava.library.path=" (path->string kodkod/jar))
                     "kodkod.cli.KodkodServer" "-incremental" "-error-out" error-out)
         (subprocess #f #f #f
-                    java "-cp" cp (string-append "-Djava.library.path=" (path->string kodkod/jar))
+                    java "-cp" cp "--add-opens" "java.base/java.lang=ALL-UNNAMED" (string-append "-Djava.library.path=" (path->string kodkod/jar))
                     "kodkod.cli.KodkodServer" "-stepper" "-error-out" error-out))))
 
