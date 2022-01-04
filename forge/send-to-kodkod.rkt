@@ -649,11 +649,16 @@
     ; not abstract and sig is parent of sig1 => (in sig1 sig)
     ; TODO: optimize by identifying abstract sigs as sum of children
     (define (abstract sig extenders)
-      (if (@= (length extenders) 1)
-          (= sig (car extenders))
-          (= sig (+ extenders))))
+      ; TODO : location not correct
+      (let ([loc (nodeinfo-loc (node-info sig))])
+        (if (@= (length extenders) 1)
+            (=/info (nodeinfo loc 'checklangNoCheck) sig (car extenders))
+            (=/info (nodeinfo loc 'checklangNoCheck) sig (+ extenders)))))
     (define (parent sig1 sig2)
-      (in sig2 sig1))
+      ; loc of sig2?
+      (let ([loc (nodeinfo-loc (node-info sig2))])
+        (in/info (nodeinfo loc 'checklangNoCheck) sig2 sig1)))
+
     (define extends-constraints 
       (if (and (Sig-abstract sig) (cons? (get-children run-spec sig)))
           (list (abstract sig children-rels))
@@ -661,7 +666,8 @@
 
     ; sig1 and sig2 extend sig => (no (& sig1 sig2))
     (define (disjoin-pair sig1 sig2)
-      (no (& sig1 sig2)))
+      (let ([loc (nodeinfo-loc (node-info sig2))])
+        (no (&/info (nodeinfo loc 'checklangNoCheck) sig1 sig2))))
     (define (disjoin-list a-sig a-list)
       (map (curry disjoin-pair a-sig) a-list))
     (define (disjoin a-list)

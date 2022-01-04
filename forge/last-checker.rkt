@@ -46,7 +46,7 @@
      (check-and-output formula
                        node/formula/multiplicity
                        checker-hash
-                       (checkExpression-top run-or-state expr quantvars checker-hash))]
+                       (checkExpression-top run-or-state expr quantvars checker-hash expr))]
     
     [(node/formula/quantified info quantifier decls subform)
      (check-and-output formula
@@ -175,7 +175,7 @@
      (check-and-output formula
                        node/formula/op/=
                        checker-hash
-                       (for-each (lambda (x) (checkExpression-top run-or-state x quantvars checker-hash)) args))]
+                       (for-each (lambda (x) (checkExpression-top run-or-state x quantvars checker-hash formula)) args))]
 
     ; NEGATION
     [(? node/formula/op/!?)
@@ -226,11 +226,11 @@
 
 ; similar except that this is called from a formula, so in bsl 
 ; it should check that the multiplicity of the overall expr is 1 
-(define (checkExpression-top run-or-state expr quantvars checker-hash)
+(define (checkExpression-top run-or-state expr quantvars checker-hash parent)
   (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
       ; insert check for (first here)
     ;(printf "checkExpression-top; node: ~a  ; mult: ~a" expr (cdr output))
-    (when (hash-has-key? checker-hash 'expr-mult) ((hash-ref checker-hash 'expr-mult) expr (cdr output)))
+    (when (hash-has-key? checker-hash 'expr-mult) ((hash-ref checker-hash 'expr-mult) expr (cdr output) parent))
     (car output)))
 
 ; For expressions, this descent does two things:

@@ -1038,6 +1038,7 @@ Now with functional forge, do-bind is used instead
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide reachable)
 
+; a reachable from b through r1 + r2 + ...
 (define-syntax (reachable stx)
   (syntax-parse stx
    [reachable
