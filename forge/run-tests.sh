@@ -11,7 +11,7 @@ fi
 
 # Get test files
 testDir=$1
-testFiles="$(find $testDir -type f -name "*.rkt")"
+testFiles="$(find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \))"
 numTestFiles="$(echo "$testFiles" | wc -l)"
 
 # Helper variables
