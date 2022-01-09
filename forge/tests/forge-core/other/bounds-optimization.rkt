@@ -26,3 +26,6 @@
  (forge:bound-upper (first (filter (lambda (x) (equal? A (forge:bound-relation x))) (forge:Run-kodkod-bounds myRun))))
  (forge:bound-upper (first (filter (lambda (x) (equal? B (forge:bound-relation x))) (forge:Run-kodkod-bounds myRun))))
  "Upper bounds between #:one siblings should never overlap")
+
+; Safety check: Regardless of what we think bounds do, confirm that overlap is impossible
+(test oneSigsCannotOverlap #:preds [(some (& A B))] #:expect unsat)

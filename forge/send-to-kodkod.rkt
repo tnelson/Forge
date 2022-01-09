@@ -523,6 +523,7 @@
           (fill-upper-no-bound root shared)))
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
+  ; Set the bounds for the Int built-in sig
   (define int-atoms
     (let* ([bitwidth (get-bitwidth run-spec)]
            [max-int (expt 2 (sub1 bitwidth))])
@@ -530,12 +531,10 @@
   (hash-set! lower-bounds (get-sig run-spec Int) int-atoms)
   (hash-set! upper-bounds (get-sig run-spec Int) int-atoms)
 
-  ; Start: Used to allow extending Ints.
+  ; Special case: allow sigs to extend Int
   (for ([sig (get-children run-spec Int)])
     (hash-set! lower-bounds (Sig-name sig) '())
-    (hash-set! upper-bounds (Sig-name sig) int-atoms))
-  ; End: Used to allow extending Ints.
-
+    (hash-set! upper-bounds (Sig-name sig) int-atoms))  
 
   (define all-atoms (append int-atoms sig-atoms))
 
@@ -545,7 +544,10 @@
       (let* ([name (Sig-name sig)]
              [rel sig]
              [lower (map list (hash-ref lower-bounds sig))]
-             [upper (map list (hash-ref upper-bounds sig))])
+             ; Override generated upper bounds for #:one sigs
+             [upper
+              (cond [(Sig-one sig) lower]
+                    [else (map list (hash-ref upper-bounds sig))])])
         (values name (bound rel lower upper)))))
 
   (values bounds-hash all-atoms))
@@ -665,9 +667,13 @@
           (map (curry parent sig) children-rels)))
 
     ; sig1 and sig2 extend sig => (no (& sig1 sig2))
+    ; (unless both are #:one, in which case exact-bounds should enforce this constraint)
     (define (disjoin-pair sig1 sig2)
       (let ([loc (nodeinfo-loc (node-info sig2))])
-        (no (&/info (nodeinfo loc 'checklangNoCheck) sig1 sig2))))
+        (cond [(and (Sig-one sig1) (Sig-one sig2))
+               true]
+              [else
+               (no (&/info (nodeinfo loc 'checklangNoCheck) sig1 sig2))])))
     (define (disjoin-list a-sig a-list)
       (map (curry disjoin-pair a-sig) a-list))
     (define (disjoin a-list)
