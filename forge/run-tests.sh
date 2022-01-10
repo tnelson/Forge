@@ -11,7 +11,8 @@ fi
 
 # Get test files
 testDir=$1
-testFiles="$(find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \))"
+doNotTestPattern="error/[^/]*\\.frg"
+testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} )"
 numTestFiles="$(echo "$testFiles" | wc -l)"
 
 # Helper variables
