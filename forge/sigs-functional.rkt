@@ -125,6 +125,7 @@
 
 (define/contract (make-sig [raw-name #f]
                            #:one [one #f]
+                           #:lone [lone #f]
                            #:abstract [abstract #f]
                            #:is-var [is-var #f]
                            #:in [in #f]
@@ -133,6 +134,7 @@
   (->* ()
        (symbol?
         #:one boolean?
+        #:lone boolean?
         #:abstract boolean?
         #:is-var boolean?
         #:in (or/c Sig? #f)
@@ -141,6 +143,9 @@
        Sig?)
   ; (check-temporal-for-var is-var name)
   (define name (or raw-name (gensym 'sig)))
+  
+  (when (and one lone)
+    (raise-user-error (format "Sig ~a cannot be both 'one' and 'lone'." name)))
 
   ;(define source-info-loc (nodeinfo-loc node-info))
   ;(printf "SIG NAME: ~a.~n" name)
@@ -162,6 +167,7 @@
 
        name
        one
+       lone
        abstract
        extends))
 
@@ -509,9 +515,12 @@
   (define/contract scope-with-ones Scope?
     (for/fold ([scope base-scope])
               ([sig (get-sigs state)])
-      (if (Sig-one sig)
-          (update-scope scope sig 1 1)
-          scope)))
+      (cond [(Sig-one sig)
+             (update-scope scope sig 1 1)]
+            [(Sig-lone sig)
+             (update-scope scope sig 0 1)]
+            [else
+             scope])))
 
   (define/contract default-bounds Bound?
     (let* ([bitwidth (Scope-bitwidth scope-with-ones)]

@@ -374,7 +374,7 @@
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
 ; sets of atoms for each, and find the total number of atoms needed (including ints).
 (define (get-sig-bounds run-spec raise-run-error)
-  (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
+  (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))  
   (define (get-bound-lower sig)
     (define pbinding (hash-ref pbindings sig #f))
     (@and pbinding ;; !!!
@@ -503,12 +503,12 @@
   (define sig-atoms (list))
   (for ([root (get-top-level-sigs run-spec)]
         #:unless (equal? (Sig-name root) 'Int))
-    (if (get-bound-upper root)
+    (if (get-bound-upper root) ; Do we already have a tuple-based upper bound?
         (let ()
           (fill-lower-by-bound root)
-          (fill-upper-with-bound root))
+          (fill-upper-with-bound root))           
         (let ()
-          (fill-lower-by-scope root)
+          (fill-lower-by-scope root) ; No tuple-based bound yet; extrapolate from scope
           (define lower-size (length (hash-ref lower-bounds root)))
           (define upper-size
             (or (get-scope-upper root)
@@ -517,6 +517,7 @@
 
           (define shared (generate-names root (@- upper-size lower-size)))
           (fill-upper-no-bound root shared)))
+    ;(printf "filling bounds at ~a; upper = ~a; lower = ~a~n" root upper-bounds lower-bounds)
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
   ; Set the bounds for the Int built-in sig
