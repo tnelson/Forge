@@ -1,4 +1,5 @@
 #lang forge/bsl
+option verbose 0
 
 sig Node {
     next: one Node,
@@ -11,4 +12,6 @@ pred intMinus {
    (subtract[sum[A.val],sum[B.val]]) > 0
 }
 
-run {intMinus}
+test expect{ 
+  canRun: {intMinus} is sat
+}

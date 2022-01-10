@@ -1,4 +1,5 @@
 #lang forge/bsl
+option verbose 0
 
 sig Node {
     next: one Node
@@ -10,4 +11,6 @@ pred setcomp {
     #{n : Node | n.next = n} = #{n : Node | n.next = n}
 }
 
-run {setcomp}
+test expect {
+  canRun: {setcomp} is sat
+}
