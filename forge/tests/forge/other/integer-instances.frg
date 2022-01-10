@@ -1,4 +1,5 @@
 #lang forge
+option verbose 0
 
 -- Regression test:
 -- make sure special handling for integers in bounds allows for use in `inst` blocks.
@@ -13,7 +14,7 @@ inst optimize {
 }
 
 test expect {
-    canRun: {some edges} for 5 for optimize is sat
-    boundsWork1: { some n1, n2: Node | sum[n1.edges.n2] > 1} for 5 for optimize is unsat
-    boundsWork2: { some n1, n2: Node | sum[n1.edges.n2] < 0} for 5 for optimize is unsat
+    boundsNonEmpty: {some edges} for 5 for optimize is sat
+    boundsLimit1: { some n1, n2: Node | sum[n1.edges.n2] > 1} for 5 for optimize is unsat
+    boundsLimit2: { some n1, n2: Node | sum[n1.edges.n2] < 0} for 5 for optimize is unsat
 }

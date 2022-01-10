@@ -192,10 +192,6 @@
     (define atoms 
       (for/list ([tup atom-names])
         (for/list ([atom tup])
-          ; Used to allow using ints in instances.
-          (when (int-atom? atom)
-            (set! atom (int-atom-n atom)))
-
           (unless (member atom all-atoms)
             (raise (format "atom (~a) not in all-atoms (~a)"
                            atom all-atoms)))
@@ -381,7 +377,7 @@
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define (get-bound-lower sig)
     (define pbinding (hash-ref pbindings sig #f))
-    (@and pbinding
+    (@and pbinding ;; !!!
           (map car (set->list (sbound-lower pbinding)))))
   (define (get-bound-upper sig)
     (define pbinding (hash-ref pbindings sig #f))
@@ -577,15 +573,19 @@
                                       (curry hash-ref sig-to-bound )
                                       Sig-name) 
                              sigs))
+      ;(printf "~a: sig-atoms : ~a~n" relation sig-atoms)
+      ;(printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
+      ;(printf "~a: raw lower : ~a~n" (get-bound-lower relation))      
       (define upper                   
         (let ([bound-upper (get-bound-upper relation)])
-            (if bound-upper
-                (set->list (set-intersect bound-upper (list->set (apply cartesian-product sig-atoms))))
-                (apply cartesian-product sig-atoms))))                     
+            (cond [bound-upper
+                   (set->list (set-intersect bound-upper
+                                             (list->set (apply cartesian-product sig-atoms))))]
+                  [else
+                   (apply cartesian-product sig-atoms)])))
       ;(define upper (set->list (set-intersect (get-bound-upper relation) (list->set (apply cartesian-product sig-atoms)))))
-      ;(printf "upper bound : ~a~n" (get-bound-upper relation))
-      ;(printf "lower bound : ~a~n" (get-bound-lower relation))
-      ;(printf "relation : ~a~n" relation)
+      ;(printf "~a: refined upper : ~a~n" relation upper)
+      
       (define lower                   
         (let ([bound-lower (get-bound-lower relation)])
             (if bound-lower
@@ -593,7 +593,7 @@
                 (list->set empty))))      
       ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
       (values (Relation-name relation) 
-              (bound relation lower upper))))
+              (bound relation lower upper))))  
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
   (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
