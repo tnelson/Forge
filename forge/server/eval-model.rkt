@@ -1,5 +1,8 @@
 #lang racket
 
+; NOTE WELL: this module is not used in the Sterling evaluator anymore.
+; Instead, Forge uses it for evaluating expressions in `inst` bounds.
+
 (require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
 (require  (prefix-in ast: "../lang/ast.rkt"))
 (require "../shared.rkt")
@@ -8,10 +11,13 @@
 (require syntax/srcloc)
 
 (provide eval-exp eval-unknown eval-int-expr model->binding)
-;(provide eval-exp eval-form eval-unknown eval-int-expr model->binding alloy->kodkod)
 (provide int-atom int-atom->string int-atom? int-atom-n)
 
-; seperate structure for binding int atoms so they don't collide with int values
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Separate structure for binding int atoms so they don't collide with int values
+; This is important for debugging via this library, since "5" may be either an
+; IntExpression or a relational Expression.
 (struct int-atom (n)
   #:transparent
   #:methods gen:custom-write
@@ -30,21 +36,23 @@
             (if (integer? a) (int-atom a) a)) r))
    rel-v))
 
-; Consumes a model and produces a binding, which acts as an environment
-; for interpreting eval queries
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Consumes a model (i.e., instance) and produces a binding, which acts 
+; as an environment for interpreting eval queries
 (define (model->binding model bitwidth)
   (define out-bind (make-hash))
   (hash-map model (lambda (k v) (hash-set! out-bind 
                                            (string->symbol (relation-name k))
                                            (ints-to-atoms v))))
   
-  ; add ints relation to our binding
+  ; add Int relation to our binding with appropriate bitwidth
   (define int-max (expt 2 (sub1 bitwidth)))
   (define int-range (map int-atom (range (- int-max) int-max)))
   (define int-sings (map list int-range))
   (hash-set! out-bind 'Int int-sings)
 
-  ; add succ relation to our binding
+  ; add integer-successor (succ) relation to our binding
   (define successor-rel (map list (take int-range (sub1 (length int-range))) (rest int-range)))
   (hash-set! out-bind 'succ successor-rel)
 
@@ -52,7 +60,7 @@
 
 
 ; simplifies the nested try/catch of trying different evaluators
-; pass an evaluator function and the 
+; pass an evaluator function to try first, and a fallback to use if the first fails
 (define (try-eval eval-fn fallback)
   (lambda (thing bind bitwidth)
     (with-handlers
@@ -61,16 +69,14 @@
             (fallback thing bind bitwidth))])
       (eval-fn thing bind bitwidth))))
 
-; For use by the Sterling evaluator, when we don't know immediately
-; whether it's a formula or an expression. Try eval-form first. If it
-; fails, try eval-exp. If that fails, throw a user error.
+; Try eval-int-expr first. If it fails, try eval-exp. If that fails, throw a user error.
+; (This is a useful function to keep around, even if Sterling calls Kodkod's evaluator now.)
 (define (eval-unknown thing bind bitwidth)
   (define (final-fallback t b bw) (raise-user-error "Not a formula, expression, or int expression" t))
   ((try-eval eval-int-expr (try-eval eval-exp final-fallback))
    thing bind bitwidth))
 
-; Interpreter for evaluating an eval query for an expression in a model
-; context
+; Interpreter for evaluating an eval query for an expression in a model context
 ; Each query raturns a list of tuples representing a set.  For example,
 ; ((a) (b) (c)) represents the set {a b c}, and ((a b) (b c)) represents
 ; the relation {(a b) (b c)}
@@ -197,7 +203,7 @@
                 [v-line (source-location-line v-loc)]
                 [v-col (source-location-column v-loc)]
                 [v-span (source-location-span v-loc)])
-           (raise-user-error (format "Please contact the Forge dev team - something very unexpected happened at line ~a column ~a span ~a"
+           (raise-user-error (format "Please contact the Forge dev team - something unexpected happened at line ~a column ~a span ~a"
                                      v-line v-col v-span)))]))
 
 (define (raise-bounds-not-specified-error bad-node)
@@ -209,7 +215,7 @@
                               bad-node bad-line bad-col bad-span))))
 
 ; is t1 < t2?
-; Note: weird 3-valued logic being folded here due to need to represent "equal...so far"
+; Note: weird 3-valued logic being folded here due to need to represent "equal *so far*"
 (define (tuple<? t1 t2)
   (define result
     (let ([t1-node-exprs (filter (lambda (t) (ast:node/expr? t)) t1)]
@@ -257,100 +263,6 @@
 ; Is x a singleton atom?
 (define (singleton? x)
   (and (relation? x) (equal? (length x) 1) (equal? (length (first x)) 1)))
-
-#|
-; Interpreter for evaluating an eval query for a formula in a model
-; context
-(define (eval-form form bind bitwidth)
-  (when (>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "evaluating form : ~v~n" form))
-  (define ret (match form
-                [`(! ,f) (not (eval-form f bind bitwidth))]
-                [`(no ,exp) (empty? (eval-exp exp bind bitwidth))]
-                [`(some ,exp) (not (empty? (eval-exp exp bind bitwidth)))]
-                [`(one ,exp) (let [(const (eval-exp exp bind bitwidth))] (and (not (empty? const)) (empty? (cdr const))))]
-                [`(two ,exp) (let [(const (eval-exp exp bind bitwidth))] (equal? (length const) 2))]
-                [`(lone ,exp) (let [(const (eval-exp exp bind bitwidth))] (or (empty? const) (empty? (cdr const))))]
-                [`(in ,exp-1 ,exp-2) (subset? (eval-exp exp-1 bind bitwidth) (eval-exp exp-2 bind bitwidth))]
-                [`(and ,form ...) (for/and ([f form]) (eval-form f bind bitwidth))]
-                [`(or ,form ...) (for/or ([f form]) (eval-form f bind bitwidth))]
-                [`(implies ,form-1 ,form-2) (implies (eval-form form-1 bind bitwidth) (eval-form form-2 bind bitwidth))]
-                [`(iff ,form-1 ,form-2) (equal? (eval-form form-1 bind bitwidth) (eval-form form-2 bind bitwidth))]
-                [`(all ,var ,lst ,f) (andmap (lambda (x) (eval-form f (hash-set bind var (list x)) bitwidth)) (eval-exp lst bind bitwidth))]
-                [`(some ,var ,lst ,f) (ormap (lambda (x) (eval-form f (hash-set bind var (list x)) bitwidth)) (eval-exp lst bind bitwidth))]
-                [`(= ,var-1 ,var-2) (equal? (eval-exp var-1 bind bitwidth) (eval-exp var-2 bind bitwidth))]
-                [`(< ,int1 ,int2) (< (eval-int-expr int1 bind bitwidth) (eval-int-expr int2 bind bitwidth))]
-                [`(> ,int1 ,int2) (> (eval-int-expr int1 bind bitwidth) (eval-int-expr int2 bind bitwidth))]
-                [`(let ([,n ,e]) ,block) (eval-form block (hash-set bind n (eval-exp e bind bitwidth)) bitwidth)]
-                [`(,p ,vals ...) #:when (hash-has-key? bind p)
-                                 (match-define (list args alloy) (hash-ref bind p))
-                                 (set! vals (for/list ([val vals]) (eval-exp val bind bitwidth)))
-                                 (define bind2 (hash-union bind (make-hash (map cons args vals)) #:combine/key (lambda (k v1 v2) v2)))
-                                 (define kodkod (alloy->kodkod alloy))
-                                 (eval-form kodkod bind2 bitwidth)]
-                [p #:when (hash-has-key? bind p)
-                   (match-define (list args alloy) (hash-ref bind p))
-                   (define kodkod (alloy->kodkod alloy))
-                   (eval-form kodkod bind bitwidth)]
-                [exp (raise-user-error "Not a formula" exp)]))
-  ;(printf "form : ~v = ~v~n" form ret) 
-  ret)
-
-; why does this syntax match look different?
-; does it also need to become an ast match?
-(define (alloy->kodkod e)
-  (define (f e)
-    (match e
-      [`(,_ "let" (LetDeclList (LetDecl ,n ,e)) ,block) 
-       `(let ([,n ,(f e)]) ,(f block))]
-      [`(,_ "{" (DeclList (Decl (NameList ,n) ,e)) ,block "}") 
-       `(set ,n ,(f e) ,(f block))]
-      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n) ,e)) ,a)
-       `(,(f q) ,(f n) ,(f e) ,(f a))]
-      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n) ,e) ,ds ...) ,a)
-       `(,(f q) ,(f n) ,(f e) ,(f `(Expr (Quant ,q) (DeclList ,@ds) ,a)))]
-      [`(,_ (Quant ,q) (DeclList (Decl (NameList ,n ,ns ...) ,e) ,ds ...) ,a)
-       `(,(f q) ,(f n) ,(f e) ,(f `(Expr (Quant ,q) (DeclList (Decl (NameList ,@ns) ,e) ,@ds) ,a)))]
-      [`(,_ ,a "or" ,b) `(or ,(f a) ,(f b))]
-      [`(,_ ,a "||" ,b) `(or ,(f a) ,(f b))]
-      [`(,_ ,a "iff" ,b) `(iff ,(f a) ,(f b))]
-      [`(,_ ,a "<=>" ,b) `(iff ,(f a) ,(f b))]
-      [`(,_ ,a "implies" ,b) `(implies ,(f a) ,(f b))]
-      [`(,_ ,a "=>" ,b) `(implies ,(f a) ,(f b))]
-      [`(,_ ,a "and" ,b) `(and ,(f a) ,(f b))]
-      [`(,_ ,a "&&" ,b) `(and ,(f a) ,(f b))]
-      [`(,_ "!" ,a) `(! ,(f a))]
-      [`(,_ "not" ,a) `(! ,(f a))]
-      [`(,_ ,a "!" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
-      [`(,_ ,a "not" (CompareOp ,op) ,b) `(! ,(f `(Expr ,a (CompareOp ,op) ,b)))]
-      [`(,_ ,a (CompareOp ,op) ,b) `(,(f op) ,(f a) ,(f b))]
-      [`(,_ ,quant (Expr8 ,a ...)) `(,(f quant) ,(f `(Expr8 ,@a)))]
-      [`(,_ ,a "+" ,b) `(+ ,(f a) ,(f b))]
-      [`(,_ ,a "-" ,b) `(- ,(f a) ,(f b))]
-      [`(,_ "#" ,a) `(card ,(f a))]
-      [`(,_ ,a "++" ,b) `(++ ,(f a) ,(f b))]
-      [`(,_ ,a "&" ,b) `(& ,(f a) ,(f b))]
-      [`(,_ ,a (ArrowOp ,_ ...) ,b) `(-> ,(f a) ,(f b))]
-      [`(,_ ,a "<:" ,b) `(<: ,(f a) ,(f b))]
-      [`(,_ ,a ":>" ,b) `(<: ,(f b) ,(f a))]
-      [`(,_ ,a "[" (ExprList ,b ...) "]") `(,(f a) ,@(map f b))]
-      [`(,_ ,a "." ,b) `(join ,(f a) ,(f b))]
-      [`(,_ "~" ,a) `(~ ,(f a))]
-      [`(,_ "^" ,a) `(^ ,(f a))]
-      [`(,_ "*" ,a) `(* ,(f a))]
-      [`(BlockOrBar (Block ,a ...)) `(and ,@(map f a))]
-      [`(BlockOrBar "|" ,a) (f a)]
-      [`(Block ,a ...) `(and ,@(map f a))]
-      [`(Number ,a) (f a)]
-      [`(Const ,a) (f a)]
-      [`(Const "-" ,a) (- (f a))]
-      [`(,_ ,a) (f a)]
-      [(? string?) (with-handlers ([exn:fail? (λ (exn) (string->symbol e))]) 
-                     (define n (string->number e))
-                     (if (integer? n) n (string->symbol e)))]
-      [else e]))
-  (f e))
-|#
 
 ; 2's complement wraparound if needed. Takes a number and returns a number
 (define (wraparound n bitwidth)

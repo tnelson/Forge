@@ -228,6 +228,34 @@
             sigs-thunks
             breaker))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Handling bounds
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; The eval-model module, which is used to evaluate `inst` block expressions, distinguishes
+; between integer atoms and raw integers. This is the right choice for debugging etc. using
+; these evaluator functions. However, the bounds pipeline uses only raw integers.
+(define/contract (de-integer-atomize tuples)
+  (-> (listof (listof (or/c number? symbol? int-atom?)))
+      (listof (listof (or/c number? symbol?))))
+  (map (lambda (tup)
+         (map (lambda (a)
+                (cond [(int-atom? a) (int-atom-n a)]
+                      [else a])) tup))
+       tuples))
+
+(define/contract (safe-fast-eval-exp e binding bitwidth [safe #t])
+  (->* (node/expr? hash? number?) (boolean?)
+       (listof (listof (or/c number? symbol?))))
+  (define result (eval-exp e binding bitwidth safe))
+  (de-integer-atomize result))
+
+(define (safe-fast-eval-int-expr ie binding bitwidth)
+  (-> node/int? hash? number? (listof (listof (or/c number? symbol?))))
+  (define result (eval-int-expr ie binding bitwidth))
+  (de-integer-atomize result))
+
+
 (define/contract (do-bind bind scope bound)
   (-> (or/c ast:node/formula? ast:node/breaking/op? Inst?)
       Scope?
@@ -266,7 +294,7 @@
     [(ast:node/formula/op/int= eq-info (list left right))
      (match left
        [(ast:node/int/op/card c-info (list left-rel))
-        (let* ([exact (eval-int-expr right (Bound-tbindings bound) 8)]
+        (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
                ; do we need the if (equal? (relation-name rel) "Int")
                ; case that sigs.rkt has?
                [new-scope (update-int-bound scope left-rel (Range exact exact))])
@@ -281,7 +309,7 @@
        (fail))
      (match lt-left
        [(ast:node/int/op/card c-info (list left-rel))
-        (let* ([upper-val (eval-int-expr lt-right (Bound-tbindings bound) 8)]
+        (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) 8)]
                [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
        [_ (fail)])]
@@ -294,7 +322,7 @@
        (fail))
      (match lt-right
        [(ast:node/int/op/card c-info (list right-rel))
-        (let* ([lower-val (eval-int-expr lt-left (Bound-tbindings bound) 8)]
+        (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) 8)]
                [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
        [_ (fail)])]
@@ -317,7 +345,7 @@
     ;     (fail))
     ;   (match left
     ;     [(node/int/op/card info left-rel)
-    ;       (let* ([upper-val (eval-int-expr right (Bound-tbindings bound) 8)]
+    ;       (let* ([upper-val (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
     ;              [new-scope (update-int-bound scope rel (Range 0 upper-val))])
     ;         (values new-scope bound))]
     ;     [_ (fail)])]
@@ -344,7 +372,7 @@
     [(ast:node/formula/op/= info (list left right))
      (unless (ast:node/expr/relation? left)
        (fail))
-     (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
+     (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
        (define new-scope scope)
        (define new-bound (update-bindings bound left tups tups))
        (values new-scope new-bound))]
@@ -355,11 +383,11 @@
      (inst-check bind ast:node/formula/op/in)
      (cond
        [(ast:node/expr/relation? left)
-        (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
+        (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
           (define new-bound (update-bindings bound left (@set) tups))
           (values scope new-bound))]
        [(ast:node/expr/relation? right)
-        (let ([tups (eval-exp left (Bound-tbindings bound) 8 #f)])
+        (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) 8 #f)])
           (define new-bound (update-bindings bound right tups))
           (values scope new-bound))]
        [else (fail)])]

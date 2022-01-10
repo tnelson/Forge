@@ -192,10 +192,6 @@
     (define atoms 
       (for/list ([tup atom-names])
         (for/list ([atom tup])
-          ; Used to allow using ints in instances.
-          (when (int-atom? atom)
-            (set! atom (int-atom-n atom)))
-
           (unless (member atom all-atoms)
             (raise (format "atom (~a) not in all-atoms (~a)"
                            atom all-atoms)))
@@ -381,7 +377,7 @@
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define (get-bound-lower sig)
     (define pbinding (hash-ref pbindings sig #f))
-    (@and pbinding
+    (@and pbinding ;; !!!
           (map car (set->list (sbound-lower pbinding)))))
   (define (get-bound-upper sig)
     (define pbinding (hash-ref pbindings sig #f))
@@ -523,6 +519,7 @@
           (fill-upper-no-bound root shared)))
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
+  ; Set the bounds for the Int built-in sig
   (define int-atoms
     (let* ([bitwidth (get-bitwidth run-spec)]
            [max-int (expt 2 (sub1 bitwidth))])
@@ -530,12 +527,10 @@
   (hash-set! lower-bounds (get-sig run-spec Int) int-atoms)
   (hash-set! upper-bounds (get-sig run-spec Int) int-atoms)
 
-  ; Start: Used to allow extending Ints.
+  ; Special case: allow sigs to extend Int
   (for ([sig (get-children run-spec Int)])
     (hash-set! lower-bounds (Sig-name sig) '())
-    (hash-set! upper-bounds (Sig-name sig) int-atoms))
-  ; End: Used to allow extending Ints.
-
+    (hash-set! upper-bounds (Sig-name sig) int-atoms))  
 
   (define all-atoms (append int-atoms sig-atoms))
 
@@ -545,7 +540,10 @@
       (let* ([name (Sig-name sig)]
              [rel sig]
              [lower (map list (hash-ref lower-bounds sig))]
-             [upper (map list (hash-ref upper-bounds sig))])
+             ; Override generated upper bounds for #:one sigs
+             [upper
+              (cond [(Sig-one sig) lower]
+                    [else (map list (hash-ref upper-bounds sig))])])
         (values name (bound rel lower upper)))))
 
   (values bounds-hash all-atoms))
@@ -575,15 +573,19 @@
                                       (curry hash-ref sig-to-bound )
                                       Sig-name) 
                              sigs))
+      ;(printf "~a: sig-atoms : ~a~n" relation sig-atoms)
+      ;(printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
+      ;(printf "~a: raw lower : ~a~n" (get-bound-lower relation))      
       (define upper                   
         (let ([bound-upper (get-bound-upper relation)])
-            (if bound-upper
-                (set->list (set-intersect bound-upper (list->set (apply cartesian-product sig-atoms))))
-                (apply cartesian-product sig-atoms))))                     
+            (cond [bound-upper
+                   (set->list (set-intersect bound-upper
+                                             (list->set (apply cartesian-product sig-atoms))))]
+                  [else
+                   (apply cartesian-product sig-atoms)])))
       ;(define upper (set->list (set-intersect (get-bound-upper relation) (list->set (apply cartesian-product sig-atoms)))))
-      ;(printf "upper bound : ~a~n" (get-bound-upper relation))
-      ;(printf "lower bound : ~a~n" (get-bound-lower relation))
-      ;(printf "relation : ~a~n" relation)
+      ;(printf "~a: refined upper : ~a~n" relation upper)
+      
       (define lower                   
         (let ([bound-lower (get-bound-lower relation)])
             (if bound-lower
@@ -591,7 +593,7 @@
                 (list->set empty))))      
       ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
       (values (Relation-name relation) 
-              (bound relation lower upper))))
+              (bound relation lower upper))))  
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
   (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
@@ -665,9 +667,13 @@
           (map (curry parent sig) children-rels)))
 
     ; sig1 and sig2 extend sig => (no (& sig1 sig2))
+    ; (unless both are #:one, in which case exact-bounds should enforce this constraint)
     (define (disjoin-pair sig1 sig2)
       (let ([loc (nodeinfo-loc (node-info sig2))])
-        (no (&/info (nodeinfo loc 'checklangNoCheck) sig1 sig2))))
+        (cond [(and (Sig-one sig1) (Sig-one sig2))
+               true]
+              [else
+               (no (&/info (nodeinfo loc 'checklangNoCheck) sig1 sig2))])))
     (define (disjoin-list a-sig a-list)
       (map (curry disjoin-pair a-sig) a-list))
     (define (disjoin a-list)

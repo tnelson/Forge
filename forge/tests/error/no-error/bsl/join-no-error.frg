@@ -1,4 +1,5 @@
 #lang forge/bsl
+option verbose 0
 
 sig Node {
     next: one Node
@@ -11,4 +12,6 @@ pred leftjoin {
     some A.next.next.next
 }
 
-run {leftjoin}
+test expect {
+  canRun: {leftjoin} is sat
+}
