@@ -292,12 +292,14 @@
           (~alt (~optional (~seq #:in super-sig:expr)) ;check if this supports "sig A in B + C + D ..."
                 (~optional (~seq #:extends parent:expr))
                 (~optional (~or (~seq (~and #:one one-kw))
+                                (~seq (~and #:lone lone-kw))
                                 (~seq (~and #:abstract abstract-kw))))
                 (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
      (quasisyntax/loc stx
        (begin
          (define true-name 'name)
          (define true-one (~? (~@ (or #t 'one-kw)) (~@ #f)))
+         (define true-lone (~? (~@ (or #t 'lone-kw)) (~@ #f)))
          (define true-abstract (~? (~@ (or #t 'abstract-kw)) (~@ #f)))
          (define true-parent (~? (get-sig curr-state parent)
                                  #f))
@@ -311,6 +313,7 @@
            (if is-var #t #f))
          (define name (make-sig true-name
                                 #:one true-one
+                                #:lone true-lone
                                 #:abstract true-abstract
                                 #:is-var isv
                                 ;let #:in default to #f until it is implemented
