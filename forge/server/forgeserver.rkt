@@ -61,55 +61,12 @@
   
   (define command-string (format "~a" (syntax->datum command)))
   
-  ; For compare/contrast models.
-  ; Map of generators
-  ;  (define contrast-model-generators #f)
-  ;  (define contrast-models #f)
-
-  ; TODO: TN, re-enable these
-  ;  (define (make-contrast-model-generators)
-  ;    (define make-generator (curry get-contrast-model-generator model))
-  ;    (set! contrast-model-generators
-  ;      (hash 'compare-min (make-generator 'compare 'close)
-  ;            'compare-max (make-generator 'compare 'far)
-  ;            'contrast-min (make-generator 'contrast 'close)
-  ;            'contrast-max (make-generator 'contrast 'far)))
-  ;
-  ;    (set! contrast-models
-  ;      (make-hash (list (cons 'compare-min #f)
-  ;                       (cons 'compare-max #f)
-  ;                       (cons 'contrast-min #f)
-  ;                       (cons 'contrast-max #f)))))
-  ;(make-contrast-model-generators)
-
-  ;  (define (get-current-contrast-model type)
-  ;    (hash-ref contrast-models type))
-  ;  (define (get-next-contrast-model type)
-  ;    (hash-set! contrast-models type 
-  ;               ((hash-ref contrast-model-generators type)))
-  ;    (hash-ref contrast-models type))
-
-  ;  ; Define a hashof(relname-symbol, hashof(listof(atom-symbol), listof(annotation-symbol))    
-  ;  (define (build-tuple-annotations-for-ln model)
-  ;    (define (build-tann-hash relname pair-list ksym vsym)
-  ;      (for/hash ([pr (filter (lambda (maybe-pr) (equal? relname (cdr maybe-pr))) pair-list)])
-  ;        ; build *LIST* of annotations, each of which is a pair
-  ;        (values (car pr) (list (cons ksym vsym))))) 
-  ;    
-  ;    ; only for the first element of a trace TODO
-  ;    (when (> (get-verbosity) VERBOSITY_LOW)
-  ;      (printf "generating locally-necessary tuples...model field unused...~n"))
-  ;    (match-define (cons yes no) (get-locally-necessary-list the-run (get-current-model)))
-  ;    ; To ease building annotation hash, just discover which relations are present in advance
-  ;    ;(printf "LNtuples+: ~a~n LNtuples-: ~a~n" yes no)
-  ;    (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])
-  ;      (let ([true-hash (build-tann-hash relname yes 'LN 'true)]
-  ;            [false-hash (build-tann-hash relname no 'LN 'false)])
-  ;      ; uppercase
-  ;      ;(printf "building union of ~a~n  and ~a~n" true-hash false-hash)
-  ;      (values relname (hash-union true-hash false-hash)))))
-  ;  
-  (define (get-xml model)    
+  (define (send-to-sterling m #:connection connection)
+    (when (> (get-verbosity) 0)  ; DEBUG: change to VERBOSITY_LOW later
+      (printf "Sending message to Sterling: ~a~n" m))
+    (ws-send! connection m))
+  
+   (define (get-xml model)    
     ;(define tuple-annotations (if (and (Sat? model) (equal? 'on (get-option the-run 'local_necessity)))
     ;                              (build-tuple-annotations-for-ln model)
     ;                              (hash)))
@@ -118,16 +75,16 @@
     (when (> (get-verbosity) VERBOSITY_LOW)
       (printf "tuple annotations were: ~a~n" tuple-annotations))
     (solution-to-XML-string model relation-map name command-string filepath bitwidth forge-version #:tuple-annotations tuple-annotations))
-
-  (define (handle-json connection m) 
+  
+  (define (handle-json connection m)
     (define json-m
       (with-handlers ([exn:fail:syntax?
                        (lambda (e)                      
-                         (ws-send! connection "BAD REQUEST")
+                         (send-to-sterling "BAD REQUEST" #:connection connection)
                          (printf "Expected JSON request from Sterling, got: ~a~n" m))])
         (string->jsexpr m)))
     (unless (and (hash? json-m) (hash-has-key? json-m 'type))
-      (ws-send! connection "BAD REQUEST")
+      (send-to-sterling "BAD REQUEST" #:connection connection)
       (printf "Expected hash-table JSON request with type field, got: ~a~n" m))
     (cond
       [(equal? (hash-ref json-m 'type) "click")
@@ -142,7 +99,7 @@
        (get-next-model) ; TODO: should we re-enable make-contrast-model-generators?
        (define xml (get-xml (get-current-model)))
        (define response (make-sterling-data xml))
-       (ws-send! connection response)     
+       (send-to-sterling response #:connection connection)     
        ]
       [(equal? (hash-ref json-m 'type) "eval")
        ; A message requesting that the provider evaluate some expression
@@ -153,13 +110,13 @@
          (printf "Eval query: ~a~n" expression))
        (define result (evaluate-func expression))
        (define response (make-sterling-eval result))
-       (ws-send! connection response)]     
+       (send-to-sterling response #:connection connection)]     
       [(equal? (hash-ref json-m 'type) "meta")
        ; A message requesting data about the data provider, such as the provider's
        ; name and the types of views it supports. Respond in turn with a meta message.
-       (ws-send! connection (make-sterling-meta))]      
+       (send-to-sterling (make-sterling-meta) #:connection connection)]      
       [else
-       (ws-send! connection "BAD REQUEST")
+       (send-to-sterling "BAD REQUEST" #:connection connection)
        (printf "Sterling message contained unexpected type field: ~a~n" json-m)]))
   
   (define chan (make-async-channel))
@@ -173,7 +130,7 @@
      (λ (connection _)
        ; Enable custom temporal exploration buttons for temporal mode
        (when (equal? (get-option the-run 'problem_type) 'temporal)                     
-         (ws-send! connection temporal-setup))                    
+         (send-to-sterling temporal-setup #:connection connection))                    
 
        (let loop ()         
          (define m (ws-recv connection))
@@ -181,9 +138,7 @@
            (when (> (get-verbosity) 0)  ; DEBUG: change to VERBOSITY_LOW later
              (printf "Message received from Sterling: ~a~n" m))
            (cond [(equal? m "ping")
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: ping~n"))
-                  (ws-send! connection "pong")]
+                  (send-to-sterling "pong" #:connection connection)]
                  [else (handle-json connection m)])
            (loop))))
      #:port 0 #:confirmation-channel chan))
@@ -197,21 +152,6 @@
          (flush-output)
          (void (read-char))
          (stop-service)]))
-
-;  "type": "data",
-;  "version": 1,
-;  "payload": {
-;    "enter": [
-;      {
-;        "id": "1",
-;        "format": "alloy",
-;        "data": "<alloy>...</alloy>",
-;        "buttons": [{ "text": "Next", "onClick": "next" }],
-;        "evaluator": true
-;      }
-;    ]
-;  }
-;}
 
 ; Get a value from a nested JSON dictionary, using the <path> list
 ; input must be a hash (i.e., a translated JSON dictionary)
@@ -237,32 +177,12 @@
                                                  'onClick "next"))
                             'evaluator #t))))))
 
-;{
-;  "type": "eval",
-;  "version": 1,
-;  "payload": {
-;    "id": "0",
-;    "result": "{}"
-;  }
-;}
-
 (define (make-sterling-eval result)
   (jsexpr->string	
    (hash 'type "eval"
          'version 1
          'payload (hash 'id 0
                         'result result))))
-
-
-;{
-;  "type": "meta",
-;  "version": 1,
-;  "payload": {
-;    "name": "Alloy",
-;    "evaluator": true,
-;    "views": ["graph", "table", "script"]
-;  }
-;}
 
 (define/contract (make-sterling-meta)
   (-> string?)
@@ -343,3 +263,54 @@
                   (ws-send! connection "BAD REQUEST")
                   (printf "Bad request: ~a~n" m)])
 |#
+
+
+
+ ; For compare/contrast models.
+  ; Map of generators
+  ;  (define contrast-model-generators #f)
+  ;  (define contrast-models #f)
+
+  ; TODO: TN, re-enable these
+  ;  (define (make-contrast-model-generators)
+  ;    (define make-generator (curry get-contrast-model-generator model))
+  ;    (set! contrast-model-generators
+  ;      (hash 'compare-min (make-generator 'compare 'close)
+  ;            'compare-max (make-generator 'compare 'far)
+  ;            'contrast-min (make-generator 'contrast 'close)
+  ;            'contrast-max (make-generator 'contrast 'far)))
+  ;
+  ;    (set! contrast-models
+  ;      (make-hash (list (cons 'compare-min #f)
+  ;                       (cons 'compare-max #f)
+  ;                       (cons 'contrast-min #f)
+  ;                       (cons 'contrast-max #f)))))
+  ;(make-contrast-model-generators)
+
+  ;  (define (get-current-contrast-model type)
+  ;    (hash-ref contrast-models type))
+  ;  (define (get-next-contrast-model type)
+  ;    (hash-set! contrast-models type 
+  ;               ((hash-ref contrast-model-generators type)))
+  ;    (hash-ref contrast-models type))
+
+  ;  ; Define a hashof(relname-symbol, hashof(listof(atom-symbol), listof(annotation-symbol))    
+  ;  (define (build-tuple-annotations-for-ln model)
+  ;    (define (build-tann-hash relname pair-list ksym vsym)
+  ;      (for/hash ([pr (filter (lambda (maybe-pr) (equal? relname (cdr maybe-pr))) pair-list)])
+  ;        ; build *LIST* of annotations, each of which is a pair
+  ;        (values (car pr) (list (cons ksym vsym))))) 
+  ;    
+  ;    ; only for the first element of a trace TODO
+  ;    (when (> (get-verbosity) VERBOSITY_LOW)
+  ;      (printf "generating locally-necessary tuples...model field unused...~n"))
+  ;    (match-define (cons yes no) (get-locally-necessary-list the-run (get-current-model)))
+  ;    ; To ease building annotation hash, just discover which relations are present in advance
+  ;    ;(printf "LNtuples+: ~a~n LNtuples-: ~a~n" yes no)
+  ;    (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])
+  ;      (let ([true-hash (build-tann-hash relname yes 'LN 'true)]
+  ;            [false-hash (build-tann-hash relname no 'LN 'false)])
+  ;      ; uppercase
+  ;      ;(printf "building union of ~a~n  and ~a~n" true-hash false-hash)
+  ;      (values relname (hash-union true-hash false-hash)))))
+  ;  
