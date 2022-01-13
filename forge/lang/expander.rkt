@@ -10,6 +10,10 @@
 (require forge/logging/sigs)
 ; (require "ast.rkt")
 
+(require (only-in forge/sigs isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable))
+(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
+(require forge/choose-lang-specific)
+
 
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
@@ -156,6 +160,8 @@
     (pattern ((~literal ArrowMult) "lone") #:attr symbol #'pfunc)
     (pattern ((~literal ArrowMult) "set") #:attr symbol #'default)
     (pattern ((~literal ArrowMult) "one") #:attr symbol #'func)
+    (pattern ((~literal ArrowMult) "func") #:attr symbol #'func)
+    (pattern ((~literal ArrowMult) "pfunc") #:attr symbol #'pfunc)
     (pattern ((~literal ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
 
   ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
@@ -545,7 +551,7 @@
        ;if "sig A in B extends C" is allowed,
        ;check if this allows that and update if needed
        ;note the parser currently does not allow that
-       (sig sig-names.names (~? mult.symbol)
+       (sig (#:lang (get-check-lang)) sig-names.names (~? mult.symbol)
                             (~? abstract.symbol)
                             (~? (~@ #:is-var isv))
                             (~? (~@ extends.symbol extends.value))) ...))]
@@ -570,7 +576,7 @@
        #,@(for/list ([sig-name (syntax-e #'(sig-names.names ...))])
             (with-syntax ([sig-name-p0 sig-name])
               (syntax/loc sig-name
-                (sig sig-name-p0 (~? mult.symbol)
+                (sig (#:lang (get-check-lang)) sig-name-p0 (~? mult.symbol)
                      (~? abstract.symbol)
                      (~? (~@ #:is-var isv))
                      (~? (~@ extends.symbol extends.value))))))
@@ -590,7 +596,7 @@
                                                                    (syntax->list relation-types)))]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])
-                      (syntax/loc relation-name-p1 (relation relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
+                      (syntax/loc relation-name-p1 (relation (#:lang (get-check-lang)) relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
    
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
@@ -599,7 +605,7 @@
    (quasisyntax/loc stx (begin
    #,@(for/list ([name (syntax->list #'arrow-decl.names)])
         (with-syntax ([name name])
-          (syntax/loc stx (relation name arrow-decl.types))))))]))
+          (syntax/loc stx (relation (#:lang (get-check-lang)) name arrow-decl.types))))))]))
 
 ; FactDecl : FACT-TOK Name? Block
 (define-syntax (FactDecl stx)
@@ -617,7 +623,7 @@
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred name.name block)))))]
+       #,(syntax/loc stx (pred (#:lang (get-check-lang)) name.name block)))))]
 
   [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
@@ -629,7 +635,7 @@
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred decl block)))))]))
+       #,(syntax/loc stx (pred (#:lang (get-check-lang)) decl block)))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)
@@ -781,12 +787,12 @@
   [((~literal Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (iff expr1 expr2)))]
+     (syntax/loc stx (iff (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])     
-     (syntax/loc stx (implies expr1 expr2)))]
+     (syntax/loc stx (implies (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
                                     "else" expr3:ExprClass)
@@ -847,7 +853,7 @@
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [op #'op.symbol])
-     (syntax/loc stx (op expr1 expr2)))]
+     (syntax/loc stx (op (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass 
                     (~or "!" "not") op:CompareOpClass 
@@ -856,7 +862,7 @@
                  [expr2 (my-expand #'expr2)]
                  [op #'op.symbol])
      ; Need to preserve srcloc in both the "not" and the "op" nodes
-     (quasisyntax/loc stx (! #,(syntax/loc stx (op expr1 expr2)))))]
+     (quasisyntax/loc stx (! #,(syntax/loc stx (op (#:lang (get-check-lang)) expr1 expr2)))))]
 
   [((~literal Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
                           op)
@@ -877,37 +883,37 @@
   [((~literal Expr) expr1:ExprClass "+" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (+ expr1 expr2)))]
+     (syntax/loc stx (+ (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "-" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (- expr1 expr2)))]
+     (syntax/loc stx (- (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "++" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (++ expr1 expr2)))]
+     (syntax/loc stx (++ (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "&" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (& expr1 expr2)))]
+     (syntax/loc stx (& (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (-> expr1 expr2)))]
+     (syntax/loc stx (-> (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass ":>" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (:> expr1 expr2)))]
+     (syntax/loc stx (:> (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "<:" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (<: expr1 expr2)))]
+     (syntax/loc stx (<: (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) "[" exprs:ExprListClass "]")
    (syntax/loc stx (raise (format "Unimplemented ~a" exprs)))]
@@ -915,7 +921,7 @@
   [((~literal Expr) expr1:ExprClass "." expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (join expr1 expr2)))]
+     (syntax/loc stx (join (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~literal Expr) name:NameClass "[" exprs:ExprListClass "]")
    (with-syntax ([name #'name.name]
@@ -929,15 +935,15 @@
 
   [((~literal Expr) "~" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (~ expr1)))]
+     (syntax/loc stx (~ (#:lang (get-check-lang)) expr1)))]
 
   [((~literal Expr) "^" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (^ expr1)))]
+     (syntax/loc stx (^ (#:lang (get-check-lang)) expr1)))]
 
   [((~literal Expr) "*" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (* expr1)))]
+     (syntax/loc stx (* (#:lang (get-check-lang)) expr1)))]
 
   [((~literal Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
@@ -952,7 +958,7 @@
    (syntax/loc stx (atom 'name.name))]
 
   [((~literal Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
-   (syntax/loc stx (set decls.translate bob.exprs))]
+   (syntax/loc stx (set (#:lang (get-check-lang))  decls.translate bob.exprs))]
 
   [((~literal Expr) block:BlockClass)
    (my-expand (syntax/loc stx block))]

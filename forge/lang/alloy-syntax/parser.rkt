@@ -31,7 +31,7 @@ SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
 Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
-ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
+ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK | FUNC-TOK | PFUNC-TOK
 ;Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
 Decl : DISJ-TOK? NameList /COLON-TOK SET-TOK? Expr
 ; ArrowDecl should only be used by sig field declaration right now; note the optional VAR for Electrum

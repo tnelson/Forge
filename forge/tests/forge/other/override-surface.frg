@@ -38,11 +38,10 @@ test expect {
 	arity3: {overArity3} is theorem
 }
 
---Hopefully this test would fail if there were ever any issues
---with big arities larger than 3
+-- Detect issues with arities larger than 3
 pred overArity5 {
 	F3->F1->P3->F2->P1 in ffpfp ++ F3->F1->P3->F2->P1
-	one F3.(ffpfp++F3->F1->F3->F2->P1)
+	one F3.(ffpfp++F3->F1->P3->F2->P1) 
 }
 
 test expect {

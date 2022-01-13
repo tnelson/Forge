@@ -29,7 +29,7 @@ test expect {
     twoOne : {twoVarOne iff twoVarOneDisj} is theorem
 }
 
-pred manyVarONe {
+pred manyVarOne {
     one n0, n1, n2, n3: Node | (no n0 & n1) && (no n0 & n2) && (no n0 & n3) && (no n1 & n2) && (no n1 & n3) && (no n2 & n3) && n1->n2 in edges && n3->n0 in edges
 }
             
