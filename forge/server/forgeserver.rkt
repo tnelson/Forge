@@ -52,12 +52,17 @@
 ; get-next-model returns the next model each time it is called, or #f.
 (define (display-model the-run orig-lazy-tree relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
-  (define current-tree orig-lazy-tree)    
+  (define current-tree orig-lazy-tree)
+  (define next-datum-id 0)
+  (define id-to-instance-map (make-hash)) ; mutable hash
+  
   (define (get-current-model)
     (tree:get-value current-tree))
   (define (get-next-model [next-mode 'P])    
-    (set! current-tree (tree:get-child current-tree next-mode))    
-    (get-current-model))
+    (set! current-tree (tree:get-child current-tree next-mode))
+    (hash-set! id-to-instance-map next-datum-id (get-current-model))
+    (set! next-datum-id (+ next-datum-id 1))
+    (values (- next-datum-id 1) (get-current-model)))
   
   (define command-string (format "~a" (syntax->datum command)))
   
@@ -95,9 +100,9 @@
        (define onClick (hash-ref (hash-ref json-m 'payload) 'onClick))
        (cond
          [(equal? onClick "next")
-          (get-next-model) 
-          (define xml (get-xml (get-current-model)))
-          (define response (make-sterling-data xml))
+          (define-values (id inst) (get-next-model))
+          (define xml (get-xml inst))
+          (define response (make-sterling-data xml id))
           (send-to-sterling response #:connection connection)]
          [else
           (printf "Got a click event from Sterling with unexpected onClick: ~a~n" json-m)])     
@@ -106,9 +111,10 @@
        ; A message requesting the current data to display to the user.
        ; This message will be sent when the connection is established
        ; (or re-established). Respond in turn with a data message.
-       (get-next-model) ; TODO: should we re-enable make-contrast-model-generators?
-       (define xml (get-xml (get-current-model)))
-       (define response (make-sterling-data xml))
+       ; TODO: should we re-enable make-contrast-model-generators?
+       (define-values (id inst) (get-next-model))
+       (define xml (get-xml inst))
+       (define response (make-sterling-data xml id))
        (send-to-sterling response #:connection connection)     
        ]
       [(equal? (hash-ref json-m 'type) "eval")
@@ -173,14 +179,14 @@
            (error "get-from-json expected JSON dictionary with ~a field, got: ~a~n" (first path) json-m))
          (get-from-json (hash-ref json-m (first path)) (rest path))]))
 
-(define (make-sterling-data xml)
+(define (make-sterling-data xml id)
   (jsexpr->string
    (hash
     'type "data"
     'version 1
     'payload (hash
               'enter (list
-                      (hash 'id 1
+                      (hash 'id id
                             'format "alloy"
                             'data xml
                             'buttons (list (hash 'text "Next"
