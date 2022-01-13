@@ -90,7 +90,17 @@
       [(equal? (hash-ref json-m 'type) "click")
        ; A message notifying the data provider that a Button was clicked
        ; by the user while viewing a specific datum.
-       ; TODO: what to do here?
+       (unless (hash-has-key? (hash-ref json-m 'payload) 'onClick)
+         (printf "Got a click event from Sterling without a payload: ~a~n" json-m))
+       (define onClick (hash-ref (hash-ref json-m 'payload) 'onClick))
+       (cond
+         [(equal? onClick "next")
+          (get-next-model) 
+          (define xml (get-xml (get-current-model)))
+          (define response (make-sterling-data xml))
+          (send-to-sterling response #:connection connection)]
+         [else
+          (printf "Got a click event from Sterling with unexpected onClick: ~a~n" json-m)])     
        ]
       [(equal? (hash-ref json-m 'type) "data")
        ; A message requesting the current data to display to the user.
