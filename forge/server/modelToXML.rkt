@@ -117,7 +117,7 @@
          " ")
         ""))
     
-  (define prologue (string-append "XML: <alloy builddate=\"" (date->string (current-date)) "\">\n"))
+  (define prologue (string-append "<alloy builddate=\"" (date->string (current-date)) "\">\n"))
   (define instance-prologue (string-append 
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
                                   (car (string-split command)) "\" filename=\"" filepath
