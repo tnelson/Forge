@@ -9,7 +9,7 @@
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel
          racket/hash)
-(require "eval-model.rkt"
+(require (only-in "eval-model.rkt" ->string)
          (prefix-in tree: "../lazy-tree.rkt"))        
 (require json) 
 
@@ -53,16 +53,16 @@
 (define (display-model the-run orig-lazy-tree relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
   (define current-tree orig-lazy-tree)
-  (define next-datum-id 0)
+  (define curr-datum-id -1)
   (define id-to-instance-map (make-hash)) ; mutable hash
   
   (define (get-current-model)
     (tree:get-value current-tree))
   (define (get-next-model [next-mode 'P])    
     (set! current-tree (tree:get-child current-tree next-mode))
-    (hash-set! id-to-instance-map next-datum-id (get-current-model))
-    (set! next-datum-id (+ next-datum-id 1))
-    (values (- next-datum-id 1) (get-current-model)))
+    (set! curr-datum-id (+ curr-datum-id 1))
+    (hash-set! id-to-instance-map curr-datum-id (get-current-model))    
+    (values curr-datum-id (get-current-model)))
   
   (define command-string (format "~a" (syntax->datum command)))
   
@@ -100,9 +100,9 @@
        (define onClick (hash-ref (hash-ref json-m 'payload) 'onClick))
        (cond
          [(equal? onClick "next")
-          (define-values (id inst) (get-next-model))
+          (define-values (datum-id inst) (get-next-model))
           (define xml (get-xml inst))
-          (define response (make-sterling-data xml id))
+          (define response (make-sterling-data xml datum-id))
           (send-to-sterling response #:connection connection)]
          [else
           (printf "Got a click event from Sterling with unexpected onClick: ~a~n" json-m)])     
@@ -121,11 +121,13 @@
        ; A message requesting that the provider evaluate some expression
        ; associated with a specific datum. Respond with the result of
        ; evaluating the expression with an eval message.
-       (define expression (get-from-json json-m '(payload expression)))     
-       (when (> (get-verbosity) VERBOSITY_LOW)
-         (printf "Eval query: ~a~n" expression))
-       (define result (evaluate-func expression))
-       (define response (make-sterling-eval result))
+       (define expression (get-from-json json-m '(payload expression)))
+       (define id (get-from-json json-m '(payload id)))
+       (define datum-id (get-from-json json-m '(payload datumId)))
+       (when (not (equal? datum-id curr-datum-id))
+         (printf "Error: Sterling requested outdated evaluator; reporting back inaccurate data!"))
+       (define result (evaluate-func expression))       
+       (define response (make-sterling-eval result id datum-id))
        (send-to-sterling response #:connection connection)]     
       [(equal? (hash-ref json-m 'type) "meta")
        ; A message requesting data about the data provider, such as the provider's
@@ -176,7 +178,7 @@
   (cond [(empty? path) json-m]
         [else 
          (unless (hash-has-key? json-m (first path))
-           (error "get-from-json expected JSON dictionary with ~a field, got: ~a~n" (first path) json-m))
+           (error (format "get-from-json expected JSON dictionary with ~a field, got: ~a~n" (first path) json-m)))
          (get-from-json (hash-ref json-m (first path)) (rest path))]))
 
 (define (make-sterling-data xml id)
@@ -193,12 +195,13 @@
                                                  'onClick "next"))
                             'evaluator #t))))))
 
-(define (make-sterling-eval result)
+(define (make-sterling-eval result id datum-id)
+  ; note datum-id currently unused in the response JSON
   (jsexpr->string	
    (hash 'type "eval"
          'version 1
-         'payload (hash 'id 0
-                        'result result))))
+         'payload (hash 'id (->string id)
+                        'result (->string result)))))
 
 (define/contract (make-sterling-meta)
   (-> string?)

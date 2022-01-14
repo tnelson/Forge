@@ -11,7 +11,7 @@
 (require syntax/srcloc)
 
 (provide eval-exp eval-unknown eval-int-expr model->binding)
-(provide int-atom int-atom->string int-atom? int-atom-n)
+(provide int-atom int-atom->string int-atom? int-atom-n ->string)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -198,6 +198,8 @@
         [(symbol? v) (symbol->string v)]
         [(number? v) (number->string v)]
         [(string? v) v]
+        [(list? v)
+         (string-join (map ->string v) " " #:before-first "(" #:after-last ")")] 
         [else
          (let* ([v-loc (ast:nodeinfo-loc (ast:node-info v))]
                 [v-line (source-location-line v-loc)]
