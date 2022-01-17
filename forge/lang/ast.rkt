@@ -41,7 +41,6 @@
 ;; -----------------------------------------------------------------------------
 
 ; Group information in one struct to make change easier
-; TODO TN: should this be transparent? or custom to-string to avoid printing #<nodeinfo>?
 (struct nodeinfo (loc lang) #:transparent
   #:methods gen:custom-write
   [(define (write-proc self port mode)
@@ -121,6 +120,10 @@
 (struct node/expr node (arity) #:transparent
   #:property prop:procedure (λ (r . sigs) (build-box-join r sigs)))
 
+; Defining here for accessibility reasons
+; Should never be directly instantiated
+(struct node/int node () #:transparent)
+
 ;; -- operators ----------------------------------------------------------------
 
 ; Should never be directly instantiated
@@ -140,7 +143,10 @@
                                          (node/expr/ite-thene self)
                                          (node/expr/ite-elsee self))))])
 
-(define (ite/info-helper info a b c)
+(define (ite/info-helper info a orig-b orig-c)  
+  (define b (intexpr->expr/maybe orig-b))
+  (define c (intexpr->expr/maybe orig-c))
+  
   (unless (node/formula? a)
     (raise-syntax-error #f (format "If-then-else expression requires first argument to be a formula")
                         (datum->syntax #f a (build-source-location-syntax (nodeinfo-loc info)))))
@@ -171,6 +177,15 @@
     ;(printf "checking ast-node:~a  to-handle:~a  has-key? ~a ~n" ast-node to-handle (hash-has-key? checker-hash to-handle))
     (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node info)))
 
+(define/contract (intexpr->expr/maybe a-node)
+  (@-> node? node/expr?)  
+  (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
+        [else a-node]))
+(define/contract (expr->intexpr/maybe a-node)
+  (@-> node? node/int?)  
+  (cond [(node/expr? a-node) (node/int/op/sum (node-info a-node) (list a-node))]
+        [else a-node]))
+
 ; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-node-op stx)
   (syntax-case stx ()
@@ -199,24 +214,33 @@
            ; Keep this commented-out line for use in emergencies to debug bad source locations:
            ;(fprintf port "~a" (cons 'display-id (cons (nodeinfo-loc (node-info self)) (child-accessor self))))
            
-           (define (functionname #:info [info empty-nodeinfo] . args)
+           (define (functionname #:info [info empty-nodeinfo] . raw-args)
              (define ast-checker-hash (get-ast-checker-hash))
              ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
-             ;(printf "args: ~a    key:~a ~n" args  key)
+             ;(printf "args: ~a    key:~a ~n" raw-args  key)
+
+             ; Perform intexpr->expr and expr->intexpr coercion if needed:             
+             (define args (cond [(equal? node/expr? childtype)
+                                 (map intexpr->expr/maybe raw-args)]
+                                [(equal? node/int? childtype)
+                                 (map expr->intexpr/maybe raw-args)]
+                                [else raw-args]))
+             
              (check-and-output args key ast-checker-hash info)
              (check-args info 'id args childtype checks ...)
              (if arity
-                ; expression
-                (if (andmap node/expr? args)
-                    ; expression with expression children (common case)
-                    (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                      (name info (apply arity arities) args))
-                    ; expression with non-expression children or const arity (e.g., sing)
-                    (name info (arity) args))
-                ; intexpression or formula
-                (name info args)))
-
-
+                 ; expression
+                 (cond [(andmap node/expr? args)                       
+                        ; expression with ~all~ expression children (common case)
+                        (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
+                          (name info (apply arity arities) args))]
+                       ; expression with non-expression children or const arity (e.g., sing or expr form of ITE)                                       
+                       [else             
+                        (name info (arity) args)]) 
+                 ; intexpression or formula
+                 (name info args)))
+           
+           
 
            ; For expander to use check-lang on this macro, use the format
            ; (id (#:lang (get-check-lang)) args ...) for pattern matching
@@ -476,8 +500,7 @@
 
 ;; INTS ------------------------------------------------------------------------
 
-; Should never be directly instantiated
-(struct node/int node () #:transparent)
+; node/int is defined near top of module so it is accessible by expr->intexpr/maybe
 
 ;; -- operators ----------------------------------------------------------------
 
@@ -496,14 +519,7 @@
 (define-node-op abs node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 (define-node-op sign node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 
-; min and max are now *defined*, not declared:
-; (define-node-op max node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
-; (define-node-op min node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
-
-; (define (max s-int)
-;   (sum (- s-int (join (^ succ) s-int))))
-; (define (min s-int)
-;   (sum (- s-int (join s-int (^ succ)))))
+; min and max are now *defined*, not declared, and in sigs-structs.rkt:
 
 ;; -- constants ----------------------------------------------------------------
 
