@@ -28,4 +28,6 @@ test expect {
                  add[sing[Test.num], 1] > 0} is theorem
     -- node/expr needing node/expr->node/int child conversion
     exprToInt2: {sing[Test.num] = Test.num } is theorem
+    -- sum aggregator (sum in "quantifier form") has its own macro
+    exprToInt3: {(sum a: A | Test.r[a]) = (sum a: A | sum[Test.r[a]]) } is theorem
 }

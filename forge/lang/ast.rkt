@@ -555,12 +555,14 @@
    (define hash-proc  (make-robust-node-hash-syntax node/int/sum-quant 0))
    (define hash2-proc (make-robust-node-hash-syntax node/int/sum-quant 3))])
 
-(define (sum-quant/func decls int-expr #:info [node-info empty-nodeinfo])
+(define (sum-quant/func decls raw-int-expr #:info [node-info empty-nodeinfo])
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-argument-error 'set "expr?" e))
     (unless (equal? (node/expr-arity e) 1)
       (raise-argument-error 'set "decl of arity 1" e)))
+  (define int-expr (cond [(node/expr? raw-int-expr) (expr->intexpr/maybe raw-int-expr)]
+                         [else raw-int-expr]))
   (unless (node/int? int-expr)
     (raise-argument-error 'set "int-expr?" int-expr))
   (node/int/sum-quant node-info decls int-expr))
