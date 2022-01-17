@@ -26,24 +26,6 @@
 
 (define-runtime-path sterling-path "../sterling/build/index.html")
 
-;;;;;;;;;;;;;;;;;;;;
-; Sent to Sterling before the instance XML for temporal problems only
-(define temporal-setup "{\n\
-    \"type\": \"buttons\",\n\
-    \"buttons\": [\n\
-    {\n\
-      \"text\": \"Next Config\",\n\
-      \"command\": \"next-C\",\n\
-      \"icon\": \"circle-arrow-right\",\n\
-      \"disabled\": false\n\
-    },\n\
-    {\n\
-      \"text\": \"Next\",\n\
-      \"command\": \"next\",\n\
-      \"icon\": \"circle-arrow-right\",\n\
-      \"disabled\": false\n\
-    }\n\
-    ] }\n")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -91,6 +73,9 @@
     (unless (and (hash? json-m) (hash-has-key? json-m 'type))
       (send-to-sterling "BAD REQUEST" #:connection connection)
       (printf "Expected hash-table JSON request with type field, got: ~a~n" m))
+
+    (define temporal? (equal? (get-option the-run 'problem_type) 'temporal))
+    
     (cond
       [(equal? (hash-ref json-m 'type) "click")
        ; A message notifying the data provider that a Button was clicked
@@ -98,14 +83,20 @@
        (unless (hash-has-key? (hash-ref json-m 'payload) 'onClick)
          (printf "Got a click event from Sterling without a payload: ~a~n" json-m))
        (define onClick (hash-ref (hash-ref json-m 'payload) 'onClick))
+       (define next? (equal? "next" (substring onClick 0 4)))
        (cond
-         [(equal? onClick "next")
-          (define-values (datum-id inst) (get-next-model))
+         [next?          
+          (define-values (datum-id inst)
+            (cond [(equal? onClick "next-C") (get-next-model 'C)]
+                  [(equal? onClick "next-P" (get-next-model 'P))]
+                  [(equal? onClick "next" (get-next-model))]
+                  [else
+                   (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
-          (define response (make-sterling-data xml datum-id))
+          (define response (make-sterling-data xml datum-id temporal?))
           (send-to-sterling response #:connection connection)]
          [else
-          (printf "Got a click event from Sterling with unexpected onClick: ~a~n" json-m)])     
+          (printf "Sterling: unexpected onClick: ~a~n" json-m)])     
        ]
       [(equal? (hash-ref json-m 'type) "data")
        ; A message requesting the current data to display to the user.
@@ -114,7 +105,7 @@
        ; TODO: should we re-enable make-contrast-model-generators?
        (define-values (id inst) (get-next-model))
        (define xml (get-xml inst))
-       (define response (make-sterling-data xml id))
+       (define response (make-sterling-data xml id temporal?))
        (send-to-sterling response #:connection connection)     
        ]
       [(equal? (hash-ref json-m 'type) "eval")
@@ -145,11 +136,7 @@
      ; from the time that conn-headers finishes responding to the connection request, to the time
      ; the connection closes. The server generates a new handler thread for this function
      ; every time a connection is initiated.
-     (λ (connection _)
-       ; Enable custom temporal exploration buttons for temporal mode
-       (when (equal? (get-option the-run 'problem_type) 'temporal)                     
-         (send-to-sterling temporal-setup #:connection connection))                    
-
+     (λ (connection _)       
        (let loop ()         
          (define m (ws-recv connection))
          (unless (eof-object? m)           
@@ -181,7 +168,7 @@
            (error (format "get-from-json expected JSON dictionary with ~a field, got: ~a~n" (first path) json-m)))
          (get-from-json (hash-ref json-m (first path)) (rest path))]))
 
-(define (make-sterling-data xml id)
+(define (make-sterling-data xml id temporal?)
   (jsexpr->string
    (hash
     'type "data"
@@ -191,8 +178,17 @@
                       (hash 'id id
                             'format "alloy"
                             'data xml
-                            'buttons (list (hash 'text "Next"
-                                                 'onClick "next"))
+                            'buttons (cond [temporal?
+                                            (list (hash 'text "Next Trace"
+                                                        'mouseover "(Keeps configuration constant)"
+                                                        'onClick "next-P")
+                                                  (hash 'text "Next Config"
+                                                        'mouseover "(Forces different configuration)"
+                                                        'onClick "next-C"))]
+                                           [else
+                                            (list (hash 'text "Next"
+                                                        'mouseover "(Get next instance)"
+                                                        'onClick "next"))])                            
                             'evaluator #t))))))
 
 (define (make-sterling-eval result id datum-id)
