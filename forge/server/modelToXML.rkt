@@ -54,9 +54,9 @@
   (apply string-append (map (curry tuple-to-XML-string r-tuple-annotations) rdata-plus)))
 
 (define (type-to-XML-string typestring ID-hash)
-  ;(string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
+  (string-append "<type ID=\"" (number->string (hash-ref ID-hash typestring)) "\"/>"))
   ; Always give univ as parent type, to avoid LN- causing a type error in Sterling (TN Jan 30 '21)
-  (string-append "<type ID=\"" (number->string 2) "\"/>"))
+  ;(string-append "<type ID=\"" (number->string 2) "\"/>"))
 
 (define (types-to-XML-string rel ID-hash)  
   (define xml-expected-types
@@ -173,7 +173,7 @@ here-string-delimiter
                            "\n"
                            "<source filename=\"" filepath "\" content=\""
                            (with-handlers ([exn:fail:filesystem:errno?
-                                            (λ (exn) "// Couldn't open source file! Maybe you forgot to save it?")])
+                                            (λ (exn) (format "// Couldn't open source file (~a) (info: ~a). Is the file saved?" filepath (exn:fail:filesystem:errno-errno exn)))])
                              (clean (agg-lines (port->lines (open-input-file filepath)))))
                            "\"></source>\n"
                            "</alloy>"))         
