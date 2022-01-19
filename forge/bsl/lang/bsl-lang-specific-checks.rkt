@@ -232,6 +232,8 @@
     (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
     (raise-user-error (format "Direct use of -> is not allowed at beginner level in ~a -> ~a at loc: ~a" (deparse (first expr-args)) (deparse (first (rest expr-args))) locstr))))
 
+
+; TODO: move this outside bsl, should be a global check
 (define (bsl-field-decl-func true-breaker)
   (void))
   ; (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 

@@ -625,95 +625,123 @@
 
 ;;; A->B Strategies ;;;
 (add-strategy 'func (λ (pri rel bound atom-lists rel-list)
-    (define A (first rel-list))
-    (define B (second rel-list))
-    (define As (first atom-lists))
-    (define Bs (second atom-lists))  
-    (define formulas (set 
-        (@all ([a A]) (@one (@join a rel)))    ; @one
-    ))
-    (if (equal? A B)
-; ORIGINAL CODE
-        ; (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-        ;     (break-graph (set A) (set))
-        ;     (λ () (break ;(bound->sbound bound) formulas))
-        ;         (sbound rel
-        ;             (set)
-        ;             ;(for*/set ([a (length As)]
-        ;             ;           [b (length Bs)] #:when (<= b (+ a 1)))
-        ;             ;    (list (list-ref As a) (list-ref Bs b))))
-        ;             (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-        ;         formulas))
-        ;     (λ () (break bound formulas))
-        ; )
-        ; (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-        ;     (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-        ;     (λ () 
-        ;         ; assume wlog f(a) = b for some a in A, b in B
-        ;         (break 
-        ;             (sbound rel
-        ;                 (set (list (car As) (car Bs)))
-        ;                 (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-        ;             formulas))
-        ;     (λ () (break bound formulas))
-        ; )
-; BEGIN INSERTED TEMPORARY FIX FOR 'FUNC
-        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-            (break-graph (set A) (set))
-            (λ () (break ;(bound->sbound bound) formulas))
-                (sbound rel
-                    (set)
-                    ;(for*/set ([a (length As)]
-                    ;           [b (length Bs)] #:when (<= b (+ a 1)))
-                    ;    (list (list-ref As a) (list-ref Bs b))))
-                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-                formulas))
-            (λ () (break bound formulas))
-        )
-        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-            (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-            (λ () 
-                ; assume wlog f(a) = b for some a in A, b in B
-                (break 
-                    (sbound rel
-                        (set (list (car As) (car Bs)))
-                        (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-                    formulas))
-            (λ () (break bound formulas))
-        )
+
+    (define (funcformulajoin quantvarlst) 
+        (cond 
+            [(empty? (rest quantvarlst)) (@join (first quantvarlst) rel)]
+            [else (@join (first quantvarlst) (funcformulajoin (rest quantvarlst)))]))
+
+    (define (funcformula rllst quantvarlst)
+        (cond
+            [(empty? (rest (rest rllst))) 
+                (let ([a (gensym)])
+                    (@all ([a (first rllst)]) (@one (funcformulajoin (cons a quantvarlst)))))]
+            [else (let ([a (gensym)])
+                    (@all ([a (first rllst)]) (funcformula (rest rllst) (cons a quantvarlst))))]))
+    (define formulas (set (funcformula rel-list (list))))
+    
+    ; OLD CODE
+;     (if (equal? A B)
+; ; ORIGINAL CODE
+;         ; (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+;         ;     (break-graph (set A) (set))
+;         ;     (λ () (break ;(bound->sbound bound) formulas))
+;         ;         (sbound rel
+;         ;             (set)
+;         ;             ;(for*/set ([a (length As)]
+;         ;             ;           [b (length Bs)] #:when (<= b (+ a 1)))
+;         ;             ;    (list (list-ref As a) (list-ref Bs b))))
+;         ;             (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+;         ;         formulas))
+;         ;     (λ () (break bound formulas))
+;         ; )
+;         ; (breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+;         ;     (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+;         ;     (λ () 
+;         ;         ; assume wlog f(a) = b for some a in A, b in B
+;         ;         (break 
+;         ;             (sbound rel
+;         ;                 (set (list (car As) (car Bs)))
+;         ;                 (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+;         ;             formulas))
+;         ;     (λ () (break bound formulas))
+;         ; )
+; ; BEGIN INSERTED TEMPORARY FIX FOR 'FUNC
+;         (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+;             (break-graph (set A) (set))
+;             (λ () (break ;(bound->sbound bound) formulas))
+;                 (sbound rel
+;                     (set)
+;                     ;(for*/set ([a (length As)]
+;                     ;           [b (length Bs)] #:when (<= b (+ a 1)))
+;                     ;    (list (list-ref As a) (list-ref Bs b))))
+;                     (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+;                 formulas))
+;             (λ () (break bound formulas))
+;         )
+;         (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+;             (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+;             (λ () 
+;                 ; assume wlog f(a) = b for some a in A, b in B
+;                 (break 
+;                     (sbound rel
+;                         (set (list (car As) (car Bs)))
+;                         (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+;                     formulas))
+;             (λ () (break bound formulas))
+;         )
 ; END INSERTED TEMPORARY FIX FOR 'FUNC
-    )
+    (breaker pri 
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break bound formulas)))
 ))
 
 (add-strategy 'pfunc (λ (pri rel bound atom-lists rel-list)
-    (define A (first rel-list))
-    (define B (second rel-list))
-    (define As (first atom-lists))
-    (define Bs (second atom-lists))
-    (define formulas
-        (set (@all ([a A]) (@lone (@join a rel)))))
-    (if (equal? A B)
-        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-            (break-graph (set A) (set))
-            (λ () (break ;(bound->sbound bound) formulas))
-                (sbound rel
-                    (set)
-                    ;(for*/set ([a (length As)]
-                    ;           [b (length Bs)] #:when (<= b (+ a 1)))
-                    ;    (list (list-ref As a) (list-ref Bs b))))
-                    (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-                formulas))
-            (λ () (break bound formulas)))
-        (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-            (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-            (λ () 
-                ; assume wlog f(a) = b for some a in A, b in B
-                (break 
-                    (sbound rel
-                        (set (list (car As) (car Bs)))
-                        (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-                    formulas))
-            (λ () (break bound formulas))))))
+
+    (define (pfuncformulajoin quantvarlst) 
+        (cond 
+            [(empty? (rest quantvarlst)) (@join (first quantvarlst) rel)]
+            [else (@join (first quantvarlst) (pfuncformulajoin (rest quantvarlst)))]))
+    (define (pfuncformula rllst quantvarlst)
+        (cond
+            [(empty? (rest (rest rllst))) 
+                (let ([a (gensym)])
+                    (@all ([a (first rllst)]) (@lone (pfuncformulajoin (cons a quantvarlst)))))]
+            [else (let ([a (gensym)])
+                    (@all ([a (first rllst)]) (pfuncformula (rest rllst) (cons a quantvarlst))))]))
+
+    (define formulas (set (pfuncformula rel-list (list))))
+
+    ; OLD CODE
+    ; (if (equal? A B)
+    ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+    ;         (break-graph (set A) (set))
+    ;         (λ () (break ;(bound->sbound bound) formulas))
+    ;             (sbound rel
+    ;                 (set)
+    ;                 ;(for*/set ([a (length As)]
+    ;                 ;           [b (length Bs)] #:when (<= b (+ a 1)))
+    ;                 ;    (list (list-ref As a) (list-ref Bs b))))
+    ;                 (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+    ;             formulas))
+    ;         (λ () (break bound formulas)))
+    ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+    ;         (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+    ;         (λ () 
+    ;             ; assume wlog f(a) = b for some a in A, b in B
+    ;             (break 
+    ;                 (sbound rel
+    ;                     (set (list (car As) (car Bs)))
+    ;                     (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+    ;                 formulas))
+    ;         (λ () (break bound formulas))))
+        (breaker pri
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break bound formulas))
+        )
+    ))
 
 (add-strategy 'surj (λ (pri rel bound atom-lists rel-list) 
     (define A (first rel-list))
@@ -839,12 +867,13 @@
 
 (add-strategy 'irref (variadic 2 (hash-ref strategies 'irref)))
 (add-strategy 'ref (variadic 2 (hash-ref strategies 'ref)))
+; this one cannot afford to go to purely formula break
 (add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
 (add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
 (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
 (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
-(add-strategy 'func (variadic 2 (hash-ref strategies 'func)))
-(add-strategy 'pfunc (variadic 2 (hash-ref strategies 'pfunc)))
+(add-strategy 'func (hash-ref strategies 'func))
+(add-strategy 'pfunc (hash-ref strategies 'pfunc))
 (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
 (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
 (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))

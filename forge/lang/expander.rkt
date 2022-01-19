@@ -755,8 +755,10 @@
          (first xs)]
         [(node/formula? (first xs))
          (&& xs)]
+        [(and (equal? 1 (length xs)) (node/int? (first xs)))
+         (first xs)]         
         [else 
-         (raise-user-error (first xs) (format "Ill-formed block"))]))
+         (raise-user-error (format "~a" (first xs)) (format "Ill-formed block"))]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (Block stx)
