@@ -16,7 +16,8 @@ Implementation idea:
 
 ## GCloud URL
 
-xxx
+https://console.cloud.google.com/home/dashboard?project=pyret-examples&authuser=2
+
 
 ## Cloud Function
 

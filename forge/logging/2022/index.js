@@ -1,8 +1,8 @@
 const PROJECT_ID = "pyret-examples";
-const SQL_ID = "lfs2022";
-const DATABASE = "lfs2022";
+const SQL_ID = "lfs2022x";
+const DATABASE = "lfs2022x";
 const TABLE_ID = "main";
-const TABLE_ADDR = "34.138.172.34";
+const TABLE_ADDR = "34.75.227.215";
 
 const mysql = require("mysql");
 

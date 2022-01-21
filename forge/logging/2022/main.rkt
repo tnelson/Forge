@@ -17,7 +17,7 @@
   register-run
   ;; (-> exact-nonnegative-integer?
   ;;     (or/c string? #f)
-  ;;     (or/c string? #f)
+  ;;     (or/c symbol? #f)
   ;;     (or/c string? #f)
   ;;     (or/c path-string? #f)
   ;;     void?)
@@ -50,7 +50,7 @@
 
 (define trigger-url
   (string->url
-    "https://us-east1-pyret-examples.cloudfunctions.net/lfs2022"))
+    "https://us-central1-pyret-examples.cloudfunctions.net/submit"))
 
 (define MAX-POST 20)
 ;; maximum number of POST requests to make during a flush
@@ -80,11 +80,12 @@
   (when log-file
     (with-handlers ((exn:fail? void))
       (define log-data
-        (make-log compile-time assignment-name lang user-name path))
+        (make-log compile-time assignment-name (symbol->string lang) user-name path))
       (with-output-to-file log-file #:exists 'append
         (lambda () (writeln log-data))))))
 
 (define (flush-logs compile-time output)
+  (printf "POST ~a~n" compile-time)
   (define log-file (get-log-file))
   (when log-file
     (define all-log*
@@ -113,8 +114,10 @@
             [else
              (with-handlers ([exn:fail:network? (lambda (x)
                                                   (set-box! *network-ok? #false)
+                                                  (printf "EXN ~a~n" (exn-message x))
                                                   (writeln log out-port))])
                (define status (post-log (log->jsexpr log local-id)))
+               (printf "STATUS ~a~n" status)
                (set-box! *num-post (+ 1 (unbox *num-post)))
                (writeln (log-update-posted? log (success? status)) out-port))]))))))
 

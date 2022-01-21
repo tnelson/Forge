@@ -32,7 +32,6 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          (set-option! 'eval-language 'core)
                           (parameterize ([uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler))])
                             ,@parse-tree)
                           

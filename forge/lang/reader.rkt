@@ -72,7 +72,7 @@
                   (forge:nsa forge:n)
 
                   (require (prefix-in log: forge/logging/2022/main))
-                  (require (only-in racket printf))
+                  (require (only-in racket printf parameterize uncaught-exception-handler))
 
                   (require forge/choose-lang-specific)
                   (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
