@@ -7,10 +7,9 @@
 (require (for-syntax (for-syntax racket/base)))
 (require (for-syntax racket/function
                      syntax/srcloc))
-(require forge/logging/sigs)
+(require forge/sigs)
 ; (require "ast.rkt")
 
-(require (only-in forge/sigs isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable))
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
 (require forge/choose-lang-specific)
 
@@ -22,7 +21,7 @@
          module+ submod)
 (provide forge:nsa define-namespace-anchor)
 ; (provide (all-from-out "ast.rkt"))
-(provide (all-from-out forge/logging/sigs))
+(provide (all-from-out forge/sigs))
 (provide (all-defined-out))
 (begin-for-syntax (provide (all-defined-out)))
 

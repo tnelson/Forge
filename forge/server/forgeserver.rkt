@@ -21,7 +21,6 @@
 (require "../lang/reader.rkt")
 (require "../sigs-structs.rkt")
 (require forge/amalgam)
-(require (prefix-in logging: forge/logging/logging))
 
 (provide display-model)
 
@@ -240,8 +239,6 @@
                  [(string-prefix? m "NOTIFY:")
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: notification (TODO: log if enabled)~n"))
-                  (logging:log-notification m #f)
-                  ;; TODO Log )
                   ; No reply needed
                   ]
                  

@@ -3,7 +3,7 @@
 (require syntax/parse)
 (require forge/lang/alloy-syntax/parser)
 (require forge/lang/alloy-syntax/tokenizer)
-(require (prefix-in logging: forge/logging/logging))
+(require (prefix-in log: forge/logging/2022/main))
 
 (provide coerce-ints-to-atoms)
 (define (coerce-ints-to-atoms tree)
@@ -58,18 +58,20 @@
                       paragraphs ...))]))
 
 (define (read-syntax path port)
-  (define-values (logging-on? project email) (logging:log-execution 'forge port path))
+  (define this-lang 'forge/bsl)
+  (define-values (logging-on? project email) (log:setup this-lang port path))
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
+  (define compile-time (current-seconds))
+  (when logging-on?
+    (log:register-run compile-time project this-lang email path))
   (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                        forge:n))
 
                   (define-namespace-anchor forge:n) ; Used for evaluator
                   (forge:nsa forge:n)
 
-                  (require (only-in forge/logging/logging 
-                                    [flush-logs logging:flush-logs]
-                                    [log-errors logging:log-errors]))
+                  (require (prefix-in log: forge/logging/2022/main))
                   (require (only-in racket printf))
 
                   (require forge/choose-lang-specific)
@@ -81,13 +83,13 @@
                   (set-check-lang! 'bsl)
                   ;(printf "ch = ~a~n" bsl-checker-hash) 
 
-                  (logging:log-errors
+                  (parameterize ([uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler))])
                     ,ints-coerced)
-                  
+
                   (module+ execs)
                   (module+ main
                     (require (submod ".." execs))
-                    (logging:flush-logs))))
+                    (log:flush-logs ',compile-time "no-error"))))
 
   (define module-datum `(module forge-mod forge/lang/expander
                           ,@final))

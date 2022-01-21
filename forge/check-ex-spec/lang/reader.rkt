@@ -7,7 +7,7 @@
 (require forge/check-ex-spec/library)
 (require (only-in racket/function curry))
 (require racket/match)
-(require (prefix-in logging: forge/logging/logging))
+(require (prefix-in log: forge/logging/2022/main))
 ; (require racket/list)
 
 (define (filter-commands stx keep)
@@ -26,9 +26,10 @@
           commands))
 
 (define (read-syntax path port)
-  (define-values (logging-on? assignment-name user) (logging:log-execution 'forge/check-ex-spec port path))
+  (define this-lang 'forge/check-ex-spec)
+  (define-values (logging-on? assignment-name user) (log:setup this-lang port path))
   (unless (string? assignment-name)
-    (raise (format "Argument error: expected string after #lang forge/check-ex-spec; received ~a.~n" assignment-name)))
+    (raise (format "Argument error: expected string after #lang ~a; received ~a.~n" this-lang assignment-name)))
 
   (define assignment-info (check-ex-spec:get-info assignment-name))
   (define wheats (map (curry format "~a.rkt" ) (hash-ref assignment-info 'wheats)))
@@ -43,9 +44,8 @@
   (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl TestExpectDecl)))))
 
   (define compile-time (current-seconds))
-
-  #;(when logging-on?
-    (logging:check-ex-spec:register-run compile-time assignment-name user path))
+  (when logging-on?
+    (log:register-run compile-time assignment-name this-lang user path))
 
   (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
                           (require forge/check-ex-spec/library)
@@ -59,9 +59,9 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          (require (prefix-in logging: forge/logging/logging))
+                          (require (prefix-in log: forge/logging/2022/main))
 
-                          (logging:log-errors
+                          (parameterize ([uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler))])
                             (define wheat-results 
                               (list ,@(map (lambda (wheat) 
                                       `(with (,@provided #:from ,wheat)
@@ -77,8 +77,6 @@
                                          (@append ,@(for/list ([test just-tests])
                                                   test))))
                                      chaffs)))
-
-                            (logging:log-check-ex-spec wheat-results chaff-results)
 
                             (for ([wheat-result wheat-results]
                                   [num (in-naturals)])
@@ -104,8 +102,8 @@
                           (module+ execs)
                           (module+ main
                             (require (submod ".." execs))
-                            #;(logging:check-ex-spec:flush-logs ',compile-time wheat-results chaff-results)
-                            (logging:flush-logs))
+                            (log:flush-logs ',compile-time (list wheat-results chaff-results))
+                            )
 
                           #;,ints-coerced))
   (datum->syntax #f module-datum))
