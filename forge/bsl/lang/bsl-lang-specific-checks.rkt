@@ -204,7 +204,7 @@
 (define (check-expr-mult expr-node sing parent-expr)
   (when (and (not sing) (eq? (nodeinfo-lang (node-info parent-expr)) 'bsl))
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-user-error (format "Beginner Studetn Language : ~a not a singleton in ~a at loc: ~a" (deparse parent-expr) (deparse expr-node) (srcloc->string loc)))))
+    (raise-user-error (format "Beginner Studetn Language : ~a not a singleton in ~a at loc: ~a"  (deparse expr-node) (deparse parent-expr) (srcloc->string loc)))))
 
 (hash-set! bsl-checker-hash 'expr-mult check-expr-mult)
 (provide bsl-checker-hash)
