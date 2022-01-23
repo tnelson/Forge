@@ -49,7 +49,7 @@
   (define command-string (format "~a" (syntax->datum command)))
   
   (define (send-to-sterling m #:connection connection)
-    (when (> (get-verbosity) 0)  ; DEBUG: change to VERBOSITY_LOW later
+    (when (>= (get-verbosity) VERBOSITY_STERLING) 
       (printf "Sending message to Sterling: ~a~n" m))
     (ws-send! connection m))
   
@@ -59,7 +59,7 @@
     ;                              (hash)))
     ; TODO: disable LN for winter '21 dev
     (define tuple-annotations (hash))
-    (when (> (get-verbosity) VERBOSITY_LOW)
+    (when (>= (get-verbosity) VERBOSITY_STERLING)
       (printf "tuple annotations were: ~a~n" tuple-annotations))
     (solution-to-XML-string model relation-map name command-string filepath bitwidth forge-version #:tuple-annotations tuple-annotations))
   
@@ -141,7 +141,7 @@
        (let loop ()         
          (define m (ws-recv connection))
          (unless (eof-object? m)           
-           (when (> (get-verbosity) 0)  ; DEBUG: change to VERBOSITY_LOW later
+           (when (>= (get-verbosity) VERBOSITY_STERLING) 
              (printf "Message received from Sterling: ~a~n" m))
            (cond [(equal? m "ping")
                   (send-to-sterling "pong" #:connection connection)]

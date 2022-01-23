@@ -7,7 +7,9 @@
          (only-in racket/port call-with-output-string))
 (require racket/stream)
 
-(provide get-verbosity set-verbosity VERBOSITY_LOW VERBOSITY_HIGH VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
+(provide get-verbosity set-verbosity
+         VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
+         VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
 (provide forge-version instance-diff CORE-HIGHLIGHT-COLOR)
 (provide stream-map/once port-echo java>=1.9?)
 
@@ -15,7 +17,8 @@
 
 ; Level of output when running specs
 (define VERBOSITY_SCRIPT 0) ; for test scripts
-(define VERBOSITY_LOW 1)
+(define VERBOSITY_LOW 1) ; standard
+(define VERBOSITY_STERLING 3) ; for showing Sterling messages
 (define VERBOSITY_HIGH 5)
 (define VERBOSITY_DEBUG 10)
 
