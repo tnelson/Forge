@@ -88,8 +88,8 @@
          [next?          
           (define-values (datum-id inst)
             (cond [(equal? onClick "next-C") (get-next-model 'C)]
-                  [(equal? onClick "next-P" (get-next-model 'P))]
-                  [(equal? onClick "next" (get-next-model))]
+                  [(equal? onClick "next-P") (get-next-model 'P)]
+                  [(equal? onClick "next") (get-next-model)]
                   [else
                    (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
