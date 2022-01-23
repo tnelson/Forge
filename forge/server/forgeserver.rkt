@@ -35,7 +35,7 @@
 (define (display-model the-run orig-lazy-tree relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
 
   (define current-tree orig-lazy-tree)
-  (define curr-datum-id -1)
+  (define curr-datum-id 1) ; nonzero
   (define id-to-instance-map (make-hash)) ; mutable hash
   
   (define (get-current-model)
@@ -103,7 +103,8 @@
        ; This message will be sent when the connection is established
        ; (or re-established). Respond in turn with a data message.
        ; TODO: should we re-enable make-contrast-model-generators?
-       (define-values (id inst) (get-next-model))
+       (define inst (get-current-model)) 
+       (define id curr-datum-id)
        (define xml (get-xml inst))
        (define response (make-sterling-data xml id temporal?))
        (send-to-sterling response #:connection connection)     
