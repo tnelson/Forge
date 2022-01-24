@@ -23,7 +23,7 @@ https://console.cloud.google.com/home/dashboard?project=pyret-examples&authuser=
 
 Used to have a cloud function
 
-- name = lfs2022
-- trigger = https://us-east1-pyret-examples.cloudfunctions.net/lfs2022
+- name = submit
+- trigger = https://us-central1-pyret-examples.cloudfunctions.net/submit
 - source = index.js (here)
 - deps = package.js (here)

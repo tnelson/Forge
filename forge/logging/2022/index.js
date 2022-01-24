@@ -18,7 +18,7 @@ function getConnection () {
   return mysql.createConnection(options);
 }
 
-exports.recv = (req, res) => {
+exports.submit = (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'POST') {
     let conn = getConnection();
