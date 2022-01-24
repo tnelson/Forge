@@ -85,7 +85,7 @@
         (lambda () (writeln log-data))))))
 
 (define (flush-logs compile-time output)
-  (printf "POST ~a~n" compile-time)
+  #;(printf "POST ~a~n" compile-time)
   (define log-file (get-log-file))
   (when log-file
     (define all-log*
@@ -114,10 +114,10 @@
             [else
              (with-handlers ([exn:fail:network? (lambda (x)
                                                   (set-box! *network-ok? #false)
-                                                  (printf "EXN ~a~n" (exn-message x))
+                                                  #;(printf "EXN ~a~n" (exn-message x))
                                                   (writeln log out-port))])
                (define status (post-log (log->jsexpr log local-id)))
-               (printf "STATUS ~a~n" status)
+               #;(printf "STATUS ~a~n" status)
                (set-box! *num-post (+ 1 (unbox *num-post)))
                (writeln (log-update-posted? log (success? status)) out-port))]))))))
 
