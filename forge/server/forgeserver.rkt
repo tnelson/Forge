@@ -152,6 +152,8 @@
   (define port (async-channel-get chan))
   (cond [(string? port)
          (displayln "NO PORTS AVAILABLE!!")]
+        [(equal? 'off (get-option the-run 'run_sterling))
+         (void)]
         [else
          (send-url/file sterling-path #f #:query (number->string port))
          (printf "Sterling running. Hit enter to stop service.\n")         
@@ -277,7 +279,6 @@
                   (ws-send! connection "BAD REQUEST")
                   (printf "Bad request: ~a~n" m)])
 |#
-
 
 
  ; For compare/contrast models.
