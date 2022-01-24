@@ -23,7 +23,7 @@
                           ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
 
                           (require (prefix-in log: forge/logging/2022/main))
-                          (require forge/sigs-functional)
+                          (require forge/sigs)
 
                           (provide (except-out (all-defined-out)
                                                forge:n))
@@ -32,9 +32,10 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          (parameterize ([uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler))])
-                            ,@parse-tree)
-                          
+                          (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
+                          ;; Override default exception handler
+                          ,@parse-tree
+
                           (module+ execs)
                           (module+ main
                             (require (submod ".." execs))

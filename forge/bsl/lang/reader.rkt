@@ -72,7 +72,7 @@
                   (forge:nsa forge:n)
 
                   (require (prefix-in log: forge/logging/2022/main))
-                  (require (only-in racket printf parameterize uncaught-exception-handler))
+                  (require (only-in racket printf uncaught-exception-handler))
 
                   (require forge/choose-lang-specific)
                   (require forge/bsl/lang/bsl-lang-specific-checks) ; TODO: can this be relative?
@@ -83,8 +83,10 @@
                   (set-check-lang! 'bsl)
                   ;(printf "ch = ~a~n" bsl-checker-hash) 
 
-                  (parameterize ([uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler))])
-                    ,ints-coerced)
+                  (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
+                  ;; Override default exception handler
+
+                  ,ints-coerced
 
                   (module+ execs)
                   (module+ main
