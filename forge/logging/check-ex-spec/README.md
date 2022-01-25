@@ -1,6 +1,8 @@
 check-ex-spec
 ===
 
+2022-01-21: ben g says this code is usused
+
 Simple backup logging for `check-ex-spec`. Here's the idea:
 
 - keep an append-only log file with file snapshots, etc.
