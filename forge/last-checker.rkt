@@ -418,8 +418,10 @@
                               [join-result (check-join (map car child-values))])
                          (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
                            (when (empty? join-result)
-                             (raise-syntax-error #f (format "join always results in an empty relation")
-                                                 (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr)))))))
+                           (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
+                               ((hash-ref checker-hash 'empty-join) expr)
+                               (raise-syntax-error #f (format "join always results in an empty relation")
+                                                 (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
                            (cons join-result
                                  (cdr (first child-values)))))]
     
