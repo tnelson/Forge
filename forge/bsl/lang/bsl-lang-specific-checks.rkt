@@ -158,7 +158,12 @@
 (define (check-node-expr-op-sing expr-node)
   (void))
 
+(define (err-empty-join expr-node)
+  (define loc (nodeinfo-loc (node-info expr-node)))
+  (raise-bsl-error "Sig does not have such field" expr-node loc))
+
 (define bsl-checker-hash (make-hash))
+(hash-set! bsl-checker-hash 'empty-join err-empty-join)
 (hash-set! bsl-checker-hash node/formula/constant check-node-formula-constant)
 (hash-set! bsl-checker-hash node/formula/op check-node-formula-op)
 (hash-set! bsl-checker-hash node/formula/multiplicity check-node-formula-multiplicity)
@@ -233,11 +238,10 @@
     (raise-user-error (format "Direct use of -> is not allowed at beginner level in ~a -> ~a at loc: ~a" (deparse (first expr-args)) (deparse (first (rest expr-args))) locstr))))
 
 
-; TODO: move this outside bsl, should be a global check
+; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
-  (void))
-  ; (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
-  ; (raise-user-error (format "Field declaration is not a function"))))
+  (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
+  (raise-user-error (format "Beginner Studetn Language: Field declaration must be one, lone, func, or pfunc"))))
 
 
 
