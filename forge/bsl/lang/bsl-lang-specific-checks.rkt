@@ -134,7 +134,7 @@
 (define (check-node-expr-op--> expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-error "Direct use of -> is not allowed at beginner level" expr-node loc)))
+    (raise-bsl-error "Direct use of -> is not allowed in Froglet" expr-node loc)))
 
 (define (check-node-expr-op-join expr-node)
   (void))
@@ -160,7 +160,7 @@
 
 (define (err-empty-join expr-node)
   (define loc (nodeinfo-loc (node-info expr-node)))
-  (raise-bsl-error "Sig does not have such field" expr-node loc))
+  (raise-bsl-error "Sig does not have such a field" expr-node loc))
 
 (define bsl-checker-hash (make-hash))
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
@@ -209,7 +209,7 @@
 (define (check-expr-mult expr-node sing parent-expr)
   (when (and (not sing) (eq? (nodeinfo-lang (node-info parent-expr)) 'bsl))
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-user-error (format "Beginner Studetn Language : ~a not a singleton in ~a at loc: ~a"  (deparse expr-node) (deparse parent-expr) (srcloc->string loc)))))
+    (raise-user-error (format "Froglet: ~a not a singleton in ~a at loc: ~a"  (deparse expr-node) (deparse parent-expr) (srcloc->string loc)))))
 
 (hash-set! bsl-checker-hash 'expr-mult check-expr-mult)
 (provide bsl-checker-hash)
@@ -226,7 +226,7 @@
   (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
   (unless (or (node/expr/quantifier-var? left-hand-side)
           (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
-    (raise-user-error (format "Left hand side to field access at ~a must be a sig at loc: ~a" expr-args locstr))))
+    (raise-user-error (format "Left hand side to field access at ~a must be an object at loc: ~a" expr-args locstr))))
 
   ;NOTE: make better error message 
 
@@ -235,13 +235,13 @@
     (define left-hand-side (first expr-args))
     (define loc (nodeinfo-loc (node-info left-hand-side)))
     (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Direct use of -> is not allowed at beginner level in ~a -> ~a at loc: ~a" (deparse (first expr-args)) (deparse (first (rest expr-args))) locstr))))
+    (raise-user-error (format "Direct use of -> is not allowed in Froglet: ~a -> ~a at loc: ~a" (deparse (first expr-args)) (deparse (first (rest expr-args))) locstr))))
 
 
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
   (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
-  (raise-user-error (format "Beginner Studetn Language: Field declaration must be one, lone, func, or pfunc"))))
+  (raise-user-error (format "Froglet: Field declaration must be one, lone, func, or pfunc"))))
 
 
 
