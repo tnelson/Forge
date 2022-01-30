@@ -7,6 +7,7 @@
 (require "shared.rkt"
          (prefix-in tree: "lazy-tree.rkt")
          "last-checker.rkt"
+         "choose-lang-specific.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
 (require (prefix-in @ racket))
@@ -18,6 +19,7 @@
          (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
 (require "server/eval-model.rkt")
 (require "drracket-gui.rkt")
+;(require forge/lang/deparser)
 
 (provide send-to-kodkod)
 
@@ -83,7 +85,9 @@
            [extensions-store (for/hash ([sig sigs]
                                         #:when (Sig-extends sig))
                                (values sig (get-sig run-spec (Sig-extends sig))))])
+      ;(printf "args-- total-bounds : ~a~n args-- sig-rels : ~a~n args-- upper-bounds : ~a~n" total-bounds sig-rels upper-bounds )
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
+  ;(printf "after-- total-bounds : ~a~n" total-bounds)
   (clear-breaker-state)
 
   (define sigs-and-rels
@@ -104,7 +108,6 @@
     (printf "total-bounds: ~n~a~n~n" total-bounds)
     (displayln "--------------------------"))
 
-
   #| Print to KodKod-CLI
     print configure
     declare univ size
@@ -119,7 +122,7 @@
 
   ; Initializing our kodkod-cli process, and getting ports for communication with it
   (define backend (get-option run-spec 'backend))
-  (define-values (stdin stdout shutdown is-running?) 
+  (define-values (stdin stdout stderr shutdown is-running?) 
     (cond
       [(equal? backend 'kodkod)
        (kodkod:start-server)]
@@ -189,10 +192,6 @@
     (define atoms 
       (for/list ([tup atom-names])
         (for/list ([atom tup])
-          ; Used to allow using ints in instances.
-          (when (int-atom? atom)
-            (set! atom (int-atom-n atom)))
-
           (unless (member atom all-atoms)
             (raise (format "atom (~a) not in all-atoms (~a)"
                            atom all-atoms)))
@@ -239,7 +238,10 @@
     (append explicit-constraints implicit-constraints))
 
   ; Run last-minute checks for errors  
-  (for-each (lambda (c) (checkFormula run-spec c '())) run-constraints) 
+  (for-each (lambda (c)
+              ;(printf "deparse-constraint: ~a~n" (deparse c))
+              (checkFormula run-spec c '() (get-checker-hash)))
+            run-constraints)
 
   ; Keep track of which formula corresponds to which CLI assert
   ; for highlighting unsat cores. TODO: map back from CLI output
@@ -294,11 +296,11 @@
   ; Print solve
   (define (get-next-model [mode ""])
     (unless (is-running?)
-      (raise "KodKod server is not running."))
+      (raise-user-error "KodKod server is not running."))
     (pardinus-print (pardinus:solve mode))
     (define result (translate-from-kodkod-cli
                     'run 
-                    (pardinus:read-solution stdout) 
+                    (pardinus:read-solution stdout stderr) 
                     all-rels 
                     all-atoms))
 
@@ -349,7 +351,7 @@
 
   (values results 
           all-atoms 
-          (Server-ports stdin stdout shutdown is-running?) 
+          (Server-ports stdin stdout stderr shutdown is-running?) 
           (Kodkod-current (length run-constraints) 0 0) 
           total-bounds))
 
@@ -372,10 +374,10 @@
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
 ; sets of atoms for each, and find the total number of atoms needed (including ints).
 (define (get-sig-bounds run-spec raise-run-error)
-  (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
+  (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))  
   (define (get-bound-lower sig)
     (define pbinding (hash-ref pbindings sig #f))
-    (@and pbinding
+    (@and pbinding ;; !!!
           (map car (set->list (sbound-lower pbinding)))))
   (define (get-bound-upper sig)
     (define pbinding (hash-ref pbindings sig #f))
@@ -495,29 +497,30 @@
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))))
     (define curr-lower (hash-ref lower-bounds sig))
     (hash-set! upper-bounds sig (append curr-lower shared))
-    (map (lambda (child) (fill-upper-no-bound child shared))
+    (map (lambda (child) (fill-upper-no-bound child (append curr-lower shared)))
          (get-children run-spec sig)))
 
   (define sig-atoms (list))
   (for ([root (get-top-level-sigs run-spec)]
         #:unless (equal? (Sig-name root) 'Int))
-    (if (get-bound-upper root)
+    (if (get-bound-upper root) ; Do we already have a tuple-based upper bound?
         (let ()
           (fill-lower-by-bound root)
-          (fill-upper-with-bound root))
+          (fill-upper-with-bound root))           
         (let ()
-          (fill-lower-by-scope root)
+          (fill-lower-by-scope root) ; No tuple-based bound yet; extrapolate from scope
           (define lower-size (length (hash-ref lower-bounds root)))
           (define upper-size
             (or (get-scope-upper root)
                 (@max lower-size
                       (get-scope-upper-default root))))
 
-
           (define shared (generate-names root (@- upper-size lower-size)))
           (fill-upper-no-bound root shared)))
+    ;(printf "filling bounds at ~a; upper = ~a; lower = ~a~n" root upper-bounds lower-bounds)
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
+  ; Set the bounds for the Int built-in sig
   (define int-atoms
     (let* ([bitwidth (get-bitwidth run-spec)]
            [max-int (expt 2 (sub1 bitwidth))])
@@ -525,12 +528,10 @@
   (hash-set! lower-bounds (get-sig run-spec Int) int-atoms)
   (hash-set! upper-bounds (get-sig run-spec Int) int-atoms)
 
-  ; Start: Used to allow extending Ints.
+  ; Special case: allow sigs to extend Int
   (for ([sig (get-children run-spec Int)])
     (hash-set! lower-bounds (Sig-name sig) '())
-    (hash-set! upper-bounds (Sig-name sig) int-atoms))
-  ; End: Used to allow extending Ints.
-
+    (hash-set! upper-bounds (Sig-name sig) int-atoms))  
 
   (define all-atoms (append int-atoms sig-atoms))
 
@@ -540,7 +541,10 @@
       (let* ([name (Sig-name sig)]
              [rel sig]
              [lower (map list (hash-ref lower-bounds sig))]
-             [upper (map list (hash-ref upper-bounds sig))])
+             ; Override generated upper bounds for #:one sigs
+             [upper
+              (cond [(Sig-one sig) lower]
+                    [else (map list (hash-ref upper-bounds sig))])])
         (values name (bound rel lower upper)))))
 
   (values bounds-hash all-atoms))
@@ -550,6 +554,17 @@
 ; and the starting relation name, assigns names to each relation
 ; and minimum and maximum sets of atoms for each relation.
 (define (get-relation-bounds run-spec sig-to-bound)
+  (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
+  (define (get-bound-lower rel)
+    (define pbinding (hash-ref pbindings rel #f))
+    (@and pbinding
+          (sbound-lower pbinding)))
+  (define (get-bound-upper rel)
+    (define pbinding (hash-ref pbindings rel #f))
+    (@and pbinding
+          (sbound-upper pbinding)
+          (sbound-upper pbinding)))
+
   (define without-succ
     (for/hash ([relation (get-relations run-spec)]
                #:unless (equal? (Relation-name relation) 'succ))
@@ -559,10 +574,27 @@
                                       (curry hash-ref sig-to-bound )
                                       Sig-name) 
                              sigs))
-      (define upper (apply cartesian-product sig-atoms))
-      (define lower empty)
+      ;(printf "~a: sig-atoms : ~a~n" relation sig-atoms)
+      ;(printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
+      ;(printf "~a: raw lower : ~a~n" (get-bound-lower relation))      
+      (define upper                   
+        (let ([bound-upper (get-bound-upper relation)])
+            (cond [bound-upper
+                   (set->list (set-intersect bound-upper
+                                             (list->set (apply cartesian-product sig-atoms))))]
+                  [else
+                   (apply cartesian-product sig-atoms)])))
+      ;(define upper (set->list (set-intersect (get-bound-upper relation) (list->set (apply cartesian-product sig-atoms)))))
+      ;(printf "~a: refined upper : ~a~n" relation upper)
+      
+      (define lower                   
+        (let ([bound-lower (get-bound-lower relation)])
+            (if bound-lower
+                (set->list (set-union bound-lower (list->set empty)))
+                (list->set empty))))      
+      ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
       (values (Relation-name relation) 
-              (bound relation lower upper))))
+              (bound relation lower upper))))  
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
   (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
@@ -577,10 +609,9 @@
                #:unless (equal? (Sig-name sig) 'Int))
       (match-define (bound rel bound-lower bound-upper) (hash-ref sig-to-bound (Sig-name sig)))
       (define-values (bound-lower-size bound-upper-size) (values (length bound-lower) (length bound-upper)))
-
       (match-define (Range int-lower int-upper) 
         (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (Range #f #f)))
-
+      
       (append
         (if (@and int-lower (@> int-lower bound-lower-size))
             (let ()
@@ -621,19 +652,29 @@
     ; not abstract and sig is parent of sig1 => (in sig1 sig)
     ; TODO: optimize by identifying abstract sigs as sum of children
     (define (abstract sig extenders)
-      (if (@= (length extenders) 1)
-          (= sig (car extenders))
-          (= sig (+ extenders))))
+      ; TODO : location not correct
+      (let ([loc (nodeinfo-loc (node-info sig))])
+        (if (@= (length extenders) 1)
+            (=/info (nodeinfo loc 'checklangNoCheck) sig (car extenders))
+            (=/info (nodeinfo loc 'checklangNoCheck) sig (+ extenders)))))
     (define (parent sig1 sig2)
-      (in sig2 sig1))
+      ; loc of sig2?
+      (let ([loc (nodeinfo-loc (node-info sig2))])
+        (in/info (nodeinfo loc 'checklangNoCheck) sig2 sig1)))
+
     (define extends-constraints 
       (if (and (Sig-abstract sig) (cons? (get-children run-spec sig)))
           (list (abstract sig children-rels))
           (map (curry parent sig) children-rels)))
 
     ; sig1 and sig2 extend sig => (no (& sig1 sig2))
+    ; (unless both are #:one, in which case exact-bounds should enforce this constraint)
     (define (disjoin-pair sig1 sig2)
-      (no (& sig1 sig2)))
+      (let ([loc (nodeinfo-loc (node-info sig2))])
+        (cond [(and (Sig-one sig1) (Sig-one sig2))
+               true]
+              [else
+               (no (&/info (nodeinfo loc 'checklangNoCheck) sig1 sig2))])))
     (define (disjoin-list a-sig a-list)
       (map (curry disjoin-pair a-sig) a-list))
     (define (disjoin a-list)

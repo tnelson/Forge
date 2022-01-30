@@ -6,6 +6,7 @@
 (require syntax/parse/define)
 (require racket/match)
 (require (for-syntax racket/match syntax/srcloc))
+(require syntax/srcloc)
 
 (require "shared.rkt")
 (require (prefix-in ast: "lang/ast.rkt")
@@ -92,6 +93,12 @@
 ;          (struct-out Unsat))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Language-Specific Checks ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(require forge/choose-lang-specific)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -118,6 +125,7 @@
 
 (define/contract (make-sig [raw-name #f]
                            #:one [one #f]
+                           #:lone [lone #f]
                            #:abstract [abstract #f]
                            #:is-var [is-var #f]
                            #:in [in #f]
@@ -126,6 +134,7 @@
   (->* ()
        (symbol?
         #:one boolean?
+        #:lone boolean?
         #:abstract boolean?
         #:is-var boolean?
         #:in (or/c Sig? #f)
@@ -134,6 +143,16 @@
        Sig?)
   ; (check-temporal-for-var is-var name)
   (define name (or raw-name (gensym 'sig)))
+  
+  (when (and one lone)
+    (raise-user-error (format "Sig ~a cannot be both 'one' and 'lone'." name)))
+
+  ;(define source-info-loc (nodeinfo-loc node-info))
+  ;(printf "SIG NAME: ~a.~n" name)
+  ;(printf "SIG SOURCE LINE: ~a.~n" (source-location-line source-info-loc))
+  ;(printf "SIG SOURCE COLUMN: ~a.~n" (source-location-column source-info-loc))
+  ;(printf "SIG SOURCE SPAN: ~a.~n" (source-location-span source-info-loc))
+
   (Sig node-info ; info
         
        1 ; arity
@@ -148,6 +167,7 @@
 
        name
        one
+       lone
        abstract
        extends))
 
@@ -167,6 +187,12 @@
     (if raw-sigs
         (values name/sigs raw-sigs)
         (values (gensym 'relation) name/sigs)))
+
+  ;(define source-info-loc (nodeinfo-loc node-info))
+  ;(printf "RELATION NAME: ~a.~n" name)
+  ;(printf "RELATION SOURCE LINE: ~a.~n" (source-location-line source-info-loc))
+  ;(printf "RELATION SOURCE COLUMN: ~a.~n" (source-location-column source-info-loc))
+  ;(printf "RELATION SOURCE SPAN: ~a.~n" (source-location-span source-info-loc))
 
   ; sigs can contain sigs or thunks which return sigs
   ; in order to allow mutual references between sigs in forge surface
@@ -208,6 +234,34 @@
             sigs-thunks
             breaker))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Handling bounds
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; The eval-model module, which is used to evaluate `inst` block expressions, distinguishes
+; between integer atoms and raw integers. This is the right choice for debugging etc. using
+; these evaluator functions. However, the bounds pipeline uses only raw integers.
+(define/contract (de-integer-atomize tuples)
+  (-> (listof (listof (or/c number? symbol? int-atom?)))
+      (listof (listof (or/c number? symbol?))))
+  (map (lambda (tup)
+         (map (lambda (a)
+                (cond [(int-atom? a) (int-atom-n a)]
+                      [else a])) tup))
+       tuples))
+
+(define/contract (safe-fast-eval-exp e binding bitwidth [safe #t])
+  (->* (node/expr? hash? number?) (boolean?)
+       (listof (listof (or/c number? symbol?))))
+  (define result (eval-exp e binding bitwidth safe))
+  (de-integer-atomize result))
+
+(define (safe-fast-eval-int-expr ie binding bitwidth)
+  (-> node/int? hash? number? (listof (listof (or/c number? symbol?))))
+  (define result (eval-int-expr ie binding bitwidth))
+  (de-integer-atomize result))
+
+
 (define/contract (do-bind bind scope bound)
   (-> (or/c ast:node/formula? ast:node/breaking/op? Inst?)
       Scope?
@@ -217,7 +271,9 @@
   (define (fail [cond #f])
     (unless cond
       (raise (format "Invalid bind: ~a" bind))))
-
+  (define inst-checker-hash (get-inst-checker-hash))
+  (define (inst-check formula to-handle)
+    (when (hash-has-key? inst-checker-hash to-handle) ((hash-ref inst-checker-hash to-handle) formula)))
   (match bind
     ; no rel, one rel, two rel, lone rel, some rel
     [(ast:node/formula/multiplicity info mult rel)
@@ -243,7 +299,7 @@
     [(ast:node/formula/op/int= eq-info (list left right))
      (match left
        [(ast:node/int/op/card c-info (list left-rel))
-        (let* ([exact (eval-int-expr right (Bound-tbindings bound) 8)]
+        (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
                ; do we need the if (equal? (relation-name rel) "Int")
                ; case that sigs.rkt has?
                [new-scope (update-int-bound scope left-rel (Range exact exact))])
@@ -258,10 +314,8 @@
        (fail))
      (match lt-left
        [(ast:node/int/op/card c-info (list left-rel))
-        (let* ([upper-val (eval-int-expr lt-right (Bound-tbindings bound) 8)]
-               ; Thomas originally used 0 here not #f - does it matter?
-               ; original sigs.rkt uses #f
-               [new-scope (update-int-bound scope left-rel (Range #f upper-val))])
+        (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) 8)]
+               [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
        [_ (fail)])]
 
@@ -273,8 +327,8 @@
        (fail))
      (match lt-right
        [(ast:node/int/op/card c-info (list right-rel))
-        (let* ([lower-val (eval-int-expr lt-left (Bound-tbindings bound) 8)]
-               [new-scope (update-int-bound scope right-rel (Range lower-val #f))])
+        (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) 8)]
+               [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
        [_ (fail)])]
 
@@ -296,7 +350,7 @@
     ;     (fail))
     ;   (match left
     ;     [(node/int/op/card info left-rel)
-    ;       (let* ([upper-val (eval-int-expr right (Bound-tbindings bound) 8)]
+    ;       (let* ([upper-val (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
     ;              [new-scope (update-int-bound scope rel (Range 0 upper-val))])
     ;         (values new-scope bound))]
     ;     [_ (fail)])]
@@ -323,21 +377,22 @@
     [(ast:node/formula/op/= info (list left right))
      (unless (ast:node/expr/relation? left)
        (fail))
-     (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
+     (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
        (define new-scope scope)
        (define new-bound (update-bindings bound left tups tups))
        (values new-scope new-bound))]
 
     ; rel in expr
-    ; expr ni rel
+    ; expr in rel
     [(ast:node/formula/op/in info (list left right))
+     (inst-check bind ast:node/formula/op/in)
      (cond
        [(ast:node/expr/relation? left)
-        (let ([tups (eval-exp right (Bound-tbindings bound) 8 #f)])
+        (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
           (define new-bound (update-bindings bound left (@set) tups))
           (values scope new-bound))]
        [(ast:node/expr/relation? right)
-        (let ([tups (eval-exp left (Bound-tbindings bound) 8 #f)])
+        (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) 8 #f)])
           (define new-bound (update-bindings bound right tups))
           (values scope new-bound))]
        [else (fail)])]
@@ -459,9 +514,12 @@
   (define/contract scope-with-ones Scope?
     (for/fold ([scope base-scope])
               ([sig (get-sigs state)])
-      (if (Sig-one sig)
-          (update-scope scope sig 1 1)
-          scope)))
+      (cond [(Sig-one sig)
+             (update-scope scope sig 1 1)]
+            [(Sig-lone sig)
+             (update-scope scope sig 0 1)]
+            [else
+             scope])))
 
   (define/contract default-bounds Bound?
     (let* ([bitwidth (Scope-bitwidth scope-with-ones)]
@@ -874,20 +932,6 @@
 (define (state-set-option state option value)
   (define options (State-options state))
 
-  (define option-types
-    (hash 'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
-          'backend symbol?
-          ; 'verbosity exact-nonnegative-integer?
-          'sb exact-nonnegative-integer?
-          'coregranularity exact-nonnegative-integer?
-          'logtranslation exact-nonnegative-integer?
-          'min_tracelength exact-positive-integer?
-          'max_tracelength exact-positive-integer?
-          'problem_type symbol?
-          'target_mode symbol?
-          'core_minimization symbol?
-          'skolem_depth exact-integer?
-          'local_necessity symbol?))
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
                               option (hash-ref option-types option) value)))
@@ -937,7 +981,10 @@
                     [core_minimization value])]
       [(equal? option 'skolem_depth)
        (struct-copy Options options
-                    [skolem_depth value])]))
+                    [skolem_depth value])]
+      [(equal? option 'run_sterling)
+       (struct-copy Options options
+                    [run_sterling value])]))
 
   (struct-copy State state
                [options new-options]))

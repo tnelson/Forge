@@ -95,6 +95,10 @@
              (set-box! link (vector do-forge-highlight do-forge-unhighlight))
              (set-box! local-vector (vector do-forge-highlight do-forge-unhighlight))))
 
+         (define/override (execute-callback)
+           (send (send this get-editor) save-file)
+           (super execute-callback))
+
          ; RackUnit extended the REPL, not the frame. 
          ; We want to do the same so that the REPL can access functionality
          ; but this particular mixin extends the unit frame, so leave a reference 

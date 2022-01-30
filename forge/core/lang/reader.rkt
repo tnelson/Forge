@@ -1,17 +1,30 @@
 #lang racket/base
 
 (require racket/port)
-(require (prefix-in logging: forge/logging/logging))
+(require (prefix-in log: forge/logging/2022/main))
 (require (prefix-in @ (only-in racket/base read-syntax)))
 
 (define (read-syntax path port)
-  (define-values (logging-on? project email) (logging:log-execution 'forge/core port path))
+  (define this-lang 'forge/core)
+  (define-values (logging-on? project email) (log:setup this-lang port path))
 
   ; Using "read" will not bring in syntax location info
   (define parse-tree (port->list (lambda (x) (@read-syntax path x)) port))
+  (define compile-time (current-seconds))
+  (when logging-on?
+    (log:register-run compile-time project this-lang email path))
   (define module-datum `(module forge-core-mod racket
-                          (require forge/logging/sigs)
-                          #;(require forge/sigs-functional)
+                          (require forge/choose-lang-specific)
+                          (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
+                          ; ANSWER: maybe using dynamic-require
+                          ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
+                          (set-checker-hash! forge-checker-hash)
+                          (set-ast-checker-hash! forge-ast-checker-hash)
+                          ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
+
+                          (require (prefix-in log: forge/logging/2022/main))
+                          (require forge/sigs)
+
                           (provide (except-out (all-defined-out)
                                                forge:n))
 
@@ -19,20 +32,14 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          ; For logging
-                          #;(require (only-in forge/logging/logging 
-                                            [flush-logs logging:flush-logs]
-                                            [log-errors logging:log-errors]))
-  
-                          (set-option! 'eval-language 'core)
+                          (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
+                          ;; Override default exception handler
                           ,@parse-tree
-                          #;(logging:log-errors
-                            ,@parse-tree)
-                          
+
                           (module+ execs)
                           (module+ main
                             (require (submod ".." execs))
-                            #;(logging:flush-logs))))
+                            (log:flush-logs ',compile-time "no-error"))))
 
   (datum->syntax #f module-datum))
 

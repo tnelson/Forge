@@ -1,9 +1,8 @@
 #lang racket
 
-(require racket/runtime-path "log.rkt" "server-common.rkt" "../../shared.rkt")
-; (require "kks.rkt") <-- unnecessary and causes cycle
+(require racket/runtime-path "server-common.rkt" "../../shared.rkt")
 
-(provide pardinus-initializer pardinus-stderr-handler server%)
+(provide pardinus-initializer server%)
 
 (define-runtime-path pardinus (build-path ".."))
 
@@ -29,20 +28,23 @@
     (when (> (get-verbosity) VERBOSITY_LOW)        
       (printf "  Starting solver process. subtype: ~a~n" solver-subtype))
 
-    (subprocess #f #f #f
-                java "-cp" cp (string-append "-Djava.library.path=" (path->string pardinus/jar))
-                "kodkod.cli.KodkodServer" 
-                (format "-~a" solver-type)
-                (cond [(equal? solver-subtype 'target) "-target-oriented"]
-                      [(equal? solver-subtype 'temporal) "-temporal"]
-                      [(equal? solver-subtype 'default) ""]
-                      [else (error (format "Bad solver subtype: ~a" solver-subtype))]) 
-                "-error-out" error-out)))
+    (define lib-path (string-append "-Djava.library.path=" (path->string pardinus/jar)))
+    (define solver-subtype-str (cond [(equal? solver-subtype 'target) "-target-oriented"]
+                                     [(equal? solver-subtype 'temporal) "-temporal"]
+                                     [(equal? solver-subtype 'default) ""]
+                                     [else (error (format "Bad solver subtype: ~a" solver-subtype))]))
+    
+    (when (> (get-verbosity) VERBOSITY_HIGH)        
+      (printf "  Subprocess invocation information: ~a~n"
+              (list java "-cp" cp "kodkod.cli.KodkodServer" (format "-~a" solver-type) solver-subtype-str "-error-out" error-out)))
 
-(define (pardinus-stderr-handler src err)
-  (match (read-line err)
-    [(pregexp #px"\\s*\\[INFO\\]\\s*(.+)" (list _ info)) (log-info [src] info) (println info)]
-    [(pregexp #px"\\s*\\[WARNING\\]\\s*(.+)" (list _ warning)) (log-warning [src] warning)]
-    [(pregexp #px"\\s*\\[SEVERE\\]\\s*(.+)" (list _ severe)) (log-error [src] severe)]
-    [(? eof-object?) (void)]
-    [line (log-debug [src] line)]))
+    (apply
+      subprocess #f #f #f java
+      (append
+        (if (java>=1.9? java) (list "--add-opens" "java.base/java.lang=ALL-UNNAMED") '())
+        (list "-cp" cp
+              lib-path
+              "kodkod.cli.KodkodServer"
+              (format "-~a" solver-type) solver-subtype-str
+              "-error-out" error-out)))))
+

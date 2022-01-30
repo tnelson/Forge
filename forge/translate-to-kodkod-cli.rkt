@@ -239,6 +239,10 @@
      (print-cmd-cont "(~a " '~) ;WHY IS THIS ONE DIFFERENT
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont ")")]
+    [(? node/expr/op/++?)
+     (print-cmd-cont "(++ ")
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
+     (print-cmd-cont ")")]
     [(? node/expr/op/sing?)
      (print-cmd-cont "(lone ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
