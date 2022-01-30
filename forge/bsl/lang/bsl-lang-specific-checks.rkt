@@ -10,7 +10,7 @@
   (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message (deparse node) (srcloc->string loc))))
 
 (define (raise-bsl-relational-error rel-str node loc)
-  (raise-bsl-error (format "Use of relational operator ~a is not allowed at beginner level" rel-str) node loc))
+  (raise-bsl-error (format "Froglet doesn't include the ~a operator" rel-str) node loc))
 
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
