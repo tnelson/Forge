@@ -30,6 +30,10 @@
   (define-values (logging-on? assignment-name user) (log:setup this-lang port path))
   (unless (string? assignment-name)
     (raise (format "Argument error: expected string after #lang ~a; received ~a.~n" this-lang assignment-name)))
+  (define compile-time (current-seconds))
+  (when logging-on?
+    (uncaught-exception-handler (log:error-handler logging-on? compile-time (uncaught-exception-handler)))
+    (log:register-run compile-time assignment-name this-lang user path))
 
   (define assignment-info (check-ex-spec:get-info assignment-name))
   (define wheats (map (curry format "~a.rkt" ) (hash-ref assignment-info 'wheats)))
@@ -42,10 +46,6 @@
   (define not-tests (cdr (syntax->list (filter-commands ints-coerced '(InstDecl OptionDecl PredDecl FunDecl)))))
   (define safe-not-tests (filter-names not-tests provided))
   (define just-tests (cdr (syntax->list (filter-commands ints-coerced '(ExampleDecl TestExpectDecl)))))
-
-  (define compile-time (current-seconds))
-  (when logging-on?
-    (log:register-run compile-time assignment-name this-lang user path))
 
   (define module-datum `(module forge/check-ex-spec-mod forge/check-ex-spec/lang/expander
                           (require forge/check-ex-spec/library)

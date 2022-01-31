@@ -7,12 +7,13 @@
 (define (read-syntax path port)
   (define this-lang 'forge/core)
   (define-values (logging-on? project email) (log:setup this-lang port path))
+  (define compile-time (current-seconds))
+  (when logging-on?
+    (uncaught-exception-handler (log:error-handler logging-on? compile-time (uncaught-exception-handler)))
+    (log:register-run compile-time project this-lang email path))
 
   ; Using "read" will not bring in syntax location info
   (define parse-tree (port->list (lambda (x) (@read-syntax path x)) port))
-  (define compile-time (current-seconds))
-  (when logging-on?
-    (log:register-run compile-time project this-lang email path))
   (define module-datum `(module forge-core-mod racket
                           (require forge/choose-lang-specific)
                           (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
