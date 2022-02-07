@@ -60,11 +60,12 @@
 (define (read-syntax path port)
   (define this-lang 'forge)
   (define-values (logging-on? project email) (log:setup this-lang port path))
-  (define parse-tree (parse path (make-tokenizer port)))
-  (define ints-coerced (coerce-ints-to-atoms parse-tree))
   (define compile-time (current-seconds))
   (when logging-on?
+    (uncaught-exception-handler (log:error-handler logging-on? compile-time (uncaught-exception-handler)))
     (log:register-run compile-time project this-lang email path))
+  (define parse-tree (parse path (make-tokenizer port)))
+  (define ints-coerced (coerce-ints-to-atoms parse-tree))
   (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                        forge:n))
 

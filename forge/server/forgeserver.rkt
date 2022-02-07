@@ -116,8 +116,10 @@
        (define expression (get-from-json json-m '(payload expression)))
        (define id (get-from-json json-m '(payload id)))
        (define datum-id (get-from-json json-m '(payload datumId)))
-       (when (not (equal? datum-id curr-datum-id))
-         (printf "Error: Sterling requested outdated evaluator; reporting back inaccurate data!"))
+
+       ; Racket-side this is an int; Sterling-side this is a string:
+       (when (not (equal? (->string datum-id) (->string curr-datum-id)))
+         (printf "Error: Sterling requested outdated evaluator (id=~a; curr-id=~a); reporting back inaccurate data!" datum-id curr-datum-id))
        (define result (evaluate-func expression))       
        (define response (make-sterling-eval result id datum-id))
        (send-to-sterling response #:connection connection)]     

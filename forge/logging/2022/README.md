@@ -18,6 +18,15 @@ Implementation idea:
 
 https://console.cloud.google.com/home/dashboard?project=pyret-examples&authuser=2
 
+## SQL
+
+instance lfs2022x
+password drracket
+
+mysql> use lfs2022x;
+mysql> select count(1) from main;
+mysql> select student, project from main;
+
 
 ## Cloud Function
 
