@@ -197,6 +197,7 @@
   (cond [(int-atom? v) (int-atom->string v)]
         [(symbol? v) (symbol->string v)]
         [(number? v) (number->string v)]
+        [(boolean? v) (format "~a" v)]
         [(string? v) v]
         [(list? v)
          (string-join (map ->string v) " " #:before-first "(" #:after-last ")")] 
