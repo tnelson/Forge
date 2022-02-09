@@ -48,7 +48,10 @@ test expect {
 
     ----- test "linear" -----
 
-    --linearPossible: {} for {next is linear} is sat
-
-
+    linearPossible: {} for {next is linear} is sat
+    linearnoselfloop: {some a: A | a->a in FrontDesk.next} for {next is linear} is unsat
+    linearnoloop: {some a, b: A | (a->b + b->a) in ^(FrontDesk.next)} for {next is linear} is unsat
+    linearnobranch: {some disj a, b, c: A | (a->c + b->c) in FrontDesk.next} for {next is linear} is unsat 
+    linearnobranch2: {some disj a, b, c: A | (a->b + a->c) in FrontDesk.next} for {next is linear} is unsat 
 }
+
