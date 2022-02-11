@@ -9,8 +9,10 @@
 (define (raise-bsl-error message node loc)
   (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message (deparse node) (srcloc->string loc))))
 
-(define (raise-bsl-relational-error rel-str node loc)
-  (raise-bsl-error (format "Froglet doesn't include the ~a operator" rel-str) node loc))
+(define (raise-bsl-relational-error rel-str node loc [optional-str #f])  
+  (raise-bsl-error (format "Froglet didn't recognize the ~a operator~a"
+                           rel-str
+                           (if optional-str (format "; ~a" optional-str) "")) node loc))
 
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
@@ -119,12 +121,12 @@
 (define (check-node-expr-op-+ expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "+" expr-node loc)))
+    (raise-bsl-relational-error "+" expr-node loc "You may have meant to use the `add` predicate instead.")))
 
 (define (check-node-expr-op-- expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "-" expr-node loc)))
+    (raise-bsl-relational-error "-" expr-node loc "You may have meant to use the `subtract` predicate instead.")))
 
 (define (check-node-expr-op-& expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
