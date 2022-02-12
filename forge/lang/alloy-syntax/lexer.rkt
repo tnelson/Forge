@@ -134,6 +134,9 @@
    ["prev_state"  (token+ `BEFORE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["since"  (token+ `SINCE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["triggered"  (token+ `TRIGGERED-TOK "" lexeme "" lexeme-start lexeme-end)]
+
+   ; Used by the evaluator 
+   ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ; Electrum var relation label
    ["var"  (token+ `VAR-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -162,16 +165,13 @@
    ["/" (token+ 'SLASH-TOK "" lexeme "" lexeme-start lexeme-end)]
    [":" (token+ 'COLON-TOK "" lexeme "" lexeme-start lexeme-end)]
 
-   ;; identifiers
-   ;[(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   ;; identifiers   
    ; Don't allow priming
    [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
-
-   ; Used by the evaluator 
-   ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; otherwise
    [whitespace (token+ lexeme "" lexeme "" lexeme-start lexeme-end #t)]
