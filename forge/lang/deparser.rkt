@@ -83,11 +83,11 @@
         (if (@< PRIORITY-EVENTUALLY parent-priority)
             (format "(eventually  ~a)" child)
             (format "eventually ~a" child)))]
-    [(? node/formula/op/after?)
+    [(? node/formula/op/next_state?)
      (let ([child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-AFTER)])
         (if (@< PRIORITY-AFTER parent-priority)
-            (format "(after  ~a)" child)
-            (format "after ~a" child)))]
+            (format "(next_state  ~a)" child)
+            (format "next_state ~a" child)))]
     [(? node/formula/op/historically?)
      (let ([child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-HISTORICALLY)])
         (if (@< PRIORITY-HISTORICALLY parent-priority)
@@ -98,11 +98,11 @@
         (if (@< PRIORITY-ONCE parent-priority)
             (format "(once ~a)" child)
             (format "once ~a" child)))]
-    [(? node/formula/op/before?)
+    [(? node/formula/op/prev_state?)
      (let ([child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-BEFORE)])
         (if (@< PRIORITY-BEFORE parent-priority)
-            (format "(before  ~a)" child)
-            (format "before ~a" child)))]
+            (format "(prev_state  ~a)" child)
+            (format "prev_state ~a" child)))]
 
      
     [(? node/formula/op/releases?)

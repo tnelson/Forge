@@ -15,7 +15,7 @@ sig Stepper {
 
 //step must be empty here,
 //but in prog2 and prog3 it will stop being empty,
-//which means that after prog2 or prog3 this pred is no longer possible
+//which means that next_state prog2 or prog3 this pred is no longer possible
 pred prog1 {
     some Stepper
     no step
@@ -30,7 +30,7 @@ pred prog2 {
     Stepper.step != Stepper
     some step
     step in step'
-    after always step in step'
+    next_state always step in step'
 }
 
 //Now, Stepper.step = Stepper,
@@ -40,7 +40,7 @@ pred prog3 {
     some Stepper
     Stepper in Stepper.step
     step' = step
-    after always step' = step
+    next_state always step' = step
 }
 
 test expect EventuallyGeneral {
@@ -81,7 +81,7 @@ pred alphaStaysCleared {
 }
 /*
 run {
-    not (after eventually no Alpha)
+    not (next_state eventually no Alpha)
     eventually no Alpha
     no Alpha
 }
@@ -92,7 +92,7 @@ test expect EventuallyIncludesCurrentState {
     //because of alphaStaysCleared
     //But clearAlpha contains some Alpha,
     //so Alpha cannot be empty when clearAlpha is true
-    //meaning that after clearAlpha is true once,
+    //meaning that next_state clearAlpha is true once,
     //it will never be true again
     //However, eventually clearAlpha is STILL true because
     //eventually is inclusive of the current state
@@ -109,8 +109,8 @@ test expect EventuallyIncludesCurrentState {
 }
 
 test expect IfAfterTrueThenEventuallyTrue {
-    noAlphaCanbeTrueAfterClearAlpha : {clearAlpha and after no Alpha} is sat
-    noAlphaMustBeTrueAfterClearAlpha : {clearAlpha and after (not no Alpha)} is unsat
+    noAlphaCanbeTrueAfterClearAlpha : {clearAlpha and next_state no Alpha} is sat
+    noAlphaMustBeTrueAfterClearAlpha : {clearAlpha and next_state (not no Alpha)} is unsat
     noAlphaCanBeEventuallyTrueAfterClearAlpha : {
         clearAlpha
         eventually no Alpha
@@ -121,25 +121,25 @@ test expect IfAfterTrueThenEventuallyTrue {
     } is unsat
     eventuallyClearAlphaMeansEventuallyAfterNoAlpha : {
         eventually clearAlpha
-        not (eventually after no Alpha)
+        not (eventually next_state no Alpha)
     } is unsat
 }
 
 test expect afterEventually {
     canHaveEventuallyNoAlpha : {eventually no Alpha} is sat
-    canHaveAfterEventuallyNoAlpha : {after eventually no Alpha} is sat
+    canHaveAfterEventuallyNoAlpha : {next_state eventually no Alpha} is sat
     afterEventuallyNoAlphaMeansEventuallyNoAlpha : {
-        after eventually no Alpha
+        next_state eventually no Alpha
         not (eventually no Alpha)
     } is unsat
     canHaveNotEventuallyNoAlpha : {not eventually no Alpha} is sat
-    canHaveNotAfterEventuallyNoAlpha : {not (after eventually no Alpha)} is sat
+    canHaveNotAfterEventuallyNoAlpha : {not (next_state eventually no Alpha)} is sat
     notAfterEventuallyNoAlphaCanHaveEventuallyNoAlpha : {
-        not (after eventually no Alpha)
+        not (next_state eventually no Alpha)
         eventually no Alpha
     } is sat
     someAlphaAndNotAfterEventuallyNoAlphaMeansNotEventuallyNoAlpha : {
-        not (after eventually no Alpha)
+        not (next_state eventually no Alpha)
         eventually no Alpha
         some Alpha
     } is unsat

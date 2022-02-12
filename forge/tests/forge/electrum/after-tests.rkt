@@ -1,5 +1,8 @@
 #lang forge
 
+-- Note: Forge changed its next-state temporal keyword 
+-- from "after" to "next_state" in 2022.
+
 option problem_type temporal
 option verbose 0
 
@@ -20,21 +23,21 @@ pred baseProg {
 
 test expect afterBaseCases {
     //after looks at the next state
-    CanBeNoEdgesInNextState : {baseProg and after no edges} is sat
-    MustBeNoEdgesInNextState : {baseProg and not (after no edges)} is unsat
+    CanBeNoEdgesInNextState : {baseProg and next_state no edges} is sat
+    MustBeNoEdgesInNextState : {baseProg and not (next_state no edges)} is unsat
     //after does not look at current state
     SomeEdgesInCurrentState : {baseProg and some edges} is sat
-    NotSomeEdgesAfter : {baseProg and after some edges} is unsat
+    NotSomeEdgesAfter : {baseProg and next_state some edges} is unsat
     //after does not look beyond the next state
-    EdgesNotCompleteAfter : {baseProg and after Node->Node in edges} is unsat
-    EdgesCompleteEventually : {baseProg and after after Node->Node in edges} is sat
+    EdgesNotCompleteAfter : {baseProg and next_state Node->Node in edges} is unsat
+    EdgesCompleteEventually : {baseProg and next_state next_state Node->Node in edges} is sat
 }
 
 var sig Table {}
 
 test expect afterTrueOrFalse {
-    noTableCanBecomeSomeTable : {no Table and after some Table} is sat
-    noTableNoHaveToBecomeSomeTable : {no Table and not (after some Table)} is sat
+    noTableCanBecomeSomeTable : {no Table and next_state some Table} is sat
+    noTableNoHaveToBecomeSomeTable : {no Table and not (next_state some Table)} is sat
 }
 
 pred tableSwitch {
@@ -42,40 +45,40 @@ pred tableSwitch {
 }
 
 test expect afterSwitch {
-    noAfterSome : {tableSwitch and some Table and after no Table} is sat
-    someAfterNo : {tableSwitch and no Table and after some Table} is sat
-    mustBeNoAfterSome : {tableSwitch and some Table and not (after no Table)} is unsat
-    mustBeSomeAfterNo : {tableSwitch and no Table and not (after some Table)} is unsat
-    noAfterAfterNo : {tableSwitch and no Table and after after no Table} is sat
-    someAfterAfterSome : {tableSwitch and some Table and after after some Table} is sat
+    noAfterSome : {tableSwitch and some Table and next_state no Table} is sat
+    someAfterNo : {tableSwitch and no Table and next_state some Table} is sat
+    mustBeNoAfterSome : {tableSwitch and some Table and not (next_state no Table)} is unsat
+    mustBeSomeAfterNo : {tableSwitch and no Table and not (next_state some Table)} is unsat
+    noAfterAfterNo : {tableSwitch and no Table and next_state next_state no Table} is sat
+    someAfterAfterSome : {tableSwitch and some Table and next_state next_state some Table} is sat
     mustBeNoAfterAfterNo : {
         tableSwitch
         no Table
-        not (after after no Table)
+        not (next_state next_state no Table)
     } is unsat
     mustBeSomeAfterAfterSome : {
         tableSwitch
         some Table
-        not (after after some Table)
+        not (next_state next_state some Table)
     } is unsat
     someAfterAfterAfterNo : {
         tableSwitch
         no Table
-        after after after some Table
+        next_state next_state next_state some Table
     } is sat
     mustBeSomeAfterAfterAfterNo : {
         tableSwitch
         no Table
-        not (after after after some Table)
+        not (next_state next_state next_state some Table)
     } is unsat
     noAfterAfterAfterSome : {
         tableSwitch
         some Table
-        after after after no Table
+        next_state next_state next_state no Table
     } is sat
     mustBeNoAfterAfterAfterSome : {
         tableSwitch
         some Table
-        not (after after after no Table)
+        not (next_state next_state next_state no Table)
     } is unsat
 }

@@ -43,7 +43,7 @@
 (define (check-node-formula-op-releases formula-node)
   (void))
 
-(define (check-node-formula-op-after formula-node)
+(define (check-node-formula-op-next_state formula-node)
   (void))
 
 (define (check-node-formula-op-historically formula-node)
@@ -52,7 +52,7 @@
 (define (check-node-formula-op-once formula-node)
   (void))
 
-(define (check-node-formula-op-before formula-node)
+(define (check-node-formula-op-prev_state formula-node)
   (void))
 
 (define (check-node-formula-op-since formula-node)
@@ -174,10 +174,10 @@
 (hash-set! bsl-checker-hash node/formula/op/eventually check-node-formula-op-eventually)
 (hash-set! bsl-checker-hash node/formula/op/until check-node-formula-op-until)
 (hash-set! bsl-checker-hash node/formula/op/releases check-node-formula-op-releases)
-(hash-set! bsl-checker-hash node/formula/op/after check-node-formula-op-after)
+(hash-set! bsl-checker-hash node/formula/op/next_state check-node-formula-op-next_state)
 (hash-set! bsl-checker-hash node/formula/op/historically check-node-formula-op-historically)
 (hash-set! bsl-checker-hash node/formula/op/once check-node-formula-op-once)
-(hash-set! bsl-checker-hash node/formula/op/before check-node-formula-op-before)
+(hash-set! bsl-checker-hash node/formula/op/prev_state check-node-formula-op-prev_state)
 (hash-set! bsl-checker-hash node/formula/op/since check-node-formula-op-since)
 (hash-set! bsl-checker-hash node/formula/op/triggered check-node-formula-op-triggered)
 (hash-set! bsl-checker-hash node/formula/op/&& check-node-formula-op-&&)

@@ -383,11 +383,11 @@
   (syntax-case stx ()
     [(_ (#:lang check-lang) ([r0 e0] ...) pred)
       (quasisyntax/loc stx
-        (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
+        (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
           (set/func #:info (nodeinfo #,(build-source-location stx) check-lang) (list (cons r0 e0) ...) pred)))]
     [(_ ([r0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (node/expr-arity e0) (gensym (format "~a-set" 'r0)) 'r0)] ... )
+       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
          (set/func #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
@@ -615,15 +615,15 @@
 ; Electrum temporal operators
 (define-node-op always node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
 (define-node-op eventually node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op after node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op next_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
 (define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
 (define-node-op releases node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
 
 ; Electrum past-time temporal operators
 (define-node-op historically node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
 (define-node-op once node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-; Note that before F is false in state 0 for any F
-(define-node-op before node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+; Note that prev_state F is false in state 0 for any F
+(define-node-op prev_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
 (define-node-op since node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
 (define-node-op triggered node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
 
@@ -777,7 +777,7 @@
     [(_ ([v0 e0] ...) pred)
      ; need a with syntax???? 
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a-all" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'all (list (cons v0 e0) ...) pred)))]))
 
 (define (some-quant/func decls formula #:info [node-info empty-nodeinfo])
@@ -792,7 +792,7 @@
     [(_ #:disj () pred) #'pred]
     [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a-some" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
          (quantified-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'some (list (cons v0 e0) ...) pred)))]
     [(_ #:disj ([v0 e0] ...) pred)
      #'(some ([v0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
@@ -812,7 +812,7 @@
      #'(! (some #:disj ([v0 e0] ...) pred))]
     [(_ ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a-no" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
          (! (quantified-formula (nodeinfo #,(build-source-location stx) 'checklang) 'some (list (cons v0 e0) ...) pred))))]
     [(_ expr)
      (quasisyntax/loc stx
@@ -869,7 +869,7 @@
   (syntax-case stx ()
     [(_ ([x1 r1] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity r1) (gensym (format "~a-sum" 'x1)) 'x1)] ...)
+       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity r1) (gensym (format "~a_sum" 'x1)) 'x1)] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (list (cons x1 r1) ...) int-expr)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

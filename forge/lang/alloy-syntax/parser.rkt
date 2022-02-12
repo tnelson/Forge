@@ -1,52 +1,74 @@
 #lang brag
 
-;; reference: http://alloytools.org/download/alloy-language-reference.pdf
+; Alloy reference: http://alloytools.org/download/alloy-language-reference.pdf
+; Forge's grammar is somewhat simpler, and introduces some new constructs,
+; but is heavily inspired by Alloy.
 
-AlloyModule : ModuleDecl? Import* Paragraph*
+; Grammar was cleaned up circa Feb 12 2022, so if you're looking for
+; module names, old XML-style instances, state/transition sublanguage,
+; etc. they would need to be re-added from prior history.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Remaining notes re: parser cleanup
+
+; TODO: custom errors for common Alloy keywords
+;   e.g., fact, after, ...
+; TODO: confirm position of Electrum keywords
+; TODO: odd associativity for => interplay with quantification
+; TODO: Does brag allow heuristics for error location?
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Starting production for the parser
+; Two options: a model, or an evaluation request
+AlloyModule :  
+            Import* Paragraph*
             | EvalDecl*
-ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
+
+; Import other Forge files by name
 Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
        | /OPEN-TOK FILE-PATH-TOK (AS-TOK Name)?
-@Paragraph : SigDecl 
-          | FactDecl 
+
+; Basic top-level constructs of a model: sigs, preds, commands, etc.
+@Paragraph : 
+            SigDecl 
           | PredDecl 
           | FunDecl 
           | AssertDecl 
           | CmdDecl
           | TestExpectDecl
           | SexprDecl
-          | BreakDecl
-          | InstanceDecl
           | QueryDecl
-          | StateDecl
-          | TransitionDecl
-          | RelDecl
+          | EvalRelDecl
           | OptionDecl
           | InstDecl
-          | TraceDecl
-          | ExampleDecl ; Added for check-ex-spec
-;When extending sigs with in is implemented,
-;if "sig A in B extends C" is allowed, update this to allow multiple SigExt
+          | ExampleDecl 
+
+; NOTE: When extending sigs with "in" (subset sigs) is implemented,
+;  if "sig A in B extends C" is allowed, update this to allow multiple SigExt
 SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
+
 Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
 ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK | FUNC-TOK | PFUNC-TOK
-;Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
 Decl : DISJ-TOK? NameList /COLON-TOK SET-TOK? Expr
-; ArrowDecl should only be used by sig field declaration right now; note the optional VAR for Electrum
-; Remember that a preceding / means to cut the token; it won't get included in the AST.
-;ArrowDecl : DISJ-TOK? VAR-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
+
+; ArrowDecl should only be used by sig field declaration right now; 
+; note the optional VAR for Electrum. Remember that a preceding / means
+;  to cut the token; it won't get included in the AST.
 ArrowDecl : VAR-TOK? NameList /COLON-TOK ArrowMult ArrowExpr
-FactDecl : FACT-TOK Name? Block
 PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
+
 ; A function declaration should only ever contain a single expression in its body
 FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
 ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
+
 AssertDecl : /ASSERT-TOK Name? Block
-CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
-TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK | THEOREM-TOK)
+CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
+
+TestDecl : (Name /COLON-TOK)? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK | THEOREM-TOK)
 TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)?
@@ -54,19 +76,18 @@ Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)?
 Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
+
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
 # BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | DOT-TOK ;SUBT-TOK | SUPT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
-CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK
+CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | IS-TOK | NI-TOK
 LetDecl : @Name /EQ-TOK Expr
 Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
 Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
 QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK | SUM-TOK
-BreakDecl : /FACT-TOK /BREAK-TOK? Expr /COLON-TOK @NameList
-          | /BREAK-TOK Expr /COLON-TOK @NameList
 
 OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | MINUS-TOK? Number)
 
@@ -86,18 +107,23 @@ TypescopeList : Typescope
 ExprList : Expr
          | Expr /COMMA-TOK @ExprList
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; This chain of productions enforces operator precedence in brag.
+; The list goes from weakest to strongest binding operators.
+; (Imagine a coin rolling over a coin sorter and falling into
+;  the first slot that fits.)
+; @: splice, merges elements of a node into the surrounding node
+;   LHS splice: *always* merged into surrounding node
+;   RHS splice: @'d pattern element is spliced if it appears
 
-;; this mess is the only way I know of to do operator precedence well in brag
-;; goes from weakest to strongest binding
-;; imagine a coin rolling over a coin sorter and falling into the first slot that fits
 Expr    : @Expr1
         | LET-TOK LetDeclList BlockOrBar
         | BIND-TOK LetDeclList BlockOrBar
         | Quant DISJ-TOK? DeclList BlockOrBar
 Expr1   : @Expr2  | Expr1 OR-TOK Expr2
 Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
-Expr3   : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?          ;; right assoc
+;; right assoc
+Expr3   : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?        
 Expr4   : @Expr4.5  | Expr4 AND-TOK Expr4.5
 ; Electrum binary operators (these may be on the wrong side of OR/IFF/etc.)
 Expr4.5 : @Expr5  | Expr4.5 UNTIL-TOK Expr5
@@ -117,7 +143,8 @@ Expr8   : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
 Expr9   : @Expr10 | CARD-TOK Expr9
 Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11  : @Expr12 | Expr11 AMP-TOK Expr12
-Expr12  : @Expr13 | Expr13 ArrowOp Expr12                          ;; right assoc
+;; right assoc
+Expr12  : @Expr13 | Expr13 ArrowOp Expr12                          
 Expr13  : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
@@ -138,44 +165,43 @@ ArrowExpr : QualName
           | QualName /ARROW-TOK @ArrowExpr
 
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Escape to forge/core 
 
 SexprDecl : Sexpr
 Sexpr : SEXPR-TOK
 
-;;;;;;;;
-; Note: making a distinction for now so we don't lose the XML functionality
-; InstDecl = "myName : inst {bounds}"
-; InstanceDecl = XML...
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Partial Instances
+
+; In older versions, instances were pasted in as raw XML.
+; This isn't used nor tested, so disabled
+;InstanceDecl : INSTANCE-TOK
+
+; Partial `inst` declaration
 InstDecl : /INST-TOK Name Bounds Scope?
-InstanceDecl : INSTANCE-TOK
-QueryDecl : @Name /COLON-TOK ArrowExpr /EQ-TOK Expr
 
-;;;;;;;;
-
-StateDecl : STATE-TOK /LEFT-SQUARE-TOK QualName /RIGHT-SQUARE-TOK 
-    (QualName DOT-TOK)? Name ParaDecls? Block
-TransitionDecl : TRANSITION-TOK /LEFT-SQUARE-TOK QualName /RIGHT-SQUARE-TOK 
-    (QualName DOT-TOK)? Name ParaDecls? Block
-TraceDecl : TRACE-TOK Parameters
-    (QualName DOT-TOK)? Name ParaDecls? (/COLON-TOK Expr)? Block
-Parameters : /LeftAngle @QualNameList /RightAngle 
-LeftAngle : LT-TOK ;| LEFT-TRIANGLE-TOK
-RightAngle: GT-TOK ;| RIGHT-TRIANGLE-TOK
-
-RelDecl : ArrowDecl
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Productions for the evaluation-request case
+;   i.e., this isn't a Forge model, but rather a query 
+;   from the evaluator:
+EvalRelDecl : ArrowDecl
 EvalDecl : EVAL-TOK Expr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 Bounds : EXACTLY-TOK? @ExprList
        | EXACTLY-TOK? @Block
 
-;;;;;;;;;
+ExampleDecl : /EXAMPLE-TOK Name /IS-TOK Expr /FOR-TOK Bounds
+
+; ??? used where?
+QueryDecl : @Name /COLON-TOK ArrowExpr /EQ-TOK Expr
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Ints
 NumberList : Number
            | Number /COMMA-TOK @NumberList
 
 Number : NUM-CONST-TOK
-
-; Added for check-ex-spec
-ExampleDecl : /EXAMPLE-TOK Name /IS-TOK Expr /FOR-TOK Bounds
