@@ -76,8 +76,8 @@
      ( print-cmd-cont "(eventually ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/after?)
-     ( print-cmd-cont "(after ")
+    [(? node/formula/op/next_state?)
+     ( print-cmd-cont "(after ") ; note name change
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
     [(? node/formula/op/releases?)
@@ -97,8 +97,8 @@
      ( print-cmd-cont "(once ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/before?)
-     ( print-cmd-cont "(before ")
+    [(? node/formula/op/prev_state?)
+     ( print-cmd-cont "(before ") ; note name change
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
     [(? node/formula/op/since?)

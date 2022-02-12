@@ -440,7 +440,7 @@
     (pattern ((~literal CompareOp)
               (~and op
                     (~or "in" "=" "<" ">" "<=" ">="
-                         "==" "is" "ni")))
+                         "is" "ni")))
       #:attr symbol (datum->syntax #'op (string->symbol (syntax->datum #'op)))))
 
   ; LetDecl : @Name /EQ-TOK Expr
@@ -836,9 +836,9 @@
   [((~literal Expr) (~or "eventually") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (eventually expr1)))]
-  [((~literal Expr) (~or "after") expr1:ExprClass)
+  [((~literal Expr) (~or "next_state") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-       (syntax/loc stx (after expr1)))]
+       (syntax/loc stx (next_state expr1)))]
 
   [((~literal Expr) (~or "historically") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
@@ -846,9 +846,9 @@
   [((~literal Expr) (~or "once") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (once expr1)))]
-  [((~literal Expr) (~or "before") expr1:ExprClass)
+  [((~literal Expr) (~or "prev_state") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-       (syntax/loc stx (before expr1)))]       
+       (syntax/loc stx (prev_state expr1)))]       
     
   [((~literal Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]

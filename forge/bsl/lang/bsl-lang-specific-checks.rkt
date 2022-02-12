@@ -9,8 +9,10 @@
 (define (raise-bsl-error message node loc)
   (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message (deparse node) (srcloc->string loc))))
 
-(define (raise-bsl-relational-error rel-str node loc)
-  (raise-bsl-error (format "Froglet doesn't include the ~a operator" rel-str) node loc))
+(define (raise-bsl-relational-error rel-str node loc [optional-str #f])  
+  (raise-bsl-error (format "Froglet didn't recognize the ~a operator~a"
+                           rel-str
+                           (if optional-str (format "; ~a" optional-str) "")) node loc))
 
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
@@ -41,7 +43,7 @@
 (define (check-node-formula-op-releases formula-node)
   (void))
 
-(define (check-node-formula-op-after formula-node)
+(define (check-node-formula-op-next_state formula-node)
   (void))
 
 (define (check-node-formula-op-historically formula-node)
@@ -50,7 +52,7 @@
 (define (check-node-formula-op-once formula-node)
   (void))
 
-(define (check-node-formula-op-before formula-node)
+(define (check-node-formula-op-prev_state formula-node)
   (void))
 
 (define (check-node-formula-op-since formula-node)
@@ -119,12 +121,12 @@
 (define (check-node-expr-op-+ expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "+" expr-node loc)))
+    (raise-bsl-relational-error "+" expr-node loc "You may have meant to use the `add` predicate instead.")))
 
 (define (check-node-expr-op-- expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "-" expr-node loc)))
+    (raise-bsl-relational-error "-" expr-node loc "You may have meant to use the `subtract` predicate instead.")))
 
 (define (check-node-expr-op-& expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
@@ -172,10 +174,10 @@
 (hash-set! bsl-checker-hash node/formula/op/eventually check-node-formula-op-eventually)
 (hash-set! bsl-checker-hash node/formula/op/until check-node-formula-op-until)
 (hash-set! bsl-checker-hash node/formula/op/releases check-node-formula-op-releases)
-(hash-set! bsl-checker-hash node/formula/op/after check-node-formula-op-after)
+(hash-set! bsl-checker-hash node/formula/op/next_state check-node-formula-op-next_state)
 (hash-set! bsl-checker-hash node/formula/op/historically check-node-formula-op-historically)
 (hash-set! bsl-checker-hash node/formula/op/once check-node-formula-op-once)
-(hash-set! bsl-checker-hash node/formula/op/before check-node-formula-op-before)
+(hash-set! bsl-checker-hash node/formula/op/prev_state check-node-formula-op-prev_state)
 (hash-set! bsl-checker-hash node/formula/op/since check-node-formula-op-since)
 (hash-set! bsl-checker-hash node/formula/op/triggered check-node-formula-op-triggered)
 (hash-set! bsl-checker-hash node/formula/op/&& check-node-formula-op-&&)

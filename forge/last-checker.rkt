@@ -110,9 +110,9 @@
                        node/formula/op/releases
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/after?)
+    [(? node/formula/op/next_state?)
      (check-and-output formula
-                       node/formula/op/after
+                       node/formula/op/next_state
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
@@ -126,9 +126,9 @@
                        node/formula/op/once
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/before?)
+    [(? node/formula/op/prev_state?)
      (check-and-output formula
-                       node/formula/op/before
+                       node/formula/op/prev_state
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/since?)

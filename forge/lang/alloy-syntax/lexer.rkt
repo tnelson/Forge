@@ -5,7 +5,7 @@
 
 (define forge-lexer
   (lexer
-   ;; sexprs
+   ;; Embedded s-expressions for escaping to forge/core
    [(from/to "<$>" "</$>")
     (token+ 'SEXPR-TOK "<$>" lexeme "</$>" lexeme-start lexeme-end)]
    [(from/to "--$" "\n")
@@ -15,19 +15,19 @@
    [(from/to "/*$" "*/")
     (token+ 'SEXPR-TOK "/*$" lexeme "*/" lexeme-start lexeme-end)]
 
-   ;; file path
+   ;; file paths
    [(from/to "\"" "\"")
     (token+ 'FILE-PATH-TOK "\"" lexeme "\"" lexeme-start lexeme-end)]
 
-   ;; instances
-   [(from/to "<instance" "</instance>")
-    (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   [(from/to "<alloy" "</alloy>")
-    (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   [(from/to "<sig" "</sig>")
-    (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   [(from/to "<field" "</field>")
-    (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;; old instances (old, to remove)
+   ;[(from/to "<instance" "</instance>")
+   ; (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;[(from/to "<alloy" "</alloy>")
+   ; (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;[(from/to "<sig" "</sig>")
+   ; (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;[(from/to "<field" "</field>")
+   ; (token+ 'INSTANCE-TOK "" lexeme "" lexeme-start lexeme-end)]
         
    ;; comments
    [(or (from/stop-before "--" "\n") (from/stop-before "//" "\n") (from/to "/*" "*/"))
@@ -35,9 +35,15 @@
    [(from/stop-before "#lang" "\n")
     (token+ 'COMMENT "" lexeme "" lexeme-start lexeme-end #t)]
 
-   ;; reserved
+   ;; reserved for later use (also by Alloy)
    [(or "$" "%" "?")
     (token+ 'RESERVED-TOK "" lexeme "" lexeme-start lexeme-end)]
+   
+   ;; reserved by Alloy 6 or future plans
+   [(or "after" "before" "fact" "transition" "state" 
+        "module" )
+    (token+ 'RESERVED-TOK "" lexeme "" lexeme-start lexeme-end)]
+    
    ;; numeric
    [(or "0" (: (char-range "1" "9") (* (char-range "0" "9"))))
     (token+ 'NUM-CONST-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
@@ -45,7 +51,7 @@
    ["->" (token+ 'ARROW-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["." (token+ 'DOT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["=" (token+ 'EQ-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["==" (token+ 'EQUIV-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["==" (token+ 'DOUBLE-EQ-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["|" (token+ 'BAR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["-" (token+ 'MINUS-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["~" (token+ 'TILDE-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -75,12 +81,10 @@
    ["check"     (token+ `CHECK-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["disj"      (token+ `DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["else"      (token+ `ELSE-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)] 
    ["example"   (token+ `EXAMPLE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["expect"    (token+ `EXPECT-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["extends"   (token+ `EXTENDS-TOK "" lexeme "" lexeme-start lexeme-end)]    
-   ["fact"      (token+ `FACT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["for"       (token+ `FOR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["fun"       (token+ `FUN-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["iden"      (token+ `IDEN-TOK "" lexeme "" lexeme-start lexeme-end)]      
@@ -89,12 +93,12 @@
    ["is"        (token+ `IS-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["let"       (token+ `LET-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["lone"      (token+ `LONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["module"    (token+ `MODULE-TOK "" lexeme "" lexeme-start lexeme-end)]    
+   ;["module"    (token+ `MODULE-TOK "" lexeme "" lexeme-start lexeme-end)]    
    ["no"        (token+ `NO-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["none"      (token+ `NONE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["one"       (token+ `ONE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["func"       (token+ `FUNC-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["pfunc"       (token+ `PFUNC-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["func"      (token+ `FUNC-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["pfunc"     (token+ `PFUNC-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["open"      (token+ `OPEN-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["pred"      (token+ `PRED-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["run"       (token+ `RUN-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -110,10 +114,10 @@
    ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
-   ["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
-   ["trace"      (token+ `TRACE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ;["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
+   ;["trace"      (token+ `TRACE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["bind"      (token+ `BIND-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["option"      (token+ `OPTION-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["inst"      (token+ `INST-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -121,13 +125,13 @@
    ; Electrum operators
    ["always"  (token+ `ALWAYS-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["eventually"  (token+ `EVENTUALLY-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["after"  (token+ `AFTER-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["next_state"  (token+ `AFTER-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["until"  (token+ `UNTIL-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["releases"  (token+ `RELEASE-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ["historically"  (token+ `HISTORICALLY-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["once"  (token+ `ONCE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["before"  (token+ `BEFORE-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["prev_state"  (token+ `BEFORE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["since"  (token+ `SINCE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["triggered"  (token+ `TRIGGERED-TOK "" lexeme "" lexeme-start lexeme-end)]
    
@@ -153,14 +157,10 @@
    ["}" (token+ 'RIGHT-CURLY-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["[" (token+ 'LEFT-SQUARE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["]" (token+ 'RIGHT-SQUARE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ;["<|" (token+ 'LEFT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ;["|>" (token+ 'RIGHT-TRIANGLE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["," (token+ 'COMMA-TOK "" lexeme "" lexeme-start lexeme-end)]
    [";" (token+ 'SEMICOLON-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["/" (token+ 'SLASH-TOK "" lexeme "" lexeme-start lexeme-end)]
    [":" (token+ 'COLON-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ;["@" (token+ 'AT-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ;["_" (token+ 'UNDERSCORE-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; identifiers
    ;[(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\'" "\"")))   ;; "’" "”"
@@ -169,6 +169,9 @@
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    [(* (char-set "➡️"))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end)]
+
+   ; Used by the evaluator 
+   ["eval"      (token+ `EVAL-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;; otherwise
    [whitespace (token+ lexeme "" lexeme "" lexeme-start lexeme-end #t)]
@@ -203,7 +206,7 @@
 
            "let"
            "lone"
-           "module"
+           ;"module"
            "no"
            "none"
            "not"
@@ -225,10 +228,11 @@
            "univ"
            "break"
            
-           "state"
-           "facts"
-           "transition"
-           "trace"
+           ;"state"
+           ;"facts"
+           ;"transition"
+           ;"trace"
+           
            "bind"
            "option"
            "inst"
@@ -258,8 +262,7 @@
            "`"
 
            '_
-           'this
-           '|this'|
+           'this           
 )))
 
 (define (paren? str)
@@ -270,8 +273,6 @@
                 "}"
                 "["
                 "]")))
-                ;"<|"
-                ;"|>")))
 
 (define (token+ type left lex right lex-start lex-end [skip? #f] [sym? #f])
   (let ([l0 (string-length left)] 
