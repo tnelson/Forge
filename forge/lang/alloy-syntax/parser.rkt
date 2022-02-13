@@ -110,11 +110,35 @@ ExprList : Expr
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; This chain of productions enforces operator precedence in brag.
 ; The list goes from weakest to strongest binding operators.
-; (Imagine a coin rolling over a coin sorter and falling into
-;  the first slot that fits.)
+
+; This machinery is needed because, for better or worse, brag has no
+; yacc-style "assoc" annotations, and so we need to enforce associativity
+; and precedence ourselves. 
+
+; Example: 
+;   e := e /\ e | e => e | num
+; as a BNF this is OK, but ambiguity must be resolved to build a parser. 
+; Without "assoc" lists, we have to deny the parser undesireable derivations 
+; ourselves, by controlling the flow of non-terminals. E.g.:
+;   e  := e1 => e | @e1
+;   e1 := e2 /\ e1 | @e2
+;   e2 := num
+;
+; Note that, once we've progressed to e1, we no longer have the ability to 
+; parse implication! Likewise, progressing into e2 removes the ability to 
+; parse conjunction. "e1 => e" simply cannot have another implication on
+; the LHS of the implication; others must group to the right. Neither side
+; of "e2 /\ e1" can be an implication. Etc.
+
+; Note on brag syntax:
 ; @: splice, merges elements of a node into the surrounding node
 ;   LHS splice: *always* merged into surrounding node
 ;   RHS splice: @'d pattern element is spliced if it appears
+
+; Following Alloy's lead, we don't try to make the parser disambiguate 
+; "formulas" and "expressions" --- just produce a parse tree that the 
+; expander can handle. Alloy 6 spec:
+;    https://alloytools.org/spec.html
 
 Expr    : @Expr1
         | LET-TOK LetDeclList BlockOrBar
