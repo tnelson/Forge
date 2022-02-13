@@ -1,6 +1,5 @@
 #lang racket
 
-(require forge/lang/deparser)
 (require 
   "sigs-structs.rkt"
   "lang/ast.rkt"
@@ -423,7 +422,8 @@
                                (raise-syntax-error #f (format "join always results in an empty relation")
                                                  (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
                            (cons join-result
-                                 (cdr (first child-values)))))]
+                                   (and (not (empty? join-result))(equal? 1 (length (first join-result)))))))]
+                                ;  (cdr (first child-values)))))]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)

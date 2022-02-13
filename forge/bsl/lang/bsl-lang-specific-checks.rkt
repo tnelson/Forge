@@ -1,6 +1,5 @@
 #lang racket
 
-(require forge/lang/deparser)
 (require forge/lang/ast)
 (require forge/sigs-structs)
 (require (for-syntax racket/syntax syntax/srcloc)
