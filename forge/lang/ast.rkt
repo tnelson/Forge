@@ -178,8 +178,9 @@
     (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node info)))
 
 (define/contract (intexpr->expr/maybe a-node)
-  (@-> node? node/expr?)  
+  (@-> (or/c node? integer?) node/expr?)  
   (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
+        [(integer? a-node) (intexpr->expr/maybe (int a-node))]
         [else a-node]))
 (define/contract (expr->intexpr/maybe a-node)
   (@-> node? node/int?)  
@@ -302,12 +303,12 @@
   (lambda e (car e)))
 (define get-second
   (lambda e (cadr e)))
-(define-syntax-rule (define-op/combine id @op)
-  (define-node-op id node/expr/op get-first #:same-arity? #t #:lift @op #:type node/expr?))
+(define-syntax-rule (define-op/combine id)
+  (define-node-op id node/expr/op get-first #:same-arity? #t #:type node/expr?))
 
-(define-op/combine + @+)
-(define-op/combine - @-)
-(define-op/combine & #f)
+(define-op/combine +)
+(define-op/combine -)
+(define-op/combine &)
 
 (define-syntax-rule (define-op/cross id)
   (define-node-op id node/expr/op @+ #:type node/expr?))
@@ -328,10 +329,10 @@
 
 (define-node-op prime node/expr/op get-first #:min-length 1 #:max-length 1 #:type node/expr?)
 
-(define-syntax-rule (define-op/closure id @op)
-  (define-node-op id node/expr/op (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:lift @op #:type node/expr?))
-(define-op/closure ^ #f)
-(define-op/closure * @*)
+(define-syntax-rule (define-op/closure id)
+  (define-node-op id node/expr/op (const 2) #:min-length 1 #:max-length 1 #:arity 2 #:type node/expr?))
+(define-op/closure ^)
+(define-op/closure *)
 
 
 
@@ -941,10 +942,10 @@
         (cond                         
           [(and (procedure? vala)                
                 (equal? (procedure-arity vala) 0))
-            (* multiplier (hash-proc (vala)))]
+            (@* multiplier (hash-proc (vala)))]
           [(or (node/expr? vala) 
                (not (procedure? vala)))
-            (* multiplier (hash-proc vala))]
+            (@* multiplier (hash-proc vala))]
           [else (raise (format "Non-thunk procedure field when hashing for ~a. Got: ~a"
                               structname vala))])))
     ;(printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    

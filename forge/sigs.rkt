@@ -448,10 +448,11 @@
 ; (inst name binding ...)
 (define-syntax (inst stx)
   (syntax-parse stx
-    [(inst name:id binds:expr ...)
-     #'(begin
+    [(inst name:id binds:expr ...)    
+     (syntax/loc stx 
+       (begin
          (define name (make-inst (list binds ...)))
-         (update-state! (state-add-inst curr-state 'name name)))]))
+         (update-state! (state-add-inst curr-state 'name name))))]))
 
 ; Run a given spec
 ; (run name
@@ -489,7 +490,7 @@
            (~? (list (list sig (~? lower) upper) ...) (list)))
          #;(define run-scope
            (~? (list (~? (list sig lower upper) (list sig upper)) ...) (list)))
-         (define run-bounds (~? (list boundss ...) (~? (list bound) (list))))
+         (define run-bounds (~? (list boundss ...) (~? (list bound) (list))))                  
          (define run-solver (~? 'solver-choice #f))
          (define run-backend (~? 'backend #f))
          (define run-target
@@ -519,7 +520,8 @@
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
      (add-to-execs
-       #'(cond 
+       (syntax/loc stx 
+         (cond 
           [(member 'expected '(sat unsat))
            (run name args ...)
            (define first-instance (tree:get-value (Run-result name)))
@@ -542,12 +544,16 @@
            (close-run name)]
 
           [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
-                               'expected))]))]))
+                               'expected))])))]))
 
-(define-simple-macro (example name:id pred bounds ...)
-  (test name #:preds [pred]
+(define-syntax (example stx)  
+  (syntax-case stx () 
+    [(_ name:id pred bounds ...)
+     (syntax/loc stx 
+       (test name #:preds [pred]
              #:bounds [bounds ...]
-             #:expect sat))
+             #:expect sat))]))
+  
 
 ; Checks that some predicates are always true.
 ; (check name
@@ -579,7 +585,7 @@
          (update-state! temp-state)
          result)]))
 
-(define-for-syntax (add-to-execs stx)
+(define-for-syntax (add-to-execs stx)  
   (if (equal? (syntax-local-context) 'module)
       #`(module+ execs #,stx)
       stx))

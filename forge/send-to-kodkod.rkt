@@ -10,7 +10,7 @@
          "choose-lang-specific.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
-(require (prefix-in @ racket))
+(require (prefix-in @ racket/base))
 (require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
          (prefix-in pardinus: "pardinus-cli/server/server.rkt")
          (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
@@ -177,8 +177,8 @@
   ; Declare ints
   (define num-ints (expt 2 bitwidth))
   (pardinus-print
-    (pardinus:declare-ints (range (- (/ num-ints 2)) (/ num-ints 2)) ; ints
-                         (range num-ints)))                        ; indexes
+    (pardinus:declare-ints (range (@- (/ num-ints 2)) (/ num-ints 2)) ; ints
+                           (range num-ints)))                        ; indexes
 
   ; to-tupleset :: List<List<int>>, int -> tupleset
   (define (to-tupleset arity eles)
@@ -524,7 +524,7 @@
   (define int-atoms
     (let* ([bitwidth (get-bitwidth run-spec)]
            [max-int (expt 2 (sub1 bitwidth))])
-      (range (- max-int) max-int)))
+      (range (@- max-int) max-int)))
   (hash-set! lower-bounds (get-sig run-spec Int) int-atoms)
   (hash-set! upper-bounds (get-sig run-spec Int) int-atoms)
 
