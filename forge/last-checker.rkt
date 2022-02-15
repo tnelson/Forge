@@ -422,8 +422,7 @@
                                (raise-syntax-error #f (format "join always results in an empty relation")
                                                  (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
                            (cons join-result
-                                   (and (not (empty? join-result))(equal? 1 (length (first join-result)))))))]
-                                ;  (cdr (first child-values)))))]
+                                   (and (cdr (first child-values)) (not (empty? join-result))(equal? 1 (length (first join-result)))))))]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)

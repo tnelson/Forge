@@ -107,7 +107,7 @@
 (define (check-node-expr-quantifier-var expr-node)
   (void))
 
-(define (check-node-expr-comprehension expr-node)
+#;(define (check-node-expr-comprehension expr-node)
     (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
       (define loc (nodeinfo-loc (node-info expr-node)))
       (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
@@ -194,7 +194,7 @@
 (hash-set! bsl-checker-hash node/expr/constant check-node-expr-constant)
 (hash-set! bsl-checker-hash node/expr/op check-node-expr-op)
 (hash-set! bsl-checker-hash node/expr/quantifier-var check-node-expr-quantifier-var)
-(hash-set! bsl-checker-hash node/expr/comprehension check-node-expr-comprehension)
+;(hash-set! bsl-checker-hash node/expr/comprehension check-node-expr-comprehension)
 (hash-set! bsl-checker-hash node/expr/op/prime check-node-expr-op-prime)
 (hash-set! bsl-checker-hash node/expr/op/+ check-node-expr-op-+)
 (hash-set! bsl-checker-hash node/expr/op/- check-node-expr-op--)
@@ -236,13 +236,13 @@
     (define left-hand-side (first expr-args))
     (define loc (nodeinfo-loc (node-info left-hand-side)))
     (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-user-error (format "Direct use of -> is not allowed in Froglet: ~a -> ~a at loc: ~a" (deparse (first expr-args)) (deparse (first (rest expr-args))) locstr))))
+    (raise-bsl-error (format "Direct use of -> is not allowed in Froglet: ~a -> ~a at loc: ~a" (deparse (first expr-args)) (deparse (first (rest expr-args))) locstr))))
 
 
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
   (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
-  (raise-user-error (format "Froglet: Field declaration must be one, lone, func, or pfunc"))))
+  (raise-bsl-error (format "Froglet: Field declaration must be one, lone, func, or pfunc"))))
 
 
 
