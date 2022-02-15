@@ -14,6 +14,7 @@
 
 (require
   rackunit
+  (only-in rackunit/text-ui run-tests)
   racket/runtime-path)
 
 (define-runtime-path here ".")
@@ -33,19 +34,19 @@
 
 ;; -----------------------------------------------------------------------------
 
-(define (run-tests registry)
+(define (run-error-tests registry)
   (printf "Error Tester: running ~s tests~n" (length registry))
-  (for ((test+pred* (in-list registry)))
+  (for/and ((test+pred* (in-list registry)))
     (define test-name (car test+pred*))
     (define pred (cadr test+pred*))
     (printf "run test: ~a~n" test-name)
     (with-check-info*
       (list (make-check-name test-name))
       (lambda ()
-        (check-exn pred (lambda () (run-test test-name)))))
+        (check-exn pred (lambda () (run-error-test test-name)))))
     (void)))
 
-(define (run-test test-name)
+(define (run-error-test test-name)
   (parameterize ([current-namespace (make-base-empty-namespace)]
                  [current-directory here])
     (let* ([root-module `(file ,(path->string (build-path here test-name)))])
@@ -54,6 +55,11 @@
 ;; -----------------------------------------------------------------------------
 
 (module+ main
-  (run-tests REGISTRY))
+  (unless (zero?
+            (run-tests
+              (test-suite "error/main.rkt"
+                (test-case "error tests"
+                  (run-error-tests REGISTRY)))))
+    (exit 1)))
 
 
