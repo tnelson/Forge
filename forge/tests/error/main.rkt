@@ -25,15 +25,16 @@
   (list
     (list "hello.frg" #rx"parsing error")
     (list "arrow.frg" #rx"Direct use of ->")
-    (list "join.frg" #rx"Froglet")
-    (list "join2.frg" #rx"Froglet")
-    (list "join3.frg" #rx"Froglet")
-    (list "join-right.frg" #rx"Froglet")
-    (list "join-right2.frg" #rx"Froglet")
-    (list "join-right3.frg" #rx"Froglet")
+    (list "join.frg" #rx"singleton")
+    (list "join2.frg" #rx"singleton")
+    (list "join3.frg" #rx"singleton")
+    (list "join-right.frg" #rx"singleton")
+    (list "join-right2.frg" #rx"singleton")
+    (list "join-right3.frg" #rx"singleton")
+    (list "join-right4.frg" #rx"singleton")
     (list "set.frg" #rx"Froglet")
     (list "int-minus.frg" #rx"Froglet")
-    (list "set-single-equal.frg" #rx"set")
+    (list "set-singleton-equal.frg" #rx"singleton")
   ))
 
 ;; -----------------------------------------------------------------------------
