@@ -258,11 +258,8 @@
 
 (define (safe-fast-eval-int-expr ie binding bitwidth)
   (-> node/int? hash? number? (listof (listof (or/c number? symbol?))))
-  (define result (eval-int-expr ie binding bitwidth))  
-  ; eval-int-expr returns an integer, not a tupleset; should already be converted
-  (if (integer? result) 
-      result
-      (de-integer-atomize result)))
+  (define result (eval-int-expr ie binding bitwidth))
+  (caar (de-integer-atomize `((,result)))))
 
 
 (define/contract (do-bind bind scope bound)
@@ -303,9 +300,9 @@
      (match left
        [(ast:node/int/op/card c-info (list left-rel))
         (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
-               ; do we need the if (equal? (relation-name rel) "Int")
-               ; case that sigs.rkt has?
-               [new-scope (update-int-bound scope left-rel (Range exact exact))])
+               [new-scope (if (equal? (relation-name left-rel) "Int")
+                              (update-bitwidth scope exact)
+                              (update-int-bound scope left-rel (Range exact exact)))])
           (values new-scope bound))]
        [_ (fail)])]
 
