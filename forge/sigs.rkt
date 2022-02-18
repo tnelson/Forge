@@ -547,13 +547,21 @@
                                'expected))])))]))
 
 (define-syntax (example stx)  
-  (syntax-case stx () 
+  (syntax-parse stx
     [(_ name:id pred bounds ...)
-     (syntax/loc stx 
-       (test name #:preds [pred]
-             #:bounds [bounds ...]
-             #:expect sat))]))
-  
+     (add-to-execs
+       (syntax/loc stx (begin
+         (run name #:preds [pred] #:bounds [bounds ...])
+         (define first-instance (tree:get-value (Run-result name)))
+         (when (Unsat? first-instance)
+           (run double-check #:preds [] #:bounds [bounds ...])
+           (define double-check-instance (tree:get-value (Run-result double-check)))
+           (if (Sat? double-check-instance)
+               (raise (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name))
+               (raise (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+                                             "This means that the specified bounds conflict with each other "
+                                             "or with the sig/relation definitions.")
+                              'name)))))))]))
 
 ; Checks that some predicates are always true.
 ; (check name
