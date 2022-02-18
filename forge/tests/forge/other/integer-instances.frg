@@ -47,4 +47,19 @@ test expect {
       #Node = 2      
     } is unsat
 
+    -- Spot issues with bitwidth setting
+    -- 2 int --> {-2, -1, 0, 1}    
+    setBidwidth_num1: {#Node > 1} for 2 Int is unsat
+    setBidwidth_num2: {#Node > 1} for 3 Int is sat
+    setBidwidth_inst1: {#Node > 1} for {#Int = 2} is unsat
+    setBidwidth_inst2: {#Node > 1} for {#Int = 3} is sat
+    -- Can't safely use #Int in a constraint, since
+    --   you need more positive integers than are available.
+    setBidwidth_inst_special_cardinality: {
+      some disj i1, i2, i3, i4: Int | {
+        Int = Int -- trivially true; just want the disj
+      }
+    } for {#Int = 3} is sat
+
+
 }
