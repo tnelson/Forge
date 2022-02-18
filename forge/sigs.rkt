@@ -4,7 +4,7 @@
          (prefix-in @ racket/set))
 (require syntax/parse/define)
 (require racket/match)
-(require (for-syntax racket/match syntax/srcloc))
+(require (for-syntax racket/match racket/syntax syntax/srcloc))
 (require (for-syntax syntax/strip-context))
 
 ;(require forge/choose-lang-specific)
@@ -925,121 +925,72 @@ Now with functional forge, do-bind is used instead
 
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
 
-(define-syntax (isSeqOf stx)
+(define-syntax (define-builtin stx)
   (syntax-parse stx
-   [isSeqOf
-   (quasisyntax/loc stx
-     (lambda (r1 d) (isSeqOfFun #,(build-source-location stx) r1 d)))]))
+   [(define-builtin:id (opName:id locArg:id args:id ...) body:expr)
+    (with-syntax ([opName/func (format-id #'opName "~a/func" #'opName)])
+      (syntax/loc stx (begin
+        (define-syntax (opName stxx)
+          (syntax-parse stxx
+           [opName
+            (quasisyntax/loc stxx (lambda (args ...)
+              (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) args ...)))]))
 
-(define (isSeqOfFun loc r1 d)
-  (&&/info (nodeinfo loc 'checklangNoCheck)  (in/info (nodeinfo loc 'checklangNoCheck)  r1 (-> Int univ))
-      (in/info (nodeinfo loc 'checklangNoCheck)  (join/info (nodeinfo loc 'checklangNoCheck)  Int r1) d)
-      (all ([i1 (join/info (nodeinfo loc 'checklangNoCheck)  r1 univ)])
-           (&&/info (nodeinfo loc 'checklangNoCheck)  (>= (sum/info (nodeinfo loc 'checklangNoCheck)  i1) (int 0))
-               (lone (join/info (nodeinfo loc 'checklangNoCheck)  i1 r1))))
-      (all ([e (join/info (nodeinfo loc 'checklangNoCheck)  Int r1)])
-           (some (join/info (nodeinfo loc 'checklangNoCheck)  r1 e)))
-      (all ([i1 (join/info (nodeinfo loc 'checklangNoCheck)  r1 univ)])
-           (implies (!= i1 (sing/info (nodeinfo loc 'checklangNoCheck)  (int 0))) 
-                    (some (join/info (nodeinfo loc 'checklangNoCheck) 
-                     (sing/info (nodeinfo loc 'checklangNoCheck)  
-                      (subtract/info (nodeinfo loc 'checklangNoCheck) 
-                       (sum/info (nodeinfo loc 'checklangNoCheck)  i1) (int 1))) r1))))))
+        (define (opName/func locArg args ...)
+          body)
+      )))
+    ]))
 
-(define-syntax (seqFirst stx)
-  (syntax-parse stx
-   [seqFirst
-   (quasisyntax/loc stx
-     (lambda (r) (seqFirstFun #,(build-source-location stx) r)))]))
+(define-builtin (isSeqOf info r1 d)
+  (&&/info info
+      (in/info info r1 (-> Int univ))
+      (in/info info (join/info info Int r1) d)
+      (all ([i1 (join/info info r1 univ)])
+           (&&/info info (>= (sum/info info i1) (int 0))
+               (lone (join/info info i1 r1))))
+      (all ([e (join/info info Int r1)])
+           (some (join/info info r1 e)))
+      (all ([i1 (join/info info r1 univ)])
+           (implies (!= i1 (sing/info info (int 0)))
+                    (some (join/info info
+                     (sing/info info
+                      (subtract/info info
+                       (sum/info info i1) (int 1))) r1))))))
 
-(define (seqFirstFun loc r)
-  (join/info (nodeinfo loc 'checklangNoCheck) 
-   (sing/info (nodeinfo loc 'checklangNoCheck)  (int 0))
-  r))
-
-
-(define-syntax (seqLast stx)
-  (syntax-parse stx
-   [seqLast
-   (quasisyntax/loc stx
-     (lambda (r) (seqLastFun #,(build-source-location stx) r)))]))
-
-
-(define (seqLastFun loc r)
-  (join/info (nodeinfo loc 'checklangNoCheck)  
-    (sing/info (nodeinfo loc 'checklangNoCheck) 
-     (subtract/info (nodeinfo loc 'checklangNoCheck) 
-      (card/info (nodeinfo loc 'checklangNoCheck)  r) (int 1)))
+(define-builtin (seqFirst info r)
+  (join/info info
+    (sing/info info (int 0))
     r))
 
-(define-syntax (indsOf stx)
-  (syntax-parse stx
-   [indsOf
-   (quasisyntax/loc stx
-     (lambda (r e) (indsOfFun #,(build-source-location stx) r e)))]))
+(define-builtin (seqLast info r)
+  (join/info info
+    (sing/info info
+      (subtract/info info
+        (card/info info r) (int 1)))
+    r))
 
-(define (indsOfFun loc r e)
-        (join/info (nodeinfo loc 'checklangNoCheck) r e))
+(define-builtin (indsOf info r e)
+  (join/info info r e))
 
-(define-syntax (idxOf stx)
-  (syntax-parse stx
-   [idxOf
-   (quasisyntax/loc stx
-     (lambda (r e) (idxOfFun #,(build-source-location stx) r e)))]))
+(define-builtin (idxOf info r e)
+  (join/info info r e))
 
-(define (idxOfFun loc r e)
-        (min (join/info (nodeinfo loc 'checklangNoCheck)  r e)))
+(define-builtin (lastIdxOf info r e)
+  (max (join/info info r e)))
 
-(define-syntax (lastIdxOf stx)
-  (syntax-parse stx
-   [lastIdxOf
-   (quasisyntax/loc stx
-     (lambda (r e) (lastIdxOfFun #,(build-source-location stx) r e)))]))
+(define-builtin (elems info r)
+  (join/info info Int r))
 
+(define-builtin (inds info r)
+  (join/info info r univ))
 
-(define (lastIdxOfFun loc r e)
-        (max (join/info (nodeinfo loc 'checklangNoCheck)  r e)))
+(define-builtin (isEmpty info r)
+  (no/func r #:info info))
 
-
-(define-syntax (elems stx)
-  (syntax-parse stx
-   [elems
-   (quasisyntax/loc stx
-     (lambda (r) (elemsFun #,(build-source-location stx) r)))]))
-
-(define (elemsFun loc r)
-  (join/info (nodeinfo loc 'checklangNoCheck)  Int r))
-
-
-(define-syntax (inds stx)
-  (syntax-parse stx
-   [inds
-   (quasisyntax/loc stx
-     (lambda (r) (indsFun #,(build-source-location stx) r)))]))
-
-(define (indsFun loc r)
-  (join/info (nodeinfo loc 'checklangNoCheck)  r univ))
-
-(define-syntax (isEmpty stx)
-  (syntax-parse stx
-   [isEmpty
-   (quasisyntax/loc stx
-     (lambda (r) (isEmptyFun #,(build-source-location stx) r)))]))
-
-(define (isEmptyFun loc r)
-  (no r))
-
-
-(define-syntax (hasDups stx)
-  (syntax-parse stx
-   [hasDups
-   (quasisyntax/loc stx
-     (lambda (r) (hasDupsFun #,(build-source-location stx) r)))]))
-
-(define (hasDupsFun loc r)
-  (some ([e (elemsFun loc r)])
-        (some ([num1 (indsOfFun loc r e)] [num2 (indsOfFun loc r e)])
-              (!= num1 num2))))
+(define-builtin (hasDups info r)
+  (some ([e (elems/func info r)])
+    (some ([num1 (indsOf/func info r e)] [num2 (indsOf/func info r e)])
+      (!= num1 num2))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
