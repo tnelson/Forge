@@ -14,6 +14,7 @@
 
 (require
   rackunit
+  (only-in rackunit/text-ui run-tests)
   racket/runtime-path)
 
 (define-runtime-path here ".")
@@ -24,28 +25,33 @@
   (list
     (list "hello.frg" #rx"parsing error")
     (list "arrow.frg" #rx"Direct use of ->")
-    (list "join.frg" #rx"Froglet")
-    (list "join-right.frg" #rx"Froglet")
+    (list "join.frg" #rx"singleton")
+    (list "join2.frg" #rx"singleton")
+    (list "join3.frg" #rx"singleton")
+    (list "join-right.frg" #rx"singleton")
+    (list "join-right2.frg" #rx"singleton")
+    (list "join-right3.frg" #rx"singleton")
+    (list "join-right4.frg" #rx"singleton")
     (list "set.frg" #rx"Froglet")
     (list "int-minus.frg" #rx"Froglet")
-    (list "set-single-equal.frg" #rx"set")
+    (list "set-singleton-equal.frg" #rx"singleton")
   ))
 
 ;; -----------------------------------------------------------------------------
 
-(define (run-tests registry)
+(define (run-error-tests registry)
   (printf "Error Tester: running ~s tests~n" (length registry))
-  (for ((test+pred* (in-list registry)))
+  (for/and ((test+pred* (in-list registry)))
     (define test-name (car test+pred*))
     (define pred (cadr test+pred*))
     (printf "run test: ~a~n" test-name)
     (with-check-info*
       (list (make-check-name test-name))
       (lambda ()
-        (check-exn pred (lambda () (run-test test-name)))))
+        (check-exn pred (lambda () (run-error-test test-name)))))
     (void)))
 
-(define (run-test test-name)
+(define (run-error-test test-name)
   (parameterize ([current-namespace (make-base-empty-namespace)]
                  [current-directory here])
     (let* ([root-module `(file ,(path->string (build-path here test-name)))])
@@ -54,6 +60,11 @@
 ;; -----------------------------------------------------------------------------
 
 (module+ main
-  (run-tests REGISTRY))
+  (unless (zero?
+            (run-tests
+              (test-suite "error/main.rkt"
+                (test-case "error tests"
+                  (run-error-tests REGISTRY)))))
+    (exit 1)))
 
 

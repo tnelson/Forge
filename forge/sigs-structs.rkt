@@ -3,7 +3,6 @@
 (require (except-in "lang/ast.rkt" ->)
          "lang/bounds.rkt"
          "breaks.rkt")
-(require forge/lang/deparser)
 (require (prefix-in @ racket) 
          (prefix-in @ racket/set))
 (require racket/contract)
@@ -641,13 +640,15 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [src-col (source-location-column loc)]
         [src-span (source-location-span loc)])
     (unless (equal? (node/expr-arity b)
-                    (+ 1 (node/expr-arity a))) 
-                    (raise-user-error (format "<: argument has incorrect arity in ~a <: ~a on line ~a, column ~a, span~a" (deparse a) (deparse b) src-line src-col src-span)))))
+                    (@+ 1 (node/expr-arity a))) 
+                    (raise-user-error (format "<: argument has incorrect arity (~a vs. ~a) in ~a <: ~a on line ~a, column ~a, span~a" 
+                    (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b) src-line src-col src-span)))))
 
 (define (domain-check:> a b loc) 
   (let ([src-line (source-location-line loc)]
         [src-col (source-location-column loc)]
         [src-span (source-location-span loc)])
     (unless (equal? (node/expr-arity a)
-                    (+ 1 (node/expr-arity b))) 
-                    (raise-user-error (format ":> argument has incorrect arity in ~a :> ~a on line ~a, column ~a, span~a" (deparse a) (deparse b) src-line src-col src-span)))))
+                    (@+ 1 (node/expr-arity b))) 
+                    (raise-user-error (format ":> argument has incorrect arity in ~a :> ~a on line ~a, column ~a, span~a" 
+                    (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b) src-line src-col src-span)))))

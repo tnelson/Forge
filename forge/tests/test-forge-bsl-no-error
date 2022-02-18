@@ -1,0 +1,4 @@
+for i in ./error/no-error/*/*.frg; do 
+  echo "******************** testing $i"; 
+  racket $i; 
+done

@@ -13,7 +13,6 @@
 
 ; TODO: custom errors for common Alloy keywords
 ;   e.g., fact, after, ...
-; TODO: confirm position of Electrum keywords
 ; TODO: odd associativity for => interplay with quantification
 ; TODO: Does brag allow heuristics for error location?
 
@@ -110,11 +109,39 @@ ExprList : Expr
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; This chain of productions enforces operator precedence in brag.
 ; The list goes from weakest to strongest binding operators.
-; (Imagine a coin rolling over a coin sorter and falling into
-;  the first slot that fits.)
+
+; This machinery is needed because, for better or worse, brag has no
+; yacc-style "assoc" annotations, and so we need to enforce associativity
+; and precedence ourselves. 
+
+; Example: 
+;   e := e /\ e | e => e | num
+; as a BNF this is OK, but ambiguity must be resolved to build a parser. 
+; Without "assoc" lists, we have to deny the parser undesireable derivations 
+; ourselves, by controlling the flow of non-terminals. E.g.:
+;   e  := e1 => e | @e1
+;   e1 := e2 /\ e1 | @e2
+;   e2 := num
+;
+; Note that, once we've progressed to e1, we no longer have the ability to 
+; parse implication! Likewise, progressing into e2 removes the ability to 
+; parse conjunction. "e1 => e" simply cannot have another implication on
+; the LHS of the implication; others must group to the right. Neither side
+; of "e2 /\ e1" can be an implication. Etc.
+
+; Note on brag syntax:
 ; @: splice, merges elements of a node into the surrounding node
 ;   LHS splice: *always* merged into surrounding node
 ;   RHS splice: @'d pattern element is spliced if it appears
+
+; Following Alloy's lead, we don't try to make the parser disambiguate 
+; "formulas" and "expressions" --- just produce a parse tree that the 
+; expander can handle. Alloy 6 spec:
+;    https://alloytools.org/spec.html
+
+; "All binary operators associate to the left, with the exception of 
+;  implication and sequence, which associate to the right, and of 
+;  binary temporal connectives which are not associative."
 
 Expr    : @Expr1
         | LET-TOK LetDeclList BlockOrBar
@@ -125,11 +152,11 @@ Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
 ;; right assoc
 Expr3   : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?        
 Expr4   : @Expr4.5  | Expr4 AND-TOK Expr4.5
-; Electrum binary operators (these may be on the wrong side of OR/IFF/etc.)
-Expr4.5 : @Expr5  | Expr4.5 UNTIL-TOK Expr5
-                  | Expr4.5 RELEASE-TOK Expr5
-                  | Expr4.5 SINCE-TOK Expr5
-                  | Expr4.5 TRIGGERED-TOK Expr5
+; Electrum binary operators (not associative)
+Expr4.5 : @Expr5  | Expr5 UNTIL-TOK Expr5
+                  | Expr5 RELEASE-TOK Expr5
+                  | Expr5 SINCE-TOK Expr5
+                  | Expr5 TRIGGERED-TOK Expr5
 Expr5   : @Expr6  | NEG-TOK Expr5
                   | ALWAYS-TOK Expr5
                   | EVENTUALLY-TOK Expr5
@@ -143,8 +170,7 @@ Expr8   : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
 Expr9   : @Expr10 | CARD-TOK Expr9
 Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11
 Expr11  : @Expr12 | Expr11 AMP-TOK Expr12
-;; right assoc
-Expr12  : @Expr13 | Expr13 ArrowOp Expr12                          
+Expr12  : @Expr13 | Expr12 ArrowOp Expr13
 Expr13  : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
 Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
 Expr15  : @Expr16 | Expr15 DOT-TOK Expr16

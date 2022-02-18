@@ -3,7 +3,7 @@
 (require "../lang/ast.rkt" racket/date xml racket/string
          "../sigs-structs.rkt" ; for Sat/Unsat
          "../shared.rkt"
-         (prefix-in @ (only-in racket and or not >)))
+         (prefix-in @ (only-in racket and or not > - +)))
 
 (provide solution-to-XML-string)
 
@@ -80,7 +80,7 @@
   (string-replace (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;"))
 
 (define (clean-syntax str)
-  (substring str 9 (- (string-length str) 1)))
+  (substring str 9 (@- (string-length str) 1)))
 
 (define (agg-lines lines)
   (if (empty? lines)
@@ -277,19 +277,19 @@ here-string-delimiter
                                               (hash-set! ID-hash (relation-name sig) id)
                                               (sig-to-XML-string cleaned-model sig id ID-hash tuple-annotations))
                                             sigs
-                                            (range 4 (+ 4 sigs#)))))
+                                            (range 4 (@+ 4 sigs#)))))
   
   (define field-strings (apply string-append (map
                                               (λ (field id)
                                                 (field-to-XML-string data field id ID-hash tuple-annotations))
                                               fields
-                                              (range (+ 4 sigs#) (+ 4 sigs# (length fields))))))
+                                              (range (@+ 4 sigs#) (@+ 4 sigs# (length fields))))))
 
   ; Remember to use "data", not "cleaned-model" -- the cleaned model won't have tuples for Skolem relations
   (define skolem-strings (apply string-append (map
                                                (lambda (skolem id) (skolem-to-XML-string data skolem id ID-hash tuple-annotations))
                                                skolems
-                                               (range (+ 4 sigs# (length fields)) (+ 4 sigs# (length fields) (length skolems))))))
+                                               (range (@+ 4 sigs# (length fields)) (@+ 4 sigs# (length fields) (length skolems))))))
          
   ;; old sterling version:
   ;(define epilogue (string-append

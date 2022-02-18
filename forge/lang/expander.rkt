@@ -743,7 +743,7 @@
               (~optional scope:ScopeClass))
    (with-syntax ([(bounds ...) #'bounds.translate])
      (syntax/loc stx (begin
-       (~? (raise (format "Scope not implemented for bounds ~a" 'scope)))
+       (~? (raise (format "Scope not implemented for InstDecl ~a" 'scope)))
        (inst name.name bounds ...))))]))
 
 (define (disambiguate-block xs)

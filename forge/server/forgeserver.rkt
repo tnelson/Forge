@@ -86,6 +86,7 @@
        (define next? (equal? "next" (substring onClick 0 4)))
        (cond
          [next?          
+          (define old-datum-id curr-datum-id)
           (define-values (datum-id inst)
             (cond [(equal? onClick "next-C") (get-next-model 'C)]
                   [(equal? onClick "next-P") (get-next-model 'P)]
@@ -93,7 +94,7 @@
                   [else
                    (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
-          (define response (make-sterling-data xml datum-id temporal?))
+          (define response (make-sterling-data xml datum-id temporal? old-datum-id))
           (send-to-sterling response #:connection connection)]
          [else
           (printf "Sterling: unexpected onClick: ~a~n" json-m)])     
@@ -173,7 +174,7 @@
            (error (format "get-from-json expected JSON dictionary with ~a field, got: ~a~n" (first path) json-m)))
          (get-from-json (hash-ref json-m (first path)) (rest path))]))
 
-(define (make-sterling-data xml id temporal?)
+(define (make-sterling-data xml id temporal? [old-id #f])
   (jsexpr->string
    (hash
     'type "data"
@@ -194,7 +195,12 @@
                                             (list (hash 'text "Next"
                                                         'mouseover "(Get next instance)"
                                                         'onClick "next"))])                            
-                            'evaluator #t))))))
+                            'evaluator #t))
+                'update (if old-id 
+                            (list (hash 'id old-id
+                                        'actions (list)
+                                        'evaluator #f))
+                            (list))))))
 
 (define (make-sterling-eval result id datum-id)
   ; note datum-id currently unused in the response JSON
