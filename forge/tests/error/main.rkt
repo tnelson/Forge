@@ -35,7 +35,8 @@
     (list "set.frg" #rx"Froglet")
     (list "int-minus.frg" #rx"Froglet")
     (list "set-singleton-equal.frg" #rx"singleton")
-    (list "all_in_comprehension.frg" #rx"expected to be given")
+    (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
+    (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
   ))
 
 ;; -----------------------------------------------------------------------------

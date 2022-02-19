@@ -144,8 +144,8 @@
                                          (node/expr/ite-elsee self))))])
 
 (define (ite/info-helper info a orig-b orig-c)  
-  (define b (intexpr->expr/maybe orig-b))
-  (define c (intexpr->expr/maybe orig-c))
+  (define b (intexpr->expr/maybe orig-b #:op 'if-then-else #:info info))
+  (define c (intexpr->expr/maybe orig-c #:op 'if-then-else #:info info))
   
   (unless (node/formula? a)
     (raise-syntax-error #f (format "If-then-else expression requires first argument to be a formula")
@@ -177,15 +177,29 @@
     ;(printf "checking ast-node:~a  to-handle:~a  has-key? ~a ~n" ast-node to-handle (hash-has-key? checker-hash to-handle))
     (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node info)))
 
-(define/contract (intexpr->expr/maybe a-node)
-  (@-> (or/c node/int? node/expr? integer?) node/expr?)  
+(define/contract (intexpr->expr/maybe a-node #:op functionname #:info info)
+  (@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
   (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
         [(integer? a-node) (intexpr->expr/maybe (int a-node))]
-        [else a-node]))
-(define/contract (expr->intexpr/maybe a-node)
-  (@-> node? node/int?)  
+        [(node/expr? a-node) a-node]
+        [else 
+          (define loc (nodeinfo-loc info))
+          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
+          (raise-syntax-error functionname 
+                              (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
+                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
+
+(define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)
+  (@-> node? #:op symbol? #:info nodeinfo? node/int?)  
   (cond [(node/expr? a-node) (node/int/op/sum (node-info a-node) (list a-node))]
-        [else a-node]))
+        [(node/int? a-node) a-node]
+        [(integer? a-node) (int a-node)]
+        [else         
+          (define loc (nodeinfo-loc info))
+          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
+          (raise-syntax-error functionname 
+                              (format "~a operator expected an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
+                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
 
 ; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-node-op stx)
@@ -222,9 +236,9 @@
 
              ; Perform intexpr->expr and expr->intexpr coercion if needed:             
              (define args (cond [(equal? node/expr? childtype)
-                                 (map intexpr->expr/maybe raw-args)]
+                                 (map (lambda (x) (intexpr->expr/maybe x #:op 'id #:info info)) raw-args)]
                                 [(equal? node/int? childtype)
-                                 (map expr->intexpr/maybe raw-args)]
+                                 (map (lambda (x) (expr->intexpr/maybe x #:op 'id #:info info)) raw-args)]
                                 [else raw-args]))
              
              (check-and-output args key ast-checker-hash info)
@@ -562,8 +576,10 @@
       (raise-argument-error 'set "expr?" e))
     (unless (equal? (node/expr-arity e) 1)
       (raise-argument-error 'set "decl of arity 1" e)))
-  (define int-expr (cond [(node/expr? raw-int-expr) (expr->intexpr/maybe raw-int-expr)]
-                         [else raw-int-expr]))
+  (define int-expr (cond [(node/expr? raw-int-expr) 
+                          (expr->intexpr/maybe raw-int-expr #:op 'sum #:info node-info)]
+                         [else 
+                          raw-int-expr]))
   (unless (node/int? int-expr)
     (raise-argument-error 'set "int-expr?" int-expr))
   (node/int/sum-quant node-info decls int-expr))
