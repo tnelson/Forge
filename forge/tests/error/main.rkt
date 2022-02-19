@@ -35,6 +35,7 @@
     (list "set.frg" #rx"Froglet")
     (list "int-minus.frg" #rx"Froglet")
     (list "set-singleton-equal.frg" #rx"singleton")
+    (list "all_in_comprehension.frg" #rx"expected to be given")
   ))
 
 ;; -----------------------------------------------------------------------------

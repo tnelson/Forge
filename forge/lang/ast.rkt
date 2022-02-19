@@ -178,7 +178,7 @@
     (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node info)))
 
 (define/contract (intexpr->expr/maybe a-node)
-  (@-> (or/c node? integer?) node/expr?)  
+  (@-> (or/c node/int? node/expr? integer?) node/expr?)  
   (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
         [(integer? a-node) (intexpr->expr/maybe (int a-node))]
         [else a-node]))
@@ -754,9 +754,18 @@
    (define hash-proc  (make-robust-node-hash-syntax node/formula/multiplicity 0))
    (define hash2-proc (make-robust-node-hash-syntax node/formula/multiplicity 3))])
 
+(define (node-type n) 
+  (cond [(node/expr? n) "expression"]
+        [(node/int? n) "integer expression"]
+        [(node/formula? n) "formula"]
+        [else "unknown type"]))
+
 (define (multiplicity-formula info mult expr)
   (unless (node/expr? expr)
-    (raise-argument-error mult "expr?" expr))
+    (define loc (nodeinfo-loc info))
+    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
+    (raise-syntax-error mult (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" mult (node-type expr) locstr)
+                             (datum->syntax #f (deparse expr) (build-source-location-syntax loc)))) 
   (node/formula/multiplicity info mult expr))
 
 (define (no-pairwise-intersect vars)
@@ -1038,11 +1047,17 @@
 (define (deparse-formula-op formula parent-priority)
   (match formula
     [(? node/formula/op/&&?)
-     (let ([left-child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-AND)]
-           [right-child (deparse-formula (second (node/formula/op-children formula)) PRIORITY-AND)])
-        (if (@< PRIORITY-AND parent-priority)
-            (format "(~a && ~a)" left-child right-child)
-            (format "~a && ~a" left-child right-child)))]
+     ; Sometimes && nodes need to contain 0 or 1 arguments
+     (cond [(equal? 0 (length (node/formula/op-children formula)))
+            "true"]
+           [(equal? 1 (length (node/formula/op-children formula)))
+            (format "~a" (deparse-formula (first (node/formula/op-children formula)) PRIORITY-AND))]
+           [else 
+            (let ([left-child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-AND)]
+                  [right-child (deparse-formula (second (node/formula/op-children formula)) PRIORITY-AND)])
+              (if (@< PRIORITY-AND parent-priority)
+                (format "(~a && ~a)" left-child right-child)
+                (format "~a && ~a" left-child right-child)))])]
     [(? node/formula/op/||?)
      (let ([left-child (deparse-formula (first (node/formula/op-children formula)) PRIORITY-OR)]
            [right-child (deparse-formula (second (node/formula/op-children formula)) PRIORITY-OR)])

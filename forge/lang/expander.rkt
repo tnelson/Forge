@@ -750,10 +750,11 @@
   (cond [(empty? xs) 
          ; {} always means the formula true
          true]
+         ; Body of a helper function
         [(and (equal? 1 (length xs)) (node/expr? (first xs)))
          (first xs)]
         [(node/formula? (first xs))
-         (&& xs)]
+         (&& xs)]         
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
          (first xs)]         
         [else 
@@ -957,7 +958,7 @@
 
   [((~literal Expr) "`" name:NameClass)
    (syntax/loc stx (atom 'name.name))]
-
+  
   [((~literal Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
    (syntax/loc stx (set (#:lang (get-check-lang))  decls.translate bob.exprs))]
 
