@@ -40,7 +40,9 @@
   ; Print version number, so students know to update
   (when (and no-version-printed-yet (@>= (get-verbosity) VERBOSITY_LOW))
     (set! no-version-printed-yet #f)
-    (printf "Forge version: ~a~n" forge-version))
+    (printf "Forge version: ~a~n" forge-version)
+    (printf "To report issues with Forge, please visit ~a~n"           
+            "https://report.forge-fm.org"))
   
   ; Do relation breaks from declarations
   (define relation-constraints 
@@ -452,14 +454,18 @@
   (define lower-bounds (make-hash))
   (define upper-bounds (make-hash))
 
+  ; If any #:one children lack tuple-based lower bounds, there is a risk of inconsistency
+  ; since those children must receive a fresh atom name to denote (and for #:one sigs, LB=UB)
   (define (fill-lower-by-bound sig)
     (define children-lowers
       (apply append (map fill-lower-by-bound (get-children run-spec sig))))
     (define curr-lower (get-bound-lower sig))
+    (when (and (not curr-lower) (Sig-one sig))
+      (raise-run-error (format "Instance block named members for an ancestor of 'one' sig ~a but no member name was given for ~a. This can result in inconsistency; please give bounds for ~a." (Sig-name sig) (Sig-name sig) (Sig-name sig))))
     (define true-lower
       (remove-duplicates
         (append children-lowers
-                (@or curr-lower (list)))))
+                (@or curr-lower (list)))))    
     (hash-set! lower-bounds sig true-lower)
     true-lower)
 
@@ -499,12 +505,12 @@
     (hash-set! upper-bounds sig (append curr-lower shared))
     (map (lambda (child) (fill-upper-no-bound child (append curr-lower shared)))
          (get-children run-spec sig)))
-
+  
   (define sig-atoms (list))
   (for ([root (get-top-level-sigs run-spec)]
         #:unless (equal? (Sig-name root) 'Int))
     (if (get-bound-upper root) ; Do we already have a tuple-based upper bound?
-        (let ()
+        (let ()           
           (fill-lower-by-bound root)
           (fill-upper-with-bound root))           
         (let ()
@@ -545,7 +551,12 @@
              [upper
               (cond [(Sig-one sig) lower]
                     [else (map list (hash-ref upper-bounds sig))])])
+        ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                    
         (values name (bound rel lower upper)))))
+
+;; Issue: one sig will overwrite with lower bound, but looking like that's empty if there's 
+;;   an inst block that doesnt define it. Need to make that connection between default and provided.
+;;   TODO  
 
   (values bounds-hash all-atoms))
 

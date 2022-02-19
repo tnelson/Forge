@@ -37,6 +37,7 @@
     (list "set-singleton-equal.frg" #rx"singleton")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
+    (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
   ))
 
 ;; -----------------------------------------------------------------------------
