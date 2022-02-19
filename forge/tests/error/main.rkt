@@ -58,7 +58,8 @@
   (parameterize ([current-namespace (make-base-empty-namespace)]
                  [current-directory here])
     (let* ([root-module `(file ,(path->string (build-path here test-name)))])
-      (dynamic-require root-module #f))))
+      (dynamic-require root-module #f)
+      (dynamic-require `(submod ,root-module execs) #f))))
 
 ;; -----------------------------------------------------------------------------
 
