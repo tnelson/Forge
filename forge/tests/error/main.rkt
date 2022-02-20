@@ -38,6 +38,7 @@
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
+    (list "ill_typed_inst_columns_reversed.frg" #rx"age")
   ))
 
 ;; -----------------------------------------------------------------------------

@@ -367,7 +367,7 @@
     (get-sig-bounds run-spec raise-run-error))
 
   (define relation-to-bound ; Map<Symbol, bound>
-    (get-relation-bounds run-spec sig-to-bound))
+    (get-relation-bounds run-spec sig-to-bound raise-run-error))
 
   (values sig-to-bound relation-to-bound all-atoms))
 
@@ -551,7 +551,9 @@
              [upper
               (cond [(Sig-one sig) lower]
                     [else (map list (hash-ref upper-bounds sig))])])
-        ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                    
+        ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                            
+        (unless (subset? (list->set lower) (list->set upper))
+          (raise-run-error (format "Bounds inconsistency detected for ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)))
         (values name (bound rel lower upper)))))
 
 ;; Issue: one sig will overwrite with lower bound, but looking like that's empty if there's 
@@ -564,7 +566,7 @@
 ; Given a Run-spec, the atoms assigned to each sig, the atoms assigned to each name,
 ; and the starting relation name, assigns names to each relation
 ; and minimum and maximum sets of atoms for each relation.
-(define (get-relation-bounds run-spec sig-to-bound)
+(define (get-relation-bounds run-spec sig-to-bound raise-run-error)
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
@@ -604,6 +606,10 @@
                 (set->list (set-union bound-lower (list->set empty)))
                 (list->set empty))))      
       ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
+
+      (unless (subset? (list->set lower) (list->set upper))
+        (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)))
+      
       (values (Relation-name relation) 
               (bound relation lower upper))))  
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
