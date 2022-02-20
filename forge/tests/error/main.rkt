@@ -39,7 +39,7 @@
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
-    (list "excluded-extender-value.rkt" #rx"not a subset")
+    (list "excluded-extender-value.frg" #rx"not a subset")
   ))
 
 ;; -----------------------------------------------------------------------------
