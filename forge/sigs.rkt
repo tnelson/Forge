@@ -557,8 +557,8 @@
            (run double-check #:preds [] #:bounds [bounds ...])
            (define double-check-instance (tree:get-value (Run-result double-check)))
            (if (Sat? double-check-instance)
-               (raise (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name))
-               (raise (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+               (raise-user-error (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name))
+               (raise-user-error (format (string-append "Invalid example '~a'; the instance specified is impossible. "
                                              "This means that the specified bounds conflict with each other "
                                              "or with the sig/relation definitions.")
                               'name)))))))]))
