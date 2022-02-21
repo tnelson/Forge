@@ -5,8 +5,8 @@ sig A {
 }
 
 inst myInst {
-    A = AAA
-    r = AAA -> (1 + 2 + sing[3])
+    A = `AAA
+    r = `AAA -> (1 + 2 + sing[3])
 }
 
 run {} for myInst
