@@ -213,3 +213,19 @@
            #:sigs (list IntSet S1 S2 S3 S4 S5)
            #:relations (list ints)
            #:expect 'theorem)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; test implicit sing/sum
+
+(define Person (make-sig 'Node))
+(define age (make-relation 'age (list Person Int)))
+
+(define SomeNewborn
+  (some ([p Person]) (= (join p age) 0)))
+
+(make-test #:name 'implicit=
+           #:preds (list SomeNewborn)
+           #:scope (list (list Int 4))
+           #:sigs (list Person)
+           #:relations (list age)
+           #:expect 'sat)
