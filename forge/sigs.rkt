@@ -548,7 +548,7 @@
 
 (define-syntax (example stx)  
   (syntax-case stx () 
-    [(_ name:id pred bounds ...)
+    [(_ name pred bounds ...)
      (syntax/loc stx 
        (test name #:preds [pred]
              #:bounds [bounds ...]
