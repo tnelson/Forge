@@ -658,7 +658,7 @@
                      (read-syntax 'Evaluator pipe1)]
                     [else (raise-user-error "Could not evaluate in current language - must be surface or core.")]))
 
-            (printf "Run Atoms: ~a~n" (Run-atoms run))
+            ;(printf "Run Atoms: ~a~n" (Run-atoms run))
 
             ; Evaluate command
             (define full-command (datum->syntax #f `(let
