@@ -2,7 +2,7 @@
 
 (define collection "forge")
 
-(define version "1.3.0")
+(define version "1.3.1")
 
 (define deps '("base"
                "syntax-classes"       ; used in parser and expander
