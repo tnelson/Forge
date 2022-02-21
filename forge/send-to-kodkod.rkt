@@ -40,7 +40,9 @@
   ; Print version number, so students know to update
   (when (and no-version-printed-yet (@>= (get-verbosity) VERBOSITY_LOW))
     (set! no-version-printed-yet #f)
-    (printf "Forge version: ~a~n" forge-version))
+    (printf "Forge version: ~a~n" forge-version)
+    (printf "To report issues with Forge, please visit ~a~n"           
+            "https://report.forge-fm.org"))
   
   ; Do relation breaks from declarations
   (define relation-constraints 
@@ -365,7 +367,7 @@
     (get-sig-bounds run-spec raise-run-error))
 
   (define relation-to-bound ; Map<Symbol, bound>
-    (get-relation-bounds run-spec sig-to-bound))
+    (get-relation-bounds run-spec sig-to-bound raise-run-error))
 
   (values sig-to-bound relation-to-bound all-atoms))
 
@@ -452,14 +454,18 @@
   (define lower-bounds (make-hash))
   (define upper-bounds (make-hash))
 
+  ; If any #:one children lack tuple-based lower bounds, there is a risk of inconsistency
+  ; since those children must receive a fresh atom name to denote (and for #:one sigs, LB=UB)
   (define (fill-lower-by-bound sig)
     (define children-lowers
       (apply append (map fill-lower-by-bound (get-children run-spec sig))))
     (define curr-lower (get-bound-lower sig))
+    (when (and (not curr-lower) (Sig-one sig))
+      (raise-run-error (format "Instance block named members for an ancestor of 'one' sig ~a but no member name was given for ~a. This can result in inconsistency; please give bounds for ~a." (Sig-name sig) (Sig-name sig) (Sig-name sig))))
     (define true-lower
       (remove-duplicates
         (append children-lowers
-                (@or curr-lower (list)))))
+                (@or curr-lower (list)))))    
     (hash-set! lower-bounds sig true-lower)
     true-lower)
 
@@ -499,12 +505,12 @@
     (hash-set! upper-bounds sig (append curr-lower shared))
     (map (lambda (child) (fill-upper-no-bound child (append curr-lower shared)))
          (get-children run-spec sig)))
-
+  
   (define sig-atoms (list))
   (for ([root (get-top-level-sigs run-spec)]
         #:unless (equal? (Sig-name root) 'Int))
     (if (get-bound-upper root) ; Do we already have a tuple-based upper bound?
-        (let ()
+        (let ()           
           (fill-lower-by-bound root)
           (fill-upper-with-bound root))           
         (let ()
@@ -545,7 +551,14 @@
              [upper
               (cond [(Sig-one sig) lower]
                     [else (map list (hash-ref upper-bounds sig))])])
+        ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                            
+        (unless (subset? (list->set lower) (list->set upper))
+          (raise-run-error (format "Bounds inconsistency detected for ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)))
         (values name (bound rel lower upper)))))
+
+;; Issue: one sig will overwrite with lower bound, but looking like that's empty if there's 
+;;   an inst block that doesnt define it. Need to make that connection between default and provided.
+;;   TODO  
 
   (values bounds-hash all-atoms))
 
@@ -553,7 +566,7 @@
 ; Given a Run-spec, the atoms assigned to each sig, the atoms assigned to each name,
 ; and the starting relation name, assigns names to each relation
 ; and minimum and maximum sets of atoms for each relation.
-(define (get-relation-bounds run-spec sig-to-bound)
+(define (get-relation-bounds run-spec sig-to-bound raise-run-error)
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
@@ -593,6 +606,10 @@
                 (set->list (set-union bound-lower (list->set empty)))
                 (list->set empty))))      
       ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
+
+      (unless (subset? (list->set lower) (list->set upper))
+        (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)))
+      
       (values (Relation-name relation) 
               (bound relation lower upper))))  
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))

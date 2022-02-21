@@ -977,6 +977,7 @@ Now with functional forge, do-bind is used instead
         (card/info info r) (int 1)))
     r))
 
+
 (define-builtin (indsOf info r e)
   (join/info info r e))
 
