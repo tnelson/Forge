@@ -980,8 +980,11 @@ Now with functional forge, do-bind is used instead
         (card/info info r) (int 1)))
     r))
 
+; precondition: r isSeqOf something
 (define-builtin (seqRest info r)
-  (join/info info succ r))
+  (-/info info 
+    (join/info info succ r)
+    (->/info info (int -1) univ)))
 
 (define-builtin (indsOf info r e)
   (join/info info r e))
