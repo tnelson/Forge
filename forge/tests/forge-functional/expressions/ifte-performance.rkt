@@ -6,7 +6,7 @@
     term-size))
 ; Avoid conflict with forge/core keywords
 (require (only-in rackunit [check @check]))
-(require (only-in racket [< @<]))
+(require (only-in racket [< @<] [* @*]))
 
 (define N1 (make-sig 'N1))
 (define N2 (make-sig 'N2))
@@ -35,4 +35,4 @@
 ; (expand (some Thing))
 (@check @<
         (term-size (expand test-stx3))
-        (* 3 (term-size (expand test-stx1))))
+        (@* 3 (term-size (expand test-stx1))))

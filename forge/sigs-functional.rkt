@@ -259,7 +259,7 @@
 (define (safe-fast-eval-int-expr ie binding bitwidth)
   (-> node/int? hash? number? (listof (listof (or/c number? symbol?))))
   (define result (eval-int-expr ie binding bitwidth))
-  (de-integer-atomize result))
+  (caar (de-integer-atomize `((,result)))))
 
 
 (define/contract (do-bind bind scope bound)
@@ -300,9 +300,9 @@
      (match left
        [(ast:node/int/op/card c-info (list left-rel))
         (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
-               ; do we need the if (equal? (relation-name rel) "Int")
-               ; case that sigs.rkt has?
-               [new-scope (update-int-bound scope left-rel (Range exact exact))])
+               [new-scope (if (equal? (relation-name left-rel) "Int")
+                              (update-bitwidth scope exact)
+                              (update-int-bound scope left-rel (Range exact exact)))])
           (values new-scope bound))]
        [_ (fail)])]
 
@@ -524,7 +524,7 @@
   (define/contract default-bounds Bound?
     (let* ([bitwidth (Scope-bitwidth scope-with-ones)]
            [max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
-           [ints (map int-atom (range (- max-int) max-int))]
+           [ints (map int-atom (range (@- max-int) max-int))]
            [succs (map list (reverse (rest (reverse ints)))
                        (rest ints))])
       (Bound (hash)
@@ -875,7 +875,9 @@
   (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
   (define upper (@min (Range-upper given-scope) (Range-upper old-scope)))
   (when (@< upper lower)
-    (raise "Bound conflict."))
+    (raise (format (string-append "Bound conflict: numeric upper bound on ~a was"
+                                  " less than numeric lower bound (~a vs. ~a).") 
+                   rel upper lower)))    
 
   (define new-scope (Range lower upper))
   (define new-sig-scopes (hash-set (Scope-sig-scopes scope) name new-scope))
@@ -902,9 +904,9 @@
                          (set-intersect upper (sbound-upper old))]
                         [else (@or upper (sbound-upper old))]))))
   
-
   (unless (@or (@not upper) (subset? lower upper))
-    (raise "Bound conflict."))
+    (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
+                   rel lower upper)))
 
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))

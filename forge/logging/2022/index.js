@@ -19,9 +19,12 @@ function getConnection () {
 }
 
 exports.submit = (req, res) => {
+  //console.log("lfs2022x begin");
+  //console.log(req.body);
   res.set('Access-Control-Allow-Origin', '*');
   if (req.method === 'POST') {
     let conn = getConnection();
+    //console.log("lfs2022x conn ok");
     let data;
     if (typeof(req.body) === 'string' || req.body instanceof String) {
       try {
@@ -34,17 +37,24 @@ exports.submit = (req, res) => {
     } else {
       data = req.body;
     }
+    //console.log("lfs2022x data ok")
     const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    const post = {
+    let post;
+    if (data.payload) {
+      post = null;
+    } else {
+      post = {
       ip: ip,
       ts: data.ts,
       local_id: data.local_id,
       student: data.student,
       lang: data.lang,
       project: data.project,
-      input: (data.input.charCodeAt(0) < 130 && data.input.charCodeAt(1) < 130 && data.input.charCodeAt(2) < 130 && data.input.charCodeAt(3) < 130) ? data.input : "",
+      input: (data.input && data.input.charCodeAt(0) < 130 && data.input.charCodeAt(1) < 130 && data.input.charCodeAt(2) < 130 && data.input.charCodeAt(3) < 130) ? data.input : "",
       output: data.output
-    };
+    }};
+    //console.log("lfs2022x posting")
+    if (post) {
     conn.query("INSERT INTO " + TABLE_ID + " SET ?", post, function(err, result) {
       if (err) {
         console.error(err);
@@ -53,6 +63,8 @@ exports.submit = (req, res) => {
         return res.status(200).send({});
       }
     });
+    }
   }
 };
+
 

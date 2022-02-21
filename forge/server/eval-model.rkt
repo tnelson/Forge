@@ -279,6 +279,7 @@
         [else n]))
 
 ; Evaluates integer value expression 
+;  returns integer?
 (define (eval-int-expr int-expr bind bitwidth)
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating int-expr : ~v~n" int-expr))
