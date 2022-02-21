@@ -180,7 +180,7 @@
 (define/contract (intexpr->expr/maybe a-node #:op functionname #:info info)
   (@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
   (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
-        [(integer? a-node) (intexpr->expr/maybe (int a-node))]
+        [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
         [else 
           (define loc (nodeinfo-loc info))
