@@ -930,9 +930,12 @@ Now with functional forge, do-bind is used instead
 ;;;;;;;; Seq Library  ;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; reference:
+; https://github.com/AlloyTools/org.alloytools.alloy/blob/master/org.alloytools.alloy.core/src/main/resources/models/util/seqrel.als
+
 ; need to provide through expander
 
-(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
+(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups seqRest)
 
 (define-syntax (define-builtin stx)
   (syntax-parse stx
@@ -978,6 +981,11 @@ Now with functional forge, do-bind is used instead
         (card/info info r) (int 1)))
     r))
 
+; precondition: r isSeqOf something
+(define-builtin (seqRest info r)
+  (-/info info 
+    (join/info info succ r)
+    (->/info info (int -1) univ)))
 
 (define-builtin (indsOf info r e)
   (join/info info r e))

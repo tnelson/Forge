@@ -1330,22 +1330,22 @@
   (match expr
     [(node/int/op/add info args)
      (format "add[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args)))])
+             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
                        ([arg (cdr args)])
                 (format ", ~a" (deparse-int arg 0))))]
     [(node/int/op/subtract info args)
      (format "subtract[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args)))])
+             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
                        ([arg (cdr args)])
                 (format ", ~a" (deparse-int arg 0))))]
     [(node/int/op/multiply info args)
      (format "multiply[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args)))])
+             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
                        ([arg (cdr args)])
                 (format ", ~a" (deparse-int arg 0))))]
     [(node/int/op/divide info args)
      (format "divide[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args)))])
+             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
                        ([arg (cdr args)])
                 (format ", ~a" (deparse-int arg 0))))]
     [(node/int/op/sum info args)
