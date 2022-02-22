@@ -6,6 +6,7 @@
 (require racket/match)
 (require (for-syntax racket/match racket/syntax syntax/srcloc))
 (require (for-syntax syntax/strip-context))
+(require syntax/srcloc)
 
 ;(require forge/choose-lang-specific)
 
@@ -1007,6 +1008,9 @@ Now with functional forge, do-bind is used instead
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide reachable)
 
+(define (srcloc->string loc)
+  (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+
 ; a reachable from b through r1 + r2 + ...
 (define-syntax (reachable stx)
   (syntax-parse stx
@@ -1015,9 +1019,11 @@ Now with functional forge, do-bind is used instead
      (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
 
 (define (reachablefun loc a b r)
+  (unless (equal? 1 (node/expr-arity a)) (raise-user-error (format "First argument \"~a\" to reachable is not a singleton at loc ~a" (deparse a) (srcloc->string loc))))
+  (unless (equal? 1 (node/expr-arity b)) (raise-user-error (format "Second argument \"~a\" to reachable is not a singleton at loc ~a" (deparse b) (srcloc->string loc))))
   (in/info (nodeinfo loc 'checklangNoCheck) 
            a 
-           (join/info (nodeinfo loc 'checklangNoCheck) 
+           (join/info (nodeinfo loc 'bsl) 
                       b 
                       (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
 

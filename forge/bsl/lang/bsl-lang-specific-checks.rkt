@@ -148,13 +148,19 @@
   ;   (raise-bsl-error "Left hand side to field access must be a sig" expr-node loc))
 
 (define (check-node-expr-op-^ expr-node)
-  (void))
+  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (raise-bsl-relational-error "^" expr-node loc)))
 
 (define (check-node-expr-op-* expr-node)
-  (void))
+  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (raise-bsl-relational-error "*" expr-node loc)))
 
 (define (check-node-expr-op-~ expr-node)
-  (void))
+  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (raise-bsl-relational-error "~" expr-node loc)))
 
 (define (check-node-expr-op-sing expr-node)
   (void))
