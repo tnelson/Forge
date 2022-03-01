@@ -32,6 +32,8 @@
     (list "join-right2.frg" #rx"singleton")
     (list "join-right3.frg" #rx"singleton")
     (list "join-right4.frg" #rx"singleton")
+    (list "join-right5.frg" #rx"bsl")
+    (list "join-right5.frg" #rx"bsl")
     (list "reachable.frg" #rx"field")
     (list "reachable2.frg" #rx"First")
     (list "set.frg" #rx"Froglet")
