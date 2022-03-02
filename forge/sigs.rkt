@@ -991,7 +991,7 @@ Now with functional forge, do-bind is used instead
   (join/info info r e))
 
 (define-builtin (idxOf info r e)
-  (join/info info r e))
+  (min (join/info info r e)))
 
 (define-builtin (lastIdxOf info r e)
   (max (join/info info r e)))

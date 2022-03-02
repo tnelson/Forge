@@ -45,7 +45,7 @@
      (check-and-output formula
                        node/formula/multiplicity
                        checker-hash
-                       (checkExpression-top run-or-state expr quantvars checker-hash expr))]
+                       (checkExpression-top run-or-state expr quantvars checker-hash formula))]
     
     [(node/formula/quantified info quantifier decls subform)
      (check-and-output formula
