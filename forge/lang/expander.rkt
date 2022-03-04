@@ -829,7 +829,7 @@
     
   [((~literal Expr) (~or "!" "not") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (! expr1)))]
+     (syntax/loc stx (! (#:lang (get-check-lang)) expr1)))]
 
   [((~literal Expr) (~or "always") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
@@ -871,16 +871,16 @@
                     expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [op (datum->syntax #'op (string->symbol (syntax->datum #'op)))])
-     (syntax/loc stx (op expr1)))]
+     (syntax/loc stx (op (#:lang (get-check-lang)) expr1)))]
 
   [((~literal Expr) "#" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (card expr1)))]
+     (syntax/loc stx (card (#:lang (get-check-lang)) expr1)))]
 
   ; Semantic priming as in Electrum
   [((~literal Expr) expr1:ExprClass "'")
    (with-syntax ([expr1 (my-expand #'expr1)])
-     (syntax/loc stx (prime expr1)))]
+     (syntax/loc stx (prime (#:lang (get-check-lang)) expr1)))]
 
   [((~literal Expr) expr1:ExprClass "+" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
