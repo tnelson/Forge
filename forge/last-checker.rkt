@@ -45,7 +45,7 @@
      (check-and-output formula
                        node/formula/multiplicity
                        checker-hash
-                       (checkExpression-top run-or-state expr quantvars checker-hash expr))]
+                       (checkExpression-top run-or-state expr quantvars checker-hash formula))]
     
     [(node/formula/quantified info quantifier decls subform)
      (check-and-output formula
@@ -417,10 +417,12 @@
                               [join-result (check-join (map car child-values))])
                          (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
                            (when (empty? join-result)
-                           (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
-                               ((hash-ref checker-hash 'empty-join) expr)
-                               (raise-syntax-error #f (format "join always results in an empty relation")
-                                                 (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
+                            (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
+                                ((hash-ref checker-hash 'empty-join) expr)
+                                (raise-syntax-error #f (format "join always results in an empty relation")
+                                                  (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
+                           (when (and (not (cdr (first child-values))) (eq? (nodeinfo-lang (node-info expr)) 'bsl))
+                                ((hash-ref checker-hash 'relation-join) expr args))
                            (cons join-result
                                    (and (cdr (first child-values)) (not (empty? join-result))(equal? 1 (length (first join-result)))))))]
     

@@ -32,6 +32,10 @@
     (list "join-right2.frg" #rx"singleton")
     (list "join-right3.frg" #rx"singleton")
     (list "join-right4.frg" #rx"singleton")
+    (list "join-right5.frg" #rx"bsl")
+    (list "join-right5.frg" #rx"bsl")
+    (list "reachable.frg" #rx"field")
+    (list "reachable2.frg" #rx"First")
     (list "set.frg" #rx"Froglet")
     (list "int-minus.frg" #rx"Froglet")
     (list "set-singleton-equal.frg" #rx"singleton")
@@ -40,6 +44,7 @@
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "excluded-extender-value.frg" #rx"not a subset")
+    (list "example_impossible.frg" #rx"impossible")
   ))
 
 ;; -----------------------------------------------------------------------------

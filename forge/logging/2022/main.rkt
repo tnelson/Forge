@@ -132,8 +132,8 @@
   (with-handlers ([exn:fail? (lambda (x) #false)])
     (let* ([fn (writable-config-file "lfs2022.rktd" #:program "forge")])
       (unless (file-exists? fn)
-        (file-or-directory-permissions (path-only fn) #o777)
         (make-parent-directory* fn)
+        (file-or-directory-permissions (path-only fn) #o777)
         (with-output-to-file fn void))
       fn)))
 

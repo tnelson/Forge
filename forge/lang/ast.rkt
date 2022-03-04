@@ -1,6 +1,6 @@
 #lang racket
 
-(require (for-syntax racket/syntax syntax/srcloc)
+(require (for-syntax racket/syntax syntax/srcloc syntax/parse)
          syntax/srcloc (prefix-in @ racket) (prefix-in $ racket))
 
 (provide (except-out (all-defined-out) next-name
@@ -168,8 +168,9 @@
        (ite/info-helper info a b c))]))
 
 (define-syntax (ite stx)
-  (syntax-case stx ()
-    [(_ a b c) (quasisyntax/loc stx (ite/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b c))]))
+  (syntax-parse stx
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b c) 
+      (quasisyntax/loc stx (ite/info (nodeinfo #,(build-source-location stx) check-lang) a b c))]))
 
 (define (empty-check node) (lambda ()(void)))
 
@@ -797,14 +798,14 @@
   (quantified-formula node-info 'all decls formula))
 
 (define-syntax (all stx)
-  (syntax-case stx ()
-    [(_ #:disj ([v0 e0] ...) pred)
-     #'(all ([v0 e0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
-    [(_ ([v0 e0] ...) pred)
+  (syntax-parse stx
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([v0 e0] ...) pred)
+     #'(all (#:lang check-lang) ([v0 e0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([v0 e0] ...) pred)
      ; need a with syntax???? 
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
-         (quantified-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'all (list (cons v0 e0) ...) pred)))]))
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
+         (quantified-formula (nodeinfo #,(build-source-location stx) check-lang) 'all (list (cons v0 e0) ...) pred)))]))
 
 (define (some-quant/func decls formula #:info [node-info empty-nodeinfo])
   (quantified-formula node-info 'some decls formula))
@@ -813,18 +814,18 @@
   (multiplicity-formula node-info 'some expr))
 
 (define-syntax (some stx)
-  (syntax-case stx ()
-    [(_ () pred) #'pred] ; ignore quantifier over no variables
-    [(_ #:disj () pred) #'pred]
-    [(_ ([v0 e0] ...) pred)
+  (syntax-parse stx 
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) () pred) #'pred] ; ignore quantifier over no variables
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj () pred) #'pred]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
-         (quantified-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'some (list (cons v0 e0) ...) pred)))]
-    [(_ #:disj ([v0 e0] ...) pred)
-     #'(some ([v0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
-    [(_ expr)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
+         (quantified-formula (nodeinfo #,(build-source-location stx) check-lang) 'some (list (cons v0 e0) ...) pred)))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([v0 e0] ...) pred)
+     #'(some (#:lang check-lang) ([v0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
      (quasisyntax/loc stx
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'some expr))]))
+       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'some expr))]))
 
 (define (no-quant/func decls formula #:info [node-info empty-nodeinfo])
   (quantified-formula node-info 'no decls formula))
@@ -833,16 +834,16 @@
   (multiplicity-formula node-info 'no expr))
 
 (define-syntax (no stx)
-  (syntax-case stx ()
-    [(_ #:disj ([v0 e0] ...) pred)
-     #'(! (some #:disj ([v0 e0] ...) pred))]
-    [(_ ([v0 e0] ...) pred)
+  (syntax-parse stx
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([v0 e0] ...) pred)
+     #'(! (some (#:lang check-lang) #:disj ([v0 e0] ...) pred))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
-         (! (quantified-formula (nodeinfo #,(build-source-location stx) 'checklang) 'some (list (cons v0 e0) ...) pred))))]
-    [(_ expr)
+       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
+         (! (quantified-formula (nodeinfo #,(build-source-location stx) check-lang) 'some (list (cons v0 e0) ...) pred))))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
      (quasisyntax/loc stx
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'no expr))]))
+       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'no expr))]))
 
 (define (one/func expr #:info [node-info empty-nodeinfo])
   (multiplicity-formula node-info 'one expr))
@@ -851,20 +852,20 @@
   (one/func #:info node-info (set/func #:info node-info decls formula)))
 
 (define-syntax (one stx)
-  (syntax-case stx ()
-    [(_ #:disj ([x1 r1] ...) pred)
+  (syntax-parse stx
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([x1 r1] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'one (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
-    [(_ ([x1 r1] ...) pred)
+       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'one (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'one (set ([x1 r1] ...) pred)))]
-    [(_ expr)
+       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'one (set ([x1 r1] ...) pred)))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
      (quasisyntax/loc stx
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'one expr))]))
+       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'one expr))]))
 
 (define (lone/func expr #:info [node-info empty-nodeinfo])
   (multiplicity-formula node-info 'lone expr))
@@ -873,30 +874,30 @@
   (lone/func #:info node-info (set/func #:info node-info decls formula)))
 
 (define-syntax (lone stx)
-  (syntax-case stx ()
-    [(_ #:disj ([x1 r1] ...) pred)
+  (syntax-parse stx
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([x1 r1] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'lone (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
-    [(_ ([x1 r1] ...) pred)
+       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'lone (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'lone (set ([x1 r1] ...) pred)))]
-    [(_ expr)
+       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'lone (set ([x1 r1] ...) pred)))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
      (quasisyntax/loc stx
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'lone expr))]))
+       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'lone expr))]))
 
 ; sum-quant/func defined above
 
 ; sum quantifier macro
 (define-syntax (sum-quant stx)
-  (syntax-case stx ()
-    [(_ ([x1 r1] ...) int-expr)
+  (syntax-parse stx
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (node/expr-arity r1) (gensym (format "~a_sum" 'x1)) 'x1)] ...)
-         (sum-quant-expr (nodeinfo #,(build-source-location stx) 'checklangplaceholder) (list (cons x1 r1) ...) int-expr)))]))
+       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity r1) (gensym (format "~a_sum" 'x1)) 'x1)] ...)
+         (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang) (list (cons x1 r1) ...) int-expr)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1330,22 +1331,22 @@
   (match expr
     [(node/int/op/add info args)
      (format "add[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args)))])
+             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
                        ([arg (cdr args)])
                 (format ", ~a" (deparse-int arg 0))))]
     [(node/int/op/subtract info args)
      (format "subtract[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args)))])
+             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
                        ([arg (cdr args)])
                 (format ", ~a" (deparse-int arg 0))))]
     [(node/int/op/multiply info args)
      (format "multiply[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args)))])
+             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
                        ([arg (cdr args)])
                 (format ", ~a" (deparse-int arg 0))))]
     [(node/int/op/divide info args)
      (format "divide[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args)))])
+             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
                        ([arg (cdr args)])
                 (format ", ~a" (deparse-int arg 0))))]
     [(node/int/op/sum info args)

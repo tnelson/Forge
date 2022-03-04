@@ -6,6 +6,7 @@
 (require racket/match)
 (require (for-syntax racket/match racket/syntax syntax/srcloc))
 (require (for-syntax syntax/strip-context))
+(require syntax/srcloc)
 
 ;(require forge/choose-lang-specific)
 
@@ -557,8 +558,8 @@
            (run double-check #:preds [] #:bounds [bounds ...])
            (define double-check-instance (tree:get-value (Run-result double-check)))
            (if (Sat? double-check-instance)
-               (raise (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name))
-               (raise (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+               (raise-user-error (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name))
+               (raise-user-error (format (string-append "Invalid example '~a'; the instance specified is impossible. "
                                              "This means that the specified bounds conflict with each other "
                                              "or with the sig/relation definitions.")
                               'name)))))))]))
@@ -929,9 +930,12 @@ Now with functional forge, do-bind is used instead
 ;;;;;;;; Seq Library  ;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; reference:
+; https://github.com/AlloyTools/org.alloytools.alloy/blob/master/org.alloytools.alloy.core/src/main/resources/models/util/seqrel.als
+
 ; need to provide through expander
 
-(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups)
+(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups seqRest)
 
 (define-syntax (define-builtin stx)
   (syntax-parse stx
@@ -977,12 +981,17 @@ Now with functional forge, do-bind is used instead
         (card/info info r) (int 1)))
     r))
 
+; precondition: r isSeqOf something
+(define-builtin (seqRest info r)
+  (-/info info 
+    (join/info info succ r)
+    (->/info info (int -1) univ)))
 
 (define-builtin (indsOf info r e)
   (join/info info r e))
 
 (define-builtin (idxOf info r e)
-  (join/info info r e))
+  (min (join/info info r e)))
 
 (define-builtin (lastIdxOf info r e)
   (max (join/info info r e)))
@@ -1007,6 +1016,9 @@ Now with functional forge, do-bind is used instead
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide reachable)
 
+(define (srcloc->string loc)
+  (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+
 ; a reachable from b through r1 + r2 + ...
 (define-syntax (reachable stx)
   (syntax-parse stx
@@ -1015,9 +1027,11 @@ Now with functional forge, do-bind is used instead
      (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
 
 (define (reachablefun loc a b r)
+  (unless (equal? 1 (node/expr-arity a)) (raise-user-error (format "First argument \"~a\" to reachable is not a singleton at loc ~a" (deparse a) (srcloc->string loc))))
+  (unless (equal? 1 (node/expr-arity b)) (raise-user-error (format "Second argument \"~a\" to reachable is not a singleton at loc ~a" (deparse b) (srcloc->string loc))))
   (in/info (nodeinfo loc 'checklangNoCheck) 
            a 
-           (join/info (nodeinfo loc 'checklangNoCheck) 
+           (join/info (nodeinfo loc 'bsl) 
                       b 
                       (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
 

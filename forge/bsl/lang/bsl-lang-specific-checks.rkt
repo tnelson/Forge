@@ -148,13 +148,19 @@
   ;   (raise-bsl-error "Left hand side to field access must be a sig" expr-node loc))
 
 (define (check-node-expr-op-^ expr-node)
-  (void))
+  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (raise-bsl-relational-error "^" expr-node loc)))
 
 (define (check-node-expr-op-* expr-node)
-  (void))
+  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (raise-bsl-relational-error "*" expr-node loc)))
 
 (define (check-node-expr-op-~ expr-node)
-  (void))
+  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (raise-bsl-relational-error "~" expr-node loc)))
 
 (define (check-node-expr-op-sing expr-node)
   (void))
@@ -163,8 +169,13 @@
   (define loc (nodeinfo-loc (node-info expr-node)))
   (raise-bsl-error "Sig does not have such a field" expr-node loc))
 
+(define (err-relation-join expr-node args)
+  (define loc (nodeinfo-loc (node-info expr-node)))
+  (raise-bsl-error (format "Field acess on \"~a\", which is not a singleton" (deparse (first args))) expr-node loc))
+
 (define bsl-checker-hash (make-hash))
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
+(hash-set! bsl-checker-hash 'relation-join err-relation-join)
 (hash-set! bsl-checker-hash node/formula/constant check-node-formula-constant)
 (hash-set! bsl-checker-hash node/formula/op check-node-formula-op)
 (hash-set! bsl-checker-hash node/formula/multiplicity check-node-formula-multiplicity)
