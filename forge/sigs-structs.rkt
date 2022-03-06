@@ -108,7 +108,10 @@
   ) #:transparent)
 
 ; If adding new option fields, remember to update all of:
-;  --default value -- state-set-option and -- get-option
+;  -- DEFAULT_OPTIONS
+;  -- symbol->proc
+;  -- option-types
+;  -- state-set-option (in sigs.rkt)
 (struct/contract Options (
   [eval-language symbol?]
   [solver symbol?]
@@ -124,6 +127,7 @@
   [skolem_depth nonnegative-integer?]
   [local_necessity symbol?]
   [run_sterling symbol?]
+  [sterling_port nonnegative-integer?]
   ) #:transparent)
 
 (struct/contract State (
@@ -177,7 +181,7 @@
 
 (define DEFAULT-BITWIDTH 4)
 (define DEFAULT-SIG-SCOPE (Range 0 4))
-(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off 'on))
+(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off 'on 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -211,7 +215,8 @@
         'core_minimization Options-core_minimization
         'skolem_depth Options-skolem_depth
         'local_necessity Options-local_necessity
-        'run_sterling Options-run_sterling))
+        'run_sterling Options-run_sterling
+        'sterling_port Options-sterling_port))
 
 (define option-types
   (hash 'eval-language symbol?
@@ -228,7 +233,8 @@
         'core_minimization symbol?
         'skolem_depth exact-integer?
         'local_necessity symbol?
-        'run_sterling symbol?))
+        'run_sterling symbol?
+        'sterling_port exact-nonnegative-integer?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;  Initial State  ;;;;;;;

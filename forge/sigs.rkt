@@ -251,7 +251,10 @@
                     [skolem_depth value])]
       [(equal? option 'run_sterling)
        (struct-copy Options options
-                    [run_sterling value])]))
+                    [run_sterling value])]
+      [(equal? option 'sterling_port)
+       (struct-copy Options options
+                    [sterling_port value])]))
 
   (struct-copy State state
                [options new-options]))
