@@ -10,4 +10,4 @@ pred leftjoin {
     some A.field
 }
 
-run {leftjoin}
+test expect {{leftjoin} is sat}

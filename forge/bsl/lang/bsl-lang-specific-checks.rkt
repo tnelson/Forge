@@ -8,10 +8,28 @@
 (define (raise-bsl-error message node loc)
   (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message (deparse node) (srcloc->string loc))))
 
+(define (raise-bsl-error-deparsed-str message deparsed loc)
+  (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message deparsed (srcloc->string loc))))
+
 (define (raise-bsl-relational-error rel-str node loc [optional-str #f])  
-  (raise-bsl-error (format "Froglet didn't recognize the ~a operator~a"
-                           rel-str
-                           (if optional-str (format "; ~a" optional-str) "")) node loc))
+  (raise-bsl-error 
+          (format "Froglet didn't recognize the ~a operator~a"
+            rel-str
+            (if optional-str (format "; ~a" optional-str) "")) 
+          node loc))
+
+(define (raise-bsl-relational-error-expr-args rel-str args loc [optional-str #f])  
+  (raise-bsl-error-deparsed-str 
+          (format "Froglet didn't recognize the ~a operator~a"
+            rel-str
+            (if optional-str (format "; ~a" optional-str) "")) 
+          (cond 
+          [(equal? (length args) 1)
+              (format "(~a~a)" rel-str (deparse (first args)))]
+          [(equal? (length args) 2)
+              (format "(~a ~a ~a)" (deparse (first args)) rel-str (deparse (second args)))]
+          [else (string-join (map deparse args) " ")])
+          loc))
 
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
@@ -242,13 +260,41 @@
 
   ;NOTE: make better error message 
 
-#;(define (check-args-node-expr-op--> expr-args info)
-  (when (eq? (nodeinfo-lang info) 'bsl)
-    (define left-hand-side (first expr-args))
-    (define loc (nodeinfo-loc (node-info left-hand-side)))
-    (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-    (raise-bsl-error (format "Direct use of -> is not allowed in Froglet: ~a -> ~a at loc: ~a" (deparse (first expr-args)) (deparse (first (rest expr-args))) locstr))))
+(define (check-args-node-expr-op--> expr-args info)
+    (when (eq? (nodeinfo-lang info) 'bsl)
+      (define loc (nodeinfo-loc info))
+      (raise-bsl-error-deparsed-str "Direct use of -> is not allowed in Froglet" (format "(~a->~a)" (deparse (first expr-args)) (deparse (second expr-args))) loc)))
 
+(define (check-args-node-expr-op-+ expr-args info)
+  (when (eq? (nodeinfo-lang info) 'bsl)
+      (define loc (nodeinfo-loc info))
+      (raise-bsl-relational-error-expr-args "+" expr-args loc "You may have meant to use the `add` predicate instead.")))
+
+
+(define (check-args-node-expr-op-- expr-args info)
+  (when (eq? (nodeinfo-lang info) 'bsl)
+      (define loc (nodeinfo-loc info))
+      (raise-bsl-relational-error-expr-args "-" expr-args loc "You may have meant to use the `subtract` predicate instead.")))
+
+(define (check-args-node-expr-op-& expr-args info)
+  (when (eq? (nodeinfo-lang info) 'bsl)
+      (define loc (nodeinfo-loc info))
+      (raise-bsl-relational-error-expr-args "&" expr-args loc)))
+
+(define (check-args-node-expr-op-^ expr-args info)
+  (when (eq? (nodeinfo-lang info) 'bsl)
+      (define loc (nodeinfo-loc info))
+      (raise-bsl-relational-error-expr-args "^" expr-args loc)))
+
+(define (check-args-node-expr-op-* expr-args info)
+  (when (eq? (nodeinfo-lang info) 'bsl)
+      (define loc (nodeinfo-loc info))
+      (raise-bsl-relational-error-expr-args "*" expr-args loc)))
+
+(define (check-args-node-expr-op-~ expr-args info)
+  (when (eq? (nodeinfo-lang info) 'bsl)
+      (define loc (nodeinfo-loc info))
+      (raise-bsl-relational-error-expr-args "~" expr-args loc)))
 
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
@@ -260,7 +306,13 @@
 (define bsl-ast-checker-hash (make-hash))
 (hash-set! bsl-ast-checker-hash "check-args" bsl-ast-arg-checks)
 (hash-set! bsl-ast-checker-hash 'field-decl bsl-field-decl-func)
-;(hash-set! bsl-ast-checker-hash node/expr/op/-> check-args-node-expr-op-->)
+(hash-set! bsl-ast-checker-hash node/expr/op/-> check-args-node-expr-op-->)
+(hash-set! bsl-ast-checker-hash node/expr/op/+ check-args-node-expr-op-+)
+(hash-set! bsl-ast-checker-hash node/expr/op/- check-args-node-expr-op--)
+(hash-set! bsl-ast-checker-hash node/expr/op/& check-args-node-expr-op-&)
+(hash-set! bsl-ast-checker-hash node/expr/op/^ check-args-node-expr-op-^)
+(hash-set! bsl-ast-checker-hash node/expr/op/* check-args-node-expr-op-*)
+(hash-set! bsl-ast-checker-hash node/expr/op/~ check-args-node-expr-op-~)
 ;(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
 
 

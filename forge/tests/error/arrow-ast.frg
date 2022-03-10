@@ -6,8 +6,10 @@ sig Node {
 
 one sig A, B extends Node {}
 
-pred setSingle {
-    A.next = Node
+pred arrow {
+    A->next in next
 }
 
-test expect {{setSingle} is sat}
+test expect {
+    {arrow} is sat
+}

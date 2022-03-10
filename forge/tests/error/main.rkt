@@ -25,6 +25,13 @@
   (list
     (list "hello.frg" #rx"parsing error")
     (list "arrow.frg" #rx"Direct use of ->")
+    (list "arrow.frg" #rx"Direct use of ->")
+    (list "plus-ast.frg" #rx"recognize")
+    (list "minus-ast.frg" #rx"recognize")
+    (list "intersect-ast.frg" #rx"recognize")
+    (list "transpose-ast.frg" #rx"recognize")
+    (list "star-ast.frg" #rx"recognize")
+    (list "transitive-closure-ast.frg" #rx"recognize")
     (list "join.frg" #rx"singleton")
     (list "join2.frg" #rx"singleton")
     (list "join3.frg" #rx"singleton")

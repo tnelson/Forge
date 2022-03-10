@@ -11,4 +11,6 @@ pred intMinus {
    some  (A.val - B.val)
 }
 
-run {intMinus}
+test expect{
+    {intMinus} is sat
+}

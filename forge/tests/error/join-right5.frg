@@ -11,4 +11,4 @@ pred rightjoin {
     reachable[A, A.field.Node, next]
 }
 
-run {rightjoin}
+test expect{ {rightjoin} is sat}

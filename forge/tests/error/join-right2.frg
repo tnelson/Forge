@@ -11,4 +11,6 @@ pred joinRight {
     some A.field.Node
 }
 
-run {joinRight}
+test expect{
+     {joinRight} is sat
+}

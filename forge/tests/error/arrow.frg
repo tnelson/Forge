@@ -10,4 +10,6 @@ pred arrow {
     A->B in next
 }
 
-run {arrow}
+test expect {
+    {arrow} is sat
+}
