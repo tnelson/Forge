@@ -30,6 +30,7 @@
     (list "minus-ast.frg" #rx"recognize")
     (list "intersect-ast.frg" #rx"recognize")
     (list "transpose-ast.frg" #rx"recognize")
+    (list "transpose.frg" #rx"recognize")
     (list "star-ast.frg" #rx"recognize")
     (list "transitive-closure-ast.frg" #rx"recognize")
     (list "join.frg" #rx"singleton")

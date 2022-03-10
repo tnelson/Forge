@@ -13,7 +13,7 @@
 
 (define (raise-bsl-relational-error rel-str node loc [optional-str #f])  
   (raise-bsl-error 
-          (format "Froglet didn't recognize the ~a operator~a"
+          (format "Froglet didn't recognize the ~a operator ~a"
             rel-str
             (if optional-str (format "; ~a" optional-str) "")) 
           node loc))
@@ -178,7 +178,7 @@
 (define (check-node-expr-op-~ expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "~" expr-node loc)))
+    (raise-bsl-relational-error "~~" expr-node loc)))
 
 (define (check-node-expr-op-sing expr-node)
   (void))
@@ -294,7 +294,7 @@
 (define (check-args-node-expr-op-~ expr-args info)
   (when (eq? (nodeinfo-lang info) 'bsl)
       (define loc (nodeinfo-loc info))
-      (raise-bsl-relational-error-expr-args "~" expr-args loc)))
+      (raise-bsl-relational-error-expr-args "~~" expr-args loc)))
 
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)

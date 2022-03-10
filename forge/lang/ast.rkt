@@ -1277,8 +1277,8 @@
     [(? node/expr/op/~?)
      (let ([child (deparse-expr (first (node/expr/op-children expr)) PRIORITY-TILDE)])
         (if (@< PRIORITY-TILDE parent-priority)
-            (format "(~a ~a)" '~ child)
-            (format "~a ~a" '~ child)))]
+            (format "(~a ~a)" '~~ child)
+            (format "~a ~a" '~~ child)))]
     [(? node/expr/op/sing?)
      (let ([child (deparse-int (first (node/expr/op-children expr)) 0)])
             (format "sing[~a]" child))]))
