@@ -1034,7 +1034,7 @@ Now with functional forge, do-bind is used instead
   (unless (equal? 1 (node/expr-arity b)) (raise-user-error (format "Second argument \"~a\" to reachable is not a singleton at loc ~a" (deparse b) (srcloc->string loc))))
   (in/info (nodeinfo loc 'checklangNoCheck) 
            a 
-           (join/info (nodeinfo loc 'bsl) 
+           (join/info (nodeinfo loc (get-check-lang)) 
                       b 
                       (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
 
