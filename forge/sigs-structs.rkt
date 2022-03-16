@@ -123,11 +123,12 @@
   [max_tracelength nonnegative-integer?]
   [problem_type symbol?]
   [target_mode symbol?]
-  [core_minimization symbol?]
-  [skolem_depth nonnegative-integer?]
+  [core_minimization symbol?]  
+  [skolem_depth integer?] ; allow -1 (disable Skolemization entirely)
   [local_necessity symbol?]
   [run_sterling symbol?]
   [sterling_port nonnegative-integer?]
+  [engine_verbosity nonnegative-integer?]
   ) #:transparent)
 
 (struct/contract State (
@@ -181,7 +182,7 @@
 
 (define DEFAULT-BITWIDTH 4)
 (define DEFAULT-SIG-SCOPE (Range 0 4))
-(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off 'on 0))
+(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off 'on 0 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -216,7 +217,8 @@
         'skolem_depth Options-skolem_depth
         'local_necessity Options-local_necessity
         'run_sterling Options-run_sterling
-        'sterling_port Options-sterling_port))
+        'sterling_port Options-sterling_port
+        'engine_verbosity Options-engine_verbosity))
 
 (define option-types
   (hash 'eval-language symbol?
@@ -234,7 +236,8 @@
         'skolem_depth exact-integer?
         'local_necessity symbol?
         'run_sterling symbol?
-        'sterling_port exact-nonnegative-integer?))
+        'sterling_port exact-nonnegative-integer?
+        'engine_verbosity exact-nonnegative-integer?))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;  Initial State  ;;;;;;;

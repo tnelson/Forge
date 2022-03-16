@@ -254,13 +254,13 @@
                     [run_sterling value])]
       [(equal? option 'sterling_port)
        (struct-copy Options options
-                    [sterling_port value])]))
+                    [sterling_port value])]
+      [(equal? option 'engine_verbosity)
+       (struct-copy Options options
+                    [engine_verbosity value])]))
 
   (struct-copy State state
                [options new-options]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

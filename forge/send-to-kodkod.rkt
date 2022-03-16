@@ -160,9 +160,10 @@
   ; Note that target mode is passed separately, nearer to the (solve) invocation
   (define bitwidth (get-bitwidth run-spec)) 
   (pardinus-print
-    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity 7 :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
                                bitwidth 
                                solverspec
+                               (get-option run-spec 'engine_verbosity) ; see the Wiki for levels
                                (get-option run-spec 'skolem_depth)
                                (get-option run-spec 'sb) 
                                (get-option run-spec 'coregranularity)
