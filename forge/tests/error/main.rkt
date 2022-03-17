@@ -54,8 +54,8 @@
     (list "excluded-extender-value.frg" #rx"not a subset")
     (list "example_impossible.frg" #rx"impossible")
     (list "failed_theorem.frg" #rx"failed.")
-    (list "failed_unsat.frg" #rx"failed.")
-    (list "failed_sat.frg" #rx"failed.")
+    (list "failed_unsat.frg" #rx"Failed test")
+    (list "failed_sat.frg" #rx"Failed test")
   ))
 
 ;; -----------------------------------------------------------------------------

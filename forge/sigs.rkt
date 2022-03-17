@@ -533,7 +533,7 @@
              (when (@> (get-verbosity) 0)
                (printf "Unexpected result found, with statistics and metadata:~n")
                (pretty-print first-instance))
-             (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
+             (raise-user-error (format "Failed test ~a. Expected ~a, got ~a.~a"
                             'name 'expected (if (Sat? first-instance) 'sat 'unsat)
                             (if (Sat? first-instance)
                                 (format " Found instance ~a" first-instance)
@@ -549,7 +549,7 @@
              (when (@> (get-verbosity) 0)
                (printf "Instance found, with statistics and metadata:~n")
                (pretty-print first-instance))
-             (raise (format "Theorem ~a failed. Found instance:~n~a"
+             (raise-user-error (format "Theorem ~a failed. Found instance:~n~a"
                             'name first-instance)))
            (close-run name)]
 
