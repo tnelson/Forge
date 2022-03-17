@@ -530,8 +530,9 @@
            (run name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
-             (printf "Instance found, with statistics and metadata:~n")
-             (pretty-print first-instance)
+             (when (@> (get-verbosity) 0)
+               (printf "Unexpected result found, with statistics and metadata:~n")
+               (pretty-print first-instance))
              (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
                             'name 'expected (if (Sat? first-instance) 'sat 'unsat)
                             (if (Sat? first-instance)
@@ -545,8 +546,9 @@
            (check name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (when (Sat? first-instance)
-             (printf "Instance found, with statistics and metadata:~n")
-             (pretty-print first-instance)             
+             (when (@> (get-verbosity) 0)
+               (printf "Instance found, with statistics and metadata:~n")
+               (pretty-print first-instance))
              (raise (format "Theorem ~a failed. Found instance:~n~a"
                             'name first-instance)))
            (close-run name)]

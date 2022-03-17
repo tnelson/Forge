@@ -53,6 +53,9 @@
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "excluded-extender-value.frg" #rx"not a subset")
     (list "example_impossible.frg" #rx"impossible")
+    (list "failed_theorem.frg" #rx"failed.")
+    (list "failed_unsat.frg" #rx"failed.")
+    (list "failed_sat.frg" #rx"failed.")
   ))
 
 ;; -----------------------------------------------------------------------------
