@@ -10,4 +10,6 @@ pred joinRight {
     some next.B
 }
 
-run {joinRight}
+test expect{
+     {joinRight} is sat
+}

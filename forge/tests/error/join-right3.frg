@@ -10,5 +10,5 @@ one sig A, B extends Node {}
 pred joinRight {
     some A.field.A
 }
-
-run {joinRight}
+ 
+test expect {{joinRight} is sat}

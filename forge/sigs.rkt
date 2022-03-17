@@ -251,13 +251,16 @@
                     [skolem_depth value])]
       [(equal? option 'run_sterling)
        (struct-copy Options options
-                    [run_sterling value])]))
+                    [run_sterling value])]
+      [(equal? option 'sterling_port)
+       (struct-copy Options options
+                    [sterling_port value])]
+      [(equal? option 'engine_verbosity)
+       (struct-copy Options options
+                    [engine_verbosity value])]))
 
   (struct-copy State state
                [options new-options]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -527,7 +530,10 @@
            (run name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
-             (raise (format "Failed test ~a. Expected ~a, got ~a.~a"
+             (when (@> (get-verbosity) 0)
+               (printf "Unexpected result found, with statistics and metadata:~n")
+               (pretty-print first-instance))
+             (raise-user-error (format "Failed test ~a. Expected ~a, got ~a.~a"
                             'name 'expected (if (Sat? first-instance) 'sat 'unsat)
                             (if (Sat? first-instance)
                                 (format " Found instance ~a" first-instance)
@@ -540,7 +546,10 @@
            (check name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (when (Sat? first-instance)
-             (raise (format "Theorem ~a failed. Found instance:~n~a"
+             (when (@> (get-verbosity) 0)
+               (printf "Instance found, with statistics and metadata:~n")
+               (pretty-print first-instance))
+             (raise-user-error (format "Theorem ~a failed. Found instance:~n~a"
                             'name first-instance)))
            (close-run name)]
 
@@ -1031,7 +1040,7 @@ Now with functional forge, do-bind is used instead
   (unless (equal? 1 (node/expr-arity b)) (raise-user-error (format "Second argument \"~a\" to reachable is not a singleton at loc ~a" (deparse b) (srcloc->string loc))))
   (in/info (nodeinfo loc 'checklangNoCheck) 
            a 
-           (join/info (nodeinfo loc 'bsl) 
+           (join/info (nodeinfo loc (get-check-lang)) 
                       b 
                       (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
 

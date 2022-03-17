@@ -13,4 +13,6 @@ pred fieldsEqual {
     some s1, s2: Student| s1.transcript.Grade = s2.transcript.Grade
 }
 
-run {fieldsEqual}
+test expect {
+    {fieldsEqual} is sat
+}

@@ -11,4 +11,4 @@ pred joinRight {
     some A.(field.A)
 }
 
-run {joinRight}
+test expect {{joinRight} is sat}

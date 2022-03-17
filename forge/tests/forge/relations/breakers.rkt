@@ -1,5 +1,6 @@
 #lang forge
 
+option verbose 0
 -- Additional tests for lone, one, pfunc, func
 sig A, B, C {}
 one sig FrontDesk {

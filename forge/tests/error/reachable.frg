@@ -12,4 +12,4 @@ pred cycle {
     all n: Node | reachable[n.next, n, field]
 }
 
-run {cycle}
+test expect {{cycle} is sat}

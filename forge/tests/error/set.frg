@@ -10,4 +10,4 @@ pred setcomp {
     some {n : Node | n.next = n}
 }
 
-run {setcomp}
+test expect {{setcomp} is sat}

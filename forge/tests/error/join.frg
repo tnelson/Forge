@@ -10,4 +10,4 @@ pred leftjoin {
     some next.next
 }
 
-run {leftjoin}
+test expect {{leftjoin} is sat}

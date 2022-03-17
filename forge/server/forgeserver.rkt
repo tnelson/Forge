@@ -150,7 +150,8 @@
                   (send-to-sterling "pong" #:connection connection)]
                  [else (handle-json connection m)])
            (loop))))
-     #:port 0 #:confirmation-channel chan))
+     ; default #:port 0 will assign an ephemeral port
+     #:port (get-option the-run 'sterling_port) #:confirmation-channel chan))
 
   (define port (async-channel-get chan))
   (cond [(string? port)
@@ -159,7 +160,9 @@
          (void)]
         [else
          (send-url/file sterling-path #f #:query (number->string port))
-         (printf "Sterling running. Hit enter to stop service.\n")         
+         (printf "Sterling running. Hit enter to stop service.\n")
+         (when (> (get-verbosity) VERBOSITY_LOW)
+           (printf "Using port: ~a~n" (number->string port)))
          (flush-output)
          (void (read-char))
          (stop-service)]))
