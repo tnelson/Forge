@@ -114,7 +114,7 @@
 ;  -- state-set-option (in sigs.rkt)
 (struct/contract Options (
   [eval-language symbol?]
-  [solver symbol?]
+  [solver (or/c string? symbol?)]
   [backend symbol?]
   [sb nonnegative-integer?]
   [coregranularity nonnegative-integer?]
