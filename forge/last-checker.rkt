@@ -428,7 +428,7 @@
                             (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
                                 ((hash-ref checker-hash 'empty-join) expr)
                               (raise-syntax-error #f 
-                                                (format "~n join always results in an empty relation: ~n Left hand side of join \"~a\" must be one of ~a~n Right hand side of join \"~a\" must be one of ~a~n There is no possible join result " 
+                                                (format "~n join always results in an empty relation: ~n Left argument of join \"~a\" is in ~a~n Right argument of join \"~a\" is in ~a~n There is no possible join result " 
                                                           (deparse (first (node/expr/op-children expr)))  
                                                           (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
                                                           (deparse (second (node/expr/op-children expr)))
