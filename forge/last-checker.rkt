@@ -213,8 +213,16 @@
                     (get-children run-or-state signame)))))
            (cond
              [(Sig-abstract the-sig)
-              all-primitive-descendants]
-             [else (cons (string->symbol (string-append (symbol->string signame) "_remainder"))
+             
+             ; TODO: in the future, maybe consider better places to check for empty abstract sig
+             (if (empty? (get-children run-or-state signame))
+                 (raise-user-error (format "The abstract sig ~a is not extended by any children" (symbol->string signame)))
+                 all-primitive-descendants)]
+             [else (cons 
+                        (string->symbol (string-append (symbol->string signame) 
+                            (if (empty? (get-children run-or-state signame))
+                                ""
+                                "_remainder")))
                          all-primitive-descendants)])])))
 
 ; wrap around checkExpression-mult to provide check for multiplicity, 
@@ -419,8 +427,14 @@
                            (when (empty? join-result)
                             (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
                                 ((hash-ref checker-hash 'empty-join) expr)
-                                (raise-syntax-error #f (format "join always results in an empty relation")
-                                                  (datum->syntax #f expr (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
+                              (raise-syntax-error #f 
+                                                (format "~n join always results in an empty relation: ~n Left argument of join \"~a\" is in ~a~n Right argument of join \"~a\" is in ~a~n There is no possible join result " 
+                                                          (deparse (first (node/expr/op-children expr)))  
+                                                          (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
+                                                          (deparse (second (node/expr/op-children expr)))
+                                                          (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (second child-values)))
+                                                          )
+                                                  (datum->syntax #f (deparse expr) (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
                            (when (and (not (cdr (first child-values))) (eq? (nodeinfo-lang (node-info expr)) 'bsl))
                                 ((hash-ref checker-hash 'relation-join) expr args))
                            (cons join-result

@@ -24,6 +24,7 @@
 (define REGISTRY
   (list
     (list "hello.frg" #rx"parsing error")
+    (list "abstract.frg" #rx"abstract")
     (list "arrow.frg" #rx"Direct use of ->")
     (list "arrow.frg" #rx"Direct use of ->")
     (list "plus-ast.frg" #rx"recognize")

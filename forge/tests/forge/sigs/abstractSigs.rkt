@@ -12,9 +12,3 @@ test expect NormalAbstract {
     emptyExtensionsEmptyAbstract : { no (Extension1 + Extension2) and some Abstract } is unsat
 }
 
-
-abstract sig Unextended {}
-
-test expect UnextendedAbstract {
-    unextendedCanPopulate : { some Unextended } is sat
-}

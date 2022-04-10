@@ -6,7 +6,7 @@
 (require (prefix-in @ racket) 
          (prefix-in @ racket/set))
 (require racket/contract)
-(require (for-syntax racket/syntax syntax/srcloc))
+(require (for-syntax racket/syntax syntax/srcloc syntax/parse))
 (require (prefix-in tree: "lazy-tree.rkt"))
 (require syntax/srcloc)
 
@@ -114,7 +114,7 @@
 ;  -- state-set-option (in sigs.rkt)
 (struct/contract Options (
   [eval-language symbol?]
-  [solver symbol?]
+  [solver (or/c string? symbol?)]
   [backend symbol?]
   [sb nonnegative-integer?]
   [coregranularity nonnegative-integer?]
@@ -585,9 +585,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
                (=>/info info (! a) c))
       (ite/info info a b c)))
 (define-syntax (ifte stx)
-  (syntax-case stx ()
-    [(_ a b c) (quasisyntax/loc stx
-                 (ifte-disambiguator (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b c))]))
+  (syntax-parse stx 
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b c) (quasisyntax/loc stx
+                 (ifte-disambiguator (nodeinfo #,(build-source-location stx) check-lang) a b c))]))
 
 (define-syntax (ni stx) (syntax-case stx () 
       [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) b a))]
@@ -597,10 +597,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                             [(_ (#:lang check-lang) a b) (quasisyntax/loc stx 
                                                              (!/info (nodeinfo #,(build-source-location stx) check-lang)
                                                                      (=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
-(define-syntax (!in stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
-                                                              (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) a b)))]))
-(define-syntax (!ni stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
-                                                              (in/info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) b a)))]))
+(define-syntax (!in stx) (syntax-parse stx [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b) 
+                                                    (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx) check-lang)
+                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
+(define-syntax (!ni stx) (syntax-parse stx [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b) 
+                                                    (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang)
+                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]))
 (define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
                                                               (int>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]

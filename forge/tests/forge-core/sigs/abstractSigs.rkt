@@ -16,9 +16,3 @@
       #:preds [(=> (no (+ Extension1 Extension2)) (no Abstract))]
       #:expect theorem)
 
-
-(sig Unextended #:abstract)
-
-(test unextendedCanPopulate 
-      #:preds [(some Unextended)]
-      #:expect sat)

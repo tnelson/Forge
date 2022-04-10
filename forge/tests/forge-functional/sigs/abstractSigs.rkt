@@ -19,9 +19,3 @@
            #:sigs (list Abstract Extension1 Extension2)
            #:expect 'theorem)
 
-(define Unextended (make-sig 'Unextended #:abstract #t))
-
-(make-test #:name 'unextendedCanPopulate 
-           #:preds (list (some Unextended))
-           #:sigs (list Abstract Extension1 Extension2 Unextended)
-           #:expect 'sat)
