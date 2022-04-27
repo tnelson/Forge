@@ -97,7 +97,7 @@
                         (~optional scope:ScopeClass)
                         (~optional bounds:BoundsClass)
                         (~and expected (~or "sat" "unsat" "theorem")))
-   (with-syntax ([name #'(~? name.name temporary-name)]
+   (with-syntax ([name #`(~? name.name #,(make-temporary-name stx))]
                  [preds (my-expand #'(~? pred.name preds))]
                  [expected (datum->syntax #'expected
                                           (string->symbol (syntax->datum #'expected)))])
