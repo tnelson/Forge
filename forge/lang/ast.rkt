@@ -1059,7 +1059,9 @@
         [(? node/expr?)
             (deparse-expr arg 20)]
         [(? node/int?)
-         (deparse-int arg 20)]))
+            (deparse-int arg 20)]
+        [else 
+            (format "(COULD-NOT-DEPARSE: ~a)" arg)]))
 
 (define (deparse-formula-op formula parent-priority)
   (match formula
@@ -1325,7 +1327,8 @@
                        ([decl (cdr decls)])
                (format "~a, ~a" quant-string 
                                 (format "~a : ~a" (car decl) (deparse-expr (cdr decl) 0))))
-             (deparse-int int-expr 0))]))
+             (deparse-int int-expr 0))]
+    [else (format "(COULD-NOT-DEPARSE: ~a)" expr)]))
 
 (define (deparse-int-op expr parent-priority)
   (match expr
