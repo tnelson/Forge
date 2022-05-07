@@ -79,9 +79,6 @@
 (define (clean str)
   (string-replace (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;"))
 
-(define (clean-syntax str)
-  (substring str 9 (@- (string-length str) 1)))
-
 (define (agg-lines lines)
   (if (empty? lines)
       ""
@@ -99,8 +96,13 @@
                      (values (rel '(univ) 'univ (symbol->string key)) value))))
              (Sat-instances soln))
         (Unsat-core soln)))
-  
-  (set! command (clean (clean-syntax command)))
+
+  ; The command string is long and elaborate, something like:
+  ; (run temporary-name1 #:preds ((Block (Expr (Expr6 (Expr15 (QualName Counter)) . (Expr16 (QualName value))) (CompareOp =) (Expr7 (Const (Number 0)))) (Expr always (Expr5 (Expr6 (Expr15 (QualName Counter)) . (Expr16 (Expr16 (QualName value)) ')) (CompareOp =) (Expr7 (Expr14 (QualName add)) [ (ExprList (Expr (Expr15 (QualName Counter)) . (Expr16 (QualName value))) (Expr (Const (Number 1)))) ]))))) #:scope ((Int 0 3)))
+  ; For display, we only want to show the name of the run/test/etc.
+  ; We used to do (substring str 9 (@- (string-length str) 1))), but this is brittle in case the first token varies from "(run"
+
+  (define command-for-display (clean (second (string-split command))))
 
 ; <instance bitwidth="4" maxseq="3" mintrace="1" maxtrace="10"
   ; command="Run consistent for 3" filename="/Users/atdyer/research/alloy/electrum/Untitled 1.ele"
@@ -120,7 +122,7 @@
   (define prologue (string-append "<alloy builddate=\"" (date->string (current-date)) "\">\n"))
   (define instance-prologue (string-append 
                                   "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
-                                  (car (string-split command)) "\" filename=\"" filepath
+                                  command-for-display "\" filename=\"" filepath
                                   
                                   "\" version=\"" forge-version "\" "
                                   maybe-temporal-metadata
