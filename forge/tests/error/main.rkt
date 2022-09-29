@@ -8,8 +8,6 @@
 ;;  3. Also add a regular expression or predicate** to the REGISTRY
 ;;  4. Run this file (main.rkt) to test
 ;;
-;; * 2021-11-04: Don't use a `.rkt` extension. Pick anything else --- so the toplevel
-;;    `run-tests.sh` script doesn't try to run your new file.
 ;; ** Works the same way as RackUnit's check-exn <https://docs.racket-lang.org/rackunit/api.html>A
 
 (require
