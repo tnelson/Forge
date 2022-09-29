@@ -21,43 +21,69 @@
 
 (define REGISTRY
   (list
-    (list "hello.frg" #rx"parsing error")
     (list "abstract.frg" #rx"abstract")
-    (list "arrow.frg" #rx"Direct use of ->")
-    (list "arrow.frg" #rx"Direct use of ->")
-    (list "plus-ast.frg" #rx"recognize")
-    (list "minus-ast.frg" #rx"recognize")
-    (list "intersect-ast.frg" #rx"recognize")
-    (list "transpose-ast.frg" #rx"recognize")
-    (list "transpose.frg" #rx"recognize")
-    (list "star-ast.frg" #rx"recognize")
-    (list "transitive-closure-ast.frg" #rx"recognize")
-    (list "join.frg" #rx"not an object")
-    (list "join2.frg" #rx"not a singleton")
-    (list "join3.frg" #rx"not an object")
-    (list "join-right.frg" #rx"not an object")
-    (list "join-right2.frg" #rx"not an object")
-    (list "join-right3.frg" #rx"not an object")
-    (list "join-right4.frg" #rx"not an object")
-    (list "join-right5.frg" #rx"bsl")
-    (list "join-right5.frg" #rx"bsl")
-    (list "reachable.frg" #rx"field")
-    (list "reachable2.frg" #rx"First")
-    (list "set.frg" #rx"Froglet")
-    (list "int-minus.frg" #rx"Froglet")
-    (list "set-singleton-equal.frg" #rx"not a singleton")
-    (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
-    (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
-    (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
-    (list "ill_typed_inst_columns_reversed.frg" #rx"age")
-    (list "excluded-extender-value.frg" #rx"not a subset")
+    (list "bsl-arrow-ast.frg" #rx"Direct use of ->")
+    (list "bsl-arrow.frg" #rx"Direct use of ->")
+    (list "bsl-int-minus.frg" #rx"Froglet")
+    (list "bsl-intersect-ast.frg" #rx"recognize") ;; TODO why???!
+    (list "bsl-join-right.frg" #rx"not a singleton")
+    (list "bsl-join-right2.frg" #rx"not a singleton")
+    (list "bsl-join-right3.frg" #rx"not a singleton")
+    (list "bsl-join-right4.frg" #rx"not a singleton")
+    (list "bsl-join-right5.frg" #rx"bsl")
+    (list "bsl-join-right6.frg" #rx"not a singleton")
+    (list "bsl-join.frg" #rx"not a singleton")
+    (list "bsl-join2.frg" #rx"not a singleton")
+    (list "bsl-join3.frg" #rx"not a singleton")
+    (list "bsl-minus-ast.frg" #rx"recognize")
+    (list "bsl-plus-ast.frg" #rx"recognize")
+    (list "bsl-reachable.frg" #rx"field")
+    (list "bsl-reachable2.frg" #rx"First")
+    (list "bsl-set-singleton-equal.frg" #rx"singleton")
+    (list "bsl-set.frg" #rx"Froglet")
+    (list "bsl-star-ast.frg" #rx"recognize")
+    (list "bsl-transitive-closure-ast.frg" #rx"recognize")
+    (list "bsl-transpose-ast.frg" #rx"recognize")
+    (list "bsl-transpose.frg" #rx"recognize")
+
     (list "example_impossible.frg" #rx"impossible")
+    (list "excluded-extender-value.frg" #rx"not a subset")
+    (list "failed_sat.frg" #rx"Failed test")
     (list "failed_theorem.frg" #rx"failed.")
     (list "failed_unsat.frg" #rx"Failed test")
-    (list "failed_sat.frg" #rx"Failed test") 
     (list "properties_undirected_tree_underconstraint_error.frg" #rx"isUndirectedTree implies TreeWithEdges failed. Found instance")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"isUndirected implies isUndirectedTree failed. Found instance")
+    (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
+    (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
+    (list "hello.frg" #rx"parsing error")
+    (list "ill_typed_inst_columns_reversed.frg" #rx"age")
+    (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
   ))
+
+; froglet-arrow-ast.frg
+; froglet-arrow.frg
+; froglet-int-minus.frg
+; froglet-intersect-ast.frg
+; froglet-join-right.frg
+; froglet-join-right2.frg
+; froglet-join-right3.frg
+; froglet-join-right4.frg
+; froglet-join-right5.frg
+; froglet-join-right6.frg
+; froglet-join.frg
+; froglet-join2.frg
+; froglet-join3.frg
+; froglet-minus-ast.frg
+; froglet-plus-ast.frg
+; froglet-reachable.frg
+; froglet-reachable2.frg
+; froglet-set-singleton-equal.frg
+; froglet-set.frg
+; froglet-star-ast.frg
+; froglet-transitive-closure-ast.frg
+; froglet-transpose-ast.frg
+; froglet-transpose.frg
+
 
 ;; -----------------------------------------------------------------------------
 
