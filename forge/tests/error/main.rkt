@@ -46,6 +46,8 @@
     (list "bsl-transpose-ast.frg" #rx"recognize")
     (list "bsl-transpose.frg" #rx"recognize")
 
+    (list "froglet-http.frg" #rx"does not have fields")
+
     (list "example_impossible.frg" #rx"impossible")
     (list "excluded-extender-value.frg" #rx"not a subset")
     (list "failed_sat.frg" #rx"Failed test")
