@@ -51,6 +51,12 @@
     (list "froglet-http.frg" #rx"does not have fields")
     (list "froglet-int-minus.frg" #rx"- operator")
     (list "froglet-intersect-ast.frg" #rx"& operator")
+    (list "froglet-join-right.frg" #rx"does not have fields")
+    (list "froglet-join-right2.frg" #rx"is not a Node")
+    (list "froglet-join-right3.frg" #rx"LOOKS FINE")
+    (list "froglet-join-right4.frg" #rx"is not a Node")
+    (list "froglet-join-right5.frg" #rx"is not a Node")
+    (list "froglet-join-right6.frg" #rx"does not have fields")
 
     (list "example_impossible.frg" #rx"impossible")
     (list "excluded-extender-value.frg" #rx"not a subset")
@@ -66,12 +72,6 @@
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
   ))
 
-; froglet-join-right.frg
-; froglet-join-right2.frg
-; froglet-join-right3.frg
-; froglet-join-right4.frg
-; froglet-join-right5.frg
-; froglet-join-right6.frg
 ; froglet-join.frg
 ; froglet-join2.frg
 ; froglet-join3.frg

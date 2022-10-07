@@ -200,7 +200,7 @@
 
 (define (err-relation-join expr-node args)
   (define loc (nodeinfo-loc (node-info expr-node)))
-  (raise-froglet-error (format "Field acess on \"~a\", which is not a singleton" (deparse (first args))) expr-node loc))
+  (raise-froglet-error (format "Field access on \"~a\", which is not a singleton" (deparse (first args))) expr-node loc))
 
 (define froglet-checker-hash (make-hash))
 (hash-set! froglet-checker-hash 'empty-join err-empty-join)
