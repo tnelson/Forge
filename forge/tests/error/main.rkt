@@ -46,7 +46,11 @@
     (list "bsl-transpose-ast.frg" #rx"recognize")
     (list "bsl-transpose.frg" #rx"recognize")
 
+    (list "froglet-arrow-ast.frg" #rx"Direct use of ->")
+    (list "froglet-arrow.frg" #rx"Direct use of ->")
     (list "froglet-http.frg" #rx"does not have fields")
+    (list "froglet-int-minus.frg" #rx"- operator")
+    (list "froglet-intersect-ast.frg" #rx"& operator")
 
     (list "example_impossible.frg" #rx"impossible")
     (list "excluded-extender-value.frg" #rx"not a subset")
@@ -62,10 +66,6 @@
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
   ))
 
-; froglet-arrow-ast.frg
-; froglet-arrow.frg
-; froglet-int-minus.frg
-; froglet-intersect-ast.frg
 ; froglet-join-right.frg
 ; froglet-join-right2.frg
 ; froglet-join-right3.frg
