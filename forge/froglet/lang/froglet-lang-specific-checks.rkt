@@ -24,14 +24,14 @@
 
 (define (raise-froglet-relational-error rel-str node loc [optional-str #f])  
   (raise-froglet-error 
-          (format "Froglet didn't recognize the ~a operator ~a"
+          (format "~a operator not permitted in Froglet ~a"
             rel-str
             (if optional-str (format "; ~a" optional-str) "")) 
           node loc))
 
 (define (raise-froglet-relational-error-expr-args rel-str args loc [optional-str #f])  
   (raise-froglet-error-deparsed-str 
-          (format "Froglet didn't recognize the ~a operator~a"
+          (format "~a operator not permitted in Froglet ~a"
             rel-str
             (if optional-str (format "; ~a" optional-str) "")) 
           (cond 
