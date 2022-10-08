@@ -44,7 +44,6 @@
     (list "bsl-star-ast.frg" #rx"recognize")
     (list "bsl-transitive-closure-ast.frg" #rx"recognize")
     (list "bsl-transpose-ast.frg" #rx"recognize")
-    (list "bsl-transpose.frg" #rx"recognize")
 
     (list "froglet-arrow-ast.frg" #rx"Direct use of ->")
     (list "froglet-arrow.frg" #rx"Direct use of ->")
@@ -53,10 +52,23 @@
     (list "froglet-intersect-ast.frg" #rx"& operator")
     (list "froglet-join-right.frg" #rx"does not have fields")
     (list "froglet-join-right2.frg" #rx"is not a Node")
-    (list "froglet-join-right3.frg" #rx"LOOKS FINE")
+    (list "froglet-join-right3.frg" #rx"incomplete method call")
     (list "froglet-join-right4.frg" #rx"is not a Node")
     (list "froglet-join-right5.frg" #rx"is not a Node")
     (list "froglet-join-right6.frg" #rx"does not have fields")
+    (list "froglet-join.frg" #rx"does not have fields")
+    (list "froglet-join2.frg" #rx"partial method call") ;; TODO incomplete or partial?
+    (list "froglet-join3.frg" #rx"is not a Node")
+    (list "froglet-minus-ast.frg" #rx"- operator")
+    (list "froglet-plus-ast.frg" #rx"+ operator")
+    (list "froglet-reachable.frg" #rx"no such field")
+    (list "froglet-reachable2.frg" #rx"not an object")
+    (list "froglet-set-singleton-equal.frg" #rx"= expects two objects, sig Node is not an object")
+    (list "froglet-set.frg" #rx"pred must return an object, not a set")
+    (list "froglet-star-ast.frg" #rx"* operator") ;; TODO what's the whole message?
+    ;; forge/bsl: Froglet didn't recognize the * operator in (*A) at loc: line 9, col 9, span: 2 
+    (list "froglet-transitive-closure-ast.frg" #rx"^ operator")
+    (list "froglet-transpose-ast.frg" #rx"~ operator")
 
     (list "example_impossible.frg" #rx"impossible")
     (list "excluded-extender-value.frg" #rx"not a subset")
@@ -71,20 +83,6 @@
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
   ))
-
-; froglet-join.frg
-; froglet-join2.frg
-; froglet-join3.frg
-; froglet-minus-ast.frg
-; froglet-plus-ast.frg
-; froglet-reachable.frg
-; froglet-reachable2.frg
-; froglet-set-singleton-equal.frg
-; froglet-set.frg
-; froglet-star-ast.frg
-; froglet-transitive-closure-ast.frg
-; froglet-transpose-ast.frg
-; froglet-transpose.frg
 
 
 ;; -----------------------------------------------------------------------------
