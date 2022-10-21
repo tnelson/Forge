@@ -3,7 +3,7 @@
 ;; TODO share code among readers
 
 (require syntax/parse)
-(require forge/froglet/util)
+(require froglet/util)
 (require forge/lang/alloy-syntax/parser)
 (require forge/lang/alloy-syntax/tokenizer)
 (require (prefix-in log: forge/logging/2022/main))
@@ -78,7 +78,7 @@
                   (require (only-in racket printf uncaught-exception-handler))
 
                   (require forge/choose-lang-specific)
-                  (require forge/froglet/lang/froglet-lang-specific-checks)
+                  (require froglet/lang/froglet-lang-specific-checks)
                   (set-checker-hash! froglet-checker-hash)
                   (set-ast-checker-hash! froglet-ast-checker-hash)
                   (set-inst-checker-hash! froglet-inst-checker-hash)

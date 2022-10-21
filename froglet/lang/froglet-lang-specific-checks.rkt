@@ -2,7 +2,7 @@
 
 (require forge/lang/ast)
 (require forge/sigs-structs)
-(require forge/froglet/util)
+(require froglet/util)
 (require (for-syntax racket/syntax syntax/srcloc)
          syntax/srcloc)
 
