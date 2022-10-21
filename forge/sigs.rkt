@@ -289,7 +289,7 @@
                 (~optional (~or (~seq (~and #:one one-kw))
                                 (~seq (~and #:lone lone-kw))
                                 (~seq (~and #:abstract abstract-kw))))
-                (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f]))) ...)
+                (~optional (~seq #:is-var isv) #:defaults ([isv #'#f]))) ...)
      (quasisyntax/loc stx
        (begin
          (define true-name 'name)
@@ -300,12 +300,6 @@
                                  #f))
          (define true-parent-name
            (if true-parent (Sig-name true-parent) #f))
-         ; Temporary fix: if-for-bool :(
-         ; needed for now because when Forge expands into core,
-         ; is-var comes in as "var" instead of #t
-         ; so the contract on make-sig break
-         (define isv
-           (if is-var #t #f))
          (define name (make-sig true-name
                                 #:one true-one
                                 #:lone true-lone
@@ -315,7 +309,7 @@
                                 #:extends true-parent
                                 #:info (nodeinfo #,(build-source-location stx) check-lang)))
          ;make sure it isn't a var sig if not in temporal mode
-         (~@ (check-temporal-for-var is-var true-name))
+         (~@ (check-temporal-for-var isv true-name))
          ;Currently when lang/expander.rkt calls sig with #:in,
          ;super-sig is #'(raise "Extending with in not yet implemented.")
          ;This is just here for now to make sure that error is raised.
@@ -328,7 +322,7 @@
   (syntax-parse stx
     [(relation name:id (sig1:id sig2:id sigs ...)
                (~optional (~seq #:is breaker:id))
-               (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
+               (~optional (~seq #:is-var isv) #:defaults ([isv #'#f])))
      (quasisyntax/loc stx
        (begin
          (define true-name 'name)
@@ -343,24 +337,18 @@
          ;(printf "relatoin breaker: ~a~n" true-breaker)
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
-         ; Temporary fix: if-for-bool :(
-         ; needed for now because when Forge expands into core,
-         ; is-var comes in as "var" instead of #t
-         ; so the contract on make-sig breaks
-         (define isv
-           (if is-var #t #f))
          (define name (make-relation true-name
                                      true-sigs
                                      #:is true-breaker
                                      #:is-var isv
                                      #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))
          ;make sure it isn't a var sig if not in temporal mode
-         (~@ (check-temporal-for-var is-var true-name))
+         (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]
     ; Case: check-lang
     [(relation (#:lang check-lang) name:id (sig1:id sig2:id sigs ...)
                (~optional (~seq #:is breaker:id))
-               (~optional (~seq #:is-var is-var) #:defaults ([is-var #'#f])))
+               (~optional (~seq #:is-var isv) #:defaults ([isv #'#f])))
      (quasisyntax/loc stx
        (begin
          (define true-name 'name)
@@ -375,19 +363,13 @@
          ;(printf "relatoin breaker: ~a~n" true-breaker)
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
-         ; Temporary fix: if-for-bool :(
-         ; needed for now because when Forge expands into core,
-         ; is-var comes in as "var" instead of #t
-         ; so the contract on make-sig breaks
-         (define isv
-           (if is-var #t #f))
          (define name (make-relation true-name
                                      true-sigs
                                      #:is true-breaker
                                      #:is-var isv
                                      #:info (nodeinfo #,(build-source-location stx) check-lang)))
          ;make sure it isn't a var sig if not in temporal mode
-         (~@ (check-temporal-for-var is-var true-name))
+         (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]))
 
 ; Declare a new predicate
