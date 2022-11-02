@@ -60,14 +60,13 @@
     (list "froglet-join2.frg" #rx"partial method call") ;; TODO incomplete or partial?
     (list "froglet-join3.frg" #rx"is not a Node")
     (list "froglet-minus-ast.frg" #rx"- operator")
-    (list "froglet-plus-ast.frg" #rx"+ operator")
+    (list "froglet-plus-ast.frg" #rx"\\+ operator")
     (list "froglet-reachable.frg" #rx"no such field")
     (list "froglet-reachable2.frg" #rx"not an object")
     (list "froglet-set-singleton-equal.frg" #rx"= expects two objects, sig Node is not an object")
     (list "froglet-set.frg" #rx"pred must return an object, not a set")
-    (list "froglet-star-ast.frg" #rx"* operator") ;; TODO what's the whole message?
-    ;; forge/bsl: Froglet didn't recognize the * operator in (*A) at loc: line 9, col 9, span: 2 
-    (list "froglet-transitive-closure-ast.frg" #rx"^ operator")
+    (list "froglet-star-ast.frg" #rx"\\* operator") ;; TODO what's the whole message?
+    (list "froglet-transitive-closure-ast.frg" #rx"\\^ operator")
     (list "froglet-transpose-ast.frg" #rx"~ operator")
 
     (list "example_impossible.frg" #rx"impossible")
