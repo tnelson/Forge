@@ -69,6 +69,12 @@
     (list "froglet-transitive-closure-ast.frg" #rx"\\^ operator")
     (list "froglet-transpose-ast.frg" #rx"~ operator")
 
+    (list "froglet-uni-0.frg" #rx"does not have fields")
+    (list "froglet-uni-1.frg" #rx"does not have fields")
+    (list "froglet-uni-2.frg" #rx"is not a value")
+    (list "froglet-uni-3.frg" #rx"does not have fields")
+    (list "froglet-uni-4.frg" #rx"does not have fields")
+
     (list "example_impossible.frg" #rx"impossible")
     (list "excluded-extender-value.frg" #rx"not a subset")
     (list "failed_sat.frg" #rx"Failed test")
