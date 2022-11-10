@@ -1,11 +1,13 @@
 #lang racket/base
 
-(require syntax/parse)
-(require froglet/util)
-(require (only-in forge/lang/reader coerce-ints-to-atoms))
-(require forge/lang/alloy-syntax/parser)
-(require forge/lang/alloy-syntax/tokenizer)
-(require (prefix-in log: forge/logging/2022/main))
+(provide read-syntax)
+
+(require
+  (only-in froglet/util lang-name)
+  (only-in froglet/typecheck/main typecheck)
+  (only-in forge/lang/reader coerce-ints-to-atoms)
+  (only-in forge/lang/alloy-syntax/main parse make-tokenizer)
+  (prefix-in log: forge/logging/2022/main))
 
 (define (read-syntax path port)
   (define-values (logging-on? project email) (log:setup lang-name port path))
@@ -13,39 +15,38 @@
   (when logging-on?
     (uncaught-exception-handler (log:error-handler logging-on? compile-time (uncaught-exception-handler)))
     (log:register-run compile-time project lang-name email path))
-  (define parse-tree (parse path (make-tokenizer port)))
-  (define ints-coerced (coerce-ints-to-atoms parse-tree))
-  (define final `((provide (except-out (all-defined-out) ; So other programs can require it
-                                       forge:n))
+  (define alloymod
+    (let* ((mod (parse path (make-tokenizer port)))
+           (mod (coerce-ints-to-atoms mod))
+           (mod (typecheck mod)))
+      mod))
+  (define module-datum
+    `(module forge-mod forge/lang/expander
+       (provide (except-out (all-defined-out) ; So other programs can require it
+                            forge:n))
 
-                  (define-namespace-anchor forge:n) ; Used for evaluator
-                  (forge:nsa forge:n)
+       (define-namespace-anchor forge:n) ; Used for evaluator
+       (forge:nsa forge:n)
 
-                  (require (prefix-in log: forge/logging/2022/main))
-                  (require (only-in racket printf uncaught-exception-handler))
+       (require (prefix-in log: forge/logging/2022/main))
+       (require (only-in racket printf uncaught-exception-handler))
 
-                  (require forge/choose-lang-specific)
-                  (require froglet/lang/froglet-lang-specific-checks)
-                  (set-checker-hash! froglet-checker-hash)
-                  (set-ast-checker-hash! froglet-ast-checker-hash)
-                  (set-inst-checker-hash! froglet-inst-checker-hash)
-                  (set-check-lang! ',lang-name)
+       (require forge/choose-lang-specific)
+       (require froglet/lang/froglet-lang-specific-checks)
+       (set-checker-hash! froglet-checker-hash)
+       (set-ast-checker-hash! froglet-ast-checker-hash)
+       (set-inst-checker-hash! froglet-inst-checker-hash)
+       (set-check-lang! ',lang-name)
 
-                  (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
-                  ;; Override default exception handler
+       (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
+       ;; Override default exception handler
 
-                  ,ints-coerced
+       ,alloymod
 
-                  (module+ execs)
-                  (module+ main
-                    (require (submod ".." execs))
-                    (log:flush-logs ',compile-time "no-error"))))
-
-  (define module-datum `(module forge-mod forge/lang/expander
-                          ,@final))
-  ; (printf "Ints-coerced: ~a~n" ints-coerced)
-  ; (raise "STOP")
+       (module+ execs)
+       (module+ main
+         (require (submod ".." execs))
+         (log:flush-logs ',compile-time "no-error"))))
   (define result (datum->syntax #f module-datum))
-  ;(printf "debug result of expansion: ~a~n" result)
   result)
-(provide read-syntax)
+
