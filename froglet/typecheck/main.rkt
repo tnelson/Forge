@@ -7,6 +7,7 @@
   typecheck)
 
 (require
+  forge/lang/alloy-syntax/syntax-class
   racket/pretty
   syntax/parse)
 
@@ -21,42 +22,46 @@
 
 ;; ---
 
-(define-syntax-class alloy-import
-  (pattern ((~datum Import) _ ...)))
-
-(define-syntax-class alloy-module
-  (pattern ((~datum ModuleDecl) _ ...)))
-
-(define (collect-env mod)
-  (syntax-parse mod
+(define (collect-env stx)
+  (syntax-parse stx
     #:datum-literals (AlloyModule ModuleDecl Import)
-    [(AlloyModule
-       (~optional module-decl:alloy-module)
-       imp*:alloy-import ...
-       . parag*)
-     #:fail-unless (null? (syntax-e #'(imp* ...))) "Cannot typecheck module with Import statements"
-     #:with (paragraph* ...)
-            (quasisyntax/loc mod
-              #,(map collect-env/paragraph (syntax-e (syntax/loc mod parag*))))
-       ; (printf "Module-decl ~a~n~n" #'(~? module-decl "None present"))
-       ; (printf "Paragraphs: ~a~n~n" #'parag*)
-       (quasisyntax/loc mod
-         (AlloyModule (~? module-decl)
-                      imp* ...
-                      paragraph* ...))]))
+    ;; [ev:EvalDecl ...]
+    [mod:$AlloyModule
+     #:fail-unless (null? (syntax-e #'mod.import*)) "Cannot typecheck module with Import statements"
+     ; (printf "Module-decl ~a~n~n" #'(~? mod.moduledecl "None present"))
+     ; (printf "Paragraphs: ~a~n~n" #'mod.parag*)
+     (map collect-env/paragraph (syntax-e #'mod.parag*))]))
 
-(define (collect-env/paragraph parag)
-  (raise-user-error 'cep (format "die~n ~s" parag)))
-;; TODO
-;  (syntax-parse paragraph #:datum-literals (IntsDecl Bounds)
-;    [(InstDecl name 
-;               (Bounds (~optional (~and "exactly" exactly-tok))
-;                       exprs ...)
-;               (~optional scope))
-;     #:with (updated-exprs ...) (replace-ints-expr* (syntax/loc paragraph (exprs ...)))
-;     (quasisyntax/loc paragraph
-;       (InstDecl name
-;                 (Bounds (~? exactly-tok) updated-exprs ...)
-;                 (~? scope)))]
-;    [(_ ...) paragraph])
+
+;; (SigDecl (NameList Node) (ArrowDeclList (ArrowDecl (NameList next) (ArrowMult "one") (ArrowExpr (QualName Node)))))
+
+(define (collect-env/paragraph stx)
+  (syntax-parse stx
+   [sig:$SigDecl
+     (printf "NAME ~s~n" #'sig.name*)
+     #'sig.name*]
+   [pred:$PredDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [fun:$FunDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [assert:$AssertDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [cmd:$CmdDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [testexpect:$TestExpectDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [sexpr:$SexprDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [query:$QueryDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [evalrel:$EvalRelDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [option:$OptionDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [inst:$InstDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [example:$ExampleDecl
+     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+   [_
+     (raise-argument-error 'collect-env/paragraph "Paragraph?" stx)]))
 
