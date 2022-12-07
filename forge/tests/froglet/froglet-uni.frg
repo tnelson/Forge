@@ -1,4 +1,4 @@
-#lang forge/bsl
+#lang froglet
 
 sig University {}
 one sig BrownU extends University {}

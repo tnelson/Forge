@@ -30,6 +30,7 @@
 
 (require
   syntax/parse
+  syntax/parse/define
   (only-in racket/function curry)
   (for-syntax racket/base racket/syntax syntax/parse))
 
@@ -47,18 +48,30 @@
           #:literal-sets ([set-name])
           (pattern (~or lit* ...))))]))
 
+(define-simple-macro
+  (define-token-class token-class:id token-string:str token-symbol)
+  ;; make-token
+  (define-syntax-class token-class
+    (pattern token-string
+      #:attr symbol #'token-symbol)))
+
 ;; ---
 
+(define-token-class abstract-tok "abstract" #:abstract)
+
 (define-syntax-class $AlloyModule
-  #:attributes (hd)
+  #:attributes (hd import* parag* expr*)
   #:commit
   (pattern ((~and hd (~datum AlloyModule))
             (~optional moduledecl:$AlloyModule)
             pre-import*:$Import ...
             . parag*)
-    #:with import* (syntax/loc this-syntax (pre-import* ...)))
+    #:attr import* (syntax/loc this-syntax (pre-import* ...))
+    #:attr expr* #'())
   (pattern ((~and hd (~datum AlloyModule))
             ((~literal EvalDecl) "eval" pre-expr*:$Expr ...))
+    #:attr import* #'()
+    #:attr parag* #'()
     #:attr expr* (let ([ex* (syntax->list #'(pre-expr* ...))])
                    (if (null? ex*)
                      (car ex*)
@@ -76,11 +89,12 @@
             (~optional (~seq "as" as-name:$Name)))))
 
 (define-syntax-class $ModuleDecl
-  #:attributes (hd module-name other-names)
+  #:attributes (hd module-name other-name*)
   #:commit
   (pattern ((~and hd (~literal ModuleDecl))
             module-name:$QualName
-            (~optional (~seq "[" other-names:$NameList "]")))))
+            (~optional (~seq "[" other-namelist:$NameList "]")))
+    #:attr other-name* #'(~? (other-namelist.name* ...) ())))
 
 (define-syntax-class $EvalDecl
   #:attributes (hd exp)
@@ -91,21 +105,21 @@
 
 ;; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax-class $SigDecl
-  ;; TODO cleanup
-  #:attributes (hd isv abstract mult name* extends relation-decls block)
+  #:attributes (hd isv abstract mult (name* 1) extends relation-decls block)
   #:commit
   (pattern ((~and hd (~datum SigDecl))
             (~optional isv:$VarKeyword #:defaults ([isv #'#f]))
-            (~optional abstract #;:abstract-tok)
+            (~optional abstract:abstract-tok)
             (~optional mult:$Mult)
-            name*:$NameList
+            namelist:$NameList
             ;when extending with in is implemented,
             ;if "sig A in B extends C" is allowed,
             ;check if this allows multiple $SigExt / how to do that if not
             ;note the parser currently does not allow that
             (~optional extends:$SigExt)
             (~optional relation-decls:$ArrowDeclList)
-            (~optional block:$Block))))
+            (~optional block:$Block))
+    #:attr (name* 1) (syntax-e #'(namelist.name* ...))))
 
 ; SigExt : EXTENDS-TOK QualName 
 ;        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -170,10 +184,10 @@
 ; NameList : @Name
 ;          | @Name /COMMA-TOK @NameList
 (define-syntax-class $NameList
-  #:attributes (hd (names 1))
+  #:attributes (hd (name* 1))
   #:commit
   (pattern ((~and hd (~literal NameList))
-            names:id ...)))
+            name*:id ...)))
 
 (define-datum-literal-set ExprHd
   (Expr Expr1 Expr2 Expr3 Expr4 Expr4.5 Expr5 Expr6 Expr7 Expr7.5 Expr8 Expr9
@@ -215,16 +229,17 @@
 
 ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
 (define-syntax-class $Decl
-  #:attributes (hd names expr translate)
+  #:attributes (hd (name* 1) expr translate)
   #:commit
   (pattern ((~and hd (~literal Decl))
             ;(~optional "disj")
-            names:$NameList
+            namelist:$NameList
             ;(~optional "disj")
             (~optional "set")
             expr:$Expr)
+    #:attr (name* 1) (syntax-e #'(namelist.name* ...))
     #:attr translate (with-syntax ([expr #'expr])
-                       #'((names.names expr) ...))))
+                       #'((namelist.name* expr) ...))))
 
 ; DeclList : Decl
 ;          | Decl /COMMA-TOK @DeclList
@@ -240,17 +255,17 @@
 
 ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
 (define-syntax-class $ArrowDecl
-  #:attributes (hd names types mult is-var)
+  #:attributes (hd (name* 1) (type* 1) mult is-var)
   #:commit
   (pattern ((~and hd (~literal ArrowDecl))
             ;(~optional "disj")
             (~optional isv:$VarKeyword #:defaults ([isv #'#f])) ; electrum
-            name-list:$NameList
+            namelist:$NameList
             ;(~optional "disj") 
             mult-class:$ArrowMult
-            type-list:$ArrowExpr)
-    #:attr names #'(name-list.names ...)
-    #:attr types #'type-list.names
+            typelist:$ArrowExpr)
+    #:attr (name* 1) (syntax-e #'(namelist.name* ...))
+    #:attr (type* 1) (syntax-e #'(typelist.name* ...))
     #:attr mult #'mult-class.symbol
     #:attr is-var #'isv))
 
@@ -265,11 +280,11 @@
 ; ArrowExpr : QualName
 ;           | QualName /ARROW-TOK @ArrowExpr
 (define-syntax-class $ArrowExpr
-  #:attributes (hd names)
+  #:attributes (hd (name* 1))
   #:commit
   (pattern ((~and hd (~literal ArrowExpr))
             name-list:$QualName ...)
-    #:attr names #'(name-list.name ...)))
+    #:attr (name* 1) (syntax-e #'(name-list.name ...))))
 
 ; FactDecl : FACT-TOK Name? Block
 (define-syntax-class $FactDecl
@@ -277,8 +292,9 @@
   #:commit
   (pattern ((~and hd (~literal FactDecl))
             "fact"
-            (~optional name:$Name)
-            block:$Block)))
+            (~optional pre-name:$Name)
+            block:$Block)
+    #:attr name #'(~? pre-name.name #f)))
 
 ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
 (define-syntax-class $PredDecl
@@ -286,9 +302,10 @@
   #:commit
   (pattern ((~and hd (~literal PredDecl))
             (~optional (~seq prefix:$QualName "."))
-            name:$Name
+            pre-name:$Name
             (~optional decls:$ParaDecls)
-            block:$Block)))
+            block:$Block)
+    #:attr name #'pre-name.name))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax-class $FunDecl
@@ -296,10 +313,11 @@
   #:commit
   (pattern ((~and hd (~literal FunDecl))
             (~optional (~seq prefix:$QualName "."))
-            name:$Name
+            pre-name:$Name
             (~optional decls:$ParaDecls)
             output:$Expr
-            body:$Expr)))
+            body:$Expr)
+    #:attr name #'pre-name.name))
 
 ; ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
 ;           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
@@ -322,21 +340,23 @@
   #:attributes (hd name block)
   #:commit
   (pattern ((~and hd (~literal AssertDecl))
-            (~optional name:$Name)
-            block:$Block)))
+            (~optional pre-name:$Name)
+            block:$Block)
+    #:attr name #'(~? pre-name.name #f)))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 (define-syntax-class $CmdDecl
   #:attributes (hd name parameters pred-name pred-block scope bounds)
   #:commit
   (pattern ((~and hd (~literal CmdDecl))
-            (~optional name:$Name)
+            (~optional pre-name:$Name)
             (~or "run" "check")
             (~optional parameters:$Parameters)
             (~optional (~or pred-name:$QualName
                             pred-block:$Block))
             (~optional scope:$Scope)
-            (~optional bounds:$Bounds))))
+            (~optional bounds:$Bounds))
+    #:attr name #'(~? pre-name.name #f)))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 (define-syntax-class $TestDecl
@@ -396,9 +416,8 @@
             (~optional (~and "exactly" exactly))
             num:$Number
             name:$QualName)
-    #:attr translate (if (attribute exactly)
-                         #'(name.name num.value num.value)
-                         #'(name.name 0 num.value))))
+    #:attr translate #'(~? (name.name num.value num.value)
+                           (name.name 0 num.value))))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax-class $OptionDecl
