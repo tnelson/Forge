@@ -724,6 +724,17 @@
        (syntax/loc stx (begin block.test-decls ...))
        (syntax/loc stx (begin)))]))
 
+
+(define-syntax (PropertyWhereDecl stx)
+  (syntax-parse stx
+  [((~literal PropertyWhereDecl) 
+                              "property" 
+                              name:NameClass
+                              "where"
+                              block) ;: ExpressionBlockClass)
+   (printf "~a ~n" (syntax->datum stx))
+   #''hi ]))
+
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
   [((~literal ExampleDecl) (~optional name:NameClass)
