@@ -76,6 +76,9 @@ Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
+;; is this it?
+PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK WHERE-TOK /LEFT-CURLY-TOK ParaDecls* /RIGHT-CURLY-TOK
+
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
 # BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK

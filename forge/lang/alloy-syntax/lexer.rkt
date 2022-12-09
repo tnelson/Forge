@@ -114,6 +114,11 @@
    ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
 
+   ;; Property of where
+   ["property"     (token+ `PROPERTY-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["of"     (token+ `OF-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["where"     (token+ `WHERE-TOK "" lexeme "" lexeme-start lexeme-end)]  
+
    ;["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ;["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ;["transition"(token+ `TRANSITION-TOK "" lexeme "" lexeme-start lexeme-end)] 
@@ -227,6 +232,11 @@
            "theorem"
            "univ"
            "break"
+
+
+           "property"
+           "of"
+           "where"
            
            ;"state"
            ;"facts"
