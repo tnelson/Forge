@@ -42,6 +42,7 @@ Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS
           | OptionDecl
           | InstDecl
           | ExampleDecl 
+          | PropertyWhereDecl
 
 ; NOTE: When extending sigs with "in" (subset sigs) is implemented,
 ;  if "sig A in B extends C" is allowed, update this to allow multiple SigExt
@@ -76,8 +77,9 @@ Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
-;; is this it?
-PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK WHERE-TOK /LEFT-CURLY-TOK ParaDecls* /RIGHT-CURLY-TOK
+;; Got to shoehorn bounds in here
+PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK WHERE-TOK /LEFT-CURLY-TOK ExampleDecl /RIGHT-CURLY-TOK
+              | PROPERTY-TOK Name OF-TOK Name /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK 
 
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK

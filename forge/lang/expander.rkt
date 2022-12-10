@@ -101,6 +101,7 @@
     (pattern decl:AssertDeclClass)
     (pattern decl:CmdDeclClass)
     (pattern decl:TestExpectDeclClass)
+    (pattern decl:PropertyWhereDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
     ; (pattern decl:InstanceDeclClass)
@@ -288,6 +289,16 @@
               "expect"
               (~optional name:NameClass)
               test-block:TestBlockClass)))
+
+  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name WHERE-TOK? TBD-BLOCK?
+  (define-syntax-class PropertyWhereDeclClass
+    (pattern ((~literal PropertyWhereDecl) 
+                              "property" 
+                              prop_name:NameClass
+                              "of"
+                              pred_name:NameClass
+                              (~optional  "where")
+                              (~optional block))))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -725,13 +736,17 @@
        (syntax/loc stx (begin)))]))
 
 
+; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name WHERE-TOK? TBD-BLOCK?
 (define-syntax (PropertyWhereDecl stx)
   (syntax-parse stx
   [((~literal PropertyWhereDecl) 
                               "property" 
-                              name:NameClass
-                              "where"
-                              block) ;: ExpressionBlockClass)
+                              prop_name:NameClass
+                              "of"
+                              pred_name:NameClass
+                              (~optional  "where")
+                              (~optional block)
+                              ) ;: ExpressionBlockClass)
    (printf "~a ~n" (syntax->datum stx))
    #''hi ]))
 
