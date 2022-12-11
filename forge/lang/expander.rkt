@@ -748,7 +748,7 @@
                               (~optional block)
                               ) ;: ExpressionBlockClass)
    (printf "~a ~n" (syntax->datum stx))
-   #''hi ]))
+   #''Unsure of what goes here!  ]))
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
