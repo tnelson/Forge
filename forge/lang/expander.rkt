@@ -749,8 +749,18 @@
                               (~optional  "where")
                               (~optional block)
                               ) ;: ExpressionBlockClass)
-   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
-   ;;#''unsre 
+  ;; (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
+
+
+   #''(
+    LEFT-CURLY-TOK ;; Everything is in a block.
+      'pred prop_name LEFT-CURLY-TOK  prop_expr RIGHT-CURLY-TOK ;; With a predicate defining the property (Shouldn't this be some kind of predicate block now?)
+      block ;; Then the block of tests IF it exists
+      TEST-TOK EXPECT-TOK  ;; Finally I want a testexpect block with a single test: 
+        LEFT-CURLY-TOK
+          LEFT-CURLY-TOK prop_name 'implies pred_name RIGHT-CURLY-TOK 'is 'theorem
+        RIGHT-CURLY-TOK
+    RIGHT-CURLY-TOK)
   
    ;; Need to return a syntax object here, I think. 
    ;; What I want to do is translate this to a completely different syntax pattern.
