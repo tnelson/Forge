@@ -78,7 +78,8 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
 ;; Got to shoehorn bounds in here
-PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK WHERE-TOK /LEFT-CURLY-TOK Block /RIGHT-CURLY-TOK
+PropertyWhereDecl : 
+              PROPERTY-TOK Name OF-TOK Name /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK WHERE-TOK Block 
               | PROPERTY-TOK Name OF-TOK Name /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK 
 
 # UnOp : Mult

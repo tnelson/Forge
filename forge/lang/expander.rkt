@@ -290,15 +290,16 @@
               (~optional name:NameClass)
               test-block:TestBlockClass)))
 
-  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name WHERE-TOK? TBD-BLOCK?
+  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK? TBD-BLOCK?
   (define-syntax-class PropertyWhereDeclClass
     (pattern ((~literal PropertyWhereDecl) 
                               "property" 
                               prop_name:NameClass
                               "of"
                               pred_name:NameClass
+                              prop_expr:ExprClass
                               (~optional  "where")
-                              (~optional block))))
+                              (~optional coherence_block))))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -736,7 +737,7 @@
        (syntax/loc stx (begin)))]))
 
 
-; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name WHERE-TOK? TBD-BLOCK?
+; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK? TBD-BLOCK?
 (define-syntax (PropertyWhereDecl stx)
   (syntax-parse stx
   [((~literal PropertyWhereDecl) 
@@ -744,11 +745,20 @@
                               prop_name:NameClass
                               "of"
                               pred_name:NameClass
+                              prop_expr:ExprClass
                               (~optional  "where")
                               (~optional block)
                               ) ;: ExpressionBlockClass)
-   (printf "~a ~n" (syntax->datum stx))
-   #''Unsure of what goes here!  ]))
+   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
+   #''unsre 
+   ;; Need to return a syntax object here, I think. 
+   ;; What I want to do is translate this to a completely different syntax pattern.
+   ;; I want an Block with a PredDecl of name PropName with body prop_expr
+   ;; I then want 'block' if it exists
+   ;; Finally I want a testexpect block with a single test: 
+    ;; {prop_name implies pred_name} is theorem
+   
+   ]))
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
