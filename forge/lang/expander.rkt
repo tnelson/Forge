@@ -750,13 +750,16 @@
                               (~optional block)
                               ) ;: ExpressionBlockClass)
    (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
-   #''unsre 
+   ;;#''unsre 
+  
    ;; Need to return a syntax object here, I think. 
    ;; What I want to do is translate this to a completely different syntax pattern.
    ;; I want an Block with a PredDecl of name PropName with body prop_expr
    ;; I then want 'block' if it exists
    ;; Finally I want a testexpect block with a single test: 
     ;; {prop_name implies pred_name} is theorem
+
+    ;; The issue is -- how do I construct these syntax objects? I don't want to do this longform right?
    
    ]))
 
