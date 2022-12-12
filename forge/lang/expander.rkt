@@ -745,7 +745,7 @@
                               prop_name:NameClass
                               "of"
                               pred_name:NameClass
-                              prop_expr:ExprClass
+                              prop_expr:ExprClass ;; We may want this to be an Expression block!
                               (~optional  "where")
                               (~optional block)
                               ) ;: ExpressionBlockClass)
@@ -755,29 +755,13 @@
 
    (syntax/loc stx 
     (begin
-     ;; Everything is in a block.
-      (pred prop_name.name prop_expr) ;; With a predicate defining the property (Shouldn't this be some kind of predicate block now?)
-      block ;; Then the block of tests IF it exists
+     
+      (pred prop_name.name prop_expr) 
+      block ;; Need to guard against block existence
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
-        #:expect theorem)  )
-      ; TEST-TOK EXPECT-TOK  ;; Finally I want a testexpect block with a single test: 
-      ;   LEFT-CURLY-TOK
-      ;     LEFT-CURLY-TOK prop_name 'implies pred_name RIGHT-CURLY-TOK 'is 'theorem
-      ;   RIGHT-CURLY-TOK
-    )
-  
-   ;; Need to return a syntax object here, I think. 
-   ;; What I want to do is translate this to a completely different syntax pattern.
-   ;; I want an Block with a PredDecl of name PropName with body prop_expr
-   ;; I then want 'block' if it exists
-   ;; Finally I want a testexpect block with a single test: 
-    ;; {prop_name implies pred_name} is theorem
-
-    ;; The issue is -- how do I construct these syntax objects? I don't want to do this longform right?
-   
-   ]))
+        #:expect theorem)  ))   ]))
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
