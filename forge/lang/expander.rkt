@@ -749,18 +749,24 @@
                               (~optional  "where")
                               (~optional block)
                               ) ;: ExpressionBlockClass)
-  ;; (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
+  #:with test_name (make-temporary-name stx)
+  (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
 
 
-   #''(
-    LEFT-CURLY-TOK ;; Everything is in a block.
-      'pred prop_name LEFT-CURLY-TOK  prop_expr RIGHT-CURLY-TOK ;; With a predicate defining the property (Shouldn't this be some kind of predicate block now?)
+   (syntax/loc stx 
+    (begin
+     ;; Everything is in a block.
+      (pred prop_name.name prop_expr) ;; With a predicate defining the property (Shouldn't this be some kind of predicate block now?)
       block ;; Then the block of tests IF it exists
-      TEST-TOK EXPECT-TOK  ;; Finally I want a testexpect block with a single test: 
-        LEFT-CURLY-TOK
-          LEFT-CURLY-TOK prop_name 'implies pred_name RIGHT-CURLY-TOK 'is 'theorem
-        RIGHT-CURLY-TOK
-    RIGHT-CURLY-TOK)
+      (test 
+        test_name
+        #:preds [(implies pred_name.name prop_name.name)]
+        #:expect theorem)  )
+      ; TEST-TOK EXPECT-TOK  ;; Finally I want a testexpect block with a single test: 
+      ;   LEFT-CURLY-TOK
+      ;     LEFT-CURLY-TOK prop_name 'implies pred_name RIGHT-CURLY-TOK 'is 'theorem
+      ;   RIGHT-CURLY-TOK
+    )
   
    ;; Need to return a syntax object here, I think. 
    ;; What I want to do is translate this to a completely different syntax pattern.
