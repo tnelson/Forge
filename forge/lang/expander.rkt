@@ -290,16 +290,16 @@
               (~optional name:NameClass)
               test-block:TestBlockClass)))
 
-  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK? TBD-BLOCK?
+  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
   (define-syntax-class PropertyWhereDeclClass
     (pattern ((~literal PropertyWhereDecl) 
                               "property" 
                               prop_name:NameClass
                               "of"
                               pred_name:NameClass
-                              prop_expr:ExprClass
+                              prop_expr:BlockClass
                               (~optional  "where")
-                              (~optional coherence_block))))
+                              (~optional where_block:BlockClass))))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -745,10 +745,10 @@
                               prop_name:NameClass
                               "of"
                               pred_name:NameClass
-                              prop_expr:ExprClass ;; We may want this to be an Expression block!
+                              prop_expr:BlockClass ;; We may want this to be an Expression block!
                               (~optional  "where")
-                              (~optional block)
-                              ) ;: ExpressionBlockClass)
+                              (~optional where_block:BlockClass)
+                              ) 
   #:with test_name (make-temporary-name stx)
   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
 
@@ -757,7 +757,7 @@
     (begin
      
       (pred prop_name.name prop_expr) 
-      block ;; Need to guard against block existence
+      where_block ;; Need to guard against block existence
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
