@@ -299,7 +299,7 @@
                               pred_name:NameClass
                               prop_expr:BlockClass
                               (~optional  "where")
-                              (~optional where_block:BlockClass))))
+                              (~optional where_blocks:TestConstructClass ...))))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -348,6 +348,14 @@
   (define-syntax-class BlockClass
     (pattern ((~literal Block)
               exprs:ExprClass ...)))
+
+
+
+  (define-syntax-class TestConstructClass
+    (pattern decl:ExampleDeclClass)
+    (pattern decl:TestExpectDeclClass)
+    (pattern decl:PropertyWhereDeclClass)
+    )
 
   ; Name : IDENTIFIER-TOK
   (define-syntax-class NameClass
@@ -747,7 +755,7 @@
                               pred_name:NameClass
                               prop_expr:BlockClass ;; We may want this to be an Expression block!
                               (~optional  "where")
-                              (~optional where_block:BlockClass)
+                              (~optional where_blocks:TestConstructClass ...)
                               ) 
   #:with test_name (make-temporary-name stx)
   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
@@ -757,7 +765,7 @@
     (begin
      
       (pred prop_name.name prop_expr) 
-      where_block ;; Need to guard against block existence
+      (begin where_blocks ...) ;; Need to guard against no blocks
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
