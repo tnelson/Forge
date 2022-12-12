@@ -25,6 +25,8 @@
   $Bounds
   $QualName
   $Name
+  $ArrowDecl
+  $ArrowDeclList
 
   )
 
@@ -105,21 +107,24 @@
 
 ;; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax-class $SigDecl
-  #:attributes (hd isv abstract mult (name* 1) extends relation-decls block)
+  #:attributes (hd isv abstract mult (name* 1) extends (relation-decl* 1) block)
   #:commit
   (pattern ((~and hd (~datum SigDecl))
             (~optional isv:$VarKeyword #:defaults ([isv #'#f]))
             (~optional abstract:abstract-tok)
-            (~optional mult:$Mult)
+            (~optional pre-mult:$Mult)
             namelist:$NameList
             ;when extending with in is implemented,
             ;if "sig A in B extends C" is allowed,
             ;check if this allows multiple $SigExt / how to do that if not
             ;note the parser currently does not allow that
-            (~optional extends:$SigExt)
-            (~optional relation-decls:$ArrowDeclList)
+            (~optional pre-extends:$SigExt)
+            (~optional pre-relation-decls:$ArrowDeclList)
             (~optional block:$Block))
-    #:attr (name* 1) (syntax-e #'(namelist.name* ...))))
+    #:attr mult #'(~? pre-mult.symbol #f)
+    #:attr (name* 1) (syntax-e #'(namelist.name* ...))
+    #:attr extends #'(~? pre-extends.value #f)
+    #:attr (relation-decl* 1) (syntax-e #'(~? (pre-relation-decls.arrow-decl* ...) ()))))
 
 ; SigExt : EXTENDS-TOK QualName 
 ;        | IN-TOK QualName (PLUS-TOK QualName)*
@@ -208,7 +213,7 @@
   #:commit
   (pattern ((~and hd (~literal Mult))
             (~and str (~or "lone" "some" "one" "two")))
-    #:attr symbol (datum->syntax #'hd (string->keyword (syntax-e #'str)))))
+    #:attr symbol #`#,(string->keyword (syntax-e #'str))))
 
 ; ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
 (define-syntax-class $ArrowMult
@@ -272,10 +277,10 @@
 ; ArrowDeclList : ArrowDecl
 ;               | ArrowDecl /COMMA-TOK @ArrowDeclList
 (define-syntax-class $ArrowDeclList
-  #:attributes (hd (arrow-decl 1))
+  #:attributes (hd (arrow-decl* 1))
   #:commit
   (pattern ((~and hd (~literal ArrowDeclList))
-            arrow-decl:$ArrowDecl ...)))
+            arrow-decl*:$ArrowDecl ...)))
 
 ; ArrowExpr : QualName
 ;           | QualName /ARROW-TOK @ArrowExpr
