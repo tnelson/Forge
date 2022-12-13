@@ -290,6 +290,7 @@
               (~optional name:NameClass)
               test-block:TestBlockClass)))
 
+;; Sidd
   ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
   (define-syntax-class PropertyWhereDeclClass
     (pattern ((~literal PropertyWhereDecl) 
@@ -299,12 +300,8 @@
                               pred_name:NameClass
                               prop_expr:BlockClass
                               (~optional  "where")
-                              (~optional where_blocks:WhereDeclClass ))))
+                              (~optional where_blocks:ParagraphClass ))))
 
-
-  ;; WhereDecl : /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
-  (define-syntax-class WhereDeclClass
-    (pattern ((~literal WhereDecl)  where-decls:TestConstructClass ...)))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -356,11 +353,6 @@
 
 
 
-  (define-syntax-class TestConstructClass
-    (pattern decl:ExampleDeclClass)
-    (pattern decl:TestExpectDeclClass)
-    (pattern decl:PropertyWhereDeclClass)
-    )
 
   ; Name : IDENTIFIER-TOK
   (define-syntax-class NameClass
@@ -758,9 +750,9 @@
                               prop_name:NameClass
                               "of"
                               pred_name:NameClass
-                              prop_expr:BlockClass ;; We may want this to be an Expression block!
+                              prop_expr:BlockClass 
                               (~optional  "where")
-                              (~optional where-decl:WhereDeclClass)
+                              (~optional where-decl:ParagraphClass)
                               ) 
   #:with test_name (make-temporary-name stx)
   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
@@ -774,7 +766,6 @@
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
         #:expect theorem)  ))   ]))
-
 
 
 
@@ -827,6 +818,7 @@
     [((~literal Block) exprs:ExprClass ...)
      (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
        (syntax/loc stx (disambiguate-block (list exprs ...))))]))
+
 
 (define-syntax (Expr stx)
   (syntax-parse stx
