@@ -300,7 +300,7 @@
                               pred_name:NameClass
                               prop_expr:BlockClass
                               (~optional  "where")
-                              (~optional where_blocks:ParagraphClass ))))
+                              (~optional (where_blocks:ParagraphClass ...)))))
 
 
   (define-syntax-class ExampleDeclClass
@@ -752,7 +752,7 @@
                               pred_name:NameClass
                               prop_expr:BlockClass 
                               (~optional  "where")
-                              (~optional where-decl:ParagraphClass)
+                              (~optional (where-decl:ParagraphClass ...))
                               ) 
   #:with test_name (make-temporary-name stx)
   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
@@ -761,7 +761,7 @@
     (begin
      
       (pred prop_name.name prop_expr) 
-      where-decl ;; Need to guard against no blocks
+      (begin where-decl ...) ;; Need to guard against no blocks
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
