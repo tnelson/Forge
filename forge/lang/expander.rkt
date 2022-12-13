@@ -304,7 +304,7 @@
 
   ;; WhereDecl : /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
   (define-syntax-class WhereDeclClass
-    (pattern ((~literal WhereDecl) where-decls:TestConstructClass ...)))
+    (pattern ((~literal WhereDecl)  where-decls:TestConstructClass ...)))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -764,7 +764,6 @@
                               ) 
   #:with test_name (make-temporary-name stx)
   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
-
 
    (syntax/loc stx 
     (begin
