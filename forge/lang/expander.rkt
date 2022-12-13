@@ -299,7 +299,12 @@
                               pred_name:NameClass
                               prop_expr:BlockClass
                               (~optional  "where")
-                              (~optional where_blocks:TestConstructClass ...))))
+                              (~optional where_blocks:WhereDeclClass ))))
+
+
+  ;; WhereDecl : /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
+  (define-syntax-class WhereDeclClass
+    (pattern ((~literal WhereDecl) where-decls:TestConstructClass ...)))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -755,7 +760,7 @@
                               pred_name:NameClass
                               prop_expr:BlockClass ;; We may want this to be an Expression block!
                               (~optional  "where")
-                              (~optional where_blocks:TestConstructClass ...)
+                              (~optional where-decl:WhereDeclClass)
                               ) 
   #:with test_name (make-temporary-name stx)
   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
@@ -765,11 +770,14 @@
     (begin
      
       (pred prop_name.name prop_expr) 
-      (begin where_blocks ...) ;; Need to guard against no blocks
+      where-decl ;; Need to guard against no blocks
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
         #:expect theorem)  ))   ]))
+
+
+
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
