@@ -299,8 +299,11 @@
                               "of"
                               pred_name:NameClass
                               prop_expr:BlockClass
-                              (~optional  "where")
-                              (~optional (where_blocks:ParagraphClass ...)))))
+                              "where"
+                              where-blocks:ExampleDeclClass ...)))
+
+                              ; (~optional  "where")
+                              ; (~optional where-blocks:ExampleDeclClass ...))))
 
 
   (define-syntax-class ExampleDeclClass
@@ -751,8 +754,10 @@
                               "of"
                               pred_name:NameClass
                               prop_expr:BlockClass 
-                              (~optional  "where")
-                              (~optional (where-decl:ParagraphClass ...))
+                               "where"
+                              where-blocks:ParagraphClass ...
+                              ;(~optional  "where")
+                              ;(~optional where-blocks:ParagraphClass ...)
                               ) 
   #:with test_name (make-temporary-name stx)
   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
@@ -761,7 +766,7 @@
     (begin
      
       (pred prop_name.name prop_expr) 
-      (begin where-decl ...) ;; Need to guard against no blocks
+     ;; (begin where-blocks ...) ;; Need to guard against no blocks
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
