@@ -291,6 +291,14 @@
               test-block:TestBlockClass)))
 
 ;; Sidd
+
+
+  (define-syntax-class TestConstructClass
+    (pattern decl:ExampleDeclClass)
+    (pattern decl:TestExpectDeclClass)
+    (pattern decl:PropertyWhereDeclClass))
+
+
   ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
   (define-syntax-class PropertyWhereDeclClass
     (pattern ((~literal PropertyWhereDecl) 
@@ -300,7 +308,7 @@
                               pred_name:NameClass
                               prop_expr:BlockClass
                               "where"
-                              where-blocks:ExampleDeclClass ...)))
+                              where-blocks:TestConstructClass ...)))
 
                               ; (~optional  "where")
                               ; (~optional where-blocks:ExampleDeclClass ...))))
@@ -755,7 +763,7 @@
                               pred_name:NameClass
                               prop_expr:BlockClass 
                                "where"
-                              where-blocks:ParagraphClass ...
+                              where-blocks:TestConstructClass ...
                               ;(~optional  "where")
                               ;(~optional where-blocks:ParagraphClass ...)
                               ) 
