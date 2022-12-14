@@ -763,10 +763,7 @@
                               pred_name:NameClass
                               prop_expr:BlockClass 
                                "where"
-                              where-blocks:TestConstructClass ...
-                              ;(~optional  "where")
-                              ;(~optional where-blocks:ParagraphClass ...)
-                              ) 
+                              where-blocks:TestConstructClass ...  ) 
   #:with test_name (make-temporary-name stx)
   (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
 
@@ -774,7 +771,7 @@
     (begin
      
       (pred prop_name.name prop_expr) 
-     ;; (begin where-blocks ...) ;; Need to guard against no blocks
+      (begin where-blocks ...) ;; Need to guard against no blocks
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
