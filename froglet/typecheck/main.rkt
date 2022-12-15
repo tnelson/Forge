@@ -8,22 +8,64 @@
 
 (require
   forge/lang/alloy-syntax/syntax-class
+  froglet/typecheck/error
   froglet/typecheck/struct
   racket/list
   racket/pretty
   syntax/id-set
   syntax/parse)
 
+(define-syntax-rule (define-parser id clause ...)
+  (define id (syntax-parser clause ...)))
+
 ;; -----------------------------------------------------------------------------
+
+(define current-type-env (make-parameter '()))
 
 (define (typecheck mod)
   (define env (collect-env mod))
   (pretty-write env)
   (env-check env)
-  ;; TODO assert valid env
   ;; TODO bounds
-  ;; TODO ... collect exprs everywhere, traverse
+  (parameterize ([current-type-env env])
+    (mod-check mod))
   mod)
+
+(define-parser mod-check
+  [mod:$AlloyModule
+   (for ((par (in-list (syntax-e #'(mod.parag* ...)))))
+     (parag-check par))
+   (for ((exp (in-list (syntax-e #'(mod.expr* ...)))))
+     (expr-check exp))
+   (void)]
+  [_
+    (void)])
+
+(define-parser parag-check
+  ;; TODO what are the cases???
+  [sig:$SigDecl
+    ;; TODO
+    #;(raise-user-error 'parag-check "sig not implemented ~a" (syntax->datum #'sig))
+    (void)]
+  [pred:$PredDecl
+    (block-check #'pred.block)]
+  [par
+    (raise-user-error 'parag-check "unknown stx ~a" (syntax->datum #'par))
+    (void)])
+
+(define-parser block-check
+  [bb:$Block
+    (for-each expr-check (syntax-e #'(bb.exprs ...)))])
+
+(define-parser expr-check
+  ;; TODO how to unwrap Expr, what does forge do?!
+  ;; TODO what can an expr be?!
+  [exp:$Expr
+    (raise-user-error 'dieee "~a" (syntax->datum #'exp))
+    (void)]
+  [_
+    ;; could be #'(raise ....)
+    (void)])
 
 (define (env-check env)
   (unknown-sig-check env)
@@ -80,12 +122,12 @@
     #:datum-literals (AlloyModule ModuleDecl Import)
     ;; [ev:EvalDecl ...]
     [mod:$AlloyModule
-     #:fail-unless (null? (syntax-e #'mod.import*))
+     #:fail-unless (null? (syntax-e #'(mod.import* ...)))
                    "Cannot typecheck module with Import statements"
      ; (printf "Module-decl ~a~n~n" #'(~? mod.moduledecl "None present"))
-     ; (printf "Paragraphs: ~a~n~n" #'mod.parag*)
-     ;; TODO (printf "Exprs: ~a~n~n" #'mod.expr*)
-     (append-map collect-env/paragraph (syntax-e #'mod.parag*))]))
+     ; (printf "Paragraphs: ~a~n~n" #'(mod.parag* ...))
+     ;; TODO (printf "Exprs: ~a~n~n" #'(mod.expr* ...))
+     (append-map collect-env/paragraph (syntax-e #'(mod.parag* ...)))]))
 
 (define (collect-env/paragraph stx)
   (syntax-parse stx

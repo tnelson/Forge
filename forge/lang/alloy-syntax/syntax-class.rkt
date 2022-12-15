@@ -62,22 +62,25 @@
 (define-token-class abstract-tok "abstract" #:abstract)
 
 (define-syntax-class $AlloyModule
-  #:attributes (hd import* parag* expr*)
+  #:attributes (hd (import* 1) (parag* 1) (expr* 1))
   #:commit
   (pattern ((~and hd (~datum AlloyModule))
             (~optional moduledecl:$AlloyModule)
             pre-import*:$Import ...
-            . parag*)
-    #:attr import* (syntax/loc this-syntax (pre-import* ...))
-    #:attr expr* #'())
+            . pre-parag*)
+    #:attr (import* 1) (syntax-e #'(pre-import* ...))
+    #:attr (parag* 1) (syntax-e #'pre-parag*)
+    #:attr (expr* 1) '())
   (pattern ((~and hd (~datum AlloyModule))
             ((~literal EvalDecl) "eval" pre-expr*:$Expr ...))
-    #:attr import* #'()
-    #:attr parag* #'()
-    #:attr expr* (let ([ex* (syntax->list #'(pre-expr* ...))])
-                   (if (null? ex*)
-                     (car ex*)
-                     (syntax/loc this-syntax (raise "Can't eval multiple expressions."))))))
+    #:attr (import* 1) '()
+    #:attr (parag* 1) '()
+    #:attr (expr* 1) (let ([ex* (syntax-e #'(pre-expr* ...))])
+                       (if (or (null? ex*) (null? (cdr ex*)))
+                         ex*
+                         (list
+                           (syntax/loc this-syntax
+                             (raise "Can't eval multiple expressions.")))))))
 
 (define-syntax-class $Import
   #:attributes (hd as-name)
