@@ -65,10 +65,7 @@ pred isUndirectedTree {
 property connected of isUndirectedTree
  {
      all m, n : Node | n->m in edges
- }
+ } for 2 Node
  where {
-        test expect {
-
-            {isUndirectedTree} for 2 Node is sat
-        }
+       
 }

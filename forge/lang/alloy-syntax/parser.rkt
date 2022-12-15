@@ -77,8 +77,8 @@ Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
-;; Got to shoehorn bounds in here
-PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block (/FOR-TOK Bounds)? WHERE-TOK /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK ;;; Add Bounds
+
+PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block (/FOR-TOK Bounds)? WHERE-TOK /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK 
 
 @TestConstruct : ExampleDecl | TestExpectDecl | PropertyWhereDecl
 
