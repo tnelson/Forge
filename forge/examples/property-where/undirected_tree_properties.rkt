@@ -65,7 +65,7 @@ pred isUndirectedTree {
 property connected of isUndirectedTree
  {
      all m, n : Node | n->m in edges
- } for 2 Node
+ } for {2 Node}
  where {
        
 }

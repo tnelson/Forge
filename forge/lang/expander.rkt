@@ -778,7 +778,7 @@
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
         #:expect theorem   
-        (~? (~@ #:bounds bounds.translate))
+        (~? (~@ #:bounds bounds.translate)) ;; TODO: I think I need myExpand here
         )  ))   ]))
 
 
