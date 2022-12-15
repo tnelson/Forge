@@ -307,6 +307,7 @@
                               "of"
                               pred_name:NameClass
                               prop_expr:BlockClass
+                              (~optional bounds:BoundsClass)
                               "where"
                               where-blocks:TestConstructClass ...)))
 
@@ -762,10 +763,11 @@
                               "of"
                               pred_name:NameClass
                               prop_expr:BlockClass 
+                              (~optional bounds:BoundsClass)
                                "where"
                               where-blocks:TestConstructClass ...  ) 
   #:with test_name (make-temporary-name stx)
-  ;; (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
+  (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
 
    (syntax/loc stx 
     (begin
@@ -775,7 +777,9 @@
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
-        #:expect theorem)  ))   ]))
+        #:expect theorem   
+        (~? (~@ #:bounds bounds.translate))
+        )  ))   ]))
 
 
 

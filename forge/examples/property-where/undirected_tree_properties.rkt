@@ -15,10 +15,13 @@ pred isUndirectedTree {
 
 
 
+
+
+/*
  property isUndirected of isUndirectedTree
  {
      all m, n : Node | n->m in edges implies m->n in edges
- }
+ } 
  where {
 
 
@@ -56,4 +59,16 @@ pred isUndirectedTree {
         where
         {}
 
+}*/
+
+
+property connected of isUndirectedTree
+ {
+     all m, n : Node | n->m in edges
+ }
+ where {
+        test expect {
+
+            {isUndirectedTree} for 2 Node is sat
+        }
 }
