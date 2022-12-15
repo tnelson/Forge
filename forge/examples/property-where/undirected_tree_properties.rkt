@@ -21,6 +21,13 @@ pred isUndirectedTree {
  }
  where {
 
+
+        test expect {
+
+            {isUndirected} is sat
+        }
+
+        
         example line is {not isUndirected} for {
             Node = `Node0 + `Node1 + `Node2
             edges = `Node0->`Node1 + `Node1->`Node2 
@@ -40,4 +47,8 @@ pred isUndirectedTree {
             Node = `Node0 + `Node1
             edges = `Node0->`Node0
         }
+
+        // Add a sub property here please.
+
+
 }
