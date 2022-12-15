@@ -27,7 +27,7 @@ pred isUndirectedTree {
             {isUndirected} is sat
         }
 
-        
+
         example line is {not isUndirected} for {
             Node = `Node0 + `Node1 + `Node2
             edges = `Node0->`Node1 + `Node1->`Node2 
@@ -48,7 +48,12 @@ pred isUndirectedTree {
             edges = `Node0->`Node0
         }
 
-        // Add a sub property here please.
 
+        property reachability of isUndirected
+        {
+            all m, n : Node | n->m in edges implies m in n.*edges
+        }
+        where
+        {}
 
 }
