@@ -61,11 +61,25 @@ pred isUndirectedTree {
 
 }*/
 
+/*
+test expect {
+
+    t1 : {all disj m, n : Node | n->m in edges} for exactly 2 Node is theorem
+}
+*/
+
+inst misnt {  
+
+            Node = `Node0 + `Node1 + 
+            edges = `Node0->`Node1 + `Node1->`Node0 
+
+}
 
 property connected of isUndirectedTree
  {
-     all m, n : Node | n->m in edges
- } for {2 Node}
+     all disj m, n : Node | n->m in edges
+ } for exactly { 2 Node}
  where {
        
 }
+

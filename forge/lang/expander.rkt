@@ -307,12 +307,10 @@
                               "of"
                               pred_name:NameClass
                               prop_expr:BlockClass
+                              (~optional scope:ScopeClass)
                               (~optional bounds:BoundsClass)
                               "where"
                               where-blocks:TestConstructClass ...)))
-
-                              ; (~optional  "where")
-                              ; (~optional where-blocks:ExampleDeclClass ...))))
 
 
   (define-syntax-class ExampleDeclClass
@@ -732,6 +730,8 @@
                         (~optional scope:ScopeClass)
                         (~optional bounds:BoundsClass)
                         (~and expected (~or "sat" "unsat" "theorem")))
+  (printf "~a  ~n" (syntax->datum stx)) 
+  
    (with-syntax ([name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)]
                  [expected (datum->syntax #'expected
@@ -763,6 +763,7 @@
                               "of"
                               pred_name:NameClass
                               prop_expr:BlockClass 
+                              (~optional scope:ScopeClass)
                               (~optional bounds:BoundsClass)
                                "where"
                               where-blocks:TestConstructClass ...  ) 
@@ -778,7 +779,8 @@
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
         #:expect theorem   
-        (~? (~@ #:bounds bounds.translate)) ;; TODO: I think I need myExpand here
+        (~? (~@ #:scope scope.translate))
+        (~? (~@ #:bounds bounds.translate))
         )  ))   ]))
 
 
