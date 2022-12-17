@@ -730,8 +730,6 @@
                         (~optional scope:ScopeClass)
                         (~optional bounds:BoundsClass)
                         (~and expected (~or "sat" "unsat" "theorem")))
-  (printf "~a  ~n" (syntax->datum stx)) 
-  
    (with-syntax ([name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)]
                  [expected (datum->syntax #'expected

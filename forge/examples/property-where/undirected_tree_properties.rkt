@@ -64,16 +64,17 @@ pred isUndirectedTree {
 
 test expect {
 
-    t1 : {all disj m, n : Node | n->m in edges} for exactly {2 Node} is theorem
+    t1 : {no edges} for 2 Node is theorem
 }
 
 
-/*
-property connected of isUndirectedTree
+
+property emptyofone of isUndirectedTree
  {
-     all disj m, n : Node | n->m in edges
- } for exactly { 2 Node}
+    no edges
+ } 
+ for 1 Node
  where {
        
-}*/
+}
 
