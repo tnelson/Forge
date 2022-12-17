@@ -766,7 +766,7 @@
                                "where"
                               where-blocks:TestConstructClass ...  ) 
   #:with test_name (make-temporary-name stx)
-  (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
+  ;;(printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
 
    (syntax/loc stx 
     (begin

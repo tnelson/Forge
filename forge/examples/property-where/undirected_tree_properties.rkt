@@ -14,10 +14,6 @@ pred isUndirectedTree {
 }
 
 
-
-
-
-/*
  property isUndirected of isUndirectedTree
  {
      all m, n : Node | n->m in edges implies m->n in edges
@@ -59,19 +55,14 @@ pred isUndirectedTree {
         where
         {}
 
-}*/
-
-
-test expect {
-
-    t1 : {no edges} for 2 Node is theorem
 }
+
 
 
 
 property emptyofone of isUndirectedTree
  {
-    no edges
+    (no edges)
  } 
  for 1 Node
  where {
