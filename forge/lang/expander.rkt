@@ -778,10 +778,10 @@
       (test 
         test_name
         #:preds [(implies pred_name.name prop_name.name)]
-        #:expect theorem   
+        
         (~? (~@ #:scope scope.translate))
         (~? (~@ #:bounds bounds.translate))
-        )  ))   ]))
+        #:expect theorem   )))]))
 
 
 
