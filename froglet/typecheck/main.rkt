@@ -58,14 +58,83 @@
     (for-each expr-check (syntax-e #'(bb.exprs ...)))])
 
 (define-parser expr-check
-  ;; TODO how to unwrap Expr, what does forge do?!
-  ;; TODO what can an expr be?!
   [exp:$Expr
-    (raise-user-error 'dieee "~a" (syntax->datum #'exp))
-    (void)]
+    ;; (Expr8 (Expr15 (Expr15 (QualName Tim))
+    ;;                . (Expr16 (QualName father)))
+    ;;        . (Expr16 (QualName grad)))
+    ;; TODO syntax class for those muliplicity ops
+    ;; TODO ... copy things over from expr macro
+    (let loop ([stx (syntax/loc this-syntax (exp.body ...))])
+      (syntax-parse stx
+       [(_:$QuantStr exp:$Expr)
+        (loop (syntax/loc this-syntax (exp.body ...)))]
+       [(lhs:$Expr (~datum ".") rhs:$Expr)
+        (define lhs-ty (loop #'(lhs.body ...)))
+        (define rhs-ty (loop #'(rhs.body ...)))
+        (or (field-check lhs-ty rhs-ty)
+            (raise-syntax-error 'froglet:typecheck
+                                "Expected matching sig and field"
+                                this-syntax))]
+       [(qn:$QualName)
+        #'qn.name]
+       [_
+        (raise-user-error 'dieee "~a" (syntax->datum #'exp))]))]
   [_
     ;; could be #'(raise ....)
     (void)])
+
+(define (field-check lhs rhs)
+  (define lhs-sigty
+    (or (->sigty lhs)
+        (raise-syntax-error 'froglet:typecheck
+                            "Expected sig"
+                            lhs)))
+  (define rhs-sigty
+    (or (field->sigty rhs)
+        (raise-syntax-error 'froglet:typecheck
+                            "Expected field"
+                            rhs)))
+  (and (sigtype<: lhs-sigty rhs-sigty)
+       (sigtype-find-field rhs-sigty rhs)))
+
+(define (sigtype<: s0 s1)
+  (or (eq? s0 s1)
+      (let ((xx (sigtype-extends s0)))
+        (and xx (sigtype<: (->sigty xx) s1)))))
+
+(define (->sigty stx)
+  (cond
+    [(sigtype? stx)
+     stx]
+    [else
+     (define stx=?
+       (if (syntax? stx)
+         (lambda (that) (free-identifier=? stx that))
+         (lambda (that) (eq? stx (syntax-e that)))))
+     (for/first ([elem (in-list (current-type-env))]
+                 #:when (and (sigtype? elem)
+                             (stx=? (type-name elem))))
+       elem)]))
+
+(define (field->sigty stx)
+  (for/first ([elem (in-list (current-type-env))]
+              #:when (and (sigtype? elem)
+                          (sigtype-has-field? elem stx)))
+    elem))
+
+(define (sigtype-has-field? sigty id)
+  (for*/or ([ft (in-list (sigtype-field* sigty))]
+            [nm (in-list (type-name ft))])
+    (free-identifier=? id nm)))
+
+(define (sigtype-find-field sigty id)
+  (or
+    (for/or ([ft (in-list (sigtype-field* sigty))])
+      (for/or ([nm (in-list (type-name ft))]
+               [ty (in-list (fieldtype-sig ft))]
+               #:when (free-identifier=? id nm))
+        (->sigty ty)))
+    (raise-user-error 'sigtype-find-field "Field not found")))
 
 (define (env-check env)
   (unknown-sig-check env)

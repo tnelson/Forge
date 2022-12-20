@@ -28,6 +28,8 @@
   $ArrowDecl
   $ArrowDeclList
 
+  $QuantStr
+  $DotStr
   )
 
 (require
@@ -60,6 +62,17 @@
 ;; ---
 
 (define-token-class abstract-tok "abstract" #:abstract)
+
+(define-syntax-class $DotStr
+  (pattern "."))
+
+(define-syntax-class $QuantStr
+  (pattern "all")
+  (pattern "no")
+  (pattern "lone")
+  (pattern "some")
+  (pattern "one")
+  (pattern "two"))
 
 (define-syntax-class $AlloyModule
   #:attributes (hd (import* 1) (parag* 1) (expr* 1))
@@ -580,7 +593,7 @@
   #:attributes (hd symbol)
   #:commit
   (pattern ((~and hd (~literal Quant))
-            (~and q (~or "all" "no" "lone" "some" "one" "two")))
+            q:$QuantStr)
     #:attr symbol (datum->syntax #'q (string->symbol (syntax-e #'q))))
   (pattern ((~and hd (~literal Quant))
             (~literal sum))
