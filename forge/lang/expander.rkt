@@ -772,7 +772,9 @@
                 ;;; Overconstraint : Prop => Pred
                 ;;; Underconstraint Pred => Prop
 
-                [imp_total (syntax-e (if (equal? (syntax-e #'constraint_type) "overconstraint") (syntax (implies prop_name.name pred_name.name)) (syntax (implies pred_name.name prop_name.name))))])
+                [imp_total (syntax-e (if (equal? (syntax-e #'constraint_type) "overconstraint") 
+                                        (syntax (implies prop_name.name pred_name.name)) 
+                                        (syntax (implies pred_name.name prop_name.name))))])
  ;; (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
     
    (syntax/loc stx 
