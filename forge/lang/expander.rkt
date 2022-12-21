@@ -787,10 +787,7 @@
         
         (~? (~@ #:scope scope.translate))
         (~? (~@ #:bounds bounds.translate))
-        #:expect theorem   )))
-        
-  )
-        ]))
+        #:expect theorem   ))))]))
 
 
 
