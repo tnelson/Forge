@@ -752,7 +752,7 @@
        (syntax/loc stx (begin)))]))
 
 
-; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK? TBD-BLOCK?
+; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
 (define-syntax (PropertyWhereDecl stx)
   (syntax-parse stx
   [((~literal PropertyWhereDecl) 
