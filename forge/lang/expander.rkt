@@ -780,7 +780,7 @@
    (syntax/loc stx 
     (begin
       (pred prop_name.name prop_expr) 
-      (begin where-blocks ...) ;; Need to guard against no blocks
+      (begin where-blocks ...) 
       (test 
         test_name
         #:preds [imp_total]
