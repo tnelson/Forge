@@ -14,7 +14,8 @@ pred isUndirectedTree {
 }
 
 
- property isUndirected of isUndirectedTree
+
+ underconstraint isUndirected of isUndirectedTree
  {
      all m, n : Node | n->m in edges implies m->n in edges
  } 
@@ -25,7 +26,6 @@ pred isUndirectedTree {
 
             {isUndirected} is sat
         }
-
 
         example line is {not isUndirected} for {
             Node = `Node0 + `Node1 + `Node2
@@ -48,19 +48,19 @@ pred isUndirectedTree {
         }
 
 
-        property reachability of isUndirected
+        underconstraint reachability of isUndirected
         {
             all m, n : Node | n->m in edges implies m in n.*edges
         }
         where
         {}
-
 }
 
 
 
 
-property emptyofone of isUndirectedTree
+
+underconstraint emptyofone of isUndirectedTree
  {
     (no edges)
  } 
@@ -68,4 +68,3 @@ property emptyofone of isUndirectedTree
  where {
        
 }
-
