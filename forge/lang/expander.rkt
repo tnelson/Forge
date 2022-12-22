@@ -774,22 +774,17 @@
 
                 [imp_total (syntax-e (if (equal? (syntax-e #'constraint_type) "overconstraint") 
                                         (syntax (implies prop_name.name pred_name.name)) 
-                                        (syntax (implies pred_name.name prop_name.name))))])
- ;; (printf "~a  ~n" (syntax->datum stx)) ;; Remove at some point
-    
+                                        (syntax (implies pred_name.name prop_name.name))))])    
    (syntax/loc stx 
     (begin
       (pred prop_name.name prop_expr) 
       (begin where-blocks ...) 
       (test 
         test_name
-        #:preds [imp_total]
-        
+        #:preds [imp_total]    
         (~? (~@ #:scope scope.translate))
         (~? (~@ #:bounds bounds.translate))
         #:expect theorem   ))))]))
-
-
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
