@@ -57,6 +57,7 @@
     (list "failed_theorem.frg" #rx"failed.")
     (list "failed_unsat.frg" #rx"Failed test")
     (list "failed_sat.frg" #rx"Failed test")
+    (list "properties_undirected_tree_error.rkt" #rx"Failed test")
   ))
 
 ;; -----------------------------------------------------------------------------
