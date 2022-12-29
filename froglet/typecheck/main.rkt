@@ -57,31 +57,91 @@
   [bb:$Block
     (for-each expr-check (syntax-e #'(bb.exprs ...)))])
 
+;; ---
+;;
+
 (define-parser expr-check
   [exp:$Expr
-    ;; (Expr8 (Expr15 (Expr15 (QualName Tim))
-    ;;                . (Expr16 (QualName father)))
-    ;;        . (Expr16 (QualName grad)))
     ;; TODO syntax class for those muliplicity ops
     ;; TODO ... copy things over from expr macro
     (let loop ([stx (syntax/loc this-syntax (exp.body ...))])
       (syntax-parse stx
-       [(_:$QuantStr exp:$Expr)
-        (loop (syntax/loc this-syntax (exp.body ...)))]
+       [("let" decls:$LetDeclList bob:$BlockOrBar)
+        ;; TODO
+        ;; - check letdecl
+        ;; - update env
+        ;; - check bob
+        (error 'die1)]
+       [("bind" decls:$LetDeclList bob$BlockOrBar)
+        ;; bind not implemented
+        (void)]
+       [(q:$Quant (~optional (~and "disj" disj)) decls:$DeclList bob:$BlockOrBar)
+        (define decl-tys (decls-check #'decls))
+        (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
+          (blockorbar-check #'bob))]
+       [(e1:$Expr _:$BinaryOp
+                  e2:$Expr
+                  (~optional (~seq "else" e3:$Expr)))
+        ;; TODO
+        (error 'die4)]
        [(lhs:$Expr (~datum ".") rhs:$Expr)
+        ;; ??
         (define lhs-ty (loop #'(lhs.body ...)))
         (define rhs-ty (loop #'(rhs.body ...)))
         (or (field-check lhs-ty rhs-ty)
             (raise-syntax-error 'froglet:typecheck
                                 "Expected matching sig and field"
                                 this-syntax))]
+       [(_:$UnaryOp e1:$Expr)
+         ;; TODO
+         (error 'die5)]
+       [(e1:$Expr (~optional (~and (~or "!" "not") not)) _:$BinaryOp e2:$Expr)
+        ;; TODO
+        (error 'die6)]
+       [(_:$QuantStr exp:$Expr)
+        ;; ??
+        (loop (syntax/loc this-syntax (exp.body ...)))]
+       [(e1:$Expr "'")
+         ;; TODO
+         (error 'die7)]
+       [("[" _:$ExprList "]")
+        ;; not implemented in expander
+        (void)]
+       [(name:$Name "[" _:$ExprList "]")
+        (error 'die8)]
+       [(ex1:$Expr "[" _:$ExprList "]")
+        (error 'die9)]
+       [(cn:$Const)
+        #'cn.translate]
        [(qn:$QualName)
         #'qn.name]
+       [("this")
+        (error 'die10)]
+       [("`" nm:$Name)
+        (error 'die11)]
+       [("{" decls:$DeclList bob:$BlockOrBar "}")
+        (error 'die12)]
+       [(block:$Block)
+        (error 'die13)]
+       [(sexpr:$Sexpr)
+        (error 'die14)]
        [_
-        (raise-user-error 'dieee "~a" (syntax->datum #'exp))]))]
+         ;; ??
+        (raise-syntax-error 'expr-check "internal error parsing expr" stx)]))]
   [_
-    ;; could be #'(raise ....)
-    (void)])
+    ;; TODO more cases, for the things inside exprs?
+    (void)]
+  [_
+    (raise-argument-error 'expr-check "$Expr" this-syntax)])
+
+(define-parser decls-check
+  ;; TODO map instead?
+  [decl
+    (raise-user-error 'decls-check "not impled ~s~n" this-syntax)])
+
+(define-parser blockorbar-check
+  [bob
+    (raise-user-error 'blockorbar-check "not impled ~s~n" this-syntax)])
 
 (define (field-check lhs rhs)
   (define lhs-sigty
@@ -183,6 +243,8 @@
   (or (sigtype? x)
       (predtype? x)))
 
+(define (env-extend a b)
+  (append a b))
 
 ;; ---
 

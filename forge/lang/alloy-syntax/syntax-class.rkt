@@ -3,9 +3,9 @@
 (provide
   $AlloyModule
   $Import
+
   $ModuleDecl
   $EvalDecl
-
   $SigDecl
   $PredDecl
   $FunDecl
@@ -18,15 +18,24 @@
   $OptionDecl
   $InstDecl
   $ExampleDecl
-
+  $ArrowDecl
+  $ArrowDeclList
+  $LetDeclList
   $ParaDecls
-  $Block
+  $DeclList
+
   $Expr
+  $Block
   $Bounds
   $QualName
   $Name
-  $ArrowDecl
-  $ArrowDeclList
+  $Const
+  $BlockOrBar
+  $Quant
+  $BinaryOp
+  $UnaryOp
+  $ExprList
+  $Sexpr
 
   $QuantStr
   $DotStr
@@ -72,7 +81,8 @@
   (pattern "lone")
   (pattern "some")
   (pattern "one")
-  (pattern "two"))
+  (pattern "two")
+  (pattern "set"))
 
 (define-syntax-class $AlloyModule
   #:attributes (hd (import* 1) (parag* 1) (expr* 1))
@@ -552,7 +562,27 @@
             (~optional (~or "lone" "some" "one" "two" "set"))))
   (pattern ((~literal ArrowOp) "*")))
 
-; CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK
+(define-syntax-class $UnaryOp
+  #:attributes (op symbol)
+  #:commit
+  (pattern (~and op
+                  (~or "in" "=" "<" ">" "<=" ">="
+                       "is" "ni"
+                       "#" "~" "^" "*" ))
+    #:attr symbol (datum->syntax #'op (string->symbol (syntax->datum #'op)))))
+
+(define-syntax-class $BinaryOp
+  #:attributes (op symbol)
+  #:commit
+  (pattern (~and op
+                  (~or "or" "||" "iff" "<=>" "implies" "=>"
+                       "and" "&&" "releases" "until" "since"
+                       "triggered"
+                       "+" "-" "++" "&"
+                       :$ArrowOp
+                       ":>" "<:" ))
+    #:attr symbol (datum->syntax #'op (string->symbol (syntax->datum #'op)))))
+
 (define-syntax-class $CompareOp
   #:attributes (op symbol)
   #:commit
