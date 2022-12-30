@@ -764,11 +764,8 @@
                               where-blocks:TestConstructClass ...  ) 
 
   (with-syntax ([test_name (format-id stx "subproperty-~a" (syntax/loc stx prop_name.name) #:source stx)]
-                [constraint_type (datum->syntax #'constraint_type
-                                          (string->symbol (syntax->datum #'constraint_type)))]
                 ;;; Overconstraint : Prop => Pred
                 ;;; Underconstraint Pred => Prop
-
                 [imp_total (syntax-e (if (equal? (syntax-e #'constraint_type) "overconstraint") 
                                         (syntax (implies prop_name.name pred_name.name)) 
                                         (syntax (implies pred_name.name prop_name.name))))])    

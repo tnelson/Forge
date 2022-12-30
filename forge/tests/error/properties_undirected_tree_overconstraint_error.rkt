@@ -23,22 +23,4 @@ pred isUndirectedTree {
  where { }
 
 
-// This is an overconstraint, not an underconstraint.
-
-underconstraint TreeWithEdges of isUndirectedTree
- {
-    edges = ~edges // Symmetric 
-    Node->Node in *edges // Connected
-    no iden & edges // Irreflexive
-
-    all n : Node | {
-        all m : Node | {
-            (n->m + m->n) in edges implies (n->m + m->n) not in ^(edges - (n->m + m->n))
-        }
-    }
-
-    some edges
- } 
- where  { }
-
  
