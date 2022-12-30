@@ -763,7 +763,7 @@
                                "where"
                               where-blocks:TestConstructClass ...  ) 
 
-  (with-syntax ([test_name (make-temporary-name stx)]
+  (with-syntax ([test_name (format-id stx "subproperty-~a" (syntax/loc stx prop_name.name) #:source stx)]
                 [constraint_type (datum->syntax #'constraint_type
                                           (string->symbol (syntax->datum #'constraint_type)))]
                 ;;; Overconstraint : Prop => Pred
