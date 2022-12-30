@@ -303,10 +303,10 @@
   (define-syntax-class PropertyWhereDeclClass
     (pattern ((~literal PropertyWhereDecl) 
                               (~or "overconstraint" "underconstraint")
-                              prop_name:NameClass
+                              prop-name:NameClass
                               "of"
-                              pred_name:NameClass
-                              prop_expr:BlockClass
+                              pred-name:NameClass
+                              prop-expr:BlockClass
                               (~optional scope:ScopeClass)
                               (~optional bounds:BoundsClass)
                               "where"
@@ -753,25 +753,25 @@
 (define-syntax (PropertyWhereDecl stx)
   (syntax-parse stx
   [((~literal PropertyWhereDecl) 
-                              (~and constraint_type (~or "overconstraint" "underconstraint"))  
-                              prop_name:NameClass
+                              (~and constraint-type (~or "overconstraint" "underconstraint"))  
+                              prop-name:NameClass
                               "of"
-                              pred_name:NameClass
-                              prop_expr:BlockClass 
+                              pred-name:NameClass
+                              prop-expr:BlockClass 
                               (~optional scope:ScopeClass)
                               (~optional bounds:BoundsClass)
                                "where"
                               where-blocks:TestConstructClass ...  ) 
 
-  (with-syntax ([test_name (format-id stx "subproperty-~a" (syntax/loc stx prop_name.name) #:source stx)]
+  (with-syntax ([test_name (format-id stx "subproperty-~a" (syntax/loc stx prop-name.name) #:source stx)]
                 ;;; Overconstraint : Prop => Pred
                 ;;; Underconstraint Pred => Prop
-                [imp_total (syntax-e (if (equal? (syntax-e #'constraint_type) "overconstraint") 
-                                        (syntax (implies prop_name.name pred_name.name)) 
-                                        (syntax (implies pred_name.name prop_name.name))))])    
+                [imp_total (syntax-e (if (equal? (syntax-e #'constraint-type) "overconstraint") 
+                                        (syntax (implies prop-name.name pred-name.name)) 
+                                        (syntax (implies pred-name.name prop-name.name))))])    
    (syntax/loc stx 
     (begin
-      (pred prop_name.name prop_expr) 
+      (pred prop-name.name prop-expr) 
       (begin where-blocks ...) 
       (test 
         test_name
