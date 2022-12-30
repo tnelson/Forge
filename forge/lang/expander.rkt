@@ -763,7 +763,7 @@
                                "where"
                               where-blocks:TestConstructClass ...  ) 
 
-  (with-syntax ([test_name (format-id stx "subproperty-~a" (syntax/loc stx prop-name.name) #:source stx)]
+  (with-syntax ([test_name (format-id stx "~a-subproperty" (syntax/loc stx prop-name.name) #:source stx)]
                 ;;; Overconstraint : Prop => Pred
                 ;;; Underconstraint Pred => Prop
                 [imp_total (syntax-e (if (equal? (syntax-e #'constraint-type) "overconstraint") 
