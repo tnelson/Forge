@@ -766,9 +766,9 @@
   (with-syntax ([test_name (format-id stx "~a-subproperty" (syntax/loc stx prop-name.name) #:source stx)]
                 ;;; Overconstraint : Prop => Pred
                 ;;; Underconstraint Pred => Prop
-                [imp_total (syntax-e (if (equal? (syntax-e #'constraint-type) "overconstraint") 
+                [imp_total  (if (equal? (syntax-e #'constraint-type) "overconstraint") 
                                         (syntax (implies prop-name.name pred-name.name)) 
-                                        (syntax (implies pred-name.name prop-name.name))))])    
+                                        (syntax (implies pred-name.name prop-name.name)))])    
    (syntax/loc stx 
     (begin
       (pred prop-name.name prop-expr) 
