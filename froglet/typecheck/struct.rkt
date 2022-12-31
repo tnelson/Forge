@@ -21,4 +21,3 @@
 (struct/froglet predtype type (param*))
 (struct/froglet fieldtype type (mult sig))
 
-

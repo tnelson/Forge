@@ -3,6 +3,10 @@
 ;; TODO can we use turnstile?
 ;;  collect env and then use turnstile?
 
+;; TODO annotate syntax as we go ... build a map like TR
+;; - (hasheq syntax? type?)
+;; - ... any more?
+
 (provide
   typecheck)
 
@@ -21,6 +25,12 @@
 ;; -----------------------------------------------------------------------------
 
 (define current-type-env (make-parameter '()))
+
+(define current-quant (make-parameter #f))
+;; (or/c #f               ;; uninitialized
+;;       symbol?          ;; quant
+;;       (list symbol?    ;; quant
+;;             boolean?)) ;; disj?
 
 (define (typecheck mod)
   (define env (collect-env mod))
@@ -55,10 +65,12 @@
 
 (define-parser block-check
   [bb:$Block
-    (for-each expr-check (syntax-e #'(bb.exprs ...)))])
+    (for/last ([ee (in-list (syntax-e #'(bb.exprs ...)))])
+      (expr-check ee))])
 
-;; ---
-;;
+(define-parser sexpr-check
+  [ss:$Sexpr
+    (raise-arguments-error 'sexpr-check "not implemented SEXPR" "expr" this-syntax)])
 
 (define-parser expr-check
   [exp:$Expr
@@ -67,23 +79,31 @@
     (let loop ([stx (syntax/loc this-syntax (exp.body ...))])
       (syntax-parse stx
        [("let" decls:$LetDeclList bob:$BlockOrBar)
-        ;; TODO
-        ;; - check letdecl
-        ;; - update env
-        ;; - check bob
-        (error 'die1)]
-       [("bind" decls:$LetDeclList bob$BlockOrBar)
-        ;; bind not implemented
-        (void)]
-       [(q:$Quant (~optional (~and "disj" disj)) decls:$DeclList bob:$BlockOrBar)
-        (define decl-tys (decls-check #'decls))
+        (define decl-tys (letdecllist-check #'decls))
         (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
           (blockorbar-check #'bob))]
-       [(e1:$Expr _:$BinaryOp
+       [("bind" decls:$LetDeclList bob$BlockOrBar)
+        ;; bind not implemented in normal Forge
+        (void)]
+       [(q:$Quant (~optional (~and "disj" disj) #:defaults ([disj #'#f]))
+                  decls:$DeclList bob:$BlockOrBar)
+        (define decl-tys
+          (parameterize ([current-quant (list (syntax-e #'q.symbol) (and (syntax-e #'disj) #t))])
+            (decllist-check #'decls)))
+        (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
+          (blockorbar-check #'bob))]
+       [(e1:$Expr (~optional (~and (~or "!" "not") negate) #:defaults ([negate #'#f]))
+                  op:$BinaryOp
                   e2:$Expr
-                  (~optional (~seq "else" e3:$Expr)))
-        ;; TODO
-        (error 'die4)]
+                  (~optional (~seq "else" e3:$Expr) #:defaults ([e3 #'#f])))
+        (define e1-ty (expr-check #'e1))
+        (define e2-ty (expr-check #'e2))
+        (cond
+          [(syntax-e #'e3)
+           (define e3-ty (expr-check #'e3))
+           (ifelse-check e1-ty e2-ty e3-ty)]
+          [else
+           (binop-check #'op e1-ty e2-ty #:negate? (and (syntax-e #'negate) #t))])]
        [(lhs:$Expr (~datum ".") rhs:$Expr)
         ;; ??
         (define lhs-ty (loop #'(lhs.body ...)))
@@ -92,39 +112,43 @@
             (raise-syntax-error 'froglet:typecheck
                                 "Expected matching sig and field"
                                 this-syntax))]
-       [(_:$UnaryOp e1:$Expr)
-         ;; TODO
-         (error 'die5)]
-       [(e1:$Expr (~optional (~and (~or "!" "not") not)) _:$BinaryOp e2:$Expr)
-        ;; TODO
-        (error 'die6)]
-       [(_:$QuantStr exp:$Expr)
-        ;; ??
-        (loop (syntax/loc this-syntax (exp.body ...)))]
+       [(op:$UnaryOp e1:$Expr)
+         (define e1-ty (expr-check #'e1))
+         (unop-check #'op e1-ty)]
+       [(qq:$QuantStr exp:$Expr)
+        ;; bg: 12/31 what does this mean?
+        (parameterize ([current-quant (string->symbol (syntax-e #'qq))])
+          (loop (syntax/loc this-syntax (exp.body ...))))]
        [(e1:$Expr "'")
-         ;; TODO
-         (error 'die7)]
+        ;; TODO ... is this a quantifier? a time?
+        (raise-arguments-error 'expr-check "not implemented for (e1 ')" "expr" this-syntax)]
        [("[" _:$ExprList "]")
-        ;; not implemented in expander
+        ;; not implemented in forge expander
         (void)]
-       [(name:$Name "[" _:$ExprList "]")
-        (error 'die8)]
-       [(ex1:$Expr "[" _:$ExprList "]")
-        (error 'die9)]
+       [(nm:$Name "[" ee:$ExprList "]")
+        (define name-ty (name-check #'nm.name))
+        (define expr-ty* (map expr-check #'(ee.exprs ...)))
+        (app-check name-ty expr-ty*)]
+       [(ex1:$Expr "[" ee:$ExprList "]")
+        (define e1-ty (expr-check #'ex1))
+        (define expr-ty* (map expr-check (syntax-e #'(ee.exprs ...))))
+        (app-check e1-ty expr-ty*)]
        [(cn:$Const)
         #'cn.translate]
        [(qn:$QualName)
         #'qn.name]
        [("this")
-        (error 'die10)]
+        (car (syntax-e this-syntax))]
        [("`" nm:$Name)
-        (error 'die11)]
+        (raise-arguments-error 'expr-check "not implemented for (` e1)" "expr" this-syntax)]
        [("{" decls:$DeclList bob:$BlockOrBar "}")
-        (error 'die12)]
+        (define decl-tys (decllist-check #'decls))
+        (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
+          (blockorbar-check #'bob))]
        [(block:$Block)
-        (error 'die13)]
+        (block-check #'block)]
        [(sexpr:$Sexpr)
-        (error 'die14)]
+        (sexpr-check #'sexpr)]
        [_
          ;; ??
         (raise-syntax-error 'expr-check "internal error parsing expr" stx)]))]
@@ -134,14 +158,50 @@
   [_
     (raise-argument-error 'expr-check "$Expr" this-syntax)])
 
-(define-parser decls-check
-  ;; TODO map instead?
-  [decl
-    (raise-user-error 'decls-check "not impled ~s~n" this-syntax)])
+(define (ifelse-check e1-ty e2-ty e3-ty)
+  ;; TODO
+  (void))
+
+(define (binop-check op e1-ty e2-ty #:negate? [negate? #f])
+  ;; TODO
+  ;; negate? may not matter for typing
+  (void))
+
+(define (unop-check op e1-ty)
+  ;; TODO
+  (void))
+
+(define (app-check fn-ty arg-ty*)
+  ;; TODO
+  (void))
+
+(define-parser letdecllist-check
+  [decls:$LetDeclList
+   (decl*-check (syntax-e #'decls.translate) 'one)])
+
+(define-parser decllist-check
+  [decls:$DeclList
+   (decl*-check (syntax-e #'decls.translate) (current-quant))])
+
+(define-parser decl-check
+  [decl:$Decl
+   (decl*-check (syntax-e #'decl.translate) (current-quant))])
+
+(define (decl*-check name+expr* mult)
+  (for/list ([ne-stx (in-list name+expr*)])
+    (define ne (syntax-e ne-stx))
+    (define name (car ne))
+    (define expr (cadr ne))
+    (define expr-ty (expr-check expr))
+    (fieldtype name expr-ty mult)))
 
 (define-parser blockorbar-check
-  [bob
-    (raise-user-error 'blockorbar-check "not impled ~s~n" this-syntax)])
+  [bob:$BlockOrBar
+   (syntax-parse #'bob.exprs
+    [bb:$Block
+      (block-check #'bb)]
+    [ee:$Expr
+      (expr-check #'ee)])])
 
 (define (field-check lhs rhs)
   (define lhs-sigty
@@ -167,14 +227,17 @@
     [(sigtype? stx)
      stx]
     [else
-     (define stx=?
-       (if (syntax? stx)
-         (lambda (that) (free-identifier=? stx that))
-         (lambda (that) (eq? stx (syntax-e that)))))
-     (for/first ([elem (in-list (current-type-env))]
-                 #:when (and (sigtype? elem)
-                             (stx=? (type-name elem))))
-       elem)]))
+     (name-check stx)]))
+
+(define (name-check stx)
+  (define stx=?
+    (if (syntax? stx)
+      (lambda (that) (free-identifier=? stx that))
+      (lambda (that) (eq? stx (syntax-e that)))))
+  (for/first ([elem (in-list (current-type-env))]
+              #:when (and (sigtype? elem)
+                          (stx=? (type-name elem))))
+    elem))
 
 (define (field->sigty stx)
   (for/first ([elem (in-list (current-type-env))]

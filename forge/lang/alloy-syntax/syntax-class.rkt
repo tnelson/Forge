@@ -23,6 +23,7 @@
   $LetDeclList
   $ParaDecls
   $DeclList
+  $Decl
 
   $Expr
   $Block
@@ -269,8 +270,7 @@
             (~optional "set")
             expr:$Expr)
     #:attr (name* 1) (syntax-e #'(namelist.name* ...))
-    #:attr translate (with-syntax ([expr #'expr])
-                       #'((namelist.name* expr) ...))))
+    #:attr translate #'((namelist.name* expr) ...)))
 
 ; DeclList : Decl
 ;          | Decl /COMMA-TOK @DeclList
@@ -279,7 +279,7 @@
   #:commit
   (pattern ((~and hd (~literal DeclList))
             decls:$Decl ...)
-    #:attr translate (datum->syntax #'(decls ...)
+    #:attr translate (datum->syntax this-syntax
                                     (apply append
                                            (map syntax->list
                                                 (syntax->list #'(decls.translate ...)))))))
@@ -549,7 +549,7 @@
   (pattern ((~literal Const) n:$Number)
     #:attr translate (syntax/loc this-syntax (int n.value)))
   (pattern ((~literal Const) "-" n:$Number)
-    #:attr translate (quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value))))))
+    #:attr translate (quasisyntax/loc this-syntax (int #,(- (syntax->datum #'n.value))))))
 
 ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
 ;         | STAR-TOK
