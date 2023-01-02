@@ -101,6 +101,7 @@
     (pattern decl:AssertDeclClass)
     (pattern decl:CmdDeclClass)
     (pattern decl:TestExpectDeclClass)
+    (pattern decl:PropertyWhereDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
     ; (pattern decl:InstanceDeclClass)
@@ -288,6 +289,29 @@
               "expect"
               (~optional name:NameClass)
               test-block:TestBlockClass)))
+
+;; Sidd
+
+
+  (define-syntax-class TestConstructClass
+    (pattern decl:ExampleDeclClass)
+    (pattern decl:TestExpectDeclClass)
+    (pattern decl:PropertyWhereDeclClass))
+
+
+  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
+  (define-syntax-class PropertyWhereDeclClass
+    (pattern ((~literal PropertyWhereDecl) 
+                              (~or "overconstraint" "underconstraint")
+                              prop-name:NameClass
+                              "of"
+                              pred-name:NameClass
+                              prop-expr:BlockClass
+                              (~optional scope:ScopeClass)
+                              (~optional bounds:BoundsClass)
+                              "where"
+                              where-blocks:TestConstructClass ...)))
+
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -723,6 +747,36 @@
    (if (attribute test-tok)
        (syntax/loc stx (begin block.test-decls ...))
        (syntax/loc stx (begin)))]))
+
+
+; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
+(define-syntax (PropertyWhereDecl stx)
+  (syntax-parse stx
+  [((~literal PropertyWhereDecl) 
+                              (~and constraint-type (~or "overconstraint" "underconstraint"))  
+                              prop-name:NameClass
+                              "of"
+                              pred-name:NameClass
+                              prop-expr:BlockClass 
+                              (~optional scope:ScopeClass)
+                              (~optional bounds:BoundsClass)
+                               "where"
+                              where-blocks:TestConstructClass ...  ) 
+
+  #:with test_name (format-id stx "~a-subproperty" (syntax/loc stx prop-name.name) #:source stx)
+  #:with imp_total  (if (equal? (syntax-e #'constraint-type) "overconstraint") 
+                        (syntax (implies prop-name.name pred-name.name))  ;;; Overconstraint : Prop => Pred
+                        (syntax (implies pred-name.name prop-name.name))) ;;; Underconstraint Pred => Prop
+   (syntax/loc stx 
+    (begin
+      (pred prop-name.name prop-expr) 
+      (begin where-blocks ...) 
+      (test 
+        test_name
+        #:preds [imp_total]    
+        (~? (~@ #:scope scope.translate))
+        (~? (~@ #:bounds bounds.translate))
+        #:expect theorem )))]))
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
