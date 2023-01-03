@@ -80,7 +80,7 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
 
 PropertyWhereDecl : (OVERCONSTRAINT-TOK | UNDERCONSTRAINT-TOK) Name OF-TOK Name Block Scope? (/FOR-TOK Bounds)? WHERE-TOK /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK 
 
-@TestConstruct : ExampleDecl | TestExpectDecl | PropertyWhereDecl
+@TestConstruct : ExampleDecl | TestExpectDecl
 
 
 # UnOp : Mult
