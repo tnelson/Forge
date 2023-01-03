@@ -14,19 +14,22 @@
   $TestExpectDecl
   $SexprDecl
   $QueryDecl
-  $EvalRelDecl
+  $RelDecl
   $OptionDecl
   $InstDecl
   $ExampleDecl
+  $FactDecl
   $ArrowDecl
   $ArrowDeclList
   $LetDeclList
   $ParaDecls
   $DeclList
+  $TestDecl
   $Decl
 
   $Expr
   $Block
+  $TestBlock
   $Bounds
   $QualName
   $Name
@@ -179,13 +182,6 @@
             _:$ArrowExpr
             "="
             exp:$Expr)))
-
-;; TODO why empty? unused?
-(define-syntax-class $EvalRelDecl
-  #:attributes (hd )
-  #:commit
-  (pattern ((~and hd (~datum EvalRelDecl))
-            _ ...)))
 
 (define-syntax-class $QualName
   #:attributes (hd name)
@@ -394,13 +390,16 @@
   #:attributes (hd name parameters pred-name pred-block scope bounds)
   #:commit
   (pattern ((~and hd (~literal TestDecl))
-            (~optional name:$Name)
+            (~optional -name:$Name)
             (~optional parameters:$Parameters)
-            (~optional (~or pred-name:$QualName
-                            pred-block:$Block))
-            (~optional scope:$Scope)
-            (~optional bounds:$Bounds)
-            (~or "sat" "unsat" "theorem"))))
+            (~optional (~or -pred-name:$QualName
+                            -pred-block:$Block))
+            (~optional scope:$Scope #:defaults ([scope #'()]))
+            (~optional bounds:$Bounds #:defaults ([bounds #'()]))
+            (~or "sat" "unsat" "theorem"))
+    #:with name (if (attribute -name) #'-name.name #'#f)
+    #:with pred-name (if (attribute -pred-name) #'-pred-name.name #'#f)
+    #:with pred-block (if (attribute -pred-block) #'-pred-block #'#f)))
 
 ; TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
 (define-syntax-class $TestBlock

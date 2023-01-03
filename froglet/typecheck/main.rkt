@@ -12,6 +12,7 @@
 
 (require
   forge/lang/alloy-syntax/syntax-class
+  (only-in froglet/util log-froglet-info)
   froglet/typecheck/error
   froglet/typecheck/struct
   racket/list
@@ -34,9 +35,10 @@
 
 (define (typecheck mod)
   (define env (collect-env mod))
-  (pretty-write env)
+  (log-froglet-info (pretty-format env 120 #:mode 'write))
   (env-check env)
-  ;; TODO bounds
+  ;; TODO record all type info ... in a hash (easy) or as syntax properties (hard)
+  ;; TODO bounds-check
   (parameterize ([current-type-env env])
     (mod-check mod))
   mod)
@@ -52,13 +54,32 @@
     (void)])
 
 (define-parser parag-check
-  ;; TODO what are the cases???
   [sig:$SigDecl
-    ;; TODO
-    #;(raise-user-error 'parag-check "sig not implemented ~a" (syntax->datum #'sig))
+    ;; TODO any check needed?
     (void)]
+  [fn:$FactDecl
+   (error 'die2)]
   [pred:$PredDecl
+    ;; TODO pred.decls
     (block-check #'pred.block)]
+  [fd:$FunDecl
+    (error 'die3)]
+  [ad:$AssertDecl
+    (error 'die4)]
+  [cd:$CmdDecl
+    (error 'die5)]
+  [td:$TestExpectDecl
+    (testblock-check #'td.test-block)]
+  [sd:$SexprDecl
+    (error 'die7)]
+  [rd:$RelDecl
+    (raise-arguments-error 'parag-check "not implemented for RelDecl" "stx" this-syntax)]
+  [rd:$OptionDecl
+    (error 'die9)]
+  [rd:$InstDecl
+    (error 'die10)]
+  [rd:$ExampleDecl
+    (error 'die7)]
   [par
     (raise-user-error 'parag-check "unknown stx ~a" (syntax->datum #'par))
     (void)])
@@ -67,6 +88,33 @@
   [bb:$Block
     (for/last ([ee (in-list (syntax-e #'(bb.exprs ...)))])
       (expr-check ee))])
+
+(define-parser testblock-check
+  [tb:$TestBlock
+    (for-each testdecl-check (syntax-e #'(tb.test-decls ...)))])
+
+(define-parser testdecl-check
+  [td:$TestDecl
+    ;; TODO hd name parameters pred-name pred-block scope bounds
+    (when (syntax-e #'td.name)
+      (printf "TD name ~s~n" #'td.name))
+    (when (attribute td.parameters)
+      (printf "TD params ~s~n" #'td.parameters))
+    (when (syntax-e #'td.pred-name)
+      (name-check #'td.pred-name))
+    (when (syntax-e #'td.pred-block)
+      (block-check #'td.pred-block))
+    (scope-check #'td.scope)
+    (bounds-check #'td.bounds)
+    (void)])
+
+(define (scope-check stx)
+  ;; TODO
+  (void))
+
+(define (bounds-check stx)
+  ;; TODO
+  (void))
 
 (define-parser sexpr-check
   [ss:$Sexpr
@@ -126,7 +174,7 @@
         ;; not implemented in forge expander
         (void)]
        [(nm:$Name "[" ee:$ExprList "]")
-        (define name-ty (name-lookup #'nm.name))
+        (define name-ty (name-check #'nm.name))
         (define expr-ty* (map expr-check #'(ee.exprs ...)))
         (app-check name-ty expr-ty*)]
        [(ex1:$Expr "[" ee:$ExprList "]")
@@ -227,17 +275,27 @@
     [(sigtype? stx)
      stx]
     [(nametype? stx)
-     (name-lookup (type-name stx))]
+     (name->sig (type-name stx))]
     [else
-     (name-lookup stx)]))
+     (name->sig stx)]))
 
-(define (name-lookup stx)
+(define (name-check stx)
+  (name-lookup stx))
+
+(define (name->sig stx)
+  (name-lookup stx sigtype?))
+
+(define (name->pred stx)
+  (name-lookup stx predtype?))
+
+(define (name-lookup stx [-env-guard #f])
+  (define env-guard (or -env-guard values))
   (define stx=?
     (if (syntax? stx)
       (lambda (that) (free-identifier=? stx that))
       (lambda (that) (eq? stx (syntax-e that)))))
   (for/first ([elem (in-list (current-type-env))]
-              #:when (and (sigtype? elem)
+              #:when (and (env-guard elem)
                           (stx=? (type-name elem))))
     elem))
 
@@ -348,8 +406,6 @@
    [sexpr:$SexprDecl
      (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
    [query:$QueryDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
-   [evalrel:$EvalRelDecl
      (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
    [option:$OptionDecl
      (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
