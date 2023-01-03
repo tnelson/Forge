@@ -295,8 +295,7 @@
 
   (define-syntax-class TestConstructClass
     (pattern decl:ExampleDeclClass)
-    (pattern decl:TestExpectDeclClass)
-    (pattern decl:PropertyWhereDeclClass))
+    (pattern decl:TestExpectDeclClass))
 
 
   ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
