@@ -599,8 +599,7 @@
   (pattern ((~literal LetDecl)
             name:id
             exp:$Expr)
-    #:attr translate (with-syntax ([exp #'exp]) 
-                       #'(name exp))))
+    #:attr translate #'(name exp)))
 
 ; LetDeclList : LetDecl
 ;             | LetDecl /COMMA-TOK @LetDeclList

@@ -113,8 +113,8 @@
                                 "Expected matching sig and field"
                                 this-syntax))]
        [(op:$UnaryOp e1:$Expr)
-         (define e1-ty (expr-check #'e1))
-         (unop-check #'op e1-ty)]
+        (define e1-ty (expr-check #'e1))
+        (unop-check #'op e1-ty)]
        [(qq:$QuantStr exp:$Expr)
         ;; bg: 12/31 what does this mean?
         (parameterize ([current-quant (string->symbol (syntax-e #'qq))])
@@ -126,7 +126,7 @@
         ;; not implemented in forge expander
         (void)]
        [(nm:$Name "[" ee:$ExprList "]")
-        (define name-ty (name-check #'nm.name))
+        (define name-ty (name-lookup #'nm.name))
         (define expr-ty* (map expr-check #'(ee.exprs ...)))
         (app-check name-ty expr-ty*)]
        [(ex1:$Expr "[" ee:$ExprList "]")
@@ -134,13 +134,13 @@
         (define expr-ty* (map expr-check (syntax-e #'(ee.exprs ...))))
         (app-check e1-ty expr-ty*)]
        [(cn:$Const)
-        #'cn.translate]
+        (consttype #'cn.translate)]
        [(qn:$QualName)
-        #'qn.name]
+        (nametype #'qn.name)]
        [("this")
         (car (syntax-e this-syntax))]
        [("`" nm:$Name)
-        (raise-arguments-error 'expr-check "not implemented for (` e1)" "expr" this-syntax)]
+        (nametype #'nm.name)]
        [("{" decls:$DeclList bob:$BlockOrBar "}")
         (define decl-tys (decllist-check #'decls))
         (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
@@ -226,10 +226,12 @@
   (cond
     [(sigtype? stx)
      stx]
+    [(nametype? stx)
+     (name-lookup (type-name stx))]
     [else
-     (name-check stx)]))
+     (name-lookup stx)]))
 
-(define (name-check stx)
+(define (name-lookup stx)
   (define stx=?
     (if (syntax? stx)
       (lambda (that) (free-identifier=? stx that))
@@ -245,12 +247,14 @@
                           (sigtype-has-field? elem stx)))
     elem))
 
-(define (sigtype-has-field? sigty id)
+(define (sigtype-has-field? sigty idty)
+  (define id (type-name idty))
   (for*/or ([ft (in-list (sigtype-field* sigty))]
             [nm (in-list (type-name ft))])
     (free-identifier=? id nm)))
 
-(define (sigtype-find-field sigty id)
+(define (sigtype-find-field sigty idty)
+  (define id (type-name idty))
   (or
     (for/or ([ft (in-list (sigtype-field* sigty))])
       (for/or ([nm (in-list (type-name ft))]

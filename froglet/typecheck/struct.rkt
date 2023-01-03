@@ -2,6 +2,8 @@
 
 (provide
   (struct-out type)
+  (struct-out nametype)
+  (struct-out consttype)
   (struct-out sigtype)
   (struct-out predtype)
   (struct-out fieldtype))
@@ -17,6 +19,8 @@
   (struct id x ... #:transparent #:extra-constructor-name make-id))
 
 (struct/froglet type (name))
+(struct/froglet nametype type ())
+(struct/froglet consttype type ())
 (struct/froglet sigtype type (mult extends field*))
 (struct/froglet predtype type (param*))
 (struct/froglet fieldtype type (mult sig))
