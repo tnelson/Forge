@@ -48,12 +48,15 @@ pred isUndirectedTree {
         }
 
 
+        /*
+        //Nesting not currently supported.
         underconstraint reachability of isUndirected
         {
             all m, n : Node | n->m in edges implies m in n.*edges
         }
         where
         {}
+        */
 }
 
 
