@@ -2,6 +2,7 @@
 
 (require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
 (require predicates)
+(require (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
 ;(require data/union-find)
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
@@ -39,7 +40,14 @@
 ; ORIGINAL CODE
 ; (struct breaker (pri break-graph make-break make-default) #:transparent)
 ; BEGIN INSERTED TEMPORARY FIX FOR 'FUNC
-(struct breaker (pri break-graph make-break make-default [use-formula #:auto #:mutable]) #:transparent #:auto-value #f)
+(struct breaker (
+    ; priority level of the breaker
+    pri 
+    break-graph 
+    make-break 
+    make-default 
+    [use-formula #:auto #:mutable]) 
+    #:transparent #:auto-value #f)
 
 (define (formula-breaker pri break-graph make-break make-default)
     (define res (breaker pri break-graph make-break make-default))
@@ -369,6 +377,10 @@
         ])
     )
 
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
+      (printf "~nBreakers ran.~n        New total bounds:~a~n        New formulas:~a~n" 
+        new-total-bounds formulas))
+
     (values new-total-bounds (set->list formulas))
 )
 
@@ -381,7 +393,7 @@
 ; we will declare with formulas that g[a] is 'foo for all a in A
 ; but we will only enforce this with bounds for a single a in A
 (define (variadic n f)
-    (λ (pri rel bound atom-lists rel-list)
+    (λ (pri rel bound atom-lists rel-list)        
         (cond [(= (length rel-list) n)
             (f pri rel bound atom-lists rel-list)
         ][else
@@ -389,7 +401,7 @@
             (define postfix (take-right rel-list n))
             (define prefix-lists (drop-right atom-lists n))
             (define postfix-lists (take-right atom-lists n))
-            ; added @empty-nodeinfo and name argument to make compatible with current structs
+            ; blame the syntax where <rel> initiated
             (define vars (for/list ([p prefix]) 
                 (let ([symv (gensym "v")])
                     (@node/expr/quantifier-var @empty-nodeinfo 1 symv symv))
@@ -420,9 +432,9 @@
                         (define bound (sbound rel lower upper))
 
                         (define sub-formulas (break-formulas sub-break))
-                         ; added @empty-nodeinfo to make compatible with current structs
-                        (define formulas (for/set ([f sub-formulas])
-                            (@quantified-formula @empty-nodeinfo 'all (map cons vars prefix) f)
+                        ; blame the syntax where <rel> initiated
+                        (define formulas (for/set ([f sub-formulas])                            
+                            (@quantified-formula (@node-info rel) 'all (map cons vars prefix) f)
                         ))
 
                         (break bound formulas)
@@ -443,9 +455,9 @@
                             (break-formulas sub-break)
                         ))
                         ; wrap each formula in foralls for each prefix rel
-                         ; added @empty-nodeinfo to make compatible with current structs
+                        ; blame the syntax where <rel> initiated
                         (define formulas (for/set ([f sub-formulas])
-                            (@quantified-formula @empty-nodeinfo 'all (map cons vars prefix) f)
+                            (@quantified-formula (@node-info rel) 'all (map cons vars prefix) f)
                         ))
 
                         (break bound formulas)
@@ -453,10 +465,10 @@
                 )
                 (λ ()
                     (define sub-break ((breaker-make-default sub-breaker)));
-                    (define sub-formulas (break-formulas sub-break))
-                     ; added @empty-nodeinfo to make compatible with current structs
+                    (define sub-formulas (break-formulas sub-break))                     
+                     ; blame the syntax where <rel> initiated
                     (define formulas (for/set ([f sub-formulas])
-                        (@quantified-formula @empty-nodeinfo 'all (map cons vars prefix) f)
+                        (@quantified-formula (@node-info rel) 'all (map cons vars prefix) f)
                     ))
                     (break bound formulas)
                 )
@@ -527,7 +539,7 @@
         )))
     )
 ))
-(add-strategy 'linear (λ (pri rel bound atom-lists rel-list) 
+(add-strategy 'linear (λ (pri rel bound atom-lists rel-list)     
     (define atoms (first atom-lists))
     (define sig (first rel-list))
     (breaker pri
