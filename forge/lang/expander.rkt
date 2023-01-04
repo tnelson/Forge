@@ -309,8 +309,8 @@
               prop-expr:BlockClass
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass)
-              "where"
-              where-blocks:TestConstructClass ...)
+              (~optional (~seq where-blocks:TestConstructClass ...))
+              )
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))

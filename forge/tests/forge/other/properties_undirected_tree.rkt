@@ -64,7 +64,6 @@ underconstraint emptyofone of isUndirectedTree
     (no edges)
  } 
  for 1 Node
- where {}
 
 
 // Section 2: Testing Valid, simple overconstraints
