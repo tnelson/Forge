@@ -23,6 +23,8 @@
 (define-syntax-rule (define-parser id clause ...)
   (define id (syntax-parser clause ...)))
 
+(define who 'froglet:typecheck)
+
 ;; -----------------------------------------------------------------------------
 
 (define current-type-env (make-parameter '()))
@@ -141,7 +143,7 @@
         (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
           (blockorbar-check #'bob))]
        [(e1:$Expr (~optional (~and (~or "!" "not") negate) #:defaults ([negate #'#f]))
-                  op:$BinaryOp
+                  (~or -op:$CompareOp -op:$BinaryOp)
                   e2:$Expr
                   (~optional (~seq "else" e3:$Expr) #:defaults ([e3 #'#f])))
         (define e1-ty (expr-check #'e1))
@@ -149,15 +151,17 @@
         (cond
           [(syntax-e #'e3)
            (define e3-ty (expr-check #'e3))
-           (ifelse-check e1-ty e2-ty e3-ty)]
+           (ifelse-check e1-ty e2-ty e3-ty this-syntax)]
           [else
-           (binop-check #'op e1-ty e2-ty #:negate? (and (syntax-e #'negate) #t))])]
+           (define op #'(~? -op.symbol -op))
+           ;; TODO throw error up?
+           (binop-check op e1-ty e2-ty this-syntax #:negate? (and (syntax-e #'negate) #t))])]
        [(lhs:$Expr (~datum ".") rhs:$Expr)
         ;; ??
         (define lhs-ty (loop #'(lhs.body ...)))
         (define rhs-ty (loop #'(rhs.body ...)))
         (or (field-check lhs-ty rhs-ty)
-            (raise-syntax-error 'froglet:typecheck
+            (raise-syntax-error who
                                 "Expected matching sig and field"
                                 this-syntax))]
        [(op:$UnaryOp e1:$Expr)
@@ -201,19 +205,23 @@
          ;; ??
         (raise-syntax-error 'expr-check "internal error parsing expr" stx)]))]
   [_
-    ;; TODO more cases, for the things inside exprs?
-    (void)]
-  [_
     (raise-argument-error 'expr-check "$Expr" this-syntax)])
 
 (define (ifelse-check e1-ty e2-ty e3-ty)
   ;; TODO
   (void))
 
-(define (binop-check op e1-ty e2-ty #:negate? [negate? #f])
+(define (binop-check op e1-ty e2-ty ctx #:negate? [negate? #f])
   ;; TODO
   ;; negate? may not matter for typing
-  (void))
+  (syntax-parse op
+   [ao:$ArrowOp
+     ;; TODO deparse
+     (raise-syntax-error who
+                         "Direct use of -> is not allowed in froglet"
+                         ctx)]
+   [_
+    (raise-arguments-error 'binop-check "die" "op" op "e1t" e1-ty "e2t" e2-ty)]))
 
 (define (unop-check op e1-ty)
   ;; TODO
@@ -254,7 +262,7 @@
 (define (field-check lhs rhs)
   (define lhs-sigty
     (or (->sigty lhs)
-        (raise-syntax-error 'froglet:typecheck
+        (raise-syntax-error who
                             "Expected sig"
                             lhs)))
   (define rhs-sigty

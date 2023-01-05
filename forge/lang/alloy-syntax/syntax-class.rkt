@@ -37,7 +37,9 @@
   $BlockOrBar
   $Quant
   $BinaryOp
+  $CompareOp
   $UnaryOp
+  $ArrowOp
   $ExprList
   $Sexpr
 
@@ -571,16 +573,13 @@
     #:attr symbol (datum->syntax #'op (string->symbol (syntax->datum #'op)))))
 
 (define-syntax-class $BinaryOp
-  #:attributes (op symbol)
+  #:attributes ()
   #:commit
-  (pattern (~and op
-                  (~or "or" "||" "iff" "<=>" "implies" "=>"
-                       "and" "&&" "releases" "until" "since"
-                       "triggered"
-                       "+" "-" "++" "&"
-                       :$ArrowOp
-                       ":>" "<:" ))
-    #:attr symbol (datum->syntax #'op (string->symbol (syntax->datum #'op)))))
+  (pattern (~or "or" "||" "iff" "<=>" "implies" "=>"
+                "and" "&&" "releases" "until" "since"
+                "triggered"
+                "+" "-" "++" "&" ":>" "<:"
+                _:$ArrowOp)))
 
 (define-syntax-class $CompareOp
   #:attributes (op symbol)
