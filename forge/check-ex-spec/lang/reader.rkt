@@ -7,7 +7,7 @@
 (require forge/check-ex-spec/library)
 (require (only-in racket/function curry))
 (require racket/match)
-(require (prefix-in log: forge/logging/2022/main))
+(require (prefix-in log: forge/logging/2023/main))
 ; (require racket/list)
 
 (define (filter-commands stx keep)
@@ -59,7 +59,7 @@
                           (define-namespace-anchor forge:n)
                           (forge:nsa forge:n)
 
-                          (require (prefix-in log: forge/logging/2022/main))
+                          (require (prefix-in log: forge/logging/2023/main))
 
                           (parameterize ([uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler))])
                             (define wheat-results 
