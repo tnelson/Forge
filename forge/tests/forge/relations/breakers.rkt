@@ -41,11 +41,11 @@ test expect {
     -- Overlap with a previous test, but keep since it checks a valuable syntax foible
     cardinalityCheckSyntax: { {#{a: A | some FrontDesk.p[a]}} > 1} is sat
 
-    -- BAD ERRORS: recording here for discussion
+    -- TODO BAD ERRORS: recording here for discussion
     -- Run-spec: contract violation expected: node/formula? given: (Relation l)
-    -- BAD_ERROR_1: {l} is sat 
+    --BAD_ERROR_1: {l} is sat 
     -- expander.rkt:701:40: preds: attribute contains non-syntax value    
-    -- BAD_ERROR_2: {no l} is sat for {A = `A0 + `A1} is sat
+    --BAD_ERROR_2: {no l} is sat for {A = `A0 + `A1} is sat
 
     ----- test "linear" -----
 
@@ -56,3 +56,22 @@ test expect {
     linearnobranch2: {some disj a, b, c: A | (a->b + a->c) in FrontDesk.next} for {next is linear} is unsat 
 }
 
+-- While a non "one" parent sig with a binary field can't be broken via bounds, the formula 
+--   break version should still be sound. Likewise when `is linear` is composed with partial function.
+sig Desk {
+    n: set A->A,
+    pn: pfunc A->A
+}
+test expect {
+    nonConstantParent_LinearPossible: {} for {n is linear} is sat
+    nonConstantParent_linearnoselfloop: {some desk: Desk | some a: A | a->a in desk.n} for {n is linear} is unsat
+    nonConstantParent_linearnoloop: {some desk: Desk | some a, b: A | (a->b + b->a) in ^(desk.n)} for {n is linear} is unsat
+    nonConstantParent_linearnobranch: {some desk: Desk | some disj a, b, c: A | (a->c + b->c) in desk.n} for {n is linear} is unsat 
+    nonConstantParent_linearnobranch2: {some desk: Desk | some disj a, b, c: A | (a->b + a->c) in desk.n} for {n is linear} is unsat 
+    
+    nonConstantParentPFunc_LinearPossible: {} for {pn is linear} is sat
+    nonConstantParentPFunc_linearnoselfloop: {some desk: Desk | some a: A | a->a in desk.pn} for {pn is linear} is unsat
+    nonConstantParentPFunc_linearnoloop: {some desk: Desk | some a, b: A | (a->b + b->a) in ^(desk.pn)} for {pn is linear} is unsat
+    nonConstantParentPFunc_linearnobranch: {some desk: Desk | some disj a, b, c: A | (a->c + b->c) in desk.pn} for {pn is linear} is unsat 
+    nonConstantParentPFunc_linearnobranch2: {some desk: Desk | some disj a, b, c: A | (a->b + a->c) in desk.pn} for {pn is linear} is unsat 
+}

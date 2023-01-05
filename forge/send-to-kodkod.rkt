@@ -309,11 +309,16 @@
 
     
     ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
-    (define (do-core-highlight loc)
+    (define (do-core-highlight nd)
+      (define loc (nodeinfo-loc (node-info nd)))
       (if (is-drracket-linked?) 
           (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
-          (when (@>= (get-verbosity) VERBOSITY_LOW)        
-            (printf "  Core contained location: ~a~n" (srcloc->string loc)))))  
+          (begin
+            (when (@>= (get-verbosity) VERBOSITY_LOW)        
+              (printf "  Core contained location: ~a~n" (srcloc->string loc)))
+            (when (@>= (get-verbosity) VERBOSITY_HIGH)        
+              (pretty-print nd)))))
+
     (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
@@ -329,7 +334,7 @@
                                 (cond [(member fmla-num (hash-keys core-map))
                                        ; This is a formula ID and we know it
                                        ;(printf "LOC: ~a~n" (nodeinfo-loc (node-info (hash-ref core-map fmla-num))))
-                                       (nodeinfo-loc (node-info (hash-ref core-map fmla-num)))]
+                                       (hash-ref core-map fmla-num)]
                                       [else
                                        ; This is NOT a known formula id, but it's part of the core
                                        (printf "WARNING: Core also contained: ~a~n" id)
