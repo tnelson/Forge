@@ -757,7 +757,12 @@
 (define-syntax (PropertyWhereDecl stx)
   (syntax-parse stx
   [pwd:PropertyWhereDeclClass
-   #:with test_name (format-id stx "~a-subproperty" #'pwd.prop-name #:source stx)
+   
+    ;; Figure out LHS and RHS (this is ugly, will)
+  #:with imp_lhs (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint) (format-id stx "~a" #'pwd.prop-name #:source stx) (format-id stx "~a" #'pwd.pred-name #:source stx))
+  #:with imp_rhs (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint) (format-id stx "~a" #'pwd.pred-name #:source stx) (format-id stx "~a" #'pwd.prop-name #:source stx))
+  #:with test_name (format-id stx "~a-implies-~a" #'imp_lhs #'imp_rhs)
+  
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint)
                         (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; Overconstraint : Prop => Pred
                         (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; Underconstraint Pred => Prop
