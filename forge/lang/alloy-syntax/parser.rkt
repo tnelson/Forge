@@ -78,7 +78,7 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
 
-PropertyWhereDecl : (OVERCONSTRAINT-TOK | UNDERCONSTRAINT-TOK) Name OF-TOK Name Block Scope? (/FOR-TOK Bounds)? WHERE-TOK /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK 
+PropertyWhereDecl : (OVERCONSTRAINT-TOK | UNDERCONSTRAINT-TOK) Name OF-TOK Name Block Scope? (/FOR-TOK Bounds)? (/WHERE-TOK /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK)?
 
 @TestConstruct : ExampleDecl | TestExpectDecl
 

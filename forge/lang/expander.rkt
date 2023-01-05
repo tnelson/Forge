@@ -309,7 +309,6 @@
               prop-expr:BlockClass
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass)
-              "where"
               where-blocks:TestConstructClass ...)
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
