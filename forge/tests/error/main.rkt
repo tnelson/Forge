@@ -57,8 +57,8 @@
     (list "failed_theorem.frg" #rx"failed.")
     (list "failed_unsat.frg" #rx"Failed test")
     (list "failed_sat.frg" #rx"Failed test") 
-    (list "properties_undirected_tree_underconstraint_error.frg" #rx"subproperty failed. Found instance")
-    (list "properties_undirected_tree_overconstraint_error.frg" #rx"subproperty failed. Found instance")
+    (list "properties_undirected_tree_underconstraint_error.frg" #rx" failed. Found instance")
+    (list "properties_undirected_tree_overconstraint_error.frg" #rx" failed. Found instance")
   ))
 
 ;; -----------------------------------------------------------------------------
