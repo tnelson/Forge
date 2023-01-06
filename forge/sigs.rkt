@@ -8,8 +8,6 @@
 (require (for-syntax syntax/strip-context))
 (require syntax/srcloc)
 
-;(require forge/choose-lang-specific)
-
 (require "shared.rkt")
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
@@ -17,15 +15,8 @@
 (require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
 (require "server/eval-model.rkt")
 (require "server/forgeserver.rkt") ; v long
-;(require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
-;         (prefix-in kodkod: "kodkod-cli/server/server.rkt")
-;         (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
-;(require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
-;         (prefix-in pardinus: "pardinus-cli/server/server.rkt")
-;         (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
 (require "translate-to-kodkod-cli.rkt"
-         "translate-from-kodkod-cli.rkt"
-         ;"last-checker.rkt"
+         "translate-from-kodkod-cli.rkt"         
          "sigs-structs.rkt"
          "evaluator.rkt"
          (prefix-in tree: "lazy-tree.rkt")
@@ -526,7 +517,7 @@
      (add-to-execs
        (syntax/loc stx 
          (cond 
-          [(member 'expected '(sat unsat))
+          [(member 'expected '(sat unsat))           
            (run name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
@@ -542,7 +533,7 @@
                                     "")))))
            (close-run name)]
 
-          [(equal? 'expected 'theorem)
+          [(equal? 'expected 'theorem)          
            (check name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (when (Sat? first-instance)

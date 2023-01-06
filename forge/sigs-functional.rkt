@@ -46,7 +46,7 @@
 
 ; ; export AST macros and struct definitions (for matching)
 ; ; Make sure that nothing is double-provided
-(require (except-in "lang/ast.rkt" ->))
+;(require (except-in "lang/ast.rkt" ->))
 (provide (rename-out [ast:-> ->]))
 (provide (all-from-out "lang/ast.rkt"))
 
@@ -113,7 +113,7 @@
                            #:is-var [is-var #f]
                            #:in [in #f]
                            #:extends [extends #f]
-                           #:info [node-info empty-nodeinfo])
+                           #:info [node-info ast:empty-nodeinfo])
   (->* ()
        (symbol?
         #:one boolean?
@@ -122,7 +122,7 @@
         #:is-var boolean?
         #:in (or/c Sig? #f)
         #:extends (or/c Sig? #f)
-        #:info (or/c nodeinfo? #f))
+        #:info (or/c ast:nodeinfo? #f))
        Sig?)
   ; (check-temporal-for-var is-var name)
   (define name (or raw-name (gensym 'sig)))
@@ -152,12 +152,12 @@
                                 [raw-sigs #f] 
                                 #:is [breaker #f] 
                                 #:is-var [is-var #f] 
-                                #:info [node-info empty-nodeinfo])
+                                #:info [node-info ast:empty-nodeinfo])
   (->* ((or/c symbol? (non-empty-listof Sig?)))
        ((non-empty-listof (or/c Sig? (-> Sig?)))
-        #:is (or/c node/breaking/break? #f)
+        #:is (or/c ast:node/breaking/break? #f)
         #:is-var boolean?
-        #:info (or/c nodeinfo? #f))
+        #:info (or/c ast:nodeinfo? #f))
        Relation?)
 
   (define-values (name sigs)
@@ -222,13 +222,13 @@
        tuples))
 
 (define/contract (safe-fast-eval-exp e binding bitwidth [safe #t])
-  (->* (node/expr? hash? number?) (boolean?)
+  (->* (ast:node/expr? hash? number?) (boolean?)
        (listof (listof (or/c number? symbol?))))
   (define result (eval-exp e binding bitwidth safe))
   (de-integer-atomize result))
 
 (define (safe-fast-eval-int-expr ie binding bitwidth)
-  (-> node/int? hash? number? (listof (listof (or/c number? symbol?))))
+  (-> ast:node/int? hash? number? (listof (listof (or/c number? symbol?))))
   (define result (eval-int-expr ie binding bitwidth))
   (caar (de-integer-atomize `((,result)))))
 
@@ -252,7 +252,7 @@
      (let ([rel-card (ast:node/int/op/card info (list rel))])
        (do-bind
         (match mult
-          ['no (ast:node/formula/op/= info (list rel none))]
+          ['no (ast:node/formula/op/= info (list rel ast:none))]
           ['one (ast:node/formula/op/int= info (list rel-card 1))]
           ['two (ast:node/formula/op/int= info (list rel-card 2))]
           ['lone
@@ -271,7 +271,7 @@
      (match left
        [(ast:node/int/op/card c-info (list left-rel))
         (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
-               [new-scope (if (equal? (relation-name left-rel) "Int")
+               [new-scope (if (equal? (ast:relation-name left-rel) "Int")
                               (update-bitwidth scope exact)
                               (update-int-bound scope left-rel (Range exact exact)))])
           (values new-scope bound))]
@@ -568,7 +568,7 @@
         #:command syntax?)
        Run?)
   ;; FIX THIS TO TRACK SOURCE LOCATION
-  (let ([new-preds (list (! (apply &&/func preds)))])
+  (let ([new-preds (list (ast:! (apply ast:&&/func preds)))])
     (run-from-state state
                     #:name name
                     #:preds new-preds
@@ -767,7 +767,7 @@
             (if (equal? compare 'compare)
                 (Run-spec-preds (Run-run-spec run))
                 (list (ast:! (foldr (lambda (a b) (ast:&& a b))
-                                    true
+                                    ast:true
                                     (Run-spec-preds (Run-run-spec run)))))))
           
           (define new-target
