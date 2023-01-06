@@ -36,7 +36,7 @@
 ;;             boolean?)) ;; disj?
 
 (define (typecheck mod)
-  (define env (collect-env mod))
+  (define env (env-extend (env-init) (env-collect mod)))
   (log-froglet-info (pretty-format env 120 #:mode 'write))
   (env-check env)
   ;; TODO record all type info ... in a hash (easy) or as syntax properties (hard)
@@ -216,10 +216,13 @@
   ;; negate? may not matter for typing
   (syntax-parse op
    [ao:$ArrowOp
-     ;; TODO deparse
-     (raise-syntax-error who
-                         "Direct use of -> is not allowed in froglet"
-                         ctx)]
+    (raise-syntax-error who
+                        (format "Operator ~a is not allowed in froglet" (syntax-e #'ao.arr))
+                        #'ao.arr)]
+   [(~or "-" "&")
+    (raise-syntax-error who
+                        (format "Operator ~a is not allowed in froglet" (syntax-e op))
+                        op)]
    [_
     (raise-arguments-error 'binop-check "die" "op" op "e1t" e1-ty "e2t" e2-ty)]))
 
@@ -329,6 +332,9 @@
         (->sigty ty)))
     (raise-user-error 'sigtype-find-field "Field not found")))
 
+(define (env-init)
+  (list (sigtype (datum->syntax #f 'Int) #f #f '())))
+
 (define (env-check env)
   (unknown-sig-check env)
   (void))
@@ -362,7 +368,8 @@
 (define (unknown-sig-check/pred predty ids)
   (for ([pp (in-list (predtype-param* predty))])
     ;; ids
-    (raise-user-error 'unknown-sig-check/pred "not implemented")))
+    ;; TODO ... implement this, fix parsing first
+    (raise-user-error 'unknown-sig-check/pred "not implemented~n ~a" pp)))
 
 (define (unknown-sig-check/field fieldty ids)
   (for ((nm (in-list (fieldtype-sig fieldty))))
@@ -381,7 +388,7 @@
 
 ;; ---
 
-(define (collect-env stx)
+(define (env-collect stx)
   (syntax-parse stx
     #:datum-literals (AlloyModule ModuleDecl Import)
     ;; [ev:EvalDecl ...]
@@ -391,9 +398,9 @@
      ; (printf "Module-decl ~a~n~n" #'(~? mod.moduledecl "None present"))
      ; (printf "Paragraphs: ~a~n~n" #'(mod.parag* ...))
      ;; TODO (printf "Exprs: ~a~n~n" #'(mod.expr* ...))
-     (append-map collect-env/paragraph (syntax-e #'(mod.parag* ...)))]))
+     (append-map env-collect/paragraph (syntax-e #'(mod.parag* ...)))]))
 
-(define (collect-env/paragraph stx)
+(define (env-collect/paragraph stx)
   (syntax-parse stx
    [sig:$SigDecl
      (define mult (syntax-e #'(~? sig.mult #f)))
@@ -402,27 +409,28 @@
      (for/list ([name (in-list (syntax-e #'(sig.name* ...)))])
        (sigtype name mult extends field*))]
    [pred:$PredDecl
+     ;; TODO fix ... parsing all wrong, bad decls
      (list (predtype #'pred.name (syntax-e #'(~? pred.decls ()))))]
    [fun:$FunDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [assert:$AssertDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [cmd:$CmdDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [testexpect:$TestExpectDecl
      '()]
    [sexpr:$SexprDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [query:$QueryDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [option:$OptionDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [inst:$InstDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [example:$ExampleDecl
-     (raise-arguments-error 'collect-env/paragraph "not implemented" "stx" stx)]
+     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [_
-     (raise-argument-error 'collect-env/paragraph "Paragraph?" stx)]))
+     (raise-argument-error 'env-collect/paragraph "Paragraph?" stx)]))
 
 (define (parse-arrow-decl* decl*)
   (map parse-arrow-decl decl*))

@@ -555,13 +555,13 @@
 ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
 ;         | STAR-TOK
 (define-syntax-class $ArrowOp
-  #:attributes ()
+  #:attributes (arr)
   #:commit
   (pattern ((~literal ArrowOp)
             (~optional (~or "lone" "some" "one" "two" "set"))
-            "->"
+            (~and "->" arr)
             (~optional (~or "lone" "some" "one" "two" "set"))))
-  (pattern ((~literal ArrowOp) "*")))
+  (pattern ((~literal ArrowOp) (~and "*" arr))))
 
 (define-syntax-class $UnaryOp
   #:attributes (op symbol)
