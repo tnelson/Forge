@@ -1,41 +1,17 @@
-#lang racket
+#lang racket/base
 
 (require (except-in "lang/ast.rkt" ->)
          "lang/bounds.rkt"
          "breaks.rkt")
-(require (prefix-in @ racket) 
+(require (prefix-in @ (only-in racket hash not +)) 
+         (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
 (require racket/contract)
-(require (for-syntax racket/syntax syntax/srcloc syntax/parse))
+(require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
 (require (prefix-in tree: "lazy-tree.rkt"))
 (require syntax/srcloc)
 
 (provide (all-defined-out))
-; (provide (except-out (all-defined-out) (struct-out Sig) (struct-out Relation)))
-; (provide (contract-out (struct Sig ([info nodeinfo?]
-                                    
-;                                     [arity nonnegative-integer?]
-;                                     [name string?]
-;                                     [typelist (listof string?)]
-;                                     [parent string?]
-;                                     [is-variable boolean?]
-
-;                                     [name symbol?]
-;                                     [one boolean?]
-;                                     [abstract boolean?]
-;                                     [extends (or/c Sig? #f)]))))
-; (provide (contract-out (struct Relation ([info nodeinfo?]
-                                    
-;                                          [arity nonnegative-integer?]
-;                                          [name string?]
-;                                          [typelist (listof string?)]
-;                                          [parent string?]
-;                                          [is-variable boolean?]
-                                    
-;                                          [name symbol?]
-;                                          [sigs (listof Sig?)]
-;                                          [breaker (or/c node/breaking/break? #f)]))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
