@@ -12,6 +12,7 @@
 
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
 (require forge/choose-lang-specific)
+(require racket/list)
 
 
 (provide #%module-begin)
@@ -760,12 +761,8 @@
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint)
                         (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; Overconstraint : Prop => Pred
                         (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; Underconstraint Pred => Prop
-   #:with test_name (let* 
-                      ([imp (syntax->datum #'imp_total)]
-                       [opr (car imp)]
-                       [lhs (format "~a" (car (cdr imp)))]
-                       [rhs (format "~a" (car (cdr (cdr imp))))]) 
-                      (format-id stx "~a ~a ~a" lhs opr rhs ))   
+   #:with test_name (let ([imp (syntax->list #'imp_total)]) 
+                    (format-id stx "~a ~a ~a" (cadr imp) (car imp) (caddr imp)))   
    (syntax/loc stx
     (begin
       (pred pwd.prop-name pwd.prop-expr)
