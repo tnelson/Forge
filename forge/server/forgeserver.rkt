@@ -1,26 +1,26 @@
-#lang racket
+#lang racket/base
 
 ; Interface between Sterling and Forge
 ; Using the December 2021 protocol found here:
 ;   https://sterling-docs.vercel.app/sterling-connection/receive
 
 (require (only-in "../lang/ast.rkt" relation-name)
-         "modelToXML.rkt" xml
+         "modelToXML.rkt" 
+         xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel
-         racket/hash)
-(require (only-in "eval-model.rkt" ->string)
-         (prefix-in tree: "../lazy-tree.rkt"))        
-(require json)
-(require (prefix-in @ (only-in racket >= <= > <)))
+         racket/hash
+         (only-in racket empty? first rest)
+         (only-in "eval-model.rkt" ->string)
+         (prefix-in tree: "../lazy-tree.rkt")
+         json
+         racket/contract
+         (prefix-in @ (only-in racket >= <= > <)))
 
-(require "../pardinus-cli/server/kks.rkt")
-
-(require "../lang/reader.rkt")
+; for verbosity option
 (require "../shared.rkt")
-(require "../lang/reader.rkt")
+; for get-option
 (require "../sigs-structs.rkt")
-(require forge/amalgam)
 
 (provide display-model)
 
@@ -28,7 +28,15 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
+; Get a value from a nested JSON dictionary, using the <path> list
+; input must be a hash (i.e., a translated JSON dictionary)
+(define/contract (get-from-json json-m path)
+  (-> (and/c jsexpr? hash?) (listof symbol?) jsexpr?)
+  (cond [(empty? path) json-m]
+        [else 
+         (unless (hash-has-key? json-m (first path))
+           (error (format "get-from-json expected JSON dictionary with ~a field, got: ~a~n" (first path) json-m)))
+         (get-from-json (hash-ref json-m (first path)) (rest path))]))
 
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
@@ -166,16 +174,6 @@
          (flush-output)
          (void (read-char))
          (stop-service)]))
-
-; Get a value from a nested JSON dictionary, using the <path> list
-; input must be a hash (i.e., a translated JSON dictionary)
-(define/contract (get-from-json json-m path)
-  (-> (and/c jsexpr? hash?) (listof symbol?) jsexpr?)
-  (cond [(empty? path) json-m]
-        [else 
-         (unless (hash-has-key? json-m (first path))
-           (error (format "get-from-json expected JSON dictionary with ~a field, got: ~a~n" (first path) json-m)))
-         (get-from-json (hash-ref json-m (first path)) (rest path))]))
 
 (define (make-sterling-data xml id temporal? [old-id #f])
   (jsexpr->string
