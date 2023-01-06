@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require "sigs-structs.rkt")
 (require "breaks.rkt")
@@ -10,16 +10,15 @@
          "choose-lang-specific.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
-(require (prefix-in @ racket/base))
+(require (prefix-in @ (only-in racket/base >= not - = and or max > <))
+         (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
+                         curry range index-of pretty-print filter-map string-prefix? thunk*
+                         remove-duplicates subset? cartesian-product match-define cons?)
+          racket/hash)
 (require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
          (prefix-in pardinus: "pardinus-cli/server/server.rkt")
          (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
-(require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
-         (prefix-in kodkod: "kodkod-cli/server/server.rkt")
-         (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
-(require "server/eval-model.rkt")
 (require "drracket-gui.rkt")
-;(require forge/lang/deparser)
 
 (provide send-to-kodkod)
 
@@ -127,7 +126,7 @@
   (define-values (stdin stdout stderr shutdown is-running?) 
     (cond
       [(equal? backend 'kodkod)
-       (kodkod:start-server)]
+       (raise "Pure Kodkod backend is no longer supported; please use Pardinus backend.")]
       [(equal? backend 'pardinus)
        (pardinus:start-server
         'stepper ; always a stepper problem (there is a "next" button)
@@ -136,10 +135,10 @@
         (get-option run-spec 'problem_type))]
       [else (raise (format "Invalid backend: ~a" backend))]))
 
-  (define-syntax-rule (kk-print lines ...)
-    (kodkod:cmd 
-      [stdin]
-      lines ...))
+  ; (define-syntax-rule (kk-print lines ...)
+  ;   (kodkod:cmd 
+  ;     [stdin]
+  ;     lines ...))
 
   ; Print targets
   (define-syntax-rule (pardinus-print lines ...)
