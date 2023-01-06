@@ -1,5 +1,8 @@
 #lang racket/base
 
+; Structures and helper functions for running Forge, along with some constants and
+; configuration code (e.g., most options).
+
 (require (except-in "lang/ast.rkt" ->)
          "lang/bounds.rkt"
          "breaks.rkt")
@@ -174,11 +177,6 @@
   (sum (- s-int (join (^ succ) s-int))))
 (define (min s-int)
   (sum (- s-int (join s-int (^ succ)))))
-; (define-syntax Int (lambda (stx) (syntax-case stx ()    
-;     [val (identifier? (syntax val)) (quasisyntax/loc stx 
-;       (Sig 'Int 
-;             (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f)
-;             #f #f #f))])))
 
 (define symbol->proc
   (hash 'eval-language Options-eval-language
@@ -522,7 +520,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (require (for-syntax syntax/srcloc)) ; for these macros
 
 ;; Added sugar over the AST
-;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus on the macro definition point
+;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus 
+;; on the macro definition point
 (provide implies iff <=> ifte >= <= ni != !in !ni <: :>)
 
 (define-syntax (implies stx) 

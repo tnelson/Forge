@@ -1,33 +1,29 @@
-#lang racket
+#lang racket/base
+
+; Functional interface to the Forge library and solver. 
+;   Formula/expression macros should largely be kept in sigs.rkt instead. 
+;   The design intent is: forge -> forge/core (in sigs.rkt) -> functional forge (this module)
+
+;; TODO: there is still some duplicate logic (+ importing?) between this module + sigs, and possibly
+;;   still unused imports...
 
 (require racket/contract)
-(require (prefix-in @ racket) 
-         (prefix-in @ racket/set))
-(require syntax/parse/define)
 (require racket/match)
-(require (for-syntax racket/match syntax/srcloc))
-(require syntax/srcloc)
-
-(require "shared.rkt")
+(require (prefix-in @ (only-in racket and or max min - not display < > set))
+         (only-in racket thunk first nonnegative-integer? range rest empty 
+                         list->set set->list set-union set-intersect subset?))
+        
 (require (prefix-in ast: "lang/ast.rkt")
-         (prefix-in ast: (only-in "sigs-structs.rkt" implies iff <=> ifte >= <= ni != !in !ni))
-         "lang/bounds.rkt"
+         (prefix-in ast: (only-in "sigs-structs.rkt" implies iff <=> ifte >= <= ni != !in !ni))         
          "breaks.rkt")
 (require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
 (require "server/eval-model.rkt")
 (require "server/forgeserver.rkt") ; v long
-;(require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
-;         (prefix-in kodkod: "kodkod-cli/server/server.rkt")
-;         (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
-;(require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
-;         (prefix-in pardinus: "pardinus-cli/server/server.rkt")
-;         (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
-(require "translate-to-kodkod-cli.rkt"
-         "translate-from-kodkod-cli.rkt"
-         ;"last-checker.rkt"
+(require "shared.rkt"         
          "sigs-structs.rkt"
          "evaluator.rkt"
          "send-to-kodkod.rkt")
+
 (require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
          (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
 (require (prefix-in tree: "lazy-tree.rkt"))
@@ -43,8 +39,7 @@
          display)
 (provide Int succ)
 (provide (prefix-out forge: make-model-generator))
-(provide solution-diff)
-         ;instance-diff evaluate)
+(provide solution-diff)         
 
 ; ; Instance analysis functions
 ; (provide is-sat? is-unsat?)
@@ -97,7 +92,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (require forge/choose-lang-specific)
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; State Updaters  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -111,17 +105,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Forge Commands  ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; check-temporal-for-var :: Boolean String -> void
-; raises an error if is-var is true and the problem_type option is 'temporal
-; uses the given name in the error message
-; meant to only allow var sigs and relations in temporal specs
-; (define (check-temporal-for-var is-var name)
-;   (cond
-;     [(and is-var (not (equal? (get-option curr-state 'problem_type) 'temporal)))
-;      (raise-user-error (format "Can't have var ~a unless problem_type option is temporal"
-;                                name))]))
-
 
 (define/contract (make-sig [raw-name #f]
                            #:one [one #f]
@@ -146,12 +129,6 @@
   
   (when (and one lone)
     (raise-user-error (format "Sig ~a cannot be both 'one' and 'lone'." name)))
-
-  ;(define source-info-loc (nodeinfo-loc node-info))
-  ;(printf "SIG NAME: ~a.~n" name)
-  ;(printf "SIG SOURCE LINE: ~a.~n" (source-location-line source-info-loc))
-  ;(printf "SIG SOURCE COLUMN: ~a.~n" (source-location-column source-info-loc))
-  ;(printf "SIG SOURCE SPAN: ~a.~n" (source-location-span source-info-loc))
 
   (Sig node-info ; info
         
@@ -187,12 +164,6 @@
     (if raw-sigs
         (values name/sigs raw-sigs)
         (values (gensym 'relation) name/sigs)))
-
-  ;(define source-info-loc (nodeinfo-loc node-info))
-  ;(printf "RELATION NAME: ~a.~n" name)
-  ;(printf "RELATION SOURCE LINE: ~a.~n" (source-location-line source-info-loc))
-  ;(printf "RELATION SOURCE COLUMN: ~a.~n" (source-location-column source-info-loc))
-  ;(printf "RELATION SOURCE SPAN: ~a.~n" (source-location-span source-info-loc))
 
   ; sigs can contain sigs or thunks which return sigs
   ; in order to allow mutual references between sigs in forge surface
@@ -746,22 +717,6 @@
    (define ret (tree:get-value model-lazy-tree))
    (set! model-lazy-tree (tree:get-child model-lazy-tree mode))
    ret))
-
-; ; make-model-evaluator :: Run -> (String -> ???)
-; ; Creates an evaluator function for a given Run. 
-; ; Executes on the most recently generated instance.
-; (define (make-model-evaluator run)
-;   (lambda (command)
-;     (define name (substring command 1 3))
-;     (cmd [(stdin)] 
-;       (print-cmd command)
-;       (print-cmd "(evaluate ~a)" name)
-;       (print-eof))
-;     (define result (read (stdout)))
-;     result))
-;     ; (define u (read (open-input-string command)))
-;     ; (println u)
-;     ; u))
 
 (provide (prefix-out forge: nsa))
 (define nsa (make-parameter #f))
