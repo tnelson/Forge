@@ -12,6 +12,7 @@
 
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
 (require forge/choose-lang-specific)
+(require (for-syntax racket/match))
 
 
 (provide #%module-begin)
@@ -756,11 +757,12 @@
 ; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
 (define-syntax (PropertyWhereDecl stx)
   (syntax-parse stx
-  [pwd:PropertyWhereDeclClass
-   #:with test_name (format-id stx "~a-subproperty" #'pwd.prop-name #:source stx)
+  [pwd:PropertyWhereDeclClass 
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint)
                         (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; Overconstraint : Prop => Pred
                         (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; Underconstraint Pred => Prop
+   #:do [(match-define (list op lhs rhs) (syntax->list #'imp_total))]
+   #:with test_name (format-id stx "~a ~a ~a" lhs op rhs)
    (syntax/loc stx
     (begin
       (pred pwd.prop-name pwd.prop-expr)
