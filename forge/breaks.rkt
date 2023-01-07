@@ -1,14 +1,18 @@
-#lang racket
+#lang racket/base
 
 (require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
 (require predicates)
+(require (only-in racket false true set set-union set-intersect set->list list->set first rest
+                         cartesian-product empty empty? set-add! mutable-set in-set subset?
+                         set-subtract! set-map list->mutable-set set-remove! append* set-member?
+                         set-empty? set-union! drop-right take-right for/set for*/set filter-not
+                         second set-add match identity)
+         racket/contract)
 (require (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
-;(require data/union-find)
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
 (provide make-exact-sbound)
-;(provide sbound sbound-lower sbound-upper)
 (provide (struct-out sbound))
 
 ;;;;;;;;;;;;;;
