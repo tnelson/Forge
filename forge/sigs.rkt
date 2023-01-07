@@ -1,12 +1,12 @@
-#lang racket
+#lang racket/base
 
-(require (prefix-in @ racket) 
+(require (only-in racket thunk first rest empty empty? pretty-print)
+         (prefix-in @ (only-in racket and not > < display max min or)) 
          (prefix-in @ racket/set))
-(require syntax/parse/define)
-(require racket/match)
-(require (for-syntax racket/match racket/syntax syntax/srcloc))
-(require (for-syntax syntax/strip-context))
-(require syntax/srcloc)
+(require syntax/parse/define         
+         syntax/srcloc)
+(require (for-syntax racket/base racket/syntax syntax/srcloc syntax/strip-context
+                     (only-in racket pretty-print)))
 
 (require "shared.rkt")
 (require "lang/ast.rkt"
@@ -14,9 +14,9 @@
          "breaks.rkt")
 (require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
 (require "server/eval-model.rkt")
-(require "server/forgeserver.rkt") ; v long
+(require "server/forgeserver.rkt")
 (require "translate-to-kodkod-cli.rkt"
-         "translate-from-kodkod-cli.rkt"         
+         "translate-from-kodkod-cli.rkt"
          "sigs-structs.rkt"
          "evaluator.rkt"
          (prefix-in tree: "lazy-tree.rkt")
@@ -789,8 +789,8 @@
 ; If a binding already exists, takes the intersection.
 ; If this results in an exact bound, adds it to the total bounds.
 (define (update-bindings bound rel lower [upper #f])
-  (set! lower (list->set lower))
-  (when upper (set! upper (list->set upper)))
+  (set! lower (@list->set lower))
+  (when upper (set! upper (@list->set upper)))
 
   (define old-pbindings (Bound-pbindings bound))
   (define old-tbindings (Bound-tbindings bound))
@@ -798,13 +798,13 @@
   ; New bindings can only strengthen old ones
   (when (hash-has-key? old-pbindings rel)
     (let ([old (hash-ref old-pbindings rel)])
-      (set! lower (set-union lower (sbound-lower old)))
+      (set! lower (@set-union lower (sbound-lower old)))
       (set! upper (cond [(@and upper (sbound-upper old))
-                         (set-intersect upper (sbound-upper old))]
+                         (@set-intersect upper (sbound-upper old))]
                         [else (@or upper (sbound-upper old))]))))
   
 
-  (unless (@or (@not upper) (subset? lower upper))
+  (unless (@or (@not upper) (@subset? lower upper))
     (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." rel lower upper)))
 
   (define new-pbindings
@@ -814,7 +814,7 @@
   (define new-tbindings 
     (if (equal? lower upper) 
         (hash-set old-tbindings (string->symbol (relation-name rel)) 
-                                (set->list lower))
+                                (@set->list lower))
         old-tbindings))
 
   (define new-bound (Bound new-pbindings new-tbindings))

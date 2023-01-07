@@ -522,7 +522,7 @@
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*
-(define-syntax (AlloyModule stx)
+(define-syntax (AlloyModule stx)  
   (syntax-parse stx
     [((~literal AlloyModule) (~optional module-decl:ModuleDeclClass)
                              (~seq import:ImportClass ...)
