@@ -1,6 +1,7 @@
 #lang forge/core
 
-(require (prefix-in ru: rackunit))
+(require (prefix-in ru: rackunit) 
+         (only-in racket second third))
 
 (set-option! 'verbose 0)
 (set-option! 'problem_type 'temporal)

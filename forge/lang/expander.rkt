@@ -1,27 +1,25 @@
-#lang racket
+#lang racket/base
 
-(require (for-syntax syntax/parse racket/syntax)
-         (for-syntax (for-syntax syntax/parse)))
+; The #lang forge reader produces a module referencing this one as its module-path:
+; https://docs.racket-lang.org/reference/module.html
+
 (require syntax/parse/define
-         (for-syntax syntax/parse/define))
-(require (for-syntax (for-syntax racket/base)))
-(require (for-syntax racket/function
-                     syntax/srcloc))
+         (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
+                     syntax/srcloc racket/match)
+         ; Needed because the abstract-tok definition below requires phase 2
+         (for-syntax (for-syntax racket/base)))
+                 
+(require (only-in racket empty? first))
 (require forge/sigs)
-; (require "ast.rkt")
+(require forge/choose-lang-specific)
 
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
-(require forge/choose-lang-specific)
-(require (for-syntax racket/match))
-
-
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
 
 (provide require provide all-defined-out except-out prefix-in only-in
          module+ submod)
 (provide forge:nsa define-namespace-anchor)
-; (provide (all-from-out "ast.rkt"))
 (provide (all-from-out forge/sigs))
 (provide (all-defined-out))
 (begin-for-syntax (provide (all-defined-out)))
