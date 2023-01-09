@@ -13,7 +13,6 @@ pred isUndirectedTree {
     }
 }
 
-
 // This is an underconstraint, not an overconstraint.
 
  overconstraint isUndirected of isUndirectedTree
