@@ -1,5 +1,5 @@
 #lang forge
-option run_sterling off
+
 sig Node {edges: set Node}
 
 pred isUndirectedTree {

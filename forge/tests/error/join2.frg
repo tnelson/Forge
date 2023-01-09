@@ -1,6 +1,5 @@
 #lang forge/bsl
 option run_sterling off
-option run_sterling off
 sig Node {
     field: pfunc Node -> Node
 }

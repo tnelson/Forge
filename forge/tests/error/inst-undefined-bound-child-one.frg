@@ -1,5 +1,5 @@
 #lang forge
-option run_sterling offoption verbose 0 
+option verbose 0 
 
 sig Parent {}
 one sig A, B extends Parent {}
