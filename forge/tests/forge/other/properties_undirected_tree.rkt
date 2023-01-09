@@ -16,10 +16,10 @@ pred isUndirectedTree {
 
 // Section 1: Testing Valid, simple underconstraints
 
- underconstraint isUndirected of isUndirectedTree
+ isUndirected of isUndirectedTree
  {
      all m, n : Node | n->m in edges implies m->n in edges
- } 
+ } is underconstraint
  where {
 
         test expect {
@@ -45,30 +45,18 @@ pred isUndirectedTree {
             Node = `Node0 + `Node1
             edges = `Node0->`Node0
         }
-
-
-        /*
-        //Nesting not currently supported.
-        underconstraint reachability of isUndirected
-        {
-            all m, n : Node | n->m in edges implies m in n.*edges
-        }
-        where
-        {}
-        */
 }
 
 
-underconstraint emptyofone of isUndirectedTree
+emptyofone of isUndirectedTree
  {
     (no edges)
- } 
- for 1 Node
+ } is underconstraint for 1 Node
 
 
 // Section 2: Testing Valid, simple overconstraints
 
-overconstraint TreeWithEdges of isUndirectedTree
+TreeWithEdges of isUndirectedTree
  {
     edges = ~edges // Symmetric 
     Node->Node in *edges // Connected
@@ -81,23 +69,23 @@ overconstraint TreeWithEdges of isUndirectedTree
     }
 
     some edges
- } 
+ } is overconstraint
  where  { }
 
 // Section 3: Self
 
 
-overconstraint foo of isUndirectedTree
+ foo of isUndirectedTree
  {
    isUndirectedTree
- } 
- where  {}
+ } is overconstraint
 
-underconstraint bar of isUndirectedTree
+
+bar of isUndirectedTree
  {
    isUndirectedTree
- } 
- where  {}
+ } is underconstraint
+
 
 
 

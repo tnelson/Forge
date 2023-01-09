@@ -15,10 +15,10 @@ pred isUndirectedTree {
 
 
 
- underconstraint isUndirected of isUndirectedTree
+ isUndirected of isUndirectedTree
  {
      all m, n : Node | n->m in edges implies m->n in edges
- } 
+ } is underconstraint
  where {
 
 
@@ -46,28 +46,15 @@ pred isUndirectedTree {
             Node = `Node0 + `Node1
             edges = `Node0->`Node0
         }
-
-
-        /*
-        //Nesting not currently supported.
-        underconstraint reachability of isUndirected
-        {
-            all m, n : Node | n->m in edges implies m in n.*edges
-        }
-        where
-        {}
-        */
 }
 
 
 
 
 
-underconstraint emptyofone of isUndirectedTree
+emptyofone of isUndirectedTree
  {
     (no edges)
- } 
+ } is underconstraint
  for 1 Node
- where {
-       
-}
+ where { }
