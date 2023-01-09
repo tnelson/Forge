@@ -1,4 +1,5 @@
 #lang forge/bsl
+option run_sterling off
 
 sig Node {
     next: lone Node

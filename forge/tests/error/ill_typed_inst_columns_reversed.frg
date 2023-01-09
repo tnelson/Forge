@@ -1,5 +1,5 @@
 #lang forge
-option verbose 0
+option run_sterling offoption verbose 0
 
 sig Person {}
 sig State {
