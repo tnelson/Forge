@@ -300,12 +300,11 @@
   ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
   (define-syntax-class PropertyWhereDeclClass
     #:attributes (prop-name pred-name prop-expr constraint-type scope bounds (where-blocks 1))
-    (pattern ((~literal PropertyWhereDecl)
-              (~and (~or "overconstraint" "underconstraint") ct)
+    (pattern ((~literal PropertyWhereDecl)          
               -prop-name:NameClass
-              "of"
               -pred-name:NameClass
               prop-expr:BlockClass
+              (~and (~or "overconstraint" "underconstraint") ct)
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass)
               where-blocks:TestConstructClass ...)
