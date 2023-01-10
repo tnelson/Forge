@@ -1,7 +1,7 @@
 # Forge
 ![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/tnelson/Forge?label=version)
 ![GitHub issues](https://img.shields.io/github/issues/tnelson/Forge)
-![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/tnelson/Forge/Continuous%20Integration/master?label=tests)
+![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/tnelson/Forge/Continuous%20Integration/main?label=tests)
 
 Welcome to Forge! Forge is a tool and language built for **teaching** introductory formal methods and modeling.
 
@@ -22,7 +22,7 @@ For broader historical context on Forge, the [Alloy documentation
 ](http://alloytools.org/documentation.html) or an [Alloy demo](http://alloytools.org/tutorials/day-course/) may be useful. We don't suggest using these as reference for Forge itself, however.
 
 ## Contributing
-To contribute, fork the repository (or open a new branch if a core contributor) and make your changes. When making a pull request back into master, please prepend the pull request title with one of `[patch]`, `[minor]`, or `[major]` so that the corresponding version number is updated. If no version update is specified, the minor version will be updated automatically.
+To contribute, fork the repository (or open a new branch if a core contributor) and make your changes. When making a pull request back into main, please prepend the pull request title with one of `[patch]`, `[minor]`, or `[major]` so that the corresponding version number is updated. If no version update is specified, the minor version will be updated automatically.
 
 
 ## Installation from source
