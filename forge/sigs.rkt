@@ -541,8 +541,7 @@
              (when (@> (get-verbosity) 0)
                (printf "Instance found, with statistics and metadata:~n")
                (pretty-print first-instance))
-                ;; Display in sterling since the test failed.
-                (display name)
+             (display name) ;; Display in sterling since the test failed.
              (raise-user-error (format "Theorem ~a failed. Found instance:~n~a"
                             'name first-instance)))
            (close-run name)]
