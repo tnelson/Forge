@@ -3,7 +3,7 @@
 (require syntax/parse)
 (require forge/lang/alloy-syntax/parser)
 (require forge/lang/alloy-syntax/tokenizer)
-(require (prefix-in log: forge/logging/2022/main))
+(require (prefix-in log: forge/logging/2023/main))
 
 (provide coerce-ints-to-atoms)
 (define (coerce-ints-to-atoms tree)
@@ -72,7 +72,7 @@
                   (define-namespace-anchor forge:n) ; Used for evaluator
                   (forge:nsa forge:n)
 
-                  (require (prefix-in log: forge/logging/2022/main))
+                  (require (prefix-in log: forge/logging/2023/main))
                   (require (only-in racket printf uncaught-exception-handler))
 
                   (require forge/choose-lang-specific)
