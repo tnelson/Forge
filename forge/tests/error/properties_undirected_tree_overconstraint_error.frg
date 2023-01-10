@@ -1,4 +1,5 @@
 #lang forge
+option run_sterling off
 
 sig Node {edges: set Node}
 
@@ -12,7 +13,6 @@ pred isUndirectedTree {
         }
     }
 }
-
 
 // This is an underconstraint, not an overconstraint.
 
