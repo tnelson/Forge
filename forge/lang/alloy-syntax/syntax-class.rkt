@@ -45,6 +45,8 @@
 
   $QuantStr
   $DotStr
+
+  ExprHd
   )
 
 (require
@@ -75,6 +77,9 @@
       #:attr symbol #'token-symbol)))
 
 ;; ---
+
+(define (stx-listlist->list stx)
+  (apply append (map syntax-e (syntax-e stx))))
 
 (define-token-class abstract-tok "abstract" #:abstract)
 
@@ -259,7 +264,7 @@
 
 ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
 (define-syntax-class $Decl
-  #:attributes (hd (name* 1) expr translate)
+  #:attributes (hd (name* 1) expr (decls 1))
   #:commit
   (pattern ((~and hd (~literal Decl))
             ;(~optional "disj")
@@ -268,19 +273,20 @@
             (~optional "set")
             expr:$Expr)
     #:attr (name* 1) (syntax-e #'(namelist.name* ...))
-    #:attr translate #'((namelist.name* expr) ...)))
+    #:attr (decls 1) (syntax-e #'((namelist.name* expr) ...))))
 
 ; DeclList : Decl
 ;          | Decl /COMMA-TOK @DeclList
 (define-syntax-class $DeclList
-  #:attributes (hd (decls 1) translate)
+  #:attributes (hd (decls 1))
   #:commit
   (pattern ((~and hd (~literal DeclList))
-            decls:$Decl ...)
-    #:attr translate (datum->syntax this-syntax
-                                    (apply append
-                                           (map syntax->list
-                                                (syntax->list #'(decls.translate ...)))))))
+            -decls:$Decl ...)
+    #:attr (decls 1) (stx-listlist->list #'(-decls.decls ... ...))))
+    ;;(datum->syntax this-syntax
+    ;;  (apply append
+    ;;         (map syntax->list
+    ;;              (syntax->list #'(decls.translate ...)))))
 
 ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
 (define-syntax-class $ArrowDecl
@@ -327,14 +333,15 @@
 
 ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
 (define-syntax-class $PredDecl
-  #:attributes (hd prefix name decls block)
+  #:attributes (hd prefix name (decls 1) block)
   #:commit
   (pattern ((~and hd (~literal PredDecl))
             (~optional (~seq prefix:$QualName "."))
             pre-name:$Name
-            (~optional decls:$ParaDecls)
+            (~optional -decls:$ParaDecls)
             block:$Block)
-    #:attr name #'pre-name.name))
+    #:attr name #'pre-name.name
+    #:attr (decls 1) (syntax-e #'(~? (-decls.decls ...) ()))))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax-class $FunDecl
@@ -356,13 +363,14 @@
   #:attributes (hd (decls 1))
   #:commit
   (pattern ((~and hd (~literal ParaDecls))
-            (~seq decls:$Decl ...))
+            (~seq -decls:$Decl ...))
     ;; TODO clean up, find examples, is this even used?
-    #:attr translate (datum->syntax #'(decls ...)
-                                    (apply append (map (compose (curry map car )
-                                                                (curry map syntax->list )
-                                                                syntax->list)
-                                                       (syntax->list #'(decls.translate ...)))))))
+    #:attr (decls 1) (syntax-e #'(-decls.decls ... ...))))
+    ;(datum->syntax #'(decls ...)
+    ;  (apply append (map (compose (curry map car )
+    ;                              (curry map syntax->list )
+    ;                              syntax->list)
+    ;                     (syntax->list #'(decls.translate ...)))))
 
 ; AssertDecl : /ASSERT-TOK Name? Block
 (define-syntax-class $AssertDecl

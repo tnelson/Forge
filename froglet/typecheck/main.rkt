@@ -1,5 +1,8 @@
 #lang racket/base
 
+;; TODO hide internal errors for production
+;; ... catch all errors and mask the non-typecheck ones
+
 ;; TODO can we use turnstile?
 ;;  collect env and then use turnstile?
 
@@ -236,15 +239,15 @@
 
 (define-parser letdecllist-check
   [decls:$LetDeclList
-   (decl*-check (syntax-e #'decls.translate) 'one)])
+   (decl*-check (syntax-e #'(decls.decls ...)) 'one)])
 
 (define-parser decllist-check
   [decls:$DeclList
-   (decl*-check (syntax-e #'decls.translate) (current-quant))])
+   (decl*-check (syntax-e #'(decls.decls ...)) (current-quant))])
 
 (define-parser decl-check
   [decl:$Decl
-   (decl*-check (syntax-e #'decl.translate) (current-quant))])
+   (decl*-check (syntax-e #'(decl.decls ...)) (current-quant))])
 
 (define (decl*-check name+expr* mult)
   (for/list ([ne-stx (in-list name+expr*)])
@@ -266,13 +269,13 @@
   (define lhs-sigty
     (or (->sigty lhs)
         (raise-syntax-error who
-                            "Expected sig"
-                            lhs)))
+                            "Expected a sig"
+                            (->stx lhs))))
   (define rhs-sigty
     (or (field->sigty rhs)
         (raise-syntax-error 'froglet:typecheck
-                            "Expected field"
-                            rhs)))
+                            "Expected a field"
+                            (->stx rhs))))
   (and (sigtype<: lhs-sigty rhs-sigty)
        (sigtype-find-field rhs-sigty rhs)))
 
@@ -289,6 +292,13 @@
      (name->sig (type-name stx))]
     [else
      (name->sig stx)]))
+
+(define (->stx x)
+  (cond
+    [(type? x)
+     (type-name x)]
+    [else
+      x]))
 
 (define (name-check stx)
   (name-lookup stx))
@@ -366,10 +376,13 @@
     (unknown-sig-check/field fieldty ids)))
 
 (define (unknown-sig-check/pred predty ids)
-  (for ([pp (in-list (predtype-param* predty))])
-    ;; ids
-    ;; TODO ... implement this, fix parsing first
-    (raise-user-error 'unknown-sig-check/pred "not implemented~n ~a" pp)))
+  (for ([ft (in-list (predtype-param* predty))])
+    (define nm (fieldtype-sig ft))
+    (unless (free-id-set-member? ids nm)
+      (raise-syntax-error 'froglet:typecheck
+                          "Undefined sig name"
+                          nm))
+    (void)))
 
 (define (unknown-sig-check/field fieldty ids)
   (for ((nm (in-list (fieldtype-sig fieldty))))
@@ -409,8 +422,8 @@
      (for/list ([name (in-list (syntax-e #'(sig.name* ...)))])
        (sigtype name mult extends field*))]
    [pred:$PredDecl
-     ;; TODO fix ... parsing all wrong, bad decls
-     (list (predtype #'pred.name (syntax-e #'(~? pred.decls ()))))]
+     (define param-ty* (param*->fieldtype* (syntax-e #'(pred.decls ...))))
+     (list (predtype #'pred.name param-ty*))]
    [fun:$FunDecl
      (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [assert:$AssertDecl
@@ -431,6 +444,17 @@
      (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [_
      (raise-argument-error 'env-collect/paragraph "Paragraph?" stx)]))
+
+(define (param*->fieldtype* stx*)
+  (printf "allstar ~s~n" stx*)
+  (map param->fieldtype stx*))
+
+(define-parser param->fieldtype
+  ;; param ~ the decl part of a pred
+  [(nm:id (_:ExprHd qn:$QualName))
+   (fieldtype #'nm #f #'qn.name)]
+  [_
+   (raise-user-error 'param->fieldtype "oops ~a" this-syntax)])
 
 (define (parse-arrow-decl* decl*)
   (map parse-arrow-decl decl*))
