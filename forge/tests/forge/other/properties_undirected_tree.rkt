@@ -16,10 +16,10 @@ pred isUndirectedTree {
 
 // Section 1: Testing Valid, simple underconstraints
 
- isUndirected of isUndirectedTree
+assert isUndirected 
  {
      all m, n : Node | n->m in edges implies m->n in edges
- } is underconstraint
+ } is necessary for isUndirectedTree
  where {
 
         test expect {
@@ -48,15 +48,15 @@ pred isUndirectedTree {
 }
 
 
-emptyofone of isUndirectedTree
+assert emptyofone
  {
     (no edges)
- } is underconstraint for 1 Node
+ } is necessary for isUndirectedTree for 1 Node
 
 
 // Section 2: Testing Valid, simple overconstraints
 
-TreeWithEdges of isUndirectedTree
+assert TreeWithEdges
  {
     edges = ~edges // Symmetric 
     Node->Node in *edges // Connected
@@ -69,22 +69,19 @@ TreeWithEdges of isUndirectedTree
     }
 
     some edges
- } is overconstraint
- where  { }
+ } is sufficient for isUndirectedTree
 
 // Section 3: Self
-
-
- foo of isUndirectedTree
+assert foo
  {
    isUndirectedTree
- } is overconstraint
+ } is sufficient for isUndirectedTree
 
 
-bar of isUndirectedTree
+assert bar
  {
    isUndirectedTree
- } is underconstraint
+ } is necessary for isUndirectedTree
 
 
 

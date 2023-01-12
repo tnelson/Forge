@@ -15,10 +15,11 @@ pred isUndirectedTree {
 
 
 
- isUndirected of isUndirectedTree
+ assert isUndirected 
  {
      all m, n : Node | n->m in edges implies m->n in edges
- } is underconstraint
+ } 
+ is necessary for isUndirectedTree
  where {
 
 
@@ -52,9 +53,9 @@ pred isUndirectedTree {
 
 
 
-emptyofone of isUndirectedTree
+assert emptyofone
  {
     (no edges)
- } is underconstraint
+ } is sufficient for isUndirectedTree
  for 1 Node
- where { }
+

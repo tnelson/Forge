@@ -289,22 +289,20 @@
               (~optional name:NameClass)
               test-block:TestBlockClass)))
 
-;; Sidd
-
-
   (define-syntax-class TestConstructClass
     (pattern decl:ExampleDeclClass)
     (pattern decl:TestExpectDeclClass))
 
-
-  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
+  ;;; PropertyWhereDecl : /ASSERT-TOK Name Block /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK)
+  ;;;  /FOR-TOK Name Scope? (/FOR-TOK Bounds)?
+  ;;;   (/WHERE-TOK /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK)?
   (define-syntax-class PropertyWhereDeclClass
     #:attributes (prop-name pred-name prop-expr constraint-type scope bounds (where-blocks 1))
     (pattern ((~literal PropertyWhereDecl)          
               -prop-name:NameClass
-              -pred-name:NameClass
               prop-expr:BlockClass
-              (~and (~or "overconstraint" "underconstraint") ct)
+              (~and (~or "sufficient" "necessary") ct)
+              -pred-name:NameClass
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass)
               where-blocks:TestConstructClass ...)
@@ -751,13 +749,13 @@
        (syntax/loc stx (begin)))]))
 
 
-; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
 (define-syntax (PropertyWhereDecl stx)
   (syntax-parse stx
   [pwd:PropertyWhereDeclClass 
-   #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint)
-                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; Overconstraint : Prop => Pred
-                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; Underconstraint Pred => Prop
+   #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
+                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; p => q : p is a sufficient condition for q 
+                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; q => p : p is a necessary condition for q
+
    #:do [(match-define (list op lhs rhs) (syntax->list #'imp_total))]
    #:with test_name (format-id stx "~a ~a ~a" lhs op rhs)
    (syntax/loc stx

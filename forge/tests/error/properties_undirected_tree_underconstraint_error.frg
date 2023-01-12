@@ -16,7 +16,7 @@ pred isUndirectedTree {
 
 // This is an overconstraint, not an underconstraint.
 
-TreeWithEdges of isUndirectedTree
+assert TreeWithEdges
  {
     edges = ~edges // Symmetric 
     Node->Node in *edges // Connected
@@ -29,7 +29,7 @@ TreeWithEdges of isUndirectedTree
     }
 
     some edges
- } is underconstraint
+ } is necessary for isUndirectedTree
  where  { }
 
  
