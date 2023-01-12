@@ -13,8 +13,9 @@
          (only-in racket thunk first nonnegative-integer? range rest empty 
                          list->set set->list set-union set-intersect subset?))
         
-(require (prefix-in ast: "lang/ast.rkt")
-         (prefix-in ast: (only-in "sigs-structs.rkt" implies iff <=> ifte >= <= ni != !in !ni))         
+(require (except-in "lang/ast.rkt" ->)
+         (rename-in "lang/ast.rkt" [-> ast:->]) ; don't clash with define/contract
+         (only-in "sigs-structs.rkt" implies iff <=> ifte >= <= ni != !in !ni)
          "breaks.rkt")
 (require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
 (require "server/eval-model.rkt")
@@ -71,7 +72,7 @@
          (prefix-out forge: (struct-out Run))         
          (prefix-out forge: (struct-out sbound)))
 
-(provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
+(provide (all-from-out "sigs-structs.rkt"))
 ; ; Export these from structs without forge: prefix
 (provide implies iff <=> ifte >= <= ni != !in !ni min max)
 
@@ -113,7 +114,7 @@
                            #:is-var [is-var #f]
                            #:in [in #f]
                            #:extends [extends #f]
-                           #:info [node-info ast:empty-nodeinfo])
+                           #:info [node-info empty-nodeinfo])
   (->* ()
        (symbol?
         #:one boolean?
@@ -122,7 +123,7 @@
         #:is-var boolean?
         #:in (or/c Sig? #f)
         #:extends (or/c Sig? #f)
-        #:info (or/c ast:nodeinfo? #f))
+        #:info (or/c nodeinfo? #f))
        Sig?)
   ; (check-temporal-for-var is-var name)
   (define name (or raw-name (gensym 'sig)))
@@ -152,12 +153,12 @@
                                 [raw-sigs #f] 
                                 #:is [breaker #f] 
                                 #:is-var [is-var #f] 
-                                #:info [node-info ast:empty-nodeinfo])
+                                #:info [node-info empty-nodeinfo])
   (->* ((or/c symbol? (non-empty-listof Sig?)))
        ((non-empty-listof (or/c Sig? (-> Sig?)))
-        #:is (or/c ast:node/breaking/break? #f)
+        #:is (or/c node/breaking/break? #f)
         #:is-var boolean?
-        #:info (or/c ast:nodeinfo? #f))
+        #:info (or/c nodeinfo? #f))
        Relation?)
 
   (define-values (name sigs)
@@ -222,19 +223,19 @@
        tuples))
 
 (define/contract (safe-fast-eval-exp e binding bitwidth [safe #t])
-  (->* (ast:node/expr? hash? number?) (boolean?)
+  (->* (node/expr? hash? number?) (boolean?)
        (listof (listof (or/c number? symbol?))))
   (define result (eval-exp e binding bitwidth safe))
   (de-integer-atomize result))
 
 (define (safe-fast-eval-int-expr ie binding bitwidth)
-  (-> ast:node/int? hash? number? (listof (listof (or/c number? symbol?))))
+  (-> node/int? hash? number? (listof (listof (or/c number? symbol?))))
   (define result (eval-int-expr ie binding bitwidth))
   (caar (de-integer-atomize `((,result)))))
 
 
 (define/contract (do-bind bind scope bound)
-  (-> (or/c ast:node/formula? ast:node/breaking/op? Inst?)
+  (-> (or/c node/formula? node/breaking/op? Inst?)
       Scope?
       Bound?
       (values Scope? Bound?))
@@ -247,57 +248,57 @@
     (when (hash-has-key? inst-checker-hash to-handle) ((hash-ref inst-checker-hash to-handle) formula)))
   (match bind
     ; no rel, one rel, two rel, lone rel, some rel
-    [(ast:node/formula/multiplicity info mult rel)
+    [(node/formula/multiplicity info mult rel)
      ; is it safe to use the info from above here?
-     (let ([rel-card (ast:node/int/op/card info (list rel))])
+     (let ([rel-card (node/int/op/card info (list rel))])
        (do-bind
         (match mult
-          ['no (ast:node/formula/op/= info (list rel ast:none))]
-          ['one (ast:node/formula/op/int= info (list rel-card 1))]
-          ['two (ast:node/formula/op/int= info (list rel-card 2))]
+          ['no (node/formula/op/= info (list rel none))]
+          ['one (node/formula/op/int= info (list rel-card 1))]
+          ['two (node/formula/op/int= info (list rel-card 2))]
           ['lone
-           (ast:node/formula/op/|| info
-                                   (list (ast:node/formula/op/int< info (list rel-card 1))
-                                         (ast:node/formula/op/int= info (list rel-card 1))))]
+           (node/formula/op/|| info
+                                   (list (node/formula/op/int< info (list rel-card 1))
+                                         (node/formula/op/int= info (list rel-card 1))))]
           ; Why was some not in original sigs.rkt?? Does it need new tests?
           #;['some
-             (ast:node/formula/op/|| info
-                                     (list (ast:node/formula/op/int= info (list rel-card 1))
-                                           (ast:node/formula/op/int> info (list rel-card 1))))])
+             (node/formula/op/|| info
+                                     (list (node/formula/op/int= info (list rel-card 1))
+                                           (node/formula/op/int> info (list rel-card 1))))])
         scope
         bound))]
     ; (= (card rel) n)
-    [(ast:node/formula/op/int= eq-info (list left right))
+    [(node/formula/op/int= eq-info (list left right))
      (match left
-       [(ast:node/int/op/card c-info (list left-rel))
+       [(node/int/op/card c-info (list left-rel))
         (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
-               [new-scope (if (equal? (ast:relation-name left-rel) "Int")
+               [new-scope (if (equal? (relation-name left-rel) "Int")
                               (update-bitwidth scope exact)
                               (update-int-bound scope left-rel (Range exact exact)))])
           (values new-scope bound))]
        [_ (fail)])]
 
     ; (<= (card rel) upper)
-    [(ast:node/formula/op/|| or-info
-                             (list (ast:node/formula/op/int< lt-info (list lt-left lt-right))
-                                   (ast:node/formula/op/int= eq-info (list eq-left eq-right))))
+    [(node/formula/op/|| or-info
+                             (list (node/formula/op/int< lt-info (list lt-left lt-right))
+                                   (node/formula/op/int= eq-info (list eq-left eq-right))))
      (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail))
      (match lt-left
-       [(ast:node/int/op/card c-info (list left-rel))
+       [(node/int/op/card c-info (list left-rel))
         (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) 8)]
                [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
        [_ (fail)])]
 
     ; (<= lower (card-rel))
-    [(ast:node/formula/op/|| or-info
-                             (list (ast:node/formula/op/int< lt-info (list lt-left lt-right))
-                                   (ast:node/formula/op/int= eq-info (list eq-left eq-right))))
+    [(node/formula/op/|| or-info
+                             (list (node/formula/op/int< lt-info (list lt-left lt-right))
+                                   (node/formula/op/int= eq-info (list eq-left eq-right))))
      (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail))
      (match lt-right
-       [(ast:node/int/op/card c-info (list right-rel))
+       [(node/int/op/card c-info (list right-rel))
         (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) 8)]
                [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
@@ -327,14 +328,14 @@
     ;     [_ (fail)])]
 
     ; Strategies
-    [(ast:node/breaking/op/is info (list left right))
+    [(node/breaking/op/is info (list left right))
      (define breaker
        (match right
-         [(ast:node/breaking/break _ breaker) breaker]
+         [(node/breaking/break _ breaker) breaker]
          [_ (fail)]))
      (match left
-       [(? ast:node/expr/relation?) (break left right)]
-       [(ast:node/expr/op/~ info arity (list left-rel))
+       [(? node/expr/relation?) (break left right)]
+       [(node/expr/op/~ info arity (list left-rel))
         (break left-rel (get-co right))]
        [_ (fail)])
      ; hopefully the above calls to break update these somehow
@@ -345,8 +346,8 @@
     [(Inst func) (func scope bound)]
 
     ; rel = expr
-    [(ast:node/formula/op/= info (list left right))
-     (unless (ast:node/expr/relation? left)
+    [(node/formula/op/= info (list left right))
+     (unless (node/expr/relation? left)
        (fail))
      (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
        (define new-scope scope)
@@ -355,14 +356,14 @@
 
     ; rel in expr
     ; expr in rel
-    [(ast:node/formula/op/in info (list left right))
-     (inst-check bind ast:node/formula/op/in)
+    [(node/formula/op/in info (list left right))
+     (inst-check bind node/formula/op/in)
      (cond
-       [(ast:node/expr/relation? left)
+       [(node/expr/relation? left)
         (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
           (define new-bound (update-bindings bound left (@set) tups))
           (values scope new-bound))]
-       [(ast:node/expr/relation? right)
+       [(node/expr/relation? right)
         (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) 8 #f)])
           (define new-bound (update-bindings bound right tups))
           (values scope new-bound))]
@@ -376,7 +377,7 @@
     [_ (fail)]))
 
 (define/contract (make-inst binds)
-  (-> (listof (or/c ast:node/formula? ast:node/breaking/op? Inst?))
+  (-> (listof (or/c node/formula? node/breaking/op? Inst?))
       Inst?)
 
   (define (inst-func scope bound)
@@ -455,10 +456,10 @@
                         #:command [command #'(run a b c)])
   (->* (State?)
        (#:name symbol?
-        #:preds (listof ast:node/formula)
+        #:preds (listof node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
                                            (list/c Sig? nonnegative-integer? nonnegative-integer?))))
-        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:solver (or/c symbol? #f)
         #:backend (or/c symbol? #f)
         #:target (or/c Target? #f)
@@ -526,10 +527,10 @@
                            #:options [options-input #f])
   (->* () 
        (#:name symbol?
-        #:preds (listof ast:node/formula)
+        #:preds (listof node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
                                            (list/c Sig? nonnegative-integer? nonnegative-integer?))))
-        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
         #:relations (listof Relation?)
@@ -558,17 +559,17 @@
                                    #:command [command #'(run a b c)])
   (->* (State?) ;todo: try this with State? instead of (State?)
        (#:name symbol?
-        #:preds (listof ast:node/formula)
+        #:preds (listof node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
                                            (list/c Sig? nonnegative-integer? nonnegative-integer?))))
-        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:solver (or/c symbol? #f)
         #:backend (or/c symbol? #f)
         #:target (or/c Target? #f)
         #:command syntax?)
        Run?)
   ;; FIX THIS TO TRACK SOURCE LOCATION
-  (let ([new-preds (list (ast:! (apply ast:&&/func preds)))])
+  (let ([new-preds (list (! (apply &&/func preds)))])
     (run-from-state state
                     #:name name
                     #:preds new-preds
@@ -589,10 +590,10 @@
                              #:options [options-input #f])
   (->* () 
        (#:name symbol?
-        #:preds (listof ast:node/formula)
+        #:preds (listof node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
                                            (list/c Sig? nonnegative-integer? nonnegative-integer?))))
-        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
         #:relations (listof Relation?)
@@ -623,10 +624,10 @@
   (->* (State?
         #:expect symbol?)
        (#:name symbol?
-        #:preds (listof ast:node/formula)
+        #:preds (listof node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
                                            (list/c Sig? nonnegative-integer? nonnegative-integer?))))
-        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:solver (or/c symbol? #f)
         #:backend (or/c symbol? #f)
         #:target (or/c Target? #f)
@@ -686,10 +687,10 @@
   ; through its contract, not just by throwing an error
   (->* (#:expect symbol?)
        (#:name symbol?
-        #:preds (listof ast:node/formula)
+        #:preds (listof node/formula)
         #:scope (or/c Scope? (listof (or/c (list/c Sig? nonnegative-integer?)
                                            (list/c Sig? nonnegative-integer? nonnegative-integer?))))
-        #:bounds (or/c Inst? (listof (or/c Inst? ast:node/formula)))
+        #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
         #:relations (listof Relation?)
@@ -766,8 +767,8 @@
           (define new-preds
             (if (equal? compare 'compare)
                 (Run-spec-preds (Run-run-spec run))
-                (list (ast:! (foldr (lambda (a b) (ast:&& a b))
-                                    ast:true
+                (list (! (foldr (lambda (a b) (&& a b))
+                                    true
                                     (Run-spec-preds (Run-run-spec run)))))))
           
           (define new-target
@@ -824,7 +825,7 @@
 ; update-int-bound :: Scope, node/expr/relation, Range -> Scope
 ; Updates the scope (range) for a given sig in scope.
 (define (update-int-bound scope rel given-scope)
-  (define name (string->symbol (ast:relation-name rel)))
+  (define name (string->symbol (relation-name rel)))
   (define old-scope (get-scope scope name))
 
   (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))

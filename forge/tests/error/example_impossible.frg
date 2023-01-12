@@ -1,4 +1,5 @@
 #lang forge
+option run_sterling off
 
 sig Person {
     age: one Int

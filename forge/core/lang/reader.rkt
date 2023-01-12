@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require racket/port)
-(require (prefix-in log: forge/logging/2022/main))
+(require (prefix-in log: forge/logging/2023/main))
 (require (prefix-in @ (only-in racket/base read-syntax)))
 
 (define (read-syntax path port)
@@ -22,7 +22,7 @@
                           (set-checker-hash! forge-checker-hash)
                           (set-ast-checker-hash! forge-ast-checker-hash)                          
 
-                          (require (prefix-in log: forge/logging/2022/main))
+                          (require (prefix-in log: forge/logging/2023/main))
                           (require (only-in racket first rest empty? empty)) ; these are used heavily
                           (require forge/sigs)
 
