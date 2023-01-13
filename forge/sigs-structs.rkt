@@ -507,7 +507,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; close-run :: Run -> void
 (define (close-run run)
   (assert-is-running run)
-  ((Server-ports-shutdown (Run-server-ports run))))
+  (printf "***DEBUG*** preventing server shutdown at end of test (etc.)~n")
+  ;((Server-ports-shutdown (Run-server-ports run)))
+  )
 
 ; is-running :: Run -> Boolean
 (define (is-running? run)

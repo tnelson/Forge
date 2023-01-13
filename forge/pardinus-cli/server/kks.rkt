@@ -10,6 +10,7 @@
          declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product]))
 (provide assert e f i a define-const)
 (provide read-evaluation)
+(provide clear)
 
 (require "server.rkt"
          "server-common.rkt")
@@ -27,7 +28,7 @@
   (define stdin-val (send kks stdin))
   (define stderr-val (send kks stderr))
   (define stdout-val (send kks stdout))
-  (define close-server (thunk (send kks shutdown)))
+  (define close-server (thunk (begin (printf "***DEBUG: shutting down~n") (send kks shutdown))))
   (define is-running? (thunk (send kks initialized?)))
   (values stdin-val stdout-val stderr-val close-server is-running?))
 
@@ -51,7 +52,7 @@
 (define-syntax-rule (pardinus-display arg)
   (begin
     (when (>= (get-verbosity) VERBOSITY_HIGH)
-      (display arg))
+      (printf "pardinus-display: ~a~n" arg))
     (display arg [pardinus-port])))
 
 ; Prints the given command string to the kodkod-port.
