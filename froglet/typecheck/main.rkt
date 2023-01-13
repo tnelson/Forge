@@ -21,10 +21,13 @@
   racket/list
   racket/pretty
   syntax/id-set
-  syntax/parse)
+  syntax/parse
+  (for-syntax racket/base syntax/parse))
 
-(define-syntax-rule (define-parser id clause ...)
-  (define id (syntax-parser clause ...)))
+(define-syntax (define-parser stx)
+  (syntax-parse stx
+   ((_ id clause ...)
+    #`(define id #,(syntax/loc stx (syntax-parser clause ...))))))
 
 (define who 'froglet:typecheck)
 
@@ -140,6 +143,7 @@
         (void)]
        [(q:$Quant (~optional (~and "disj" disj) #:defaults ([disj #'#f]))
                   decls:$DeclList bob:$BlockOrBar)
+        (printf "QUANT ~s~n" this-syntax)
         (define decl-tys
           (parameterize ([current-quant (list (syntax-e #'q.symbol) (and (syntax-e #'disj) #t))])
             (decllist-check #'decls)))
@@ -446,7 +450,6 @@
      (raise-argument-error 'env-collect/paragraph "Paragraph?" stx)]))
 
 (define (param*->fieldtype* stx*)
-  (printf "allstar ~s~n" stx*)
   (map param->fieldtype stx*))
 
 (define-parser param->fieldtype
