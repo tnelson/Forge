@@ -28,7 +28,10 @@
   (define stdin-val (send kks stdin))
   (define stderr-val (send kks stderr))
   (define stdout-val (send kks stdout))
-  (define close-server (thunk (begin (printf "***DEBUG: shutting down~n") (send kks shutdown))))
+  (define close-server (thunk 
+    (begin 
+      (printf "***DEBUG: shutting down~n") 
+      (send kks shutdown))))
   (define is-running? (thunk (send kks initialized?)))
   (values stdin-val stdout-val stderr-val close-server is-running?))
 
@@ -52,7 +55,7 @@
 (define-syntax-rule (pardinus-display arg)
   (begin
     (when (>= (get-verbosity) VERBOSITY_HIGH)
-      (printf "pardinus-display: ~a~n" arg))
+      (display arg))
     (display arg [pardinus-port])))
 
 ; Prints the given command string to the kodkod-port.
@@ -169,6 +172,10 @@
   (when (> (get-verbosity) VERBOSITY_LOW)
     (writeln result)) 
   (match result
+    ;; A message that was put in the buffer for debugging/info. Ignore it.
+    ;; (It will be printed above if verbosity is > low.)
+    [(list (== 'info ) _ ...)
+     (read-solution port err-port)]
     ;; SAT results. Engine MUST provide statistics and metadata elements
     ; expect a list of instances now (which may be singleton)
     [(list (== 'sat)
@@ -202,6 +209,10 @@
   (when (>= (get-verbosity) VERBOSITY_LOW)
     (writeln result))
   (match result
+    ;; A message that was put in the buffer for debugging/info. Ignore it.
+    ;; (It will be printed above if verbosity is > low.)
+    [(list (== 'info ) _ ...)
+     (read-evaluation port err-port)]
     [(list (== 'evaluated) (== ':expression) atoms)
      (cons 'expression atoms)]
     [(list (== 'evaluated) (== ':int-expression) val)
