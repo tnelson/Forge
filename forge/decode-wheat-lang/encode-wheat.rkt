@@ -4,7 +4,7 @@
 
 (define (encode in-file out-file)
   (define ln* (cdr (file->lines in-file)))
-  (define str (string-join ln* ))
+  (define str (string-join (cdr ln*) "\n"))
   (define bb (string->bytes/utf-8 str))
   (void
     (for ((i (in-range (bytes-length bb))))
