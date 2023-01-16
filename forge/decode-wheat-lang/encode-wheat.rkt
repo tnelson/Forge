@@ -8,12 +8,13 @@
   (define bb (string->bytes/utf-8 str))
   (void
     (for ((i (in-range (bytes-length bb))))
-      (bytes-set! bb i (modulo (+ (bytes-ref bb i) offset) 256))))
+      (bytes-set! bb i (encode-byte (bytes-ref bb i)))))
   (define out out-file)
   (with-output-to-file out #:exists 'replace
     (lambda ()
-      (displayln "#lang forge/decode-wheat-lang")
-      (write-bytes bb)))
+      (display "#lang forge/decode-wheat-lang\t")
+      (write-bytes bb)
+      (void)))
   (void))
 
 (module+ main
