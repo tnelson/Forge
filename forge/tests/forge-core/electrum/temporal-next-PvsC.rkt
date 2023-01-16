@@ -1,5 +1,8 @@
 #lang forge/core
 
+option run_sterling off
+
+
 (require (prefix-in ru: rackunit) 
          (only-in racket second third))
 

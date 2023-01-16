@@ -1,5 +1,8 @@
 #lang forge/core
 
+option run_sterling off
+
+
 (set-option! 'verbose 0)
 ;(set-option! 'verbose 10)
 

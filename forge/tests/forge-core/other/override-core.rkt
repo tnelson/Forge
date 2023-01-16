@@ -1,5 +1,8 @@
 #lang forge/core
 
+option run_sterling off
+
+
 (require (only-in rackunit check-exn))
 
 (sig Parent #:abstract)
