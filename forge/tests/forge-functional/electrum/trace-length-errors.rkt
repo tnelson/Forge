@@ -1,5 +1,6 @@
 #lang forge/core
 
+option run_sterling off
 ; THANKS TO FUNCTIONAL FORGE, THERE ARE SEVERELY CLEANER WAYS TO TEST THIS
 ; TODO: WRITE THOSE
 
