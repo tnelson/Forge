@@ -1,8 +1,5 @@
 #lang forge/core
 
-option run_sterling off
-
-
 (require
   (only-in
     macro-debugger/analysis/profile

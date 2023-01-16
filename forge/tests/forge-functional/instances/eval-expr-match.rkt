@@ -1,6 +1,5 @@
 #lang forge/core
 
-option run_sterling off
 (set-option! 'verbose 0)
 
 ; Tests the pattern-matching in eval-exp from server/eval-model.rkt

@@ -1,6 +1,5 @@
 #lang forge/core
 
-option run_sterling off
 (set-option! 'verbose 0)
 
 (define Abstract (make-sig 'Abstract #:abstract #t))

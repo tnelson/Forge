@@ -1,8 +1,5 @@
 #lang forge/core
 
-option run_sterling off
-
-
 (set-verbosity 0)
 
 (sig Node)

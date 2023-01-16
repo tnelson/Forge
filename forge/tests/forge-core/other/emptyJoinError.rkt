@@ -1,8 +1,5 @@
 #lang forge/core
 
-option run_sterling off
-
-
 (require (only-in rackunit check-exn))
 
 (set-option! 'verbose 2) ; needed in order to do last-checking now

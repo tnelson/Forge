@@ -1,8 +1,5 @@
 #lang forge/core
 
-option run_sterling off
-
-
 (sig A)
 (relation r (A A) #:is func)
 

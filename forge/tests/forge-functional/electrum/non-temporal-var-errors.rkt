@@ -1,6 +1,5 @@
 #lang forge/core
 
-option run_sterling off
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; WITH THE WAY FUNCTIONAL FORGE SETS OPTIONS
 ; THESE TESTS ARE NOW MEANINGLESS

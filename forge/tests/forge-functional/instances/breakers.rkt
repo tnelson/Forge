@@ -1,6 +1,5 @@
 #lang forge/core
 
-option run_sterling off
 (set-option! 'verbose 1)
 
 (define A (make-sig 'A))

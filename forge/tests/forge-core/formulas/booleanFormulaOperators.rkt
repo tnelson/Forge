@@ -1,8 +1,5 @@
 #lang forge/core
 
-option run_sterling off
-
-
 (set-option! 'verbose 0)
 
 ; No more overloading (<and> and <or> are normal Racket operators now)
