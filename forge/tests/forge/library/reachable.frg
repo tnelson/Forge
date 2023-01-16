@@ -1,5 +1,8 @@
 #lang forge
 
+option run_sterling off
+
+
 option verbosity 0
 
 sig Node {

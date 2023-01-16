@@ -1,5 +1,8 @@
 #lang forge
 
+option run_sterling off
+
+
 //This takes a few minutes to run (on my machine at least)
 
 option verbose 0

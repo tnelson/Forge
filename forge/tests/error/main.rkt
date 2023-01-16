@@ -34,7 +34,7 @@
     (list "transpose.frg" #rx"recognize")
     (list "star-ast.frg" #rx"recognize")
     (list "transitive-closure-ast.frg" #rx"recognize")
-    (list "join.frg" #rx"singleton")
+    (list "join.frg" #rx"was not an object, so could not access its fields.")
     (list "join2.frg" #rx"singleton")
     (list "join3.frg" #rx"singleton")
     (list "join-right.frg" #rx"singleton")

@@ -1,4 +1,7 @@
 #lang forge
+
+option run_sterling off
+
 option problem_type target
 option solver PMaxSAT4J
 option verbose 0

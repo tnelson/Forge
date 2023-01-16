@@ -1,4 +1,10 @@
-#lang forge/bsl
+#lang forge
+
+option run_sterling off
+/bsl
+
+option run_sterling off
+
 
 abstract sig Node {}
 one sig Data {
