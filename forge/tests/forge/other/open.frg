@@ -1,9 +1,8 @@
 #lang forge
 
-option run_sterling off
-
 open "other-file.frg"
 
+option run_sterling off
 sig B extends A {}
 
 test expect {
