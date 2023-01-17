@@ -1,4 +1,7 @@
 #lang forge
+
+option run_sterling off
+
 option verbose 0
 
 sig Element {}

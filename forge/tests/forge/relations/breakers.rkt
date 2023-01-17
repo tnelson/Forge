@@ -1,5 +1,8 @@
 #lang forge
 
+option run_sterling off
+
+
 option verbose 0
 -- Additional tests for lone, one, pfunc, func
 sig A, B, C {}

@@ -1,5 +1,7 @@
 #lang forge/bsl
 
+option run_sterling off
+
 abstract sig Node {}
 one sig Data {
     seq: pfunc Int -> Node
