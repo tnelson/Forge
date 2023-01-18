@@ -30,7 +30,8 @@
   (define stdout-val (send kks stdout))
   (define close-server (thunk 
     (begin 
-      (printf "***DEBUG: shutting down~n") 
+      (when (>= (get-verbosity) VERBOSITY_HIGH)
+        (printf "Shutting down Pardinus solver process...~n"))
       (send kks shutdown))))
   (define is-running? (thunk (send kks initialized?)))
   (values stdin-val stdout-val stderr-val close-server is-running?))

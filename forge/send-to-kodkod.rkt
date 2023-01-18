@@ -131,7 +131,8 @@
       ; if there is an active server state, and the server is running
       [(and (unbox server-state) ((Server-ports-is-running? (unbox server-state))))
        (define sstate (unbox server-state))
-       (printf "*** DEBUG: Active server running...calling (clear)~n")
+       (when (@>= (get-verbosity) VERBOSITY_HIGH)
+        (printf "Pardinus solver process already running. Sending (clear).~n"))
        ; pardinus-print is only defined later, based on the stdin here
        (pardinus:cmd [(Server-ports-stdin sstate)] (pardinus:clear))
        (values (Server-ports-stdin sstate) (Server-ports-stdout sstate) 
@@ -140,7 +141,8 @@
       [(equal? backend 'kodkod)
        (raise "Pure Kodkod backend is no longer supported; please use Pardinus backend.")]
       [(equal? backend 'pardinus)
-       (printf "*** DEBUG: Starting new server (state=~a)...~n" (unbox server-state))
+       (when (@>= (get-verbosity) VERBOSITY_HIGH)
+         (printf "Starting/restarting Pardinus server (prior state=~a)...~n" (unbox server-state)))
        (pardinus:start-server
         'stepper ; always a stepper problem (there is a "next" button)
         ; 'default, 'temporal, or 'target (tells Pardinus which solver to load,

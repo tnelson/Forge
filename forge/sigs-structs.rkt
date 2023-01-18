@@ -5,8 +5,9 @@
 
 (require (except-in "lang/ast.rkt" ->)
          "lang/bounds.rkt"
-         "breaks.rkt")
-(require (prefix-in @ (only-in racket hash not +)) 
+         "breaks.rkt"
+         (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
+(require (prefix-in @ (only-in racket hash not + >=)) 
          (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
 (require racket/contract)
@@ -507,7 +508,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; close-run :: Run -> void
 (define (close-run run)
   (assert-is-running run)
-  (printf "***DEBUG*** preventing server shutdown at end of test (etc.)~n")
+  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+        (printf "Run closing. Keeping Pardinus solver process active...~n"))
   ;((Server-ports-shutdown (Run-server-ports run)))
   )
 
