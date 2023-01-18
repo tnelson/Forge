@@ -14,6 +14,9 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+        fetch-depth: 0
     - name: Set git configs
       run: git config --global push.followTags true
     - name: Set up Python ${{matrix.python-version}}
