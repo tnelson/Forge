@@ -309,32 +309,20 @@
               -pred-name:NameClass
               prop-expr:BlockClass
               (~optional -scope:ScopeClass)
-              (~optional -bounds:BoundsClass)
-              where-blocks:TestConstructClass ...)
+              (~optional -bounds:BoundsClass))
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
-  ;; PropertyDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
+
   (define-syntax-class TestSuiteDeclClass
-    #:attributes (pred-name (test-blocks 1))
-    (pattern ((~literal PropertyDecl)
-              (~and (~or "overconstraint" "underconstraint") ct)
-              -prop-name:NameClass
-              "of"
+    #:attributes (pred-name (test-constructs 1))
+    (pattern ((~literal TestSuiteDecl)
               -pred-name:NameClass
-              prop-expr:BlockClass
-              (~optional -scope:ScopeClass)
-              (~optional -bounds:BoundsClass)
-              where-blocks:TestConstructClass ...)
-      #:with prop-name #'-prop-name.name
+              test-constructs:TestConstructClass ...)
       #:with pred-name #'-pred-name.name
-      #:with constraint-type (string->symbol (syntax-e #'ct))
-      #:with scope (if (attribute -scope) #'-scope.translate #'())
-      #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
-
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -772,7 +760,6 @@
        (syntax/loc stx (begin)))]))
 
 
-; PropertyDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
 (define-syntax (PropertyDecl stx)
   (syntax-parse stx
   [pwd:PropertyDeclClass 
@@ -784,13 +771,46 @@
    (syntax/loc stx
     (begin
       (pred pwd.prop-name pwd.prop-expr)
-      (begin pwd.where-blocks ...)
       (test
         test_name
         #:preds [imp_total]
         #:scope pwd.scope
         #:bounds pwd.bounds
         #:expect theorem )))]))
+
+
+;; Quick and dirty static check to ensure a test
+;; references a predicate.
+
+;; Flattens test AST to a string and ensures that the
+;; referenced predicate's name is present.
+;; Could be done better by traversing the AST.
+(define-for-syntax ensure-target-ref
+  (lambda (target-pred)
+    (let 
+      ([tp (format "~a" (syntax->datum target-pred))])
+        (lambda (ex) 
+          (let*
+            ([ex-as-datum (syntax->datum ex)]
+              [ast-str  (format "~a" ex-as-datum)])
+            (if (string-contains? ast-str tp) ;; Using string-contains for now.
+              (void)
+              (println 
+                (format "Warning: ~a ~a:~a Test in where block does not reference ~a." 
+                  (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp) 
+                (current-error-port))))))))
+
+
+(define-syntax (TestSuiteDecl stx)
+  (syntax-parse stx
+  [tsd:TestSuiteDeclClass 
+   
+    ;; Static checks on test blocks go here.
+   #:do [(map (ensure-target-ref #'tsd.prop-name) (syntax->list #'(tsd.test-constructs ...)))]
+
+   (syntax/loc stx
+    (begin pwd.where-blocks ...))]))
+
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
