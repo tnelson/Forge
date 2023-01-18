@@ -100,7 +100,8 @@
     (pattern decl:AssertDeclClass)
     (pattern decl:CmdDeclClass)
     (pattern decl:TestExpectDeclClass)
-    (pattern decl:PropertyWhereDeclClass)
+    (pattern decl:PropertyDeclClass)
+    (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
     ; (pattern decl:InstanceDeclClass)
@@ -297,10 +298,29 @@
     (pattern decl:TestExpectDeclClass))
 
 
-  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
-  (define-syntax-class PropertyWhereDeclClass
-    #:attributes (prop-name pred-name prop-expr constraint-type scope bounds (where-blocks 1))
-    (pattern ((~literal PropertyWhereDecl)
+  ;; TODO: Remove bounds
+  ;; PropertyDecl : PROPERTY-TOK Name OF-TOK Name Block
+  (define-syntax-class PropertyDeclClass
+    #:attributes (prop-name pred-name prop-expr constraint-type scope bounds)
+    (pattern ((~literal PropertyDecl)
+              (~and (~or "overconstraint" "underconstraint") ct)
+              -prop-name:NameClass
+              "of"
+              -pred-name:NameClass
+              prop-expr:BlockClass
+              (~optional -scope:ScopeClass)
+              (~optional -bounds:BoundsClass)
+              where-blocks:TestConstructClass ...)
+      #:with prop-name #'-prop-name.name
+      #:with pred-name #'-pred-name.name
+      #:with constraint-type (string->symbol (syntax-e #'ct))
+      #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
+
+  ;; PropertyDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
+  (define-syntax-class TestSuiteDeclClass
+    #:attributes (pred-name (test-blocks 1))
+    (pattern ((~literal PropertyDecl)
               (~and (~or "overconstraint" "underconstraint") ct)
               -prop-name:NameClass
               "of"
@@ -752,10 +772,10 @@
        (syntax/loc stx (begin)))]))
 
 
-; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
-(define-syntax (PropertyWhereDecl stx)
+; PropertyDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
+(define-syntax (PropertyDecl stx)
   (syntax-parse stx
-  [pwd:PropertyWhereDeclClass 
+  [pwd:PropertyDeclClass 
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint)
                         (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; Overconstraint : Prop => Pred
                         (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; Underconstraint Pred => Prop
