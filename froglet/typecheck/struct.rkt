@@ -6,7 +6,10 @@
   (struct-out consttype)
   (struct-out sigtype)
   (struct-out predtype)
-  (struct-out fieldtype))
+  (struct-out fieldtype)
+  (struct-out paramtype)
+
+  (struct-out reltype))
 
 (require
   syntax/parse/define
@@ -24,5 +27,8 @@
 (struct/froglet sigtype type (mult extends field*))
 (struct/froglet predtype type (param*))
 (struct/froglet fieldtype type (mult sig))
+(struct/froglet paramtype type (mult sig))
+
+(struct/froglet reltype (col-type* singleton?))
 ;; reltype type (arity singleton?) ;; relation
 

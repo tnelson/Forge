@@ -69,7 +69,12 @@
    (error 'die2)]
   [pred:$PredDecl
     ;; TODO pred.decls
-    (block-check #'pred.block)]
+    (define body-ty (block-check #'pred.block))
+    (when (reltype? body-ty)
+      (raise-syntax-error who
+                          "pred must return an object, not a set"
+                          (deparse #'pred.block)))
+    body-ty]
   [fd:$FunDecl
     (error 'die3)]
   [ad:$AssertDecl
@@ -83,7 +88,8 @@
   [rd:$RelDecl
     (raise-arguments-error 'parag-check "not implemented for RelDecl" "stx" this-syntax)]
   [rd:$OptionDecl
-    (error 'die9)]
+    ;; ignore
+    (void)]
   [rd:$InstDecl
     (error 'die10)]
   [rd:$ExampleDecl
@@ -93,6 +99,7 @@
     (void)])
 
 (define-parser block-check
+  ;; TODO disallow (some father)
   [bb:$Block
     (for/last ([ee (in-list (syntax-e #'(bb.exprs ...)))])
       (expr-check ee))])
@@ -104,9 +111,9 @@
 (define-parser testdecl-check
   [td:$TestDecl
     ;; TODO hd name parameters pred-name pred-block scope bounds
-    (when (syntax-e #'td.name)
+    #;(when (syntax-e #'td.name)
       (printf "TD name ~s~n" #'td.name))
-    (when (attribute td.parameters)
+    #;(when (attribute td.parameters)
       (printf "TD params ~s~n" #'td.parameters))
     (when (syntax-e #'td.pred-name)
       (name-check #'td.pred-name))
@@ -143,7 +150,6 @@
         (void)]
        [(q:$Quant (~optional (~and "disj" disj) #:defaults ([disj #'#f]))
                   decls:$DeclList bob:$BlockOrBar)
-        (printf "QUANT ~s~n" this-syntax)
         (define decl-tys
           (parameterize ([current-quant (list (syntax-e #'q.symbol) (and (syntax-e #'disj) #t))])
             (decllist-check #'decls)))
@@ -167,7 +173,7 @@
         ;; ??
         (define lhs-ty (loop #'(lhs.body ...)))
         (define rhs-ty (loop #'(rhs.body ...)))
-        (or (field-check lhs-ty rhs-ty)
+        (or (field-check lhs-ty rhs-ty this-syntax)
             (raise-syntax-error who
                                 "Expected matching sig and field"
                                 this-syntax))]
@@ -202,8 +208,11 @@
         (nametype #'nm.name)]
        [("{" decls:$DeclList bob:$BlockOrBar "}")
         (define decl-tys (decllist-check #'decls))
-        (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
-          (blockorbar-check #'bob))]
+        (define bob-ty
+          (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
+            (blockorbar-check #'bob)))
+        ;; TODO is it a singleton?
+        (reltype bob-ty #f)]
        [(block:$Block)
         (block-check #'block)]
        [(sexpr:$Sexpr)
@@ -226,20 +235,46 @@
     (raise-syntax-error who
                         (format "Operator ~a is not allowed in froglet" (syntax-e #'ao.arr))
                         #'ao.arr)]
-   [(~or "-" "&")
+   [(~or "-" "&" "+")
     (raise-syntax-error who
                         (format "Operator ~a is not allowed in froglet" (syntax-e op))
                         op)]
+   [(~or =)
+    (define sig1 (->sigty e1-ty))
+    (define sig2 (->sigty e2-ty))
+    (void
+      (for ((t (in-list (list e1-ty e2-ty)))
+            (s (in-list (list sig1 sig2)))
+            #:when (and (nametype? t)
+                        (id=? (type-name t) (type-name s))))
+        (raise-syntax-error who
+                            "Expected an object"
+                            (type-name t))))
+    (unless (type=? sig1 sig2)
+      (raise-syntax-error who
+                          (format "Inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
+                          ctx))
+     bool-ty]
    [_
     (raise-arguments-error 'binop-check "die" "op" op "e1t" e1-ty "e2t" e2-ty)]))
 
 (define (unop-check op e1-ty)
-  ;; TODO
-  (void))
+  (syntax-parse op
+   [(~or "*" "^" "~")
+    (raise-syntax-error who
+                        (format "Operator ~a is not allowed in froglet" (syntax-e op))
+                        op)]
+   [_
+    (raise-arguments-error 'unop-check "die" "op" op "et" e1-ty)]))
 
 (define (app-check fn-ty arg-ty*)
-  ;; TODO
-  (void))
+  (cond
+    [(and (nametype? fn-ty)
+          (eq? 'reachable (syntax-e (type-name fn-ty))))
+     #;(printf "app-check ~s ~s~n ~n" fn-ty arg-ty*)
+     (void)]
+    [else
+      (void)]))
 
 (define-parser letdecllist-check
   [decls:$LetDeclList
@@ -259,7 +294,7 @@
     (define name (car ne))
     (define expr (cadr ne))
     (define expr-ty (expr-check expr))
-    (fieldtype name expr-ty mult)))
+    (paramtype name mult expr-ty)))
 
 (define-parser blockorbar-check
   [bob:$BlockOrBar
@@ -269,24 +304,38 @@
     [ee:$Expr
       (expr-check #'ee)])])
 
-(define (field-check lhs rhs)
+(define (field-check lhs rhs ctx)
+  ;; TODO better srclocs ... inputs should be stx, not types .. fails at first composition
   (define lhs-sigty
     (or (->sigty lhs)
         (raise-syntax-error who
                             "Expected a sig"
                             (->stx lhs))))
+  (define is-param? (->paramty lhs))
+  (unless is-param?
+    (unless (eq? (sigtype-mult lhs-sigty) '#:one)
+      (raise-syntax-error who
+                          "Expected a singleton sig"
+                          ctx #;(->stx lhs-sigty))))
   (define rhs-sigty
     (or (field->sigty rhs)
         (raise-syntax-error 'froglet:typecheck
                             "Expected a field"
                             (->stx rhs))))
-  (and (sigtype<: lhs-sigty rhs-sigty)
+  (and (sigtype<=: lhs-sigty rhs-sigty)
        (sigtype-find-field rhs-sigty rhs)))
 
-(define (sigtype<: s0 s1)
+(define (sigtype<=: s0 s1)
   (or (eq? s0 s1)
-      (let ((xx (sigtype-extends s0)))
-        (and xx (sigtype<: (->sigty xx) s1)))))
+      (sigtype<: s0 s1)))
+
+(define (sigtype<: s0 s1)
+  (let ((xx (sigtype-extends s0)))
+    (and xx (sigtype<=: (->sigty xx) s1))))
+
+(define (type=? t1 t2)
+  (or (eq? t1 t2)
+      (and (sigtype? t1) (sigtype? t2) (sigtype<: t1 t2) (sigtype<: t2 t1))))
 
 (define (->sigty stx)
   (cond
@@ -297,6 +346,16 @@
     [else
      (name->sig stx)]))
 
+(define (->paramty stx)
+  (cond
+    [(nametype? stx)
+     (name->paramtype (type-name stx))]
+    [else
+      (name->paramtype stx)]))
+
+(define (name->paramtype stx)
+  (name-lookup stx paramtype?))
+
 (define (->stx x)
   (cond
     [(type? x)
@@ -304,20 +363,30 @@
     [else
       x]))
 
+(define (deparse stx)
+  ;; TODO human-readable version of the BRAG output stx
+  stx)
+
 (define (name-check stx)
   (name-lookup stx))
 
 (define (name->sig stx)
-  (name-lookup stx sigtype?))
+  (or (name-lookup stx sigtype?)
+      (let ([paramty (->paramty stx)])
+        (and paramty
+             #;(void (printf "paramty ~s~n sig ~s~n" paramty (name->sig (type-name (paramtype-sig paramty)))))
+             (name->sig (type-name (paramtype-sig paramty)))))))
 
 (define (name->pred stx)
   (name-lookup stx predtype?))
+
+(define id=? free-identifier=?)
 
 (define (name-lookup stx [-env-guard #f])
   (define env-guard (or -env-guard values))
   (define stx=?
     (if (syntax? stx)
-      (lambda (that) (free-identifier=? stx that))
+      (lambda (that) (id=? stx that))
       (lambda (that) (eq? stx (syntax-e that)))))
   (for/first ([elem (in-list (current-type-env))]
               #:when (and (env-guard elem)
@@ -346,8 +415,11 @@
         (->sigty ty)))
     (raise-user-error 'sigtype-find-field "Field not found")))
 
+(define int-ty (sigtype (datum->syntax #f 'Int) #f #f '()))
+(define bool-ty (sigtype (datum->syntax #f 'Bool) #f #f '()))
+
 (define (env-init)
-  (list (sigtype (datum->syntax #f 'Int) #f #f '())))
+  (list int-ty bool-ty))
 
 (define (env-check env)
   (unknown-sig-check env)
@@ -381,7 +453,7 @@
 
 (define (unknown-sig-check/pred predty ids)
   (for ([ft (in-list (predtype-param* predty))])
-    (define nm (fieldtype-sig ft))
+    (define nm (paramtype-sig ft))
     (unless (free-id-set-member? ids nm)
       (raise-syntax-error 'froglet:typecheck
                           "Undefined sig name"
@@ -426,7 +498,7 @@
      (for/list ([name (in-list (syntax-e #'(sig.name* ...)))])
        (sigtype name mult extends field*))]
    [pred:$PredDecl
-     (define param-ty* (param*->fieldtype* (syntax-e #'(pred.decls ...))))
+     (define param-ty* (param*->paramtype* (syntax-e #'(pred.decls ...))))
      (list (predtype #'pred.name param-ty*))]
    [fun:$FunDecl
      (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
@@ -441,7 +513,7 @@
    [query:$QueryDecl
      (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [option:$OptionDecl
-     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
+     '()]
    [inst:$InstDecl
      (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
    [example:$ExampleDecl
@@ -449,15 +521,15 @@
    [_
      (raise-argument-error 'env-collect/paragraph "Paragraph?" stx)]))
 
-(define (param*->fieldtype* stx*)
-  (map param->fieldtype stx*))
+(define (param*->paramtype* stx*)
+  (map param->paramtype stx*))
 
-(define-parser param->fieldtype
+(define-parser param->paramtype
   ;; param ~ the decl part of a pred
   [(nm:id (_:ExprHd qn:$QualName))
-   (fieldtype #'nm #f #'qn.name)]
+   (paramtype #'nm #f #'qn.name)]
   [_
-   (raise-user-error 'param->fieldtype "oops ~a" this-syntax)])
+   (raise-user-error 'param->paramtype "oops ~a" this-syntax)])
 
 (define (parse-arrow-decl* decl*)
   (map parse-arrow-decl decl*))

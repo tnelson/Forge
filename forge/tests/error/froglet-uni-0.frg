@@ -1,4 +1,5 @@
 #lang froglet
+option run_sterling off
 
 sig University {}
 one sig BrownU extends University {}

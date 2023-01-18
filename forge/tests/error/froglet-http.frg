@@ -1,4 +1,5 @@
 #lang froglet
+option run_sterling off
 
 abstract sig EndPoint {}
 sig Server extends EndPoint { causes: set HTTPEvent }

@@ -282,7 +282,7 @@
   #:commit
   (pattern ((~and hd (~literal DeclList))
             -decls:$Decl ...)
-    #:attr (decls 1) (stx-listlist->list #'(-decls.decls ... ...))))
+    #:attr (decls 1) (syntax-e #'(-decls.decls ... ...))))
     ;;(datum->syntax this-syntax
     ;;  (apply append
     ;;         (map syntax->list

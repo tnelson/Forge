@@ -1,5 +1,6 @@
 #lang froglet
 option run_sterling off
+
 sig Node {
     field: pfunc Node -> Node
 }
