@@ -5,7 +5,7 @@
 
 (require syntax/parse/define
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
-                     syntax/srcloc racket/match)
+                     syntax/srcloc racket/match racket/string)
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
@@ -322,7 +322,7 @@
     (pattern ((~literal TestSuiteDecl)
               -pred-name:NameClass
               test-constructs:TestConstructClass ...)
-      #:with pred-name #'-pred-name.name
+      #:with pred-name #'-pred-name.name))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -806,10 +806,10 @@
   [tsd:TestSuiteDeclClass 
    
     ;; Static checks on test blocks go here.
-   #:do [(map (ensure-target-ref #'tsd.prop-name) (syntax->list #'(tsd.test-constructs ...)))]
+   #:do [(map (ensure-target-ref #'tsd.pred-name) (syntax->list #'(tsd.test-constructs ...)))]
 
    (syntax/loc stx
-    (begin pwd.where-blocks ...))]))
+    (begin tsd.test-constructs ...))]))
 
 
 (define-syntax (ExampleDecl stx)

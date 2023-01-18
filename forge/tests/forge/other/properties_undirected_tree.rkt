@@ -23,10 +23,13 @@ pred isUndirectedTree {
  {
      all m, n : Node | n->m in edges implies m->n in edges
  } 
- where {
+
+
+test suite for isUndirected {
 
         test expect {
             {isUndirected} is sat
+            {one Node} is sat // This should result in a warning but not an error.
         }
 
         example line is {not isUndirected} for {
@@ -48,17 +51,6 @@ pred isUndirectedTree {
             Node = `Node0 + `Node1
             edges = `Node0->`Node0
         }
-
-
-        /*
-        //Nesting not currently supported.
-        underconstraint reachability of isUndirected
-        {
-            all m, n : Node | n->m in edges implies m in n.*edges
-        }
-        where
-        {}
-        */
 }
 
 
@@ -85,7 +77,7 @@ overconstraint TreeWithEdges of isUndirectedTree
 
     some edges
  } 
- where  { }
+
 
 // Section 3: Self
 
@@ -94,13 +86,12 @@ overconstraint foo of isUndirectedTree
  {
    isUndirectedTree
  } 
- where  {}
+
 
 underconstraint bar of isUndirectedTree
  {
    isUndirectedTree
  } 
- where  {}
 
 
 
