@@ -796,7 +796,7 @@
             (if (string-contains? ast-str tp) ;; Using string-contains for now.
               (void)
               (println 
-                (format "Warning: ~a ~a:~a Test in where block does not reference ~a." 
+                (format "Warning: ~a ~a:~a Test does not reference ~a." 
                   (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp) 
                 (current-error-port))))))))
 
