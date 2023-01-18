@@ -36,6 +36,7 @@ jobs:
         git commit -m "Bump version to v$NEW_VERSION" -a
         git tag -a "v$NEW_VERSION" -m "${{ github.event.pull_request.title }}"
     - name: Push changes
-      uses: ad-m/github-push-action@main
+      uses: ad-m/github-push-action@master
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
