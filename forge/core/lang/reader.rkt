@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require racket/port)
-(require (prefix-in log: forge/logging/2022/main))
+(require (prefix-in log: forge/logging/2023/main))
 (require (prefix-in @ (only-in racket/base read-syntax)))
 
 (define (read-syntax path port)
@@ -14,16 +14,16 @@
 
   ; Using "read" will not bring in syntax location info
   (define parse-tree (port->list (lambda (x) (@read-syntax path x)) port))
-  (define module-datum `(module forge-core-mod racket
-                          (require forge/choose-lang-specific)
-                          (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
-                          ; ANSWER: maybe using dynamic-require
-                          ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
-                          (set-checker-hash! forge-checker-hash)
-                          (set-ast-checker-hash! forge-ast-checker-hash)
-                          ;(printf "ast-ch = ~a~n" (get-ast-checker-hash))
 
-                          (require (prefix-in log: forge/logging/2022/main))
+  ; The module-path here is racket/base rather than forge/sigs so that we get various top-level bindings like #%module-begin
+  (define module-datum `(module forge-core-mod racket/base
+                          (require forge/choose-lang-specific)
+                          (require forge/lang/lang-specific-checks)                                                     
+                          (set-checker-hash! forge-checker-hash)
+                          (set-ast-checker-hash! forge-ast-checker-hash)                          
+
+                          (require (prefix-in log: forge/logging/2023/main))
+                          (require (only-in racket first rest empty? empty)) ; these are used heavily
                           (require forge/sigs)
 
                           (provide (except-out (all-defined-out)

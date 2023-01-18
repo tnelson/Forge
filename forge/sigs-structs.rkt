@@ -1,41 +1,21 @@
-#lang racket
+#lang racket/base
+
+; Structures and helper functions for running Forge, along with some constants and
+; configuration code (e.g., most options).
 
 (require (except-in "lang/ast.rkt" ->)
          "lang/bounds.rkt"
-         "breaks.rkt")
-(require (prefix-in @ racket) 
+         "breaks.rkt"
+         (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
+(require (prefix-in @ (only-in racket hash not + >=)) 
+         (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
 (require racket/contract)
-(require (for-syntax racket/syntax syntax/srcloc syntax/parse))
+(require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
 (require (prefix-in tree: "lazy-tree.rkt"))
 (require syntax/srcloc)
 
 (provide (all-defined-out))
-; (provide (except-out (all-defined-out) (struct-out Sig) (struct-out Relation)))
-; (provide (contract-out (struct Sig ([info nodeinfo?]
-                                    
-;                                     [arity nonnegative-integer?]
-;                                     [name string?]
-;                                     [typelist (listof string?)]
-;                                     [parent string?]
-;                                     [is-variable boolean?]
-
-;                                     [name symbol?]
-;                                     [one boolean?]
-;                                     [abstract boolean?]
-;                                     [extends (or/c Sig? #f)]))))
-; (provide (contract-out (struct Relation ([info nodeinfo?]
-                                    
-;                                          [arity nonnegative-integer?]
-;                                          [name string?]
-;                                          [typelist (listof string?)]
-;                                          [parent string?]
-;                                          [is-variable boolean?]
-                                    
-;                                          [name symbol?]
-;                                          [sigs (listof Sig?)]
-;                                          [breaker (or/c node/breaking/break? #f)]))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Data Structures ;;;;;;;
@@ -198,11 +178,6 @@
   (sum (- s-int (join (^ succ) s-int))))
 (define (min s-int)
   (sum (- s-int (join s-int (^ succ)))))
-; (define-syntax Int (lambda (stx) (syntax-case stx ()    
-;     [val (identifier? (syntax val)) (quasisyntax/loc stx 
-;       (Sig 'Int 
-;             (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f)
-;             #f #f #f))])))
 
 (define symbol->proc
   (hash 'eval-language Options-eval-language
@@ -533,7 +508,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; close-run :: Run -> void
 (define (close-run run)
   (assert-is-running run)
-  ((Server-ports-shutdown (Run-server-ports run))))
+  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+        (printf "Run closing. Keeping Pardinus solver process active...~n"))
+  ;((Server-ports-shutdown (Run-server-ports run)))
+  )
 
 ; is-running :: Run -> Boolean
 (define (is-running? run)
@@ -546,7 +524,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (require (for-syntax syntax/srcloc)) ; for these macros
 
 ;; Added sugar over the AST
-;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus on the macro definition point
+;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus 
+;; on the macro definition point
 (provide implies iff <=> ifte >= <= ni != !in !ni <: :>)
 
 (define-syntax (implies stx) 

@@ -1,4 +1,5 @@
 #lang forge
+option run_sterling off
 
 
 one sig A { field: one B}

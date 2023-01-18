@@ -1,12 +1,15 @@
-#lang racket
+#lang racket/base
 
-(require (for-syntax racket/syntax syntax/srcloc syntax/parse)
-         syntax/srcloc (prefix-in @ racket) (prefix-in $ racket))
+(require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse)
+         syntax/srcloc 
+         racket/contract
+         racket/match
+         (only-in racket false? empty? first second rest drop const thunk)
+         (prefix-in @ (only-in racket + - * < > or <=)))
 
-(provide (except-out (all-defined-out) next-name
-                     ;@@and @@or @@not
+(provide (except-out (all-defined-out) next-name                     
                      int< int>)
-         (rename-out ;[@@and and] [@@or or] [@@not not]
+         (rename-out 
           [int< <] [int> >]))
 
 (require forge/choose-lang-specific)
@@ -53,9 +56,47 @@
 ; Should never be directly instantiated
 (struct node (info) #:transparent)
 
+; Should never be directly instantiated
+(struct node/expr node (arity) #:transparent
+  #:property prop:procedure (λ (r . sigs) (build-box-join r sigs)))
+
+; Should never be directly instantiated
+(struct node/int node () #:transparent)
+
+; Should never be directly instantiated
+(struct node/formula node () #:transparent)
+
 (define empty-nodeinfo (nodeinfo (build-source-location #f) 'empty))
+(define (just-location-info loc)
+  (if loc 
+      (nodeinfo loc 'empty)
+      (build-source-location #f)))
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
+
+(define/contract (intexpr->expr/maybe a-node #:op functionname #:info info)
+  (@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
+  (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
+        [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
+        [(node/expr? a-node) a-node]
+        [else 
+          (define loc (nodeinfo-loc info))
+          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
+          (raise-syntax-error functionname 
+                              (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
+                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
+
+(define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)
+  (@-> node? #:op symbol? #:info nodeinfo? node/int?)  
+  (cond [(node/expr? a-node) (node/int/op/sum (node-info a-node) (list a-node))]
+        [(node/int? a-node) a-node]
+        [(integer? a-node) (int a-node)]
+        [else         
+          (define loc (nodeinfo-loc info))
+          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
+          (raise-syntax-error functionname 
+                              (format "~a operator expected an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
+                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
 
 (define (check-args info op args type?
                     #:same-arity? [same-arity? #f] #:arity [arity #f]
@@ -116,14 +157,6 @@
                                     (first todo) sofar)
                           (rest todo))]))
 
-; Should never be directly instantiated
-(struct node/expr node (arity) #:transparent
-  #:property prop:procedure (λ (r . sigs) (build-box-join r sigs)))
-
-; Defining here for accessibility reasons
-; Should never be directly instantiated
-(struct node/int node () #:transparent)
-
 ;; -- operators ----------------------------------------------------------------
 
 ; Should never be directly instantiated
@@ -177,30 +210,6 @@
 (define (check-and-output ast-node to-handle checker-hash info)
     ;(printf "checking ast-node:~a  to-handle:~a  has-key? ~a ~n" ast-node to-handle (hash-has-key? checker-hash to-handle))
     (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node info)))
-
-(define/contract (intexpr->expr/maybe a-node #:op functionname #:info info)
-  (@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
-  (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
-        [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
-        [(node/expr? a-node) a-node]
-        [else 
-          (define loc (nodeinfo-loc info))
-          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
-          (raise-syntax-error functionname 
-                              (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
-                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
-
-(define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)
-  (@-> node? #:op symbol? #:info nodeinfo? node/int?)  
-  (cond [(node/expr? a-node) (node/int/op/sum (node-info a-node) (list a-node))]
-        [(node/int? a-node) a-node]
-        [(integer? a-node) (int a-node)]
-        [else         
-          (define loc (nodeinfo-loc info))
-          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
-          (raise-syntax-error functionname 
-                              (format "~a operator expected an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
-                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
 
 ; lifted operators are defaults, for when the types aren't as expected
 (define-syntax (define-node-op stx)
@@ -280,7 +289,7 @@
                             [(or (not (equal? 1 (length args-raw)))
                                 (not (list? (first args-raw)))) args-raw]
                             [else (first args-raw)])])
-              (if ($and @op (for/and ([a (in-list args)]) ($not (childtype a))))
+              (if (and @op (for/and ([a (in-list args)]) (not (childtype a))))
                   (apply @op args)
                   (apply functionname #:info info args))))
 
@@ -590,9 +599,6 @@
 
 ;; FORMULAS --------------------------------------------------------------------
 
-; Should never be directly instantiated
-(struct node/formula node () #:transparent)
-
 ;; -- constants ----------------------------------------------------------------
 
 (struct node/formula/constant node/formula (type) #:transparent
@@ -654,78 +660,11 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Lift the "and", "or" and "not" procedures
-;
-; Still broken in two ways:
-;   - (<fmla> <non-fmla>) produces an erorr
-;    [this could be fixed by folding over the args]
-;   - What does a list of formulas produce? The conjunction of that list?
-;     Or the last element being folded over logical-and-style?
-;(define (@@and-helper info as)
-;  (printf "helper: ~a~n" as)
-;  (cond [(empty? as) true] 
-;        [else         
-;         (let ([result1 ((first as))])
-;         (cond
-;           [(node/formula? result1)
-;            (&&/info info (cons result1 (map (lambda (t) (t)) (rest as))))]
-;           ; Can't soundly use (and as) because as is a non-#f value
-;           ; Racket "and" is a macro, so can't (apply and as)
-;           ; Can't do (andmap values as) because then you lose short-circuiting
-;           ;   (as soon as this helper needs to be called, and thus its arguments
-;           ;    need evaluation, we've lost the game. Need to trap the values.)
-;           ;  So instead: thunkify everything first
-;           [else (and result1 (andmap (lambda (t) (t)) (rest as)))]))]))
-;
-;
-;(define-syntax (@@and stx)
-;  (printf "and: ~a~n" stx)
-;  (syntax-case stx ()
-;    [(_) (syntax/loc stx true)] ; Racket treats any non-#f as true    
-;    [(_ a0 a ...)
-;     (quasisyntax/loc stx
-;       (@@and-helper (nodeinfo #,(build-source-location stx))
-;                     (list (lambda () a0) (lambda () a) ...)))]))
-;
-;     ;(quasisyntax/loc stx
-;     ;  (let ([a0* a0])         
-;     ;    (if (node/formula? a0*)
-;     ;        (&&/info (nodeinfo #,(build-source-location stx)) a0* a ...)
-;     ;        (and a0* a ...))))]))
-;
-;; TEMPORARY
-;(require
-;  (only-in
-;    macro-debugger/analysis/profile
-;    term-size))
-;
-;(define-syntax (@@not stx)
-;  (syntax-case stx ()    
-;    [(_ a0)
-;     (quasisyntax/loc stx
-;       (let ([a0* a0])
-;         (if (node/formula? a0*)
-;             (!/info (nodeinfo #,(build-source-location stx)) a0*)
-;             (not a0*))))]))
-;(define-syntax (@@or stx)
-;  (syntax-case stx ()
-;    [(_) (syntax/loc stx false)]
-;    [(_ a0 a ...)
-;     (quasisyntax/loc stx
-;       (let ([a0* a0])
-;         (if (node/formula? a0*)
-;             (||/info (nodeinfo #,(build-source-location stx)) a0* a ...)
-;             (or a0* a ...))))]))
-;
-;; *** WARNING ***
-;; Because of the way this is set up, if you're running tests in the REPL on the ast.rkt tab,
-;; you need to use @@and (etc.) not and (etc.) to construct formulas. If you try to use and, etc.
-;; you'll get the boolean behavior, which short-circuits. E.g.
-;; (and (= iden iden) (= univ univ))
-;; evaluates to 
-;; (= #<nodeinfo> '('univ 'univ))
-;; which is the last thing in the list.
-
+; Historical note: we used to lift the "and", "or" and "not" procedures.
+; However, this was unsound. One reason is that (e.g.) "and" is short-circuiting
+; in Racket. Also, what should empty-and denote? Etc. This caused us major issues
+; in testing and even some performance problems. So we no longer lift Racket's 
+; boolean operators. Use "&&" to build a conjunction, not "and".
 
 (require (prefix-in @ (only-in racket ->)))
 (define/contract (maybe-and->list fmla)
@@ -794,18 +733,27 @@
         [else (append (map (lambda (elt) (no (& (first vars) elt))) (rest vars))
                       (no-pairwise-intersect-recursive-helper (rest vars)))]))
 
+;;; ALL ;;;
+
 (define (all-quant/func decls formula #:info [node-info empty-nodeinfo])
   (quantified-formula node-info 'all decls formula))
 
 (define-syntax (all stx)
   (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([v0 e0] ...) pred)
-     #'(all (#:lang check-lang) ([v0 e0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([v0 e0] ...) pred)
-     ; need a with syntax???? 
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
+      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]))
+
+(define-syntax (all/info stx)
+  (syntax-parse stx
+    ; quantifier case with disjointness flag; embed and repeat
+    [(_ info #:disj ([v0 e0] ...) pred)
+     #'(all/info info ([v0 e0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
+    [(_ info ([v0 e0] ...) pred)     
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
-         (quantified-formula (nodeinfo #,(build-source-location stx) check-lang) 'all (list (cons v0 e0) ...) pred)))]))
+       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
+         (quantified-formula info 'all (list (cons v0 e0) ...) pred)))]))
+
+;;; SOME ;;;
 
 (define (some-quant/func decls formula #:info [node-info empty-nodeinfo])
   (quantified-formula node-info 'some decls formula))
@@ -814,18 +762,30 @@
   (multiplicity-formula node-info 'some expr))
 
 (define-syntax (some stx)
-  (syntax-parse stx 
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) () pred) #'pred] ; ignore quantifier over no variables
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj () pred) #'pred]
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([v0 e0] ...) pred)
-     (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
-         (quantified-formula (nodeinfo #,(build-source-location stx) check-lang) 'some (list (cons v0 e0) ...) pred)))]
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([v0 e0] ...) pred)
-     #'(some (#:lang check-lang) ([v0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
+  (syntax-parse stx
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+
+(define-syntax (some/info stx)
+  (syntax-parse stx 
+    ; ignore quantifier over no variables
+    [(_ info (~optional #:disj) () pred) #'pred]
+    ; quantifier case
+    [(_ info ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'some expr))]))
+       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
+         (quantified-formula info 'some (list (cons v0 e0) ...) pred)))]
+    ; quantifier case with disjointness flag; embed and repeat
+    [(_ info #:disj ([v0 e0] ...) pred)
+     #'(some/info info ([v0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
+    ; multiplicity case
+    [(_ info expr)
+     (quasisyntax/loc stx
+       (multiplicity-formula info 'some expr))]))
+
+;;; NO ;;;
 
 (define (no-quant/func decls formula #:info [node-info empty-nodeinfo])
   (quantified-formula node-info 'no decls formula))
@@ -834,16 +794,25 @@
   (multiplicity-formula node-info 'no expr))
 
 (define-syntax (no stx)
-  (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([v0 e0] ...) pred)
-     #'(! (some (#:lang check-lang) #:disj ([v0 e0] ...) pred))]
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([v0 e0] ...) pred)
-     (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
-         (! (quantified-formula (nodeinfo #,(build-source-location stx) check-lang) 'some (list (cons v0 e0) ...) pred))))]
+  (syntax-parse stx    
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+
+(define-syntax (no/info stx)
+  (syntax-parse stx
+    [(_ info #:disj ([v0 e0] ...) pred)
+     #'(! (some/info info #:disj ([v0 e0] ...) pred))]
+    [(_ info ([v0 e0] ...) pred)
      (quasisyntax/loc stx
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'no expr))]))
+       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
+         (! (quantified-formula info 'some (list (cons v0 e0) ...) pred))))]
+    [(_ info expr)
+     (quasisyntax/loc stx
+       (multiplicity-formula info 'no expr))]))
+
+;;; ONE ;;;
 
 (define (one/func expr #:info [node-info empty-nodeinfo])
   (multiplicity-formula node-info 'one expr))
@@ -852,20 +821,29 @@
   (one/func #:info node-info (set/func #:info node-info decls formula)))
 
 (define-syntax (one stx)
-  (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([x1 r1] ...) pred)
-     (quasisyntax/loc stx
-       ; Kodkod doesn't have a "one" quantifier natively.
-       ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'one (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1] ...) pred)
-     (quasisyntax/loc stx
-       ; Kodkod doesn't have a "one" quantifier natively.
-       ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'one (set ([x1 r1] ...) pred)))]
+  (syntax-parse stx    
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+
+(define-syntax (one/info stx)
+  (syntax-parse stx
+    [(_ info #:disj ([x1 r1] ...) pred)
      (quasisyntax/loc stx
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'one expr))]))
+       ; Kodkod doesn't have a "one" quantifier natively.
+       ; Instead, desugar as a multiplicity of a set comprehension
+       (multiplicity-formula info 'one (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
+    [(_ info ([x1 r1] ...) pred)
+     (quasisyntax/loc stx
+       ; Kodkod doesn't have a "one" quantifier natively.
+       ; Instead, desugar as a multiplicity of a set comprehension
+       (multiplicity-formula info 'one (set ([x1 r1] ...) pred)))]
+    [(_ info expr)
+     (quasisyntax/loc stx
+       (multiplicity-formula info 'one expr))]))
+
+;;; LONE ;;;
 
 (define (lone/func expr #:info [node-info empty-nodeinfo])
   (multiplicity-formula node-info 'lone expr))
@@ -874,20 +852,27 @@
   (lone/func #:info node-info (set/func #:info node-info decls formula)))
 
 (define-syntax (lone stx)
-  (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) #:disj ([x1 r1] ...) pred)
-     (quasisyntax/loc stx
-       ; Kodkod doesn't have a lone quantifier natively.
-       ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'lone (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1] ...) pred)
-     (quasisyntax/loc stx
-       ; Kodkod doesn't have a lone quantifier natively.
-       ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'lone (set ([x1 r1] ...) pred)))]
+  (syntax-parse stx    
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
+      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
+      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+
+(define-syntax (lone/info stx)
+  (syntax-parse stx
+    [(_ info #:disj ([x1 r1] ...) pred)
      (quasisyntax/loc stx
-       (multiplicity-formula (nodeinfo #,(build-source-location stx) check-lang) 'lone expr))]))
+       ; Kodkod doesn't have a lone quantifier natively.
+       ; Instead, desugar as a multiplicity of a set comprehension
+       (multiplicity-formula info 'lone (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
+    [(_ info ([x1 r1] ...) pred)
+     (quasisyntax/loc stx
+       ; Kodkod doesn't have a lone quantifier natively.
+       ; Instead, desugar as a multiplicity of a set comprehension
+       (multiplicity-formula info 'lone (set ([x1 r1] ...) pred)))]
+    [(_ info expr)
+     (quasisyntax/loc stx
+       (multiplicity-formula info 'lone expr))]))
 
 ; sum-quant/func defined above
 

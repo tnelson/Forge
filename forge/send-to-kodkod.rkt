@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require "sigs-structs.rkt")
 (require "breaks.rkt")
@@ -10,16 +10,15 @@
          "choose-lang-specific.rkt"
          "translate-to-kodkod-cli.rkt"
          "translate-from-kodkod-cli.rkt")
-(require (prefix-in @ racket/base))
+(require (prefix-in @ (only-in racket/base >= not - = and or max > <))
+         (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
+                         curry range index-of pretty-print filter-map string-prefix? thunk*
+                         remove-duplicates subset? cartesian-product match-define cons?)
+          racket/hash)
 (require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
          (prefix-in pardinus: "pardinus-cli/server/server.rkt")
          (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
-(require (prefix-in kodkod: "kodkod-cli/server/kks.rkt")
-         (prefix-in kodkod: "kodkod-cli/server/server.rkt")
-         (prefix-in kodkod: "kodkod-cli/server/server-common.rkt"))
-(require "server/eval-model.rkt")
 (require "drracket-gui.rkt")
-;(require forge/lang/deparser)
 
 (provide send-to-kodkod)
 
@@ -28,6 +27,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Run Logic    ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Will be a Server-ports tuple if a server is active. 
+(define server-state (box #f))
 
 ; send-to-kodkod :: Run-spec -> Stream<model>, List<Symbol>
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;
@@ -126,9 +128,21 @@
   (define backend (get-option run-spec 'backend))
   (define-values (stdin stdout stderr shutdown is-running?) 
     (cond
+      ; if there is an active server state, and the server is running
+      [(and (unbox server-state) ((Server-ports-is-running? (unbox server-state))))
+       (define sstate (unbox server-state))
+       (when (@>= (get-verbosity) VERBOSITY_HIGH)
+        (printf "Pardinus solver process already running. Sending (clear).~n"))
+       ; pardinus-print is only defined later, based on the stdin here
+       (pardinus:cmd [(Server-ports-stdin sstate)] (pardinus:clear))
+       (values (Server-ports-stdin sstate) (Server-ports-stdout sstate) 
+               (Server-ports-stderr sstate) (Server-ports-shutdown sstate)
+               (Server-ports-is-running? sstate))]
       [(equal? backend 'kodkod)
-       (kodkod:start-server)]
+       (raise "Pure Kodkod backend is no longer supported; please use Pardinus backend.")]
       [(equal? backend 'pardinus)
+       (when (@>= (get-verbosity) VERBOSITY_HIGH)
+         (printf "Starting/restarting Pardinus server (prior state=~a)...~n" (unbox server-state)))
        (pardinus:start-server
         'stepper ; always a stepper problem (there is a "next" button)
         ; 'default, 'temporal, or 'target (tells Pardinus which solver to load,
@@ -136,10 +150,10 @@
         (get-option run-spec 'problem_type))]
       [else (raise (format "Invalid backend: ~a" backend))]))
 
-  (define-syntax-rule (kk-print lines ...)
-    (kodkod:cmd 
-      [stdin]
-      lines ...))
+  ; (define-syntax-rule (kk-print lines ...)
+  ;   (kodkod:cmd 
+  ;     [stdin]
+  ;     lines ...))
 
   ; Print targets
   (define-syntax-rule (pardinus-print lines ...)
@@ -309,11 +323,16 @@
 
     
     ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
-    (define (do-core-highlight loc)
+    (define (do-core-highlight nd)
+      (define loc (nodeinfo-loc (node-info nd)))
       (if (is-drracket-linked?) 
           (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
-          (when (@>= (get-verbosity) VERBOSITY_LOW)        
-            (printf "  Core contained location: ~a~n" (srcloc->string loc)))))  
+          (begin
+            (when (@>= (get-verbosity) VERBOSITY_LOW)        
+              (printf "  Core contained location: ~a~n" (srcloc->string loc)))
+            (when (@>= (get-verbosity) VERBOSITY_HIGH)        
+              (pretty-print nd)))))
+
     (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
@@ -329,7 +348,7 @@
                                 (cond [(member fmla-num (hash-keys core-map))
                                        ; This is a formula ID and we know it
                                        ;(printf "LOC: ~a~n" (nodeinfo-loc (node-info (hash-ref core-map fmla-num))))
-                                       (nodeinfo-loc (node-info (hash-ref core-map fmla-num)))]
+                                       (hash-ref core-map fmla-num)]
                                       [else
                                        ; This is NOT a known formula id, but it's part of the core
                                        (printf "WARNING: Core also contained: ~a~n" id)
@@ -352,9 +371,11 @@
   (define results
     (tree:make-node (get-next-model 'start) next-button))
 
+  (set-box! server-state (Server-ports stdin stdout stderr shutdown is-running?))
+
   (values results 
           all-atoms 
-          (Server-ports stdin stdout stderr shutdown is-running?) 
+          (unbox server-state)
           (Kodkod-current (length run-constraints) 0 0) 
           total-bounds))
 

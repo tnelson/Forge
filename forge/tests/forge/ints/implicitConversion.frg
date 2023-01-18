@@ -1,5 +1,8 @@
 #lang forge
 
+option run_sterling off
+
+
 -- Check implicit coercion between intexpr and expr. 
 -- In 2021, we needed to explicitly convert via sing[] and sum[]
 -- Now intexpr->expr is done in AST-node creation automatically.

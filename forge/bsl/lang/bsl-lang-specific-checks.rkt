@@ -189,7 +189,7 @@
 
 (define (err-relation-join expr-node args)
   (define loc (nodeinfo-loc (node-info expr-node)))
-  (raise-bsl-error (format "Field acess on \"~a\", which is not a singleton" (deparse (first args))) expr-node loc))
+  (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node loc))
 
 (define bsl-checker-hash (make-hash))
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)

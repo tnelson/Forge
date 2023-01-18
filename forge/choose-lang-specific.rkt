@@ -1,6 +1,7 @@
-#lang racket
+#lang racket/base
 
-(provide set-checker-hash! get-checker-hash set-ast-checker-hash! get-ast-checker-hash get-check-lang set-check-lang! get-inst-checker-hash set-inst-checker-hash!)
+(provide set-checker-hash! get-checker-hash set-ast-checker-hash! get-ast-checker-hash
+         get-check-lang set-check-lang! get-inst-checker-hash set-inst-checker-hash!)
 
 (define checker-hash-box (box #f))
 (define ast-checker-hash-box (box #f))

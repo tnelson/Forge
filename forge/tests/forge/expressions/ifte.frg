@@ -1,5 +1,8 @@
 #lang forge
 
+option run_sterling off
+
+
 sig Node{}
 one sig A, B extends Node{}
 fun conditional: one Node {

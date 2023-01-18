@@ -1,26 +1,25 @@
-#lang racket
+#lang racket/base
 
-(require (for-syntax syntax/parse racket/syntax)
-         (for-syntax (for-syntax syntax/parse)))
+; The #lang forge reader produces a module referencing this one as its module-path:
+; https://docs.racket-lang.org/reference/module.html
+
 (require syntax/parse/define
-         (for-syntax syntax/parse/define))
-(require (for-syntax (for-syntax racket/base)))
-(require (for-syntax racket/function
-                     syntax/srcloc))
+         (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
+                     syntax/srcloc racket/match)
+         ; Needed because the abstract-tok definition below requires phase 2
+         (for-syntax (for-syntax racket/base)))
+                 
+(require (only-in racket empty? first))
 (require forge/sigs)
-; (require "ast.rkt")
-
-(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
 (require forge/choose-lang-specific)
 
-
+(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
 
 (provide require provide all-defined-out except-out prefix-in only-in
          module+ submod)
 (provide forge:nsa define-namespace-anchor)
-; (provide (all-from-out "ast.rkt"))
 (provide (all-from-out forge/sigs))
 (provide (all-defined-out))
 (begin-for-syntax (provide (all-defined-out)))
@@ -101,6 +100,7 @@
     (pattern decl:AssertDeclClass)
     (pattern decl:CmdDeclClass)
     (pattern decl:TestExpectDeclClass)
+    (pattern decl:PropertyWhereDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
     ; (pattern decl:InstanceDeclClass)
@@ -288,6 +288,33 @@
               "expect"
               (~optional name:NameClass)
               test-block:TestBlockClass)))
+
+;; Sidd
+
+
+  (define-syntax-class TestConstructClass
+    (pattern decl:ExampleDeclClass)
+    (pattern decl:TestExpectDeclClass))
+
+
+  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
+  (define-syntax-class PropertyWhereDeclClass
+    #:attributes (prop-name pred-name prop-expr constraint-type scope bounds (where-blocks 1))
+    (pattern ((~literal PropertyWhereDecl)
+              (~and (~or "overconstraint" "underconstraint") ct)
+              -prop-name:NameClass
+              "of"
+              -pred-name:NameClass
+              prop-expr:BlockClass
+              (~optional -scope:ScopeClass)
+              (~optional -bounds:BoundsClass)
+              where-blocks:TestConstructClass ...)
+      #:with prop-name #'-prop-name.name
+      #:with pred-name #'-pred-name.name
+      #:with constraint-type (string->symbol (syntax-e #'ct))
+      #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
+
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -493,7 +520,7 @@
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*
-(define-syntax (AlloyModule stx)
+(define-syntax (AlloyModule stx)  
   (syntax-parse stx
     [((~literal AlloyModule) (~optional module-decl:ModuleDeclClass)
                              (~seq import:ImportClass ...)
@@ -723,6 +750,27 @@
    (if (attribute test-tok)
        (syntax/loc stx (begin block.test-decls ...))
        (syntax/loc stx (begin)))]))
+
+
+; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
+(define-syntax (PropertyWhereDecl stx)
+  (syntax-parse stx
+  [pwd:PropertyWhereDeclClass 
+   #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint)
+                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; Overconstraint : Prop => Pred
+                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; Underconstraint Pred => Prop
+   #:do [(match-define (list op lhs rhs) (syntax->list #'imp_total))]
+   #:with test_name (format-id stx "~a ~a ~a" lhs op rhs)
+   (syntax/loc stx
+    (begin
+      (pred pwd.prop-name pwd.prop-expr)
+      (begin pwd.where-blocks ...)
+      (test
+        test_name
+        #:preds [imp_total]
+        #:scope pwd.scope
+        #:bounds pwd.bounds
+        #:expect theorem )))]))
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx

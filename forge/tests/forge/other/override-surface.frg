@@ -1,5 +1,8 @@
 #lang forge
 
+option run_sterling off
+
+
 --Arity errors are checked by forge/tests/forge-core/other/override-core.rkt
 
 abstract sig Parent {}

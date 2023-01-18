@@ -1,5 +1,8 @@
 #lang forge
 
+option run_sterling off
+
+
 -- Note: Forge changed its next-state temporal keyword 
 -- from "after" to "next_state" in 2022.
 

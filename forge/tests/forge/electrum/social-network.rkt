@@ -1,5 +1,8 @@
 #lang forge
 
+option run_sterling off
+
+
 option problem_type temporal
 option min_tracelength 3
 option solver MiniSatProver

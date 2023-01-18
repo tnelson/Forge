@@ -1,9 +1,13 @@
-#lang racket
+#lang racket/base
 
 ; NOTE WELL: this module is not used in the Sterling evaluator anymore.
 ; Instead, Forge uses it for evaluating expressions in `inst` bounds.
 
-(require racket/match (only-in "../lang/ast.rkt" relation-name) racket/hash)
+(require racket/match 
+         (only-in "../lang/ast.rkt" relation-name) 
+         racket/hash
+         (only-in racket range take first second rest flatten empty remove-duplicates string-join 
+                         empty? set->list list->set set-subtract set-intersect))
 (require  (prefix-in ast: "../lang/ast.rkt"))
 (require "../shared.rkt")
 (require racket/struct)
