@@ -49,4 +49,6 @@
     (pardinus:print-eof))
 
   (define run-atoms (Run-atoms run))
-  (translate-evaluation-from-kodkod-cli (pardinus:read-evaluation (get-stdout run) (get-stderr run)) run-atoms))
+  (translate-evaluation-from-kodkod-cli 
+    (pardinus:read-evaluation (get-stdout run) (get-stderr run)) 
+    run-atoms))

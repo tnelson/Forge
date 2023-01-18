@@ -25,8 +25,11 @@ echo -e "Found the following $numTestFiles test files:\n$breakLine$testFiles\n$b
 # Run tests and report progress
 for testFile in $testFiles; do
     echo -e "\nRunning $testFile"
-    
+
+    #start=`date +%s`    
     racket $testFile > /dev/null
+    #end=`date +%s`
+    #echo -e "Testfile took $((end-start)) seconds."
     testExitCode=$?
 
     if [[ $testExitCode -ne 0 ]]; then
