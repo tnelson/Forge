@@ -5,7 +5,7 @@
 
 (require syntax/parse/define
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
-                     syntax/srcloc racket/match racket/string)
+                     syntax/srcloc racket/match racket/string racket/list)
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
@@ -290,15 +290,11 @@
               (~optional name:NameClass)
               test-block:TestBlockClass)))
 
-;; Sidd
-
-
   (define-syntax-class TestConstructClass
     (pattern decl:ExampleDeclClass)
     (pattern decl:TestExpectDeclClass))
 
 
-  ;; TODO: Remove bounds
   ;; PropertyDecl : PROPERTY-TOK Name OF-TOK Name Block
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name prop-expr constraint-type scope bounds)
@@ -785,20 +781,33 @@
 ;; Flattens test AST to a string and ensures that the
 ;; referenced predicate's name is present.
 ;; Could be done better by traversing the AST.
-(define-for-syntax ensure-target-ref
-  (lambda (target-pred)
-    (let 
-      ([tp (format "~a" (syntax->datum target-pred))])
-        (lambda (ex) 
-          (let*
-            ([ex-as-datum (syntax->datum ex)]
-              [ast-str  (format "~a" ex-as-datum)])
-            (if (string-contains? ast-str tp) ;; Using string-contains for now.
-              (void)
-              (println 
-                (format "Warning: ~a ~a:~a Test does not reference ~a." 
-                  (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp) 
-                (current-error-port))))))))
+
+
+(define-for-syntax (ensure-target-ref target-pred)
+
+  (define tp (format "~a" (syntax->datum target-pred)))
+  (lambda (ex) 
+    (let ([ex-as-datum (syntax->datum ex)])
+      (unless 
+        (memq (syntax-e target-pred) (flatten ex-as-datum))
+        (eprintf  "Warning: ~a ~a:~a Test does not reference ~a." 
+          (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp)))))
+
+
+;;; (define-for-syntax (ensure-target-ref target-pred)
+;;;   (lambda (
+;;;     (let 
+;;;       ([tp (format "~a" (syntax->datum target-pred))])
+;;;         (lambda (ex) 
+;;;           (let*
+;;;             ([ex-as-datum (syntax->datum ex)]
+;;;               [ast-str  (format "~a" ex-as-datum)])
+;;;             (if (string-contains? ast-str tp) ;; Using string-contains for now.
+;;;               (void)
+;;;               (println 
+;;;                 (format "Warning: ~a ~a:~a Test does not reference ~a." 
+;;;                   (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp) 
+;;;                 (current-error-port))))))))
 
 
 (define-syntax (TestSuiteDecl stx)
@@ -806,7 +815,9 @@
   [tsd:TestSuiteDeclClass 
    
     ;; Static checks on test blocks go here.
-   #:do [(map (ensure-target-ref #'tsd.pred-name) (syntax->list #'(tsd.test-constructs ...)))]
+   #:do [
+      (for ([tc (syntax->list #'(tsd.test-constructs ...))])
+        ((ensure-target-ref #'tsd.pred-name) tc)) ]
 
    (syntax/loc stx
     (begin tsd.test-constructs ...))]))
