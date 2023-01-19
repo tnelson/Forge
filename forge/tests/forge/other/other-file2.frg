@@ -11,4 +11,3 @@ run {
 test expect {
   true is sat
 }
-
