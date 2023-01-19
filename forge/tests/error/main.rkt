@@ -63,7 +63,7 @@
     (list "froglet-plus-ast.frg" #rx"Operator \\+")
     (list "froglet-reachable.frg" #rx"field") ;; TODO
     (list "froglet-reachable2.frg" #rx"not a singleton") ;; TODO
-    (list "froglet-set-singleton-equal.frg" #rx"Expected an object") ;;(#rx"= expects two objects, sig Node is not an object")
+    (list "froglet-set-singleton-equal.frg" #rx"not a singleton") ;;(#rx"= expects two objects, sig Node is not an object")
     (list "froglet-set.frg" #rx"pred must return an object, not a set")
     (list "froglet-star-ast.frg" #rx"Operator \\*")
     (list "froglet-transitive-closure-ast.frg" #rx"Operator \\^")
