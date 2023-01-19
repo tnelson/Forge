@@ -3,7 +3,7 @@
 ; The #lang forge reader produces a module referencing this one as its module-path:
 ; https://docs.racket-lang.org/reference/module.html
 
-(require syntax/parse/define
+(require syntax/parse/define racket/stxparam
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
                      syntax/srcloc racket/match racket/list)
          ; Needed because the abstract-tok definition below requires phase 2
@@ -24,7 +24,12 @@
 (provide (all-defined-out))
 (begin-for-syntax (provide (all-defined-out)))
 
+(define-syntax-parameter current-forge-context #f)
+
 (begin-for-syntax
+  (define (forge-context=? sym)
+    (eq? sym (syntax-parameter-value #'current-forge-context)))
+
   (define-syntax-parser make-token
     [(make-token token-class:id token-string:str token-symbol)
      #'(define-syntax-class token-class
@@ -808,9 +813,10 @@
                            pred:ExprClass
                            bounds:BoundsClass)
    (quasisyntax/loc stx
-    (example (~? name.name unnamed-example) 
-      pred
-      #,@(syntax/loc stx bounds.translate)))]))
+     (syntax-parameterize ([current-forge-context 'example])
+       (example (~? name.name unnamed-example)
+         pred
+         #,@(syntax/loc stx bounds.translate))))]))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
@@ -969,8 +975,11 @@
 
   [((~literal Expr) expr1:ExprClass "+" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
-                 [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (+ (#:lang (get-check-lang)) expr1 expr2)))]
+                 [expr2 (my-expand #'expr2)]
+                 [check-lang (if (forge-context=? 'example)
+                               #''forge
+                               #'(get-check-lang))])
+     (syntax/loc stx (+ (#:lang check-lang) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "-" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -989,8 +998,11 @@
 
   [((~literal Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
-                 [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (-> (#:lang (get-check-lang)) expr1 expr2)))]
+                 [expr2 (my-expand #'expr2)]
+                 [check-lang (if (forge-context=? 'example)
+                               #''forge
+                               #'(get-check-lang))])
+     (syntax/loc stx (-> (#:lang check-lang) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass ":>" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
