@@ -2,7 +2,7 @@
 
 option run_sterling off
 
-sig A {}
+sig C {}
 
 run {
   true
@@ -11,3 +11,4 @@ run {
 test expect {
   true is sat
 }
+
