@@ -29,6 +29,9 @@ test suite for isUndirected {
 
         test expect {
             {isUndirected} is sat
+        }
+
+       test expect {
             {one Node} is sat // This should result in a warning but not an error.
         }
 

@@ -781,7 +781,8 @@
 ;; Flattens test AST to a string and ensures that the
 ;; referenced predicate's name is present.
 ;; Could be done better by traversing the AST.
-
+;; This would help break apart test-expect
+;; blocks and examine each test.
 
 (define-for-syntax (ensure-target-ref target-pred)
 
@@ -794,31 +795,13 @@
           (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp)))))
 
 
-;;; (define-for-syntax (ensure-target-ref target-pred)
-;;;   (lambda (
-;;;     (let 
-;;;       ([tp (format "~a" (syntax->datum target-pred))])
-;;;         (lambda (ex) 
-;;;           (let*
-;;;             ([ex-as-datum (syntax->datum ex)]
-;;;               [ast-str  (format "~a" ex-as-datum)])
-;;;             (if (string-contains? ast-str tp) ;; Using string-contains for now.
-;;;               (void)
-;;;               (println 
-;;;                 (format "Warning: ~a ~a:~a Test does not reference ~a." 
-;;;                   (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp) 
-;;;                 (current-error-port))))))))
-
-
 (define-syntax (TestSuiteDecl stx)
   (syntax-parse stx
   [tsd:TestSuiteDeclClass 
    
     ;; Static checks on test blocks go here.
-   #:do [
-      (for ([tc (syntax->list #'(tsd.test-constructs ...))])
-        ((ensure-target-ref #'tsd.pred-name) tc)) ]
-
+   #:do [(for ([tc (syntax->list #'(tsd.test-constructs ...))])
+        ((ensure-target-ref #'tsd.pred-name) tc))]
    (syntax/loc stx
     (begin tsd.test-constructs ...))]))
 
