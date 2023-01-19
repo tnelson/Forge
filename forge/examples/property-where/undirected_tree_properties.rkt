@@ -15,11 +15,12 @@ pred isUndirectedTree {
 
 
 
- underconstraint isUndirected of isUndirectedTree
- {
+ pred isUndirected
+{
      all m, n : Node | n->m in edges implies m->n in edges
- } 
- 
+} 
+
+assert isUndirected is necessary for isUndirectedTree
  
  test suite for isUndirected {
         test expect {
@@ -49,14 +50,4 @@ pred isUndirectedTree {
             edges = `Node0->`Node0
         }
 }
-
-
-
-
-
-underconstraint emptyofone of isUndirectedTree
- {
-    (no edges)
- } 
- for 1 Node
 
