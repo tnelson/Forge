@@ -760,7 +760,7 @@
                         (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
                         (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;; q => p : p is a necessary condition for q
    #:do [(match-define (list op lhs rhs) (syntax->list #'imp_total))]
-   #:with test_name (format-id stx "~a ~a ~a" lhs op rhs)
+   #:with test_name (format-id stx "~a is ~a for ~a (~a ~a ~a)" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name lhs op rhs)
    (syntax/loc stx
       (test
         test_name
