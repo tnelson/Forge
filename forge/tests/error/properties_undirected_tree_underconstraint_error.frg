@@ -27,9 +27,6 @@ underconstraint TreeWithEdges of isUndirectedTree
             (n->m + m->n) in edges implies (n->m + m->n) not in ^(edges - (n->m + m->n))
         }
     }
-
     some edges
  } 
- where  { }
 
- 
