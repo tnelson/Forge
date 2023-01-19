@@ -1,6 +1,5 @@
-#lang forge/bsl
+#lang froglet
 option run_sterling off
-
 
 sig Node {
     next: one Node

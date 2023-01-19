@@ -120,7 +120,7 @@
         #:one boolean?
         #:lone boolean?
         #:abstract boolean?
-        #:is-var boolean?
+        #:is-var (or/c string? #t #f)
         #:in (or/c Sig? #f)
         #:extends (or/c Sig? #f)
         #:info (or/c nodeinfo? #f))
@@ -157,7 +157,7 @@
   (->* ((or/c symbol? (non-empty-listof Sig?)))
        ((non-empty-listof (or/c Sig? (-> Sig?)))
         #:is (or/c node/breaking/break? #f)
-        #:is-var boolean?
+        #:is-var (or/c string? #t #f)
         #:info (or/c nodeinfo? #f))
        Relation?)
 
