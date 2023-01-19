@@ -244,7 +244,7 @@
     (log-froglet-warning "expr-check: expected $Expr got ~e" this-syntax)
     unknown-ty])
 
-(define (ifelse-check e1-ty e2-ty e3-ty)
+(define (ifelse-check e1-ty e2-ty e3-ty ctx)
   ;; TODO
   (todo-not-implemented 'ifelse-check)
   unknown-ty)
@@ -264,14 +264,15 @@
    [(~or =)
     (define sig1 (->sigty e1-ty))
     (define sig2 (->sigty e2-ty))
-    (void
-      (for ((t (in-list (list e1-ty e2-ty)))
-            (s (in-list (list sig1 sig2)))
-            #:when (and (nametype? t)
-                        (id=? (type-name t) (type-name s))))
-        (raise-type-error
-          "Expected an object"
-          (type-name t))))
+    ;; TODO
+    ;;(void
+    ;;  (for ((t (in-list (list e1-ty e2-ty)))
+    ;;        (s (in-list (list sig1 sig2)))
+    ;;        #:when (and (nametype? t)
+    ;;                    (id=? (type-name t) (type-name s))))
+    ;;    (raise-type-error
+    ;;      "Expected an object"
+    ;;      (type-name t))))
     ;; TODO
     ;;(unless (type=? sig1 sig2)
     ;;  (raise-type-error
