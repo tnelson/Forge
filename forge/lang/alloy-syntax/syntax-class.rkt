@@ -251,16 +251,16 @@
   #:commit
   (pattern ((~and hd (~literal ArrowMult))
             (~or "lone" "pfunc"))
-    #:attr symbol #'pfunc)
+    #:attr symbol (syntax/loc this-syntax pfunc))
   (pattern ((~and hd (~literal ArrowMult))
             "set")
-    #:attr symbol #'default)
+    #:attr symbol (syntax/loc this-syntax default))
   (pattern ((~and hd (~literal ArrowMult))
             (~or "one" "func"))
-    #:attr symbol #'func)
+    #:attr symbol (syntax/loc this-syntax func))
   (pattern ((~and hd (~literal ArrowMult))
             "two")
-    #:attr symbol #'(raise "relation arity two not implemented")))
+    #:attr symbol (syntax/loc this-syntax (raise "relation arity two not implemented"))))
 
 ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
 (define-syntax-class $Decl

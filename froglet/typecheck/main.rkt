@@ -194,7 +194,7 @@
         (define lhs-ty (loop #'(lhs.body ...)))
         (define rhs-ty (loop #'(rhs.body ...)))
         (or (field-check lhs-ty rhs-ty this-syntax)
-            unknown-type
+            unknown-ty
             #;(raise-type-error "Expected matching sig and field"
                               this-syntax))]
        [(op:$UnaryOp e1:$Expr)
@@ -343,13 +343,14 @@
   ;;     (raise-type-error
   ;;       "Expected a singleton sig"
   ;;       ctx #;(->stx lhs-sigty))))
-  (define rhs-sigty
+  #;(define rhs-sigty
     (or (field->sigty rhs)
         (raise-type-error
           "Expected a field"
           (->stx rhs))))
-  (and (sigtype<=: lhs-sigty rhs-sigty)
-       (sigtype-find-field rhs-sigty rhs ctx)))
+  #;(and (sigtype<=: lhs-sigty rhs-sigty)
+       (sigtype-find-field rhs-sigty rhs ctx))
+  unknown-ty)
 
 (define (sigtype<=: s0 s1)
   (or (eq? s0 s1)
@@ -573,6 +574,14 @@
    [ad:$ArrowDecl
     (define name (syntax-e #'(ad.name* ...)))
     (define sig (syntax-e #'(ad.type* ...)))
-    (define mult (syntax-e #'ad.mult))
+    (define mult
+      (let* ([sym (syntax-e #'ad.mult)])
+        (if (memq sym '(one lone func pfunc))
+          sym
+          (raise-type-error
+            "invalid field declaration, must be one, lone, func, or pfunc"
+            (if (eq? sym 'default)
+              (syntax/loc #'ad.mult set)
+              #'ad.mult)))))
     (fieldtype name mult sig)]))
 

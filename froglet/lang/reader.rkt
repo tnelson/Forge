@@ -32,12 +32,12 @@
        (require (only-in racket printf uncaught-exception-handler))
 
        (require forge/choose-lang-specific)
-       ;; 2023-01-18: TODO eventually stop using lang-specific-checks, make them all type errors
+       ;; 2023-01-18: TODO eventually stop using lang-specific-checks and bsl, make them all type errors
        (require forge/bsl/lang/bsl-lang-specific-checks)
        (set-checker-hash! bsl-checker-hash)
        (set-ast-checker-hash! bsl-ast-checker-hash)
        (set-inst-checker-hash! bsl-inst-checker-hash)
-       (set-check-lang! ',lang-name)
+       (set-check-lang! 'bsl)
 
        (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
        ;; Override default exception handler

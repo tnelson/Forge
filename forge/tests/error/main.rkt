@@ -24,55 +24,55 @@
     (list "abstract.frg" #rx"abstract")
     (list "bsl-arrow-ast.frg" #rx"Direct use of ->")
     (list "bsl-arrow.frg" #rx"Direct use of ->")
-    (list "bsl-int-minus.frg" #rx"Froglet") ;; TODO
+    (list "bsl-int-minus.frg" #rx"- operator")
     (list "bsl-intersect-ast.frg" #rx"& operator")
     (list "bsl-join-right.frg" #rx"not an object")
     (list "bsl-join-right2.frg" #rx"not an object")
     (list "bsl-join-right3.frg" #rx"not an object")
     (list "bsl-join-right4.frg" #rx"not an object")
-    (list "bsl-join-right5.frg" #rx"bsl") ;; TODO
-    (list "bsl-join-right6.frg" #rx"not a singleton")
+    (list "bsl-join-right5.frg" #rx"not an object")
+    (list "bsl-join-right6.frg" #rx"not an object")
     (list "bsl-join.frg" #rx"not an object")
     (list "bsl-join2.frg" #rx"not a singleton")
     (list "bsl-join3.frg" #rx"not an object")
     (list "bsl-minus-ast.frg" #rx"- operator")
     (list "bsl-plus-ast.frg" #rx"\\+ operator")
     (list "bsl-reachable.frg" #rx"field")
-    (list "bsl-reachable2.frg" #rx"First") ;; TODO
+    (list "bsl-reachable2.frg" #rx"not a singleton")
     (list "bsl-set-singleton-equal.frg" #rx"singleton")
-    (list "bsl-set.frg" #rx"Froglet") ;; TODO
+    (list "bsl-set.frg" #rx"not a singleton")
     (list "bsl-star-ast.frg" #rx"\\* operator")
     (list "bsl-transitive-closure-ast.frg" #rx"\\^ operator")
     (list "bsl-transpose-ast.frg" #rx"~ operator")
 
     (list "froglet-arrow-ast.frg" #rx"Operator -> is not allowed")
     (list "froglet-arrow.frg" #rx"Operator -> is not allowed")
-;    (list "froglet-http.frg" #rx"Expected a sig")
+    (list "froglet-http.frg" #rx"field declaration")
     (list "froglet-int-minus.frg" #rx"Operator - is not allowed")
     (list "froglet-intersect-ast.frg" #rx"Operator & is not allowed")
-;    (list "froglet-join-right.frg" #rx"Expected a sig")
-;    (list "froglet-join-right2.frg" #rx"Expected a singleton sig")
-;    (list "froglet-join-right3.frg" #rx"Expected a singleton sig")
-;    (list "froglet-join-right4.frg" #rx"Expected a singleton sig")
-;    (list "froglet-join-right5.frg" #rx"Expected a singleton sig") ;; TODO is not a Node
-;    (list "froglet-join-right6.frg" #rx"Expected a sig")
-;    (list "froglet-join.frg" #rx"Expected a sig")
-;;   (list "froglet-join2.frg" #rx"not a singleton / partial method call") ;; TODO incomplete or partial?
-;    (list "froglet-join3.frg" #rx"Expected a singleton sig")
+    (list "froglet-join-right.frg" #rx"not an object")
+    (list "froglet-join-right2.frg" #rx"not an object")
+    (list "froglet-join-right3.frg" #rx"not an object")
+    (list "froglet-join-right4.frg" #rx"not an object")
+    (list "froglet-join-right5.frg" #rx"not an object") ;;(#rx"Expected a singleton sig") ;; TODO is not a Node
+    (list "froglet-join-right6.frg" #rx"not an object")
+    (list "froglet-join.frg" #rx"not an object")
+    (list "froglet-join2.frg" #rx"not a singleton") ;; TODO incomplete or partial?
+    (list "froglet-join3.frg" #rx"not an object")
     (list "froglet-minus-ast.frg" #rx"Operator -")
     (list "froglet-plus-ast.frg" #rx"Operator \\+")
-;   (list "froglet-reachable.frg" #rx"no such field") ;; TODO
-;   (list "froglet-reachable2.frg" #rx"not an object") ;; TODO
-;   (list "froglet-set-singleton-equal.frg" #rx"= expects two objects, sig Node is not an object")
-;   (list "froglet-set.frg" #rx"pred must return an object, not a set")
-   (list "froglet-star-ast.frg" #rx"Operator \\*")
-   (list "froglet-transitive-closure-ast.frg" #rx"Operator \\^")
-   (list "froglet-transpose-ast.frg" #rx"Operator ~")
-;   (list "froglet-uni-0.frg" #rx"Expected a sig")
-;   (list "froglet-uni-1.frg" #rx"Expected a sig")
-;;   (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
-;   (list "froglet-uni-3.frg" #rx"Expected a sig")
-;;   (list "froglet-uni-4.frg" #rx"Expected a sig") ;; TODO reachable, double-check
+    (list "froglet-reachable.frg" #rx"field") ;; TODO
+    (list "froglet-reachable2.frg" #rx"not a singleton") ;; TODO
+    (list "froglet-set-singleton-equal.frg" #rx"Expected an object") ;;(#rx"= expects two objects, sig Node is not an object")
+    (list "froglet-set.frg" #rx"pred must return an object, not a set")
+    (list "froglet-star-ast.frg" #rx"Operator \\*")
+    (list "froglet-transitive-closure-ast.frg" #rx"Operator \\^")
+    (list "froglet-transpose-ast.frg" #rx"Operator ~")
+;    (list "froglet-uni-0.frg" #rx"Expected a sig")
+;    (list "froglet-uni-1.frg" #rx"Expected a sig")
+;    (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
+;    (list "froglet-uni-3.frg" #rx"Expected a sig")
+;    (list "froglet-uni-4.frg" #rx"Expected a sig") ;; TODO reachable, double-check
 
     (list "example_impossible.frg" #rx"impossible")
     (list "excluded-extender-value.frg" #rx"not a subset")

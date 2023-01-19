@@ -19,7 +19,7 @@
 
 (define-simple-macro (struct/froglet id x ...)
   #:with make-id (format-id this-syntax "make-~a" #'id)
-  (struct id x ... #:transparent #:extra-constructor-name make-id))
+  (struct id x ... #:prefab #:extra-constructor-name make-id))
 
 (struct/froglet type (name))
 (struct/froglet nametype type ())
