@@ -292,8 +292,8 @@
 
   (define-syntax-class TestConstructClass
     (pattern decl:ExampleDeclClass)
-    (pattern decl:TestExpectDeclClass))
-
+    (pattern decl:TestExpectDeclClass)
+    (pattern decl:PropertyDeclClass))
 
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
@@ -762,13 +762,12 @@
    #:do [(match-define (list op lhs rhs) (syntax->list #'imp_total))]
    #:with test_name (format-id stx "~a ~a ~a" lhs op rhs)
    (syntax/loc stx
-    (begin
       (test
         test_name
         #:preds [imp_total]
         #:scope pwd.scope
         #:bounds pwd.bounds
-        #:expect theorem )))]))
+        #:expect theorem ))]))
 
 
 ;; Quick and dirty static check to ensure a test
