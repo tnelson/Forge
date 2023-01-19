@@ -5,7 +5,7 @@
 
 (require syntax/parse/define
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
-                     syntax/srcloc racket/match racket/string racket/list)
+                     syntax/srcloc racket/match racket/list)
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
@@ -778,21 +778,16 @@
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.
 
-;; Flattens test AST to a string and ensures that the
-;; referenced predicate's name is present.
-;; Could be done better by traversing the AST.
-;; This would help break apart test-expect
+;; A potential improvement is to break apart test-expect
 ;; blocks and examine each test.
 
-(define-for-syntax (ensure-target-ref target-pred)
-
-  (define tp (format "~a" (syntax->datum target-pred)))
-  (lambda (ex) 
-    (let ([ex-as-datum (syntax->datum ex)])
-      (unless 
-        (memq (syntax-e target-pred) (flatten ex-as-datum))
-        (eprintf  "Warning: ~a ~a:~a Test does not reference ~a." 
-          (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp)))))
+(define-for-syntax (ensure-target-ref target-pred ex)
+  (define tp (syntax-e target-pred))
+  (let ([ex-as-datum (syntax->datum ex)])
+    (unless 
+      (memq tp (flatten ex-as-datum))
+      (eprintf  "Warning: ~a ~a:~a Test does not reference ~a.\n" 
+        (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp))))
 
 
 (define-syntax (TestSuiteDecl stx)
@@ -800,8 +795,9 @@
   [tsd:TestSuiteDeclClass 
    
     ;; Static checks on test blocks go here.
-   #:do [(for ([tc (syntax->list #'(tsd.test-constructs ...))])
-        ((ensure-target-ref #'tsd.pred-name) tc))]
+   (for ([tc (syntax->list #'(tsd.test-constructs ...))])
+        (ensure-target-ref #'tsd.pred-name tc))
+
    (syntax/loc stx
     (begin tsd.test-constructs ...))]))
 

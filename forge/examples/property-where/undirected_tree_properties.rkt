@@ -23,11 +23,12 @@ pred isUndirectedTree {
  
  test suite for isUndirected {
         test expect {
-
-            {isUndirected} is sat
-            {one Node} is sat // Raises warning but not error.
+            {isUndirected} is sat   
         }
 
+        test expect {
+           {one Node} is sat // Raises warning but not error.
+        }
         example line is {not isUndirected} for {
             Node = `Node0 + `Node1 + `Node2
             edges = `Node0->`Node1 + `Node1->`Node2 
