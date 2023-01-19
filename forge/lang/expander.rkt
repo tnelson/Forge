@@ -295,15 +295,12 @@
     (pattern decl:TestExpectDeclClass))
 
 
-  ;; PropertyDecl : PROPERTY-TOK Name OF-TOK Name Block
   (define-syntax-class PropertyDeclClass
-    #:attributes (prop-name pred-name prop-expr constraint-type scope bounds)
-    (pattern ((~literal PropertyDecl)
-              (~and (~or "overconstraint" "underconstraint") ct)
+    #:attributes (prop-name pred-name constraint-type scope bounds)
+    (pattern ((~literal PropertyDecl)      
               -prop-name:NameClass
-              "of"
+              (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
-              prop-expr:BlockClass
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
       #:with prop-name #'-prop-name.name
@@ -759,14 +756,13 @@
 (define-syntax (PropertyDecl stx)
   (syntax-parse stx
   [pwd:PropertyDeclClass 
-   #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint)
-                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; Overconstraint : Prop => Pred
-                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; Underconstraint Pred => Prop
+   #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
+                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
+                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;; q => p : p is a necessary condition for q
    #:do [(match-define (list op lhs rhs) (syntax->list #'imp_total))]
    #:with test_name (format-id stx "~a ~a ~a" lhs op rhs)
    (syntax/loc stx
     (begin
-      (pred pwd.prop-name pwd.prop-expr)
       (test
         test_name
         #:preds [imp_total]
