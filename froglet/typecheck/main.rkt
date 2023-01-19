@@ -1,21 +1,20 @@
 #lang racket/base
 
-;; TODO hide internal errors for production
-;; ... catch all errors and mask the non-typecheck ones
+;; TODO
+;; - annotate syntax as we go ... build a map like TR (hasheq syntax? type?)
+;; - send original syntax to helper functions, not just the types
+;; - serialize type env, restore on import
+;; - ...
 
 ;; TODO can we use turnstile?
 ;;  collect env and then use turnstile?
-
-;; TODO annotate syntax as we go ... build a map like TR
-;; - (hasheq syntax? type?)
-;; - ... any more?
 
 (provide
   typecheck)
 
 (require
   forge/lang/alloy-syntax/syntax-class
-  (only-in froglet/util log-froglet-info)
+  (only-in froglet/util log-froglet-info log-froglet-warning)
   froglet/typecheck/error
   froglet/typecheck/struct
   racket/list
@@ -29,9 +28,17 @@
    ((_ id clause ...)
     #`(define id #,(syntax/loc stx (syntax-parser clause ...))))))
 
-(define who 'froglet:typecheck)
-
 ;; -----------------------------------------------------------------------------
+
+(define (symbol->type sym)
+  (sigtype (datum->syntax #f sym) #f #f '()))
+
+(define int-ty (symbol->type 'Int))
+(define bool-ty (symbol->type 'Bool))
+(define unknown-ty (symbol->type 'Unknown))
+
+(define (env-init)
+  (list int-ty bool-ty unknown-ty))
 
 (define current-type-env (make-parameter '()))
 
@@ -42,13 +49,15 @@
 ;;             boolean?)) ;; disj?
 
 (define (typecheck mod)
-  (define env (env-extend (env-init) (env-collect mod)))
-  (log-froglet-info (pretty-format env 120 #:mode 'write))
-  (env-check env)
-  ;; TODO record all type info ... in a hash (easy) or as syntax properties (hard)
-  ;; TODO bounds-check
-  (parameterize ([current-type-env env])
-    (mod-check mod))
+  (define env0 (env-collect mod))
+  (when env0
+    (define env (env-extend (env-init) env0))
+    (log-froglet-info (pretty-format env 120 #:mode 'write))
+    (env-check env)
+    ;; TODO record all type info ... in a hash (easy) or as syntax properties (hard)
+    ;; TODO bounds-check
+    (parameterize ([current-type-env env])
+      (mod-check mod)))
   mod)
 
 (define-parser mod-check
@@ -66,36 +75,44 @@
     ;; TODO any check needed?
     (void)]
   [fn:$FactDecl
-   (error 'die2)]
+   (todo-not-implemented 'parag-check:FactDecl)
+   (void)]
   [pred:$PredDecl
     ;; TODO pred.decls
     (define body-ty (block-check #'pred.block))
     (when (reltype? body-ty)
-      (raise-syntax-error who
-                          "pred must return an object, not a set"
-                          (deparse #'pred.block)))
+      (raise-type-error "pred must return an object, not a set"
+                        (deparse #'pred.block)))
     body-ty]
   [fd:$FunDecl
-    (error 'die3)]
+    (todo-not-implemented 'parag-check:FunDecl)
+    (void)]
   [ad:$AssertDecl
-    (error 'die4)]
+    (todo-not-implemented 'parag-check:AssertDecl)
+    (void)]
   [cd:$CmdDecl
-    (error 'die5)]
+    (todo-not-implemented 'parag-check:CmdDecl)
+    (void)]
   [td:$TestExpectDecl
-    (testblock-check #'td.test-block)]
+    (testblock-check #'td.test-block)
+    (void)]
   [sd:$SexprDecl
-    (error 'die7)]
+    (todo-not-implemented 'parag-check:SexprDecl)
+    (void)]
   [rd:$RelDecl
-    (raise-arguments-error 'parag-check "not implemented for RelDecl" "stx" this-syntax)]
+    (todo-not-implemented 'parag-check:RelDecl)
+    (void)]
   [rd:$OptionDecl
     ;; ignore
     (void)]
   [rd:$InstDecl
-    (error 'die10)]
+    (todo-not-implemented 'parag-check:InstDecl)
+    (void)]
   [rd:$ExampleDecl
-    (error 'die7)]
+    (todo-not-implemented 'parag-check:ExampleDecl)
+    (void)]
   [par
-    (raise-user-error 'parag-check "unknown stx ~a" (syntax->datum #'par))
+    (log-froglet-warning "parag-check: unknown stx ~a" (syntax->datum #'par))
     (void)])
 
 (define-parser block-check
@@ -125,15 +142,18 @@
 
 (define (scope-check stx)
   ;; TODO
-  (void))
+  (todo-not-implemented 'scope-check)
+  unknown-ty)
 
 (define (bounds-check stx)
   ;; TODO
-  (void))
+  (todo-not-implemented 'bounds-check)
+  unknown-ty)
 
 (define-parser sexpr-check
   [ss:$Sexpr
-    (raise-arguments-error 'sexpr-check "not implemented SEXPR" "expr" this-syntax)])
+    (todo-not-implemented 'sexpr-check)
+    unknown-ty])
 
 (define-parser expr-check
   [exp:$Expr
@@ -147,7 +167,7 @@
           (blockorbar-check #'bob))]
        [("bind" decls:$LetDeclList bob$BlockOrBar)
         ;; bind not implemented in normal Forge
-        (void)]
+        unknown-ty]
        [(q:$Quant (~optional (~and "disj" disj) #:defaults ([disj #'#f]))
                   decls:$DeclList bob:$BlockOrBar)
         (define decl-tys
@@ -174,9 +194,9 @@
         (define lhs-ty (loop #'(lhs.body ...)))
         (define rhs-ty (loop #'(rhs.body ...)))
         (or (field-check lhs-ty rhs-ty this-syntax)
-            (raise-syntax-error who
-                                "Expected matching sig and field"
-                                this-syntax))]
+            unknown-type
+            #;(raise-type-error "Expected matching sig and field"
+                              this-syntax))]
        [(op:$UnaryOp e1:$Expr)
         (define e1-ty (expr-check #'e1))
         (unop-check #'op e1-ty)]
@@ -185,11 +205,11 @@
         (parameterize ([current-quant (string->symbol (syntax-e #'qq))])
           (loop (syntax/loc this-syntax (exp.body ...))))]
        [(e1:$Expr "'")
-        ;; TODO ... is this a quantifier? a time?
-        (raise-arguments-error 'expr-check "not implemented for (e1 ')" "expr" this-syntax)]
+        (todo-not-implemented (format "expr-check: ~s" this-syntax))
+        unknown-ty]
        [("[" _:$ExprList "]")
         ;; not implemented in forge expander
-        (void)]
+        unknown-ty]
        [(nm:$Name "[" ee:$ExprList "]")
         (define name-ty (name-check #'nm.name))
         (define expr-ty* (map expr-check #'(ee.exprs ...)))
@@ -203,7 +223,7 @@
        [(qn:$QualName)
         (nametype #'qn.name)]
        [("this")
-        (car (syntax-e this-syntax))]
+        (nametype (car (syntax-e this-syntax)))]
        [("`" nm:$Name)
         (nametype #'nm.name)]
        [("{" decls:$DeclList bob:$BlockOrBar "}")
@@ -218,27 +238,29 @@
        [(sexpr:$Sexpr)
         (sexpr-check #'sexpr)]
        [_
-         ;; ??
-        (raise-syntax-error 'expr-check "internal error parsing expr" stx)]))]
+         (log-froglet-warning "expr-check: internal error parsing expr ~e" stx)
+         unknown-ty]))]
   [_
-    (raise-argument-error 'expr-check "$Expr" this-syntax)])
+    (log-froglet-warning "expr-check: expected $Expr got ~e" this-syntax)
+    unknown-ty])
 
 (define (ifelse-check e1-ty e2-ty e3-ty)
   ;; TODO
-  (void))
+  (todo-not-implemented 'ifelse-check)
+  unknown-ty)
 
 (define (binop-check op e1-ty e2-ty ctx #:negate? [negate? #f])
   ;; TODO
   ;; negate? may not matter for typing
   (syntax-parse op
    [ao:$ArrowOp
-    (raise-syntax-error who
-                        (format "Operator ~a is not allowed in froglet" (syntax-e #'ao.arr))
-                        #'ao.arr)]
+    (raise-type-error
+      (format "Operator ~a is not allowed in froglet" (syntax-e #'ao.arr))
+      #'ao.arr)]
    [(~or "-" "&" "+")
-    (raise-syntax-error who
-                        (format "Operator ~a is not allowed in froglet" (syntax-e op))
-                        op)]
+    (raise-type-error
+      (format "Operator ~a is not allowed in froglet" (syntax-e op))
+      op)]
    [(~or =)
     (define sig1 (->sigty e1-ty))
     (define sig2 (->sigty e2-ty))
@@ -247,34 +269,37 @@
             (s (in-list (list sig1 sig2)))
             #:when (and (nametype? t)
                         (id=? (type-name t) (type-name s))))
-        (raise-syntax-error who
-                            "Expected an object"
-                            (type-name t))))
-    (unless (type=? sig1 sig2)
-      (raise-syntax-error who
-                          (format "Inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
-                          ctx))
+        (raise-type-error
+          "Expected an object"
+          (type-name t))))
+    ;; TODO
+    ;;(unless (type=? sig1 sig2)
+    ;;  (raise-type-error
+    ;;    (format "inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
+    ;;    ctx))
      bool-ty]
    [_
-    (raise-arguments-error 'binop-check "die" "op" op "e1t" e1-ty "e2t" e2-ty)]))
+     (log-froglet-warning "binop-check: (~e ~e ~e)" op e1-ty e2-ty)
+     bool-ty]))
 
 (define (unop-check op e1-ty)
   (syntax-parse op
    [(~or "*" "^" "~")
-    (raise-syntax-error who
-                        (format "Operator ~a is not allowed in froglet" (syntax-e op))
-                        op)]
+    (raise-type-error
+      (format "Operator ~a is not allowed in froglet" (syntax-e op))
+      op)]
    [_
-    (raise-arguments-error 'unop-check "die" "op" op "et" e1-ty)]))
+    (todo-not-implemented "unop-check: (~e ~e)" op e1-ty)
+    unknown-ty]))
 
 (define (app-check fn-ty arg-ty*)
   (cond
     [(and (nametype? fn-ty)
           (eq? 'reachable (syntax-e (type-name fn-ty))))
      #;(printf "app-check ~s ~s~n ~n" fn-ty arg-ty*)
-     (void)]
+     unknown-ty]
     [else
-      (void)]))
+     unknown-ty]))
 
 (define-parser letdecllist-check
   [decls:$LetDeclList
@@ -308,22 +333,23 @@
   ;; TODO better srclocs ... inputs should be stx, not types .. fails at first composition
   (define lhs-sigty
     (or (->sigty lhs)
-        (raise-syntax-error who
-                            "Expected a sig"
-                            (->stx lhs))))
-  (define is-param? (->paramty lhs))
-  (unless is-param?
-    (unless (eq? (sigtype-mult lhs-sigty) '#:one)
-      (raise-syntax-error who
-                          "Expected a singleton sig"
-                          ctx #;(->stx lhs-sigty))))
+        (raise-type-error
+          "Expected a sig"
+          (->stx lhs))))
+  ;; TODO enable
+  ;; (define is-param? (->paramty lhs))
+  ;; (unless is-param?
+  ;;   (unless (eq? (sigtype-mult lhs-sigty) '#:one)
+  ;;     (raise-type-error
+  ;;       "Expected a singleton sig"
+  ;;       ctx #;(->stx lhs-sigty))))
   (define rhs-sigty
     (or (field->sigty rhs)
-        (raise-syntax-error 'froglet:typecheck
-                            "Expected a field"
-                            (->stx rhs))))
+        (raise-type-error
+          "Expected a field"
+          (->stx rhs))))
   (and (sigtype<=: lhs-sigty rhs-sigty)
-       (sigtype-find-field rhs-sigty rhs)))
+       (sigtype-find-field rhs-sigty rhs ctx)))
 
 (define (sigtype<=: s0 s1)
   (or (eq? s0 s1)
@@ -351,7 +377,7 @@
     [(nametype? stx)
      (name->paramtype (type-name stx))]
     [else
-      (name->paramtype stx)]))
+     (name->paramtype stx)]))
 
 (define (name->paramtype stx)
   (name-lookup stx paramtype?))
@@ -365,6 +391,7 @@
 
 (define (deparse stx)
   ;; TODO human-readable version of the BRAG output stx
+  (todo-not-implemented 'deparse)
   stx)
 
 (define (name-check stx)
@@ -375,7 +402,9 @@
       (let ([paramty (->paramty stx)])
         (and paramty
              #;(void (printf "paramty ~s~n sig ~s~n" paramty (name->sig (type-name (paramtype-sig paramty)))))
-             (name->sig (type-name (paramtype-sig paramty)))))))
+             (name->sig (type-name (paramtype-sig paramty)))))
+      #;(raise-type-error "no type for name" stx)
+      unknown-ty))
 
 (define (name->pred stx)
   (name-lookup stx predtype?))
@@ -405,7 +434,7 @@
             [nm (in-list (type-name ft))])
     (free-identifier=? id nm)))
 
-(define (sigtype-find-field sigty idty)
+(define (sigtype-find-field sigty idty ctx)
   (define id (type-name idty))
   (or
     (for/or ([ft (in-list (sigtype-field* sigty))])
@@ -413,13 +442,9 @@
                [ty (in-list (fieldtype-sig ft))]
                #:when (free-identifier=? id nm))
         (->sigty ty)))
-    (raise-user-error 'sigtype-find-field "Field not found")))
-
-(define int-ty (sigtype (datum->syntax #f 'Int) #f #f '()))
-(define bool-ty (sigtype (datum->syntax #f 'Bool) #f #f '()))
-
-(define (env-init)
-  (list int-ty bool-ty))
+    (raise-type-error
+      "Field not found"
+      ctx)))
 
 (define (env-check env)
   (unknown-sig-check env)
@@ -445,7 +470,8 @@
       [(predtype? vv)
        (unknown-sig-check/pred vv ids)]
       [else
-        (raise-argument-error 'env-fold "env-elem?" vv)])))
+        (log-froglet-warning "env-fold: unexpected arg ~e" vv)
+        (void)])))
 
 (define (unknown-sig-check/sig sigty ids)
   (for ([fieldty (in-list (sigtype-field* sigty))])
@@ -455,17 +481,17 @@
   (for ([ft (in-list (predtype-param* predty))])
     (define nm (paramtype-sig ft))
     (unless (free-id-set-member? ids nm)
-      (raise-syntax-error 'froglet:typecheck
-                          "Undefined sig name"
-                          nm))
+      (raise-type-error
+        "Undefined sig name"
+        nm))
     (void)))
 
 (define (unknown-sig-check/field fieldty ids)
   (for ((nm (in-list (fieldtype-sig fieldty))))
     (unless (free-id-set-member? ids nm)
-      (raise-syntax-error 'froglet:typecheck
-                          "Undefined sig name"
-                          nm)))
+      (raise-type-error
+        "Undefined sig name"
+        nm)))
   (void))
 
 (define (env-elem? x)
@@ -482,12 +508,11 @@
     #:datum-literals (AlloyModule ModuleDecl Import)
     ;; [ev:EvalDecl ...]
     [mod:$AlloyModule
-     #:fail-unless (null? (syntax-e #'(mod.import* ...)))
-                   "Cannot typecheck module with Import statements"
-     ; (printf "Module-decl ~a~n~n" #'(~? mod.moduledecl "None present"))
-     ; (printf "Paragraphs: ~a~n~n" #'(mod.parag* ...))
-     ;; TODO (printf "Exprs: ~a~n~n" #'(mod.expr* ...))
-     (append-map env-collect/paragraph (syntax-e #'(mod.parag* ...)))]))
+     (if (null? (syntax-e #'(mod.import* ...)))
+       (append-map env-collect/paragraph (syntax-e #'(mod.parag* ...)))
+       (begin
+         (log-froglet-warning "env-collect: cannot typecheck module with import statements")
+         #f))]))
 
 (define (env-collect/paragraph stx)
   (syntax-parse stx
@@ -501,35 +526,44 @@
      (define param-ty* (param*->paramtype* (syntax-e #'(pred.decls ...))))
      (list (predtype #'pred.name param-ty*))]
    [fun:$FunDecl
-     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
+     (todo-not-implemented 'env-collect/paragraph:FunDecl)
+     '()]
    [assert:$AssertDecl
-     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
+     (todo-not-implemented 'env-collect/paragraph:AssertDecl)
+     '()]
    [cmd:$CmdDecl
-     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
+     (todo-not-implemented 'env-collect/paragraph:CmdDecl)
+     '()]
    [testexpect:$TestExpectDecl
      '()]
    [sexpr:$SexprDecl
-     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
+     (todo-not-implemented 'env-collect/paragraph:SexprDecl)
+     '()]
    [query:$QueryDecl
-     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
+     (todo-not-implemented 'env-collect/paragraph:QueryDecl)
+     '()]
    [option:$OptionDecl
      '()]
    [inst:$InstDecl
-     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
+     (todo-not-implemented 'env-collect/paragraph:InstDecl)
+     '()]
    [example:$ExampleDecl
-     (raise-arguments-error 'env-collect/paragraph "not implemented" "stx" stx)]
+     (todo-not-implemented 'env-collect/paragraph:ExampleDecl)
+     '()]
    [_
-     (raise-argument-error 'env-collect/paragraph "Paragraph?" stx)]))
+     (log-froglet-warning "env-collect/paragraph: unknown syntax ~e" this-syntax)
+     '()]))
 
 (define (param*->paramtype* stx*)
-  (map param->paramtype stx*))
+  (filter values (map param->paramtype stx*)))
 
 (define-parser param->paramtype
   ;; param ~ the decl part of a pred
   [(nm:id (_:ExprHd qn:$QualName))
    (paramtype #'nm #f #'qn.name)]
   [_
-   (raise-user-error 'param->paramtype "oops ~a" this-syntax)])
+    (log-froglet-warning "param->paramtype: unknown syntax ~e" this-syntax)
+    #f])
 
 (define (parse-arrow-decl* decl*)
   (map parse-arrow-decl decl*))

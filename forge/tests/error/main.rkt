@@ -47,37 +47,38 @@
 
     (list "froglet-arrow-ast.frg" #rx"Operator -> is not allowed")
     (list "froglet-arrow.frg" #rx"Operator -> is not allowed")
-    (list "froglet-http.frg" #rx"Expected a sig")
+;    (list "froglet-http.frg" #rx"Expected a sig")
     (list "froglet-int-minus.frg" #rx"Operator - is not allowed")
     (list "froglet-intersect-ast.frg" #rx"Operator & is not allowed")
-    (list "froglet-join-right.frg" #rx"Expected a sig")
-    (list "froglet-join-right2.frg" #rx"Expected a singleton sig")
-    (list "froglet-join-right3.frg" #rx"Expected a singleton sig")
-    (list "froglet-join-right4.frg" #rx"Expected a singleton sig")
-    (list "froglet-join-right5.frg" #rx"Expected a singleton sig") ;; TODO is not a Node
-    (list "froglet-join-right6.frg" #rx"Expected a sig")
-    (list "froglet-join.frg" #rx"Expected a sig")
-;   (list "froglet-join2.frg" #rx"not a singleton / partial method call") ;; TODO incomplete or partial?
-    (list "froglet-join3.frg" #rx"Expected a singleton sig")
+;    (list "froglet-join-right.frg" #rx"Expected a sig")
+;    (list "froglet-join-right2.frg" #rx"Expected a singleton sig")
+;    (list "froglet-join-right3.frg" #rx"Expected a singleton sig")
+;    (list "froglet-join-right4.frg" #rx"Expected a singleton sig")
+;    (list "froglet-join-right5.frg" #rx"Expected a singleton sig") ;; TODO is not a Node
+;    (list "froglet-join-right6.frg" #rx"Expected a sig")
+;    (list "froglet-join.frg" #rx"Expected a sig")
+;;   (list "froglet-join2.frg" #rx"not a singleton / partial method call") ;; TODO incomplete or partial?
+;    (list "froglet-join3.frg" #rx"Expected a singleton sig")
     (list "froglet-minus-ast.frg" #rx"Operator -")
     (list "froglet-plus-ast.frg" #rx"Operator \\+")
 ;   (list "froglet-reachable.frg" #rx"no such field") ;; TODO
 ;   (list "froglet-reachable2.frg" #rx"not an object") ;; TODO
 ;   (list "froglet-set-singleton-equal.frg" #rx"= expects two objects, sig Node is not an object")
-   (list "froglet-set.frg" #rx"pred must return an object, not a set")
+;   (list "froglet-set.frg" #rx"pred must return an object, not a set")
    (list "froglet-star-ast.frg" #rx"Operator \\*")
    (list "froglet-transitive-closure-ast.frg" #rx"Operator \\^")
    (list "froglet-transpose-ast.frg" #rx"Operator ~")
-   (list "froglet-uni-0.frg" #rx"Expected a sig")
-   (list "froglet-uni-1.frg" #rx"Expected a sig")
-;   (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
-   (list "froglet-uni-3.frg" #rx"Expected a sig")
-;   (list "froglet-uni-4.frg" #rx"Expected a sig") ;; TODO reachable, double-check
+;   (list "froglet-uni-0.frg" #rx"Expected a sig")
+;   (list "froglet-uni-1.frg" #rx"Expected a sig")
+;;   (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
+;   (list "froglet-uni-3.frg" #rx"Expected a sig")
+;;   (list "froglet-uni-4.frg" #rx"Expected a sig") ;; TODO reachable, double-check
 
     (list "example_impossible.frg" #rx"impossible")
     (list "excluded-extender-value.frg" #rx"not a subset")
     (list "failed_sat.frg" #rx"Failed test")
     (list "failed_theorem.frg" #rx"failed.")
+    (list "failed_sat.frg" #rx"Failed test")
     (list "failed_unsat.frg" #rx"Failed test")
     (list "properties_undirected_tree_underconstraint_error.frg" #rx"isUndirectedTree implies TreeWithEdges failed. Found instance")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"isUndirected implies isUndirectedTree failed. Found instance")

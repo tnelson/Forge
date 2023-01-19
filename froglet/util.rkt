@@ -2,7 +2,8 @@
 
 (provide
   lang-name
-  log-froglet-info)
+  log-froglet-info
+  log-froglet-warning)
 
 (define lang-name 'froglet)
 

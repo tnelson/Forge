@@ -2,12 +2,18 @@
 
 (provide
   raise-type-error
-  err:undefined-sig)
+  todo-not-implemented)
+
+(require
+  froglet/util)
 
 ;; ---
 
-(define-syntax-rule (raise-type-error msg kv* ...)
-  ;; TODO make this useful
-  (raise-syntax-error 'froglet:typecheck msg kv* ...))
+(define who 'froglet)
 
-(define err:undefined-sig "Undefined sig")
+(define-syntax-rule (raise-type-error msg kv* ...)
+  (raise-syntax-error who msg kv* ...))
+
+(define (todo-not-implemented msg)
+  (log-froglet-warning "not implemented: ~a" msg))
+
