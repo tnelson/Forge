@@ -2,7 +2,7 @@
 
 option run_sterling off
 
-sig A {}
+sig C {}
 
 run {
   true

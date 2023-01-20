@@ -697,9 +697,9 @@
 (define-for-syntax make-temporary-name
   (let ((name-counter (box 1)))
     (lambda (stx)
-      (begin0
-        (format-id stx "temporary-name~a" (unbox name-counter) #:source stx)
-        (set-box! name-counter (+ 1 (unbox name-counter)))))))
+      (define curr-num (unbox name-counter))
+      (set-box! name-counter (+ 1 curr-num))
+      (string->symbol (format "temporary-name_~a" curr-num)))))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 (define-syntax (CmdDecl stx)

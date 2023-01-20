@@ -1,6 +1,5 @@
-#lang forge/bsl
+#lang froglet
 option run_sterling off
-
 
 sig Node {
     next: lone Node
@@ -8,7 +7,7 @@ sig Node {
 one sig A, B extends Node{}
 
 pred err {
-    some ~next
+    some ~A
 }
 
 test expect{
