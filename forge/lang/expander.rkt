@@ -759,8 +759,7 @@
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
                         (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
                         (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;; q => p : p is a necessary condition for q
-   #:do [(match-define (list op lhs rhs) (syntax->list #'imp_total))]
-   #:with test_name (format-id stx "~a is ~a for ~a (~a ~a ~a)" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name lhs op rhs)
+   #:with test_name (format-id stx "Assertion ~a is ~a for ~a" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name)
    (syntax/loc stx
       (test
         test_name
