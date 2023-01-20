@@ -30,5 +30,5 @@ pred TreeWithEdges
     some edges
  } 
 
- assert TreeWithEdges is sufficient for isUndirectedTree
+ assert TreeWithEdges is necessary for isUndirectedTree
 
