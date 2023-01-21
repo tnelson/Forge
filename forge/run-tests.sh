@@ -12,6 +12,7 @@ fi
 # Get test files
 testDir=$1
 doNotTestPattern="error/[^/]*\\.frg"
+# ^ these tests get checked by tests/error/main.rkt
 testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} )"
 numTestFiles="$(echo "$testFiles" | wc -l)"
 

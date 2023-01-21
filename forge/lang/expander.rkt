@@ -3,9 +3,9 @@
 ; The #lang forge reader produces a module referencing this one as its module-path:
 ; https://docs.racket-lang.org/reference/module.html
 
-(require syntax/parse/define
+(require syntax/parse/define racket/stxparam
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
-                     syntax/srcloc racket/match)
+                     syntax/srcloc racket/match racket/list)
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
@@ -24,7 +24,12 @@
 (provide (all-defined-out))
 (begin-for-syntax (provide (all-defined-out)))
 
+(define-syntax-parameter current-forge-context #f)
+
 (begin-for-syntax
+  (define (forge-context=? sym)
+    (eq? sym (syntax-parameter-value #'current-forge-context)))
+
   (define-syntax-parser make-token
     [(make-token token-class:id token-string:str token-symbol)
      #'(define-syntax-class token-class
@@ -100,7 +105,8 @@
     (pattern decl:AssertDeclClass)
     (pattern decl:CmdDeclClass)
     (pattern decl:TestExpectDeclClass)
-    (pattern decl:PropertyWhereDeclClass)
+    (pattern decl:PropertyDeclClass)
+    (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
     ; (pattern decl:InstanceDeclClass)
@@ -289,32 +295,32 @@
               (~optional name:NameClass)
               test-block:TestBlockClass)))
 
-;; Sidd
-
-
   (define-syntax-class TestConstructClass
     (pattern decl:ExampleDeclClass)
-    (pattern decl:TestExpectDeclClass))
+    (pattern decl:TestExpectDeclClass)
+    (pattern decl:PropertyDeclClass))
 
-
-  ;; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Block? WHERE-TOK? Block?
-  (define-syntax-class PropertyWhereDeclClass
-    #:attributes (prop-name pred-name prop-expr constraint-type scope bounds (where-blocks 1))
-    (pattern ((~literal PropertyWhereDecl)
-              (~and (~or "overconstraint" "underconstraint") ct)
+  (define-syntax-class PropertyDeclClass
+    #:attributes (prop-name pred-name constraint-type scope bounds)
+    (pattern ((~literal PropertyDecl)      
               -prop-name:NameClass
-              "of"
+              (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
-              prop-expr:BlockClass
               (~optional -scope:ScopeClass)
-              (~optional -bounds:BoundsClass)
-              where-blocks:TestConstructClass ...)
+              (~optional -bounds:BoundsClass))
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
+
+  (define-syntax-class TestSuiteDeclClass
+    #:attributes (pred-name (test-constructs 1))
+    (pattern ((~literal TestSuiteDecl)
+              -pred-name:NameClass
+              test-constructs:TestConstructClass ...)
+      #:with pred-name #'-pred-name.name))
 
   (define-syntax-class ExampleDeclClass
     (pattern ((~literal ExampleDecl)
@@ -696,9 +702,9 @@
 (define-for-syntax make-temporary-name
   (let ((name-counter (box 1)))
     (lambda (stx)
-      (begin0
-        (format-id stx "temporary-name~a" (unbox name-counter) #:source stx)
-        (set-box! name-counter (+ 1 (unbox name-counter)))))))
+      (define curr-num (unbox name-counter))
+      (set-box! name-counter (+ 1 curr-num))
+      (string->symbol (format "temporary-name_~a" curr-num)))))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 (define-syntax (CmdDecl stx)
@@ -752,25 +758,48 @@
        (syntax/loc stx (begin)))]))
 
 
-; PropertyWhereDecl : PROPERTY-TOK Name OF-TOK Name Expr WHERE-TOK TEST-CONSTRUCT*
-(define-syntax (PropertyWhereDecl stx)
+(define-syntax (PropertyDecl stx)
   (syntax-parse stx
-  [pwd:PropertyWhereDeclClass 
-   #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'overconstraint)
-                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;;; Overconstraint : Prop => Pred
-                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;;; Underconstraint Pred => Prop
-   #:do [(match-define (list op lhs rhs) (syntax->list #'imp_total))]
-   #:with test_name (format-id stx "~a ~a ~a" lhs op rhs)
+  [pwd:PropertyDeclClass 
+   #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
+                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
+                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;; q => p : p is a necessary condition for q
+   #:with test_name (format-id stx "Assertion ~a is ~a for ~a" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name)
    (syntax/loc stx
-    (begin
-      (pred pwd.prop-name pwd.prop-expr)
-      (begin pwd.where-blocks ...)
       (test
         test_name
         #:preds [imp_total]
         #:scope pwd.scope
         #:bounds pwd.bounds
-        #:expect theorem )))]))
+        #:expect theorem ))]))
+
+
+;; Quick and dirty static check to ensure a test
+;; references a predicate.
+
+;; A potential improvement is to break apart test-expect
+;; blocks and examine each test.
+
+(define-for-syntax (ensure-target-ref target-pred ex)
+  (define tp (syntax-e target-pred))
+  (let ([ex-as-datum (syntax->datum ex)])
+    (unless 
+      (memq tp (flatten ex-as-datum))
+      (eprintf  "Warning: ~a ~a:~a Test does not reference ~a.\n" 
+        (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp))))
+
+
+(define-syntax (TestSuiteDecl stx)
+  (syntax-parse stx
+  [tsd:TestSuiteDeclClass 
+   
+    ;; Static checks on test blocks go here.
+   (for ([tc (syntax->list #'(tsd.test-constructs ...))])
+        (ensure-target-ref #'tsd.pred-name tc))
+
+   (syntax/loc stx
+    (begin tsd.test-constructs ...))]))
+
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
@@ -778,9 +807,10 @@
                            pred:ExprClass
                            bounds:BoundsClass)
    (quasisyntax/loc stx
-    (example (~? name.name unnamed-example) 
-      pred
-      #,@(syntax/loc stx bounds.translate)))]))
+     (syntax-parameterize ([current-forge-context 'example])
+       (example (~? name.name unnamed-example)
+         pred
+         #,@(syntax/loc stx bounds.translate))))]))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
@@ -939,8 +969,11 @@
 
   [((~literal Expr) expr1:ExprClass "+" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
-                 [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (+ (#:lang (get-check-lang)) expr1 expr2)))]
+                 [expr2 (my-expand #'expr2)]
+                 [check-lang (if (forge-context=? 'example)
+                               #''forge
+                               #'(get-check-lang))])
+     (syntax/loc stx (+ (#:lang check-lang) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass "-" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -959,8 +992,11 @@
 
   [((~literal Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
-                 [expr2 (my-expand #'expr2)])
-     (syntax/loc stx (-> (#:lang (get-check-lang)) expr1 expr2)))]
+                 [expr2 (my-expand #'expr2)]
+                 [check-lang (if (forge-context=? 'example)
+                               #''forge
+                               #'(get-check-lang))])
+     (syntax/loc stx (-> (#:lang check-lang) expr1 expr2)))]
 
   [((~literal Expr) expr1:ExprClass ":>" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]

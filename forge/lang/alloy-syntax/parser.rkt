@@ -42,7 +42,8 @@ Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS
           | OptionDecl
           | InstDecl
           | ExampleDecl 
-          | PropertyWhereDecl
+          | PropertyDecl
+          | TestSuiteDecl
 
 ; NOTE: When extending sigs with "in" (subset sigs) is implemented,
 ;  if "sig A in B extends C" is allowed, update this to allow multiple SigExt
@@ -78,9 +79,11 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
 
-PropertyWhereDecl : (OVERCONSTRAINT-TOK | UNDERCONSTRAINT-TOK) Name OF-TOK Name Block Scope? (/FOR-TOK Bounds)? (/WHERE-TOK /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK)?
+PropertyDecl : /ASSERT-TOK Name /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)? 
 
-@TestConstruct : ExampleDecl | TestExpectDecl
+TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
+
+@TestConstruct : ExampleDecl | TestExpectDecl | PropertyDecl
 
 
 # UnOp : Mult

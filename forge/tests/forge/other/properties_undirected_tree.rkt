@@ -16,63 +16,50 @@ pred isUndirectedTree {
     }
 }
 
-
-// Section 1: Testing Valid, simple underconstraints
-
- underconstraint isUndirected of isUndirectedTree
- {
+pred isUndirected
+{
      all m, n : Node | n->m in edges implies m->n in edges
- } 
- where {
-
-        test expect {
-            {isUndirected} is sat
-        }
-
-        example line is {not isUndirected} for {
-            Node = `Node0 + `Node1 + `Node2
-            edges = `Node0->`Node1 + `Node1->`Node2 
-        }
-
-        example empty is {isUndirected} for {
-            Node = none
-            edges = none->none
-        }
-
-        example refl is {isUndirected} for {
-            Node = `Node0
-            edges = `Node0->`Node0
-        }
-
-        example disconnected is {isUndirected} for {
-            Node = `Node0 + `Node1
-            edges = `Node0->`Node0
-        }
+} 
 
 
-        /*
-        //Nesting not currently supported.
-        underconstraint reachability of isUndirected
-        {
-            all m, n : Node | n->m in edges implies m in n.*edges
-        }
-        where
-        {}
-        */
+test suite for isUndirected {
+
+    test expect {
+        {isUndirected} is sat
+    }
+
+    test expect {
+        {one Node} is sat // This should result in a warning but not an error.
+    }
+
+    example line is {not isUndirected} for {
+        Node = `Node0 + `Node1 + `Node2
+        edges = `Node0->`Node1 + `Node1->`Node2 
+    }
+
+    example empty is {isUndirected} for {
+        Node = none
+        edges = none->none
+    }
+
+    example refl is {isUndirected} for {
+        Node = `Node0
+        edges = `Node0->`Node0
+    }
+
+    example disconnected is {isUndirected} for {
+        Node = `Node0 + `Node1
+        edges = `Node0->`Node0
+    }
 }
 
 
-underconstraint emptyofone of isUndirectedTree
- {
+pred edgeless  {
     (no edges)
  } 
- for 1 Node
 
-
-// Section 2: Testing Valid, simple overconstraints
-
-overconstraint TreeWithEdges of isUndirectedTree
- {
+pred treeWithEdges 
+{
     edges = ~edges // Symmetric 
     Node->Node in *edges // Connected
     no iden & edges // Irreflexive
@@ -82,25 +69,22 @@ overconstraint TreeWithEdges of isUndirectedTree
             (n->m + m->n) in edges implies (n->m + m->n) not in ^(edges - (n->m + m->n))
         }
     }
-
     some edges
- } 
- where  { }
-
-// Section 3: Self
+} 
 
 
-overconstraint foo of isUndirectedTree
- {
-   isUndirectedTree
- } 
- where  {}
 
-underconstraint bar of isUndirectedTree
- {
-   isUndirectedTree
- } 
- where  {}
+
+test suite for isUndirectedTree {
+    
+    assert isUndirected is necessary for isUndirectedTree
+    assert edgeless is necessary for isUndirectedTree for 1 Node
+
+    assert treeWithEdges is sufficient for isUndirectedTree
+
+    assert isUndirectedTree is necessary for isUndirectedTree
+    assert isUndirectedTree is sufficient for isUndirectedTree
+}
 
 
 

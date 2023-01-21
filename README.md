@@ -6,7 +6,7 @@
 Welcome to Forge! Forge is a tool and language built for **teaching** introductory formal methods and modeling.
 
 Forge is heavily adapted from the excellent [Alloy](https://alloytools.org/), a more widely used and somewhat more scalable tool. Forge and Alloy even use the same engines! Forge adds a number of features designed to support teaching and learning, including:
-- language levels, including Froglet (`#lang forge/bsl`) for starting out without using relational operators;
+- language levels, including froglet (`#lang froglet`, previously `#lang forge/bsl`) for starting out without using relational operators;
 - partial instance bounds (`inst`) for optimization and testing;
 - ease of scriptability (Forge is a Racket library as well as a language, and has a REPL); and
 - interaction modes designed for use in the classroom and on assignments.

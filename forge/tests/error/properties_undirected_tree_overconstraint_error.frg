@@ -14,13 +14,14 @@ pred isUndirectedTree {
     }
 }
 
-// This is an underconstraint, not an overconstraint.
-
- overconstraint isUndirected of isUndirectedTree
- {
+pred  isUndirected {
      all m, n : Node | n->m in edges implies m->n in edges
  } 
- where { }
+
+
+assert isUndirected is sufficient for isUndirectedTree
+
+ 
 
 
  
