@@ -117,15 +117,16 @@
                              (raise "Can't eval multiple expressions.")))))))
 
 (define-syntax-class $Import
-  #:attributes (hd as-name)
+  #:attributes (hd file-path as-name)
   #:commit
-  (pattern ((~and hd (~literal Import))
-            import-name:$QualName
-            (~optional (~seq "[" other-names:$QualNameList "]"))
-            (~optional (~seq "as" as-name:$Name))))
+  ;(pattern ((~and hd (~literal Import))
+  ;          import-name:$QualName
+  ;          (~optional (~seq "[" other-names:$QualNameList "]"))
+  ;          (~optional (~seq "as" as-name:$Name)))
+  ;  #:with file-path #'#f)
   (pattern ((~and hd (~literal Import))
             file-path:str
-            (~optional (~seq "as" as-name:$Name)))))
+            (~optional (~seq "as" as-name:$Name) #:defaults ([as-name #'#f])))))
 
 (define-syntax-class $ModuleDecl
   #:attributes (hd module-name other-name*)

@@ -14,7 +14,7 @@
 
 (require
   forge/lang/alloy-syntax/syntax-class
-  (only-in froglet/util log-froglet-info log-froglet-warning)
+  (only-in froglet/util type-env-name log-froglet-info log-froglet-warning)
   froglet/typecheck/error
   froglet/typecheck/struct
   racket/list
@@ -48,17 +48,18 @@
 ;;       (list symbol?    ;; quant
 ;;             boolean?)) ;; disj?
 
+(define the-type# #f)
+
 (define (typecheck mod)
-  (define env0 (env-collect mod))
-  (when env0
-    (define env (env-extend (env-init) env0))
-    (log-froglet-info (pretty-format env 120 #:mode 'write))
-    (env-check env)
-    ;; TODO record all type info ... in a hash (easy) or as syntax properties (hard)
-    ;; TODO bounds-check
-    (parameterize ([current-type-env env])
-      (mod-check mod)))
-  mod)
+  (define-values [env0 import*] (env-collect mod))
+  (define env (env-extend (env-init) env0 import*))
+  (log-froglet-info (pretty-format env 120 #:mode 'write))
+  (void (env-check env))
+  (parameterize ([current-type-env env])
+    (set! the-type# (make-hash))
+    (mod-check mod))
+  ;; TODO bounds-check ... the-type#
+  env0)
 
 (define-parser mod-check
   [mod:$AlloyModule
@@ -335,19 +336,19 @@
   (define lhs-sigty
     (or (->sigty lhs)
         (raise-type-error
-          "Expected a sig"
+          "expected a sig"
           (->stx lhs))))
   ;; TODO enable
   ;; (define is-param? (->paramty lhs))
   ;; (unless is-param?
   ;;   (unless (eq? (sigtype-mult lhs-sigty) '#:one)
   ;;     (raise-type-error
-  ;;       "Expected a singleton sig"
+  ;;       "expected a singleton sig"
   ;;       ctx #;(->stx lhs-sigty))))
   #;(define rhs-sigty
     (or (field->sigty rhs)
         (raise-type-error
-          "Expected a field"
+          "expected a field"
           (->stx rhs))))
   #;(and (sigtype<=: lhs-sigty rhs-sigty)
        (sigtype-find-field rhs-sigty rhs ctx))
@@ -445,7 +446,7 @@
                #:when (free-identifier=? id nm))
         (->sigty ty)))
     (raise-type-error
-      "Field not found"
+      "field not found"
       ctx)))
 
 (define (env-check env)
@@ -484,7 +485,7 @@
     (define nm (paramtype-sig ft))
     (unless (free-id-set-member? ids nm)
       (raise-type-error
-        "Undefined sig name"
+        "unknown sig name"
         nm))
     (void)))
 
@@ -492,7 +493,7 @@
   (for ((nm (in-list (fieldtype-sig fieldty))))
     (unless (free-id-set-member? ids nm)
       (raise-type-error
-        "Undefined sig name"
+        "unknown sig name"
         nm)))
   (void))
 
@@ -500,8 +501,8 @@
   (or (sigtype? x)
       (predtype? x)))
 
-(define (env-extend a b)
-  (append a b))
+(define (env-extend . env*)
+  (apply append env*))
 
 ;; ---
 
@@ -510,11 +511,9 @@
     #:datum-literals (AlloyModule ModuleDecl Import)
     ;; [ev:EvalDecl ...]
     [mod:$AlloyModule
-     (if (null? (syntax-e #'(mod.import* ...)))
-       (append-map env-collect/paragraph (syntax-e #'(mod.parag* ...)))
-       (begin
-         (log-froglet-warning "env-collect: cannot typecheck module with import statements")
-         #f))]))
+     (define env0 (append-map env-collect/paragraph (syntax-e #'(mod.parag* ...))))
+     (define env1 (append-map env-collect/import (syntax-e #'(mod.import* ...))))
+     (values env0 env1)]))
 
 (define (env-collect/paragraph stx)
   (syntax-parse stx
@@ -556,6 +555,61 @@
      (log-froglet-warning "env-collect/paragraph: unknown syntax ~e" this-syntax)
      '()]))
 
+(define (env-collect/import stx)
+  (syntax-parse stx
+   [ii:$Import
+    (define env (file->froglet-env (syntax-e #'ii.file-path) stx))
+    (log-froglet-info "import env ~s~n" env)
+    env]))
+
+(define (file->froglet-env fn ctx)
+  (datum->type-env (file->froglet-env-datum fn) ctx))
+
+(define (file->froglet-env-datum fn)
+  (parameterize ([current-namespace (make-base-namespace)])
+    ;; id defined in froglet
+    (dynamic-require fn type-env-name)))
+
+(define (datum->type-env x* ctx)
+  (for/list ((xx (in-list x*)))
+    (cond
+      [(sigtype? xx)
+       (sig-datum->type xx ctx)]
+      [(predtype? xx)
+       (pred-datum->type xx ctx)]
+      [else
+        (log-froglet-warning "datum->type-env: cannot revive ~e" xx)
+        xx])))
+
+(define (sig-datum->type ss ctx)
+  (sigtype (atom->type (type-name ss) ctx)
+           (atom->type (sigtype-mult ss) ctx)
+           (atom->type (sigtype-extends ss) ctx)
+           (for/list ((ff (in-list (sigtype-field* ss))))
+             (field-datum->type ff ctx))))
+
+(define (pred-datum->type pp ctx)
+  (predtype (atom->type (type-name pp) ctx)
+            (for/list ((p (in-list (predtype-param* pp))))
+              (param-datum->type p ctx))))
+
+(define (field-datum->type ff ctx)
+  (fieldtype (for/list ((nn (in-list (type-name ff))))
+               (atom->type nn ctx))
+             (atom->type (fieldtype-mult ff) ctx)
+             (for/list ((ss (in-list (fieldtype-sig ff))))
+               (atom->type ss ctx))))
+
+(define (param-datum->type pp ctx)
+  (paramtype (atom->type (type-name pp) ctx)
+             (atom->type (paramtype-mult pp) ctx)
+             (atom->type (paramtype-sig pp) ctx)))
+
+(define (atom->type sym ctx)
+  (if (symbol? sym)
+    (datum->syntax ctx sym)
+    sym))
+
 (define (param*->paramtype* stx*)
   (filter values (map param->paramtype stx*)))
 
@@ -564,8 +618,8 @@
   [(nm:id (_:ExprHd qn:$QualName))
    (paramtype #'nm #f #'qn.name)]
   [_
-    (log-froglet-warning "param->paramtype: unknown syntax ~e" this-syntax)
-    #f])
+   (log-froglet-warning "param->paramtype: unknown syntax ~e" this-syntax)
+   #f])
 
 (define (parse-arrow-decl* decl*)
   (map parse-arrow-decl decl*))
