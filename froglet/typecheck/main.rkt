@@ -50,6 +50,14 @@
 
 (define the-type# #f)
 
+(define (set-type stx tt)
+  (void (hash-set! the-type# stx tt))
+  tt)
+
+(define (get-type stx)
+  (hash-ref the-type# stx
+            (lambda () (log-froglet-warning "get-type not found ~e" stx) unknown-ty)))
+
 (define (typecheck mod)
   (define-values [env0 import*] (env-collect mod))
   (define env (env-extend (env-init) env0 import*))
@@ -57,8 +65,9 @@
   (void (env-check env))
   (parameterize ([current-type-env env])
     (set! the-type# (make-hash))
-    (mod-check mod))
-  ;; TODO bounds-check ... the-type#
+    (mod-check mod)
+    ;; TODO bounds-check ... the-type#
+    (void))
   env0)
 
 (define-parser mod-check
@@ -69,62 +78,67 @@
      (expr-check exp))
    (void)]
   [_
-    (void)])
+   (void)])
 
 (define-parser parag-check
   [sig:$SigDecl
-    ;; TODO any check needed?
-    (void)]
+   ;; TODO any check needed?
+   (void)]
   [fn:$FactDecl
    (todo-not-implemented 'parag-check:FactDecl)
    (void)]
   [pred:$PredDecl
-    ;; TODO pred.decls
-    (define body-ty (block-check #'pred.block))
-    (when (reltype? body-ty)
-      (raise-type-error "pred must return an object, not a set"
-                        (deparse #'pred.block)))
-    body-ty]
+   ;; TODO pred.decls
+   (define body-ty (block-check #'pred.block))
+   (when (reltype? body-ty)
+     (raise-type-error "pred must return an object, not a set"
+                       (deparse #'pred.block)))
+   body-ty]
   [fd:$FunDecl
-    (todo-not-implemented 'parag-check:FunDecl)
-    (void)]
+   (todo-not-implemented 'parag-check:FunDecl)
+   (void)]
   [ad:$AssertDecl
-    (todo-not-implemented 'parag-check:AssertDecl)
-    (void)]
+   (todo-not-implemented 'parag-check:AssertDecl)
+   (void)]
   [cd:$CmdDecl
-    (todo-not-implemented 'parag-check:CmdDecl)
-    (void)]
+   (todo-not-implemented 'parag-check:CmdDecl)
+   (void)]
   [td:$TestExpectDecl
-    (testblock-check #'td.test-block)
-    (void)]
+   (testblock-check #'td.test-block)
+   (void)]
   [sd:$SexprDecl
-    (todo-not-implemented 'parag-check:SexprDecl)
-    (void)]
+   (todo-not-implemented 'parag-check:SexprDecl)
+   (void)]
   [rd:$RelDecl
-    (todo-not-implemented 'parag-check:RelDecl)
-    (void)]
+   (todo-not-implemented 'parag-check:RelDecl)
+   (void)]
   [rd:$OptionDecl
-    ;; ignore
-    (void)]
+   ;; ignore
+   (void)]
   [rd:$InstDecl
-    (todo-not-implemented 'parag-check:InstDecl)
-    (void)]
+   (todo-not-implemented 'parag-check:InstDecl)
+   (void)]
   [rd:$ExampleDecl
-    (todo-not-implemented 'parag-check:ExampleDecl)
-    (void)]
+   (todo-not-implemented 'parag-check:ExampleDecl)
+   (void)]
   [par
-    (log-froglet-warning "parag-check: unknown stx ~a" (syntax->datum #'par))
-    (void)])
+   (log-froglet-warning "parag-check: unknown stx ~a" (syntax->datum #'par))
+   (void)])
 
 (define-parser block-check
   ;; TODO disallow (some father)
   [bb:$Block
-    (for/last ([ee (in-list (syntax-e #'(bb.exprs ...)))])
-      (expr-check ee))])
+   (define ty
+     (for/last ([ee (in-list (syntax-e #'(bb.exprs ...)))])
+       (expr-check ee)))
+   (set-type this-syntax ty)])
 
 (define-parser testblock-check
   [tb:$TestBlock
-    (for-each testdecl-check (syntax-e #'(tb.test-decls ...)))])
+    (define ty
+      (for/last ([tt (in-list (syntax-e #'(tb.test-decls ...)))])
+        (testdecl-check tt)))
+    (set-type this-syntax ty)])
 
 (define-parser testdecl-check
   [td:$TestDecl
@@ -139,7 +153,7 @@
       (block-check #'td.pred-block))
     (scope-check #'td.scope)
     (bounds-check #'td.bounds)
-    (void)])
+    (set-type this-syntax unknown-ty)])
 
 (define (scope-check stx)
   ;; TODO
@@ -255,13 +269,9 @@
   ;; negate? may not matter for typing
   (syntax-parse op
    [ao:$ArrowOp
-    (raise-type-error
-      (format "Operator ~a is not allowed in froglet" (syntax-e #'ao.arr))
-      #'ao.arr)]
+    (raise-operator-error #'ao.arr)]
    [(~or "-" "&" "+")
-    (raise-type-error
-      (format "Operator ~a is not allowed in froglet" (syntax-e op))
-      op)]
+    (raise-operator-error op)]
    [(~or =)
     (define sig1 (->sigty e1-ty))
     (define sig2 (->sigty e2-ty))
@@ -287,9 +297,7 @@
 (define (unop-check op e1-ty)
   (syntax-parse op
    [(~or "*" "^" "~")
-    (raise-type-error
-      (format "Operator ~a is not allowed in froglet" (syntax-e op))
-      op)]
+    (raise-operator-error op)]
    [_
     (todo-not-implemented (format "unop-check: (~e ~e)" op e1-ty))
     unknown-ty]))
