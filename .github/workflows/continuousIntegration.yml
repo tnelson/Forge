@@ -20,7 +20,7 @@ jobs:
         java-version: '11'
     - name: Install Forge
       run: |
-        raco pkg install --auto --no-docs ./forge ./froglet
+        raco pkg install --auto --no-docs forge
     - name: Run tests
       run: |
         cd forge/
