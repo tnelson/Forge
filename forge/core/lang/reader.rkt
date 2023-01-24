@@ -39,8 +39,8 @@
 
                           (module+ execs)
                           (module+ main
-                            (require (submod ".." execs))
-                            (log:flush-logs ',compile-time "no-error"))))
+                            (require (submod ".." execs)))
+                          (log:flush-logs ',compile-time "no-error")))
 
   (datum->syntax #f module-datum))
 

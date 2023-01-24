@@ -101,9 +101,8 @@
 
                           (module+ execs)
                           (module+ main
-                            (require (submod ".." execs))
-                            (log:flush-logs ',compile-time (list wheat-results chaff-results))
-                            )
+                            (require (submod ".." execs)))
+                          (log:flush-logs ',compile-time (list wheat-results chaff-results))
 
                           #;,ints-coerced))
   (datum->syntax #f module-datum))
