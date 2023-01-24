@@ -88,6 +88,7 @@
     (list "hello.frg" #rx"parsing error")
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
+    (list "invalid-example.frg" #rx"Invalid example 'onlyBabies'")
   ))
 
 

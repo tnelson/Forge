@@ -807,10 +807,10 @@
                            pred:ExprClass
                            bounds:BoundsClass)
    (quasisyntax/loc stx
-     (syntax-parameterize ([current-forge-context 'example])
-       (example (~? name.name unnamed-example)
-         pred
-         #,@(syntax/loc stx bounds.translate))))]))
+     (example (~? name.name unnamed-example)
+       pred
+       (syntax-parameterize ([current-forge-context 'example])
+         (begin #,@(syntax/loc stx bounds.translate)))))]))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
