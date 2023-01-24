@@ -74,7 +74,7 @@
 ;    (list "froglet-uni-3.frg" #rx"Expected a sig")
 ;    (list "froglet-uni-4.frg" #rx"Expected a sig") ;; TODO reachable, double-check
 
-    (list "example_impossible.frg" #rx"impossible")
+    (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")
     (list "excluded-extender-value.frg" #rx"not a subset")
     (list "failed_sat.frg" #rx"Failed test")
     (list "failed_theorem.frg" #rx"failed.")
