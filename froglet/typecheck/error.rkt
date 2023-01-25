@@ -36,8 +36,14 @@
 (define (format-id-error msg id)
   (format "~a ~a" (syntax-e id) msg))
 
-(define-syntax-rule (raise-operator-error op)
-  (raise-type-error (format "~a operator is not permitted" (syntax-e op)) op))
+(define (raise-operator-error op)
+  (raise-type-error (format-id-error "operator is not permitted" op) op))
+
+(define (raise-form-error id)
+  (raise-type-error (format-id-error "is not part of the language" id) id))
+
+(define (format-id-error msg id)
+  (format "~a ~a" (syntax-e id) msg))
 
 (define (todo-not-implemented msg)
   (log-froglet-warning "not implemented: ~a" msg))

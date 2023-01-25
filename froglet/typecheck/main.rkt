@@ -82,7 +82,7 @@
 
 (define (get-type stx)
   (hash-ref the-type# stx
-            (lambda () (log-froglet-warning "get-type not found ~e" stx) unknown-ty)))
+            (lambda () (log-froglet-warning "get-type not found ~e" stx) unknown-type)))
 
 (define (typecheck mod)
   (define-values [env0 import*] (env-collect mod))
