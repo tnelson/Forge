@@ -33,12 +33,12 @@
 (define (symbol->type sym)
   (sigtype (datum->syntax #f sym) #f #f '()))
 
-(define int-ty (symbol->type 'Int))
-(define bool-ty (symbol->type 'Bool))
-(define unknown-ty (symbol->type 'Unknown))
+(define int-type (symbol->type 'Int))
+(define bool-type (symbol->type 'Bool))
+(define unknown-type (symbol->type 'Unknown))
 
 (define (env-init)
-  (list int-ty bool-ty unknown-ty))
+  (list int-type bool-type unknown-type))
 
 (define current-type-env (make-parameter '()))
 
@@ -48,7 +48,7 @@
 ;;       (list symbol?    ;; quant
 ;;             boolean?)) ;; disj?
 
-(define the-type# #f)
+(define the-type# (make-hash))
 
 (define (set-type stx tt)
   (void (hash-set! the-type# stx tt))
@@ -56,7 +56,7 @@
 
 (define (get-type stx)
   (hash-ref the-type# stx
-            (lambda () (log-froglet-warning "get-type not found ~e" stx) unknown-ty)))
+            (lambda () (log-froglet-warning "get-type not found ~e" stx) unknown-type)))
 
 (define (typecheck mod)
   (define-values [env0 import*] (env-collect mod))
@@ -64,7 +64,7 @@
   (log-froglet-info (pretty-format env 120 #:mode 'write))
   (void (env-check env))
   (parameterize ([current-type-env env])
-    (set! the-type# (make-hash))
+    (hash-clear! the-type#)
     (mod-check mod)
     ;; TODO bounds-check ... the-type#
     (void))
@@ -153,36 +153,37 @@
       (block-check #'td.pred-block))
     (scope-check #'td.scope)
     (bounds-check #'td.bounds)
-    (set-type this-syntax unknown-ty)])
+    (set-type this-syntax unknown-type)])
 
 (define (scope-check stx)
   ;; TODO
   (todo-not-implemented 'scope-check)
-  unknown-ty)
+  (set-type stx unknown-type))
 
 (define (bounds-check stx)
   ;; TODO
   (todo-not-implemented 'bounds-check)
-  unknown-ty)
+  (set-type stx unknown-type))
 
 (define-parser sexpr-check
   [ss:$Sexpr
     (todo-not-implemented 'sexpr-check)
-    unknown-ty])
+    (set-type this-syntax unknown-type)]
+  [_
+    (set-type this-syntax unknown-type)])
 
 (define-parser expr-check
   [exp:$Expr
-    ;; TODO syntax class for those muliplicity ops
-    ;; TODO ... copy things over from expr macro
-    (let loop ([stx (syntax/loc this-syntax (exp.body ...))])
-      (syntax-parse stx
+    (define ctx this-syntax)
+    (define tt
+      (syntax-parse (syntax/loc ctx (exp.body ...))
        [("let" decls:$LetDeclList bob:$BlockOrBar)
         (define decl-tys (letdecllist-check #'decls))
         (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
           (blockorbar-check #'bob))]
        [("bind" decls:$LetDeclList bob$BlockOrBar)
-        ;; bind not implemented in normal Forge
-        unknown-ty]
+        (raise-form-error (datum->syntax ctx 'bind ctx))
+        unknown-type]
        [(q:$Quant (~optional (~and "disj" disj) #:defaults ([disj #'#f]))
                   decls:$DeclList bob:$BlockOrBar)
         (define decl-tys
@@ -198,41 +199,41 @@
         (define e2-ty (expr-check #'e2))
         (cond
           [(syntax-e #'e3)
-           (define e3-ty (expr-check #'e3))
-           (ifelse-check e1-ty e2-ty e3-ty this-syntax)]
+           (void (expr-check #'e3))
+           (ifelse-check #'e1 #'e2 #'e3 ctx)]
           [else
            (define op #'(~? -op.symbol -op))
            ;; TODO throw error up?
-           (binop-check op e1-ty e2-ty this-syntax #:negate? (and (syntax-e #'negate) #t))])]
-       [(lhs:$Expr (~datum ".") rhs:$Expr)
-        ;; ??
-        (define lhs-ty (loop #'(lhs.body ...)))
-        (define rhs-ty (loop #'(rhs.body ...)))
-        (or (field-check lhs-ty rhs-ty this-syntax)
-            unknown-ty
-            #;(raise-type-error "Expected matching sig and field"
-                              this-syntax))]
+           (define neg? (and (syntax-e #'negate) #t))
+           (binop-check op #'e1 #'e2 ctx #:negate? neg?)])]
+       [(e1:$Expr (~datum ".") e2:$Expr)
+        (void (expr-check #'e1))
+        (void (expr-check #'e2))
+        (field-check #'e1 #'e2 ctx)]
        [(op:$UnaryOp e1:$Expr)
-        (define e1-ty (expr-check #'e1))
-        (unop-check #'op e1-ty)]
-       [(qq:$QuantStr exp:$Expr)
+        (void (expr-check #'e1))
+        (unop-check #'op #'e1)]
+       [(qq:$QuantStr e1:$Expr)
         ;; bg: 12/31 what does this mean?
         (parameterize ([current-quant (string->symbol (syntax-e #'qq))])
-          (loop (syntax/loc this-syntax (exp.body ...))))]
+          (expr-check #'e1))]
        [(e1:$Expr "'")
-        (todo-not-implemented (format "expr-check: ~s" this-syntax))
-        unknown-ty]
+        (todo-not-implemented (format "expr-check: ~s" ctx))
+        unknown-type]
        [("[" _:$ExprList "]")
-        ;; not implemented in forge expander
-        unknown-ty]
+        ;; not implemented in normal forge, doesn't even parse apparently
+        (raise-form-error (datum->syntax ctx "list expressions [ ... ]"))
+        unknown-type]
        [(nm:$Name "[" ee:$ExprList "]")
-        (define name-ty (name-check #'nm.name))
-        (define expr-ty* (map expr-check #'(ee.exprs ...)))
-        (app-check name-ty expr-ty*)]
+        (define e* (syntax-e #'(ee.exprs ...)))
+        (void (name-check #'nm.name))
+        (for-each expr-check e*)
+        (app-check #'nm e*)]
        [(ex1:$Expr "[" ee:$ExprList "]")
-        (define e1-ty (expr-check #'ex1))
-        (define expr-ty* (map expr-check (syntax-e #'(ee.exprs ...))))
-        (app-check e1-ty expr-ty*)]
+        (define e* (syntax-e #'(ee.exprs ...)))
+        (void (expr-check #'ex1))
+        (for-each expr-check e*)
+        (app-check #'ex1 e*)]
        [(cn:$Const)
         (consttype #'cn.translate)]
        [(qn:$QualName)
@@ -253,18 +254,24 @@
        [(sexpr:$Sexpr)
         (sexpr-check #'sexpr)]
        [_
-         (log-froglet-warning "expr-check: internal error parsing expr ~e" stx)
-         unknown-ty]))]
+        (log-froglet-warning "expr-check: internal error parsing expr ~e" this-syntax)
+        unknown-type]))
+    (set-type ctx tt)]
   [_
     (log-froglet-warning "expr-check: expected $Expr got ~e" this-syntax)
-    unknown-ty])
+    (set-type this-syntax unknown-type)])
 
-(define (ifelse-check e1-ty e2-ty e3-ty ctx)
+(define (ifelse-check e1 e2 e3 ctx)
+  (define e1-ty (get-type e1))
+  (define e2-ty (get-type e2))
+  (define e3-ty (get-type e3))
   ;; TODO
   (todo-not-implemented 'ifelse-check)
-  unknown-ty)
+  unknown-type)
 
-(define (binop-check op e1-ty e2-ty ctx #:negate? [negate? #f])
+(define (binop-check op e1 e2 ctx #:negate? [negate? #f])
+  (define e1-ty (get-type e1))
+  (define e2-ty (get-type e2))
   ;; TODO
   ;; negate? may not matter for typing
   (syntax-parse op
@@ -289,12 +296,13 @@
     ;;  (raise-type-error
     ;;    (format "inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
     ;;    ctx))
-     bool-ty]
+    bool-type]
    [_
-     (log-froglet-warning "binop-check: (~e ~e ~e)" op e1-ty e2-ty)
-     bool-ty]))
+    (log-froglet-warning "binop-check: (~e ~e ~e)" op e1-ty e2-ty)
+    bool-type]))
 
-(define (unop-check op e1-ty)
+(define (unop-check op e1)
+  (define e1-ty (get-type e1))
   (syntax-parse op
    [(~or "*" "^" "~")
     (raise-operator-error op)]
@@ -302,14 +310,16 @@
     (todo-not-implemented (format "unop-check: (~e ~e)" op e1-ty))
     unknown-ty]))
 
-(define (app-check fn-ty arg-ty*)
+(define (app-check fn arg*)
+  (define fn-ty (get-type fn))
+  (define arg-ty* (map get-type arg*))
   (cond
     [(and (nametype? fn-ty)
           (eq? 'reachable (syntax-e (type-name fn-ty))))
      #;(printf "app-check ~s ~s~n ~n" fn-ty arg-ty*)
-     unknown-ty]
+     unknown-type]
     [else
-     unknown-ty]))
+     unknown-type]))
 
 (define-parser letdecllist-check
   [decls:$LetDeclList
@@ -329,38 +339,78 @@
     (define name (car ne))
     (define expr (cadr ne))
     (define expr-ty (expr-check expr))
-    (paramtype name mult expr-ty)))
+    (define tt (paramtype name mult expr-ty))
+    (set-type ne-stx tt)))
 
 (define-parser blockorbar-check
   [bob:$BlockOrBar
    (syntax-parse #'bob.exprs
     [bb:$Block
-      (block-check #'bb)]
+      (set-type this-syntax (block-check #'bb))]
     [ee:$Expr
-      (expr-check #'ee)])])
+      (set-type this-syntax (expr-check #'ee))])])
 
-(define (field-check lhs rhs ctx)
+(define (field-check e1 e2 ctx)
+  (define e1-ty (get-type e1))
+  (define e2-ty (get-type e2))
   ;; TODO better srclocs ... inputs should be stx, not types .. fails at first composition
-  (define lhs-sigty
-    (or (->sigty lhs)
+  (define e1-sigty
+    (or (->sigty e1-ty)
         (raise-type-error
           "expected a sig"
-          (->stx lhs))))
+          (->stx e1-ty))))
   ;; TODO enable
-  ;; (define is-param? (->paramty lhs))
+  ;; (define is-param? (->paramty e1-ty))
   ;; (unless is-param?
-  ;;   (unless (eq? (sigtype-mult lhs-sigty) '#:one)
+  ;;   (unless (eq? (sigtype-mult e1-sigty) '#:one)
   ;;     (raise-type-error
   ;;       "expected a singleton sig"
-  ;;       ctx #;(->stx lhs-sigty))))
-  #;(define rhs-sigty
-    (or (field->sigty rhs)
+  ;;       ctx #;(->stx e1-sigty))))
+  #;(define e2-sigty
+    (or (field->sigty e2-ty)
         (raise-type-error
           "expected a field"
-          (->stx rhs))))
-  #;(and (sigtype<=: lhs-sigty rhs-sigty)
-       (sigtype-find-field rhs-sigty rhs ctx))
-  unknown-ty)
+          (->stx e2-ty))))
+  #;(and (sigtype<=: e1-sigty e2-sigty)
+       (sigtype-find-field e2-sigty e2-ty ctx))
+  unknown-type)
+
+(define (atom->type sym ctx)
+  (if (symbol? sym)
+    (datum->syntax ctx sym)
+    sym))
+
+(define (param*->paramtype* stx*)
+  (filter values (map param->paramtype stx*)))
+
+(define-parser param->paramtype
+  ;; param ~ the decl part of a pred
+  [(nm:id (_:ExprHd qn:$QualName))
+   (paramtype #'nm #f #'qn.name)]
+  [_
+   (log-froglet-warning "param->paramtype: unknown syntax ~e" this-syntax)
+   #f])
+
+(define (parse-arrow-decl* decl*)
+  (map parse-arrow-decl decl*))
+
+(define (parse-arrow-decl decl)
+  (syntax-parse decl
+   [ad:$ArrowDecl
+    (define name (syntax-e #'(ad.name* ...)))
+    (define sig (syntax-e #'(ad.type* ...)))
+    (define mult
+      (let* ([sym (syntax-e #'ad.mult)])
+        (if (memq sym '(one lone func pfunc))
+          sym
+          (raise-type-error
+            "invalid field declaration, must be one, lone, func, or pfunc"
+            (if (eq? sym 'default)
+              (syntax/loc #'ad.mult set)
+              #'ad.mult)))))
+    (fieldtype name mult sig)]))
+
+;; ---
 
 (define (sigtype<=: s0 s1)
   (or (eq? s0 s1)
@@ -406,7 +456,7 @@
   stx)
 
 (define (name-check stx)
-  (name-lookup stx))
+  (set-type stx (name-lookup stx)))
 
 (define (name->sig stx)
   (or (name-lookup stx sigtype?)
@@ -415,7 +465,7 @@
              #;(void (printf "paramty ~s~n sig ~s~n" paramty (name->sig (type-name (paramtype-sig paramty)))))
              (name->sig (type-name (paramtype-sig paramty)))))
       #;(raise-type-error "no type for name" stx)
-      unknown-ty))
+      unknown-type))
 
 (define (name->pred stx)
   (name-lookup stx predtype?))
@@ -612,39 +662,4 @@
   (paramtype (atom->type (type-name pp) ctx)
              (atom->type (paramtype-mult pp) ctx)
              (atom->type (paramtype-sig pp) ctx)))
-
-(define (atom->type sym ctx)
-  (if (symbol? sym)
-    (datum->syntax ctx sym)
-    sym))
-
-(define (param*->paramtype* stx*)
-  (filter values (map param->paramtype stx*)))
-
-(define-parser param->paramtype
-  ;; param ~ the decl part of a pred
-  [(nm:id (_:ExprHd qn:$QualName))
-   (paramtype #'nm #f #'qn.name)]
-  [_
-   (log-froglet-warning "param->paramtype: unknown syntax ~e" this-syntax)
-   #f])
-
-(define (parse-arrow-decl* decl*)
-  (map parse-arrow-decl decl*))
-
-(define (parse-arrow-decl decl)
-  (syntax-parse decl
-   [ad:$ArrowDecl
-    (define name (syntax-e #'(ad.name* ...)))
-    (define sig (syntax-e #'(ad.type* ...)))
-    (define mult
-      (let* ([sym (syntax-e #'ad.mult)])
-        (if (memq sym '(one lone func pfunc))
-          sym
-          (raise-type-error
-            "invalid field declaration, must be one, lone, func, or pfunc"
-            (if (eq? sym 'default)
-              (syntax/loc #'ad.mult set)
-              #'ad.mult)))))
-    (fieldtype name mult sig)]))
 

@@ -46,15 +46,16 @@
     (list "bsl-transpose-ast.frg" #rx"~ operator")
 
     (list "froglet-ast-arrow.frg" #rx"-> operator is not")
+    (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
     (list "froglet-ast-intersect.frg" #rx"& operator is not")
     (list "froglet-ast-minus.frg" #rx"- operator is not")
     (list "froglet-ast-plus.frg" #rx"\\+ operator is not")
     (list "froglet-ast-star.frg" #rx"\\* operator is not")
     (list "froglet-ast-transitive-closure.frg" #rx"\\^ operator is not")
     (list "froglet-ast-transpose.frg" #rx"~ operator is not")
-    (list "froglet-arrow.frg" #rx"Operator -> is not allowed")
+    (list "froglet-arrow.frg" #rx"-> operator is not")
     (list "froglet-http.frg" #rx"field declaration")
-    (list "froglet-int-minus.frg" #rx"Operator - is not allowed")
+    (list "froglet-int-minus.frg" #rx"- operator is not")
     (list "froglet-join-right.frg" #rx"not an object")
     (list "froglet-join-right2.frg" #rx"not an object")
     (list "froglet-join-right3.frg" #rx"not an object")
@@ -68,11 +69,11 @@
     (list "froglet-reachable2.frg" #rx"not a singleton") ;; TODO
     (list "froglet-set-singleton-equal.frg" #rx"not a singleton") ;;(#rx"= expects two objects, sig Node is not an object")
     (list "froglet-set.frg" #rx"pred must return an object, not a set")
-;    (list "froglet-uni-0.frg" #rx"Expected a sig")
-;    (list "froglet-uni-1.frg" #rx"Expected a sig")
-;    (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
-;    (list "froglet-uni-3.frg" #rx"Expected a sig")
-;    (list "froglet-uni-4.frg" #rx"Expected a sig") ;; TODO reachable, double-check
+    (list "froglet-uni-0.frg" #rx"Expected a sig")
+    (list "froglet-uni-1.frg" #rx"Expected a sig")
+    (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
+    (list "froglet-uni-3.frg" #rx"Expected a sig")
+    (list "froglet-uni-4.frg" #rx"Expected a sig") ;; TODO reachable, double-check
 
     (list "example_electrum.frg" #rx"example foo: .* temporal")
     (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")
