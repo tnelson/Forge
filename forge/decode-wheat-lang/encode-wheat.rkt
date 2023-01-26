@@ -12,7 +12,7 @@
   (define out out-file)
   (with-output-to-file out #:exists 'replace
     (lambda ()
-      (display "#lang forge/decode-wheat-lang\t")
+      (displayln "#lang forge/decode-wheat-lang")
       (write-bytes bb)
       (void)))
   (void))
