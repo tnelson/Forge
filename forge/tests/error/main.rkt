@@ -86,6 +86,7 @@
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "hello.frg" #rx"parsing error")
+    (list "hidden-wheat.frg" #rx"^Invalid bind: #<wheat>$")
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
     (list "invalid-example.frg" #rx"Invalid example 'onlyBabies'")
@@ -103,7 +104,7 @@
     (with-check-info*
       (list (make-check-name test-name))
       (lambda ()
-        (check-exn pred (lambda () (run-error-test test-name)))))
+        (check-exn pred (lambda () (re-raise-strings (run-error-test test-name))))))
     (void)))
 
 (define (run-error-test test-name)
@@ -112,6 +113,9 @@
     (let* ([root-module `(file ,(path->string (build-path here test-name)))])
       (dynamic-require root-module #f)
       (dynamic-require `(submod ,root-module execs) #f))))
+
+(define-syntax-rule (re-raise-strings expr)
+  (with-handlers ([string? raise-user-error]) expr))
 
 ;; -----------------------------------------------------------------------------
 

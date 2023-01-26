@@ -372,37 +372,37 @@
          (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]))
 
+(begin-for-syntax
+  (define-splicing-syntax-class pred-type
+    #:description "optional pred flag"
+    #:attributes ((seal 0))
+    (pattern (~datum #:wheat)
+      #:attr seal #'make-wheat)
+    (pattern (~seq)
+      #:attr seal #'values)))
+
 ; Declare a new predicate
 ; (pred info name cond ...)
 ; (pred info (name var ...) cond ...)
 ;   or same without info
 (define-syntax (pred stx)
   (syntax-parse stx
-    [(pred name:id conds:expr ...+)
+    [(pred pt:pred-type
+           (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
+           name:id conds:expr ...+)
      (quasisyntax/loc stx
        (begin
          ; use srcloc of actual predicate, not this location in sigs
-         (define name (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) conds ...))
+         (define name (pt.seal (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...)))
          (update-state! (state-add-pred curr-state 'name name))))]
-    [(pred (name:id args:id ...+) conds:expr ...+)
+    [(pred pt:pred-type
+           (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
+           (name:id args:id ...+) conds:expr ...+)
      (quasisyntax/loc stx
        (begin 
-         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) conds ...))
-         (update-state! (state-add-pred curr-state 'name name))))]
-
-    ; Case: check-lang
-    [(pred (#:lang check-lang) name:id conds:expr ...+)
-     (quasisyntax/loc stx
-       (begin
-         ; use srcloc of actual predicate, not this location in sigs
-         (define name (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
-         (update-state! (state-add-pred curr-state 'name name))))]
-    [(pred (#:lang check-lang) (name:id args:id ...+) conds:expr ...+)
-     (quasisyntax/loc stx
-       (begin 
-         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
+         (define (name args ...) (pt.seal (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...)))
          (update-state! (state-add-pred curr-state 'name name))))]))
-                                   
+
 ; Declare a new function
 ; (fun (name var ...) result)
 (define-syntax (fun stx)
