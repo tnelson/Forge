@@ -45,6 +45,7 @@
 
   $QuantStr
   $DotStr
+  $NotOp
 
   ExprHd
   )
@@ -392,8 +393,8 @@
             (~optional parameters:$Parameters)
             (~optional (~or pred-name:$QualName
                             pred-block:$Block))
-            (~optional scope:$Scope)
-            (~optional bounds:$Bounds))
+            (~optional scope:$Scope #:defaults ([scope #'()]))
+            (~optional bounds:$Bounds #:defaults ([bounds #'()])))
     #:attr name #'(~? pre-name.name #f)))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
@@ -433,9 +434,10 @@
   #:attributes (hd name pred bounds)
   #:commit
   (pattern ((~and hd (~literal ExampleDecl))
-            (~optional name:$Name)
+            (~optional pre-name:$Name)
             pred:$Expr
-            bounds:$Bounds)))
+            bounds:$Bounds)
+    #:attr name #'(~? pre-name.name #f)))
 
 ; Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
 ;       | /FOR-TOK @TypescopeList
@@ -643,4 +645,7 @@
   (pattern ((~and hd (~literal ExprList))
             exprs:$Expr ...)))
 
+(define-syntax-class $NotOp
+  (pattern "!")
+  (pattern "not"))
 

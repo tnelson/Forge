@@ -4,6 +4,8 @@
   raise-type-error
   raise-operator-error
   raise-form-error
+  raise-unknown-sig-error
+  raise-unknown-pred-error
   todo-not-implemented)
 
 (require
@@ -21,6 +23,15 @@
 
 (define (raise-form-error id)
   (raise-type-error (format-id-error "is not part of the language" id) id))
+
+(define (raise-unknown-sig-error id)
+  (raise-unknown-id-error id 'sig))
+
+(define (raise-unknown-pred-error id)
+  (raise-unknown-id-error id 'pred))
+
+(define (raise-unknown-id-error id what)
+  (raise-type-error (format "unknown ~a name" what) id))
 
 (define (format-id-error msg id)
   (format "~a ~a" (syntax-e id) msg))

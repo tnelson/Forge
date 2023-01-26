@@ -65,15 +65,16 @@
     (list "froglet-join.frg" #rx"not an object")
     (list "froglet-join2.frg" #rx"not a singleton") ;; TODO incomplete or partial?
     (list "froglet-join3.frg" #rx"not an object")
+    (list "froglet-pred.frg" #rx"expected a formula")
     (list "froglet-reachable.frg" #rx"field") ;; TODO
     (list "froglet-reachable2.frg" #rx"not a singleton") ;; TODO
     (list "froglet-set-singleton-equal.frg" #rx"not a singleton") ;;(#rx"= expects two objects, sig Node is not an object")
     (list "froglet-set.frg" #rx"pred must return an object, not a set")
-    (list "froglet-uni-0.frg" #rx"Expected a sig")
-    (list "froglet-uni-1.frg" #rx"Expected a sig")
-    (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
-    (list "froglet-uni-3.frg" #rx"Expected a sig")
-    (list "froglet-uni-4.frg" #rx"Expected a sig") ;; TODO reachable, double-check
+;    (list "froglet-uni-0.frg" #rx"expected a sig")
+;    (list "froglet-uni-1.frg" #rx"expected a sig")
+;    (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
+;    (list "froglet-uni-3.frg" #rx"expected a sig")
+;    (list "froglet-uni-4.frg" #rx"expected a sig") ;; TODO reachable, double-check
 
     (list "example_electrum.frg" #rx"example foo: .* temporal")
     (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")

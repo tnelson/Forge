@@ -18,6 +18,7 @@
   froglet/typecheck/error
   froglet/typecheck/struct
   racket/list
+  racket/match
   racket/pretty
   syntax/id-set
   syntax/parse
@@ -33,12 +34,12 @@
 (define (symbol->type sym)
   (sigtype (datum->syntax #f sym) #f #f '()))
 
-(define int-type (symbol->type 'Int))
-(define bool-type (symbol->type 'Bool))
-(define unknown-type (symbol->type 'Unknown))
+(define the-int-type (symbol->type 'Int))
+(define the-bool-type (symbol->type 'Bool))
+(define the-unknown-type (symbol->type 'Unknown))
 
 (define (env-init)
-  (list int-type bool-type unknown-type))
+  (list the-int-type the-bool-type the-unknown-type))
 
 (define current-type-env (make-parameter '()))
 
@@ -56,7 +57,7 @@
 
 (define (get-type stx)
   (hash-ref the-type# stx
-            (lambda () (log-froglet-warning "get-type not found ~e" stx) unknown-type)))
+            (lambda () (log-froglet-warning "get-type not found ~e" stx) the-unknown-type)))
 
 (define (typecheck mod)
   (define-values [env0 import*] (env-collect mod))
@@ -88,12 +89,7 @@
    (todo-not-implemented 'parag-check:FactDecl)
    (void)]
   [pred:$PredDecl
-   ;; TODO pred.decls
-   (define body-ty (block-check #'pred.block))
-   (when (reltype? body-ty)
-     (raise-type-error "pred must return an object, not a set"
-                       (deparse #'pred.block)))
-   body-ty]
+   (preddecl-check #'pred)]
   [fd:$FunDecl
    (todo-not-implemented 'parag-check:FunDecl)
    (void)]
@@ -101,8 +97,7 @@
    (todo-not-implemented 'parag-check:AssertDecl)
    (void)]
   [cd:$CmdDecl
-   (todo-not-implemented 'parag-check:CmdDecl)
-   (void)]
+   (cmddecl-check this-syntax)]
   [td:$TestExpectDecl
    (testblock-check #'td.test-block)
    (void)]
@@ -112,26 +107,61 @@
   [rd:$RelDecl
    (todo-not-implemented 'parag-check:RelDecl)
    (void)]
-  [rd:$OptionDecl
+  [od:$OptionDecl
    ;; ignore
    (void)]
-  [rd:$InstDecl
+  [id:$InstDecl
    (todo-not-implemented 'parag-check:InstDecl)
    (void)]
-  [rd:$ExampleDecl
-   (todo-not-implemented 'parag-check:ExampleDecl)
-   (void)]
+  [ed:$ExampleDecl
+   (exampledecl-check #'ed)]
   [par
    (log-froglet-warning "parag-check: unknown stx ~a" (syntax->datum #'par))
    (void)])
 
-(define-parser block-check
-  ;; TODO disallow (some father)
+(define-parser preddecl-check
+  [pred:$PredDecl
+   (define bb #'pred.block)
+   (block-check bb)
+   (for* ((ee (in-list (block->list bb)))
+          (tt (in-value (get-type ee)))
+          #:unless (type<: (get-type ee) the-bool-type))
+     (raise-type-error (format "pred expected a formula, given a ~a" (type-kind tt))
+                       (deparse ee)))
+   (void)])
+
+(define-parser block->list
   [bb:$Block
-   (define ty
-     (for/last ([ee (in-list (syntax-e #'(bb.exprs ...)))])
-       (expr-check ee)))
-   (set-type this-syntax ty)])
+   (syntax-e #'(bb.exprs ...))])
+
+(define (block-check stx)
+  ;; TODO disallow (some father)
+  ;; set type?
+  (for-each expr-check (block->list stx)))
+
+(define-parser cmddecl-check
+  [cd:$CmdDecl
+   (define cmd-name #'cd.name)
+   (when (attribute cd.parameters)
+     (params-check #'cd.parameters))
+   (when (attribute cd.pred-name)
+     (define pn #'cd.pred-name)
+     (unless (name->pred pn)
+       (raise-unknown-pred-error pn)))
+   (when (syntax-e #'cd.pred-block)
+     (block-check #'cd.pred-block))
+   (when (syntax-e #'cd.scope)
+     (scope-check #'cd.scope))
+   (when (syntax-e #'cd.bounds)
+     (bounds-check #'cd.bounds))
+   (void)])
+
+(define-parser exampledecl-check
+  [ee:$ExampleDecl
+   (define name #'ee.name)
+   (expr-check #'ee.pred)
+   (bounds-check #'ee.bounds)
+   (void)])
 
 (define-parser testblock-check
   [tb:$TestBlock
@@ -145,45 +175,54 @@
     ;; TODO hd name parameters pred-name pred-block scope bounds
     #;(when (syntax-e #'td.name)
       (printf "TD name ~s~n" #'td.name))
-    #;(when (attribute td.parameters)
-      (printf "TD params ~s~n" #'td.parameters))
+    (when (attribute td.parameters)
+      (params-check #'td.parameters))
     (when (syntax-e #'td.pred-name)
       (name-check #'td.pred-name))
     (when (syntax-e #'td.pred-block)
       (block-check #'td.pred-block))
     (scope-check #'td.scope)
     (bounds-check #'td.bounds)
-    (set-type this-syntax unknown-type)])
+    (set-type this-syntax the-unknown-type)])
+
+(define (params-check stx)
+  ;; TODO
+  (todo-not-implemented 'params-check)
+  (set-type stx the-unknown-type))
 
 (define (scope-check stx)
   ;; TODO
   (todo-not-implemented 'scope-check)
-  (set-type stx unknown-type))
+  (set-type stx the-unknown-type))
 
 (define (bounds-check stx)
   ;; TODO
   (todo-not-implemented 'bounds-check)
-  (set-type stx unknown-type))
+  (set-type stx the-unknown-type))
 
 (define-parser sexpr-check
   [ss:$Sexpr
     (todo-not-implemented 'sexpr-check)
-    (set-type this-syntax unknown-type)]
+    (set-type this-syntax the-unknown-type)]
   [_
-    (set-type this-syntax unknown-type)])
+    (set-type this-syntax the-unknown-type)])
 
 (define-parser expr-check
   [exp:$Expr
     (define ctx this-syntax)
     (define tt
       (syntax-parse (syntax/loc ctx (exp.body ...))
+       [(_:$NotOp e)
+        ;; set a parameter?
+        (void (expr-check #'e))
+        the-bool-type]
        [("let" decls:$LetDeclList bob:$BlockOrBar)
         (define decl-tys (letdecllist-check #'decls))
         (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
           (blockorbar-check #'bob))]
        [("bind" decls:$LetDeclList bob$BlockOrBar)
         (raise-form-error (datum->syntax ctx 'bind ctx))
-        unknown-type]
+        the-unknown-type]
        [(q:$Quant (~optional (~and "disj" disj) #:defaults ([disj #'#f]))
                   decls:$DeclList bob:$BlockOrBar)
         (define decl-tys
@@ -191,20 +230,21 @@
             (decllist-check #'decls)))
         (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
           (blockorbar-check #'bob))]
-       [(e1:$Expr (~optional (~and (~or "!" "not") negate) #:defaults ([negate #'#f]))
+       [(e1:$Expr (~optional negate:$NotOp)
                   (~or -op:$CompareOp -op:$BinaryOp)
                   e2:$Expr
                   (~optional (~seq "else" e3:$Expr) #:defaults ([e3 #'#f])))
-        (define e1-ty (expr-check #'e1))
-        (define e2-ty (expr-check #'e2))
+        (void (expr-check #'e1))
+        (void (expr-check #'e2))
+        (define neg? (and (attribute negate) #true))
         (cond
           [(syntax-e #'e3)
+           ;; TODO how?! what if negate true too?
            (void (expr-check #'e3))
            (ifelse-check #'e1 #'e2 #'e3 ctx)]
           [else
            (define op #'(~? -op.symbol -op))
            ;; TODO throw error up?
-           (define neg? (and (syntax-e #'negate) #t))
            (binop-check op #'e1 #'e2 ctx #:negate? neg?)])]
        [(e1:$Expr (~datum ".") e2:$Expr)
         (void (expr-check #'e1))
@@ -219,11 +259,11 @@
           (expr-check #'e1))]
        [(e1:$Expr "'")
         (todo-not-implemented (format "expr-check: ~s" ctx))
-        unknown-type]
+        the-unknown-type]
        [("[" _:$ExprList "]")
         ;; not implemented in normal forge, doesn't even parse apparently
         (raise-form-error (datum->syntax ctx "list expressions [ ... ]"))
-        unknown-type]
+        the-unknown-type]
        [(nm:$Name "[" ee:$ExprList "]")
         (define e* (syntax-e #'(ee.exprs ...)))
         (void (name-check #'nm.name))
@@ -255,11 +295,11 @@
         (sexpr-check #'sexpr)]
        [_
         (log-froglet-warning "expr-check: internal error parsing expr ~e" this-syntax)
-        unknown-type]))
+        the-unknown-type]))
     (set-type ctx tt)]
   [_
     (log-froglet-warning "expr-check: expected $Expr got ~e" this-syntax)
-    (set-type this-syntax unknown-type)])
+    (set-type this-syntax the-unknown-type)])
 
 (define (ifelse-check e1 e2 e3 ctx)
   (define e1-ty (get-type e1))
@@ -267,7 +307,7 @@
   (define e3-ty (get-type e3))
   ;; TODO
   (todo-not-implemented 'ifelse-check)
-  unknown-type)
+  the-unknown-type)
 
 (define (binop-check op e1 e2 ctx #:negate? [negate? #f])
   (define e1-ty (get-type e1))
@@ -296,12 +336,13 @@
     ;;  (raise-type-error
     ;;    (format "inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
     ;;    ctx))
-    bool-type]
+    the-bool-type]
    [_
     (log-froglet-warning "binop-check: (~e ~e ~e)" op e1-ty e2-ty)
-    bool-type]))
+    the-bool-type]))
 
-(define (unop-check op e1)
+(define (unop-check op e1 #:negate? [negate? #f])
+  ;; TODO use negate?
   (define e1-ty (get-type e1))
   (syntax-parse op
    [(~or "*" "^" "~")
@@ -310,16 +351,17 @@
     (todo-not-implemented (format "unop-check: (~e ~e)" op e1-ty))
     unknown-ty]))
 
-(define (app-check fn arg*)
+(define (app-check fn arg* #:negate? [negate? #f])
+  ;; TODO use negate?
   (define fn-ty (get-type fn))
   (define arg-ty* (map get-type arg*))
   (cond
     [(and (nametype? fn-ty)
           (eq? 'reachable (syntax-e (type-name fn-ty))))
      #;(printf "app-check ~s ~s~n ~n" fn-ty arg-ty*)
-     unknown-type]
+     the-unknown-type]
     [else
-     unknown-type]))
+     the-unknown-type]))
 
 (define-parser letdecllist-check
   [decls:$LetDeclList
@@ -373,7 +415,7 @@
           (->stx e2-ty))))
   #;(and (sigtype<=: e1-sigty e2-sigty)
        (sigtype-find-field e2-sigty e2-ty ctx))
-  unknown-type)
+  the-unknown-type)
 
 (define (atom->type sym ctx)
   (if (symbol? sym)
@@ -424,6 +466,20 @@
   (or (eq? t1 t2)
       (and (sigtype? t1) (sigtype? t2) (sigtype<: t1 t2) (sigtype<: t2 t1))))
 
+(define (type<: t0 t1)
+  (match* (t0 t1)
+   [(_ _)
+    #:when (eq? t0 t1)
+    #true]
+   [((nametype nm) (== the-bool-type eq?))
+    #:when (memq (syntax-e nm) '(true false))
+    #true]
+   [(_ (== the-bool-type eq?))
+    #false]
+   [(_ _)
+    (log-froglet-warning "inexhaustive match: ~s <: ~s" t0 t1)
+    #f]))
+
 (define (->sigty stx)
   (cond
     [(sigtype? stx)
@@ -450,10 +506,13 @@
     [else
       x]))
 
-(define (deparse stx)
+(define-parser deparse
   ;; TODO human-readable version of the BRAG output stx
-  (todo-not-implemented 'deparse)
-  stx)
+  [(_:ExprHd qn:$QualName)
+   (syntax-e #'qn.name)]
+  [_
+   (todo-not-implemented 'deparse)
+   this-syntax])
 
 (define (name-check stx)
   (set-type stx (name-lookup stx)))
@@ -465,7 +524,7 @@
              #;(void (printf "paramty ~s~n sig ~s~n" paramty (name->sig (type-name (paramtype-sig paramty)))))
              (name->sig (type-name (paramtype-sig paramty)))))
       #;(raise-type-error "no type for name" stx)
-      unknown-type))
+      the-unknown-type))
 
 (define (name->pred stx)
   (name-lookup stx predtype?))
@@ -542,17 +601,13 @@
   (for ([ft (in-list (predtype-param* predty))])
     (define nm (paramtype-sig ft))
     (unless (free-id-set-member? ids nm)
-      (raise-type-error
-        "unknown sig name"
-        nm))
+      (raise-unknown-sig-error nm))
     (void)))
 
 (define (unknown-sig-check/field fieldty ids)
   (for ((nm (in-list (fieldtype-sig fieldty))))
     (unless (free-id-set-member? ids nm)
-      (raise-type-error
-        "unknown sig name"
-        nm)))
+      (raise-unknown-sig-error nm)))
   (void))
 
 (define (env-elem? x)
@@ -576,48 +631,47 @@
 (define (env-collect/paragraph stx)
   (syntax-parse stx
    [sig:$SigDecl
-     (define mult (syntax-e #'(~? sig.mult #f)))
-     (define extends (syntax-e #'(~? sig.extends #f)))
-     (define field* (parse-arrow-decl* (syntax-e #'(sig.relation-decl* ...))))
-     (for/list ([name (in-list (syntax-e #'(sig.name* ...)))])
-       (sigtype name mult extends field*))]
+    (define mult (syntax-e #'(~? sig.mult #f)))
+    (define extends (syntax-e #'(~? sig.extends #f)))
+    (define field* (parse-arrow-decl* (syntax-e #'(sig.relation-decl* ...))))
+    (for/list ([name (in-list (syntax-e #'(sig.name* ...)))])
+      (sigtype name mult extends field*))]
    [pred:$PredDecl
-     (define param-ty* (param*->paramtype* (syntax-e #'(pred.decls ...))))
-     (list (predtype #'pred.name param-ty*))]
+    (define param-ty* (param*->paramtype* (syntax-e #'(pred.decls ...))))
+    (list (predtype #'pred.name param-ty*))]
    [fun:$FunDecl
-     (todo-not-implemented 'env-collect/paragraph:FunDecl)
-     '()]
+    (todo-not-implemented 'env-collect/paragraph:FunDecl)
+    '()]
    [assert:$AssertDecl
-     (todo-not-implemented 'env-collect/paragraph:AssertDecl)
-     '()]
+    (todo-not-implemented 'env-collect/paragraph:AssertDecl)
+    '()]
    [cmd:$CmdDecl
-     (todo-not-implemented 'env-collect/paragraph:CmdDecl)
-     '()]
+    (todo-not-implemented 'env-collect/paragraph:CmdDecl)
+    '()]
    [testexpect:$TestExpectDecl
-     '()]
+    '()]
    [sexpr:$SexprDecl
-     (todo-not-implemented 'env-collect/paragraph:SexprDecl)
-     '()]
+    (todo-not-implemented 'env-collect/paragraph:SexprDecl)
+    '()]
    [query:$QueryDecl
-     (todo-not-implemented 'env-collect/paragraph:QueryDecl)
-     '()]
+    (todo-not-implemented 'env-collect/paragraph:QueryDecl)
+    '()]
    [option:$OptionDecl
      '()]
    [inst:$InstDecl
-     (todo-not-implemented 'env-collect/paragraph:InstDecl)
-     '()]
+    (todo-not-implemented 'env-collect/paragraph:InstDecl)
+    '()]
    [example:$ExampleDecl
-     (todo-not-implemented 'env-collect/paragraph:ExampleDecl)
-     '()]
+    '()]
    [_
-     (log-froglet-warning "env-collect/paragraph: unknown syntax ~e" this-syntax)
-     '()]))
+    (log-froglet-warning "env-collect/paragraph: unknown syntax ~e" this-syntax)
+    '()]))
 
 (define (env-collect/import stx)
   (syntax-parse stx
    [ii:$Import
     (define env (file->froglet-env (syntax-e #'ii.file-path) stx))
-    (log-froglet-info "import env ~s~n" env)
+    (log-froglet-info "import env ~s" env)
     env]))
 
 (define (file->froglet-env fn ctx)

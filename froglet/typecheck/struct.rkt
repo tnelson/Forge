@@ -9,7 +9,8 @@
   (struct-out fieldtype)
   (struct-out paramtype)
 
-  (struct-out reltype))
+  (struct-out reltype)
+  type-kind)
 
 (require
   syntax/parse/define
@@ -31,4 +32,15 @@
 
 (struct/froglet reltype (col-type* singleton?))
 ;; reltype type (arity singleton?) ;; relation
+
+(define (type-kind tt)
+  (cond
+    [(nametype? tt) "name"]
+    [(consttype? tt) "constant"]
+    [(sigtype? tt) "sig"]
+    [(predtype? tt) "pred"]
+    [(fieldtype? tt) "field"]
+    [(paramtype? tt) "parameter"]
+    [(reltype? tt) "relation"]
+    [else "type"]))
 
