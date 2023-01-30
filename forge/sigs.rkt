@@ -536,6 +536,8 @@
     [(_ name:id pred bounds ...)
      (add-to-execs
        (syntax/loc stx (begin
+         (when (eq? 'temporal (get-option curr-state 'problem_type))
+           (raise-user-error (format "example ~a: Can't have examples when problem_type option is temporal" 'name)))
          (run name #:preds [pred] #:bounds [bounds ...])
          (define first-instance (tree:get-value (Run-result name)))
          (when (Unsat? first-instance)
