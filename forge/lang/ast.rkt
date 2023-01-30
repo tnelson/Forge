@@ -1197,6 +1197,8 @@
 
 (define (deparse-formula formula parent-priority)
   (match formula
+    [(? node/formula/sealed?)
+     (format "~a" formula)]
     [(node/formula/constant info type)
      (format "~a" type)]
     [(node/formula/op info args)
