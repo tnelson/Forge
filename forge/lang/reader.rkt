@@ -102,8 +102,8 @@
 
                   (module+ execs)
                   (module+ main
-                    (require (submod ".." execs))
-                    (log:flush-logs ',compile-time "no-error"))))
+                    (require (submod ".." execs)))
+                  (log:flush-logs ',compile-time "no-error")))
 
   (define module-datum `(module forge-mod forge/lang/expander
                           ,@final))

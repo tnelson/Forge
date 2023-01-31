@@ -16,5 +16,20 @@ From command line:
 7. raco pkg remove forge
 8. raco pkg install
 
-If running via waf (which is what the README in Pardinus suggests), be aware that 
-you'll need wget and opam.
+To build native libraries, you'll likely want to use waf, which is what the README in
+the Pardinus repo suggests. See that file for more general instructions on building 
+depdendencies. Be aware that you'll need 
+* wget
+* ocaml, and 
+* opam. 
+
+On MacOS, these are available via brew.
+
+MacOS libraries (dylib) can be built for x86_64, arm64 (M1), or universal. See:
+https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
+To determine which architectures a dylib is built for, use:
+lipo -archs <dylib file>
+Tim's Pardinus fork contains wscript files for building minisat and minisatp universal dylibs.
+https://github.com/tnelson/pardinus
+(as of Jan 2023, see feat-build-arm64 branch).
+

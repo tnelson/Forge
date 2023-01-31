@@ -290,7 +290,7 @@
       (format "Operator ~a is not allowed in froglet" (syntax-e op))
       op)]
    [_
-    (todo-not-implemented "unop-check: (~e ~e)" op e1-ty)
+    (todo-not-implemented (format "unop-check: (~e ~e)" op e1-ty))
     unknown-ty]))
 
 (define (app-check fn-ty arg-ty*)
