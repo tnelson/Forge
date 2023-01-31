@@ -31,13 +31,6 @@
 
 ;; -----------------------------------------------------------------------------
 
-(define (symbol->type sym)
-  (sigtype (datum->syntax #f sym) #f #f '()))
-
-(define the-int-type (symbol->type 'Int))
-(define the-bool-type (symbol->type 'Bool))
-(define the-unknown-type (symbol->type 'Unknown))
-
 (define (env-init)
   (list the-int-type the-bool-type the-unknown-type))
 
@@ -48,6 +41,30 @@
 ;;       symbol?          ;; quant
 ;;       (list symbol?    ;; quant
 ;;             boolean?)) ;; disj?
+
+(define forge:module 'module)
+(define forge:expr 'expr)
+(define forge:subexpr 'subexpr)
+(define forge:example 'example)
+
+(define current-forge-context (make-parameter forge:module))
+;; (listof (or/c 'module 'formula 'example 'expr))
+
+(define (context=? sym)
+  (define ctx (current-forge-context))
+  (and (pair? ctx) (eq? sym (car ctx))))
+
+(define (in-context? sym)
+  (memq sym (current-forge-context)))
+
+(define (context+ sym)
+  (define ctx (current-forge-context))
+  (if (and (pair? ctx) (eq? (car ctx) sym))
+    ctx
+    (cons sym ctx)))
+
+(define-syntax-rule (with-forge-context sym e0 e1* ...)
+  (parameterize ((current-forge-context (context+ sym))) e0 e1* ...))
 
 (define the-type# (make-hash))
 
@@ -75,11 +92,12 @@
   [mod:$AlloyModule
    (for ((par (in-list (syntax-e #'(mod.parag* ...)))))
      (parag-check par))
-   (for ((exp (in-list (syntax-e #'(mod.expr* ...)))))
-     (expr-check exp))
-   (void)]
+   (with-forge-context forge:expr
+     (for ((exp (in-list (syntax-e #'(mod.expr* ...)))))
+       (expr-check exp)))]
   [_
-   (void)])
+    (log-froglet-warning "mod-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define-parser parag-check
   [sig:$SigDecl
@@ -114,7 +132,8 @@
    (todo-not-implemented 'parag-check:InstDecl)
    (void)]
   [ed:$ExampleDecl
-   (exampledecl-check #'ed)]
+   (with-forge-context forge:example
+     (exampledecl-check #'ed))]
   [par
    (log-froglet-warning "parag-check: unknown stx ~a" (syntax->datum #'par))
    (void)])
@@ -128,11 +147,17 @@
           #:unless (type<: (get-type ee) the-bool-type))
      (raise-type-error (format "pred expected a formula, given a ~a" (type-kind tt))
                        (deparse ee)))
-   (void)])
+   (void)]
+  [_
+    (log-froglet-warning "preddecl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define-parser block->list
   [bb:$Block
-   (syntax-e #'(bb.exprs ...))])
+   (syntax-e #'(bb.exprs ...))]
+  [_
+    (log-froglet-warning "block->list unknown stx ~a" (syntax->datum this-syntax))
+    '()])
 
 (define (block-check stx)
   ;; TODO disallow (some father)
@@ -154,21 +179,31 @@
      (scope-check #'cd.scope))
    (when (syntax-e #'cd.bounds)
      (bounds-check #'cd.bounds))
-   (void)])
+   (void)]
+  [_
+    (log-froglet-warning "cmddecl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define-parser exampledecl-check
   [ee:$ExampleDecl
    (define name #'ee.name)
-   (expr-check #'ee.pred)
+   (with-forge-context 'expr
+     (expr-check #'ee.pred))
    (bounds-check #'ee.bounds)
-   (void)])
+   (void)]
+  [_
+    (log-froglet-warning "exampledecl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define-parser testblock-check
   [tb:$TestBlock
     (define ty
       (for/last ([tt (in-list (syntax-e #'(tb.test-decls ...)))])
         (testdecl-check tt)))
-    (set-type this-syntax ty)])
+    (set-type this-syntax ty)]
+  [_
+    (log-froglet-warning "exampledecl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define-parser testdecl-check
   [td:$TestDecl
@@ -183,7 +218,10 @@
       (block-check #'td.pred-block))
     (scope-check #'td.scope)
     (bounds-check #'td.bounds)
-    (set-type this-syntax the-unknown-type)])
+    (set-type this-syntax the-unknown-type)]
+  [_
+    (log-froglet-warning "exampledecl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define (params-check stx)
   ;; TODO
@@ -214,7 +252,8 @@
       (syntax-parse (syntax/loc ctx (exp.body ...))
        [(_:$NotOp e)
         ;; set a parameter?
-        (void (expr-check #'e))
+        (with-forge-context forge:subexpr
+          (expr-check #'e))
         the-bool-type]
        [("let" decls:$LetDeclList bob:$BlockOrBar)
         (define decl-tys (letdecllist-check #'decls))
@@ -229,34 +268,40 @@
           (parameterize ([current-quant (list (syntax-e #'q.symbol) (and (syntax-e #'disj) #t))])
             (decllist-check #'decls)))
         (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
-          (blockorbar-check #'bob))]
+          (blockorbar-check #'bob))
+        the-bool-type]
        [(e1:$Expr (~optional negate:$NotOp)
                   (~or -op:$CompareOp -op:$BinaryOp)
                   e2:$Expr
                   (~optional (~seq "else" e3:$Expr) #:defaults ([e3 #'#f])))
-        (void (expr-check #'e1))
-        (void (expr-check #'e2))
+        (with-forge-context forge:subexpr
+          (expr-check #'e1)
+          (expr-check #'e2))
         (define neg? (and (attribute negate) #true))
         (cond
           [(syntax-e #'e3)
            ;; TODO how?! what if negate true too?
-           (void (expr-check #'e3))
+           (with-forge-context forge:subexpr
+             (expr-check #'e3))
            (ifelse-check #'e1 #'e2 #'e3 ctx)]
           [else
            (define op #'(~? -op.symbol -op))
            ;; TODO throw error up?
            (binop-check op #'e1 #'e2 ctx #:negate? neg?)])]
        [(e1:$Expr (~datum ".") e2:$Expr)
-        (void (expr-check #'e1))
-        (void (expr-check #'e2))
-        (field-check #'e1 #'e2 ctx)]
+        (with-forge-context forge:subexpr
+          (expr-check #'e1)
+          (expr-check #'e2))
+        (join-check #'e1 #'e2 ctx)]
        [(op:$UnaryOp e1:$Expr)
-        (void (expr-check #'e1))
+        (with-forge-context forge:subexpr
+          (expr-check #'e1))
         (unop-check #'op #'e1)]
        [(qq:$QuantStr e1:$Expr)
-        ;; bg: 12/31 what does this mean?
-        (parameterize ([current-quant (string->symbol (syntax-e #'qq))])
-          (expr-check #'e1))]
+        (parameterize ([current-quant (string->symbol (syntax-e #'qq))]
+                       [current-forge-context (context+ forge:subexpr)])
+          (expr-check #'e1))
+        the-bool-type]
        [(e1:$Expr "'")
         (todo-not-implemented (format "expr-check: ~s" ctx))
         the-unknown-type]
@@ -267,12 +312,14 @@
        [(nm:$Name "[" ee:$ExprList "]")
         (define e* (syntax-e #'(ee.exprs ...)))
         (void (name-check #'nm.name))
-        (for-each expr-check e*)
+        (with-forge-context forge:subexpr
+          (for-each expr-check e*))
         (app-check #'nm e*)]
        [(ex1:$Expr "[" ee:$ExprList "]")
         (define e* (syntax-e #'(ee.exprs ...)))
-        (void (expr-check #'ex1))
-        (for-each expr-check e*)
+        (with-forge-context forge:subexpr
+          (expr-check #'ex1)
+          (for-each expr-check e*))
         (app-check #'ex1 e*)]
        [(cn:$Const)
         (consttype #'cn.translate)]
@@ -316,6 +363,7 @@
   ;; negate? may not matter for typing
   (syntax-parse op
    [ao:$ArrowOp
+    ;; TODO unless in example
     (raise-operator-error #'ao.arr)]
    [(~or "-" "&" "+")
     (raise-operator-error op)]
@@ -329,7 +377,7 @@
     ;;        #:when (and (nametype? t)
     ;;                    (id=? (type-name t) (type-name s))))
     ;;    (raise-type-error
-    ;;      "Expected an object"
+    ;;      "expected an object"
     ;;      (type-name t))))
     ;; TODO
     ;;(unless (type=? sig1 sig2)
@@ -365,22 +413,33 @@
 
 (define-parser letdecllist-check
   [decls:$LetDeclList
-   (decl*-check (syntax-e #'(decls.decls ...)) 'one)])
+   (decl*-check (syntax-e #'(decls.decls ...)) 'one)]
+  [_
+    (log-froglet-warning "letdecllist-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define-parser decllist-check
   [decls:$DeclList
-   (decl*-check (syntax-e #'(decls.decls ...)) (current-quant))])
+   (decl*-check (syntax-e #'(decls.decls ...)) (current-quant))]
+  [_
+    (log-froglet-warning "decllist-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define-parser decl-check
   [decl:$Decl
-   (decl*-check (syntax-e #'(decl.decls ...)) (current-quant))])
+    (decl*-check (syntax-e #'(decl.decls ...)) (current-quant))]
+  [_
+    (log-froglet-warning "decl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
 (define (decl*-check name+expr* mult)
   (for/list ([ne-stx (in-list name+expr*)])
     (define ne (syntax-e ne-stx))
     (define name (car ne))
     (define expr (cadr ne))
-    (define expr-ty (expr-check expr))
+    (define expr-ty
+      (with-forge-context forge:expr
+        (expr-check expr)))
     (define tt (paramtype name mult expr-ty))
     (set-type ne-stx tt)))
 
@@ -390,32 +449,26 @@
     [bb:$Block
       (set-type this-syntax (block-check #'bb))]
     [ee:$Expr
-      (set-type this-syntax (expr-check #'ee))])])
+      (define ty (with-forge-context forge:expr (expr-check #'ee)))
+      (set-type this-syntax ty)])]
+  [_
+    (log-froglet-warning "blockorbar-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
 
-(define (field-check e1 e2 ctx)
+(define (join-check e1 e2 ctx)
   (define e1-ty (get-type e1))
   (define e2-ty (get-type e2))
-  ;; TODO better srclocs ... inputs should be stx, not types .. fails at first composition
-  (define e1-sigty
-    (or (->sigty e1-ty)
-        (raise-type-error
-          "expected a sig"
-          (->stx e1-ty))))
-  ;; TODO enable
-  ;; (define is-param? (->paramty e1-ty))
-  ;; (unless is-param?
-  ;;   (unless (eq? (sigtype-mult e1-sigty) '#:one)
-  ;;     (raise-type-error
-  ;;       "expected a singleton sig"
-  ;;       ctx #;(->stx e1-sigty))))
-  #;(define e2-sigty
-    (or (field->sigty e2-ty)
-        (raise-type-error
-          "expected a field"
-          (->stx e2-ty))))
-  #;(and (sigtype<=: e1-sigty e2-sigty)
-       (sigtype-find-field e2-sigty e2-ty ctx))
-  the-unknown-type)
+  (define e1-sigty (->sigty e1-ty))
+  (when (->paramty e1-ty)
+    (unless (eq? (sigtype-mult e1-sigty) '#:one)
+      (raise-type-error
+        "expected a singleton sig"
+        ctx)))
+  (define e2-sigty (field->sigty e2-ty))
+;;  (printf "JOIN ~s : ~s ... ~s : ~s~n" e1 e1-ty e2 e2-ty)
+;;  (printf " sigty ~s ~s~n" e1-sigty e2-sigty)
+  (and (sigtype<=: e1-sigty e2-sigty)
+       (sigtype-find-field e2-sigty e2-ty ctx)))
 
 (define (atom->type sym ctx)
   (if (symbol? sym)
@@ -456,6 +509,8 @@
 
 (define (sigtype<=: s0 s1)
   (or (eq? s0 s1)
+      (unknown-type? s0)
+      (unknown-type? s1)
       (sigtype<: s0 s1)))
 
 (define (sigtype<: s0 s1)
@@ -464,6 +519,8 @@
 
 (define (type=? t1 t2)
   (or (eq? t1 t2)
+      (unknown-type? t1)
+      (unknown-type? t2)
       (and (sigtype? t1) (sigtype? t2) (sigtype<: t1 t2) (sigtype<: t2 t1))))
 
 (define (type<: t0 t1)
@@ -471,6 +528,10 @@
    [(_ _)
     #:when (eq? t0 t1)
     #true]
+   ;; [((== the-unknown-type) _)
+   ;;  #true]
+   ;; [(_ (== the-unknown-type))
+   ;;  #true]
    [((nametype nm) (== the-bool-type eq?))
     #:when (memq (syntax-e nm) '(true false))
     #true]
@@ -506,12 +567,20 @@
     [else
       x]))
 
-(define-parser deparse
+(define (deparse stx)
+  (datum->syntax stx (deparse2 stx) stx))
+
+(define-parser deparse2
   ;; TODO human-readable version of the BRAG output stx
   [(_:ExprHd qn:$QualName)
    (syntax-e #'qn.name)]
+  [(_:ExprHd q:$QuantStr body)
+   (cons (string->symbol (syntax-e #'q))
+         (deparse2 #'body))]
+  [(_:ExprHd a "." b)
+   (list (deparse2 #'a) "." (deparse2 #'b))]
   [_
-   (todo-not-implemented 'deparse)
+   (todo-not-implemented (format "deparse: ~s" (syntax->datum this-syntax)))
    this-syntax])
 
 (define (name-check stx)
@@ -589,6 +658,8 @@
        (unknown-sig-check/sig vv ids)]
       [(predtype? vv)
        (unknown-sig-check/pred vv ids)]
+      [(unknown-type? vv)
+       (void)]
       [else
         (log-froglet-warning "env-fold: unexpected arg ~e" vv)
         (void)])))
