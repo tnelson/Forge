@@ -45,6 +45,7 @@
 
   $QuantStr
   $DotStr
+  $NotOp
 
   ExprHd
   )
@@ -117,15 +118,16 @@
                              (raise "Can't eval multiple expressions.")))))))
 
 (define-syntax-class $Import
-  #:attributes (hd as-name)
+  #:attributes (hd file-path as-name)
   #:commit
-  (pattern ((~and hd (~literal Import))
-            import-name:$QualName
-            (~optional (~seq "[" other-names:$QualNameList "]"))
-            (~optional (~seq "as" as-name:$Name))))
+  ;(pattern ((~and hd (~literal Import))
+  ;          import-name:$QualName
+  ;          (~optional (~seq "[" other-names:$QualNameList "]"))
+  ;          (~optional (~seq "as" as-name:$Name)))
+  ;  #:with file-path #'#f)
   (pattern ((~and hd (~literal Import))
             file-path:str
-            (~optional (~seq "as" as-name:$Name)))))
+            (~optional (~seq "as" as-name:$Name) #:defaults ([as-name #'#f])))))
 
 (define-syntax-class $ModuleDecl
   #:attributes (hd module-name other-name*)
@@ -391,8 +393,8 @@
             (~optional parameters:$Parameters)
             (~optional (~or pred-name:$QualName
                             pred-block:$Block))
-            (~optional scope:$Scope)
-            (~optional bounds:$Bounds))
+            (~optional scope:$Scope #:defaults ([scope #'()]))
+            (~optional bounds:$Bounds #:defaults ([bounds #'()])))
     #:attr name #'(~? pre-name.name #f)))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
@@ -432,9 +434,10 @@
   #:attributes (hd name pred bounds)
   #:commit
   (pattern ((~and hd (~literal ExampleDecl))
-            (~optional name:$Name)
+            (~optional pre-name:$Name)
             pred:$Expr
-            bounds:$Bounds)))
+            bounds:$Bounds)
+    #:attr name #'(~? pre-name.name #f)))
 
 ; Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)? 
 ;       | /FOR-TOK @TypescopeList
@@ -642,4 +645,7 @@
   (pattern ((~and hd (~literal ExprList))
             exprs:$Expr ...)))
 
+(define-syntax-class $NotOp
+  (pattern "!")
+  (pattern "not"))
 

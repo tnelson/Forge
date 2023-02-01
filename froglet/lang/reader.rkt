@@ -3,7 +3,7 @@
 (provide read-syntax)
 
 (require
-  (only-in froglet/util lang-name)
+  (only-in froglet/util lang-name type-env-name)
   (only-in froglet/typecheck/main typecheck)
   (only-in forge/lang/reader coerce-ints-to-atoms)
   (only-in forge/lang/alloy-syntax/main parse make-tokenizer)
@@ -17,9 +17,9 @@
     (log:register-run compile-time project lang-name email path))
   (define alloymod
     (let* ((mod (parse path (make-tokenizer port)))
-           (mod (coerce-ints-to-atoms mod))
-           (mod (typecheck mod)))
+           (mod (coerce-ints-to-atoms mod)))
       mod))
+  (define type-env (typecheck alloymod))
   (define module-datum
     `(module forge-mod forge/lang/expander
        (provide (except-out (all-defined-out) ; So other programs can require it
@@ -42,6 +42,8 @@
        (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
        ;; Override default exception handler
 
+       (require (only-in racket/base define-values))
+       (define-values (,type-env-name) ',type-env)
        ,alloymod
 
        (module+ execs)
