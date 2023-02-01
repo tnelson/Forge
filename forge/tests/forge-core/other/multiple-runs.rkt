@@ -5,11 +5,11 @@
 ; to actually confirm they are producing appropriate instances and new instances.
 
 (require (only-in rackunit check-eq? check-not-eq?))
-(set-option! 'verbose 0)
+;(set-option! 'verbose 0)
+(set-option! 'verbose 5)
 
 (sig A)
 (sig B)
-;(relation r (A B))
 
 (run sat-run-A
      #:preds [(some A) (no B)])

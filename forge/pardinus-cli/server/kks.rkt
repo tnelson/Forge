@@ -10,7 +10,7 @@
          declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product]))
 (provide assert e f i a define-const)
 (provide read-evaluation)
-(provide clear)
+(provide clear close)
 
 (require "server.rkt"
          "server-common.rkt")
@@ -82,8 +82,13 @@
 (define (solve [solve-type ""])
   (print-cmd (format "(solve ~a)" solve-type))
   (print-eof))
+
 (define (clear)
   (print-cmd "(clear)")
+  (print-eof))
+
+(define (close run-name)
+  (print-cmd (format "(close ~a)" run-name))
   (print-eof))
 
 ;; Declarations and definitions

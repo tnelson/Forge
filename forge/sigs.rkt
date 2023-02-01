@@ -693,7 +693,8 @@
                          [preds new-preds]
                          [target new-target]
                          [state new-state]))
-          (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds) (send-to-kodkod contrast-run-spec))
+          (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds)
+                         (send-to-kodkod contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
                          [name (string->symbol (format "~a-contrast" (Run-name run)))]
