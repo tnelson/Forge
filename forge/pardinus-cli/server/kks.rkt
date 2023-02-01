@@ -75,12 +75,15 @@
 (define (configure . kvs)
   (print-cmd "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs)))
 
-(define (assert val)      (print-cmd "(assert ~a)" val))
-(define (evaluate val)    (print-cmd "(evaluate ~a)" val))
+(define (assert val)      
+  (print-cmd "(assert ~a)" val))
+(define (evaluate run-name val)    
+  (print-cmd "(evaluate ~a ~a)" run-name val))
 
 ; The solve-type parameter communicates an exploration mode for the next iteration to Pardinus
-(define (solve [solve-type ""])
-  (print-cmd (format "(solve ~a)" solve-type))
+; The run-name parameter uniquely identifies the run to the engine
+(define (solve run-name [solve-type ""])
+  (print-cmd (format "(solve ~a ~a)" solve-type run-name))
   (print-eof))
 
 (define (clear)

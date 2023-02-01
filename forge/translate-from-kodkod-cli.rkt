@@ -64,11 +64,15 @@ So, the proper name of atom 0 is the value of (list-ref univ 0).
 relation-names is the same, a list of all relation names ordered as they are in the model.
 This function just recreates the model, but using names instead of numbers.
 |#
-(define (translate-from-kodkod-cli runtype model relations inty-univ) 
+(define (translate-from-kodkod-cli runtype model relations inty-univ)   
+  ; (flag run-name data stats)
   (define flag (car model))  
-  (define data (car (cdr model)))
-  (define stats (car (cdr (cdr model))))  
+  (define run-name (car (cdr model)))
+  (define data (car (cdr (cdr model))))  
+  (define stats (car (cdr (car (cdr (cdr model))))))
 
+  ; TODO: add run-name to struct for error checking / context 
+  
   (cond [(and (equal? 'unsat flag) (equal? runtype 'run) data)
          (Unsat data stats 'unsat)]
         [(and (equal? 'unsat flag) (equal? runtype 'run) (not data))

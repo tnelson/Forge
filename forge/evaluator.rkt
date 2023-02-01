@@ -45,7 +45,7 @@
     (pardinus:print-cmd-cont "(~a " expr-name)
     (interpretter run expression all-rels atom-names '())
     (pardinus:print-cmd ")")
-    (pardinus:print-cmd "(evaluate ~a)" expr-name)
+    (pardinus:print-cmd "(evaluate ~a ~a)" (Run-name run) expr-name)
     (pardinus:print-eof))
 
   (define run-atoms (Run-atoms run))

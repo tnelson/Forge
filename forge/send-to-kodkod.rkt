@@ -5,8 +5,7 @@
 (require "lang/ast.rkt")
 (require "lang/bounds.rkt")
 (require "shared.rkt"
-         (prefix-in tree: "lazy-tree.rkt")
-         (only-in "server/eval-model.rkt" ->string)
+         (prefix-in tree: "lazy-tree.rkt")         
          "last-checker.rkt"
          "choose-lang-specific.rkt"
          "translate-to-kodkod-cli.rkt"
@@ -133,7 +132,7 @@
       [(and (unbox server-state) ((Server-ports-is-running? (unbox server-state))))
        (define sstate (unbox server-state))
        (when (@> (get-verbosity) VERBOSITY_LOW)
-        (printf "Pardinus solver process already running. Starting new run with id ~a.~n" (->string run-name)))
+        (printf "Pardinus solver process already running. Starting new run with id ~a.~n" run-name))
        (values (Server-ports-stdin sstate) (Server-ports-stdout sstate) 
                (Server-ports-stderr sstate) (Server-ports-shutdown sstate)
                (Server-ports-is-running? sstate))]
@@ -174,7 +173,7 @@
   (define bitwidth (get-bitwidth run-spec)) 
   (pardinus-print
     (pardinus:configure (format ":name ~a :bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
-                               (->string run-name)
+                               run-name
                                bitwidth 
                                solverspec
                                (get-option run-spec 'engine_verbosity) ; see the Wiki for levels
@@ -314,7 +313,7 @@
   (define (get-next-model [mode ""])
     (unless (is-running?)
       (raise-user-error "KodKod server is not running."))
-    (pardinus-print (pardinus:solve mode))
+    (pardinus-print (pardinus:solve run-name mode))
     (define result (translate-from-kodkod-cli
                     'run 
                     (pardinus:read-solution stdout stderr) 
