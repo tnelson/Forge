@@ -171,9 +171,9 @@
   ; Print configure and declare univ size
   ; Note that target mode is passed separately, nearer to the (solve) invocation
   (define bitwidth (get-bitwidth run-spec)) 
+  (pardinus-print (pardinus:print-cmd (format "(with ~a" run-name)))
   (pardinus-print
-    (pardinus:configure (format ":name ~a :bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"
-                               run-name
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"                               
                                bitwidth 
                                solverspec
                                (get-option run-spec 'engine_verbosity) ; see the Wiki for levels
@@ -298,6 +298,12 @@
                              (Target-distance target)
                              (get-option run-spec 'target_mode)))))
 
+  ; Close the "with" scope.
+  (pardinus-print (pardinus:print-cmd ")"))
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; DO NOT ADD MORE MESSAGES TO PARDINUS AFTER THIS POINT
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
   (define (format-statistics stats)
     (let* ([vars (assoc 'size-variables stats)]
            [prim (assoc 'size-primary stats)]
@@ -357,13 +363,6 @@
     (when (@>= (get-verbosity) VERBOSITY_LOW)
       (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
     result)
-
-  ;(define (model-stream [prev #f])
-  ;  (if (and prev
-  ;           (Unsat? prev))
-  ;      (letrec ([rest (stream-cons (prev) rest)])
-  ;        rest)
-  ;      (stream-cons (get-next-model) (model-stream))))
 
   (define (next-button type)
     (tree:make-node (get-next-model type) next-button))

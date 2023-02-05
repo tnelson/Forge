@@ -6,11 +6,11 @@
 
 (require "../../shared.rkt")
 
-(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ
+(provide configure declare-ints print-cmd print-cmd-cont print-eoi cmd declare-univ
          declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product]))
 (provide assert e f i a define-const)
 (provide read-evaluation)
-(provide clear close)
+(provide close)
 
 (require "server.rkt"
          "server-common.rkt")
@@ -68,7 +68,7 @@
 (define-syntax-rule (print-cmd-cont arg ...)
     (pardinus-display (format arg ...)))
 
-(define (print-eof)
+(define (print-eoi)
   (pardinus-display #\uFFFF))
 
 ; Commands
@@ -77,22 +77,16 @@
 
 (define (assert val)      
   (print-cmd "(assert ~a)" val))
-(define (evaluate run-name val)    
-  (print-cmd "(evaluate ~a ~a)" run-name val))
 
 ; The solve-type parameter communicates an exploration mode for the next iteration to Pardinus
 ; The run-name parameter uniquely identifies the run to the engine
 (define (solve run-name [solve-type ""])
-  (print-cmd (format "(solve ~a ~a)" solve-type run-name))
-  (print-eof))
-
-(define (clear)
-  (print-cmd "(clear)")
-  (print-eof))
+  (print-cmd (format "(with ~a (solve ~a))" run-name solve-type))
+  (print-eoi))
 
 (define (close run-name)
   (print-cmd (format "(close ~a)" run-name))
-  (print-eof))
+  (print-eoi))
 
 ;; Declarations and definitions
 (define (define-const id val) (print-cmd "(~a ~a)" id val))

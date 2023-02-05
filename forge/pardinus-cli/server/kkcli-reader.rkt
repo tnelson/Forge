@@ -22,7 +22,7 @@
 
                              src-datums0
 
-                             '((cmd [stdin] (print-eof))
+                             '((cmd [stdin] (print-eoi))
                                (write (read-solution stdout)))))
   ;(writeln src-datums)
 

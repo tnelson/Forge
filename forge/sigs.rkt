@@ -604,22 +604,6 @@
     (set! model-lazy-tree (tree:get-child model-lazy-tree mode))
     ret))
 
-; ; make-model-evaluator :: Run -> (String -> ???)
-; ; Creates an evaluator function for a given Run. 
-; ; Executes on the most recently generated instance.
-; (define (make-model-evaluator run)
-;   (lambda (command)
-;     (define name (substring command 1 3))
-;     (cmd [(stdin)] 
-;       (print-cmd command)
-;       (print-cmd "(evaluate ~a)" name)
-;       (print-eof))
-;     (define result (read (stdout)))
-;     result))
-;     ; (define u (read (open-input-string command)))
-;     ; (println u)
-;     ; u))
-
 (provide (prefix-out forge: nsa))
 (define nsa (make-parameter #f))
 ; display :: Run -> void
