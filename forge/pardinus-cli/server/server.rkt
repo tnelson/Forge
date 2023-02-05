@@ -34,7 +34,7 @@
                                      [(equal? solver-subtype 'default) ""]
                                      [else (error (format "Bad solver subtype: ~a" solver-subtype))]))
     
-    (when (> (get-verbosity) VERBOSITY_HIGH)        
+    (when (>= (get-verbosity) VERBOSITY_HIGH)        
       (printf "  Subprocess invocation information: ~a~n"
               (list java "-cp" cp "kodkod.cli.KodkodServer" (format "-~a" solver-type) solver-subtype-str "-error-out" error-out)))
 

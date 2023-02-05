@@ -65,11 +65,11 @@ relation-names is the same, a list of all relation names ordered as they are in 
 This function just recreates the model, but using names instead of numbers.
 |#
 (define (translate-from-kodkod-cli runtype model relations inty-univ)   
-  ; (flag run-name data stats)
-  (define flag (car model))  
-  (define run-name (car (cdr model)))
-  (define data (car (cdr (cdr model))))  
-  (define stats (car (cdr (car (cdr (cdr model))))))
+  ; (flag run-name data stats)  
+  (define flag (car model))                               ; first 
+  (define run-name (car (cdr model)))                     ; second
+  (define data (car (cdr (cdr model))))                   ; third
+  (define stats (car (cdr (cdr (cdr model)))))            ; fourth
 
   ; TODO: add run-name to struct for error checking / context 
   

@@ -6,7 +6,6 @@
 
 (require (only-in rackunit check-eq? check-not-eq?))
 ;(set-option! 'verbose 0)
-(set-option! 'verbose 5)
 
 (sig A)
 (sig B)
@@ -23,24 +22,55 @@
 (define sat-B-gen (forge:make-model-generator (forge:get-result sat-run-B) 'next))
 (define unsat-gen (forge:make-model-generator (forge:get-result unsat-run) 'next))
 
+; Get two instances; sat/unsat as expected
 (define a1 (sat-A-gen))
 (define b1 (sat-B-gen))
 (check-eq? (Sat? a1) #t)
 (check-eq? (Sat? b1) #t)
 (check-eq? (Unsat? (unsat-gen)) #t)
+
+; The first instance for each run has the appropriate number of A/B atoms
 (check-eq? (length (hash-ref (first (Sat-instances a1)) 'B))
            0)
 (check-eq? (length (hash-ref (first (Sat-instances b1)) 'A))
            0)
+
+; get another two instances; sat/unsat as expected
 (define a2 (sat-A-gen))
 (define b2 (sat-B-gen))
 (check-eq? (Sat? a2) #t)
 (check-eq? (Sat? b2) #t)
 (check-eq? (Unsat? (unsat-gen)) #t)
+
+; The second instance for each run has the appropriate number of A/B atoms
 (check-eq? (length (hash-ref (first (Sat-instances a2)) 'B))
            0)
 (check-eq? (length (hash-ref (first (Sat-instances b2)) 'A))
            0)
+; The first and second instances for each run are different (a1 != a2 etc.)
 (check-not-eq? (first (Sat-instances a1)) (first (Sat-instances a2)))
 (check-not-eq? (first (Sat-instances b1)) (first (Sat-instances b2)))
+
+; Evaluation works and provides appropriate answers per run
+(check-eq? (length (evaluate sat-run-A 'unused A))
+           2)
+(check-eq? (length (evaluate sat-run-A 'unused B))
+           0)
+(check-eq? (length (evaluate sat-run-B 'unused A))
+           0)
+(check-eq? (length (evaluate sat-run-B 'unused B))
+           2)
+
+
+; Check that we can close a run
+(forge:close-run sat-run-A)
+; and still get (new) results from other runs
+(define b3 (sat-B-gen))
+(check-eq? (Sat? b3) #t)
+(check-not-eq? (first (Sat-instances b3)) (first (Sat-instances b2)))
+(check-not-eq? (first (Sat-instances b3)) (first (Sat-instances b1)))
+
+;; TODO: test (Forge side) on temporal, also
+
+;; TODO ***** separate environments per problem? double check
 

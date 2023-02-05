@@ -300,6 +300,7 @@
 
   ; Close the "with" scope.
   (pardinus-print (pardinus:print-cmd ")"))
+  (pardinus-print (pardinus:print-eoi))
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; DO NOT ADD MORE MESSAGES TO PARDINUS AFTER THIS POINT
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -325,7 +326,6 @@
                     (pardinus:read-solution stdout stderr) 
                     all-rels 
                     all-atoms))
-
     
     ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
     (define (do-core-highlight nd)

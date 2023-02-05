@@ -173,35 +173,41 @@
 (define (read-solution port err-port)
   (define result (read port))
   (when (> (get-verbosity) VERBOSITY_LOW)
-    (writeln result)) 
+    (writeln result))  
   (match result
     ;; A message that was put in the buffer for debugging/info. Ignore it.
     ;; (It will be printed above if verbosity is > low.)
+    ;; Continue looking for a real solution.
     [(list (== 'info ) _ ...)
      (read-solution port err-port)]
-    ;; SAT results. Engine MUST provide statistics and metadata elements
+    
+    ;; SAT results. Engine MUST provide statistics, run name, and metadata elements
     ; expect a list of instances now (which may be singleton)
     [(list (== 'sat)
+           (== ':name) solver-run-name
            (== ':model) (list (list (list rid val) ...) ...)
            (== ':stats) (list stat ...)
            (== ':metadata) (list md ...))
      (define data (for/list ([rs rid][tupless val])     ; create a list
                     (for/hash ([r rs] [tuples tupless]) ; of hashes
                       (values r tuples))))     
-     (list 'sat data stat md)]     ; of rel->tuple-list entries
+     (list 'sat solver-run-name data stat md)]     ; of rel->tuple-list entries
     
     ;; UNSAT results with and without core
     [(list (== 'unsat)
+           (== ':name) solver-run-name
            (== ':core) (list sid ...)
            (== ':stats) (list stat ...))
-     (list 'unsat sid stat)]
+     (list 'unsat solver-run-name sid stat)]
     [(list (== 'unsat)
+           (== ':name) solver-run-name
            (== ':stats) (list stat ...))
-     (list 'unsat #f stat)]
+     (list 'unsat solver-run-name #f stat)]
 
     ;; end of instance stream (empty data and empty statistics list)
-    [(list (== 'no-more-instances))
-     (list 'no-more-instances #f '())]
+    [(list (== 'no-more-instances)
+           (== ':name) solver-run-name)
+     (list 'no-more-instances solver-run-name #f '())]
     [(== eof)
      (port-echo err-port (current-error-port) #:title server-name)
      (error (format "~a CLI shut down unexpectedly while running!" server-name))]
