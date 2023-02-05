@@ -14,7 +14,7 @@
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
 (require (prefix-in tree: "lazy-tree.rkt"))
 (require syntax/srcloc)
-(require (prefix-in pardinus: (only-in "pardinus-cli/server/kks.rkt" clear)))
+(require (prefix-in pardinus: (only-in "pardinus-cli/server/kks.rkt" clear cmd)))
 
 (provide (all-defined-out))
 
@@ -507,10 +507,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; close-run :: Run -> void
 (define (close-run run)
   (assert-is-running run)
-  (when (@> (get-verbosity) VERBOSITY_HIGH)
+  (when (@>= (get-verbosity) VERBOSITY_HIGH)
         (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))  
   ; Since we're using a single process now, send it instructions to clear this run
-  (pardinus:clear (Run-name run)))
+  (pardinus:cmd 
+      [(get-stdin run)]
+      
+      (pardinus:clear (Run-name run))))
 
 ; is-running :: Run -> Boolean
 (define (is-running? run)
