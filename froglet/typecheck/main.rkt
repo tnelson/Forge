@@ -405,7 +405,7 @@
     (raise-operator-error op)]
    [_
     (todo-not-implemented (format "unop-check: (~e ~e)" op e1-ty))
-    unknown-ty]))
+    the-unknown-type]))
 
 (define (app-check fn arg* #:negate? [negate? #f])
   ;; TODO use negate?
