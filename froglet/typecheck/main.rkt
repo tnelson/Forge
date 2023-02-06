@@ -68,13 +68,13 @@
 
 (define the-type# (make-hash))
 
-(define (set-type stx tt)
-  (void (hash-set! the-type# stx tt))
-  tt)
-
 (define (get-type stx)
   (hash-ref the-type# stx
             (lambda () (log-froglet-warning "get-type not found ~e" stx) the-unknown-type)))
+
+(define (set-type stx tt)
+  (void (hash-set! the-type# stx tt))
+  tt)
 
 (define (typecheck mod)
   (define-values [env0 import*] (env-collect mod))
@@ -292,7 +292,8 @@
         (with-forge-context forge:subexpr
           (expr-check #'e1)
           (expr-check #'e2))
-        (join-check #'e1 #'e2 ctx)]
+        the-unknown-type
+        #;(join-check #'e1 #'e2 ctx)]
        [(op:$UnaryOp e1:$Expr)
         (with-forge-context forge:subexpr
           (expr-check #'e1))
@@ -397,7 +398,7 @@
     (raise-operator-error op)]
    [_
     (todo-not-implemented (format "unop-check: (~e ~e)" op e1-ty))
-    unknown-ty]))
+    the-unknown-type]))
 
 (define (app-check fn arg* #:negate? [negate? #f])
   ;; TODO use negate?
@@ -528,10 +529,10 @@
    [(_ _)
     #:when (eq? t0 t1)
     #true]
-   ;; [((== the-unknown-type) _)
-   ;;  #true]
-   ;; [(_ (== the-unknown-type))
-   ;;  #true]
+   [((== the-unknown-type) _)
+    #true]
+   [(_ (== the-unknown-type))
+    #true]
    [((nametype nm) (== the-bool-type eq?))
     #:when (memq (syntax-e nm) '(true false))
     #true]
