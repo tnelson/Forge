@@ -803,14 +803,14 @@
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
-  [((~literal ExampleDecl) (~optional name:NameClass)
-                           pred:ExprClass
-                           bounds:BoundsClass)
-   (quasisyntax/loc stx
-     (example (~? name.name unnamed-example)
-       pred
+    [((~literal ExampleDecl) (~optional name:NameClass)
+                             pred:ExprClass
+                             bounds:BoundsClass)
+     (quasisyntax/loc stx
        (syntax-parameterize ([current-forge-context 'example])
-         (begin #,@(syntax/loc stx bounds.translate)))))]))
+         (example (~? name.name #,(make-temporary-name stx))
+                  pred       
+                  #,@(syntax/loc stx bounds.translate))))]))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
