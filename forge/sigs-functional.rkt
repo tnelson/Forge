@@ -10,9 +10,11 @@
 (require racket/contract)
 (require racket/match)
 (require (prefix-in @ (only-in racket and or max min - not display < > set))
-         (only-in racket thunk first nonnegative-integer? range rest empty 
-                         list->set set->list set-union set-intersect subset?))
-        
+         (only-in racket/function thunk)
+         (only-in racket/math nonnegative-integer?)
+         (only-in racket/list first range rest empty flatten)
+         (only-in racket/set list->set set->list set-union set-intersect subset?))
+
 (require (except-in "lang/ast.rkt" ->)
          (rename-in "lang/ast.rkt" [-> ast:->]) ; don't clash with define/contract
          (only-in "sigs-structs.rkt" implies iff <=> ifte >= <= ni != !in !ni)
@@ -506,7 +508,7 @@
   (define/contract wrapped-bounds-inst Inst?
     (if (Inst? bounds-input)
         bounds-input
-        (make-inst bounds-input)))
+        (make-inst (flatten bounds-input))))
 
   (define-values (scope bounds) 
     ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds))
