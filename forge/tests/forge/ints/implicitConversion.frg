@@ -21,11 +21,11 @@ test expect {
     intToExpr2: {max[1] = 1 iff 
                  max[sing[1]] = 1 } is theorem
     -- node/int needing node/int->node/expr child conversion
-    --intToExpr3: {sum[1] = 1 iff 
-    --             sum[sing[1]] = 1} is theorem
+    intToExpr3: {sum[1] = 1 iff 
+                 sum[sing[1]] = 1} is theorem
     -- ite (has its own macro)
-    --intToExpr4: {Test.num = {(some r) => -1 else 0} iff 
-    --             Test.num = {(some r) => sing[-1] else sing[0]}} is theorem
+    intToExpr4: {Test.num = {(some r) => -1 else 0} iff 
+                 Test.num = {(some r) => sing[-1] else sing[0]}} is theorem
 
     -- node/int needing node/expr->node/int child conversion    
     --exprToInt1: {add[Test.num, 1] > 0 iff 
