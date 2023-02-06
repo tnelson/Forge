@@ -15,6 +15,8 @@ one sig Test {
 -- DISABLE TEMPORARY (TN)
 -- no intToExpr individually caused
 -- adding exprToInt1/2 caused
+-- recommenting exprToInt2 does not cause
+--    so: either rel to exprToInt2, or to accumulation up to that point
 test expect {    
     -- node/formula needing node/int->node/expr child conversion
     intToExpr1: {Test.num = max[Test.r[A]] iff 
@@ -30,10 +32,10 @@ test expect {
                  Test.num = {(some r) => sing[-1] else sing[0]}} is theorem
 
     -- node/int needing node/expr->node/int child conversion    
-    exprToInt1: {add[Test.num, 1] > 0 iff 
-                 add[sing[Test.num], 1] > 0} is theorem
+    --exprToInt1: {add[Test.num, 1] > 0 iff 
+    --             add[sing[Test.num], 1] > 0} is theorem
     -- node/expr needing node/expr->node/int child conversion
-    --exprToInt2: {sing[Test.num] = Test.num } is theorem
+    exprToInt2: {sing[Test.num] = Test.num } is theorem
     -- sum aggregator (sum in "quantifier form") has its own macro
     --exprToInt3: {(sum a: A | Test.r[a]) = (sum a: A | sum[Test.r[a]]) } is theorem
 }
