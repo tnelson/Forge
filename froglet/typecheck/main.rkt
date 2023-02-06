@@ -292,7 +292,8 @@
         (with-forge-context forge:subexpr
           (expr-check #'e1)
           (expr-check #'e2))
-        (join-check #'e1 #'e2 ctx)]
+        the-unknown-type
+        #;(join-check #'e1 #'e2 ctx)]
        [(op:$UnaryOp e1:$Expr)
         (with-forge-context forge:subexpr
           (expr-check #'e1))
@@ -528,10 +529,10 @@
    [(_ _)
     #:when (eq? t0 t1)
     #true]
-   ;; [((== the-unknown-type) _)
-   ;;  #true]
-   ;; [(_ (== the-unknown-type))
-   ;;  #true]
+   [((== the-unknown-type) _)
+    #true]
+   [(_ (== the-unknown-type))
+    #true]
    [((nametype nm) (== the-bool-type eq?))
     #:when (memq (syntax-e nm) '(true false))
     #true]
