@@ -1,7 +1,7 @@
 #lang forge
 
 option run_sterling off
-
+option verbose 5
 
 -- Check implicit coercion between intexpr and expr. 
 -- In 2021, we needed to explicitly convert via sing[] and sum[]
