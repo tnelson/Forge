@@ -13,14 +13,14 @@
 
 (define (raise-bsl-relational-error rel-str node loc [optional-str #f])  
   (raise-bsl-error 
-          (format "froglet didn't recognize the ~a operator ~a"
+          (format "forge/bsl didn't recognize the ~a operator ~a"
             rel-str
             (if optional-str (format "; ~a" optional-str) "")) 
           node loc))
 
 (define (raise-bsl-relational-error-expr-args rel-str args loc [optional-str #f])  
   (raise-bsl-error-deparsed-str 
-          (format "froglet didn't recognize the ~a operator~a"
+          (format "forge/bsl didn't recognize the ~a operator~a"
             rel-str
             (if optional-str (format "; ~a" optional-str) "")) 
           (cond 
@@ -153,7 +153,7 @@
 (define (check-node-expr-op--> expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-error "Direct use of -> is not allowed in froglet" expr-node loc)))
+    (raise-bsl-error "Direct use of -> is not allowed in forge/bsl" expr-node loc)))
 
 (define (check-node-expr-op-join expr-node)
   (void))
@@ -239,7 +239,7 @@
 (define (check-expr-mult expr-node sing parent-expr)
   (when (and (not sing) (eq? (nodeinfo-lang (node-info parent-expr)) 'bsl))
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-user-error (format "froglet: ~a not a singleton in ~a at loc: ~a"  (deparse expr-node) (deparse parent-expr) (srcloc->string loc)))))
+    (raise-user-error (format "forge/bsl: ~a not a singleton in ~a at loc: ~a"  (deparse expr-node) (deparse parent-expr) (srcloc->string loc)))))
 
 (hash-set! bsl-checker-hash 'expr-mult check-expr-mult)
 (provide bsl-checker-hash)
@@ -263,7 +263,7 @@
 (define (check-args-node-expr-op--> expr-args info)
     (when (eq? (nodeinfo-lang info) 'bsl)
       (define loc (nodeinfo-loc info))
-      (raise-bsl-error-deparsed-str "Direct use of -> is not allowed in froglet" (format "(~a->~a)" (deparse (first expr-args)) (deparse (second expr-args))) loc)))
+      (raise-bsl-error-deparsed-str "Direct use of -> is not allowed in forge/bsl" (format "(~a->~a)" (deparse (first expr-args)) (deparse (second expr-args))) loc)))
 
 (define (check-args-node-expr-op-+ expr-args info)
   (when (eq? (nodeinfo-lang info) 'bsl)
@@ -299,7 +299,7 @@
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
   (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
-  (raise-user-error (format "froglet: Field declaration must be one, lone, func, or pfunc"))))
+  (raise-user-error (format "forge/bsl: Field declaration must be one, lone, func, or pfunc"))))
 
 
 
