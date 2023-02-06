@@ -68,10 +68,6 @@
 
 (define the-type# (make-hash))
 
-(define (set-type stx tt)
-  (void (hash-set! the-type# stx tt))
-  tt)
-
 (define (get-type stx)
   (hash-ref the-type# stx
             (lambda () (log-froglet-warning "get-type not found ~e" stx) the-unknown-type)))
@@ -79,10 +75,6 @@
 (define (set-type stx tt)
   (void (hash-set! the-type# stx tt))
   tt)
-
-(define (get-type stx)
-  (hash-ref the-type# stx
-            (lambda () (log-froglet-warning "get-type not found ~e" stx) unknown-type)))
 
 (define (typecheck mod)
   (define-values [env0 import*] (env-collect mod))
