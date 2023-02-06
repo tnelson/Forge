@@ -18,8 +18,8 @@ test expect {
     intToExpr1: {Test.num = max[Test.r[A]] iff 
                  Test.num = sing[max[Test.r[A]]]} is theorem
     -- node/expr (in definition of "max") needing node/int->node/expr child conversion
-    --intToExpr2: {max[1] = 1 iff 
-    --             max[sing[1]] = 1 } is theorem
+    intToExpr2: {max[1] = 1 iff 
+                 max[sing[1]] = 1 } is theorem
     -- node/int needing node/int->node/expr child conversion
     --intToExpr3: {sum[1] = 1 iff 
     --             sum[sing[1]] = 1} is theorem
