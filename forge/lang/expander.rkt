@@ -809,8 +809,9 @@
    (quasisyntax/loc stx
      (example (~? name.name unnamed-example)
        pred
-       (syntax-parameterize ([current-forge-context 'example])
-         (begin #,@(syntax/loc stx bounds.translate)))))]))
+       #,@(for/list ([b (in-list (syntax-e (syntax/loc stx bounds.translate)))])
+            (quasisyntax/loc b
+              (syntax-parameterize ([current-forge-context 'example]) #,b)))))]))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
