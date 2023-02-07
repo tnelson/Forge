@@ -224,9 +224,16 @@
               (~optional name:NameClass)
               block:BlockClass)))
 
+  (define-syntax-class PredTypeClass
+    #:datum-literals (PredType)
+    #:attributes (kw)
+    (pattern (PredType "wheat")
+      #:attr kw #'#:wheat))
+
   ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
   (define-syntax-class PredDeclClass
     (pattern ((~literal PredDecl)
+              (~optional _:PredTypeClass)
               (~optional (~seq prefix:QualNameClass "."))
               name:NameClass
               (~optional decls:ParaDeclsClass)
@@ -648,16 +655,18 @@
 ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
 (define-syntax (PredDecl stx)
   (syntax-parse stx
-  [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
+  [((~literal PredDecl) (~optional pt:PredTypeClass)
+                        (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         block:BlockClass)
    (with-syntax ([block #'block])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred (#:lang (get-check-lang)) name.name block)))))]
+       #,(syntax/loc stx (pred (~? pt.kw) (#:lang (get-check-lang)) name.name block)))))]
 
-  [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
+  [((~literal PredDecl) (~optional pt:PredTypeClass)
+                        (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         decls:ParaDeclsClass
                         block:BlockClass)
@@ -667,7 +676,7 @@
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred (#:lang (get-check-lang)) decl block)))))]))
+       #,(syntax/loc stx (pred (~? pt.kw) (#:lang (get-check-lang)) decl block)))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)
