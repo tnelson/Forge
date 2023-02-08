@@ -101,7 +101,8 @@
 
 (define-parser parag-check
   [sig:$SigDecl
-   ;; TODO any check needed?
+   (when (attribute sig.block)
+     (block-check #'sig.block))
    (void)]
   [fn:$FactDecl
    (todo-not-implemented 'parag-check:FactDecl)
@@ -207,9 +208,7 @@
 
 (define-parser testdecl-check
   [td:$TestDecl
-    ;; TODO hd name parameters pred-name pred-block scope bounds
-    #;(when (syntax-e #'td.name)
-      (printf "TD name ~s~n" #'td.name))
+    (log-froglet-info "typechecking TestDecl ~s" (syntax-e #'td.name))
     (when (attribute td.parameters)
       (params-check #'td.parameters))
     (when (syntax-e #'td.pred-name)
@@ -280,7 +279,8 @@
         (define neg? (and (attribute negate) #true))
         (cond
           [(syntax-e #'e3)
-           ;; TODO how?! what if negate true too?
+           (when neg?
+             (raise-type-error "cannot negate an implication" (deparse this-syntax)))
            (with-forge-context forge:subexpr
              (expr-check #'e3))
            (ifelse-check #'e1 #'e2 #'e3 ctx)]

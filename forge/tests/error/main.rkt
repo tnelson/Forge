@@ -53,6 +53,7 @@
     (list "froglet-ast-star.frg" #rx"\\* operator is not")
     (list "froglet-ast-transitive-closure.frg" #rx"\\^ operator is not")
     (list "froglet-ast-transpose.frg" #rx"~ operator is not")
+    (list "froglet-ast-notimplies.frg" #rx"parsing error")
     (list "froglet-arrow.frg" #rx"-> operator is not")
     (list "froglet-http.frg" #rx"field declaration")
     (list "froglet-int-minus.frg" #rx"- operator is not")
@@ -70,7 +71,7 @@
     (list "froglet-reachable2.frg" #rx"not a singleton") ;; TODO
     (list "froglet-set-singleton-equal.frg" #rx"not a singleton") ;;(#rx"= expects two objects, sig Node is not an object")
     (list "froglet-set.frg" #rx"not a singleton") #;( "pred must return an object, not a set")
-;    (list "froglet-uni-0.frg" #rx"expected a sig")
+    (list "froglet-uni-0.frg" #rx"expected a sig")
 ;    (list "froglet-uni-1.frg" #rx"expected a sig")
 ;    (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
 ;    (list "froglet-uni-3.frg" #rx"expected a sig")
