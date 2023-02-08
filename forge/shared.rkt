@@ -70,7 +70,12 @@
     (displayln ln out-port)))
 
 (define (java>=1.9? java-exe)
-  (define version-str (shell java-exe "-version"))
+  (define version-str
+    (let ([new-environment (environment-variables-copy (current-environment-variables))])
+      ;; <https://github.com/tnelson/Forge/issues/192>
+      (environment-variables-set! new-environment #"_JAVA_OPTIONS" #f)
+      (parameterize ([current-environment-variables new-environment])
+        (shell java-exe "-version"))))
   (java-version>=1.9? version-str java-exe))
 
 (define (java-version>=1.9? version-str java-exe)
