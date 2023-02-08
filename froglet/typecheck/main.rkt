@@ -46,9 +46,7 @@
 (define forge:expr 'expr)
 (define forge:subexpr 'subexpr)
 (define forge:example 'example)
-
-(define current-forge-context (make-parameter forge:module))
-;; (listof (or/c 'module 'formula 'example 'expr))
+(define current-forge-context (make-parameter '()))
 
 (define (context=? sym)
   (define ctx (current-forge-context))
@@ -79,11 +77,12 @@
 (define (typecheck mod)
   (define-values [env0 import*] (env-collect mod))
   (define env (env-extend (env-init) env0 import*))
-  (log-froglet-info (pretty-format env 120 #:mode 'write))
+  (log-froglet-info "type env~n ~a" (pretty-format env 120 #:mode 'write))
   (void (env-check env))
   (parameterize ([current-type-env env])
     (hash-clear! the-type#)
-    (mod-check mod)
+    (with-forge-context forge:module
+      (mod-check mod))
     ;; TODO bounds-check ... the-type#
     (void))
   env0)
@@ -163,7 +162,8 @@
 (define (block-check stx)
   ;; TODO disallow (some father)
   ;; set type?
-  (for-each expr-check (block->list stx)))
+  (with-forge-context forge:expr
+    (for-each expr-check (block->list stx))))
 
 (define-parser cmddecl-check
   [cd:$CmdDecl
@@ -188,7 +188,7 @@
 (define-parser exampledecl-check
   [ee:$ExampleDecl
    (define name #'ee.name)
-   (with-forge-context 'expr
+   (with-forge-context forge:expr
      (expr-check #'ee.pred))
    (bounds-check #'ee.bounds)
    (void)]
@@ -251,7 +251,7 @@
       (syntax-parse (syntax/loc ctx (exp.body ...))
        [(_:$NotOp e)
         ;; set a parameter?
-        (with-forge-context forge:subexpr
+        (void ;;with-forge-context forge:subexpr
           (expr-check #'e))
         the-bool-type]
        [("let" decls:$LetDeclList bob:$BlockOrBar)
@@ -261,6 +261,11 @@
        [("bind" decls:$LetDeclList bob$BlockOrBar)
         (raise-form-error (datum->syntax ctx 'bind ctx))
         the-unknown-type]
+       [(qq:$QuantStr e1:$Expr)
+        (define e1-ty
+          (parameterize ([current-quant (string->symbol (syntax-e #'qq))])
+            (expr-check #'e1)))
+        the-bool-type]
        [(q:$Quant (~optional (~and "disj" disj) #:defaults ([disj #'#f]))
                   decls:$DeclList bob:$BlockOrBar)
         (define decl-tys
@@ -273,7 +278,7 @@
                   (~or -op:$CompareOp -op:$BinaryOp)
                   e2:$Expr
                   (~optional (~seq "else" e3:$Expr) #:defaults ([e3 #'#f])))
-        (with-forge-context forge:subexpr
+        (void ;;with-forge-context forge:subexpr
           (expr-check #'e1)
           (expr-check #'e2))
         (define neg? (and (attribute negate) #true))
@@ -281,28 +286,21 @@
           [(syntax-e #'e3)
            (when neg?
              (raise-type-error "cannot negate an implication" (deparse this-syntax)))
-           (with-forge-context forge:subexpr
+           (void ;;with-forge-context forge:subexpr
              (expr-check #'e3))
            (ifelse-check #'e1 #'e2 #'e3 ctx)]
           [else
            (define op #'(~? -op.symbol -op))
-           ;; TODO throw error up?
            (binop-check op #'e1 #'e2 ctx #:negate? neg?)])]
        [(e1:$Expr (~datum ".") e2:$Expr)
         (with-forge-context forge:subexpr
           (expr-check #'e1)
           (expr-check #'e2))
-        the-unknown-type
-        #;(join-check #'e1 #'e2 ctx)]
+        (join-check #'e1 #'e2 ctx)]
        [(op:$UnaryOp e1:$Expr)
-        (with-forge-context forge:subexpr
+        (void ;;with-forge-context forge:subexpr
           (expr-check #'e1))
         (unop-check #'op #'e1)]
-       [(qq:$QuantStr e1:$Expr)
-        (parameterize ([current-quant (string->symbol (syntax-e #'qq))]
-                       [current-forge-context (context+ forge:subexpr)])
-          (expr-check #'e1))
-        the-bool-type]
        [(e1:$Expr "'")
         (todo-not-implemented (format "expr-check: ~s" ctx))
         the-unknown-type]
@@ -335,7 +333,7 @@
         (define bob-ty
           (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
             (blockorbar-check #'bob)))
-        ;; TODO is it a singleton?
+        (todo-not-implemented (format "singleton check for ~s : ~s" ctx bob-ty))
         (reltype bob-ty #f)]
        [(block:$Block)
         (block-check #'block)]
@@ -344,6 +342,11 @@
        [_
         (log-froglet-warning "expr-check: internal error parsing expr ~e" this-syntax)
         the-unknown-type]))
+    (when (and (context=? forge:expr)
+               (sigtype? (field->sigty tt)))
+      (raise-type-error
+        "expected an object"
+        (deparse ctx)))
     (set-type ctx tt)]
   [_
     (log-froglet-warning "expr-check: expected $Expr got ~e" this-syntax)
@@ -353,7 +356,6 @@
   (define e1-ty (get-type e1))
   (define e2-ty (get-type e2))
   (define e3-ty (get-type e3))
-  ;; TODO
   (todo-not-implemented 'ifelse-check)
   the-unknown-type)
 
@@ -371,20 +373,18 @@
    [(~or =)
     (define sig1 (->sigty e1-ty))
     (define sig2 (->sigty e2-ty))
-    ;; TODO
-    ;;(void
-    ;;  (for ((t (in-list (list e1-ty e2-ty)))
-    ;;        (s (in-list (list sig1 sig2)))
-    ;;        #:when (and (nametype? t)
-    ;;                    (id=? (type-name t) (type-name s))))
-    ;;    (raise-type-error
-    ;;      "expected an object"
-    ;;      (type-name t))))
-    ;; TODO
-    ;;(unless (type=? sig1 sig2)
-    ;;  (raise-type-error
-    ;;    (format "inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
-    ;;    ctx))
+    (void
+      (for ((t (in-list (list e1-ty e2-ty)))
+            (s (in-list (list sig1 sig2)))
+            #:when (and (nametype? t)
+                        (id=? (type-name t) (type-name s))))
+        (raise-type-error
+          "expected an object"
+          (type-name t))))
+    (unless (type=? sig1 sig2)
+      (raise-type-error
+        (format "inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
+        ctx))
     the-bool-type]
    [_
     (log-froglet-warning "binop-check: (~e ~e ~e)" op e1-ty e2-ty)
@@ -454,9 +454,10 @@
       (set-type this-syntax ty)])]
   [_
     (log-froglet-warning "blockorbar-check: unknown stx ~a" (syntax->datum this-syntax))
-    (void)])
+    the-unknown-type])
 
 (define (join-check e1 e2 ctx)
+  #;(log-froglet-info "join-check: context ~s" (current-forge-context))
   (define e1-ty (get-type e1))
   (define e2-ty (get-type e2))
   (define e1-sigty (->sigty e1-ty))
@@ -465,11 +466,18 @@
       (raise-type-error
         "expected a singleton sig"
         ctx)))
-  (define e2-sigty (field->sigty e2-ty))
-;;  (printf "JOIN ~s : ~s ... ~s : ~s~n" e1 e1-ty e2 e2-ty)
-;;  (printf " sigty ~s ~s~n" e1-sigty e2-sigty)
-  (and (sigtype<=: e1-sigty e2-sigty)
-       (sigtype-find-field e2-sigty e2-ty ctx)))
+  (when (and (context=? forge:expr)
+             (not (sigtype? e1-sigty)))
+    (raise-type-error
+      "expected an object"
+      (deparse e1)))
+  (define e2-parent (field->sigty e2-ty))
+  (unless (sigtype? e2-parent)
+    (raise-type-error
+      "expected a field"
+      (deparse e2)))
+  (and (sigtype<=: e1-sigty e2-parent)
+       (sigtype-find-field e2-parent e2-ty ctx)))
 
 (define (atom->type sym ctx)
   (if (symbol? sym)
@@ -572,7 +580,6 @@
   (datum->syntax stx (deparse2 stx) stx))
 
 (define-parser deparse2
-  ;; TODO human-readable version of the BRAG output stx
   [(_:ExprHd qn:$QualName)
    (syntax-e #'qn.name)]
   [(_:ExprHd q:$QuantStr body)
@@ -613,10 +620,12 @@
     elem))
 
 (define (field->sigty stx)
-  (for/first ([elem (in-list (current-type-env))]
-              #:when (and (sigtype? elem)
-                          (sigtype-has-field? elem stx)))
-    elem))
+  (or
+    (for/first ([elem (in-list (current-type-env))]
+                #:when (and (sigtype? elem)
+                            (sigtype-has-field? elem stx)))
+      elem)
+    the-unknown-type))
 
 (define (sigtype-has-field? sigty idty)
   (define id (type-name idty))
