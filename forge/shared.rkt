@@ -75,7 +75,7 @@
 
 (define (java-version>=1.9? version-str java-exe)
   (define major-nums
-    (let* ([m0 (regexp-match #rx"^(java|openjdk) version \"([^\"]+)\"" version-str)]
+    (let* ([m0 (regexp-match #rx"(java|openjdk) version \"([^\"]+)\"" version-str)]
            [vstr (if m0 (caddr m0) "")]
            [m1 (or
                  (regexp-match #rx"^([0-9]+)(\\.[0-9]+\\.)?" vstr)
