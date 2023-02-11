@@ -239,7 +239,7 @@
 
 (define (read-ack port err-port)
   (define result (read port))
-  (when (>= (get-verbosity) VERBOSITY_LOW)
+  (when (> (get-verbosity) VERBOSITY_LOW)
     (writeln result))  
   (match result
     ;; A message that was put in the buffer for debugging/info. Ignore it.
