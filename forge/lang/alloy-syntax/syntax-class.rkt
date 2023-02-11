@@ -347,15 +347,16 @@
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax-class $FunDecl
-  #:attributes (hd prefix name decls output body)
+  #:attributes (hd prefix name (decls 1) output body)
   #:commit
   (pattern ((~and hd (~literal FunDecl))
             (~optional (~seq prefix:$QualName "."))
             pre-name:$Name
-            (~optional decls:$ParaDecls)
+            (~optional -decls:$ParaDecls)
             output:$Expr
             body:$Expr)
-    #:attr name #'pre-name.name))
+    #:attr name #'pre-name.name
+    #:attr (decls 1) (syntax-e #'(~? (-decls.decls ...) ()))))
 
 ; ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
 ;           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
@@ -394,7 +395,7 @@
             (~optional (~or pred-name:$QualName
                             pred-block:$Block))
             (~optional scope:$Scope #:defaults ([scope #'()]))
-            (~optional bounds:$Bounds #:defaults ([bounds #'()])))
+            (~optional bounds:$Bounds))
     #:attr name #'(~? pre-name.name #f)))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)

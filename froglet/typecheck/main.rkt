@@ -1,16 +1,15 @@
 #lang racket/base
 
 ;; TODO
-;; - annotate syntax as we go ... build a map like TR (hasheq syntax? type?)
-;; - send original syntax to helper functions, not just the types
-;; - serialize type env, restore on import
+;; - see check in error/main.rkt
 ;; - ...
 
 ;; TODO can we use turnstile?
 ;;  collect env and then use turnstile?
 
 (provide
-  typecheck)
+  typecheck
+  env-serialize)
 
 (require
   forge/lang/alloy-syntax/syntax-class
@@ -46,7 +45,22 @@
   (equal? (current-quant) x))
 
 (define (one-mult? mval)
-  (eq? 'one (if (pair? mval) (car mval) mval)))
+  (eq? 'one (mult->sym mval)))
+
+(define (some-mult? mval)
+  (eq? 'some (mult->sym mval)))
+
+(define (all-mult? mval)
+  (eq? 'all (mult->sym mval)))
+
+(define (singleton-mult? mval)
+  (define sym (mult->sym mval))
+  (or (one-mult? sym)
+      (some-mult? sym)
+      (all-mult? sym)))
+
+(define (mult->sym mval)
+  (if (pair? mval) (car mval) mval))
 
 (define forge:module 'module)
 (define forge:expr 'expr)
@@ -185,7 +199,7 @@
      (block-check #'cd.pred-block))
    (when (syntax-e #'cd.scope)
      (scope-check #'cd.scope))
-   (when (syntax-e #'cd.bounds)
+   (when (attribute cd.bounds)
      (with-forge-context forge:bounds
        (bounds-check #'cd.bounds)))
    (void)]
@@ -251,15 +265,8 @@
      (for-each expr-check (syntax-e #'(bb.exprs ...))))
    (set-type this-syntax the-bool-type)]
   [_
-   (error 'dieeee) (log-froglet-warning "bounds-check: bad syntax ~s" this-syntax)
+   (log-froglet-warning "bounds-check: bad syntax ~s" this-syntax)
    (set-type this-syntax the-unknown-type)])
-
-(define-parser sexpr-check
-  [ss:$Sexpr
-    (todo-not-implemented 'sexpr-check)
-    (set-type this-syntax the-unknown-type)]
-  [_
-    (set-type this-syntax the-unknown-type)])
 
 (define-parser expr-check
   [exp:$Expr
@@ -359,6 +366,7 @@
        [_
         (log-froglet-warning "expr-check: internal error parsing expr ~e" this-syntax)
         the-unknown-type]))
+    #;(log-froglet-info "expr-check: ~s~n type: ~s" this-syntax tt)
     (when (and (context=? forge:expr)
                (not (and (in-context? forge:bounds) (quant=? 'no)))
                (is-field? tt))
@@ -370,8 +378,16 @@
     (log-froglet-warning "expr-check: expected $Expr got ~e" this-syntax)
     (set-type this-syntax the-unknown-type)])
 
+(define-parser sexpr-check
+  [ss:$Sexpr
+    (todo-not-implemented 'sexpr-check)
+    (set-type this-syntax the-unknown-type)]
+  [_
+    (set-type this-syntax the-unknown-type)])
+
 (define (is-field? tt)
-  (sigtype? (field->sigty tt)))
+  (define parent (field->sigty tt))
+  (sigtype? parent))
 
 (define (ifelse-check e1 e2 e3 ctx)
   (define e1-ty (get-type e1))
@@ -483,7 +499,7 @@
   (define e2-ty (get-type e2))
   (define e1-sigty (->sigty e1-ty))
   (when (->paramty e1-ty)
-    (unless (one-mult? (sigtype-mult e1-sigty))
+    (unless (singleton-mult? (sigtype-mult e1-sigty))
       (raise-type-error
         "expected a singleton sig"
         (deparse e1))))
@@ -497,8 +513,11 @@
     (raise-type-error
       "expected a field"
       (deparse e2)))
-  (and (sigtype<=: e1-sigty e2-parent)
-       (sigtype-find-field e2-parent e2-ty ctx)))
+  (unless (sigtype<=: e1-sigty e2-parent)
+    (raise-type-error
+      (format "object ~a has no field ~a" (deparse/datum e1) (deparse/datum e2))
+      (deparse ctx)))
+  (sigtype-find-field e2-parent e2-ty ctx))
 
 (define (atom->type sym ctx)
   (if (symbol? sym)
@@ -538,7 +557,7 @@
 ;; ---
 
 (define (sigtype<=: s0 s1)
-  (or (eq? s0 s1)
+  (or (type-equal? s0 s1)
       (unknown-type? s0)
       (unknown-type? s1)
       (sigtype<: s0 s1)))
@@ -548,7 +567,7 @@
     (and xx (sigtype<=: (->sigty xx) s1))))
 
 (define (type=? t1 t2)
-  (or (eq? t1 t2)
+  (or (type-equal? t1 t2)
       (unknown-type? t1)
       (unknown-type? t2)
       (and (sigtype? t1) (sigtype? t2) (sigtype<: t1 t2) (sigtype<: t2 t1))))
@@ -598,18 +617,18 @@
       x]))
 
 (define (deparse stx)
-  (datum->syntax stx (deparse2 stx) stx))
+  (datum->syntax stx (deparse/datum stx) stx))
 
-(define-parser deparse2
+(define-parser deparse/datum
   [(_:ExprHd qn:$QualName)
    (syntax-e #'qn.name)]
   [(_:ExprHd q:$QuantStr body)
    (cons (string->symbol (syntax-e #'q))
-         (deparse2 #'body))]
+         (deparse/datum #'body))]
   [(_:ExprHd a "." b)
-   (list (deparse2 #'a) "." (deparse2 #'b))]
+   (list (deparse/datum #'a) "." (deparse/datum #'b))]
   [_
-   (todo-not-implemented (format "deparse: ~s" (syntax->datum this-syntax)))
+   (todo-not-implemented (format "deparse/datum: ~s" (syntax->datum this-syntax)))
    this-syntax])
 
 (define (name-check stx)
@@ -619,12 +638,12 @@
   (or (name-lookup stx sigtype?)
       (let* ([paramty (->paramty stx)]
              [sigty (and paramty (name->sig (type-name (paramtype-sig paramty))))]
-             [sigty+ (and sigty
-                          (sigtype-update-mult
-                            sigty
-                            (paramtype-mult paramty)))])
+             [sigty (and sigty
+                         (sigtype-update-mult
+                           sigty
+                           (paramtype-mult paramty)))])
         #;(printf "name->sig fallback:~n paramty ~s~n sigty ~s~n mult ~s~n" paramty sigty p-mult)
-        sigty+)
+        sigty)
       #;(raise-type-error "no type for name" stx)
       the-unknown-type))
 
@@ -657,8 +676,8 @@
 
 (define (sigtype-has-field? sigty idty)
   (define id (type-name idty))
-  (for*/or ([ft (in-list (sigtype-field* sigty))]
-            [nm (in-list (type-name ft))])
+  (for*/or ((ft (in-list (sigtype-field* sigty)))
+            (nm (in-list (type-name ft))))
     (free-identifier=? id nm)))
 
 (define (sigtype-find-field sigty idty ctx)
@@ -726,6 +745,10 @@
 (define (env-extend . env*)
   (apply append env*))
 
+(define (env-serialize env)
+  (for/list ((elem (in-list env)))
+    (type-serialize elem)))
+
 ;; ---
 
 (define (env-collect stx)
@@ -747,15 +770,15 @@
       (sigtype name mult extends field*))]
    [pred:$PredDecl
     (define param-ty* (param*->paramtype* (syntax-e #'(pred.decls ...))))
-    (list (predtype #'pred.name param-ty*))]
+    (list (make-predtype #'pred.name param-ty*))]
    [fun:$FunDecl
-    (todo-not-implemented 'env-collect/paragraph:FunDecl)
-    '()]
+    (define param-ty* (param*->paramtype* (syntax-e #'(fun.decls ...))))
+    (list (make-funtype #'fun.name param-ty*))]
    [assert:$AssertDecl
     (todo-not-implemented 'env-collect/paragraph:AssertDecl)
     '()]
    [cmd:$CmdDecl
-    (todo-not-implemented 'env-collect/paragraph:CmdDecl)
+     ;; TODO anything to check?
     '()]
    [testexpect:$TestExpectDecl
     '()]

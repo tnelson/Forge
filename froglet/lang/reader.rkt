@@ -4,7 +4,7 @@
 
 (require
   (only-in froglet/util lang-name type-env-name)
-  (only-in froglet/typecheck/main typecheck)
+  (only-in froglet/typecheck/main typecheck env-serialize)
   (only-in forge/lang/reader coerce-ints-to-atoms)
   (only-in forge/lang/alloy-syntax/main parse make-tokenizer)
   (prefix-in log: forge/logging/2022/main))
@@ -43,7 +43,7 @@
        ;; Override default exception handler
 
        (require (only-in racket/base define-values))
-       (define-values (,type-env-name) ',type-env)
+       (define-values (,type-env-name) ',(env-serialize type-env))
        ,alloymod
 
        (module+ execs)

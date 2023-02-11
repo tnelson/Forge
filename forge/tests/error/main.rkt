@@ -77,10 +77,15 @@
     (list "froglet-uni-1.frg" #rx"expected an object")
     (list "froglet-uni-2.frg" #rx"expected an object") ;; or, a singleton
     (list "froglet-uni-3.frg" #rx"expected an object")
-    (list "froglet-uni-4.frg" #rx"expected an object")
+    (list "froglet-uni-4.frg" #rx"expected a field")
     (list "froglet-uni-5.frg" #rx"expected a field")
 
+    ;; TODO reachable error test
     ;; TODO forge1 code works, etc etc
+    ;; - [X] grandpa
+    ;; - [ ] grandpa_test
+    ;; - [ ] stack
+    ;; - [ ] stack_test
     ;; TODO forge2 code
     ;; TODO catch all bsl errors from here
     ;; TODO modeling in anger ... invalid bounds
