@@ -786,11 +786,13 @@
 (define (file->froglet-env fn ctx)
   (datum->type-env (file->froglet-env-datum fn) ctx))
 
+(define (dyn-require-fail-thunk)
+  '())
+
 (define (file->froglet-env-datum fn)
-  ;; TODO catch errors
   (parameterize ([current-namespace (make-base-namespace)])
     ;; id defined in froglet
-    (dynamic-require fn type-env-name)))
+    (dynamic-require fn type-env-name dyn-require-fail-thunk)))
 
 (define (datum->type-env x* ctx)
   (for/list ((xx (in-list x*)))
