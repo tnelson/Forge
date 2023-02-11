@@ -406,8 +406,8 @@
             (~optional parameters:$Parameters)
             (~optional (~or -pred-name:$QualName
                             -pred-block:$Block))
-            (~optional scope:$Scope #:defaults ([scope #'()]))
-            (~optional bounds:$Bounds #:defaults ([bounds #'()]))
+            (~optional scope:$Scope)
+            (~optional bounds:$Bounds)
             (~or "sat" "unsat" "theorem"))
     #:with name (if (attribute -name) #'-name.name #'#f)
     #:with pred-name (if (attribute -pred-name) #'-pred-name.name #'#f)
@@ -536,10 +536,10 @@
 ; Bounds : EXACTLY-TOK? @ExprList
 ;        | EXACTLY-TOK? @Block
 (define-syntax-class $Bounds
-  #:attributes (hd (exprs 1) translate)
+  #:attributes (hd exact? (exprs 1) translate)
   #:commit
   (pattern ((~and hd (~literal Bounds))
-            (~optional "exactly")
+            (~optional (~and "exactly" exact?) #:defaults ([exact? #'#f]))
             exprs:$Expr ...)
     ;; TODO cleanup
     #:attr translate (datum->syntax this-syntax

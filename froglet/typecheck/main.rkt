@@ -42,10 +42,17 @@
 ;;       (list symbol?    ;; quant
 ;;             boolean?)) ;; disj?
 
+(define (quant=? x)
+  (equal? (current-quant) x))
+
+(define (one-mult? mval)
+  (eq? 'one (if (pair? mval) (car mval) mval)))
+
 (define forge:module 'module)
 (define forge:expr 'expr)
 (define forge:subexpr 'subexpr)
 (define forge:example 'example)
+(define forge:bounds 'bounds)
 (define current-forge-context (make-parameter '()))
 
 (define (context=? sym)
@@ -76,14 +83,13 @@
 
 (define (typecheck mod)
   (define-values [env0 import*] (env-collect mod))
-  (define env (env-extend (env-init) env0 import*))
+  (define env (env-extend env0 import* (env-init)))
   (log-froglet-info "type env~n ~a" (pretty-format env 120 #:mode 'write))
   (void (env-check env))
   (parameterize ([current-type-env env])
     (hash-clear! the-type#)
     (with-forge-context forge:module
       (mod-check mod))
-    ;; TODO bounds-check ... the-type#
     (void))
   env0)
 
@@ -161,9 +167,10 @@
 
 (define (block-check stx)
   ;; TODO disallow (some father)
-  ;; set type?
+  #;(log-froglet-info "block check ~s" stx)
   (with-forge-context forge:expr
-    (for-each expr-check (block->list stx))))
+    (for-each expr-check (block->list stx)))
+  (set-type stx the-bool-type))
 
 (define-parser cmddecl-check
   [cd:$CmdDecl
@@ -179,7 +186,8 @@
    (when (syntax-e #'cd.scope)
      (scope-check #'cd.scope))
    (when (syntax-e #'cd.bounds)
-     (bounds-check #'cd.bounds))
+     (with-forge-context forge:bounds
+       (bounds-check #'cd.bounds)))
    (void)]
   [_
     (log-froglet-warning "cmddecl-check: unknown stx ~a" (syntax->datum this-syntax))
@@ -190,7 +198,8 @@
    (define name #'ee.name)
    (with-forge-context forge:expr
      (expr-check #'ee.pred))
-   (bounds-check #'ee.bounds)
+   (with-forge-context forge:bounds
+     (bounds-check #'ee.bounds))
    (void)]
   [_
     (log-froglet-warning "exampledecl-check: unknown stx ~a" (syntax->datum this-syntax))
@@ -215,8 +224,11 @@
       (name-check #'td.pred-name))
     (when (syntax-e #'td.pred-block)
       (block-check #'td.pred-block))
-    (scope-check #'td.scope)
-    (bounds-check #'td.bounds)
+    (when (attribute td.scope)
+      (scope-check #'td.scope))
+    (when (attribute td.bounds)
+      (with-forge-context forge:bounds
+        (bounds-check #'td.bounds)))
     (set-type this-syntax the-unknown-type)]
   [_
     (log-froglet-warning "exampledecl-check: unknown stx ~a" (syntax->datum this-syntax))
@@ -232,10 +244,15 @@
   (todo-not-implemented 'scope-check)
   (set-type stx the-unknown-type))
 
-(define (bounds-check stx)
-  ;; TODO
-  (todo-not-implemented 'bounds-check)
-  (set-type stx the-unknown-type))
+(define-parser bounds-check
+  [bb:$Bounds
+   (define exact? (syntax-e #'bb.exact?))
+   (with-forge-context forge:expr
+     (for-each expr-check (syntax-e #'(bb.exprs ...))))
+   (set-type this-syntax the-bool-type)]
+  [_
+   (error 'dieeee) (log-froglet-warning "bounds-check: bad syntax ~s" this-syntax)
+   (set-type this-syntax the-unknown-type)])
 
 (define-parser sexpr-check
   [ss:$Sexpr
@@ -256,7 +273,7 @@
         the-bool-type]
        [("let" decls:$LetDeclList bob:$BlockOrBar)
         (define decl-tys (letdecllist-check #'decls))
-        (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
+        (parameterize ((current-type-env (env-extend decl-tys (current-type-env))))
           (blockorbar-check #'bob))]
        [("bind" decls:$LetDeclList bob$BlockOrBar)
         (raise-form-error (datum->syntax ctx 'bind ctx))
@@ -271,7 +288,7 @@
         (define decl-tys
           (parameterize ([current-quant (list (syntax-e #'q.symbol) (and (syntax-e #'disj) #t))])
             (decllist-check #'decls)))
-        (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
+        (parameterize ((current-type-env (env-extend decl-tys (current-type-env))))
           (blockorbar-check #'bob))
         the-bool-type]
        [(e1:$Expr (~optional negate:$NotOp)
@@ -331,7 +348,7 @@
        [("{" decls:$DeclList bob:$BlockOrBar "}")
         (define decl-tys (decllist-check #'decls))
         (define bob-ty
-          (parameterize ((current-type-env (env-extend (current-type-env) decl-tys)))
+          (parameterize ((current-type-env (env-extend decl-tys (current-type-env))))
             (blockorbar-check #'bob)))
         (todo-not-implemented (format "singleton check for ~s : ~s" ctx bob-ty))
         (reltype bob-ty #f)]
@@ -343,7 +360,8 @@
         (log-froglet-warning "expr-check: internal error parsing expr ~e" this-syntax)
         the-unknown-type]))
     (when (and (context=? forge:expr)
-               (sigtype? (field->sigty tt)))
+               (not (and (in-context? forge:bounds) (quant=? 'no)))
+               (is-field? tt))
       (raise-type-error
         "expected an object"
         (deparse ctx)))
@@ -351,6 +369,9 @@
   [_
     (log-froglet-warning "expr-check: expected $Expr got ~e" this-syntax)
     (set-type this-syntax the-unknown-type)])
+
+(define (is-field? tt)
+  (sigtype? (field->sigty tt)))
 
 (define (ifelse-check e1 e2 e3 ctx)
   (define e1-ty (get-type e1))
@@ -462,10 +483,10 @@
   (define e2-ty (get-type e2))
   (define e1-sigty (->sigty e1-ty))
   (when (->paramty e1-ty)
-    (unless (eq? (sigtype-mult e1-sigty) '#:one)
+    (unless (one-mult? (sigtype-mult e1-sigty))
       (raise-type-error
         "expected a singleton sig"
-        ctx)))
+        (deparse e1))))
   (when (and (context=? forge:expr)
              (not (sigtype? e1-sigty)))
     (raise-type-error
@@ -596,10 +617,14 @@
 
 (define (name->sig stx)
   (or (name-lookup stx sigtype?)
-      (let ([paramty (->paramty stx)])
-        (and paramty
-             #;(void (printf "paramty ~s~n sig ~s~n" paramty (name->sig (type-name (paramtype-sig paramty)))))
-             (name->sig (type-name (paramtype-sig paramty)))))
+      (let* ([paramty (->paramty stx)]
+             [sigty (and paramty (name->sig (type-name (paramtype-sig paramty))))]
+             [sigty+ (and sigty
+                          (sigtype-update-mult
+                            sigty
+                            (paramtype-mult paramty)))])
+        #;(printf "name->sig fallback:~n paramty ~s~n sigty ~s~n mult ~s~n" paramty sigty p-mult)
+        sigty+)
       #;(raise-type-error "no type for name" stx)
       the-unknown-type))
 
@@ -610,22 +635,25 @@
 
 (define (name-lookup stx [-env-guard #f])
   (define env-guard (or -env-guard values))
-  (define stx=?
-    (if (syntax? stx)
-      (lambda (that) (id=? stx that))
-      (lambda (that) (eq? stx (syntax-e that)))))
+  (define stx=? (make-stx=? stx))
   (for/first ([elem (in-list (current-type-env))]
               #:when (and (env-guard elem)
                           (stx=? (type-name elem))))
     elem))
 
-(define (field->sigty stx)
-  (or
-    (for/first ([elem (in-list (current-type-env))]
-                #:when (and (sigtype? elem)
-                            (sigtype-has-field? elem stx)))
-      elem)
-    the-unknown-type))
+(define (make-stx=? stx)
+  (if (syntax? stx)
+    (lambda (that) (id=? stx that))
+    (lambda (that) (eq? stx (syntax-e that)))))
+
+(define (field->sigty idty)
+  (define stx=? (make-stx=? (type-name idty)))
+  (for/first ([elem (in-list (current-type-env))]
+              #:break (stx=? (type-name elem))
+              ;; 2023-02-11: the #:break is for shadowing; should we use a general lookup function instead?
+              #:when (and (sigtype? elem)
+                          (sigtype-has-field? elem idty)))
+    elem))
 
 (define (sigtype-has-field? sigty idty)
   (define id (type-name idty))
@@ -759,6 +787,7 @@
   (datum->type-env (file->froglet-env-datum fn) ctx))
 
 (define (file->froglet-env-datum fn)
+  ;; TODO catch errors
   (parameterize ([current-namespace (make-base-namespace)])
     ;; id defined in froglet
     (dynamic-require fn type-env-name)))

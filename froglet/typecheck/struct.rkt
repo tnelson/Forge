@@ -14,13 +14,16 @@
   the-bool-type
   the-unknown-type
   unknown-type?
-  type-kind)
+  type-kind
+  sigtype-update-mult)
 
 (require
   syntax/parse/define
   (for-syntax racket/base racket/syntax))
 
 ;; ---
+
+;; TODO make updaters for all fields?
 
 (define-simple-macro (struct/froglet id x ...)
   #:with make-id (format-id this-syntax "make-~a" #'id)
@@ -58,4 +61,11 @@
     [(reltype? tt) "relation"]
     [(unknown-type? tt) "unknown-type"]
     [else "type"]))
+
+(define (sigtype-update-mult st m)
+  (sigtype
+    (type-name st)
+    m
+    (sigtype-extends st)
+    (sigtype-field* st)))
 

@@ -57,6 +57,7 @@
     (list "froglet-arrow.frg" #rx"-> operator is not")
     (list "froglet-http.frg" #rx"field declaration")
     (list "froglet-int-minus.frg" #rx"- operator is not")
+    (list "froglet-field-shadow.frg" #rx"expected a field")
     (list "froglet-join-right.frg" #rx"not an object")
     (list "froglet-join-right2.frg" #rx"not an object")
     (list "froglet-join-right3.frg" #rx"not an object")
@@ -66,6 +67,7 @@
     (list "froglet-join.frg" #rx"not an object")
     (list "froglet-join2.frg" #rx"not a singleton") ;; TODO incomplete or partial?
     (list "froglet-join3.frg" #rx"not an object")
+    (list "froglet-no-field.frg" #rx"expected an object")
     (list "froglet-pred.frg" #rx"expected a formula")
     (list "froglet-reachable.frg" #rx"field") ;; TODO
     (list "froglet-reachable2.frg" #rx"not a singleton") ;; TODO
@@ -78,7 +80,10 @@
     (list "froglet-uni-4.frg" #rx"expected an object")
     (list "froglet-uni-5.frg" #rx"expected a field")
 
-    ;; TODO froglet-invalid-bounds
+    ;; TODO forge1 code works, etc etc
+    ;; TODO forge2 code
+    ;; TODO catch all bsl errors from here
+    ;; TODO modeling in anger ... invalid bounds
 
     (list "example_electrum.frg" #rx"example foo: .* temporal")
     (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")
