@@ -30,13 +30,13 @@
 
 (define inst-expr+
 	(make-inst (list (= Node (+ (atom 'N1) (atom 'N2))))))
-(make-test #:name '+-test-sat
+(make-test #:name 'plus_minus_test-sat
 	       #:bounds (list inst-expr+)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (= (card Node) (int 2)))
 	       #:expect 'sat)
-(make-test #:name '+-test-theorem
+(make-test #:name 'plus_minus_test-theorem
 	       #:bounds (list inst-expr+)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
@@ -46,14 +46,14 @@
 (define inst-expr-
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
 		             (= Child (- Node (atom 'N3))))))
-(make-test #:name '--test-sat
+(make-test #:name 'minus_minus_test-sat
 	       #:bounds (list inst-expr-)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (one (set ([n Node])
 	       	                    (! (in n Child)))))
 	       #:expect 'sat)
-(make-test #:name '--test-theorem
+(make-test #:name 'minus_minus_test-theorem
 	       #:bounds (list inst-expr-)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
@@ -165,14 +165,14 @@
 	                 	            (-> (atom 'N2) (atom 'N3)))
 	                             (~ (+ (-> (atom 'N1) (atom 'N2))
 	                             	   (-> (atom 'N2) (atom 'N3)))))))))
-(make-test #:name '~-sat
+(make-test #:name 'transpose-sat
 	       #:bounds (list inst-transpose)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (= edges (~ edges))
 	       	             (= (join Node edges) (join edges Node)))
 	       #:expect 'sat)
-(make-test #:name '~-theorem
+(make-test #:name 'transpose-theorem
 	       #:bounds (list inst-transpose)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)

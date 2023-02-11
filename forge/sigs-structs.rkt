@@ -7,13 +7,14 @@
          "lang/bounds.rkt"
          "breaks.rkt"
          (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
-(require (prefix-in @ (only-in racket hash not + >=)) 
+(require (prefix-in @ (only-in racket hash not + >= >)) 
          (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
 (require racket/contract)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
 (require (prefix-in tree: "lazy-tree.rkt"))
 (require syntax/srcloc)
+(require (prefix-in pardinus: (only-in "pardinus-cli/server/kks.rkt" clear cmd)))
 
 (provide (all-defined-out))
 
@@ -488,8 +489,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define first-instance (tree:get-value (Run-result run)))
   (Unsat? first-instance))
 
-
-
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)
   (assert-is-running run)
@@ -509,9 +508,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (close-run run)
   (assert-is-running run)
   (when (@>= (get-verbosity) VERBOSITY_HIGH)
-        (printf "Run closing. Keeping Pardinus solver process active...~n"))
-  ;((Server-ports-shutdown (Run-server-ports run)))
-  )
+        (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))  
+  ; Since we're using a single process now, send it instructions to clear this run
+  (pardinus:cmd 
+      [(get-stdin run)]
+      
+      (pardinus:clear (Run-name run))))
 
 ; is-running :: Run -> Boolean
 (define (is-running? run)

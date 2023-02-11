@@ -6,10 +6,10 @@
 
 (require "../../shared.rkt")
 
-(provide configure declare-ints print-cmd print-cmd-cont print-eof cmd declare-univ
+(provide configure declare-ints print-cmd print-cmd-cont print-eoi cmd declare-univ
          declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product]))
 (provide assert e f i a define-const)
-(provide read-evaluation)
+(provide read-evaluation read-ack)
 (provide clear)
 
 (require "server.rkt"
@@ -68,23 +68,25 @@
 (define-syntax-rule (print-cmd-cont arg ...)
     (pardinus-display (format arg ...)))
 
-(define (print-eof)
+(define (print-eoi)
   (pardinus-display #\uFFFF))
 
 ; Commands
 (define (configure . kvs)
   (print-cmd "(configure ~a)" (keyword-apply ~a '(#:separator) '(" ") kvs)))
 
-(define (assert val)      (print-cmd "(assert ~a)" val))
-(define (evaluate val)    (print-cmd "(evaluate ~a)" val))
+(define (assert val)      
+  (print-cmd "(assert ~a)" val))
 
 ; The solve-type parameter communicates an exploration mode for the next iteration to Pardinus
-(define (solve [solve-type ""])
-  (print-cmd (format "(solve ~a)" solve-type))
-  (print-eof))
-(define (clear)
-  (print-cmd "(clear)")
-  (print-eof))
+; The run-name parameter uniquely identifies the run to the engine
+(define (solve run-name [solve-type ""])
+  (print-cmd (format "(with ~a (solve ~a))" run-name solve-type))
+  (print-eoi))
+
+(define (clear run-name)
+  (print-cmd (format "(with ~a (clear))" run-name))
+  (print-eoi))
 
 ;; Declarations and definitions
 (define (define-const id val) (print-cmd "(~a ~a)" id val))
@@ -171,35 +173,41 @@
 (define (read-solution port err-port)
   (define result (read port))
   (when (> (get-verbosity) VERBOSITY_LOW)
-    (writeln result)) 
+    (writeln result))  
   (match result
     ;; A message that was put in the buffer for debugging/info. Ignore it.
     ;; (It will be printed above if verbosity is > low.)
+    ;; Continue looking for a real solution.
     [(list (== 'info ) _ ...)
      (read-solution port err-port)]
-    ;; SAT results. Engine MUST provide statistics and metadata elements
+    
+    ;; SAT results. Engine MUST provide statistics, run name, and metadata elements
     ; expect a list of instances now (which may be singleton)
     [(list (== 'sat)
+           (== ':name) solver-run-name
            (== ':model) (list (list (list rid val) ...) ...)
            (== ':stats) (list stat ...)
            (== ':metadata) (list md ...))
      (define data (for/list ([rs rid][tupless val])     ; create a list
                     (for/hash ([r rs] [tuples tupless]) ; of hashes
                       (values r tuples))))     
-     (list 'sat data stat md)]     ; of rel->tuple-list entries
+     (list 'sat solver-run-name data stat md)]     ; of rel->tuple-list entries
     
     ;; UNSAT results with and without core
     [(list (== 'unsat)
+           (== ':name) solver-run-name
            (== ':core) (list sid ...)
            (== ':stats) (list stat ...))
-     (list 'unsat sid stat)]
+     (list 'unsat solver-run-name sid stat)]
     [(list (== 'unsat)
+           (== ':name) solver-run-name
            (== ':stats) (list stat ...))
-     (list 'unsat #f stat)]
+     (list 'unsat solver-run-name #f stat)]
 
     ;; end of instance stream (empty data and empty statistics list)
-    [(list (== 'no-more-instances))
-     (list 'no-more-instances #f '())]
+    [(list (== 'no-more-instances)
+           (== ':name) solver-run-name)
+     (list 'no-more-instances solver-run-name #f '())]
     [(== eof)
      (port-echo err-port (current-error-port) #:title server-name)
      (error (format "~a CLI shut down unexpectedly while running!" server-name))]
@@ -225,3 +233,23 @@
     [(== eof)
      (port-echo err-port (current-error-port) #:title server-name)
      (error (format "~a CLI shut down unexpectedly while evaluating!" server-name))]))
+
+; TODO: echo-port will block if the solver process is still running and nothing
+;   is in the err buffer. But ideally we would be flushing the err buffer on every read.
+
+(define (read-ack port err-port)
+  (define result (read port))
+  (when (> (get-verbosity) VERBOSITY_LOW)
+    (writeln result))  
+  (match result
+    ;; A message that was put in the buffer for debugging/info. Ignore it.
+    ;; (It will be printed above if verbosity is > low.)
+    [(list (== 'info ) _ ...)     
+     (read-ack port err-port)]
+    [(list (== 'ack) id)     
+     id]    
+    [(== eof)     
+     (error (format "~a CLI shut down unexpectedly while sending problem definition!" server-name))]
+    [else
+     (port-echo err-port (current-error-port) #:title server-name)
+     (error (format "Bad syntax in response from solver: ~a" result))]))

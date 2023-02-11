@@ -42,11 +42,17 @@
 
   (pardinus:cmd 
     [(get-stdin run)]
+    ; which run are we asking about
+    (pardinus:print-cmd "(with ~a" (Run-name run))
+    ; which expression? define it.
     (pardinus:print-cmd-cont "(~a " expr-name)
     (interpretter run expression all-rels atom-names '())
     (pardinus:print-cmd ")")
+    ; call the engine's evaluator on that expression
     (pardinus:print-cmd "(evaluate ~a)" expr-name)
-    (pardinus:print-eof))
+    (pardinus:print-cmd ")")
+    ; end with EOI
+    (pardinus:print-eoi))
 
   (define run-atoms (Run-atoms run))
   (translate-evaluation-from-kodkod-cli 
