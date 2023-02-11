@@ -9,7 +9,7 @@
 (provide configure declare-ints print-cmd print-cmd-cont print-eoi cmd declare-univ
          declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product]))
 (provide assert e f i a define-const)
-(provide read-evaluation)
+(provide read-evaluation read-ack)
 (provide clear)
 
 (require "server.rkt"
@@ -233,3 +233,23 @@
     [(== eof)
      (port-echo err-port (current-error-port) #:title server-name)
      (error (format "~a CLI shut down unexpectedly while evaluating!" server-name))]))
+
+; TODO: echo-port will block if the solver process is still running and nothing
+;   is in the err buffer. But ideally we would be flushing the err buffer on every read.
+
+(define (read-ack port err-port)
+  (define result (read port))
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (writeln result))  
+  (match result
+    ;; A message that was put in the buffer for debugging/info. Ignore it.
+    ;; (It will be printed above if verbosity is > low.)
+    [(list (== 'info ) _ ...)     
+     (read-ack port err-port)]
+    [(list (== 'ack) id)     
+     id]    
+    [(== eof)     
+     (error (format "~a CLI shut down unexpectedly while sending problem definition!" server-name))]
+    [else
+     (port-echo err-port (current-error-port) #:title server-name)
+     (error (format "Bad syntax in response from solver: ~a" result))]))

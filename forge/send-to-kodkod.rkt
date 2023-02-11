@@ -301,6 +301,8 @@
   ; Close the "with" scope.
   (pardinus-print (pardinus:print-cmd ")"))
   (pardinus-print (pardinus:print-eoi))
+  ; Wait for the acknowledgement before sending more messages.
+  (pardinus:read-ack stdout stderr)
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; DO NOT ADD MORE MESSAGES TO PARDINUS AFTER THIS POINT
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
