@@ -1,0 +1,41 @@
+#lang forge/bsl
+
+// Examples are instances, but they have a separate syntax macro in core.
+// Make sure that example bounds are being processed correctly.
+
+sig Person {
+    partner: lone Person
+}
+
+pred symmetricSize6 {
+    all p1,p2: Person | p1.partner = p2 iff p2.partner = p1
+    some p: Person | some p.partner
+    #Person = 6 -- default bitwidth = 4 --> [-8, 7], so can count to 6
+}
+pred symmetricSize2 {
+    all p1,p2: Person | p1.partner = p2 iff p2.partner = p1
+    some p: Person | some p.partner
+    #Person = 2
+}
+
+example bigExample is {symmetricSize6} for {
+    Person = `Person0 + `Person1 + `Person2 + `Person3 + `Person4 + `Person5
+    partner = `Person0 -> `Person1 + `Person1 -> `Person0 + 
+              `Person2 -> `Person5 + `Person5 -> `Person2 
+}
+
+example bigExample_indexing is {symmetricSize6} for {
+    Person = `Person1 + `Person2 + `Person3 + `Person4 + `Person5 + `Person6
+    partner = `Person1 -> `Person2 + `Person2 -> `Person1 + 
+              `Person3 -> `Person6 + `Person6 -> `Person3 
+}
+
+example smallExample_indexing is {symmetricSize2} for {
+    Person = `Person4 + `Person6
+    partner = `Person4 -> `Person6 + `Person6 -> `Person4 
+}
+
+example smallExample_renaming is {symmetricSize2} for {
+    Person = `P4 + `P6
+    partner = `P4 -> `P6 + `P6 -> `P4 
+}

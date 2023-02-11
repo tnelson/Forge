@@ -59,7 +59,8 @@ Decl : DISJ-TOK? NameList /COLON-TOK SET-TOK? Expr
 ; note the optional VAR for Electrum. Remember that a preceding / means
 ;  to cut the token; it won't get included in the AST.
 ArrowDecl : VAR-TOK? NameList /COLON-TOK ArrowMult ArrowExpr
-PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
+PredType : WHEAT-TOK
+PredDecl : /PRED-TOK PredType? (QualName DOT-TOK)? Name ParaDecls? Block
 
 ; A function declaration should only ever contain a single expression in its body
 FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK

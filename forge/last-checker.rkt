@@ -67,6 +67,8 @@
                               (let ([new-quantvars (append (map assocify decls) quantvars)])       
                                 ; CHECK: recur into subformula
                                 (checkFormula run-or-state subform new-quantvars checker-hash))))]
+    [(node/formula/sealed info)
+     (checkFormula run-or-state info quantvars)]
     [else (error (format "no matching case in checkFormula for ~a" (deparse formula)))]))
 
 (define (assocify a-pair)  
