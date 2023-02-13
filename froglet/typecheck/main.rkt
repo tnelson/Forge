@@ -55,12 +55,17 @@
 
 (define (singleton-mult? mval)
   (define sym (mult->sym mval))
-  (or (one-mult? sym)
+  (or (eq? #f sym)
+      (one-mult? sym)
       (some-mult? sym)
       (all-mult? sym)))
 
 (define (mult->sym mval)
   (if (pair? mval) (car mval) mval))
+
+(define (singleton-sigtype? x)
+  (and (sigtype? x)
+       (singleton-mult? (sigtype-mult x))))
 
 (define forge:module 'module)
 (define forge:expr 'expr)
@@ -337,13 +342,14 @@
         (void (name-check #'nm.name))
         (with-forge-context forge:subexpr
           (for-each expr-check e*))
-        (app-check #'nm e*)]
+        (app-check #'nm e* ctx)]
        [(ex1:$Expr "[" ee:$ExprList "]")
         (define e* (syntax-e #'(ee.exprs ...)))
+        (void
+          (expr-check #'ex1))
         (with-forge-context forge:subexpr
-          (expr-check #'ex1)
           (for-each expr-check e*))
-        (app-check #'ex1 e*)]
+        (app-check #'ex1 e* ctx)]
        [(cn:$Const)
         (consttype #'cn.translate)]
        [(qn:$QualName)
@@ -437,13 +443,25 @@
     (todo-not-implemented (format "unop-check: (~e ~e)" op e1-ty))
     the-unknown-type]))
 
-(define (app-check fn arg* #:negate? [negate? #f])
+(define (app-check fn arg* ctx #:negate? [negate? #f])
   ;; TODO use negate?
   (define fn-ty (get-type fn))
   (define arg-ty* (map get-type arg*))
   (cond
     [(and (nametype? fn-ty)
           (eq? 'reachable (syntax-e (type-name fn-ty))))
+     (when (or (null? arg-ty*)
+               (null? (cdr arg-ty*)))
+       (raise-type-error
+         "reachable expects 2 or more arguments"
+         (deparse ctx)))
+     (define arg0 (first arg*))
+     (void
+       (join-check arg0 (second arg*) ctx))
+     (define arg0-sigty (->sigty (first arg-ty*)))
+     (void
+       (for ((argN (in-list (cddr arg*))))
+         (join-check-rhs arg0 arg0-sigty argN ctx)))
      #;(printf "app-check ~s ~s~n ~n" fn-ty arg-ty*)
      the-unknown-type]
     [else
@@ -499,7 +517,7 @@
   (define e2-ty (get-type e2))
   (define e1-sigty (->sigty e1-ty))
   (when (->paramty e1-ty)
-    (unless (singleton-mult? (sigtype-mult e1-sigty))
+    (unless (singleton-sigtype? e1-sigty)
       (raise-type-error
         "expected a singleton sig"
         (deparse e1))))
@@ -508,6 +526,10 @@
     (raise-type-error
       "expected an object"
       (deparse e1)))
+  (join-check-rhs e1 e1-sigty e2 ctx))
+
+(define (join-check-rhs e1 e1-sigty e2 ctx)
+  (define e2-ty (get-type e2))
   (define e2-parent (field->sigty e2-ty))
   (unless (sigtype? e2-parent)
     (raise-type-error
@@ -627,6 +649,11 @@
          (deparse/datum #'body))]
   [(_:ExprHd a "." b)
    (list (deparse/datum #'a) "." (deparse/datum #'b))]
+  [(_:ExprHd e1 "[" ee:$ExprList "]")
+   (list (deparse/datum #'e1)
+         #;"["
+         (map deparse/datum (syntax-e #'(ee.exprs ...)))
+         #;"]")]
   [_
    (todo-not-implemented (format "deparse/datum: ~s" (syntax->datum this-syntax)))
    this-syntax])
