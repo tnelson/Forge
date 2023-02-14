@@ -33,19 +33,16 @@
 (define (get-verbosity) verbosityoption)
 (define (set-verbosity x) (set! verbosityoption x))
 
-(define (print-exn exn)
-  (println exn))
-
 (define-runtime-path info-path "info.rkt")
 (define forge-version "x.x.x")
-(with-handlers ([exn:fail? print-exn])
+(with-handlers ([exn:fail?  (λ (exn) (println exn))])
   (define info-str (file->string info-path))
   (define parts (regexp-match #px"define\\s+version\\s+\"(\\S+)\"" info-str))
   (set! forge-version (cadr parts))
 )
 
 (define (forge-git-info)
-  (with-handlers ([exn:fail? print-exn])
+  (with-handlers ([exn:fail? void])
     (define windows? (eq? (system-type) 'windows))
     (define git-exe (find-executable-path (if windows? "git.exe" "git")))
     (map
