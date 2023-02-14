@@ -451,19 +451,21 @@
     [(and (nametype? fn-ty)
           (eq? 'reachable (syntax-e (type-name fn-ty))))
      (when (or (null? arg-ty*)
-               (null? (cdr arg-ty*)))
+               (null? (cdr arg-ty*))
+               (null? (cddr arg-ty*)))
        (raise-type-error
-         "reachable expects 2 or more arguments"
+         "reachable expects 3 or more arguments"
          (deparse ctx)))
      (define arg0 (first arg*))
-     (void
-       (join-check arg0 (second arg*) ctx))
      (define arg0-sigty (->sigty (first arg-ty*)))
+     (void (join-check-lhs arg0 arg0-sigty ctx))
+     (define arg1 (second arg*))
+     (define arg1-sigty (->sigty (second arg-ty*)))
      (void
+       (join-check-lhs arg1 arg1-sigty ctx)
        (for ((argN (in-list (cddr arg*))))
-         (join-check-rhs arg0 arg0-sigty argN ctx)))
-     #;(printf "app-check ~s ~s~n ~n" fn-ty arg-ty*)
-     the-unknown-type]
+         (join-check-rhs arg1 arg1-sigty argN ctx)))
+     the-bool-type]
     [else
      the-unknown-type]))
 
@@ -516,6 +518,11 @@
   (define e1-ty (get-type e1))
   (define e2-ty (get-type e2))
   (define e1-sigty (->sigty e1-ty))
+  (join-check-lhs e1 e1-sigty ctx)
+  (join-check-rhs e1 e1-sigty e2 ctx))
+
+(define (join-check-lhs e1 e1-sigty ctx)
+  (define e1-ty (get-type e1))
   (when (->paramty e1-ty)
     (unless (singleton-sigtype? e1-sigty)
       (raise-type-error
@@ -525,8 +532,7 @@
              (not (sigtype? e1-sigty)))
     (raise-type-error
       "expected an object"
-      (deparse e1)))
-  (join-check-rhs e1 e1-sigty e2 ctx))
+      (deparse e1))))
 
 (define (join-check-rhs e1 e1-sigty e2 ctx)
   (define e2-ty (get-type e2))

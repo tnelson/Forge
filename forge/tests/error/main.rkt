@@ -69,8 +69,8 @@
     (list "froglet-join3.frg" #rx"not an object")
     (list "froglet-no-field.frg" #rx"expected an object")
     (list "froglet-pred.frg" #rx"expected a formula")
-    (list "froglet-reachable1.frg" #rx"field") ;; TODO
-    (list "froglet-reachable2.frg" #rx"not a singleton")
+    (list "froglet-reachable1.frg" #rx"object n has no field field")
+    (list "froglet-reachable2.frg" #rx"expected an object")
     (list "froglet-reachable3.frg" #rx"parsing error")
     (list "froglet-reachable4.frg" #rx"reachable expects 2 or more arguments")
     (list "froglet-set-singleton-equal.frg" #rx"not a singleton") ;;(#rx"= expects two objects, sig Node is not an object")
@@ -83,7 +83,7 @@
     (list "froglet-uni-5.frg" #rx"expected a field")
 
     ;; TODO forge1 code works, etc etc
-    ;; - [X] grandpa
+    ;; - [ ] grandpa reachable
     ;; - [ ] grandpa_test
     ;; - [ ] stack
     ;; - [ ] stack_test
