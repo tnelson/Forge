@@ -450,21 +450,48 @@
   (cond
     [(and (nametype? fn-ty)
           (eq? 'reachable (syntax-e (type-name fn-ty))))
-     (when (or (null? arg-ty*)
-               (null? (cdr arg-ty*))
-               (null? (cddr arg-ty*)))
+     (when (or (null? arg*)
+               (null? (cdr arg*))
+               (null? (cddr arg*)))
        (raise-type-error
          "reachable expects 3 or more arguments"
          (deparse ctx)))
      (define arg0 (first arg*))
      (define arg0-sigty (->sigty (first arg-ty*)))
-     (void (join-check-lhs arg0 arg0-sigty ctx))
+     (void ;; TODO use weaker check here?
+       (join-check-lhs arg0 arg0-sigty ctx))
      (define arg1 (second arg*))
      (define arg1-sigty (->sigty (second arg-ty*)))
-     (void
-       (join-check-lhs arg1 arg1-sigty ctx)
-       (for ((argN (in-list (cddr arg*))))
-         (join-check-rhs arg1 arg1-sigty argN ctx)))
+     (void (join-check-lhs arg1 arg1-sigty ctx))
+     (define field* (cddr arg*))
+     (define f-ty* (cddr arg-ty*))
+     (define f-parent* (map field->sigty/error f-ty*))
+     ;; TODO march forward using sigs worklist, init = src,
+     ;;  - pick sig
+     ;;  - forall field, add all new next-step to worklist
+     ;;  - track visited sigs + used fields
+     ;;  - done when worklist empty
+     ;;  - error if tgt not visited
+     ;;  - error if unused field
+;     (let loop ((rsig* '())
+;                (
+;
+;     (define-values [f1* sig1*]
+;       (for/lists (_1 _2)
+;                  ((field (in-list field*))
+;                   (f-parent (in-list f-parent*))
+;                   #:when (sigtype<=: arg1-sigty f-parent))
+;         (values field (sigtype-find-field f-parent (get-type field) ctx))))
+;     (when (null? f1*)
+;       (raise-type-error
+;         "no path, no fields match src"))
+;
+;     ;; TODO error if no fields match src (r1)
+;     ;; TODO get transitive closure from source, fields ... build set ... stop at no progress
+;     ;; TODO error if target not in trans closure (r5)
+;     ;; TODO error if some field not in trans closure (r6)
+;       (for ((argN (in-list (cddr arg*))))
+;         (join-check-rhs arg1 arg1-sigty argN ctx)))
      the-bool-type]
     [else
      the-unknown-type]))
@@ -535,17 +562,20 @@
       (deparse e1))))
 
 (define (join-check-rhs e1 e1-sigty e2 ctx)
-  (define e2-ty (get-type e2))
-  (define e2-parent (field->sigty e2-ty))
-  (unless (sigtype? e2-parent)
-    (raise-type-error
-      "expected a field"
-      (deparse e2)))
+  (define e2-parent (field->sigty/error e2))
   (unless (sigtype<=: e1-sigty e2-parent)
     (raise-type-error
       (format "object ~a has no field ~a" (deparse/datum e1) (deparse/datum e2))
       (deparse ctx)))
-  (sigtype-find-field e2-parent e2-ty ctx))
+  (sigtype-find-field e2-parent (get-type e2) ctx))
+
+(define (field->sigty/error e2)
+  (define e2-sigty (field->sigty (get-type e2)))
+  (if (sigtype? e2-parent)
+    e2-sigty
+    (raise-type-error
+      "expected a field"
+      (deparse e2))))
 
 (define (atom->type sym ctx)
   (if (symbol? sym)
