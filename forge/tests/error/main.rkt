@@ -69,7 +69,7 @@
     (list "froglet-join3.frg" #rx"not an object")
     (list "froglet-no-field.frg" #rx"expected an object")
     (list "froglet-pred.frg" #rx"expected a formula")
-    (list "froglet-reachable1.frg" #rx"has no field")
+    (list "froglet-reachable1.frg" #rx"no field match")
     (list "froglet-reachable2.frg" #rx"expected an object")
     (list "froglet-reachable3.frg" #rx"parsing error")
     (list "froglet-reachable4.frg" #rx"reachable expects 2 or more arguments")
