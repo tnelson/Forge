@@ -143,7 +143,7 @@
   (regexp-replace* #rx"<path:.*[/\\]([^/\\]*)>" str "<path:\\1>"))
 
 (define (hide-prefix-path str)
-  (define mm (regexp-match #rx"^.*[/\\]([^/\\]*\\.[^/\\]+:[0-9][^ ]* .*)$" str))
+  (define mm (regexp-match #rx"^.*[/\\]([^/\\]*\\.[^/\\]+: .*)$" str))
   (if mm
     (cadr mm)
     str))
