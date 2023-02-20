@@ -47,6 +47,8 @@
   (only-in racket/port with-input-from-string peeking-input-port)
   (only-in racket/path file-name-from-path path-only))
 
+(module+ test (require rackunit))
+
 ;; -----------------------------------------------------------------------------
 
 (define trigger-url
@@ -129,8 +131,42 @@
 
 (define ((error-handler logging-on? compile-time default-exception-handler) err)
   (when logging-on?
-    (flush-logs compile-time (if (exn? err) (exn-message err) (~s err))))
+    (flush-logs compile-time (anonymize (if (exn? err) (exn-message err) (~s err)))))
   (default-exception-handler err))
+
+(define (anonymize str)
+  (with-handlers ([exn:fail? (lambda (_) "anonymous error")])
+    (hide-prefix-path
+      (hide-path-objs str))))
+
+(define (hide-path-objs str)
+  (regexp-replace* #rx"<path:.*[/\\]([^/\\]*)>" str "<path:\\1>"))
+
+(define (hide-prefix-path str)
+  (define mm (regexp-match #rx"^.*[/\\]([^/\\]*\\.[^/\\]+: .*)$" str))
+  (if mm
+    (cadr mm)
+    str))
+
+(module+ test
+  (test-case "hide-path-objs"
+    (check-equal?
+      (hide-path-objs "parsing error near \"}\" (token 'RIGHT-CURLY-TOK) in #<path:c:\\Users\\beng\\cs1710\\forge2\\goats_and_wolves.tests.frg> [line=49]")
+      "parsing error near \"}\" (token 'RIGHT-CURLY-TOK) in #<path:goats_and_wolves.tests.frg> [line=49]")
+    (check-equal?
+      (hide-path-objs "parsing error near \"}\" (token 'RIGHT-CURLY-TOK) in #<path:/Users/ben/code/file.rkt> [line=21]")
+      "parsing error near \"}\" (token 'RIGHT-CURLY-TOK) in #<path:file.rkt> [line=21]"))
+
+  (test-case "hide-prefix-path"
+    (check-equal? 
+      (hide-prefix-path "Users/ben/Coding/cs171/cs171-forge-2/goats_and_wolves.tests.frg:24:12: module: identifier already defined\n  at: validState")
+      "goats_and_wolves.tests.frg:24:12: module: identifier already defined\n  at: validState")
+    (check-equal? 
+      (hide-prefix-path "c:\\Users\\beng\\cs1710\\forge2\\goats_and_wolves.tests.frg:23:8: Gwshore: unbound identifier\n  in: Gwshore")
+      "goats_and_wolves.tests.frg:23:8: Gwshore: unbound identifier\n  in: Gwshore")
+    (check-equal? 
+      (hide-prefix-path "Users/beng/Desktop/CS1710/forge2_stencil/goats_and_wolves.frg:20:11: Animal: unbound identifier\n  in: Animal")
+      "goats_and_wolves.frg:20:11: Animal: unbound identifier\n  in: Animal")))
 
 ;; ---
 
