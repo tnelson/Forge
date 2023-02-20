@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require 
   "sigs-structs.rkt"
@@ -6,9 +6,15 @@
   "shared.rkt"
   racket/syntax
   syntax/srcloc
-  (prefix-in @ (only-in racket -> >=)))
+  (prefix-in @ (only-in racket -> >=))
+  racket/list
+  racket/match
+  (only-in racket/string string-join)
+  (except-in racket/set set)
+  (only-in racket/contract define/contract or/c listof any))
 
 (provide checkFormula checkExpression primify)
+
 ; This function only exists for code-reuse - it's so that we don't
 ; need to use begin and hash-ref in every single branch of the match
 ; Given a struct to handle, a hashtable to search for a handler in,
@@ -17,6 +23,18 @@
 (define (check-and-output ast-node to-handle checker-hash output)
   (begin (when (hash-has-key? checker-hash to-handle) ((hash-ref checker-hash to-handle) ast-node))
          output))
+
+; Fail unless the run is in temporal mode (last-resort check to prevent use of
+; temporal operators if temporal engine is not engaged)
+; TODO: are expressions to LHS and RHS of integer comparison not recurred on?
+(define/contract (check-temporal-mode run-or-state a-node)
+  (@-> (or/c Run? State? Run-spec?) 
+       node?
+       void?)  
+  (unless (equal? 'temporal 
+                  (get-option run-or-state 'problem_type))
+          (raise-syntax-error #f (format "Error: use of LTL operator without temporal problem_type declared")
+                                 (datum->syntax #f (deparse a-node) (build-source-location-syntax (nodeinfo-loc (node-info a-node)))))))
 
 
 ; Recursive descent for last-minute consistency checking
@@ -92,52 +110,62 @@
     
     ; TEMPORAL OPERATORS
     [(? node/formula/op/always?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/always
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/eventually?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/eventually
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/until?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/until
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/releases?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/releases
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/next_state?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/next_state
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     [(? node/formula/op/historically?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/historically
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/once?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/once
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/prev_state?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/prev_state
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/since?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/since
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     [(? node/formula/op/triggered?)
+     (check-temporal-mode run-or-state formula)
      (check-and-output formula
                        node/formula/op/triggered
                        checker-hash
@@ -367,8 +395,9 @@
   (define RESULT
   (match expr
 
-    ; prime
+    ; prime (temporal mode only)
     [(? node/expr/op/prime?)
+     (check-temporal-mode run-or-state expr)
      (check-and-output expr
                        node/expr/op/prime
                        checker-hash
