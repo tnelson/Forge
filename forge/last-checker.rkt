@@ -6,7 +6,7 @@
   "shared.rkt"
   racket/syntax
   syntax/srcloc
-  (prefix-in @ (only-in racket -> >=))
+  (prefix-in @ (only-in racket -> >= >))
   racket/list
   racket/match
   (only-in racket/string string-join)
@@ -47,7 +47,7 @@
        (or/c boolean? void? (listof (listof symbol?))))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "last-checker: checkFormula: ~a~n" formula))
+    (printf "last-checker: checkFormula: ~a (vars: ~a)~n" formula quantvars))
   
   (match formula    
     [(node/formula/constant info type)
@@ -69,8 +69,8 @@
      (check-and-output formula
                        node/formula/quantified
                        checker-hash
-                       (begin (for-each
-                                (lambda (decl)
+                       (begin (foldl
+                                (lambda (decl sofar)
                                   (let ([var (car decl)]
                                         [domain (cdr decl)])
                                     ; CHECK: shadowed variables
@@ -78,9 +78,13 @@
                                       (raise-syntax-error #f
                                                           (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
                                                           (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-                                    ; CHECK: recur into domain(s)
-                                    (checkExpression run-or-state domain quantvars checker-hash)))
+                                    ; CHECK: recur into domain(s), carrying decls from prior quantifiers
+                                    (define one-more-decl (cons (assocify decl) sofar))
+                                    (checkExpression run-or-state domain one-more-decl checker-hash)
+                                    one-more-decl))
+                                quantvars 
                                 decls)
+
                               ; Extend domain environment
                               (let ([new-quantvars (append (map assocify decls) quantvars)])       
                                 ; CHECK: recur into subformula
@@ -282,7 +286,7 @@
        ;(listof (listof (listof symbol?)))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "last-checker: checkExpression: ~a~n" expr))
+    (printf "last-checker: checkExpression: ~a (vars: ~a)~n" expr quantvars))
   
   (define (primifyThis n)
     (primify run-or-state n))
@@ -418,12 +422,18 @@
     
     ; SETMINUS 
     [(? node/expr/op/-?)
-     (check-and-output expr
-                       node/expr/op/-
-                       checker-hash
-                       ; A-B should have only 2 children. B may be empty.
-                       (cons (checkExpression run-or-state (first args) quantvars checker-hash)
-                              #t))]
+     (begin 
+       ; A-B should have only 2 children. B may not exist; use A as the bound returned regardless. 
+       ; However, if B is present, we must /check/ it anyway (and discard non-error results).
+       (when (@> (length args) 1)
+         (checkExpression run-or-state (second args) quantvars checker-hash))
+       ; This call to check-and-output runs the language-specific checker on <expr>, so we don't
+       ; need to call it above. We're just checking the right subexpression there.  
+       (check-and-output expr
+                         node/expr/op/-
+                         checker-hash                       
+                         (cons (checkExpression run-or-state (first args) quantvars checker-hash)
+                                #t)))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
