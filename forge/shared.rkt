@@ -13,6 +13,8 @@
 (provide forge-version instance-diff CORE-HIGHLIGHT-COLOR)
 (provide stream-map/once port-echo java>=1.9?)
 
+(module+ test (require rackunit))
+
 (define CORE-HIGHLIGHT-COLOR (make-object color% 230 150 150))
 
 ; Level of output when running specs
@@ -69,17 +71,31 @@
 
 (define (java>=1.9? java-exe)
   (define version-str (shell java-exe "-version"))
+  (java-version>=1.9? version-str java-exe))
+
+(define (java-version>=1.9? version-str java-exe)
   (define major-nums
-    (let ([m (or
-               (regexp-match #rx"^(java|openjdk) version \"([0-9]+)\\.([0-9]+)\\." version-str)
-               (raise-arguments-error 'forge/shared
-                                      "Error checking Java version"
-                                      "java exe" java-exe
-                                      "version string" version-str))])
-      (map string->number (cddr m))))
+    (let* ([m0 (regexp-match #rx"(java|openjdk) version \"([^\"]+)\"" version-str)]
+           [vstr (if m0 (caddr m0) "")]
+           [m1 (or
+                 (regexp-match #rx"^([0-9]+)(\\.[0-9]+\\.)?" vstr)
+                 (raise-arguments-error 'forge/shared
+                                        "Error checking Java version"
+                                        "java exe" java-exe
+                                        "version string" version-str))]
+           [major (cadr m1)]
+           [minor (caddr m1)])
+      (list (string->number major)
+            (if minor (string->number (substring minor 1 (sub1 (string-length minor)))) 0))))
   (or (and (= 1 (car major-nums))
            (<= 9 (cadr major-nums)))
       (<= 9 (car major-nums))))
+
+(module+ test
+  (test-case "java-version"
+    (check-true (java-version>=1.9? "openjdk version \"17\" 2021-09-14" #f))
+    (check-false (java-version>=1.9? "openjdk version \"1.8.0_242\"\nOpenJDK Runtime Environment (build 1.8.0_242-b08)" #f))
+    (check-false (java-version>=1.9? "java version \"1.8.0_65\"\nJava(TM) SE Runtime Environment" #f))))
 
 (define (shell exe pre-cmd)
   (define success? (box #f))

@@ -5,7 +5,8 @@
 
 (require syntax/parse/define racket/stxparam
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
-                     syntax/srcloc racket/match racket/list)
+                     syntax/srcloc racket/match racket/list                     
+                     (only-in racket/path file-name-from-path))
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
@@ -224,9 +225,16 @@
               (~optional name:NameClass)
               block:BlockClass)))
 
+  (define-syntax-class PredTypeClass
+    #:datum-literals (PredType)
+    #:attributes (kw)
+    (pattern (PredType "wheat")
+      #:attr kw #'#:wheat))
+
   ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
   (define-syntax-class PredDeclClass
     (pattern ((~literal PredDecl)
+              (~optional _:PredTypeClass)
               (~optional (~seq prefix:QualNameClass "."))
               name:NameClass
               (~optional decls:ParaDeclsClass)
@@ -526,7 +534,7 @@
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*
-(define-syntax (AlloyModule stx)  
+(define-syntax (AlloyModule stx)    
   (syntax-parse stx
     [((~literal AlloyModule) (~optional module-decl:ModuleDeclClass)
                              (~seq import:ImportClass ...)
@@ -648,16 +656,18 @@
 ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
 (define-syntax (PredDecl stx)
   (syntax-parse stx
-  [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
+  [((~literal PredDecl) (~optional pt:PredTypeClass)
+                        (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         block:BlockClass)
    (with-syntax ([block #'block])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred (#:lang (get-check-lang)) name.name block)))))]
+       #,(syntax/loc stx (pred (~? pt.kw) (#:lang (get-check-lang)) name.name block)))))]
 
-  [((~literal PredDecl) (~optional (~seq prefix:QualNameClass "."))
+  [((~literal PredDecl) (~optional pt:PredTypeClass)
+                        (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         decls:ParaDeclsClass
                         block:BlockClass)
@@ -667,7 +677,7 @@
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        ; preserve stx location in Racket *sub*expression
-       #,(syntax/loc stx (pred (#:lang (get-check-lang)) decl block)))))]))
+       #,(syntax/loc stx (pred (~? pt.kw) (#:lang (get-check-lang)) decl block)))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)
@@ -704,7 +714,12 @@
     (lambda (stx)
       (define curr-num (unbox name-counter))
       (set-box! name-counter (+ 1 curr-num))
-      (string->symbol (format "temporary-name_~a" curr-num)))))
+      (define source_disambiguator
+        (if (and (source-location-source stx)
+                 (file-name-from-path (source-location-source stx)))
+            (path-replace-extension (file-name-from-path (source-location-source stx)) #"")
+            "unknown"))      
+      (string->symbol (format "temporary-name_~a_~a" source_disambiguator curr-num)))))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 (define-syntax (CmdDecl stx)
@@ -764,7 +779,7 @@
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
                         (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
                         (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;; q => p : p is a necessary condition for q
-   #:with test_name (format-id stx "Assertion ~a is ~a for ~a" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name)
+   #:with test_name (format-id stx "Assertion_~a_is_~a_for_~a" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name)
    (syntax/loc stx
       (test
         test_name

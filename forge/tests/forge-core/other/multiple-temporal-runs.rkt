@@ -1,26 +1,32 @@
 #lang forge/core
 
+; This file is a variant of multiple-runs.rkt that tests _temporal mode_.
+
 ; Check the behavior of multiple Run objects used simultaneously.
 ; Note that it's not enough to invoke the generators multiple times; we need
 ; to actually confirm they are producing appropriate instances and new instances.
 
 (require (only-in rackunit check-eq? check-not-eq?))
 (set-option! 'verbose 0)
+(set-option! 'problem_type 'temporal)
+(set-option! 'min_tracelength 2)
 
 (sig A)
-(sig B)
+(sig B #:is-var #t)
 
 (run sat-run-A
-     #:preds [(some A) (no B)])
+     #:preds [(some A) (always (no B))])
 (run sat-run-B
-     #:preds [(some B) (no A)])
+     #:preds [(some B) (always (no A))])
 (run unsat-run
      #:preds [(some A) (some B) (= A B)])
 
 ; Model-generator produces a stream
-(define sat-A-gen (forge:make-model-generator (forge:get-result sat-run-A) 'next))
-(define sat-B-gen (forge:make-model-generator (forge:get-result sat-run-B) 'next))
-(define unsat-gen (forge:make-model-generator (forge:get-result unsat-run) 'next))
+; In temporal mode, this needs to be either 'P (path for THIS configuration) or 'C (new configuration)
+; We must use 'P for sat-run-B because there are no degrees of freedom in the configuration for that run (B is var)
+(define sat-A-gen (forge:make-model-generator (forge:get-result sat-run-A) 'C))
+(define sat-B-gen (forge:make-model-generator (forge:get-result sat-run-B) 'P))
+(define unsat-gen (forge:make-model-generator (forge:get-result unsat-run) 'C))
 
 ; Get two instances; sat/unsat as expected
 (define a1 (sat-A-gen))
@@ -58,8 +64,10 @@
            0)
 (check-eq? (length (evaluate sat-run-B 'unused A))
            0)
-(check-eq? (length (evaluate sat-run-B 'unused B))
-           2)
+
+; Not reliable in temporal mode due to above (B is var)
+;(check-eq? (length (evaluate sat-run-B 'unused B))
+;           2)
 
 
 ; Check that we can close a run

@@ -25,7 +25,8 @@ echo -e "Found the following $numTestFiles test files:\n$breakLine$testFiles\n$b
 
 # Run tests and report progress
 for testFile in $testFiles; do
-    echo -e "\nRunning $testFile"
+    current=`date "+%X"`
+    echo -e "\nRunning $testFile ($current)"
 
     #start=`date +%s`    
     racket $testFile > /dev/null

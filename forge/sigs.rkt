@@ -372,37 +372,37 @@
          (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]))
 
+(begin-for-syntax
+  (define-splicing-syntax-class pred-type
+    #:description "optional pred flag"
+    #:attributes ((seal 0))
+    (pattern (~datum #:wheat)
+      #:attr seal #'make-wheat)
+    (pattern (~seq)
+      #:attr seal #'values)))
+
 ; Declare a new predicate
 ; (pred info name cond ...)
 ; (pred info (name var ...) cond ...)
 ;   or same without info
 (define-syntax (pred stx)
   (syntax-parse stx
-    [(pred name:id conds:expr ...+)
+    [(pred pt:pred-type
+           (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
+           name:id conds:expr ...+)
      (quasisyntax/loc stx
        (begin
          ; use srcloc of actual predicate, not this location in sigs
-         (define name (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) conds ...))
+         (define name (pt.seal (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...)))
          (update-state! (state-add-pred curr-state 'name name))))]
-    [(pred (name:id args:id ...+) conds:expr ...+)
+    [(pred pt:pred-type
+           (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
+           (name:id args:id ...+) conds:expr ...+)
      (quasisyntax/loc stx
        (begin 
-         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) conds ...))
-         (update-state! (state-add-pred curr-state 'name name))))]
-
-    ; Case: check-lang
-    [(pred (#:lang check-lang) name:id conds:expr ...+)
-     (quasisyntax/loc stx
-       (begin
-         ; use srcloc of actual predicate, not this location in sigs
-         (define name (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
-         (update-state! (state-add-pred curr-state 'name name))))]
-    [(pred (#:lang check-lang) (name:id args:id ...+) conds:expr ...+)
-     (quasisyntax/loc stx
-       (begin 
-         (define (name args ...) (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...))
+         (define (name args ...) (pt.seal (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...)))
          (update-state! (state-add-pred curr-state 'name name))))]))
-                                   
+
 ; Declare a new function
 ; (fun (name var ...) result)
 (define-syntax (fun stx)
@@ -604,22 +604,6 @@
     (set! model-lazy-tree (tree:get-child model-lazy-tree mode))
     ret))
 
-; ; make-model-evaluator :: Run -> (String -> ???)
-; ; Creates an evaluator function for a given Run. 
-; ; Executes on the most recently generated instance.
-; (define (make-model-evaluator run)
-;   (lambda (command)
-;     (define name (substring command 1 3))
-;     (cmd [(stdin)] 
-;       (print-cmd command)
-;       (print-cmd "(evaluate ~a)" name)
-;       (print-eof))
-;     (define result (read (stdout)))
-;     result))
-;     ; (define u (read (open-input-string command)))
-;     ; (println u)
-;     ; u))
-
 (provide (prefix-out forge: nsa))
 (define nsa (make-parameter #f))
 ; display :: Run -> void
@@ -693,7 +677,8 @@
                          [preds new-preds]
                          [target new-target]
                          [state new-state]))
-          (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds) (send-to-kodkod contrast-run-spec))
+          (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds)
+                         (send-to-kodkod contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
                          [name (string->symbol (format "~a-contrast" (Run-name run)))]

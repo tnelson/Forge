@@ -514,7 +514,8 @@
     ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds))
 
   (define spec (Run-spec state preds scope bounds target))        
-  (define-values (result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod spec command))
+  (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
+                 (send-to-kodkod spec command #:run-name name))
   
   (Run name command spec result server-ports atoms kodkod-currents kodkod-bounds))
 
@@ -788,7 +789,8 @@
                          [preds new-preds]
                          [target new-target]
                          [state new-state]))
-          (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds) (send-to-kodkod contrast-run-spec))
+          (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds) 
+                         (send-to-kodkod contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
                          [name (string->symbol (format "~a-contrast" (Run-name run)))]
