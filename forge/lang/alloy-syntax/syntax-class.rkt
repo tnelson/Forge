@@ -107,7 +107,7 @@
     #:attr (parag* 1) (syntax-e #'pre-parag*)
     #:attr (expr* 1) '())
   (pattern ((~and hd (~datum AlloyModule))
-            ((~literal EvalDecl) "eval" pre-expr*:$Expr ...))
+            ((~datum EvalDecl) "eval" pre-expr*:$Expr ...))
     #:attr (import* 1) '()
     #:attr (parag* 1) '()
     #:attr (expr* 1) (let ([ex* (syntax-e #'(pre-expr* ...))])
@@ -120,19 +120,19 @@
 (define-syntax-class $Import
   #:attributes (hd file-path as-name)
   #:commit
-  ;(pattern ((~and hd (~literal Import))
+  ;(pattern ((~and hd (~datum Import))
   ;          import-name:$QualName
   ;          (~optional (~seq "[" other-names:$QualNameList "]"))
   ;          (~optional (~seq "as" as-name:$Name)))
   ;  #:with file-path #'#f)
-  (pattern ((~and hd (~literal Import))
+  (pattern ((~and hd (~datum Import))
             file-path:str
             (~optional (~seq "as" as-name:$Name) #:defaults ([as-name #'#f])))))
 
 (define-syntax-class $ModuleDecl
   #:attributes (hd module-name other-name*)
   #:commit
-  (pattern ((~and hd (~literal ModuleDecl))
+  (pattern ((~and hd (~datum ModuleDecl))
             module-name:$QualName
             (~optional (~seq "[" other-namelist:$NameList "]")))
     #:attr other-name* #'(~? (other-namelist.name* ...) ())))
@@ -170,12 +170,12 @@
 (define-syntax-class $SigExt
   #:attributes (hd symbol value)
   #:commit
-  (pattern ((~and hd (~literal SigExt))
+  (pattern ((~and hd (~datum SigExt))
             "extends"
             name:$QualName)
     #:attr symbol #'#:extends
     #:attr value #'name.name)
-  (pattern ((~and hd (~literal SigExt))
+  (pattern ((~and hd (~datum SigExt))
             "in"
             name:$QualName
             (~seq (~seq "+" names:$QualName) ...))
@@ -194,15 +194,15 @@
 
 (define-syntax-class $QualName
   #:attributes (hd name)
-  (pattern ((~and hd (~literal QualName))
+  (pattern ((~and hd (~datum QualName))
             (~optional "this") ; TODO, allow more complex qualnames
             (~seq prefixes:id ...)
             raw-name:id)
     #:attr name #'raw-name)
-  (pattern ((~and hd (~literal QualName))
+  (pattern ((~and hd (~datum QualName))
             "Int")
     #:attr name #'(raise "Int as qualname?"))
-  (pattern ((~and hd (~literal QualName))
+  (pattern ((~and hd (~datum QualName))
             "sum")
     #:attr name #'(raise "sum as qualname?")))
 
@@ -215,7 +215,7 @@
 (define-syntax-class $Name
   #:attributes (hd name)
   #:commit
-  (pattern ((~and hd (~literal Name))
+  (pattern ((~and hd (~datum Name))
             name:id)))
 
 ; NameList : @Name
@@ -223,7 +223,7 @@
 (define-syntax-class $NameList
   #:attributes (hd (name* 1))
   #:commit
-  (pattern ((~and hd (~literal NameList))
+  (pattern ((~and hd (~datum NameList))
             name*:id ...)))
 
 (define-datum-literal-set ExprHd
@@ -243,7 +243,7 @@
 (define-syntax-class $Mult
   #:attributes (hd symbol)
   #:commit
-  (pattern ((~and hd (~literal Mult))
+  (pattern ((~and hd (~datum Mult))
             (~and str (~or "lone" "some" "one" "two")))
     #:attr symbol #`#,(string->keyword (syntax-e #'str))))
 
@@ -251,16 +251,16 @@
 (define-syntax-class $ArrowMult
   #:attributes (hd symbol)
   #:commit
-  (pattern ((~and hd (~literal ArrowMult))
+  (pattern ((~and hd (~datum ArrowMult))
             (~or "lone" "pfunc"))
     #:attr symbol (syntax/loc this-syntax pfunc))
-  (pattern ((~and hd (~literal ArrowMult))
+  (pattern ((~and hd (~datum ArrowMult))
             "set")
     #:attr symbol (syntax/loc this-syntax default))
-  (pattern ((~and hd (~literal ArrowMult))
+  (pattern ((~and hd (~datum ArrowMult))
             (~or "one" "func"))
     #:attr symbol (syntax/loc this-syntax func))
-  (pattern ((~and hd (~literal ArrowMult))
+  (pattern ((~and hd (~datum ArrowMult))
             "two")
     #:attr symbol (syntax/loc this-syntax (raise "relation arity two not implemented"))))
 
@@ -268,7 +268,7 @@
 (define-syntax-class $Decl
   #:attributes (hd (name* 1) expr (decls 1))
   #:commit
-  (pattern ((~and hd (~literal Decl))
+  (pattern ((~and hd (~datum Decl))
             ;(~optional "disj")
             namelist:$NameList
             ;(~optional "disj")
@@ -282,7 +282,7 @@
 (define-syntax-class $DeclList
   #:attributes (hd (decls 1))
   #:commit
-  (pattern ((~and hd (~literal DeclList))
+  (pattern ((~and hd (~datum DeclList))
             -decls:$Decl ...)
     #:attr (decls 1) (syntax-e #'(-decls.decls ... ...))))
     ;;(datum->syntax this-syntax
@@ -294,7 +294,7 @@
 (define-syntax-class $ArrowDecl
   #:attributes (hd (name* 1) (type* 1) mult is-var)
   #:commit
-  (pattern ((~and hd (~literal ArrowDecl))
+  (pattern ((~and hd (~datum ArrowDecl))
             ;(~optional "disj")
             (~optional isv:$VarKeyword #:defaults ([isv #'#f])) ; electrum
             namelist:$NameList
@@ -311,7 +311,7 @@
 (define-syntax-class $ArrowDeclList
   #:attributes (hd (arrow-decl* 1))
   #:commit
-  (pattern ((~and hd (~literal ArrowDeclList))
+  (pattern ((~and hd (~datum ArrowDeclList))
             arrow-decl*:$ArrowDecl ...)))
 
 ; ArrowExpr : QualName
@@ -319,7 +319,7 @@
 (define-syntax-class $ArrowExpr
   #:attributes (hd (name* 1))
   #:commit
-  (pattern ((~and hd (~literal ArrowExpr))
+  (pattern ((~and hd (~datum ArrowExpr))
             name-list:$QualName ...)
     #:attr (name* 1) (syntax-e #'(name-list.name ...))))
 
@@ -327,7 +327,7 @@
 (define-syntax-class $FactDecl
   #:attributes (hd name block)
   #:commit
-  (pattern ((~and hd (~literal FactDecl))
+  (pattern ((~and hd (~datum FactDecl))
             "fact"
             (~optional pre-name:$Name)
             block:$Block)
@@ -337,7 +337,7 @@
 (define-syntax-class $PredDecl
   #:attributes (hd prefix name (decls 1) block)
   #:commit
-  (pattern ((~and hd (~literal PredDecl))
+  (pattern ((~and hd (~datum PredDecl))
             (~optional (~seq prefix:$QualName "."))
             pre-name:$Name
             (~optional -decls:$ParaDecls)
@@ -349,7 +349,7 @@
 (define-syntax-class $FunDecl
   #:attributes (hd prefix name (decls 1) output body)
   #:commit
-  (pattern ((~and hd (~literal FunDecl))
+  (pattern ((~and hd (~datum FunDecl))
             (~optional (~seq prefix:$QualName "."))
             pre-name:$Name
             (~optional -decls:$ParaDecls)
@@ -365,7 +365,7 @@
 (define-syntax-class $ParaDecls
   #:attributes (hd (decls 1))
   #:commit
-  (pattern ((~and hd (~literal ParaDecls))
+  (pattern ((~and hd (~datum ParaDecls))
             (~seq -decls:$Decl ...))
     ;; TODO clean up, find examples, is this even used?
     #:attr (decls 1) (syntax-e #'(-decls.decls ... ...))))
@@ -379,7 +379,7 @@
 (define-syntax-class $AssertDecl
   #:attributes (hd name block)
   #:commit
-  (pattern ((~and hd (~literal AssertDecl))
+  (pattern ((~and hd (~datum AssertDecl))
             (~optional pre-name:$Name)
             block:$Block)
     #:attr name #'(~? pre-name.name #f)))
@@ -388,7 +388,7 @@
 (define-syntax-class $CmdDecl
   #:attributes (hd name parameters pred-name pred-block scope bounds)
   #:commit
-  (pattern ((~and hd (~literal CmdDecl))
+  (pattern ((~and hd (~datum CmdDecl))
             (~optional pre-name:$Name)
             (~or "run" "check")
             (~optional parameters:$Parameters)
@@ -402,7 +402,7 @@
 (define-syntax-class $TestDecl
   #:attributes (hd name parameters pred-name pred-block scope bounds)
   #:commit
-  (pattern ((~and hd (~literal TestDecl))
+  (pattern ((~and hd (~datum TestDecl))
             (~optional -name:$Name)
             (~optional parameters:$Parameters)
             (~optional (~or -pred-name:$QualName
@@ -418,14 +418,14 @@
 (define-syntax-class $TestBlock
   #:attributes (hd (test-decls 1))
   #:commit
-  (pattern ((~and hd (~literal TestBlock))
+  (pattern ((~and hd (~datum TestBlock))
             test-decls:$TestDecl ...)))
 
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 (define-syntax-class $TestExpectDecl
   #:attributes (hd name test-block)
   #:commit
-  (pattern ((~and hd (~literal TestExpectDecl))
+  (pattern ((~and hd (~datum TestExpectDecl))
             (~optional "test")
             "expect"
             (~optional name:$Name)
@@ -434,7 +434,7 @@
 (define-syntax-class $ExampleDecl
   #:attributes (hd name pred bounds)
   #:commit
-  (pattern ((~and hd (~literal ExampleDecl))
+  (pattern ((~and hd (~datum ExampleDecl))
             (~optional pre-name:$Name)
             pred:$Expr
             bounds:$Bounds)
@@ -447,7 +447,7 @@
 (define-syntax-class $Scope
   #:attributes (hd default (typescope 1) translate)
   #:commit
-  (pattern ((~and hd (~literal Scope))
+  (pattern ((~and hd (~datum Scope))
             (~optional default:$Number)
             (~seq typescope:$Typescope ...))
     #:attr translate #'(typescope.translate ...)))
@@ -456,7 +456,7 @@
 (define-syntax-class $Typescope
   #:attributes (hd num name translate)
   #:commit
-  (pattern ((~and hd (~literal Typescope))
+  (pattern ((~and hd (~datum Typescope))
             (~optional (~and "exactly" exactly))
             num:$Number
             name:$QualName)
@@ -467,16 +467,16 @@
 (define-syntax-class $OptionDecl
   #:attributes (n v)
   #:commit
-  (pattern ((~literal OptionDecl) name:$QualName value:$QualName)
+  (pattern ((~datum OptionDecl) name:$QualName value:$QualName)
            #:attr n #'name.name
            #:attr v #'value.name)
-  (pattern ((~literal OptionDecl) name:$QualName value:str)
+  (pattern ((~datum OptionDecl) name:$QualName value:str)
            #:attr n #'name.name
            #:attr v #'value)
-  (pattern ((~literal OptionDecl) name:$QualName value:$Number)
+  (pattern ((~datum OptionDecl) name:$QualName value:$Number)
            #:attr n #'name.name
            #:attr v #'value.value)
-  (pattern ((~literal OptionDecl) name:$QualName "-" value:$Number)
+  (pattern ((~datum OptionDecl) name:$QualName "-" value:$Number)
            #:attr n #'name.name
            #:attr v (quasisyntax #,(* -1 (syntax->datum #'value.value)))))
 
@@ -486,7 +486,7 @@
 (define-syntax-class $QualNameList
   #:attributes (hd (prefixes 2) (name 1))
   #:commit
-  (pattern ((~and hd (~literal QualNameList))
+  (pattern ((~and hd (~datum QualNameList))
             (~or (~seq (~optional "this")
                        (~seq prefixes:id ...)
                        name:id)
@@ -497,26 +497,26 @@
 (define-syntax-class $Number
   #:attributes (hd value)
   #:commit
-  (pattern ((~and hd (~literal Number)) n)
+  (pattern ((~and hd (~datum Number)) n)
     #:attr value #'n))
 
 ; SexprDecl : Sexpr
 (define-syntax-class $SexprDecl
   #:attributes (hd exp)
   #:commit
-  (pattern ((~and hd (~literal SexprDecl)) exp:$Sexpr)))
+  (pattern ((~and hd (~datum SexprDecl)) exp:$Sexpr)))
 
 ; Sexpr : SEXPR-TOK
 (define-syntax-class $Sexpr
   #:attributes (hd exp)
   #:commit
-  (pattern ((~and hd (~literal Sexpr)) exp)))
+  (pattern ((~and hd (~datum Sexpr)) exp)))
 
 ; InstDecl : /INST-TOK Name Bounds Scope?
 (define-syntax-class $InstDecl
   #:attributes (hd name bounds scope)
   #:commit
-  (pattern ((~and hd (~literal InstDecl))
+  (pattern ((~and hd (~datum InstDecl))
             name:$Name
             bounds:$Bounds
             (~optional scope:$Scope))))
@@ -525,13 +525,13 @@
 (define-syntax-class $RelDecl
   #:attributes (hd decl)
   #:commit
-  (pattern ((~and hd (~literal RelDecl)) decl:$ArrowDecl)))
+  (pattern ((~and hd (~datum RelDecl)) decl:$ArrowDecl)))
 
 ; Parameters : /LeftAngle @QualNameList /RightAngle 
 (define-syntax-class $Parameters
   #:attributes (hd (name 1))
   #:commit
-  (pattern ((~and hd (~literal Parameters))
+  (pattern ((~and hd (~datum Parameters))
             name:$QualName ...)))
 
 ; Bounds : EXACTLY-TOK? @ExprList
@@ -539,7 +539,7 @@
 (define-syntax-class $Bounds
   #:attributes (hd exact? (exprs 1) translate)
   #:commit
-  (pattern ((~and hd (~literal Bounds))
+  (pattern ((~and hd (~datum Bounds))
             (~optional (~and "exactly" exact?) #:defaults ([exact? #'#f]))
             exprs:$Expr ...)
     ;; TODO cleanup
@@ -553,15 +553,15 @@
 (define-syntax-class $Const
   #:attributes (translate)
   #:commit
-  (pattern ((~literal Const) "none")
+  (pattern ((~datum Const) "none")
     #:attr translate (syntax/loc this-syntax none))
-  (pattern ((~literal Const) "univ")
+  (pattern ((~datum Const) "univ")
     #:attr translate (syntax/loc this-syntax univ))
-  (pattern ((~literal Const) "iden")
+  (pattern ((~datum Const) "iden")
     #:attr translate (syntax/loc this-syntax iden))
-  (pattern ((~literal Const) n:$Number)
+  (pattern ((~datum Const) n:$Number)
     #:attr translate (syntax/loc this-syntax (int n.value)))
-  (pattern ((~literal Const) "-" n:$Number)
+  (pattern ((~datum Const) "-" n:$Number)
     #:attr translate (quasisyntax/loc this-syntax (int #,(- (syntax->datum #'n.value))))))
 
 ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
@@ -569,11 +569,11 @@
 (define-syntax-class $ArrowOp
   #:attributes (arr)
   #:commit
-  (pattern ((~literal ArrowOp)
+  (pattern ((~datum ArrowOp)
             (~optional (~or "lone" "some" "one" "two" "set"))
             (~and "->" arr)
             (~optional (~or "lone" "some" "one" "two" "set"))))
-  (pattern ((~literal ArrowOp) (~and "*" arr))))
+  (pattern ((~datum ArrowOp) (~and "*" arr))))
 
 (define-syntax-class $UnaryOp
   #:attributes (op symbol)
@@ -596,7 +596,7 @@
 (define-syntax-class $CompareOp
   #:attributes (op symbol)
   #:commit
-  (pattern ((~literal CompareOp)
+  (pattern ((~datum CompareOp)
             (~and op
                   (~or "in" "=" "<" ">" "<=" ">="
                        "is" "ni")))
@@ -606,7 +606,7 @@
 (define-syntax-class $LetDecl
   #:attributes (name exp translate)
   #:commit
-  (pattern ((~literal LetDecl)
+  (pattern ((~datum LetDecl)
             name:id
             exp:$Expr)
     #:attr translate #'(name exp)))
@@ -616,7 +616,7 @@
 (define-syntax-class $LetDeclList
   #:attributes ((decls 1) translate)
   #:commit
-  (pattern ((~literal LetDeclList)
+  (pattern ((~datum LetDeclList)
             decls:$LetDecl ...)
     #:attr translate #'(decls.translate ...)))
 
@@ -624,18 +624,18 @@
 (define-syntax-class $BlockOrBar
   #:attributes (hd exprs)
   #:commit
-  (pattern ((~and hd (~literal BlockOrBar)) exprs:$Block))
-  (pattern ((~and hd (~literal BlockOrBar)) "|" exprs:$Expr)))
+  (pattern ((~and hd (~datum BlockOrBar)) exprs:$Block))
+  (pattern ((~and hd (~datum BlockOrBar)) "|" exprs:$Expr)))
 
 ; Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
 (define-syntax-class $Quant
   #:attributes (hd symbol)
   #:commit
-  (pattern ((~and hd (~literal Quant))
+  (pattern ((~and hd (~datum Quant))
             q:$QuantStr)
     #:attr symbol (datum->syntax #'q (string->symbol (syntax-e #'q))))
-  (pattern ((~and hd (~literal Quant))
-            (~literal sum))
+  (pattern ((~and hd (~datum Quant))
+            (~datum sum))
     #:attr symbol (syntax/loc #'q sum-quant)))
 
 ; ExprList : Expr
@@ -643,7 +643,7 @@
 (define-syntax-class $ExprList
   #:attributes (hd (exprs 1))
   #:commit
-  (pattern ((~and hd (~literal ExprList))
+  (pattern ((~and hd (~datum ExprList))
             exprs:$Expr ...)))
 
 (define-syntax-class $NotOp
