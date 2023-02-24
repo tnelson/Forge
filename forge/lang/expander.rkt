@@ -59,11 +59,11 @@
   ; AlloyModule : ModuleDecl? Import* Paragraph*
   ;             | EvalDecl*
   ; (define-syntax-class AlloyModuleClass
-  ;   (pattern ((~literal AlloyModule)
+  ;   (pattern ((~datum AlloyModule)
   ;             (~optional module-decl:ModuleDeclClass)
   ;             (~seq import:ImportClass ...)
   ;             (~seq paragraph:ParagraphClass ...)))
-  ;   (pattern ((~literal AlloyModule)
+  ;   (pattern ((~datum AlloyModule)
   ;             (~seq eval-decl:EvalDeclClass ...))))
 
 
@@ -71,17 +71,17 @@
 
   ; ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
   (define-syntax-class ModuleDeclClass
-    (pattern ((~literal ModuleDecl)
+    (pattern ((~datum ModuleDecl)
               module-name:QualNameClass
               (~optional (~seq "[" other-names:NameListClass "]")))))
 
   ; Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
   (define-syntax-class ImportClass
-    (pattern ((~literal Import)
+    (pattern ((~datum Import)
               import-name:QualNameClass
               (~optional (~seq "[" other-names:QualNameListClass "]"))
               (~optional (~seq "as" as-name:NameClass))))
-    (pattern ((~literal Import)
+    (pattern ((~datum Import)
               file-path:str
               (~optional (~seq "as" as-name:NameClass)))))
 
@@ -90,7 +90,7 @@
 
   ; EvalDecl : EVAL-TOK Expr
   (define-syntax-class EvalDeclClass
-    (pattern ((~literal EvalDecl)
+    (pattern ((~datum EvalDecl)
               "eval"
               exp:ExprClass)))
 
@@ -126,7 +126,7 @@
 
   ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
   (define-syntax-class SigDeclClass
-    (pattern ((~literal SigDecl)
+    (pattern ((~datum SigDecl)
               (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
               (~optional abstract:abstract-tok)
               (~optional mult:MultClass)
@@ -142,12 +142,12 @@
   ; SigExt : EXTENDS-TOK QualName 
   ;        | IN-TOK QualName (PLUS-TOK QualName)*
   (define-syntax-class SigExtClass
-    (pattern ((~literal SigExt)
+    (pattern ((~datum SigExt)
               "extends"
               name:QualNameClass)
       #:attr symbol #'#:extends
       #:attr value #'name.name)
-    (pattern ((~literal SigExt)
+    (pattern ((~datum SigExt)
               "in" 
               name:QualNameClass
               (~seq (~seq "+" names:QualNameClass) ...))
@@ -156,23 +156,23 @@
 
   ; Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
   (define-syntax-class MultClass
-    (pattern ((~literal Mult) "lone") #:attr symbol #'#:lone)
-    (pattern ((~literal Mult) "some") #:attr symbol #'#:some)
-    (pattern ((~literal Mult) "one") #:attr symbol #'#:one)
-    (pattern ((~literal Mult) "two") #:attr symbol #'#:two))
+    (pattern ((~datum Mult) "lone") #:attr symbol #'#:lone)
+    (pattern ((~datum Mult) "some") #:attr symbol #'#:some)
+    (pattern ((~datum Mult) "one") #:attr symbol #'#:one)
+    (pattern ((~datum Mult) "two") #:attr symbol #'#:two))
 
   ; ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
   (define-syntax-class ArrowMultClass
-    (pattern ((~literal ArrowMult) "lone") #:attr symbol #'pfunc)
-    (pattern ((~literal ArrowMult) "set") #:attr symbol #'default)
-    (pattern ((~literal ArrowMult) "one") #:attr symbol #'func)
-    (pattern ((~literal ArrowMult) "func") #:attr symbol #'func)
-    (pattern ((~literal ArrowMult) "pfunc") #:attr symbol #'pfunc)
-    (pattern ((~literal ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
+    (pattern ((~datum ArrowMult) "lone") #:attr symbol #'pfunc)
+    (pattern ((~datum ArrowMult) "set") #:attr symbol #'default)
+    (pattern ((~datum ArrowMult) "one") #:attr symbol #'func)
+    (pattern ((~datum ArrowMult) "func") #:attr symbol #'func)
+    (pattern ((~datum ArrowMult) "pfunc") #:attr symbol #'pfunc)
+    (pattern ((~datum ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
 
   ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
   (define-syntax-class DeclClass
-    (pattern ((~literal Decl)
+    (pattern ((~datum Decl)
               ;(~optional "disj")
               names:NameListClass
               ;(~optional "disj")
@@ -184,7 +184,7 @@
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
   (define-syntax-class DeclListClass
-    (pattern ((~literal DeclList)
+    (pattern ((~datum DeclList)
               decls:DeclClass ...)
       #:attr translate (datum->syntax #'(decls ...) 
                                       (apply append 
@@ -193,7 +193,7 @@
 
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
   (define-syntax-class ArrowDeclClass
-    (pattern ((~literal ArrowDecl)
+    (pattern ((~datum ArrowDecl)
               ;(~optional "disj")
               (~optional isv:VarKeywordClass #:defaults ([isv #'#f])) ; electrum
               name-list:NameListClass
@@ -208,19 +208,19 @@
   ; ArrowDeclList : ArrowDecl
   ;               | ArrowDecl /COMMA-TOK @ArrowDeclList
   (define-syntax-class ArrowDeclListClass
-    (pattern ((~literal ArrowDeclList)
+    (pattern ((~datum ArrowDeclList)
               arrow-decl:ArrowDeclClass ...)))
 
   ; ArrowExpr : QualName
   ;           | QualName /ARROW-TOK @ArrowExpr
   (define-syntax-class ArrowExprClass
-    (pattern ((~literal ArrowExpr)
+    (pattern ((~datum ArrowExpr)
               name-list:QualNameClass ...)
       #:attr names #'(name-list.name ...)))
 
   ; FactDecl : FACT-TOK Name? Block
   (define-syntax-class FactDeclClass
-    (pattern ((~literal FactDecl)
+    (pattern ((~datum FactDecl)
               "fact" 
               (~optional name:NameClass)
               block:BlockClass)))
@@ -233,7 +233,7 @@
 
   ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
   (define-syntax-class PredDeclClass
-    (pattern ((~literal PredDecl)
+    (pattern ((~datum PredDecl)
               (~optional _:PredTypeClass)
               (~optional (~seq prefix:QualNameClass "."))
               name:NameClass
@@ -242,7 +242,7 @@
 
   ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
   (define-syntax-class FunDeclClass
-    (pattern ((~literal FunDecl)
+    (pattern ((~datum FunDecl)
               (~optional (~seq prefix:QualNameClass "."))
               name:NameClass
               (~optional decls:ParaDeclsClass)
@@ -254,7 +254,7 @@
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
   (define-syntax-class ParaDeclsClass
-    (pattern ((~literal ParaDecls)
+    (pattern ((~datum ParaDecls)
               (~seq decls:DeclClass ...))
       #:attr translate (datum->syntax #'(decls ...)
                                       (apply append (map (compose (curry map car )
@@ -264,13 +264,13 @@
 
   ; AssertDecl : /ASSERT-TOK Name? Block
   (define-syntax-class AssertDeclClass
-    (pattern ((~literal AssertDecl)
+    (pattern ((~datum AssertDecl)
               (~optional name:NameClass)
               block:BlockClass)))
 
   ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
   (define-syntax-class CmdDeclClass
-    (pattern ((~literal CmdDecl)
+    (pattern ((~datum CmdDecl)
               (~optional name:NameClass)
               (~or "run" "check")
               (~optional parameters:ParametersClass)
@@ -281,7 +281,7 @@
 
   ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
   (define-syntax-class TestDeclClass
-    (pattern ((~literal TestDecl)
+    (pattern ((~datum TestDecl)
               (~optional name:NameClass)
               (~optional parameters:ParametersClass)
               (~optional (~or pred-name:QualNameClass
@@ -292,12 +292,12 @@
 
   ; TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
   (define-syntax-class TestBlockClass
-    (pattern ((~literal TestBlock)
+    (pattern ((~datum TestBlock)
               test-decls:TestDeclClass ...)))
 
   ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
   (define-syntax-class TestExpectDeclClass
-    (pattern ((~literal TestExpectDecl)
+    (pattern ((~datum TestExpectDecl)
               (~optional "test")
               "expect"
               (~optional name:NameClass)
@@ -310,7 +310,7 @@
 
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
-    (pattern ((~literal PropertyDecl)      
+    (pattern ((~datum PropertyDecl)      
               -prop-name:NameClass
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
@@ -325,13 +325,13 @@
 
   (define-syntax-class TestSuiteDeclClass
     #:attributes (pred-name (test-constructs 1))
-    (pattern ((~literal TestSuiteDecl)
+    (pattern ((~datum TestSuiteDecl)
               -pred-name:NameClass
               test-constructs:TestConstructClass ...)
       #:with pred-name #'-pred-name.name))
 
   (define-syntax-class ExampleDeclClass
-    (pattern ((~literal ExampleDecl)
+    (pattern ((~datum ExampleDecl)
               (~optional name:NameClass)
               pred:ExprClass
               bounds:BoundsClass)))
@@ -341,14 +341,14 @@
   ; TypescopeList : Typescope
   ;               | Typescope /COMMA-TOK @TypescopeList
   (define-syntax-class ScopeClass
-    (pattern ((~literal Scope)
+    (pattern ((~datum Scope)
               (~optional default:NumberClass)
               (~seq typescope:TypescopeClass ...))
       #:attr translate #'(typescope.translate ...)))
 
   ; Typescope : EXACTLY-TOK? Number QualName
   (define-syntax-class TypescopeClass
-    (pattern ((~literal Typescope)
+    (pattern ((~datum Typescope)
               (~optional (~and "exactly" exactly))
               num:NumberClass
               name:QualNameClass)
@@ -359,53 +359,53 @@
   ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
   (define-syntax-class OptionDeclClass
     #:attributes (n v)
-    (pattern ((~literal OptionDecl) name:QualNameClass value:QualNameClass)
+    (pattern ((~datum OptionDecl) name:QualNameClass value:QualNameClass)
              #:attr n #'name.name
              #:attr v #'value.name)
-    (pattern ((~literal OptionDecl) name:QualNameClass value:str)
+    (pattern ((~datum OptionDecl) name:QualNameClass value:str)
              #:attr n #'name.name
              #:attr v #'value)
-    (pattern ((~literal OptionDecl) name:QualNameClass value:NumberClass)
+    (pattern ((~datum OptionDecl) name:QualNameClass value:NumberClass)
              #:attr n #'name.name
              #:attr v #'value.value)
-    (pattern ((~literal OptionDecl) name:QualNameClass "-" value:NumberClass)
+    (pattern ((~datum OptionDecl) name:QualNameClass "-" value:NumberClass)
              #:attr n #'name.name
              #:attr v (quasisyntax #,(* -1 (syntax->datum #'value.value)))))
 
  
   ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
   (define-syntax-class BlockClass
-    (pattern ((~literal Block)
+    (pattern ((~datum Block)
               exprs:ExprClass ...)))
 
   ; Name : IDENTIFIER-TOK
   (define-syntax-class NameClass
-    (pattern ((~literal Name)
+    (pattern ((~datum Name)
               name:id)))
 
   ; NameList : @Name
   ;          | @Name /COMMA-TOK @NameList
   (define-syntax-class NameListClass
-    (pattern ((~literal NameList)
+    (pattern ((~datum NameList)
               names:id ...)))
 
   ; QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK | SUM-TOK
   (define-syntax-class QualNameClass
     #:attributes (name)
-    (pattern ((~literal QualName)
+    (pattern ((~datum QualName)
               (~optional "this") ; TODO, allow more complex qualnames
               (~seq prefixes:id ...)
               raw-name:id)
       #:attr name #'raw-name)
-    (pattern ((~literal QualName) "Int")
+    (pattern ((~datum QualName) "Int")
       #:attr name #'(raise "Int as qualname?"))
-    (pattern ((~literal QualName) "sum")
+    (pattern ((~datum QualName) "sum")
       #:attr name #'(raise "sum as qualname?")))
 
   ; QualNameList : @QualName
   ;              | @QualName /COMMA-TOK @QualNameList
   (define-syntax-class QualNameListClass
-    (pattern ((~literal QualNameList)
+    (pattern ((~datum QualNameList)
               (~or (~seq (~optional "this")
                          (~seq prefixes:id ...)
                          name:id)
@@ -414,37 +414,37 @@
 
   ; Number : NUM-CONST-TOK
   (define-syntax-class NumberClass
-    (pattern ((~literal Number) n)
+    (pattern ((~datum Number) n)
       #:attr value #'n))
 
   ; SexprDecl : Sexpr
   (define-syntax-class SexprDeclClass
-    (pattern ((~literal SexprDecl) exp:SexprClass)))
+    (pattern ((~datum SexprDecl) exp:SexprClass)))
 
   ; Sexpr : SEXPR-TOK
   (define-syntax-class SexprClass
-    (pattern ((~literal Sexpr) exp)))
+    (pattern ((~datum Sexpr) exp)))
 
   ; InstDecl : /INST-TOK Name Bounds Scope?
   (define-syntax-class InstDeclClass
-    (pattern ((~literal InstDecl)
+    (pattern ((~datum InstDecl)
               name:NameClass
               bounds:BoundsClass
               (~optional scope:ScopeClass))))
 
   ; RelDecl : ArrowDecl
   (define-syntax-class RelDeclClass
-    (pattern ((~literal RelDecl) decl:ArrowDeclClass)))
+    (pattern ((~datum RelDecl) decl:ArrowDeclClass)))
 
   ; Parameters : /LeftAngle @QualNameList /RightAngle 
   (define-syntax-class ParametersClass
-    (pattern ((~literal Parameters)
+    (pattern ((~datum Parameters)
               name:QualNameClass ...)))
 
   ; Bounds : EXACTLY-TOK? @ExprList
   ;        | EXACTLY-TOK? @Block
   (define-syntax-class BoundsClass
-    (pattern ((~literal Bounds)
+    (pattern ((~datum Bounds)
               (~optional "exactly")
               exprs:ExprClass ...)
       #:attr translate (datum->syntax #'(exprs ...)
@@ -456,29 +456,29 @@
   ;       | MINUS-TOK? Number 
   (define-syntax-class ConstClass
     #:attributes (translate)
-    (pattern ((~literal Const) "none")
+    (pattern ((~datum Const) "none")
       #:attr translate (syntax/loc this-syntax none))
-    (pattern ((~literal Const) "univ")
+    (pattern ((~datum Const) "univ")
       #:attr translate (syntax/loc this-syntax univ))
-    (pattern ((~literal Const) "iden")
+    (pattern ((~datum Const) "iden")
       #:attr translate (syntax/loc this-syntax iden))
-    (pattern ((~literal Const) n:NumberClass)
+    (pattern ((~datum Const) n:NumberClass)
       #:attr translate (syntax/loc this-syntax (int n.value)))
-    (pattern ((~literal Const) "-" n:NumberClass)
+    (pattern ((~datum Const) "-" n:NumberClass)
       #:attr translate (quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value))))))
 
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK
   (define-syntax-class ArrowOpClass
-    (pattern ((~literal ArrowOp)
+    (pattern ((~datum ArrowOp)
               (~optional (~or "lone" "some" "one" "two" "set"))
               "->"
               (~optional (~or "lone" "some" "one" "two" "set"))))
-    (pattern ((~literal ArrowOp) "*")))
+    (pattern ((~datum ArrowOp) "*")))
 
   ; CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK
   (define-syntax-class CompareOpClass
-    (pattern ((~literal CompareOp)
+    (pattern ((~datum CompareOp)
               (~and op
                     (~or "in" "=" "<" ">" "<=" ">="
                          "is" "ni")))
@@ -486,7 +486,7 @@
 
   ; LetDecl : @Name /EQ-TOK Expr
   (define-syntax-class LetDeclClass
-    (pattern ((~literal LetDecl)
+    (pattern ((~datum LetDecl)
               name:id
               exp:ExprClass)
       #:attr translate (with-syntax ([exp #'exp]) 
@@ -495,39 +495,39 @@
   ; LetDeclList : LetDecl
   ;             | LetDecl /COMMA-TOK @LetDeclList
   (define-syntax-class LetDeclListClass
-    (pattern ((~literal LetDeclList)
+    (pattern ((~datum LetDeclList)
               decls:LetDeclClass ...)
       #:attr translate #'(decls.translate ...)))
 
   ; BlockOrBar : Block | BAR-TOK Expr
   (define-syntax-class BlockOrBarClass
       #:attributes (exprs)
-    (pattern ((~literal BlockOrBar) block:BlockClass)
+    (pattern ((~datum BlockOrBar) block:BlockClass)
       #:attr exprs #'block)
-    (pattern ((~literal BlockOrBar) "|" exp:ExprClass)
+    (pattern ((~datum BlockOrBar) "|" exp:ExprClass)
       #:attr exprs #'exp))
 
   ; Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
   (define-syntax-class QuantClass
-    (pattern ((~literal Quant) (~and q (~or "all" "no" "lone"
+    (pattern ((~datum Quant) (~and q (~or "all" "no" "lone"
                                             "some" "one" "two")))
       #:attr symbol (datum->syntax #'q
                                    (string->symbol (syntax->datum #'q))))
-    (pattern ((~literal Quant) (~literal sum))
+    (pattern ((~datum Quant) (~literal sum))
       #:attr symbol (syntax/loc #'q sum-quant)))
 
   (define-syntax-class ExprClass
-    (pattern ((~or (~literal Expr) (~literal Expr1) (~literal Expr2) (~literal Expr3)
-                   (~literal Expr4) (~literal Expr4.5) (~literal Expr5) (~literal Expr6) (~literal Expr7) (~literal Expr7.5)
-                   (~literal Expr8) (~literal Expr9) (~literal Expr10) (~literal Expr11)
-                   (~literal Expr12) (~literal Expr13) (~literal Expr14) (~literal Expr15)
-                   (~literal Expr16) (~literal Expr17))
+    (pattern ((~or (~datum Expr) (~datum Expr1) (~datum Expr2) (~datum Expr3)
+                   (~datum Expr4) (~datum Expr4.5) (~datum Expr5) (~datum Expr6) (~datum Expr7) (~datum Expr7.5)
+                   (~datum Expr8) (~datum Expr9) (~datum Expr10) (~datum Expr11)
+                   (~datum Expr12) (~datum Expr13) (~datum Expr14) (~datum Expr15)
+                   (~datum Expr16) (~datum Expr17))
              _ ...)))
 
   ; ExprList : Expr
   ;          | Expr /COMMA-TOK @ExprList
   (define-syntax-class ExprListClass
-    (pattern ((~literal ExprList)
+    (pattern ((~datum ExprList)
               exprs:ExprClass ...))))
 
 
@@ -536,22 +536,22 @@
 ;             | EvalDecl*
 (define-syntax (AlloyModule stx)    
   (syntax-parse stx
-    [((~literal AlloyModule) (~optional module-decl:ModuleDeclClass)
+    [((~datum AlloyModule) (~optional module-decl:ModuleDeclClass)
                              (~seq import:ImportClass ...)
                              (~seq paragraph:ParagraphClass ...))
      (syntax/loc stx (begin
      (~? module-decl)
      import ...
      paragraph ...))]
-    [((~literal AlloyModule) ((~literal EvalDecl) "eval" expr:ExprClass))
+    [((~datum AlloyModule) ((~datum EvalDecl) "eval" expr:ExprClass))
      (syntax/loc stx expr)]
-    [((~literal AlloyModule) ((~literal EvalDecl) "eval" expr:ExprClass) ...+)
+    [((~datum AlloyModule) ((~datum EvalDecl) "eval" expr:ExprClass) ...+)
      (syntax/loc stx (raise "Can't eval multiple expressions."))]))
 
 ; ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
 (define-syntax (ModuleDecl stx)
   (syntax-parse stx 
-    [((~literal ModuleDecl) module-name:QualNameClass
+    [((~datum ModuleDecl) module-name:QualNameClass
                             (~optional (~seq "[" other-names:NameListClass "]")))
      (syntax/loc stx (raise "ModuleDecl not yet implemented."))]))
 
@@ -559,12 +559,12 @@
 ; Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
 (define-syntax (Import stx)
   (syntax-parse stx
-      [((~literal Import) file-path:str
+      [((~datum Import) file-path:str
                           (~optional (~seq "as" as-name:NameClass)))
        (syntax/loc stx (begin
            (~? (require (prefix-in as-name.name file-path))
                (require file-path))))]
-    [((~literal Import) import-name:QualNameClass
+    [((~datum Import) import-name:QualNameClass
                         (~optional (~seq "[" other-names:QualNameListClass "]"))
                         (~optional (~seq "as" as-name:NameClass)))
      (syntax/loc stx (begin
@@ -575,7 +575,7 @@
 ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax (SigDecl stx)
   (syntax-parse stx
-    [((~literal SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+    [((~datum SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
                          sig-names:NameListClass
@@ -596,7 +596,7 @@
                             (~? (~@ #:is-var isv))
                             (~? (~@ extends.symbol extends.value))) ...))]
 
-    [((~literal SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+    [((~datum SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
                          sig-names:NameListClass
@@ -605,7 +605,7 @@
                          ;check if this allows multiple SigExtClasses / how to do that if not
                          ;note the parser currently does not allow that
                          (~optional extends:SigExtClass)
-                         ((~literal ArrowDeclList) arrow-decl:ArrowDeclClass ...)
+                         ((~datum ArrowDeclList) arrow-decl:ArrowDeclClass ...)
                          (~optional block:BlockClass))
      (quasisyntax/loc stx (begin
        (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
@@ -641,7 +641,7 @@
 ; RelDecl : ArrowDecl
 (define-syntax (RelDecl stx)
   (syntax-parse stx
-  [((~literal RelDecl) arrow-decl:ArrowDeclClass)
+  [((~datum RelDecl) arrow-decl:ArrowDeclClass)
    (quasisyntax/loc stx (begin
    #,@(for/list ([name (syntax->list #'arrow-decl.names)])
         (with-syntax ([name name])
@@ -650,13 +650,13 @@
 ; FactDecl : FACT-TOK Name? Block
 (define-syntax (FactDecl stx)
   (syntax-parse stx
-  [((~literal FactDecl) _ ...)
+  [((~datum FactDecl) _ ...)
    (syntax/loc stx (raise "Facts are not allowed in #lang forge."))]))
 
 ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
 (define-syntax (PredDecl stx)
   (syntax-parse stx
-  [((~literal PredDecl) (~optional pt:PredTypeClass)
+  [((~datum PredDecl) (~optional pt:PredTypeClass)
                         (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         block:BlockClass)
@@ -666,7 +666,7 @@
        ; preserve stx location in Racket *sub*expression
        #,(syntax/loc stx (pred (~? pt.kw) (#:lang (get-check-lang)) name.name block)))))]
 
-  [((~literal PredDecl) (~optional pt:PredTypeClass)
+  [((~datum PredDecl) (~optional pt:PredTypeClass)
                         (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         decls:ParaDeclsClass
@@ -682,7 +682,7 @@
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)
   (syntax-parse stx
-  [((~literal FunDecl) (~optional (~seq prefix:QualNameClass "."))
+  [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        output:ExprClass
                        body:ExprClass)
@@ -691,7 +691,7 @@
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        (const name.name body))))]
 
-  [((~literal FunDecl) (~optional (~seq prefix:QualNameClass "."))
+  [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        decls:ParaDeclsClass
                        output:ExprClass
@@ -706,7 +706,7 @@
 ; AssertDecl : /ASSERT-TOK Name? Block
 (define-syntax (AssertDecl stx)
   (syntax-parse stx
-  [((~literal AssertDecl) _ ...)
+  [((~datum AssertDecl) _ ...)
    (syntax/loc stx (raise "Assertions not yet implemented."))]))
 
 (define-for-syntax make-temporary-name
@@ -724,7 +724,7 @@
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 (define-syntax (CmdDecl stx)
   (syntax-parse stx
-  [((~literal CmdDecl) (~optional name:NameClass)
+  [((~datum CmdDecl) (~optional name:NameClass)
                        (~and cmd-type (~or "run" "check"))
                        (~optional parameters:ParametersClass)
                        (~optional (~or pred:QualNameClass
@@ -744,7 +744,7 @@
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 (define-syntax (TestDecl stx)
   (syntax-parse stx
-  [((~literal TestDecl) (~optional name:NameClass)
+  [((~datum TestDecl) (~optional name:NameClass)
                         (~optional parameters:ParametersClass)
                         (~optional (~or pred:QualNameClass
                                         preds:BlockClass))
@@ -764,7 +764,7 @@
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 (define-syntax (TestExpectDecl stx)
   (syntax-parse stx
-  [((~literal TestExpectDecl) (~optional (~and "test" test-tok))
+  [((~datum TestExpectDecl) (~optional (~and "test" test-tok))
                               "expect" 
                               (~optional name:NameClass)
                               block:TestBlockClass)
@@ -818,7 +818,7 @@
 
 (define-syntax (ExampleDecl stx)
   (syntax-parse stx
-  [((~literal ExampleDecl) (~optional name:NameClass)
+  [((~datum ExampleDecl) (~optional name:NameClass)
                            pred:ExprClass
                            bounds:BoundsClass)
    (quasisyntax/loc stx
@@ -837,7 +837,7 @@
 ; InstDecl : /INST-TOK Name Bounds Scope?
 (define-syntax (InstDecl stx)
   (syntax-parse stx
-  [((~literal InstDecl)
+  [((~datum InstDecl)
               name:NameClass
               bounds:BoundsClass
               (~optional scope:ScopeClass))
@@ -863,101 +863,101 @@
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (Block stx)
   (syntax-parse stx
-    [((~literal Block) exprs:ExprClass ...)
+    [((~datum Block) exprs:ExprClass ...)
      (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
        (syntax/loc stx (disambiguate-block (list exprs ...))))]))
 
 (define-syntax (Expr stx)
   (syntax-parse stx
-  [((~literal Expr) "let" decls:LetDeclListClass bob:BlockOrBarClass)
+  [((~datum Expr) "let" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (let decls.translate bob.exprs))]
 
-  [((~literal Expr) "bind" decls:LetDeclListClass bob:BlockOrBarClass)
+  [((~datum Expr) "bind" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (raise "bind not implemented."))]
 
-  [((~literal Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)
+  [((~datum Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (q.symbol decls.translate bob.exprs))] ; stx, not #'q
 
-  [((~literal Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
+  [((~datum Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (q.symbol #:disj decls.translate bob.exprs))] ; stx, not #'q
 
-  [((~literal Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (|| expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (iff (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])     
      (syntax/loc stx (implies (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
+  [((~datum Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
                                     "else" expr3:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [expr3 (my-expand #'expr3)])
      (syntax/loc stx (ifte expr1 expr2 expr3)))]
 
-  [((~literal Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (&& expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (releases expr1 expr2)))]
-  [((~literal Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (until expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass (~or "since") expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass (~or "since") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (since expr1 expr2)))]
-  [((~literal Expr) expr1:ExprClass (~or "triggered") expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass (~or "triggered") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (triggered expr1 expr2)))]
 
     
-  [((~literal Expr) (~or "!" "not") expr1:ExprClass)
+  [((~datum Expr) (~or "!" "not") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (! (#:lang (get-check-lang)) expr1)))]
 
-  [((~literal Expr) (~or "always") expr1:ExprClass)
+  [((~datum Expr) (~or "always") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (always expr1)))]
-  [((~literal Expr) (~or "eventually") expr1:ExprClass)
+  [((~datum Expr) (~or "eventually") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (eventually expr1)))]
-  [((~literal Expr) (~or "next_state") expr1:ExprClass)
+  [((~datum Expr) (~or "next_state") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
        (syntax/loc stx (next_state expr1)))]
 
-  [((~literal Expr) (~or "historically") expr1:ExprClass)
+  [((~datum Expr) (~or "historically") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (historically expr1)))]
-  [((~literal Expr) (~or "once") expr1:ExprClass)
+  [((~datum Expr) (~or "once") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (once expr1)))]
-  [((~literal Expr) (~or "prev_state") expr1:ExprClass)
+  [((~datum Expr) (~or "prev_state") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
        (syntax/loc stx (prev_state expr1)))]       
     
-  [((~literal Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [op #'op.symbol])
      (syntax/loc stx (op (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass 
+  [((~datum Expr) expr1:ExprClass 
                     (~or "!" "not") op:CompareOpClass 
                     expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -966,23 +966,23 @@
      ; Need to preserve srcloc in both the "not" and the "op" nodes
      (quasisyntax/loc stx (! #,(syntax/loc stx (op (#:lang (get-check-lang)) expr1 expr2)))))]
 
-  [((~literal Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
+  [((~datum Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
                           op)
                     expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [op (datum->syntax #'op (string->symbol (syntax->datum #'op)))])
      (syntax/loc stx (op (#:lang (get-check-lang)) expr1)))]
 
-  [((~literal Expr) "#" expr1:ExprClass)
+  [((~datum Expr) "#" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (card (#:lang (get-check-lang)) expr1)))]
 
   ; Semantic priming as in Electrum
-  [((~literal Expr) expr1:ExprClass "'")
+  [((~datum Expr) expr1:ExprClass "'")
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (prime (#:lang (get-check-lang)) expr1)))]
 
-  [((~literal Expr) expr1:ExprClass "+" expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass "+" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [check-lang (if (forge-context=? 'example)
@@ -990,22 +990,22 @@
                                #'(get-check-lang))])
      (syntax/loc stx (+ (#:lang check-lang) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass "-" expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass "-" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (- (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass "++" expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass "++" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (++ (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass "&" expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass "&" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (& (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [check-lang (if (forge-context=? 'example)
@@ -1013,65 +1013,65 @@
                                #'(get-check-lang))])
      (syntax/loc stx (-> (#:lang check-lang) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass ":>" expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass ":>" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (:> (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) expr1:ExprClass "<:" expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass "<:" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (<: (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) "[" exprs:ExprListClass "]")
+  [((~datum Expr) "[" exprs:ExprListClass "]")
    (syntax/loc stx (raise (format "Unimplemented ~a" exprs)))]
 
-  [((~literal Expr) expr1:ExprClass "." expr2:ExprClass)
+  [((~datum Expr) expr1:ExprClass "." expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (join (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~literal Expr) name:NameClass "[" exprs:ExprListClass "]")
+  [((~datum Expr) name:NameClass "[" exprs:ExprListClass "]")
    (with-syntax ([name #'name.name]
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (name exprs ...)))]
 
-  [((~literal Expr) expr1:ExprClass "[" exprs:ExprListClass "]")
+  [((~datum Expr) expr1:ExprClass "[" exprs:ExprListClass "]")
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (expr1 exprs ...)))]
 
-  [((~literal Expr) "~" expr1:ExprClass)
+  [((~datum Expr) "~" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (~ (#:lang (get-check-lang)) expr1)))]
 
-  [((~literal Expr) "^" expr1:ExprClass)
+  [((~datum Expr) "^" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (^ (#:lang (get-check-lang)) expr1)))]
 
-  [((~literal Expr) "*" expr1:ExprClass)
+  [((~datum Expr) "*" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (* (#:lang (get-check-lang)) expr1)))]
 
-  [((~literal Expr) const:ConstClass)   
+  [((~datum Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
 
-  [((~literal Expr) name:QualNameClass)
+  [((~datum Expr) name:QualNameClass)
    (syntax/loc stx name.name)]
 
-  [((~literal Expr) "this")
+  [((~datum Expr) "this")
    (syntax/loc stx this)]
 
-  [((~literal Expr) "`" name:NameClass)
+  [((~datum Expr) "`" name:NameClass)
    (syntax/loc stx (atom 'name.name))]
   
-  [((~literal Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
+  [((~datum Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
    (syntax/loc stx (set (#:lang (get-check-lang))  decls.translate bob.exprs))]
 
-  [((~literal Expr) block:BlockClass)
+  [((~datum Expr) block:BlockClass)
    (my-expand (syntax/loc stx block))]
 
-  [((~literal Expr) sexpr:SexprClass)
+  [((~datum Expr) sexpr:SexprClass)
    (syntax/loc stx (read sexpr))]))
 
 ; --------------------------
