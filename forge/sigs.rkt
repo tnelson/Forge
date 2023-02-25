@@ -425,10 +425,10 @@
 ; (inst name binding ...)
 (define-syntax (inst stx)
   (syntax-parse stx
-    [(inst name:id binds:expr)
+    [(inst name:id binds:expr ...)
      (syntax/loc stx
        (begin
-         (define name (make-inst binds))
+         (define name (make-inst (flatten (list binds ...))))
          (update-state! (state-add-inst curr-state 'name name))))]))
 
 ; Run a given spec
