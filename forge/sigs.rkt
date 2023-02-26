@@ -1,12 +1,14 @@
 #lang racket/base
 
-(require (only-in racket thunk first rest empty empty? pretty-print)
-         (prefix-in @ (only-in racket and not > < display max min or)) 
+(require (only-in racket/function thunk)
+         (only-in racket/list first rest empty empty? flatten)
+         (only-in racket/pretty pretty-print)
+         (prefix-in @ (only-in racket/base and not > < display max min or)) 
          (prefix-in @ racket/set))
-(require syntax/parse/define         
+(require syntax/parse/define
          syntax/srcloc)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/strip-context
-                     (only-in racket pretty-print)))
+                     (only-in racket/pretty pretty-print)))
 
 (require "shared.rkt")
 (require "lang/ast.rkt"
