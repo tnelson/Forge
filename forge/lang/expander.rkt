@@ -28,8 +28,11 @@
 (define-syntax-parameter current-forge-context #f)
 
 (begin-for-syntax
-  (define (forge-context=? sym)
-    (eq? sym (syntax-parameter-value #'current-forge-context)))
+  (define (forge-context=? x)
+    (define ctx (syntax-parameter-value #'current-forge-context))
+    (if (pair? x)
+      (memq ctx x)
+      (eq? ctx x)))
 
   (define-syntax-parser make-token
     [(make-token token-class:id token-string:str token-symbol)
@@ -841,10 +844,12 @@
               name:NameClass
               bounds:BoundsClass
               (~optional scope:ScopeClass))
-   (with-syntax ([(bounds ...) #'bounds.translate])
-     (syntax/loc stx (begin
+   (quasisyntax/loc stx
+     (begin
        (~? (raise (format "Scope not implemented for InstDecl ~a" 'scope)))
-       (inst name.name bounds ...))))]))
+       (inst name.name
+             (syntax-parameterize ([current-forge-context 'inst])
+               (list #,@(syntax/loc stx bounds.translate))))))]))
 
 (define (disambiguate-block xs)
   (cond [(empty? xs) 
@@ -985,7 +990,7 @@
   [((~datum Expr) expr1:ExprClass "+" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
-                 [check-lang (if (forge-context=? 'example)
+                 [check-lang (if (forge-context=? '(inst example))
                                #''forge
                                #'(get-check-lang))])
      (syntax/loc stx (+ (#:lang check-lang) expr1 expr2)))]
@@ -1008,7 +1013,7 @@
   [((~datum Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
-                 [check-lang (if (forge-context=? 'example)
+                 [check-lang (if (forge-context=? '(inst example))
                                #''forge
                                #'(get-check-lang))])
      (syntax/loc stx (-> (#:lang check-lang) expr1 expr2)))]
