@@ -71,6 +71,7 @@
 (define forge:expr 'expr)
 (define forge:subexpr 'subexpr)
 (define forge:example 'example)
+(define forge:inst 'inst)
 (define forge:bounds 'bounds)
 (define current-forge-context (make-parameter '()))
 
@@ -154,8 +155,8 @@
    ;; ignore
    (void)]
   [id:$InstDecl
-   (todo-not-implemented 'parag-check:InstDecl)
-   (void)]
+   (with-forge-context forge:inst
+     (instdecl-check #'id))]
   [ed:$ExampleDecl
    (with-forge-context forge:example
      (exampledecl-check #'ed))]
@@ -220,6 +221,13 @@
    (with-forge-context forge:bounds
      (bounds-check #'ee.bounds))
    (void)]
+  [_
+    (log-froglet-warning "exampledecl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
+
+(define-parser instdecl-check
+  [id:$InstDecl
+    (raise-user-error 'instdecl)]
   [_
     (log-froglet-warning "exampledecl-check: unknown stx ~a" (syntax->datum this-syntax))
     (void)])
@@ -374,7 +382,9 @@
         the-unknown-type]))
     #;(log-froglet-info "expr-check: ~s~n type: ~s" this-syntax tt)
     (when (and (context=? forge:expr)
-               (not (and (in-context? forge:bounds) (quant=? 'no)))
+               (not (or (and (in-context? forge:bounds) (quant=? 'no))
+                        (in-context? forge:inst)
+                        (in-context? forge:example)))
                (is-field? tt))
       (raise-type-error
         "expected an object"
@@ -410,24 +420,32 @@
   (syntax-parse op
    [ao:$ArrowOp
     ;; TODO unless in example
-    (raise-operator-error #'ao.arr)]
+    (unless (or (in-context? forge:example)
+                (in-context? forge:inst))
+      (raise-operator-error #'ao.arr))
+    the-bool-type]
    [(~or "-" "&" "+")
-    (raise-operator-error op)]
+    (unless (or (in-context? forge:example)
+                (in-context? forge:inst))
+      (raise-operator-error op))
+    the-bool-type]
    [(~or =)
-    (define sig1 (->sigty e1-ty))
-    (define sig2 (->sigty e2-ty))
-    (void
-      (for ((t (in-list (list e1-ty e2-ty)))
-            (s (in-list (list sig1 sig2)))
-            #:when (and (nametype? t)
-                        (id=? (type-name t) (type-name s))))
+    (unless (or (in-context? forge:example)
+                (in-context? forge:inst))
+      (define sig1 (->sigty e1-ty))
+      (define sig2 (->sigty e2-ty))
+      (void
+        (for ((t (in-list (list e1-ty e2-ty)))
+              (s (in-list (list sig1 sig2)))
+              #:when (and (nametype? t)
+                          (id=? (type-name t) (type-name s))))
+          (raise-type-error
+            "expected an object"
+            (type-name t))))
+      (unless (type=? sig1 sig2)
         (raise-type-error
-          "expected an object"
-          (type-name t))))
-    (unless (type=? sig1 sig2)
-      (raise-type-error
-        (format "inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
-        ctx))
+          (format "inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
+          ctx)))
     the-bool-type]
    [_
     (log-froglet-warning "binop-check: (~e ~e ~e)" op e1-ty e2-ty)
@@ -866,7 +884,6 @@
    [option:$OptionDecl
      '()]
    [inst:$InstDecl
-    (todo-not-implemented 'env-collect/paragraph:InstDecl)
     '()]
    [example:$ExampleDecl
     '()]
