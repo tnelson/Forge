@@ -5,7 +5,8 @@
          (only-in racket make-object)
          (only-in racket/system system*)
          (only-in racket/string string-trim)
-         (only-in racket/port call-with-output-string))
+         (only-in racket/port call-with-output-string)
+         (only-in pkg/lib pkg-directory))
 (require racket/stream)
 
 (provide get-verbosity set-verbosity
@@ -45,12 +46,13 @@
   (with-handlers ([exn:fail? void])
     (define windows? (eq? (system-type) 'windows))
     (define git-exe (find-executable-path (if windows? "git.exe" "git")))
-    (map
-      string-trim
-      (list
-        (shell git-exe '("rev-parse" "--abbrev-ref" "HEAD"))
-        (shell git-exe '("rev-parse" "--short" "HEAD"))
-        (shell git-exe '("log" "-1" "--format=%cd"))))))
+    (parameterize ([current-directory (pkg-directory "forge")])
+      (map
+        string-trim
+        (list
+          (shell git-exe '("rev-parse" "--abbrev-ref" "HEAD"))
+          (shell git-exe '("rev-parse" "--short" "HEAD"))
+          (shell git-exe '("log" "-1" "--format=%cd")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
