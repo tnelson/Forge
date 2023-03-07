@@ -437,8 +437,9 @@
       (void
         (for ((t (in-list (list e1-ty e2-ty)))
               (s (in-list (list sig1 sig2)))
-              #:when (and (nametype? t)
-                          (id=? (type-name t) (type-name s))))
+              #:when (and (nametype? t) (id=? (type-name t) (type-name s)))
+              #:unless (one-mult? (sigtype-mult s)))
+(printf "kidding me ~s ~s~n" (sigtype-mult s) (one-mult? (sigtype-mult s)))
           (raise-type-error
             "expected an object"
             (type-name t))))
@@ -584,6 +585,7 @@
         (deparse e1))))
   (when (and (context=? forge:expr)
              (not (sigtype? e1-sigty)))
+             (printf "e3~n")
     (raise-type-error
       "expected an object"
       (deparse e1))))
@@ -704,6 +706,9 @@
 (define (deparse stx)
   (datum->syntax stx (deparse/datum stx) stx))
 
+;; TODO   in: (Expr1 (Expr6 (Expr15 (QualName s)) "." (Expr16 (QualName
+;; torch))) (CompareOp "=") (Expr7 (QualName Near)))
+
 (define-parser deparse/datum
   [(_:ExprHd qn:$QualName)
    (syntax-e #'qn.name)]
@@ -743,7 +748,7 @@
 (define (name->pred stx)
   (name-lookup stx predtype?))
 
-(define id=? free-identifier=?)
+(define id=? free-identifier=?) ;; fails on bridge_crossing.frg
 
 (define (name-lookup stx [-env-guard #f])
   (define env-guard (or -env-guard values))
@@ -856,7 +861,9 @@
 (define (env-collect/paragraph stx)
   (syntax-parse stx
    [sig:$SigDecl
-    (define mult (syntax-e #'(~? sig.mult #f)))
+    (define mult
+      (let ((mm (syntax-e #'(~? sig.mult #f))))
+        (and mm (keyword->symbol mm))))
     (define extends (syntax-e #'(~? sig.extends #f)))
     (define field* (parse-arrow-decl* (syntax-e #'(sig.relation-decl* ...))))
     (for/list ([name (in-list (syntax-e #'(sig.name* ...)))])
@@ -943,4 +950,7 @@
   (paramtype (atom->type (type-name pp) ctx)
              (atom->type (paramtype-mult pp) ctx)
              (atom->type (paramtype-sig pp) ctx)))
+
+(define (keyword->symbol x)
+  (string->symbol (keyword->string x)))
 
