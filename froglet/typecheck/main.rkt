@@ -1,7 +1,7 @@
 #lang racket/base
 
 ;; TODO
-;; - see check in error/main.rkt
+;; - see checklist in error/main.rkt
 ;; - ...
 
 ;; TODO can we use turnstile?
@@ -166,8 +166,11 @@
 
 (define-parser preddecl-check
   [pred:$PredDecl
+   (define predty (name-lookup #'pred.name))
+   (define decl-tys (predtype-param* predty))
    (define bb #'pred.block)
-   (block-check bb)
+   (parameterize ((current-type-env (env-extend decl-tys (current-type-env))))
+     (block-check bb))
    (for* ((ee (in-list (block->list bb)))
           (tt (in-value (get-type ee)))
           #:unless (type<: (get-type ee) the-bool-type))
@@ -741,7 +744,8 @@
 (define (name->sig stx)
   (or (name-lookup stx sigtype?)
       (let* ([paramty (->paramty stx)]
-             [sigty (and paramty (name->sig (type-name (paramtype-sig paramty))))]
+             [sigty (and paramty (->sigty (paramtype-sig paramty)))]
+                    ; TODO ?? (name->sig (type-name ^^^ ))
              [sigty (and sigty
                          (sigtype-update-mult
                            sigty
