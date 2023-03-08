@@ -439,14 +439,13 @@
               (s (in-list (list sig1 sig2)))
               #:when (and (nametype? t) (id=? (type-name t) (type-name s)))
               #:unless (one-mult? (sigtype-mult s)))
-(printf "kidding me ~s ~s~n" (sigtype-mult s) (one-mult? (sigtype-mult s)))
           (raise-type-error
             "expected an object"
             (type-name t))))
-      (unless (type=? sig1 sig2)
+      (unless (type-similar? sig1 sig2)
         (raise-type-error
-          (format "inputs to = must have the same type, got ~s and ~s" e1-ty e2-ty)
-          ctx)))
+          (format "inputs to = must have similar type, got ~s and ~s" (type-name sig1) (type-name sig2))
+          (deparse ctx))))
     the-bool-type]
    [_
     (log-froglet-warning "binop-check: (~e ~e ~e)" op e1-ty e2-ty)
@@ -585,7 +584,6 @@
         (deparse e1))))
   (when (and (context=? forge:expr)
              (not (sigtype? e1-sigty)))
-             (printf "e3~n")
     (raise-type-error
       "expected an object"
       (deparse e1))))
@@ -659,6 +657,15 @@
       (unknown-type? t2)
       (and (sigtype? t1) (sigtype? t2) (sigtype<: t1 t2) (sigtype<: t2 t1))))
 
+(define (type-similar? t1 t2)
+  (or (type-equal? t1 t2)
+      (unknown-type? t1)
+      (unknown-type? t2)
+      (and (sigtype? t1)
+           (sigtype? t2)
+           (or (sigtype<: t1 t2)
+               (sigtype<: t2 t1)))))
+
 (define (type<: t0 t1)
   (match* (t0 t1)
    [(_ _)
@@ -706,15 +713,14 @@
 (define (deparse stx)
   (datum->syntax stx (deparse/datum stx) stx))
 
-;; TODO   in: (Expr1 (Expr6 (Expr15 (QualName s)) "." (Expr16 (QualName
-;; torch))) (CompareOp "=") (Expr7 (QualName Near)))
-
 (define-parser deparse/datum
   [(_:ExprHd qn:$QualName)
    (syntax-e #'qn.name)]
   [(_:ExprHd q:$QuantStr body)
    (cons (string->symbol (syntax-e #'q))
          (deparse/datum #'body))]
+  [(_:ExprHd a op:$CompareOp b)
+   (list (deparse/datum #'a) (syntax-e #'op.symbol) (deparse/datum #'b))]
   [(_:ExprHd a "." b)
    (list (deparse/datum #'a) "." (deparse/datum #'b))]
   [(_:ExprHd e1 "[" ee:$ExprList "]")
