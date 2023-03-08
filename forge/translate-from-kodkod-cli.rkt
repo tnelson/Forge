@@ -65,11 +65,11 @@ relation-names is the same, a list of all relation names ordered as they are in 
 This function just recreates the model, but using names instead of numbers.
 |#
 (define (translate-from-kodkod-cli runtype model relations inty-univ)   
-  ; (flag run-name data stats)  
-  (define flag (car model))                               ; first 
-  (define run-name (car (cdr model)))                     ; second
-  (define data (car (cdr (cdr model))))                   ; third
-  (define stats (car (cdr (cdr (cdr model)))))            ; fourth
+  ; (flag run-name data stats [metadata]) where metadata is for sat only 
+  (define flag (first model))   
+  (define run-name (second model))
+  (define data (third model))
+  (define stats (fourth model))
 
   ; TODO: add run-name to struct for error checking / context 
   
@@ -113,7 +113,7 @@ This function just recreates the model, but using names instead of numbers.
                              translated-tuples)]))|#
          ;(printf "Translated model: ~a~n" translated-model)
          
-         (define metadata (car (cdr (cdr (cdr model)))))
+         (define metadata (fifth model))
 
          ; data will be a list of models         
          (define translated-models
