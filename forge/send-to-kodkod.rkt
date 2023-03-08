@@ -43,7 +43,10 @@
   (when (and no-version-printed-yet (@>= (get-verbosity) VERBOSITY_LOW))
     (set! no-version-printed-yet #f)
     (printf "Forge version: ~a~n" forge-version)
-    (printf "To report issues with Forge, please visit ~a~n"           
+    (let ([git-info (forge-git-info)])
+      (when (pair? git-info)
+        (apply printf " branch: ~a~n commit: ~a~n timestamp: ~a~n" git-info)))
+    (printf "To report issues with Forge, please visit ~a~n"
             "https://report.forge-fm.org"))
   
   ; Do relation breaks from declarations

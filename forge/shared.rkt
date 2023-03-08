@@ -4,13 +4,15 @@
 (require (only-in racket/draw color%)
          (only-in racket make-object)
          (only-in racket/system system*)
-         (only-in racket/port call-with-output-string))
+         (only-in racket/string string-trim)
+         (only-in racket/port call-with-output-string)
+         (only-in pkg/lib pkg-directory))
 (require racket/stream)
 
 (provide get-verbosity set-verbosity
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
          VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
-(provide forge-version instance-diff CORE-HIGHLIGHT-COLOR)
+(provide forge-version forge-git-info instance-diff CORE-HIGHLIGHT-COLOR)
 (provide stream-map/once port-echo java>=1.9?)
 
 (module+ test (require rackunit))
@@ -32,14 +34,25 @@
 (define (get-verbosity) verbosityoption)
 (define (set-verbosity x) (set! verbosityoption x))
 
-
 (define-runtime-path info-path "info.rkt")
 (define forge-version "x.x.x")
-(with-handlers ([exn:fail? (λ (exn) (println exn))])
+(with-handlers ([exn:fail?  (λ (exn) (println exn))])
   (define info-str (file->string info-path))
   (define parts (regexp-match #px"define\\s+version\\s+\"(\\S+)\"" info-str))
   (set! forge-version (cadr parts))
 )
+
+(define (forge-git-info)
+  (with-handlers ([exn:fail? void])
+    (define windows? (eq? (system-type) 'windows))
+    (define git-exe (find-executable-path (if windows? "git.exe" "git")))
+    (parameterize ([current-directory (pkg-directory "forge")])
+      (map
+        string-trim
+        (list
+          (shell git-exe '("rev-parse" "--abbrev-ref" "HEAD"))
+          (shell git-exe '("rev-parse" "--short" "HEAD"))
+          (shell git-exe '("log" "-1" "--format=%cd")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
