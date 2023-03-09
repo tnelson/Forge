@@ -318,18 +318,16 @@
                   (~or -op:$CompareOp -op:$BinaryOp)
                   e2:$Expr
                   (~optional (~seq "else" e3:$Expr) #:defaults ([e3 #'#f])))
-        (void ;;with-forge-context forge:subexpr
-          (expr-check #'e1)
-          (expr-check #'e2))
         (define neg? (and (attribute negate) #true))
         (cond
           [(syntax-e #'e3)
            (when neg?
              (raise-type-error "cannot negate an implication" (deparse this-syntax)))
-           (void ;;with-forge-context forge:subexpr
-             (expr-check #'e3))
            (ifelse-check #'e1 #'e2 #'e3 ctx)]
           [else
+           (void ;;with-forge-context forge:subexpr
+             (expr-check #'e1)
+             (expr-check #'e2))
            (define op #'(~? -op.symbol -op))
            (binop-check op #'e1 #'e2 ctx #:negate? neg?)])]
        [(e1:$Expr (~datum ".") e2:$Expr)
@@ -362,7 +360,18 @@
           (for-each expr-check e*))
         (app-check #'ex1 e* ctx)]
        [(cn:$Const)
-        (set-type #'cn (consttype #'cn.translate))]
+        (define ty
+          (let* ((ct #'cn.translate)
+                 (dd (syntax->datum ct)))
+            (cond
+              [(identifier? ct)
+               (consttype ct ct)]
+              [(and (pair? dd) (eq? 'int (car dd)))
+               (consttype (type-name the-int-type) (cadr dd))]
+              [else
+               (log-froglet-warning "unknown const ~s" #'cn)
+               the-unknown-type])))
+        (set-type #'cn ty)]
        [(qn:$QualName)
         (set-type #'qn (nametype #'qn.name))]
        [("this")
@@ -409,11 +418,17 @@
   (sigtype? parent))
 
 (define (ifelse-check e1 e2 e3 ctx)
-  (define e1-ty (get-type e1))
-  (define e2-ty (get-type e2))
-  (define e3-ty (get-type e3))
-  (todo-not-implemented 'ifelse-check)
-  the-unknown-type)
+  (void
+    (expr-check e1)
+    (expr-check e2)
+    (expr-check e3)
+    (for ((ee (in-list (list e1 e2 e3))))
+      (define ty (get-type ee))
+      (unless (type=? the-bool-type ty)
+        (raise-type-error
+          (format "expected a formula, given a ~a" (type-kind ty))
+          (deparse ee)))))
+  the-bool-type)
 
 (define (binop-check op e1 e2 ctx #:negate? [negate? #f])
   (define e1-ty (get-type e1))

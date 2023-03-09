@@ -39,7 +39,7 @@
 
 (struct/froglet type (name))
 (struct/froglet nametype type ())
-(struct/froglet consttype type ())
+(struct/froglet consttype type (val))
 (struct/froglet sigtype type (mult extends field*))
 (struct/froglet predtype type (param*))
 (struct/froglet funtype type (param* return))
