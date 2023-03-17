@@ -87,9 +87,16 @@
     ;; TODO forge1 code works, etc etc
     ;; - [X] grandpa reachable
     ;; - [X] grandpa_test
-    ;; - [ ] stack
+    ;; - [ ] (pull again) stack
     ;; - [ ] stack_test
     ;; TODO forge2 code
+    ;; - [X] common_def
+    ;; - [ ] bridge
+    ;; - [ ] pets
+    ;; - [ ] goats
+    ;; - [ ] correspond
+    ;; challenge
+    ;; - [ ] pubkey , 2
     ;; TODO catch all bsl errors from here
     ;; TODO modeling in anger ... invalid bounds
 
