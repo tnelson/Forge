@@ -173,7 +173,7 @@
      (block-check bb))
    (for* ((ee (in-list (block->list bb)))
           (tt (in-value (get-type ee)))
-          #:unless (type<: (get-type ee) the-bool-type))
+          #:unless (type<: (->boolty (get-type ee)) the-bool-type))
      (raise-type-error (format "pred expected a formula, given a ~a" (type-kind tt))
                        (deparse ee)))
    (void)]
@@ -710,6 +710,14 @@
      (name->sig (type-name stx))]
     [else
      (name->sig stx)]))
+
+(define (->boolty ty)
+  (if (nametype? ty)
+    (let ((vv (name-lookup (type-name ty))))
+      (if (and (predtype? vv) (null? (predtype-param* vv)))
+        the-bool-type
+        ty))
+    ty))
 
 (define (->paramty stx)
   (cond
