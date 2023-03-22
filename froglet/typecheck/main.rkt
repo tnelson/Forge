@@ -47,6 +47,9 @@
 (define (one-mult? mval)
   (eq? 'one (mult->sym mval)))
 
+(define (no-mult? mval)
+  (eq? 'no (mult->sym mval)))
+
 (define (some-mult? mval)
   (eq? 'some (mult->sym mval)))
 
@@ -56,6 +59,7 @@
 (define (singleton-mult? mval)
   (define sym (mult->sym mval))
   (or (eq? #f sym)
+      (no-mult? sym)
       (one-mult? sym)
       (some-mult? sym)
       (all-mult? sym)))
