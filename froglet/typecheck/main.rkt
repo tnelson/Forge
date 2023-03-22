@@ -230,9 +230,14 @@
 
 (define-parser instdecl-check
   [id:$InstDecl
-    (raise-user-error 'instdecl)]
+   (define name #'id.name)
+   (with-forge-context forge:bounds
+     (bounds-check #'id.bounds))
+   (when (attribute id.scope)
+     (scope-check #'id.scope))
+   (void)]
   [_
-    (log-froglet-warning "exampledecl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (log-froglet-warning "instdecl-check: unknown stx ~a" (syntax->datum this-syntax))
     (void)])
 
 (define-parser testblock-check
@@ -247,7 +252,7 @@
 
 (define-parser testdecl-check
   [td:$TestDecl
-    (log-froglet-info "typechecking TestDecl ~s" (syntax-e #'td.name))
+    #;(log-froglet-info "typechecking TestDecl ~s" (syntax-e #'td.name))
     (when (attribute td.parameters)
       (params-check #'td.parameters))
     (when (syntax-e #'td.pred-name)
