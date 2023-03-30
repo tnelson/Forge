@@ -327,17 +327,19 @@
                   (~or -op:$CompareOp -op:$BinaryOp)
                   e2:$Expr
                   (~optional (~seq "else" e3:$Expr) #:defaults ([e3 #'#f])))
+        (define op #'(~? -op.symbol -op))
         (define neg? (and (attribute negate) #true))
         (cond
           [(syntax-e #'e3)
            (when neg?
              (raise-type-error "cannot negate an implication" (deparse this-syntax)))
            (ifelse-check #'e1 #'e2 #'e3 ctx)]
+          [(eq? (syntax->datum op) 'is)
+           (bounds-is-check #'e1 #'e2 ctx)]
           [else
            (void ;;with-forge-context forge:subexpr
              (expr-check #'e1)
              (expr-check #'e2))
-           (define op #'(~? -op.symbol -op))
            (binop-check op #'e1 #'e2 ctx #:negate? neg?)])]
        [(e1:$Expr (~datum ".") e2:$Expr)
         (with-forge-context forge:subexpr
@@ -437,6 +439,18 @@
         (raise-type-error
           (format "expected a formula, given a ~a" (type-kind ty))
           (deparse ee)))))
+  the-bool-type)
+
+(define (bounds-is-check e1 e2 ctx)
+  (unless (in-context? forge:bounds)
+    (raise-type-error "found 'is' bound outside of a bounds block" (deparse ctx)))
+  (let ((bound-val (deparse/datum e2)))
+    (unless (eq? 'linear bound-val)
+      (raise-type-error "unsupported bound 'is ~a'" (deparse ctx))))
+  (void ;; lhs must be a field
+    (with-forge-context forge:subexpr
+      (expr-check e1))
+    (field->sigty/error e1))
   the-bool-type)
 
 (define (binop-check op e1 e2 ctx #:negate? [negate? #f])

@@ -58,6 +58,8 @@
     (list "froglet-http.frg" #rx"field declaration")
     (list "froglet-int-minus.frg" #rx"- operator is not")
     (list "froglet-field-shadow.frg" #rx"expected a field")
+    (list "froglet-is-linear0.frg" #rx"outside of bounds block")
+    (list "froglet-is-linear1.frg" #rx"expected a field")
     (list "froglet-join-right.frg" #rx"not an object")
     (list "froglet-join-right2.frg" #rx"not an object")
     (list "froglet-join-right3.frg" #rx"not an object")
@@ -87,8 +89,8 @@
     ;; TODO forge1 code works, etc etc
     ;; - [X] grandpa reachable
     ;; - [X] grandpa_test
-    ;; - [ ] (pull again) stack
-    ;; - [ ] stack_test
+    ;; - [X] (pull again) stack --- still error!
+    ;; - [X] stack_test
     ;; TODO forge2 code
     ;; - [X] common_def
     ;; - [ ] bridge
