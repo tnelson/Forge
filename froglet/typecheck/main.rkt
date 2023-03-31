@@ -470,7 +470,8 @@
                 (in-context? forge:inst))
       (raise-operator-error op))
     the-bool-type]
-   [(~or =)
+   [(~or = < <= >= >)
+    (define needs-int? (not (eq? '= (syntax-e op))))
     (unless (or (in-context? forge:example)
                 (in-context? forge:inst))
       (define sig1 (->sigty e1-ty))
@@ -482,11 +483,21 @@
               #:unless (one-mult? (sigtype-mult s)))
           (raise-type-error
             "expected an object"
-            (type-name t))))
-      (unless (type-similar? sig1 sig2)
-        (raise-type-error
-          (format "inputs to = must have similar type, got ~s and ~s" (type-name sig1) (type-name sig2))
-          (deparse ctx))))
+            (deparse/datum t))))
+      (void
+        (if needs-int?
+          (for ((tt (in-list (list sig1 sig2)))
+                #:unless (sigtype<=: tt the-int-type))
+            (raise-type-error
+              (format "expected an Int, got ~s" (deparse/datum tt))
+              (deparse ctx)))
+          (unless (type-similar? sig1 sig2)
+            (raise-type-error
+              (format "inputs to ~a must have similar type, got ~s and ~s"
+                      (syntax-e op)
+                      (deparse/datum sig1)
+                      (deparse/datum sig2))
+              (deparse ctx))))))
     the-bool-type]
    [_
     (log-froglet-warning "binop-check: (~e ~e ~e)" op e1-ty e2-ty)
@@ -729,7 +740,8 @@
   (cond
     [(sigtype? stx)
      stx]
-    [(nametype? stx)
+    [(or (nametype? stx)
+         (consttype? stx))
      (name->sig (type-name stx))]
     [else
      (name->sig stx)]))
@@ -763,6 +775,8 @@
   (datum->syntax stx (deparse/datum stx) stx))
 
 (define-parser deparse/datum
+  [(_:ExprHd cc:$Const)
+   (syntax-e #'cc.translate)]
   [(_:ExprHd qn:$QualName)
    (syntax-e #'qn.name)]
   [(_:ExprHd q:$QuantStr body)
