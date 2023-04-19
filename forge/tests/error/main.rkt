@@ -55,6 +55,10 @@
     (list "froglet-ast-transpose.frg" #rx"~ operator is not")
     (list "froglet-ast-notimplies.frg" #rx"parsing error")
     (list "froglet-arrow.frg" #rx"-> operator is not")
+    (list "froglet-compareop0.frg" #rx"inputs to = must have similar type")
+    (list "froglet-compareop1.frg" #rx"inputs to = must have similar type")
+    (list "froglet-compareop2.frg" #rx"expected an Int")
+    (list "froglet-compareop3.frg" #rx"expected an Int")
     (list "froglet-http.frg" #rx"field declaration")
     (list "froglet-int-minus.frg" #rx"- operator is not")
     (list "froglet-field-shadow.frg" #rx"expected a field")
@@ -93,7 +97,7 @@
     ;; - [X] stack_test
     ;; TODO forge2 code
     ;; - [X] common_def
-    ;; - [ ] bridge
+    ;; - [X] bridge
     ;; - [ ] pets
     ;; - [ ] goats
     ;; - [ ] correspond

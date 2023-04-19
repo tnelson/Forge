@@ -2,6 +2,7 @@
 
 ;; TODO
 ;; - see checklist in error/main.rkt
+;; - scope-check ... other not implemented (go back through f1 f2 f3)
 ;; - ...
 
 ;; TODO can we use turnstile?
@@ -470,8 +471,11 @@
                 (in-context? forge:inst))
       (raise-operator-error op))
     the-bool-type]
-   [(~or = < <= >= >)
-    (define needs-int? (not (eq? '= (syntax-e op))))
+   [(~or (~datum =) (~datum <) (~datum <=) (~datum >=) (~datum >)
+         "or" "and" "iff" "=>")
+    (define needs-int?
+      (let ((sym (syntax-e op)))
+        (and (symbol? sym) (memq sym '(< <= >= >)))))
     (unless (or (in-context? forge:example)
                 (in-context? forge:inst))
       (define sig1 (->sigty e1-ty))
@@ -481,6 +485,7 @@
               (s (in-list (list sig1 sig2)))
               #:when (and (nametype? t) (id=? (type-name t) (type-name s)))
               #:unless (one-mult? (sigtype-mult s)))
+      ;; TODO needs source location
           (raise-type-error
             "expected an object"
             (deparse/datum t))))
@@ -774,6 +779,11 @@
 (define (deparse stx)
   (datum->syntax stx (deparse/datum stx) stx))
 
+; bridge_crossing.frg:25:8: froglet: expected an Int, got Bool
+;   in: (Expr (Expr1 (Expr6 (Expr14 (Expr15 (QualName p)) "." (Expr16 (QualName shore))) "[" (ExprList (Expr (QualName s))) "]") (CompareOp "=") (Expr7 (QualName Near)))
+;             "or" (Expr2 (Expr6 (Expr14 (Expr15 (QualName p)) "." (Expr16 (QualName shore))) "[" (ExprLi...
+;   compilation context...:
+
 (define-parser deparse/datum
   [(_:ExprHd cc:$Const)
    (syntax-e #'cc.translate)]
@@ -782,8 +792,16 @@
   [(_:ExprHd q:$QuantStr body)
    (cons (string->symbol (syntax-e #'q))
          (deparse/datum #'body))]
-  [(_:ExprHd a op:$CompareOp b)
-   (list (deparse/datum #'a) (syntax-e #'op.symbol) (deparse/datum #'b))]
+  [(_:ExprHd e1
+             (~optional negate:$NotOp) (~or op:$CompareOp op:$BinaryOp)
+             e2
+             (~optional (~seq "else" e3:$Expr) #:defaults ([e3 #'#f])))
+   (define e1+ (deparse/datum #'e1))
+   (define e2+ (deparse/datum #'e2))
+   (define op+ (syntax-e #'(~? op.symbol op)))
+   (define neg (syntax-e #'(~? negate #f)))
+   (define e3* (if (syntax-e #'e3) (list "else" (deparse/datum #'e3)) '()))
+   (filter values (list* e1+ neg op+ e2+ e3*))]
   [(_:ExprHd a "." b)
    (list (deparse/datum #'a) "." (deparse/datum #'b))]
   [(_:ExprHd e1 "[" ee:$ExprList "]")
