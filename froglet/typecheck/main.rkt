@@ -66,7 +66,10 @@
       (all-mult? sym)))
 
 (define (mult->sym mval)
-  (if (pair? mval) (car mval) mval))
+  (cond
+    ((pair? mval) (car mval))
+    ((identifier? mval) (syntax-e mval))
+    (else mval)))
 
 (define (singleton-sigtype? x)
   (and (sigtype? x)
@@ -485,10 +488,9 @@
               (s (in-list (list sig1 sig2)))
               #:when (and (nametype? t) (id=? (type-name t) (type-name s)))
               #:unless (one-mult? (sigtype-mult s)))
-      ;; TODO needs source location
           (raise-type-error
             "expected an object"
-            (deparse/datum t))))
+            (deparse t #:ctx ctx))))
       (void
         (if needs-int?
           (for ((tt (in-list (list sig1 sig2)))
@@ -776,13 +778,9 @@
     [else
       x]))
 
-(define (deparse stx)
-  (datum->syntax stx (deparse/datum stx) stx))
-
-; bridge_crossing.frg:25:8: froglet: expected an Int, got Bool
-;   in: (Expr (Expr1 (Expr6 (Expr14 (Expr15 (QualName p)) "." (Expr16 (QualName shore))) "[" (ExprList (Expr (QualName s))) "]") (CompareOp "=") (Expr7 (QualName Near)))
-;             "or" (Expr2 (Expr6 (Expr14 (Expr15 (QualName p)) "." (Expr16 (QualName shore))) "[" (ExprLi...
-;   compilation context...:
+(define (deparse stx #:ctx [-ctx #f])
+  (define ctx (or -ctx stx))
+  (datum->syntax ctx (deparse/datum stx) ctx))
 
 (define-parser deparse/datum
   [(_:ExprHd cc:$Const)
