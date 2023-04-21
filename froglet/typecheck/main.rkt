@@ -398,8 +398,9 @@
         (define bob-ty
           (parameterize ((current-type-env (env-extend decl-tys (current-type-env))))
             (blockorbar-check #'bob)))
-        (todo-not-implemented (format "singleton check for ~s : ~s" ctx bob-ty))
-        (reltype bob-ty #f)]
+        (define elem-ty* (map paramtype-sig decl-tys))
+        (todo-not-implemented (format "singleton check for ~s : ~s" (deparse/datum ctx) elem-ty*))
+        (reltype elem-ty* #true)]
        [(block:$Block)
         (block-check #'block)]
        [(sexpr:$Sexpr)
@@ -412,7 +413,7 @@
                (not (or (and (in-context? forge:bounds) (quant=? 'no))
                         (in-context? forge:inst)
                         (in-context? forge:example)))
-               (is-field? tt))
+               (is-field? (reltype->type tt)))
       (raise-type-error
         "expected an object"
         (deparse ctx)))
@@ -420,6 +421,21 @@
   [_
     (log-froglet-warning "expr-check: expected $Expr got ~e" this-syntax)
     (set-type this-syntax the-unknown-type)])
+
+(define (reltype->type tt)
+  (cond
+    ((type? tt)
+     tt)
+    ((reltype? tt)
+     (define elem* (reltype-col-type* tt))
+     (if (or (null? elem*) (not (null? (cdr elem*))))
+       (begin
+         (log-froglet-warning "reltype->type: multi-column relation ~e" tt)
+         the-unknown-type)
+       (car elem*)))
+    (else
+      (log-froglet-warning "reltype->type: internal error, unexpected arg ~e" tt)
+      the-unknown-type)))
 
 (define-parser sexpr-check
   [ss:$Sexpr
@@ -516,6 +532,12 @@
   (syntax-parse op
    [(~or "*" "^" "~")
     (raise-operator-error op)]
+   [(~or "#")
+    (unless (reltype? e1-ty)
+      (raise-type-error
+        "expected a relation"
+        (deparse e1)))
+    the-int-type]
    [_
     (todo-not-implemented (format "unop-check: (~e ~e)" op e1-ty))
     the-unknown-type]))
@@ -807,6 +829,18 @@
          #;"["
          (map deparse/datum (syntax-e #'(ee.exprs ...)))
          #;"]")]
+  [(_:ExprHd "{" decls:$DeclList bob:$BlockOrBar "}")
+   (list "{"
+         (deparse/datum #'decls)
+         "|"
+         (deparse/datum #'bob)
+         "}")]
+  [dd:$DeclList
+    (for*/list ((-decl (in-list (syntax-e #'(dd.decls ...))))
+                (decl (in-value (syntax-e -decl))))
+      (list (syntax-e (car decl)) (deparse/datum (cadr decl))))]
+  [bb:$BlockOrBar
+    (deparse/datum #'bb.exprs)]
   [_
    #:when (type? (syntax-e this-syntax))
    (syntax-e (type-name (syntax-e this-syntax)))]
