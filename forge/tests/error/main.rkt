@@ -98,8 +98,8 @@
     ;; TODO forge2 code
     ;; - [X] common_def
     ;; - [X] bridge
-    ;; - [ ] pets
-    ;; - [ ] goats
+    ;; - [X] pets
+    ;; - [ ] goats (singleton check, scope check)
     ;; - [ ] correspond
     ;; challenge
     ;; - [ ] pubkey , 2

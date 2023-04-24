@@ -43,7 +43,7 @@
        ;; Override default exception handler
 
        (require (only-in racket/base define-values))
-       (define-values (,type-env-name) ',(env-serialize type-env))
+       (module+ ,type-env-name (define-values (,type-env-name) ',(env-serialize type-env)) (provide ,type-env-name))
        ,alloymod
 
        (module+ execs)

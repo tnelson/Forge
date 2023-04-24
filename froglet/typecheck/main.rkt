@@ -1,6 +1,8 @@
 #lang racket/base
 
 ;; TODO
+;; - froglet: binop-check: (#<syntax:correspond.frg:38:46 "implies"> '#s((sigtype type 1) #<syntax Bool> #f #f ()) '#s((sigtype type 1) #<syntax Bool> #f #f ()))
+;; - correspond, why running forge during compile? something wrong with dyn-require? what does bsl do?
 ;; - see checklist in error/main.rkt
 ;; - scope-check ... other not implemented (go back through f1 f2 f3)
 ;; - ...
@@ -1034,7 +1036,7 @@
 (define (file->froglet-env-datum fn)
   (parameterize ([current-namespace (make-base-namespace)])
     ;; id defined in froglet
-    (dynamic-require fn type-env-name dyn-require-fail-thunk)))
+    (dynamic-require `(submod ,fn ,type-env-name) type-env-name dyn-require-fail-thunk)))
 
 (define (datum->type-env x* ctx)
   (for/list ((xx (in-list x*)))
