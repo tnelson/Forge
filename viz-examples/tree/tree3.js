@@ -87,10 +87,11 @@ function constructEdges(vt) {
     // Add edges for this node, connected to its children
     vt.children.forEach((child, idx) => { 
         const label = idx == 0 ? '<=' : idx == 1 ? '>' : '';
+        const location = idx == 0 ? 'left' : 'right'
         const newEdge = new Edge({
             obj1: vt.visualObject, obj2: child.visualObject,
             textProps: {text: label, fontSize: 11},
-            textLocation: "left"})
+            textLocation: location})
         result.push(newEdge)
     })
     return result
