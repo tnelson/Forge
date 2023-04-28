@@ -37,7 +37,7 @@ function buildTree(t) {
     const myLeftTuples = t.join(left).tuples()
     const myRightTuples = t.join(right).tuples()
     const obj = new Circle({
-        radius: 20, 
+        radius: 25, 
         borderColor: "black", 
         color: "white", 
         // For debugging:
@@ -70,9 +70,9 @@ function buildTree(t) {
 // Create a compound tree object with the above structure
 let tree = new Tree({
     root: visTree, 
-    height: 200, 
-    width: 300, 
-    coords: { x: 100, y: 100 },
+    height: 250, 
+    width: 350, 
+    coords: { x: 30, y: 30 },
     // Make the default (unlabeled) edges invisible (or close to it):
     edgeColor: 'ivory'
     });
