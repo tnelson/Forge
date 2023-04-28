@@ -1,7 +1,6 @@
 # Forge
 ![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/tnelson/Forge?label=version)
 ![GitHub issues](https://img.shields.io/github/issues/tnelson/Forge)
-<!-- ![GitHub Workflow Status (branch)](https://img.shields.io/github/workflow/status/tnelson/Forge/Continuous%20Integration/main?label=tests) -->
 ![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/tnelson/Forge/continuousIntegration.yml?branch=main)
 
 
