@@ -493,7 +493,7 @@
       (raise-operator-error op))
     the-bool-type]
    [(~or (~datum =) (~datum <) (~datum <=) (~datum >=) (~datum >)
-         "or" "and" "iff" "=>")
+         "or" "and" "&&" "iff" "implies" "=>")
     (define needs-int?
       (let ((sym (syntax-e op)))
         (and (symbol? sym) (memq sym '(< <= >= >)))))
