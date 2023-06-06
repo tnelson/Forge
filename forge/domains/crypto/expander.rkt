@@ -552,7 +552,7 @@
          (flatten
           (for/list ([ast asts])
             (for/list ([term (if ast (accessor ast) '())]) ; if no such decls are present, do nothing
-              (printf "Processing orig declaration: kind=~a~n" (syntax->datum kind))
+              ;(printf "Processing orig declaration: kind=~a~n" (syntax->datum kind))
               #`  (&&
                  ; Additional meaning to reflect CPSA for uniq- and non-orig:
                  ; this can't be a a key *prepopulated* for the attacker, since
@@ -573,7 +573,7 @@
                          ; conflate origination and generation, but only when it's well-typed to do so
                          ; (generation in our model is for text only, not keys)
                          #,(begin
-                             (printf "  processing orig for term=~a~n" term)
+                             ;(printf "  processing orig for term=~a~n" term)
                              (if (is-text-or-key-variable? term vars)
                                  #`(generates aStrand
                                               #,(datum-ast->expr this-strand-or-skeleton pname strand-role-or-skeleton-idx term #:id-converter id-converter))

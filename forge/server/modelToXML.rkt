@@ -85,15 +85,23 @@
       (string-append (first lines) "\r\n" (agg-lines (rest lines)))))
                  
 
+; A Skolem relation may have arity >1, depending on settings and formula.
+; When sending to Sterling, we need to declare a type of appropriate arity
+(define (build-skolem-rel-for key value)
+  (cond [(empty? value) 
+         (rel '(univ) 'univ (symbol->string key))]
+        [else 
+         (rel (map (lambda (a) 'univ) (first value)) 'univ (symbol->string key))]))
+
 (define (solution-to-XML-string soln relation-map name command filepath bitwidth forge-version #:tuple-annotations [tuple-annotations (hash)])    
   (define data
     (if (Sat? soln) ; if satisfiable, can report relations
         (map (lambda (a-subinstance) 
                (for/hash ([(key value) a-subinstance])
-                 ; If no key, this is a relation that the engine has added by itself
+                 ; If no key, this is a relation that the engine has added by itself (likely a Skolem)
                  (if (hash-has-key? relation-map (symbol->string key))
                      (values (hash-ref relation-map (symbol->string key)) value)
-                     (values (rel '(univ) 'univ (symbol->string key)) value))))
+                     (values (build-skolem-rel-for key value) value))))
              (Sat-instances soln))
         (Unsat-core soln)))
 
