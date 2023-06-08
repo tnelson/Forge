@@ -181,8 +181,9 @@ pred wellformed {
 
   -- at most one long-term key per (ordered) pair of names
   all a:name, b:name | lone getLTK[a,b]
-  -- assume long-term keys are fresh
-  --all k: skey | lone (KeyPairs.ltks).k
+  
+  -- assume long-term keys are used for only one agent pair (or unused)
+  all k: skey | lone (KeyPairs.ltks).k
 
   -- Attacker's strand
   AttackerStrand.agent = Attacker
