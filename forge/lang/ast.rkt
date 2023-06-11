@@ -689,7 +689,8 @@
    (define hash2-proc (make-robust-node-hash-syntax node/formula/quantified 3))])
 
 (define (quantified-formula info quantifier decls formula)
-  (for ([e (in-list (map cdr decls))])
+  (for ([domain (in-list (map cdr decls))])
+    (define e (car (cdr domain))) ; (var mult expr)    
     (unless (node/expr? e)
       (raise-argument-error quantifier "expr?" e))
     #'(unless (equal? (node/expr-arity e) 1)
@@ -697,8 +698,6 @@
   (unless (or (node/formula? formula) (equal? #t formula))
     (raise-argument-error quantifier "formula?" formula))
   (node/formula/quantified info quantifier decls formula))
-
-;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
 
 ;; -- multiplicities -----------------------------------------------------------
 
@@ -735,6 +734,13 @@
         [else (append (map (lambda (elt) (no (& (first vars) elt))) (rest vars))
                       (no-pairwise-intersect-recursive-helper (rest vars)))]))
 
+; A "head pattern", which define-splicing-syntax-class defines, matches a sequence of terms at the head of a list.
+; Here we say to match something like '#:mult set' and produce the optional arg ('set' in this case), 
+; but if not, just produce 'one'.
+(begin-for-syntax 
+  (define-splicing-syntax-class QuantifierMultiplicityClass
+    (pattern (~optional (~seq #:mult m0) #:defaults ([m0 #"one"])))))
+
 ;;; ALL ;;;
 
 (define (all-quant/func decls formula #:info [node-info empty-nodeinfo])
@@ -742,18 +748,22 @@
 
 (define-syntax (all stx)
   (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]))
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) 
+        (~optional (~and #:disj disj))
+        ([v0 m0:QuantifierMultiplicityClass e0] ...) 
+        pred) 
+      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 #:mult m0.m0 e0] ...) pred))]))
 
-(define-syntax (all/info stx)
+(define-syntax (all/info stx)  
   (syntax-parse stx
-    ; quantifier case with disjointness flag; embed and repeat
-    [(_ info #:disj ([v0 e0] ...) pred)
-     #'(all/info info ([v0 e0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
-    [(_ info ([v0 e0] ...) pred)     
+    ;;;;; quantifier case with disjointness flag; embed and repeat
+    [(_ info #:disj ([v0 m0:QuantifierMultiplicityClass e0] ...) pred)
+     #'(all/info info ([v0 #:mult m0.m0 e0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
+    ;;;;; normal quantifier case
+    [(_ info ([v0 m0:QuantifierMultiplicityClass e0] ...) pred)     
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
-         (quantified-formula info 'all (list (cons v0 e0) ...) pred)))]))
+         (quantified-formula info 'all (list (list v0 m0.m0 e0) ...) pred)))]))
 
 ;;; SOME ;;;
 
@@ -765,24 +775,28 @@
 
 (define-syntax (some stx)
   (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
+    ;;;;;; Quantifier form
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) 
+        ([v0 m0:QuantifierMultiplicityClass e0] ...) pred) 
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) 
+        ([v0 #:mult m0.m0 e0] ...) pred))]
+    ;;;;;; Multiplicity form
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
 
 (define-syntax (some/info stx)
   (syntax-parse stx 
-    ; ignore quantifier over no variables
+    ;;;;; ignore quantifier over no variables and use the subformula
     [(_ info (~optional #:disj) () pred) #'pred]
-    ; quantifier case
-    [(_ info ([v0 e0] ...) pred)
+    ;;;;;; quantifier case
+    [(_ info ([v0 m0:QuantifierMultiplicityClass e0] ...) pred)
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
-         (quantified-formula info 'some (list (cons v0 e0) ...) pred)))]
-    ; quantifier case with disjointness flag; embed and repeat
-    [(_ info #:disj ([v0 e0] ...) pred)
-     #'(some/info info ([v0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
-    ; multiplicity case
+         (quantified-formula info 'some (list (list v0 m0.m0 e0) ...) pred)))]
+    ;;;;;; quantifier case with disjointness flag; embed and repeat
+    [(_ info #:disj ([v0 m0:QuantifierMultiplicityClass e0] ...) pred)
+     #'(some/info info ([v0 #:mult m0.m0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
+    ;;;;;; multiplicity-formula case
     [(_ info expr)
      (quasisyntax/loc stx
        (multiplicity-formula info 'some expr))]))
@@ -797,19 +811,24 @@
 
 (define-syntax (no stx)
   (syntax-parse stx    
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
+    ;;;;; quantifier form
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) 
+        ([v0 m0:QuantifierMultiplicityClass e0] ...) pred) 
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 #:mult m0.m0 e0] ...) pred))]
+    ;;;;; multiplicity-formula form
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
 
 (define-syntax (no/info stx)
   (syntax-parse stx
-    [(_ info #:disj ([v0 e0] ...) pred)
-     #'(! (some/info info #:disj ([v0 e0] ...) pred))]
-    [(_ info ([v0 e0] ...) pred)
-     (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
-         (! (quantified-formula info 'some (list (cons v0 e0) ...) pred))))]
+    ;;;;; disjointness case; embed and recur  *****
+    [(_ info #:disj ([v0 m0:QuantifierMultiplicityClass e0] ...) pred)
+     #'(! (some/info info #:disj ([v0 #:mult m0.m0 e0] ...) pred))]
+    [(_ info ([v0 m0:QuantifierMultiplicityClass e0] ...) pred)
+     #'(! (some/info info ([v0 #:mult m0.m0 e0] ...) pred))]
+     ;(quasisyntax/loc stx
+       ;(let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
+       ;  (! (quantified-formula info 'some (list (cons v0 e0) ...) pred))))]
     [(_ info expr)
      (quasisyntax/loc stx
        (multiplicity-formula info 'no expr))]))

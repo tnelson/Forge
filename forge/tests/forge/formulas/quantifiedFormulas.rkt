@@ -1,8 +1,6 @@
 #lang forge
 
 option run_sterling off
-
-
 option verbose 0
 
 sig Node {
@@ -63,7 +61,11 @@ pred Equivalences {
 test expect QuantifiedFormulas {
     AllQuant : All for TestInst is theorem
     SomeQuant : Some for TestInst is theorem
-    --NoQuant : No for TestInst is theorem -- CURRENTLY BUGGED!
-
+    NoQuant : No for TestInst is theorem
     QuantifierEquivalences : Equivalences is theorem
+
+    SomeQuantifyOverSets : { some nodes: set Node | #nodes > 1 } is sat
+
+    -- This should be an error
+    --AllQuantifyOverSets : { all nodes: set Node | #nodes > 1 } is sat
 }

@@ -173,16 +173,19 @@
     (pattern ((~datum ArrowMult) "pfunc") #:attr symbol #'pfunc)
     (pattern ((~datum ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
 
+
+
   ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
   (define-syntax-class DeclClass
     (pattern ((~datum Decl)
               ;(~optional "disj")
               names:NameListClass
               ;(~optional "disj")
-              (~optional "set")
+              (~optional (~and (~or "one" "set") quant-multiplicity) 
+                         #:defaults ([quant-multiplicity #'"one"]))
               expr:ExprClass)
       #:attr translate (with-syntax ([expr #'expr])
-                         #'((names.names expr) ...))))
+                         #'((names.names #:mult quant-multiplicity expr) ...))))
 
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList

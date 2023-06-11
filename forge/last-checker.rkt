@@ -72,7 +72,10 @@
                        (begin (for-each
                                 (lambda (decl)
                                   (let ([var (car decl)]
-                                        [domain (cdr decl)])
+                                        [mult (car (cdr decl))]
+                                        [domain (car (cdr (cdr decl)))])
+                                    
+                                    ; Note: cannot check for higher-order universal here, since may be negations scoping this fmla
                                     ; CHECK: shadowed variables
                                     (when (assoc var quantvars)
                                       (raise-syntax-error #f
@@ -82,15 +85,19 @@
                                     (checkExpression run-or-state domain quantvars checker-hash)))
                                 decls)
                               ; Extend domain environment
-                              (let ([new-quantvars (append (map assocify decls) quantvars)])       
+                              (let ([new-quantvars (append (map assocify-vmds decls) quantvars)])       
                                 ; CHECK: recur into subformula
                                 (checkFormula run-or-state subform new-quantvars checker-hash))))]
     [(node/formula/sealed info)
      (checkFormula run-or-state info quantvars)]
     [else (error (format "no matching case in checkFormula for ~a" (deparse formula)))]))
 
-(define (assocify a-pair)  
+; (var . domain)
+(define (assocify-vds a-pair)  
   (list (car a-pair) (cdr a-pair)))
+; '(var mult domain)
+(define (assocify-vmds a-pair)  
+  (list (car a-pair) (car (cdr (cdr a-pair)))))
 
 
 ; This function isn't technically needed at the moment: every branch just recurs
@@ -257,8 +264,8 @@
 
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output;
-(define (checkExpression run-or-state expr quantvars checker-hash)
-  (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
+(define (checkExpression run-or-state expr quantvars checker-hash)  
+  (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])    
     (car output)))
 
 ; similar except that this is called from a formula, so in bsl 
@@ -372,7 +379,7 @@
                                             (checkExpression run-or-state domain quantvars checker-hash)))
                                         decls)]
                                   ; Extend domain environment
-                                  [new-quantvars (append (map assocify decls) quantvars)])
+                                  [new-quantvars (append (map assocify-vds decls) quantvars)])
                               ; CHECK: recur into subformula
                               (checkFormula run-or-state subform new-quantvars checker-hash)
                               ; Return type constructed from decls above
