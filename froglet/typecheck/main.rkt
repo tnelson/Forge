@@ -943,12 +943,13 @@
          (unknown-sig-check/pred vv ids)]
         [(funtype? vv)
          (unknown-sig-check/fun vv ids)
-         (loop (funtype-return vv))]
+         (loop (funtype->return vv))]
         [(reltype? vv)
          (map loop (reltype-col-type* vv))]
         [(unknown-type? vv)
          (void)]
         [else
+          (printf "WHAT~n")
          (log-froglet-warning "env-fold: unexpected arg ~e" vv)
          (void)]))))
 
