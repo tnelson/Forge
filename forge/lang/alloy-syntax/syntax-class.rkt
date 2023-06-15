@@ -45,6 +45,7 @@
 
   $QuantStr
   $DotStr
+  $MultStr
   $NotOp
 
   ExprHd
@@ -95,6 +96,19 @@
   (pattern "one")
   (pattern "two")
   (pattern "set"))
+
+(define-syntax-class $ArrowQuant
+  (pattern "lone")
+  (pattern "some")
+  (pattern "one")
+  (pattern "two")
+  (pattern "set"))
+
+(define-syntax-class $MultStr
+  (pattern "lone")
+  (pattern "some")
+  (pattern "one")
+  (pattern "two"))
 
 (define-syntax-class $AlloyModule
   #:attributes (hd (import* 1) (parag* 1) (expr* 1))
@@ -244,7 +258,7 @@
   #:attributes (hd symbol)
   #:commit
   (pattern ((~and hd (~datum Mult))
-            (~and str (~or "lone" "some" "one" "two")))
+            str:$MultStr)
     #:attr symbol #`#,(string->keyword (syntax-e #'str))))
 
 ; ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
@@ -570,9 +584,9 @@
   #:attributes (arr)
   #:commit
   (pattern ((~datum ArrowOp)
-            (~optional (~or "lone" "some" "one" "two" "set"))
+            (~optional :$ArrowQuant)
             (~and "->" arr)
-            (~optional (~or "lone" "some" "one" "two" "set"))))
+            (~optional :$ArrowQuant)))
   (pattern ((~datum ArrowOp) (~and "*" arr))))
 
 (define-syntax-class $UnaryOp

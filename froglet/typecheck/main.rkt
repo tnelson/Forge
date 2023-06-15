@@ -569,7 +569,7 @@
      ;; march forward using sigs worklist via all fields
      ;;  track all visited sigs and fields
      (let loop ((worklist (list arg1-sigty))
-                (sig* '()) ;; need to use type-equal?
+                (sig* '()) ;; should be a hash (set), but needs to use type-equal?
                 (field# (hash)))
        (cond
          [(null? worklist)
@@ -697,8 +697,13 @@
 
 (define-parser param->paramtype
   ;; param ~ the decl part of a pred
-  [(nm:id (_:ExprHd qn:$QualName))
-   (paramtype #'nm #f #'qn.name)]
+  [(~or
+    (nm:id (_:ExprHd qn:$QualName))
+    (nm:id (_:ExprHd mm:$MultStr (_:ExprHd qn:$QualName))))
+   ;; TODO if qn is arity 1 / a sig, default multiplicity is one
+   ;; if qn is higher arity (A -> B), default is set
+   (define multiplicity (or (syntax-e #'mm) "one"))
+   (paramtype #'nm (string->symbol multiplicity) #'qn.name)]
   [_
    (log-froglet-warning "param->paramtype: unknown syntax ~e" this-syntax)
    #f])
@@ -930,16 +935,22 @@
 (define (unknown-sig-check env)
   (define ids (env-sig-ids env))
   (for ((vv (in-list env)))
-    (cond
-      [(sigtype? vv)
-       (unknown-sig-check/sig vv ids)]
-      [(predtype? vv)
-       (unknown-sig-check/pred vv ids)]
-      [(unknown-type? vv)
-       (void)]
-      [else
-        (log-froglet-warning "env-fold: unexpected arg ~e" vv)
-        (void)])))
+    (let loop ((vv vv))
+      (cond
+        [(sigtype? vv)
+         (unknown-sig-check/sig vv ids)]
+        [(predtype? vv)
+         (unknown-sig-check/pred vv ids)]
+        [(funtype? vv)
+         (unknown-sig-check/fun vv ids)
+         (loop (funtype-return vv))]
+        [(reltype? vv)
+         (map loop (reltype-col-type* vv))]
+        [(unknown-type? vv)
+         (void)]
+        [else
+         (log-froglet-warning "env-fold: unexpected arg ~e" vv)
+         (void)]))))
 
 (define (unknown-sig-check/sig sigty ids)
   (for ([fieldty (in-list (sigtype-field* sigty))])
@@ -947,6 +958,13 @@
 
 (define (unknown-sig-check/pred predty ids)
   (for ([ft (in-list (predtype-param* predty))])
+    (define nm (paramtype-sig ft))
+    (unless (free-id-set-member? ids nm)
+      (raise-unknown-sig-error nm))
+    (void)))
+
+(define (unknown-sig-check/fun predty ids)
+  (for ([ft (in-list (funtype-param* predty))])
     (define nm (paramtype-sig ft))
     (unless (free-id-set-member? ids nm)
       (raise-unknown-sig-error nm))
