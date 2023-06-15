@@ -145,8 +145,7 @@
   [pred:$PredDecl
    (preddecl-check #'pred)]
   [fd:$FunDecl
-   (todo-not-implemented 'parag-check:FunDecl)
-   (void)]
+   (fundecl-check #'fd)]
   [ad:$AssertDecl
    (todo-not-implemented 'parag-check:AssertDecl)
    (void)]
@@ -185,6 +184,22 @@
           (tt (in-value (get-type ee)))
           #:unless (type<: (->boolty (get-type ee)) the-bool-type))
      (raise-type-error (format "pred expected a formula, given a ~a" (type-kind tt))
+                       (deparse ee)))
+   (void)]
+  [_
+    (log-froglet-warning "preddecl-check: unknown stx ~a" (syntax->datum this-syntax))
+    (void)])
+
+(define-parser fundecl-check
+  [fun:$FunDecl
+   (define funty (name-lookup #'fun.name))
+   (define decl-tys (funtype-param* funty))
+   (define out-ty (funtype->return funty))
+   (define ee #'fun.body)
+   (parameterize ((current-type-env (env-extend decl-tys (current-type-env))))
+     (expr-check ee))
+   (unless (type<: (get-type ee) out-ty)
+     (raise-type-error (format "fun output type does not match body type ~s" (get-type ee))
                        (deparse ee)))
    (void)]
   [_
@@ -708,6 +723,16 @@
    (log-froglet-warning "param->paramtype: unknown syntax ~e" this-syntax)
    #f])
 
+(define-parser return->type
+  [(~or
+    (_:ExprHd qn:$QualName)
+    (_:ExprHd mm:$MultStr (_:ExprHd qn:$QualName)))
+   ;; TODO default multiplicity?
+   (nametype #'qn.name)]
+  [_
+   (log-froglet-warning "param->paramtype: unknown syntax ~e" this-syntax)
+   #f])
+
 (define (parse-arrow-decl* decl*)
   (map parse-arrow-decl decl*))
 
@@ -939,6 +964,8 @@
       (cond
         [(sigtype? vv)
          (unknown-sig-check/sig vv ids)]
+        [(or (nametype? vv) (consttype? vv))
+         (loop (name->sig (type-name vv)))]
         [(predtype? vv)
          (unknown-sig-check/pred vv ids)]
         [(funtype? vv)
@@ -949,7 +976,6 @@
         [(unknown-type? vv)
          (void)]
         [else
-          (printf "WHAT~n")
          (log-froglet-warning "env-fold: unexpected arg ~e" vv)
          (void)]))))
 
@@ -1014,7 +1040,8 @@
     (list (make-predtype #'pred.name param-ty*))]
    [fun:$FunDecl
     (define param-ty* (param*->paramtype* (syntax-e #'(fun.decls ...))))
-    (list (make-funtype #'fun.name param-ty*))]
+    (define out-ty (return->type #'fun.output))
+    (list (make-funtype #'fun.name param-ty* out-ty))]
    [assert:$AssertDecl
     (todo-not-implemented 'env-collect/paragraph:AssertDecl)
     '()]
