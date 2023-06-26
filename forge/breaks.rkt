@@ -242,7 +242,7 @@
         
 
     ; proposed breakers from each relation
-    (define candidates (list))
+    (define candidates (list))    
 
     (for ([bound total-bounds])
         ; get declared breaks for the relation associated with this bound        
@@ -636,7 +636,6 @@
 
 ;;; A->B Strategies ;;;
 (add-strategy 'func (λ (pri rel bound atom-lists rel-list [loc #f])
-
     (define (funcformulajoin quantvarlst) 
         (cond 
             [(empty? (rest quantvarlst)) (@join (first quantvarlst) rel)]

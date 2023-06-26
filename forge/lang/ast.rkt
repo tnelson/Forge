@@ -739,7 +739,7 @@
 ; but if not, just produce 'one'.
 (begin-for-syntax 
   (define-splicing-syntax-class QuantifierMultiplicityClass
-    (pattern (~optional (~seq #:mult m0) #:defaults ([m0 #"one"])))))
+    (pattern (~optional (~seq #:mult m0) #:defaults ([m0 #'"one"])))))
 
 ;;; ALL ;;;
 
@@ -843,23 +843,37 @@
 
 (define-syntax (one stx)
   (syntax-parse stx    
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
+    ;;; quantifier case ;;;
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) 
+        ([v0 m0:QuantifierMultiplicityClass e0] ...) pred) 
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 #:mult m0.m0 e0] ...) pred))]
+    ;;; multiplicity formula case ;;;
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
 
 (define-syntax (one/info stx)
   (syntax-parse stx
-    [(_ info #:disj ([x1 r1] ...) pred)
+    ;;; Quantifier case with disjointness ;;;
+    [(_ info #:disj ([x1 m0:QuantifierMultiplicityClass r1] ...) pred)
+     (unless (equal? "one" (second (syntax-e #'m0.m0)))
+       (raise-syntax-error 'one
+                            (format "quantified variable ~a required higher-order universal quantification, which is unsupported" #'x1)
+                            #'x1))
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
-       ; Instead, desugar as a multiplicity of a set comprehension
+       ; Instead, desugar as a multiplicity of a set comprehension       
        (multiplicity-formula info 'one (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
-    [(_ info ([x1 r1] ...) pred)
+    ;;; Quantifier case without disjointness ;;;
+    [(_ info ([x1 m0:QuantifierMultiplicityClass r1] ...) pred)
+     (unless (equal? "one" (second (syntax-e #'m0.m0)))
+       (raise-syntax-error 'one
+                            (format "quantified variable ~a required higher-order universal quantification, which is unsupported" #'x1)
+                            #'x1))    
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'one (set ([x1 r1] ...) pred)))]
+    ;;; Multiplicity formula case ;;;
     [(_ info expr)
      (quasisyntax/loc stx
        (multiplicity-formula info 'one expr))]))
@@ -874,23 +888,28 @@
 
 (define-syntax (lone stx)
   (syntax-parse stx    
+    ;;; Quantifier Form ;;;
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
       (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
+    ;;; Multiplicity formula form ;;;
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
 
 (define-syntax (lone/info stx)
   (syntax-parse stx
+    ;;; Quantifier form with disj ;;;
     [(_ info #:disj ([x1 r1] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'lone (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
+    ;;; Quantifier form without disj ;;;
     [(_ info ([x1 r1] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'lone (set ([x1 r1] ...) pred)))]
+    ;;; Multiplicity formula form ;;;
     [(_ info expr)
      (quasisyntax/loc stx
        (multiplicity-formula info 'lone expr))]))

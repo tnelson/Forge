@@ -64,7 +64,10 @@ test expect QuantifiedFormulas {
     NoQuant : No for TestInst is theorem
     QuantifierEquivalences : Equivalences is theorem
 
+    -- Make sure that higher-order quantification is working (for essentially existential Qs)
     SomeQuantifyOverSets : { some nodes: set Node | #nodes > 1 } is sat
+    NoQuantifyOverSets : { #Nodes > 1 and no nodes: set Node | #nodes > 1 } is unsat
+    AllQuantifyOverSets : { not all nodes: set Node | #nodes <= 1 } is sat
 
     -- This should be an error
     --AllQuantifyOverSets : { all nodes: set Node | #nodes > 1 } is sat
