@@ -41,6 +41,7 @@
 ; name is the name of the model
 ; get-next-model returns the next model each time it is called, or #f.
 (define (display-model the-run orig-lazy-tree relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
+  (do-time "forgeserver display-model")
 
   (define current-tree orig-lazy-tree)
   (define curr-datum-id 1) ; nonzero
