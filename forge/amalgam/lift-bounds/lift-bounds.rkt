@@ -1,5 +1,11 @@
-#lang racket ;forge/core
-(require (prefix-in @ racket))
+#lang racket/base
+
+; Note: do not re-import everything. Instead, use only-in
+;(require (prefix-in @ racket))
+(require (prefix-in @ (only-in racket <)))
+(require (only-in racket/contract define/contract ->i and/c or/c listof))
+(require (only-in racket cartesian-product first second rest empty? remove-duplicates))
+(require racket/match)
 
 ; Bounds lifting functions for Amalgam
 ; expression x bounds -> bounds

@@ -1,5 +1,7 @@
-#lang racket ;forge/core
+#lang racket/base
 
+(require (only-in racket first second cartesian-product filter-map
+                         last take rest remove-duplicates))
 (provide transposeTup joinTuple buildClosureOfTupleSet)
 
 ; input: tuple - tuple to be flipped
