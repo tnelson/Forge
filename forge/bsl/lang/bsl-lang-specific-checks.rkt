@@ -1,9 +1,10 @@
-#lang racket
+#lang racket/base
 
 (require forge/lang/ast)
 (require forge/sigs-structs)
 (require (for-syntax racket/syntax syntax/srcloc)
          syntax/srcloc)
+(require (only-in racket first second string-join))
 
 (define (raise-bsl-error message node loc)
   (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message (deparse node) (srcloc->string loc))))

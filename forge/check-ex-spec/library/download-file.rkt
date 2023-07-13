@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (provide get-info)
 
@@ -6,6 +6,7 @@
 (require net/url)
 (require racket/file)
 (require json)
+(require (only-in racket port->bytes string-replace port->string))
 
 ; download-file :: string string? string? -> bytes
 ; Downloads a file from the given url.
