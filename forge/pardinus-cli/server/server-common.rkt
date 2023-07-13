@@ -1,6 +1,7 @@
-#lang racket
+#lang racket/base
 
 (require racket/runtime-path
+         racket/class
          (only-in forge/shared port-echo))
 
 (provide server%)

@@ -1,19 +1,20 @@
-#lang racket
+#lang racket/base
 
 (require (only-in racket/syntax format-symbol))
 
 ;(provide (except-out (all-defined-out) kodkod-port define-ops))
 
 (require "../../shared.rkt")
+(require racket/class racket/match)
+(require "server.rkt"
+         "server-common.rkt"
+         (only-in racket thunk ~a))
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eoi cmd declare-univ
          declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product]))
 (provide assert e f i a define-const)
 (provide read-evaluation read-ack)
 (provide clear)
-
-(require "server.rkt"
-         "server-common.rkt")
 
 (define server-name "Pardinus")
 

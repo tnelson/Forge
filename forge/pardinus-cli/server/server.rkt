@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
 (require racket/runtime-path "server-common.rkt" "../../shared.rkt")
+(require (for-syntax racket/base))
+(require (only-in racket curry add-between))
 
 (provide pardinus-initializer server%)
 
