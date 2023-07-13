@@ -695,7 +695,11 @@
   (sigtype-find-field e2-parent (get-type e2) ctx))
 
 (define (field->sigty/error e2)
-  (define e2-sigty (field->sigty (get-type e2)))
+  (define e2-ty
+    (get-type e2))
+  (define e2-sigty
+    (or (field->sigty e2-ty)
+        (and (nametype? e2-ty) (name->sig (type-name e2-ty)))))
   (if (sigtype? e2-sigty)
     e2-sigty
     (raise-type-error
@@ -939,8 +943,8 @@
                #:when (free-identifier=? id nm))
         (->sigty ty)))
     (raise-type-error
-      "field not found"
-      ctx)))
+      (format "field '~s' not found" (syntax-e id))
+      (deparse ctx))))
 
 (define (env-check env)
   (unknown-sig-check env)
