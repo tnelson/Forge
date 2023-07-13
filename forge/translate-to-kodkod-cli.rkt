@@ -1,6 +1,8 @@
-#lang racket
+#lang racket/base
 
-(require "lang/ast.rkt" "pardinus-cli/server/kks.rkt" "sigs-structs.rkt" (prefix-in @ racket))
+(require "lang/ast.rkt" "pardinus-cli/server/kks.rkt" "sigs-structs.rkt"
+         (prefix-in @ (only-in racket >))
+         (only-in racket index-of match string-join))
 
 (provide translate-to-kodkod-cli)
 (provide interpret-formula interpret-expr interpret-int)

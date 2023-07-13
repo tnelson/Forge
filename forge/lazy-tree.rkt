@@ -1,7 +1,8 @@
-#lang racket
+#lang racket/base
 
 (require racket/contract)
 (require syntax/parse/define)
+(require (only-in racket empty? match cons? first thunk))
 
 (provide node? make-node get-child get-children get-value lazy-tree-map)
 
