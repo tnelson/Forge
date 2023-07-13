@@ -1,11 +1,12 @@
-#lang racket
+#lang racket/base
 
 (require (prefix-in logging: forge/logging/logging))
 (require (except-in forge/sigs 
                     run check test example)
          (prefix-in unlogged: forge/sigs)
-         (prefix-in tree: "../lazy-tree.rkt")                    
-         (for-syntax (only-in forge/sigs add-to-execs)))
+         ;(prefix-in tree: "../lazy-tree.rkt")                    
+         (for-syntax (only-in forge/sigs add-to-execs)
+                     racket/base))
 (require syntax/parse/define)
 
 (provide (all-from-out forge/sigs))

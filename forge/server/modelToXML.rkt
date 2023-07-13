@@ -1,9 +1,13 @@
-#lang racket
+#lang racket/base
 
 (require "../lang/ast.rkt" racket/date xml racket/string
          "../sigs-structs.rkt" ; for Sat/Unsat
          "../shared.rkt"
-         (prefix-in @ (only-in racket and or not > - +)))
+         (prefix-in @ (only-in racket and or not > - +))
+         racket/hash
+         (only-in racket first second rest empty empty? remove-duplicates curry
+                         port->lines mutable-set set-subtract set->list set-union!
+                         list->mutable-set filter-not range))
 
 (provide solution-to-XML-string)
 
