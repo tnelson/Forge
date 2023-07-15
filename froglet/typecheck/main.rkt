@@ -466,17 +466,19 @@
   (sigtype? parent))
 
 (define (ifelse-check e1 e2 e3 ctx)
+  ;; TODO use e1 type to refine the rest!
   (void
     (expr-check e1)
+    (unless (type<: (->boolty (get-type e1)) the-bool-type)
+      (raise-type-error "expected a formula, given a ~a" (type-kind (get-type e1)) (deparse e1)))
     (expr-check e2)
-    (expr-check e3)
-    (for ((ee (in-list (list e1 e2 e3))))
-      (define ty (get-type ee))
-      (unless (type=? the-bool-type ty)
-        (raise-type-error
-          (format "expected a formula, given a ~a" (type-kind ty))
-          (deparse ee)))))
-  the-bool-type)
+    (expr-check e3))
+  (union-type (get-type e2) (get-type e3)))
+
+(define (union-type t0 t1)
+  (or (type<: t0 t1)
+      (type<: t1 t0)
+      the-unknown-type))
 
 (define (bounds-is-check e1 e2 ctx)
   (unless (in-context? forge:bounds)
@@ -619,6 +621,7 @@
                 (apply hash-set* field# (append-map (lambda (f) (list f #true)) curr-field*)))]))
      the-bool-type]
     [else
+     (log-froglet-warning "app check not implemented ~a" (deparse/datum ctx))
      the-unknown-type]))
 
 (define-parser letdecllist-check
@@ -787,16 +790,20 @@
   (match* (t0 t1)
    [(_ _)
     #:when (eq? t0 t1)
-    #true]
+    t0]
    [((== the-unknown-type) _)
-    #true]
+    the-unknown-type]
    [(_ (== the-unknown-type))
-    #true]
+    the-unknown-type]
    [((nametype nm) (== the-bool-type eq?))
     #:when (memq (syntax-e nm) '(true false))
-    #true]
+    the-bool-type]
    [(_ (== the-bool-type eq?))
     #false]
+   [((nametype n0) t1)
+    (type<: (name->sig n0) t1)]
+   [(t0 (nametype n1))
+    (type<: t0 (name->sig n1))]
    [(_ _)
     (log-froglet-warning "inexhaustive match: ~s <: ~s" t0 t1)
     #f]))
