@@ -13,7 +13,7 @@
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
          VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
 (provide forge-version forge-git-info instance-diff CORE-HIGHLIGHT-COLOR)
-(provide stream-map/once port-echo java>=1.9?)
+(provide stream-map/once port-echo java>=1.9? do-time)
 
 (module+ test (require rackunit))
 
@@ -122,3 +122,44 @@
   (if (unbox success?)
     str
     (raise-user-error 'shell "failed to apply '~a' to arguments '~a'" exe cmd*)))
+
+;; --- timing
+
+(define-logger forge-timing)
+
+(define do-time
+  (let ()
+    (define last-time #f)
+    (define initial-time #f)
+    (define gc-time #f)
+    (define (set!-initial-time t) (set! initial-time t))
+    (define (set!-last-time t) (set! last-time t))
+    (define (set!-gc-time t) (set! gc-time t))
+    (define pad-len 40)
+    (define (pad str pad-char)
+      (define l (string-length str))
+      (if (>= l pad-len)
+          str
+          (string-append str (make-string (- pad-len l) pad-char))))
+    (define (start-timing msg)
+      (when last-time
+        (error 'start-timing "Timing already started"))
+      (set!-last-time (current-process-milliseconds))
+      (set!-initial-time last-time)
+      (set!-gc-time (current-gc-milliseconds))
+      (log-forge-timing-debug "~a at ~a" (pad "Starting" #\space) initial-time))
+    (lambda (msg)
+      (unless last-time
+        (start-timing msg))
+      (log-forge-timing-debug
+        (let* ([t (current-process-milliseconds)]
+               [gc (current-gc-milliseconds)]
+               [old last-time]
+               [diff (- t old)]
+               [gc-diff (- gc gc-time)]
+               [new-msg (pad msg #\space)])
+          (set!-last-time t)
+          (set!-gc-time gc)
+          (format "~a at ~a\tlast step: ~a\tgc: ~a\ttotal: ~a"
+                  new-msg t diff gc-diff (- t initial-time)))))))
+

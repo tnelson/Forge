@@ -7,6 +7,8 @@
 (require "alloy-syntax/parser.rkt")
 (require "alloy-syntax/tokenizer.rkt")
 (require (prefix-in log: forge/logging/2023/main))
+(require forge/shared)
+(do-time "forge/lang/reader")
 
 (define (coerce-ints-to-atoms tree)
   ; AlloyModule: ModuleDecl? Import* Paragraph*
@@ -78,6 +80,8 @@
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
   (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                        forge:n))
+                  (require (only-in forge/shared do-time))
+                  (do-time "forge-mod toplevel")
 
                   (define-namespace-anchor forge:n) ; Used for evaluator
                   (forge:nsa forge:n)
@@ -99,6 +103,7 @@
                   ;; Override default exception handler
 
                   ,ints-coerced
+                  (do-time "forge-mod ints-coerced")
 
                   (module+ execs)
                   (module+ main
