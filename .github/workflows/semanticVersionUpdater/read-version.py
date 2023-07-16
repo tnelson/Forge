@@ -27,10 +27,10 @@ def updateVersion(curVersion, updateType, prerelease=None):
     if updateType == "major":
         major += 1
         minor = 0
-        patch = 0
+        patch = None
     elif updateType == "minor":
         minor += 1
-        patch = 0
+        patch = None
     elif updateType == "patch":
         patch += 1
     else:
