@@ -7,7 +7,10 @@
   (only-in froglet/typecheck/main typecheck)
   (only-in forge/lang/reader coerce-ints-to-atoms)
   (only-in forge/lang/alloy-syntax/main parse make-tokenizer)
+  (only-in forge/shared do-time)
   (prefix-in log: forge/logging/2022/main))
+
+(do-time "froglet/lang/reader")
 
 (define (read-syntax path port)
   (define-values (logging-on? project email) (log:setup lang-name port path))
