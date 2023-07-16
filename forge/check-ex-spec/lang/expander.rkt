@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require (except-in forge/lang/expander 
                     ParagraphClass TestDeclClass TestBlockClass TestExpectDeclClass ExampleDeclClass
@@ -6,7 +6,7 @@
                     test example))
 (require (only-in forge/check-ex-spec/library test example))
 (require syntax/parse/define
-         (for-syntax syntax/parse/define))
+         (for-syntax syntax/parse/define racket/base))
 
 (provide define define-values values 
          raise format if filter

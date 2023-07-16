@@ -1,5 +1,10 @@
-#lang racket
-(require (prefix-in forge: "../lang/ast.rkt"))
+#lang racket/base
+
+; Alternative output: translate game-of-life instance into .rle file
+
+(require (prefix-in forge: "../lang/ast.rkt")
+         racket/match
+         (only-in racket curry make-directory* make-temporary-file))
 (provide output-life)
 
 (define (output-life inst)

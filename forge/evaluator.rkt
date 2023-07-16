@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require forge/sigs-structs
          "lang/ast.rkt"

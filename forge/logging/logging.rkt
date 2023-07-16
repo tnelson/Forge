@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 (require forge/sigs-structs)
 (require forge/translate-from-kodkod-cli)
@@ -9,6 +9,9 @@
 (require net/url-string)
 (require sha)
 (require (prefix-in tree: "../lazy-tree.rkt"))
+(require (only-in racket path-only make-parent-directory* curry thunk*
+                         file->lines index-where list-set peeking-input-port
+                         string-contains? file-name-from-path file->string))
 
 (provide log-execution log-run log-test log-errors flush-logs log-check-ex-spec log-notification)
 

@@ -1,8 +1,9 @@
 #lang forge
 
-option solver MiniSatProver
-option logtranslation 2
-option coregranularity 2
+/*
+  Rough example boolean-logic model in Forge  
+*/
+
 
 ------------------------------------------------------
 -- Formula Type

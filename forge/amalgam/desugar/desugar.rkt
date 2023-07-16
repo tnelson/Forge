@@ -1,4 +1,4 @@
-#lang racket ;forge/core
+#lang racket/base
 
 ; Desugaring functions for Amalgam
 ; (full AST) -> (restricted AST without stuff like implies)
@@ -16,10 +16,15 @@
 (require "../substitutor/substitutor.rkt")
 (provide desugarFormula desugarExpr desugarInt)
 
-(require (prefix-in @ racket))
-(require (prefix-in @ (only-in racket ->)))
+(require (prefix-in @ (only-in racket -> > =)))
 (require (prefix-in forge: forge/sigs-structs)
-         forge/lang/ast)
+         forge/lang/ast
+         racket/match)
+(require (only-in racket/contract define/contract ->i and/c or/c listof))
+(require (only-in racket cartesian-product first second rest empty?
+                  remove-duplicates filter-map last drop-right empty
+                  take))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; This costs a great deal, but forces a noisy failure

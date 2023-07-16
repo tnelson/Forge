@@ -1,5 +1,16 @@
 #lang forge
 
+/*
+  Example puzzle model:
+
+  Alice supervises Bob
+  Bob supervises Charlie
+  Alice went to Brown
+  Charlie did not go to Brown
+  
+  Does a Brown graduate supervise a non-Brown graduate?
+*/
+
 sig School {}
 one sig Brown extends School {}
 one sig Harvale extends School {}
