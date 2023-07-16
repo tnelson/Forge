@@ -1,8 +1,9 @@
-#lang racket
+#lang racket/base
 
 (require (only-in "lang/ast.rkt" relation-name)
-         (only-in "lang/ast.rkt" univ))   ;relation))
+         (only-in "lang/ast.rkt" univ)) 
 (require forge/sigs-structs)
+(require (only-in racket curry first second third fourth fifth match-define))
 
 (provide translate-from-kodkod-cli
          translate-evaluation-from-kodkod-cli )

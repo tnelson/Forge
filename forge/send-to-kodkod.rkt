@@ -524,11 +524,20 @@
     (map (lambda (child) (fill-upper-past-bound child parent-upper))
          (get-children run-spec sig)))
 
+  ; For use in situations where there is no existing upper (relational) bound
   (define (fill-upper-no-bound sig shared)
+    ; If the sig has a relational upper bound, don't try to resolve the possible
+    ; atom names etc.; ask the user to give an explicit bound on the parent, too.
     (when (get-bound-upper sig)
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))))
     (define curr-lower (hash-ref lower-bounds sig))
-    (hash-set! upper-bounds sig (append curr-lower shared))
+    ; If the upper-bound's scope is bigger than the lower bound's current contents
+    ;   (which should include child sigs' lower bounds), make room using atoms from parent.
+    ; Otherwise, upper = lower, since there is no excess capacity.
+    (if (@> (get-scope-upper-default sig) (length curr-lower))
+        (hash-set! upper-bounds sig (append curr-lower shared))
+        (hash-set! upper-bounds sig curr-lower))
+    ; Recur on children
     (map (lambda (child) (fill-upper-no-bound child (append curr-lower shared)))
          (get-children run-spec sig)))
   

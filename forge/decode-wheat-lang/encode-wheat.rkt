@@ -1,5 +1,6 @@
-#lang racket
+#lang racket/base
 
+(require (only-in racket file->lines string-join))
 (require forge/decode-wheat-lang/util)
 
 (define (encode in-file out-file)

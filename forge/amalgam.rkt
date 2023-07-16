@@ -1,4 +1,4 @@
-#lang racket ;forge/core
+#lang racket/base
 
 ;(set-verbosity 1)
 
@@ -6,9 +6,16 @@
 (require forge/amalgam/lift-bounds/lift-bounds)
 (require forge/send-to-kodkod)
 
+(require (only-in racket/contract define/contract ->i and/c or/c listof))
+(require (only-in racket cartesian-product first second rest empty?
+                  remove-duplicates filter-map last drop-right empty
+                  take partition list->set flatten set-union stream-append
+                  stream stream?))
+
+
 ;(require "amalgam/tests/forge_ex.rkt")
 ;(require "amalgam/userStudies/KittyBacon.rkt")
-(require racket/hash)
+(require racket/hash racket/match)
 (require (prefix-in @ racket/set))
 (require (prefix-in @ (only-in racket -> >= >)))
 

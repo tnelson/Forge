@@ -1,9 +1,8 @@
-#lang racket
+#lang racket/base
 
 (require syntax/parse/define)
 
-(require (except-in forge/sigs test example)
-         (prefix-in tree: "../../lazy-tree.rkt"))
+(require (except-in forge/sigs test example))
 (provide (all-from-out forge/sigs)
          test example
          (struct-out test-report))

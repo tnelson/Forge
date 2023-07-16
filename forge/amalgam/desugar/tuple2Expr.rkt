@@ -1,10 +1,5 @@
 #lang forge/core
-;racket
-;; TODO: bug report discuss with Thomas -- needed forge/core, not require sigs?
 
-(require racket/list) ; do we need this?
-
-;(require "../sigs.rkt") ; import Forge stuff
 ;(require (only-in "../../lang/ast.rkt" node/expr/op/->))
 
 (provide tup2Expr)

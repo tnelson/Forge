@@ -1,9 +1,12 @@
-#lang racket ;forge/core
+#lang racket/base
 
 (require "../lift-bounds/lift-bounds.rkt")
 (require "../substitutor/substitutor.rkt")
-(require (prefix-in @ racket))
-(require (prefix-in @ (only-in racket ->)))
+(require (only-in racket cartesian-product first second rest empty?
+                  remove-duplicates filter-map last drop-right empty
+                  take))
+(require (only-in racket/contract define/contract ->i and/c or/c listof))
+(require (prefix-in @ (only-in racket -> >)))
 (require (prefix-in forge: forge/sigs-structs)
          forge/lang/ast)
 

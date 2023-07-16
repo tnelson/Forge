@@ -1,7 +1,8 @@
-#lang racket
+#lang racket/base
 
 (require racket/cmdline)
 (require json)
+(require (only-in racket thunk))
 
 (define-values (assignments compiled assignment-name provides)
   (command-line #:args (assignments compiled assignment-name . provides) 

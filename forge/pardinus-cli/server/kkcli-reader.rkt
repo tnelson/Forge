@@ -1,4 +1,5 @@
-#lang racket
+#lang racket/base
+(require (only-in racket port->lines))
 
 (define (formatem lines)
   (define thing (filter (lambda (x) (not (equal? x "")))
