@@ -255,6 +255,14 @@
   (struct-copy State state
                [options new-options]))
 
+; Clear out the Forge state *and* exit Pardinus, so that the solver
+; will be restarted in a fresh state as well. Note that this does not
+; clear out the namespace -- old predicates, etc. will still be defined.
+(define (clear-state-and-solver)
+  (update-state! init-state)    ; reset Forge state
+  (pardinus:exit-pardinus)      ; inform process (graceful exit)
+  (shutdown-pardinus-process))  ; close ports on Racket side, etc.
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;; Forge Commands  ;;;;;;;

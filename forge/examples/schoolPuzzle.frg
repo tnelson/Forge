@@ -44,5 +44,9 @@ pred nobody { not somebody }
 
 -- Reverse!
 --revpuzzle : run {known somebody} for exactly 3 Person, exactly 2 School
+
 -- Actual puzzle (expect unsat)
 --puzzle : run {known nobody} for exactly 3 Person, exactly 2 School
+test expect {
+  puzzleYes: {known nobody} for exactly 3 Person, exactly 2 School is unsat
+}

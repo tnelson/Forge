@@ -14,7 +14,7 @@
          declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product]))
 (provide assert e f i a define-const)
 (provide read-evaluation read-ack)
-(provide clear)
+(provide clear exit-pardinus)
 
 (define server-name "Pardinus")
 
@@ -87,6 +87,14 @@
 
 (define (clear run-name)
   (print-cmd (format "(with ~a (clear))" run-name))
+  (print-eoi))
+
+
+; This should close the process gracefully. But to prevent Racket from
+; sending to the process as it is closing, shutdown (of the port) should
+; be initiated by the caller as well.
+(define (exit-pardinus)
+  (print-cmd (format "(exit)"))
   (print-eoi))
 
 ;; Declarations and definitions

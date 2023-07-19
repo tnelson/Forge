@@ -20,7 +20,7 @@
          (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
 (require "drracket-gui.rkt")
 
-(provide send-to-kodkod)
+(provide send-to-kodkod pardinus:exit-pardinus shutdown-pardinus-process)
 
 (define no-version-printed-yet #t)
 
@@ -30,6 +30,14 @@
 
 ; Will be a Server-ports tuple if a server is active. 
 (define server-state (box #f))
+
+; Invoke the shutdown procedure for this server. Note that this
+; is different from pardinus:exit-pardinus. This works from the
+; Racket side; the other works from the Java side. This should be
+; called whenever Pardinus is told to exit.
+(define (shutdown-pardinus-process)
+  (when (unbox server-state)
+    ((Server-ports-shutdown (unbox server-state)))))
 
 ; send-to-kodkod :: Run-spec -> Stream<model>, List<Symbol>
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;

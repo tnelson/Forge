@@ -480,7 +480,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; is-sat? :: Run -> boolean
 ; Checks if a given run result is 'sat
 (define (is-sat? run)
+  (printf "run-result: ~a~n" (Run-result run))
   (define first-instance (tree:get-value (Run-result run)))
+  (printf "first-instance: ~a~n" first-instance)
   (Sat? first-instance))
 
 ; is-unsat? :: Run -> boolean
@@ -512,7 +514,6 @@ Returns whether the given run resulted in sat or unsat, respectively.
   ; Since we're using a single process now, send it instructions to clear this run
   (pardinus:cmd 
       [(get-stdin run)]
-      
       (pardinus:clear (Run-name run))))
 
 ; is-running :: Run -> Boolean
