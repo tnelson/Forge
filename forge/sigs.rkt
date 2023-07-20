@@ -78,6 +78,7 @@
 (provide (all-from-out "lazy-tree.rkt"))
 
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
+(provide (prefix-out forge: forge-version))
 
 ; Export these from structs without forge: prefix
 (provide implies iff <=> ifte >= <= ni != !in !ni <: :>)

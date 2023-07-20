@@ -17,6 +17,7 @@
 (require forge/sigs
          forge/lang/expander)
 (require (prefix-in frg: (only-in forge/lang/service-reader read-syntax)))
+(require (prefix-in frg: (only-in forge/server/modelToXML solution-to-XML-string)))
 
 (require web-server/http
          web-server/http/response
@@ -37,8 +38,9 @@
 (set-inst-checker-hash! forge-inst-checker-hash)
 (set-check-lang! 'forge)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define server-port 17100)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define/contract (run-model-file bytes)
   (@-> bytes? forge:State?)
@@ -78,7 +80,7 @@
   ; ^ unused, and can use forge:curr-state regardless
   (define response-json
     (hash
-     'type "load"
+     'endpoint "load"
      'run-ids (map symbol->string
                     (hash-keys (forge:State-runmap forge:curr-state)))))
   (response/jsexpr response-json))
@@ -94,19 +96,60 @@
     [(binding:form _ val) val]
     [else (raise (format "no key in bindings: ~a" k))]))
 
-; REQUIRE: model file has been loaded with the run ID being requested
 (define (get-sat req)
   (printf "get-sat request received~n")
   (define binds (request-bindings/raw req))
   (define id-bytes (get-binding binds #"id"))
   (define runmap (forge:State-runmap forge:curr-state))
   (define id (bytes->string/utf-8 id-bytes))
-  (define response-json
-    (hash
-     'type "is-sat?"
-     'id id
-     'sat (forge:is-sat? (hash-ref runmap (string->symbol id)))))
-  (response/jsexpr response-json))
+  (cond
+    [(not (hash-has-key? runmap (string->symbol id)))
+     (error-unknown-id "sat" id)]
+    [else
+     (define response-json
+       (hash
+        'endpoint "sat"
+        'id id
+        'sat (forge:is-sat? (hash-ref runmap (string->symbol id)))))
+     (response/jsexpr response-json)]))
+
+
+; Return an instance in Alloy-XML format (for use by Sterling)
+(define (get-next req)
+  (printf "get-next request received (only first instance supported)~n")
+  (define binds (request-bindings/raw req))
+  (define id-bytes (get-binding binds #"id"))
+  (define runmap (forge:State-runmap forge:curr-state))
+  (define id (bytes->string/utf-8 id-bytes))
+  (cond
+    [(not (hash-has-key? runmap (string->symbol id)))
+     (error-unknown-id "next" id)]
+    [else 
+     (define run (hash-ref runmap (string->symbol id)))
+     (define generator (forge:Run-result run))
+     (define ret (tree:get-value generator))
+     (define command-string (format "~a" (syntax->datum (forge:Run-command run))))
+     ;(set! model-lazy-tree (tree:get-child model-lazy-tree mode))
+     (define response-json
+       (hash
+        'endpoint "next"
+        'id id
+        'instance (frg:solution-to-XML-string ret
+                                              (forge:get-relation-map run)
+                                              (forge:Run-name run) 
+                                              command-string
+                                              "service"
+                                              (forge:get-bitwidth (forge:Run-run-spec run))
+                                              forge:forge-version)))
+     (response/jsexpr response-json)]))
+
+(define (error-unknown-id endpoint id)
+  (response/jsexpr  
+   (hash
+    'type "error"
+    'message "unknown id"
+    'endpoint endpoint
+    'id id)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -123,14 +166,16 @@
         (output-response conn (proc req))
         (next-dispatcher))))
 (define (make-error-dispatcher)
-  (printf "Request with unknown endpoint~n")
   (lambda (conn req)
     (output-response conn (response/jsexpr (hash 'error "invalid endpoint")))))
+
+(define server-port 17100)
 
 (define stop
   (serve
    #:dispatch (sequencer:make (make-dispatcher start-file "/load")
                               (make-dispatcher get-sat "/sat")
+                              (make-dispatcher get-next "/next")
                               (make-error-dispatcher))
    #:listen-ip "127.0.0.1"
    #:port server-port))

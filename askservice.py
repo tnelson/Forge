@@ -19,3 +19,8 @@ if __name__ == '__main__':
             r = requests.get(url = url+"sat", params = params)
             print(r.json())
 
+        case 'next':
+            params = {'id': sys.argv[2]}
+            r = requests.get(url = url+"next", params = params)
+            print(r.json())
+
