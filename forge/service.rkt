@@ -17,7 +17,8 @@
 ; If we want this to connect seamlessly with Sterling, we may need to conform to the Sterling API.
 
 (require forge/sigs
-         forge/lang/expander)
+         forge/lang/service-expander
+         (only-in forge/shared do-time))
 (require (prefix-in frg: (only-in forge/lang/service-reader read-syntax)))
 (require (prefix-in frg: (only-in forge/server/modelToXML solution-to-XML-string)))
 
@@ -42,6 +43,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Risk that this keeps old pred names etc.
+; Use namespace-undefine-variable! ?
+(define forge-expander-ns (module->namespace 'forge/lang/service-expander))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define/contract (run-model-file bytes)
@@ -50,19 +55,18 @@
   ; Restore the *solver* state as well (delete old runs and allow GC)
   (forge:clear-state-and-solver)
   
-  (forge:set-option! 'verbose 0)           ; TEMP: note only works if the file doesn't reset this
+  (forge:set-option! 'verbose 0)           ; TODO: note only works if the file doesn't reset this
   (forge:set-option! 'run_sterling 'false) ; TODO: why isn't this taking effect?
   
   ; Step 0: Scrub a #lang prefix, if one is present
   ; TODO: this should be improved to remove until newline or comment
   ; TODO: UTF8 only
   (define str (regexp-replace #rx"#lang forge|froglet|forge/bsl" (bytes->string/utf-8 bytes) ""))
-  ;(printf "FILE STRING=~a~n" str)
   ; Step 1: read the file string into a lambda syntax object
   (define filestx (frg:read-syntax #f (open-input-string str)))
   ; Step 2: evaluate the syntax object into a procedure
-  (define forge-expander-ns (module->namespace 'forge/lang/expander))
   ; TODO: security concerns from calling eval like this?
+  ;    racket/sandbox + make-evaluator
   (define fileproc (eval filestx forge-expander-ns))
   ; Step 3: execute the lambda
   (fileproc))
@@ -124,7 +128,7 @@
 
 ; Return an instance in Alloy-XML format (for use by Sterling)
 (define (get-next req)
-  (printf "get-next request received (only first instance supported)~n")
+  (printf "get-next request received (only first instance supported): ~a~n" req)
   (define binds (request-bindings/raw req))
   (define id-bytes (get-binding binds #"id"))
   (define runmap (forge:State-runmap forge:curr-state))
@@ -185,8 +189,8 @@
 (define stop
   (serve
    #:dispatch (sequencer:make (make-dispatcher start-file '("post") "/load")
-                              (make-dispatcher get-sat '("post" "get") "/sat")
-                              (make-dispatcher get-next '("post" "get") "/next")
+                              (make-dispatcher get-sat '("get") "/sat")
+                              (make-dispatcher get-next '("get") "/next")
                               (make-error-dispatcher))
    #:listen-ip "127.0.0.1"
    #:port server-port))

@@ -80,7 +80,6 @@
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
   (define final `(lambda () ;(provide (except-out (all-defined-out) ; So other programs can require it
                    ;                    forge:n))
-                  ;(require (only-in forge/shared do-time))
                   ;(do-time "forge-mod toplevel")
 
                   ;(define-namespace-anchor forge:n) ; Used for evaluator
@@ -104,11 +103,11 @@
                   ; TN: TODO: some imports not in racket/base
                   ;(uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
                   ;; Override default exception handler
-
+                   
                   ,ints-coerced
-                  ;(do-time "forge-mod ints-coerced")
+                  (do-time "forge-mod ints-coerced")
 
-                  ; TN: TODO: restore ability to run
+                  ; TN: TODO: restore ability to exclude execution
                   ;(module+ execs)
                   ;(module+ main
                   ;  (require (submod ".." execs)))
@@ -117,9 +116,9 @@
                    ; N.B.: this is not a lambda, but a State struct
                    forge:curr-state))
 
-  ;; TN: changed from forge/lang/expander to racket/base for service
-  ;(define module-datum `(module forge-mod racket/base
-  ;                        ,@final))
+
+;  (define module-datum `(module forge-mod forge/lang/expander
+;                          ,@final))
   ; (printf "Ints-coerced: ~a~n" ints-coerced)
   ; (raise "STOP")
   ;(define result (datum->syntax #f module-datum))
