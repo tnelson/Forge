@@ -14,6 +14,8 @@
 ;   - state (?) to provide instance stream
 ;   - error handling
 
+; If we want this to connect seamlessly with Sterling, we may need to conform to the Sterling API.
+
 (require forge/sigs
          forge/lang/expander)
 (require (prefix-in frg: (only-in forge/lang/service-reader read-syntax)))
@@ -65,9 +67,15 @@
   ; Step 3: execute the lambda
   (fileproc))
 
+; Add CORS header(s); note this will not overwrite if already there
+(define (cors-update resp)
+  (struct-copy response resp
+               [headers (cons (header #"Access-Control-Allow-Origin" #"*")
+                              (response-headers resp))]))
+
 ; A servelet is a function from request -> can-be-response
 (define (start-file req)
-  (printf "start-file request received~n")
+  (printf "start-file request received~n~n~a~n~n" req)
   ; Query *parameters* (GET and POST)
   (define binds (request-bindings/raw req))
   ; Query *data* (POST)
@@ -81,9 +89,9 @@
   (define response-json
     (hash
      'endpoint "load"
-     'run-ids (map symbol->string
+     'run_ids (map symbol->string
                     (hash-keys (forge:State-runmap forge:curr-state)))))
-  (response/jsexpr response-json))
+  (cors-update (response/jsexpr response-json)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -111,7 +119,7 @@
         'endpoint "sat"
         'id id
         'sat (forge:is-sat? (hash-ref runmap (string->symbol id)))))
-     (response/jsexpr response-json)]))
+     (cors-update (response/jsexpr response-json))]))
 
 
 ; Return an instance in Alloy-XML format (for use by Sterling)
@@ -141,7 +149,7 @@
                                               "service"
                                               (forge:get-bitwidth (forge:Run-run-spec run))
                                               forge:forge-version)))
-     (response/jsexpr response-json)]))
+     (cors-update (response/jsexpr response-json))]))
 
 (define (error-unknown-id endpoint id)
   (response/jsexpr  
@@ -160,22 +168,25 @@
 (define (request-path-has-prefix? req p)
   (string-prefix? (path->string (url->path (request-uri req))) p))
 
-(define (make-dispatcher proc prefix)
+(define (make-dispatcher proc methods prefix)
   (lambda (conn req)
-    (if (request-path-has-prefix? req prefix)
+    (if (and (request-path-has-prefix? req prefix)
+             (member (string-downcase (bytes->string/utf-8 (request-method req)))
+                     (map string-downcase methods)))
         (output-response conn (proc req))
         (next-dispatcher))))
 (define (make-error-dispatcher)
   (lambda (conn req)
+    (printf "malformed request, unknown endpoint or unsupported method: ~a~n" req)
     (output-response conn (response/jsexpr (hash 'error "invalid endpoint")))))
 
 (define server-port 17100)
 
 (define stop
   (serve
-   #:dispatch (sequencer:make (make-dispatcher start-file "/load")
-                              (make-dispatcher get-sat "/sat")
-                              (make-dispatcher get-next "/next")
+   #:dispatch (sequencer:make (make-dispatcher start-file '("post") "/load")
+                              (make-dispatcher get-sat '("post" "get") "/sat")
+                              (make-dispatcher get-next '("post" "get") "/next")
                               (make-error-dispatcher))
    #:listen-ip "127.0.0.1"
    #:port server-port))
