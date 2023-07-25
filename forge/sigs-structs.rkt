@@ -493,22 +493,22 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)
-  (assert-is-running run)
+  (assert-is-running run "get-stdin")
   (Server-ports-stdin (Run-server-ports run)))
 
 ; get-stdout :: Run -> output-port?
 (define (get-stdout run)
-  (assert-is-running run)
+  (assert-is-running run "get-stdout")
   (Server-ports-stdout (Run-server-ports run)))
 
 ; get-stderr :: Run -> output-port?
 (define (get-stderr run)
-  (assert-is-running run)
+  (assert-is-running run "get-stderr")
   (Server-ports-stderr (Run-server-ports run)))
 
 ; close-run :: Run -> void
 (define (close-run run)
-  (assert-is-running run)
+  (assert-is-running run "close-run")
   (when (@>= (get-verbosity) VERBOSITY_HIGH)
         (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))  
   ; Since we're using a single process now, send it instructions to clear this run
@@ -520,9 +520,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (is-running? run)
   ((Server-ports-is-running? (Run-server-ports run))))
 
-(define (assert-is-running run)
+(define (assert-is-running run [label #f])
   (unless (is-running? run)
-    (raise-user-error "KodKod server is not running.")))
+    (if label 
+        (raise-user-error (format "(~a) KodKod server is not running." label))
+        (raise-user-error "KodKod server is not running."))))
 
 (require (for-syntax syntax/srcloc)) ; for these macros
 

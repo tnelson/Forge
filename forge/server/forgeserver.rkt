@@ -173,6 +173,7 @@
          (when (> (get-verbosity) VERBOSITY_LOW)
            (printf "Using port: ~a~n" (number->string port)))
          (flush-output)
+         ; Stop until *Forge stdin* receives a character of input 
          (void (read-char))
          (stop-service)]))
 

@@ -45,6 +45,7 @@
 
 ; Risk that this keeps old pred names etc.
 ; Use namespace-undefine-variable! ?
+; But this might also be OK -- the defines are done within the lambda. 
 (define forge-expander-ns (module->namespace 'forge/lang/service-expander))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -55,8 +56,8 @@
   ; Restore the *solver* state as well (delete old runs and allow GC)
   (forge:clear-state-and-solver)
   
-  (forge:set-option! 'verbose 0)           ; TODO: note only works if the file doesn't reset this
-  (forge:set-option! 'run_sterling 'false) ; TODO: why isn't this taking effect?
+  (forge:set-option! 'verbose 5)           ; TODO: note only works if the file doesn't reset this
+  (forge:set-option! 'run_sterling 'off)   ; Note this needs to be exactly 'off, and can be changed in the file...
   
   ; Step 0: Scrub a #lang prefix, if one is present
   ; TODO: this should be improved to remove until newline or comment
@@ -79,7 +80,7 @@
 
 ; A servelet is a function from request -> can-be-response
 (define (start-file req)
-  (printf "start-file request received~n~n~a~n~n" req)
+  (printf "start-file request received~n") ;~n~a~n~n" req)
   ; Query *parameters* (GET and POST)
   (define binds (request-bindings/raw req))
   ; Query *data* (POST)
@@ -129,6 +130,7 @@
 ; Return an instance in Alloy-XML format (for use by Sterling)
 (define (get-next req)
   (printf "get-next request received (only first instance supported): ~a~n" req)
+  ;(printf "STATE: ~a~n" forge:curr-state)
   (define binds (request-bindings/raw req))
   (define id-bytes (get-binding binds #"id"))
   (define runmap (forge:State-runmap forge:curr-state))

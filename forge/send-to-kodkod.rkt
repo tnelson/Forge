@@ -37,6 +37,7 @@
 ; called whenever Pardinus is told to exit.
 (define (shutdown-pardinus-process)
   (when (unbox server-state)
+    ;(printf "DEBUG: Shutting down Pardinus.~n")
     ((Server-ports-shutdown (unbox server-state)))))
 
 ; send-to-kodkod :: Run-spec -> Stream<model>, List<Symbol>
@@ -333,7 +334,7 @@
   ; Print solve
   (define (get-next-model [mode ""])
     (unless (is-running?)
-      (raise-user-error "KodKod server is not running."))
+      (raise-user-error "(get-next-model) KodKod server is not running."))
     (pardinus-print (pardinus:solve run-name mode))
     (define result (translate-from-kodkod-cli
                     'run 
