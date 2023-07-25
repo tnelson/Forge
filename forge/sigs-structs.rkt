@@ -107,7 +107,7 @@
   [core_minimization symbol?]  
   [skolem_depth integer?] ; allow -1 (disable Skolemization entirely)
   [local_necessity symbol?]
-  [run_sterling symbol?]
+  [run_sterling (or/c string? symbol?)]
   [sterling_port nonnegative-integer?]
   [engine_verbosity nonnegative-integer?]
   ) #:transparent)
@@ -213,7 +213,7 @@
         'core_minimization symbol?
         'skolem_depth exact-integer?
         'local_necessity symbol?
-        'run_sterling symbol?
+        'run_sterling (lambda (x) (or (symbol? x) (string? x))) ; allow for custom visualizer path
         'sterling_port exact-nonnegative-integer?
         'engine_verbosity exact-nonnegative-integer?))
 

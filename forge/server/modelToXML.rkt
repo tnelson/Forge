@@ -80,6 +80,14 @@
                  (types-to-XML-string rel ID-hash)
                  "\n</field>\n\n"))
 
+; Possibly annotate the XML with instructions on where to find visualization info
+(define (sterling-viz-to-xml run-options)
+  (cond
+    [(not run-options) ""]
+    [(string? (Options-run_sterling run-options))
+     (format "<visualizer file=\"~a\" />" (Options-run_sterling run-options))]
+    [else ""]))
+
 (define (clean str)
   (string-replace (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;"))
 
@@ -97,7 +105,9 @@
         [else 
          (rel (map (lambda (a) 'univ) (first value)) 'univ (symbol->string key))]))
 
-(define (solution-to-XML-string soln relation-map name command filepath bitwidth forge-version #:tuple-annotations [tuple-annotations (hash)])    
+(define (solution-to-XML-string soln relation-map name command filepath bitwidth forge-version
+                                #:tuple-annotations [tuple-annotations (hash)]
+                                #:run-options [run-options #f])    
   (define data
     (if (Sat? soln) ; if satisfiable, can report relations
         (map (lambda (a-subinstance) 
@@ -190,6 +200,7 @@ here-string-delimiter
                                             (λ (exn) (format "// Couldn't open source file (~a) (info: ~a). Is the file saved?" filepath (exn:fail:filesystem:errno-errno exn)))])
                              (clean (agg-lines (port->lines (open-input-file filepath)))))
                            "\"></source>\n"
+                           (sterling-viz-to-xml run-options)
                            "</alloy>"))         
          (define message
            (string-append
