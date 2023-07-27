@@ -542,10 +542,11 @@
     [((~datum AlloyModule) (~optional module-decl:ModuleDeclClass)
                              (~seq import:ImportClass ...)
                              (~seq paragraph:ParagraphClass ...))
-     (syntax/loc stx (begin
-     (~? module-decl)
-     import ...
-     paragraph ...))]
+     (syntax/loc stx
+       (begin
+         (~? module-decl)
+         import ...
+         paragraph ...))]
     [((~datum AlloyModule) ((~datum EvalDecl) "eval" expr:ExprClass))
      (syntax/loc stx expr)]
     [((~datum AlloyModule) ((~datum EvalDecl) "eval" expr:ExprClass) ...+)
@@ -834,7 +835,10 @@
 (define-syntax (OptionDecl stx)
   (syntax-parse stx
   [dec:OptionDeclClass
-     (syntax/loc stx (set-option! 'dec.n 'dec.v))
+   ; Some options contain file paths. By saving the path of the .frg file at a point
+   ; we still have it, we can let (e.g.) option solver work even if racket is invoked
+   ; from outside the folder containing the .frg file.
+   (quasisyntax/loc stx (set-option! 'dec.n 'dec.v #:original-path #,(current-load-relative-directory)))
    ]))
 
 ; InstDecl : /INST-TOK Name Bounds Scope?

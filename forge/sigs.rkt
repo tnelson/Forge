@@ -174,22 +174,22 @@
   (struct-copy State state
                [inst-map new-state-inst-map]))
 
-(define (set-option! option value)
+(define (set-option! option value #:original-path [original-path #f])
   (cond [(or (equal? option 'verbosity)
              (equal? option 'verbose))
          (set-verbosity value)]
         [else
-         (update-state! (state-set-option curr-state option value))]))
+         (update-state! (state-set-option curr-state option value #:original-path original-path))]))
 
 ; state-set-option :: State, Symbol, Symbol -> State
 ; Sets option to value for state.
-(define (state-set-option state option value)
+(define (state-set-option state option value #:original-path [original-path #f])
   (define options (State-options state))
 
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
                               option (hash-ref option-types option) value)))
-
+  
   (define new-options
     (cond
       [(equal? option 'eval-language)
@@ -200,7 +200,10 @@
                     [eval-language value])]
       [(equal? option 'solver)
        (struct-copy Options options
-                    [solver value])]
+                    [solver
+                     (if (and (string? value) original-path)
+                         (path->string (build-path original-path (string->path value)))
+                         value)])]
       [(equal? option 'backend)
        (struct-copy Options options
                     [backend value])]
@@ -244,7 +247,10 @@
                     [skolem_depth value])]
       [(equal? option 'run_sterling)
        (struct-copy Options options
-                    [run_sterling value])]
+                    [run_sterling
+                     (if (and (string? value) original-path)
+                         (path->string (build-path original-path (string->path value)))
+                         value)])]
       [(equal? option 'sterling_port)
        (struct-copy Options options
                     [sterling_port value])]
