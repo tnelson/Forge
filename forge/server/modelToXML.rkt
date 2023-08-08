@@ -4,6 +4,7 @@
          "../sigs-structs.rkt" ; for Sat/Unsat
          "../shared.rkt"
          (prefix-in @ (only-in racket and or not > - +))
+         (only-in racket/port port->string)
          racket/hash
          (only-in racket first second rest empty empty? remove-duplicates curry
                          port->lines mutable-set set-subtract set->list set-union!
@@ -85,11 +86,18 @@
   (cond
     [(not run-options) ""]
     [(string? (Options-run_sterling run-options))
-     (format "<visualizer file=\"~a\" />" (Options-run_sterling run-options))]
+     ; the forge expander makes this an absolute path (see OptionDecl)
+     (define file-path (Options-run_sterling run-options))
+     (define script-text (port->string (open-input-file file-path) #:close? #t))
+     (format "<visualizer script=\"~a\" />" (clean script-text))]
     [else ""]))
 
 (define (clean str)
-  (string-replace (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;"))
+  (string-replace
+   (string-replace
+    (string-replace
+     (string-replace
+      (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;") "\n" "&#xA;"))
 
 (define (agg-lines lines)
   (if (empty? lines)
