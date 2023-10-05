@@ -89,22 +89,24 @@
     (list "froglet-uni-3.frg" #rx"expected an object")
     (list "froglet-uni-4.frg" #rx"expected a field")
     (list "froglet-uni-5.frg" #rx"expected a field")
+    (list "froglet-pubkey2.frg" #rx"field 'k' not found")
 
-    ;; TODO forge1 code works, etc etc
-    ;; - [X] grandpa reachable
-    ;; - [X] grandpa_test
-    ;; - [X] (pull again) stack --- still error!
-    ;; - [X] stack_test
-    ;; TODO forge2 code
-    ;; - [X] common_def
-    ;; - [X] bridge
-    ;; - [X] pets
-    ;; - [ ] goats (singleton check, scope check)
-    ;; - [ ] correspond
     ;; challenge
-    ;; - [ ] pubkey , 2
+    ;; - [X] pubkey2 froglet expected a field got k
+    ;;   ... lookup works for `pairs`, not for `k`,
+    ;;       should find the k parameter in the environment!
+    ;; - [X] expected a formula (why?!) given a name in k
+    ;; - [X] pubkey2: why unknown type for 1st branch
+    ;; - [ ] pubkey2
+    ;;   froglet: binop-check: (#<syntax in> '#s(type #<syntax Unknown>)
+    ;;   '#s((nametype type 1) #<syntax:pubkey2.frg:30:34 Pubk>))
+    ;; - [ ] pubkey2: refine branch type
+    ;; - [ ] pubkey2: is function type parsing broken?
     ;; TODO catch all bsl errors from here
+    ;; TODO check Ed for bounds errors
     ;; TODO modeling in anger ... invalid bounds
+
+    ;; FYI forge has an evaluator, used to eval in inst specs, typechecker may need it too!
 
     (list "example_electrum.frg" #rx"example foo: .* temporal")
     (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")

@@ -473,6 +473,9 @@
       (raise-type-error "expected a formula, given a ~a" (type-kind (get-type e1)) (deparse e1)))
     (expr-check e2)
     (expr-check e3))
+  (printf "UNION ~a ~a~n ==> ~a~n"
+          (get-type e2) (get-type e3)
+          (union-type (get-type e2) (get-type e3)))
   (union-type (get-type e2) (get-type e3)))
 
 (define (union-type t0 t1)
@@ -621,6 +624,7 @@
                 (apply hash-set* field# (append-map (lambda (f) (list f #true)) curr-field*)))]))
      the-bool-type]
     [else
+     (printf "APP check ~a[~a]~n" (get-type fn) (map get-type arg*))
      (log-froglet-warning "app check not implemented ~a" (deparse/datum ctx))
      the-unknown-type]))
 
