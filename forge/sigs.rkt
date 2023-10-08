@@ -381,14 +381,23 @@
          (update-state! (state-add-relation curr-state true-name name))))]))
 
 ; Used for sealing formula structs that come from wheats, which should be obfuscated
-(begin-for-syntax
+(begin-for-syntax  
   (define-splicing-syntax-class pred-type
     #:description "optional pred flag"
     #:attributes ((seal 0))
     (pattern (~datum #:wheat)
       #:attr seal #'make-wheat)
     (pattern (~seq)
-      #:attr seal #'values)))
+      #:attr seal #'values))
+
+  ; We want to enable arbitrary code within the expr portion
+  (define-splicing-syntax-class arg-decl
+    #:description "predicate or function argument declaration"    
+    (pattern name:id                            
+      #:attr expr #'univ
+      #:attr translate #'(list name expr))
+    (pattern (name:id expr)
+      #:attr translate #'(list name expr))))
 
 ; Declare a new predicate
 ; Two cases: one with args, and one with no args
@@ -418,17 +427,28 @@
            (update-state! (state-add-pred curr-state 'name name)))))]))
 
 ; Declare a new function
-; (fun (name var ...) result)
+; (fun (name var ...) body)
+; (fun (name (var expr) ...) body)
 (define-syntax (fun stx)
   (syntax-parse stx
-    [(fun (name:id args:id ...+) result:expr)
+    [(fun (name:id decls:arg-decl ...+)
+          result:expr
+          (~optional (~seq #:codomain codomain) #:defaults ([codomain #'univ])))
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
-     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
+     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])       
        #'(begin
-           ; "fun spacer" added to record use of function along with original argument declarations etc.
-           ; TODO: expander (?) currently throws away all but argument name in declaration, result
-           (define (name args ...) (node/expr/fun-spacer the-info (node/expr-arity result) 'name '(args ...) #f result))
+           ; "fun spacer" added to record use of function along with original argument declarations etc.           
+           (define (name decls.name ...) (node/expr/fun-spacer the-info (node/expr-arity result) 'name (list decls.translate ...) codomain result))
            (update-state! (state-add-fun curr-state 'name name))))]))
+
+; TODO: confirm old form of (fun ...) still works
+;    - including forge/core
+; TODO: result type
+; TODO: multiplicities along with expr
+; TODO: types, ought to say what the argument vs. parameter was (right now, it is the val that was substituted only)
+; TODO: pred forms (x2)
+; TODO: connect expander in both fun and pred
+
 
 ; Declare a new constant
 ; (const name value)

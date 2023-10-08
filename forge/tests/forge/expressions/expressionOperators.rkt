@@ -73,6 +73,18 @@ pred ColonGreater {
         edges :> n.edges = {n1: Node, n2: Node | n1->n2 in edges and n2 in n.edges}
 }
 
+fun helper1: one univ { univ }
+fun helper2[x: univ]: one univ {x & Int}
+fun helper3[x: univ, y: univ]: one univ { x & y }
+
+pred HelperFun {
+    helper1 = univ
+    all value1, value2: univ | {
+        helper2[value1] = Int & value1
+        helper3[value1, value2] = value2 & value1
+    }
+}
+
 
 test expect ExpressionOperators {
     tilde : Tilde is theorem
@@ -88,4 +100,6 @@ test expect ExpressionOperators {
 
     ite1 : IfThenElse1 is unsat
     ite2 : IfThenElse2 is unsat
+
+    helpers : HelperFun is theorem
 }

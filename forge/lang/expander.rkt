@@ -188,7 +188,7 @@
   ;          | Decl /COMMA-TOK @DeclList
   (define-syntax-class DeclListClass
     (pattern ((~datum DeclList)
-              decls:DeclClass ...)
+              decls:DeclClass ...)      
       #:attr translate (datum->syntax #'(decls ...) 
                                       (apply append 
                                              (map syntax->list 
@@ -256,9 +256,22 @@
   ;           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
+  ; Note: this class seems to only be used by fun/pred definitions? Perhaps could merge with DeclList.
   (define-syntax-class ParaDeclsClass
     (pattern ((~datum ParaDecls)
               (~seq decls:DeclClass ...))
+      ; The `variables` attribute removes the expression of each, returning only var
+      #:attr variables (datum->syntax #'(decls ...)
+                                      (apply append (map (compose (curry map car )
+                                                                  (curry map syntax->list )
+                                                                  syntax->list) 
+                                                         (syntax->list #'(decls.translate ...)))))
+      ; The `pairs` attribute retains both variable and expression (var expr)
+      #:attr pairs (datum->syntax #'(decls ...)
+                                      (apply append (map (compose (curry map syntax->list )
+                                                                  syntax->list) 
+                                                         (syntax->list #'(decls.translate ...)))))
+      ; For the moment, the `translate` attribute does as `variables`
       #:attr translate (datum->syntax #'(decls ...)
                                       (apply append (map (compose (curry map car )
                                                                   (curry map syntax->list )
@@ -686,6 +699,7 @@
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)
   (syntax-parse stx
+  ; TODO: output type declared is currently being lost
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        output:ExprClass
@@ -701,11 +715,12 @@
                        output:ExprClass
                        body:ExprClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
-                                                   (syntax->list #'decls.translate)))]
+                                                   (syntax->list #'decls.pairs)))]
+                 [output #'output]
                  [body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (fun decl body))))]))
+       (fun decl body #:codomain output))))]))
 
 ; AssertDecl : /ASSERT-TOK Name? Block
 (define-syntax (AssertDecl stx)

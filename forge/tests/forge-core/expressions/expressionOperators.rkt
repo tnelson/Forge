@@ -96,6 +96,19 @@ pred ColonGreater {
 }
 |#
 
+; Helper functions `fun`
+; forge/core's `fun` macro doesn't support no-args functions, because `define` works just as well.
+; Arguments without types
+(fun (helper2 x) (& x Int))
+; Arguments with types (multiple)
+(fun (helper3 (x univ) (y univ)) (& x y))
+; Adding optional co-domain
+(fun (helper4 (x univ)) (& x Int) #:codomain Int)
+(pred HelperFun    
+    (all ([value1 univ] [value2 univ])
+         (and (= (helper2 value1) (& Int value1))
+              (= (helper4 value1) (& Int value1))
+              (= (helper3 value1 value2) (& value2 value1)))))
 
 
 (test tilde #:preds [Tilde] #:expect theorem)
@@ -110,7 +123,16 @@ pred ColonGreater {
 (test ite1 #:preds [IfThenElse1] #:expect unsat)
 (test ite2 #:preds [IfThenElse2] #:expect unsat)
 
-
+(test helperfuns #:preds [HelperFun] #:expect theorem)
 
 ; (test lessColon #:preds [LessColon] #:expect theorem)
 ; (test colonGreater #:preds [ColonGreater] #:expect theorem)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test metadata
+
+(require (prefix-in @ rackunit))
+(@check-equal? (node/expr/fun-spacer-result (helper4 univ)) Int)
+(@check-equal? (node/expr/fun-spacer-args (helper4 univ)) (list (list 'x univ)))
+
