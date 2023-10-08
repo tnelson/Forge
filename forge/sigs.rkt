@@ -10,7 +10,7 @@
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/strip-context
                      (only-in racket/pretty pretty-print)))
 
-(require "shared.rkt")
+(require forge/shared)
 (require "lang/ast.rkt"
          "lang/bounds.rkt"
          "breaks.rkt")
@@ -380,6 +380,7 @@
          (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]))
 
+; Used for sealing formula structs that come from wheats, which should be obfuscated
 (begin-for-syntax
   (define-splicing-syntax-class pred-type
     #:description "optional pred flag"
@@ -390,35 +391,44 @@
       #:attr seal #'values)))
 
 ; Declare a new predicate
-; (pred info name cond ...)
-; (pred info (name var ...) cond ...)
-;   or same without info
+; Two cases: one with args, and one with no args
 (define-syntax (pred stx)
   (syntax-parse stx
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
-     (quasisyntax/loc stx
-       (begin
-         ; use srcloc of actual predicate, not this location in sigs
-         (define name (pt.seal (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...)))
-         (update-state! (state-add-pred curr-state 'name name))))]
+     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
+       (quasisyntax/loc stx
+         (begin
+           ; use srcloc of actual predicate, not this location in sigs
+           ; "pred spacer" still present, even if no arguments, to consistently record use of a predicate
+           (define name (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))
+           (update-state! (state-add-pred curr-state 'name name)))))]
+    
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            (name:id args:id ...+) conds:expr ...+)
-     (quasisyntax/loc stx
-       (begin 
-         (define (name args ...) (pt.seal (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...)))
-         (update-state! (state-add-pred curr-state 'name name))))]))
+     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
+       (quasisyntax/loc stx
+         (begin
+           ; "pred spacer" added to record use of predicate along with original argument declarations etc.
+           ; TODO: expander (?) currently throws away all but argument name in declaration
+           (define (name args ...) (pt.seal (node/fmla/pred-spacer the-info 'name '(args ...) (&&/info the-info conds ...))))
+           (printf "defining pred ~a; args = ~a~n" 'name '(args ...))
+           (update-state! (state-add-pred curr-state 'name name)))))]))
 
 ; Declare a new function
 ; (fun (name var ...) result)
 (define-syntax (fun stx)
   (syntax-parse stx
-    [(fun (name:id args:id ...+) result:expr) 
-      #'(begin
-          (define (name args ...) result)
-          (update-state! (state-add-fun curr-state 'name name)))]))
+    [(fun (name:id args:id ...+) result:expr)
+     ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
+     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
+       #'(begin
+           ; "fun spacer" added to record use of function along with original argument declarations etc.
+           ; TODO: expander (?) currently throws away all but argument name in declaration, result
+           (define (name args ...) (node/expr/fun-spacer the-info (node/expr-arity result) 'name '(args ...) #f result))
+           (update-state! (state-add-fun curr-state 'name name))))]))
 
 ; Declare a new constant
 ; (const name value)

@@ -52,6 +52,9 @@
   (match formula    
     [(node/formula/constant info type)
      (check-and-output formula node/formula/constant checker-hash #f)]
+
+    [(node/fmla/pred-spacer info name args expanded)
+     (checkFormula run-or-state expanded quantvars checker-hash)]
     
     [(node/formula/op info args)
      (check-and-output formula
@@ -288,7 +291,7 @@
     (primify run-or-state n))
   
   (match expr
-
+    
     ; relation name (base case)
     [(node/expr/relation info arity name typelist-thunk parent isvar)
      (check-and-output expr
@@ -306,6 +309,9 @@
                        ; overapproximate for now (TODO: get atom's sig)     
                        (cons (map list (primify run-or-state 'univ))
                              #t))]
+
+    [(node/expr/fun-spacer info arity name args result expanded)
+     (checkExpression run-or-state expanded quantvars checker-hash)]
     
     [(node/expr/ite info arity a b c)
      (check-and-output expr

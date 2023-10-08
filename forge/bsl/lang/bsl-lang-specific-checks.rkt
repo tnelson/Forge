@@ -192,7 +192,18 @@
   (define loc (nodeinfo-loc (node-info expr-node)))
   (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node loc))
 
+(define (check-node-expr-fun-spacer expr-node)
+  (void))
+(define (check-node-fmla-pred-spacer expr-node)
+  (void))
+
+
 (define bsl-checker-hash (make-hash))
+
+
+(hash-set! bsl-checker-hash node/fmla/pred-spacer check-node-fmla-pred-spacer)
+(hash-set! bsl-checker-hash node/expr/fun-spacer check-node-expr-fun-spacer)
+
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
 (hash-set! bsl-checker-hash 'relation-join err-relation-join)
 (hash-set! bsl-checker-hash node/formula/constant check-node-formula-constant)

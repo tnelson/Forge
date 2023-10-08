@@ -24,6 +24,8 @@
   (match formula
     [(node/formula/constant info type)
      ( print-cmd-cont (format "~a " type))]
+    [(node/fmla/pred-spacer info name args expanded)
+     (interpret-formula run-or-state expanded relations atom-names quantvars)]
     [(node/formula/op info args)
      (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
     [(node/formula/multiplicity info mult expr)
@@ -160,6 +162,8 @@
     [(node/expr/atom info arity name)
      (unless (member name atom-names) (raise (format "Atom ~a not in available atoms ~a" name atom-names)))
      ( print-cmd-cont (format "~a " (a (index-of atom-names name))))]
+    [(node/expr/fun-spacer info arity name args result expanded)
+     (interpret-expr run-or-state expanded relations atom-names quantvars)]
     [(node/expr/ite info arity a b c)     
      ( print-cmd-cont "(ite ")
      (interpret-formula run-or-state a relations atom-names quantvars)
