@@ -9,7 +9,7 @@
 
 (require racket/contract)
 (require racket/match)
-(require (prefix-in @ (only-in racket and or max min - not display < > set))
+(require (prefix-in @ (only-in racket max min - display set))
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
          (only-in racket/list first range rest empty flatten)
@@ -17,12 +17,12 @@
 
 (require (except-in "lang/ast.rkt" ->)
          (rename-in "lang/ast.rkt" [-> ast:->]) ; don't clash with define/contract
-         (only-in "sigs-structs.rkt" implies iff <=> ifte >= <= ni != !in !ni)
+         (only-in "sigs-structs.rkt" implies iff <=> ifte int>= int<= ni != !in !ni)
          "breaks.rkt")
 (require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
 (require "server/eval-model.rkt")
 (require "server/forgeserver.rkt") ; v long
-(require "shared.rkt"         
+(require forge/shared
          "sigs-structs.rkt"
          "evaluator.rkt"
          "send-to-kodkod.rkt")
@@ -76,7 +76,7 @@
 
 (provide (all-from-out "sigs-structs.rkt"))
 ; ; Export these from structs without forge: prefix
-(provide implies iff <=> ifte >= <= ni != !in !ni min max)
+(provide implies iff <=> ifte int>= int<= ni != !in !ni min max)
 
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
@@ -284,7 +284,7 @@
     [(node/formula/op/|| or-info
                              (list (node/formula/op/int< lt-info (list lt-left lt-right))
                                    (node/formula/op/int= eq-info (list eq-left eq-right))))
-     (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
+     (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail))
      (match lt-left
        [(node/int/op/card c-info (list left-rel))
@@ -297,7 +297,7 @@
     [(node/formula/op/|| or-info
                              (list (node/formula/op/int< lt-info (list lt-left lt-right))
                                    (node/formula/op/int= eq-info (list eq-left eq-right))))
-     (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
+     (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail))
      (match lt-right
        [(node/int/op/card c-info (list right-rel))
@@ -728,7 +728,7 @@
 ; Lifted function which, when provided a Run,
 ; generates a Sterling instance for it.
 (define (display arg1 [arg2 #f])
-  (if (@not (Run? arg1))
+  (if (not (Run? arg1))
       (if arg2 (@display arg1 arg2) (@display arg1))
       (let ()
         (define run arg1)
@@ -834,7 +834,7 @@
 
   (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
   (define upper (@min (Range-upper given-scope) (Range-upper old-scope)))
-  (when (@< upper lower)
+  (when (< upper lower)
     (raise (format (string-append "Bound conflict: numeric upper bound on ~a was"
                                   " less than numeric lower bound (~a vs. ~a).") 
                    rel upper lower)))    
@@ -860,11 +860,11 @@
   (when (hash-has-key? old-pbindings rel)
     (let ([old (hash-ref old-pbindings rel)])
       (set! lower (set-union lower (sbound-lower old)))
-      (set! upper (cond [(@and upper (sbound-upper old))
+      (set! upper (cond [(and upper (sbound-upper old))
                          (set-intersect upper (sbound-upper old))]
-                        [else (@or upper (sbound-upper old))]))))
+                        [else (or upper (sbound-upper old))]))))
   
-  (unless (@or (@not upper) (subset? lower upper))
+  (unless (or (not upper) (subset? lower upper))
     (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
                    rel lower upper)))
 
@@ -920,14 +920,14 @@
                     [local_necessity value])]
       [(equal? option 'min_tracelength)
        (let ([max-trace-length (get-option state 'max_tracelength)])
-         (if (@> value max-trace-length)
+         (if (> value max-trace-length)
              (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
                                        value max-trace-length))
              (struct-copy Options options
                           [min_tracelength value])))]
       [(equal? option 'max_tracelength)
        (let ([min-trace-length (get-option state 'min_tracelength)])
-         (if (@< value min-trace-length)
+         (if (< value min-trace-length)
              (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
                                        value min-trace-length))
              (struct-copy Options options

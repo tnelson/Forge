@@ -4,7 +4,7 @@
 (require "breaks.rkt")
 (require "lang/ast.rkt")
 (require "lang/bounds.rkt")
-(require "shared.rkt"
+(require forge/shared
          (prefix-in tree: "lazy-tree.rkt")         
          "last-checker.rkt"
          "choose-lang-specific.rkt"

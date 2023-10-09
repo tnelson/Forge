@@ -8,7 +8,7 @@
                          set-empty? set-union! drop-right take-right for/set for*/set filter-not
                          second set-add match identity)
          racket/contract)
-(require (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
+(require (only-in forge/shared get-verbosity VERBOSITY_HIGH))
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)

@@ -3,7 +3,7 @@
 (require 
   "sigs-structs.rkt"
   "lang/ast.rkt"
-  "shared.rkt"
+  forge/shared
   racket/syntax
   syntax/srcloc
   (prefix-in @ (only-in racket -> >=))

@@ -49,7 +49,7 @@
            -> => implies ! not and or && || ifte iff <=>
            = in ni != !in !ni is
            no some one lone all set two
-           < > int= >= <=
+           int< int> int= int>= int<=
            add subtract multiply divide sign abs remainder
            card sum sing succ max min sum-quant
            node/int/constant
@@ -508,8 +508,16 @@
               (~and op
                     (~or "in" "=" "<" ">" "<=" ">="
                          "is" "ni")))
-      #:attr symbol (datum->syntax #'op (string->symbol (syntax->datum #'op)))))
+      #:attr symbol (datum->syntax #'op (op-symbol-to-operator (string->symbol (syntax->datum #'op))))))
 
+  ; We don't overload (e.g.) <, but we don't want users to need to write (e.g.) "int<". 
+  (define (op-symbol-to-operator sym)
+    (cond [(equal? sym '<)  'int<]
+          [(equal? sym '>)  'int>]
+          [(equal? sym '<=) 'int<=]
+          [(equal? sym '>=) 'int>=]
+          [else sym]))
+  
   ; LetDecl : @Name /EQ-TOK Expr
   (define-syntax-class LetDeclClass
     (pattern ((~datum LetDecl)
@@ -909,9 +917,11 @@
   [((~datum Expr) "bind" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (raise "bind not implemented."))]
 
-  [((~datum Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)
+  ; Quantifier
+  [((~datum Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)                       
    (syntax/loc stx (q.symbol decls.translate bob.exprs))] ; stx, not #'q
 
+  ; Quantifier with disj
   [((~datum Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (q.symbol #:disj decls.translate bob.exprs))] ; stx, not #'q
 
@@ -1000,6 +1010,7 @@
      ; Need to preserve srcloc in both the "not" and the "op" nodes
      (quasisyntax/loc stx (! #,(syntax/loc stx (op (#:lang (get-check-lang)) expr1 expr2)))))]
 
+  ; Multiplicity form
   [((~datum Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
                           op)
                     expr1:ExprClass)

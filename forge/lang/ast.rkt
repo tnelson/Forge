@@ -9,11 +9,7 @@
          (prefix-in @ (only-in racket + - * < > or <=)))
 
 (provide deparse
-         (all-defined-out))
-         ; No longer override these 
-         ;(rename-out [int< <] [int> >])
-         ;(except-out (all-defined-out)                     
-         ;            next-name int< int>))
+         (except-out (all-defined-out) next-name))
 
 (require forge/choose-lang-specific)
 
@@ -816,15 +812,16 @@
 
 (define-syntax (all stx)
   (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]))
+    [(_ check-lang:opt-check-lang-class (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred)     
+      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (~? disj) ([v0 e0 m0] ...) pred))]))
 
 (define-syntax (all/info stx)
   (syntax-parse stx
     ; quantifier case with disjointness flag; embed and repeat
-    [(_ info #:disj ([v0 e0] ...) pred)
-     #'(all/info info ([v0 e0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
-    [(_ info ([v0 e0] ...) pred)     
+    ; TODO: currently discarding the multiplicity info, unchecked
+    [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
+     #'(all/info info ([v0 e0 m0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
+    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)     
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
          (quantified-formula info 'all (list (cons v0 e0) ...) pred)))]))
@@ -839,23 +836,24 @@
 
 (define-syntax (some stx)
   (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
-      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+    [(_ check-lang:opt-check-lang-class (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+    [(_ check-lang:opt-check-lang-class expr)
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) expr))]))
 
 (define-syntax (some/info stx)
   (syntax-parse stx 
     ; ignore quantifier over no variables
     [(_ info (~optional #:disj) () pred) #'pred]
     ; quantifier case
-    [(_ info ([v0 e0] ...) pred)
+    ; TODO: currently discarding the multiplicity info, unchecked (in this and the following cases)
+    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
          (quantified-formula info 'some (list (cons v0 e0) ...) pred)))]
     ; quantifier case with disjointness flag; embed and repeat
-    [(_ info #:disj ([v0 e0] ...) pred)
-     #'(some/info info ([v0 e0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
+    [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
+     #'(some/info info ([v0 e0 m0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
     ; multiplicity case
     [(_ info expr)
      (quasisyntax/loc stx

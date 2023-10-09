@@ -6,8 +6,8 @@
 (require (except-in "lang/ast.rkt" ->)
          "lang/bounds.rkt"
          "breaks.rkt"
-         (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
-(require (prefix-in @ (only-in racket hash not + >= >)) 
+         (only-in forge/shared get-verbosity VERBOSITY_HIGH))
+(require (prefix-in @ (only-in racket hash not +)) 
          (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
 (require racket/contract)
@@ -507,7 +507,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; close-run :: Run -> void
 (define (close-run run)
   (assert-is-running run)
-  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
         (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))  
   ; Since we're using a single process now, send it instructions to clear this run
   (pardinus:cmd 
@@ -528,7 +528,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ;; Added sugar over the AST
 ;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus 
 ;; on the macro definition point
-(provide implies iff <=> ifte >= <= ni != !in !ni <: :>)
+(provide implies iff <=> ifte int>= int<= ni != !in !ni <: :>)
 
 (define-syntax (implies stx) 
   (syntax-case stx () 
@@ -586,13 +586,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (!ni stx) (syntax-parse stx [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b) 
                                                     (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang)
                                                               (in/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]))
-(define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
+(define-syntax (int>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
                                                               (int>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
                                             [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
                                                               (int>/info (nodeinfo #,(build-source-location stx) check-lang) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
-(define-syntax (<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
+(define-syntax (int<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
                                                               (int</info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
                                             [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
