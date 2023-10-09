@@ -53,19 +53,25 @@ SigExt : EXTENDS-TOK QualName
 
 Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
 ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK | FUNC-TOK | PFUNC-TOK
-Decl : DISJ-TOK? NameList /COLON-TOK SET-TOK? Expr
+ParaDeclMult : LONE-TOK | SET-TOK | ONE-TOK | FUNC-TOK | PFUNC-TOK 
+ParaDecl  : DISJ-TOK? NameList /COLON-TOK ParaDeclMult? Expr
+QuantDecl : DISJ-TOK? NameList /COLON-TOK SET-TOK? Expr
 
 ; ArrowDecl should only be used by sig field declaration right now; 
 ; note the optional VAR for Electrum. Remember that a preceding / means
 ;  to cut the token; it won't get included in the AST.
 ArrowDecl : VAR-TOK? NameList /COLON-TOK ArrowMult ArrowExpr
-PredType : WHEAT-TOK
-PredDecl : /PRED-TOK PredType? (QualName DOT-TOK)? Name ParaDecls? Block
 
+PredType : WHEAT-TOK
+
+; A predicate declaration can contain any number of formulas in its body
+PredDecl : /PRED-TOK PredType? (QualName DOT-TOK)? Name ParaDecls? Block
 ; A function declaration should only ever contain a single expression in its body
 FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
-ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
-          | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
+; A ParaDecls is a special declaration form for pred/fun definition, where every identifier
+; is paired with an expr and (optional) multiplicity
+ParaDecls : /LEFT-PAREN-TOK @ParaDeclList? /RIGHT-PAREN-TOK 
+          | /LEFT-SQUARE-TOK @ParaDeclList? /RIGHT-SQUARE-TOK
 
 AssertDecl : /ASSERT-TOK Name? Block
 CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
@@ -106,10 +112,17 @@ NameList : @Name
          | @Name /COMMA-TOK @NameList
 QualNameList : @QualName
              | @QualName /COMMA-TOK @QualNameList
-DeclList : Decl
-         | Decl /COMMA-TOK @DeclList
+
+; Used only in fun/pred definition
+ParaDeclList : ParaDecl
+             | ParaDecl /COMMA-TOK @ParaDeclList
+; Used only in quantifiers / set comprehension
+QuantDeclList : QuantDecl
+              | QuantDecl /COMMA-TOK @QuantDeclList
+; Used in field declaration
 ArrowDeclList : ArrowDecl
               | ArrowDecl /COMMA-TOK @ArrowDeclList
+
 LetDeclList : LetDecl
             | LetDecl /COMMA-TOK @LetDeclList
 TypescopeList : Typescope
@@ -157,7 +170,7 @@ ExprList : Expr
 Expr    : @Expr1
         | LET-TOK LetDeclList BlockOrBar
         | BIND-TOK LetDeclList BlockOrBar
-        | Quant DISJ-TOK? DeclList BlockOrBar
+        | Quant DISJ-TOK? QuantDeclList BlockOrBar
 Expr1   : @Expr2  | Expr1 OR-TOK Expr2
 Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
 ;; right assoc
@@ -193,7 +206,7 @@ Expr18  : Const
         | AT-TOK Name
         | BACKQUOTE-TOK Name
         | THIS-TOK
-        | LEFT-CURLY-TOK DeclList BlockOrBar RIGHT-CURLY-TOK
+        | LEFT-CURLY-TOK QuantDeclList BlockOrBar RIGHT-CURLY-TOK
         | /LEFT-PAREN-TOK @Expr /RIGHT-PAREN-TOK
         | Block
         | Sexpr

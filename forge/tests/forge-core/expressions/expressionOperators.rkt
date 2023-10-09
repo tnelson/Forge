@@ -133,6 +133,6 @@ pred ColonGreater {
 ; Test metadata
 
 (require (prefix-in @ rackunit))
-(@check-equal? (node/expr/fun-spacer-result (helper4 univ)) Int)
+(@check-equal? (node/expr/fun-spacer-codomain (helper4 univ)) Int)
 (@check-equal? (node/expr/fun-spacer-args (helper4 univ)) (list (list 'x univ)))
 

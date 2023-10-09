@@ -173,17 +173,27 @@
     (pattern ((~datum ArrowMult) "pfunc") #:attr symbol #'pfunc)
     (pattern ((~datum ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
 
-  ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
+  ; Declaration of variables with shared expr, shared optional multiplicity
+  ; The enclosing context is responsible for checking for valid multiplicities   
   (define-syntax-class DeclClass
     (pattern ((~datum Decl)
               ;(~optional "disj")
               names:NameListClass
               ;(~optional "disj")
-              (~optional "set")
+              ;(~optional "set")
+              ; Assign Alloy-convention defaults: set if arity >1, one otherwise
+              (~optional mult:ArrowMultClass #:defaults ([mult #'(if (> (node/expr-arity expr) 1)
+                                                                     'set
+                                                                     'one)]))
               expr:ExprClass)
-      #:attr translate (with-syntax ([expr #'expr])
-                         #'((names.names expr) ...))))
+      #:attr translate (with-syntax ([expr #'expr]
+                                     [mult #'mult]) 
+                         #'((names.names expr mult) ...))
+      #:attr names #'(names.names)
+      #:attr expr  #'expr
+      #:attr mult  #'mult))
 
+  ; Declaration of a comma-delimited list of variable declarations with expr and optional multiplicity
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
   (define-syntax-class DeclListClass
@@ -194,6 +204,7 @@
                                              (map syntax->list 
                                                   (syntax->list #'(decls.translate ...)))))))
 
+  ; Arrow-style declaration, used in (e.g.) field definitions within sigs
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
   (define-syntax-class ArrowDeclClass
     (pattern ((~datum ArrowDecl)
@@ -256,7 +267,8 @@
   ;           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
-  ; Note: this class seems to only be used by fun/pred definitions? Perhaps could merge with DeclList.
+  ; Note: this class seems to only be used by fun/pred definitions? Perhaps could merge with DeclList,
+  ;   but here we are adding multiplicities...
   (define-syntax-class ParaDeclsClass
     (pattern ((~datum ParaDecls)
               (~seq decls:DeclClass ...))
@@ -1090,7 +1102,7 @@
    (syntax/loc stx (atom 'name.name))]
   
   [((~datum Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
-   (syntax/loc stx (set (#:lang (get-check-lang))  decls.translate bob.exprs))]
+   (syntax/loc stx (set (#:lang (get-check-lang)) decls.translate bob.exprs))]
 
   [((~datum Expr) block:BlockClass)
    (my-expand (syntax/loc stx block))]

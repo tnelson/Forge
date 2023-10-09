@@ -8,11 +8,10 @@
          (only-in racket false? empty? first second rest drop const thunk)
          (prefix-in @ (only-in racket + - * < > or <=)))
 
-(provide (except-out (all-defined-out) next-name
-                     int< int>)
-         deparse
-         (rename-out 
-          [int< <] [int> >]))
+(provide deparse         
+         (rename-out [int< <] [int> >])
+         (except-out (all-defined-out)                     
+                     next-name int< int>))
 
 (require forge/choose-lang-specific)
 
@@ -168,7 +167,31 @@
                                     (first todo) sofar)
                           (rest todo))]))
 
-(struct node/expr/fun-spacer node/expr (name args result expanded) #:transparent
+; Records an expression with multiplicity attached
+(struct/contract mexpr ([expr node/expr?] [mult symbol?]))
+
+; Records the substitution of a concrete argument into a formal parameter
+(struct/contract apply-record ([param symbol?]
+                               [arg mexpr?]))
+
+; struct/contract does not support #:methods, but at least add a guard
+(struct node/expr/fun-spacer node/expr (name args codomain expanded) #:transparent
+  #:guard (lambda (info arity name args codomain expanded structure-type-name)
+            (unless (nodeinfo? info)
+              (error "node/expr/fun-spacer: info argument should be a nodeinfo structure"))
+            (unless (number? arity)
+              (error "node/expr/fun-spacer: arity argument should be a number"))
+            (unless (symbol? name)
+              (error "node/expr/fun-spacer: name argument should be a symbol"))
+            (unless (and (list? args)
+                         (andmap (lambda (arg) (apply-record? arg)) args))
+              (error (format "node/expr/fun-spacer: args argument should be a list of apply-record structures (~a)" args)))
+            (unless (mexpr? codomain)
+              (error "node/expr/fun-spacer: codomain argument should be a mexpr structure"))
+            (unless (node/expr? expanded)
+              (error "node/expr/fun-spacer: expanded argument should be a node/expr structure"))
+            (values name args codomain expanded))
+                   
   ; print invisibly unless verbosity is set to > LOW
   #:methods gen:custom-write
   [(define (write-proc self port mode)
@@ -178,7 +201,7 @@
                   (node/expr-arity self)
                   (node/expr/fun-spacer-name self)
                   (node/expr/fun-spacer-args self)
-                  (node/expr/fun-spacer-result self)
+                  (node/expr/fun-spacer-codomain self)
                   (node/expr/fun-spacer-expanded self))))])
 
 ;; -- operators ----------------------------------------------------------------
@@ -433,16 +456,21 @@
 (define (set/func decls formula #:info [node-info empty-nodeinfo])
   (comprehension node-info decls formula))
 
+(begin-for-syntax
+  (define-splicing-syntax-class opt-check-lang-class
+    (pattern (~optional ((~datum #:lang) check-lang) #:defaults ([check-lang #''checklangNoCheck]))))
+  (define-splicing-syntax-class opt-mult-class
+    (pattern (~optional mult #:defaults ([mult #'(if (> (node/expr-arity e0) 1) 'set 'one)])))))
+
+; Macro for forge/core set comprehensions
 (define-syntax (set stx)
-  (syntax-case stx ()
-    [(_ (#:lang check-lang) ([r0 e0] ...) pred)
-      (quasisyntax/loc stx
-        (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
-          (set/func #:info (nodeinfo #,(build-source-location stx) check-lang) (list (cons r0 e0) ...) pred)))]
-    [(_ ([r0 e0] ...) pred)
-     (quasisyntax/loc stx
-       (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
-         (set/func #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (list (cons r0 e0) ...) pred)))]))
+  (syntax-parse stx
+    [((~datum set) check-lang:opt-check-lang-class
+                   ([r0 e0 m0:opt-mult-class] ...)
+                   pred)
+        (quasisyntax/loc stx
+          (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang.check-lang) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
+            (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 

@@ -391,13 +391,24 @@
       #:attr seal #'values))
 
   ; We want to enable arbitrary code within the expr portion
-  (define-splicing-syntax-class arg-decl
+  (define-splicing-syntax-class arg-decl-class
     #:description "predicate or function argument declaration"    
     (pattern name:id                            
       #:attr expr #'univ
-      #:attr translate #'(list name expr))
+      #:attr record #'(apply-record 'name (mexpr expr 'unknown)))
     (pattern (name:id expr)
-      #:attr translate #'(list name expr))))
+      #:attr record #'(apply-record 'name (mexpr expr 'unknown))))
+
+  ; [id expr]
+  ; [id expr #:mult m]
+  (define-splicing-syntax-class mexpr-class
+    #:description "expression in declaration"    
+    (pattern name:id                            
+      #:attr expr #'univ
+      #:attr record #'(apply-record 'name (mexpr expr 'unknown)))
+    (pattern (name:id expr)
+      #:attr record #'(apply-record 'name (mexpr expr 'unknown))))
+  )
 
 ; Declare a new predicate
 ; Two cases: one with args, and one with no args
@@ -431,15 +442,19 @@
 ; (fun (name (var expr) ...) body)
 (define-syntax (fun stx)
   (syntax-parse stx
-    [(fun (name:id decls:arg-decl ...+)
+    [(fun (name:id decls:arg-decl-class ...+)
           result:expr
-          (~optional (~seq #:codomain codomain) #:defaults ([codomain #'univ])))
+          (~optional (~seq #:codomain codomain:mexpr-class) #:defaults ([codomain #'univ])))
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
-     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])       
+     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
+       (define EXPANDED
        #'(begin
            ; "fun spacer" added to record use of function along with original argument declarations etc.           
-           (define (name decls.name ...) (node/expr/fun-spacer the-info (node/expr-arity result) 'name (list decls.translate ...) codomain result))
-           (update-state! (state-add-fun curr-state 'name name))))]))
+           (define (name decls.name ...)
+             (node/expr/fun-spacer the-info (node/expr-arity result) 'name (list decls.record ...) codomain result))
+           (update-state! (state-add-fun curr-state 'name name))))
+       (printf "~a~n" EXPANDED)
+       EXPANDED)]))
 
 ; TODO: confirm old form of (fun ...) still works
 ;    - including forge/core
@@ -448,6 +463,8 @@
 ; TODO: types, ought to say what the argument vs. parameter was (right now, it is the val that was substituted only)
 ; TODO: pred forms (x2)
 ; TODO: connect expander in both fun and pred
+
+; *** TODO ***: quantifier cases in ast.rkt rewrite as syntax-parse and make robust to multiplicites
 
 
 ; Declare a new constant
