@@ -176,9 +176,9 @@
   ; Declaration of variables with shared expr, shared optional multiplicity
   ; The enclosing context is responsible for checking for valid multiplicities   
   (define-syntax-class DeclClass
-    (pattern ((~datum Decl)
+    (pattern ((~datum ParaDecl)
               ;(~optional "disj")
-              names:NameListClass
+              names-c:NameListClass
               ;(~optional "disj")
               ;(~optional "set")
               ; Assign Alloy-convention defaults: set if arity >1, one otherwise
@@ -188,10 +188,8 @@
               expr:ExprClass)
       #:attr translate (with-syntax ([expr #'expr]
                                      [mult #'mult]) 
-                         #'((names.names expr mult) ...))
-      #:attr names #'(names.names)
-      #:attr expr  #'expr
-      #:attr mult  #'mult))
+                         #'((names-c.names expr mult) ...))
+      #:attr names #'(names-c.names ...)))
 
   ; Declaration of a comma-delimited list of variable declarations with expr and optional multiplicity
   ; DeclList : Decl

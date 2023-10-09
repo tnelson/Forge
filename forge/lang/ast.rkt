@@ -8,10 +8,12 @@
          (only-in racket false? empty? first second rest drop const thunk)
          (prefix-in @ (only-in racket + - * < > or <=)))
 
-(provide deparse         
-         (rename-out [int< <] [int> >])
-         (except-out (all-defined-out)                     
-                     next-name int< int>))
+(provide deparse
+         (all-defined-out))
+         ; No longer override these 
+         ;(rename-out [int< <] [int> >])
+         ;(except-out (all-defined-out)                     
+         ;            next-name int< int>))
 
 (require forge/choose-lang-specific)
 
@@ -168,11 +170,13 @@
                           (rest todo))]))
 
 ; Records an expression with multiplicity attached
-(struct/contract mexpr ([expr node/expr?] [mult symbol?]))
+(struct/contract mexpr ([expr node/expr?] [mult symbol?]) #:transparent)
 
 ; Records the substitution of a concrete argument into a formal parameter
+; param: the variable substituted out; domain: the domain of the variable; arg: the actual argument
 (struct/contract apply-record ([param symbol?]
-                               [arg mexpr?]))
+                               [domain mexpr?]
+                               [arg node/expr?]) #:transparent)
 
 ; struct/contract does not support #:methods, but at least add a guard
 (struct node/expr/fun-spacer node/expr (name args codomain expanded) #:transparent
@@ -190,7 +194,7 @@
               (error "node/expr/fun-spacer: codomain argument should be a mexpr structure"))
             (unless (node/expr? expanded)
               (error "node/expr/fun-spacer: expanded argument should be a node/expr structure"))
-            (values name args codomain expanded))
+            (values info arity name args codomain expanded))
                    
   ; print invisibly unless verbosity is set to > LOW
   #:methods gen:custom-write
@@ -264,6 +268,8 @@
     ((hash-ref checker-hash to-handle) ast-node info)))
 
 ; lifted operators are defaults, for when the types aren't as expected
+; parent: the node struct type that is the parent of this new one
+; arity: the arity of the new node, in terms of the arities of its children
 (define-syntax (define-node-op stx)
   (syntax-case stx ()
     [(_ id parent arity checks ... #:lift @op #:type childtype)
@@ -594,6 +600,7 @@
 (define-node-op divide node/int/op #f #:min-length 2 #:type node/int?)
 
 ; id, parent, arity, checks
+; card and sum both accept a single node/expr as their argument
 (define-node-op card node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
 (define-node-op sum node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
 

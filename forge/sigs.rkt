@@ -390,24 +390,26 @@
     (pattern (~seq)
       #:attr seal #'values))
 
+  ; [v] | [v expr] | [v expr mult]
   ; We want to enable arbitrary code within the expr portion
-  (define-splicing-syntax-class arg-decl-class
-    #:description "predicate or function argument declaration"    
+  (define-splicing-syntax-class param-decl-class
+    #:description "predicate or function variable declaration"    
     (pattern name:id                            
-      #:attr expr #'univ
-      #:attr record #'(apply-record 'name (mexpr expr 'unknown)))
+      #:attr expr #'univ ; default domain
+      #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one)))
     (pattern (name:id expr)
-      #:attr record #'(apply-record 'name (mexpr expr 'unknown))))
+      #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one)))
+    (pattern (name:id expr mult)
+      #:attr mexpr #'(mexpr expr mult)))
 
-  ; [id expr]
-  ; [id expr #:mult m]
-  (define-splicing-syntax-class mexpr-class
-    #:description "expression in declaration"    
-    (pattern name:id                            
-      #:attr expr #'univ
-      #:attr record #'(apply-record 'name (mexpr expr 'unknown)))
-    (pattern (name:id expr)
-      #:attr record #'(apply-record 'name (mexpr expr 'unknown))))
+  ; No variable ID, just a "result type":
+  ; expr | [expr mult]
+  (define-splicing-syntax-class codomain-class
+    #:description "codomain expression in declaration"    
+    (pattern expr                            
+      #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one)))
+    (pattern (expr mult)
+      #:attr mexpr #'(mexpr expr mult)))
   )
 
 ; Declare a new predicate
@@ -439,19 +441,25 @@
 
 ; Declare a new function
 ; (fun (name var ...) body)
-; (fun (name (var expr) ...) body)
+; (fun (name (var expr <multiplicity>]) ...) body)
 (define-syntax (fun stx)
   (syntax-parse stx
-    [(fun (name:id decls:arg-decl-class ...+)
+    [(fun (name:id decls:param-decl-class ...+)
           result:expr
-          (~optional (~seq #:codomain codomain:mexpr-class) #:defaults ([codomain #'univ])))
+          (~optional (~seq #:codomain codomain:codomain-class) #:defaults ([codomain #'univ])))
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
      (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
        (define EXPANDED
        #'(begin
            ; "fun spacer" added to record use of function along with original argument declarations etc.           
            (define (name decls.name ...)
-             (node/expr/fun-spacer the-info (node/expr-arity result) 'name (list decls.record ...) codomain result))
+             (node/expr/fun-spacer
+              the-info                 ; from node
+              (node/expr-arity result) ; from node/expr
+              'name
+              (list (apply-record 'decls.name decls.mexpr decls.name) ...)
+              codomain.mexpr
+              result))
            (update-state! (state-add-fun curr-state 'name name))))
        (printf "~a~n" EXPANDED)
        EXPANDED)]))
