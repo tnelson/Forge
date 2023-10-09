@@ -176,7 +176,7 @@
   ; Declaration of variables with shared expr, shared optional multiplicity
   ; The enclosing context is responsible for checking for valid multiplicities   
   (define-syntax-class DeclClass
-    (pattern ((~datum ParaDecl)
+    (pattern ((~or (~datum ParaDecl) (~datum QuantDecl))
               ;(~optional "disj")
               names-c:NameListClass
               ;(~optional "disj")
@@ -195,7 +195,7 @@
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
   (define-syntax-class DeclListClass
-    (pattern ((~datum DeclList)
+    (pattern ((~or (~datum ParaDeclList) (~datum QuantDeclList))
               decls:DeclClass ...)      
       #:attr translate (datum->syntax #'(decls ...) 
                                       (apply append 

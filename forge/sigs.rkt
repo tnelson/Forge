@@ -3,7 +3,7 @@
 (require (only-in racket/function thunk)
          (only-in racket/list first rest empty empty? flatten)
          (only-in racket/pretty pretty-print)
-         (prefix-in @ (only-in racket/base and not > < display max min or)) 
+         (prefix-in @ (only-in racket/base display max min or)) 
          (prefix-in @ racket/set))
 (require syntax/parse/define
          syntax/srcloc)
@@ -80,7 +80,7 @@
 (provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
 
 ; Export these from structs without forge: prefix
-(provide implies iff <=> ifte >= <= ni != !in !ni <: :>)
+(provide implies iff <=> ifte int>= int<= ni != !in !ni <: :>)
 (provide Int succ min max)
 
 ; Export these from sigs-functional
@@ -124,7 +124,7 @@
   (when (member name (State-sig-order state))
     (raise-user-error (format "tried to add sig ~a, but it already existed" name)))
   ;(define new-sig (Sig name rel one abstract extends))
-  (when (@and extends (@not (member extends (State-sig-order state))))
+  (when (and extends (not (member extends (State-sig-order state))))
     (raise-user-error "Can't extend nonexistent sig."))
 
   (define new-state-sigs (hash-set (State-sigs state) name new-sig))
@@ -221,14 +221,14 @@
                     [local_necessity value])]
       [(equal? option 'min_tracelength)
        (let ([max-trace-length (get-option state 'max_tracelength)])
-         (if (@> value max-trace-length)
+         (if (> value max-trace-length)
              (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
                                        value max-trace-length))
              (struct-copy Options options
                           [min_tracelength value])))]
       [(equal? option 'max_tracelength)
        (let ([min-trace-length (get-option state 'min_tracelength)])
-         (if (@< value min-trace-length)
+         (if (< value min-trace-length)
              (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
                                        value min-trace-length))
              (struct-copy Options options
@@ -566,7 +566,7 @@
            (run name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
-             (when (@> (get-verbosity) 0)
+             (when (> (get-verbosity) 0)
                (printf "Unexpected result found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in Sterling since the test failed.
@@ -583,7 +583,7 @@
            (check name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (when (Sat? first-instance)
-             (when (@> (get-verbosity) 0)
+             (when (> (get-verbosity) 0)
                (printf "Instance found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in sterling since the test failed.
@@ -673,7 +673,7 @@
 ; Lifted function which, when provided a Run,
 ; generates a Sterling instance for it.
 (define (true-display arg1 [arg2 #f])
-  (if (@not (Run? arg1))
+  (if (not (Run? arg1))
       (if arg2 (@display arg1 arg2) (@display arg1))
       (let ()
         (define run arg1)
@@ -784,7 +784,7 @@
   (define old-sig-scopes (Scope-sig-scopes scope))
   (define name (string->symbol (relation-name rel)))
   (define-values (new-lower new-upper)
-    (if (@not (hash-has-key? old-sig-scopes name))
+    (if (not (hash-has-key? old-sig-scopes name))
         (values (Range-lower given-scope) (Range-upper given-scope))
         (let ([old-scope (hash-ref old-sig-scopes name)])
           (let ([old-lower (Range-lower old-scope)]
@@ -807,7 +807,7 @@
             (values new-lower new-upper)))))
 
   
-  (when (@< new-upper new-lower)
+  (when (< new-upper new-lower)
     (raise (format (string-append "Bound conflict: numeric upper bound on ~a was"
                                   " less than numeric lower bound (~a vs. ~a).") 
                    rel new-upper new-lower)))
@@ -833,12 +833,12 @@
   (when (hash-has-key? old-pbindings rel)
     (let ([old (hash-ref old-pbindings rel)])
       (set! lower (@set-union lower (sbound-lower old)))
-      (set! upper (cond [(@and upper (sbound-upper old))
+      (set! upper (cond [(and upper (sbound-upper old))
                          (@set-intersect upper (sbound-upper old))]
                         [else (@or upper (sbound-upper old))]))))
   
 
-  (unless (@or (@not upper) (@subset? lower upper))
+  (unless (@or (not upper) (@subset? lower upper))
     (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." rel lower upper)))
 
   (define new-pbindings
