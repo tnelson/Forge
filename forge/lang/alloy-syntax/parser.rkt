@@ -52,8 +52,11 @@ SigExt : EXTENDS-TOK QualName
        | IN-TOK QualName (PLUS-TOK QualName)*
 
 Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
+; for field etc. declaration
 ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK | FUNC-TOK | PFUNC-TOK
-ParaDecl  : DISJ-TOK? NameList /COLON-TOK ArrowMult? Expr
+; for helper fun/pred declaration
+HelperMult : LONE-TOK | SET-TOK | ONE-TOK | FUNC-TOK | PFUNC-TOK
+ParaDecl  : DISJ-TOK? NameList /COLON-TOK HelperMult? Expr
 QuantDecl : DISJ-TOK? NameList /COLON-TOK SET-TOK? Expr
 
 ; ArrowDecl should only be used by sig field declaration right now; 
@@ -66,7 +69,7 @@ PredType : WHEAT-TOK
 ; A predicate declaration can contain any number of formulas in its body
 PredDecl : /PRED-TOK PredType? (QualName DOT-TOK)? Name ParaDecls? Block
 ; A function declaration should only ever contain a single expression in its body
-FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK ArrowMult? Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
+FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK HelperMult? Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
 ; A ParaDecls is a special declaration form for pred/fun definition, where every identifier
 ; is paired with an expr and (optional) multiplicity
 ParaDecls : /LEFT-PAREN-TOK @ParaDeclList? /RIGHT-PAREN-TOK 

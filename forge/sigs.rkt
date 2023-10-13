@@ -3,8 +3,10 @@
 (require (only-in racket/function thunk)
          (only-in racket/list first rest empty empty? flatten)
          (only-in racket/pretty pretty-print)
-         (prefix-in @ (only-in racket/base display max min or)) 
-         (prefix-in @ racket/set))
+         (prefix-in @ (only-in racket/base display max min -)) 
+         (prefix-in @ racket/set)
+         (prefix-in @ (only-in racket/contract ->))
+         (only-in racket/contract define/contract))
 (require syntax/parse/define
          syntax/srcloc)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/strip-context
@@ -408,9 +410,9 @@
   (define-splicing-syntax-class codomain-class
     #:description "codomain expression in helper function declaration"
     #:attributes (mexpr)
-    (pattern (mult:id expr)
+    (pattern (expr mult:id)
       #:attr mexpr #'(mexpr expr 'mult))
-    (pattern (mult expr)
+    (pattern (expr mult)
       #:attr mexpr #'(mexpr expr mult))
     ; Catch expr without mult (but must come last, or will match both of above)
     (pattern expr                            
@@ -444,6 +446,12 @@
            (printf "defining pred ~a; args = ~a~n" 'name '(args ...))
            (update-state! (state-add-pred curr-state 'name name)))))]))
 
+(define/contract (repeat-product expr count)
+  [@-> node/expr? number? node/expr?]
+  (cond [(> count 1)
+         (-> expr (repeat-product expr (@- count 1)))]
+        [else expr]))
+
 ; Declare a new function
 ; (fun (name var ...) body)
 ; (fun (name (var expr <multiplicity>]) ...) body)
@@ -451,7 +459,10 @@
   (syntax-parse stx
     [(fun (name:id decls:param-decl-class ...+)
           result:expr
-          (~optional (~seq #:codomain codomain:codomain-class) #:defaults ([codomain.mexpr #'(mexpr univ 'one)])))
+          ; Note: default for *attribute*
+          (~optional (~seq #:codomain codomain:codomain-class)
+                     #:defaults ([codomain.mexpr #'(mexpr (repeat-product univ (node/expr-arity result))
+                                                          (if (> (node/expr-arity result) 1) 'set 'one))])))
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
      (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
        (define EXPANDED
@@ -843,10 +854,10 @@
       (set! lower (@set-union lower (sbound-lower old)))
       (set! upper (cond [(and upper (sbound-upper old))
                          (@set-intersect upper (sbound-upper old))]
-                        [else (@or upper (sbound-upper old))]))))
+                        [else (or upper (sbound-upper old))]))))
   
 
-  (unless (@or (not upper) (@subset? lower upper))
+  (unless (or (not upper) (@subset? lower upper))
     (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." rel lower upper)))
 
   (define new-pbindings

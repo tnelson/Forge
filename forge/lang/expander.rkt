@@ -164,7 +164,7 @@
     (pattern ((~datum Mult) "one") #:attr symbol #'#:one)
     (pattern ((~datum Mult) "two") #:attr symbol #'#:two))
 
-  ; ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
+  ; ArrowMult : used for field etc. declarations; the symbol attribute references a breaker
   (define-syntax-class ArrowMultClass
     (pattern ((~datum ArrowMult) "lone") #:attr symbol #'pfunc)
     (pattern ((~datum ArrowMult) "set") #:attr symbol #'default)
@@ -173,17 +173,27 @@
     (pattern ((~datum ArrowMult) "pfunc") #:attr symbol #'pfunc)
     (pattern ((~datum ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
 
+  ; HelperMult : used for helper fun/pred definitions; the symbol attribute references a symbol
+  (define-syntax-class HelperMultClass
+    (pattern ((~datum HelperMult) "lone") #:attr symbol #'(quote lone))
+    (pattern ((~datum HelperMult) "set") #:attr symbol #'(quote set))
+    (pattern ((~datum HelperMult) "one") #:attr symbol #'(quote one))
+    (pattern ((~datum HelperMult) "func") #:attr symbol #'(quote func))
+    (pattern ((~datum HelperMult) "pfunc") #:attr symbol #'(quote pfunc)))
+
+  
   ; Declaration of variables with shared expr, shared optional multiplicity
   ; The enclosing context is responsible for checking for valid multiplicities   
   (define-syntax-class DeclClass
     (pattern ((~or (~datum ParaDecl) (~datum QuantDecl))
               names-c:NameListClass              
-              (~optional mult:ArrowMultClass #:defaults ([mult #'#f]))
+              (~optional mult:HelperMultClass #:defaults ([mult #'#f]))
               expr:ExprClass)
       ; Assign Alloy-convention defaults: set if arity >1, one otherwise
       #:attr translate (with-syntax ([expr #'expr] 
                                      [mult (if (syntax->datum #'mult)
-                                               #'(quote mult)
+                                               ; Don't quote this; will be (ArrowDeclMult ...)
+                                               #'mult
                                                #'(if (> (node/expr-arity expr) 1)
                                                      'set
                                                      'one))]) 
@@ -260,16 +270,11 @@
               name:NameClass
               (~optional decls:ParaDeclsClass)
               ; An optional multiplicity and required expression
-              (~optional output-mult:ArrowMultClass)
+              (~optional output-mult:HelperMultClass)
               output-expr:ExprClass
               body:ExprClass)))
 
-  ; ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
-  ;           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
-  ; DeclList : Decl
-  ;          | Decl /COMMA-TOK @DeclList
-  ; Note: this class seems to only be used by fun/pred definitions? Perhaps could merge with DeclList,
-  ;   but here we are adding multiplicities, so keep separate.
+  ;; Used only for function and predicate definitions
   (define-syntax-class ParaDeclsClass
     (pattern ((~datum ParaDecls)
               (~seq decls:DeclClass ...))
@@ -279,7 +284,7 @@
                                                                   (curry map syntax->list )
                                                                   syntax->list) 
                                                          (syntax->list #'(decls.translate ...)))))
-      ; The `pairs` attribute retains both variable and expression (var expr)
+      ; The `pairs` attribute retains both variable and expression (var expr mult?)
       #:attr pairs (datum->syntax #'(decls ...)
                                       (apply append (map (compose (curry map syntax->list )
                                                                   syntax->list) 
@@ -723,7 +728,7 @@
   ; TODO: output type declared is currently being lost
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
-                       (~optional output-mult:ArrowMultClass)
+                       (~optional output-mult:HelperMultClass)
                        output-expr:ExprClass
                        body:ExprClass)
    (with-syntax ([body #'body])
@@ -734,7 +739,7 @@
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        decls:ParaDeclsClass
-                       (~optional output-mult:ArrowMultClass #:defaults ([output-mult #'#f]))
+                       (~optional output-mult:HelperMultClass #:defaults ([output-mult #'#f]))
                        output-expr:ExprClass
                        body:ExprClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
@@ -743,8 +748,8 @@
                  ;   (e.g.) the "Expr" `one univ` into true expr and multiplicity in the expander;
                  ;   It's not the job of the `fun` macro to handle this. (Same for `pred`, etc.)
                  [output (if (syntax->datum #'output-mult)
-                             #'((~? output-mult.symbol) output-expr)
-                             #'output-expr)]
+                             #'(output-expr (~? output-mult.symbol))
+                             #'(output-expr))]
                  [body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
@@ -874,10 +879,16 @@
        (syntax-parameterize ([current-forge-context 'example])
          (list #,@(syntax/loc stx bounds.translate)))))]))
 
+; Macro definitions for syntax that might survive into sigs.rkt macros
 (define-syntax (Const stx)
   (syntax-parse stx
     [c:ConstClass
      (syntax/loc this-syntax c.translate)]))
+(define-syntax (HelperMult stx)
+  (syntax-parse stx
+    [am:HelperMultClass
+     (syntax/loc this-syntax am.symbol)]))
+
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)

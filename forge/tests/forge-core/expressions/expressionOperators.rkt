@@ -98,17 +98,44 @@ pred ColonGreater {
 
 ; Helper functions `fun`
 ; forge/core's `fun` macro doesn't support no-args functions, because `define` works just as well.
-; Arguments without types
-(fun (helper2 x) (& x Int))
-; Arguments with types (multiple)
-(fun (helper3 (x univ) (y univ)) (& x y))
-; Adding optional co-domain
-(fun (helper4 (x univ)) (& x Int) #:codomain Int)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; TEST VARIATIONS OF MACRO USE (core)
+; Single argument (arg domain?, arg mult?, result domain? result mult?]
+(fun (helper1a x) (& x Int))                                    ; NNNN
+(fun (helper1b (x univ)) (& x Int))                             ; YNNN
+(fun (helper1c (x univ 'lone)) (& x Int))                       ; YYNN
+(fun (helper1d (x univ)) (& x Int) #:codomain Int)              ; YNYN
+(fun (helper1e (x univ)) (& x Int) #:codomain (Int 'set))       ; YNYY
+(fun (helper1f (x univ 'lone)) (& x Int) #:codomain Int)        ; YYYN
+(fun (helper1g (x univ 'lone)) (& x Int) #:codomain (Int 'set)) ; YYYY
+
+; Multiple arguments (1 domain, 2 domain, 1 mult, 2 mult)
+(fun (helper2a x y) (& x y))                                      ; NNNN
+(fun (helper2b (x univ) y) (& x y))                               ; YNNN
+(fun (helper2c x (y univ)) (& x y))                               ; NYNN
+(fun (helper2d (x univ) (y univ)) (& x y))                        ; YYNN
+(fun (helper2e (x univ 'lone) (y univ)) (& x y))                  ; YYYN
+(fun (helper2f (x univ 'lone) (y univ 'set)) (& x y))             ; YYYY
+
+
+;; TODO: import from forge and check contents of spacer fields
+
 (pred HelperFun    
     (all ([value1 univ] [value2 univ])
-         (and (= (helper2 value1) (& Int value1))
-              (= (helper4 value1) (& Int value1))
-              (= (helper3 value1 value2) (& value2 value1)))))
+         (and (= (helper1a value1) (& Int value1))
+              (= (helper1b value1) (& Int value1))
+              (= (helper1c value1) (& Int value1))
+              (= (helper1d value1) (& Int value1))
+              (= (helper1e value1) (& Int value1))
+              (= (helper1f value1) (& Int value1))
+              (= (helper1g value1) (& Int value1))
+              (= (helper2a value1 value2) (& value2 value1))
+              (= (helper2b value1 value2) (& value2 value1))
+              (= (helper2c value1 value2) (& value2 value1))
+              (= (helper2d value1 value2) (& value2 value1))
+              (= (helper2e value1 value2) (& value2 value1))
+              (= (helper2f value1 value2) (& value2 value1)))))
 
 
 (test tilde #:preds [Tilde] #:expect theorem)
@@ -132,9 +159,34 @@ pred ColonGreater {
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test metadata
 
+;(fun (helper1a x) (& x Int))                                    ; NNNN
+;(fun (helper1b (x univ)) (& x Int))                             ; YNNN
+;(fun (helper1c (x univ 'lone)) (& x Int))                       ; YYNN
+;(fun (helper1d (x univ)) (& x Int) #:codomain Int)              ; YNYN
+;(fun (helper1e (x univ)) (& x Int) #:codomain (Int 'set))       ; YNYY
+;(fun (helper1f (x univ 'lone)) (& x Int) #:codomain Int)        ; YYYN
+;(fun (helper1g (x univ 'lone)) (& x Int) #:codomain (Int 'set)) ; YYYY
+;
+;; Multiple arguments (1 domain, 2 domain, 1 mult, 2 mult)
+;(fun (helper2a x y) (& x y))                                      ; NNNN
+;(fun (helper2b (x univ) y) (& x y))                               ; YNNN
+;(fun (helper2c x (y univ)) (& x y))                               ; NYNN
+;(fun (helper2d (x univ) (y univ)) (& x y))                        ; YYNN
+;(fun (helper2e (x univ 'lone) (y univ)) (& x y))                  ; YYYN
+;(fun (helper2f (x univ 'lone) (y univ 'set)) (& x y))             ; YYYY
+
+(fun (helper3 (x iden)) (& x iden)) ; arity > 1
+
 (require (prefix-in @ rackunit))
-(@check-equal? (node/expr/fun-spacer-codomain (helper4 univ))
-               (mexpr Int 'one))
-(@check-equal? (node/expr/fun-spacer-args (helper4 univ))
+
+; Check implicit application of default multiplicity
+(@check-equal? (node/expr/fun-spacer-codomain (helper1a univ))
+               (mexpr univ 'one))
+(@check-equal? (node/expr/fun-spacer-args (helper1a univ))
                (list (apply-record 'x (mexpr univ 'one) univ)))
+; No codomain provided, inferring univ -- should be inferring univ-product of appropriate arity
+(@check-equal? (node/expr/fun-spacer-codomain (helper3 (-> Int Int)))
+               (mexpr (-> univ univ) 'set))
+(@check-equal? (node/expr/fun-spacer-args (helper3 (-> Int Int)))
+               (list (apply-record 'x (mexpr iden 'set) (-> Int Int))))
 
