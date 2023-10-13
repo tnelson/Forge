@@ -74,14 +74,21 @@ pred ColonGreater {
 }
 
 fun helper1: one univ { univ }
+fun helper1a: univ { univ }
 fun helper2[x: univ]: one univ {x & Int}
+fun helper2a[x: univ]: univ {x & Int}
 fun helper3[x: univ, y: univ]: one univ { x & y }
+-- TODO
+--fun helper3a[x: one univ, y: univ]: one univ { x & y }
 
 pred HelperFun {
     helper1 = univ
+    helper1a = univ
     all value1, value2: univ | {
         helper2[value1] = Int & value1
+        helper2a[value1] = Int & value1
         helper3[value1, value2] = value2 & value1
+        --helper3a[value1, value2] = value2 & value1
     }
 }
 

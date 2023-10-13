@@ -393,7 +393,8 @@
   ; [v] | [v expr] | [v expr mult]
   ; We want to enable arbitrary code within the expr portion
   (define-splicing-syntax-class param-decl-class
-    #:description "predicate or function variable declaration"    
+    #:description "predicate or function variable declaration"
+    #:attributes (mexpr name)
     (pattern name:id                            
       #:attr expr #'univ ; default domain
       #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one)))
@@ -405,11 +406,15 @@
   ; No variable ID, just a "result type":
   ; expr | [expr mult]
   (define-splicing-syntax-class codomain-class
-    #:description "codomain expression in declaration"    
+    #:description "codomain expression in helper function declaration"
+    #:attributes (mexpr)
+    (pattern (mult:id expr)
+      #:attr mexpr #'(mexpr expr 'mult))
+    (pattern (mult expr)
+      #:attr mexpr #'(mexpr expr mult))
+    ; Catch expr without mult (but must come last, or will match both of above)
     (pattern expr                            
-      #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one)))
-    (pattern (expr mult)
-      #:attr mexpr #'(mexpr expr mult)))
+      #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one))))
   )
 
 ; Declare a new predicate
@@ -446,13 +451,16 @@
   (syntax-parse stx
     [(fun (name:id decls:param-decl-class ...+)
           result:expr
-          (~optional (~seq #:codomain codomain:codomain-class) #:defaults ([codomain #'univ])))
+          (~optional (~seq #:codomain codomain:codomain-class) #:defaults ([codomain.mexpr #'(mexpr univ 'one)])))
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
      (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
        (define EXPANDED
        #'(begin
            ; "fun spacer" added to record use of function along with original argument declarations etc.           
            (define (name decls.name ...)
+             (printf "in defined helper function ~a, result=~a~n" 'name result)
+             (printf "    arity of result=~a~n" (node/expr-arity result))
+             (printf "    mexpr for decls=~a~n" (list decls.mexpr ...))
              (node/expr/fun-spacer
               the-info                 ; from node
               (node/expr-arity result) ; from node/expr

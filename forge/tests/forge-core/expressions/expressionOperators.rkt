@@ -13,7 +13,7 @@
            (in (-> n2 n1) edges))))
 
 (pred Caret
-    (implies (< (card Node) (int 4))
+    (implies (int< (card Node) (int 4))
              (= (^ edges)
                 (+ (+ edges
                       (join edges edges))
@@ -133,6 +133,8 @@ pred ColonGreater {
 ; Test metadata
 
 (require (prefix-in @ rackunit))
-(@check-equal? (node/expr/fun-spacer-codomain (helper4 univ)) Int)
-(@check-equal? (node/expr/fun-spacer-args (helper4 univ)) (list (list 'x univ)))
+(@check-equal? (node/expr/fun-spacer-codomain (helper4 univ))
+               (mexpr Int 'one))
+(@check-equal? (node/expr/fun-spacer-args (helper4 univ))
+               (list (apply-record 'x (mexpr univ 'one) univ)))
 

@@ -177,20 +177,19 @@
   ; The enclosing context is responsible for checking for valid multiplicities   
   (define-syntax-class DeclClass
     (pattern ((~or (~datum ParaDecl) (~datum QuantDecl))
-              ;(~optional "disj")
-              names-c:NameListClass
-              ;(~optional "disj")
-              ;(~optional "set")
-              ; Assign Alloy-convention defaults: set if arity >1, one otherwise
-              (~optional mult:ArrowMultClass #:defaults ([mult #'(if (> (node/expr-arity expr) 1)
-                                                                     'set
-                                                                     'one)]))
+              names-c:NameListClass              
+              (~optional mult:ArrowMultClass #:defaults ([mult #'#f]))
               expr:ExprClass)
-      #:attr translate (with-syntax ([expr #'expr]
-                                     [mult #'mult]) 
+      ; Assign Alloy-convention defaults: set if arity >1, one otherwise
+      #:attr translate (with-syntax ([expr #'expr] 
+                                     [mult (if (syntax->datum #'mult)
+                                               #'(quote mult)
+                                               #'(if (> (node/expr-arity expr) 1)
+                                                     'set
+                                                     'one))]) 
                          #'((names-c.names expr mult) ...))
       #:attr names #'(names-c.names ...)))
-
+  
   ; Declaration of a comma-delimited list of variable declarations with expr and optional multiplicity
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
@@ -245,6 +244,7 @@
 
   ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
   (define-syntax-class PredDeclClass
+    #:description "predicate declaration"
     (pattern ((~datum PredDecl)
               (~optional _:PredTypeClass)
               (~optional (~seq prefix:QualNameClass "."))
@@ -254,11 +254,14 @@
 
   ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
   (define-syntax-class FunDeclClass
+    #:description "helper function declaration"
     (pattern ((~datum FunDecl)
               (~optional (~seq prefix:QualNameClass "."))
               name:NameClass
               (~optional decls:ParaDeclsClass)
-              output:ExprClass
+              ; An optional multiplicity and required expression
+              (~optional output-mult:ArrowMultClass)
+              output-expr:ExprClass
               body:ExprClass)))
 
   ; ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
@@ -266,7 +269,7 @@
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
   ; Note: this class seems to only be used by fun/pred definitions? Perhaps could merge with DeclList,
-  ;   but here we are adding multiplicities...
+  ;   but here we are adding multiplicities, so keep separate.
   (define-syntax-class ParaDeclsClass
     (pattern ((~datum ParaDecls)
               (~seq decls:DeclClass ...))
@@ -492,7 +495,7 @@
       #:attr translate (syntax/loc this-syntax (int n.value)))
     (pattern ((~datum Const) "-" n:NumberClass)
       #:attr translate (quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value))))))
-
+  
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK
   (define-syntax-class ArrowOpClass
@@ -720,7 +723,8 @@
   ; TODO: output type declared is currently being lost
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
-                       output:ExprClass
+                       (~optional output-mult:ArrowMultClass)
+                       output-expr:ExprClass
                        body:ExprClass)
    (with-syntax ([body #'body])
      (syntax/loc stx (begin
@@ -730,11 +734,17 @@
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        decls:ParaDeclsClass
-                       output:ExprClass
+                       (~optional output-mult:ArrowMultClass #:defaults ([output-mult #'#f]))
+                       output-expr:ExprClass
                        body:ExprClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
                                                    (syntax->list #'decls.pairs)))]
-                 [output #'output]
+                 ; Parser "Expr" includes both expressions and formulas. Thus, disambiguate
+                 ;   (e.g.) the "Expr" `one univ` into true expr and multiplicity in the expander;
+                 ;   It's not the job of the `fun` macro to handle this. (Same for `pred`, etc.)
+                 [output (if (syntax->datum #'output-mult)
+                             #'((~? output-mult.symbol) output-expr)
+                             #'output-expr)]
                  [body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
@@ -863,6 +873,11 @@
        pred
        (syntax-parameterize ([current-forge-context 'example])
          (list #,@(syntax/loc stx bounds.translate)))))]))
+
+(define-syntax (Const stx)
+  (syntax-parse stx
+    [c:ConstClass
+     (syntax/loc this-syntax c.translate)]))
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
