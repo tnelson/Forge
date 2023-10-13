@@ -608,6 +608,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (quasisyntax/loc stx 
         (<:helper a b (nodeinfo #,(build-source-location stx) check-lang)))]))
 
+; TODO: this only functions for binary relations
 (define (<:helper a b info)
   (domain-check<: a b (nodeinfo-loc info))
   (&/info info
@@ -623,6 +624,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (quasisyntax/loc stx 
         (:>helper a b (nodeinfo #,(build-source-location stx) check-lang)))]))
 
+; TODO: this only functions for binary relations
 (define (:>helper a b info)
   (domain-check:> a b (nodeinfo-loc info))
   (&/info info
@@ -635,7 +637,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [src-span (source-location-span loc)])
     (unless (equal? (node/expr-arity b)
                     (@+ 1 (node/expr-arity a))) 
-                    (raise-user-error (format "<: argument has incorrect arity (~a vs. ~a) in ~a <: ~a on line ~a, column ~a, span~a" 
+                    (raise-user-error (format "<: argument has incorrect arity (~a vs. ~a) in ~a <: ~a on line ~a, column ~a, span ~a" 
                     (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b) src-line src-col src-span)))))
 
 (define (domain-check:> a b loc) 
@@ -644,5 +646,5 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [src-span (source-location-span loc)])
     (unless (equal? (node/expr-arity a)
                     (@+ 1 (node/expr-arity b))) 
-                    (raise-user-error (format ":> argument has incorrect arity in ~a :> ~a on line ~a, column ~a, span~a" 
+                    (raise-user-error (format ":> argument has incorrect arity (~a vs. ~a) in ~a :> ~a on line ~a, column ~a, span ~a" 
                     (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b) src-line src-col src-span)))))

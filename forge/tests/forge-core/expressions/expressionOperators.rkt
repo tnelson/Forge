@@ -1,6 +1,7 @@
 #lang forge/core
 
 (set-option! 'verbose 0)
+(set-option! 'run_sterling 'off)
 
 (sig Node)
 (relation edges (Node Node))
@@ -83,24 +84,46 @@
 
 
 
-#|
-CURRENTLY BUGGED?
-pred LessColon {
-    all n: Node |
-        n.edges <: edges = {n1: Node, n2: Node | n1->n2 in edges and n1 in n.edges}
-}
 
-pred ColonGreater {
-    all n: Node |
-        edges :> n.edges = {n1: Node, n2: Node | n1->n2 in edges and n2 in n.edges}
-}
-|#
+;pred LessColon {
+;    all n: Node |
+;        n.edges <: edges = {n1: Node, n2: Node | n1->n2 in edges and n1 in n.edges}
+;}
+
+; All elements of RHS that start with an element of LHS
+(pred DomainRestriction
+      (all ([n Node])
+           (= (<: (join n edges) edges)
+              (set ([n1 Node] [n2 Node]) (&& (in (-> n1 n2) edges)
+                                              (in n1 (join n edges)))))))
+; All elements of LHS that end with an element of RHS
+(pred RangeRestriction
+      (all ([n Node])
+           (= (:> edges (join n edges))
+              (set ([n1 Node] [n2 Node]) (&& (in (-> n1 n2) edges)
+                                              (in n2 (join n edges)))))))
+
+(test tilde #:preds [Tilde] #:expect theorem)
+(test caret #:preds [Caret] #:expect theorem)
+(test star #:preds [Star] #:expect theorem)
+(test plus #:preds [Plus] #:expect theorem)
+(test minus #:preds [Minus] #:expect theorem)
+(test ampersandd #:preds [Ampersand] #:expect theorem)
+(test arrow #:preds [Arrow] #:expect theorem)
+(test dot #:preds [Dot] #:expect theorem)
+
+(test ite1 #:preds [IfThenElse1] #:expect unsat)
+(test ite2 #:preds [IfThenElse2] #:expect unsat)
+
+(test domainRestriction #:preds [DomainRestriction] #:expect theorem)
+(test rangeRestriction #:preds [RangeRestriction] #:expect theorem)
+
 
 ; Helper functions `fun`
 ; forge/core's `fun` macro doesn't support no-args functions, because `define` works just as well.
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TEST VARIATIONS OF MACRO USE (core)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test variations on macro use; make sure they at least expand
 ; Single argument (arg domain?, arg mult?, result domain? result mult?]
 (fun (helper1a x) (& x Int))                                    ; NNNN
 (fun (helper1b (x univ)) (& x Int))                             ; YNNN
@@ -109,7 +132,6 @@ pred ColonGreater {
 (fun (helper1e (x univ)) (& x Int) #:codomain (Int 'set))       ; YNYY
 (fun (helper1f (x univ 'lone)) (& x Int) #:codomain Int)        ; YYYN
 (fun (helper1g (x univ 'lone)) (& x Int) #:codomain (Int 'set)) ; YYYY
-
 ; Multiple arguments (1 domain, 2 domain, 1 mult, 2 mult)
 (fun (helper2a x y) (& x y))                                      ; NNNN
 (fun (helper2b (x univ) y) (& x y))                               ; YNNN
@@ -121,6 +143,7 @@ pred ColonGreater {
 
 ;; TODO: import from forge and check contents of spacer fields
 
+; Check the expansion of these helpers at least has the correct semantics
 (pred HelperFun    
     (all ([value1 univ] [value2 univ])
          (and (= (helper1a value1) (& Int value1))
@@ -136,24 +159,7 @@ pred ColonGreater {
               (= (helper2d value1 value2) (& value2 value1))
               (= (helper2e value1 value2) (& value2 value1))
               (= (helper2f value1 value2) (& value2 value1)))))
-
-
-(test tilde #:preds [Tilde] #:expect theorem)
-(test caret #:preds [Caret] #:expect theorem)
-(test star #:preds [Star] #:expect theorem)
-(test plus #:preds [Plus] #:expect theorem)
-(test minus #:preds [Minus] #:expect theorem)
-(test ampersandd #:preds [Ampersand] #:expect theorem)
-(test arrow #:preds [Arrow] #:expect theorem)
-(test dot #:preds [Dot] #:expect theorem)
-
-(test ite1 #:preds [IfThenElse1] #:expect unsat)
-(test ite2 #:preds [IfThenElse2] #:expect unsat)
-
 (test helperfuns #:preds [HelperFun] #:expect theorem)
-
-; (test lessColon #:preds [LessColon] #:expect theorem)
-; (test colonGreater #:preds [ColonGreater] #:expect theorem)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

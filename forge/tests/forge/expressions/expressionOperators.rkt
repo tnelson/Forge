@@ -1,14 +1,11 @@
 #lang forge
 
 option run_sterling off
-
-
 option verbose 0
 
 sig Node {
     edges : set Node
 }
-
 
 -- Unary operators
 
@@ -62,7 +59,6 @@ pred IfThenElse2 {
 }
 
 
---CURRENTLY BUGGED?
 pred LessColon {
     all n: Node |
         n.edges <: edges = {n1: Node, n2: Node | n1->n2 in edges and n1 in n.edges}

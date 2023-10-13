@@ -469,9 +469,9 @@
        #'(begin
            ; "fun spacer" added to record use of function along with original argument declarations etc.           
            (define (name decls.name ...)
-             (printf "in defined helper function ~a, result=~a~n" 'name result)
-             (printf "    arity of result=~a~n" (node/expr-arity result))
-             (printf "    mexpr for decls=~a~n" (list decls.mexpr ...))
+             ;(printf "in defined helper function ~a, result=~a~n" 'name result)
+             ;(printf "    arity of result=~a~n" (node/expr-arity result))
+             ;(printf "    mexpr for decls=~a~n" (list decls.mexpr ...))
              (node/expr/fun-spacer
               the-info                 ; from node
               (node/expr-arity result) ; from node/expr
