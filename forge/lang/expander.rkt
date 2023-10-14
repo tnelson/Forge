@@ -715,7 +715,7 @@
                         decls:ParaDeclsClass
                         block:BlockClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
-                                                   (syntax->list #'decls.translate)))]
+                                                   (syntax->list #'decls.pairs)))]
                  [block #'block])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
