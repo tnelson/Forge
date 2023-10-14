@@ -170,9 +170,10 @@
 
 ; Records the substitution of a concrete argument into a formal parameter
 ; param: the variable substituted out; domain: the domain of the variable; arg: the actual argument
+; For robustness, we'll allow the arg to be an "int expr" node or Racket int without forcing conversion.
 (struct/contract apply-record ([param symbol?]
                                [domain mexpr?]
-                               [arg node/expr?]) #:transparent)
+                               [arg (or/c node/expr? node/int? integer?)]) #:transparent)
 
 ; struct/contract does not support #:methods, but at least add a guard
 (struct node/expr/fun-spacer node/expr (name args codomain expanded) #:transparent

@@ -441,11 +441,13 @@
      (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
        (quasisyntax/loc stx
          (begin
-           ; "pred spacer" added to record use of predicate along with original argument declarations etc.
-           ; TODO: expander (?) currently throws away all but argument name in declaration
+           ; "pred spacer" added to record use of predicate along with original argument declarations etc.           
            (define (name decls.name ...)
-             (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...) (&&/info the-info conds ...))))           
-           ; TODO: check alternative grouping (2 args with same domain, for instance)
+             (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
+               (error (format "Argument '~a' to pred ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
+                              'decls.name 'name decls.name)))
+             ...
+             (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...) (&&/info the-info conds ...))))                      
            (update-state! (state-add-pred curr-state 'name name)))))]))
 
 (define/contract (repeat-product expr count)
@@ -470,9 +472,10 @@
        #'(begin
            ; "fun spacer" added to record use of function along with original argument declarations etc.           
            (define (name decls.name ...)
-             ;(printf "in defined helper function ~a, result=~a~n" 'name result)
-             ;(printf "    arity of result=~a~n" (node/expr-arity result))
-             ;(printf "    mexpr for decls=~a~n" (list decls.mexpr ...))
+             (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
+               (error (format "Argument '~a' to fun ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
+                              'decls.name 'name decls.name)))
+             ...
              (node/expr/fun-spacer
               the-info                 ; from node
               (node/expr-arity result) ; from node/expr
