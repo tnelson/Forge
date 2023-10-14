@@ -671,7 +671,7 @@
                 (raise (format (string-append "Lower bound too large for given BitWidth; "
                                               "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
                                sig int-lower (sub1 max-int))))
-              (list (<= (int int-lower) (card sig))))
+              (list (int<= (int int-lower) (card sig))))
             (list))
         (if (@and int-upper (@< int-upper bound-upper-size))
             (let ()
@@ -679,7 +679,7 @@
                 (raise (format (string-append "Upper bound too large for given BitWidth; "
                                               "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                sig int-upper (sub1 max-int))))
-              (list (<= (card sig) (int int-upper))))
+              (list (int<= (card sig) (int int-upper))))
             (list))))))
 
 

@@ -868,17 +868,21 @@
   (multiplicity-formula node-info 'no expr))
 
 (define-syntax (no stx)
-  (syntax-parse stx    
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
+  (syntax-parse stx
+    ; quantifier
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+    ; multiplicity
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
 
 (define-syntax (no/info stx)
   (syntax-parse stx
-    [(_ info #:disj ([v0 e0] ...) pred)
-     #'(! (some/info info #:disj ([v0 e0] ...) pred))]
-    [(_ info ([v0 e0] ...) pred)
+    ; quantifier with disj: rewrite as !some
+    [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
+     #'(! (some/info info #:disj ([v0 e0 m0] ...) pred))]
+    ; quantifier without disj: rewrite as !some
+    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
          (! (quantified-formula info 'some (list (cons v0 e0) ...) pred))))]
@@ -895,24 +899,27 @@
   (one/func #:info node-info (set/func #:info node-info decls formula)))
 
 (define-syntax (one stx)
-  (syntax-parse stx    
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
+  (syntax-parse stx
+    ; quantifier
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+    ; multiplicity
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
 
 (define-syntax (one/info stx)
   (syntax-parse stx
-    [(_ info #:disj ([x1 r1] ...) pred)
+    [(_ info #:disj ([x1 r1 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'one (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
-    [(_ info ([x1 r1] ...) pred)
+    [(_ info ([x1 r1 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'one (set ([x1 r1] ...) pred)))]
+    ; multiplicity case
     [(_ info expr)
      (quasisyntax/loc stx
        (multiplicity-formula info 'one expr))]))
@@ -927,23 +934,24 @@
 
 (define-syntax (lone stx)
   (syntax-parse stx    
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0] ...) pred) 
-      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0] ...) pred))]
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
+      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
       (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
 
 (define-syntax (lone/info stx)
   (syntax-parse stx
-    [(_ info #:disj ([x1 r1] ...) pred)
+    [(_ info #:disj ([x1 r1 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'lone (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
-    [(_ info ([x1 r1] ...) pred)
+    [(_ info ([x1 r1 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'lone (set ([x1 r1] ...) pred)))]
+    ; multiplicity case
     [(_ info expr)
      (quasisyntax/loc stx
        (multiplicity-formula info 'lone expr))]))
@@ -953,7 +961,7 @@
 ; sum quantifier macro
 (define-syntax (sum-quant stx)
   (syntax-parse stx
-    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1] ...) int-expr)
+    [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1 m0:opt-mult-class] ...) int-expr)
      (quasisyntax/loc stx
        (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity r1) (gensym (format "~a_sum" 'x1)) 'x1)] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang) (list (cons x1 r1) ...) int-expr)))]))

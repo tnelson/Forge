@@ -15,14 +15,14 @@
   (&&
    (all ([i1 Int]
          [i2 Int])
-        (iff (> (sum i1) (sum i2))
+        (iff (int> (sum i1) (sum i2))
              (in i1 (join i2 (^ succ)))))))
 
 (define LT
   (&&
    (all ([i1 Int]
          [i2 Int])
-        (iff (< (sum i1) (sum i2))
+        (iff (int< (sum i1) (sum i2))
              (in i1 (join (^ succ) i2))))))
 
 ; >= <= 
@@ -31,14 +31,14 @@
   (&&
    (all ([i1 Int]
          [i2 Int])
-        (iff (>= (sum i1) (sum i2))
+        (iff (int>= (sum i1) (sum i2))
              (in i1 (join i2 (* succ)))))))
 
 (define LTE
   (&&
    (all ([i1 Int]
          [i2 Int])
-        (iff (<= (sum i1) (sum i2))
+        (iff (int<= (sum i1) (sum i2))
              (in i1 (join (* succ) i2))))))
 
 ; != !> !< !>= !<=
@@ -49,31 +49,6 @@
          [i2 Int])
         (iff (!= (sum i1) (sum i2))
              (! (= (sum i1) (sum i2)))))))
-
-; Commented out ones are not defined in forge/core
-; (pred NGT
-;     (all ([i1 Int]
-;           [i2 Int])
-;         (iff (!> (sum i1) (sum i2))
-;              (! (> (sum i1) (sum i2))))))
-
-; (pred NLT
-;     (all ([i1 Int]
-;           [i2 Int])
-;         (iff (!< (sum i1) (sum i2))
-;              (! (< (sum i1) (sum i2))))))
-
-; (pred NGTE
-;     (all ([i1 Int]
-;           [i2 Int])
-;         (iff (!>= (sum i1) (sum i2))
-;              (! (>= (sum i1) (sum i2))))))
-
-; (pred NTLE
-;     (all ([i1 Int]
-;           [i2 Int])
-;         (iff (!<= (sum i1) (sum i2))
-;              (! (<= (sum i1) (sum i2))))))
 
 (make-test #:name 'equal
            #:preds (list EQ)
@@ -94,7 +69,3 @@
 (make-test #:name 'notEqual
            #:preds (list NEQ)
            #:expect 'theorem)
-; (test notGreaterThan #:preds [NGT] #:expect theorem)
-; (test notLessThan #:preds [NLT] #:expect theorem)
-; (test notGreaterThanEqual #:preds [NGTE] #:expect theorem)
-; (test notLessThanEqual #:preds [NLTE] #:expect theorem)

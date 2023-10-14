@@ -1008,7 +1008,7 @@ Now with functional forge, do-bind is used instead
       (in/info info r1 (-> Int univ))
       (in/info info (join/info info Int r1) d)
       (all ([i1 (join/info info r1 univ)])
-           (&&/info info (>= (sum/info info i1) (int 0))
+           (&&/info info (int>= (sum/info info i1) (int 0))
                (lone (join/info info i1 r1))))
       (all ([e (join/info info Int r1)])
            (some (join/info info r1 e)))
