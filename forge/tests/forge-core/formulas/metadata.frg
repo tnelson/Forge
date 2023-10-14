@@ -6,5 +6,4 @@
 option verbose 0
 option run_sterling off
 
-fun helper_surface[x: lone univ, y: univ]: lone Int { x & y }
-fun helper_surface_grouped[x, y: lone univ, z: univ]: lone Int { x & y & z }
+pred pred_surface[x,y: lone Int, z: univ] {}

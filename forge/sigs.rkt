@@ -431,19 +431,21 @@
          (begin
            ; use srcloc of actual predicate, not this location in sigs
            ; "pred spacer" still present, even if no arguments, to consistently record use of a predicate
-           (define name (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))
+           (define name
+             (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))
            (update-state! (state-add-pred curr-state 'name name)))))]
     
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
-           (name:id args:id ...+) conds:expr ...+)
+           (name:id decls:param-decl-class  ...+) conds:expr ...+)
      (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
        (quasisyntax/loc stx
          (begin
            ; "pred spacer" added to record use of predicate along with original argument declarations etc.
            ; TODO: expander (?) currently throws away all but argument name in declaration
-           (define (name args ...) (pt.seal (node/fmla/pred-spacer the-info 'name '(args ...) (&&/info the-info conds ...))))
-           (printf "defining pred ~a; args = ~a~n" 'name '(args ...))
+           (define (name decls.name ...)
+             (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...) (&&/info the-info conds ...))))           
+           ; TODO: check alternative grouping (2 args with same domain, for instance)
            (update-state! (state-add-pred curr-state 'name name)))))]))
 
 (define/contract (repeat-product expr count)

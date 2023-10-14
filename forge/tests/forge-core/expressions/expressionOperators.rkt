@@ -132,9 +132,6 @@
 (fun (helper2e (x univ 'lone) (y univ)) (& x y))                  ; YYYN
 (fun (helper2f (x univ 'lone) (y univ 'set)) (& x y))             ; YYYY
 
-
-;; TODO: import from forge and check contents of spacer fields
-
 ; Check the expansion of these helpers at least has the correct semantics
 (pred HelperFun    
     (all ([value1 univ] [value2 univ])
@@ -185,9 +182,17 @@
 
 ; Test metadata is being added via expander for surface language
 ; fun helper_surface[x: lone univ, y: univ]: lone Int { x & y }
+
 (require "metadata.frg")
 (@check-equal? (node/expr/fun-spacer-codomain (helper_surface univ Node))
                (mexpr Int 'lone))
 (@check-equal? (node/expr/fun-spacer-args (helper_surface univ Node))
                (list (apply-record 'x (mexpr univ 'lone) univ)
                      (apply-record 'y (mexpr univ 'one) Node)))
+; fun helper_surface_grouped[x, y: lone univ, y: univ]: lone Int { x & y & z }
+(@check-equal? (node/expr/fun-spacer-codomain (helper_surface_grouped univ Node Int))
+               (mexpr Int 'lone))
+(@check-equal? (node/expr/fun-spacer-args (helper_surface_grouped univ Node Int))
+               (list (apply-record 'x (mexpr univ 'lone) univ)
+                     (apply-record 'y (mexpr univ 'lone) Node)
+                     (apply-record 'z (mexpr univ 'one)  Int)))
