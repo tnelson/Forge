@@ -82,14 +82,6 @@
                  univ
                  none)))
 
-
-
-
-;pred LessColon {
-;    all n: Node |
-;        n.edges <: edges = {n1: Node, n2: Node | n1->n2 in edges and n1 in n.edges}
-;}
-
 ; All elements of RHS that start with an element of LHS
 (pred DomainRestriction
       (all ([n Node])
@@ -165,22 +157,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test metadata
 
-;(fun (helper1a x) (& x Int))                                    ; NNNN
-;(fun (helper1b (x univ)) (& x Int))                             ; YNNN
-;(fun (helper1c (x univ 'lone)) (& x Int))                       ; YYNN
-;(fun (helper1d (x univ)) (& x Int) #:codomain Int)              ; YNYN
-;(fun (helper1e (x univ)) (& x Int) #:codomain (Int 'set))       ; YNYY
-;(fun (helper1f (x univ 'lone)) (& x Int) #:codomain Int)        ; YYYN
-;(fun (helper1g (x univ 'lone)) (& x Int) #:codomain (Int 'set)) ; YYYY
-;
-;; Multiple arguments (1 domain, 2 domain, 1 mult, 2 mult)
-;(fun (helper2a x y) (& x y))                                      ; NNNN
-;(fun (helper2b (x univ) y) (& x y))                               ; YNNN
-;(fun (helper2c x (y univ)) (& x y))                               ; NYNN
-;(fun (helper2d (x univ) (y univ)) (& x y))                        ; YYNN
-;(fun (helper2e (x univ 'lone) (y univ)) (& x y))                  ; YYYN
-;(fun (helper2f (x univ 'lone) (y univ 'set)) (& x y))             ; YYYY
-
 (fun (helper3 (x iden)) (& x iden)) ; arity > 1
 
 (require (prefix-in @ rackunit))
@@ -195,4 +171,23 @@
                (mexpr (-> univ univ) 'set))
 (@check-equal? (node/expr/fun-spacer-args (helper3 (-> Int Int)))
                (list (apply-record 'x (mexpr iden 'set) (-> Int Int))))
+; all provided, including codomain, single argument
+(@check-equal? (node/expr/fun-spacer-codomain (helper1g univ))
+               (mexpr Int 'set))
+(@check-equal? (node/expr/fun-spacer-args (helper1g univ))
+               (list (apply-record 'x (mexpr univ 'lone) univ)))
+; 2 (different) arguments, no codomain given
+(@check-equal? (node/expr/fun-spacer-codomain (helper2f univ Node))
+               (mexpr univ 'one))
+(@check-equal? (node/expr/fun-spacer-args (helper2f univ Node))
+               (list (apply-record 'x (mexpr univ 'lone) univ)
+                     (apply-record 'y (mexpr univ 'set) Node)))
 
+; Test metadata is being added via expander for surface language
+; fun helper_surface[x: lone univ, y: univ]: lone Int { x & y }
+(require "metadata.frg")
+(@check-equal? (node/expr/fun-spacer-codomain (helper_surface univ Node))
+               (mexpr Int 'lone))
+(@check-equal? (node/expr/fun-spacer-args (helper_surface univ Node))
+               (list (apply-record 'x (mexpr univ 'lone) univ)
+                     (apply-record 'y (mexpr univ 'one) Node)))

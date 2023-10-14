@@ -465,7 +465,6 @@
                                                           (if (> (node/expr-arity result) 1) 'set 'one))])))
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
      (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
-       (define EXPANDED
        #'(begin
            ; "fun spacer" added to record use of function along with original argument declarations etc.           
            (define (name decls.name ...)
@@ -479,9 +478,7 @@
               (list (apply-record 'decls.name decls.mexpr decls.name) ...)
               codomain.mexpr
               result))
-           (update-state! (state-add-fun curr-state 'name name))))
-       (printf "~a~n" EXPANDED)
-       EXPANDED)]))
+           (update-state! (state-add-fun curr-state 'name name))))]))
 
 ; TODO: confirm old form of (fun ...) still works
 ;    - including forge/core

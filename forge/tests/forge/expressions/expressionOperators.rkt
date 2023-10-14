@@ -69,6 +69,8 @@ pred ColonGreater {
         edges :> n.edges = {n1: Node, n2: Node | n1->n2 in edges and n2 in n.edges}
 }
 
+// These are tested more throughly in forge-core/expressedOperators.rkt
+//   (Surface Forge can't express tests about metadata.)
 fun helper1: one univ { univ }
 fun helper1a: univ { univ }
 fun helper2[x: univ]: one univ {x & Int}
