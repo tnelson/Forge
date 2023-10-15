@@ -485,17 +485,6 @@
               result))
            (update-state! (state-add-fun curr-state 'name name))))]))
 
-; TODO: confirm old form of (fun ...) still works
-;    - including forge/core
-; TODO: result type
-; TODO: multiplicities along with expr
-; TODO: types, ought to say what the argument vs. parameter was (right now, it is the val that was substituted only)
-; TODO: pred forms (x2)
-; TODO: connect expander in both fun and pred
-
-; *** TODO ***: quantifier cases in ast.rkt rewrite as syntax-parse and make robust to multiplicites
-
-
 ; Declare a new constant
 ; (const name value)
 (define-syntax (const stx)
