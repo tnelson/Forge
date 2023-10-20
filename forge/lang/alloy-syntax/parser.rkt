@@ -8,6 +8,12 @@
 ; module names, old XML-style instances, state/transition sublanguage,
 ; etc. they would need to be re-added from prior history.
 
+; Good error messages are tough to generate from the parser, especially when
+; the language is ambiguous. E.g., x[y] might mean an invocation of a helper
+; function, predicate, or a box-join. "a => b[x] else c[x]" makes this even worse.
+; Thus: PARSE A MORE PERMISSIVE GRAMMAR than Forge really has. Then filter in the
+; expander, after the input is parsed. 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Remaining notes re: parser cleanup
 
@@ -106,7 +112,6 @@ Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
 Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
 QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK | SUM-TOK
-
 OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | MINUS-TOK? Number)
 
 Name : IDENTIFIER-TOK

@@ -918,15 +918,18 @@
   (cond [(empty? xs) 
          ; {} always means the formula true
          true]
-         ; Body of a helper function
+         ; Body of a helper function: one expression
         [(and (equal? 1 (length xs)) (node/expr? (first xs)))
          (first xs)]
-        [(node/formula? (first xs))
-         (&& xs)]         
+         ; Body of a predicate: any number of formulas
+        [(andmap node/formula? xs)
+         (&& xs)]
+         ; body of a helper function that produces an int-expression: one int-expression
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
          (first xs)]         
         [else 
-         (raise-user-error (format "~a" (first xs)) (format "Ill-formed block"))]))
+         (raise-user-error (format "~a" xs)
+                           (format "Ill-formed block: expected either one expression or any number of formulas"))]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (Block stx)

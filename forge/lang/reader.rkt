@@ -116,6 +116,6 @@
   ; (printf "Ints-coerced: ~a~n" ints-coerced)
   ; (raise "STOP")
   (define result (datum->syntax #f module-datum))
-  ;(printf "debug result of expansion: ~a~n" result)
+  (printf "debug result of expansion: ~a~n" result)
   result)
 
