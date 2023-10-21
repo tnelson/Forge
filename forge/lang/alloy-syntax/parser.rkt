@@ -247,8 +247,8 @@ EvalDecl : EVAL-TOK Expr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-Bounds : EXACTLY-TOK? @ExprList
-       | EXACTLY-TOK? @Block
+;Bounds : EXACTLY-TOK? @ExprList
+;       | EXACTLY-TOK? @Block
 
 ExampleDecl : /EXAMPLE-TOK Name /IS-TOK Expr /FOR-TOK Bounds
 
@@ -262,3 +262,15 @@ NumberList : Number
            | Number /COMMA-TOK @NumberList
 
 Number : NUM-CONST-TOK
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Inst/Example Bounds
+; Note: don't use "EQUAL-TOK" here; it is in scope but not "="
+; TODO: plus
+Bounds : /LEFT-CURLY-TOK Bound* /RIGHT-CURLY-TOK
+Bound : (QualName | AtomName) (/DOT-TOK QualName)* (EQ-TOK | IN-TOK | NI-TOK) BindTupleUnion
+AtomName : BACKQUOTE-TOK Name | Number
+BindTupleUnion : BindTuple | BindTupleUnion PLUS-TOK BindTuple
+BindTuple :   /LEFT-PAREN-TOK BindTuple /RIGHT-PAREN-TOK
+            | BindTuple (/COMMA-TOK | /ARROW-TOK) AtomName
+            | AtomName
