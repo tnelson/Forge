@@ -12,6 +12,8 @@ pred wellformed {
   }
 }
 
+sig Thing {} -- for testing parse/expand of #X = N
+
 example moveMiddleFirst is {wellformed} for
 {
   Board = `Board0
@@ -25,7 +27,7 @@ example moveMiddleFirst is {wellformed} for
                   (1 -> 2) -> `O +
                   1 -> 0   -> `X 
           
-
+  #Thing = 3
 } 
 
 /*

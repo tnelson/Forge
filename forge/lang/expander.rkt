@@ -475,15 +475,22 @@
     (pattern ((~datum Parameters)
               name:QualNameClass ...)))
 
-  ; Bounds : EXACTLY-TOK? @ExprList
-  ;        | EXACTLY-TOK? @Block
   (define-syntax-class BoundsClass
     (pattern ((~datum Bounds)
               (~optional "exactly")
-              exprs:ExprClass ...)
-      #:attr translate (datum->syntax #'(exprs ...)
-                                      (syntax->list #'(exprs ...)))))
+              bounds:BoundClass ...)
+      #:attr translate (datum->syntax #'(bounds ...)
+                                      (syntax->list #'(bounds ...)))))
+ 
+  (define-syntax-class BoundClass
+    (pattern ((~datum Bound)  ; or backquote name
+              ((~datum BoundLHS) target:NameOrAtomClass joins:QualNameClass ...)
+              op:CompareOpClass
+              rhs:BoundUnionClass) ; TODO joins
+      #:attr translate #'(Expr target op rhs.translate)))
 
+
+  
   ; EXPRESSIONS
 
   ; Const : NONE-TOK | UNIV-TOK | IDEN-TOK

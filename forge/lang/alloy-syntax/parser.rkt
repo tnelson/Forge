@@ -268,7 +268,8 @@ Number : NUM-CONST-TOK
 ; Note: don't use "EQUAL-TOK" here; it is in scope but not "="
 ; TODO: plus
 Bounds : /LEFT-CURLY-TOK Bound* /RIGHT-CURLY-TOK
-Bound : (QualName | AtomName) (/DOT-TOK QualName)* (EQ-TOK | IN-TOK | NI-TOK) BindTupleUnion
+Bound : BoundLHS (EQ-TOK | IN-TOK | NI-TOK) BindTupleUnion
+BoundLHS : [CARD-TOK] (QualName | AtomName) (/DOT-TOK QualName)*
 AtomName : BACKQUOTE-TOK Name | Number
 BindTupleUnion : BindTuple | BindTupleUnion PLUS-TOK BindTuple
 BindTuple :   /LEFT-PAREN-TOK BindTuple /RIGHT-PAREN-TOK
