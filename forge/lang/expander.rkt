@@ -481,13 +481,24 @@
               bounds:BoundClass ...)
       #:attr translate (datum->syntax #'(bounds ...)
                                       (syntax->list #'(bounds ...)))))
- 
+
+  (define-syntax-class QualNameOrAtomClass
+    (pattern (name:QualNameClass)
+      #:attr translate #'(Expr target op rhs.translate)))
+  
   (define-syntax-class BoundClass
+    ; tuple bounds
     (pattern ((~datum Bound)  ; or backquote name
-              ((~datum BoundLHS) target:NameOrAtomClass joins:QualNameClass ...)
+              ((~datum BoundLHS) target:QualNameOrAtomClass joins:QualNameClass ...)
               op:CompareOpClass
               rhs:BoundUnionClass) ; TODO joins
-      #:attr translate #'(Expr target op rhs.translate)))
+      #:attr translate #'(Expr target op rhs.translate))
+    ; cardinality bound -- single relation
+    (pattern ((~datum Bound)  ; or backquote name
+              ((~datum BoundLHS) "#" target:QualNameOrAtomClass)
+              op:CompareOpClass
+              rhs:NumberClass) 
+      #:attr translate #'(Expr (Expr "#" target) op rhs.translate)))
 
 
   
