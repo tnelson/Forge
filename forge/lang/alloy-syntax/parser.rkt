@@ -267,9 +267,16 @@ Number : NUM-CONST-TOK
 ; Inst/Example Bounds
 ; Note: don't use "EQUAL-TOK" here; it is in scope but not "="
 ; TODO: plus
+
+; QualName if providing an identifier that refers to an inst declaration, possibly with "exactly"
 Bounds : /LEFT-CURLY-TOK Bound* /RIGHT-CURLY-TOK
+        | [EXACTLY-TOK] QualName
+
 ; Allow more permissive language here (technically only EQ-TOK, IN-TOK, NI-TOK allowed)
 Bound : BoundLHS CompareOp BindTupleUnion
+        | NO-TOK BoundLHS
+        | QualName ; if providing an identifier that refers to an inst declaration (no exactly)
+
 BoundLHS : [CARD-TOK] (QualName | AtomName) (/DOT-TOK QualName)*
 AtomName : BACKQUOTE-TOK Name | Number
 BindTupleUnion : BindTuple

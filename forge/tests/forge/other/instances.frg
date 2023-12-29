@@ -12,16 +12,12 @@ sig BasicB {
 }
 
 -- Empty Inst
-/* Apparently Empty Insts don't work? 
-   Idk why you would want them but interesting.
 inst emptyInst {}
-
 test expect {
     emptyInstSat : {} for emptyInst is sat
     emptyInstIsPartial : { #BasicA = 1 } for emptyInst is sat
     emptyInstExact : { #BasicA = 1 } for exactly emptyInst is sat
 }
-*/
 
 -- Basic Insts
 inst basicInst {
@@ -46,10 +42,10 @@ inst basicInst_froglet_syntax_permissive {
 test expect Basic {
     satsifiableInstBasic : {} for basicInst is sat
     sigsCorrect : { not (#BasicA = 3 and #BasicB = 3) } for basicInst is unsat
-    relationsCorrect : { not (
-            (friendA = BasicA->BasicA & iden) and 
-            (#friendB = 2))
-        } for basicInst is unsat
+     relationsCorrect : { not (
+             (friendA = BasicA->BasicA & iden) and 
+             (#friendB = 2))
+         } for basicInst is unsat
 }
 
 -- Empty Sig Insts

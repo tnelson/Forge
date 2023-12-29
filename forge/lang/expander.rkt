@@ -481,7 +481,15 @@
               ;(~optional "exactly")
               bounds:BoundClass ...)
       #:attr translate (datum->syntax #'(bounds ...)
-                                      (syntax->list #'(bounds.translate ...)))))
+                                      (syntax->list #'(bounds.translate ...))))
+    ; direct use in the example, test, run, etc.
+    ; `example` macro splices the result in. Hence, not #'(Expr name).
+    ; `test` macro does not splice. 
+    (pattern ((~datum Bounds)
+              (~optional "exactly")
+              name:QualNameClass)
+      #:attr translate (datum->syntax #'name
+                                      (list #'name.name))))
 
   (define-syntax-class QualNameOrAtomClass
      #:description "name or atom name"
@@ -498,19 +506,28 @@
   
   (define-syntax-class BoundClass
      #:description "bind declaration"
-    ; tuple bounds
+    ; tuple bounds:  LHS = UNION
     (pattern ((~datum Bound)  
               lhs:BoundLHSClass
               op:CompareOpClass
               rhs:BoundUnionClass)
       #:attr translate #'(Expr lhs.translate op rhs.translate))
 
-    ; cardinality bound -- single relation
+    ; cardinality bound (single relation): #LHS = N
     (pattern ((~datum Bound)  ; or backquote name
               ((~datum BoundLHS) "#" target:QualNameClass)
-              op:CompareOpClass
               rhs:NumberClass) 
-      #:attr translate #'(Expr (Expr "#" target) op rhs)))
+      #:attr translate #'(Expr (Expr "#" target) op rhs))
+    
+    ; "no" bound: no LHS
+    (pattern ((~datum Bound) (~datum "no") 
+              ((~datum BoundLHS) target:QualNameClass)) 
+      #:attr translate #'(Expr "no" (Expr target)))
+
+    ; identifier: re-use of `inst` defined
+    (pattern ((~datum Bound)  
+              name:QualNameClass)
+      #:attr translate #'(Expr name)))
 
   (define-syntax-class BoundUnionClass
      #:description "RHS of a bind declaration"
@@ -992,6 +1009,7 @@
        (syntax/loc stx (disambiguate-block (list exprs ...))))]))
 
 (define-syntax (Expr stx)
+  ;(printf "Debug: Expr: ~a~n" stx)
   (syntax-parse stx
   [((~datum Expr) "let" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (let decls.translate bob.exprs))]
@@ -1198,8 +1216,8 @@
   [((~datum Expr) block:BlockClass)
    (my-expand (syntax/loc stx block))]
 
-  [((~datum Expr) sexpr:SexprClass)
-   (syntax/loc stx (read sexpr))]))
+    [((~datum Expr) sexpr:SexprClass)
+     (syntax/loc stx (read sexpr))]))
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't

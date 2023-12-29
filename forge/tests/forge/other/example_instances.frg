@@ -41,9 +41,15 @@ example smallExample_renaming is {symmetricSize2} for {
 }
 
 -- Check Froglet syntax variant for example bounds
--- TODO: check for `inst` as well
 example smallExample_renaming_check_froglet_stx is {symmetricSize2} for {
     Person = (`P4 + `P6)
     partner = (`P4 , `P6) + `P6 -> `P4 
 }
 
+-- Check that Froglet syntax works in `inst`,
+-- and that an inst can be used directly in example syntax
+inst smallex_froglet {
+    Person = (`P4 + `P6)
+    partner = (`P4 , `P6) + `P6 -> `P4 
+}
+example smallExample_size2_indirect is {symmetricSize2} for smallex_froglet
