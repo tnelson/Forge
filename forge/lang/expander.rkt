@@ -476,31 +476,66 @@
               name:QualNameClass ...)))
 
   (define-syntax-class BoundsClass
+     #:description "bounds declarations"
     (pattern ((~datum Bounds)
-              (~optional "exactly")
+              ;(~optional "exactly")
               bounds:BoundClass ...)
       #:attr translate (datum->syntax #'(bounds ...)
-                                      (syntax->list #'(bounds ...)))))
+                                      (syntax->list #'(bounds.translate ...)))))
 
   (define-syntax-class QualNameOrAtomClass
-    (pattern (name:QualNameClass)
-      #:attr translate #'(Expr target op rhs.translate)))
+     #:description "name or atom name"
+    (pattern name:QualNameClass
+      #:attr translate #'name)
+    (pattern ((~datum AtomName) "`" name:NameClass)
+      #:attr translate #'(Expr "`" name)))
+  
+  (define-syntax-class BoundLHSClass
+    #:description "left-hand-side of a bind declaration"
+    (pattern ((~datum BoundLHS) target:QualNameOrAtomClass (~optional maybe-join:QualNameClass))
+      #:attr translate #'(Expr target.translate)))
+   ; TODO joins
   
   (define-syntax-class BoundClass
+     #:description "bind declaration"
     ; tuple bounds
-    (pattern ((~datum Bound)  ; or backquote name
-              ((~datum BoundLHS) target:QualNameOrAtomClass joins:QualNameClass ...)
+    (pattern ((~datum Bound)  
+              lhs:BoundLHSClass
               op:CompareOpClass
-              rhs:BoundUnionClass) ; TODO joins
-      #:attr translate #'(Expr target op rhs.translate))
+              rhs:BoundUnionClass)
+      #:attr translate #'(Expr lhs.translate op rhs.translate))
+
     ; cardinality bound -- single relation
     (pattern ((~datum Bound)  ; or backquote name
-              ((~datum BoundLHS) "#" target:QualNameOrAtomClass)
+              ((~datum BoundLHS) "#" target:QualNameClass)
               op:CompareOpClass
               rhs:NumberClass) 
-      #:attr translate #'(Expr (Expr "#" target) op rhs.translate)))
+      #:attr translate #'(Expr (Expr "#" target) op rhs)))
 
+  (define-syntax-class BoundUnionClass
+     #:description "RHS of a bind declaration"
+    (pattern ((~datum BindTupleUnion)
+              tup:BindTupleClass)
+      #:attr translate #'tup.translate)
+    (pattern ((~datum BindTupleUnion)
+              tups:BoundUnionClass
+              tup:BindTupleClass)
+      #:attr translate #'(Expr tups.translate "+" tup.translate))
+    (pattern ((~datum BindTupleUnion)
+              tups1:BoundUnionClass
+              tups2:BoundUnionClass) 
+      #:attr translate #'(Expr tups1.translate "+" tups2.translate)))
 
+  (define-syntax-class BindTupleClass
+     #:description "bind tuple"
+    (pattern ((~datum BindTuple)
+              atom:QualNameOrAtomClass) 
+      #:attr translate #'atom.translate)
+    (pattern ((~datum BindTuple)
+              tup:BindTupleClass
+              atom:QualNameOrAtomClass) 
+      #:attr translate #'(Expr tup.translate (ArrowOp "->") atom.translate)))
+  
   
   ; EXPRESSIONS
 

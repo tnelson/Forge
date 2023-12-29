@@ -1,8 +1,6 @@
 #lang forge
 
 option run_sterling off
-
-
 option verbose 0
 
 sig BasicA {
@@ -33,6 +31,17 @@ inst basicInst {
     friendA = `BasicA1->`BasicA1 + `BasicA2->`BasicA2 + `BasicA3->`BasicA3
     friendB = `BasicB1->`BasicA2->`BasicB3 + `BasicB2->`BasicA3->`BasicB2
 }
+
+inst basicInst_froglet_syntax_permissive {
+    BasicA = `BasicA1 + `BasicA2 + `BasicA3
+    BasicB = `BasicB1 + `BasicB2 + `BasicB3
+
+    friendA = (`BasicA1->`BasicA1) + `BasicA2->`BasicA2 + `BasicA3->`BasicA3
+    -- Abuse of the syntax, but checking for permissiveness
+    friendB = (`BasicB1,`BasicA2)->`BasicB3 + 
+              (`BasicB2->`BasicA3,`BasicB2)
+}
+
 
 test expect Basic {
     satsifiableInstBasic : {} for basicInst is sat

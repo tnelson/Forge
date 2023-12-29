@@ -39,3 +39,11 @@ example smallExample_renaming is {symmetricSize2} for {
     Person = `P4 + `P6
     partner = `P4 -> `P6 + `P6 -> `P4 
 }
+
+-- Check Froglet syntax variant for example bounds
+-- TODO: check for `inst` as well
+example smallExample_renaming_check_froglet_stx is {symmetricSize2} for {
+    Person = (`P4 + `P6)
+    partner = (`P4 , `P6) + `P6 -> `P4 
+}
+
