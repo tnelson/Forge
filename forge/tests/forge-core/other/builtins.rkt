@@ -11,6 +11,9 @@
 (relation edges (Node Node))
 (relation nodeList (Int Node))
 
+;; foo is a procedure that needs at least 2 args (?????)
+(define foo (reachable Node Node edges))
+
 (pred Reach (reachable Node Node edges))
 (pred SeqTest (&&
                (isSeqOf nodeList Node)))

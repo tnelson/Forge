@@ -491,17 +491,20 @@
       #:attr translate (datum->syntax #'name
                                       (list #'name.name))))
 
-  (define-syntax-class QualNameOrAtomClass
-     #:description "name or atom name"
+  (define-syntax-class QualNameOrAtomOrAtomizedNumberClass
+     #:description "name, atom name, or number"
     (pattern name:QualNameClass
-      #:attr translate #'name)
-    (pattern ((~datum AtomName) "`" name:NameClass)
-      #:attr translate #'(Expr "`" name)))
+      #:attr translate #'(Expr name))
+    (pattern ((~datum AtomNameOrNumber) "`" name:NameClass)
+      #:attr translate #'(Expr "`" name))
+    (pattern ((~datum AtomNameOrNumber) num:NumberClass)
+      #:attr translate #'(Expr (Const num))))
   
   (define-syntax-class BoundLHSClass
     #:description "left-hand-side of a bind declaration"
-    (pattern ((~datum BoundLHS) target:QualNameOrAtomClass (~optional maybe-join:QualNameClass))
-      #:attr translate #'(Expr target.translate)))
+    (pattern ((~datum BoundLHS) target:QualNameClass
+                                (~optional maybe-join:QualNameClass))
+      #:attr translate #'(Expr target)))
    ; TODO joins
   
   (define-syntax-class BoundClass
@@ -510,14 +513,15 @@
     (pattern ((~datum Bound)  
               lhs:BoundLHSClass
               op:CompareOpClass
-              rhs:BoundUnionClass)
+              rhs:BindRHSUnionClass)
       #:attr translate #'(Expr lhs.translate op rhs.translate))
 
     ; cardinality bound (single relation): #LHS = N
     (pattern ((~datum Bound)  ; or backquote name
               ((~datum BoundLHS) "#" target:QualNameClass)
-              rhs:NumberClass) 
-      #:attr translate #'(Expr (Expr "#" target) op rhs))
+              op:CompareOpClass
+              rhs:BindRHSUnionClass) 
+      #:attr translate #'(Expr (Expr "#" (Expr target)) op rhs.translate))
     
     ; "no" bound: no LHS
     (pattern ((~datum Bound) (~datum "no") 
@@ -529,30 +533,50 @@
               name:QualNameClass)
       #:attr translate #'(Expr name)))
 
-  (define-syntax-class BoundUnionClass
-     #:description "RHS of a bind declaration"
-    (pattern ((~datum BindTupleUnion)
-              tup:BindTupleClass)
+  (define-syntax-class BindRHSUnionClass
+     #:description "union in right-hand-side of a bind declaration"
+    (pattern ((~datum BindRHSUnion)
+              tup:BindRHSProductClass)
       #:attr translate #'tup.translate)
-    (pattern ((~datum BindTupleUnion)
-              tups:BoundUnionClass
-              tup:BindTupleClass)
-      #:attr translate #'(Expr tups.translate "+" tup.translate))
-    (pattern ((~datum BindTupleUnion)
-              tups1:BoundUnionClass
-              tups2:BoundUnionClass) 
-      #:attr translate #'(Expr tups1.translate "+" tups2.translate)))
 
-  (define-syntax-class BindTupleClass
-     #:description "bind tuple"
-    (pattern ((~datum BindTuple)
-              atom:QualNameOrAtomClass) 
-      #:attr translate #'atom.translate)
-    (pattern ((~datum BindTuple)
-              tup:BindTupleClass
-              atom:QualNameOrAtomClass) 
-      #:attr translate #'(Expr tup.translate (ArrowOp "->") atom.translate)))
+    ; "union -> product"
+    (pattern ((~datum BindRHSUnion)
+              tups:BindRHSUnionClass
+              tup:BindRHSProductClass)
+      #:attr translate #'(Expr tups.translate "+" tup.translate))
+    (pattern ((~datum BindRHSUnion)
+              tups1:BindRHSUnionClass
+              tups2:BindRHSUnionClass) 
+      #:attr translate #'(Expr tups1.translate "+" tups2.translate)))
   
+  (define-syntax-class BindRHSProductClass
+     #:description "product in right-hand-side of a bind declaration"
+    (pattern ((~datum BindRHSProduct)
+              union:BindRHSUnionClass) 
+      #:attr translate #'union.translate)
+    (pattern ((~datum BindRHSProduct)
+              atom:QualNameOrAtomOrAtomizedNumberClass) 
+      #:attr translate #'atom.translate)
+
+    ; "product -> atom" or "atom -> product"
+    (pattern ((~datum BindRHSProduct)
+              tup:BindRHSProductClass
+              atom:QualNameOrAtomOrAtomizedNumberClass) 
+      #:attr translate #'(Expr tup.translate (ArrowOp "->") atom.translate))
+    (pattern ((~datum BindRHSProduct)
+              atom:QualNameOrAtomOrAtomizedNumberClass
+              tup:BindRHSProductClass) 
+      #:attr translate #'(Expr atom.translate (ArrowOp "->") tup.translate))
+
+    ; "union -> product" or "product -> union"
+    (pattern ((~datum BindRHSProduct)
+              union1:BindRHSUnionClass
+              product2:BindRHSProductClass) 
+      #:attr translate #'(Expr union1.translate (ArrowOp "->") product2.translate))
+    (pattern ((~datum BindRHSProduct)
+              product1:BindRHSProductClass
+              union2:BindRHSUnionClass) 
+      #:attr translate #'(Expr product1.translate (ArrowOp "->") union2.translate)))
   
   ; EXPRESSIONS
 
@@ -1277,3 +1301,15 @@
 ;           | /BREAK-TOK Expr /COLON-TOK @NameList
 ; InstanceDecl : INSTANCE-TOK
 ; QueryDecl : @Name /COLON-TOK ArrowExpr /EQ-TOK Expr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Helper(s) for debugging syntax class nesting
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-syntax (debug stx)
+  (syntax-parse stx
+    [(_ x:BindRHSProductClass) #'x.translate]
+    [(_ x:BindRHSUnionClass) #'x.translate]
+    [(_ x:QualNameOrAtomOrAtomizedNumberClass) #'x.translate]
+    [(_ x:NumberClass) #'x.value]))
+

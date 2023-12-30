@@ -273,16 +273,24 @@ Bounds : /LEFT-CURLY-TOK Bound* /RIGHT-CURLY-TOK
         | [EXACTLY-TOK] QualName
 
 ; Allow more permissive language here (technically only EQ-TOK, IN-TOK, NI-TOK allowed)
-Bound : BoundLHS CompareOp BindTupleUnion
+AtomNameOrNumber : BACKQUOTE-TOK Name | Number
+Bound : BoundLHS CompareOp BindRHSUnion
         | NO-TOK BoundLHS
         | QualName ; if providing an identifier that refers to an inst declaration (no exactly)
+BoundLHS : [CARD-TOK] (QualName | AtomNameOrNumber) (/DOT-TOK QualName)*
 
-BoundLHS : [CARD-TOK] (QualName | AtomName) (/DOT-TOK QualName)*
-AtomName : BACKQUOTE-TOK Name | Number
-BindTupleUnion : BindTuple
-            | BindTupleUnion /PLUS-TOK BindTuple
-            | /LEFT-PAREN-TOK @BindTupleUnion /RIGHT-PAREN-TOK
+; Union context
+BindRHSUnion : BindRHSProduct
+             | BindRHSUnion /PLUS-TOK BindRHSProduct
+             | /LEFT-PAREN-TOK @BindRHSUnion /RIGHT-PAREN-TOK
 
-BindTuple :   /LEFT-PAREN-TOK @BindTuple /RIGHT-PAREN-TOK
-            | BindTuple (/COMMA-TOK | /ARROW-TOK) AtomName
-            | AtomName
+; Tuple context
+BindRHSProduct : /LEFT-PAREN-TOK @BindRHSProduct /RIGHT-PAREN-TOK
+               | BindRHSProduct (/COMMA-TOK | /ARROW-TOK) @BindRHSProductBase
+               | @BindRHSProductBase
+
+; Base case for tuple context to help avoid ambiguity 
+BindRHSProductBase : AtomNameOrNumber
+                   | QualName   ; a Sig identifier (later, will check it has been bound)
+                   ; Do not splice this non-terminal; it's needed to indicate switch in cases
+                   | /LEFT-PAREN-TOK BindRHSUnion /RIGHT-PAREN-TOK ; e.g., "Node -> (0 + 1) -> Node"

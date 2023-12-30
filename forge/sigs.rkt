@@ -423,6 +423,7 @@
 ; Two cases: one with args, and one with no args
 (define-syntax (pred stx)
   (syntax-parse stx
+    ; no decls: predicate is already the AST node value, without calling it
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
@@ -431,10 +432,14 @@
          (begin
            ; use srcloc of actual predicate, not this location in sigs
            ; "pred spacer" still present, even if no arguments, to consistently record use of a predicate
+           (printf "about to define name: ~a; conds: ~a~n" 'name '(conds ...))
+           (printf "def will be: ~a~n" 'name
+                   (&&/info the-info conds ...))
            (define name
              (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))
            (update-state! (state-add-pred curr-state 'name name)))))]
-    
+
+    ; some decls: predicate must be called to evaluate it
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            (name:id decls:param-decl-class  ...+) conds:expr ...+)
@@ -447,7 +452,8 @@
                (error (format "Argument '~a' to pred ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
                               'decls.name 'name decls.name)))
              ...
-             (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...) (&&/info the-info conds ...))))                      
+             (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...)
+                                             (&&/info the-info conds ...))))                      
            (update-state! (state-add-pred curr-state 'name name)))))]))
 
 (define/contract (repeat-product expr count)
@@ -1081,9 +1087,10 @@ Now with functional forge, do-bind is used instead
 
 (define (union-relations loc r)
   (cond
-    [(empty? r) (raise-user-error "contact course staff. Shouldn't have union of none")]
+    [(empty? r) (raise-user-error "Unexpected: union-relations given no arguments. Please report this error.")]
     [(empty? (rest r)) (first r)]
     [else (+/info (nodeinfo loc 'checklangNoCheck) (first r) (union-relations loc (rest r)))]))
+
   ; (in a (join b (^ r))))
 ; (define (reachable a b r)
 ;   (reachable2 a b r))
