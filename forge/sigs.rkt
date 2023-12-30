@@ -432,9 +432,6 @@
          (begin
            ; use srcloc of actual predicate, not this location in sigs
            ; "pred spacer" still present, even if no arguments, to consistently record use of a predicate
-           (printf "about to define name: ~a; conds: ~a~n" 'name '(conds ...))
-           (printf "def will be: ~a~n" 'name
-                   (&&/info the-info conds ...))
            (define name
              (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))
            (update-state! (state-add-pred curr-state 'name name)))))]
