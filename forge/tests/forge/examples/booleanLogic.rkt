@@ -91,12 +91,12 @@ test expect fancyBoundsExpectBlockName {
     for 5 Formula
     for {    
         Var = `Var0 + `Var1 + `Var2
-        Not = none
+        no Not
         And = `And0
         Or =  `Or0        
         Formula = `Var0 + `Var1 + `And0 + `Or0 + `Var2
-        Instance = none
-        child = none->none    
+        no Instance
+        no child
         oleft = `Or0->`Var0
         oright = `Or0->`Var0
         aleft = `And0->`Var0
@@ -111,8 +111,8 @@ test expect fancyBoundsExpectBlockName {
         And = `And0
         Or =  `Or0        
         Formula = `Var0 + `Var1 + `And0 + `Or0 + `Var2
-        Instance = none
-        child = none->none    
+        no Instance
+        no child
         oleft = `Or0->`Var0
         oright = `Or0->`Var0
         aleft = `And0->`Var0
@@ -123,12 +123,12 @@ test expect fancyBoundsExpectBlockName {
     for 5 Formula
     for {    
         Var = `Var0 + `Var1 + `Var2
-        Not = none
+        no Not
         And = `And0
         Or =  `Or0        
         Formula = `Var0 + `Var1 + `And0 + `Or0 + `Var2
-        Instance = none
-        child = none->none    
+        no Instance
+        no child
         oleft = `Or0->`Var0
         oright = `Or0->`Var0
         aleft = `And0->`Var0
@@ -139,12 +139,12 @@ test expect fancyBoundsExpectBlockName {
     for 4 Formula
     for {    
         Var = `Var0 + `Var1
-        Not = none
+        no Not
         And = `And0
         Or =  `Or0
         Formula = `Var0 + `Var1 + `And0 + `Or0
-        Instance = none
-        child = none->none    
+        no Instance
+        no child
         oleft = `Or0->`Var0
         oright = `Or0->`Var0
         aleft = `And0->`Var0
@@ -159,7 +159,7 @@ test expect fancyBoundsExpectBlockName {
         And = `And0
         Or = `Or0
         Formula = `Var0 + `Not0 + `And0 + `Or0
-        Instance = none
+        no Instance
         child = `Not0->`Var0
         oleft = `Or0->`Var0
         oright = `Or0->`Var0

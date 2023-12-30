@@ -16,36 +16,31 @@ sig Thing {} -- for testing parse/expand of #X = N
 
 example moveMiddleFirst is {wellformed} for
 {
-  Board = `Board0
+  Board = `Board0 + `Board1 -- Board1 is just for confirming that grouping works.
   Player = `X + `O
   -- TODO: infer these
   X = `X
   O = `O
-  -- TODO: limited dots
-  -- TODO: comma as product  
+  
+  -- TODO: Froglet errors, not just errors of last resort
   `Board0.board = (1, 1)   -> `X +
                   (1 -> 2) -> `O +
                   1 -> 0   -> `X 
-          
+  `Board1.board = (2, 2)   -> `X +
+                  (1 -> 2) -> `O +
+                  1 -> 0   -> `X
+                  
+  -- The above should be equivalent to:
+  --board = `Board0 -> (1, 1)   -> `X +
+  --        `Board0 -> (1 -> 2) -> `O +
+  --        `Board0 -> 1 -> 0   -> `X
+  --        +
+  --        `Board1 -> (2, 2)   -> `X +
+  --        `Board1 -> (1 -> 2) -> `O +
+  --        `Board1 -> 1 -> 0   -> `X
+
+  -- Q: do we support "in"/"ni" in this form?
+  
+
   #Thing = 3
 } 
-
-/*
-  Parsing notes
-
-  If a Bound has a block, which is a sequence of 0 or more Exprs, and it's possible to end
-  an Expr with ;, this must be ambiguous:
-
-  board = 
-    `Board0 -> 1 -> 1 -> `X ;
-    `Board0 -> 1 -> 2 -> `O ;
-
-  (board = 
-    `Board0 -> 1 -> 1 -> `X ;)
-    `Board0 -> 1 -> 2 -> `O ;
-  vs. 
-  (board = 
-    `Board0 -> 1 -> 1 -> `X ;
-    `Board0 -> 1 -> 2 -> `O ;)
-
-*/

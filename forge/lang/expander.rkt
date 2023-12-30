@@ -497,15 +497,18 @@
       #:attr translate #'(Expr name))
     (pattern ((~datum AtomNameOrNumber) "`" name:NameClass)
       #:attr translate #'(Expr "`" name))
-    (pattern ((~datum AtomNameOrNumber) num:NumberClass)
-      #:attr translate #'(Expr (Const num))))
+    (pattern ((~datum AtomNameOrNumber) (~optional (~and "-" minus-tok)) num:NumberClass)
+      #:attr translate #'(Expr (Const (~? minus-tok) num))))
   
   (define-syntax-class BoundLHSClass
     #:description "left-hand-side of a bind declaration"
-    (pattern ((~datum BoundLHS) target:QualNameClass
-                                (~optional maybe-join:QualNameClass))
-      #:attr translate #'(Expr target)))
-   ; TODO joins
+    ; No join, relation name only on LHS
+    (pattern ((~datum BoundLHS) target:QualNameClass)
+      #:attr translate #'(Expr target))
+    ; Join, atom name dotted with field name
+    (pattern ((~datum BoundLHS) ((~datum AtomNameOrNumber) "`" atom:NameClass)
+                                field:QualNameClass)
+      #:attr translate #'(Expr (Expr "`" atom) "." (Expr field))))
   
   (define-syntax-class BoundClass
      #:description "bind declaration"

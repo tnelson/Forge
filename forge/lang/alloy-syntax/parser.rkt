@@ -273,11 +273,14 @@ Bounds : /LEFT-CURLY-TOK Bound* /RIGHT-CURLY-TOK
         | [EXACTLY-TOK] QualName
 
 ; Allow more permissive language here (technically only EQ-TOK, IN-TOK, NI-TOK allowed)
-AtomNameOrNumber : BACKQUOTE-TOK Name | Number
+AtomNameOrNumber : BACKQUOTE-TOK Name | Number | MINUS-TOK Number
 Bound : BoundLHS CompareOp BindRHSUnion
         | NO-TOK BoundLHS
         | QualName ; if providing an identifier that refers to an inst declaration (no exactly)
-BoundLHS : [CARD-TOK] (QualName | AtomNameOrNumber) (/DOT-TOK QualName)*
+
+BoundLHS : CARD-TOK QualName
+         | QualName
+         | AtomNameOrNumber (/DOT-TOK QualName)+
 
 ; Union context
 BindRHSUnion : BindRHSProduct
