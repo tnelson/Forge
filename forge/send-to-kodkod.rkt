@@ -625,12 +625,14 @@
                                       (curry hash-ref sig-to-bound )
                                       Sig-name) 
                              sigs))
-      ; (printf "~a: sig-atoms : ~a~n" relation sig-atoms)
-      ; (printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
-      ; (printf "~a: raw lower : ~a~n" relation (get-bound-lower relation))      
+       ;(printf "~a: sig-atoms : ~a~n" relation sig-atoms)
+       ;(printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
+       ;(printf "~a: raw lower : ~a~n" relation (get-bound-lower relation))
+      
       (define upper                   
         (let ([bound-upper (get-bound-upper relation)])
             (cond [bound-upper
+                   ;(printf "found upper bound for ~a. Was ~a~n" relation bound-upper)
                    (set->list (set-intersect bound-upper
                                              (list->set (apply cartesian-product sig-atoms))))]
                   [else

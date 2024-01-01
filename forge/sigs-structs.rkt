@@ -81,6 +81,9 @@
 ;     Incomplete bounds are seen in piecewise definitions, where a user may use one bind declaration
 ;     to bound the value of a field for a specific atom; values for other atoms may be provided later.
 
+; The structs below define an intermediate representation; the Kodkod bounds (produced in
+; forge/send-to-kodkod) are what is actually sent to the solver.
+
 ; A Range contains the minimum and maximum scope for a relation.
 (struct/contract Range (
   [lower (or/c nonnegative-integer? #f)]

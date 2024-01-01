@@ -273,7 +273,7 @@
            (define former-pwb (hash-ref piecewise-binds the-relation))
            (unless (equal? op (PiecewiseBound-operator former-pwb))
              (fail (format "mixed operators not allowed in piecewise bounds; expected ~a, got ~a" (PiecewiseBound-operator former-pwb op))))
-
+           
            ; Consistency check for this combination of atom and relation; disallow re-binding.           
            (when (member the-atom (PiecewiseBound-atoms former-pwb))
              (fail (format "rebinding detected for ~a.~a; this is not allowed." the-atom the-relation)))
@@ -281,10 +281,10 @@
            (define new-tuples (append (PiecewiseBound-tuples former-pwb)
                                       (for/list ([tup the-tuples]) (cons the-atom the-tuples))))
            (printf "new tuples (prior): ~a~n" new-tuples)
-           (hash-set piecewise-binds the-relation (PiecewiseBound new-tuples op (cons the-atom (PiecewiseBound-atoms former-pwb))))]
+           (hash-set piecewise-binds the-relation (PiecewiseBound new-tuples (cons the-atom (PiecewiseBound-atoms former-pwb)) op))]
           [else
            (printf "new tuples (new): ~a~n" (for/list ([tup the-tuples]) (cons the-atom the-tuples)))
-           (hash-set piecewise-binds the-relation (PiecewiseBound (for/list ([tup the-tuples]) (cons the-atom the-tuples)) op (list the-atom)))]))
+           (hash-set piecewise-binds the-relation (PiecewiseBound (for/list ([tup the-tuples]) (cons the-atom the-tuples)) (list the-atom) op))]))
   
   (match bind
     
@@ -549,14 +549,25 @@
   (for/list ([rel (hash-keys piecewise)])
     (when (or (hash-has-key? (Bound-tbindings bounds) rel)
               (hash-has-key? (Bound-pbindings bounds) rel))
-      (raise (error "Piecewise bounds (on ~a) may not be combined with complete bounds; remove one or the other." rel))))
-  ;   * Combine and add to bounds:
-  (for/list ([rel (hash-keys piecewise)])
-    ;; TODO: WHICH ONE? pbindings or tbindings?
-    (void))
+      (raise (error (format "Piecewise bounds (on ~a) may not be combined with complete bounds; remove one or the other." rel)))))
+  ;   * Add to bounds:
+  (define bounds-with-piecewise
+    (for/fold ([bs bounds])
+              ([rel (hash-keys piecewise)])
+      (define pwb (hash-ref piecewise rel))
+      (define tups (PiecewiseBound-tuples pwb))
+      (cond [(equal? '= (PiecewiseBound-operator pwb))
+             (update-bindings bs rel tups tups)] 
+            [(equal? 'in (PiecewiseBound-operator pwb))
+             (update-bindings bs rel #f tups)]
+            [(equal? 'ni (PiecewiseBound-operator pwb))
+             (update-bindings bs rel tups #f)]
+            [else 
+             (raise (error (format "unsupported comparison operator; got ~a, expected =, ni, or in" (PiecewiseBound-operator pwb))))])))
    
+  (printf "bounds with piecewise:~nPBIND=~a~nTBIND=~a~n" (Bound-pbindings bounds-with-piecewise) (Bound-tbindings bounds-with-piecewise))
   
-  (define spec (Run-spec state preds scope bounds target))        
+  (define spec (Run-spec state preds scope bounds-with-piecewise target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
                  (send-to-kodkod spec command #:run-name name))
   
@@ -907,10 +918,15 @@
     (raise (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
                    rel lower upper)))
 
+
+; TODO: symbol, rather than (atom symbol)? Where are these getting converted OUTSIDE the piecewise declarations?
+ ; (lack of set intersection because the atoms list doesn't overlap, since (atom X) and X are different)
+  
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))
 
   ; when exact bounds, put in bindings
+  (printf "update-bindings; equal lower and upper? ~a~n" (equal? lower upper))
   (define new-tbindings 
     (if (equal? lower upper) 
         (hash-set old-tbindings rel (set->list lower))

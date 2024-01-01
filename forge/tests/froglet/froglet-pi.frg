@@ -14,7 +14,7 @@ pred wellformed {
 
 sig Thing {} -- for testing parse/expand of #X = N
 
-example moveMiddleFirst is {wellformed} for
+inst my_instance
 {
   Board = `Board0 + `Board1 -- Board1 is just for confirming that grouping works.
   Player = `X + `O
@@ -39,5 +39,29 @@ example moveMiddleFirst is {wellformed} for
   --        `Board1 -> (1 -> 2) -> `O +
   --        `Board1 -> 1 -> 0   -> `X    
 
-  #Thing = 3
-} 
+  #Thing = 1
+}
+
+
+//example moveMiddleFirst is {wellformed} for my_instance
+
+option verbose 5
+
+-- test that semantics of piecewise-bounds syntax are consistent, cardinality works, etc.
+test expect {
+  my_instance_sat: {} for my_instance is sat
+  card_semantics: {#Thing = 1} for my_instance is theorem
+  piecewise_semantics: {
+    some disj b0, b1: Board | {
+      b0.board[1][1] = X
+      b0.board[1][2] = O
+      b0.board[1][0] = X
+      b1.board[2][2] = X
+      b1.board[1][2] = O
+      b1.board[1][0] = X
+      #b0.board = 3
+      #b1.board = 3
+    }
+  } for my_instance is theorem
+    
+}
