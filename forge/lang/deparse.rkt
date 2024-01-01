@@ -4,7 +4,7 @@
 ; the parenthetical default. Moving this into its own module simplifies ast.rkt, but
 ; induces a cyclic dependency, so this module is imported (in ast.rkt) via lazy-require. 
 
-(require "ast.rkt")
+(require forge/lang/ast)
 (require racket/match
          racket/list
          (only-in racket [<= @<=] [< @<]))

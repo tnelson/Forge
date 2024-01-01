@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
+(require forge/lang/bounds (prefix-in @ forge/lang/ast))
 (require predicates)
 (require (only-in racket false true set set-union set-intersect set->list list->set first rest
                          cartesian-product empty empty? set-add! mutable-set in-set subset?

@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "ast.rkt")
+(require forge/lang/ast)
 (require forge/sigs-structs)
 (require (for-syntax racket/syntax syntax/srcloc)
          syntax/srcloc)

@@ -1,5 +1,5 @@
 #lang racket/base
 
 (module reader racket
-  (require "lang/reader.rkt")
+  (require forge/testme/core/lang/reader)
   (provide read-syntax))

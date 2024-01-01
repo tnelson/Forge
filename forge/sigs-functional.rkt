@@ -15,21 +15,21 @@
          (only-in racket/list first range rest empty flatten)
          (only-in racket/set list->set set->list set-union set-intersect subset?))
 
-(require (except-in "lang/ast.rkt" ->)
-         (rename-in "lang/ast.rkt" [-> ast:->]) ; don't clash with define/contract
-         (only-in "sigs-structs.rkt" implies iff <=> ifte int>= int<= ni != !in !ni)
-         "breaks.rkt")
-(require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
-(require "server/eval-model.rkt")
-(require "server/forgeserver.rkt") ; v long
+(require (except-in forge/lang/ast ->)
+         (rename-in forge/lang/ast [-> ast:->]) ; don't clash with define/contract
+         (only-in forge/sigs-structs implies iff <=> ifte int>= int<= ni != !in !ni)
+         forge/breaks)
+(require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
+(require forge/server/eval-model)
+(require forge/server/forgeserver) ; v long
 (require forge/shared
-         "sigs-structs.rkt"
-         "evaluator.rkt"
-         "send-to-kodkod.rkt")
+         forge/sigs-structs
+         forge/evaluator
+         forge/send-to-kodkod)
 
-(require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
-         (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
-(require (prefix-in tree: "lazy-tree.rkt"))
+(require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
+         (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
+(require (prefix-in tree: forge/lazy-tree))
 
 ; Commands
 (provide make-sig make-relation make-inst)
@@ -49,9 +49,8 @@
 
 ; ; export AST macros and struct definitions (for matching)
 ; ; Make sure that nothing is double-provided
-;(require (except-in "lang/ast.rkt" ->))
 (provide (rename-out [ast:-> ->]))
-(provide (all-from-out "lang/ast.rkt"))
+(provide (all-from-out forge/lang/ast))
 
 ; ; Racket stuff
 (provide let quote)
@@ -74,13 +73,13 @@
          (prefix-out forge: (struct-out Run))         
          (prefix-out forge: (struct-out sbound)))
 
-(provide (all-from-out "sigs-structs.rkt"))
+(provide (all-from-out forge/sigs-structs))
 ; ; Export these from structs without forge: prefix
 (provide implies iff <=> ifte int>= int<= ni != !in !ni min max)
 
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
-(provide (all-from-out "lazy-tree.rkt"))
+(provide (all-from-out forge/lazy-tree))
 
 ; ; Export everything for doing scripting
 ; (provide (prefix-out forge: (all-defined-out)))
@@ -235,7 +234,7 @@
   (define result (eval-int-expr ie binding bitwidth))
   (caar (de-integer-atomize `((,result)))))
 
-
+; Functionally update "scope" and "bound" based on this "bind" declaration
 (define/contract (do-bind bind scope bound)
   (-> (or/c node/formula? node/breaking/op? Inst?)
       Scope?
@@ -245,13 +244,16 @@
   (define (fail [cond #f])
     (unless cond
       (raise (format "Invalid binding expression: ~a" bind))))
+
+  ; Lang-specific instance checker
   (define inst-checker-hash (get-inst-checker-hash))
   (define (inst-check formula to-handle)
     (when (hash-has-key? inst-checker-hash to-handle)
       ((hash-ref inst-checker-hash to-handle) formula)))
   
   (match bind
-    ; no rel, one rel, two rel, lone rel, some rel
+    
+    ; no rel, one rel, two rel, lone rel
     [(node/formula/multiplicity info mult rel)
      ; is it safe to use the info from above here?
      (let ([rel-card (node/int/op/card info (list rel))])
@@ -263,14 +265,10 @@
           ['lone
            (node/formula/op/|| info
                                    (list (node/formula/op/int< info (list rel-card 1))
-                                         (node/formula/op/int= info (list rel-card 1))))]
-          ; Why was some not in original sigs.rkt?? Does it need new tests?
-          #;['some
-             (node/formula/op/|| info
-                                     (list (node/formula/op/int= info (list rel-card 1))
-                                           (node/formula/op/int> info (list rel-card 1))))])
+                                         (node/formula/op/int= info (list rel-card 1))))])
         scope
         bound))]
+    
     ; (= (card rel) n)
     [(node/formula/op/int= eq-info (list left right))
      (match left
@@ -307,29 +305,6 @@
                [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
        [_ (fail "int>=")])]
-
-    ; (<= lower (card rel) upper)
-    ; Ask Tim is (<= a b c) equivalent to (and (<= a b) (<= a c))?
-    ; so then in the ast would this be
-    ; (node/formula/op/&& and-info
-    ;   (list (node/formula/op/|| or1-info
-    ;           (list (node/formula/op/int< lt1-info (list a b))
-    ;                 (node/formula/op/int= eq1-info (list a b))))
-    ;         (node/formula/op/|| or2-info
-    ;           (list (node/formula/op/int< lt2-info (list b c))
-    ;                 (node/formula/op/int= eq2-info (list b c))))))
-
-    ; need this in order to use some
-    ; [(node/formula/op/|| (node/formula/op/int> left1 right1)  ; TODO: Add lower bounds
-    ;                      (node/formula/op/int= left2 right2))
-    ;   (unless (@and (equal? left left) (equal? right1 right2))
-    ;     (fail "unexpected"))
-    ;   (match left
-    ;     [(node/int/op/card info left-rel)
-    ;       (let* ([upper-val (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
-    ;              [new-scope (update-int-bound scope rel (Range 0 upper-val))])
-    ;         (values new-scope bound))]
-    ;     [_ (fail "unexpected")])]
 
     ; Strategies
     [(node/breaking/op/is info (list left right))
@@ -373,13 +348,15 @@
           (values scope new-bound))]
        [else (fail "rel in")])]
 
-    ; original sigs.rkt has (cmp (join foc rel) expr) commented out here
+    ; TODO Add: atom.rel in expr
+    ;   needs accumulation !!!!!
 
     ; Bitwidth
     ; what does (Int n:nat) look like in the AST?
 
     [_ (fail "unsupported")]))
 
+; Create a new Inst struct; fold over all bind declarations in "binds".
 (define/contract (make-inst binds)
   (-> (listof (or/c node/formula? node/breaking/op? Inst?))
       Inst?)

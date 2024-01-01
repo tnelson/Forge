@@ -1,6 +1,8 @@
 #lang racket/base
 
-(require "lang/ast.rkt" "pardinus-cli/server/kks.rkt" "sigs-structs.rkt"
+(require forge/lang/ast
+         forge/pardinus-cli/server/kks
+         forge/sigs-structs
          (prefix-in @ (only-in racket >))
          (only-in racket index-of match string-join))
 

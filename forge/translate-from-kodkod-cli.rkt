@@ -1,7 +1,7 @@
 #lang racket/base
 
-(require (only-in "lang/ast.rkt" relation-name)
-         (only-in "lang/ast.rkt" univ)) 
+(require (only-in forge/lang/ast relation-name)
+         (only-in forge/lang/ast univ)) 
 (require forge/sigs-structs)
 (require (only-in racket curry first second third fourth fifth match-define))
 

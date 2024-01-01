@@ -1,16 +1,16 @@
 #lang racket/base
 
 (require forge/sigs-structs
-         "lang/ast.rkt"
-         "translate-to-kodkod-cli.rkt"
-         "translate-from-kodkod-cli.rkt")
-(require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
-         (prefix-in pardinus: "pardinus-cli/server/server.rkt")
-         (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
+         forge/lang/ast
+         forge/translate-to-kodkod-cli
+         forge/translate-from-kodkod-cli)
+(require (prefix-in pardinus: forge/pardinus-cli/server/kks)
+         (prefix-in pardinus: forge/pardinus-cli/server/server)
+         (prefix-in pardinus: forge/pardinus-cli/server/server-common))
 
 ; Enable dynamic check before sending query to Pardinus
-(require "last-checker.rkt"
-         "choose-lang-specific.rkt")
+(require forge/last-checker
+         forge/choose-lang-specific)
 
 (provide evaluate)
 

@@ -1,7 +1,7 @@
 #lang racket/base
 
 (module reader racket
-  (require "lang/reader.rkt")
+  (require forge/lang/reader)
   (provide read-syntax)
   
   (require (only-in (submod forge/main reader)

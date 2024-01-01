@@ -2,5 +2,5 @@
 
 
 (module reader racket
-  (require "lang/reader.rkt")
+  (require forge/lang/reader)
   (provide read-syntax))

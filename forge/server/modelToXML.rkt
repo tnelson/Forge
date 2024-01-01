@@ -1,8 +1,8 @@
 #lang racket/base
 
-(require "../lang/ast.rkt" racket/date xml racket/string
-         "../sigs-structs.rkt" ; for Sat/Unsat
-         "../shared.rkt"
+(require forge/lang/ast racket/date xml racket/string
+         forge/sigs-structs ; for Sat/Unsat
+         forge/shared
          (prefix-in @ (only-in racket and or not > - +))
          (only-in racket/port port->string)
          racket/hash

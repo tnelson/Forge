@@ -3,18 +3,18 @@
 ; Structures and helper functions for running Forge, along with some constants and
 ; configuration code (e.g., most options).
 
-(require (except-in "lang/ast.rkt" ->)
-         "lang/bounds.rkt"
-         "breaks.rkt"
+(require (except-in forge/lang/ast ->)
+         forge/lang/bounds
+         forge/breaks
          (only-in forge/shared get-verbosity VERBOSITY_HIGH))
 (require (prefix-in @ (only-in racket hash not +)) 
          (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
 (require racket/contract)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
-(require (prefix-in tree: "lazy-tree.rkt"))
+(require (prefix-in tree: forge/lazy-tree))
 (require syntax/srcloc)
-(require (prefix-in pardinus: (only-in "pardinus-cli/server/kks.rkt" clear cmd)))
+(require (prefix-in pardinus: (only-in forge/pardinus-cli/server/kks clear cmd)))
 
 (provide (all-defined-out))
 

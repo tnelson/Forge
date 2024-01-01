@@ -4,8 +4,8 @@
          read-syntax)
 
 (require syntax/parse)
-(require "alloy-syntax/parser.rkt")
-(require "alloy-syntax/tokenizer.rkt")
+(require forge/lang/alloy-syntax/parser)
+(require forge/lang/alloy-syntax/tokenizer)
 (require (prefix-in log: forge/logging/2023/main))
 (require forge/shared)
 (do-time "forge/lang/reader")

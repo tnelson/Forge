@@ -1,24 +1,26 @@
 #lang racket/base
 
-(require "sigs-structs.rkt")
-(require "breaks.rkt")
-(require "lang/ast.rkt")
-(require "lang/bounds.rkt")
+(require forge/sigs-structs)
+(require forge/breaks)
+(require forge/lang/ast)
+(require forge/lang/bounds)
 (require forge/shared
-         (prefix-in tree: "lazy-tree.rkt")         
-         "last-checker.rkt"
-         "choose-lang-specific.rkt"
-         "translate-to-kodkod-cli.rkt"
-         "translate-from-kodkod-cli.rkt")
+         (prefix-in tree: forge/lazy-tree)
+         forge/last-checker
+         forge/choose-lang-specific
+         forge/translate-to-kodkod-cli
+         forge/translate-from-kodkod-cli)
 (require (prefix-in @ (only-in racket/base >= not - = and or max > <))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? thunk*
                          remove-duplicates subset? cartesian-product match-define cons?)
           racket/hash)
-(require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
-         (prefix-in pardinus: "pardinus-cli/server/server.rkt")
-         (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
-(require "drracket-gui.rkt")
+(require (prefix-in pardinus: forge/pardinus-cli/server/kks)
+         (prefix-in pardinus: forge/pardinus-cli/server/server)
+         (prefix-in pardinus: forge/pardinus-cli/server/server-common))
+
+; Disable DrRacket GUI extension/tool
+;(require "drracket-gui.rkt")
 
 (provide send-to-kodkod)
 
@@ -336,23 +338,24 @@
     ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
     (define (do-core-highlight nd)
       (define loc (nodeinfo-loc (node-info nd)))
-      (if (is-drracket-linked?) 
-          (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
-          (begin
-            (when (@>= (get-verbosity) VERBOSITY_LOW)        
-              (printf "  Core contained location: ~a~n" (srcloc->string loc)))
-            (when (@>= (get-verbosity) VERBOSITY_HIGH)        
-              (pretty-print nd)))))
+      (when (@>= (get-verbosity) VERBOSITY_LOW)        
+        (printf "  Core contained location: ~a~n" (srcloc->string loc)))
+      (when (@>= (get-verbosity) VERBOSITY_HIGH)        
+        (pretty-print nd)))
+;      (if (is-drracket-linked?) 
+;          (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
+;          (begin
+;            )))
 
     (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
         (printf "core: ~a~n" (Unsat-core result)))
-      (cond [(is-drracket-linked?) 
-             (do-forge-unhighlight 'core)]
-            [else
-             (when (@>= (get-verbosity) VERBOSITY_LOW) 
-               (printf "No DrRacket linked, could not highlight core. Will print instead.~n"))])
+      (cond ;[(is-drracket-linked?) 
+        ; (do-forge-unhighlight 'core)]
+        [else
+         (when (@>= (get-verbosity) VERBOSITY_LOW) 
+           (printf "No DrRacket linked, could not highlight core. Will print instead.~n"))])
       (for-each do-core-highlight
                 (filter-map (λ (id)
                               (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])

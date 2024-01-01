@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require racket/generator (only-in "ast.rkt" relation-arity))
+(require racket/generator (only-in forge/lang/ast relation-arity))
 (require (only-in racket cartesian-product))
 (provide (all-defined-out))
 
