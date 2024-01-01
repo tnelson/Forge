@@ -37,10 +37,7 @@ example moveMiddleFirst is {wellformed} for
   --        +
   --        `Board1 -> (2, 2)   -> `X +
   --        `Board1 -> (1 -> 2) -> `O +
-  --        `Board1 -> 1 -> 0   -> `X
-
-  -- Q: do we support "in"/"ni" in this form?
-  
+  --        `Board1 -> 1 -> 0   -> `X    
 
   #Thing = 3
 } 

@@ -39,9 +39,10 @@
   [kind symbol?] ; symbol
   ) #:transparent)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Sigs and Relations enrich the "relation" AST node with
+; Forge-specific information, which often leads to added
+; constraints.
 
 (struct Sig node/expr/relation (
   name ; symbol?
@@ -63,30 +64,51 @@
   [(define (write-proc self port mode)
      (fprintf port "(Relation ~a)" (Relation-name self)))])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (struct/contract Range (
   [lower (or/c nonnegative-integer? #f)]
   [upper (or/c nonnegative-integer? #f)]
   ) #:transparent)
 
+; A Scope represents the numeric size limitations on sigs in a run.
 (struct/contract Scope (
   [default-scope (or/c Range? #f)]
   [bitwidth (or/c nonnegative-integer? #f)]
   [sig-scopes (hash/c symbol? Range?)]
   ) #:transparent)
 
+; A Bound represents the set-based size limitations on sigs and relations in a run.
+; Information from both Scope and Bounds will be combined when a run executes.
 (struct/contract Bound (
   [pbindings (hash/c node/expr/relation? sbound?)]
-  [tbindings (hash/c node/expr/relation? any/c)] ; (hash/c symbol? (listof symbol?))] ; TODO
+  [tbindings (hash/c node/expr/relation? any/c)] 
   ) #:transparent)
 
+; A PiecewiseBound represents an atom-indexed, incomplete partial bound. E.g., one might write:
+;   `Alice.father in `Bob + `Charlie
+;   `Bob.father in `Charlie + `David
+(struct/contract PiecewiseBound (
+  [tuples (listof any/c)]                  ; first element is the indexed atom in the original piecewise bounds
+  [atoms (listof any/c)]                   ; which atoms have been bound? (distinguish "given none" from "none given")
+  [operator (one-of/c '= 'in 'ni)]         ; which operator mode?
+  ) #:transparent)
+(define PiecewiseBounds/c (hash/c node/expr/relation? PiecewiseBound?))
+                                
+; An Inst function is an accumulator of bounds information. It doesn't (necessarily)
+; contain the full information about a run's scope, bounds, etc. Rather, it allows for
+; the aggregation of this info across multiple `inst` declarations.
 (struct/contract Inst (
-  [func (Scope? Bound? . -> . (values Scope? Bound?))]
+  [func (Scope? Bound? PiecewiseBounds/c . -> . (values Scope? Bound? PiecewiseBounds/c))]
   ) #:transparent)
 
+; A Target describes the goal of a target-oriented model-finding run.
 (struct/contract Target (
   [instance (hash/c symbol? (listof (listof symbol?)))]
   [distance (or/c 'close 'far)]
   ) #:transparent)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; If adding new option fields, remember to update all of:
 ;  -- DEFAULT_OPTIONS
