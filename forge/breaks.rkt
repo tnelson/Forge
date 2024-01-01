@@ -871,9 +871,9 @@
 
 ; use to prevent breaks
 (add-strategy 'default (λ (pri rel bound atom-lists rel-list [loc #f]) (breaker pri
-    (break-graph (set) (set))
-    (λ () 
-        (make-upper-break rel (apply cartesian-product atom-lists)))
+    (break-graph (set) (set))    
+    (λ ()      
+      (make-upper-break rel (list->set (apply cartesian-product atom-lists))))
     (λ () (break bound (set)))
 )))
 

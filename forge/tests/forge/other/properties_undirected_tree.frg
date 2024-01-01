@@ -38,8 +38,8 @@ test suite for isUndirected {
     }
 
     example empty is {isUndirected} for {
-        Node = none
-        edges = none->none
+        no Node 
+        no edges
     }
 
     example refl is {isUndirected} for {

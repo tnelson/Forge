@@ -1,4 +1,5 @@
 #lang forge/bsl
+option verbose 0
 
 abstract sig Player {}
 one sig X, O extends Player {}
@@ -16,7 +17,7 @@ sig Thing {} -- for testing parse/expand of #X = N
 
 inst my_instance
 {
-  Board = `Board0 + `Board1 -- Board1 is just for confirming that grouping works.
+  Board = `Board0 + `Board1 + `Board2 
   Player = `X + `O
   -- TODO: infer these
   X = `X
@@ -29,7 +30,7 @@ inst my_instance
   `Board1.board = (2, 2)   -> `X +
                   (1 -> 2) -> `O +
                   1 -> 0   -> `X
-                  
+                                    
   -- The above should be equivalent to:
   --board = `Board0 -> (1, 1)   -> `X +
   --        `Board0 -> (1 -> 2) -> `O +
@@ -39,13 +40,26 @@ inst my_instance
   --        `Board1 -> (1 -> 2) -> `O +
   --        `Board1 -> 1 -> 0   -> `X    
 
+  -- This is an error (cannot combine piecewise bounds with complete bounds)
+  -- no board 
+
+  -- This is an error (rebinding detected)
+  -- `Board0.board = (1, 1)   -> `X
+
+  -- `Board2.board is left unspecified, can vary
+
+  -- TODO: support "no `Board2.board"
+  -- TODO: test for in, ni
+  
   #Thing = 1
 }
 
 
-//example moveMiddleFirst is {wellformed} for my_instance
 
-option verbose 5
+
+example moveMiddleFirst is {wellformed} for my_instance
+
+--option verbose 5
 
 -- test that semantics of piecewise-bounds syntax are consistent, cardinality works, etc.
 test expect {
@@ -63,5 +77,12 @@ test expect {
       #b1.board = 3
     }
   } for my_instance is theorem
-    
+
+  piecewise_semantics_unconstrained_a: {
+    some b2: Board | #b2.board = 0
+  } for my_instance is sat
+  piecewise_semantics_unconstrained_b: {
+    some b2: Board | #b2.board > 0
+  } for my_instance is sat
+
 }

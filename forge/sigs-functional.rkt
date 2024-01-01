@@ -261,14 +261,17 @@
   ; Functionally update piecewise-binding dictionary to support per-atom definition of field bounds
   ; Will *NOT* copy the piecewise bounds into a true Bounds struct.
   ; Cannot use update-bindings for this; just accumulate.
-  (define/contract (update-piecewise-binds op piecewise-binds the-relation the-atom the-tuples)
+  (define/contract (update-piecewise-binds op piecewise-binds the-relation the-atom the-rhs-expr)
     (-> symbol?
         (hash/c node/expr/relation? PiecewiseBound?)
-        node/expr/relation?
-        node/expr/atom?
-        any/c
+        node/expr/relation? ; the-relation
+        node/expr/atom?     ; the-atom
+        node?               ; rhs
       (hash/c node/expr/relation? PiecewiseBound?))
-    (printf "update-piecewise-binds; ~a~n" piecewise-binds)
+
+    ; Add the atom before evaluation, so that (atom ...) will be consistent with non-piecewise bounds.
+    (define the-tuples (safe-fast-eval-exp (ast:-> the-atom the-rhs-expr) (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f))
+        
     (cond [(hash-has-key? piecewise-binds the-relation)
            (define former-pwb (hash-ref piecewise-binds the-relation))
            (unless (equal? op (PiecewiseBound-operator former-pwb))
@@ -278,13 +281,10 @@
            (when (member the-atom (PiecewiseBound-atoms former-pwb))
              (fail (format "rebinding detected for ~a.~a; this is not allowed." the-atom the-relation)))
            
-           (define new-tuples (append (PiecewiseBound-tuples former-pwb)
-                                      (for/list ([tup the-tuples]) (cons the-atom the-tuples))))
-           (printf "new tuples (prior): ~a~n" new-tuples)
+           (define new-tuples (append (PiecewiseBound-tuples former-pwb) the-tuples))           
            (hash-set piecewise-binds the-relation (PiecewiseBound new-tuples (cons the-atom (PiecewiseBound-atoms former-pwb)) op))]
-          [else
-           (printf "new tuples (new): ~a~n" (for/list ([tup the-tuples]) (cons the-atom the-tuples)))
-           (hash-set piecewise-binds the-relation (PiecewiseBound (for/list ([tup the-tuples]) (cons the-atom the-tuples)) (list the-atom) op))]))
+          [else           
+           (hash-set piecewise-binds the-relation (PiecewiseBound the-tuples (list the-atom) op))]))
   
   (match bind
     
@@ -375,10 +375,8 @@
                  (node/expr/atom? (first (node/expr/op-children left)))
                  (node/expr/relation? (second (node/expr/op-children left))))
             (define the-atom (first (node/expr/op-children left)))
-            (define the-relation (second (node/expr/op-children left)))
-            (define the-tuples (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f))
-
-            (values scope bound (update-piecewise-binds '= piecewise-binds the-relation the-atom the-tuples))]
+            (define the-relation (second (node/expr/op-children left)))            
+            (values scope bound (update-piecewise-binds '= piecewise-binds the-relation the-atom right))]
            [else
             (fail "rel=")])]     
 
@@ -565,7 +563,7 @@
             [else 
              (raise (error (format "unsupported comparison operator; got ~a, expected =, ni, or in" (PiecewiseBound-operator pwb))))])))
    
-  (printf "bounds with piecewise:~nPBIND=~a~nTBIND=~a~n" (Bound-pbindings bounds-with-piecewise) (Bound-tbindings bounds-with-piecewise))
+  ;(printf "bounds with piecewise:~nPBIND=~a~nTBIND=~a~n" (Bound-pbindings bounds-with-piecewise) (Bound-tbindings bounds-with-piecewise))
   
   (define spec (Run-spec state preds scope bounds-with-piecewise target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
@@ -926,7 +924,6 @@
     (hash-set old-pbindings rel (sbound rel lower upper)))
 
   ; when exact bounds, put in bindings
-  (printf "update-bindings; equal lower and upper? ~a~n" (equal? lower upper))
   (define new-tbindings 
     (if (equal? lower upper) 
         (hash-set old-tbindings rel (set->list lower))
