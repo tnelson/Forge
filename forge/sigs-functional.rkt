@@ -915,10 +915,6 @@
   (unless (or (not upper) (subset? lower upper))
     (raise (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
                    rel lower upper)))
-
-
-; TODO: symbol, rather than (atom symbol)? Where are these getting converted OUTSIDE the piecewise declarations?
- ; (lack of set intersection because the atoms list doesn't overlap, since (atom X) and X are different)
   
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))

@@ -29,10 +29,10 @@
 ;;;;;;;;;;;;;;;;
 
 ; An "sbound" is nearly identical to the "bound" struct defined in forge/lang/bounds,
-; except that it contains sets rather than lists.
+; except that it contains sets rather than lists. #f is permitted to denote a lack of value.
 (struct/contract sbound ([relation any/c]
-                         [lower set?]
-                         [upper set?]) #:transparent)
+                         [lower (or/c #f set?)]
+                         [upper (or/c #f set?)]) #:transparent)
 
 (define (make-sbound relation lower [upper false]) (sbound relation lower upper))
 (define (make-exact-sbound relation s) (sbound relation s s))
@@ -551,7 +551,7 @@
     (define sig (first rel-list))
     (breaker pri
         (break-graph (set sig) (set))
-        (λ () (make-exact-break rel (map list (drop-right atoms 1) (cdr atoms))))
+        (λ () (make-exact-break rel (list->set (map list (drop-right atoms 1) (cdr atoms)))))
         (λ () (break bound (set
             (@some/info (@just-location-info loc) ([init sig]) (@&&
                 (@no (@join rel init))
@@ -621,7 +621,7 @@
         (λ () (break
             (sbound rel 
                 (set) ;(set (take atoms 2))
-                (map list (drop-right atoms 1) (cdr atoms))
+                (list->set (map list (drop-right atoms 1) (cdr atoms)))
             )
             (set
                 (@lone/info (@just-location-info loc) ([init sig]) (@&&
