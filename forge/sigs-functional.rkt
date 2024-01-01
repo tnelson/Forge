@@ -543,20 +543,18 @@
     ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds (hash)))
 
   ; Finally, piecewise bounds must be resolved. Along the way, confirm that if one relation is bound
-  ; piecewise, it cannot be bound total. E.g., we cannot mix "`Alice.father = ..." and "father = " ...
-
-  ; Check
+  ; piecewise (incomplete), it cannot be bound complete. E.g., we cannot mix "`Alice.father = ..."
+  ; and "father = " ...
+  ;   * Check:
   (for/list ([rel (hash-keys piecewise)])
     (when (or (hash-has-key? (Bound-tbindings bounds) rel)
               (hash-has-key? (Bound-pbindings bounds) rel))
       (raise (error "Piecewise bounds (on ~a) may not be combined with complete bounds; remove one or the other." rel))))
-  ; Combine and add to bounds  
+  ;   * Combine and add to bounds:
   (for/list ([rel (hash-keys piecewise)])
-    ;; TODO
+    ;; TODO: WHICH ONE? pbindings or tbindings?
     (void))
    
-  
-  ; Add to bounds
   
   (define spec (Run-spec state preds scope bounds target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 

@@ -1,8 +1,10 @@
 #lang racket/base
 
+; This module is concerned with "is linear" and other such "breaker" bind expressions.
+
 (require forge/lang/bounds (prefix-in @ forge/lang/ast))
 (require predicates)
-(require (only-in racket false true set set-union set-intersect set->list list->set first rest
+(require (only-in racket false true set set-union set-intersect set->list list->set set? first rest
                          cartesian-product empty empty? set-add! mutable-set in-set subset?
                          set-subtract! set-map list->mutable-set set-remove! append* set-member?
                          set-empty? set-union! drop-right take-right for/set for*/set filter-not
@@ -26,7 +28,12 @@
 ;;;; breaks ;;;;
 ;;;;;;;;;;;;;;;;
 
-(struct sbound (relation lower upper) #:transparent)
+; An "sbound" is nearly identical to the "bound" struct defined in forge/lang/bounds,
+; except that it contains sets rather than lists.
+(struct/contract sbound ([relation any/c]
+                         [lower set?]
+                         [upper set?]) #:transparent)
+
 (define (make-sbound relation lower [upper false]) (sbound relation lower upper))
 (define (make-exact-sbound relation s) (sbound relation s s))
 (struct break (sbound formulas) #:transparent)
@@ -63,6 +70,7 @@
     (make-sbound (bound-relation bound)
                 (list->set (bound-lower bound))
                 (list->set (bound-upper bound))))
+
 (define (sbound->bound sbound) 
     (make-bound (sbound-relation sbound)
                 (set->list (sbound-lower sbound))

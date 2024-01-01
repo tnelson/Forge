@@ -66,12 +66,30 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; There are many technical terms involved in Forge bounds; we define the key ones here.
+
+;   A *SCOPE* defines the range of allowed cardinalities for a sig.
+;     A scope may be declared *EXACT*, in which case the range is a single value.
+
+;   A *BOUND* (which would more correctly be called a "relational bound") is a
+;     pair of sets of tuples, one lower (which the relation must contain) and one
+;     upper (which the relation may contain).
+;     A bound may be declared *EXACT*, in which case the lower and upper bounds are equal.
+
+;   A bound is *COMPLETE* if it fully defines the upper and lower bounds for a given relation.
+;   A bound is *INCOMPLETE* if other tuples may be added to either upper or lower in the future.
+;     Incomplete bounds are seen in piecewise definitions, where a user may use one bind declaration
+;     to bound the value of a field for a specific atom; values for other atoms may be provided later.
+
+; A Range contains the minimum and maximum scope for a relation.
 (struct/contract Range (
   [lower (or/c nonnegative-integer? #f)]
   [upper (or/c nonnegative-integer? #f)]
   ) #:transparent)
 
 ; A Scope represents the numeric size limitations on sigs in a run.
+; This includes the range of possible bitwidths, and a default range
+; to use for sigs whose scope is undefined.
 (struct/contract Scope (
   [default-scope (or/c Range? #f)]
   [bitwidth (or/c nonnegative-integer? #f)]
@@ -79,15 +97,19 @@
   ) #:transparent)
 
 ; A Bound represents the set-based size limitations on sigs and relations in a run.
-; Information from both Scope and Bounds will be combined when a run executes.
+; Information from both Scope and Bounds will be combined only once a run executes.
 (struct/contract Bound (
+  ; pbindings: partial (but complete) bindings for a given relation
   [pbindings (hash/c node/expr/relation? sbound?)]
+  ; tbindings: total (but complete) bindings for a given relation; also known as an exact bound.
   [tbindings (hash/c node/expr/relation? any/c)] 
   ) #:transparent)
 
 ; A PiecewiseBound represents an atom-indexed, incomplete partial bound. E.g., one might write:
 ;   `Alice.father in `Bob + `Charlie
 ;   `Bob.father in `Charlie + `David
+; Note that a piecewise bound is not the same as a "partial" bound; a partial bound is complete,
+; in the sense that only one bind declaration is possible for that relation.
 (struct/contract PiecewiseBound (
   [tuples (listof any/c)]                  ; first element is the indexed atom in the original piecewise bounds
   [atoms (listof any/c)]                   ; which atoms have been bound? (distinguish "given none" from "none given")
