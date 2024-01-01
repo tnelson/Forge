@@ -244,10 +244,12 @@
 
   (define (fail [cond #f])
     (unless cond
-      (raise (format "Invalid bind: ~a" bind))))
+      (raise (format "Invalid binding expression: ~a" bind))))
   (define inst-checker-hash (get-inst-checker-hash))
   (define (inst-check formula to-handle)
-    (when (hash-has-key? inst-checker-hash to-handle) ((hash-ref inst-checker-hash to-handle) formula)))
+    (when (hash-has-key? inst-checker-hash to-handle)
+      ((hash-ref inst-checker-hash to-handle) formula)))
+  
   (match bind
     ; no rel, one rel, two rel, lone rel, some rel
     [(node/formula/multiplicity info mult rel)
@@ -278,33 +280,33 @@
                               (update-bitwidth scope exact)
                               (update-int-bound scope left-rel (Range exact exact)))])
           (values new-scope bound))]
-       [_ (fail)])]
+       [_ (fail "int=")])]
 
     ; (<= (card rel) upper)
     [(node/formula/op/|| or-info
                              (list (node/formula/op/int< lt-info (list lt-left lt-right))
                                    (node/formula/op/int= eq-info (list eq-left eq-right))))
      (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
-       (fail))
+       (fail "int<="))
      (match lt-left
        [(node/int/op/card c-info (list left-rel))
         (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) 8)]
                [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
-       [_ (fail)])]
+       [_ (fail "int<=")])]
 
     ; (<= lower (card-rel))
     [(node/formula/op/|| or-info
                              (list (node/formula/op/int< lt-info (list lt-left lt-right))
                                    (node/formula/op/int= eq-info (list eq-left eq-right))))
      (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
-       (fail))
+       (fail "int>="))
      (match lt-right
        [(node/int/op/card c-info (list right-rel))
         (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) 8)]
                [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
-       [_ (fail)])]
+       [_ (fail "int>=")])]
 
     ; (<= lower (card rel) upper)
     ; Ask Tim is (<= a b c) equivalent to (and (<= a b) (<= a c))?
@@ -321,25 +323,25 @@
     ; [(node/formula/op/|| (node/formula/op/int> left1 right1)  ; TODO: Add lower bounds
     ;                      (node/formula/op/int= left2 right2))
     ;   (unless (@and (equal? left left) (equal? right1 right2))
-    ;     (fail))
+    ;     (fail "unexpected"))
     ;   (match left
     ;     [(node/int/op/card info left-rel)
     ;       (let* ([upper-val (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
     ;              [new-scope (update-int-bound scope rel (Range 0 upper-val))])
     ;         (values new-scope bound))]
-    ;     [_ (fail)])]
+    ;     [_ (fail "unexpected")])]
 
     ; Strategies
     [(node/breaking/op/is info (list left right))
      (define breaker
        (match right
          [(node/breaking/break _ breaker) breaker]
-         [_ (fail)]))
+         [_ (fail "is")]))
      (match left
        [(? node/expr/relation?) (break left right)]
        [(node/expr/op/~ info arity (list left-rel))
         (break left-rel (get-co right))]
-       [_ (fail)])
+       [_ (fail "is")])
      ; hopefully the above calls to break update these somehow
      ; and hopefully they don't rely on state :(
      (values scope bound)]
@@ -350,7 +352,7 @@
     ; rel = expr
     [(node/formula/op/= info (list left right))
      (unless (node/expr/relation? left)
-       (fail))
+       (fail "rel="))
      (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
        (define new-scope scope)
        (define new-bound (update-bindings bound left tups tups))
@@ -369,14 +371,14 @@
         (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) 8 #f)])
           (define new-bound (update-bindings bound right tups))
           (values scope new-bound))]
-       [else (fail)])]
+       [else (fail "rel in")])]
 
     ; original sigs.rkt has (cmp (join foc rel) expr) commented out here
 
     ; Bitwidth
     ; what does (Int n:nat) look like in the AST?
 
-    [_ (fail)]))
+    [_ (fail "unsupported")]))
 
 (define/contract (make-inst binds)
   (-> (listof (or/c node/formula? node/breaking/op? Inst?))

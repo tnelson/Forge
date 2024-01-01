@@ -13,21 +13,21 @@
                      (only-in racket/pretty pretty-print)))
 
 (require forge/shared)
-(require "lang/ast.rkt"
-         "lang/bounds.rkt"
-         "breaks.rkt")
-(require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
-(require "server/eval-model.rkt")
-(require "server/forgeserver.rkt")
-(require "translate-to-kodkod-cli.rkt"
-         "translate-from-kodkod-cli.rkt"
-         "sigs-structs.rkt"
-         "evaluator.rkt"
-         (prefix-in tree: "lazy-tree.rkt")
-         "send-to-kodkod.rkt")
-(require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
-         (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
-(require (only-in "sigs-functional.rkt"
+(require forge/lang/ast 
+         forge/lang/bounds 
+         forge/breaks)
+(require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
+(require forge/server/eval-model)
+(require forge/server/forgeserver)
+(require forge/translate-to-kodkod-cli
+         forge/translate-from-kodkod-cli
+         forge/sigs-structs
+         forge/evaluator
+         (prefix-in tree: forge/lazy-tree)
+         forge/send-to-kodkod)
+(require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
+         (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
+(require (only-in forge/sigs-functional
                   make-sig
                   make-relation
                   make-inst
@@ -52,7 +52,7 @@
 
 ; export AST macros and struct definitions (for matching)
 ; Make sure that nothing is double-provided
-(provide (all-from-out "lang/ast.rkt"))
+(provide (all-from-out forge/lang/ast))
 
 ; Racket stuff
 (provide let quote)
@@ -77,9 +77,9 @@
 
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
-(provide (all-from-out "lazy-tree.rkt"))
+(provide (all-from-out forge/lazy-tree))
 
-(provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
+(provide (prefix-out forge: (all-from-out forge/sigs-structs)))
 
 ; Export these from structs without forge: prefix
 (provide implies iff <=> ifte int>= int<= ni != !in !ni <: :>)
@@ -1069,9 +1069,18 @@ Now with functional forge, do-bind is used instead
 ; a reachable from b through r1 + r2 + ...
 (define-syntax (reachable stx)
   (syntax-parse stx
-   [reachable
-   (quasisyntax/loc stx
-     (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
+    ; For use in forge/core; full s-expression expands to 0-ary procedure
+    [(reachable a b r ...)
+     (printf "reachable case 1: ~a~n" stx)
+     (quasisyntax/loc stx
+       (reachablefun #,(build-source-location stx) a b (list r ...)))]
+    ; For use with #lang forge; identifier by itself expands to 3+-ary procedure
+    [reachable
+     (printf "reachable case 2: ~a~n" stx)
+     (quasisyntax/loc stx
+       (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
+
+
 
 (define (reachablefun loc a b r)
   (unless (equal? 1 (node/expr-arity a)) (raise-user-error (format "First argument \"~a\" to reachable is not a singleton at loc ~a" (deparse a) (srcloc->string loc))))
