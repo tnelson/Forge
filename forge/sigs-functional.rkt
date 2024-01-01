@@ -12,7 +12,7 @@
 (require (prefix-in @ (only-in racket max min - display set))
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
-         (only-in racket/list first range rest empty flatten)
+         (only-in racket/list first second range rest empty flatten)
          (only-in racket/set list->set set->list set-union set-intersect subset?))
 
 (require (except-in forge/lang/ast ->)
@@ -234,6 +234,10 @@
   (define result (eval-int-expr ie binding bitwidth))
   (caar (de-integer-atomize `((,result)))))
 
+; Processing bind declarations requires expression evaluation. Thus, we need
+; a nominal bitwidth. Since we're speaking of sig cardinalities, assume this suffices.
+(define SUFFICIENT-INT-BOUND 8)
+
 ; Functionally update "scope" and "bound" based on this "bind" declaration
 (define/contract (do-bind bind scope bound)
   (-> (or/c node/formula? node/breaking/op? Inst?)
@@ -241,9 +245,9 @@
       Bound?
       (values Scope? Bound?))
 
-  (define (fail [cond #f])
+  (define (fail msg [cond #f])
     (unless cond
-      (raise (format "Invalid binding expression: ~a" bind))))
+      (raise (format "Invalid binding expression (~a): ~a" msg bind))))
 
   ; Lang-specific instance checker
   (define inst-checker-hash (get-inst-checker-hash))
@@ -273,7 +277,7 @@
     [(node/formula/op/int= eq-info (list left right))
      (match left
        [(node/int/op/card c-info (list left-rel))
-        (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
+        (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (if (equal? (relation-name left-rel) "Int")
                               (update-bitwidth scope exact)
                               (update-int-bound scope left-rel (Range exact exact)))])
@@ -288,7 +292,7 @@
        (fail "int<="))
      (match lt-left
        [(node/int/op/card c-info (list left-rel))
-        (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) 8)]
+        (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
        [_ (fail "int<=")])]
@@ -301,7 +305,7 @@
        (fail "int>="))
      (match lt-right
        [(node/int/op/card c-info (list right-rel))
-        (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) 8)]
+        (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
        [_ (fail "int>=")])]
@@ -324,14 +328,23 @@
     ; Other instances
     [(Inst func) (func scope bound)]
 
-    ; rel = expr
+    ; rel = expr [absolute bound]
+    ; (atom . rel) = expr  [partial bound, indexed by atom]
     [(node/formula/op/= info (list left right))
-     (unless (node/expr/relation? left)
-       (fail "rel="))
-     (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
-       (define new-scope scope)
-       (define new-bound (update-bindings bound left tups tups))
-       (values new-scope new-bound))]
+     (inst-check bind node/formula/op/=) ;; ??? TODO
+     (cond [(node/expr/relation? left)
+            (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
+              (define new-scope scope)
+              (define new-bound (update-bindings bound left tups tups))
+              (values new-scope new-bound))]
+           [(and (node/expr/op/join? left)
+                 (list? (node/expr/op-children left))
+                 (equal? 2 (length (node/expr/op-children left)))
+                 (node/expr/atom? (first (node/expr/op-children left)))
+                 (node/expr/relation? (second (node/expr/op-children left))))
+            (fail "piecewise rel=: UNSUPPORTED")]
+           [else
+            (fail "rel=")])]     
 
     ; rel in expr
     ; expr in rel
@@ -339,17 +352,18 @@
      (inst-check bind node/formula/op/in)
      (cond
        [(node/expr/relation? left)
-        (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
+        (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
           (define new-bound (update-bindings bound left (@set) tups))
           (values scope new-bound))]
        [(node/expr/relation? right)
-        (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) 8 #f)])
+        (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
           (define new-bound (update-bindings bound right tups))
           (values scope new-bound))]
        [else (fail "rel in")])]
 
     ; TODO Add: atom.rel in expr
     ;   needs accumulation !!!!!
+    
 
     ; Bitwidth
     ; what does (Int n:nat) look like in the AST?
