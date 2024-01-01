@@ -987,17 +987,25 @@ Now with functional forge, do-bind is used instead
 (define-syntax (define-builtin stx)
   (syntax-parse stx
    [(define-builtin:id (opName:id locArg:id args:id ...) body:expr)
-    (with-syntax ([opName/func (format-id #'opName "~a/func" #'opName)])
+    (with-syntax ([opName/func (format-id #'opName "~a/func" #'opName)]
+                  [ellip '...])
       (syntax/loc stx (begin
         (define-syntax (opName stxx)
           (syntax-parse stxx
-           [opName
-            (quasisyntax/loc stxx (lambda (args ...)
-              (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) args ...)))]))
-
+            ; For use in forge/core; full s-expression expands to 0-ary procedure
+            ; Note use of "ellip" to denote "..." for the inner macro.
+            [(opName inner-args:id ellip)
+             (quasisyntax/loc stxx
+               (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) inner-args ellip))]
+            ; For use with #lang forge; identifier by itself expands to 3+-ary procedure
+            [opName
+             (quasisyntax/loc stxx
+               (lambda (args ...)
+                 (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) args ...)))]))
+        
         (define (opName/func locArg args ...)
           body)
-      )))
+        )))
     ]))
 
 (define-builtin (isSeqOf info r1 d)
@@ -1071,12 +1079,10 @@ Now with functional forge, do-bind is used instead
   (syntax-parse stx
     ; For use in forge/core; full s-expression expands to 0-ary procedure
     [(reachable a b r ...)
-     (printf "reachable case 1: ~a~n" stx)
      (quasisyntax/loc stx
        (reachablefun #,(build-source-location stx) a b (list r ...)))]
     ; For use with #lang forge; identifier by itself expands to 3+-ary procedure
     [reachable
-     (printf "reachable case 2: ~a~n" stx)
      (quasisyntax/loc stx
        (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
 
@@ -1096,18 +1102,3 @@ Now with functional forge, do-bind is used instead
     [(empty? r) (raise-user-error "Unexpected: union-relations given no arguments. Please report this error.")]
     [(empty? (rest r)) (first r)]
     [else (+/info (nodeinfo loc 'checklangNoCheck) (first r) (union-relations loc (rest r)))]))
-
-  ; (in a (join b (^ r))))
-; (define (reachable a b r)
-;   (reachable2 a b r))
-; (define-syntax (reachable2 stx)
-; (println stx)
-;   (syntax-case stx ()
-;     [(_ a b r ...)
-;       (quasisyntax/loc stx
-;         (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-;             a 
-;             (join/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-;                         b 
-;                        (^/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (+/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) r ...)))))]))
-
