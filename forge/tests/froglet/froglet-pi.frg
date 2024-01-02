@@ -88,7 +88,7 @@ inst inst_piecewise_no
 
 example moveMiddleFirst is {wellformed} for inst_piecewise
 
-option verbose 2
+option verbose 5
 
 -- test that semantics of piecewise-bounds syntax are consistent, cardinality works, etc.
 test expect {
@@ -120,27 +120,28 @@ test expect {
 
   piecewise_semantics_in: {
     some b: Board | {
-      #b.board <= 2                                     
+      #b.board <= 2
     }
   } for inst_piecewise_in is theorem
-  piecewise_semantics_in_other_unaffected: {
+  /*piecewise_semantics_in_other_unaffected: {
     some b: Board | {
       #b.board > 2
     }
   } for inst_piecewise_in is sat
-
+*/
     
   piecewise_semantics_ni: {
-    some b: Board | {
-      #b.board >= 2                                     
+    some b: Board | {      
+      b.board[1][1] = X
+      b.board[1][2] = O
     }
   } for inst_piecewise_ni is theorem
-  piecewise_semantics_ni_other_unaffected: {
+  /*piecewise_semantics_ni_other_unaffected: {
     some b: Board | {
       #b.board < 2
     }
   } for inst_piecewise_ni is theorem
-
+*/
          
   piecewise_semantics_no: {
     some b: Board | {

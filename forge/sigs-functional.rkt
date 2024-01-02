@@ -386,13 +386,16 @@
     ; rel in expr
     ; expr in rel
     ; (atom . rel) in/ni expr  [partial bound, indexed by atom]
+    ; note: "ni" is handled by desugaring to "in" with reversed arguments.
     [(node/formula/op/in info (list left right))
      (inst-check bind node/formula/op/in)
      (cond
+       ; rel in expr
        [(node/expr/relation? left)
         (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
           (define new-bound (update-bindings bound left (@set) tups))
           (values scope new-bound piecewise-binds))]
+       ; atom.rel in expr
        [(and (node/expr/op/join? left)
              (list? (node/expr/op-children left))
              (equal? 2 (length (node/expr/op-children left)))
@@ -401,12 +404,21 @@
         (define the-atom (first (node/expr/op-children left)))
         (define the-relation (second (node/expr/op-children left)))            
         (values scope bound (update-piecewise-binds 'in piecewise-binds the-relation the-atom right))]
-       
+       ; rel ni expr
        [(node/expr/relation? right)
         (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
           (define new-bound (update-bindings bound right tups))
           (values scope new-bound piecewise-binds))]
-       
+       ; atom.rel ni expr
+       [(and (node/expr/op/join? right)
+             (list? (node/expr/op-children right))
+             (equal? 2 (length (node/expr/op-children right)))
+             (node/expr/atom? (first (node/expr/op-children right)))
+             (node/expr/relation? (second (node/expr/op-children right))))
+        (define the-atom (first (node/expr/op-children right)))
+        (define the-relation (second (node/expr/op-children right)))
+        (values scope bound (update-piecewise-binds 'ni piecewise-binds the-relation the-atom left))]
+       ; anything else is unexpected
        [else (fail "rel in/ni")])]    
 
     ; Bitwidth
