@@ -246,6 +246,9 @@
       PiecewiseBounds/c
       (values Scope? Bound? PiecewiseBounds/c))
 
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (printf "  do-bind: ~a~n" bind))
+  
   (define (fail msg [cond #f])
     (unless cond
       ; TODO: source location
@@ -382,6 +385,7 @@
 
     ; rel in expr
     ; expr in rel
+    ; (atom . rel) in/ni expr  [partial bound, indexed by atom]
     [(node/formula/op/in info (list left right))
      (inst-check bind node/formula/op/in)
      (cond
@@ -453,7 +457,7 @@
         #:relations (listof Relation?)
         #:options (or/c Options? #f))
        State?)
-
+  
   (define sigs-with-Int (append sigs-input (list Int)))
   (define sigs
     (for/hash ([sig sigs-with-Int])
@@ -572,8 +576,8 @@
       (define tups (PiecewiseBound-tuples pwb))
       (cond [(equal? '= (PiecewiseBound-operator pwb))
              (update-bindings bs rel tups tups)] 
-            [(equal? 'in (PiecewiseBound-operator pwb))
-             (update-bindings bs rel #f tups)]
+            [(equal? 'in (PiecewiseBound-operator pwb))             
+             (update-bindings bs rel (list) tups)]
             [(equal? 'ni (PiecewiseBound-operator pwb))
              (update-bindings bs rel tups #f)]
             [else 
@@ -914,12 +918,19 @@
 ; If a binding already exists, takes the intersection.
 ; If this results in an exact bound, adds it to the total bounds.
 (define (update-bindings bound rel lower [upper #f])
+
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (printf "  update-bindings for ~a; |lower|=~a; |upper|=~a~n"
+            rel (if lower (length lower) #f) (if upper (length upper) #f)))
+
+  (unless lower
+    (raise (error (format "Error: update-bindings for ~a expected a lower bound, got #f." rel))))  
   (set! lower (list->set lower))
   (when upper (set! upper (list->set upper)))
-
+  
   (define old-pbindings (Bound-pbindings bound))
-  (define old-tbindings (Bound-tbindings bound))
-
+  (define old-tbindings (Bound-tbindings bound))  
+  
   ; New bindings can only strengthen old ones
   (when (hash-has-key? old-pbindings rel)
     (let ([old (hash-ref old-pbindings rel)])
@@ -941,7 +952,7 @@
         (hash-set old-tbindings rel (set->list lower))
         old-tbindings))
 
-  (define new-bound (Bound new-pbindings new-tbindings))
+  (define new-bound (Bound new-pbindings new-tbindings))  
   new-bound)
 
 ; update-bindings-at :: Bound, node/expr/relation, node/expr/relation, 

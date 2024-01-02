@@ -264,7 +264,9 @@
               ;(printf "deparse-constraint: ~a~n" (deparse c))
               (checkFormula run-spec c '() (get-checker-hash)))
             run-constraints)
-
+  ;(when (@>= (get-verbosity) VERBOSITY_LOW)        
+  ;  (printf "  Last-checker finished. Beginning to send problem.~n"))
+  
   ; Keep track of which formula corresponds to which CLI assert
   ; for highlighting unsat cores. TODO: map back from CLI output
   ; constraints later
