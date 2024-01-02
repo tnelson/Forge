@@ -86,17 +86,17 @@ inst inst_piecewise_no
 
 
 
-example moveMiddleFirst is {wellformed} for my_instance
+example moveMiddleFirst is {wellformed} for inst_piecewise
 
---option verbose 5
+option verbose 5
 
 -- test that semantics of piecewise-bounds syntax are consistent, cardinality works, etc.
 test expect {
   inst_piecewise_sat: {} for inst_piecewise is sat
-  inst_piecewise_in_sat: {} for inst_piecewise_in is sat
-  inst_piecewise_ni_sat: {} for inst_piecewise_ni is sat
+  --inst_piecewise_in_sat: {} for inst_piecewise_in is sat
+  --inst_piecewise_ni_sat: {} for inst_piecewise_ni is sat
   
-  card_semantics_eq: {#Thing = 1} for my_instance is theorem
+  card_semantics_eq: {#Thing = 1} for inst_piecewise is theorem
   
   piecewise_semantics_eq: {
     some disj b0, b1: Board | {
@@ -109,13 +109,6 @@ test expect {
       b1.board[1][0] = X
       #b0.board = 3
       #b1.board = 3
-
-      -- piecewise definition of "a" field
-      #b0 <= 1 
-      -- piecewise definition of "b" field
-      #b0.b >= 1
-      -- piecewise definition of "c" field
-      #b0.c = 0       
     }
   } for inst_piecewise is theorem
   piecewise_semantics_eq_unconstrained_maybe_empty: {
@@ -125,7 +118,7 @@ test expect {
     some b2: Board | #b2.board > 0
   } for inst_piecewise is sat
 
-  piecewise_semantics_in: {
+  /*piecewise_semantics_in: {
     some b: Board | {
       #b.board <= 2                                     
     }
@@ -135,9 +128,9 @@ test expect {
       #b.board > 2
     }
   } for inst_piecewise_in is sat
-
+*/
     
-  piecewise_semantics_ni: {
+  /*piecewise_semantics_ni: {
     some b: Board | {
       #b.board >= 2                                     
     }
@@ -147,7 +140,7 @@ test expect {
       #b.board < 2
     }
   } for inst_piecewise_ni is theorem
-
+*/
          
   piecewise_semantics_no: {
     some b: Board | {

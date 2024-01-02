@@ -506,7 +506,7 @@
     (pattern ((~datum BoundLHS) target:QualNameClass)
       #:attr translate #'(Expr target))
     ; Join, atom name dotted with field name
-    (pattern ((~datum BoundLHS) ((~datum AtomNameOrNumber) "`" atom:NameClass)
+    (pattern ((~datum BoundLHS) ((~datum AtomNameOrNumber) "`" atom:NameClass)                                
                                 field:QualNameClass)
       #:attr translate #'(Expr (Expr "`" atom) "." (Expr field))))
   
@@ -526,10 +526,15 @@
               rhs:BindRHSUnionClass) 
       #:attr translate #'(Expr (Expr "#" (Expr target)) op rhs.translate))
     
-    ; "no" bound: no LHS
+    ; "no" bound: relation LHS and piecewise LHS
     (pattern ((~datum Bound) (~datum "no") 
-              ((~datum BoundLHS) target:QualNameClass)) 
+                             ((~datum BoundLHS) target:QualNameClass)) 
       #:attr translate #'(Expr "no" (Expr target)))
+    (pattern ((~datum Bound) (~datum "no")
+                             ((~datum BoundLHS)
+                              ((~datum AtomNameOrNumber) "`" atom:NameClass)
+                              field:QualNameClass))
+      #:attr translate #'(Expr "no" (Expr (Expr "`" atom) "." (Expr field))))
 
     ; identifier: re-use of `inst` defined
     (pattern ((~datum Bound)  

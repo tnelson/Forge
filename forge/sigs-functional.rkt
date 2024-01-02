@@ -559,6 +559,12 @@
               (hash-has-key? (Bound-pbindings bounds) rel))
       (raise (error (format "Piecewise bounds (on ~a) may not be combined with complete bounds; remove one or the other." rel)))))
   ;   * Add to bounds:
+  ; TODO: issue: need to allow *undeclared* piecewise atoms to be unconstrained.
+  ;   - for "in", need to generate additional tuples in the upper bound
+  ;   - for "ni"... unclear
+  ;      step 1: get the domain. but we don't have that until send-to-kodkod.
+  ; (this is essentially what the commented-out update-bounds-in was going to do.)
+  
   (define bounds-with-piecewise
     (for/fold ([bs bounds])
               ([rel (hash-keys piecewise)])
