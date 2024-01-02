@@ -363,7 +363,7 @@
     ; rel = expr [absolute bound]
     ; (atom . rel) = expr  [partial bound, indexed by atom]
     [(node/formula/op/= info (list left right))
-     (inst-check bind node/formula/op/=) ;; ??? TODO
+     (inst-check bind node/formula/op/=) 
      (cond [(node/expr/relation? left)
             (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
               (define new-scope scope)
@@ -389,11 +389,21 @@
         (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
           (define new-bound (update-bindings bound left (@set) tups))
           (values scope new-bound piecewise-binds))]
+       [(and (node/expr/op/join? left)
+             (list? (node/expr/op-children left))
+             (equal? 2 (length (node/expr/op-children left)))
+             (node/expr/atom? (first (node/expr/op-children left)))
+             (node/expr/relation? (second (node/expr/op-children left))))
+        (define the-atom (first (node/expr/op-children left)))
+        (define the-relation (second (node/expr/op-children left)))            
+        (values scope bound (update-piecewise-binds 'in piecewise-binds the-relation the-atom right))]
+       
        [(node/expr/relation? right)
         (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
           (define new-bound (update-bindings bound right tups))
           (values scope new-bound piecewise-binds))]
-       [else (fail "rel in")])]    
+       
+       [else (fail "rel in/ni")])]    
 
     ; Bitwidth
     ; what does (Int n:nat) look like in the AST?

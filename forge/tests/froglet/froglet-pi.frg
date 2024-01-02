@@ -1,11 +1,18 @@
 #lang forge/bsl
 option verbose 0
 
+-------------------------------------------------
+-- Tests for the Froglet partial-instance syntax.
+-------------------------------------------------
+
 abstract sig Player {}
 one sig X, O extends Player {}
 sig Board {
   board: pfunc Int -> Int -> Player
 }
+
+-- TODO: can we get rid of the awful parser error if a comma is left at the end of a field decl?
+
 pred wellformed {
   all b: Board | all row, col: Int | {
     (row < 0 or row > 2 or col < 0 or col > 2) implies
@@ -15,7 +22,9 @@ pred wellformed {
 
 sig Thing {} -- for testing parse/expand of #X = N
 
-inst my_instance
+-------------------------------------------------
+
+inst inst_piecewise
 {
   Board = `Board0 + `Board1 + `Board2 
   Player = `X + `O
@@ -31,29 +40,49 @@ inst my_instance
                   (1 -> 2) -> `O +
                   1 -> 0   -> `X
                                     
-  -- The above should be equivalent to:
-  --board = `Board0 -> (1, 1)   -> `X +
-  --        `Board0 -> (1 -> 2) -> `O +
-  --        `Board0 -> 1 -> 0   -> `X
-  --        +
-  --        `Board1 -> (2, 2)   -> `X +
-  --        `Board1 -> (1 -> 2) -> `O +
-  --        `Board1 -> 1 -> 0   -> `X    
-
   -- This is an error (cannot combine piecewise bounds with complete bounds)
+  -- TODO add test
   -- no board 
 
   -- This is an error (rebinding detected)
+  -- TODO add test
   -- `Board0.board = (1, 1)   -> `X
 
-  -- `Board2.board is left unspecified, can vary
-
-  -- TODO: support "no `Board2.board"
-  -- TODO: test for in, ni
-  
+  -- Confirm cardinality
   #Thing = 1
 }
 
+inst inst_piecewise_in
+{
+  Board = `Board0 + `Board1 
+  Player = `X + `O
+  X = `X
+  O = `O
+    
+  `Board0.board in (1, 1)   -> `X +
+                   (1 -> 2) -> `O                    
+}
+
+inst inst_piecewise_ni
+{
+  Board = `Board0 + `Board1 
+  Player = `X + `O
+  X = `X
+  O = `O
+    
+  `Board0.board ni (1, 1)   -> `X +
+                   (1 -> 2) -> `O                    
+}
+
+inst inst_piecewise_no
+{
+  Board = `Board0 + `Board1 
+  Player = `X + `O
+  X = `X
+  O = `O
+    
+  no `Board0.board                  
+}
 
 
 
@@ -63,10 +92,15 @@ example moveMiddleFirst is {wellformed} for my_instance
 
 -- test that semantics of piecewise-bounds syntax are consistent, cardinality works, etc.
 test expect {
-  my_instance_sat: {} for my_instance is sat
-  card_semantics: {#Thing = 1} for my_instance is theorem
-  piecewise_semantics: {
+  inst_piecewise_sat: {} for inst_piecewise is sat
+  inst_piecewise_in_sat: {} for inst_piecewise_in is sat
+  inst_piecewise_ni_sat: {} for inst_piecewise_ni is sat
+  
+  card_semantics_eq: {#Thing = 1} for my_instance is theorem
+  
+  piecewise_semantics_eq: {
     some disj b0, b1: Board | {
+      -- piecewise defn of "board" field
       b0.board[1][1] = X
       b0.board[1][2] = O
       b0.board[1][0] = X
@@ -75,14 +109,56 @@ test expect {
       b1.board[1][0] = X
       #b0.board = 3
       #b1.board = 3
+
+      -- piecewise definition of "a" field
+      #b0 <= 1 
+      -- piecewise definition of "b" field
+      #b0.b >= 1
+      -- piecewise definition of "c" field
+      #b0.c = 0       
     }
-  } for my_instance is theorem
-
-  piecewise_semantics_unconstrained_a: {
+  } for inst_piecewise is theorem
+  piecewise_semantics_eq_unconstrained_maybe_empty: {
     some b2: Board | #b2.board = 0
-  } for my_instance is sat
-  piecewise_semantics_unconstrained_b: {
+  } for inst_piecewise is sat
+  piecewise_semantics_eq_unconstrained_maybe_nonempty: {
     some b2: Board | #b2.board > 0
-  } for my_instance is sat
+  } for inst_piecewise is sat
 
+  piecewise_semantics_in: {
+    some b: Board | {
+      #b.board <= 2                                     
+    }
+  } for inst_piecewise_in is theorem
+  piecewise_semantics_in_other_unaffected: {
+    some b: Board | {
+      #b.board > 2
+    }
+  } for inst_piecewise_in is sat
+
+    
+  piecewise_semantics_ni: {
+    some b: Board | {
+      #b.board >= 2                                     
+    }
+  } for inst_piecewise_ni is theorem
+  piecewise_semantics_ni_other_unaffected: {
+    some b: Board | {
+      #b.board < 2
+    }
+  } for inst_piecewise_ni is theorem
+
+         
+  piecewise_semantics_no: {
+    some b: Board | {
+      #b.board = 0                                     
+    }
+  } for inst_piecewise_no is theorem
+  piecewise_semantics_no_other_unaffected: {
+    some b: Board | {
+      #b.board > 0                          
+    }
+  } for inst_piecewise_no is sat
+
+    
 }
