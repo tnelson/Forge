@@ -13,7 +13,6 @@ inst inst_piecewise
 {
   Board = `Board0 + `Board1 + `Board2 
   Player = `X + `O
-  -- TODO: infer these
   X = `X
   O = `O
   

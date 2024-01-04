@@ -480,111 +480,122 @@
     (pattern ((~datum Bounds)
               ;(~optional "exactly")
               bounds:BoundClass ...)
-      #:attr translate (datum->syntax #'(bounds ...)
-                                      (syntax->list #'(bounds.translate ...))))
+      #:attr translate (begin
+                         ;(printf "Bounds case 1: ~a~n" (build-source-location this-syntax))
+                         (datum->syntax #'(bounds ...)
+                                        ; Note: syntax->list keeps the syntax objects within, along with
+                                        ; their context/srcloc. (The syntax/loc here doesn't seem to be
+                                        ; needed, since it's templating.)
+                                        (syntax->list #'(bounds.translate ...))
+                                        ;(syntax->list (syntax/loc this-syntax (bounds.translate ...)))
+                                        (build-source-location this-syntax))))
     ; direct use in the example, test, run, etc.
     ; `example` macro splices the result in. Hence, not #'(Expr name).
     ; `test` macro does not splice. 
     (pattern ((~datum Bounds)
               (~optional "exactly")
               name:QualNameClass)
-      #:attr translate (datum->syntax #'name
-                                      (list #'name.name))))
+      #:attr translate (begin (datum->syntax #'name
+                                      (list #'name.name)))))
 
   (define-syntax-class QualNameOrAtomOrAtomizedNumberClass
      #:description "name, atom name, or number"
     (pattern name:QualNameClass
-      #:attr translate #'(Expr name))
+      #:attr translate (syntax/loc this-syntax (Expr name)))
     (pattern ((~datum AtomNameOrNumber) "`" name:NameClass)
-      #:attr translate #'(Expr "`" name))
+      #:attr translate (syntax/loc this-syntax (Expr "`" name)))
     (pattern ((~datum AtomNameOrNumber) (~optional (~and "-" minus-tok)) num:NumberClass)
-      #:attr translate #'(Expr (Const (~? minus-tok) num))))
+      #:attr translate (syntax/loc this-syntax (Expr (Const (~? minus-tok) num)))))
   
   (define-syntax-class BoundLHSClass
     #:description "left-hand-side of a bind declaration"
     ; No join, relation name only on LHS
     (pattern ((~datum BoundLHS) target:QualNameClass)
-      #:attr translate #'(Expr target))
+      #:attr translate (syntax/loc this-syntax (Expr target)))
     ; Join, atom name dotted with field name
     (pattern ((~datum BoundLHS) ((~datum AtomNameOrNumber) "`" atom:NameClass)                                
                                 field:QualNameClass)
-      #:attr translate #'(Expr (Expr "`" atom) "." (Expr field))))
+      #:attr translate (syntax/loc this-syntax (Expr (Expr "`" atom) "." (Expr field)))))
   
   (define-syntax-class BoundClass
      #:description "bind declaration"
-    ; tuple bounds:  LHS = UNION
+    ; tuple bounds:  LHS =/ni/in UNION
     (pattern ((~datum Bound)  
               lhs:BoundLHSClass
               op:CompareOpClass
               rhs:BindRHSUnionClass)
-      #:attr translate #'(Expr lhs.translate op rhs.translate))
+      #:attr translate (begin
+                         (syntax/loc this-syntax (Expr lhs.translate op rhs.translate))))
 
     ; cardinality bound (single relation): #LHS = N
     (pattern ((~datum Bound)  ; or backquote name
               ((~datum BoundLHS) "#" target:QualNameClass)
               op:CompareOpClass
               rhs:BindRHSUnionClass) 
-      #:attr translate #'(Expr (Expr "#" (Expr target)) op rhs.translate))
+      #:attr translate (with-syntax ([tgt (syntax/loc #'target (Expr target))]
+                                     [left-subexpr (syntax/loc #'target (Expr "#" tgt))])
+                         (syntax/loc this-syntax (Expr left-subexpr op rhs.translate))))
     
     ; "no" bound: relation LHS and piecewise LHS
     (pattern ((~datum Bound) (~datum "no") 
                              ((~datum BoundLHS) target:QualNameClass)) 
-      #:attr translate #'(Expr "no" (Expr target)))
+    #:attr translate (with-syntax ([tgt (syntax/loc #'target (Expr target))])
+                         (syntax/loc this-syntax (Expr "no" tgt))))
     (pattern ((~datum Bound) (~datum "no")
                              ((~datum BoundLHS)
                               ((~datum AtomNameOrNumber) "`" atom:NameClass)
                               field:QualNameClass))
-      #:attr translate #'(Expr "no" (Expr (Expr "`" atom) "." (Expr field))))
+      #:attr translate (quasisyntax/loc this-syntax (Expr "no" (Expr (Expr "`" atom) "." (Expr field)))))
 
     ; identifier: re-use of `inst` defined
     (pattern ((~datum Bound)  
               name:QualNameClass)
-      #:attr translate #'(Expr name)))
+      #:attr translate (syntax/loc this-syntax (Expr name))))
 
   (define-syntax-class BindRHSUnionClass
      #:description "union in right-hand-side of a bind declaration"
     (pattern ((~datum BindRHSUnion)
               tup:BindRHSProductClass)
-      #:attr translate #'tup.translate)
+      #:attr translate (syntax/loc this-syntax tup.translate))
 
     ; "union -> product"
     (pattern ((~datum BindRHSUnion)
               tups:BindRHSUnionClass
               tup:BindRHSProductClass)
-      #:attr translate #'(Expr tups.translate "+" tup.translate))
+      #:attr translate (syntax/loc this-syntax (Expr tups.translate "+" tup.translate)))
     (pattern ((~datum BindRHSUnion)
               tups1:BindRHSUnionClass
               tups2:BindRHSUnionClass) 
-      #:attr translate #'(Expr tups1.translate "+" tups2.translate)))
+      #:attr translate (syntax/loc this-syntax (Expr tups1.translate "+" tups2.translate))))
   
   (define-syntax-class BindRHSProductClass
      #:description "product in right-hand-side of a bind declaration"
     (pattern ((~datum BindRHSProduct)
               union:BindRHSUnionClass) 
-      #:attr translate #'union.translate)
+      #:attr translate (syntax/loc this-syntax union.translate))
     (pattern ((~datum BindRHSProduct)
               atom:QualNameOrAtomOrAtomizedNumberClass) 
-      #:attr translate #'atom.translate)
+      #:attr translate (syntax/loc this-syntax atom.translate))
 
     ; "product -> atom" or "atom -> product"
     (pattern ((~datum BindRHSProduct)
               tup:BindRHSProductClass
               atom:QualNameOrAtomOrAtomizedNumberClass) 
-      #:attr translate #'(Expr tup.translate (ArrowOp "->") atom.translate))
+      #:attr translate (syntax/loc this-syntax (Expr tup.translate (ArrowOp "->") atom.translate)))
     (pattern ((~datum BindRHSProduct)
               atom:QualNameOrAtomOrAtomizedNumberClass
               tup:BindRHSProductClass) 
-      #:attr translate #'(Expr atom.translate (ArrowOp "->") tup.translate))
+      #:attr translate (syntax/loc this-syntax (Expr atom.translate (ArrowOp "->") tup.translate)))
 
     ; "union -> product" or "product -> union"
     (pattern ((~datum BindRHSProduct)
               union1:BindRHSUnionClass
               product2:BindRHSProductClass) 
-      #:attr translate #'(Expr union1.translate (ArrowOp "->") product2.translate))
+      #:attr translate (syntax/loc this-syntax (Expr union1.translate (ArrowOp "->") product2.translate)))
     (pattern ((~datum BindRHSProduct)
               product1:BindRHSProductClass
               union2:BindRHSUnionClass) 
-      #:attr translate #'(Expr product1.translate (ArrowOp "->") union2.translate)))
+      #:attr translate (syntax/loc this-syntax (Expr product1.translate (ArrowOp "->") union2.translate))))
   
   ; EXPRESSIONS
 
@@ -1315,9 +1326,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-syntax (debug stx)
-  (syntax-parse stx
-    [(_ x:BindRHSProductClass) #'x.translate]
-    [(_ x:BindRHSUnionClass) #'x.translate]
-    [(_ x:QualNameOrAtomOrAtomizedNumberClass) #'x.translate]
-    [(_ x:NumberClass) #'x.value]))
+  (define result
+    (syntax-parse stx
+      [(_ x:BoundsClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:BoundClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:BoundLHSClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:BindRHSProductClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:BindRHSUnionClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:QualNameOrAtomOrAtomizedNumberClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:NumberClass) (syntax/loc this-syntax x.value)]))
+  (printf "result:~a ~n" result)
+  #'(void))
 
+(debug (Bounds (Bound "no" (BoundLHS (QualName Int)))))

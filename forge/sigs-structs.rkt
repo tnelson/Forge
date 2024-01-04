@@ -120,8 +120,9 @@
 (struct/contract Bound (
   ; pbindings: partial (but complete) bindings for a given relation
   [pbindings (hash/c node/expr/relation? sbound?)]
-  ; tbindings: total (but complete) bindings for a given relation; also known as an exact bound.
+  ; tbindings: total (and complete) bindings for a given relation; also known as an exact bound.
   [tbindings (hash/c node/expr/relation? any/c)]
+  ; incomplete bindings for a given relation, indexed by first column
   [piecewise PiecewiseBounds/c]
   ) #:transparent)
                                 

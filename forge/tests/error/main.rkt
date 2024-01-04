@@ -24,6 +24,7 @@
     (list "piecewise-bind-repeat.frg" #rx"rebinding detected")
     (list "piecewise-bind-combine.frg" #rx"may not be combined with complete bounds")
     (list "piecewise-bind-sigs.frg" #rx"would create a relation")
+    (list "piecewise-bind-mix-ops.frg" #rx"mixed operators not allowed")
    
     (list "hidden-wheat.frg" #rx"Invalid binding expression")
    

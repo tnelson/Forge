@@ -14,6 +14,7 @@
          (only-in racket/math nonnegative-integer?)
          (only-in racket/list first second range rest empty flatten)
          (only-in racket/set list->set set->list set-union set-intersect subset?))
+(require (only-in syntax/srcloc build-source-location-syntax))
 
 (require (except-in forge/lang/ast ->)
          (rename-in forge/lang/ast [-> ast:->]) ; don't clash with define/contract
@@ -247,11 +248,16 @@
 
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "  do-bind: ~a~n" bind))
-  
+  ;(when (node? bind) (printf "bind info: ~a~n" (nodeinfo-loc (node-info bind))))
+
+  ; In case of error, highlight an AST node if able. Otherwise, do the best we can:
   (define (fail msg [cond #f])
     (unless cond
-      ; TODO: source location
-      (raise (format "Invalid binding expression (~a): ~a" msg bind))))
+      (if (node? bind)       
+          (raise-syntax-error #f msg
+                              (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info bind)))))
+          (raise (format "Invalid binding expression (~a): ~a; unable to extract syntax location." msg bind)))))
+  
   
   ; Lang-specific instance checker
   (define inst-checker-hash (get-inst-checker-hash))
@@ -279,7 +285,7 @@
     (cond [(hash-has-key? piecewise-binds the-relation)
            (define former-pwb (hash-ref piecewise-binds the-relation))
            (unless (equal? op (PiecewiseBound-operator former-pwb))
-             (fail (format "mixed operators not allowed in piecewise bounds; expected ~a, got ~a" (PiecewiseBound-operator former-pwb op))))
+             (fail (format "mixed operators not allowed in piecewise bounds; prior had ~a, got ~a" (PiecewiseBound-operator former-pwb) op)))
            
            ; Consistency check for this combination of atom and relation; disallow re-binding.           
            (when (member the-atom-evaluated (PiecewiseBound-atoms former-pwb))

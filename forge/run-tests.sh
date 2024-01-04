@@ -9,6 +9,11 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+# Compile Forge, for test speed
+echo "Re-running Forge setup for test efficiency."
+raco setup forge
+
+
 # Get test files
 testDir=$1
 doNotTestPattern="error/[^/]*\\.frg"

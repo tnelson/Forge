@@ -15,6 +15,7 @@
                          curry range index-of pretty-print filter-map string-prefix? thunk*
                          remove-duplicates subset? cartesian-product match-define cons?)
           racket/hash)
+(require (only-in syntax/srcloc build-source-location-syntax))
 (require (prefix-in pardinus: forge/pardinus-cli/server/kks)
          (prefix-in pardinus: forge/pardinus-cli/server/server)
          (prefix-in pardinus: forge/pardinus-cli/server/server-common))
@@ -39,8 +40,12 @@
 ; along with a list of all of the atom names for sig atoms.
 (define (send-to-kodkod run-spec run-command #:run-name [run-name (gensym)])
   (do-time "send-to-kodkod")
-  (define (raise-run-error message)
-     (raise-syntax-error #f message run-command))
+  ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
+  (define (raise-run-error message [node #f])
+    (if node
+        (raise-syntax-error #f message
+                            (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node)))))
+        (raise-syntax-error #f message run-command)))
 
   ; Print version number, so students know to update
   (when (and no-version-printed-yet (@>= (get-verbosity) VERBOSITY_LOW))

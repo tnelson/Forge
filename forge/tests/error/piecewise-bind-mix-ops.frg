@@ -13,18 +13,20 @@ inst inst_piecewise
 {
   Board = `Board0 + `Board1 + `Board2 
   Player = `X + `O
+  -- TODO: infer these
   X = `X
   O = `O
   
-  `Board0.board = (1, 1)   -> `X +
+  `Board0.board in (1, 1)   -> `X +
                   (1 -> 2) -> `O +
                   1 -> 0   -> `X 
-  `Board1.board = (2, 2)   -> `X +
+
+  -- This is an error: can't mix operators in a piecewise bind
+  `Board0.board ni (2, 2)   -> `X +
                   (1 -> 2) -> `O +
                   1 -> 0   -> `X
                                     
-  -- This is an error (cannot combine piecewise bounds with complete bounds)
-  no board 
+  
 }
 
 test expect {
