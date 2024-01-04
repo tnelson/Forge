@@ -56,7 +56,17 @@ test expect {
     linearnoselfloop: {some a: A | a->a in FrontDesk.next} for {next is linear} is unsat
     linearnoloop: {some a, b: A | (a->b + b->a) in ^(FrontDesk.next)} for {next is linear} is unsat
     linearnobranch: {some disj a, b, c: A | (a->c + b->c) in FrontDesk.next} for {next is linear} is unsat 
-    linearnobranch2: {some disj a, b, c: A | (a->b + a->c) in FrontDesk.next} for {next is linear} is unsat 
+    linearnobranch2: {some disj a, b, c: A | (a->b + a->c) in FrontDesk.next} for {next is linear} is unsat
+    linear_covers_all: {some a: A | {no a.(FrontDesk.next) and no a.~(FrontDesk.next)}} for {next is linear} is unsat
+
+    ----- test "plinear" -----
+    
+    plinearPossible: {} for {next is plinear} is sat
+    plinearnoselfloop: {some a: A | a->a in FrontDesk.next} for {next is plinear} is unsat
+    plinearnoloop: {some a, b: A | (a->b + b->a) in ^(FrontDesk.next)} for {next is plinear} is unsat
+    plinearnobranch: {some disj a, b, c: A | (a->c + b->c) in FrontDesk.next} for {next is plinear} is unsat 
+    plinearnobranch2: {some disj a, b, c: A | (a->b + a->c) in FrontDesk.next} for {next is plinear} is unsat
+    plinear_might_not_cover_all: {some a: A | {no a.(FrontDesk.next) and no a.~(FrontDesk.next)}} for {next is plinear} is sat
 }
 
 -- While a non "one" parent sig with a binary field can't be broken via bounds, the formula 

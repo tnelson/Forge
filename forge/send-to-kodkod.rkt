@@ -1,24 +1,27 @@
 #lang racket/base
 
-(require "sigs-structs.rkt")
-(require "breaks.rkt")
-(require "lang/ast.rkt")
-(require "lang/bounds.rkt")
-(require "shared.rkt"
-         (prefix-in tree: "lazy-tree.rkt")         
-         "last-checker.rkt"
-         "choose-lang-specific.rkt"
-         "translate-to-kodkod-cli.rkt"
-         "translate-from-kodkod-cli.rkt")
+(require forge/sigs-structs)
+(require forge/breaks)
+(require forge/lang/ast)
+(require forge/lang/bounds)
+(require forge/shared
+         (prefix-in tree: forge/lazy-tree)
+         forge/last-checker
+         forge/choose-lang-specific
+         forge/translate-to-kodkod-cli
+         forge/translate-from-kodkod-cli)
 (require (prefix-in @ (only-in racket/base >= not - = and or max > <))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? thunk*
                          remove-duplicates subset? cartesian-product match-define cons?)
           racket/hash)
-(require (prefix-in pardinus: "pardinus-cli/server/kks.rkt")
-         (prefix-in pardinus: "pardinus-cli/server/server.rkt")
-         (prefix-in pardinus: "pardinus-cli/server/server-common.rkt"))
-(require "drracket-gui.rkt")
+(require (only-in syntax/srcloc build-source-location-syntax))
+(require (prefix-in pardinus: forge/pardinus-cli/server/kks)
+         (prefix-in pardinus: forge/pardinus-cli/server/server)
+         (prefix-in pardinus: forge/pardinus-cli/server/server-common))
+
+; Disable DrRacket GUI extension/tool
+;(require "drracket-gui.rkt")
 
 (provide send-to-kodkod)
 
@@ -37,8 +40,12 @@
 ; along with a list of all of the atom names for sig atoms.
 (define (send-to-kodkod run-spec run-command #:run-name [run-name (gensym)])
   (do-time "send-to-kodkod")
-  (define (raise-run-error message)
-     (raise-syntax-error #f message run-command))
+  ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
+  (define (raise-run-error message [node #f])
+    (if node
+        (raise-syntax-error #f message
+                            (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node)))))
+        (raise-syntax-error #f message run-command)))
 
   ; Print version number, so students know to update
   (when (and no-version-printed-yet (@>= (get-verbosity) VERBOSITY_LOW))
@@ -262,7 +269,9 @@
               ;(printf "deparse-constraint: ~a~n" (deparse c))
               (checkFormula run-spec c '() (get-checker-hash)))
             run-constraints)
-
+  ;(when (@>= (get-verbosity) VERBOSITY_LOW)        
+  ;  (printf "  Last-checker finished. Beginning to send problem.~n"))
+  
   ; Keep track of which formula corresponds to which CLI assert
   ; for highlighting unsat cores. TODO: map back from CLI output
   ; constraints later
@@ -336,23 +345,24 @@
     ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
     (define (do-core-highlight nd)
       (define loc (nodeinfo-loc (node-info nd)))
-      (if (is-drracket-linked?) 
-          (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
-          (begin
-            (when (@>= (get-verbosity) VERBOSITY_LOW)        
-              (printf "  Core contained location: ~a~n" (srcloc->string loc)))
-            (when (@>= (get-verbosity) VERBOSITY_HIGH)        
-              (pretty-print nd)))))
+      (when (@>= (get-verbosity) VERBOSITY_LOW)        
+        (printf "  Core contained location: ~a~n" (srcloc->string loc)))
+      (when (@>= (get-verbosity) VERBOSITY_HIGH)        
+        (pretty-print nd)))
+;      (if (is-drracket-linked?) 
+;          (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
+;          (begin
+;            )))
 
     (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
         (printf "core: ~a~n" (Unsat-core result)))
-      (cond [(is-drracket-linked?) 
-             (do-forge-unhighlight 'core)]
-            [else
-             (when (@>= (get-verbosity) VERBOSITY_LOW) 
-               (printf "No DrRacket linked, could not highlight core. Will print instead.~n"))])
+      (cond ;[(is-drracket-linked?) 
+        ; (do-forge-unhighlight 'core)]
+        [else
+         (when (@>= (get-verbosity) VERBOSITY_LOW) 
+           (printf "No DrRacket linked, could not highlight core. Will print instead.~n"))])
       (for-each do-core-highlight
                 (filter-map (λ (id)
                               (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
@@ -603,6 +613,8 @@
 ; and minimum and maximum sets of atoms for each relation.
 (define (get-relation-bounds run-spec sig-to-bound raise-run-error)
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
+  (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
+  
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
     (@and pbinding
@@ -612,6 +624,8 @@
     (@and pbinding
           (sbound-upper pbinding)
           (sbound-upper pbinding)))
+  (define (get-bound-piecewise rel)
+    (hash-ref piecewise rel #f))
 
   (define without-succ
     (for/hash ([relation (get-relations run-spec)]
@@ -622,19 +636,47 @@
                                       (curry hash-ref sig-to-bound )
                                       Sig-name) 
                              sigs))
-      ; (printf "~a: sig-atoms : ~a~n" relation sig-atoms)
-      ; (printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
-      ; (printf "~a: raw lower : ~a~n" relation (get-bound-lower relation))      
+       ;(printf "~a: sig-atoms : ~a~n" relation sig-atoms)
+       ;(printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
+       ;(printf "~a: raw lower : ~a~n" relation (get-bound-lower relation))
+      
       (define upper                   
-        (let ([bound-upper (get-bound-upper relation)])
-            (cond [bound-upper
-                   (set->list (set-intersect bound-upper
-                                             (list->set (apply cartesian-product sig-atoms))))]
-                  [else
-                   (apply cartesian-product sig-atoms)])))
+        (let ([bound-upper (get-bound-upper relation)]
+              [bound-piecewise (get-bound-piecewise relation)])
+          (cond
+            [(and bound-piecewise bound-upper)
+             ; Error condition -- should never have both complete and piecewise on the same relation
+             (raise (error (format "~a upper-bound had both complete and piecewise components, could not resolve them."
+                                   relation)))]
+            [bound-piecewise
+             ; for each admissible atom (taken from first component of the relation's declaration):
+             ;   Where a piecewise entry exists: intersect with cartesian product of restricted universe.
+             ;   otherwise: include the full cartesian-product for the restriction outside of that domain
+             (define pw-domain (PiecewiseBound-atoms bound-piecewise))
+             ;(printf "upper; pw-domain: ~a~n" pw-domain) ; ISSUE: this is pre-eval :/ store post-eval?
+             (define in-domain (set-intersect (list->set (PiecewiseBound-tuples bound-piecewise))
+                                              (list->set (apply cartesian-product sig-atoms))))
+             ;(printf "upper; in-domain: ~a~n" in-domain)
+             (define out-of-domain (list->set
+                                    (filter (lambda (tup)
+                                              (not (member (first tup) pw-domain)))
+                                            (apply cartesian-product sig-atoms))))
+             ;(printf "upper; out-of-domain: ~a~n" out-of-domain)
+             (set->list (set-union in-domain out-of-domain))]
+            [bound-upper
+             ; complete upper bound exists; intersect with the cartesian product of universe
+             ; restricted to the sig-sequence in relation's declaration
+             (set->list (set-intersect bound-upper
+                                       (list->set (apply cartesian-product sig-atoms))))]
+            [else
+             ; no upper-bound given, default to cartesian product of universe, restricted
+             ; to the sig-sequence in relation's declaration
+             (apply cartesian-product sig-atoms)])))
+      
       ;(define upper (set->list (set-intersect (get-bound-upper relation) (list->set (apply cartesian-product sig-atoms)))))
       ;(printf "~a: refined upper : ~a~n" relation upper)
-      
+
+      ; Piecewise lower bounds were handled in sigs-functional, before send-to-kodkod is called.
       (define lower                   
         (let ([bound-lower (get-bound-lower relation)])
             (if bound-lower
@@ -646,7 +688,8 @@
         (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)))
       
       (values (Relation-name relation) 
-              (bound relation lower upper))))  
+              (bound relation lower upper))))
+  
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
   (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
@@ -671,7 +714,7 @@
                 (raise (format (string-append "Lower bound too large for given BitWidth; "
                                               "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
                                sig int-lower (sub1 max-int))))
-              (list (<= (int int-lower) (card sig))))
+              (list (int<= (int int-lower) (card sig))))
             (list))
         (if (@and int-upper (@< int-upper bound-upper-size))
             (let ()
@@ -679,7 +722,7 @@
                 (raise (format (string-append "Upper bound too large for given BitWidth; "
                                               "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                sig int-upper (sub1 max-int))))
-              (list (<= (card sig) (int int-upper))))
+              (list (int<= (card sig) (int int-upper))))
             (list))))))
 
 

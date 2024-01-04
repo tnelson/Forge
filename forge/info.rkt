@@ -36,8 +36,9 @@
                              ))
 
 
-(define drracket-tools (list (list "tool.rkt")))
-(define drracket-tool-names (list "Forge DrRacket Integration"))
+; NO LONGER SUPPORTED; using terminal or VSCode extension instead
+;(define drracket-tools (list (list "tool.rkt")))
+;(define drracket-tool-names (list "Forge DrRacket Integration"))
 
 ; omit the check-ex-spec folder, since those still contain some examples that 404
 ; ditto testme folder, related to check-ex-spec

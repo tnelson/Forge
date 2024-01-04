@@ -15,7 +15,7 @@
 
 (define Caret
   (&&
-   (implies (< (card Node) (int 4))
+   (implies (int< (card Node) (int 4))
             (= (^ edges)
                (+ (+ edges
                      (join edges edges))

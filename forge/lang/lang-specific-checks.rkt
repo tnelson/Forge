@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "ast.rkt")
+(require forge/lang/ast)
 (require forge/sigs-structs)
 (require (for-syntax racket/syntax syntax/srcloc)
          syntax/srcloc)
@@ -125,7 +125,14 @@
 (define (check-node-expr-op-sing expr-node)
   (void))
 
+(define (check-node-expr-fun-spacer expr-node)
+  (void))
+(define (check-node-fmla-pred-spacer expr-node)
+  (void))
+
 (define forge-checker-hash (make-hash))
+(hash-set! forge-checker-hash node/fmla/pred-spacer check-node-fmla-pred-spacer)
+(hash-set! forge-checker-hash node/expr/fun-spacer check-node-expr-fun-spacer)
 (hash-set! forge-checker-hash node/formula/constant check-node-formula-constant)
 (hash-set! forge-checker-hash node/formula/op check-node-formula-op)
 (hash-set! forge-checker-hash node/formula/multiplicity check-node-formula-multiplicity)

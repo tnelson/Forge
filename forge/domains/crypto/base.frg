@@ -206,18 +206,6 @@ fun subterm[supers: set mesg]: set mesg {
   supers +
   supers.^(plaintext) -- union on new subterm relations inside parens
 }
--- Problem: (k1, enc(k2, enc(n1, invk(k2)), invk(k1)))
---  Problem: (k1, enc(x, invk(k3)), enc(k2, enc(k3, invk(k2)), invk(k1)))
---    needs knowledge to grow on the way through the tree, possibly sideways
--- so this approach won't work
-/*fun accessibleSubterms[supers: set mesg, known: set mesg]: set mesg {
-  -- VITAL: ditto above 
-  -- plaintext: Ciphertext -> set mesg
-  -- set of Ciphertexts this agent can now open: 
-  let openable = {c: Ciphertext | getInv[c.encryptionKey] in known} |
-    supers + 
-    supers.^(plaintext & (openable -> mesg))
-}*/
 
 -- Note it's vital this definition is about strands, not names
 pred originates[s: strand, d: mesg] {
@@ -238,8 +226,18 @@ pred originates[s: strand, d: mesg] {
   }
 }
 
+-- the agent generates this term
 pred generates[s: strand, d: mesg] {
   some ((s.agent).generated_times)[d]
+}
+
+-- the attacker eventually learns this field value
+pred attacker_learns[s: strand, d: mesg] {
+  s.d in Attacker.learned_times.Timeslot
+}
+-- the agent for this strand eventually learns this value
+pred strand_agent_learns[learner: strand, s: strand, d: mesg] {
+  s.d in (learner.agent).learned_times.Timeslot
 }
 
 pred temporary {
@@ -257,9 +255,10 @@ pred temporary {
   
   all p: PrivateKey | one p.(KeyPairs.owners) 
 
+  -- The Attacker agent is represented by the attacker strand
   agent.Attacker = AttackerStrand
 
-  -- number of keys greater than 0
+  -- there are some keys in the world 
   #Key > 0
 
   -- abstractness performance experiment
@@ -268,3 +267,21 @@ pred temporary {
   --all ak : akey | ak in PrivateKey + PublicKey
 
 }
+
+------------------------------------------------------
+-- Keeping notes on what didn't work in modeling;
+--   everything after this point is not part of the model.
+------------------------------------------------------
+
+-- Problem: (k1, enc(k2, enc(n1, invk(k2)), invk(k1)))
+--  Problem: (k1, enc(x, invk(k3)), enc(k2, enc(k3, invk(k2)), invk(k1)))
+--    needs knowledge to grow on the way through the tree, possibly sideways
+-- so this approach won't work
+/*fun accessibleSubterms[supers: set mesg, known: set mesg]: set mesg {
+  -- VITAL: ditto above 
+  -- plaintext: Ciphertext -> set mesg
+  -- set of Ciphertexts this agent can now open: 
+  let openable = {c: Ciphertext | getInv[c.encryptionKey] in known} |
+    supers + 
+    supers.^(plaintext & (openable -> mesg))
+}*/

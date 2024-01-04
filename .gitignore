@@ -3,6 +3,7 @@
 *.zo
 *.dep
 *.rkt~
+*.frg~
 *.bak
 .genIntSpec.py.swp
 *.swp

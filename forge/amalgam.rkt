@@ -13,8 +13,8 @@
                   stream stream?))
 
 
-;(require "amalgam/tests/forge_ex.rkt")
-;(require "amalgam/userStudies/KittyBacon.rkt")
+;(require forge/amalgam/tests/forge_ex)
+;(require forge/amalgam/userStudies/KittyBacon)
 (require racket/hash racket/match)
 (require (prefix-in @ racket/set))
 (require (prefix-in @ (only-in racket -> >= >)))

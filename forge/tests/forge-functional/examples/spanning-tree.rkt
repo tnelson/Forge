@@ -32,7 +32,7 @@
 
 (define thomas-happy
   (make-run #:name 'thomas-happy
-            #:preds (list twoSpanningTrees (>= (card Node) (int 5)))
+            #:preds (list twoSpanningTrees (int>= (card Node) (int 5)))
             #:sigs (list Node)
             #:scope (list (list Node 6))
             #:relations (list t1 t2 g)))

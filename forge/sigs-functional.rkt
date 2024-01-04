@@ -9,27 +9,28 @@
 
 (require racket/contract)
 (require racket/match)
-(require (prefix-in @ (only-in racket and or max min - not display < > set))
+(require (prefix-in @ (only-in racket max min - display set))
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
-         (only-in racket/list first range rest empty flatten)
+         (only-in racket/list first second range rest empty flatten)
          (only-in racket/set list->set set->list set-union set-intersect subset?))
+(require (only-in syntax/srcloc build-source-location-syntax))
 
-(require (except-in "lang/ast.rkt" ->)
-         (rename-in "lang/ast.rkt" [-> ast:->]) ; don't clash with define/contract
-         (only-in "sigs-structs.rkt" implies iff <=> ifte >= <= ni != !in !ni)
-         "breaks.rkt")
-(require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
-(require "server/eval-model.rkt")
-(require "server/forgeserver.rkt") ; v long
-(require "shared.rkt"         
-         "sigs-structs.rkt"
-         "evaluator.rkt"
-         "send-to-kodkod.rkt")
+(require (except-in forge/lang/ast ->)
+         (rename-in forge/lang/ast [-> ast:->]) ; don't clash with define/contract
+         (only-in forge/sigs-structs implies iff <=> ifte int>= int<= ni != !in !ni)
+         forge/breaks)
+(require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
+(require forge/server/eval-model)
+(require forge/server/forgeserver) ; v long
+(require forge/shared
+         forge/sigs-structs
+         forge/evaluator
+         forge/send-to-kodkod)
 
-(require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
-         (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
-(require (prefix-in tree: "lazy-tree.rkt"))
+(require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
+         (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
+(require (prefix-in tree: forge/lazy-tree))
 
 ; Commands
 (provide make-sig make-relation make-inst)
@@ -49,9 +50,8 @@
 
 ; ; export AST macros and struct definitions (for matching)
 ; ; Make sure that nothing is double-provided
-;(require (except-in "lang/ast.rkt" ->))
 (provide (rename-out [ast:-> ->]))
-(provide (all-from-out "lang/ast.rkt"))
+(provide (all-from-out forge/lang/ast))
 
 ; ; Racket stuff
 (provide let quote)
@@ -74,13 +74,13 @@
          (prefix-out forge: (struct-out Run))         
          (prefix-out forge: (struct-out sbound)))
 
-(provide (all-from-out "sigs-structs.rkt"))
+(provide (all-from-out forge/sigs-structs))
 ; ; Export these from structs without forge: prefix
-(provide implies iff <=> ifte >= <= ni != !in !ni min max)
+(provide implies iff <=> ifte int>= int<= ni != !in !ni min max)
 
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
-(provide (all-from-out "lazy-tree.rkt"))
+(provide (all-from-out forge/lazy-tree))
 
 ; ; Export everything for doing scripting
 ; (provide (prefix-out forge: (all-defined-out)))
@@ -235,21 +235,73 @@
   (define result (eval-int-expr ie binding bitwidth))
   (caar (de-integer-atomize `((,result)))))
 
+; Processing bind declarations requires expression evaluation. Thus, we need
+; a nominal bitwidth. Since we're speaking of sig cardinalities, assume this suffices.
+(define SUFFICIENT-INT-BOUND 8)
 
+; Functionally update "scope" and "bound" based on this "bind" declaration
 (define/contract (do-bind bind scope bound)
   (-> (or/c node/formula? node/breaking/op? Inst?)
       Scope?
       Bound?
       (values Scope? Bound?))
 
-  (define (fail [cond #f])
-    (unless cond
-      (raise (format "Invalid bind: ~a" bind))))
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (printf "  do-bind: ~a~n" bind))
+  ;(when (node? bind) (printf "bind info: ~a~n" (nodeinfo-loc (node-info bind))))
+
+  ; In case of error, highlight an AST node if able. Otherwise, do the best we can:
+  (define (fail msg [condition #f])    
+    (unless condition      
+      (cond [(and (node? bind) (nodeinfo? (node-info bind)))             
+             (raise-syntax-error #f msg
+                                 (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info bind)))))]
+            [else
+             (raise (format "Invalid binding expression (~a): ~a; unable to extract syntax location." msg bind))])))
+  
+  
+  ; Lang-specific instance checker
   (define inst-checker-hash (get-inst-checker-hash))
-  (define (inst-check formula to-handle)
-    (when (hash-has-key? inst-checker-hash to-handle) ((hash-ref inst-checker-hash to-handle) formula)))
+  (define (inst-check formula to-handle)    
+    (when (and inst-checker-hash
+               (hash-has-key? inst-checker-hash to-handle))
+      ((hash-ref inst-checker-hash to-handle) formula)))
+
+  ; Functionally update piecewise-binding dictionary to support per-atom definition of field bounds
+  ; Cannot use update-bindings for this; just accumulate and resolve when sending to kodkod.
+  ; Implicit assumption: can use "bound" from outer function declaration
+  (define/contract (update-piecewise-binds op the-relation the-atom the-rhs-expr)
+    (-> symbol?
+        node/expr/relation? ; the-relation
+        node/expr/atom?     ; the-atom
+        node?               ; rhs
+        Bound?)
+
+    (define piecewise-binds (Bound-piecewise bound))
+    
+    ; Add the atom before evaluation, so that (atom ...) will be consistent with non-piecewise bounds.
+    (define the-tuples (safe-fast-eval-exp (ast:-> the-atom the-rhs-expr) (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f))
+    (define the-atom-evaluated (first (first (safe-fast-eval-exp the-atom (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f))))
+        
+    (cond [(hash-has-key? piecewise-binds the-relation)
+           (define former-pwb (hash-ref piecewise-binds the-relation))
+           (unless (equal? op (PiecewiseBound-operator former-pwb))
+             (fail (format "mixed operators not allowed in piecewise bounds; prior had ~a, got ~a" (PiecewiseBound-operator former-pwb) op)))
+           
+           ; Consistency check for this combination of atom and relation; disallow re-binding.           
+           (when (member the-atom-evaluated (PiecewiseBound-atoms former-pwb))
+             (fail (format "rebinding detected for ~a.~a; this is not allowed." the-atom the-relation)))
+           
+           (define new-tuples (append (PiecewiseBound-tuples former-pwb) the-tuples))
+           (Bound (Bound-pbindings bound) (Bound-tbindings bound)
+                  (hash-set piecewise-binds the-relation (PiecewiseBound new-tuples (cons the-atom-evaluated (PiecewiseBound-atoms former-pwb)) op)))]
+          [else
+           (Bound (Bound-pbindings bound) (Bound-tbindings bound)
+                  (hash-set piecewise-binds the-relation (PiecewiseBound the-tuples (list the-atom-evaluated) op)))]))
+  
   (match bind
-    ; no rel, one rel, two rel, lone rel, some rel
+    
+    ; no rel, one rel, two rel, lone rel
     [(node/formula/multiplicity info mult rel)
      ; is it safe to use the info from above here?
      (let ([rel-card (node/int/op/card info (list rel))])
@@ -261,131 +313,145 @@
           ['lone
            (node/formula/op/|| info
                                    (list (node/formula/op/int< info (list rel-card 1))
-                                         (node/formula/op/int= info (list rel-card 1))))]
-          ; Why was some not in original sigs.rkt?? Does it need new tests?
-          #;['some
-             (node/formula/op/|| info
-                                     (list (node/formula/op/int= info (list rel-card 1))
-                                           (node/formula/op/int> info (list rel-card 1))))])
+                                         (node/formula/op/int= info (list rel-card 1))))])
         scope
         bound))]
+    
     ; (= (card rel) n)
     [(node/formula/op/int= eq-info (list left right))
      (match left
        [(node/int/op/card c-info (list left-rel))
-        (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
+        (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (if (equal? (relation-name left-rel) "Int")
                               (update-bitwidth scope exact)
                               (update-int-bound scope left-rel (Range exact exact)))])
           (values new-scope bound))]
-       [_ (fail)])]
+       [_ (fail "int=")])]
 
     ; (<= (card rel) upper)
     [(node/formula/op/|| or-info
                              (list (node/formula/op/int< lt-info (list lt-left lt-right))
                                    (node/formula/op/int= eq-info (list eq-left eq-right))))
-     (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
-       (fail))
+     (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
+       (fail "int<="))
      (match lt-left
        [(node/int/op/card c-info (list left-rel))
-        (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) 8)]
+        (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
-       [_ (fail)])]
+       [_ (fail "int<=")])]
 
     ; (<= lower (card-rel))
     [(node/formula/op/|| or-info
                              (list (node/formula/op/int< lt-info (list lt-left lt-right))
                                    (node/formula/op/int= eq-info (list eq-left eq-right))))
-     (unless (@and (equal? lt-left eq-left) (equal? lt-right eq-right))
-       (fail))
+     (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
+       (fail "int>="))
      (match lt-right
        [(node/int/op/card c-info (list right-rel))
-        (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) 8)]
+        (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
-       [_ (fail)])]
-
-    ; (<= lower (card rel) upper)
-    ; Ask Tim is (<= a b c) equivalent to (and (<= a b) (<= a c))?
-    ; so then in the ast would this be
-    ; (node/formula/op/&& and-info
-    ;   (list (node/formula/op/|| or1-info
-    ;           (list (node/formula/op/int< lt1-info (list a b))
-    ;                 (node/formula/op/int= eq1-info (list a b))))
-    ;         (node/formula/op/|| or2-info
-    ;           (list (node/formula/op/int< lt2-info (list b c))
-    ;                 (node/formula/op/int= eq2-info (list b c))))))
-
-    ; need this in order to use some
-    ; [(node/formula/op/|| (node/formula/op/int> left1 right1)  ; TODO: Add lower bounds
-    ;                      (node/formula/op/int= left2 right2))
-    ;   (unless (@and (equal? left left) (equal? right1 right2))
-    ;     (fail))
-    ;   (match left
-    ;     [(node/int/op/card info left-rel)
-    ;       (let* ([upper-val (safe-fast-eval-int-expr right (Bound-tbindings bound) 8)]
-    ;              [new-scope (update-int-bound scope rel (Range 0 upper-val))])
-    ;         (values new-scope bound))]
-    ;     [_ (fail)])]
+       [_ (fail "int>=")])]
 
     ; Strategies
     [(node/breaking/op/is info (list left right))
      (define breaker
        (match right
          [(node/breaking/break _ breaker) breaker]
-         [_ (fail)]))
+         [_ (fail "is")]))
      (match left
        [(? node/expr/relation?) (break left right)]
        [(node/expr/op/~ info arity (list left-rel))
         (break left-rel (get-co right))]
-       [_ (fail)])
+       [_ (fail "is")])
      ; hopefully the above calls to break update these somehow
      ; and hopefully they don't rely on state :(
      (values scope bound)]
 
-    ; Other instances
+    ; Other instances (which may add new scope, bound, piecewise-bound information)
     [(Inst func) (func scope bound)]
 
-    ; rel = expr
+    ; rel = expr [absolute bound]
+    ; (atom . rel) = expr  [partial bound, indexed by atom]
     [(node/formula/op/= info (list left right))
-     (unless (node/expr/relation? left)
-       (fail))
-     (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
-       (define new-scope scope)
-       (define new-bound (update-bindings bound left tups tups))
-       (values new-scope new-bound))]
+     (inst-check bind node/formula/op/=) 
+     (cond [(node/expr/relation? left)
+            (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
+              (define new-scope scope)
+              (define new-bound (update-bindings bound left tups tups))
+              (values new-scope new-bound))]
+           [(and (node/expr/op/join? left)
+                 (list? (node/expr/op-children left))
+                 (equal? 2 (length (node/expr/op-children left)))
+                 (node/expr/atom? (first (node/expr/op-children left)))
+                 (node/expr/relation? (second (node/expr/op-children left))))
+            (define the-atom (first (node/expr/op-children left)))
+            (define the-relation (second (node/expr/op-children left)))
+            (when (< (node/expr-arity the-relation) 2)
+              (raise (error (format "Piecewise bound for ~a: piecewise bounds may only be used for fields, not sigs." the-relation))))
+            (values scope (update-piecewise-binds '= the-relation the-atom right))]
+           [else
+            (fail "rel=")])]     
 
     ; rel in expr
     ; expr in rel
+    ; (atom . rel) in/ni expr  [partial bound, indexed by atom]
+    ; note: "ni" is handled by desugaring to "in" with reversed arguments.
     [(node/formula/op/in info (list left right))
      (inst-check bind node/formula/op/in)
      (cond
+       ; rel in expr
        [(node/expr/relation? left)
-        (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) 8 #f)])
+        (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
           (define new-bound (update-bindings bound left (@set) tups))
           (values scope new-bound))]
+       ; atom.rel in expr
+       [(and (node/expr/op/join? left)
+             (list? (node/expr/op-children left))
+             (equal? 2 (length (node/expr/op-children left)))
+             (node/expr/atom? (first (node/expr/op-children left)))
+             (node/expr/relation? (second (node/expr/op-children left))))
+        (define the-atom (first (node/expr/op-children left)))
+        (define the-relation (second (node/expr/op-children left)))
+        (when (< (node/expr-arity the-relation) 2)
+          (raise (error (format "Piecewise bound for ~a: piecewise bounds may only be used for fields, not sigs." the-relation))))
+        (values scope (update-piecewise-binds 'in the-relation the-atom right))]
+       ; rel ni expr
        [(node/expr/relation? right)
-        (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) 8 #f)])
+        (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
           (define new-bound (update-bindings bound right tups))
           (values scope new-bound))]
-       [else (fail)])]
-
-    ; original sigs.rkt has (cmp (join foc rel) expr) commented out here
+       ; atom.rel ni expr
+       [(and (node/expr/op/join? right)
+             (list? (node/expr/op-children right))
+             (equal? 2 (length (node/expr/op-children right)))
+             (node/expr/atom? (first (node/expr/op-children right)))
+             (node/expr/relation? (second (node/expr/op-children right))))
+        (define the-atom (first (node/expr/op-children right)))
+        (define the-relation (second (node/expr/op-children right)))
+        (when (< (node/expr-arity the-relation) 2)
+          (raise (error (format "Piecewise bound for ~a: piecewise bounds may only be used for fields, not sigs." the-relation))))
+        (values scope (update-piecewise-binds 'ni the-relation the-atom left))]
+       ; anything else is unexpected
+       [else (fail "rel in/ni")])]    
 
     ; Bitwidth
     ; what does (Int n:nat) look like in the AST?
 
-    [_ (fail)]))
+    [_ (fail "unsupported")]))
 
+; Create a new Inst struct; fold over all bind declarations in "binds".
 (define/contract (make-inst binds)
   (-> (listof (or/c node/formula? node/breaking/op? Inst?))
       Inst?)
-
+  
   (define (inst-func scope bound)
-    (for/fold ([scope scope] [bound bound])
-              ([bind binds])
-      (do-bind bind scope bound)))
+    (define-values (new-scope new-bound) 
+      (for/fold ([scope scope] [bound bound])
+                ([bind binds])
+        (do-bind bind scope bound)))
+    (values new-scope new-bound)) 
 
   (Inst inst-func))
 
@@ -417,7 +483,7 @@
         #:relations (listof Relation?)
         #:options (or/c Options? #f))
        State?)
-
+  
   (define sigs-with-Int (append sigs-input (list Int)))
   (define sigs
     (for/hash ([sig sigs-with-Int])
@@ -467,7 +533,7 @@
         #:target (or/c Target? #f)
         #:command syntax?)
        Run?)
-
+  
   (define/contract base-scope Scope?
     (cond
       [(Scope? scope-input) scope-input]
@@ -503,17 +569,47 @@
                        (rest ints))])
       (Bound (hash)
              (hash Int (map list ints)
-                   succ succs))))
+                   succ succs)
+             (hash))))
 
   (define/contract wrapped-bounds-inst Inst?
     (if (Inst? bounds-input)
         bounds-input
         (make-inst (flatten bounds-input))))
-
+  
+  ; Invoking the Inst func folds over all involved `inst` declarations to produce a final triplet.
   (define-values (scope bounds) 
     ((Inst-func wrapped-bounds-inst) scope-with-ones default-bounds))
 
-  (define spec (Run-spec state preds scope bounds target))        
+  ; Piecewise bounds must be resolved. Along the way, confirm that if one relation is bound
+  ; piecewise (incomplete), it cannot be bound complete. E.g., we cannot mix "`Alice.father = ..."
+  ; and "father = " ...
+  ; However, we cannot actually convert 'in/'= piecewise bounds to complete upper bounds until
+  ; send-to-kodkod, when we have created the universe of atoms and can "fill in" missing upper bounds.
+  ; (Piecewise 'ni bounds should be fine to convert here.)
+  (for/list ([rel (hash-keys (Bound-piecewise bounds))])
+    (when (or (hash-has-key? (Bound-tbindings bounds) rel)
+              (hash-has-key? (Bound-pbindings bounds) rel))
+      (raise (error (format "Piecewise bounds (on ~a) may not be combined with complete bounds; remove one or the other." rel)))))
+  
+  (define bounds-with-piecewise-lower
+    (for/fold ([bs bounds])
+              ([rel (hash-keys (Bound-piecewise bounds))])
+      (define pwb (hash-ref (Bound-piecewise bounds) rel))
+      (define tups (PiecewiseBound-tuples pwb))
+      (cond [(equal? '= (PiecewiseBound-operator pwb))
+             ; update only lower bound, not upper (handled in send-to-kodkod)
+             (update-bindings bs rel tups #f)] 
+            [(equal? 'in (PiecewiseBound-operator pwb))
+             ; do nothing (upper bound handled in send-to-kodkod)
+             bs]
+            [(equal? 'ni (PiecewiseBound-operator pwb))
+             ; update lower-bound
+             (update-bindings bs rel tups #f)]
+            [else 
+             (raise (error (format "unsupported comparison operator; got ~a, expected =, ni, or in" (PiecewiseBound-operator pwb))))])))
+     
+  (define spec (Run-spec state preds scope bounds-with-piecewise-lower target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
                  (send-to-kodkod spec command #:run-name name))
   
@@ -622,8 +718,6 @@
                                   #:backend [backend #f]
                                   #:target [target #f]
                                   #:command [command #'(run a b c)])
-  ; TODO: make #:expect only accept 'sat or 'unsat or 'theorem
-  ; through its contract, not just by throwing an error
   (->* (State?
         #:expect symbol?)
        (#:name symbol?
@@ -686,8 +780,6 @@
                             #:sigs [sigs-input (list)]
                             #:relations [relations-input (list)]
                             #:options [options-input #f])
-  ; TODO: make #:expect only accept 'sat or 'unsat or 'theorem
-  ; through its contract, not just by throwing an error
   (->* (#:expect symbol?)
        (#:name symbol?
         #:preds (listof node/formula)
@@ -728,7 +820,7 @@
 ; Lifted function which, when provided a Run,
 ; generates a Sterling instance for it.
 (define (display arg1 [arg2 #f])
-  (if (@not (Run? arg1))
+  (if (not (Run? arg1))
       (if arg2 (@display arg1 arg2) (@display arg1))
       (let ()
         (define run arg1)
@@ -834,7 +926,7 @@
 
   (define lower (@max (Range-lower given-scope) (Range-lower old-scope)))
   (define upper (@min (Range-upper given-scope) (Range-upper old-scope)))
-  (when (@< upper lower)
+  (when (< upper lower)
     (raise (format (string-append "Bound conflict: numeric upper bound on ~a was"
                                   " less than numeric lower bound (~a vs. ~a).") 
                    rel upper lower)))    
@@ -850,24 +942,31 @@
 ; If a binding already exists, takes the intersection.
 ; If this results in an exact bound, adds it to the total bounds.
 (define (update-bindings bound rel lower [upper #f])
+
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
+    (printf "  update-bindings for ~a; |lower|=~a; |upper|=~a~n"
+            rel (if lower (length lower) #f) (if upper (length upper) #f)))
+
+  (unless lower
+    (raise (error (format "Error: update-bindings for ~a expected a lower bound, got #f." rel))))  
   (set! lower (list->set lower))
   (when upper (set! upper (list->set upper)))
-
+  
   (define old-pbindings (Bound-pbindings bound))
-  (define old-tbindings (Bound-tbindings bound))
-
+  (define old-tbindings (Bound-tbindings bound))  
+  
   ; New bindings can only strengthen old ones
   (when (hash-has-key? old-pbindings rel)
     (let ([old (hash-ref old-pbindings rel)])
       (set! lower (set-union lower (sbound-lower old)))
-      (set! upper (cond [(@and upper (sbound-upper old))
+      (set! upper (cond [(and upper (sbound-upper old))
                          (set-intersect upper (sbound-upper old))]
-                        [else (@or upper (sbound-upper old))]))))
+                        [else (or upper (sbound-upper old))]))))
   
-  (unless (@or (@not upper) (subset? lower upper))
-    (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
+  (unless (or (not upper) (subset? lower upper))
+    (raise (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
                    rel lower upper)))
-
+  
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))
 
@@ -877,17 +976,9 @@
         (hash-set old-tbindings rel (set->list lower))
         old-tbindings))
 
-  (define new-bound (Bound new-pbindings new-tbindings))
+  ; Functionally update; piecewise bounds are out of scope so keep them the same.
+  (define new-bound (Bound new-pbindings new-tbindings (Bound-piecewise bound)))  
   new-bound)
-
-; update-bindings-at :: Bound, node/expr/relation, node/expr/relation, 
-;                       List<Symbol>, List<Symbol>? 
-;                         -> Bound
-; To be implemented.
-; Updates the partial binding for a given focused relation.
-; Example use is (ni (join Thomas mentors) (+ Tim Shriram)).
-; (define (update-bindings-at bound rel foc lower [upper #f])
-;   scope)
 
 ; state-set-option :: State, Symbol, Symbol -> State
 ; Sets option to value for state.
@@ -920,14 +1011,14 @@
                     [local_necessity value])]
       [(equal? option 'min_tracelength)
        (let ([max-trace-length (get-option state 'max_tracelength)])
-         (if (@> value max-trace-length)
+         (if (> value max-trace-length)
              (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
                                        value max-trace-length))
              (struct-copy Options options
                           [min_tracelength value])))]
       [(equal? option 'max_tracelength)
        (let ([min-trace-length (get-option state 'min_tracelength)])
-         (if (@< value min-trace-length)
+         (if (< value min-trace-length)
              (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
                                        value min-trace-length))
              (struct-copy Options options

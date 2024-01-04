@@ -4,10 +4,10 @@
 
 ;(provide (except-out (all-defined-out) kodkod-port define-ops))
 
-(require "../../shared.rkt")
+(require forge/shared)
 (require racket/class racket/match)
-(require "server.rkt"
-         "server-common.rkt"
+(require forge/pardinus-cli/server/server
+         forge/pardinus-cli/server/server-common
          (only-in racket thunk ~a))
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eoi cmd declare-univ

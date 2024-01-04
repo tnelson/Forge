@@ -4,23 +4,23 @@
 ; Using the December 2021 protocol found here:
 ;   https://sterling-docs.vercel.app/sterling-connection/receive
 
-(require (only-in "../lang/ast.rkt" relation-name)
-         "modelToXML.rkt" 
+(require (only-in forge/lang/ast relation-name)
+         forge/server/modelToXML
          xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel
          racket/hash
          (only-in racket empty? first rest)
-         (only-in "eval-model.rkt" ->string)
-         (prefix-in tree: "../lazy-tree.rkt")
+         (only-in forge/server/eval-model ->string)
+         (prefix-in tree: forge/lazy-tree)
          json
          racket/contract
          (prefix-in @ (only-in racket >= <= > <)))
 
 ; for verbosity option
-(require "../shared.rkt")
+(require forge/shared)
 ; for get-option
-(require "../sigs-structs.rkt")
+(require forge/sigs-structs)
 
 (provide display-model)
 

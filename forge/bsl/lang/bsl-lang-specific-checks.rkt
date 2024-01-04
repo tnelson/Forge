@@ -88,7 +88,7 @@
 (define (check-node-formula-op-=> formula-node)
   (void))
 
-(define (check-node-formula-op-in formula-node)
+(define (check-node-formula-op-in formula-node)  
   (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info formula-node)))
     (raise-bsl-relational-error "\"in\"" formula-node loc)))
@@ -151,10 +151,10 @@
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "&" expr-node loc)))
 
-(define (check-node-expr-op--> expr-node)
+(define (check-node-expr-op--> expr-node)  
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-error "Direct use of -> is not allowed in forge/bsl" expr-node loc)))
+    (raise-bsl-error "Use of -> in expressions is not allowed in forge/bsl" expr-node loc)))
 
 (define (check-node-expr-op-join expr-node)
   (void))
@@ -192,7 +192,18 @@
   (define loc (nodeinfo-loc (node-info expr-node)))
   (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node loc))
 
+(define (check-node-expr-fun-spacer expr-node)
+  (void))
+(define (check-node-fmla-pred-spacer expr-node)
+  (void))
+
+
 (define bsl-checker-hash (make-hash))
+
+
+(hash-set! bsl-checker-hash node/fmla/pred-spacer check-node-fmla-pred-spacer)
+(hash-set! bsl-checker-hash node/expr/fun-spacer check-node-expr-fun-spacer)
+
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
 (hash-set! bsl-checker-hash 'relation-join err-relation-join)
 (hash-set! bsl-checker-hash node/formula/constant check-node-formula-constant)
@@ -316,20 +327,22 @@
 (hash-set! bsl-ast-checker-hash node/expr/op/~ check-args-node-expr-op-~)
 ;(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Partial instances and example instance blocks
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; BE CAREFUL WHEN ADDING AST-CHECKS!!
 ; could break inst checking; we don't want all bsl rules to 
 ; apply to inst. For example, even in BSL we could say 
-; next = `Node1->`Node2
+; next in `Node1->`Node2
+
 (provide bsl-ast-checker-hash)
-
-
 (define bsl-inst-checker-hash (make-hash))
 
-(define (inst-check-node-formula-op-in formula-node)
-  (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
-    (define loc (nodeinfo-loc (node-info formula-node)))
-    (raise-bsl-relational-error "\"in\"" formula-node loc)))
+;(define (inst-check-node-formula-op-in formula-node)  
+;  (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
+;    (define loc (nodeinfo-loc (node-info formula-node)))
+;    (raise-bsl-relational-error "\"in\"" formula-node loc)))
 
-(hash-set! bsl-inst-checker-hash node/formula/op/in inst-check-node-formula-op-in)
+;(hash-set! bsl-inst-checker-hash node/formula/op/in inst-check-node-formula-op-in)
 (provide bsl-inst-checker-hash)

@@ -13,7 +13,7 @@ sig Star{
     st: pfunc Star
 }
 one sig A, B extends Node {}
-one sig C extends Star{}
+one sig C extends Star {}
 
 
 pred reach1 {

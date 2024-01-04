@@ -120,7 +120,7 @@
                 [r (remainder x y)])
             (&& (|| (= (sign r) (sign x))
                      (= (sign r) (int 0)))
-                 (|| (< (abs r) (abs y))
+                 (|| (int< (abs r) (abs y))
                      (int= y (int -8)))
                  (int= x (add (multiply y q) r))))))))
 
