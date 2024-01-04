@@ -251,12 +251,13 @@
   ;(when (node? bind) (printf "bind info: ~a~n" (nodeinfo-loc (node-info bind))))
 
   ; In case of error, highlight an AST node if able. Otherwise, do the best we can:
-  (define (fail msg [cond #f])
-    (unless cond
-      (if (node? bind)       
-          (raise-syntax-error #f msg
-                              (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info bind)))))
-          (raise (format "Invalid binding expression (~a): ~a; unable to extract syntax location." msg bind)))))
+  (define (fail msg [condition #f])    
+    (unless condition      
+      (cond [(and (node? bind) (nodeinfo? (node-info bind)))             
+             (raise-syntax-error #f msg
+                                 (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info bind)))))]
+            [else
+             (raise (format "Invalid binding expression (~a): ~a; unable to extract syntax location." msg bind))])))
   
   
   ; Lang-specific instance checker

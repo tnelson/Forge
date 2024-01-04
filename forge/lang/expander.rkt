@@ -532,7 +532,7 @@
               ((~datum BoundLHS) "#" target:QualNameClass)
               op:CompareOpClass
               rhs:BindRHSUnionClass) 
-      #:attr translate (with-syntax ([tgt (syntax/loc #'target (Expr target))]
+      #:attr translate (with-syntax* ([tgt (syntax/loc #'target (Expr target))]
                                      [left-subexpr (syntax/loc #'target (Expr "#" tgt))])
                          (syntax/loc this-syntax (Expr left-subexpr op rhs.translate))))
     
@@ -1338,4 +1338,4 @@
   (printf "result:~a ~n" result)
   #'(void))
 
-(debug (Bounds (Bound "no" (BoundLHS (QualName Int)))))
+;(debug (Bounds (Bound "no" (BoundLHS (QualName Int)))))

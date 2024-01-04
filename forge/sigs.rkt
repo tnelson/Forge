@@ -387,8 +387,10 @@
   (define-splicing-syntax-class pred-type
     #:description "optional pred flag"
     #:attributes ((seal 0))
+    ; If this is a "wheat pred", wrap in a make-wheat call
     (pattern (~datum #:wheat)
       #:attr seal #'make-wheat)
+    ; Otherwise, just pass-through
     (pattern (~seq)
       #:attr seal #'values))
 
@@ -479,13 +481,18 @@
                (error (format "Argument '~a' to fun ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
                               'decls.name 'name decls.name)))
              ...
+             ; maintain the invariant that helper functions are always rel-expression valued
+             (define safe-result
+               (cond [(node/int? result)
+                      (node/expr/op/sing (node-info result) 1 (list result))]
+                     [else result]))
              (node/expr/fun-spacer
-              the-info                 ; from node
-              (node/expr-arity result) ; from node/expr
+              the-info                      ; from node
+              (node/expr-arity safe-result) ; from node/expr
               'name
               (list (apply-record 'decls.name decls.mexpr decls.name) ...)
               codomain.mexpr
-              result))
+              safe-result))
            (update-state! (state-add-fun curr-state 'name name))))]))
 
 ; Declare a new constant

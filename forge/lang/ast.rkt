@@ -52,7 +52,7 @@
 
 ; Struct to hold metadata about an AST node (like source location)
 ; Group information in one struct to make change easier
-(struct nodeinfo (loc lang) #:transparent
+(struct nodeinfo (loc lang) #:transparent  
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (nodeinfo loc lang) self)
@@ -60,9 +60,17 @@
      ;(fprintf port "")
      (void))])
 
+(define empty-nodeinfo (nodeinfo (build-source-location #f) 'empty))
+(define (just-location-info loc)
+  (if loc 
+      (nodeinfo loc 'empty)
+      (build-source-location #f)))
+
 ; Base node struct, should be ancestor of all AST node types
 ; Should never be directly instantiated
-(struct node (info) #:transparent)
+(struct node (info) #:transparent
+  ;#:guard (lambda (info name) (printf "creating a node; ~a; ~a~n" (nodeinfo? info) name))
+  )
 
 ; Should never be directly instantiated
 (struct node/expr node (arity) #:transparent
@@ -73,12 +81,6 @@
 
 ; Should never be directly instantiated
 (struct node/formula node () #:transparent)
-
-(define empty-nodeinfo (nodeinfo (build-source-location #f) 'empty))
-(define (just-location-info loc)
-  (if loc 
-      (nodeinfo loc 'empty)
-      (build-source-location #f)))
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
@@ -94,7 +96,7 @@
                               (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
                               (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
 
-(define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)
+(define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)  
   (@-> node? #:op symbol? #:info nodeinfo? node/int?)  
   (cond [(node/expr? a-node) (node/int/op/sum (node-info a-node) (list a-node))]
         [(node/int? a-node) a-node]
