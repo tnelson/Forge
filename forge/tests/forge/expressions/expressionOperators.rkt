@@ -90,9 +90,14 @@ pred HelperFun {
 }
 
 
-fun canConvertIntExpr: one Int {
+fun canConvertIntExprNullary: one Int {
     #{n: Node | some n.edges}
 }
+
+fun canConvertIntExprUnary[nodes: set Node]: one Int {
+    #{n: nodes | some n.edges}
+}
+
 
 test expect ExpressionOperators {
     tilde : Tilde is theorem
@@ -110,5 +115,6 @@ test expect ExpressionOperators {
     ite2 : IfThenElse2 is unsat
 
     helpers : HelperFun is theorem
-    autoConvertIntFun : {canConvertIntExpr <= #Node} is theorem
+    autoConvertIntFun : {canConvertIntExprNullary <= #Node} is theorem
+    autoConvertIntFun_args : {canConvertIntExprUnary[Node] <= #Node} is theorem
 }
