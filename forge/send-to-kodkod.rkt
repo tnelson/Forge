@@ -608,6 +608,8 @@
 ; and minimum and maximum sets of atoms for each relation.
 (define (get-relation-bounds run-spec sig-to-bound raise-run-error)
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
+  (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
+  
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
     (@and pbinding
@@ -617,6 +619,8 @@
     (@and pbinding
           (sbound-upper pbinding)
           (sbound-upper pbinding)))
+  (define (get-bound-piecewise rel)
+    (hash-ref piecewise rel #f))
 
   (define without-succ
     (for/hash ([relation (get-relations run-spec)]
@@ -632,16 +636,42 @@
        ;(printf "~a: raw lower : ~a~n" relation (get-bound-lower relation))
       
       (define upper                   
-        (let ([bound-upper (get-bound-upper relation)])
-            (cond [bound-upper
-                   ;(printf "found upper bound for ~a. Was ~a~n" relation bound-upper)
-                   (set->list (set-intersect bound-upper
-                                             (list->set (apply cartesian-product sig-atoms))))]
-                  [else
-                   (apply cartesian-product sig-atoms)])))
+        (let ([bound-upper (get-bound-upper relation)]
+              [bound-piecewise (get-bound-piecewise relation)])
+          (cond
+            [(and bound-piecewise bound-upper)
+             ; Error condition -- should never have both complete and piecewise on the same relation
+             (raise (error (format "~a upper-bound had both complete and piecewise components, could not resolve them."
+                                   relation)))]
+            [bound-piecewise
+             ; for each admissible atom (taken from first component of the relation's declaration):
+             ;   Where a piecewise entry exists: intersect with cartesian product of restricted universe.
+             ;   otherwise: include the full cartesian-product for the restriction outside of that domain
+             (define pw-domain (PiecewiseBound-atoms bound-piecewise))
+             ;(printf "upper; pw-domain: ~a~n" pw-domain) ; ISSUE: this is pre-eval :/ store post-eval?
+             (define in-domain (set-intersect (list->set (PiecewiseBound-tuples bound-piecewise))
+                                              (list->set (apply cartesian-product sig-atoms))))
+             ;(printf "upper; in-domain: ~a~n" in-domain)
+             (define out-of-domain (list->set
+                                    (filter (lambda (tup)
+                                              (not (member (first tup) pw-domain)))
+                                            (apply cartesian-product sig-atoms))))
+             ;(printf "upper; out-of-domain: ~a~n" out-of-domain)
+             (set->list (set-union in-domain out-of-domain))]
+            [bound-upper
+             ; complete upper bound exists; intersect with the cartesian product of universe
+             ; restricted to the sig-sequence in relation's declaration
+             (set->list (set-intersect bound-upper
+                                       (list->set (apply cartesian-product sig-atoms))))]
+            [else
+             ; no upper-bound given, default to cartesian product of universe, restricted
+             ; to the sig-sequence in relation's declaration
+             (apply cartesian-product sig-atoms)])))
+      
       ;(define upper (set->list (set-intersect (get-bound-upper relation) (list->set (apply cartesian-product sig-atoms)))))
       ;(printf "~a: refined upper : ~a~n" relation upper)
-      
+
+      ; Piecewise lower bounds were handled in sigs-functional, before send-to-kodkod is called.
       (define lower                   
         (let ([bound-lower (get-bound-lower relation)])
             (if bound-lower
@@ -653,7 +683,8 @@
         (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)))
       
       (values (Relation-name relation) 
-              (bound relation lower upper))))  
+              (bound relation lower upper))))
+  
   (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
   (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))

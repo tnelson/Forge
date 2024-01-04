@@ -48,6 +48,10 @@ inst inst_piecewise
   -- TODO add test
   -- `Board0.board = (1, 1)   -> `X
 
+  -- This is an error (no piecewise bounds for sigs, just fields)
+  -- TODO: add test (actually, an error of last resort ATM)
+  --no `Board0.Board 
+  
   -- Confirm cardinality
   #Thing = 1
 }
@@ -88,8 +92,6 @@ inst inst_piecewise_no
 
 example moveMiddleFirst is {wellformed} for inst_piecewise
 
-option verbose 5
-
 -- test that semantics of piecewise-bounds syntax are consistent, cardinality works, etc.
 test expect {
   inst_piecewise_sat: {} for inst_piecewise is sat
@@ -123,12 +125,12 @@ test expect {
       #b.board <= 2
     }
   } for inst_piecewise_in is theorem
-  /*piecewise_semantics_in_other_unaffected: {
+  piecewise_semantics_in_other_unaffected: {
     some b: Board | {
       #b.board > 2
     }
   } for inst_piecewise_in is sat
-*/
+
     
   piecewise_semantics_ni: {
     some b: Board | {      
@@ -136,12 +138,12 @@ test expect {
       b.board[1][2] = O
     }
   } for inst_piecewise_ni is theorem
-  /*piecewise_semantics_ni_other_unaffected: {
+  piecewise_semantics_ni_other_unaffected: {
     some b: Board | {
       #b.board < 2
     }
-  } for inst_piecewise_ni is theorem
-*/
+  } for inst_piecewise_ni is sat
+
          
   piecewise_semantics_no: {
     some b: Board | {

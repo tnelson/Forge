@@ -81,8 +81,12 @@
 ;     Incomplete bounds are seen in piecewise definitions, where a user may use one bind declaration
 ;     to bound the value of a field for a specific atom; values for other atoms may be provided later.
 
+; NOTE WELL:
 ; The structs below define an intermediate representation; the Kodkod bounds (produced in
 ; forge/send-to-kodkod) are what is actually sent to the solver.
+
+; ALSO: be aware that the "bounds", "sbounds" etc. structs defined elsewhere are distinct from
+; the Bounds struct defined here. At some point, we can perhaps condense these into a single IR.
 
 ; A Range contains the minimum and maximum scope for a relation.
 (struct/contract Range (
@@ -99,15 +103,6 @@
   [sig-scopes (hash/c symbol? Range?)]
   ) #:transparent)
 
-; A Bound represents the set-based size limitations on sigs and relations in a run.
-; Information from both Scope and Bounds will be combined only once a run executes.
-(struct/contract Bound (
-  ; pbindings: partial (but complete) bindings for a given relation
-  [pbindings (hash/c node/expr/relation? sbound?)]
-  ; tbindings: total (but complete) bindings for a given relation; also known as an exact bound.
-  [tbindings (hash/c node/expr/relation? any/c)] 
-  ) #:transparent)
-
 ; A PiecewiseBound represents an atom-indexed, incomplete partial bound. E.g., one might write:
 ;   `Alice.father in `Bob + `Charlie
 ;   `Bob.father in `Charlie + `David
@@ -119,12 +114,22 @@
   [operator (one-of/c '= 'in 'ni)]         ; which operator mode?
   ) #:transparent)
 (define PiecewiseBounds/c (hash/c node/expr/relation? PiecewiseBound?))
+
+; A Bound represents the set-based size limitations on sigs and relations in a run.
+; Information from Scope(s) and Bounds(s) will be combined only once a run executes.
+(struct/contract Bound (
+  ; pbindings: partial (but complete) bindings for a given relation
+  [pbindings (hash/c node/expr/relation? sbound?)]
+  ; tbindings: total (but complete) bindings for a given relation; also known as an exact bound.
+  [tbindings (hash/c node/expr/relation? any/c)]
+  [piecewise PiecewiseBounds/c]
+  ) #:transparent)
                                 
 ; An Inst function is an accumulator of bounds information. It doesn't (necessarily)
 ; contain the full information about a run's scope, bounds, etc. Rather, it allows for
 ; the aggregation of this info across multiple `inst` declarations.
 (struct/contract Inst (
-  [func (Scope? Bound? PiecewiseBounds/c . -> . (values Scope? Bound? PiecewiseBounds/c))]
+  [func (Scope? Bound? . -> . (values Scope? Bound?))]
   ) #:transparent)
 
 ; A Target describes the goal of a target-oriented model-finding run.
@@ -174,11 +179,11 @@
   ) #:transparent)
 
 (struct/contract Run-spec (
-  [state State?]
-  [preds (listof node/formula?)]
-  [scope Scope?]
-  [bounds Bound?]
-  [target (or/c Target? #f)]
+  [state State?]  ; Model state at the point of this run 
+  [preds (listof node/formula?)] ; predicates to run, conjoined
+  [scope Scope?]  ; Numeric scope(s)
+  [bounds Bound?] ; set-based upper and lower bounds
+  [target (or/c Target? #f)] ; target-oriented model finding
   ) #:transparent)
 
 (struct Server-ports (
