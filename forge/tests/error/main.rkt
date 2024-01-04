@@ -21,6 +21,12 @@
 
 (define REGISTRY
   (list
+    (list "piecewise-bind-repeat.frg" #rx"rebinding detected")
+    (list "piecewise-bind-combine.frg" #rx"may not be combined with complete bounds")
+    (list "piecewise-bind-sigs.frg" #rx"would create a relation")
+   
+    (list "hidden-wheat.frg" #rx"Invalid binding expression")
+   
     (list "abstract.frg" #rx"abstract")
     (list "bsl-ast-arrow.frg" #rx"Direct use of ->")
     (list "bsl-ast-intersect.frg" #rx"& operator")
@@ -89,7 +95,7 @@
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "hello.frg" #rx"parsing error")
-    (list "hidden-wheat.frg" #rx"^Invalid bind: #<wheat>$")
+    
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
     (list "invalid-example.frg" #rx"Invalid example 'onlyBabies'")

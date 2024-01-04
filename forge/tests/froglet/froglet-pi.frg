@@ -39,19 +39,7 @@ inst inst_piecewise
   `Board1.board = (2, 2)   -> `X +
                   (1 -> 2) -> `O +
                   1 -> 0   -> `X
-                                    
-  -- This is an error (cannot combine piecewise bounds with complete bounds)
-  -- TODO add test
-  -- no board 
-
-  -- This is an error (rebinding detected)
-  -- TODO add test
-  -- `Board0.board = (1, 1)   -> `X
-
-  -- This is an error (no piecewise bounds for sigs, just fields)
-  -- TODO: add test (actually, an error of last resort ATM)
-  --no `Board0.Board 
-  
+                  
   -- Confirm cardinality
   #Thing = 1
 }
