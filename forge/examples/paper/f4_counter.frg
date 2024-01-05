@@ -16,3 +16,5 @@ test expect {
 	-- 2^2 = 4 default counter values, wraparound fits
 	can_wrap: {someTrace} for 2 Int is sat 
 }
+
+run	{someTrace} for 2 Int
