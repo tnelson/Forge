@@ -1,4 +1,4 @@
 #lang racket/base
 
-(require "library/commands.rkt")
-(provide (all-from-out "library/commands.rkt"))
+(require forge/testme/library/commands)
+(provide (all-from-out forge/testme/library/commands))

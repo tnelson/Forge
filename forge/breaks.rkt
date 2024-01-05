@@ -1,14 +1,16 @@
 #lang racket/base
 
-(require "lang/bounds.rkt" (prefix-in @ "lang/ast.rkt"))
+; This module is concerned with "is linear" and other such "breaker" bind expressions.
+
+(require forge/lang/bounds (prefix-in @ forge/lang/ast))
 (require predicates)
-(require (only-in racket false true set set-union set-intersect set->list list->set first rest
+(require (only-in racket false true set set-union set-intersect set->list list->set set? first rest
                          cartesian-product empty empty? set-add! mutable-set in-set subset?
                          set-subtract! set-map list->mutable-set set-remove! append* set-member?
                          set-empty? set-union! drop-right take-right for/set for*/set filter-not
                          second set-add match identity)
          racket/contract)
-(require (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
+(require (only-in forge/shared get-verbosity VERBOSITY_HIGH))
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
@@ -26,7 +28,12 @@
 ;;;; breaks ;;;;
 ;;;;;;;;;;;;;;;;
 
-(struct sbound (relation lower upper) #:transparent)
+; An "sbound" is nearly identical to the "bound" struct defined in forge/lang/bounds,
+; except that it contains sets rather than lists. #f is permitted to denote a lack of value.
+(struct/contract sbound ([relation any/c]
+                         [lower (or/c #f set?)]
+                         [upper (or/c #f set?)]) #:transparent)
+
 (define (make-sbound relation lower [upper false]) (sbound relation lower upper))
 (define (make-exact-sbound relation s) (sbound relation s s))
 (struct break (sbound formulas) #:transparent)
@@ -63,6 +70,7 @@
     (make-sbound (bound-relation bound)
                 (list->set (bound-lower bound))
                 (list->set (bound-upper bound))))
+
 (define (sbound->bound sbound) 
     (make-bound (sbound-relation sbound)
                 (set->list (sbound-lower sbound))
@@ -543,7 +551,7 @@
     (define sig (first rel-list))
     (breaker pri
         (break-graph (set sig) (set))
-        (λ () (make-exact-break rel (map list (drop-right atoms 1) (cdr atoms))))
+        (λ () (make-exact-break rel (list->set (map list (drop-right atoms 1) (cdr atoms)))))
         (λ () (break bound (set
             (@some/info (@just-location-info loc) ([init sig]) (@&&
                 (@no (@join rel init))
@@ -613,7 +621,7 @@
         (λ () (break
             (sbound rel 
                 (set) ;(set (take atoms 2))
-                (map list (drop-right atoms 1) (cdr atoms))
+                (list->set (map list (drop-right atoms 1) (cdr atoms)))
             )
             (set
                 (@lone/info (@just-location-info loc) ([init sig]) (@&&
@@ -863,9 +871,9 @@
 
 ; use to prevent breaks
 (add-strategy 'default (λ (pri rel bound atom-lists rel-list [loc #f]) (breaker pri
-    (break-graph (set) (set))
-    (λ () 
-        (make-upper-break rel (apply cartesian-product atom-lists)))
+    (break-graph (set) (set))    
+    (λ ()      
+      (make-upper-break rel (list->set (apply cartesian-product atom-lists))))
     (λ () (break bound (set)))
 )))
 

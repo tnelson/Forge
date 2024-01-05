@@ -143,7 +143,9 @@
               vars:varsClass
               trace:traceClass
               decls:declClass ...) 
-             #:attr tostruct (ast-role #'rname (attribute vars.tostruct) (attribute trace.tostruct) (attribute decls.tostruct))))
+             #:attr tostruct (ast-role #'rname (attribute vars.tostruct) 
+                                               (attribute trace.tostruct) 
+                                               (attribute decls.tostruct))))
   
 ;  (vars (a b name) (n1 n2 text))
   (define-syntax-class varsGrouping

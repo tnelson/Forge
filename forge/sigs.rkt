@@ -3,29 +3,31 @@
 (require (only-in racket/function thunk)
          (only-in racket/list first rest empty empty? flatten)
          (only-in racket/pretty pretty-print)
-         (prefix-in @ (only-in racket/base and not > < display max min or)) 
-         (prefix-in @ racket/set))
+         (prefix-in @ (only-in racket/base display max min -)) 
+         (prefix-in @ racket/set)
+         (prefix-in @ (only-in racket/contract ->))
+         (only-in racket/contract define/contract))
 (require syntax/parse/define
          syntax/srcloc)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/strip-context
                      (only-in racket/pretty pretty-print)))
 
-(require "shared.rkt")
-(require "lang/ast.rkt"
-         "lang/bounds.rkt"
-         "breaks.rkt")
-(require (only-in "lang/reader.rkt" [read-syntax read-surface-syntax]))
-(require "server/eval-model.rkt")
-(require "server/forgeserver.rkt")
-(require "translate-to-kodkod-cli.rkt"
-         "translate-from-kodkod-cli.rkt"
-         "sigs-structs.rkt"
-         "evaluator.rkt"
-         (prefix-in tree: "lazy-tree.rkt")
-         "send-to-kodkod.rkt")
-(require (only-in "lang/alloy-syntax/parser.rkt" [parse forge-lang:parse])
-         (only-in "lang/alloy-syntax/tokenizer.rkt" [make-tokenizer forge-lang:make-tokenizer]))
-(require (only-in "sigs-functional.rkt"
+(require forge/shared)
+(require forge/lang/ast 
+         forge/lang/bounds 
+         forge/breaks)
+(require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
+(require forge/server/eval-model)
+(require forge/server/forgeserver)
+(require forge/translate-to-kodkod-cli
+         forge/translate-from-kodkod-cli
+         forge/sigs-structs
+         forge/evaluator
+         (prefix-in tree: forge/lazy-tree)
+         forge/send-to-kodkod)
+(require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
+         (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
+(require (only-in forge/sigs-functional
                   make-sig
                   make-relation
                   make-inst
@@ -50,7 +52,7 @@
 
 ; export AST macros and struct definitions (for matching)
 ; Make sure that nothing is double-provided
-(provide (all-from-out "lang/ast.rkt"))
+(provide (all-from-out forge/lang/ast))
 
 ; Racket stuff
 (provide let quote)
@@ -75,12 +77,12 @@
 
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
-(provide (all-from-out "lazy-tree.rkt"))
+(provide (all-from-out forge/lazy-tree))
 
-(provide (prefix-out forge: (all-from-out "sigs-structs.rkt")))
+(provide (prefix-out forge: (all-from-out forge/sigs-structs)))
 
 ; Export these from structs without forge: prefix
-(provide implies iff <=> ifte >= <= ni != !in !ni <: :>)
+(provide implies iff <=> ifte int>= int<= ni != !in !ni <: :>)
 (provide Int succ min max)
 
 ; Export these from sigs-functional
@@ -124,7 +126,7 @@
   (when (member name (State-sig-order state))
     (raise-user-error (format "tried to add sig ~a, but it already existed" name)))
   ;(define new-sig (Sig name rel one abstract extends))
-  (when (@and extends (@not (member extends (State-sig-order state))))
+  (when (and extends (not (member extends (State-sig-order state))))
     (raise-user-error "Can't extend nonexistent sig."))
 
   (define new-state-sigs (hash-set (State-sigs state) name new-sig))
@@ -174,22 +176,22 @@
   (struct-copy State state
                [inst-map new-state-inst-map]))
 
-(define (set-option! option value)
+(define (set-option! option value #:original-path [original-path #f])
   (cond [(or (equal? option 'verbosity)
              (equal? option 'verbose))
          (set-verbosity value)]
         [else
-         (update-state! (state-set-option curr-state option value))]))
+         (update-state! (state-set-option curr-state option value #:original-path original-path))]))
 
 ; state-set-option :: State, Symbol, Symbol -> State
 ; Sets option to value for state.
-(define (state-set-option state option value)
+(define (state-set-option state option value #:original-path [original-path #f])
   (define options (State-options state))
 
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
                               option (hash-ref option-types option) value)))
-
+  
   (define new-options
     (cond
       [(equal? option 'eval-language)
@@ -200,7 +202,10 @@
                     [eval-language value])]
       [(equal? option 'solver)
        (struct-copy Options options
-                    [solver value])]
+                    [solver
+                     (if (and (string? value) original-path)
+                         (path->string (build-path original-path (string->path value)))
+                         value)])]
       [(equal? option 'backend)
        (struct-copy Options options
                     [backend value])]
@@ -218,14 +223,14 @@
                     [local_necessity value])]
       [(equal? option 'min_tracelength)
        (let ([max-trace-length (get-option state 'max_tracelength)])
-         (if (@> value max-trace-length)
+         (if (> value max-trace-length)
              (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
                                        value max-trace-length))
              (struct-copy Options options
                           [min_tracelength value])))]
       [(equal? option 'max_tracelength)
        (let ([min-trace-length (get-option state 'min_tracelength)])
-         (if (@< value min-trace-length)
+         (if (< value min-trace-length)
              (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
                                        value min-trace-length))
              (struct-copy Options options
@@ -244,7 +249,10 @@
                     [skolem_depth value])]
       [(equal? option 'run_sterling)
        (struct-copy Options options
-                    [run_sterling value])]
+                    [run_sterling
+                     (if (and (string? value) original-path)
+                         (path->string (build-path original-path (string->path value)))
+                         value)])]
       [(equal? option 'sterling_port)
        (struct-copy Options options
                     [sterling_port value])]
@@ -374,45 +382,118 @@
          (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]))
 
-(begin-for-syntax
+; Used for sealing formula structs that come from wheats, which should be obfuscated
+(begin-for-syntax  
   (define-splicing-syntax-class pred-type
     #:description "optional pred flag"
     #:attributes ((seal 0))
+    ; If this is a "wheat pred", wrap in a make-wheat call
     (pattern (~datum #:wheat)
       #:attr seal #'make-wheat)
+    ; Otherwise, just pass-through
     (pattern (~seq)
-      #:attr seal #'values)))
+      #:attr seal #'values))
+
+  ; [v] | [v expr] | [v expr mult]
+  ; We want to enable arbitrary code within the expr portion
+  (define-splicing-syntax-class param-decl-class
+    #:description "predicate or function variable declaration"
+    #:attributes (mexpr name)
+    (pattern name:id                            
+      #:attr expr #'univ ; default domain
+      #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one)))
+    (pattern (name:id expr)
+      #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one)))
+    (pattern (name:id expr mult)
+      #:attr mexpr #'(mexpr expr mult)))
+
+  ; No variable ID, just a "result type":
+  ; expr | [expr mult]
+  (define-splicing-syntax-class codomain-class
+    #:description "codomain expression in helper function declaration"
+    #:attributes (mexpr)
+    (pattern (expr mult:id)
+      #:attr mexpr #'(mexpr expr 'mult))
+    (pattern (expr mult)
+      #:attr mexpr #'(mexpr expr mult))
+    ; Catch expr without mult (but must come last, or will match both of above)
+    (pattern expr                            
+      #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one))))
+  )
 
 ; Declare a new predicate
-; (pred info name cond ...)
-; (pred info (name var ...) cond ...)
-;   or same without info
+; Two cases: one with args, and one with no args
 (define-syntax (pred stx)
   (syntax-parse stx
+    ; no decls: predicate is already the AST node value, without calling it
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
-     (quasisyntax/loc stx
-       (begin
-         ; use srcloc of actual predicate, not this location in sigs
-         (define name (pt.seal (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...)))
-         (update-state! (state-add-pred curr-state 'name name))))]
+     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
+       (quasisyntax/loc stx
+         (begin
+           ; use srcloc of actual predicate, not this location in sigs
+           ; "pred spacer" still present, even if no arguments, to consistently record use of a predicate
+           (define name
+             (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))
+           (update-state! (state-add-pred curr-state 'name name)))))]
+
+    ; some decls: predicate must be called to evaluate it
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
-           (name:id args:id ...+) conds:expr ...+)
-     (quasisyntax/loc stx
-       (begin 
-         (define (name args ...) (pt.seal (&&/info (nodeinfo #,(build-source-location stx) check-lang) conds ...)))
-         (update-state! (state-add-pred curr-state 'name name))))]))
+           (name:id decls:param-decl-class  ...+) conds:expr ...+)
+     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
+       (quasisyntax/loc stx
+         (begin
+           ; "pred spacer" added to record use of predicate along with original argument declarations etc.           
+           (define (name decls.name ...)
+             (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
+               (error (format "Argument '~a' to pred ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
+                              'decls.name 'name decls.name)))
+             ...
+             (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...)
+                                             (&&/info the-info conds ...))))                      
+           (update-state! (state-add-pred curr-state 'name name)))))]))
+
+(define/contract (repeat-product expr count)
+  [@-> node/expr? number? node/expr?]
+  (cond [(> count 1)
+         (-> expr (repeat-product expr (@- count 1)))]
+        [else expr]))
 
 ; Declare a new function
-; (fun (name var ...) result)
+; (fun (name var ...) body)
+; (fun (name (var expr <multiplicity>]) ...) body)
 (define-syntax (fun stx)
   (syntax-parse stx
-    [(fun (name:id args:id ...+) result:expr) 
-      #'(begin
-          (define (name args ...) result)
-          (update-state! (state-add-fun curr-state 'name name)))]))
+    [(fun (name:id decls:param-decl-class ...+)
+          result:expr
+          ; Note: default for *attribute*
+          (~optional (~seq #:codomain codomain:codomain-class)
+                     #:defaults ([codomain.mexpr #'(mexpr (repeat-product univ (node/expr-arity result))
+                                                          (if (> (node/expr-arity result) 1) 'set 'one))])))
+     ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
+     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
+       #'(begin
+           ; "fun spacer" added to record use of function along with original argument declarations etc.           
+           (define (name decls.name ...)
+             (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
+               (error (format "Argument '~a' to fun ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
+                              'decls.name 'name decls.name)))
+             ...
+             ; maintain the invariant that helper functions are always rel-expression valued
+             (define safe-result
+               (cond [(node/int? result)
+                      (node/expr/op/sing (node-info result) 1 (list result))]
+                     [else result]))
+             (node/expr/fun-spacer
+              the-info                      ; from node
+              (node/expr-arity safe-result) ; from node/expr
+              'name
+              (list (apply-record 'decls.name decls.mexpr decls.name) ...)
+              codomain.mexpr
+              safe-result))
+           (update-state! (state-add-fun curr-state 'name name))))]))
 
 ; Declare a new constant
 ; (const name value)
@@ -505,7 +586,7 @@
            (run name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
-             (when (@> (get-verbosity) 0)
+             (when (> (get-verbosity) 0)
                (printf "Unexpected result found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in Sterling since the test failed.
@@ -522,7 +603,7 @@
            (check name args ...)
            (define first-instance (tree:get-value (Run-result name)))
            (when (Sat? first-instance)
-             (when (@> (get-verbosity) 0)
+             (when (> (get-verbosity) 0)
                (printf "Instance found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in sterling since the test failed.
@@ -612,7 +693,7 @@
 ; Lifted function which, when provided a Run,
 ; generates a Sterling instance for it.
 (define (true-display arg1 [arg2 #f])
-  (if (@not (Run? arg1))
+  (if (not (Run? arg1))
       (if arg2 (@display arg1 arg2) (@display arg1))
       (let ()
         (define run arg1)
@@ -713,188 +794,10 @@
 
 ; set-bitwidth :: Scope, int -> Scope
 ; Updates the bitwidth for the given Scope.
-(define (set-bitwidth scope n)
-  (struct-copy Scope scope
-               [bitwidth n]))
-
-; update-int-bound :: Scope, node/expr/relation, Range -> Scope
-; Updates the scope (range) for a given sig in scope.
-(define (update-int-bound scope rel given-scope)
-  (define old-sig-scopes (Scope-sig-scopes scope))
-  (define name (string->symbol (relation-name rel)))
-  (define-values (new-lower new-upper)
-    (if (@not (hash-has-key? old-sig-scopes name))
-        (values (Range-lower given-scope) (Range-upper given-scope))
-        (let ([old-scope (hash-ref old-sig-scopes name)])
-          (let ([old-lower (Range-lower old-scope)]
-                [old-upper (Range-upper old-scope)]
-                [given-lower (Range-lower given-scope)]
-                [given-upper (Range-upper given-scope)])
-
-            (define new-lower 
-              (cond 
-                [(and old-lower given-lower) (@max old-lower given-lower)]
-                [old-lower old-lower]
-                [given-lower given-lower]
-                [else #f]))
-            (define new-upper 
-              (cond 
-                [(and old-upper given-upper) (@min old-upper given-upper)]
-                [old-upper old-upper]
-                [given-upper given-upper]
-                [else #f]))
-            (values new-lower new-upper)))))
-
-  
-  (when (@< new-upper new-lower)
-    (raise (format (string-append "Bound conflict: numeric upper bound on ~a was"
-                                  " less than numeric lower bound (~a vs. ~a).") 
-                   rel new-upper new-lower)))
-
-  (define new-scope (Range new-lower new-upper))
-  (define new-sig-scopes (hash-set (Scope-sig-scopes scope) name new-scope))
-
-  (struct-copy Scope scope
-               [sig-scopes new-sig-scopes]))
-
-; update-bindings :: Bound, node/expr/relation, List<Symbol>, List<Symbol>? -> Bound
-; Updates the partial binding for a given sig or relation.
-; If a binding already exists, takes the intersection.
-; If this results in an exact bound, adds it to the total bounds.
-(define (update-bindings bound rel lower [upper #f])
-  (set! lower (@list->set lower))
-  (when upper (set! upper (@list->set upper)))
-
-  (define old-pbindings (Bound-pbindings bound))
-  (define old-tbindings (Bound-tbindings bound))
-
-  ; New bindings can only strengthen old ones
-  (when (hash-has-key? old-pbindings rel)
-    (let ([old (hash-ref old-pbindings rel)])
-      (set! lower (@set-union lower (sbound-lower old)))
-      (set! upper (cond [(@and upper (sbound-upper old))
-                         (@set-intersect upper (sbound-upper old))]
-                        [else (@or upper (sbound-upper old))]))))
-  
-
-  (unless (@or (@not upper) (@subset? lower upper))
-    (raise (format "Bound conflict: upper bound on ~a was not a superset of lower bound. Lower=~a; Upper=~a." rel lower upper)))
-
-  (define new-pbindings
-    (hash-set old-pbindings rel (sbound rel lower upper)))
-
-  ; when exact bounds, put in bindings
-  (define new-tbindings 
-    (if (equal? lower upper) 
-        (hash-set old-tbindings (string->symbol (relation-name rel)) 
-                                (@set->list lower))
-        old-tbindings))
-
-  (define new-bound (Bound new-pbindings new-tbindings))
-  new-bound)
-
-; update-bindings-at :: Bound, node/expr/relation, node/expr/relation, 
-;                       List<Symbol>, List<Symbol>? 
-;                         -> Bound
-; To be implemented.
-; Updates the partial binding for a given focused relation.
-; Example use is (ni (join Thomas mentors) (+ Tim Shriram)).
-; (define (update-bindings-at bound rel foc lower [upper #f])
-;   scope)
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;  Bound Declarations  ;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-#|
-Originally needed for inst,
-Now with functional forge, do-bind is used instead
-; (bind scope bound bind-expression)
-(define-syntax (bind stx)
-  (match-define (list b scope bound binding) (syntax-e stx))
-  (syntax-parse binding #:datum-literals (no one two lone <= = card is ~ join Int CompareOp QualName Const)
-    
-    ; Cardinality bindings
-    [(no rel) #`(bind #,scope #,bound (= rel none))]
-    [(one rel) #`(bind #,scope #,bound (= (card rel) 1))]
-    [(two rel) #`(bind #,scope #,bound (= (card rel) 2))]
-    [(lone rel) #`(bind #,scope #,bound (<= (card rel) 1))]
-
-    [(= (card rel) n)
-     #`(let* ([exact (eval-int-expr 'n (Bound-tbindings #,bound) 8)]
-              [new-scope (if (equal? (relation-name rel) "Int")
-                             (set-bitwidth #,scope exact)
-                             (update-int-bound #,scope rel (Range exact exact)))])
-          (values new-scope #,bound))]
-
-    [(<= (card rel) upper)
-     #`(let* ([upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range #f upper-val))])
-         (values new-scope #,bound))]
-
-    [(<= lower (card rel))
-     #`(let* ([lower-val (eval-int-expr 'lower (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range lower-val #f))])
-         (values new-scope #,bound))]
-
-    [(<= lower (card rel) upper)
-     #`(let* ([lower-val (eval-int-expr 'lower (Bound-tbindings #,bound) 8)]
-              [upper-val (eval-int-expr 'upper (Bound-tbindings #,bound) 8)]
-              [new-scope (update-int-bound #,scope rel (Range lower-val upper-val))])
-         (values new-scope #,bound))]
-
-    ; Strategies
-    [(is (~ rel) strat)
-     #`(begin
-       (break rel (get-co 'strat))
-       (values #,scope #,bound))]
-
-    [(is rel strat)
-     #`(begin
-       (break rel 'strat)
-       (values #,scope #,bound))]
-
-    ; Other instances
-    [f:id #`(f #,scope #,bound)]
-
-    ; Particular bounds
-    [(cmp rel expr)
-     #:fail-unless (member (syntax->datum #'cmp) '(= in ni)) "expected a comparator"
-     #`(let ([tups (eval-exp 'expr (Bound-tbindings #,bound) 8 #f)]) ; LOOK HERE
-         (define new-scope #,scope)
-           ; (if (@not (equal? (relation-arity rel) 1))
-           ;     #,scope
-           ;     (begin
-           ;       ;; make sure all sub-sigs exactly defined
-           ;       ; (for ([(sub sup) (in-hash extensions-store)] #:when (equal? sup rel))
-           ;       ;   (unless (rel-is-exact sub)
-           ;       ;           (error 'inst "sub-sig ~a must be exactly specified before super-sig ~a" 
-           ;       ;                  (relation-name sub) (relation-name sup))))
-           ;       (let ([exact (length tups)]) 
-           ;         (update-int-bound #,scope rel (Range exact exact))))))
-
-         (define new-bound (cond
-           [(equal? 'cmp '=)  (update-bindings #,bound rel tups tups)]
-           [(equal? 'cmp 'in) (update-bindings #,bound rel (@set) tups)]
-           [(equal? 'cmp 'ni) (update-bindings #,bound rel tups)]))
-
-         (values new-scope new-bound))]
-
-    ; [(cmp (join foc rel) expr)
-    ;  #`(let ([tups (eval-exp (alloy->kodkod 'expr) bindings 8 #f)])
-    ;      (define new-bound (cond
-    ;        [(equal? 'cmp '=)  (update-bindings-at #,bound rel 'foc tups tups)]
-    ;        [(equal? 'cmp 'in) (update-bindings-at #,bound rel 'foc (@set) tups)]
-    ;        [(equal? 'cmp 'ni) (update-bindings-at #,bound rel 'foc tups)]))
-    ;      (values #,scope new-bound))]
-
-    ; Bitwidth
-    [(Int n:nat)
-     #'(values (set-bitwidth #,scope n) #,bound)]
-
-    [x (raise-syntax-error 'inst (format "Not allowed in bounds constraint") binding)]))
-|#
+;(define (set-bitwidth scope n)
+;  (struct-copy Scope scope
+;               [bitwidth n]))
+;
 
 (define (solution-diff s1 s2)
   (map instance-diff (Sat-instances s1) (Sat-instances s2)))
@@ -913,17 +816,25 @@ Now with functional forge, do-bind is used instead
 (define-syntax (define-builtin stx)
   (syntax-parse stx
    [(define-builtin:id (opName:id locArg:id args:id ...) body:expr)
-    (with-syntax ([opName/func (format-id #'opName "~a/func" #'opName)])
+    (with-syntax ([opName/func (format-id #'opName "~a/func" #'opName)]
+                  [ellip '...])
       (syntax/loc stx (begin
         (define-syntax (opName stxx)
           (syntax-parse stxx
-           [opName
-            (quasisyntax/loc stxx (lambda (args ...)
-              (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) args ...)))]))
-
+            ; For use in forge/core; full s-expression expands to 0-ary procedure
+            ; Note use of "ellip" to denote "..." for the inner macro.
+            [(opName inner-args:id ellip)
+             (quasisyntax/loc stxx
+               (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) inner-args ellip))]
+            ; For use with #lang forge; identifier by itself expands to 3+-ary procedure
+            [opName
+             (quasisyntax/loc stxx
+               (lambda (args ...)
+                 (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) args ...)))]))
+        
         (define (opName/func locArg args ...)
           body)
-      )))
+        )))
     ]))
 
 (define-builtin (isSeqOf info r1 d)
@@ -931,7 +842,7 @@ Now with functional forge, do-bind is used instead
       (in/info info r1 (-> Int univ))
       (in/info info (join/info info Int r1) d)
       (all ([i1 (join/info info r1 univ)])
-           (&&/info info (>= (sum/info info i1) (int 0))
+           (&&/info info (int>= (sum/info info i1) (int 0))
                (lone (join/info info i1 r1))))
       (all ([e (join/info info Int r1)])
            (some (join/info info r1 e)))
@@ -995,9 +906,16 @@ Now with functional forge, do-bind is used instead
 ; a reachable from b through r1 + r2 + ...
 (define-syntax (reachable stx)
   (syntax-parse stx
-   [reachable
-   (quasisyntax/loc stx
-     (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
+    ; For use in forge/core; full s-expression expands to 0-ary procedure
+    [(reachable a b r ...)
+     (quasisyntax/loc stx
+       (reachablefun #,(build-source-location stx) a b (list r ...)))]
+    ; For use with #lang forge; identifier by itself expands to 3+-ary procedure
+    [reachable
+     (quasisyntax/loc stx
+       (lambda (a b . r) (reachablefun #,(build-source-location stx) a b r)))]))
+
+
 
 (define (reachablefun loc a b r)
   (unless (equal? 1 (node/expr-arity a)) (raise-user-error (format "First argument \"~a\" to reachable is not a singleton at loc ~a" (deparse a) (srcloc->string loc))))
@@ -1010,20 +928,6 @@ Now with functional forge, do-bind is used instead
 
 (define (union-relations loc r)
   (cond
-    [(empty? r) (raise-user-error "contact course staff. Shouldn't have union of none")]
+    [(empty? r) (raise-user-error "Unexpected: union-relations given no arguments. Please report this error.")]
     [(empty? (rest r)) (first r)]
     [else (+/info (nodeinfo loc 'checklangNoCheck) (first r) (union-relations loc (rest r)))]))
-  ; (in a (join b (^ r))))
-; (define (reachable a b r)
-;   (reachable2 a b r))
-; (define-syntax (reachable2 stx)
-; (println stx)
-;   (syntax-case stx ()
-;     [(_ a b r ...)
-;       (quasisyntax/loc stx
-;         (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-;             a 
-;             (join/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-;                         b 
-;                        (^/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) (+/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) r ...)))))]))
-

@@ -4,8 +4,8 @@
          read-syntax)
 
 (require syntax/parse)
-(require "alloy-syntax/parser.rkt")
-(require "alloy-syntax/tokenizer.rkt")
+(require forge/lang/alloy-syntax/parser)
+(require forge/lang/alloy-syntax/tokenizer)
 (require (prefix-in log: forge/logging/2023/main))
 (require forge/shared)
 (do-time "forge/lang/reader")
@@ -78,6 +78,7 @@
     (log:register-run compile-time project this-lang email path))
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
+ 
   (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                        forge:n))
                   (require (only-in forge/shared do-time))
@@ -88,7 +89,7 @@
 
                   (require (prefix-in log: forge/logging/2023/main))
                   (require (only-in racket printf uncaught-exception-handler))
-
+                  
                   (require forge/choose-lang-specific)
                   (require forge/lang/lang-specific-checks) ; TODO: can this be relative?
                   ; ANSWER: maybe using dynamic-require

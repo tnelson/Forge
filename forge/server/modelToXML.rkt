@@ -1,9 +1,10 @@
 #lang racket/base
 
-(require "../lang/ast.rkt" racket/date xml racket/string
-         "../sigs-structs.rkt" ; for Sat/Unsat
-         "../shared.rkt"
+(require forge/lang/ast racket/date xml racket/string
+         forge/sigs-structs ; for Sat/Unsat
+         forge/shared
          (prefix-in @ (only-in racket and or not > - +))
+         (only-in racket/port port->string)
          racket/hash
          (only-in racket first second rest empty empty? remove-duplicates curry
                          port->lines mutable-set set-subtract set->list set-union!
@@ -80,8 +81,23 @@
                  (types-to-XML-string rel ID-hash)
                  "\n</field>\n\n"))
 
+; Possibly annotate the XML with instructions on where to find visualization info
+(define (sterling-viz-to-xml run-options)
+  (cond
+    [(not run-options) ""]
+    [(string? (Options-run_sterling run-options))
+     ; the forge expander makes this an absolute path (see OptionDecl)
+     (define file-path (Options-run_sterling run-options))
+     (define script-text (port->string (open-input-file file-path) #:close? #t))
+     (format "<visualizer script=\"~a\" />" (clean script-text))]
+    [else ""]))
+
 (define (clean str)
-  (string-replace (string-replace (string-replace (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;"))
+  (string-replace
+   (string-replace
+    (string-replace
+     (string-replace
+      (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;") "\n" "&#xA;"))
 
 (define (agg-lines lines)
   (if (empty? lines)
@@ -97,7 +113,9 @@
         [else 
          (rel (map (lambda (a) 'univ) (first value)) 'univ (symbol->string key))]))
 
-(define (solution-to-XML-string soln relation-map name command filepath bitwidth forge-version #:tuple-annotations [tuple-annotations (hash)])    
+(define (solution-to-XML-string soln relation-map name command filepath bitwidth forge-version
+                                #:tuple-annotations [tuple-annotations (hash)]
+                                #:run-options [run-options #f])    
   (define data
     (if (Sat? soln) ; if satisfiable, can report relations
         (map (lambda (a-subinstance) 
@@ -190,6 +208,7 @@ here-string-delimiter
                                             (λ (exn) (format "// Couldn't open source file (~a) (info: ~a). Is the file saved?" filepath (exn:fail:filesystem:errno-errno exn)))])
                              (clean (agg-lines (port->lines (open-input-file filepath)))))
                            "\"></source>\n"
+                           (sterling-viz-to-xml run-options)
                            "</alloy>"))         
          (define message
            (string-append

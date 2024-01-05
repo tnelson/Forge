@@ -42,16 +42,6 @@
 
 ; add, subtract, multiply, divide, remainder
 
-
-; pred Add {
-;     all i: Int |
-;         add[sum[i], 0] = sum[i]
-
-;     let succ2 = succ + (Int - succ.Int)->(Int - Int.succ) |
-;         all i1, i2: Int |
-;             sing[add[sum[i1], sum[i2.succ2]]] = sing[add[sum[i1], sum[i2]]].succ2
-; }
-
 (pred Add
     (all ([i Int])
         (int= (add (sum i) (int 0))
@@ -96,15 +86,6 @@
                    (sum i2))
               (sum i1))))
 
-; pred DivideRemainder {
-;     all i1: Int, i2: (Int - sing[0]) | let x = sum[i1], y = sum[i2] | 
-;         let q = divide[x, y], r = remainder[x, y] | {
-;             sign[r] = sign[x] or sign[r] = 0
-;             abs[r] < abs[y] or y = -8
-;             x = add[multiply[y, q], r]
-;         }
-; }
-
 (pred DivideRemainder
     (all ([i1 Int]
           [i2 (- Int (sing (int 0)))])
@@ -114,10 +95,9 @@
                   [r (remainder x y)])
                 (&& (|| (= (sign r) (sign x))
                          (= (sign r) (int 0)))
-                     (|| (< (abs r) (abs y))
+                     (|| (int< (abs r) (abs y))
                          (int= y (int -8)))
                      (int= x (add (multiply y q) r)))))))
-
 
 (test abs-check
       #:preds [Abs]

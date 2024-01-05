@@ -36,6 +36,10 @@
                         otherA))))
        (join otherB otherA)))
 
+; Confirm these expand without error
+(define exp1 (set ([a A univ]) (= a a)))
+(define exp2 (set (#:lang 'forge) ([a A univ]) (= a a)))
+
 (test comprehensionsOnSigs 
       #:preds [ComprehensionsOnSigs]
       #:bounds [relations]

@@ -2,7 +2,7 @@
 
 (provide get-info)
 
-(require "../../shared.rkt")
+(require forge/shared)
 (require net/url)
 (require racket/file)
 (require json)

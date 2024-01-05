@@ -91,3 +91,5 @@ test expect BooleanFormulaOperators {
     OrOps : Or is theorem
     ImpliesOps : Implies is theorem
 }
+
+

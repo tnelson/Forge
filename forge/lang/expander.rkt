@@ -49,7 +49,7 @@
            -> => implies ! not and or && || ifte iff <=>
            = in ni != !in !ni is
            no some one lone all set two
-           < > int= >= <=
+           int< int> int= int>= int<=
            add subtract multiply divide sign abs remainder
            card sum sing succ max min sum-quant
            node/int/constant
@@ -164,7 +164,7 @@
     (pattern ((~datum Mult) "one") #:attr symbol #'#:one)
     (pattern ((~datum Mult) "two") #:attr symbol #'#:two))
 
-  ; ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK
+  ; ArrowMult : used for field etc. declarations; the symbol attribute references a breaker
   (define-syntax-class ArrowMultClass
     (pattern ((~datum ArrowMult) "lone") #:attr symbol #'pfunc)
     (pattern ((~datum ArrowMult) "set") #:attr symbol #'default)
@@ -173,27 +173,45 @@
     (pattern ((~datum ArrowMult) "pfunc") #:attr symbol #'pfunc)
     (pattern ((~datum ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
 
-  ; Decl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? SET-TOK? Expr
-  (define-syntax-class DeclClass
-    (pattern ((~datum Decl)
-              ;(~optional "disj")
-              names:NameListClass
-              ;(~optional "disj")
-              (~optional "set")
-              expr:ExprClass)
-      #:attr translate (with-syntax ([expr #'expr])
-                         #'((names.names expr) ...))))
+  ; HelperMult : used for helper fun/pred definitions; the symbol attribute references a symbol
+  (define-syntax-class HelperMultClass
+    (pattern ((~datum HelperMult) "lone") #:attr symbol #'(quote lone))
+    (pattern ((~datum HelperMult) "set") #:attr symbol #'(quote set))
+    (pattern ((~datum HelperMult) "one") #:attr symbol #'(quote one))
+    (pattern ((~datum HelperMult) "func") #:attr symbol #'(quote func))
+    (pattern ((~datum HelperMult) "pfunc") #:attr symbol #'(quote pfunc)))
 
+  
+  ; Declaration of variables with shared expr, shared optional multiplicity
+  ; The enclosing context is responsible for checking for valid multiplicities   
+  (define-syntax-class DeclClass
+    (pattern ((~or (~datum ParaDecl) (~datum QuantDecl))
+              names-c:NameListClass              
+              (~optional mult:HelperMultClass #:defaults ([mult #'#f]))
+              expr:ExprClass)
+      ; Assign Alloy-convention defaults: set if arity >1, one otherwise
+      #:attr translate (with-syntax ([expr #'expr] 
+                                     [mult (if (syntax->datum #'mult)
+                                               ; Don't quote this; will be (ArrowDeclMult ...)
+                                               #'mult
+                                               #'(if (> (node/expr-arity expr) 1)
+                                                     'set
+                                                     'one))]) 
+                         #'((names-c.names expr mult) ...))
+      #:attr names #'(names-c.names ...)))
+  
+  ; Declaration of a comma-delimited list of variable declarations with expr and optional multiplicity
   ; DeclList : Decl
   ;          | Decl /COMMA-TOK @DeclList
   (define-syntax-class DeclListClass
-    (pattern ((~datum DeclList)
-              decls:DeclClass ...)
+    (pattern ((~or (~datum ParaDeclList) (~datum QuantDeclList))
+              decls:DeclClass ...)      
       #:attr translate (datum->syntax #'(decls ...) 
                                       (apply append 
                                              (map syntax->list 
                                                   (syntax->list #'(decls.translate ...)))))))
 
+  ; Arrow-style declaration, used in (e.g.) field definitions within sigs
   ; ArrowDecl : DISJ-TOK? NameList /COLON-TOK DISJ-TOK? ArrowMult ArrowExpr
   (define-syntax-class ArrowDeclClass
     (pattern ((~datum ArrowDecl)
@@ -236,6 +254,7 @@
 
   ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
   (define-syntax-class PredDeclClass
+    #:description "predicate declaration"
     (pattern ((~datum PredDecl)
               (~optional _:PredTypeClass)
               (~optional (~seq prefix:QualNameClass "."))
@@ -245,20 +264,32 @@
 
   ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
   (define-syntax-class FunDeclClass
+    #:description "helper function declaration"
     (pattern ((~datum FunDecl)
               (~optional (~seq prefix:QualNameClass "."))
               name:NameClass
               (~optional decls:ParaDeclsClass)
-              output:ExprClass
+              ; An optional multiplicity and required expression
+              (~optional output-mult:HelperMultClass)
+              output-expr:ExprClass
               body:ExprClass)))
 
-  ; ParaDecls : /LEFT-PAREN-TOK @DeclList? /RIGHT-PAREN-TOK 
-  ;           | /LEFT-SQUARE-TOK @DeclList? /RIGHT-SQUARE-TOK
-  ; DeclList : Decl
-  ;          | Decl /COMMA-TOK @DeclList
+  ;; Used only for function and predicate definitions
   (define-syntax-class ParaDeclsClass
     (pattern ((~datum ParaDecls)
               (~seq decls:DeclClass ...))
+      ; The `variables` attribute removes the expression of each, returning only var
+      #:attr variables (datum->syntax #'(decls ...)
+                                      (apply append (map (compose (curry map car )
+                                                                  (curry map syntax->list )
+                                                                  syntax->list) 
+                                                         (syntax->list #'(decls.translate ...)))))
+      ; The `pairs` attribute retains both variable and expression (var expr mult?)
+      #:attr pairs (datum->syntax #'(decls ...)
+                                      (apply append (map (compose (curry map syntax->list )
+                                                                  syntax->list) 
+                                                         (syntax->list #'(decls.translate ...)))))
+      ; For the moment, the `translate` attribute does as `variables`
       #:attr translate (datum->syntax #'(decls ...)
                                       (apply append (map (compose (curry map car )
                                                                   (curry map syntax->list )
@@ -444,15 +475,128 @@
     (pattern ((~datum Parameters)
               name:QualNameClass ...)))
 
-  ; Bounds : EXACTLY-TOK? @ExprList
-  ;        | EXACTLY-TOK? @Block
   (define-syntax-class BoundsClass
+     #:description "bounds declarations"
+    (pattern ((~datum Bounds)
+              ;(~optional "exactly")
+              bounds:BoundClass ...)
+      #:attr translate (begin
+                         ;(printf "Bounds case 1: ~a~n" (build-source-location this-syntax))
+                         (datum->syntax #'(bounds ...)
+                                        ; Note: syntax->list keeps the syntax objects within, along with
+                                        ; their context/srcloc. (The syntax/loc here doesn't seem to be
+                                        ; needed, since it's templating.)
+                                        (syntax->list #'(bounds.translate ...))
+                                        ;(syntax->list (syntax/loc this-syntax (bounds.translate ...)))
+                                        (build-source-location this-syntax))))
+    ; direct use in the example, test, run, etc.
+    ; `example` macro splices the result in. Hence, not #'(Expr name).
+    ; `test` macro does not splice. 
     (pattern ((~datum Bounds)
               (~optional "exactly")
-              exprs:ExprClass ...)
-      #:attr translate (datum->syntax #'(exprs ...)
-                                      (syntax->list #'(exprs ...)))))
+              name:QualNameClass)
+      #:attr translate (begin (datum->syntax #'name
+                                      (list #'name.name)))))
 
+  (define-syntax-class QualNameOrAtomOrAtomizedNumberClass
+     #:description "name, atom name, or number"
+    (pattern name:QualNameClass
+      #:attr translate (syntax/loc this-syntax (Expr name)))
+    (pattern ((~datum AtomNameOrNumber) "`" name:NameClass)
+      #:attr translate (syntax/loc this-syntax (Expr "`" name)))
+    (pattern ((~datum AtomNameOrNumber) (~optional (~and "-" minus-tok)) num:NumberClass)
+      #:attr translate (syntax/loc this-syntax (Expr (Const (~? minus-tok) num)))))
+  
+  (define-syntax-class BoundLHSClass
+    #:description "left-hand-side of a bind declaration"
+    ; No join, relation name only on LHS
+    (pattern ((~datum BoundLHS) target:QualNameClass)
+      #:attr translate (syntax/loc this-syntax (Expr target)))
+    ; Join, atom name dotted with field name
+    (pattern ((~datum BoundLHS) ((~datum AtomNameOrNumber) "`" atom:NameClass)                                
+                                field:QualNameClass)
+      #:attr translate (syntax/loc this-syntax (Expr (Expr "`" atom) "." (Expr field)))))
+  
+  (define-syntax-class BoundClass
+     #:description "bind declaration"
+    ; tuple bounds:  LHS =/ni/in UNION
+    (pattern ((~datum Bound)  
+              lhs:BoundLHSClass
+              op:CompareOpClass
+              rhs:BindRHSUnionClass)
+      #:attr translate (begin
+                         (syntax/loc this-syntax (Expr lhs.translate op rhs.translate))))
+
+    ; cardinality bound (single relation): #LHS = N
+    (pattern ((~datum Bound)  ; or backquote name
+              ((~datum BoundLHS) "#" target:QualNameClass)
+              op:CompareOpClass
+              rhs:BindRHSUnionClass) 
+      #:attr translate (with-syntax* ([tgt (syntax/loc #'target (Expr target))]
+                                     [left-subexpr (syntax/loc #'target (Expr "#" tgt))])
+                         (syntax/loc this-syntax (Expr left-subexpr op rhs.translate))))
+    
+    ; "no" bound: relation LHS and piecewise LHS
+    (pattern ((~datum Bound) (~datum "no") 
+                             ((~datum BoundLHS) target:QualNameClass)) 
+    #:attr translate (with-syntax ([tgt (syntax/loc #'target (Expr target))])
+                         (syntax/loc this-syntax (Expr "no" tgt))))
+    (pattern ((~datum Bound) (~datum "no")
+                             ((~datum BoundLHS)
+                              ((~datum AtomNameOrNumber) "`" atom:NameClass)
+                              field:QualNameClass))
+      #:attr translate (quasisyntax/loc this-syntax (Expr "no" (Expr (Expr "`" atom) "." (Expr field)))))
+
+    ; identifier: re-use of `inst` defined
+    (pattern ((~datum Bound)  
+              name:QualNameClass)
+      #:attr translate (syntax/loc this-syntax (Expr name))))
+
+  (define-syntax-class BindRHSUnionClass
+     #:description "union in right-hand-side of a bind declaration"
+    (pattern ((~datum BindRHSUnion)
+              tup:BindRHSProductClass)
+      #:attr translate (syntax/loc this-syntax tup.translate))
+
+    ; "union -> product"
+    (pattern ((~datum BindRHSUnion)
+              tups:BindRHSUnionClass
+              tup:BindRHSProductClass)
+      #:attr translate (syntax/loc this-syntax (Expr tups.translate "+" tup.translate)))
+    (pattern ((~datum BindRHSUnion)
+              tups1:BindRHSUnionClass
+              tups2:BindRHSUnionClass) 
+      #:attr translate (syntax/loc this-syntax (Expr tups1.translate "+" tups2.translate))))
+  
+  (define-syntax-class BindRHSProductClass
+     #:description "product in right-hand-side of a bind declaration"
+    (pattern ((~datum BindRHSProduct)
+              union:BindRHSUnionClass) 
+      #:attr translate (syntax/loc this-syntax union.translate))
+    (pattern ((~datum BindRHSProduct)
+              atom:QualNameOrAtomOrAtomizedNumberClass) 
+      #:attr translate (syntax/loc this-syntax atom.translate))
+
+    ; "product -> atom" or "atom -> product"
+    (pattern ((~datum BindRHSProduct)
+              tup:BindRHSProductClass
+              atom:QualNameOrAtomOrAtomizedNumberClass) 
+      #:attr translate (syntax/loc this-syntax (Expr tup.translate (ArrowOp "->") atom.translate)))
+    (pattern ((~datum BindRHSProduct)
+              atom:QualNameOrAtomOrAtomizedNumberClass
+              tup:BindRHSProductClass) 
+      #:attr translate (syntax/loc this-syntax (Expr atom.translate (ArrowOp "->") tup.translate)))
+
+    ; "union -> product" or "product -> union"
+    (pattern ((~datum BindRHSProduct)
+              union1:BindRHSUnionClass
+              product2:BindRHSProductClass) 
+      #:attr translate (syntax/loc this-syntax (Expr union1.translate (ArrowOp "->") product2.translate)))
+    (pattern ((~datum BindRHSProduct)
+              product1:BindRHSProductClass
+              union2:BindRHSUnionClass) 
+      #:attr translate (syntax/loc this-syntax (Expr product1.translate (ArrowOp "->") union2.translate))))
+  
   ; EXPRESSIONS
 
   ; Const : NONE-TOK | UNIV-TOK | IDEN-TOK
@@ -469,7 +613,7 @@
       #:attr translate (syntax/loc this-syntax (int n.value)))
     (pattern ((~datum Const) "-" n:NumberClass)
       #:attr translate (quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value))))))
-
+  
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK
   (define-syntax-class ArrowOpClass
@@ -485,8 +629,16 @@
               (~and op
                     (~or "in" "=" "<" ">" "<=" ">="
                          "is" "ni")))
-      #:attr symbol (datum->syntax #'op (string->symbol (syntax->datum #'op)))))
+      #:attr symbol (datum->syntax #'op (op-symbol-to-operator (string->symbol (syntax->datum #'op))))))
 
+  ; We don't overload (e.g.) <, but we don't want users to need to write (e.g.) "int<". 
+  (define (op-symbol-to-operator sym)
+    (cond [(equal? sym '<)  'int<]
+          [(equal? sym '>)  'int>]
+          [(equal? sym '<=) 'int<=]
+          [(equal? sym '>=) 'int>=]
+          [else sym]))
+  
   ; LetDecl : @Name /EQ-TOK Expr
   (define-syntax-class LetDeclClass
     (pattern ((~datum LetDecl)
@@ -542,10 +694,11 @@
     [((~datum AlloyModule) (~optional module-decl:ModuleDeclClass)
                              (~seq import:ImportClass ...)
                              (~seq paragraph:ParagraphClass ...))
-     (syntax/loc stx (begin
-     (~? module-decl)
-     import ...
-     paragraph ...))]
+     (syntax/loc stx
+       (begin
+         (~? module-decl)
+         import ...
+         paragraph ...))]
     [((~datum AlloyModule) ((~datum EvalDecl) "eval" expr:ExprClass))
      (syntax/loc stx expr)]
     [((~datum AlloyModule) ((~datum EvalDecl) "eval" expr:ExprClass) ...+)
@@ -675,7 +828,7 @@
                         decls:ParaDeclsClass
                         block:BlockClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
-                                                   (syntax->list #'decls.translate)))]
+                                                   (syntax->list #'decls.pairs)))]
                  [block #'block])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
@@ -685,9 +838,11 @@
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
 (define-syntax (FunDecl stx)
   (syntax-parse stx
+  ; TODO: output type declared is currently being lost
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
-                       output:ExprClass
+                       (~optional output-mult:HelperMultClass)
+                       output-expr:ExprClass
                        body:ExprClass)
    (with-syntax ([body #'body])
      (syntax/loc stx (begin
@@ -697,14 +852,21 @@
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        decls:ParaDeclsClass
-                       output:ExprClass
+                       (~optional output-mult:HelperMultClass #:defaults ([output-mult #'#f]))
+                       output-expr:ExprClass
                        body:ExprClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
-                                                   (syntax->list #'decls.translate)))]
+                                                   (syntax->list #'decls.pairs)))]
+                 ; Parser "Expr" includes both expressions and formulas. Thus, disambiguate
+                 ;   (e.g.) the "Expr" `one univ` into true expr and multiplicity in the expander;
+                 ;   It's not the job of the `fun` macro to handle this. (Same for `pred`, etc.)
+                 [output (if (syntax->datum #'output-mult)
+                             #'(output-expr (~? output-mult.symbol))
+                             #'(output-expr))]
                  [body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
-       (fun decl body))))]))
+       (fun decl body #:codomain output))))]))
 
 ; AssertDecl : /ASSERT-TOK Name? Block
 (define-syntax (AssertDecl stx)
@@ -830,11 +992,25 @@
        (syntax-parameterize ([current-forge-context 'example])
          (list #,@(syntax/loc stx bounds.translate)))))]))
 
+; Macro definitions for syntax that might survive into sigs.rkt macros
+(define-syntax (Const stx)
+  (syntax-parse stx
+    [c:ConstClass
+     (syntax/loc this-syntax c.translate)]))
+(define-syntax (HelperMult stx)
+  (syntax-parse stx
+    [am:HelperMultClass
+     (syntax/loc this-syntax am.symbol)]))
+
+
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
 (define-syntax (OptionDecl stx)
   (syntax-parse stx
   [dec:OptionDeclClass
-     (syntax/loc stx (set-option! 'dec.n 'dec.v))
+   ; Some options contain file paths. By saving the path of the .frg file at a point
+   ; we still have it, we can let (e.g.) option solver work even if racket is invoked
+   ; from outside the folder containing the .frg file.
+   (quasisyntax/loc stx (set-option! 'dec.n 'dec.v #:original-path #,(current-load-relative-directory)))
    ]))
 
 ; InstDecl : /INST-TOK Name Bounds Scope?
@@ -855,15 +1031,18 @@
   (cond [(empty? xs) 
          ; {} always means the formula true
          true]
-         ; Body of a helper function
+         ; Body of a helper function: one expression
         [(and (equal? 1 (length xs)) (node/expr? (first xs)))
          (first xs)]
-        [(node/formula? (first xs))
-         (&& xs)]         
+         ; Body of a predicate: any number of formulas
+        [(andmap node/formula? xs)
+         (&& xs)]
+         ; body of a helper function that produces an int-expression: one int-expression
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
          (first xs)]         
         [else 
-         (raise-user-error (format "~a" (first xs)) (format "Ill-formed block"))]))
+         (raise-user-error (format "~a" xs)
+                           (format "Ill-formed block: expected either one expression or any number of formulas"))]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (Block stx)
@@ -873,6 +1052,7 @@
        (syntax/loc stx (disambiguate-block (list exprs ...))))]))
 
 (define-syntax (Expr stx)
+  ;(printf "Debug: Expr: ~a~n" stx)
   (syntax-parse stx
   [((~datum Expr) "let" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (let decls.translate bob.exprs))]
@@ -880,9 +1060,11 @@
   [((~datum Expr) "bind" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (raise "bind not implemented."))]
 
-  [((~datum Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)
+  ; Quantifier
+  [((~datum Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)                       
    (syntax/loc stx (q.symbol decls.translate bob.exprs))] ; stx, not #'q
 
+  ; Quantifier with disj
   [((~datum Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (q.symbol #:disj decls.translate bob.exprs))] ; stx, not #'q
 
@@ -971,6 +1153,7 @@
      ; Need to preserve srcloc in both the "not" and the "op" nodes
      (quasisyntax/loc stx (! #,(syntax/loc stx (op (#:lang (get-check-lang)) expr1 expr2)))))]
 
+  ; Multiplicity form
   [((~datum Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
                           op)
                     expr1:ExprClass)
@@ -1071,13 +1254,13 @@
    (syntax/loc stx (atom 'name.name))]
   
   [((~datum Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
-   (syntax/loc stx (set (#:lang (get-check-lang))  decls.translate bob.exprs))]
+   (syntax/loc stx (set (#:lang (get-check-lang)) decls.translate bob.exprs))]
 
   [((~datum Expr) block:BlockClass)
    (my-expand (syntax/loc stx block))]
 
-  [((~datum Expr) sexpr:SexprClass)
-   (syntax/loc stx (read sexpr))]))
+    [((~datum Expr) sexpr:SexprClass)
+     (syntax/loc stx (read sexpr))]))
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't
@@ -1137,3 +1320,22 @@
 ;           | /BREAK-TOK Expr /COLON-TOK @NameList
 ; InstanceDecl : INSTANCE-TOK
 ; QueryDecl : @Name /COLON-TOK ArrowExpr /EQ-TOK Expr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Helper(s) for debugging syntax class nesting
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-syntax (debug stx)
+  (define result
+    (syntax-parse stx
+      [(_ x:BoundsClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:BoundClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:BoundLHSClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:BindRHSProductClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:BindRHSUnionClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:QualNameOrAtomOrAtomizedNumberClass) (syntax/loc this-syntax x.translate)]
+      [(_ x:NumberClass) (syntax/loc this-syntax x.value)]))
+  (printf "result:~a ~n" result)
+  #'(void))
+
+;(debug (Bounds (Bound "no" (BoundLHS (QualName Int)))))

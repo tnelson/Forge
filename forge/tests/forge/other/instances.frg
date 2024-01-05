@@ -1,8 +1,6 @@
 #lang forge
 
 option run_sterling off
-
-
 option verbose 0
 
 sig BasicA {
@@ -14,16 +12,12 @@ sig BasicB {
 }
 
 -- Empty Inst
-/* Apparently Empty Insts don't work? 
-   Idk why you would want them but interesting.
 inst emptyInst {}
-
 test expect {
     emptyInstSat : {} for emptyInst is sat
     emptyInstIsPartial : { #BasicA = 1 } for emptyInst is sat
     emptyInstExact : { #BasicA = 1 } for exactly emptyInst is sat
 }
-*/
 
 -- Basic Insts
 inst basicInst {
@@ -34,13 +28,24 @@ inst basicInst {
     friendB = `BasicB1->`BasicA2->`BasicB3 + `BasicB2->`BasicA3->`BasicB2
 }
 
+inst basicInst_froglet_syntax_permissive {
+    BasicA = `BasicA1 + `BasicA2 + `BasicA3
+    BasicB = `BasicB1 + `BasicB2 + `BasicB3
+
+    friendA = (`BasicA1->`BasicA1) + `BasicA2->`BasicA2 + `BasicA3->`BasicA3
+    -- Abuse of the syntax, but checking for permissiveness
+    friendB = (`BasicB1,`BasicA2)->`BasicB3 + 
+              (`BasicB2->`BasicA3,`BasicB2)
+}
+
+
 test expect Basic {
     satsifiableInstBasic : {} for basicInst is sat
     sigsCorrect : { not (#BasicA = 3 and #BasicB = 3) } for basicInst is unsat
-    relationsCorrect : { not (
-            (friendA = BasicA->BasicA & iden) and 
-            (#friendB = 2))
-        } for basicInst is unsat
+     relationsCorrect : { not (
+             (friendA = BasicA->BasicA & iden) and 
+             (#friendB = 2))
+         } for basicInst is unsat
 }
 
 -- Empty Sig Insts

@@ -3,18 +3,18 @@
 ; Structures and helper functions for running Forge, along with some constants and
 ; configuration code (e.g., most options).
 
-(require (except-in "lang/ast.rkt" ->)
-         "lang/bounds.rkt"
-         "breaks.rkt"
-         (only-in "shared.rkt" get-verbosity VERBOSITY_HIGH))
-(require (prefix-in @ (only-in racket hash not + >= >)) 
+(require (except-in forge/lang/ast ->)
+         forge/lang/bounds
+         forge/breaks
+         (only-in forge/shared get-verbosity VERBOSITY_HIGH))
+(require (prefix-in @ (only-in racket hash not +)) 
          (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
 (require racket/contract)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
-(require (prefix-in tree: "lazy-tree.rkt"))
+(require (prefix-in tree: forge/lazy-tree))
 (require syntax/srcloc)
-(require (prefix-in pardinus: (only-in "pardinus-cli/server/kks.rkt" clear cmd)))
+(require (prefix-in pardinus: (only-in forge/pardinus-cli/server/kks clear cmd)))
 
 (provide (all-defined-out))
 
@@ -39,9 +39,10 @@
   [kind symbol?] ; symbol
   ) #:transparent)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Sigs and Relations enrich the "relation" AST node with
+; Forge-specific information, which often leads to added
+; constraints.
 
 (struct Sig node/expr/relation (
   name ; symbol?
@@ -63,30 +64,82 @@
   [(define (write-proc self port mode)
      (fprintf port "(Relation ~a)" (Relation-name self)))])
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; There are many technical terms involved in Forge bounds; we define the key ones here.
+
+;   A *SCOPE* defines the range of allowed cardinalities for a sig.
+;     A scope may be declared *EXACT*, in which case the range is a single value.
+
+;   A *BOUND* (which would more correctly be called a "relational bound") is a
+;     pair of sets of tuples, one lower (which the relation must contain) and one
+;     upper (which the relation may contain).
+;     A bound may be declared *EXACT*, in which case the lower and upper bounds are equal.
+
+;   A bound is *COMPLETE* if it fully defines the upper and lower bounds for a given relation.
+;   A bound is *INCOMPLETE* if other tuples may be added to either upper or lower in the future.
+;     Incomplete bounds are seen in piecewise definitions, where a user may use one bind declaration
+;     to bound the value of a field for a specific atom; values for other atoms may be provided later.
+
+; NOTE WELL:
+; The structs below define an intermediate representation; the Kodkod bounds (produced in
+; forge/send-to-kodkod) are what is actually sent to the solver.
+
+; ALSO: be aware that the "bounds", "sbounds" etc. structs defined elsewhere are distinct from
+; the Bounds struct defined here. At some point, we can perhaps condense these into a single IR.
+
+; A Range contains the minimum and maximum scope for a relation.
 (struct/contract Range (
   [lower (or/c nonnegative-integer? #f)]
   [upper (or/c nonnegative-integer? #f)]
   ) #:transparent)
 
+; A Scope represents the numeric size limitations on sigs in a run.
+; This includes the range of possible bitwidths, and a default range
+; to use for sigs whose scope is undefined.
 (struct/contract Scope (
   [default-scope (or/c Range? #f)]
   [bitwidth (or/c nonnegative-integer? #f)]
   [sig-scopes (hash/c symbol? Range?)]
   ) #:transparent)
 
-(struct/contract Bound (
-  [pbindings (hash/c node/expr/relation? sbound?)]
-  [tbindings (hash/c node/expr/relation? any/c)] ; (hash/c symbol? (listof symbol?))] ; TODO
+; A PiecewiseBound represents an atom-indexed, incomplete partial bound. E.g., one might write:
+;   `Alice.father in `Bob + `Charlie
+;   `Bob.father in `Charlie + `David
+; Note that a piecewise bound is not the same as a "partial" bound; a partial bound is complete,
+; in the sense that only one bind declaration is possible for that relation.
+(struct/contract PiecewiseBound (
+  [tuples (listof any/c)]                  ; first element is the indexed atom in the original piecewise bounds
+  [atoms (listof any/c)]                   ; which atoms have been bound? (distinguish "given none" from "none given")
+  [operator (one-of/c '= 'in 'ni)]         ; which operator mode?
   ) #:transparent)
+(define PiecewiseBounds/c (hash/c node/expr/relation? PiecewiseBound?))
 
+; A Bound represents the set-based size limitations on sigs and relations in a run.
+; Information from Scope(s) and Bounds(s) will be combined only once a run executes.
+(struct/contract Bound (
+  ; pbindings: partial (but complete) bindings for a given relation
+  [pbindings (hash/c node/expr/relation? sbound?)]
+  ; tbindings: total (and complete) bindings for a given relation; also known as an exact bound.
+  [tbindings (hash/c node/expr/relation? any/c)]
+  ; incomplete bindings for a given relation, indexed by first column
+  [piecewise PiecewiseBounds/c]
+  ) #:transparent)
+                                
+; An Inst function is an accumulator of bounds information. It doesn't (necessarily)
+; contain the full information about a run's scope, bounds, etc. Rather, it allows for
+; the aggregation of this info across multiple `inst` declarations.
 (struct/contract Inst (
   [func (Scope? Bound? . -> . (values Scope? Bound?))]
   ) #:transparent)
 
+; A Target describes the goal of a target-oriented model-finding run.
 (struct/contract Target (
   [instance (hash/c symbol? (listof (listof symbol?)))]
   [distance (or/c 'close 'far)]
   ) #:transparent)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; If adding new option fields, remember to update all of:
 ;  -- DEFAULT_OPTIONS
@@ -107,7 +160,7 @@
   [core_minimization symbol?]  
   [skolem_depth integer?] ; allow -1 (disable Skolemization entirely)
   [local_necessity symbol?]
-  [run_sterling symbol?]
+  [run_sterling (or/c string? symbol?)]
   [sterling_port nonnegative-integer?]
   [engine_verbosity nonnegative-integer?]
   ) #:transparent)
@@ -127,11 +180,11 @@
   ) #:transparent)
 
 (struct/contract Run-spec (
-  [state State?]
-  [preds (listof node/formula?)]
-  [scope Scope?]
-  [bounds Bound?]
-  [target (or/c Target? #f)]
+  [state State?]  ; Model state at the point of this run 
+  [preds (listof node/formula?)] ; predicates to run, conjoined
+  [scope Scope?]  ; Numeric scope(s)
+  [bounds Bound?] ; set-based upper and lower bounds
+  [target (or/c Target? #f)] ; target-oriented model finding
   ) #:transparent)
 
 (struct Server-ports (
@@ -213,7 +266,7 @@
         'core_minimization symbol?
         'skolem_depth exact-integer?
         'local_necessity symbol?
-        'run_sterling symbol?
+        'run_sterling (lambda (x) (or (symbol? x) (string? x))) ; allow for custom visualizer path
         'sterling_port exact-nonnegative-integer?
         'engine_verbosity exact-nonnegative-integer?))
 
@@ -507,7 +560,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; close-run :: Run -> void
 (define (close-run run)
   (assert-is-running run)
-  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+  (when (>= (get-verbosity) VERBOSITY_HIGH)
         (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))  
   ; Since we're using a single process now, send it instructions to clear this run
   (pardinus:cmd 
@@ -528,7 +581,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ;; Added sugar over the AST
 ;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus 
 ;; on the macro definition point
-(provide implies iff <=> ifte >= <= ni != !in !ni <: :>)
+(provide implies iff <=> ifte int>= int<= ni != !in !ni <: :>)
 
 (define-syntax (implies stx) 
   (syntax-case stx () 
@@ -586,13 +639,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (!ni stx) (syntax-parse stx [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b) 
                                                     (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang)
                                                               (in/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]))
-(define-syntax (>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
+(define-syntax (int>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
                                                               (int>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
                                             [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
                                                               (int>/info (nodeinfo #,(build-source-location stx) check-lang) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
-(define-syntax (<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
+(define-syntax (int<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
                                                               (int</info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
                                                               (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
                                             [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
@@ -608,6 +661,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (quasisyntax/loc stx 
         (<:helper a b (nodeinfo #,(build-source-location stx) check-lang)))]))
 
+; TODO: this only functions for binary relations
 (define (<:helper a b info)
   (domain-check<: a b (nodeinfo-loc info))
   (&/info info
@@ -623,6 +677,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
       (quasisyntax/loc stx 
         (:>helper a b (nodeinfo #,(build-source-location stx) check-lang)))]))
 
+; TODO: this only functions for binary relations
 (define (:>helper a b info)
   (domain-check:> a b (nodeinfo-loc info))
   (&/info info
@@ -635,7 +690,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [src-span (source-location-span loc)])
     (unless (equal? (node/expr-arity b)
                     (@+ 1 (node/expr-arity a))) 
-                    (raise-user-error (format "<: argument has incorrect arity (~a vs. ~a) in ~a <: ~a on line ~a, column ~a, span~a" 
+                    (raise-user-error (format "<: argument has incorrect arity (~a vs. ~a) in ~a <: ~a on line ~a, column ~a, span ~a" 
                     (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b) src-line src-col src-span)))))
 
 (define (domain-check:> a b loc) 
@@ -644,5 +699,5 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [src-span (source-location-span loc)])
     (unless (equal? (node/expr-arity a)
                     (@+ 1 (node/expr-arity b))) 
-                    (raise-user-error (format ":> argument has incorrect arity in ~a :> ~a on line ~a, column ~a, span~a" 
+                    (raise-user-error (format ":> argument has incorrect arity (~a vs. ~a) in ~a :> ~a on line ~a, column ~a, span ~a" 
                     (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b) src-line src-col src-span)))))

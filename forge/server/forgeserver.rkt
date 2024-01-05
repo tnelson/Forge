@@ -4,23 +4,23 @@
 ; Using the December 2021 protocol found here:
 ;   https://sterling-docs.vercel.app/sterling-connection/receive
 
-(require (only-in "../lang/ast.rkt" relation-name)
-         "modelToXML.rkt" 
+(require (only-in forge/lang/ast relation-name)
+         forge/server/modelToXML
          xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel
          racket/hash
          (only-in racket empty? first rest)
-         (only-in "eval-model.rkt" ->string)
-         (prefix-in tree: "../lazy-tree.rkt")
+         (only-in forge/server/eval-model ->string)
+         (prefix-in tree: forge/lazy-tree)
          json
          racket/contract
          (prefix-in @ (only-in racket >= <= > <)))
 
 ; for verbosity option
-(require "../shared.rkt")
+(require forge/shared)
 ; for get-option
-(require "../sigs-structs.rkt")
+(require forge/sigs-structs)
 
 (provide display-model)
 
@@ -39,21 +39,23 @@
          (get-from-json (hash-ref json-m (first path)) (rest path))]))
 
 ; name is the name of the model
-; get-next-model returns the next model each time it is called, or #f.
-(define (display-model the-run orig-lazy-tree relation-map evaluate-func name command filepath bitwidth funs-n-preds get-contrast-model-generator)
+; get-next-instance returns the next instance each time it is called, or #f.
+(define (display-model
+         the-run orig-lazy-tree relation-map evaluate-func name command
+         filepath bitwidth funs-n-preds get-contrast-model-generator)
   (do-time "forgeserver display-model")
 
   (define current-tree orig-lazy-tree)
   (define curr-datum-id 1) ; nonzero
   (define id-to-instance-map (make-hash)) ; mutable hash
   
-  (define (get-current-model)
+  (define (get-current-instance)
     (tree:get-value current-tree))
-  (define (get-next-model [next-mode 'P])    
+  (define (get-next-instance [next-mode 'P])    
     (set! current-tree (tree:get-child current-tree next-mode))
     (set! curr-datum-id (+ curr-datum-id 1))
-    (hash-set! id-to-instance-map curr-datum-id (get-current-model))    
-    (values curr-datum-id (get-current-model)))
+    (hash-set! id-to-instance-map curr-datum-id (get-current-instance))    
+    (values curr-datum-id (get-current-instance)))
   
   (define command-string (format "~a" (syntax->datum command)))
   
@@ -62,7 +64,7 @@
       (printf "Sending message to Sterling: ~a~n" m))
     (ws-send! connection m))
   
-   (define (get-xml model)    
+   (define (get-xml soln)    
     ;(define tuple-annotations (if (and (Sat? model) (equal? 'on (get-option the-run 'local_necessity)))
     ;                              (build-tuple-annotations-for-ln model)
     ;                              (hash)))
@@ -70,7 +72,9 @@
     (define tuple-annotations (hash))
     (when (@>= (get-verbosity) VERBOSITY_STERLING)
       (printf "tuple annotations were: ~a~n" tuple-annotations))
-    (solution-to-XML-string model relation-map name command-string filepath bitwidth forge-version #:tuple-annotations tuple-annotations))
+    (solution-to-XML-string soln relation-map name command-string filepath
+                            bitwidth forge-version #:tuple-annotations tuple-annotations
+                            #:run-options (State-options (Run-spec-state (Run-run-spec the-run)))))
   
   (define (handle-json connection m)
     (define json-m
@@ -97,9 +101,9 @@
          [next?          
           (define old-datum-id curr-datum-id)
           (define-values (datum-id inst)
-            (cond [(equal? onClick "next-C") (get-next-model 'C)]
-                  [(equal? onClick "next-P") (get-next-model 'P)]
-                  [(equal? onClick "next") (get-next-model)]
+            (cond [(equal? onClick "next-C") (get-next-instance 'C)]
+                  [(equal? onClick "next-P") (get-next-instance 'P)]
+                  [(equal? onClick "next") (get-next-instance)]
                   [else
                    (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
@@ -113,7 +117,7 @@
        ; This message will be sent when the connection is established
        ; (or re-established). Respond in turn with a data message.
        ; TODO: should we re-enable make-contrast-model-generators?
-       (define inst (get-current-model)) 
+       (define inst (get-current-instance)) 
        (define id curr-datum-id)
        (define xml (get-xml inst))
        (define response (make-sterling-data xml id temporal?))
@@ -227,20 +231,20 @@
 [(equal? m "current")
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: current~n"))
-                  (ws-send! connection (get-xml (get-current-model)))]                 
+                  (ws-send! connection (get-xml (get-current-instance)))]                 
                  [(equal? m "next-C") 
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: next-C~n"))
-                  (get-next-model 'C)                  
-                  (ws-send! connection (get-xml (get-current-model)))]
+                  (get-next-instance 'C)                  
+                  (ws-send! connection (get-xml (get-current-instance)))]
 
                  [(equal? m "next")
                   (when (> (get-verbosity) VERBOSITY_LOW)
                     (printf "RECEIVED: next~n"))
-                  (get-next-model)
+                  (get-next-instance)
                   ; TN disabled for now 01/25/2021
                   ;(make-contrast-model-generators)
-                  (ws-send! connection (get-xml (get-current-model)))]
+                  (ws-send! connection (get-xml (get-current-instance)))]
 
                  ; Sterling is notifying Forge of some event, so that Forge can log or take action
                  ;“NOTIFY:${view}:${LN}“, so you’ll have four possible messages:
@@ -329,7 +333,7 @@
   ;    ; only for the first element of a trace TODO
   ;    (when (> (get-verbosity) VERBOSITY_LOW)
   ;      (printf "generating locally-necessary tuples...model field unused...~n"))
-  ;    (match-define (cons yes no) (get-locally-necessary-list the-run (get-current-model)))
+  ;    (match-define (cons yes no) (get-locally-necessary-list the-run (get-current-instance)))
   ;    ; To ease building annotation hash, just discover which relations are present in advance
   ;    ;(printf "LNtuples+: ~a~n LNtuples-: ~a~n" yes no)
   ;    (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])
