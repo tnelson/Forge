@@ -259,7 +259,7 @@
                          all-primitive-descendants)])])))
 
 ; wrap around checkExpression-mult to provide check for multiplicity, 
-; while throwing the multiplicity away in output;
+; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
 (define (checkExpression run-or-state expr quantvars checker-hash)
   (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
     (car output)))
@@ -311,7 +311,8 @@
                              #t))]
 
     [(node/expr/fun-spacer info arity name args result expanded)
-     (checkExpression run-or-state expanded quantvars checker-hash)]
+       ; be certain to call the -mult version, or the multiplicity will be thrown away.
+       (checkExpression-mult run-or-state expanded quantvars checker-hash)]
     
     [(node/expr/ite info arity a b c)
      (check-and-output expr
@@ -395,6 +396,7 @@
   (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?)) hash?   
        any)
        ;(listof (listof symbol?)))
+
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkExpressionOp: ~a~n" expr))
 
@@ -535,8 +537,7 @@
      (check-and-output expr
                        node/expr/op/sing
                        checker-hash
-                       (cons (list (list 'Int)) #t))]))
-;  (printf "result for ~a was ~a~n" expr RESULT)
+                       (cons (list (list 'Int)) #t))])) 
   RESULT)
 
 (define/contract (check-closure lst)
@@ -548,10 +549,13 @@
       (check-closure new-candidate)))  
 
 ; since join is n-ary, pass *list* of typelist
+; a typelist is a (listof (listof symbol?)), the outer list denoting a set of options
+; a type is a (listof symbol?) denoting a sequence of primsigs
 (define/contract (check-join child-values)
   (@-> (listof (listof (listof symbol?))) (listof (listof symbol?)))
+
   (let ([product-of-children (apply cartesian-product child-values)])
-    (remove-duplicates
+    (remove-duplicates    
      (filter-map
       (lambda (l) (foldl
                    (lambda (nxt sofar)

@@ -89,7 +89,6 @@ pred HelperFun {
     }
 }
 
-
 fun canConvertIntExprNullary: one Int {
     #{n: Node | some n.edges}
 }
@@ -98,6 +97,7 @@ fun canConvertIntExprUnary[nodes: set Node]: one Int {
     #{n: nodes | some n.edges}
 }
 
+fun forceSpacerAroundNode[n: Node]: one Node { n }
 
 test expect ExpressionOperators {
     tilde : Tilde is theorem
@@ -117,4 +117,11 @@ test expect ExpressionOperators {
     helpers : HelperFun is theorem
     autoConvertIntFun : {canConvertIntExprNullary <= #Node} is theorem
     autoConvertIntFun_args : {canConvertIntExprUnary[Node] <= #Node} is theorem
+
+    -- Regression test for last-checker/join/spacer issue; Jan 05 2023
+    regression_join_on_spacer : {
+        some n: Node | { 
+            some forceSpacerAroundNode[n].edges
+        }
+    } is sat
 }

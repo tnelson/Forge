@@ -251,8 +251,6 @@ pred temporary {
       (KeyPairs.owners.a1 != KeyPairs.owners.a2)
   }
 
-  -- TODO move some of these into the wellformedness pred
-  
   all p: PrivateKey | one p.(KeyPairs.owners) 
 
   -- The Attacker agent is represented by the attacker strand
