@@ -283,3 +283,14 @@ pred temporary {
     supers + 
     supers.^(plaintext & (openable -> mesg))
 }*/
+
+/*
+-- This is the example of where narrowing would be useful; it currently causes
+-- an error in last-checker (necessarily empty join on a side of an ITE that isn't
+-- really used).  January 2024
+run {
+  some pub: PublicKey | {
+      some getInv[pub]
+  }
+}
+*/
