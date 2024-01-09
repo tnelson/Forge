@@ -320,7 +320,7 @@
            (define where-fmlas (map build-condition where)) ; added constraints (if any)
            
            ; Try each direction separately so that we can print out which policy decides what.
-           ;   (1) P1.permit is not subset of P2.permit   
+           ;   (1) P1.permit is not subset of P2.permit           
            (define p1_notin_p2
             (make-run #:name 'p1_notin_p2
               #:preds (list queryP1NP2 where-fmlas)
@@ -340,7 +340,8 @@
                         (make-bound U File)
                         (make-bound U True)
                         (make-bound U Request))))
-
+           (printf "~a~n" p1_notin_p2)
+           
            ;(define rosette-result (solve (assert rosette-fmla)))
            ;(cond [(sat? rosette-result)               
            ;       (pretty-printf-rosette-result #:inst-bounds instantiatedBounds
