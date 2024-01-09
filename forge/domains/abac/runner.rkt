@@ -174,11 +174,11 @@
            (in Resource (+ atoms)))]
     ; Skolem relations:
     [(equal? (relation-name r) "reqS_rel")     
-     (list (in reqS_rel (-> (atom 's$0) (atom 'True))))]
+     (list (in reqS_rel (-> (atom 'Request) (atom 's$0))))]
     [(equal? (relation-name r) "reqA_rel")
-     (list (in reqA_rel (-> (atom 'a$0) (atom 'True))))]
+     (list (in reqA_rel (-> (atom 'Request) (atom 'a$0))))]
     [(equal? (relation-name r) "reqR_rel")
-     (list (in reqR_rel (-> (atom 'r$0) (atom 'True))))]
+     (list (in reqR_rel (-> (atom 'Request) (atom 'r$0))))]
     [(equal? (relation-name r) "True")
      (list (= r (atom 'True)))]
     [(equal? (relation-name r) "Request")
@@ -187,7 +187,7 @@
     [(equal? 1 (relation-arity r))
      (list (in r (+ atoms)))]
     [(equal? 2 (relation-arity r))     
-     (list (in r (-> (+ atoms) (+ atoms))))]
+     (list (in r (-> (+ atoms) (+ (atom 'True) (+ atoms)))))]
     [else
      (raise-user-error (format "Error: relation ~a had invalid arity" r))]))
 

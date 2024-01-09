@@ -18,11 +18,13 @@
                               #:skolems [skolems '()])
   (cond [(forge:is-sat? run)
          (define sol (tree:get-value (forge:Run-result run)))
-         (printf "~n~n(debug) sol ~a~n" (pretty-format sol))
+         (define relhash (first (Sat-instances sol)))
+         ;(printf "~n~n(debug) sol ~a~n" (pretty-format "~a" sol))
 
          ; * Scenario *
-         (define strout (pretty-format-scenario run relations #:skolems skolems))
+         (define strout (pretty-format-scenario relhash relations #:skolems skolems))
          (printf "~n~n~a~n" strout)
+         
          ; * Rule blaming *
          (define (rule-blaming qualifier ruleset) 
            (foldl (lambda (r acc)
@@ -78,6 +80,7 @@
 (define (format-binaries relhash relations)
   (define binaries (filter (lambda (x) (equal? 2 (relation-arity x)))
                            (hash-values relations)))
+  (printf "binaries: ~a~n" binaries)
   (define allatoms (remove-duplicates (flatten (map (lambda (br) (hash-ref relhash br)) binaries))))
   (define extras (filter (lambda (a) (equal? #f (member a REQUEST-ATOMS))) allatoms))
   (define ground-atom-list

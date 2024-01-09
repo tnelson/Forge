@@ -397,7 +397,7 @@
 (define (get-bounds run-spec raise-run-error)
   ; Send user defined partial bindings to breaks
   (map instance (hash-values (Bound-pbindings (Run-spec-bounds run-spec))))
-
+  
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
     (get-sig-bounds run-spec raise-run-error))
