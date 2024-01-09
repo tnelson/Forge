@@ -13,7 +13,7 @@
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
          (only-in racket/list first second range rest empty flatten)
-         (only-in racket/set list->set set->list set-union set-intersect subset?))
+         (only-in racket/set list->set set->list set-union set-intersect subset? set-count))
 (require (only-in syntax/srcloc build-source-location-syntax))
 
 (require (except-in forge/lang/ast ->)
@@ -945,7 +945,8 @@
 
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "  update-bindings for ~a; |lower|=~a; |upper|=~a~n"
-            rel (if lower (length lower) #f) (if upper (length upper) #f)))
+            rel (if lower (set-count (list->set lower)) #f) 
+                (if upper (set-count (list->set upper)) #f)))
 
   (unless lower
     (raise (error (format "Error: update-bindings for ~a expected a lower bound, got #f." rel))))  

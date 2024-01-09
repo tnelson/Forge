@@ -614,7 +614,7 @@
 (define (get-relation-bounds run-spec sig-to-bound raise-run-error)
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
-  
+
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
     (@and pbinding

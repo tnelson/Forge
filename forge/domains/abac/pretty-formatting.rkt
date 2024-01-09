@@ -1,0 +1,121 @@
+#lang racket/base
+
+(provide (all-defined-out))
+(require (only-in racket empty? empty first second string-join remove-duplicates 
+                         flatten filter-map))
+(require forge/sigs 
+         forge/domains/abac/helpers
+         forge/domains/abac/lexparse ; for condition, etc. structs
+         pretty-format)
+
+(define REQUEST-ATOMS '(s$0 a$0 r$0))
+
+(define (pretty-printf-result #:bounds the-bounds #:run run
+                              #:ruleset1 ruleset1 #:ruleset2 [ruleset2 empty] 
+                              #:msg [msg #f]
+                              #:request-vars [request-vars '(s a r)]
+                              #:relations [relations (hash)]
+                              #:skolems [skolems '()])
+  (cond [(forge:is-sat? run)
+         (define sol (tree:get-value (forge:Run-result run)))
+         (printf "~n~n(debug) sol ~a~n" (pretty-format sol))
+
+         ; * Scenario *
+         (define strout (pretty-format-scenario run relations #:skolems skolems))
+         (printf "~n~n~a~n" strout)
+         ; * Rule blaming *
+         (define (rule-blaming qualifier ruleset) 
+           (foldl (lambda (r acc)
+                    (define condition-fmla (build-rule-matches r request-vars))
+                    (define tf (evaluate condition-fmla run))
+                    (cond [(and tf acc)
+                          (printf "This rule applied~a:~n    ~a~n" qualifier (pretty-format-rule r))
+                          #f]
+                         [else acc]))
+                 #t ruleset))
+
+         (if (empty? ruleset2)
+             (rule-blaming "" ruleset1)
+             (begin
+               (rule-blaming " in the first policy" ruleset1)
+               (rule-blaming " in the second policy" ruleset2)))
+         
+         ; * Message *
+         (when msg
+           (printf "~a~n" msg))
+         ]
+        [else (printf "-----------------------------------~nNo scenario existed matching those conditions.~n")]))
+
+(define (pretty-format-condition c)
+  (define signis (cond [(condition-sign c) "is"]
+                       [else "not is"]))
+  (define firstvar (first (condition-args c)))
+  (cond [(> (length (condition-args c)) 1)
+         (format "~a ~a ~a ~a" firstvar signis (condition-pred c) (second (condition-args c)))]
+        [else
+         (format "~a ~a ~a" firstvar signis (condition-pred c))]))
+
+(define (pretty-format-rule r)
+  (define conds (map pretty-format-condition (rule-conditions r)))
+  (format "~a if: ~a." (rule-decision r) (string-join conds ", ")))
+
+
+; Format a tuple prettily (concretely, turn atom names into variables where appropriate)
+(define (pretty-format-tuple relname t)
+  (define displayargs
+    (map (lambda (a)
+         (cond [(equal? a 's$0) '<s>]
+               [(equal? a 'a$0) '<a>]
+               [(equal? a 'r$0) '<r>]
+               [else a])) t))
+  (when (> (length displayargs) 2)
+    (raise-user-error (format "pretty-format-tuple can't handle arity >2. Given ~a" displayargs)))
+  (define optspace (if (> (length displayargs) 1) " " ""))
+  (format "~a is ~a~a~a" (first displayargs) relname optspace (second displayargs)))
+
+; Return a list of formatted statements about membership in binary relations.
+; Say nothing about empty binary relations.
+(define (format-binaries relhash relations)
+  (define binaries (filter (lambda (x) (equal? 2 (relation-arity x)))
+                           (hash-values relations)))
+  (define allatoms (remove-duplicates (flatten (map (lambda (br) (hash-ref relhash br)) binaries))))
+  (define extras (filter (lambda (a) (equal? #f (member a REQUEST-ATOMS))) allatoms))
+  (define ground-atom-list
+    (filter-map (lambda (br)
+                  (if (empty? (hash-ref relhash br))
+                      #f 
+                      (map (lambda (tup)
+                             (pretty-format-tuple (relation-name br) tup))
+                           (hash-ref relhash br))))
+                binaries))
+  (values
+   extras
+   (apply append ground-atom-list)))
+
+; Print the result in a marginally readable way.
+(define (pretty-format-scenario relhash relations #:skolems [skolems '()])
+  (define-values (extras binary-ground) (format-binaries relhash relations))
+  (define formatted (lambda (x) (format "~a" x)))
+  (define binary-ground-str (string-join (map formatted binary-ground) "\n  "))
+  
+  (format "-----------------------------------~nFound example request involving...~na subject that is:  ~a~nan action that is:  ~a~na resource that is: ~a~n~a"
+          (remove "Subject" (unaries-in relhash 's$0 #:skolems skolems #:relations relations))
+          (remove "Action" (unaries-in relhash 'a$0 #:skolems skolems #:relations relations))
+          (remove "Resource" (unaries-in relhash 'r$0 #:skolems skolems #:relations relations))
+          (if (empty? binary-ground)
+              ""
+              (if (empty? extras)
+                  (format "Also,~n  ~a~n" binary-ground-str)
+                  (let ([extras-unary-str (string-join (map (lambda (a) (format "~a: ~a" a (unaries-in relhash a #:skolems skolems #:relations relations))) extras) "\n  ")])
+                    (format "Also, for some ~a,~n  ~a~n  ~a~n" extras extras-unary-str binary-ground-str))))))
+
+; Return a list of unary relations, minus the Skolem relations, that this atom is a member of.
+(define (unaries-in relhash at #:relations [relations '()] #:skolems [REQUEST-SKOLEM-RELATIONS '()])
+  (define pertinent-unaries (filter (lambda (x) (and (equal? #f (member (relation-name x) REQUEST-SKOLEM-RELATIONS))
+                                                     (equal? 1 (relation-arity x))))
+                                    (hash-values relations)))
+  (filter-map (lambda (ur)
+                (if (member (list at) (hash-ref relhash ur))
+                    (relation-name ur)
+                    #f))
+              pertinent-unaries))

@@ -4,12 +4,16 @@
 ; Because this DSL is built for a narrow set of exercises, there is no support 
 ; for equality or arbitrary queries; only conjunctive queries are supported.
 
-(require "lexparse.rkt")
+(require forge/domains/abac/lexparse
+         forge/domains/abac/pretty-formatting
+         forge/domains/abac/helpers)
 (require (only-in racket second string-join remove-duplicates flatten
                          cartesian-product))
 
 (provide run-commands
          boxed-env)
+
+(set-option! 'verbose 5)
 
 ; State of policy environment, so that REPL can access it after definitions have been run
 (define boxed-env (box empty))
@@ -29,7 +33,6 @@
 (sig Read #:extends Action)
 (sig Write #:extends Action)
 (sig File #:extends Resource)
-(sig True #:one)
 
 ; As of January 2024, forge/core requires relations to be 2-ary or greater.
 ; Thus, we'll model these subsets as boolean-valued relations.
@@ -47,9 +50,8 @@
 (define reqA (join Request reqA_rel))
 (define reqR (join Request reqR_rel))
 
-(define REQUEST-SKOLEM-RELATIONS (list reqS reqA reqR))
-(define REQUEST-ATOMS '(s$0 a$0 r$0))
 (define request-vars '(s a r))
+(define REQUEST-SKOLEM-RELATIONS (list reqS reqA reqR))
 
 ;(define structural-axioms
 ;  (&& (one reqS) ; Skolem constants
@@ -63,7 +65,8 @@
                         "File" File       "Under-Audit" Audit     "Owner-Of" Owner                        
                         "In-Training" Training
                         "Subject" Subject "Action" Action "Resource" Resource
-                        "reqS_rel" reqS_rel "reqA_rel" reqA_rel "reqR_rel" reqR_rel))
+                        "reqS_rel" reqS_rel "reqA_rel" reqA_rel "reqR_rel" reqR_rel
+                        "True" True "Request" Request))
 (define the-sigs (filter (lambda (r) (equal? (node/expr-arity r) 1)) (hash-values relations)))
 (define the-fields (filter (lambda (r) (> (node/expr-arity r) 1)) (hash-values relations)))
 
@@ -82,52 +85,11 @@
       (first filtered-env)
       #f))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Helpers to build formulas from conditions
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Convert a list of identifiers to a product
-(define (list->product l)
-  (foldl (lambda (i acc) (-> acc i)) (first l) (rest l)))
-
-; Replace variable names with Skolem relation if called for
-(define (var->maybe-skolem v)
-  (cond [(equal? v 's) reqS]
-        [(equal? v 'a) reqA]
-        [(equal? v 'r) reqR]
-        [else v]))
-; Replace a 2+-ary relation with (join R True)
-(define (rel->unary r)
-  (if (> (node/expr-arity r) 1)
-      (join r True)
-      r))
-
-; Build a formula (Forge AST) for a specific rule condition given by the parser
-(define (build-condition c)
-  (cond [(condition-sign c)
-         (in (list->product (map var->maybe-skolem (condition-args c)))
-             (rel->unary (hash-ref relations (string-titlecase (symbol->string (condition-pred c))))))]
-        [else
-         (! (build-condition (condition #t (condition-pred c) (condition-args c))))]))
-
-; Datatype to represent an atomic formula
-(struct atomic-fmla (pred args) #:transparent)
-(define (condition->atomic-fmla c)
-  (atomic-fmla (condition-pred c) (condition-args c)))
-(define (extract-atomic-formulas-rule r)
-  (remove-duplicates (foldl (lambda (c acc) (cons (condition->atomic-fmla c) acc))
-                              empty
-                              (rule-conditions r))))
-(define (extract-atomic-formulas-policy pol)
-  (remove-duplicates (foldl (lambda (r acc) (append (extract-atomic-formulas-rule r) acc))
-                              empty
-                              (policy-rules pol))))
-
 (define (run-query env args)
   (define polname (first args))
   (define decname (second args))
   (define conditions (rest (rest args)))
-  (define conditions-fmla (map build-condition conditions))
+  (define conditions-fmla (map (lambda (c) (build-condition c relations var->maybe-skolem)) conditions))
   (define pol (find-pol env polname))
   (cond [(equal? pol #f) 
          (raise-user-error (format "Unknown policy: ~a" polname))]
@@ -155,74 +117,6 @@
          ;(pretty-printf-rosette-result #:inst-bounds instantiatedBounds #:rosette-result rosette-result #:ruleset1 rules) 
          ]))
 
-;(define (pretty-printf-rosette-result #:inst-bounds instantiatedBounds #:rosette-result rosette-result
-;                                      #:ruleset1 ruleset1 #:ruleset2 [ruleset2 empty] #:msg [msg #f])
-;  (cond [(sat? rosette-result)
-;         (define result (interpretation->relations (evaluate instantiatedBounds rosette-result)))
-;         ;(printf "~n~n(debug) result ~a~n" (pretty-format result))
-;
-;         ; * Scenario *
-;         (define strout (pretty-format-scenario result))
-;         (printf "~n~n~a~n" strout)
-;         ; * Rule blaming *
-;         (define (rule-blaming qualifier ruleset) 
-;           (foldl (lambda (r acc)
-;                    ; Ocelot doesn't have an "evaluator" per se. So use *Rosette's*
-;                    ; evaluator on the *Rosette* version of the condition, compiled via the same instantiated bounds.
-;                    (define condition-fmla (build-rule-matches r))
-;                    (define ros-condition (interpret* (eval condition-fmla ns) instantiatedBounds))
-;                    (define tf (evaluate ros-condition rosette-result))
-;                    (cond [(and tf acc)
-;                          (printf "This rule applied~a:~n    ~a~n" qualifier (pretty-format-rule r))
-;                          #f]
-;                         [else acc]))
-;                 #t ruleset))
-;
-;         (if (empty? ruleset2)
-;             (rule-blaming "" ruleset1)
-;             (begin
-;               (rule-blaming " in the first policy" ruleset1)
-;               (rule-blaming " in the second policy" ruleset2)))
-;         
-;         ; * Message *
-;         (when msg
-;           (printf "~a~n" msg))
-;         ]
-;        [else (printf "-----------------------------------~nNo scenario existed matching those conditions.~n")]))
-
-(define (pretty-format-condition c)
-  (define signis (cond [(condition-sign c) "is"]
-                       [else "not is"]))
-  (define firstvar (first (condition-args c)))
-  (cond [(> (length (condition-args c)) 1)
-         (format "~a ~a ~a ~a" firstvar signis (condition-pred c) (second (condition-args c)))]
-        [else
-         (format "~a ~a ~a" firstvar signis (condition-pred c))]))
-
-(define (pretty-format-rule r)
-  (define conds (map pretty-format-condition (rule-conditions r)))
-  (format "~a if: ~a." (rule-decision r) (string-join conds ", ")))
-
-(define (apply-quantifiers todo f)
-  (if (empty? todo)
-      f
-      `(some ([,(first todo) univ]) ,(apply-quantifiers (rest todo) f))
-      ))
-
-; Build a formula that is true IFF this rule matches
-(define (build-rule-matches r)
-  ; Embed "some" quantifier if needed
-  (define vars-used (remove-duplicates
-                           (flatten (map (lambda (a) (atomic-fmla-args a))
-                                         (append (extract-atomic-formulas-rule r))))))
-  (define to-quantify (filter (lambda (v) (equal? #f (member v request-vars))) vars-used))
-  ;(printf "to quantify: ~a~n" to-quantify)
-  (define basef (&& (map build-condition (rule-conditions r))))
-  (apply-quantifiers to-quantify basef))
-
-
-
-
 ; Walk the policy and build the conditions under which a request is <dec>
 (define (build-dec-first-applicable dec pol)
   (define disjuncts (first 
@@ -233,19 +127,26 @@
                                     ; Possible to get <dec> if this rule matches and not <nondec so far>
                                     (define newrule
                                       (if (empty? nondec-so-far)
-                                          (build-rule-matches r)
+                                          (build-rule-matches r request-vars relations var->maybe-skolem)
                                           (&& (! (|| nondec-so-far))
-                                                 (build-rule-matches r))))
+                                                 (build-rule-matches r request-vars relations var->maybe-skolem))))
                                         
                                     (list (cons newrule dec-so-far)
                                           nondec-so-far)]
                                    [else
                                     ; No new ways to get <dec>, but other-decisions get another possibility
                                     (list dec-so-far
-                                          (cons (build-rule-matches r) nondec-so-far))]))
+                                          (cons (build-rule-matches r request-vars relations var->maybe-skolem) nondec-so-far))]))
                            (list empty empty) ; no <dec>, no <nondec>
                            (policy-rules pol))))  
   (|| disjuncts))
+
+; Replace variable names with Skolem relation if called for
+(define (var->maybe-skolem v)
+  (cond [(equal? v 's) reqS]
+        [(equal? v 'a) reqA]
+        [(equal? v 'r) reqR]
+        [else v]))
 
 ; construct set of atoms to use in bounds
 (define (make-universe atoms)
@@ -279,9 +180,9 @@
     [(equal? (relation-name r) "reqR_rel")
      (list (in reqR_rel (-> (atom 'r$0) (atom 'True))))]
     [(equal? (relation-name r) "True")
-     (list (in r (atom 'True)))]
+     (list (= r (atom 'True)))]
     [(equal? (relation-name r) "Request")
-     (list (in r (atom 'Request)))]
+     (list (= r (atom 'Request)))]
     ; Everything else:
     [(equal? 1 (relation-arity r))
      (list (in r (+ atoms)))]
@@ -307,30 +208,21 @@
            
            (define permit1 (build-dec-first-applicable 'permit pol1))
            (define permit2 (build-dec-first-applicable 'permit pol2))
-           (printf "P1: ~a;~n P2: ~a~n" permit1 permit2)
+           ;(printf "P1: ~a;~n P2: ~a~n" permit1 permit2)
            (define varset (remove-duplicates
                            (flatten (map (lambda (a) (atomic-fmla-args a))
                                          (append (extract-atomic-formulas-policy pol1)
                                                  (extract-atomic-formulas-policy pol2))))))
            (define U (make-universe varset))           
-           (printf "universe: ~a~n" U)
+           ;(printf "universe: ~a~n" U)
  
            ; (Skolemized) query
            (define queryP1NP2 (&& permit1 (! permit2))) ; first
-           (define queryNP1P2 (&& permit2 (! permit1))) ; second           
-           (define where-fmlas (map build-condition where)) ; added constraints (if any)
+           (define queryP2NP1 (&& permit2 (! permit1))) ; second           
+           (define where-fmlas (map (lambda (c) 
+                  (build-condition c relations var->maybe-skolem)) where)) ; added constraints (if any)
            
-           ; Try each direction separately so that we can print out which policy decides what.
-           ;   (1) P1.permit is not subset of P2.permit
-           (printf "sigs: ~a~n" the-sigs)
-           (printf "fields: ~a~n" the-fields)
-           (define p1_notin_p2
-            (make-run #:name 'p1_notin_p2
-              #:preds (cons queryP1NP2 where-fmlas)
-              #:sigs the-sigs
-              #:relations the-fields
-              ;#:scope (list (list Node 6))
-              #:bounds (append 
+           (define the-bounds (append 
                         (make-bound U Subject)
                         (make-bound U Action)
                         (make-bound U Resource)
@@ -348,26 +240,51 @@
                         (make-bound U reqR_rel)
                         (make-bound U Owner)
                         (make-bound U Training)
-                        (make-bound U Audit))))
-           (printf "~a~n" p1_notin_p2)
+                        (make-bound U Audit)))
+
+           ; Try each direction separately so that we can print out which policy decides what.
+           ;   (1) P1.permit is not subset of P2.permit
+
+           (define p1_notin_p2
+            (make-run #:name 'p1_notin_p2
+              #:preds (cons queryP1NP2 where-fmlas)
+              #:sigs the-sigs
+              #:relations the-fields
+              ;#:scope (list (list Node 6))
+              #:bounds the-bounds))
            
-           ;(define rosette-result (solve (assert rosette-fmla)))
-           ;(cond [(sat? rosette-result)               
-           ;       (pretty-printf-rosette-result #:inst-bounds instantiatedBounds
-           ;                                     #:rosette-result rosette-result
-           ;                                     #:ruleset1 (policy-rules pol1)
-           ;                                     #:ruleset2 (policy-rules pol2)
-           ;                                     #:msg (format "Decisions: ~a permitted; ~a denied" (first args) (second args)))]
-           ;      [else
-           ;       ; (2) P2.permit is not subset of P1.permit
-           ;       (define rosette-fmla2 (interpret* fmla2 instantiatedBounds))                  
-           ;       (define rosette-result2 (solve (assert rosette-fmla2)))
-           ;       (pretty-printf-rosette-result #:inst-bounds instantiatedBounds
-           ;                                     #:rosette-result rosette-result2
-           ;                                     #:ruleset1 (policy-rules pol1)
-           ;                                     #:ruleset2 (policy-rules pol2)
-           ;                                     #:msg (format "Decisions: ~a permitted; ~a denied" (second args) (first args)))])
-           (printf "run-compare ...~n"))]
+           ;(define solver-result-stream (forge:Run-result p1_notin_p2))
+           ;(define first-solution (tree:get-value solver-result-stream))
+           
+           (cond [(forge:is-sat? p1_notin_p2)               
+                  (pretty-printf-result #:bounds the-bounds
+                                        #:run p1_notin_p2
+                                        #:request-vars request-vars
+                                        #:relations relations
+                                        #:skolems REQUEST-SKOLEM-RELATIONS 
+                                        #:ruleset1 (policy-rules pol1)
+                                        #:ruleset2 (policy-rules pol2)
+                                        #:msg (format "Decisions: ~a permitted; ~a denied" (first args) (second args)))]
+                 [else
+                  ; (2) P2.permit is not subset of P1.permit
+                  (define p2_notin_p1
+                    (make-run #:name 'p2_notin_p1
+                      #:preds (cons queryP2NP1 where-fmlas)
+                      #:sigs the-sigs
+                      #:relations the-fields
+                      ;#:scope (list (list Node 6))
+                      #:bounds the-bounds))
+           
+;                  (define solver-result-stream (forge:Run-result p2_notin_p1))
+;                  (define first-solution (tree:get-value solver-result-stream))
+                  (pretty-printf-result #:bounds the-bounds
+                      #:run p2_notin_p1
+                      #:request-vars request-vars
+                      #:relations relations
+                      #:skolems REQUEST-SKOLEM-RELATIONS 
+                      #:ruleset1 (policy-rules pol1)
+                      #:ruleset2 (policy-rules pol2)
+                      #:msg (format "Decisions: ~a permitted; ~a denied" (second args) (first args)))]))]
         [(not (find-pol env (first args)))
          (raise-user-error (format "Unknown policy name: ~a" (first args)))]
         [(not (find-pol env (second args)))
