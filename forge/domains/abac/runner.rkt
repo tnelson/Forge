@@ -33,9 +33,10 @@
 
 ; As of January 2024, forge/core requires relations to be 2-ary or greater.
 ; Thus, we'll model these subsets as boolean-valued relations.
-(relation Audit (File True))  ; file under audit
+(relation Audit (File True))        ; file under audit
 (relation Training (Employee True)) ; employee in training
-(relation Owner (Customer File True)) ; customer file ownership 
+
+(relation Owner (Customer File))    ; customer file ownership 
 
 ; Skolem relations for the scenario's request 
 (sig Request #:one)
@@ -320,10 +321,12 @@
            (define where-fmlas (map build-condition where)) ; added constraints (if any)
            
            ; Try each direction separately so that we can print out which policy decides what.
-           ;   (1) P1.permit is not subset of P2.permit           
+           ;   (1) P1.permit is not subset of P2.permit
+           (printf "sigs: ~a~n" the-sigs)
+           (printf "fields: ~a~n" the-fields)
            (define p1_notin_p2
             (make-run #:name 'p1_notin_p2
-              #:preds (list queryP1NP2 where-fmlas)
+              #:preds (cons queryP1NP2 where-fmlas)
               #:sigs the-sigs
               #:relations the-fields
               ;#:scope (list (list Node 6))
@@ -339,7 +342,13 @@
                         (make-bound U Write)
                         (make-bound U File)
                         (make-bound U True)
-                        (make-bound U Request))))
+                        (make-bound U Request)
+                        (make-bound U reqS_rel)
+                        (make-bound U reqA_rel)
+                        (make-bound U reqR_rel)
+                        (make-bound U Owner)
+                        (make-bound U Training)
+                        (make-bound U Audit))))
            (printf "~a~n" p1_notin_p2)
            
            ;(define rosette-result (solve (assert rosette-fmla)))
