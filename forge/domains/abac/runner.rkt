@@ -261,7 +261,8 @@
                                         #:run p1_notin_p2
                                         #:request-vars request-vars
                                         #:relations relations
-                                        #:skolems REQUEST-SKOLEM-RELATIONS 
+                                        #:skolems REQUEST-SKOLEM-RELATIONS
+                                        #:var-converter var->maybe-skolem
                                         #:ruleset1 (policy-rules pol1)
                                         #:ruleset2 (policy-rules pol2)
                                         #:msg (format "Decisions: ~a permitted; ~a denied" (first args) (second args)))]
@@ -281,7 +282,8 @@
                       #:run p2_notin_p1
                       #:request-vars request-vars
                       #:relations relations
-                      #:skolems REQUEST-SKOLEM-RELATIONS 
+                      #:skolems REQUEST-SKOLEM-RELATIONS
+                      #:var-converter var->maybe-skolem
                       #:ruleset1 (policy-rules pol1)
                       #:ruleset2 (policy-rules pol2)
                       #:msg (format "Decisions: ~a permitted; ~a denied" (second args) (first args)))]))]

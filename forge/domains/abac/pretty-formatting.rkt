@@ -15,7 +15,8 @@
                               #:msg [msg #f]
                               #:request-vars [request-vars '(s a r)]
                               #:relations [relations (hash)]
-                              #:skolems [skolems '()])
+                              #:skolems [skolems '()]
+                              #:var-converter [var->maybe-skolem void])
   (cond [(forge:is-sat? run)
          (define sol (tree:get-value (forge:Run-result run)))
          (define relhash (first (Sat-instances sol)))
@@ -28,8 +29,8 @@
          ; * Rule blaming *
          (define (rule-blaming qualifier ruleset) 
            (foldl (lambda (r acc)
-                    (define condition-fmla (build-rule-matches r request-vars))
-                    (define tf (evaluate condition-fmla run))
+                    (define condition-fmla (build-rule-matches r request-vars relations var->maybe-skolem))
+                    (define tf (evaluate run sol condition-fmla))
                     (cond [(and tf acc)
                           (printf "This rule applied~a:~n    ~a~n" qualifier (pretty-format-rule r))
                           #f]
@@ -80,16 +81,16 @@
 (define (format-binaries relhash relations)
   (define binaries (filter (lambda (x) (equal? 2 (relation-arity x)))
                            (hash-values relations)))
-  (printf "binaries: ~a~n" binaries)
-  (define allatoms (remove-duplicates (flatten (map (lambda (br) (hash-ref relhash br)) binaries))))
+  
+  (define allatoms (remove-duplicates (flatten (map (lambda (br) (hash-ref relhash (forge:Relation-name br))) binaries))))
   (define extras (filter (lambda (a) (equal? #f (member a REQUEST-ATOMS))) allatoms))
   (define ground-atom-list
     (filter-map (lambda (br)
-                  (if (empty? (hash-ref relhash br))
+                  (if (empty? (hash-ref relhash (forge:Relation-name br)))
                       #f 
                       (map (lambda (tup)
                              (pretty-format-tuple (relation-name br) tup))
-                           (hash-ref relhash br))))
+                           (hash-ref relhash (forge:Relation-name br)))))
                 binaries))
   (values
    extras
@@ -118,7 +119,7 @@
                                                      (equal? 1 (relation-arity x))))
                                     (hash-values relations)))
   (filter-map (lambda (ur)
-                (if (member (list at) (hash-ref relhash ur))
+                (if (member (list at) (hash-ref relhash (forge:Sig-name ur)))
                     (relation-name ur)
                     #f))
               pertinent-unaries))
