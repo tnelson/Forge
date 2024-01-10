@@ -3,6 +3,7 @@
 ; Attribute-based access control exercise DSL for Forge
 ; Because this DSL is built for a narrow set of exercises, there is no support 
 ; for equality or arbitrary queries; only conjunctive queries are supported.
+; Adapted by Tim from EMCSABAC (which used Rosette/Ocelot) in January 2024
 
 (require forge/domains/abac/lexparse
          forge/domains/abac/pretty-formatting
@@ -143,14 +144,13 @@
                      #:bounds the-bounds))
                       
                        
-                  (pretty-printf-result #:bounds the-bounds
-                                        #:run the-run
-                                        #:request-vars request-vars
-                                        #:relations relations
-                                        #:skolems REQUEST-SKOLEM-RELATIONS
-                                        #:var-converter var->maybe-skolem
-                                        #:ruleset1 (policy-rules pol)         
-                                        #:msg (format "Decisions: ~a permitted; ~a denied" (first args) (second args)))]))
+         (pretty-printf-result #:bounds the-bounds
+                               #:run the-run
+                               #:request-vars request-vars
+                               #:relations relations
+                               #:skolems REQUEST-SKOLEM-RELATIONS
+                               #:var-converter var->maybe-skolem
+                               #:ruleset1 (policy-rules pol))]))
 
 ; Walk the policy and build the conditions under which a request is <dec>
 (define (build-dec-first-applicable dec pol)
