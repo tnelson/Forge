@@ -191,9 +191,9 @@
        (atom (string->symbol (string-append (symbol->string a) "$0")))) 
      atoms))
   ; If policy doesn't use all variables, still need them to exist implicitly.
-  (define extra-s (if (member 's atoms) empty (atom 's$0)))
-  (define extra-a (if (member 'a atoms) empty (atom 'a$0)))
-  (define extra-r (if (member 'r atoms) empty (atom 'r$0)))
+  (define extra-s (if (member 's atoms) empty (list (atom 's$0))))
+  (define extra-a (if (member 'a atoms) empty (list (atom 'a$0))))
+  (define extra-r (if (member 'r atoms) empty (list (atom 'r$0))))
   (append preliminary extra-s extra-a extra-r))
 
 (define (make-bound atoms r)
@@ -251,7 +251,6 @@
                                          (append (extract-atomic-formulas-policy pol1)
                                                  (extract-atomic-formulas-policy pol2))))))
            (define U (make-universe varset))           
-           ;(printf "universe: ~a~n" U)
  
            ; (Skolemized) query
            (define queryP1NP2 (&& permit1 (! permit2))) ; first
