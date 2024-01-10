@@ -616,7 +616,9 @@
   (Run name command spec result server-ports atoms kodkod-currents kodkod-bounds))
 
 
-(define/contract (make-run #:name [name 'unnamed-run]
+;; NOTE WELL: make sure not to re-use run names; this will cause an 
+;; error message that might be somewhat confusing ("don't re-use run names")
+(define/contract (make-run #:name [name (string->symbol (string-append "unnamed_run" (symbol->string (gensym))))]
                            #:preds [preds (list)]
                            #:scope [scope-input (list)]
                            #:bounds [bounds-input (list)]

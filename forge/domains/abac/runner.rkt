@@ -223,7 +223,7 @@
     ; Everything else:
     [(equal? 1 (relation-arity r))
      (list (in r (+ atoms)))]
-    [(equal? 2 (relation-arity r))     
+    [(equal? 2 (relation-arity r))  
      (list (in r (-> (+ atoms) (+ (atom 'True) (+ atoms)))))]
     [else
      (raise-user-error (format "Error: relation ~a had invalid arity" r))]))
@@ -283,7 +283,8 @@
            ;   (1) P1.permit is not subset of P2.permit
 
            (define p1_notin_p2
-            (make-run #:name 'p1_notin_p2
+            (make-run 
+              #:name (string->symbol (string-append "p1_notin_p2" (symbol->string (gensym))))
               #:preds (cons queryP1NP2 where-fmlas)
               #:sigs the-sigs
               #:relations the-fields
@@ -306,7 +307,8 @@
                  [else
                   ; (2) P2.permit is not subset of P1.permit
                   (define p2_notin_p1
-                    (make-run #:name 'p2_notin_p1
+                    (make-run 
+                      #:name (string->symbol (string-append "p2_notin_p1" (symbol->string (gensym))))
                       #:preds (cons queryP2NP1 where-fmlas)
                       #:sigs the-sigs
                       #:relations the-fields

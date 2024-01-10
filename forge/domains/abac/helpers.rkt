@@ -1,6 +1,6 @@
 #lang forge/core
 
-(require (only-in racket remove-duplicates flatten))
+(require (only-in racket remove-duplicates flatten last))
 (require forge/domains/abac/lexparse) 
 (provide (all-defined-out))
 
@@ -34,7 +34,7 @@
          (in (list->product (map var->maybe-skolem (condition-args c)))
              (rel->unary (hash-ref relations (string-titlecase (symbol->string (condition-pred c))))))]
         [else
-         (! (build-condition (condition #t (condition-pred c) (condition-args c)) relations))]))
+         (! (build-condition (condition #t (condition-pred c) (condition-args c)) relations var->maybe-skolem))]))
 
 (define (apply-quantifiers todo f)
   (if (empty? todo)
@@ -49,8 +49,12 @@
 ; Mechanism for building subsets of a sig (which might overlap) in forge/core
 (sig True #:one)
 
-; Replace a 2+-ary relation with (join R True)
+; Replace a 2+-ary relation that has a "fake" column on True with (join R True)
 (define (rel->unary r)
-  (if (> (node/expr-arity r) 1)
-      (join r True)
-      r))
+  (define types ((relation-typelist-thunk r)))
+  (cond [(and (node/expr/relation? r) 
+              (> (node/expr-arity r) 1)
+              (equal? "True" (last types)))
+              (join r True)]
+        [else r]))
+  
