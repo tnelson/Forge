@@ -22,6 +22,7 @@ end;
 info;
 
 compare original mod1;
+query original yields permit where s is admin, a is read, r is under-audit;
 
 //test original s is admin, a is read, r is under-audit;
 //test original s is not admin, a is read, r is under-audit;

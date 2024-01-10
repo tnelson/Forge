@@ -13,7 +13,7 @@
 (provide run-commands
          boxed-env)
 
-(set-option! 'verbose 5)
+(set-option! 'verbose 0)
 
 ; State of policy environment, so that REPL can access it after definitions have been run
 (define boxed-env (box empty))
@@ -89,33 +89,68 @@
   (define polname (first args))
   (define decname (second args))
   (define conditions (rest (rest args)))
-  (define conditions-fmla (map (lambda (c) (build-condition c relations var->maybe-skolem)) conditions))
+  (define conditions-fmla (&& (map (lambda (c) (build-condition c relations var->maybe-skolem)) conditions)))
   (define pol (find-pol env polname))
   (cond [(equal? pol #f) 
          (raise-user-error (format "Unknown policy: ~a" polname))]
         [else
-          (printf "run-query...~n")
+          (printf "~nRunning query...~n")
 
-         ;(define varset (remove-duplicates
-         ;                (flatten (map (lambda (a) (atomic-fmla-args a))
-         ;                              (extract-atomic-formulas-policy pol)))))
-         ;(define decision (build-dec decname pol))
-         ;(define U (make-universe varset))
-         ;(printf "universe: ~a~n" (universe-atoms U))
-         ;(define allBounds (make-bounds U))
-         ;(printf "bounds: ~a~n" allBounds)
-         ;(define instantiatedBounds (instantiate-bounds allBounds))
-         ;(define query `(&& ,decision ,@conditions-fmla))
+         (define varset (remove-duplicates
+                         (flatten (map (lambda (a) (atomic-fmla-args a))
+                                       (extract-atomic-formulas-policy pol)))))
+         (define decision (build-dec-first-applicable decname pol))
+
+         (define U (make-universe varset))
+         
+         (define the-bounds (append 
+                        (make-bound U Subject)
+                        (make-bound U Action)
+                        (make-bound U Resource)
+                        (make-bound U Employee)
+                        (make-bound U Admin)
+                        (make-bound U Accountant)
+                        (make-bound U Customer)
+                        (make-bound U Read)
+                        (make-bound U Write)
+                        (make-bound U File)
+                        (make-bound U True)
+                        (make-bound U Request)
+                        (make-bound U reqS_rel)
+                        (make-bound U reqA_rel)
+                        (make-bound U reqR_rel)
+                        (make-bound U Owner)
+                        (make-bound U Training)
+                        (make-bound U Audit)))
+
+         ;(printf "decision: ~a; ~a~n" decision (node? decision))
+         ;(printf "cf: ~a; ~a~n" conditions-fmla (node? conditions-fmla))
+         
+         (define query (&& decision conditions-fmla))
+
          ; Is there at least one request with these conditions that yields <decname>?
          ; (unspecified literals -> left free to vary)
          ;(define fmla (eval `(&& ,structural-axioms
          ;                         ,query) ns))
          ;(printf "fmla: ~a~n" (pretty-format fmla))
-         ;(define rosette-fmla (interpret* fmla instantiatedBounds))
-         ;(define rosette-result (solve (assert rosette-fmla)))
-         ;(define rules (policy-rules pol))
-         ;(pretty-printf-rosette-result #:inst-bounds instantiatedBounds #:rosette-result rosette-result #:ruleset1 rules) 
-         ]))
+
+         (define the-run
+           (make-run #:name (gensym)
+                     #:preds (list query)
+                     #:sigs the-sigs
+                     #:relations the-fields
+                     ;#:scope (list (list Node 6))
+                     #:bounds the-bounds))
+                      
+                       
+                  (pretty-printf-result #:bounds the-bounds
+                                        #:run the-run
+                                        #:request-vars request-vars
+                                        #:relations relations
+                                        #:skolems REQUEST-SKOLEM-RELATIONS
+                                        #:var-converter var->maybe-skolem
+                                        #:ruleset1 (policy-rules pol)         
+                                        #:msg (format "Decisions: ~a permitted; ~a denied" (first args) (second args)))]))
 
 ; Walk the policy and build the conditions under which a request is <dec>
 (define (build-dec-first-applicable dec pol)
@@ -139,7 +174,9 @@
                                           (cons (build-rule-matches r request-vars relations var->maybe-skolem) nondec-so-far))]))
                            (list empty empty) ; no <dec>, no <nondec>
                            (policy-rules pol))))  
-  (|| disjuncts))
+  (if (< (length disjuncts) 2)
+      (first disjuncts)
+      (|| disjuncts)))
 
 ; Replace variable names with Skolem relation if called for
 (define (var->maybe-skolem v)
@@ -174,11 +211,11 @@
            (in Resource (+ atoms)))]
     ; Skolem relations:
     [(equal? (relation-name r) "reqS_rel")     
-     (list (in reqS_rel (-> (atom 'Request) (atom 's$0))))]
+     (list (= reqS_rel (-> (atom 'Request) (atom 's$0))))]
     [(equal? (relation-name r) "reqA_rel")
-     (list (in reqA_rel (-> (atom 'Request) (atom 'a$0))))]
+     (list (= reqA_rel (-> (atom 'Request) (atom 'a$0))))]
     [(equal? (relation-name r) "reqR_rel")
-     (list (in reqR_rel (-> (atom 'Request) (atom 'r$0))))]
+     (list (= reqR_rel (-> (atom 'Request) (atom 'r$0))))]
     [(equal? (relation-name r) "True")
      (list (= r (atom 'True)))]
     [(equal? (relation-name r) "Request")
@@ -198,8 +235,8 @@
                       [else
                        (first (rest (rest args)))]))
   (if (empty? where)      
-      (printf "Comparing policies ~a and ~a...~n" (first args) (second args))
-      (printf "Comparing policies ~a and ~a where ~a...~n" (first args) (second args) (map pretty-format-condition where)))
+      (printf "~nComparing policies ~a and ~a...~n" (first args) (second args))
+      (printf "~nComparing policies ~a and ~a where ~a...~n" (first args) (second args) (map pretty-format-condition where)))
   
   (cond [(and (find-pol env (first args))
               (find-pol env (second args)))
