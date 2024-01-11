@@ -46,8 +46,7 @@ pred winning {
 inst wellformed_instance {
 	Board = `Board0
     Player = `X + `O	
-	X = `X
-	O = `O
+	X = `X   O = `O
     `Board0 . board = (1 , 1) -> `X + (1 , 2) -> `O
 }
 
