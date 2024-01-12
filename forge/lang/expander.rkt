@@ -880,10 +880,13 @@
       (define curr-num (unbox name-counter))
       (set-box! name-counter (+ 1 curr-num))
       (define source_disambiguator
-        (if (and (source-location-source stx)
-                 (file-name-from-path (source-location-source stx)))
-            (path-replace-extension (file-name-from-path (source-location-source stx)) #"")
-            "unknown"))      
+        (cond [(and (source-location-source stx)
+                    (or (path-string? (source-location-source stx))
+                        (path-for-some-system? (source-location-source stx)))
+                    (file-name-from-path (source-location-source stx)))
+               (path-replace-extension (file-name-from-path (source-location-source stx)) #"")]
+              [(symbol? (source-location-source stx)) (symbol->string (source-location-source stx))]
+              [else "unknown"]))
       (string->symbol (format "temporary-name_~a_~a" source_disambiguator curr-num)))))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
