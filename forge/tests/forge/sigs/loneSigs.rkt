@@ -11,8 +11,8 @@ sig Stuff {}
 
 test expect {
     loneSigEnforced : { one MaybeObject or no MaybeObject } is theorem
-    loneSigPermissive : { no MaybeObject } is sat
-    loneSigPermissive : { one MaybeObject } is sat    
+    loneSigPermissive1 : { no MaybeObject } is sat
+    loneSigPermissive2 : { one MaybeObject } is sat    
     loneSigIsntPersistent : { #Stuff = 2 } is sat
 }
 
@@ -24,7 +24,7 @@ sig UnspecialThing extends Thing {}
 test expect loneExtending {
     loneExtendActuallyExtends : { SpecialPossibility in Thing } is theorem
     loneExtenderSigEnforced : { one SpecialPossibility or no SpecialPossibility } is theorem
-    loneExtenderSigPermissive : { no SpecialPossibility } is sat
-    loneExtenderSigPermissive : { one SpecialPossibility } is sat    
+    loneExtenderSigPermissive1 : { no SpecialPossibility } is sat
+    loneExtenderSigPermissive2 : { one SpecialPossibility } is sat    
     loneExtendDoesntSpread : { #UnspecialThing = 2 } is sat
 }

@@ -42,7 +42,7 @@
            #:relations (list edges)
            #:expect 'sat)
 
-(make-test #:name 'explicitAtomsSat4
+(make-test #:name 'explicitAtomsSat5
            #:preds (list AtomsNotIn)
            #:scope (list (list Node 4))
            #:sigs (list Node)

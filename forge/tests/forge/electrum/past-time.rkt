@@ -12,7 +12,7 @@ var sig B {}
 -- Check correctness in arbitrary traces via deferral to future-time whenever possible
 -- These are direct invocations of the engine's AST nodes.
 test expect { 
-  before0: {prev_state some A} is unsat
+  before0_someA: {prev_state some A} is unsat
   beforeOther: {(next_state {prev_state {some A}}) iff (some A)} is theorem
   onceTest1: {eventually (some A) iff eventually once (some A)} is theorem
   onceTest2: {next_state next_state (some A) implies next_state next_state next_state next_state once (some A)} is theorem
@@ -22,5 +22,5 @@ test expect {
 }
 
 test expect {
-  before0: {prev_state true} is unsat
+  before0_true: {prev_state true} is unsat
 }
