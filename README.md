@@ -17,7 +17,7 @@ Forge also uses [Sterling](https://sterling-js.github.io/), an expanded and scri
 
 ## Documentation
 
-The [official Forge documentation](https://github.com/tnelson/Forge/wiki) can be found on the Wiki in this repo.
+The [https://github.com/tnelson/Forge/wiki](https://csci1710.github.io/forge-documentation/) is the best resource for Forge syntax, etc.; the Wiki on this repo may not be up to date. 
 Note that the documentation is a living document and work in progress; we will be updating it live as students and other users ask questions.
 
 For broader historical context on Forge, the [Alloy documentation
