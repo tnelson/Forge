@@ -1,10 +1,9 @@
 #lang forge/temporal 
 
--- TN TODO: add "var" annotation to this variable in the figure.
 sig Counter { var value : one Int }
 pred someTrace { 
 	Counter.value = 0 and
-	always { Counter.value' = add [Counter.value , 1] } 
+	always { Counter.value' = add [Counter.value, 1] } 
 }
 
 -- This validation was not present in the figure, but illustrates an important point 

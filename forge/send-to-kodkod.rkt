@@ -33,6 +33,9 @@
 
 ; Will be a Server-ports tuple if a server is active. 
 (define server-state (box #f))
+; In order to prevent a bad crash, keep track of run-names used in the past, 
+; and throw a friendlier error if one is re-used. 
+(define run-name-history (box (list)))
 
 ; send-to-kodkod :: Run-spec -> Stream<model>, List<Symbol>
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;
@@ -46,6 +49,9 @@
         (raise-syntax-error #f message
                             (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node)))))
         (raise-syntax-error #f message run-command)))
+  (when (member run-name (unbox run-name-history))
+    (raise-run-error (format "Run name ~a was re-used; please use a different run name.~n" run-name)))
+  (set-box! run-name-history (cons run-name (unbox run-name-history)))
 
   ; Print version number, so students know to update
   (when (and no-version-printed-yet (@>= (get-verbosity) VERBOSITY_LOW))
@@ -397,7 +403,7 @@
 (define (get-bounds run-spec raise-run-error)
   ; Send user defined partial bindings to breaks
   (map instance (hash-values (Bound-pbindings (Run-spec-bounds run-spec))))
-
+  
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
     (get-sig-bounds run-spec raise-run-error))
@@ -614,7 +620,7 @@
 (define (get-relation-bounds run-spec sig-to-bound raise-run-error)
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
-  
+
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
     (@and pbinding

@@ -147,7 +147,8 @@
   
   (define chan (make-async-channel))
 
-  (define stop-service
+  ; After this is defined, the service is active and should be listening
+  (define stop-service    
     (ws-serve
      ; This is the connection handler function, it has total control over the connection
      ; from the time that conn-headers finishes responding to the connection request, to the time
@@ -168,7 +169,7 @@
 
   (define port (async-channel-get chan))
   (cond [(string? port)
-         (displayln "NO PORTS AVAILABLE!!")]
+         (displayln "NO PORTS AVAILABLE. Unable to start web server and Sterling visualizer.")]
         [(equal? 'off (get-option the-run 'run_sterling))
          (void)]
         [else
@@ -178,6 +179,7 @@
            (printf "Using port: ~a~n" (number->string port)))
          (flush-output)
          (void (read-char))
+         ; Once a character is read, stop the server
          (stop-service)]))
 
 (define (make-sterling-data xml id temporal? [old-id #f])

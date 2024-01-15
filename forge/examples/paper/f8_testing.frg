@@ -4,8 +4,7 @@
 
 open "f2_ttt.frg" -- import 
 
-pred fullFirstRow { 
-	-- TN TODO: final version, add parentheses to Figure 8
+pred fullFirstRow { 	
 	(Board.board[0]).X = (0+1+2) 
 }
 pred someMoveTaken { 
@@ -46,10 +45,8 @@ pred winning {
 
 inst wellformed_instance {
 	Board = `Board0
-    Player = `X + `O
-	-- TN TODO: add these 2 trivial lines to final version, or infer for brevity
-	X = `X
-	O = `O
+    Player = `X + `O	
+	X = `X   O = `O
     `Board0 . board = (1 , 1) -> `X + (1 , 2) -> `O
 }
 
@@ -59,8 +56,7 @@ example moveMiddleFirst is { wellformed } for wellformed_instance
 test expect { 
 	{ someMoveTaken } for wellformed_instance is sat 
 }
-test suite for winning {
-	-- TN TODO: add "for 1 Board" to these lines in the final version
+test suite for winning {	
 	assert fullFirstRow is sufficient for winning for 1 Board
 	assert someMoveTaken is necessary for winning for 1 Board
 }

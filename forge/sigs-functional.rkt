@@ -13,7 +13,7 @@
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
          (only-in racket/list first second range rest empty flatten)
-         (only-in racket/set list->set set->list set-union set-intersect subset?))
+         (only-in racket/set list->set set->list set-union set-intersect subset? set-count))
 (require (only-in syntax/srcloc build-source-location-syntax))
 
 (require (except-in forge/lang/ast ->)
@@ -532,7 +532,7 @@
         #:backend (or/c symbol? #f)
         #:target (or/c Target? #f)
         #:command syntax?)
-       Run?)
+       Run?)  
   
   (define/contract base-scope Scope?
     (cond
@@ -616,7 +616,9 @@
   (Run name command spec result server-ports atoms kodkod-currents kodkod-bounds))
 
 
-(define/contract (make-run #:name [name 'unnamed-run]
+;; NOTE WELL: make sure not to re-use run names; this will cause an 
+;; error message that might be somewhat confusing ("don't re-use run names")
+(define/contract (make-run #:name [name (string->symbol (string-append "unnamed_run" (symbol->string (gensym))))]
                            #:preds [preds (list)]
                            #:scope [scope-input (list)]
                            #:bounds [bounds-input (list)]
@@ -945,7 +947,8 @@
 
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "  update-bindings for ~a; |lower|=~a; |upper|=~a~n"
-            rel (if lower (length lower) #f) (if upper (length upper) #f)))
+            rel (if lower (set-count (list->set lower)) #f) 
+                (if upper (set-count (list->set upper)) #f)))
 
   (unless lower
     (raise (error (format "Error: update-bindings for ~a expected a lower bound, got #f." rel))))  

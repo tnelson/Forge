@@ -110,43 +110,43 @@ test expect {
 	unionTighterThanNoTheorem : {
 		always ((no Node.edges + Node.fruit) iff (no (Node.edges + Node.fruit)))
 	} is theorem
-	differenceTighterThanNoTheorem : {
+	differenceTighterThanNoSat : {
 		always ((no Node.edges - Node.fruit) iff (no (Node.edges - Node.fruit)))
 	} is sat
 	differenceTighterThanNoTheorem : {
 		always ((no Node.edges - Node.fruit) iff (no (Node.edges - Node.fruit)))
 	} is theorem
-	unionTighterThanSomeTheorem : {
+	unionTighterThanSomeSat : {
 		always ((some Node.edges + Node.fruit) iff (some (Node.edges + Node.fruit)))
 	} is sat
 	unionTighterThanSomeTheorem : {
 		always ((some Node.edges + Node.fruit) iff (some (Node.edges + Node.fruit)))
 	} is theorem
-	differenceTighterThanSomeTheorem : {
+	differenceTighterThanSomeSat : {
 		always ((some Node.edges - Node.fruit) iff (some (Node.edges - Node.fruit)))
 	} is sat
 	differenceTighterThanSomeTheorem : {
 		always ((some Node.edges - Node.fruit) iff (some (Node.edges - Node.fruit)))
 	} is theorem
-	unionTighterThanLoneTheorem : {
+	unionTighterThanLoneSat : {
 		always ((lone Node.edges + Node.fruit) iff (lone (Node.edges + Node.fruit)))
 	} is sat
 	unionTighterThanLoneTheorem : {
 		always ((lone Node.edges + Node.fruit) iff (lone (Node.edges + Node.fruit)))
 	} is theorem
-	differenceTighterThanLoneTheorem : {
+	differenceTighterThanLoneSat : {
 		always ((lone Node.edges - Node.fruit) iff (lone (Node.edges - Node.fruit)))
 	} is sat
 	differenceTighterThanLoneTheorem : {
 		always ((lone Node.edges - Node.fruit) iff (lone (Node.edges - Node.fruit)))
 	} is theorem
-	unionTighterThanOneTheorem : {
+	unionTighterThanOneSat : {
 		always ((one Node.edges + Node.fruit) iff (one (Node.edges + Node.fruit)))
 	} is sat
 	unionTighterThanOneTheorem : {
 		always ((one Node.edges + Node.fruit) iff (one (Node.edges + Node.fruit)))
 	} is theorem
-	differenceTighterThanOneTheorem : {
+	differenceTighterThanOneSat : {
 		always ((one Node.edges - Node.fruit) iff (one (Node.edges - Node.fruit)))
 	} is sat
 	differenceTighterThanOneTheorem : {

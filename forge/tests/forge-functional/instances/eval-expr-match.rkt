@@ -151,7 +151,7 @@
 	       #:preds (list (= Node Child)
 	       	             (= Child (join Node (* edges))))
 	       #:expect 'sat)
-(make-test #:name '*-sat
+(make-test #:name '*-theorem
 	       #:bounds (list inst-reflexive-transitive-closure)
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
