@@ -177,7 +177,7 @@ here-string-delimiter
   (cond [(and (Unsat? soln) (equal? (Unsat-kind soln) 'unsat))
          (string-append prologue instance-prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
-                        "<atom label=\"UNSAT0\"/>"
+                        "<atom label=\"Unsatisfiable\"/>"
                         "</sig>\n"
                         "\n</instance>\n"
                         (if data
@@ -191,7 +191,7 @@ here-string-delimiter
         [(and (Unsat? soln) (equal? (Unsat-kind soln) 'no-more-instances))
          (string-append prologue instance-prologue
                         "\n<sig label=\"No more instances! Some equivalent instances may have been removed through symmetry breaking.\" ID=\"4\" parentID=\"2\">\n"
-                        "<atom label=\"No more instances...\"/>\n"
+                        "<atom label=\"No more instances\"/>\n"
                         "</sig>\n"
                         "</instance>\n</alloy>")]
 
@@ -199,7 +199,7 @@ here-string-delimiter
         [(and (Unsat? soln) (equal? (Unsat-kind soln) 'no-counterexample))
           (string-append prologue instance-prologue
                         "\n<sig label=\"No counterexample found. Assertion may be valid.\" ID=\"4\" parentID=\"2\">\n"
-                        "<atom label=\"No counterexample found.\"/>\n"
+                        "<atom label=\"No counterexample found\"/>\n"
                         "</sig>\n"
                         "</instance>\n</alloy>")]
         [else
