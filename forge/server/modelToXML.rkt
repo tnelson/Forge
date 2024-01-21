@@ -85,11 +85,16 @@
 (define (sterling-viz-to-xml run-options)
   (cond
     [(not run-options) ""]
-    [(string? (Options-run_sterling run-options))
+    [(and (string? (Options-run_sterling run-options))
+          (file-exists? (Options-run_sterling run-options)))
      ; the forge expander makes this an absolute path (see OptionDecl)
      (define file-path (Options-run_sterling run-options))
      (define script-text (port->string (open-input-file file-path) #:close? #t))
      (format "<visualizer script=\"~a\" />" (clean script-text))]
+    [(string? (Options-run_sterling run-options))
+     ; provided a path string, but there is no such file; show a warning but continue to load Sterling
+     (printf "The visualizer file in option run_sterling did not exist; ignoring: ~a~n" (Options-run_sterling run-options))
+     ""]
     [else ""]))
 
 (define (clean str)
