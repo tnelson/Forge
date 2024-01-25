@@ -43,12 +43,14 @@
 ; along with a list of all of the atom names for sig atoms.
 (define (send-to-kodkod run-spec run-command #:run-name [run-name (gensym)])
   (do-time "send-to-kodkod")
+  
   ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
   (define (raise-run-error message [node #f])
     (if node
         (raise-syntax-error #f message
                             (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node)))))
         (raise-syntax-error #f message run-command)))
+  
   (when (member run-name (unbox run-name-history))
     (raise-run-error (format "Run name ~a was re-used; please use a different run name.~n" run-name)))
   (set-box! run-name-history (cons run-name (unbox run-name-history)))
@@ -503,7 +505,8 @@
       (apply append (map fill-lower-by-bound (get-children run-spec sig))))
     (define curr-lower (get-bound-lower sig))
     (when (and (not curr-lower) (Sig-one sig))
-      (raise-run-error (format "Instance block named members for an ancestor of 'one' sig ~a but no member name was given for ~a. This can result in inconsistency; please give bounds for ~a." (Sig-name sig) (Sig-name sig) (Sig-name sig))))
+      (raise-run-error (format "Instance block named members for an ancestor of 'one' sig ~a but no member name was given for ~a. This can result in inconsistency; please give bounds for ~a." (Sig-name sig) (Sig-name sig) (Sig-name sig))
+                       sig)) ; provide 2nd argument in order to localize
     (define true-lower
       (remove-duplicates
         (append children-lowers
