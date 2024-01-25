@@ -431,6 +431,11 @@
           (sbound-upper pbinding)
           (map car (set->list (sbound-upper pbinding)))))
 
+  ; Produce a single AST node to blame for a given relation's bound, or #f if none available
+  (define (get-blame-node the-sig)
+    (define result (hash-ref (Bound-orig-nodes (Run-spec-bounds run-spec)) the-sig #f))
+    (and result (first result)))
+  
   (define scopes (Run-spec-scope run-spec))
   (define (get-scope-lower sig)
     (define scope (hash-ref (Scope-sig-scopes scopes) (Sig-name sig) #f))
@@ -504,9 +509,12 @@
     (define children-lowers
       (apply append (map fill-lower-by-bound (get-children run-spec sig))))
     (define curr-lower (get-bound-lower sig))
+
+    ; Check that Forge isn't be asked to choose atoms ambiguously
     (when (and (not curr-lower) (Sig-one sig))
-      (raise-run-error (format "Instance block named members for an ancestor of 'one' sig ~a but no member name was given for ~a. This can result in inconsistency; please give bounds for ~a." (Sig-name sig) (Sig-name sig) (Sig-name sig))
-                       sig)) ; provide 2nd argument in order to localize
+      ;; TODO: issue here is we would rather report the ancestor too, and ideally the stxloc for the bind
+      (raise-run-error (format "Example or inst named members for an ancestor of 'one' sig ~a but no member name was given for ~a. This can result in inconsistency; please give bounds for ~a." (Sig-name sig) (Sig-name sig) (Sig-name sig))
+                       sig))
     (define true-lower
       (remove-duplicates
         (append children-lowers
@@ -538,7 +546,8 @@
 
   (define (fill-upper-past-bound sig parent-upper)
     (when (get-bound-upper sig)
-      (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))))
+      (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
+                       (get-blame-node sig)))
     (hash-set! upper-bounds sig parent-upper)
     (map (lambda (child) (fill-upper-past-bound child parent-upper))
          (get-children run-spec sig)))
@@ -548,7 +557,8 @@
     ; If the sig has a relational upper bound, don't try to resolve the possible
     ; atom names etc.; ask the user to give an explicit bound on the parent, too.
     (when (get-bound-upper sig)
-      (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))))
+      (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
+                       (get-blame-node sig)))
     (define curr-lower (hash-ref lower-bounds sig))
     ; If the upper-bound's scope is bigger than the lower bound's current contents
     ;   (which should include child sigs' lower bounds), make room using atoms from parent.
@@ -607,7 +617,8 @@
                     [else (map list (hash-ref upper-bounds sig))])])
         ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                            
         (unless (subset? (list->set lower) (list->set upper))
-          (raise-run-error (format "Bounds inconsistency detected for ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)))
+          (raise-run-error (format "Bounds inconsistency detected for ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)
+                           (get-blame-node sig)))
         (values name (bound rel lower upper)))))
 
 ;; Issue: one sig will overwrite with lower bound, but looking like that's empty if there's 
@@ -624,6 +635,11 @@
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
 
+  ; Produce a single AST node to blame for a given relation's bound, or #f if none available
+  (define (get-blame-node the-relation)
+    (define result (hash-ref (Bound-orig-nodes (Run-spec-bounds run-spec)) the-relation #f))
+    (and result (first result)))
+ 
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
     (@and pbinding
@@ -694,7 +710,8 @@
       ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
 
       (unless (subset? (list->set lower) (list->set upper))
-        (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)))
+        (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)
+                         (get-blame-node relation)))
       
       (values (Relation-name relation) 
               (bound relation lower upper))))

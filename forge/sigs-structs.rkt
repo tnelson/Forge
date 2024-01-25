@@ -124,6 +124,8 @@
   [tbindings (hash/c node/expr/relation? any/c)]
   ; incomplete bindings for a given relation, indexed by first column
   [piecewise PiecewiseBounds/c]
+  ; original AST nodes, for improving errors, indexed by relation
+  [orig-nodes (hash/c node/expr/relation? (listof node?))]
   ) #:transparent)
                                 
 ; An Inst function is an accumulator of bounds information. It doesn't (necessarily)
