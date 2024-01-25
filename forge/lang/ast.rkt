@@ -448,16 +448,19 @@
    (define hash-proc  (make-robust-node-hash-syntax node/expr/comprehension 0))
    (define hash2-proc (make-robust-node-hash-syntax node/expr/comprehension 3))])
 
+; Helper to construct a set comprehension (and give useful errors, in case
+; these are shown to an end-user)
+(define (raise-set-comp-quantifier-error e)
+  (raise-user-error "Set-comprehension variable domain expected a singleton or relational expression" (deparse e)))
 (define (comprehension info decls formula)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
-      (raise-argument-error 'set "expr?" e))
+      (raise-set-comp-quantifier-error e))
     (unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error 'set "decl of arity 1" e)))
-  (unless (node/formula? formula)
-    (raise-argument-error 'set "formula?" formula))
+      (raise-user-error "Set-comprehension variable domain needs arity = 1" (deparse e)))
+    (unless (node/formula? formula)
+      (raise-user-error "Set-comprehension condition expected a formula." (deparse formula))))
   (node/expr/comprehension info (length decls) decls formula))
-
 (define (set/func decls formula #:info [node-info empty-nodeinfo])
   (comprehension node-info decls formula))
 
@@ -474,8 +477,12 @@
                    ([r0 e0 m0:opt-mult-class] ...)
                    pred)
         (quasisyntax/loc stx
-          (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang.check-lang) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
-            (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (list (cons r0 e0) ...) pred)))]))
+          (begin 
+            (unless (node/expr? e0)
+              (raise-set-comp-quantifier-error e0))
+            ...
+            (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang.check-lang) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
+              (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (list (cons r0 e0) ...) pred))))]))
 
 ;; -- relations ----------------------------------------------------------------
 

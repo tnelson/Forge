@@ -103,6 +103,10 @@
 
     (list "no-temporal-ltl.frg" #rx"use of LTL operator without temporal problem_type")
     (list "no-temporal-ltl-evaluator.frg" #rx"use of LTL operator without temporal problem_type")
+
+    (list "expr-in-comprehension-condition.frg" #rx"expected a formula")
+    (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
+    (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
   ))
 
 
