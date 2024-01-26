@@ -515,7 +515,10 @@
     ; Join, atom name dotted with field name
     (pattern ((~datum BoundLHS) ((~datum AtomNameOrNumber) "`" atom:NameClass)                                
                                 field:QualNameClass)
-      #:attr translate (syntax/loc this-syntax (Expr (Expr "`" atom) "." (Expr field)))))
+      #:attr translate (quasisyntax/loc this-syntax
+                         (Expr
+                          #,(syntax/loc this-syntax (Expr "`" atom)) "."
+                          #,(syntax/loc this-syntax (Expr field))))))
   
   (define-syntax-class BoundClass
      #:description "bind declaration"
@@ -525,7 +528,7 @@
               op:CompareOpClass
               rhs:BindRHSUnionClass)
       #:attr translate (begin
-                         (syntax/loc this-syntax (Expr lhs.translate op rhs.translate))))
+                         (quasisyntax/loc this-syntax (Expr lhs.translate op rhs.translate))))
 
     ; cardinality bound (single relation): #LHS = N
     (pattern ((~datum Bound)  ; or backquote name
@@ -545,7 +548,12 @@
                              ((~datum BoundLHS)
                               ((~datum AtomNameOrNumber) "`" atom:NameClass)
                               field:QualNameClass))
-      #:attr translate (quasisyntax/loc this-syntax (Expr "no" (Expr (Expr "`" atom) "." (Expr field)))))
+      #:attr translate (quasisyntax/loc this-syntax
+                         (Expr "no"
+                               #,(quasisyntax/loc this-syntax
+                                   (Expr
+                                    #,(quasisyntax/loc this-syntax (Expr "`" atom)) "."
+                                    #,(quasisyntax/loc this-syntax (Expr field)))))))
 
     ; identifier: re-use of `inst` defined
     (pattern ((~datum Bound)  

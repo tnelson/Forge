@@ -8,6 +8,7 @@
 (require forge/lang/alloy-syntax/tokenizer)
 (require (prefix-in log: forge/logging/2023/main))
 (require forge/shared)
+
 (do-time "forge/lang/reader")
 
 (define (coerce-ints-to-atoms tree)
@@ -29,25 +30,37 @@
                       paragraphs ...))]))
 
 (define (replace-ints-expr expr)
-  ; (printf "Replace-int-expr: ~a~n~n" expr)
-  (syntax-parse expr #:datum-literals (Name QualName Const Number)
-    [(_ (Const (~optional "-")
-               (Number n)))
+  ;(printf "Replace-int-expr: ~a~n~n" expr)
+  (define result
+    (syntax-parse expr #:datum-literals (Name QualName Const Number)
+    [(_ (Const (~optional "-") (Number n)))
      (quasisyntax/loc expr
-       (Expr (Expr (QualName sing)) "[" (ExprList #,expr) "]"))]
+       (Expr
+        #,(quasisyntax/loc expr (Expr
+                                 #,(quasisyntax/loc expr (QualName sing)))) "["
+        #,(quasisyntax/loc expr (ExprList #,expr)) "]"))]
     [(_ (~or (Name (~literal sing))
              (_ (QualName (~literal sing)))) "[" _ "]")
+     (printf "r-i-e base case: ~a~n" expr)
      expr]
     [(_ expr1 (~optional neg-tok) (CompareOp "<=") expr2)
      expr]
     [(parts ...)
-     (replace-ints-expr* expr)]
-    [_ expr]))
+     (printf "r-i-e 'parts': ~a~n" expr)
+     (define r (replace-ints-expr* expr))
+     (printf "r-i-e 'parts' result: ~a~n" r)
+     r]
+    [_
+     (printf "r-i-e _: ~a~n~n" expr)
+     expr]))
+  ;(printf "  RESULT: ~a~n" result)
+  result)
 
 (define (replace-ints-paragraph paragraph)
-  ; (printf "Replace-ints-paragraph ~a~n~n" paragraph)
+  ;(printf "Replace-ints-paragraph ~a~n~n" paragraph)
   ; InstDecl : /INST-TOK Name Bounds Scope?
-  (syntax-parse paragraph #:datum-literals (IntsDecl Bounds)
+  (define result
+    (syntax-parse paragraph #:datum-literals (IntsDecl Bounds)
     [(InstDecl name 
                (Bounds (~optional (~and "exactly" exactly-tok))
                        exprs ...)
@@ -55,13 +68,36 @@
      #:with (updated-exprs ...) (replace-ints-expr* (syntax/loc paragraph (exprs ...)))
      (quasisyntax/loc paragraph
        (InstDecl name
-                 (Bounds (~? exactly-tok) updated-exprs ...)
+                 #,(quasisyntax/loc paragraph (Bounds (~? exactly-tok) updated-exprs ...))
                  (~? scope)))]
     [(_ ...) paragraph]))
+;  (printf "    Result: ~a~n" result)
+  result)
+
+; NOTE: this (in repl): (quasisyntax/loc #'5 #,(syntax/loc #'3 #'2))
+; produces a #'2 with the loc of the #'3, not the location of the #'5
+; This doesn't work either:
+; (with-syntax ([foo (syntax/loc #'3 #'2)]) (quasisyntax/loc #'5 foo))
+; "The source location is adjusted only if the resulting syntax object
+; comes from the template itself rather than the value of a syntax pattern variable.
+; This seems to work:
+; (define GOAL #'5)
+; (datum->syntax GOAL (syntax->list (syntax/loc #'3 #'2)) GOAL
+
 
 (define (replace/list f stxs)
+  (printf "replace/list; stxs=~a~n" stxs) ; stxs is indeed a syntax object w/ the proper srcloc
+  ; the trouble seems to be in the recombination. QualName and X are keeping context, (QualName X) is not
   (quasisyntax/loc stxs
-    #,(map f (syntax-e stxs))))
+    ;#,(map f (syntax-e stxs))))
+    #,(map (lambda (stx)
+             (define sub (f stx))
+             (define new-stx (quasisyntax/loc stx #,sub))
+             ;(printf "in lambda; stx=~a~n" stx)
+             ;(printf "in lambda; (f stx)=~a~n" sub)
+             ;(printf "in lambda; will replace with=~a~n" new-stx)
+             new-stx)
+           (syntax-e stxs))))
 
 (define (replace-ints-expr* exprs)
   (replace/list replace-ints-expr exprs))
@@ -116,6 +152,6 @@
   ; (printf "Ints-coerced: ~a~n" ints-coerced)
   ; (raise "STOP")
   (define result (datum->syntax #f module-datum))
-  ;(printf "debug result of expansion: ~a~n" result)
+  (printf "debug result of expansion: ~a~n" result)
   result)
 

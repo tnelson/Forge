@@ -292,12 +292,12 @@
     ; Add the atom before evaluation, so that (atom ...) will be consistent with non-piecewise bounds.
     (define the-tuples (safe-fast-eval-exp (ast:-> the-atom the-rhs-expr) (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f))
     (define the-atom-evaluated (first (first (safe-fast-eval-exp the-atom (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f))))
-    
-    (printf "TESTING: new-orig-nodes: ~a: ~a~n" the-relation (new-orig-nodes bound the-relation bind))
+        
     (cond [(hash-has-key? piecewise-binds the-relation)
            (define former-pwb (hash-ref piecewise-binds the-relation))
            (unless (equal? op (PiecewiseBound-operator former-pwb))
-             (fail (format "mixed operators not allowed in piecewise bounds; prior had ~a, got ~a" (PiecewiseBound-operator former-pwb) op)))
+             (fail (format "mixed operators not allowed in piecewise bounds; prior had ~a, got ~a"
+                           (PiecewiseBound-operator former-pwb) op)))
            
            ; Consistency check for this combination of atom and relation; disallow re-binding.           
            (when (member the-atom-evaluated (PiecewiseBound-atoms former-pwb))
@@ -953,6 +953,11 @@
   (struct-copy Scope scope
                [sig-scopes new-sig-scopes]))
 
+; Produce a single AST node to blame for a given relation's bound, or #f if none available
+(define (get-blame-node bound the-rel)
+  (define result (hash-ref (Bound-orig-nodes bound) the-rel #f))
+  (and result (first result)))
+
 ; update-bindings :: Bound, node/expr/relation, List<Symbol>, List<Symbol>? -> Bound
 ; Updates the partial binding for a given sig or relation.
 ; If a binding already exists, takes the intersection.
@@ -968,10 +973,6 @@
   (define (raise-run-error message node)
         (raise-syntax-error #f message
                             (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node))))))
-  ; Produce a single AST node to blame for a given relation's bound, or #f if none available
-  (define (get-blame-node the-rel)
-    (define result (hash-ref (Bound-orig-nodes bound) the-rel #f))
-    (and result (first result)))
   
   (unless lower
     (raise (error (format "Error: update-bindings for ~a expected a lower bound, got #f." rel))))  
@@ -992,7 +993,7 @@
   (unless (or (not upper) (subset? lower upper))
     (raise-run-error (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
                              rel lower upper)
-                     (get-blame-node rel)))
+                     (get-blame-node bound rel)))
   
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))
@@ -1001,9 +1002,7 @@
   (define new-tbindings 
     (if (equal? lower upper) 
         (hash-set old-tbindings rel (set->list lower))
-        old-tbindings))
-  
-  (printf "TESTING: new-orig-nodes(update-bindings): ~a: ~a~n" rel (new-orig-nodes bound rel node))
+        old-tbindings))  
   
   ; Functionally update; piecewise bounds are out of scope so keep them the same.
   ; Likewise, original AST nodes haven't changed
