@@ -969,8 +969,8 @@
             rel (if lower (set-count (list->set lower)) #f) 
                 (if upper (set-count (list->set upper)) #f)))
 
-  ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
-  (define (raise-run-error message node)
+  ; In case of error, highlight an AST node if able.
+  (define (raise-error message node)
         (raise-syntax-error #f message
                             (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node))))))
   
@@ -991,7 +991,7 @@
                         [else (or upper (sbound-upper old))]))))
   
   (unless (or (not upper) (subset? lower upper))
-    (raise-run-error (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
+    (raise-error (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
                              rel lower upper)
                      (get-blame-node bound rel)))
   

@@ -580,10 +580,10 @@
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
      (add-to-execs
-       (syntax/loc stx 
+       (quasisyntax/loc stx 
          (cond 
           [(member 'expected '(sat unsat))           
-           (run name args ...)
+           #,(syntax/loc stx (run name args ...))
            (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
              (when (> (get-verbosity) 0)
