@@ -46,13 +46,8 @@
     [(_ expr1 (~optional neg-tok) (CompareOp "<=") expr2)
      expr]
     [(parts ...)
-     (printf "r-i-e 'parts': ~a~n" expr)
-     (define r (replace-ints-expr* expr))
-     (printf "r-i-e 'parts' result: ~a~n" r)
-     r]
-    [_
-     (printf "r-i-e _: ~a~n~n" expr)
-     expr]))
+     (replace-ints-expr* expr)]
+    [_ expr]))
   ;(printf "  RESULT: ~a~n" result)
   result)
 
@@ -85,19 +80,12 @@
 ; (datum->syntax GOAL (syntax->list (syntax/loc #'3 #'2)) GOAL
 
 
-(define (replace/list f stxs)
-  (printf "replace/list; stxs=~a~n" stxs) ; stxs is indeed a syntax object w/ the proper srcloc
-  ; the trouble seems to be in the recombination. QualName and X are keeping context, (QualName X) is not
-  (quasisyntax/loc stxs
-    ;#,(map f (syntax-e stxs))))
-    #,(map (lambda (stx)
-             (define sub (f stx))
-             (define new-stx (quasisyntax/loc stx #,sub))
-             ;(printf "in lambda; stx=~a~n" stx)
-             ;(printf "in lambda; (f stx)=~a~n" sub)
-             ;(printf "in lambda; will replace with=~a~n" new-stx)
-             new-stx)
-           (syntax-e stxs))))
+(define (replace/list f stxs)    
+  ;(quasisyntax/loc stxs
+  ;  #,(map f (syntax-e stxs))))
+  (datum->syntax stxs
+                 (map f (syntax-e stxs))
+                 stxs))
 
 (define (replace-ints-expr* exprs)
   (replace/list replace-ints-expr exprs))
