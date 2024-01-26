@@ -1,4 +1,5 @@
-#lang forge/bsl
+#lang forge
+// /bsl
 option verbose 0
 
 abstract sig Player {}

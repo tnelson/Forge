@@ -239,6 +239,16 @@
 ; a nominal bitwidth. Since we're speaking of sig cardinalities, assume this suffices.
 (define SUFFICIENT-INT-BOUND 8)
 
+; Helper to update provenance information within a Bound struct
+(define (new-orig-nodes bound the-relation bind)
+  (cond
+    [(not bind) (Bound-orig-nodes bound)]
+    [(hash-has-key? (Bound-orig-nodes bound) the-relation)
+     (hash-set (Bound-orig-nodes bound) the-relation
+               (cons bind (hash-ref (Bound-orig-nodes bound) the-relation)))]
+    [else (hash-set (Bound-orig-nodes bound) the-relation (list bind))]))
+
+
 ; Functionally update "scope" and "bound" based on this "bind" declaration
 (define/contract (do-bind bind scope bound)
   (-> (or/c node/formula? node/breaking/op? Inst?)
@@ -286,7 +296,8 @@
     (cond [(hash-has-key? piecewise-binds the-relation)
            (define former-pwb (hash-ref piecewise-binds the-relation))
            (unless (equal? op (PiecewiseBound-operator former-pwb))
-             (fail (format "mixed operators not allowed in piecewise bounds; prior had ~a, got ~a" (PiecewiseBound-operator former-pwb) op)))
+             (fail (format "mixed operators not allowed in piecewise bounds; prior had ~a, got ~a"
+                           (PiecewiseBound-operator former-pwb) op)))
            
            ; Consistency check for this combination of atom and relation; disallow re-binding.           
            (when (member the-atom-evaluated (PiecewiseBound-atoms former-pwb))
@@ -294,10 +305,12 @@
            
            (define new-tuples (append (PiecewiseBound-tuples former-pwb) the-tuples))
            (Bound (Bound-pbindings bound) (Bound-tbindings bound)
-                  (hash-set piecewise-binds the-relation (PiecewiseBound new-tuples (cons the-atom-evaluated (PiecewiseBound-atoms former-pwb)) op)))]
+                  (hash-set piecewise-binds the-relation (PiecewiseBound new-tuples (cons the-atom-evaluated (PiecewiseBound-atoms former-pwb)) op))
+                  (new-orig-nodes bound the-relation bind))]
           [else
            (Bound (Bound-pbindings bound) (Bound-tbindings bound)
-                  (hash-set piecewise-binds the-relation (PiecewiseBound the-tuples (list the-atom-evaluated) op)))]))
+                  (hash-set piecewise-binds the-relation (PiecewiseBound the-tuples (list the-atom-evaluated) op))
+                  (new-orig-nodes bound the-relation bind))]))
   
   (match bind
     
@@ -379,7 +392,7 @@
      (cond [(node/expr/relation? left)
             (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
               (define new-scope scope)
-              (define new-bound (update-bindings bound left tups tups))
+              (define new-bound (update-bindings bound left tups tups #:node bind))
               (values new-scope new-bound))]
            [(and (node/expr/op/join? left)
                  (list? (node/expr/op-children left))
@@ -404,7 +417,7 @@
        ; rel in expr
        [(node/expr/relation? left)
         (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
-          (define new-bound (update-bindings bound left (@set) tups))
+          (define new-bound (update-bindings bound left (@set) tups #:node bind))
           (values scope new-bound))]
        ; atom.rel in expr
        [(and (node/expr/op/join? left)
@@ -420,7 +433,7 @@
        ; rel ni expr
        [(node/expr/relation? right)
         (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
-          (define new-bound (update-bindings bound right tups))
+          (define new-bound (update-bindings bound right tups #:node bind))
           (values scope new-bound))]
        ; atom.rel ni expr
        [(and (node/expr/op/join? right)
@@ -570,6 +583,7 @@
       (Bound (hash)
              (hash Int (map list ints)
                    succ succs)
+             (hash)
              (hash))))
 
   (define/contract wrapped-bounds-inst Inst?
@@ -599,13 +613,13 @@
       (define tups (PiecewiseBound-tuples pwb))
       (cond [(equal? '= (PiecewiseBound-operator pwb))
              ; update only lower bound, not upper (handled in send-to-kodkod)
-             (update-bindings bs rel tups #f)] 
+             (update-bindings bs rel tups #f #:node #f)] 
             [(equal? 'in (PiecewiseBound-operator pwb))
              ; do nothing (upper bound handled in send-to-kodkod)
              bs]
             [(equal? 'ni (PiecewiseBound-operator pwb))
              ; update lower-bound
-             (update-bindings bs rel tups #f)]
+             (update-bindings bs rel tups #f #:node #f)]
             [else 
              (raise (error (format "unsupported comparison operator; got ~a, expected =, ni, or in" (PiecewiseBound-operator pwb))))])))
      
@@ -939,17 +953,27 @@
   (struct-copy Scope scope
                [sig-scopes new-sig-scopes]))
 
+; Produce a single AST node to blame for a given relation's bound, or #f if none available
+(define (get-blame-node bound the-rel)
+  (define result (hash-ref (Bound-orig-nodes bound) the-rel #f))
+  (and result (first result)))
+
 ; update-bindings :: Bound, node/expr/relation, List<Symbol>, List<Symbol>? -> Bound
 ; Updates the partial binding for a given sig or relation.
 ; If a binding already exists, takes the intersection.
 ; If this results in an exact bound, adds it to the total bounds.
-(define (update-bindings bound rel lower [upper #f])
+(define (update-bindings bound rel lower [upper #f] #:node [node #f])
 
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "  update-bindings for ~a; |lower|=~a; |upper|=~a~n"
             rel (if lower (set-count (list->set lower)) #f) 
                 (if upper (set-count (list->set upper)) #f)))
 
+  ; In case of error, highlight an AST node if able.
+  (define (raise-error message node)
+        (raise-syntax-error #f message
+                            (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node))))))
+  
   (unless lower
     (raise (error (format "Error: update-bindings for ~a expected a lower bound, got #f." rel))))  
   (set! lower (list->set lower))
@@ -967,8 +991,9 @@
                         [else (or upper (sbound-upper old))]))))
   
   (unless (or (not upper) (subset? lower upper))
-    (raise (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
-                   rel lower upper)))
+    (raise-error (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
+                             rel lower upper)
+                     (get-blame-node bound rel)))
   
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))
@@ -977,10 +1002,11 @@
   (define new-tbindings 
     (if (equal? lower upper) 
         (hash-set old-tbindings rel (set->list lower))
-        old-tbindings))
-
+        old-tbindings))  
+  
   ; Functionally update; piecewise bounds are out of scope so keep them the same.
-  (define new-bound (Bound new-pbindings new-tbindings (Bound-piecewise bound)))  
+  ; Likewise, original AST nodes haven't changed
+  (define new-bound (Bound new-pbindings new-tbindings (Bound-piecewise bound) (new-orig-nodes bound rel node)))  
   new-bound)
 
 ; state-set-option :: State, Symbol, Symbol -> State
