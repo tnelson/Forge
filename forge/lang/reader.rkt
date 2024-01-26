@@ -11,6 +11,17 @@
 
 (do-time "forge/lang/reader")
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; This series of functions intervenes at the pre-Forge-AST level to
+; insert automatic conversion between int-exprs and rel-exprs in
+; *some* cases; the others are handled in the AST construction.
+
+; Regarding syntax replacement, here and in the expander,
+; NOTE WELL this sentence from the Racket docs on syntax/loc: 
+; "The source location is adjusted only if the resulting syntax object
+; comes from the template itself rather than the value of a syntax pattern variable."
+; (In all other cases, we apparently must use datum->syntax.)
+
 (define (coerce-ints-to-atoms tree)
   ; AlloyModule: ModuleDecl? Import* Paragraph*
   (syntax-parse tree #:datum-literals (AlloyModule ModuleDecl Import)
@@ -31,8 +42,7 @@
 
 (define (replace-ints-expr expr)
   ;(printf "Replace-int-expr: ~a~n~n" expr)
-  (define result
-    (syntax-parse expr #:datum-literals (Name QualName Const Number)
+  (syntax-parse expr #:datum-literals (Name QualName Const Number)
     [(_ (Const (~optional "-") (Number n)))
      (quasisyntax/loc expr
        (Expr
@@ -40,22 +50,18 @@
                                  #,(quasisyntax/loc expr (QualName sing)))) "["
         #,(quasisyntax/loc expr (ExprList #,expr)) "]"))]
     [(_ (~or (Name (~literal sing))
-             (_ (QualName (~literal sing)))) "[" _ "]")
-     (printf "r-i-e base case: ~a~n" expr)
+             (_ (QualName (~literal sing)))) "[" _ "]")     
      expr]
     [(_ expr1 (~optional neg-tok) (CompareOp "<=") expr2)
      expr]
     [(parts ...)
      (replace-ints-expr* expr)]
     [_ expr]))
-  ;(printf "  RESULT: ~a~n" result)
-  result)
 
 (define (replace-ints-paragraph paragraph)
   ;(printf "Replace-ints-paragraph ~a~n~n" paragraph)
-  ; InstDecl : /INST-TOK Name Bounds Scope?
-  (define result
-    (syntax-parse paragraph #:datum-literals (IntsDecl Bounds)
+  ; InstDecl : /INST-TOK Name Bounds Scope?  
+  (syntax-parse paragraph #:datum-literals (IntsDecl Bounds)
     [(InstDecl name 
                (Bounds (~optional (~and "exactly" exactly-tok))
                        exprs ...)
@@ -66,23 +72,12 @@
                  #,(quasisyntax/loc paragraph (Bounds (~? exactly-tok) updated-exprs ...))
                  (~? scope)))]
     [(_ ...) paragraph]))
-;  (printf "    Result: ~a~n" result)
-  result)
 
-; NOTE: this (in repl): (quasisyntax/loc #'5 #,(syntax/loc #'3 #'2))
-; produces a #'2 with the loc of the #'3, not the location of the #'5
-; This doesn't work either:
-; (with-syntax ([foo (syntax/loc #'3 #'2)]) (quasisyntax/loc #'5 foo))
-; "The source location is adjusted only if the resulting syntax object
-; comes from the template itself rather than the value of a syntax pattern variable.
-; This seems to work:
-; (define GOAL #'5)
-; (datum->syntax GOAL (syntax->list (syntax/loc #'3 #'2)) GOAL
-
-
-(define (replace/list f stxs)    
+(define (replace/list f stxs)
+  ; Using quasisyntax/loc like this will NOT properly replace the syntax-location.
   ;(quasisyntax/loc stxs
   ;  #,(map f (syntax-e stxs))))
+  ; Instead, need to reconstruct the syntax object via datum->syntax
   (datum->syntax stxs
                  (map f (syntax-e stxs))
                  stxs))
@@ -93,6 +88,10 @@
 (define (replace-ints-paragraph* parags)
   (replace/list replace-ints-paragraph parags))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Forge's reader function
 (define (read-syntax path port)
   (define this-lang 'forge)
   (define-values (logging-on? project email) (log:setup this-lang port path))
@@ -140,6 +139,6 @@
   ; (printf "Ints-coerced: ~a~n" ints-coerced)
   ; (raise "STOP")
   (define result (datum->syntax #f module-datum))
-  (printf "debug result of expansion: ~a~n" result)
+  ;(printf "debug result of expansion: ~a~n" result)
   result)
 
