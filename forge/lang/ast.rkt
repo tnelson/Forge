@@ -1107,3 +1107,19 @@
 (make-breaker pbij 'pbij)
 
 (make-breaker default 'default)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Racket "user errors" avoid the (possibly confusing) stack trace that a Racket 
+; "syntax error" produces, but only DrRacket will highlight source location from
+; a user error. For the VSCode extension (and use from the terminal), produce a
+; custom user error that contains the row and column information of the offending
+; AST node.
+(define (pretty-loc loc)
+  (format "~a:~a:~a" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc)))
+(define (raise-forge-error #:msg [msg "error"] #:context [context #f])
+  (define loc (cond [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]
+                    [(node? context) (pretty-loc (nodeinfo-loc (node-info context)))]
+                    [(srcloc? context) (pretty-loc context)] 
+                    [else "unknown location"]))
+  (raise-user-error (format "[~a] ~a" loc msg)))
+
