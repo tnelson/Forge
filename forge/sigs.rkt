@@ -844,11 +844,11 @@
       (in/info info (join/info info Int r1) d)
       (all/info info ([i1 (join/info info r1 univ)])
            (&&/info info (int>= (sum/info info i1) (int 0))
-               (lone (join/info info i1 r1))))
+               (lone/info info (join/info info i1 r1))))
       (all/info info ([e (join/info info Int r1)])
            (some/info info (join/info info r1 e)))
       (all/info info ([i1 (join/info info r1 univ)])
-           (implies (!= i1 (sing/info info (int 0)))
+           (=>/info info (!= i1 (sing/info info (int 0)))
                     (some/info info (join/info info
                      (sing/info info
                       (subtract/info info

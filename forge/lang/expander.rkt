@@ -7,6 +7,7 @@
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
                      syntax/srcloc racket/match racket/list                     
                      (only-in racket/path file-name-from-path))
+         syntax/srcloc
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
@@ -1035,7 +1036,8 @@
          (first xs)]
          ; Body of a predicate: any number of formulas
         [(andmap node/formula? xs)
-         (&& xs)]
+         (define info (nodeinfo (build-source-location stx) 'checklangplaceholder))
+         (&&/info info xs)]
          ; body of a helper function that produces an int-expression: one int-expression
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
          (first xs)]         
