@@ -1,7 +1,6 @@
 #lang forge/core
 
 (set-option! 'verbose 0)
-;(set-option! 'verbose 10)
 
 (sig onede)
 (relation edges (onede onede))

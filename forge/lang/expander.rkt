@@ -1040,8 +1040,6 @@
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
          (first xs)]         
         [else
-         ;(raise-user-error (format "~a" xs)
-         ;                  (format "Ill-formed block: expected either one expression or any number of formulas"))]))
          (raise-forge-error
           #:msg (format "Ill-formed block: expected either one expression or any number of formulas")
           #:context stx)]))

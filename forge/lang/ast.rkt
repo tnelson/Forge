@@ -952,7 +952,8 @@
        ; Instead, desugar as a multiplicity of a set comprehension
        (multiplicity-formula info 'one
                              (set ([x1 r1] ...)
-                                  #,(quasisyntax/loc stx (&& (no-pairwise-intersect (list x1 ...) #:context stx) pred)))))]
+                                  #,(quasisyntax/loc stx (&& (no-pairwise-intersect (list x1 ...)
+                                                                                    #:context #,(build-source-location stx)) pred)))))]
     [(_ info ([x1 r1 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
@@ -1077,8 +1078,8 @@
                              (equal? (procedure-arity vala) 0)
                              (equal? (procedure-arity valb) 0))
                          (equal-proc (vala) (valb))]
-                       [(and (or (node/expr? vala) (not (procedure? vala)))
-                             (or (node/expr? valb) (not (procedure? valb))))
+                       [(and (or (node/expr? vala) (node/formula? vala) (not (procedure? vala)))
+                             (or (node/expr? valb) (node/formula? vala) (not (procedure? valb))))
                          (equal-proc vala valb)]
                        [else (raise (format "Mismatched procedure fields when checking equality for ~a. Got: ~a and ~a"
                                             structname vala valb))]))                                              
@@ -1093,15 +1094,32 @@
                  [multiplier (drop multipliers offset)])
         ; Some AST fields may be thunkified
         ; Also, any node/expr is a procedure? since that's how we impl. box join
+        ; Also, in order to add better error messages for mis-used node/formulas,
+        ;   any node/formula is also a procedure?
         ; ASSUME: node/expr will never be an exactly-arity-0 procedure.
         (define vala (access a))
-        (cond                         
+        (cond
+          ; zero-arity procedure (a "thunk"): invoke it and then hash the result
           [(and (procedure? vala)                
                 (equal? (procedure-arity vala) 0))
-            (@* multiplier (hash-proc (vala)))]
-          [(or (node/expr? vala) 
-               (not (procedure? vala)))
-            (@* multiplier (hash-proc vala))]
+           ;(printf "field was zero arity procedure: ~a~n" vala)
+           (@* multiplier (hash-proc (vala)))]
+
+          ; node/expr? (but not a zero-arity procedure): just hash it
+          [(node/expr? vala)
+           ;(printf "field was expr: ~a~n" vala)
+           (@* multiplier (hash-proc vala))]
+
+          ; node/formula? (but not a zero-arity procedure): just hash it
+          [(node/formula? vala)
+           ;(printf "field was formula: ~a~n" vala)
+           (@* multiplier (hash-proc vala))]
+
+          ; not a procedure at all: just hash it
+          [(not (procedure? vala))
+           ;(printf "field was other non-procedure: ~a~n" vala)
+           (@* multiplier (hash-proc vala))]
+
           [else (raise (format "Non-thunk procedure field when hashing for ~a. Got: ~a"
                               structname vala))])))
     ;(printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    
