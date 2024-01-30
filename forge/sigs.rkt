@@ -840,7 +840,7 @@
 
 (define-builtin (isSeqOf info r1 d)
   (&&/info info
-      (in/info info r1 (-> Int univ))
+      (in/info info r1 (->/info info Int univ))
       (in/info info (join/info info Int r1) d)
       (all/info info ([i1 (join/info info r1 univ)])
            (&&/info info (int>= (sum/info info i1) (int 0))

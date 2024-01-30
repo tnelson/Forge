@@ -40,24 +40,40 @@
         [(empty? l) (printf "~n")]
         [else (printf "  ~a~n" (first l)) (print-one-per-line (rest l))]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(require (only-in "../forge/library/seq.frg" order))
-; For debugging: is anything not being broken down properly?
-; (print-one-per-line (gather-tree order #:leafs-only #t))
 
 ; Confirm that the syntax location information for all nodes refers to the proper module
-(for ([n (gather-tree order #:leafs-only #f)])
-  (define loc (nodeinfo-loc (node-info n)))
-  (define source-path-correct
-    (string-contains?
-     (path->string (srcloc-source loc))
-     "/forge/library/seq.frg"))
-  (unless source-path-correct 
-    (printf "     ~a: ~a~n" n loc))
-  ; Comment out for now, avoid unpleasant flickering spam
-  ;(check-true source-path-correct)
-  )
+(define (check-full-ast-srclocs root-ast sub-path-str)
+  (for ([n (gather-tree root-ast #:leafs-only #f)])
+    (define loc (nodeinfo-loc (node-info n)))
+    (define source-path-correct
+      (string-contains?
+       (path->string (srcloc-source loc))
+       sub-path-str))
+    (unless source-path-correct 
+      (printf "     ~a: ~a~n" n loc))
+    ; Comment out for now, avoid unpleasant flickering spam
+    ;(check-true source-path-correct)
+    ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Need to do these separately, because of "already bound" sig names shared etc.
+
+;(require (only-in "../forge/library/seq.frg" order))
+; For debugging: is anything not being broken down properly?
+; (print-one-per-line (gather-tree order #:leafs-only #t))
+;(check-full-ast-srclocs order "/forge/library/seq.frg")
+
+;(require (only-in "../forge/library/reachable.frg" reach6))
+;(check-full-ast-srclocs reach6 "/forge/library/reachable.frg")
+
+(require (only-in "../forge/formulas/booleanFormulaOperators.rkt" Implies And Or Not))
+(check-full-ast-srclocs Implies  "/forge/formulas/booleanFormulaOperators.rkt")
+(check-full-ast-srclocs And  "/forge/formulas/booleanFormulaOperators.rkt")
+(check-full-ast-srclocs Or  "/forge/formulas/booleanFormulaOperators.rkt")
+(check-full-ast-srclocs Not  "/forge/formulas/booleanFormulaOperators.rkt")
+
+
 
 ;; TODO: check run parameters as well (catch instances...) 
 ;; TODO: other examples
