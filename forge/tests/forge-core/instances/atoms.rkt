@@ -34,7 +34,7 @@
       #:scope ([Node 4])
       #:expect sat)
 
-(test explicitAtomsSat4
+(test explicitAtomsSat5
       #:preds [AtomsNotIn]
       #:scope ([Node 4])
       #:expect sat)

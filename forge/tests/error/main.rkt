@@ -99,10 +99,15 @@
     
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
+    (list "inst-lower-not-subset-upper.frg" #rx"was not a superset")
     (list "invalid-example.frg" #rx"Invalid example 'onlyBabies'")
 
     (list "no-temporal-ltl.frg" #rx"use of LTL operator without temporal problem_type")
     (list "no-temporal-ltl-evaluator.frg" #rx"use of LTL operator without temporal problem_type")
+
+    (list "expr-in-comprehension-condition.frg" #rx"expected a formula")
+    (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
+    (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
   ))
 
 

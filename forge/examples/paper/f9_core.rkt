@@ -1,6 +1,5 @@
 #lang forge/core
 
-; TN TODO: add this line to the final version
 (set-option! 'problem_type 'temporal)
 
 (sig Counter)

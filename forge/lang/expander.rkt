@@ -515,7 +515,10 @@
     ; Join, atom name dotted with field name
     (pattern ((~datum BoundLHS) ((~datum AtomNameOrNumber) "`" atom:NameClass)                                
                                 field:QualNameClass)
-      #:attr translate (syntax/loc this-syntax (Expr (Expr "`" atom) "." (Expr field)))))
+      #:attr translate (quasisyntax/loc this-syntax
+                         (Expr
+                          #,(syntax/loc this-syntax (Expr "`" atom)) "."
+                          #,(syntax/loc this-syntax (Expr field))))))
   
   (define-syntax-class BoundClass
      #:description "bind declaration"
@@ -525,7 +528,7 @@
               op:CompareOpClass
               rhs:BindRHSUnionClass)
       #:attr translate (begin
-                         (syntax/loc this-syntax (Expr lhs.translate op rhs.translate))))
+                         (quasisyntax/loc this-syntax (Expr lhs.translate op rhs.translate))))
 
     ; cardinality bound (single relation): #LHS = N
     (pattern ((~datum Bound)  ; or backquote name
@@ -545,7 +548,12 @@
                              ((~datum BoundLHS)
                               ((~datum AtomNameOrNumber) "`" atom:NameClass)
                               field:QualNameClass))
-      #:attr translate (quasisyntax/loc this-syntax (Expr "no" (Expr (Expr "`" atom) "." (Expr field)))))
+      #:attr translate (quasisyntax/loc this-syntax
+                         (Expr "no"
+                               #,(quasisyntax/loc this-syntax
+                                   (Expr
+                                    #,(quasisyntax/loc this-syntax (Expr "`" atom)) "."
+                                    #,(quasisyntax/loc this-syntax (Expr field)))))))
 
     ; identifier: re-use of `inst` defined
     (pattern ((~datum Bound)  
@@ -735,40 +743,27 @@
                          (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
                          sig-names:NameListClass
-                         ;when extending with in is implemented,
-                         ;if "sig A in B extends C" is allowed,
-                         ;check if this allows multiple SigExtClasses / how to do that if not
-                         ;note the parser currently does not allow that
                          (~optional extends:SigExtClass)
                          (~optional block:BlockClass))
-     (syntax/loc stx (begin
+     (quasisyntax/loc stx (begin
        (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
-       ;when extending with in is implemented,
-       ;if "sig A in B extends C" is allowed,
-       ;check if this allows that and update if needed
-       ;note the parser currently does not allow that
-       (sig (#:lang (get-check-lang)) sig-names.names (~? mult.symbol)
-                            (~? abstract.symbol)
-                            (~? (~@ #:is-var isv))
-                            (~? (~@ extends.symbol extends.value))) ...))]
+       #,@(for/list ([sig-name (syntax-e #'(sig-names.names ...))])
+            (with-syntax ([sig-name-p0 sig-name])
+              (syntax/loc sig-name
+                (sig (#:lang (get-check-lang)) sig-name-p0 (~? mult.symbol)
+                     (~? abstract.symbol)
+                     (~? (~@ #:is-var isv))
+                     (~? (~@ extends.symbol extends.value))))))))]
 
     [((~datum SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
                          sig-names:NameListClass
-                         ;when extending with in is implemented,
-                         ;if "sig A in B extends C" is allowed,
-                         ;check if this allows multiple SigExtClasses / how to do that if not
-                         ;note the parser currently does not allow that
                          (~optional extends:SigExtClass)
                          ((~datum ArrowDeclList) arrow-decl:ArrowDeclClass ...)
                          (~optional block:BlockClass))
      (quasisyntax/loc stx (begin
        (~? (raise (format "Sig block not yet implemented: ~a" 'block)))
-       ;when extending with in is implemented,
-       ;if "sig A in B extends C" is allowed,
-       ;check if this allows that and update if needed
-       ;note the parser currently does not allow that
        #,@(for/list ([sig-name (syntax-e #'(sig-names.names ...))])
             (with-syntax ([sig-name-p0 sig-name])
               (syntax/loc sig-name
@@ -880,10 +875,13 @@
       (define curr-num (unbox name-counter))
       (set-box! name-counter (+ 1 curr-num))
       (define source_disambiguator
-        (if (and (source-location-source stx)
-                 (file-name-from-path (source-location-source stx)))
-            (path-replace-extension (file-name-from-path (source-location-source stx)) #"")
-            "unknown"))      
+        (cond [(and (source-location-source stx)
+                    (or (path-string? (source-location-source stx))
+                        (path-for-some-system? (source-location-source stx)))
+                    (file-name-from-path (source-location-source stx)))
+               (path-replace-extension (file-name-from-path (source-location-source stx)) #"")]
+              [(symbol? (source-location-source stx)) (symbol->string (source-location-source stx))]
+              [else "unknown"]))
       (string->symbol (format "temporary-name_~a_~a" source_disambiguator curr-num)))))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?

@@ -178,3 +178,15 @@ inst exactInst {
 test expect ExactlyKeyword {
     exactlyKeywordWorks : {} for exactly exactInst is sat
 }
+
+-- Test that "ni" and "in" can be combined in complete bounds 
+inst both_lower_and_upper {
+    #Int = 4
+    BasicA in `A0 + `A1 + `A2 + `A3 + `A4 
+    BasicA ni `A0
+}
+
+test expect {
+    mixed_complete_ni: {no BasicA} for both_lower_and_upper is unsat
+    mixed_complete_in: {#BasicA = 5} for both_lower_and_upper is sat
+}

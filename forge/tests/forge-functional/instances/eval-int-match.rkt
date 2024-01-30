@@ -145,7 +145,7 @@
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 48)))))
 	       #:expect 'sat)
-(make-test #:name 'multiply-sat
+(make-test #:name 'multiply-theorem
 	       #:scope (list (list Int 7))
 	       #:bounds (list multiply-inst)
 	       #:sigs (list Node)
@@ -164,7 +164,7 @@
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 3)))))
 	       #:expect 'sat)
-(make-test #:name 'multiply-sat
+(make-test #:name 'divide-theorem
 	       #:scope (list (list Int 6))
 	       #:bounds (list divide-inst)
 	       #:sigs (list Node)

@@ -63,7 +63,7 @@
         [else 
             (format "(COULD-NOT-DEPARSE: ~a)" arg)]))
 
-(define (deparse-formula-op formula parent-priority)
+(define (deparse-formula-op formula parent-priority)  
   (match formula
     [(? node/formula/op/&&?)
      ; Sometimes && nodes need to contain 0 or 1 arguments

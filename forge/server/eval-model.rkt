@@ -86,15 +86,17 @@
 ; the relation {(a b) (b c)}
 (define (eval-exp exp bind bitwidth [safe #t])
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "evaluating expr : ~v~n" exp))
+    (printf "evaluating expr : ~v~n" exp))  
   (define result (match exp
                    ; Conversion from int values
                    [(ast:node/expr/op/sing _ _ `(,ix1))
                     (int-atom (eval-int-expr ix1 bind bitwidth))]
                    ; Binary set operations
-                   [(ast:node/expr/op/+ _ _ `(,exp-1 ,exp-2))
-                    (append (eval-exp exp-1 bind bitwidth safe)
-                            (eval-exp exp-2 bind bitwidth safe))]
+
+                   ; Union should support n-ary
+                   [(ast:node/expr/op/+ _ _ (list exp1 exps ...))
+                    (apply append (map (lambda (exp) (eval-exp exp bind bitwidth safe)) (cons exp1 exps)))]
+                   
                    [(ast:node/expr/op/- _ _ `(,exp-1 ,exp-2))
                     (set->list (set-subtract
                                 (list->set (eval-exp exp-1 bind bitwidth safe))
