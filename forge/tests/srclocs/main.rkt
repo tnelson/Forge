@@ -59,4 +59,5 @@
   ;(check-true source-path-correct)
   )
 
-;(map (lambda (x)  (node/formula/op-children ))
+;; TODO: check run parameters as well (catch instances...) 
+;; TODO: other examples
