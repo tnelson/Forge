@@ -620,7 +620,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (if (node/formula? b)
       (&&/info info
                (=>/info info a b)
-               (=>/info info (! a) c))
+               (=>/info info (!/info info a) c))
       (ite/info info a b c)))
 (define-syntax (ifte stx)
   (syntax-parse stx 

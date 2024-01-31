@@ -7,12 +7,14 @@
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
                      syntax/srcloc racket/match racket/list                     
                      (only-in racket/path file-name-from-path))
+         syntax/srcloc
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
 (require (only-in racket empty? first))
 (require forge/sigs)
 (require forge/choose-lang-specific)
+(require (only-in forge/lang/ast raise-forge-error))
 
 (provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
 (provide #%module-begin)
@@ -1025,7 +1027,7 @@
              (syntax-parameterize ([current-forge-context 'inst])
                (list #,@(syntax/loc stx bounds.translate))))))]))
 
-(define (disambiguate-block xs)
+(define (disambiguate-block xs #:stx [stx #f])
   (cond [(empty? xs) 
          ; {} always means the formula true
          true]
@@ -1034,20 +1036,24 @@
          (first xs)]
          ; Body of a predicate: any number of formulas
         [(andmap node/formula? xs)
-         (&& xs)]
+         (define info (nodeinfo (build-source-location stx) 'checklangplaceholder))
+         (&&/info info xs)]
          ; body of a helper function that produces an int-expression: one int-expression
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
          (first xs)]         
-        [else 
-         (raise-user-error (format "~a" xs)
-                           (format "Ill-formed block: expected either one expression or any number of formulas"))]))
+        [else
+         (raise-forge-error
+          #:msg (format "Ill-formed block: expected either one expression or any number of formulas")
+          #:context stx)]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 (define-syntax (Block stx)
   (syntax-parse stx
     [((~datum Block) exprs:ExprClass ...)
      (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
-       (syntax/loc stx (disambiguate-block (list exprs ...))))]))
+       (quasisyntax/loc stx
+         (disambiguate-block (list exprs ...)
+                             #:stx #,(build-source-location stx))))]))
 
 (define-syntax (Expr stx)
   ;(printf "Debug: Expr: ~a~n" stx)

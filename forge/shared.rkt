@@ -162,4 +162,3 @@
           (set!-gc-time gc)
           (format "~a at ~a\tlast step: ~a\tgc: ~a\ttotal: ~a"
                   new-msg t diff gc-diff (- t initial-time)))))))
-

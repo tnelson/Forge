@@ -840,16 +840,16 @@
 
 (define-builtin (isSeqOf info r1 d)
   (&&/info info
-      (in/info info r1 (-> Int univ))
+      (in/info info r1 (->/info info Int univ))
       (in/info info (join/info info Int r1) d)
-      (all ([i1 (join/info info r1 univ)])
+      (all/info info ([i1 (join/info info r1 univ)])
            (&&/info info (int>= (sum/info info i1) (int 0))
-               (lone (join/info info i1 r1))))
-      (all ([e (join/info info Int r1)])
-           (some (join/info info r1 e)))
-      (all ([i1 (join/info info r1 univ)])
-           (implies (!= i1 (sing/info info (int 0)))
-                    (some (join/info info
+               (lone/info info (join/info info i1 r1))))
+      (all/info info ([e (join/info info Int r1)])
+           (some/info info (join/info info r1 e)))
+      (all/info info ([i1 (join/info info r1 univ)])
+           (=>/info info (!= i1 (sing/info info (int 0)))
+                    (some/info info (join/info info
                      (sing/info info
                       (subtract/info info
                        (sum/info info i1) (int 1))) r1))))))

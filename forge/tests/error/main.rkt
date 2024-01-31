@@ -108,6 +108,8 @@
     (list "expr-in-comprehension-condition.frg" #rx"expected a formula")
     (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
     (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
+    (list "expect-predicate-args.frg" #rx"Ill-formed block")
+    (list "expect-predicate-no-args.frg" #rx"Tried to give arguments to a predicate, but it takes none") 
   ))
 
 
