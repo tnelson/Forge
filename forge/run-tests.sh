@@ -16,7 +16,7 @@ raco setup forge
 
 # Get test files
 testDir=$1
-doNotTestPattern="error/[^/]*\\.frg"
+doNotTestPattern="[error|srcloc]/[^/]*\\.frg"
 # ^ these tests get checked by tests/error/main.rkt
 testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} )"
 numTestFiles="$(echo "$testFiles" | wc -l)"
