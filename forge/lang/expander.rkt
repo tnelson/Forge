@@ -1249,7 +1249,11 @@
    (syntax/loc stx const.translate)]
 
   [((~datum Expr) name:QualNameClass)
-   (syntax/loc stx name.name)]
+   ; This will not update the syntax location
+   ;(syntax/loc stx name.name)] 
+   ; This will use the proper lexical context while injecting the source location of the use
+   (with-syntax ([relocated-name (datum->syntax #'name.name (syntax->datum #'name.name) stx)])
+     (syntax/loc stx relocated-name))]
 
   [((~datum Expr) "this")
    (syntax/loc stx this)]
