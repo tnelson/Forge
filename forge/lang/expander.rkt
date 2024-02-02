@@ -345,11 +345,27 @@
     (pattern decl:PropertyDeclClass))
 
 
-  (define-syntax-class PropertyDeclQuantificationClass
-    #:attributes (quant quantdecls)
-    (pattern ((~datum PropertyDeclQuantificationClass)    
-              -quant:QuantClass
-              -quantdecls:QuantDecl)))
+
+  (define-syntax-class QuantifiedPropertyDeclClass
+    #:attributes (quant-decls prop-name prop-exprs pred-name pred-exprs constraint-type scope bounds)
+    (pattern ((~datum PropertyDecl)
+              (~optional "disj")
+              -quant-decls: QuantDecl 
+              -prop-name:NameClass
+              -prop-exprs:ExprListClass
+              (~and (~or "sufficient" "necessary") ct)
+              -pred-name:NameClass
+              -pred-exprs:ExprListClass
+              (~optional -scope:ScopeClass)
+              (~optional -bounds:BoundsClass))
+      #:with prop-name #'-prop-name.name
+      #:with pred-name #'-pred-name.name
+      #:with disj (if (attribute "disj") #t #f)
+      #:with constraint-type (string->symbol (syntax-e #'ct))
+      #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
+
+
 
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
@@ -961,6 +977,33 @@
         #:bounds pwd.bounds
         #:expect theorem ))]))
 
+(define-syntax (QuantifiedPropertyDecl stx)
+  (syntax-parse stx
+    [qpd:QuantifiedPropertyDeclClass 
+   
+;; Tim, we can do something like:
+;(all ([x A]) (implies p q))
+; (all ([x A]) (implies (p x) (q x)))
+
+
+;;; (all ([x A]) (implies p q))
+;;; https://github.com/tnelson/Forge/blob/main/forge/tests/forge-core/formulas/quantifiedFormulas.rkt
+;;; (all ([x A]) (implies (p x) (q x)))
+
+   #:with imp_total                    
+                      (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
+                        (syntax/loc stx  (all qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs) (qpd.pred-name qpd.pred-exprs))))  ;; p => q : p is a sufficient condition for q 
+                        (syntax/loc stx  (all qpd.quant-decls (implies (qpd.pred-name qpd.pred-exprs) (qpd.prop-name qpd.prop)))))  ;; q => p : p is a necessary condition for q
+   #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
+   (syntax/loc stx
+      (test
+        test_name
+        #:preds [imp_total]
+        #:scope qpd.scope
+        #:bounds qpd.bounds
+        #:expect theorem ))]))
+
+
 
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.
@@ -1231,6 +1274,7 @@
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (join (#:lang (get-check-lang)) expr1 expr2)))]
 
+;;;;; TODO: Sid: Look at this for how to expand Name. ;;;;;;;;
   [((~datum Expr) name:NameClass "[" exprs:ExprListClass "]")
    (with-syntax ([name #'name.name]
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
