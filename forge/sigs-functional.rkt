@@ -617,7 +617,13 @@
              (update-bindings bs rel tups #f #:node #f)]
             [else 
              (raise (error (format "unsupported comparison operator; got ~a, expected =, ni, or in" (PiecewiseBound-operator pwb))))])))
-     
+
+  ; Confirm that all preds are actually formulas
+  (for ([p preds])
+    (unless (node/formula? p)
+      (raise-forge-error #:msg (format "Expected a formula but got something else: ~a" (deparse p))
+                         #:context command)))
+  
   (define spec (Run-spec state preds scope bounds-with-piecewise-lower target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
                  (send-to-kodkod spec command #:run-name name))

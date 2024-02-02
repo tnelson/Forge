@@ -39,8 +39,8 @@
 ;       * node/formula/op/and
 ;       * node/formula/op/or
 ;       * ...
-;     * node/formula/quantified (TODO FILL)  -- quantified formula
-;     * node/formula/multiplicity (TODO FILL) -- multiplicity formula
+;     * node/formula/quantified   -- quantified formula
+;     * node/formula/multiplicity -- multiplicity formula
 ;     * node/formula/sealed
 ;       * wheat
 ;   * node/int -- integer expression
@@ -48,6 +48,7 @@
 ;       * node/int/op/add
 ;       * ...
 ;     * node/int/constant (value) -- int constant
+;   * node/unknown -- delayed binding of identifiers for predicates and functions
 ;; -----------------------------------------------------------------------------
 
 ; Struct to hold metadata about an AST node (like source location)
