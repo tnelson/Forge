@@ -985,23 +985,17 @@
 (define-syntax (QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass
-     ;; Debug print statement
-     ;;#:do [(printf "stx ~a\n" (syntax->datum stx))]
      #:do [(printf "qpd: ~a\n" (syntax->datum #'qpd))]
-      ;;; Tim, we can do something like:
-      ;;; (all ([x A]) (implies p q))
-      ;;; (all ([x A]) (implies (p x) (q x)))
-      ;;; https://github.com/tnelson/Forge/blob/main/forge/tests/forge-core/formulas/quantifiedFormulas.rkt
-
-
      #:with imp_total
             (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
-              ;; p => q : p is a sufficient condition for q
-              ;;(syntax/loc stx (all qpd.quant-decls (implies (append qpd.prop-name qpd.prop-exprs) (append qpd.pred-name qpd.pred-exprs))))
-              ;; q => p : p is a necessary condition for q
-              ;;(syntax/loc stx (all qpd.quant-decls (implies (append qpd.pred-name qpd.pred-exprs) (append qpd.prop-name qpd.prop-exprs)))))
-              (syntax/loc stx (all qpd.quant-decls.translate (implies qpd.prop-name qpd.pred-name)))
-              (syntax/loc stx (all qpd.quant-decls.translate (implies qpd.pred-name qpd.prop-name ))))
+
+              ;;; This is very broken. It isn't clear to me what to do.
+              ;;; Issues:
+              ;;; 1. We are not guaranteed that translate exists on qpd.quantdecls
+              ;;; 2. It isn't enough to simply append pred-exprs to a predicate name to make an predicate call
+
+              (syntax/loc stx (all qpd.quant-decls.translate (implies (append (list qpd.prop-name) qpd.prop-exprs) (append qpd.pred-name qpd.pred-exprs))))
+              (syntax/loc stx (all qpd.quant-decls.translate (implies (append (list qpd.pred-name) qpd.pred-exprs) (append qpd.prop-name qpd.prop-exprs)))))
      #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
      (syntax/loc stx
        (test
