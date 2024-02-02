@@ -350,7 +350,7 @@
   (define-syntax-class QuantifiedPropertyDeclClass
     #:attributes (quant-decls prop-name prop-exprs pred-name pred-exprs constraint-type scope bounds)
     (pattern ((~datum QuantifiedPropertyDecl)
-              -quant-decls:DeclListClass
+              quant-decls:DeclListClass
               -prop-name:NameClass
               (~optional -prop-exprs:ExprListClass)
               (~and (~or "sufficient" "necessary") ct)
@@ -359,12 +359,12 @@
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
 
-      ;; This is certainly wrong. I need to get quant-decls into the form ([n E]) where n are names in the namelist, and e is an Expr
-      #:with quant-decls #'quant-decls.translate
+      ;;; I think this is wrong:
+      ;;; I need to get quant-decls into the form ([n E]) where n are names in the namelist, and e is an Expr
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
-      #:with pred-exprs (if (attribute -pred-exprs) #'pred-exprs.exprs #'()) ;;(datum->syntax #f (map my-expand (syntax->list #'pred-exprs.exprs))) #'())
-      #:with prop-exprs (if (attribute -prop-exprs) #'prop-exprs.exprs #'()) ;;(datum->syntax #f (map my-expand (syntax->list #'prop-exprs.exprs))) #'())
+      #:with pred-exprs (if (attribute -pred-exprs) #'pred-exprs.exprs #'()) 
+      #:with prop-exprs (if (attribute -prop-exprs) #'prop-exprs.exprs #'())
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
@@ -997,9 +997,11 @@
      #:with imp_total
             (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
               ;; p => q : p is a sufficient condition for q
-              (syntax/loc stx (all qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs) (qpd.pred-name qpd.pred-exprs))))
+              ;;(syntax/loc stx (all qpd.quant-decls (implies (append qpd.prop-name qpd.prop-exprs) (append qpd.pred-name qpd.pred-exprs))))
               ;; q => p : p is a necessary condition for q
-              (syntax/loc stx (all qpd.quant-decls (implies (qpd.pred-name qpd.pred-exprs) (qpd.prop-name qpd.prop-exprs)))))
+              ;;(syntax/loc stx (all qpd.quant-decls (implies (append qpd.pred-name qpd.pred-exprs) (append qpd.prop-name qpd.prop-exprs)))))
+              (syntax/loc stx (all qpd.quant-decls.translate (implies qpd.prop-name qpd.pred-name)))
+              (syntax/loc stx (all qpd.quant-decls.translate (implies qpd.pred-name qpd.prop-name ))))
      #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
      (syntax/loc stx
        (test
