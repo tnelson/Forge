@@ -348,19 +348,22 @@
 
   (define-syntax-class QuantifiedPropertyDeclClass
     #:attributes (quant-decls prop-name prop-exprs pred-name pred-exprs constraint-type scope bounds)
-    (pattern ((~datum PropertyDecl)
+    (pattern ((~datum QuantifiedPropertyDecl)
               (~optional "disj")
               -quant-decls: QuantDecl 
               -prop-name:NameClass
-              -prop-exprs:ExprListClass
+              (~optional -prop-exprs:ExprListClass)
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
-              -pred-exprs:ExprListClass
+              (~optional -pred-exprs:ExprListClass)
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
+      #:with quant-decls #'-quant-decls.translate
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
-      #:with disj (if (attribute "disj") #t #f)
+      #:with pred-exprs (if (attribute -pred-exprs) (datum->syntax #f (map my-expand (syntax->list #'pred-exprs.exprs))) #'())
+      #:with prop-exprs (if (attribute -prop-exprs) (datum->syntax #f (map my-expand (syntax->list #'prop-exprs.exprs))) #'())
+      ;;; #:with disj (if (attribute "disj") #t #f) ;; TODO: Figure out disjoint
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
@@ -982,8 +985,8 @@
     [qpd:QuantifiedPropertyDeclClass 
    
 ;; Tim, we can do something like:
-;(all ([x A]) (implies p q))
-; (all ([x A]) (implies (p x) (q x)))
+;; (all ([x A]) (implies p q))
+;;  (all ([x A]) (implies (p x) (q x)))
 
 
 ;;; (all ([x A]) (implies p q))
@@ -993,7 +996,7 @@
    #:with imp_total                    
                       (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
                         (syntax/loc stx  (all qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs) (qpd.pred-name qpd.pred-exprs))))  ;; p => q : p is a sufficient condition for q 
-                        (syntax/loc stx  (all qpd.quant-decls (implies (qpd.pred-name qpd.pred-exprs) (qpd.prop-name qpd.prop)))))  ;; q => p : p is a necessary condition for q
+                        (syntax/loc stx  (all qpd.quant-decls (implies (qpd.pred-name qpd.pred-exprs) (qpd.prop-name qpd.prop-exprs)))))  ;; q => p : p is a necessary condition for q
    #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
    (syntax/loc stx
       (test
