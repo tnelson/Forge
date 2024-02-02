@@ -7,10 +7,12 @@
 (require (only-in racket first second string-join))
 
 (define (raise-bsl-error message node loc)
-  (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message (deparse node) (srcloc->string loc))))
+  (raise-forge-error #:msg (format "~a in ~a" message (deparse node))
+                     #:context node))
 
 (define (raise-bsl-error-deparsed-str message deparsed loc)
-  (raise-user-error 'forge/bsl (format "~a in ~a at loc: ~a" message deparsed (srcloc->string loc))))
+  (raise-forge-error #:msg (format "~a in ~a" message deparsed)
+                     #:context loc))
 
 (define (raise-bsl-relational-error rel-str node loc [optional-str #f])  
   (raise-bsl-error 
@@ -251,7 +253,8 @@
 (define (check-expr-mult expr-node sing parent-expr)
   (when (and (not sing) (eq? (nodeinfo-lang (node-info parent-expr)) 'bsl))
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-user-error (format "forge/bsl: ~a not a singleton in ~a at loc: ~a"  (deparse expr-node) (deparse parent-expr) (srcloc->string loc)))))
+    (raise-forge-error #:msg (format "Froglet: ~a not a singleton in ~a"  (deparse expr-node) (deparse parent-expr))
+                       #:context expr-node)))
 
 (hash-set! bsl-checker-hash 'expr-mult check-expr-mult)
 (provide bsl-checker-hash)
@@ -311,7 +314,8 @@
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
   (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
-  (raise-user-error (format "forge/bsl: Field declaration must be one, lone, func, or pfunc"))))
+  (raise-forge-error #:msg (format "forge/bsl: Field declaration must be one, lone, func, or pfunc")
+                     #:context true-breaker)))
 
 
 
