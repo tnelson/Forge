@@ -85,11 +85,16 @@
 (define (sterling-viz-to-xml run-options)
   (cond
     [(not run-options) ""]
-    [(string? (Options-run_sterling run-options))
+    [(and (string? (Options-run_sterling run-options))
+          (file-exists? (Options-run_sterling run-options)))
      ; the forge expander makes this an absolute path (see OptionDecl)
      (define file-path (Options-run_sterling run-options))
      (define script-text (port->string (open-input-file file-path) #:close? #t))
      (format "<visualizer script=\"~a\" />" (clean script-text))]
+    [(string? (Options-run_sterling run-options))
+     ; provided a path string, but there is no such file; show a warning but continue to load Sterling
+     (printf "The visualizer file in option run_sterling did not exist; ignoring: ~a~n" (Options-run_sterling run-options))
+     ""]
     [else ""]))
 
 (define (clean str)
@@ -177,7 +182,7 @@ here-string-delimiter
   (cond [(and (Unsat? soln) (equal? (Unsat-kind soln) 'unsat))
          (string-append prologue instance-prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
-                        "<atom label=\"UNSAT0\"/>"
+                        "<atom label=\"Unsatisfiable\"/>"
                         "</sig>\n"
                         "\n</instance>\n"
                         (if data
@@ -186,16 +191,20 @@ here-string-delimiter
                                             (map clean data))
                                            "\"></source>\n") "")
                         "</alloy>")]
+
+        ; ** Special display for "out of instances" vs. "unsat" **
         [(and (Unsat? soln) (equal? (Unsat-kind soln) 'no-more-instances))
          (string-append prologue instance-prologue
                         "\n<sig label=\"No more instances! Some equivalent instances may have been removed through symmetry breaking.\" ID=\"4\" parentID=\"2\">\n"
-                        "<atom label=\"&#128557;\"/><atom label=\"&#128542;\"/><atom label=\"&#128546;\"/><atom label=\"&#128551;\"/><atom label=\"&#128558;\"/>\n"
+                        "<atom label=\"No more instances\"/>\n"
                         "</sig>\n"
                         "</instance>\n</alloy>")]
+
+        ; ** Special display for "no counterexample" vs. "unsat"
         [(and (Unsat? soln) (equal? (Unsat-kind soln) 'no-counterexample))
           (string-append prologue instance-prologue
                         "\n<sig label=\"No counterexample found. Assertion may be valid.\" ID=\"4\" parentID=\"2\">\n"
-                        "<atom label=\"&#129395;\"/><atom label=\"&#127881;\"/><atom label=\"&#127882;\"/>\n"
+                        "<atom label=\"No counterexample found\"/>\n"
                         "</sig>\n"
                         "</instance>\n</alloy>")]
         [else

@@ -580,10 +580,10 @@
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
      (add-to-execs
-       (syntax/loc stx 
+       (quasisyntax/loc stx 
          (cond 
           [(member 'expected '(sat unsat))           
-           (run name args ...)
+           #,(syntax/loc stx (run name args ...))
            (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
              (when (> (get-verbosity) 0)
@@ -600,7 +600,7 @@
            (close-run name)]
 
           [(equal? 'expected 'theorem)          
-           (check name args ...)
+           #,(syntax/loc stx (check name args ...))
            (define first-instance (tree:get-value (Run-result name)))
            (when (Sat? first-instance)
              (when (> (get-verbosity) 0)
@@ -618,13 +618,13 @@
   (syntax-parse stx
     [(_ name:id pred bounds ...)
      (add-to-execs
-       (syntax/loc stx (begin
+       (quasisyntax/loc stx (begin
          (when (eq? 'temporal (get-option curr-state 'problem_type))
            (raise-user-error (format "example ~a: Can't have examples when problem_type option is temporal" 'name)))
-         (run name #:preds [pred] #:bounds [bounds ...])
+         #,(syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))
          (define first-instance (tree:get-value (Run-result name)))
          (when (Unsat? first-instance)
-           (run double-check #:preds [] #:bounds [bounds ...])
+           #,(syntax/loc stx (run double-check #:preds [] #:bounds [bounds ...]))
            (define double-check-instance (tree:get-value (Run-result double-check)))
            (if (Sat? double-check-instance)
                (raise-user-error (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name))
@@ -645,10 +645,11 @@
               (~optional (~seq #:preds (pred ...)))
               (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
               (~optional (~seq #:bounds (bound ...)))) ...)
-     (syntax/loc stx
-       (run name (~? (~@ #:preds [(! (&& pred ...))]))
-                 (~? (~@ #:scope ([sig lower upper] ...)))
-                 (~? (~@ #:bounds (bound ...)))))]))
+     (quasisyntax/loc stx
+       #,(syntax/loc stx
+           (run name (~? (~@ #:preds [(! (&& pred ...))]))
+                (~? (~@ #:scope ([sig lower upper] ...)))
+                (~? (~@ #:bounds (bound ...))))))]))
 
 
 ; Exprimental: Run in the context of a given external Forge spec

@@ -13,4 +13,7 @@ test expect {
     shouldFailWithError: {one A and one B}     
     for { Parent = `A + `B } 
     is sat
+
+    -- TODO: syntax loc should be the _use_ location, not the _decl_ location of A or B
+    -- TODO: in: () is confusing
 }

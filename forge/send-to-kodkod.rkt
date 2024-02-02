@@ -43,12 +43,14 @@
 ; along with a list of all of the atom names for sig atoms.
 (define (send-to-kodkod run-spec run-command #:run-name [run-name (gensym)])
   (do-time "send-to-kodkod")
+  
   ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
   (define (raise-run-error message [node #f])
     (if node
         (raise-syntax-error #f message
                             (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node)))))
         (raise-syntax-error #f message run-command)))
+  
   (when (member run-name (unbox run-name-history))
     (raise-run-error (format "Run name ~a was re-used; please use a different run name.~n" run-name)))
   (set-box! run-name-history (cons run-name (unbox run-name-history)))
@@ -255,7 +257,7 @@
   ;   predicates that come from users
   ; !!!
   (define raw-implicit-constraints
-    (append (get-sig-size-preds run-spec sig-to-bound)
+    (append (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
             relation-constraints
@@ -413,6 +415,14 @@
 
   (values sig-to-bound relation-to-bound all-atoms))
 
+; Produce a single AST node to blame for a given relation's bound, or #f if none available
+(define (get-blame-node run-spec the-rel)
+  (cond [(or (not (node/expr/relation? the-rel))
+             (not (Run-spec? run-spec)))
+         #f]
+        [else        
+         (define result (hash-ref (Bound-orig-nodes (Run-spec-bounds run-spec)) the-rel #f))
+         (and result (first result))]))
 
 ; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
@@ -428,7 +438,7 @@
     (@and pbinding
           (sbound-upper pbinding)
           (map car (set->list (sbound-upper pbinding)))))
-
+  
   (define scopes (Run-spec-scope run-spec))
   (define (get-scope-lower sig)
     (define scope (hash-ref (Scope-sig-scopes scopes) (Sig-name sig) #f))
@@ -502,8 +512,12 @@
     (define children-lowers
       (apply append (map fill-lower-by-bound (get-children run-spec sig))))
     (define curr-lower (get-bound-lower sig))
+
+    ; Check that Forge isn't be asked to choose atoms ambiguously
     (when (and (not curr-lower) (Sig-one sig))
-      (raise-run-error (format "Instance block named members for an ancestor of 'one' sig ~a but no member name was given for ~a. This can result in inconsistency; please give bounds for ~a." (Sig-name sig) (Sig-name sig) (Sig-name sig))))
+      ;; TODO: issue here is we would rather report the ancestor too, and ideally the stxloc for the bind
+      (raise-run-error (format "Example or inst named members for an ancestor of 'one' sig ~a but no member name was given for ~a. This can result in inconsistency; please give bounds for ~a." (Sig-name sig) (Sig-name sig) (Sig-name sig))
+                       (get-blame-node run-spec sig)))
     (define true-lower
       (remove-duplicates
         (append children-lowers
@@ -535,7 +549,8 @@
 
   (define (fill-upper-past-bound sig parent-upper)
     (when (get-bound-upper sig)
-      (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))))
+      (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
+                       (get-blame-node run-spec sig)))
     (hash-set! upper-bounds sig parent-upper)
     (map (lambda (child) (fill-upper-past-bound child parent-upper))
          (get-children run-spec sig)))
@@ -545,7 +560,8 @@
     ; If the sig has a relational upper bound, don't try to resolve the possible
     ; atom names etc.; ask the user to give an explicit bound on the parent, too.
     (when (get-bound-upper sig)
-      (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))))
+      (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
+                       (get-blame-node run-spec sig)))
     (define curr-lower (hash-ref lower-bounds sig))
     ; If the upper-bound's scope is bigger than the lower bound's current contents
     ;   (which should include child sigs' lower bounds), make room using atoms from parent.
@@ -604,7 +620,8 @@
                     [else (map list (hash-ref upper-bounds sig))])])
         ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                            
         (unless (subset? (list->set lower) (list->set upper))
-          (raise-run-error (format "Bounds inconsistency detected for ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)))
+          (raise-run-error (format "Bounds inconsistency detected for ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)
+                           (get-blame-node run-spec sig)))
         (values name (bound rel lower upper)))))
 
 ;; Issue: one sig will overwrite with lower bound, but looking like that's empty if there's 
@@ -620,7 +637,7 @@
 (define (get-relation-bounds run-spec sig-to-bound raise-run-error)
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
-
+ 
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
     (@and pbinding
@@ -652,8 +669,9 @@
           (cond
             [(and bound-piecewise bound-upper)
              ; Error condition -- should never have both complete and piecewise on the same relation
-             (raise (error (format "~a upper-bound had both complete and piecewise components, could not resolve them."
-                                   relation)))]
+             (raise-run-error (format "~a upper-bound had both complete and piecewise components, could not resolve them."
+                                   relation)
+                              (get-blame-node run-spec relation))]
             [bound-piecewise
              ; for each admissible atom (taken from first component of the relation's declaration):
              ;   Where a piecewise entry exists: intersect with cartesian product of restricted universe.
@@ -691,7 +709,8 @@
       ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
 
       (unless (subset? (list->set lower) (list->set upper))
-        (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)))
+        (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)
+                         (get-blame-node run-spec relation)))
       
       (values (Relation-name relation) 
               (bound relation lower upper))))
@@ -703,7 +722,7 @@
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig to restrict
 ; it to the correct lower/upper bound.
-(define (get-sig-size-preds run-spec sig-to-bound) 
+(define (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error) 
   (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
   (apply append
     (for/list ([sig (get-sigs run-spec)]
@@ -717,17 +736,19 @@
         (if (@and int-lower (@> int-lower bound-lower-size))
             (let ()
               (unless (@< int-lower max-int)
-                (raise (format (string-append "Lower bound too large for given BitWidth; "
-                                              "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
-                               sig int-lower (sub1 max-int))))
+                (raise-run-error (format (string-append "Lower bound too large for given BitWidth; "
+                                                        "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
+                                         sig int-lower (sub1 max-int))
+                                 (get-blame-node run-spec sig)))
               (list (int<= (int int-lower) (card sig))))
             (list))
         (if (@and int-upper (@< int-upper bound-upper-size))
             (let ()
               (unless (@< int-upper max-int)
-                (raise (format (string-append "Upper bound too large for given BitWidth; "
-                                              "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
-                               sig int-upper (sub1 max-int))))
+                (raise-run-error (format (string-append "Upper bound too large for given BitWidth; "
+                                                        "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
+                                         sig int-upper (sub1 max-int))
+                                 (get-blame-node run-spec sig)))
               (list (int<= (card sig) (int int-upper))))
             (list))))))
 
