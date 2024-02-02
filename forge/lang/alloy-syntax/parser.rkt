@@ -94,6 +94,10 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
 
+PropertyDeclQuantification : Quant DISJ-TOK? QuantDeclList BlockOrBar
+QuantifiedPropertyDecl : /ASSERT-TOK PropertyDeclQuantification* Name (LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK)? /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
+
+
 PropertyDecl : /ASSERT-TOK Name /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)? 
 
 TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK

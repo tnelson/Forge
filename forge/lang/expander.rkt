@@ -344,9 +344,16 @@
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass))
 
+
+  (define-syntax-class PropertyDeclQuantificationClass
+    #:attributes (quant quantdecls)
+    (pattern ((~datum PropertyDeclQuantificationClass)    
+              -quant:QuantClass
+              -quantdecls:QuantDecl)))
+
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
-    (pattern ((~datum PropertyDecl)      
+    (pattern ((~datum PropertyDecl)  
               -prop-name:NameClass
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
@@ -941,7 +948,8 @@
 (define-syntax (PropertyDecl stx)
   (syntax-parse stx
   [pwd:PropertyDeclClass 
-   #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
+   #:with imp_total 
+                    (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
                         (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
                         (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;; q => p : p is a necessary condition for q
    #:with test_name (format-id stx "Assertion_~a_is_~a_for_~a" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name)
