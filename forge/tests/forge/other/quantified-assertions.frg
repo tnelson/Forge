@@ -13,7 +13,7 @@ pred isDirectedTree {
 pred isRoot[r : Node] {
 	isDirectedTree
     one r
-    r in edges.Node - Node.edges
+    (some edges) => (r in edges.Node - Node.edges)
 }
 
 pred bothRoots[x : Node, y : Node] {
@@ -21,11 +21,10 @@ pred bothRoots[x : Node, y : Node] {
     isRoot[y]
 }
 
-pred eq [x : Node, y : Node] {
+pred arethesame [x : Node, y : Node] {
     x = y
 }
 
-assert all r1, r2 : Node | bothRoots[r1, r2] is sufficient for eq[r1, r2]
 
 // Quantifiers not needed
 assert all x : Node | isDirectedTree is necessary for isDirectedTree
@@ -33,5 +32,7 @@ assert all r1, r2 : Node | isDirectedTree is sufficient for isDirectedTree
 
 
 // Allow multiple quantifications
-assert all r : NonNode, r1, r2 : Node | isRoot[r1] is necessary for isDirectedTree
+assert all r : NonNode, r1 : Node | isRoot[r1] is necessary for isDirectedTree for 1 Node
 
+// This does not pass
+assert all r1, r2 : Node | arethesame[r1, r2] is sufficient for arethesame[r1, r2]  
