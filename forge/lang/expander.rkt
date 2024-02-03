@@ -991,7 +991,9 @@
 
 (define-syntax (QuantifiedPropertyDecl stx)
   (syntax-parse stx
-    [qpd:QuantifiedPropertyDeclClass    
+    [qpd:QuantifiedPropertyDeclClass  
+    #:do (printf "qpd ~s~n" (syntax->datum #'qpd)) 
+    #:do [(printf "qpd-pred-exprs: ~a\n" (syntax->datum #'qpd.pred-exprs))]
       ;;; This is huge and could be simplified.
 
     ;;; Issues: Disj not supported I think.
@@ -1024,6 +1026,8 @@
                       (syntax/loc stx (all  qpd.quant-decls (implies qpd.pred-name  (qpd.prop-name qpd.prop-exprs))))
                       ;; prop instantiations, pred instantiations.
                       (syntax/loc stx (all  qpd.quant-decls (implies  ( qpd.pred-name qpd.pred-exprs) (qpd.prop-name qpd.prop-exprs)))))))
+     
+
      #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
      (syntax/loc stx
        (test
