@@ -998,9 +998,11 @@
      #:with imp_total
             (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
 
-              ;;; This is very broken. It isn't clear to me what to do.
+              ;;; This is broken. It isn't clear to me what to do.
               ;;; Issues:
-              ;;; 1. It isn't enough to simply append pred-exprs to a predicate name to make an predicate call. 
+              ;;; 1. (qpd.prop-name qpd.prop-exprs) is not enough for a call. In the case that  
+              ;;;  prop does not take any arguments, we cannot *just* call the list. May need some deep nesting.
+              ;;; 2. Do not currently support disj
 
               ;;; (syntax/loc stx (all qpd.quant-decls.translate (implies (append (list qpd.prop-name) qpd.prop-exprs) (append qpd.pred-name qpd.pred-exprs))))
               ;;; (syntax/loc stx (all qpd.quant-decls.translate (implies (append (list qpd.pred-name) qpd.pred-exprs) (append qpd.prop-name qpd.prop-exprs)))))
