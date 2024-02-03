@@ -352,10 +352,10 @@
     (pattern ((~datum QuantifiedPropertyDecl)
               -quant-decls:DeclListClass
               -prop-name:NameClass
-              (~optional -prop-exprs:ExprListClass)
+              (~optional -prop-exprs:NameListClass)
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
-              (~optional -pred-exprs:ExprListClass)
+              (~optional -pred-exprs:NameListClass)
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
 
@@ -364,8 +364,14 @@
       #:with quant-decls #'-quant-decls.translate
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
-      #:with pred-exprs (if (attribute -pred-exprs) #'pred-exprs.exprs #'()) 
-      #:with prop-exprs (if (attribute -prop-exprs) #'prop-exprs.exprs #'())
+
+
+      #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.names ...) #'()) 
+      #:with prop-exprs (if (attribute -prop-exprs) #'(-prop-exprs.names ...) #'())
+      ;;; #:with pred-exprs  (if (attribute -pred-exprs)  #'`(list -pred-name.name ,@(-pred-exprs.names ...)) #'(list -pred-name.name))
+
+      ;;; #:with prop-exprs (if (attribute -prop-exprs)    #'(cons -prop-name.name (-prop-exprs.names ...))   #'(list -prop-name.name))
+
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
@@ -450,8 +456,8 @@
   ; NameList : @Name
   ;          | @Name /COMMA-TOK @NameList
   (define-syntax-class NameListClass
-    (pattern ((~datum NameList)
-              names:id ...)))
+    (pattern ((~datum NameList) names:id ...)
+      #:attr namelist (syntax->list #'(names ...))))
 
   ; QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK | SUM-TOK
   (define-syntax-class QualNameClass
@@ -986,19 +992,20 @@
 (define-syntax (QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass
-     #:do [(printf "qpd-decls: ~a\n" (syntax->datum #'qpd.quant-decls))]
+     #:do [(printf "qpd-pred-exprs: ~a\n" (syntax->datum #'qpd.pred-exprs))]
+     
+    ;;; #:do [(printf "total-prod-name-list: ~a\n" (syntax->datum total-prop-namelist))]
      #:with imp_total
             (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
 
               ;;; This is very broken. It isn't clear to me what to do.
               ;;; Issues:
-              ;;; 1. We are not guaranteed that translate exists on qpd.quantdecls
-              ;;; 2. It isn't enough to simply append pred-exprs to a predicate name to make an predicate call
+              ;;; 1. It isn't enough to simply append pred-exprs to a predicate name to make an predicate call. 
 
               ;;; (syntax/loc stx (all qpd.quant-decls.translate (implies (append (list qpd.prop-name) qpd.prop-exprs) (append qpd.pred-name qpd.pred-exprs))))
               ;;; (syntax/loc stx (all qpd.quant-decls.translate (implies (append (list qpd.pred-name) qpd.pred-exprs) (append qpd.prop-name qpd.prop-exprs)))))
-              (syntax/loc stx (all  qpd.quant-decls (implies qpd.prop-name qpd.pred-name)))
-              (syntax/loc stx (all  qpd.quant-decls (implies qpd.pred-name qpd.prop-name ))))
+              (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs) ( qpd.pred-name qpd.pred-exprs))))
+              (syntax/loc stx (all  qpd.quant-decls (implies ( qpd.pred-name qpd.pred-exprs) (qpd.prop-name qpd.prop-exprs) ))))
      #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
      (syntax/loc stx
        (test
