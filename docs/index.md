@@ -140,4 +140,4 @@ Got questions? Reach out to `Tim_Nelson@brown.edu`.
 
 ## Thanks 
 
-We are grateful for support from the U.S. National Science foundation and Brown University for financial support.
+We are grateful for support the U.S. National Science foundation and Brown University.
