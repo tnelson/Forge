@@ -53,9 +53,7 @@
 
 </style>
 
-# Forge: A Tool and Language for Teaching Formal Methods
-
-
+# A Tool and Language for Teaching Formal Methods
 
 Forge is a lightweight formal-methods tool, similar to [Alloy 6](https://alloytools.org), built with *teaching* in mind. Forge provides a progression of sub-languages that gradually build in expressive power to match students' experience and expertise. 
 
@@ -140,4 +138,4 @@ Got questions? Reach out to `Tim_Nelson@brown.edu`.
 
 ## Thanks 
 
-We are grateful for support the U.S. National Science foundation and Brown University.
+We are grateful for support from the U.S. National Science foundation and Brown University.
