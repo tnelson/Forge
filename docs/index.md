@@ -18,7 +18,7 @@
     float: left;
     margin-top: 10px;
     border-style: solid;
-    width: 50%;
+    width: 60%;
 }
 .viztext {
     display: flex;
@@ -138,4 +138,4 @@ Got questions? Reach out to `Tim_Nelson@brown.edu`.
 
 ## Thanks 
 
-We are grateful for support from the U.S. National Science foundation and Brown University.
+We are grateful for support from the U.S. National Science Foundation and Brown University.
