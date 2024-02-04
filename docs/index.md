@@ -134,7 +134,7 @@ Forge is open source and [hosted on Github](http://github.com/tnelson/forge).
 
 ## Contact 
 
-Got questions? Reach out to `Tim_Nelson@brown.edu`. 
+Got questions? Reach out to [`Tim_Nelson@brown.edu`](mailto:Tim_Nelson@brown.edu). 
 
 ## Thanks 
 
