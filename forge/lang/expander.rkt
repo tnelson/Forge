@@ -1023,20 +1023,7 @@
                       (syntax/loc stx (all  qpd.quant-decls (implies qpd.pred-name  (qpd.prop-name qpd.prop-exprs))))
                       ;; prop instantiations, pred instantiations.
                       (syntax/loc stx (all  qpd.quant-decls (implies  (exp-pred-exprs ...) (exp-prop-exprs ...)))))))
-        ]
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        )
+        ])
      (syntax/loc stx
        (test
          test_name
