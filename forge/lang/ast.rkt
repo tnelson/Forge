@@ -1169,8 +1169,10 @@
 ; a user error. For the VSCode extension (and use from the terminal), produce a
 ; custom user error that contains the row and column information of the offending
 ; AST node.
+
 (define (pretty-loc loc)
-  (format "~a:~a:~a" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc)))
+  (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc)))
+
 (define (raise-forge-error #:msg [msg "error"] #:context [context #f])  
   (define loc (cond                
                 [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]

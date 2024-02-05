@@ -101,7 +101,9 @@
     (log:register-run compile-time project this-lang email path))
   (define parse-tree (parse path (make-tokenizer port)))
   (define ints-coerced (coerce-ints-to-atoms parse-tree))
- 
+
+  ;(printf "ints-coerced/parse-tree: ~a~n" ints-coerced)
+  
   (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                        forge:n))
                   (require (only-in forge/shared do-time))
