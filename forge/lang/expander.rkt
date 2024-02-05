@@ -112,6 +112,7 @@
     (pattern decl:CmdDeclClass)
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass)
+    (pattern decl:QuantifiedPropertyDeclClass)
     (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
@@ -342,7 +343,8 @@
   (define-syntax-class TestConstructClass
     (pattern decl:ExampleDeclClass)
     (pattern decl:TestExpectDeclClass)
-    (pattern decl:PropertyDeclClass))
+    (pattern decl:PropertyDeclClass)
+    (pattern decl:QuantifiedPropertyDeclClass))
 
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
@@ -354,6 +356,26 @@
               (~optional -bounds:BoundsClass))
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
+      #:with constraint-type (string->symbol (syntax-e #'ct))
+      #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
+
+  (define-syntax-class QuantifiedPropertyDeclClass
+    #:attributes (quant-decls prop-name prop-exprs pred-name pred-exprs constraint-type scope bounds)
+    (pattern ((~datum QuantifiedPropertyDecl)
+              -quant-decls:DeclListClass
+              -prop-name:NameClass
+              (~optional -prop-exprs:NameListClass)
+              (~and (~or "sufficient" "necessary") ct)
+              -pred-name:NameClass
+              (~optional -pred-exprs:NameListClass)
+              (~optional -scope:ScopeClass)
+              (~optional -bounds:BoundsClass))
+      #:with quant-decls #'-quant-decls.translate
+      #:with prop-name #'-prop-name.name
+      #:with pred-name #'-pred-name.name
+      #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.names ...) #'()) 
+      #:with prop-exprs (if (attribute -prop-exprs) #'(-prop-exprs.names ...) #'())
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
@@ -957,6 +979,52 @@
         #:bounds pwd.bounds
         #:expect theorem ))]))
 
+
+(define-syntax (QuantifiedPropertyDecl stx)
+  (syntax-parse stx
+    [qpd:QuantifiedPropertyDeclClass  
+    ;;; Issues: Disj not working. Need to do a syntax match on the list, and find it from there.
+    ;; TODO: Need a more unique test name
+     #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
+
+     (with-syntax* 
+        ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)))]
+          [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
+          [imp_total
+            (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
+                ;; Sufficient case
+                (if (equal? (syntax->datum #'qpd.prop-exprs) '())
+                  (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
+                    ;; no prop instantiations, no pred instantiations.
+                    (syntax/loc stx (all  qpd.quant-decls (implies qpd.prop-name qpd.pred-name)))
+                    ;; no prop instantiations, pred instantiations.
+                    (syntax/loc stx (all  qpd.quant-decls (implies qpd.prop-name (exp-pred-exprs ...)))))
+
+                    (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
+                      ;; prop instantiations, no pred instantiations.
+                      (syntax/loc stx (all  qpd.quant-decls (implies (exp-prop-exprs ...) qpd.pred-name)))
+                      ;; prop instantiations, pred instantiations.
+                      (syntax/loc stx (all  qpd.quant-decls (implies (exp-prop-exprs ...) (exp-pred-exprs ...))))))
+                ;; Necessary case
+                (if (equal? (syntax->datum #'qpd.prop-exprs) '())
+                  (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
+                    ;; no prop instantiations, no pred instantiations.
+                    (syntax/loc stx (all  qpd.quant-decls (implies qpd.pred-name qpd.prop-name)))
+                    ;; no prop instantiations, pred instantiations.
+                    (syntax/loc stx (all  qpd.quant-decls (implies (exp-pred-exprs ...) qpd.prop-name ))))
+
+                    (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
+                      ;; prop instantiations, no pred instantiations.
+                      (syntax/loc stx (all  qpd.quant-decls (implies qpd.pred-name  (qpd.prop-name qpd.prop-exprs))))
+                      ;; prop instantiations, pred instantiations.
+                      (syntax/loc stx (all  qpd.quant-decls (implies  (exp-pred-exprs ...) (exp-prop-exprs ...)))))))])
+     (syntax/loc stx
+       (test
+         test_name
+         #:preds [imp_total]
+         #:scope qpd.scope
+         #:bounds qpd.bounds
+         #:expect theorem )))]))
 
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.
