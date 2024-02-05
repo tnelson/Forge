@@ -580,6 +580,7 @@
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
      (add-to-execs
+      (with-syntax ([loc (build-source-location stx)])
        (quasisyntax/loc stx 
          (cond 
           [(member 'expected '(sat unsat))           
@@ -598,7 +599,7 @@
                                 (if (Unsat-core first-instance)
                                     (format " Core: ~a" (Unsat-core first-instance))
                                     "")))
-              #:context #,(build-source-location stx)))
+              #:context loc))
            (close-run name)]
 
           [(equal? 'expected 'theorem)          
@@ -609,16 +610,15 @@
                (printf "Instance found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in sterling since the test failed.
-             (raise-forge-error
-              #:msg (format "Theorem ~a failed. Found instance:~n~a"
-                            'name first-instance)
-              #:context #,(build-source-location stx)))
+             (raise-forge-error #:msg (format "Theorem ~a failed. Found instance:~n~a"
+                                              'name first-instance)
+                                #:context loc))
            (close-run name)]
 
           [else (raise-forge-error
                  #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
                                'expected)
-                 #:context #,(build-source-location stx))])))]))
+                 #:context loc)]))))]))
 
 (define-syntax (example stx)  
   (syntax-parse stx

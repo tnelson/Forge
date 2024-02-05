@@ -53,3 +53,17 @@ inst smallex_froglet {
     partner = (`P4 , `P6) + `P6 -> `P4 
 }
 example smallExample_size2_indirect is {symmetricSize2} for smallex_froglet
+
+inst piecewise {
+    Person = `Alice + `Bob + `Charli
+    `Alice.partner = `Bob
+    `Bob.partner = `Alice
+    no `Charli.partner
+}
+example checkPiecewise is {some disj p1,p2,p3: Person | p1.partner = p2 and p2.partner = p1 and no p3.partner}
+  for piecewise                                
+test expect {
+  piecewise_partial: {
+    some disj p1,p2,p3: Person | p1.partner = p2 and p2.partner = p1 and no p3.partner
+  } for piecewise is theorem
+}
