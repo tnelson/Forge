@@ -23,8 +23,14 @@ pred bothRoots[x : Node, y : Node] {
     isRoot[y]
 }
 
-pred arenotthesame [x : Node, y : Node] {
+pred arethesame [x : Node, y : Node] {
     x = y
+    isDirectedTree
 }
 
-assert all r1, r2 : Node | bothRoots[r1, r2] is sufficient for arenotthesame[r1, r2] 
+// Should pass
+assert all r1, r2 : Node | arethesame[r1, r2]  is necessary for bothRoots[r1, r2] 
+//Should fail
+assert all r1, r2 : Node | arethesame[r1, r2]  is sufficient for bothRoots[r1, r2]
+
+

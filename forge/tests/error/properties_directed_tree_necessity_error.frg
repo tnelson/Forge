@@ -1,7 +1,5 @@
 #lang forge
 
-option run_sterling off
-
 sig NonNode {}
 sig Node {edges: set Node}
 
@@ -18,13 +16,11 @@ pred isRoot[r : Node] {
     (some edges) => (r in edges.Node - Node.edges)
 }
 
-pred bothRoots[x : Node, y : Node] {
-    isRoot[x]
-    isRoot[y]
+pred isNotRoot[n : Node] {
+    isDirectedTree
+    some edges.n
 }
 
-pred arenotthesame [x : Node, y : Node] {
-    x = y
-}
+// Ensures we aren't forcing disj
+assert all r1, r2 : Node | isRoot[r1] is necessary for isNotRoot[r2] 
 
-assert all r1, r2 : Node | bothRoots[r1, r2] is necessary for arenotthesame[r1, r2] 

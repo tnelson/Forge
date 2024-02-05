@@ -372,7 +372,7 @@
               (~optional -pred-exprs:NameListClass)
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
-      #:with disj (attribute -disj)
+      #:with disj (if (attribute -disj) (string->symbol (syntax-e #'-disj)) '())
       #:with quant-decls #'-quant-decls.translate
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
@@ -985,7 +985,6 @@
 (define-syntax (QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
-    ;;; Issues: Disj not working. Need to do a syntax match on the list, and find it from there.
     ;;;#:do [(printf "QuantifiedPropertyDeclClass: ~a~n" (syntax->datum #'qpd))]
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)))]
@@ -997,41 +996,17 @@
           [pred-consolidated (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
                                 (syntax/loc stx qpd.pred-name)
                                 (syntax/loc stx (exp-pred-exprs ...)))]
-
-
+                                
           [test_name (format-id stx "~a__Assertion_All_~a_is_~a_for_~a" (make-temporary-name stx) #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)]
+          ;;; This is ugly, I'm sure there are better ways to write this
           [imp_total
-
-            (if #'qpd.disj
+            (if (eq? (syntax-e #'qpd.disj) 'disj)
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
                     (syntax/loc stx (all #:disj  qpd.quant-decls (implies prop-consolidated pred-consolidated)))
                     (syntax/loc stx (all #:disj  qpd.quant-decls (implies pred-consolidated prop-consolidated))))
-                    
-                    (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
+                (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
                     (syntax/loc stx (all  qpd.quant-decls (implies prop-consolidated pred-consolidated)))
-                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated prop-consolidated)))))
-                    
-                    
-                    ])
-
-                ;;;     (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
-                ;;;       ;; prop instantiations, no pred instantiations.
-                ;;;       (syntax/loc stx (all  qpd.quant-decls (implies (exp-prop-exprs ...) qpd.pred-name)))
-                ;;;       ;; prop instantiations, pred instantiations.
-                ;;;       (syntax/loc stx (all  qpd.quant-decls (implies (exp-prop-exprs ...) (exp-pred-exprs ...))))))
-                ;;; ;; Necessary case
-                ;;; (if (equal? (syntax->datum #'qpd.prop-exprs) '())
-                ;;;   (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
-                ;;;     ;; no prop instantiations, no pred instantiations.
-                ;;;     (syntax/loc stx (all  qpd.quant-decls (implies qpd.pred-name qpd.prop-name)))
-                ;;;     ;; no prop instantiations, pred instantiations.
-                ;;;     (syntax/loc stx (all  qpd.quant-decls (implies (exp-pred-exprs ...) qpd.prop-name ))))
-
-                ;;;     (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
-                ;;;       ;; prop instantiations, no pred instantiations.
-                ;;;       (syntax/loc stx (all  qpd.quant-decls (implies qpd.pred-name  (qpd.prop-name qpd.prop-exprs))))
-                ;;;       ;; prop instantiations, pred instantiations.
-                ;;;       (syntax/loc stx (all  qpd.quant-decls (implies  (exp-pred-exprs ...) (exp-prop-exprs ...)))))))])
+                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated prop-consolidated)))))])
      (syntax/loc stx
        (test
          test_name

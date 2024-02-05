@@ -16,6 +16,11 @@ pred isRoot[r : Node] {
     (some edges) => (r in edges.Node - Node.edges)
 }
 
+pred isNotRoot[n : Node] {
+    isDirectedTree
+    some edges.n
+}
+
 pred bothRoots[x : Node, y : Node] {
     isRoot[x]
     isRoot[y]
@@ -40,3 +45,4 @@ assert all r1, r2 : Node | bothRoots[r1, r2] is sufficient for arethesame[r1, r2
 
 // Ensure disj works
 assert all disj r1, r2 : Node | arethesame[r1, r2] is necessary for arethesame[r1, r2]  for 1 Node
+assert all disj r1, r2 : Node | isRoot[r1] is sufficient for isNotRoot[r2] 
