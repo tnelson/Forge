@@ -1,7 +1,5 @@
 #lang forge
 
-option run_sterling off
-
 sig NonNode {}
 sig Node {edges: set Node}
 
@@ -28,6 +26,7 @@ pred arethesame [x : Node, y : Node] {
 }
 
 // Quantifiers not needed
+
 assert all r1, r2 : Node | isDirectedTree is sufficient for isDirectedTree
 
 
@@ -38,3 +37,6 @@ assert all x : Node | isDirectedTree is necessary for isDirectedTree
 assert all r1, r2 : Node | isRoot[r1] is sufficient for isRoot[r1]
 assert all r1, r2 : Node | arethesame[r1, r2] is necessary for arethesame[r1, r2]  
 assert all r1, r2 : Node | bothRoots[r1, r2] is sufficient for arethesame[r1, r2] 
+
+// Ensure disj works
+assert all disj r1, r2 : Node | arethesame[r1, r2] is necessary for arethesame[r1, r2]  for 1 Node
