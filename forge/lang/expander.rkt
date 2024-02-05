@@ -990,7 +990,7 @@
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)))]
           [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
-          [test_name (format-id stx "Assertion_All_~a_is_~a_for_~a" #:uniq #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)]
+          [test_name (format-id stx "~a__Assertion_All_~a_is_~a_for_~a" (make-temporary-name stx) #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)]
           [imp_total
             (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
                 ;; Sufficient case
