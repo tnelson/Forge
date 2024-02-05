@@ -995,7 +995,15 @@
     ;;;         Also, pred-exprs and prop-exprs are not being expanded correctly.
     ;;;         they are interpreted as joins when more than one name is in the list. 
     ;;;         Need to understand how to do this right.
-     #:with imp_total
+     
+    ;; TODO: Need a more unique test name
+     #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
+
+
+     (with-syntax 
+        (
+
+        [imp_total
           (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
                 ;; Sufficient case
                 (if (equal? (syntax->datum #'qpd.prop-exprs) '())
@@ -1010,7 +1018,7 @@
                       (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs ) qpd.pred-name)))
                       ;; prop instantiations, pred instantiations.
                       
-                      (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs) (qpd.pred-name qpd.pred-exprs))))))
+                      (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name (datum->syntax #f (map my-expand (syntax->list #'prop-exprs )))) (qpd.pred-name (datum->syntax #f (map my-expand (syntax->list #'pred-exprs )))))))))
                 ;; Necessary case
                 (if (equal? (syntax->datum #'qpd.prop-exprs) '())
                   (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
@@ -1024,13 +1032,20 @@
                       (syntax/loc stx (all  qpd.quant-decls (implies qpd.pred-name  (qpd.prop-name qpd.prop-exprs))))
                       ;; prop instantiations, pred instantiations.
                       (syntax/loc stx (all  qpd.quant-decls (implies  (qpd.pred-name qpd.pred-exprs  ) (qpd.prop-name qpd.prop-exprs )))))))
-     
-    ;; TODO: Need a more unique test name
-     #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
-
-
-     (with-syntax 
-        ([(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'pred-exprs )))])
+        ]
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        )
      (syntax/loc stx
        (test
          test_name
