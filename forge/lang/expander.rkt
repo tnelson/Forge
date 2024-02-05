@@ -985,11 +985,12 @@
     [qpd:QuantifiedPropertyDeclClass  
     ;;; Issues: Disj not working. Need to do a syntax match on the list, and find it from there.
     ;; TODO: Need a more unique test name
-     #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
+
 
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)))]
           [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
+          [test_name (format-id stx "Assertion_All_~a_is_~a_for_~a" #:uniq #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)]
           [imp_total
             (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
                 ;; Sufficient case
