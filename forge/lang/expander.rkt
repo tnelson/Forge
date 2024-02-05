@@ -358,20 +358,11 @@
               (~optional -pred-exprs:NameListClass)
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
-
-      ;;; I think this is wrong:
-      ;;; I need to get quant-decls into the form ([n E]) where n are names in the namelist, and e is an Expr
       #:with quant-decls #'-quant-decls.translate
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
-
-
       #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.names ...) #'()) 
       #:with prop-exprs (if (attribute -prop-exprs) #'(-prop-exprs.names ...) #'())
-      ;;; #:with pred-exprs  (if (attribute -pred-exprs)  #'`(list -pred-name.name ,@(-pred-exprs.names ...)) #'(list -pred-name.name))
-
-      ;;; #:with prop-exprs (if (attribute -prop-exprs)    #'(cons -prop-name.name (-prop-exprs.names ...))   #'(list -prop-name.name))
-
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
@@ -994,12 +985,16 @@
     [qpd:QuantifiedPropertyDeclClass  
     #:do (printf "qpd ~s~n" (syntax->datum #'qpd)) 
     #:do [(printf "qpd-pred-exprs: ~a\n" (syntax->datum #'qpd.pred-exprs))]
-    #:do [(printf "qpd-prop-exprs: ~a\n" (syntax->datum #'qpd.prop-exprs))]
+    #:with ahah (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs))
+    #:do [(printf "cons : qpd-prop-exprs: ~a\n" (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
 
 
+
+    ;;; #'(cons (syntax->datum qpd.prop-name) (syntax->datum #'qpd.pred-exprs) )
     ;;; Issues: Disj not supported I think.
     ;;;         Also, pred-exprs and prop-exprs are not being expanded correctly.
-    ;;;         they are interpreted as joins when more than one name is in the list. Need to understand how to do this right.
+    ;;;         they are interpreted as joins when more than one name is in the list. 
+    ;;;         Need to understand how to do this right.
      #:with imp_total
           (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
                 ;; Sufficient case
@@ -1014,7 +1009,8 @@
                       ;; prop instantiations, no pred instantiations.
                       (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs ) qpd.pred-name)))
                       ;; prop instantiations, pred instantiations.
-                      (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs ) (qpd.pred-name qpd.pred-exprs  ))))))
+                      
+                      (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs) (qpd.pred-name qpd.pred-exprs))))))
                 ;; Necessary case
                 (if (equal? (syntax->datum #'qpd.prop-exprs) '())
                   (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
@@ -1029,15 +1025,19 @@
                       ;; prop instantiations, pred instantiations.
                       (syntax/loc stx (all  qpd.quant-decls (implies  (qpd.pred-name qpd.pred-exprs  ) (qpd.prop-name qpd.prop-exprs )))))))
      
-
+    ;; TODO: Need a more unique test name
      #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
+
+
+     (with-syntax 
+        ([(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'pred-exprs )))])
      (syntax/loc stx
        (test
          test_name
          #:preds [imp_total]
          #:scope qpd.scope
          #:bounds qpd.bounds
-         #:expect theorem ))]))
+         #:expect theorem )))]))
 
 
 ;; Quick and dirty static check to ensure a test
