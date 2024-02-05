@@ -27,7 +27,7 @@ pred arethesame [x : Node, y : Node] {
 
 /*
 // Quantifiers not needed
-assert all x : Node | isDirectedTree is necessary for isDirectedTree
+
 assert all r1, r2 : Node | isDirectedTree is sufficient for isDirectedTree
 
 
@@ -42,6 +42,6 @@ test expect {
 
 
 // This does not pass
-
+//assert all x : Node | isDirectedTree is necessary for isDirectedTree
 //assert all r1, r2 : Node | isRoot[r1] is sufficient for isRoot[r1]
 assert all r1, r2 : Node | arethesame[r1, r2] is sufficient for arethesame[r1, r2]  

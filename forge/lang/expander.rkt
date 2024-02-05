@@ -984,9 +984,9 @@
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
     #:do (printf "qpd ~s~n" (syntax->datum #'qpd)) 
+    #:do [(printf "qpd-pred-name ~s~n" (syntax->datum #'qpd.pred-name)) ]
     #:do [(printf "qpd-pred-exprs: ~a\n" (syntax->datum #'qpd.pred-exprs))]
-    #:with ahah (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs))
-    #:do [(printf "cons : qpd-prop-exprs: ~a\n" (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
+    ;;#:do [(printf "cons : qpd-prop-exprs: ~a\n" (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
 
 
 
@@ -1000,9 +1000,11 @@
      #:with test_name (format-id stx "Quantified_Assertion_~a_is_~a_for_~a" #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)
 
 
-     (with-syntax 
+     (with-syntax* 
         (
-
+          [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)))]
+          [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
+          [_ (printf "exp-pred-exprs: ~a\n" (syntax->datum #'(exp-pred-exprs ...)))]
         [imp_total
           (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
                 ;; Sufficient case
@@ -1018,7 +1020,7 @@
                       (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name qpd.prop-exprs ) qpd.pred-name)))
                       ;; prop instantiations, pred instantiations.
                       
-                      (syntax/loc stx (all  qpd.quant-decls (implies (qpd.prop-name (datum->syntax #f (map my-expand (syntax->list #'prop-exprs )))) (qpd.pred-name (datum->syntax #f (map my-expand (syntax->list #'pred-exprs )))))))))
+                      (syntax/loc stx (all  qpd.quant-decls (implies (exp-prop-exprs ...) (exp-pred-exprs ...))))))
                 ;; Necessary case
                 (if (equal? (syntax->datum #'qpd.prop-exprs) '())
                   (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
