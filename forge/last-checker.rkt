@@ -246,10 +246,11 @@
                     (get-children run-or-state signame)))))
            (cond
              [(Sig-abstract the-sig)
-             
-             ; TODO: in the future, maybe consider better places to check for empty abstract sig
+              
              (if (empty? (get-children run-or-state signame))
-                 (raise-user-error (format "The abstract sig ~a is not extended by any children" (symbol->string signame)))
+                 (raise-forge-error
+                  #:msg (format "The abstract sig ~a is not extended by any children" (symbol->string signame))
+                  #:context the-sig)
                  all-primitive-descendants)]
              [else (cons 
                         (string->symbol (string-append (symbol->string signame) 
@@ -520,14 +521,16 @@
        (let ([src-line (source-location-line syn-loc)]
              [src-col (source-location-column syn-loc)]
              [src-span (source-location-span syn-loc)])
-         ; FIX ERROR MESSAGES
+         
          (unless (@>= left-arity 2)
-           (raise-user-error (format "++: arguments must have arity at least 2: got arity 1 on line ~a, column ~a, span ~a."
-                                     src-line src-col src-span)))
+           (raise-forge-error #:msg (format "++: arguments must have arity at least 2: got arity 1")
+                              #:context (first args)))
+         
          (when (set-empty? (set-intersect (list->set left-tuples)
                                           (list->set right-tuples)))
-           (raise-user-error (format "++: right argument will never override anything in left argument on line ~a, column ~a, span ~a."
-                                     src-line src-col src-span)))
+           (raise-forge-error #:msg (format "++: right argument will never override anything in left argument")
+                              #:context (first args)))
+         
          ; ++ has a maximum of two arguments so this should get everything
          (cons (remove-duplicates (append left-tuples right-tuples))
                 #t)))]

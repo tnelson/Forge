@@ -109,7 +109,12 @@
     (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
     (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
     (list "expect-predicate-args.frg" #rx"Ill-formed block")
-    (list "expect-predicate-no-args.frg" #rx"Tried to give arguments to a predicate, but it takes none") 
+    (list "expect-predicate-no-args.frg" #rx"Tried to give arguments to a predicate, but it takes none")
+
+    (list "override-wrong-arity.frg" #rx"must have same arity")
+    (list "override-no-overlap.frg" #rx"will never override anything")
+
+    (list "run-given-non-formula.frg" #rx"Expected a formula but got something else") 
   ))
 
 

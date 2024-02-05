@@ -908,6 +908,9 @@
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 (define-syntax (TestDecl stx)
+  ; This stx object currently has the location of the enclosing TestBlock
+  ; ... unless there is a name provided? (already, at this point, even before the parse below)
+  ;(printf "expander for TestDecl: ~a~n" stx)
   (syntax-parse stx
   [((~datum TestDecl) (~optional name:NameClass)
                         (~optional parameters:ParametersClass)
@@ -928,6 +931,7 @@
 
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 (define-syntax (TestExpectDecl stx)
+  ;(printf "expander for TestExpectDecl: ~a~n" stx)
   (syntax-parse stx
   [((~datum TestExpectDecl) (~optional (~and "test" test-tok))
                               "expect" 
@@ -1248,9 +1252,9 @@
   [((~datum Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
 
-  [((~datum Expr) name:QualNameClass)
+  [((~datum Expr) name:QualNameClass)   
    (syntax/loc stx name.name)]
-
+   
   [((~datum Expr) "this")
    (syntax/loc stx this)]
 
