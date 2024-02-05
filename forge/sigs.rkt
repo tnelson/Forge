@@ -580,6 +580,7 @@
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
      (add-to-execs
+      (with-syntax ([loc (build-source-location stx)])
        (quasisyntax/loc stx 
          (cond 
           [(member 'expected '(sat unsat))           
@@ -590,13 +591,14 @@
                (printf "Unexpected result found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in Sterling since the test failed.
-             (raise-user-error (format "Failed test ~a. Expected ~a, got ~a.~a"
-                            'name 'expected (if (Sat? first-instance) 'sat 'unsat)
-                            (if (Sat? first-instance)
-                                (format " Found instance ~a" first-instance)
-                                (if (Unsat-core first-instance)
-                                    (format " Core: ~a" (Unsat-core first-instance))
-                                    "")))))
+             (raise-forge-error #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
+                                              'name 'expected (if (Sat? first-instance) 'sat 'unsat)
+                                              (if (Sat? first-instance)
+                                                  (format " Found instance ~a" first-instance)
+                                                  (if (Unsat-core first-instance)
+                                                      (format " Core: ~a" (Unsat-core first-instance))
+                                                      "")))
+                                #:context loc))
            (close-run name)]
 
           [(equal? 'expected 'theorem)          
@@ -607,12 +609,13 @@
                (printf "Instance found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in sterling since the test failed.
-             (raise-user-error (format "Theorem ~a failed. Found instance:~n~a"
-                            'name first-instance)))
+             (raise-forge-error #:msg (format "Theorem ~a failed. Found instance:~n~a"
+                                              'name first-instance)
+                                #:context loc))
            (close-run name)]
 
           [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
-                               'expected))])))]))
+                               'expected))]))))]))
 
 (define-syntax (example stx)  
   (syntax-parse stx
