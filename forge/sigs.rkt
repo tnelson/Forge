@@ -943,10 +943,21 @@
                       b 
                       (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
 
-(define (union-relations loc r)
+(define (union-relations loc r-or-rs)
   (cond
-    [(empty? r) (raise-forge-error
+    [(empty? r-or-rs) (raise-forge-error
                  #:msg "Unexpected: union-relations given no arguments. Please report this error."
                  #:context loc)]
-    [(empty? (rest r)) (first r)]
-    [else (+/info (nodeinfo loc 'checklangNoCheck) (first r) (union-relations loc (rest r)))]))
+    [(empty? (rest r-or-rs))
+     (unless (equal? 2 (node/expr-arity (first r-or-rs)))
+         (raise-forge-error
+          #:msg (format "Field argument given to reachable is not a field: ~a" (deparse (first r-or-rs)))
+          #:context (first r-or-rs)))
+     (first r-or-rs)]
+    [else
+     (for ([r r-or-rs])
+       (unless (equal? 2 (node/expr-arity r))
+         (raise-forge-error
+          #:msg (format "Field argument given to reachable is not a field: ~a" (deparse r))
+          #:context r)))
+       (+/info (nodeinfo loc 'checklangNoCheck) (first r-or-rs) (union-relations loc (rest r-or-rs)))]))

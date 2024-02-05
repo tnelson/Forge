@@ -52,6 +52,9 @@
     (list "bsl-set.frg" #rx"not a singleton")
     (list "bsl-transpose-ast.frg" #rx"~ operator")
 
+    (list "bsl-reachable-nonfield-varargs.frg" #rx"Field argument given to reachable is not a field")
+    (list "bsl-reachable-nonfield.frg" #rx"Field argument given to reachable is not a field")
+    
     (list "froglet-ast-arrow.frg" #rx"-> operator is not")
     (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
     (list "froglet-ast-intersect.frg" #rx"& operator is not")
