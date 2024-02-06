@@ -1,8 +1,5 @@
 #lang forge
-
-
 option run_sterling off
-
 
 sig NonNode {}
 sig Node {edges: set Node}
@@ -34,13 +31,19 @@ pred arethesame [x : Node, y : Node] {
     x = y
 }
 
-// Quantifiers not needed
-
+// Quantified variables do not need to be used 
 assert all r1, r2 : Node | isDirectedTree is sufficient for isDirectedTree
 
+// Allow multiple quantifications + check scopes
+assert all r : NonNode, r1 : Node | isRoot[r1] is necessary for isDirectedTree for 1 Node, 1 NonNode
 
-// Allow multiple quantifications
-assert all r : NonNode, r1 : Node | isRoot[r1] is necessary for isDirectedTree for 1 Node
+// Check explicit bounds with multiple qs, including scopes
+assert all r : NonNode, r1 : Node | isRoot[r1] is necessary for isDirectedTree
+  for 1 NonNode 
+  for {
+    Node = `Node0 
+    no edges
+  }
 
 assert all x : Node | isDirectedTree is necessary for isDirectedTree
 assert all r1, r2 : Node | isRoot[r1] is sufficient for isRoot[r1]
