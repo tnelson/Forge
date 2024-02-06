@@ -1,5 +1,9 @@
 #lang forge
 
+
+option run_sterling off
+
+
 sig NonNode {}
 sig Node {edges: set Node}
 
