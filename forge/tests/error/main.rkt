@@ -54,6 +54,7 @@
 
     (list "bsl-reachable-nonfield-varargs.frg" #rx"Field argument given to reachable is not a field")
     (list "bsl-reachable-nonfield.frg" #rx"Field argument given to reachable is not a field")
+    (list "bsl-reachable-too-few-arguments.frg" #rx"The reachable predicate expected at least three arguments, given 2")
     
     (list "froglet-ast-arrow.frg" #rx"-> operator is not")
     (list "froglet-ast-bind.frg" #rx"bind is not part of the language")

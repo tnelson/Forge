@@ -3,7 +3,7 @@
 (require (only-in racket/function thunk)
          (only-in racket/list first rest empty empty? flatten)
          (only-in racket/pretty pretty-print)
-         (prefix-in @ (only-in racket/base display max min -)) 
+         (prefix-in @ (only-in racket/base display max min - +)) 
          (prefix-in @ racket/set)
          (prefix-in @ (only-in racket/contract ->))
          (only-in racket/contract define/contract))
@@ -937,6 +937,10 @@
   (unless (equal? 1 (node/expr-arity b))
     (raise-forge-error #:msg (format "Second argument \"~a\" to reachable is not a singleton" (deparse b))
                        #:context b))
+  (when (and (list? r) (< (length r) 1))
+    (raise-forge-error #:msg (format "The reachable predicate expected at least three arguments, given ~a" (@+ (length r) 2))
+                       #:context loc))
+  
   (in/info (nodeinfo loc 'checklangNoCheck) 
            a 
            (join/info (nodeinfo loc (get-check-lang)) 
