@@ -112,6 +112,7 @@
     (pattern decl:CmdDeclClass)
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass)
+    (pattern decl:QuantifiedPropertyDeclClass)
     (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
@@ -342,7 +343,8 @@
   (define-syntax-class TestConstructClass
     (pattern decl:ExampleDeclClass)
     (pattern decl:TestExpectDeclClass)
-    (pattern decl:PropertyDeclClass))
+    (pattern decl:PropertyDeclClass)
+    (pattern decl:QuantifiedPropertyDeclClass))
 
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
@@ -354,6 +356,28 @@
               (~optional -bounds:BoundsClass))
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
+      #:with constraint-type (string->symbol (syntax-e #'ct))
+      #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
+
+  (define-syntax-class QuantifiedPropertyDeclClass
+    #:attributes (quant-decls disj prop-name prop-exprs pred-name pred-exprs constraint-type scope bounds)
+    (pattern ((~datum QuantifiedPropertyDecl)
+              (~optional (~and "disj" -disj))
+              -quant-decls:DeclListClass
+              -prop-name:NameClass
+              (~optional -prop-exprs:NameListClass)
+              (~and (~or "sufficient" "necessary") ct)
+              -pred-name:NameClass
+              (~optional -pred-exprs:NameListClass)
+              (~optional -scope:ScopeClass)
+              (~optional -bounds:BoundsClass))
+      #:with disj (if (attribute -disj) (string->symbol (syntax-e #'-disj)) '())
+      #:with quant-decls #'-quant-decls.translate
+      #:with prop-name #'-prop-name.name
+      #:with pred-name #'-pred-name.name
+      #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.names ...) #'()) 
+      #:with prop-exprs (if (attribute -prop-exprs) #'(-prop-exprs.names ...) #'())
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
@@ -957,6 +981,39 @@
         #:bounds pwd.bounds
         #:expect theorem ))]))
 
+
+(define-syntax (QuantifiedPropertyDecl stx)
+  (syntax-parse stx
+    [qpd:QuantifiedPropertyDeclClass  
+    ;;;#:do [(printf "QuantifiedPropertyDeclClass: ~a~n" (syntax->datum #'qpd))]
+     (with-syntax* 
+        ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)))]
+          [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
+        
+          [prop-consolidated (if (equal? (syntax->datum #'qpd.prop-exprs) '()) 
+                                (syntax/loc stx qpd.prop-name)
+                                (syntax/loc stx (exp-prop-exprs ...)))]
+          [pred-consolidated (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
+                                (syntax/loc stx qpd.pred-name)
+                                (syntax/loc stx (exp-pred-exprs ...)))]
+                                
+          [test_name (format-id stx "~a__Assertion_All_~a_is_~a_for_~a" (make-temporary-name stx) #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)]
+          ;;; This is ugly, I'm sure there are better ways to write this
+          [imp_total
+            (if (eq? (syntax-e #'qpd.disj) 'disj)
+                (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
+                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies prop-consolidated pred-consolidated)))
+                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies pred-consolidated prop-consolidated))))
+                (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
+                    (syntax/loc stx (all  qpd.quant-decls (implies prop-consolidated pred-consolidated)))
+                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated prop-consolidated)))))])
+     (syntax/loc stx
+       (test
+         test_name
+         #:preds [imp_total]
+         #:scope qpd.scope
+         #:bounds qpd.bounds
+         #:expect theorem )))]))
 
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.

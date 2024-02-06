@@ -97,6 +97,8 @@
     (list "failed_sat.frg" #rx"Failed test") 
     (list "properties_undirected_tree_underconstraint_error.frg" #rx"Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"Assertion_isUndirected_is_sufficient_for_isUndirectedTree failed.")
+    (list "properties_directed_tree_sufficiency_error.frg" #rx"Assertion_All_arethesame_is_sufficient_for_bothRoots failed.")
+    (list "properties_directed_tree_necessity_error.frg" #rx"Assertion_All_isRoot_is_necessary_for_isNotRoot failed.")
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "hello.frg" #rx"parsing error")
