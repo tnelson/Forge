@@ -49,6 +49,7 @@ Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS
           | InstDecl
           | ExampleDecl 
           | PropertyDecl
+          | QuantifiedPropertyDecl
           | TestSuiteDecl
 
 ; NOTE: When extending sigs with "in" (subset sigs) is implemented,
@@ -95,6 +96,7 @@ Const : NONE-TOK | UNIV-TOK | IDEN-TOK
 
 
 PropertyDecl : /ASSERT-TOK Name /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)? 
+QuantifiedPropertyDecl : /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Name (/LEFT-SQUARE-TOK NameList /RIGHT-SQUARE-TOK)?  /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK NameList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
 
 TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
 

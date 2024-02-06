@@ -52,6 +52,10 @@
     (list "bsl-set.frg" #rx"not a singleton")
     (list "bsl-transpose-ast.frg" #rx"~ operator")
 
+    (list "bsl-reachable-nonfield-varargs.frg" #rx"Field argument given to reachable is not a field")
+    (list "bsl-reachable-nonfield.frg" #rx"Field argument given to reachable is not a field")
+    (list "bsl-reachable-too-few-arguments.frg" #rx"The reachable predicate expected at least three arguments, given 2")
+    
     (list "froglet-ast-arrow.frg" #rx"-> operator is not")
     (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
     (list "froglet-ast-intersect.frg" #rx"& operator is not")
@@ -93,6 +97,8 @@
     (list "failed_sat.frg" #rx"Failed test") 
     (list "properties_undirected_tree_underconstraint_error.frg" #rx"Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"Assertion_isUndirected_is_sufficient_for_isUndirectedTree failed.")
+    (list "properties_directed_tree_sufficiency_error.frg" #rx"Assertion_All_arethesame_is_sufficient_for_bothRoots failed.")
+    (list "properties_directed_tree_necessity_error.frg" #rx"Assertion_All_isRoot_is_necessary_for_isNotRoot failed.")
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "hello.frg" #rx"parsing error")
@@ -109,7 +115,12 @@
     (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
     (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
     (list "expect-predicate-args.frg" #rx"Ill-formed block")
-    (list "expect-predicate-no-args.frg" #rx"Tried to give arguments to a predicate, but it takes none") 
+    (list "expect-predicate-no-args.frg" #rx"Tried to give arguments to a predicate, but it takes none")
+
+    (list "override-wrong-arity.frg" #rx"must have same arity")
+    (list "override-no-overlap.frg" #rx"will never override anything")
+
+    (list "run-given-non-formula.frg" #rx"Expected a formula but got something else") 
   ))
 
 

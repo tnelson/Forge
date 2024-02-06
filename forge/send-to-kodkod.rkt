@@ -47,9 +47,10 @@
   ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
   (define (raise-run-error message [node #f])
     (if node
-        (raise-syntax-error #f message
-                            (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node)))))
-        (raise-syntax-error #f message run-command)))
+        (raise-forge-error #:msg message
+                           #:context (nodeinfo-loc (node-info node)))
+        (raise-forge-error #:msg message
+                           #:context run-command)))
   
   (when (member run-name (unbox run-name-history))
     (raise-run-error (format "Run name ~a was re-used; please use a different run name.~n" run-name)))

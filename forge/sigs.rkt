@@ -3,7 +3,7 @@
 (require (only-in racket/function thunk)
          (only-in racket/list first rest empty empty? flatten)
          (only-in racket/pretty pretty-print)
-         (prefix-in @ (only-in racket/base display max min -)) 
+         (prefix-in @ (only-in racket/base display max min - +)) 
          (prefix-in @ racket/set)
          (prefix-in @ (only-in racket/contract ->))
          (only-in racket/contract define/contract))
@@ -580,6 +580,7 @@
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
      (add-to-execs
+      (with-syntax ([loc (build-source-location stx)])
        (quasisyntax/loc stx 
          (cond 
           [(member 'expected '(sat unsat))           
@@ -590,13 +591,15 @@
                (printf "Unexpected result found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in Sterling since the test failed.
-             (raise-user-error (format "Failed test ~a. Expected ~a, got ~a.~a"
+             (raise-forge-error
+              #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
                             'name 'expected (if (Sat? first-instance) 'sat 'unsat)
                             (if (Sat? first-instance)
                                 (format " Found instance ~a" first-instance)
                                 (if (Unsat-core first-instance)
                                     (format " Core: ~a" (Unsat-core first-instance))
-                                    "")))))
+                                    "")))
+              #:context loc))
            (close-run name)]
 
           [(equal? 'expected 'theorem)          
@@ -607,12 +610,15 @@
                (printf "Instance found, with statistics and metadata:~n")
                (pretty-print first-instance))
              (display name) ;; Display in sterling since the test failed.
-             (raise-user-error (format "Theorem ~a failed. Found instance:~n~a"
-                            'name first-instance)))
+             (raise-forge-error #:msg (format "Theorem ~a failed. Found instance:~n~a"
+                                              'name first-instance)
+                                #:context loc))
            (close-run name)]
 
-          [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
-                               'expected))])))]))
+          [else (raise-forge-error
+                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                               'expected)
+                 #:context loc)]))))]))
 
 (define-syntax (example stx)  
   (syntax-parse stx
@@ -620,18 +626,22 @@
      (add-to-execs
        (quasisyntax/loc stx (begin
          (when (eq? 'temporal (get-option curr-state 'problem_type))
-           (raise-user-error (format "example ~a: Can't have examples when problem_type option is temporal" 'name)))
+           (raise-forge-error
+            #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
+            #:context #,(build-source-location stx)))
          #,(syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))
          (define first-instance (tree:get-value (Run-result name)))
          (when (Unsat? first-instance)
            #,(syntax/loc stx (run double-check #:preds [] #:bounds [bounds ...]))
            (define double-check-instance (tree:get-value (Run-result double-check)))
            (if (Sat? double-check-instance)
-               (raise-user-error (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name))
-               (raise-user-error (format (string-append "Invalid example '~a'; the instance specified is impossible. "
-                                             "This means that the specified bounds conflict with each other "
-                                             "or with the sig/relation definitions.")
-                              'name)))))))]))
+               (raise-forge-error #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+                                  #:context #,(build-source-location stx))
+               (raise-forge-error #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+                                                               "This means that the specified bounds conflict with each other "
+                                                               "or with the sig/relation definitions.")
+                                                'name)
+                                  #:context #,(build-source-location stx)))))))]))
 
 ; Checks that some predicates are always true.
 ; (check name
@@ -711,7 +721,9 @@
                      (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))]
                     [(equal? (get-option curr-state 'eval-language) 'core)
                      (read-syntax 'Evaluator pipe1)]
-                    [else (raise-user-error "Could not evaluate in current language - must be surface or core.")]))
+                    [else (raise-user-error
+                           #:msg "Could not evaluate in current language - must be surface or core."
+                           #:context #f)]))
 
             ;(printf "Run Atoms: ~a~n" (Run-atoms run))
 
@@ -919,16 +931,37 @@
 
 
 (define (reachablefun loc a b r)
-  (unless (equal? 1 (node/expr-arity a)) (raise-user-error (format "First argument \"~a\" to reachable is not a singleton at loc ~a" (deparse a) (srcloc->string loc))))
-  (unless (equal? 1 (node/expr-arity b)) (raise-user-error (format "Second argument \"~a\" to reachable is not a singleton at loc ~a" (deparse b) (srcloc->string loc))))
+  (unless (equal? 1 (node/expr-arity a))
+    (raise-forge-error #:msg (format "First argument \"~a\" to reachable is not a singleton" (deparse a))
+                       #:context a))
+  (unless (equal? 1 (node/expr-arity b))
+    (raise-forge-error #:msg (format "Second argument \"~a\" to reachable is not a singleton" (deparse b))
+                       #:context b))
+  (when (and (list? r) (< (length r) 1))
+    (raise-forge-error #:msg (format "The reachable predicate expected at least three arguments, given ~a" (@+ (length r) 2))
+                       #:context loc))
+  
   (in/info (nodeinfo loc 'checklangNoCheck) 
            a 
            (join/info (nodeinfo loc (get-check-lang)) 
                       b 
                       (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
 
-(define (union-relations loc r)
+(define (union-relations loc r-or-rs)
   (cond
-    [(empty? r) (raise-user-error "Unexpected: union-relations given no arguments. Please report this error.")]
-    [(empty? (rest r)) (first r)]
-    [else (+/info (nodeinfo loc 'checklangNoCheck) (first r) (union-relations loc (rest r)))]))
+    [(empty? r-or-rs) (raise-forge-error
+                 #:msg "Unexpected: union-relations given no arguments. Please report this error."
+                 #:context loc)]
+    [(empty? (rest r-or-rs))
+     (unless (equal? 2 (node/expr-arity (first r-or-rs)))
+         (raise-forge-error
+          #:msg (format "Field argument given to reachable is not a field: ~a" (deparse (first r-or-rs)))
+          #:context (first r-or-rs)))
+     (first r-or-rs)]
+    [else
+     (for ([r r-or-rs])
+       (unless (equal? 2 (node/expr-arity r))
+         (raise-forge-error
+          #:msg (format "Field argument given to reachable is not a field: ~a" (deparse r))
+          #:context r)))
+       (+/info (nodeinfo loc 'checklangNoCheck) (first r-or-rs) (union-relations loc (rest r-or-rs)))]))

@@ -39,8 +39,8 @@
 ;       * node/formula/op/and
 ;       * node/formula/op/or
 ;       * ...
-;     * node/formula/quantified (TODO FILL)  -- quantified formula
-;     * node/formula/multiplicity (TODO FILL) -- multiplicity formula
+;     * node/formula/quantified   -- quantified formula
+;     * node/formula/multiplicity -- multiplicity formula
 ;     * node/formula/sealed
 ;       * wheat
 ;   * node/int -- integer expression
@@ -48,6 +48,7 @@
 ;       * node/int/op/add
 ;       * ...
 ;     * node/int/constant (value) -- int constant
+;   * node/unknown -- delayed binding of identifiers for predicates and functions
 ;; -----------------------------------------------------------------------------
 
 ; Struct to hold metadata about an AST node (like source location)
@@ -1168,12 +1169,19 @@
 ; a user error. For the VSCode extension (and use from the terminal), produce a
 ; custom user error that contains the row and column information of the offending
 ; AST node.
+
 (define (pretty-loc loc)
-  (format "~a:~a:~a" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc)))
-(define (raise-forge-error #:msg [msg "error"] #:context [context #f])
-  (define loc (cond [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]
-                    [(node? context) (pretty-loc (nodeinfo-loc (node-info context)))]
-                    [(srcloc? context) (pretty-loc context)] 
-                    [else "unknown:?:?"]))
+  (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc)))
+
+(define (raise-forge-error #:msg [msg "error"] #:context [context #f])  
+  (define loc (cond                
+                [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]
+                ; Wheats/chaffs have their inner formula in the info field
+                [(and (node? context) (node? (node-info context)))
+                 (pretty-loc (nodeinfo-loc (node-info (node-info context))))]
+                [(node? context) (pretty-loc (nodeinfo-loc (node-info context)))]
+                [(srcloc? context) (pretty-loc context)]
+                [(syntax? context) (pretty-loc (build-source-location context))]                    
+                [else "unknown:?:?"]))
   (raise-user-error (format "[~a] ~a" loc msg)))
 
