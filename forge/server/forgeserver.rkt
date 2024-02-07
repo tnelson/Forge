@@ -177,7 +177,7 @@
          ; If this cannot be opened for whatever reason, keep the server open but print
          ; a warning, allowing the user a workaround.
          (with-handlers ([exn?
-                          (lambda (e) (printf "Racket could not open a browser on your system; you may be able manually navigate to this address, which is where Forge expects Sterling to load:~n  ~a"
+                          (lambda (e) (printf "Racket could not open a browser on your system; you may be able manually navigate to this address, which is where Forge expects Sterling to load:~n  ~a~n"
                                               (string-append (path->string sterling-path) "?" (number->string port))))])
            (send-url/file sterling-path #f #:query (number->string port)))
          
