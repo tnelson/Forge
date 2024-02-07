@@ -554,7 +554,7 @@
          (define run-solver (~? 'solver-choice #f))
          (define run-backend (~? 'backend #f))
          (define run-target
-           (~? (Target (cdr target-instance)
+           (~? (Target target-instance ;(cdr target-instance)
                        (~? 'target-distance 'close))
                #f))
          (define run-command #'#,command)         
