@@ -1,58 +1,103 @@
 #lang forge/core
-(set-option! 'verbose 0)
+
+
+; These won't define lang checker hash
+;#lang racket/base
+;#lang racket 
+(require syntax/parse/define (only-in racket/set list->set)
+         (rename-in (only-in racket/base *) [* @*]))
+(require (prefix-in @ rackunit))
+(require (for-syntax racket/base racket/syntax))
 
 ; Tests for target-oriented interface. The tests in ../forge/target/ test the _forge language_
-; for target _types_, but not for providing a specific target. Hence this module. 
-
-(require (prefix-in @ rackunit))
+; for target _types_, but not for providing a specific target. Hence this module.
 
 (sig Node)
 (relation edges (Node Node))
 
-(set-option! 'verbose 5)
-(set-option! 'solver 'PMaxSAT4J)
-(set-option! 'problem_type 'target)
-
 ; TODO: error if solver not appropriate for target-orientation
 ; TODO: error if solver name not valid
 
-; TODO: parser issue
+; Because the macro below uses forge/functional, not forge/core, stateful option setters have no
+; effect; we need to create Options ourselves
+(define the-options
+  (struct-copy forge:Options forge:DEFAULT-OPTIONS
+               [problem_type 'target]
+               [solver 'PMaxSAT4J]))
+  
 
 ; Create a Run, but don't open a visualizer
-; We cannot use "test" here; we need to view the contents of the instance itself. 
-;; (run target-close-empty
-;;      #:preds []
-;;      #:target (hash 'Node '() 'edges '())
-;;      #:target-distance close)
-;; (define target-close-empty-gen (forge:make-model-generator (forge:get-result target-close-empty) 'next))
-;; (define target-close-empty-inst1 (target-close-empty-gen))
+; We cannot use "test" here; we need to view the contents of the instance itself.
+; Also, the "run" macro is a bit annoying to use here, so just use forge/functional.
+(define-syntax (run-graph-test stx)
+  (syntax-parse stx
+    [(run-graph-test in-nodes in-edges in-distance in-preds node-scope)
+     (syntax/loc stx
+         (begin 
+           (define target-run
+             (make-run #:name (gensym)
+                       #:preds '()
+                       #:sigs (list Node)
+                       #:relations (list edges)
+                       #:scope (list (list Node node-scope))
+                       #:options the-options
+                       #:target (forge:Target (hash 'Node in-nodes 
+                                                    'edges in-edges)
+                                              in-distance)))
+           
+           (define target-gen (forge:make-model-generator (forge:get-result target-run) 'next))
+           (define target-soln (target-gen))
+           (define target-inst (first (Sat-instances target-soln)))
+           (cond
+             [(equal? 'close_noretarget in-distance)
+              (@check-equal? (list->set (hash-ref target-inst 'Node)) (list->set in-nodes))
+              (@check-equal? (list->set (hash-ref target-inst 'edges)) (list->set in-edges))]
+             [else
+              (@check-equal? (length (hash-ref target-inst 'Node)) node-scope)
+              (@check-equal? (length (hash-ref target-inst 'edges)) (@* node-scope node-scope))])))]))
 
-(run target-close-biggest-2
+
+(run-graph-test '((Node0) (Node1))
+                '((Node0 Node1) (Node1 Node0) (Node0 Node0) (Node1 Node1))
+                'close_noretarget
+                '()
+                2)
+
+(run-graph-test '()
+                '()
+                'close_noretarget
+                '()
+                3)
+
+(run-graph-test '()
+                '()
+                'far_noretarget
+                '()
+                3)
+
+
+(run-graph-test '((Node0) (Node1) (Node2))
+                '((Node0 Node1) (Node1 Node2))
+                'close_noretarget
+                '()
+                3)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; One standalone check for the run macro, since the above all use make-run
+
+(set-option! 'solver 'PMaxSAT4J)
+(set-option! 'problem_type 'target)
+
+(run target-oriented-run-macro-test
      #:preds []
-     #:target (hash 'Node '((Node0) (Node1))
-                    'edges '( (Node0 Node1) (Node1 Node0) (Node0 Node0) (Node1 Node1)))
-     #:target-distance close)
-(define target-close-biggest-2-gen (forge:make-model-generator (forge:get-result target-close-biggest-2) 'next))
-(define target-close-biggest-2-inst1 (target-close-biggest-2-gen))
+     #:scope ([Node 2])
+     #:target (hash 'Node '()
+                    'edges '())
+     #:target-distance close_noretarget)
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;  
-;; (@check-equal?
-;;  (length (forge:bound-upper (first (filter (lambda (x) (equal? A (forge:bound-relation x))) (forge:Run-kodkod-bounds myRun)))))
-;;  1
-;;  "#:one sigs should have exactly one element in their upper bound")
-;;  
-;; (@check-equal?
-;;  (forge:bound-upper (first (filter (lambda (x) (equal? A (forge:bound-relation x))) (forge:Run-kodkod-bounds myRun))))
-;;  (forge:bound-lower (first (filter (lambda (x) (equal? A (forge:bound-relation x))) (forge:Run-kodkod-bounds myRun))))
-;;  "#:one sigs should be exact-bounded")
-;; 
-;;  
-;; (@check-not-equal?
-;;  (forge:bound-upper (first (filter (lambda (x) (equal? A (forge:bound-relation x))) (forge:Run-kodkod-bounds myRun))))
-;;  (forge:bound-upper (first (filter (lambda (x) (equal? B (forge:bound-relation x))) (forge:Run-kodkod-bounds myRun))))
-;;  "Upper bounds between #:one siblings should never overlap")
-;; 
-;; ; Safety check: Regardless of what we think bounds do, confirm that overlap is impossible
-;; (test oneSigsCannotOverlap #:preds [(some (& A B))] #:expect unsat)
+(define target-gen (forge:make-model-generator (forge:get-result target-oriented-run-macro-test) 'next))
+(define target-soln (target-gen))
+(define target-inst (first (Sat-instances target-soln)))
+(@check-equal? (hash-ref target-inst 'Node) empty)
+(@check-equal? (hash-ref target-inst 'edges) empty)

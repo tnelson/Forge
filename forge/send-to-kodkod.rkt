@@ -313,7 +313,8 @@
           (get-atoms relation atoms)))))
 
     ; Always say what mode; admittedly this won't always make sense if untargeted
-    ; Conflate "target distance" declared with a concrete target and global mode
+    ; Conflate "target distance" declared with a concrete target and global mode.
+    ;    Note well: the space of possible options should mirror the contract on this field.
     (pardinus-print
      (pardinus:print-cmd "(target-option target-mode ~a)"
                          (if target

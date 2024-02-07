@@ -555,7 +555,7 @@
          (define run-backend (~? 'backend #f))
          (define run-target
            (~? (Target target-instance ;(cdr target-instance)
-                       (~? 'target-distance 'close))
+                       (~? 'target-distance 'close_noretarget))
                #f))
          (define run-command #'#,command)         
          (define name
