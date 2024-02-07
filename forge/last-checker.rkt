@@ -55,6 +55,15 @@
 
     [(node/fmla/pred-spacer info name args expanded)
      (checkFormula run-or-state expanded quantvars checker-hash)]
+
+    ; [(node/fmla/pred-spacer info name args expanded)
+    ;   (define quantvar/list (map (lambda (x) (car (cdr x))) quantvars))
+    ;   (define arg/list (map (lambda (x) (mexpr-expr (apply-record-domain x))) args))
+    ;   (if (not (equal? quantvar/list arg/list)) ; doesn't work when not all arguments are quantified variables
+    ;       (raise-forge-error
+    ;       #:msg (format "The sig(s) given as an argument to predicate ~a are of incorrect type" name)
+    ;       #:context info) ; points to predicate, not where predicate application happened
+    ;       (checkFormula run-or-state expanded quantvars checker-hash))]
     
     [(node/formula/op info args)
      (check-and-output formula
