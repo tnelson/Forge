@@ -173,7 +173,14 @@
         [(equal? 'off (get-option the-run 'run_sterling))
          (void)]
         [else
-         (send-url/file sterling-path #f #:query (number->string port))
+         ; Attempt to open a browser to the Sterling index.html, with the proper port
+         ; If this cannot be opened for whatever reason, keep the server open but print
+         ; a warning, allowing the user a workaround.
+         (with-handlers ([exn?
+                          (lambda (e) (printf "Racket could not open a browser on your system; you may be able manually navigate to this address, which is where Forge expects Sterling to load:~n  ~a"
+                                              (string-append sterling-path "?" (number->string port))))])
+           (send-url/file sterling-path #f #:query (number->string port)))
+         
          (printf "Sterling running. Hit enter to stop service.\n")
          (when (> (get-verbosity) VERBOSITY_LOW)
            (printf "Using port: ~a~n" (number->string port)))
