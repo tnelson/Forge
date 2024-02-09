@@ -216,15 +216,13 @@
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
-    ; INTEGER >
-    [(? node/formula/op/int>?)
-     (void)]
-    ; INTEGER <
-    [(? node/formula/op/int<?)
-     (void)]
-    ; INTEGER =
-    [(? node/formula/op/int=?)
-     (void)]))
+    ; INTEGER >, <, =
+    [(or (? node/formula/op/int>?)
+         (? node/formula/op/int<?)
+         (? node/formula/op/int=?))
+      ; descend into the integer-expression within and confirm no literals are unsafe
+     (checkInt run-or-state (first (node/formula/op-children formula)) quantvars checker-hash)
+     (checkInt run-or-state (second (node/formula/op-children formula)) quantvars checker-hash)]))
 
 ; Turn signame into list of all primsigs it contains
 ; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
@@ -537,6 +535,8 @@
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
+     ; descend into the integer-expression within and confirm no literals are unsafe
+     (checkInt run-or-state (first (node/expr/op-children expr)) quantvars checker-hash)
      (check-and-output expr
                        node/expr/op/sing
                        checker-hash
@@ -568,6 +568,55 @@
                    (first l)
                    (rest l)))
       product-of-children))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Integer-expressions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Walk any integer-expressions, seeking bad literal values etc.
+(define/contract (checkInt run-or-state expr quantvars checker-hash)
+  (@-> (or/c Run? State? Run-spec?)
+       node/int?
+       list?
+       hash?
+       any)
+
+ ; (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "last-checker: checkInt: ~a~n" expr) ;)
+
+  (match expr
+    [(? node/int/constant)
+     ; Literal: check it!
+     (check-int-literal run-or-state expr)]
+    [(? node/int/op)
+     (printf "node int op: ~a~n" expr)
+     ; Integer operator: descend into children (which may be relational) to check them.
+     (for ([child (node/int/op-children expr)])
+       (cond [(node/int? child)
+              (checkInt run-or-state child quantvars checker-hash)]
+             [(node/expr? child)
+              (checkExpression run-or-state child quantvars checker-hash)]
+             [else (void)]))]
+    [(? node/int/sum-quant)
+     ; Sum "quantifier": descend into children (one int-expr, multiple decl domains)
+     (checkInt run-or-state (node/int/sum-quant-int-expr expr) quantvars checker-hash)
+     (for ([decl (node/int/sum-quant-decls expr)])
+       (define domain (cdr decl))
+       (checkExpression run-or-state domain quantvars checker-hash))]))
+
+; Is this integer literal safe under the current bitwidth?
+(define/contract (check-int-literal run-or-state expr)
+  (@-> (or/c Run? State? Run-spec?)
+       node/int/constant?
+       any)
+  (printf "check-int-literal: ~a~n" expr)
+  (void))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Rackunit
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 (module+ test
   (require rackunit)
