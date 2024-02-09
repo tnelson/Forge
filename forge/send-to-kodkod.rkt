@@ -686,7 +686,8 @@
              ; perhaps the sig was defined by numeric scope?
              (unless (subset? (list->set pw-domain) (list->set (first sig-atoms)))
                (define undeclared (set->list (set-subtract (list->set pw-domain) (list->set (first sig-atoms)))))
-               (raise-run-error (format "Field ~a was bounded for atom(s): ~a, but these were not declared or generated for the corresponding sig. This might be caused by an inst or example not providing a value or bound for the sig." (Relation-name relation) undeclared)
+               (raise-run-error (format "Field ~a was bounded for atom(s): ~a, but the corresponding sig ~a contained only ~a. This might be caused by an inst or example not providing a value or bound for the sig; recall the default scope of ~a through ~a atoms will apply if no scope or bound is given."
+                                        (Relation-name relation) undeclared (first sigs) (first sig-atoms) (Range-lower DEFAULT-SIG-SCOPE) (Range-upper DEFAULT-SIG-SCOPE))
                          (get-blame-node run-spec relation)))
 
              ; TODO: that only helps with the domain, not the range
