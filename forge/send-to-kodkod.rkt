@@ -13,7 +13,7 @@
 (require (prefix-in @ (only-in racket/base >= not - = and or max > <))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? thunk*
-                         remove-duplicates subset? cartesian-product match-define cons?)
+                         remove-duplicates subset? cartesian-product match-define cons? set-subtract)
           racket/hash)
 (require (only-in syntax/srcloc build-source-location-syntax))
 (require (prefix-in pardinus: forge/pardinus-cli/server/kks)
@@ -622,7 +622,7 @@
                     [else (map list (hash-ref upper-bounds sig))])])
         ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                            
         (unless (subset? (list->set lower) (list->set upper))
-          (raise-run-error (format "Bounds inconsistency detected for ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)
+          (raise-run-error (format "Bounds inconsistency detected for sig ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)
                            (get-blame-node run-spec sig)))
         (values name (bound rel lower upper)))))
 
@@ -675,13 +675,27 @@
                                    relation)
                               (get-blame-node run-spec relation))]
             [bound-piecewise
+             ;(printf "upper; bound-piecewise tuples: ~a~n" (PiecewiseBound-tuples bound-piecewise))
              ; for each admissible atom (taken from first component of the relation's declaration):
              ;   Where a piecewise entry exists: intersect with cartesian product of restricted universe.
              ;   otherwise: include the full cartesian-product for the restriction outside of that domain
              (define pw-domain (PiecewiseBound-atoms bound-piecewise))
+             ;(printf "upper; sig-atoms[domain]: ~a~n" (first sig-atoms))
              ;(printf "upper; pw-domain: ~a~n" pw-domain) ; ISSUE: this is pre-eval :/ store post-eval?
+             
+             ; If the piecewise domain is not contained by the sig atoms, something has gone wrong;
+             ; perhaps the sig was defined by numeric scope?
+             (unless (subset? (list->set pw-domain) (list->set (first sig-atoms)))
+               (define undeclared (set->list (set-subtract (list->set pw-domain) (list->set (first sig-atoms)))))
+               (raise-run-error (format "Field ~a was bounded for atom(s): ~a, but the corresponding sig ~a contained only ~a. This might be caused by an inst or example not providing a value or bound for the sig; recall the default scope of ~a through ~a atoms will apply if no scope or bound is given."
+                                        (Relation-name relation) undeclared (first sigs) (first sig-atoms) (Range-lower DEFAULT-SIG-SCOPE) (Range-upper DEFAULT-SIG-SCOPE))
+                         (get-blame-node run-spec relation)))
+
+             ; TODO: that only helps with the domain, not the range
+             
              (define in-domain (set-intersect (list->set (PiecewiseBound-tuples bound-piecewise))
                                               (list->set (apply cartesian-product sig-atoms))))
+             ;(printf "upper; sig-atoms product was: ~a~n" (apply cartesian-product sig-atoms))
              ;(printf "upper; in-domain: ~a~n" in-domain)
              (define out-of-domain (list->set
                                     (filter (lambda (tup)

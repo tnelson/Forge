@@ -25,6 +25,7 @@
     (list "piecewise-bind-combine.frg" #rx"may not be combined with complete bounds")
     (list "piecewise-bind-sigs.frg" #rx"would create a relation")
     (list "piecewise-bind-mix-ops.frg" #rx"mixed operators not allowed")
+    (list "piecewise_domain_too_big.frg" #rx"Field spouse was bounded for atom")
    
     (list "hidden-wheat.frg" #rx"Invalid binding expression")
    
