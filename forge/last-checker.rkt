@@ -598,8 +598,11 @@
              [else (void)]))]
     [(? node/int/sum-quant?)
      ; Sum "quantifier": descend into children (one int-expr, multiple decl domains)
-     (checkInt run-or-state (node/int/sum-quant-int-expr expr) quantvars checker-hash)
-     (for ([decl (node/int/sum-quant-decls expr)])
+     (define decls (node/int/sum-quant-decls expr))
+     (let ([new-quantvars (append (map assocify decls) quantvars)])
+       (checkInt run-or-state (node/int/sum-quant-int-expr expr) new-quantvars checker-hash))
+     (for ([decl decls])
+       (define var (car decl))
        (define domain (cdr decl))
        (checkExpression run-or-state domain quantvars checker-hash))]))
 

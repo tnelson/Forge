@@ -5,9 +5,13 @@
 
 ; sing      int -> set
 
+; Note: these tests will not give complete assurance in cases where an int is out-of-bitwidth
+; and overflow is allowed. 
 (define Sing
   (&&
+   ; there is no int before -8 (assumes default bitwidth of 4)
    (no (join succ (sing (int -8))))
+   ; confirm successors
    (= (join (sing (int -8)) succ) 
       (sing (int -7)))
    (= (join (sing (int -7)) succ) 
@@ -38,6 +42,7 @@
       (sing (int 6)))
    (= (join (sing (int 6)) succ) 
       (sing (int 7)))
+   ; there is no successor of 7 (assumes default bitwidth of 4)
    (no (join (sing (int 7)) succ))))
 
 (define IntSet (make-sig 'IntSet #:abstract #t))
@@ -66,9 +71,11 @@
 
 (define Sum
   (&&
+   ; sum and sing are inverses
    (all ([i Int])
         (= i (sing (sum i))))
 
+   ; Values summed based on instance, assuming overflow is happening properly
    (int= (sum (join S1 ints)) (int 0))
    (int= (sum (join S2 ints)) (int 6))
    (int= (sum (join S3 ints)) (int 6))
@@ -135,7 +142,11 @@
 
 
 ; max, min  set -> int
-
+; S1 -> {0}
+; S2 -> {0, 1}
+; S3 -> {-5, -2, 0, 4}
+; S4 -> {7}
+; S5 -> Int
 (define max-min-inst
   (make-inst (list
               (= ints (+ (-> (atom 'S10) (sing (int 0)))
@@ -190,6 +201,7 @@
            #:relations (list ints)
            #:expect 'theorem)
 
+; Bitwidth 4, 0-5 IntSet atoms
 (make-test #:name 'sumQuants
            #:preds (list SumQuant)
            #:bounds (list sum-inst)
