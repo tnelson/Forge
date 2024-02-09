@@ -662,7 +662,12 @@
                   #:name name
                   #:preds preds
                   #:scope scope-input
-                  #:bounds bounds-input))
+                  #:bounds bounds-input
+                  ;#:solver solver
+                  ;#:backend backend
+                  #:target target
+                  ;#:command command
+                  ))
 
 (define/contract (check-from-state state
                                    #:name [name 'unnamed-check]
