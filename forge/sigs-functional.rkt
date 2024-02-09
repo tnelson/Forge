@@ -571,7 +571,9 @@
 
   (define/contract default-bounds Bound?
     (let* ([bitwidth (Scope-bitwidth scope-with-ones)]
-           [max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
+           ; Positive maxint: 2^(bw-1) - 1
+           ; Negative minint: 2^(bw-1) 
+           [max-int (sub1 (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
            [ints (map int-atom (range (@- max-int) max-int))]
            [succs (map list (reverse (rest (reverse ints)))
                        (rest ints))])

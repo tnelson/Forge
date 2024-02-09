@@ -6,7 +6,7 @@
   forge/shared
   racket/syntax
   syntax/srcloc
-  (prefix-in @ (only-in racket -> >=))
+  (prefix-in @ (only-in racket -> >= - >))
   racket/list
   racket/match
   (only-in racket/string string-join)
@@ -581,15 +581,14 @@
        hash?
        any)
 
- ; (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "last-checker: checkInt: ~a~n" expr) ;)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "last-checker: checkInt: ~a~n" expr))
 
   (match expr
-    [(? node/int/constant)
+    [(? node/int/constant?)
      ; Literal: check it!
      (check-int-literal run-or-state expr)]
-    [(? node/int/op)
-     (printf "node int op: ~a~n" expr)
+    [(? node/int/op?)
      ; Integer operator: descend into children (which may be relational) to check them.
      (for ([child (node/int/op-children expr)])
        (cond [(node/int? child)
@@ -597,7 +596,7 @@
              [(node/expr? child)
               (checkExpression run-or-state child quantvars checker-hash)]
              [else (void)]))]
-    [(? node/int/sum-quant)
+    [(? node/int/sum-quant?)
      ; Sum "quantifier": descend into children (one int-expr, multiple decl domains)
      (checkInt run-or-state (node/int/sum-quant-int-expr expr) quantvars checker-hash)
      (for ([decl (node/int/sum-quant-decls expr)])
@@ -609,8 +608,21 @@
   (@-> (or/c Run? State? Run-spec?)
        node/int/constant?
        any)
-  (printf "check-int-literal: ~a~n" expr)
-  (void))
+  
+  (cond [(not (Run-spec? run-or-state))
+         (printf "Warning: integer literals not checked.~n")]
+        [else 
+         (define val (node/int/constant-value expr))
+         ; Note: get-scope will return number of int atoms, not the range we want. Hence, compute it ourselves.
+         (define max-int (sub1 (expt 2 (sub1 (get-bitwidth run-or-state)))))
+         (define min-int (@- (expt 2 (sub1 (get-bitwidth run-or-state)))))
+         (when (or (@> val max-int) (@> min-int val))
+           (raise-forge-error
+            #:msg (format "Integer literal (~a) could not be represented in the current bitwidth (~a through ~a)"
+                          val min-int max-int)
+            #:context expr))
+         
+         (void)]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
