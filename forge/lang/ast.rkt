@@ -39,8 +39,8 @@
 ;       * node/formula/op/and
 ;       * node/formula/op/or
 ;       * ...
-;     * node/formula/quantified (TODO FILL)  -- quantified formula
-;     * node/formula/multiplicity (TODO FILL) -- multiplicity formula
+;     * node/formula/quantified   -- quantified formula
+;     * node/formula/multiplicity -- multiplicity formula
 ;     * node/formula/sealed
 ;       * wheat
 ;   * node/int -- integer expression
@@ -48,6 +48,7 @@
 ;       * node/int/op/add
 ;       * ...
 ;     * node/int/constant (value) -- int constant
+;   * node/unknown -- delayed binding of identifiers for predicates and functions
 ;; -----------------------------------------------------------------------------
 
 ; Struct to hold metadata about an AST node (like source location)
@@ -80,7 +81,19 @@
 (struct node/int node () #:transparent)
 
 ; Should never be directly instantiated
-(struct node/formula node () #:transparent)
+(struct node/formula node () #:transparent
+  ; Give a friendlier error if Racket thinks we are asking it to treat a formula as a function
+  #:property prop:procedure
+  (λ (f . x)
+    (cond [(node/fmla/pred-spacer? f)
+           (raise-forge-error
+            #:msg (format "Tried to give arguments to a predicate, but it takes none: ~a." (node/fmla/pred-spacer-name f))
+            #:context f)]
+          [else
+           (raise-forge-error
+            #:msg (format "Could not use formula as a function: ~a." (deparse f))
+            #:context f)])))
+  
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
@@ -451,15 +464,21 @@
 ; Helper to construct a set comprehension (and give useful errors, in case
 ; these are shown to an end-user)
 (define (raise-set-comp-quantifier-error e)
-  (raise-user-error "Set-comprehension variable domain expected a singleton or relational expression" (deparse e)))
+  (raise-forge-error
+   #:msg (format "Set-comprehension variable domain expected a singleton or relational expression: ~a" (deparse e))
+   #:context e))
 (define (comprehension info decls formula)
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-set-comp-quantifier-error e))
     (unless (equal? (node/expr-arity e) 1)
-      (raise-user-error "Set-comprehension variable domain needs arity = 1" (deparse e)))
+      (raise-forge-error
+       #:msg (format "Set-comprehension variable domain needs arity = 1: ~a" (deparse e))
+       #:context e))
     (unless (node/formula? formula)
-      (raise-user-error "Set-comprehension condition expected a formula." (deparse formula))))
+      (raise-forge-error
+       #:msg (format "Set-comprehension condition expected a formula: ~a" (deparse formula))
+       #:context formula)))
   (node/expr/comprehension info (length decls) decls formula))
 (define (set/func decls formula #:info [node-info empty-nodeinfo])
   (comprehension node-info decls formula))
@@ -806,14 +825,16 @@
                              (datum->syntax #f (deparse expr) (build-source-location-syntax loc)))) 
   (node/formula/multiplicity info mult expr))
 
-(define (no-pairwise-intersect vars)
-  (apply &&/func (no-pairwise-intersect-recursive-helper vars)))
+(define (no-pairwise-intersect vars #:context [context #f])
+  (apply &&/func (no-pairwise-intersect-recursive-helper vars #:context context)))
 
-(define (no-pairwise-intersect-recursive-helper vars)
-  (cond [(empty? vars) (raise-user-error "Cannot take pairwise intersection of empty list")]
+(define (no-pairwise-intersect-recursive-helper vars #:context [context #f])
+  (cond [(empty? vars) (raise-forge-error
+                        #:msg "Cannot take pairwise intersection of empty list"
+                        #:context context)]
         [(empty? (rest vars)) (list true)]
         [else (append (map (lambda (elt) (no (& (first vars) elt))) (rest vars))
-                      (no-pairwise-intersect-recursive-helper (rest vars)))]))
+                      (no-pairwise-intersect-recursive-helper (rest vars) #:context context))]))
 
 ;;; ALL ;;;
 
@@ -830,7 +851,10 @@
     ; quantifier case with disjointness flag; embed and repeat
     ; TODO: currently discarding the multiplicity info, unchecked
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
-     #'(all/info info ([v0 e0 m0] ...) (=> (no-pairwise-intersect (list v0 ...)) pred))]
+     (quasisyntax/loc stx
+       (all/info info ([v0 e0 m0] ...)
+                 #,(quasisyntax/loc stx
+                     (=> (no-pairwise-intersect (list v0 ...) #:context #,(build-source-location stx)) pred))))]
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)     
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
@@ -863,7 +887,11 @@
          (quantified-formula info 'some (list (cons v0 e0) ...) pred)))]
     ; quantifier case with disjointness flag; embed and repeat
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
-     #'(some/info info ([v0 e0 m0] ...) (&& (no-pairwise-intersect (list v0 ...)) pred))]
+     (quasisyntax/loc stx
+       (some/info info ([v0 e0 m0] ...)
+                  #,(quasisyntax/loc stx
+                      (&& (no-pairwise-intersect (list v0 ...)
+                                                 #:context #,(build-source-location stx)) pred))))]
     ; multiplicity case
     [(_ info expr)
      (quasisyntax/loc stx
@@ -923,7 +951,10 @@
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula info 'one (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
+       (multiplicity-formula info 'one
+                             (set ([x1 r1] ...)
+                                  #,(quasisyntax/loc stx (&& (no-pairwise-intersect (list x1 ...)
+                                                                                    #:context #,(build-source-location stx)) pred)))))]
     [(_ info ([x1 r1 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a "one" quantifier natively.
@@ -955,7 +986,10 @@
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
        ; Instead, desugar as a multiplicity of a set comprehension
-       (multiplicity-formula info 'lone (set ([x1 r1] ...) (&& (no-pairwise-intersect (list x1 ...)) pred))))]
+       (multiplicity-formula info 'lone (set ([x1 r1] ...)
+                                             #,(quasisyntax/loc stx
+                                                 (&& (no-pairwise-intersect (list x1 ...)
+                                                                            #:context #,(build-source-location stx)) pred)))))]
     [(_ info ([x1 r1 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        ; Kodkod doesn't have a lone quantifier natively.
@@ -1045,8 +1079,8 @@
                              (equal? (procedure-arity vala) 0)
                              (equal? (procedure-arity valb) 0))
                          (equal-proc (vala) (valb))]
-                       [(and (or (node/expr? vala) (not (procedure? vala)))
-                             (or (node/expr? valb) (not (procedure? valb))))
+                       [(and (or (node/expr? vala) (node/formula? vala) (not (procedure? vala)))
+                             (or (node/expr? valb) (node/formula? vala) (not (procedure? valb))))
                          (equal-proc vala valb)]
                        [else (raise (format "Mismatched procedure fields when checking equality for ~a. Got: ~a and ~a"
                                             structname vala valb))]))                                              
@@ -1061,15 +1095,32 @@
                  [multiplier (drop multipliers offset)])
         ; Some AST fields may be thunkified
         ; Also, any node/expr is a procedure? since that's how we impl. box join
+        ; Also, in order to add better error messages for mis-used node/formulas,
+        ;   any node/formula is also a procedure?
         ; ASSUME: node/expr will never be an exactly-arity-0 procedure.
         (define vala (access a))
-        (cond                         
+        (cond
+          ; zero-arity procedure (a "thunk"): invoke it and then hash the result
           [(and (procedure? vala)                
                 (equal? (procedure-arity vala) 0))
-            (@* multiplier (hash-proc (vala)))]
-          [(or (node/expr? vala) 
-               (not (procedure? vala)))
-            (@* multiplier (hash-proc vala))]
+           ;(printf "field was zero arity procedure: ~a~n" vala)
+           (@* multiplier (hash-proc (vala)))]
+
+          ; node/expr? (but not a zero-arity procedure): just hash it
+          [(node/expr? vala)
+           ;(printf "field was expr: ~a~n" vala)
+           (@* multiplier (hash-proc vala))]
+
+          ; node/formula? (but not a zero-arity procedure): just hash it
+          [(node/formula? vala)
+           ;(printf "field was formula: ~a~n" vala)
+           (@* multiplier (hash-proc vala))]
+
+          ; not a procedure at all: just hash it
+          [(not (procedure? vala))
+           ;(printf "field was other non-procedure: ~a~n" vala)
+           (@* multiplier (hash-proc vala))]
+
           [else (raise (format "Non-thunk procedure field when hashing for ~a. Got: ~a"
                               structname vala))])))
     ;(printf "in mrnhs for ~a/~a: ~a, multiplied: ~a~n" structname offset a multiplied)    
@@ -1107,3 +1158,30 @@
 (make-breaker pbij 'pbij)
 
 (make-breaker default 'default)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; *** raise-forge-error ***
+;
+; Use this error-throwing function whenever possible in Forge.
+; 
+; Racket "user errors" avoid the (possibly confusing) stack trace that a Racket 
+; "syntax error" produces, but only DrRacket will highlight source location from
+; a user error. For the VSCode extension (and use from the terminal), produce a
+; custom user error that contains the row and column information of the offending
+; AST node.
+
+(define (pretty-loc loc)
+  (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc)))
+
+(define (raise-forge-error #:msg [msg "error"] #:context [context #f])  
+  (define loc (cond                
+                [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]
+                ; Wheats/chaffs have their inner formula in the info field
+                [(and (node? context) (node? (node-info context)))
+                 (pretty-loc (nodeinfo-loc (node-info (node-info context))))]
+                [(node? context) (pretty-loc (nodeinfo-loc (node-info context)))]
+                [(srcloc? context) (pretty-loc context)]
+                [(syntax? context) (pretty-loc (build-source-location context))]                    
+                [else "unknown:?:?"]))
+  (raise-user-error (format "[~a] ~a" loc msg)))
+

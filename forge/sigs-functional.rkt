@@ -9,7 +9,7 @@
 
 (require racket/contract)
 (require racket/match)
-(require (prefix-in @ (only-in racket max min - display set))
+(require (prefix-in @ (only-in racket max min - display set +))
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
          (only-in racket/list first second range rest empty flatten)
@@ -262,13 +262,8 @@
 
   ; In case of error, highlight an AST node if able. Otherwise, do the best we can:
   (define (fail msg [condition #f])    
-    (unless condition      
-      (cond [(and (node? bind) (nodeinfo? (node-info bind)))             
-             (raise-syntax-error #f msg
-                                 (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info bind)))))]
-            [else
-             (raise (format "Invalid binding expression (~a): ~a; unable to extract syntax location." msg bind))])))
-  
+    (unless condition            
+      (raise-forge-error #:msg msg #:context bind)))  
   
   ; Lang-specific instance checker
   (define inst-checker-hash (get-inst-checker-hash))
@@ -451,8 +446,8 @@
 
     ; Bitwidth
     ; what does (Int n:nat) look like in the AST?
-
-    [_ (fail "unsupported")]))
+    
+    [_ (fail "Invalid binding expression")]))
 
 ; Create a new Inst struct; fold over all bind declarations in "binds".
 (define/contract (make-inst binds)
@@ -576,8 +571,12 @@
 
   (define/contract default-bounds Bound?
     (let* ([bitwidth (Scope-bitwidth scope-with-ones)]
-           [max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
-           [ints (map int-atom (range (@- max-int) max-int))]
+           ; Positive maxint: 2^(bw-1) - 1
+           ; Negative minint: 2^(bw-1)
+           ; Keep in mind range is *exclusive* of upper, hence adding 1 back.
+           [max-int (sub1 (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
+           [min-int (@- (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
+           [ints (map int-atom (range min-int (@+ 1 max-int)))]
            [succs (map list (reverse (rest (reverse ints)))
                        (rest ints))])
       (Bound (hash)
@@ -622,7 +621,13 @@
              (update-bindings bs rel tups #f #:node #f)]
             [else 
              (raise (error (format "unsupported comparison operator; got ~a, expected =, ni, or in" (PiecewiseBound-operator pwb))))])))
-     
+
+  ; Confirm that all preds are actually formulas
+  (for ([p preds])
+    (unless (node/formula? p)
+      (raise-forge-error #:msg (format "Expected a formula but got something else: ~a" (deparse p))
+                         #:context command)))
+  
   (define spec (Run-spec state preds scope bounds-with-piecewise-lower target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
                  (send-to-kodkod spec command #:run-name name))
@@ -661,7 +666,12 @@
                   #:name name
                   #:preds preds
                   #:scope scope-input
-                  #:bounds bounds-input))
+                  #:bounds bounds-input
+                  ;#:solver solver
+                  ;#:backend backend
+                  #:target target
+                  ;#:command command
+                  ))
 
 (define/contract (check-from-state state
                                    #:name [name 'unnamed-check]

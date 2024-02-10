@@ -46,16 +46,17 @@
 
 (define max-inst
 	(make-inst (list (= Node (atom 'N1))
-		             (= ntoi (-> (atom 'N1)
-		             	         (sing (max (+ (sing (int 3))
-		             	         	           (+ (sing (int 7))
-		             	         	           	  (sing (int 5)))))))))))
+                         (= ntoi (-> (atom 'N1)
+                                     (sing (max (+ (sing (int 3))
+                                                   (+ (sing (int 7))
+                                                      (sing (int 5)))))))))))
 (make-test #:name 'max-sat
 	       #:bounds (list max-inst)
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= (sing (int 7)) (join Node ntoi)))
 	       #:expect 'sat)
+; default bitwidth = 4: interval [-8, 7]
 (make-test #:name 'max-theorem
 	       #:bounds (list max-inst)
 	       #:sigs (list Node)

@@ -6,7 +6,7 @@
   forge/shared
   racket/syntax
   syntax/srcloc
-  (prefix-in @ (only-in racket -> >=))
+  (prefix-in @ (only-in racket -> >= - >))
   racket/list
   racket/match
   (only-in racket/string string-join)
@@ -216,15 +216,13 @@
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
-    ; INTEGER >
-    [(? node/formula/op/int>?)
-     (void)]
-    ; INTEGER <
-    [(? node/formula/op/int<?)
-     (void)]
-    ; INTEGER =
-    [(? node/formula/op/int=?)
-     (void)]))
+    ; INTEGER >, <, =
+    [(or (? node/formula/op/int>?)
+         (? node/formula/op/int<?)
+         (? node/formula/op/int=?))
+      ; descend into the integer-expression within and confirm no literals are unsafe
+     (checkInt run-or-state (first (node/formula/op-children formula)) quantvars checker-hash)
+     (checkInt run-or-state (second (node/formula/op-children formula)) quantvars checker-hash)]))
 
 ; Turn signame into list of all primsigs it contains
 ; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
@@ -246,10 +244,11 @@
                     (get-children run-or-state signame)))))
            (cond
              [(Sig-abstract the-sig)
-             
-             ; TODO: in the future, maybe consider better places to check for empty abstract sig
+              
              (if (empty? (get-children run-or-state signame))
-                 (raise-user-error (format "The abstract sig ~a is not extended by any children" (symbol->string signame)))
+                 (raise-forge-error
+                  #:msg (format "The abstract sig ~a is not extended by any children" (symbol->string signame))
+                  #:context the-sig)
                  all-primitive-descendants)]
              [else (cons 
                         (string->symbol (string-append (symbol->string signame) 
@@ -520,20 +519,24 @@
        (let ([src-line (source-location-line syn-loc)]
              [src-col (source-location-column syn-loc)]
              [src-span (source-location-span syn-loc)])
-         ; FIX ERROR MESSAGES
+         
          (unless (@>= left-arity 2)
-           (raise-user-error (format "++: arguments must have arity at least 2: got arity 1 on line ~a, column ~a, span ~a."
-                                     src-line src-col src-span)))
+           (raise-forge-error #:msg (format "++: arguments must have arity at least 2: got arity 1")
+                              #:context (first args)))
+         
          (when (set-empty? (set-intersect (list->set left-tuples)
                                           (list->set right-tuples)))
-           (raise-user-error (format "++: right argument will never override anything in left argument on line ~a, column ~a, span ~a."
-                                     src-line src-col src-span)))
+           (raise-forge-error #:msg (format "++: right argument will never override anything in left argument")
+                              #:context (first args)))
+         
          ; ++ has a maximum of two arguments so this should get everything
          (cons (remove-duplicates (append left-tuples right-tuples))
                 #t)))]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
+     ; descend into the integer-expression within and confirm no literals are unsafe
+     (checkInt run-or-state (first (node/expr/op-children expr)) quantvars checker-hash)
      (check-and-output expr
                        node/expr/op/sing
                        checker-hash
@@ -565,6 +568,70 @@
                    (first l)
                    (rest l)))
       product-of-children))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Integer-expressions
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Walk any integer-expressions, seeking bad literal values etc.
+(define/contract (checkInt run-or-state expr quantvars checker-hash)
+  (@-> (or/c Run? State? Run-spec?)
+       node/int?
+       list?
+       hash?
+       any)
+
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "last-checker: checkInt: ~a~n" expr))
+
+  (match expr
+    [(? node/int/constant?)
+     ; Literal: check it!
+     (check-int-literal run-or-state expr)]
+    [(? node/int/op?)
+     ; Integer operator: descend into children (which may be relational) to check them.
+     (for ([child (node/int/op-children expr)])
+       (cond [(node/int? child)
+              (checkInt run-or-state child quantvars checker-hash)]
+             [(node/expr? child)
+              (checkExpression run-or-state child quantvars checker-hash)]
+             [else (void)]))]
+    [(? node/int/sum-quant?)
+     ; Sum "quantifier": descend into children (one int-expr, multiple decl domains)
+     (define decls (node/int/sum-quant-decls expr))
+     (let ([new-quantvars (append (map assocify decls) quantvars)])
+       (checkInt run-or-state (node/int/sum-quant-int-expr expr) new-quantvars checker-hash))
+     (for ([decl decls])
+       (define var (car decl))
+       (define domain (cdr decl))
+       (checkExpression run-or-state domain quantvars checker-hash))]))
+
+; Is this integer literal safe under the current bitwidth?
+(define/contract (check-int-literal run-or-state expr)
+  (@-> (or/c Run? State? Run-spec?)
+       node/int/constant?
+       any)
+  
+  (cond [(not (Run-spec? run-or-state))
+         (printf "Warning: integer literals not checked.~n")]
+        [else 
+         (define val (node/int/constant-value expr))
+         ; Note: get-scope will return number of int atoms, not the range we want. Hence, compute it ourselves.
+         (define max-int (sub1 (expt 2 (sub1 (get-bitwidth run-or-state)))))
+         (define min-int (@- (expt 2 (sub1 (get-bitwidth run-or-state)))))
+         (when (or (@> val max-int) (@> min-int val))
+           (raise-forge-error
+            #:msg (format "Integer literal (~a) could not be represented in the current bitwidth (~a through ~a)"
+                          val min-int max-int)
+            #:context expr))
+         
+         (void)]))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Rackunit
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 (module+ test
   (require rackunit)
