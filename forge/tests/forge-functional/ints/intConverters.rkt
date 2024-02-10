@@ -88,13 +88,16 @@
                     (min (join S ints)))
          (int 3))
 
+   ; 19, but bitwidth 4 (-7 through 8) 
    (int= (sum-quant ([S IntSet])
                     (max (join S ints)))
-         (int 19))
+         ;(int 19))
+         (int 3))
 
+   ; 9, but bitwidth 4 (-8 through 7)
    (int= (sum-quant ([S IntSet])
                     (card (join S ints)))
-         (int 9))
+         (int -7))
 
    ; This also checks that sum works with duplicates
    (int= (sum-quant ([S IntSet])
@@ -102,10 +105,17 @@
                                (sum i)))
          (int 1))
 
+   ; 135 won't fit into the bitwidth (4: -8 through 7, 16 atoms total).
+   ; Note that overflow may happen at any internal step, so the result isn't just 135 with overflow.
+   ; inner:
+   ;   S.ints =                 6 | 1, 2,  3 | -5, -1,  3 | 7, 1
+   ;   squares (with overflow): 4 | 1, 4, -7 | -7,  1, -7 | 1, 1
+   ;   inner sums =             4 | -2       | 3          | 2
+   ;   outer sum =              7
    (int= (sum-quant ([S IntSet])
                     (sum-quant ([i (join S ints)])
                                (multiply (sum i) (sum i))))
-         (int 135))))
+         (int 7))))
 
 
 ; card      set -> int
@@ -201,7 +211,7 @@
            #:relations (list ints)
            #:expect 'theorem)
 
-; Bitwidth 4, 0-5 IntSet atoms
+; Bitwidth 4 (-8 through +7), 0-5 IntSet atoms
 (make-test #:name 'sumQuants
            #:preds (list SumQuant)
            #:bounds (list sum-inst)
