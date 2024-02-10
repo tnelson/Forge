@@ -56,18 +56,19 @@ pred Sum {
     sum[S2.ints] = 6
     sum[S3.ints] = 6
     sum[S4.ints] = -3
-    sum[S5.ints] = 8
+    sum[S5.ints] = -8 -- overflow
 }
 
 pred SumQuant {
     (sum S: IntSet | min[S.ints]) = 3
-    (sum S: IntSet | max[S.ints]) = 19
-    (sum S: IntSet | #S.ints) = 9
+    (sum S: IntSet | max[S.ints]) = 3
+    (sum S: IntSet | #S.ints) = -7
 
     -- This also checks that sum works with duplicates
     (sum S: IntSet | sum i: S.ints | sum[i]) = 1
 
-    (sum S: IntSet | sum i: S.ints | multiply[sum[i], sum[i]]) = 135
+    -- See the analogous test in forge-functional for the math with overflow
+    (sum S: IntSet | sum i: S.ints | multiply[sum[i], sum[i]]) = 7
 }
 
 

@@ -76,11 +76,11 @@
 
     (int= (sum-quant ([S IntSet])
               (max (join S ints)))
-          (int 19))
+          (int 3))
 
     (int= (sum-quant ([S IntSet])
               (card (join S ints)))
-          (int 9))
+          (int -7))
 
     ; This also checks that sum works with duplicates
     (int= (sum-quant ([S IntSet])
@@ -88,10 +88,11 @@
                   (sum i)))
           (int 1))
 
+    ; See corresponding test file in forge-functional for the math
     (int= (sum-quant ([S IntSet])
               (sum-quant ([i (join S ints)])
                   (multiply (sum i) (sum i))))
-          (int 135)))
+          (int 7)))
 
 
 ; card      set -> int
