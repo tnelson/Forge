@@ -91,7 +91,6 @@
    ; 19, but bitwidth 4 (-7 through 8) 
    (int= (sum-quant ([S IntSet])
                     (max (join S ints)))
-         ;(int 19))
          (int 3))
 
    ; 9, but bitwidth 4 (-8 through 7)

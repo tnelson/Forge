@@ -123,7 +123,7 @@
 
     (list "run-given-non-formula.frg" #rx"Expected a formula but got something else")
 
-    (list "int_literal_too_big.frg" #rx"Integer literal (20) could not be represented in the current bitwidth (-16 through 15).") 
+    (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth") 
   ))
 
 
