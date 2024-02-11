@@ -5,12 +5,21 @@
 (require (prefix-in @ rackunit))
 
 ; Tests for AST node equality, etc.
+; Equality should apply irrespective of source location information.
+
+; Note there is some test-duplication between here and the forge-core version.
+;  DO NOT DELETE ONE IN FAVOR OF THE OTHER (especially without confirming that they are 
+;  in fact identical!)
 
 (@check-equal? univ univ)
 (@check-equal? true true)
 (@check-equal? (join iden iden) (join iden iden))
 (@check-equal? (in (join iden iden) (join iden iden))
                (in (join iden iden) (join iden iden)))
+
+; Quantifier variables (node/expr/quantifier-var) have a "sym" field that should be
+; distinct, even if the variable name is the same. This helps to detect shadowing, etc.
+; But as a result, it is not safe to consider "x" = "x" here.
 (@check-not-equal? (some ([x univ]) (in x x))
                    (some ([x univ]) (in x x)))
 (@check-equal? (some univ)
@@ -46,6 +55,23 @@
 ; Unsafe: small chance will fail since non-equal values may hash the same
 (@check-not-equal? (equal-hash-code univ)
                    (equal-hash-code iden))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Test equality for Sig and Relation nodes across aliasing
+(sig A)
+(sig B)
+(@check-not-equal? A B)
+
+(pred (isA x) (= A x))
+(define isA_B (isA B))
+(@check-true node/formula? isA_B)
+(@check-true node/formula/op? isA_B)
+(printf "~a~n" isA_B)
+;(define isA_B_inner_eq (node/formula/op-children isA_B))
+;(printf isA_B_inner_eq)
+;(@check-equal? A (isA_B)
+
 
 
 
