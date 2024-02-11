@@ -429,14 +429,21 @@
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
-     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang)]
+                   [inner-unsyntax #'unsyntax])
        (quasisyntax/loc stx
          (begin
-           ; use srcloc of actual predicate, not this location in sigs
-           ; "pred spacer" still present, even if no arguments, to consistently record use of a predicate
-           (define name
-             (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))
-           (update-state! (state-add-pred curr-state 'name name)))))]
+           ; - Use a macro in order to capture the location of the _use_.
+           ; For 0-arg predicates, produce the AST node immediately
+           (define-syntax (name stx2)
+             (syntax-parse stx2
+               [name
+                (quasisyntax/loc stx2
+                  ; - "pred spacer" still present, even if no arguments, to consistently record use of a predicate
+                  (let* ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang)]
+                        [ast-node (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...)))])
+                    (update-state! (state-add-pred curr-state 'name ast-node))
+                    ast-node))])) )))]
 
     ; some decls: predicate must be called to evaluate it
     [(pred pt:pred-type
@@ -448,18 +455,14 @@
          (with-syntax ([functionname (format-id #'name "~a/func" #'name)])
            (quasisyntax/loc stx
              (begin
-               ; "pred spacer" added to record use of predicate along with original argument declarations etc.
-               ; Use a macro in order to capture the location of the _use_.
-               ;; TODO: issue that the above (no-args expansion) isn't doing the below
-               ;; TODO: issue that the *state* will store only the predicate will be the function, not the macro, so won't extract stxloc
-               
+               ; - Use a macro in order to capture the location of the _use_.
                (define-syntax (name stx2)
                  (syntax-parse stx2
                    [name
                     (quasisyntax/loc stx2
                       (lambda (decls.name ...)
                         (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang))))]))
-               
+               ; - "pred spacer" added to record use of predicate along with original argument declarations etc.
                (define (functionname decls.name ... #:info [the-info #f])
                  (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
                    (error (format "Argument '~a' to pred ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
