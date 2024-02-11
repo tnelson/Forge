@@ -60,6 +60,8 @@
             (deparse-expr arg 20)]
         [(? node/int?)
             (deparse-int arg 20)]
+        [(? procedure?)
+            (format "(Racket procedure, which is likely an unexpected predicate or function definition: ~a)" arg)]
         [else 
             (format "(COULD-NOT-DEPARSE: ~a)" arg)]))
 

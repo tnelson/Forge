@@ -490,11 +490,24 @@
           (~optional (~seq #:codomain codomain:codomain-class)
                      #:defaults ([codomain.mexpr #'(mexpr (repeat-product univ (node/expr-arity result))
                                                           (if (> (node/expr-arity result) 1) 'set 'one))])))
+
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
-     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
-       #'(begin
-           ; "fun spacer" added to record use of function along with original argument declarations etc.           
-           (define (name decls.name ...)
+
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)]
+                   [functionname (format-id #'name "~a/func" #'name)]
+                   [inner-unsyntax #'unsyntax])
+       (quasisyntax/loc stx
+         (begin
+           ; - create a macro that captures the syntax location of the _use_
+           (define-syntax (name stx2)
+             (syntax-parse stx2
+               [name
+                (quasisyntax/loc stx2
+                  (lambda (decls.name ...)
+                    (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck))))]))
+           
+           ; - "fun spacer" added to record use of function along with original argument declarations etc.           
+           (define (functionname decls.name ... #:info [the-info #f])
              (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
                (error (format "Argument '~a' to fun ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
                               'decls.name 'name decls.name)))
@@ -511,7 +524,7 @@
               (list (apply-record 'decls.name decls.mexpr decls.name) ...)
               codomain.mexpr
               safe-result))
-           (update-state! (state-add-fun curr-state 'name name))))]))
+           (update-state! (state-add-fun curr-state 'name name)))))]))
 
 ; Declare a new constant
 ; (const name value)

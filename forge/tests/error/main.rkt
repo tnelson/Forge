@@ -28,6 +28,11 @@
     (list "expect-predicate-args.frg" #rx"Ill-formed block")
     (list "expect-predicate-no-args.frg" #rx"expect-predicate-no-args.frg:13:45.*Tried to give arguments to a predicate, but it takes none")
 
+    ; TODO: needs switch to raise-forge-error so the proper location is in the message
+    ; (list "expect-fun-args.frg" #rx"Racket procedure, which is likely.*expect-fun-args.frg:11")
+    ; TODO: needs to confirm that equality is irrespective of source location (it should be)
+    ;(list "expect-fun-no-args.frg" #rx"TODO")
+
     ;;;;;;;;;;;;;;;;;;;;;;;;
     
     (list "piecewise-bind-repeat.frg" #rx"rebinding detected")
