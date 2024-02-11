@@ -21,6 +21,15 @@
 
 (define REGISTRY
   (list
+    ;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Some error tests look at the specific source-location blamed
+   
+    ; misuse of predicates and helper functions with arguments/no-arguments
+    (list "expect-predicate-args.frg" #rx"Ill-formed block")
+    (list "expect-predicate-no-args.frg" #rx"expect-predicate-no-args.frg:13:45.*Tried to give arguments to a predicate, but it takes none")
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;
+    
     (list "piecewise-bind-repeat.frg" #rx"rebinding detected")
     (list "piecewise-bind-combine.frg" #rx"may not be combined with complete bounds")
     (list "piecewise-bind-sigs.frg" #rx"would create a relation")
@@ -115,8 +124,6 @@
     (list "expr-in-comprehension-condition.frg" #rx"expected a formula")
     (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
     (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
-    (list "expect-predicate-args.frg" #rx"Ill-formed block")
-    (list "expect-predicate-no-args.frg" #rx"Tried to give arguments to a predicate, but it takes none")
 
     (list "override-wrong-arity.frg" #rx"must have same arity")
     (list "override-no-overlap.frg" #rx"will never override anything")
