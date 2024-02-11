@@ -64,6 +64,24 @@ pred Size4 {
     no   succ.succ.succ.succ.succ.succ.succ.succ.succ.(sing[0])
 }
 
+-- Test one above the default
+pred Size5 {
+    -- max int 15
+    some sing[0].succ.succ.succ.succ.succ.succ.succ
+        .succ.succ.succ.succ.succ.succ.succ.succ
+        
+    no   sing[0].succ.succ.succ.succ.succ.succ.succ.succ
+        .succ.succ.succ.succ.succ.succ.succ.succ
+
+    -- min int -16
+    some  succ.succ.succ.succ.succ.succ.succ.succ.
+          succ.succ.succ.succ.succ.succ.succ.succ.(sing[0])
+
+    no succ.succ.succ.succ.succ.succ.succ.succ.
+       succ.succ.succ.succ.succ.succ.succ.succ.succ.(sing[0])
+}
+
+
 test expect IntSet {
     size1 : Size1 for 1 Int is theorem
     size2 : Size2 for 2 Int is theorem

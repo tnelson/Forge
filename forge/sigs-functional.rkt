@@ -9,7 +9,7 @@
 
 (require racket/contract)
 (require racket/match)
-(require (prefix-in @ (only-in racket max min - display set))
+(require (prefix-in @ (only-in racket max min - display set +))
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
          (only-in racket/list first second range rest empty flatten)
@@ -571,8 +571,12 @@
 
   (define/contract default-bounds Bound?
     (let* ([bitwidth (Scope-bitwidth scope-with-ones)]
-           [max-int (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH)))]
-           [ints (map int-atom (range (@- max-int) max-int))]
+           ; Positive maxint: 2^(bw-1) - 1
+           ; Negative minint: 2^(bw-1)
+           ; Keep in mind range is *exclusive* of upper, hence adding 1 back.
+           [max-int (sub1 (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
+           [min-int (@- (expt 2 (sub1 (or bitwidth DEFAULT-BITWIDTH))))]
+           [ints (map int-atom (range min-int (@+ 1 max-int)))]
            [succs (map list (reverse (rest (reverse ints)))
                        (rest ints))])
       (Bound (hash)
@@ -662,7 +666,12 @@
                   #:name name
                   #:preds preds
                   #:scope scope-input
-                  #:bounds bounds-input))
+                  #:bounds bounds-input
+                  ;#:solver solver
+                  ;#:backend backend
+                  #:target target
+                  ;#:command command
+                  ))
 
 (define/contract (check-from-state state
                                    #:name [name 'unnamed-check]
