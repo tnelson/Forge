@@ -25,6 +25,7 @@
     (list "piecewise-bind-combine.frg" #rx"may not be combined with complete bounds")
     (list "piecewise-bind-sigs.frg" #rx"would create a relation")
     (list "piecewise-bind-mix-ops.frg" #rx"mixed operators not allowed")
+    (list "piecewise_domain_too_big.frg" #rx"Field spouse was bounded for atom")
    
     (list "hidden-wheat.frg" #rx"Invalid binding expression")
    
@@ -120,7 +121,9 @@
     (list "override-wrong-arity.frg" #rx"must have same arity")
     (list "override-no-overlap.frg" #rx"will never override anything")
 
-    (list "run-given-non-formula.frg" #rx"Expected a formula but got something else") 
+    (list "run-given-non-formula.frg" #rx"Expected a formula but got something else")
+
+    (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth") 
   ))
 
 
