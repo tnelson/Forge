@@ -123,7 +123,9 @@
 
     (list "run-given-non-formula.frg" #rx"Expected a formula but got something else")
 
-    (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth") 
+    (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth")
+
+    (list "parsing_less_dash.frg" #rx"Negative numbers must not have blank space between the minus")
   ))
 
 

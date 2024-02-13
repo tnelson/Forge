@@ -530,8 +530,10 @@
       #:attr translate (syntax/loc this-syntax (Expr name)))
     (pattern ((~datum AtomNameOrNumber) "`" name:NameClass)
       #:attr translate (syntax/loc this-syntax (Expr "`" name)))
-    (pattern ((~datum AtomNameOrNumber) (~optional (~and "-" minus-tok)) num:NumberClass)
-      #:attr translate (syntax/loc this-syntax (Expr (Const (~? minus-tok) num)))))
+    ; Negative numbers are now handled in the lexer, so that "- 1" is not transformed to "-1"
+    (pattern ((~datum AtomNameOrNumber) num:NumberClass)
+      #:attr translate
+      (quasisyntax/loc this-syntax (Expr #,(syntax/loc this-syntax (Const num))))))
   
   (define-syntax-class BoundLHSClass
     #:description "left-hand-side of a bind declaration"
@@ -645,8 +647,19 @@
       #:attr translate (syntax/loc this-syntax iden))
     (pattern ((~datum Const) n:NumberClass)
       #:attr translate (syntax/loc this-syntax (int n.value)))
+    ; Negative numbers are now handled in the lexer, so that "- 1" is not translated to "-1"
+    ; Thus, this is now an error as it would indicate that the lexer got this "-" token
+    ; separately from the number.
     (pattern ((~datum Const) "-" n:NumberClass)
-      #:attr translate (quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value))))))
+      #:attr translate
+      ; This production (ConstClass) should not permit "detatched" negatives
+      (with-syntax ([loc (build-source-location (syntax/loc this-syntax #'1))])
+        (quasisyntax/loc this-syntax
+          (raise-forge-error
+           #:msg (format "Negative numbers must not have blank space between the minus sign and the digits (~a)." n.value)
+           #:context loc)))
+      ;(quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value)))))
+    ))
   
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK
