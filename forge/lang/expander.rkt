@@ -1322,8 +1322,12 @@
   [((~datum Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
 
-  [((~datum Expr) name:QualNameClass)   
-   (syntax/loc stx name.name)]
+  ; If the name references an AST node, retain use-site location information
+  ; rather than the location of the declaration
+  [((~datum Expr) name:QualNameClass)
+   (printf "QualNameClass Expr: ~a~n" #'name)
+   (with-syntax ([loc (build-source-location (syntax/loc this-syntax #'1))])
+     (syntax/loc stx (correct-id-loc name.name #:loc loc)))]
    
   [((~datum Expr) "this")
    (syntax/loc stx this)]
@@ -1339,6 +1343,30 @@
 
     [((~datum Expr) sexpr:SexprClass)
      (syntax/loc stx (read sexpr))]))
+
+
+; struct-copy would not retain the sub-struct identity and fields, producing just a node
+; ditto the struct-update-lib library
+; struct-set requires using a special form to create the struct.
+; Fortunately, all we need to deal with here _at this time_ is Sig and Relation structs...
+; *New* instance of the structure, with the same values but a (possibly) new source loc
+(define (correct-id-loc astnode #:loc [loc #f])
+  (printf "correct-id-loc: ~a; ~a~n" astnode loc)
+  (define result
+    (cond [(forge:Sig? astnode)
+           (printf "correct-id-loc(Sig)~n")
+           ; NOTE WELL: this will not work properly for any child structs of Sig, should any exist.
+           ; This does not function, since Sig? has no "node" field directly 
+           ;(struct-copy forge:Sig astnode
+           ;             [info (nodeinfo loc (nodeinfo-lang (node-info astnode)))])
+           (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
+           (forge:Sig new-info
+                (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
+                (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
+                (forge:Sig-one astnode) (forge:Sig-lone astnode) (forge:Sig-abstract astnode) (forge:Sig-extends astnode))]
+          [else astnode]))
+  (printf "result: ~a~n" result)
+  result)
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't

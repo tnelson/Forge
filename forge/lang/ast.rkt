@@ -343,6 +343,7 @@
            ; a macro constructor that captures the syntax location of the call site
            ;  (good for, e.g., test cases + parser)
            (define-syntax (id stx2)
+             (printf "macro: ~a~n" stx2)
              (syntax-case stx2 ()
                 [(_ (#:lang check-lang) e ellip)                
                   (quasisyntax/loc stx2
