@@ -1365,7 +1365,15 @@
                     (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
                     (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
                     (forge:Sig-one astnode) (forge:Sig-lone astnode) (forge:Sig-abstract astnode) (forge:Sig-extends astnode))]
+        [(forge:Relation? astnode)
+         (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
+         (forge:Relation new-info
+                         (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
+                         (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
+                         ;(forge:Relation-name astnode)
+                         (forge:Relation-sigs-thunks astnode) (forge:Relation-breaker astnode))]
         [else astnode]))
+
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't

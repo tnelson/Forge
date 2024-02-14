@@ -21,6 +21,10 @@
 
 (define REGISTRY
   (list
+    ;;;;;;; Source locations ;;;;;;;
+    (list "./loc/sig_use_loc_error.frg" #rx"sig_use_loc_error.frg:7:39") ; vs. reachable
+    (list "./loc/field_use_loc_error.frg" #rx"field_use_loc_error.frg:7:29")   ; vs. reachable
+   
     (list "piecewise-bind-repeat.frg" #rx"rebinding detected")
     (list "piecewise-bind-combine.frg" #rx"may not be combined with complete bounds")
     (list "piecewise-bind-sigs.frg" #rx"would create a relation")
