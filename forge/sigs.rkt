@@ -456,12 +456,19 @@
            (quasisyntax/loc stx
              (begin
                ; - Use a macro in order to capture the location of the _use_.
+               ;(define-syntax (name stx2)
+               ;  (syntax-parse stx2
+               ;    [name
+               ;     (quasisyntax/loc stx2
+               ;       (lambda (decls.name ...)
+               ;         (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang))))]))
+
                (define-syntax (name stx2)
                  (syntax-parse stx2
-                   [name
+                   [(name args (... ...))
                     (quasisyntax/loc stx2
-                      (lambda (decls.name ...)
-                        (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang))))]))
+                      (functionname args (... ...) #:info (nodeinfo
+                                                           (inner-unsyntax (build-source-location stx2)) check-lang)))]))
                ; - "pred spacer" added to record use of predicate along with original argument declarations etc.
                (define (functionname decls.name ... #:info [the-info #f])
                  (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
