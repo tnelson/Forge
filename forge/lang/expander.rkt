@@ -1323,11 +1323,18 @@
    (syntax/loc stx const.translate)]
 
   ; If the name references an AST node, retain use-site location information
-  ; rather than the location of the declaration
+  ; rather than the location of the declaration.
+  ; If it references a _macro_, such as `add`, `max`, etc. *don't* wrap it!
+
   [((~datum Expr) name:QualNameClass)
-   (printf "QualNameClass Expr: ~a~n" #'name)
-   (with-syntax ([loc (build-source-location (syntax/loc this-syntax #'1))])
-     (syntax/loc stx (correct-id-loc name.name #:loc loc)))]
+   (define local-value (syntax-local-value #'name.name (lambda () #f)))
+   ;(printf "local-value for ~a: ~a~n" #'name.name local-value)
+   (if local-value
+       ; if we have a local-value, it's likely a Forge macro or Forge-defined helper procedure
+       (syntax/loc stx name.name)
+       ; otherwise, it's likely an AST node (to be functionally updated with proper syntax location)
+       (with-syntax ([loc (build-source-location (syntax/loc this-syntax #'1))])
+         (syntax/loc stx (correct-id-loc name.name #:loc loc))))]
    
   [((~datum Expr) "this")
    (syntax/loc stx this)]
@@ -1351,22 +1358,14 @@
 ; Fortunately, all we need to deal with here _at this time_ is Sig and Relation structs...
 ; *New* instance of the structure, with the same values but a (possibly) new source loc
 (define (correct-id-loc astnode #:loc [loc #f])
-  (printf "correct-id-loc: ~a; ~a~n" astnode loc)
-  (define result
-    (cond [(forge:Sig? astnode)
-           (printf "correct-id-loc(Sig)~n")
-           ; NOTE WELL: this will not work properly for any child structs of Sig, should any exist.
-           ; This does not function, since Sig? has no "node" field directly 
-           ;(struct-copy forge:Sig astnode
-           ;             [info (nodeinfo loc (nodeinfo-lang (node-info astnode)))])
-           (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
-           (forge:Sig new-info
-                (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
-                (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
-                (forge:Sig-one astnode) (forge:Sig-lone astnode) (forge:Sig-abstract astnode) (forge:Sig-extends astnode))]
-          [else astnode]))
-  (printf "result: ~a~n" result)
-  result)
+  ;(printf "correct-id-loc: ~a; ~a~n" astnode loc)
+  (cond [(forge:Sig? astnode)
+         (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
+         (forge:Sig new-info
+                    (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
+                    (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
+                    (forge:Sig-one astnode) (forge:Sig-lone astnode) (forge:Sig-abstract astnode) (forge:Sig-extends astnode))]
+        [else astnode]))
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't
