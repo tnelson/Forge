@@ -1299,12 +1299,9 @@
 
     
   [((~datum Expr) expr1:ExprClass "[" exprs:ExprListClass "]")
-   (define result
      (with-syntax ([expr1 (my-expand #'expr1)]
                    [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
-       (syntax/loc stx (expr1 exprs ...))))
-   ;(printf "result: ~a~n" result)
-   result]
+       (syntax/loc stx (expr1 exprs ...)))]
 
   [((~datum Expr) "~" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
