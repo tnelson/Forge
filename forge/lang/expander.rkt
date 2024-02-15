@@ -44,6 +44,14 @@
 
   (make-token abstract-tok "abstract" #:abstract))
 
+; Used because we sometimes need to evaluate "inside-out" while expanding
+; macros "outside-in". The list of symbols are the "stop locations".
+; This, if we ever add more macros, they need to be added here (unless
+; they can be safely expanded as just themselves?)
+
+; TODO: why is lack of "prime" not breaking something? Is this only ops meant
+; to be used with [] or that have >1 argument?
+
 (define-for-syntax (my-expand stx)
   (define core-funcs-and-macros
     (map (curry datum->syntax stx)
@@ -54,7 +62,7 @@
            int< int> int= int>= int<=
            add subtract multiply divide sign abs remainder
            card sum sing succ max min sum-quant
-           node/int/constant
+           node/int/constant 
            let)))
 
   (define result (local-expand stx 'expression core-funcs-and-macros))
@@ -1289,10 +1297,14 @@
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (name exprs ...)))]
 
+    
   [((~datum Expr) expr1:ExprClass "[" exprs:ExprListClass "]")
-   (with-syntax ([expr1 (my-expand #'expr1)]
-                 [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
-     (syntax/loc stx (expr1 exprs ...)))]
+   (define result
+     (with-syntax ([expr1 (my-expand #'expr1)]
+                   [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
+       (syntax/loc stx (expr1 exprs ...))))
+   ;(printf "result: ~a~n" result)
+   result]
 
   [((~datum Expr) "~" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])

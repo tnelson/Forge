@@ -118,7 +118,7 @@ test expect ExpressionOperators {
     autoConvertIntFun : {canConvertIntExprNullary <= #Node} is theorem
     autoConvertIntFun_args : {canConvertIntExprUnary[Node] <= #Node} is theorem
 
-    -- Regression test for last-checker/join/spacer issue; Jan 05 2023
+    -- Regression test for last-checker/join/spacer issue; Jan 05 2024
     regression_join_on_spacer : {
         some n: Node | { 
             some forceSpacerAroundNode[n].edges
