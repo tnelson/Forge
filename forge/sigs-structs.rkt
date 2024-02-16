@@ -44,6 +44,7 @@
 ; Forge-specific information, which often leads to added
 ; constraints.
 
+; DO NOT EXTEND THIS SIG
 (struct Sig node/expr/relation (
   name ; symbol?
   one ; boolean?
@@ -55,6 +56,7 @@
   [(define (write-proc self port mode)
      (fprintf port "(Sig ~a)" (Sig-name self)))])
 
+; DO NOT EXTEND THIS SIG
 (struct Relation node/expr/relation (
   name ; symbol?
   sigs-thunks ; (listof (-> Sig?))
@@ -138,7 +140,9 @@
 ; A Target describes the goal of a target-oriented model-finding run.
 (struct/contract Target (
   [instance (hash/c symbol? (listof (listof symbol?)))]
-  [distance (or/c 'close 'far)]
+  ; This is not the same as option target_mode, which provides a global default.
+  ; Rather, this is per target.
+  [distance (or/c 'close_noretarget 'far_noretarget 'close_retarget 'far_retarget 'hamming_cover)]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -264,7 +268,8 @@
         'min_tracelength exact-positive-integer?
         'max_tracelength exact-positive-integer?
         'problem_type symbol?
-        'target_mode symbol?
+        'target_mode (lambda (x)
+                       (member x '(close_noretarget far_noretarget close_retarget far_retarget hamming_cover)))
         'core_minimization symbol?
         'skolem_depth exact-integer?
         'local_necessity symbol?

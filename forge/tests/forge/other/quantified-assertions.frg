@@ -53,3 +53,12 @@ assert all r1, r2 : Node | bothRoots[r1, r2] is sufficient for arethesame[r1, r2
 // Ensure disj works
 assert all disj r1, r2 : Node | arethesame[r1, r2] is necessary for arethesame[r1, r2]  for 1 Node
 assert all disj r1, r2 : Node | isRoot[r1] is sufficient for isNotRoot[r2] 
+
+// Ensure that these with quantifiers work with test suite 
+test suite for isDirectedTree {
+    assert all x : Node | isDirectedTree is necessary for isDirectedTree
+}
+// Ensure that it's OK for the suite to be for a predicate with arguments, which we quantify over
+test suite for isRoot {
+    assert all r1, r2 : Node | isRoot[r1] is sufficient for isRoot[r1]
+}

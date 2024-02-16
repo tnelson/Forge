@@ -100,7 +100,7 @@ QuantifiedPropertyDecl : /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK N
 
 TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
 
-@TestConstruct : ExampleDecl | TestExpectDecl | PropertyDecl
+@TestConstruct : ExampleDecl | TestExpectDecl | PropertyDecl | QuantifiedPropertyDecl
 
 
 # UnOp : Mult

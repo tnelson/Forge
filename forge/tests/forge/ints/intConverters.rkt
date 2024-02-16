@@ -27,6 +27,29 @@ pred Sing {
     no sing[7].succ
 }
 
+-- Confirm this functions with implicit conversion as well;
+--   (the implicit conversion suite doesn't use negatives or test the full spectrum of ints itself)
+pred ImplicitSingWithNegatives {
+    no succ.(-8)
+    -8.succ = -7
+    -7.succ = -6
+    -6.succ = -5
+    -5.succ = -4
+    -4.succ = -3
+    -3.succ = -2
+    -2.succ = -1
+    -1.succ = 0
+    0.succ = 1
+    1.succ = 2
+    2.succ = 3
+    3.succ = 4
+    4.succ = 5
+    5.succ = 6
+    6.succ = 7
+    no 7.succ
+}
+
+
 
 abstract sig IntSet {
     ints: set Int
@@ -56,18 +79,19 @@ pred Sum {
     sum[S2.ints] = 6
     sum[S3.ints] = 6
     sum[S4.ints] = -3
-    sum[S5.ints] = 8
+    sum[S5.ints] = -8 -- overflow
 }
 
 pred SumQuant {
     (sum S: IntSet | min[S.ints]) = 3
-    (sum S: IntSet | max[S.ints]) = 19
-    (sum S: IntSet | #S.ints) = 9
+    (sum S: IntSet | max[S.ints]) = 3
+    (sum S: IntSet | #S.ints) = -7
 
     -- This also checks that sum works with duplicates
     (sum S: IntSet | sum i: S.ints | sum[i]) = 1
 
-    (sum S: IntSet | sum i: S.ints | multiply[sum[i], sum[i]]) = 135
+    -- See the analogous test in forge-functional for the math with overflow
+    (sum S: IntSet | sum i: S.ints | multiply[sum[i], sum[i]]) = 7
 }
 
 
@@ -127,6 +151,7 @@ pred MaxMin {
 
 test expect {
     sings : Sing for 4 Int, 5 IntSet is theorem
+    implicit_sings : ImplicitSingWithNegatives for 4 Int, 5 IntSet is theorem
     sums : Sum for 5 IntSet for SumInst is theorem
     sumQuants : SumQuant for 5 IntSet for SumInst is theorem
     cards : Card for 5 IntSet for CardInst is theorem

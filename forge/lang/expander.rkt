@@ -530,8 +530,10 @@
       #:attr translate (syntax/loc this-syntax (Expr name)))
     (pattern ((~datum AtomNameOrNumber) "`" name:NameClass)
       #:attr translate (syntax/loc this-syntax (Expr "`" name)))
-    (pattern ((~datum AtomNameOrNumber) (~optional (~and "-" minus-tok)) num:NumberClass)
-      #:attr translate (syntax/loc this-syntax (Expr (Const (~? minus-tok) num)))))
+    ; Negative numbers are now handled in the lexer, so that "- 1" is not transformed to "-1"
+    (pattern ((~datum AtomNameOrNumber) num:NumberClass)
+      #:attr translate
+      (quasisyntax/loc this-syntax (Expr #,(syntax/loc this-syntax (Const num))))))
   
   (define-syntax-class BoundLHSClass
     #:description "left-hand-side of a bind declaration"
@@ -645,8 +647,19 @@
       #:attr translate (syntax/loc this-syntax iden))
     (pattern ((~datum Const) n:NumberClass)
       #:attr translate (syntax/loc this-syntax (int n.value)))
+    ; Negative numbers are now handled in the lexer, so that "- 1" is not translated to "-1"
+    ; Thus, this is now an error as it would indicate that the lexer got this "-" token
+    ; separately from the number.
     (pattern ((~datum Const) "-" n:NumberClass)
-      #:attr translate (quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value))))))
+      #:attr translate
+      ; This production (ConstClass) should not permit "detatched" negatives
+      (with-syntax ([loc (build-source-location (syntax/loc this-syntax #'1))])
+        (quasisyntax/loc this-syntax
+          (raise-forge-error
+           #:msg (format "Negative numbers must not have blank space between the minus sign and the digits (~a)." n.value)
+           #:context loc)))
+      ;(quasisyntax/loc this-syntax (int #,(* -1 (syntax->datum #'n.value)))))
+    ))
   
   ; ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
   ;         | STAR-TOK
@@ -1309,8 +1322,19 @@
   [((~datum Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
 
-  [((~datum Expr) name:QualNameClass)   
-   (syntax/loc stx name.name)]
+  ; If the name references an AST node, retain use-site location information
+  ; rather than the location of the declaration.
+  ; If it references a _macro_, such as `add`, `max`, etc. *don't* wrap it!
+
+  [((~datum Expr) name:QualNameClass)
+   (define local-value (syntax-local-value #'name.name (lambda () #f)))
+   ;(printf "local-value for ~a: ~a~n" #'name.name local-value)
+   (if local-value
+       ; if we have a local-value, it's likely a Forge macro or Forge-defined helper procedure
+       (syntax/loc stx name.name)
+       ; otherwise, it's likely an AST node (to be functionally updated with proper syntax location)
+       (with-syntax ([loc (build-source-location (syntax/loc this-syntax #'1))])
+         (syntax/loc stx (correct-id-loc name.name #:loc loc))))]
    
   [((~datum Expr) "this")
    (syntax/loc stx this)]
@@ -1326,6 +1350,30 @@
 
     [((~datum Expr) sexpr:SexprClass)
      (syntax/loc stx (read sexpr))]))
+
+
+; struct-copy would not retain the sub-struct identity and fields, producing just a node
+; ditto the struct-update-lib library
+; struct-set requires using a special form to create the struct.
+; Fortunately, all we need to deal with here _at this time_ is Sig and Relation structs...
+; *New* instance of the structure, with the same values but a (possibly) new source loc
+(define (correct-id-loc astnode #:loc [loc #f])
+  ;(printf "correct-id-loc: ~a; ~a~n" astnode loc)
+  (cond [(forge:Sig? astnode)
+         (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
+         (forge:Sig new-info
+                    (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
+                    (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
+                    (forge:Sig-one astnode) (forge:Sig-lone astnode) (forge:Sig-abstract astnode) (forge:Sig-extends astnode))]
+        [(forge:Relation? astnode)
+         (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
+         (forge:Relation new-info
+                         (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
+                         (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
+                         ;(forge:Relation-name astnode)
+                         (forge:Relation-sigs-thunks astnode) (forge:Relation-breaker astnode))]
+        [else astnode]))
+
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't
