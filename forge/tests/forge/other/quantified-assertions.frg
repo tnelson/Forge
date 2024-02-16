@@ -31,6 +31,20 @@ pred arethesame [x : Node, y : Node] {
     x = y
 }
 
+
+pred isTwo [x : Int] {
+    x = 2
+}
+
+pred sameNumber [x : Int, y : Int] {
+    x = y
+}
+
+
+test suite for isTwo {
+    assert all x : Int | isTwo[x] is necessary for sameNumber[x, 2]
+}
+
 // Quantified variables do not need to be used 
 assert all r1, r2 : Node | isDirectedTree is sufficient for isDirectedTree
 
