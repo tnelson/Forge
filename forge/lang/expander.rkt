@@ -366,18 +366,18 @@
               (~optional (~and "disj" -disj))
               -quant-decls:DeclListClass
               -prop-name:NameClass
-              (~optional -prop-exprs:NameListClass)
+              (~optional -prop-exprs:ExprListClass)
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
-              (~optional -pred-exprs:NameListClass)
+              (~optional -pred-exprs:ExprListClass)
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
       #:with disj (if (attribute -disj) (string->symbol (syntax-e #'-disj)) '())
       #:with quant-decls #'-quant-decls.translate
       #:with prop-name #'-prop-name.name
       #:with pred-name #'-pred-name.name
-      #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.names ...) #'()) 
-      #:with prop-exprs (if (attribute -prop-exprs) #'(-prop-exprs.names ...) #'())
+      #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.exprs ...) #'()) 
+      #:with prop-exprs (if (attribute -prop-exprs)  #'(-prop-exprs.exprs ...) #'())
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
@@ -998,7 +998,7 @@
 (define-syntax (QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
-    ;;;#:do [(printf "QuantifiedPropertyDeclClass: ~a~n" (syntax->datum #'qpd))]
+    #:do [(printf "QuantifiedPropertyDeclClass.PropExprs: ~a~n" (syntax->datum #'qpd.prop-exprs))]
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)))]
           [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
