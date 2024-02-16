@@ -43,6 +43,8 @@ pred sameNumber [x : Int, y : Int] {
 
 test suite for isTwo {
     assert all x : Int | isTwo[x] is necessary for sameNumber[x, 2]
+
+    assert all x : Int | isTwo[x] is necessary for sameNumber[x, add[1, 1]]
 }
 
 
