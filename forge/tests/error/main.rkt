@@ -35,6 +35,10 @@
 
     ;;;;;;;;;;;;;;;;;;;;;;;;
     
+    ;;;;;;; Source locations ;;;;;;;
+    (list "./loc/sig_use_loc_error.frg" #rx"sig_use_loc_error.frg:7:39") ; vs. reachable
+    (list "./loc/field_use_loc_error.frg" #rx"field_use_loc_error.frg:7:29")   ; vs. reachable
+   
     (list "piecewise-bind-repeat.frg" #rx"rebinding detected")
     (list "piecewise-bind-combine.frg" #rx"may not be combined with complete bounds")
     (list "piecewise-bind-sigs.frg" #rx"would create a relation")
@@ -135,7 +139,9 @@
 
     (list "run-given-non-formula.frg" #rx"Expected a formula but got something else")
 
-    (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth") 
+    (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth")
+
+    (list "parsing_less_dash.frg" #rx"Negative numbers must not have blank space between the minus")
   ))
 
 
