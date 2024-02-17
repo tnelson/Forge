@@ -2,7 +2,8 @@
 
 ; Confirm that source locations are indeed preserved in case they are needed for errors.
 
-(require (rename-in rackunit [check rackunit-check]))
+(require (rename-in rackunit [check rackunit-check])
+         (only-in rackunit check-true check-equal? check-not-eq?))
 (require (only-in racket flatten first string-contains?))
 
 ; Returns a list of all AST nodes in this tree
@@ -77,3 +78,28 @@
 
 ;; TODO: check run parameters as well (catch instances...) 
 ;; TODO: other examples
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check source locations for a specific example
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(require "sigs_fields_preds_funs.frg")
+(check-true (node? Providence))
+(check-true (node? reachableFromProvidence))
+(define usePvd (first (node/expr/op-children reachableFromProvidence)))
+(check-true (node? usePvd))
+
+;; SIG ;;
+; Use and declaration considered equal
+(check-equal? Providence usePvd)
+; but not referentially equal
+(check-not-eq? Providence usePvd)
+; and have different source locations
+(check-not-equal? (nodeinfo-loc (node-info Providence))
+                  (nodeinfo-loc (node-info usePvd)))
+;; FIELD ;;
+
+;; PRED ;;
+
+;; FUN ;;
