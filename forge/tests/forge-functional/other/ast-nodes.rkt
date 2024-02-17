@@ -57,27 +57,7 @@
                    (equal-hash-code iden))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Test equality for Sig and Relation nodes across aliasing
-(sig A)
-(sig B)
-(@check-not-equal? A B)
-(@check-true (node/expr? A))
-
-(pred (isA x) (= A x))
-(define isA_B (isA B))
-(@check-true (node/formula? isA_B))
-(@check-true (node/fmla/pred-spacer? isA_B))
-
-;; remove the spacer and enclosing &&, etc.
-(define isA_B_inner_eq (first (node/formula/op-children (node/fmla/pred-spacer-expanded isA_B))))
-(define use_A (first (node/formula/op-children isA_B_inner_eq)))
-; definition node and use node are considered equal
-(@check-equal? A use_A)
-; but they carry different location information
-(@check-not-equal? (srcloc-line (nodeinfo-loc (node-info A))) 
-                   (srcloc-line (nodeinfo-loc (node-info use_A))))
-
-
-
-
+; Not testing equality for sig/relation nodes across aliasing here,
+; since that's only done in the Forge expander at the moment.
+; In forge/core, syntax location must be modified manually.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
