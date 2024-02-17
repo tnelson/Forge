@@ -31,6 +31,28 @@ pred arethesame [x : Node, y : Node] {
     x = y
 }
 
+
+pred isTwo [x : Int] {
+    x = 2
+}
+
+pred sameNumber [x : Int, y : Int] {
+    x = y
+}
+
+
+test suite for isTwo {
+    assert all x : Int | isTwo[x] is necessary for sameNumber[x, 2]
+
+    //Testing expressions
+    assert all x : Int | isTwo[x] is necessary for sameNumber[x, add[1, 1]]
+    assert all x : Int | isTwo[x] is sufficient for sameNumber[x,  (x = 2) => add[1, 1] else 3]
+    assert all x : Int | isTwo[x] is sufficient for sameNumber[x,  { y : Int | y = 2} & { z : Int | z > 1}]
+}
+
+
+
+
 // Quantified variables do not need to be used 
 assert all r1, r2 : Node | isDirectedTree is sufficient for isDirectedTree
 
@@ -53,3 +75,12 @@ assert all r1, r2 : Node | bothRoots[r1, r2] is sufficient for arethesame[r1, r2
 // Ensure disj works
 assert all disj r1, r2 : Node | arethesame[r1, r2] is necessary for arethesame[r1, r2]  for 1 Node
 assert all disj r1, r2 : Node | isRoot[r1] is sufficient for isNotRoot[r2] 
+
+// Ensure that these with quantifiers work with test suite 
+test suite for isDirectedTree {
+    assert all x : Node | isDirectedTree is necessary for isDirectedTree
+}
+// Ensure that it's OK for the suite to be for a predicate with arguments, which we quantify over
+test suite for isRoot {
+    assert all r1, r2 : Node | isRoot[r1] is sufficient for isRoot[r1]
+}

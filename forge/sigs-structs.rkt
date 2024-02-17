@@ -44,6 +44,7 @@
 ; Forge-specific information, which often leads to added
 ; constraints.
 
+; DO NOT EXTEND THIS SIG
 (struct Sig node/expr/relation (
   name ; symbol?
   one ; boolean?
@@ -55,6 +56,7 @@
   [(define (write-proc self port mode)
      (fprintf port "(Sig ~a)" (Sig-name self)))])
 
+; DO NOT EXTEND THIS SIG
 (struct Relation node/expr/relation (
   name ; symbol?
   sigs-thunks ; (listof (-> Sig?))

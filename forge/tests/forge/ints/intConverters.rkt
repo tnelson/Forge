@@ -27,6 +27,29 @@ pred Sing {
     no sing[7].succ
 }
 
+-- Confirm this functions with implicit conversion as well;
+--   (the implicit conversion suite doesn't use negatives or test the full spectrum of ints itself)
+pred ImplicitSingWithNegatives {
+    no succ.(-8)
+    -8.succ = -7
+    -7.succ = -6
+    -6.succ = -5
+    -5.succ = -4
+    -4.succ = -3
+    -3.succ = -2
+    -2.succ = -1
+    -1.succ = 0
+    0.succ = 1
+    1.succ = 2
+    2.succ = 3
+    3.succ = 4
+    4.succ = 5
+    5.succ = 6
+    6.succ = 7
+    no 7.succ
+}
+
+
 
 abstract sig IntSet {
     ints: set Int
@@ -128,6 +151,7 @@ pred MaxMin {
 
 test expect {
     sings : Sing for 4 Int, 5 IntSet is theorem
+    implicit_sings : ImplicitSingWithNegatives for 4 Int, 5 IntSet is theorem
     sums : Sum for 5 IntSet for SumInst is theorem
     sumQuants : SumQuant for 5 IntSet for SumInst is theorem
     cards : Card for 5 IntSet for CardInst is theorem
