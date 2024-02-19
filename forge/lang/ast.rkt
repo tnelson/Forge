@@ -1173,7 +1173,7 @@
 (define (pretty-loc loc)
   (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc)))
 
-(define (raise-forge-error #:msg [msg "error"] #:context [context #f])  
+(define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])  
   (define loc (cond                
                 [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]
                 ; Wheats/chaffs have their inner formula in the info field
@@ -1183,5 +1183,7 @@
                 [(srcloc? context) (pretty-loc context)]
                 [(syntax? context) (pretty-loc (build-source-location context))]                    
                 [else "unknown:?:?"]))
-  (raise-user-error (format "[~a] ~a" loc msg)))
+  (if raise? 
+      (raise-user-error (format "[~a] ~a" loc msg))
+      (printf "[~a] ~a" loc msg)))
 

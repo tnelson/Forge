@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require (only-in racket/function thunk)
-         (only-in racket/list first rest empty empty? flatten)
+         (only-in racket/list first rest empty empty? flatten remove-duplicates)
          (only-in racket/pretty pretty-print)
          (prefix-in @ (only-in racket/base display max min - +)) 
          (prefix-in @ racket/set)
@@ -587,11 +587,12 @@
            #,(syntax/loc stx (run name args ...))
            (define first-instance (tree:get-value (Run-result name)))
            (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
-             (when (> (get-verbosity) 0)
-               (printf "Unexpected result found, with statistics and metadata:~n")
-               (pretty-print first-instance))
-             (display name) ;; Display in Sterling since the test failed.
-             (raise-forge-error
+             ;(when (> (get-verbosity) 0)
+             ;  (printf "Unexpected result found, with statistics and metadata:~n")
+             ;  (pretty-print first-instance))
+             ;(display name) ;; Display in Sterling since the test failed.
+             (report-test-failure
+              #:name 'name
               #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
                             'name 'expected (if (Sat? first-instance) 'sat 'unsat)
                             (if (Sat? first-instance)
@@ -599,23 +600,28 @@
                                 (if (Unsat-core first-instance)
                                     (format " Core: ~a" (Unsat-core first-instance))
                                     "")))
-              #:context loc))
+              #:context loc
+              #:instance first-instance
+              #:run name))
            (close-run name)]
 
           [(equal? 'expected 'theorem)          
            #,(syntax/loc stx (check name args ...))
            (define first-instance (tree:get-value (Run-result name)))
            (when (Sat? first-instance)
-             (when (> (get-verbosity) 0)
-               (printf "Instance found, with statistics and metadata:~n")
-               (pretty-print first-instance))
-             (display name) ;; Display in sterling since the test failed.
-             (raise-forge-error #:msg (format "Theorem ~a failed. Found instance:~n~a"
-                                              'name first-instance)
-                                #:context loc))
+             ;(when (> (get-verbosity) 0)
+             ;  (printf "Instance found, with statistics and metadata:~n")
+             ;  (pretty-print first-instance))
+             ;(display name) ;; Display in sterling since the test failed.
+             (report-test-failure #:name 'name
+                                  #:msg (format "Theorem ~a failed. Found instance:~n~a"
+                                                'name first-instance)
+                                  #:context loc
+                                  #:instance first-instance
+                                  #:run name))
            (close-run name)]
 
-          [else (raise-forge-error
+          [else (raise-forge-error                 
                  #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
                                'expected)
                  #:context loc)]))))]))
@@ -635,13 +641,17 @@
            #,(syntax/loc stx (run double-check #:preds [] #:bounds [bounds ...]))
            (define double-check-instance (tree:get-value (Run-result double-check)))
            (if (Sat? double-check-instance)
-               (raise-forge-error #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
-                                  #:context #,(build-source-location stx))
-               (raise-forge-error #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+                                  #:context #,(build-source-location stx)
+                                  #:instance first-instance
+                                  #:run name)
+               (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
                                                                "This means that the specified bounds conflict with each other "
                                                                "or with the sig/relation definitions.")
                                                 'name)
-                                  #:context #,(build-source-location stx)))))))]))
+                                  #:context #,(build-source-location stx)
+                                  #:instance first-instance
+                                  #:run name))))))]))
 
 ; Checks that some predicates are always true.
 ; (check name
@@ -965,3 +975,52 @@
           #:msg (format "Field argument given to reachable is not a field: ~a" (deparse r))
           #:context r)))
        (+/info (nodeinfo loc 'checklangNoCheck) (first r-or-rs) (union-relations loc (rest r-or-rs)))]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Infrastructure for handling multiple test failures / multiple runs
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(struct test-failure (name msg context instance run))
+
+(define delayed-test-failures null)                                                      
+
+(define (reset-test-failures!) (set! delayed-test-failures null))
+(define delay-test-failure-reporting? (make-parameter #t))
+
+; Record (or report, depending on the value of the delay-test-failure-reporting?
+; parameter) a test failure. 
+(define (report-test-failure #:name name #:msg msg #:context context #:instance [instance #f] #:run run)
+  (cond [(delay-test-failure-reporting?)
+         (printf "Test ~a failed. Continuing to run, and will report details at the end.~n" name)
+         (set! delayed-test-failures (cons (test-failure name msg context instance run)
+                                           delayed-test-failures))]
+        [else
+         (raise-forge-error #:msg msg #:context context)]))
+
+(define (output-all-test-failures)
+  ; In order, for each failure:  
+  (define failures (remove-duplicates (reverse delayed-test-failures)))
+  (unless (empty? failures)
+    (printf "~nSome tests failed. Reporting failures in order.~n~n"))
+  (for ([failure failures])
+    (define-values (name msg context instance run)
+      (values (test-failure-name failure)    (test-failure-msg failure)
+              (test-failure-context failure) (test-failure-instance failure)
+              (test-failure-run failure)))
+        
+    ; Print the error (don't raise an actual exception)
+    (define sterling-or-instance (if (equal? (get-option run 'run_sterling) 'off)
+                                     (format "Sterling disabled, so reporting raw instance data:~n~a" instance)
+                                     "Running Sterling to show instance (or unsat) generated..."))
+    (raise-forge-error #:msg (format "Test ~a failed. ~a~n~n" name sterling-or-instance)
+                       #:context context
+                       #:raise? #f)
+    ; Display in Sterling (if run_sterling is enabled)
+    (true-display run))
+  
+  ; Return to empty-failure-list state.
+  (reset-test-failures!))
+
+(provide output-all-test-failures
+         report-test-failure
+         reset-test-failures!)
