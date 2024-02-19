@@ -44,6 +44,7 @@
 ;     * node/formula/sealed
 ;       * wheat
 ;   * node/int -- integer expression
+;     * node/int/sum-quant -- sum "quantified" form
 ;     * node/int/op (children)
 ;       * node/int/op/add
 ;       * ...
