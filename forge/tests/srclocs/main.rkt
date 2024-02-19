@@ -2,8 +2,9 @@
 
 ; Confirm that source locations are indeed preserved in case they are needed for errors.
 
-(require (rename-in rackunit [check rackunit-check]))
-(require (only-in racket flatten first string-contains?))
+(require (rename-in rackunit [check rackunit-check])
+         (only-in rackunit check-true check-equal? check-not-eq?))
+(require (only-in racket flatten first second string-contains?))
 
 ; Returns a list of all AST nodes in this tree
 (define (gather-tree n #:leafs-only leafs-only)
@@ -77,3 +78,47 @@
 
 ;; TODO: check run parameters as well (catch instances...) 
 ;; TODO: other examples
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check source locations for a specific example
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(require "sigs_fields_preds_funs.frg")
+(check-true (node? Providence))
+(check-true (node? reachableFromProvidence)) ; Providence.^(edges1+edges2)
+
+(define usePvd (first (node/expr/op-children reachableFromProvidence)))
+(check-true (node? usePvd))
+(define useEdges1 (first (node/expr/op-children
+                          (first (node/expr/op-children
+                                  (second (node/expr/op-children reachableFromProvidence)))))))
+(check-true (node? useEdges1))
+
+
+;; SIG ;;
+; Use and declaration considered equal
+(check-equal? Providence usePvd)
+; but not referentially equal
+(check-not-eq? Providence usePvd)
+; and have different source locations
+(check-not-equal? (nodeinfo-loc (node-info Providence))
+                  (nodeinfo-loc (node-info usePvd)))
+;; FIELD ;;
+; Use and declaration considered equal
+(check-equal? edges1 useEdges1)
+; but not referentially equal
+(check-not-eq? edges1 useEdges1)
+; and have different source locations
+(check-not-equal? (nodeinfo-loc (node-info edges1))
+                  (nodeinfo-loc (node-info useEdges1)))
+
+;; PRED ;;
+(define pvdReachesEverything (reachesEverything Providence))
+(check-true (node? pvdReachesEverything))
+(printf "~a~n" (nodeinfo-loc (node-info pvdReachesEverything)))
+
+;; FUN ;;
+(define twoHopsFromProvidence (twoHopsAway Providence))
+(check-true (node? twoHopsFromProvidence))
+(printf "~a~n" (nodeinfo-loc (node-info twoHopsFromProvidence)))
