@@ -44,11 +44,11 @@
 ;     * node/formula/sealed
 ;       * wheat
 ;   * node/int -- integer expression
+;     * node/int/sum-quant -- sum "quantified" form
 ;     * node/int/op (children)
 ;       * node/int/op/add
 ;       * ...
 ;     * node/int/constant (value) -- int constant
-;   * node/unknown -- delayed binding of identifiers for predicates and functions
 ;; -----------------------------------------------------------------------------
 
 ; Struct to hold metadata about an AST node (like source location)
