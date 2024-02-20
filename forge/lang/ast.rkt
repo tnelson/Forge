@@ -1185,5 +1185,5 @@
                 [else "unknown:?:?"]))
   (if raise? 
       (raise-user-error (format "[~a] ~a" loc msg))
-      (printf "[~a] ~a" loc msg)))
+      (fprintf (current-error-port) "[~a] ~a" loc msg)))
 

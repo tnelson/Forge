@@ -1001,7 +1001,7 @@
   ; In order, for each failure:  
   (define failures (remove-duplicates (reverse delayed-test-failures)))
   (unless (empty? failures)
-    (printf "~nSome tests failed. Reporting failures in order.~n~n"))
+    (printf "~nSome tests failed. Reporting failures in order.~n~n" ))
   (for ([failure failures])
     (define-values (name msg context instance run)
       (values (test-failure-name failure)    (test-failure-msg failure)
