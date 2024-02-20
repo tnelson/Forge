@@ -1012,7 +1012,7 @@
     (define sterling-or-instance (if (equal? (get-option run 'run_sterling) 'off)
                                      (format "Sterling disabled, so reporting raw instance data:~n~a" instance)
                                      "Running Sterling to show instance (or unsat) generated..."))
-    (raise-forge-error #:msg (format "Test ~a failed. ~a~n~n" name sterling-or-instance)
+    (raise-forge-error #:msg (format "~a ~a~n~n" msg sterling-or-instance)
                        #:context context
                        #:raise? #f)
     ; Display in Sterling (if run_sterling is enabled)
