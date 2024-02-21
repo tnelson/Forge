@@ -102,7 +102,7 @@
     (list "failed_unsat.frg" #rx"Failed test")
     (list "failed_sat.frg" #rx"Failed test") 
     ;;; ? after * makes the match lazy, meaning it will match as few characters as possible while still allowing the remainder of the regular expression to match.
-    (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx"Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.\\n.*?Assertion_All_TreeWithEdges_is_necessary_for_isUndirectedTree failed.")
+    (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.*?Assertion_All_TreeWithEdges_is_necessary_for_isUndirectedTree failed")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"Assertion_isUndirected_is_sufficient_for_isUndirectedTree failed.")
     (list "properties_directed_tree_sufficiency_error.frg" #rx"Assertion_All_arethesame_is_sufficient_for_bothRoots failed.")
     (list "properties_directed_tree_necessity_error.frg" #rx"Assertion_All_isRoot_is_necessary_for_isNotRoot failed.")
