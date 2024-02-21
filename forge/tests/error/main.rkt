@@ -13,7 +13,8 @@
 (require
   rackunit
   (only-in rackunit/text-ui run-tests)
-  racket/runtime-path)
+  racket/runtime-path
+  racket/port)
 
 (define-runtime-path here ".")
 
@@ -142,11 +143,22 @@
     (define test-name (car test+pred*))
     (define pred (cadr test+pred*))
     (printf "run test: ~a~n" test-name)
+    
+    
     (with-check-info*
       (list (make-check-name test-name))
       (lambda ()
-        (check-exn pred (lambda () (re-raise-strings (run-error-test test-name))))))
+        (check-exn pred (lambda ()
+                          (define mocked-stderr (open-output-string))
+                          (parameterize ([current-error-port mocked-stderr])
+                            ; run test-name, and if a non-exception was raised, raise it as a user-error
+                            (re-raise-strings (run-error-test test-name))
+                            ; If we reach this point, no exception was raised. Thus, look in mocked stderr
+                            (re-raise-strings (raise (get-output-string mocked-stderr)))
+                            ; will also fail b/c not exception
+                            )))))
     (void)))
+
 
 (define (run-error-test test-name)
   (parameterize ([current-namespace (make-base-empty-namespace)]

@@ -133,13 +133,14 @@
 
                   ;; Declare submodule "execs". Macros like "test" or "run" etc. will add to
                   ;; this submodule.
+                  ;; TODO: is this line now unnecessary, since the following line declares execs?
                   (module+ execs)
+                  ; After execution of execs, print test failures (if any)
+                  (module+ execs (output-all-test-failures))
                   ;; Declare submodule "main"
                   (module+ main
                     ; Invoke the execs submodule
-                    (require (submod ".." execs))
-                    ; After execution of execs, print test failures (if any)
-                    (output-all-test-failures))                                    
+                    (require (submod ".." execs)))                                    
                   
                   (log:flush-logs ',compile-time "no-error")))
 
