@@ -65,7 +65,7 @@
         (if (not (subset? (list->set (car type)) domain-types-unfolded))
             (raise-forge-error
             #:msg (format "The sig(s) given as an argument to predicate ~a are of incorrect type" name)
-            #:context info)
+            #:context (apply-record-arg (list-ref args (cadr type))))
             (void)))
     (checkFormula run-or-state expanded quantvars checker-hash)]
     
