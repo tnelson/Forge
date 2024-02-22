@@ -43,13 +43,13 @@
                   
                   ;; Declare submodule "execs". Macros like "test" or "run" etc. will add to
                   ;; this submodule.
-                  (module+ execs)
+                  (module+ execs (output-all-test-failures))
                   ;; Declare submodule "main"
                   (module+ main
                     ; Invoke the execs submodule
                     (require (submod ".." execs))
                     ; After execution of execs, print test failures (if any)
-                    (output-all-test-failures))
+                    )
                   (log:flush-logs ',compile-time "no-error")))
 
   (define module-datum `(module forge-mod forge/lang/expander

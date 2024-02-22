@@ -111,6 +111,7 @@
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "hello.frg" #rx"parsing error")
+    (list "bsl_multiple_failures.frg" #rx".*?Failed test t1.*?Failed test t2")
     
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
