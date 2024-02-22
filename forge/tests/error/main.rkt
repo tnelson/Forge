@@ -13,7 +13,8 @@
 (require
   rackunit
   (only-in rackunit/text-ui run-tests)
-  racket/runtime-path)
+  racket/runtime-path
+  racket/port)
 
 (define-runtime-path here ".")
 
@@ -100,13 +101,17 @@
     (list "failed_sat.frg" #rx"Failed test")
     (list "failed_unsat.frg" #rx"Failed test")
     (list "failed_sat.frg" #rx"Failed test") 
-    (list "properties_undirected_tree_underconstraint_error.frg" #rx"Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.")
+    ;;; ? after * makes the match lazy, meaning it will match as few characters as possible while still allowing the remainder of the regular expression to match.
+    
+    (list "multiple_test_failures.frg" #rx".*?Assertion_All_isRoot_is_necessary_for_isNotRoot failed.*?Invalid example 'thisIsNotATree'.*?Theorem t1 failed")
+    (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.*?Assertion_All_TreeWithEdges_is_necessary_for_isUndirectedTree failed")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"Assertion_isUndirected_is_sufficient_for_isUndirectedTree failed.")
     (list "properties_directed_tree_sufficiency_error.frg" #rx"Assertion_All_arethesame_is_sufficient_for_bothRoots failed.")
     (list "properties_directed_tree_necessity_error.frg" #rx"Assertion_All_isRoot_is_necessary_for_isNotRoot failed.")
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "hello.frg" #rx"parsing error")
+    (list "bsl_multiple_failures.frg" #rx".*?Failed test t1.*?Failed test t2")
     
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
@@ -141,11 +146,22 @@
     (define test-name (car test+pred*))
     (define pred (cadr test+pred*))
     (printf "run test: ~a~n" test-name)
+    
+    
     (with-check-info*
       (list (make-check-name test-name))
       (lambda ()
-        (check-exn pred (lambda () (re-raise-strings (run-error-test test-name))))))
+        (check-exn pred (lambda ()
+                          (define mocked-stderr (open-output-string))
+                          (parameterize ([current-error-port mocked-stderr])
+                            ; run test-name, and if a non-exception was raised, raise it as a user-error
+                            (re-raise-strings (run-error-test test-name))
+                            ; If we reach this point, no exception was raised. Thus, look in mocked stderr
+                            (re-raise-strings (raise (get-output-string mocked-stderr)))
+                            ; will also fail b/c not exception
+                            )))))
     (void)))
+
 
 (define (run-error-test test-name)
   (parameterize ([current-namespace (make-base-empty-namespace)]
