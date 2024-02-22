@@ -1368,19 +1368,22 @@
 ; *New* instance of the structure, with the same values but a (possibly) new source loc
 (define (correct-id-loc astnode #:loc [loc #f])
   ;(printf "correct-id-loc: ~a; ~a~n" astnode loc)
+  (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
   (cond [(forge:Sig? astnode)
-         (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
          (forge:Sig new-info
                     (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
                     (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
                     (forge:Sig-one astnode) (forge:Sig-lone astnode) (forge:Sig-abstract astnode) (forge:Sig-extends astnode))]
         [(forge:Relation? astnode)
-         (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
          (forge:Relation new-info
                          (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
                          (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
                          ;(forge:Relation-name astnode)
                          (forge:Relation-sigs-thunks astnode) (forge:Relation-breaker astnode))]
+        [(node/expr/quantifier-var? astnode)
+         (node/expr/quantifier-var
+          new-info
+          (node/expr-arity astnode) (node/expr/quantifier-var-sym astnode) (node/expr/quantifier-var-name astnode))]
         [else astnode]))
 
 
