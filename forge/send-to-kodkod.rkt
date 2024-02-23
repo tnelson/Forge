@@ -10,7 +10,7 @@
          forge/choose-lang-specific
          forge/translate-to-kodkod-cli
          forge/translate-from-kodkod-cli)
-(require (prefix-in @ (only-in racket/base >= not - = and or max > <))
+(require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract)
@@ -515,7 +515,7 @@
   (define (fill-lower-by-scope sig)
     (define children-lowers
       (apply append (map fill-lower-by-scope (get-children run-spec sig))))
-    (printf "fill-lower-by-scope case for ~a; chlds-lowers: ~a ~n" sig children-lowers)
+    ;(printf "fill-lower-by-scope case for ~a; chlds-lowers: ~a ~n" sig children-lowers)
     (define curr-lower-bound (get-bound-lower sig))
     (define curr-lower-scope (get-scope-lower-default sig))
     (define true-lower
@@ -545,12 +545,36 @@
 
   ; For use in situations where there is no existing upper (relational) bound
   (define (fill-upper-no-bound sig shared)
+
     ; If the sig has a relational upper bound, don't try to resolve the possible
     ; atom names etc.; ask the user to give an explicit bound on the parent, too.
     (when (get-bound-upper sig)
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
                        (get-blame-node run-spec sig)))
     (define curr-lower (hash-ref lower-bounds sig))
+
+    ; Before doing anything else, confirm that if *no* scope was given for this sig,
+    ; that the declared scopes for its children, combined, are not bigger than the default. 
+    ; We allow a lower-bound to increase the default, but
+    ; not a declared scope. This is consistent with Alloy, where many `one sig`s 
+    ; can increase the default.
+    (when (not (get-scope-upper sig))
+      (define upper-budget
+        (@max (length curr-lower)
+              (get-scope-upper-default sig)))
+      (define child-upper-declared-total
+        (foldl (lambda (curr acc)
+                 (@+ acc (or (get-scope-upper curr) 0)))
+               0
+               (get-children run-spec sig)))
+      (when (< upper-budget child-upper-declared-total)
+        (raise-run-error
+         (format "Scope for ~a was not declared, so ~a would be used. \
+However, the total of declared and inferred child-sig scopes was ~a. \
+Please declare a sufficient scope for ~a."
+                 (Sig-name sig) upper-budget child-upper-declared-total (Sig-name sig))
+         (get-blame-node run-spec sig))))
+    
     ; If the upper-bound's scope is bigger than the lower bound's current contents
     ;   (which should include child sigs' lower bounds), make room using atoms from parent.
     ; Otherwise, upper = lower, since there is no excess capacity.
@@ -575,22 +599,18 @@
           (fill-lower-by-scope root) ; No tuple-based bound yet; extrapolate from scope
           (define lower-size (length (hash-ref lower-bounds root)))
 
-
-          
-          ;;;;; This seems wrong; _potential_ upper bound contents of subsigs that are not
-          ;; exact will be disregarded unless we have a concrete scope given for this sig?
-          ;; Then fill-upper-no-bound is called, procedes parent-first, then child.
-          ;;   That's backwards, it seems.
-          ;;;;;
+          ; The budget for upper-bound atoms is either a declared size (if any) or
+          ; the maximum of the lower-bound size and the default numeric bound (4). 
           (define upper-size
             (or (get-scope-upper root)
                 (@max lower-size
                       (get-scope-upper-default root))))
-          (printf "no-rel-bound case for ~a. scope=~a; default-scope:~a~n"
-                  root (get-scope-upper root) (get-scope-upper-default root))
+          ;(printf "no-rel-bound case for ~a. scope=~a; default-scope:~a~n"
+          ;        root (get-scope-upper root) (get-scope-upper-default root))
 
           ; Generate new names
           (define shared (generate-names root (@- upper-size lower-size)))
+          ; This function is also responsible for validating totals (we didn't go over budget)
           (fill-upper-no-bound root shared)))
     ;(printf "filling bounds at ~a; upper = ~a; lower = ~a~n" root upper-bounds lower-bounds)
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))

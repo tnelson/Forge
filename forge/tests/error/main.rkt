@@ -28,6 +28,7 @@
     (list "piecewise_domain_too_big.frg" #rx"Field spouse was bounded for atom")
    
     (list "hidden-wheat.frg" #rx"Invalid binding expression")
+    (list "unstated_bounds.frg" #rx"Scope for Match was not declared")
    
     (list "abstract.frg" #rx"abstract")
     (list "bsl-ast-arrow.frg" #rx"Direct use of ->")
