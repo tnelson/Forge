@@ -34,6 +34,7 @@
    
     (list "hidden-wheat.frg" #rx"Invalid binding expression")
     (list "unstated_bounds.frg" #rx"Scope for Match was not declared")
+    (list "multiple-positive-examples-failing.frg" #rx"Invalid example 'e1'.*?Invalid example 'e2'") 
    
     (list "abstract.frg" #rx"abstract")
     (list "bsl-ast-arrow.frg" #rx"Direct use of ->")

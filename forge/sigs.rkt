@@ -630,6 +630,7 @@
   (syntax-parse stx
     [(_ name:id pred bounds ...)
      (add-to-execs
+      (with-syntax ([double-check-name (format-id #'name "double-check_~a_~a" #'name (gensym))])
        (quasisyntax/loc stx (begin
          (when (eq? 'temporal (get-option curr-state 'problem_type))
            (raise-forge-error
@@ -638,8 +639,8 @@
          #,(syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))
          (define first-instance (tree:get-value (Run-result name)))
          (when (Unsat? first-instance)
-           #,(syntax/loc stx (run double-check #:preds [] #:bounds [bounds ...]))
-           (define double-check-instance (tree:get-value (Run-result double-check)))
+           #,(syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))
+           (define double-check-instance (tree:get-value (Run-result double-check-name)))
            (if (Sat? double-check-instance)
                (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
                                   #:context #,(build-source-location stx)
@@ -651,7 +652,7 @@
                                                 'name)
                                   #:context #,(build-source-location stx)
                                   #:instance first-instance
-                                  #:run name))))))]))
+                                  #:run name)))))))]))
 
 ; Checks that some predicates are always true.
 ; (check name
