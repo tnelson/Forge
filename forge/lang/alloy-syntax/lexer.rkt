@@ -44,8 +44,8 @@
         "module" )
     (token+ 'RESERVED-TOK "" lexeme "" lexeme-start lexeme-end)]
     
-   ;; numeric
-   [(or "0" (: (char-range "1" "9") (* (char-range "0" "9"))))
+   ;; numeric (possibly negative)
+   [(or "0" (: (? "-") (char-range "1" "9") (* (char-range "0" "9"))))
     (token+ 'NUM-CONST-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
 
    ["->" (token+ 'ARROW-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -293,7 +293,7 @@
                       [else trimmed])
            #:position (+ (pos lex-start) l0)
            #:line (line lex-start)
-           #:column (+ (col lex-start) l0)
+           #:column (if (col lex-start) (+ (col lex-start) l0) #f)
            #:span (- (pos lex-end)
                      (pos lex-start) l0 l1)
            #:skip? skip?)))
