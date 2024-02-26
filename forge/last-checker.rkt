@@ -54,19 +54,17 @@
      (check-and-output formula node/formula/constant checker-hash #f)]
 
     [(node/fmla/pred-spacer info name args expanded)
-    (define domain-types (for/set ([arg args]) 
+    (define domain-types (for/list ([arg args]) 
                          (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
-    (define arg-types (for/set ([arg args]  [acc (range 0 (length args))])
+    (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
                       (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
-    (define domain-types-unfolded (list->mutable-set '()))
-    (set-for-each domain-types 
-                  (lambda (type) (for ([prim type]) (set-add! domain-types-unfolded prim))))
-    (for ([type arg-types]) 
-        (if (not (subset? (list->set (car type)) domain-types-unfolded))
+    (for-each 
+        (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error
             #:msg (format "The sig(s) given as an argument to predicate ~a are of incorrect type" name)
             #:context (apply-record-arg (list-ref args (cadr type))))
             (void)))
+            arg-types)
     (checkFormula run-or-state expanded quantvars checker-hash)]
     
     [(node/formula/op info args)

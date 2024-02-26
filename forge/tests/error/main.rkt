@@ -142,6 +142,14 @@
     (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth")
 
     (list "parsing_less_dash.frg" #rx"Negative numbers must not have blank space between the minus")
+
+    ;;; Mismatched type tests
+    (list "mismatched-arg-type-basic.frg" #rx"The sig(s) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-arity.frg" #rx"The sig(s) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-no-quant.frg" #rx"The sig(s) given as an argument to predicate p1 are of incorrect type")
+    (list "mismatched-arg-type-no-quant2.frg" #rx"The sig(s) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-non-primsig.frg" #rx"The sig(s) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-non-primsig2.frg" #rx"The sig(s) given as an argument to predicate p are of incorrect type")
   ))
 
 
