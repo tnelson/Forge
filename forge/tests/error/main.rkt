@@ -145,6 +145,7 @@
 
     ;;; Mismatched type tests
     (list "mismatched-arg-type-basic.frg" #rx"The sig(s) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-basic-univ.frg" #rx"The sig(s) given as an argument to predicate p2 are of incorrect type")
     (list "mismatched-arg-type-arity.frg" #rx"The sig(s) given as an argument to predicate p2 are of incorrect type")
     (list "mismatched-arg-type-no-quant.frg" #rx"The sig(s) given as an argument to predicate p1 are of incorrect type")
     (list "mismatched-arg-type-no-quant2.frg" #rx"The sig(s) given as an argument to predicate p2 are of incorrect type")
