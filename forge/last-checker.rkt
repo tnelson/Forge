@@ -271,8 +271,11 @@
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
 (define (checkExpression run-or-state expr quantvars checker-hash)
-  (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
-    (car output)))
+(printf "expr: ~a~n" expr)
+  (match expr 
+    [(? node/int?) (list (list 'Int))]
+    [_ (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
+         (car output))]))
 
 ; similar except that this is called from a formula, so in bsl 
 ; it should check that the multiplicity of the overall expr is 1 
