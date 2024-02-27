@@ -1372,7 +1372,10 @@
 ; *New* instance of the structure, with the same values but a (possibly) new source loc
 (define (correct-id-loc astnode #:loc [loc #f])
   ;(printf "correct-id-loc: ~a; ~a; ~a~n" astnode (node? astnode) loc)
-  (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
+  
+  (define new-info (if (node? astnode)
+                       (nodeinfo loc (nodeinfo-lang (node-info astnode)))
+                       #f))
   (cond [(forge:Sig? astnode)
          (forge:Sig new-info
                     (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
