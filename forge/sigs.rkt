@@ -1017,7 +1017,7 @@
 (define (output-all-test-failures)
   ; In order, for each failure:  
   (define failures (remove-duplicates (reverse delayed-test-failures)))
-  (unless (empty? failures)
+  (unless (or (< (get-verbosity) 1) (empty? failures))
     (printf "~nSome tests failed. Reporting failures in order:~n~n" ))
 
   (define last-failure (if (empty? failures) #f (last failures)))
