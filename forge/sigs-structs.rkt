@@ -414,12 +414,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 ; get-pred :: Run-or-State, Symbol -> Predicate
 ; Gets a predicate by name from a given state
+; Note that this will return the procedure, not the macro (no stx loc capture)
 (define (get-pred run-or-state name)
   (define state (get-state run-or-state))
   (hash-ref (State-pred-map state) name))
 
 ; get-fun :: Run-or-State, Symbol -> Function
 ; Gets a function by name from a given state
+; Note that this will return the procedure, not the macro (no stx loc capture)
 (define (get-fun run-or-state name)
   (define state (get-state run-or-state))
   (hash-ref (State-fun-map state) name))

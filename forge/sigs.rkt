@@ -434,31 +434,65 @@
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
-     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang)]
+                   [inner-unsyntax #'unsyntax])
        (quasisyntax/loc stx
          (begin
-           ; use srcloc of actual predicate, not this location in sigs
-           ; "pred spacer" still present, even if no arguments, to consistently record use of a predicate
-           (define name
-             (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))
-           (update-state! (state-add-pred curr-state 'name name)))))]
+           ; - Use a macro in order to capture the location of the _use_.
+           ; For 0-arg predicates, produce the AST node immediately
+           (define-syntax (name stx2)
+             (syntax-parse stx2
+               [name
+                (quasisyntax/loc stx2
+                  ; - "pred spacer" still present, even if no arguments, to consistently record use of a predicate
+                  (let* ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang)]
+                        [ast-node (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...)))])
+                    (update-state! (state-add-pred curr-state 'name ast-node))
+                    ast-node))])) )))]
 
     ; some decls: predicate must be called to evaluate it
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            (name:id decls:param-decl-class  ...+) conds:expr ...+)
-     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) check-lang)])
-       (quasisyntax/loc stx
-         (begin
-           ; "pred spacer" added to record use of predicate along with original argument declarations etc.           
-           (define (name decls.name ...)
-             (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
-               (error (format "Argument '~a' to pred ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
-                              'decls.name 'name decls.name)))
-             ...
-             (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...)
-                                             (&&/info the-info conds ...))))                      
-           (update-state! (state-add-pred curr-state 'name name)))))]))
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang)]
+                   [inner-unsyntax #'unsyntax])
+       (define result-stx
+         (with-syntax ([functionname (format-id #'name "~a/func" #'name)])
+           (quasisyntax/loc stx
+             (begin
+               ; - Use a macro in order to capture the location of the _use_.
+
+               (define-syntax (name stx2)
+                 ;(printf "in macro: ~a~n" stx2)
+                 (syntax-parse stx2
+                   ; If it's the macro name and all the args, expand to an invocation of the procedure
+                   [(name args (... ...))
+                    (quasisyntax/loc stx2
+                      (functionname args (... ...) #:info (nodeinfo
+                                                           (inner-unsyntax (build-source-location stx2)) check-lang)))]
+                   ; If it's just the macro name, expand to a lambda that can take the same arguments when available
+                   [name:id
+                    (quasisyntax/loc stx2
+                      (lambda (decls.name ...)
+                        (functionname decls.name ...
+                                      #:info (nodeinfo
+                                              (inner-unsyntax (build-source-location stx2)) check-lang))))]
+                   ))
+               
+               ; - "pred spacer" added to record use of predicate along with original argument declarations etc.
+               (define (functionname decls.name ... #:info [the-info #f])
+                 (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
+                   (error (format "Argument '~a' to pred ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
+                                  'decls.name 'name decls.name)))
+                 ...
+                 (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...)
+                                                 (&&/info the-info conds ...))))
+               
+
+               
+               
+               (update-state! (state-add-pred curr-state 'name functionname)))))) 
+       result-stx)]))
 
 (define/contract (repeat-product expr count)
   [@-> node/expr? number? node/expr?]
@@ -477,11 +511,28 @@
           (~optional (~seq #:codomain codomain:codomain-class)
                      #:defaults ([codomain.mexpr #'(mexpr (repeat-product univ (node/expr-arity result))
                                                           (if (> (node/expr-arity result) 1) 'set 'one))])))
+
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
-     (with-syntax ([the-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)])
-       #'(begin
-           ; "fun spacer" added to record use of function along with original argument declarations etc.           
-           (define (name decls.name ...)
+
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)]
+                   [functionname (format-id #'name "~a/func" #'name)]
+                   [inner-unsyntax #'unsyntax])
+       (quasisyntax/loc stx
+         (begin
+           ; - create a macro that captures the syntax location of the _use_
+           (define-syntax (name stx2)
+             (syntax-parse stx2
+               [(name args (... ...))
+                (quasisyntax/loc stx2
+                  (functionname args (... ...) #:info (nodeinfo
+                                                       (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck)))]
+               [name:id
+                (quasisyntax/loc stx2
+                  (lambda (decls.name ...)
+                    (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck))))]))
+           
+           ; - "fun spacer" added to record use of function along with original argument declarations etc.           
+           (define (functionname decls.name ... #:info [the-info #f])
              (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
                (error (format "Argument '~a' to fun ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
                               'decls.name 'name decls.name)))
@@ -498,7 +549,7 @@
               (list (apply-record 'decls.name decls.mexpr decls.name) ...)
               codomain.mexpr
               safe-result))
-           (update-state! (state-add-fun curr-state 'name name))))]))
+           (update-state! (state-add-fun curr-state 'name name)))))]))
 
 ; Declare a new constant
 ; (const name value)

@@ -44,6 +44,14 @@
 
   (make-token abstract-tok "abstract" #:abstract))
 
+; Used because we sometimes need to evaluate "inside-out" while expanding
+; macros "outside-in". The list of symbols are the "stop locations".
+; This, if we ever add more macros, they need to be added here (unless
+; they can be safely expanded as just themselves?)
+
+; TODO: why is lack of "prime" not breaking something? Is this only ops meant
+; to be used with [] or that have >1 argument?
+
 (define-for-syntax (my-expand stx)
   (define core-funcs-and-macros
     (map (curry datum->syntax stx)
@@ -54,7 +62,7 @@
            int< int> int= int>= int<=
            add subtract multiply divide sign abs remainder
            card sum sing succ max min sum-quant
-           node/int/constant
+           node/int/constant 
            let)))
 
   (define result (local-expand stx 'expression core-funcs-and-macros))
@@ -1302,10 +1310,11 @@
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (name exprs ...)))]
 
+    
   [((~datum Expr) expr1:ExprClass "[" exprs:ExprListClass "]")
-   (with-syntax ([expr1 (my-expand #'expr1)]
-                 [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
-     (syntax/loc stx (expr1 exprs ...)))]
+     (with-syntax ([expr1 (my-expand #'expr1)]
+                   [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
+       (syntax/loc stx (expr1 exprs ...)))]
 
   [((~datum Expr) "~" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
@@ -1332,7 +1341,9 @@
    (if local-value
        ; if we have a local-value, it's likely a Forge macro or Forge-defined helper procedure
        (syntax/loc stx name.name)
-       ; otherwise, it's likely an AST node (to be functionally updated with proper syntax location)
+       ; otherwise, it's likely an AST node (to be functionally updated with proper syntax 
+       ; location at runtime). Note this is a QualName at compile time, but may be substituted
+       ; to something more complex at runtime via pred/fun application.
        (with-syntax ([loc (build-source-location (syntax/loc this-syntax #'1))])
          (syntax/loc stx (correct-id-loc name.name #:loc loc))))]
    
@@ -1355,25 +1366,67 @@
 ; struct-copy would not retain the sub-struct identity and fields, producing just a node
 ; ditto the struct-update-lib library
 ; struct-set requires using a special form to create the struct.
-; Fortunately, all we need to deal with here _at this time_ is Sig and Relation structs...
+; We need to handle Sig and Relation cases, but at runtime the expression might be more
+; complex (via substitution from fun/pred application).
+
 ; *New* instance of the structure, with the same values but a (possibly) new source loc
 (define (correct-id-loc astnode #:loc [loc #f])
-  ;(printf "correct-id-loc: ~a; ~a~n" astnode loc)
+  ;(printf "correct-id-loc: ~a; ~a; ~a~n" astnode (node? astnode) loc)
+  
+  (define new-info (if (node? astnode)
+                       (nodeinfo loc (nodeinfo-lang (node-info astnode)))
+                       #f))
   (cond [(forge:Sig? astnode)
-         (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
          (forge:Sig new-info
                     (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
                     (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
                     (forge:Sig-one astnode) (forge:Sig-lone astnode) (forge:Sig-abstract astnode) (forge:Sig-extends astnode))]
         [(forge:Relation? astnode)
-         (define new-info (nodeinfo loc (nodeinfo-lang (node-info astnode))))
          (forge:Relation new-info
                          (node/expr-arity astnode) (node/expr/relation-name astnode) (node/expr/relation-typelist-thunk astnode)
                          (node/expr/relation-parent astnode) (node/expr/relation-is-variable astnode) (node/expr/relation-name astnode)
                          ;(forge:Relation-name astnode)
                          (forge:Relation-sigs-thunks astnode) (forge:Relation-breaker astnode))]
+        [(node/expr/quantifier-var? astnode)
+         (node/expr/quantifier-var
+          new-info
+          (node/expr-arity astnode) (node/expr/quantifier-var-sym astnode) (node/expr/quantifier-var-name astnode))]
+        ; Annoyingly, structs aren't polymorphic in the way we need. This is not elegant, but:
+
+        ; join, transpose, +, -, &, ^, *, ->, sing, ', ++
+        [(node/expr/op/join? astnode) (rebuild-expr-op node/expr/op/join astnode new-info)]
+        [(node/expr/op/~? astnode) (rebuild-expr-op node/expr/op/~ astnode new-info)]
+        [(node/expr/op/+? astnode) (rebuild-expr-op node/expr/op/+ astnode new-info)]
+        [(node/expr/op/-? astnode) (rebuild-expr-op node/expr/op/- astnode new-info)]
+        [(node/expr/op/&? astnode) (rebuild-expr-op node/expr/op/& astnode new-info)]
+        [(node/expr/op/^? astnode) (rebuild-expr-op node/expr/op/^ astnode new-info)]
+        [(node/expr/op/*? astnode) (rebuild-expr-op node/expr/op/* astnode new-info)]
+        [(node/expr/op/->? astnode) (rebuild-expr-op node/expr/op/-> astnode new-info)]
+        [(node/expr/op/sing? astnode) (rebuild-expr-op node/expr/op/sing astnode new-info)]
+        [(node/expr/op/prime? astnode) (rebuild-expr-op node/expr/op/prime astnode new-info)]
+        [(node/expr/op/++? astnode) (rebuild-expr-op node/expr/op/++ astnode new-info)]
+        
+        [(node/expr/ite? astnode)
+         (node/expr/ite new-info (node/expr-arity astnode)
+                        (node/expr/ite-condition astnode)
+                        (node/expr/ite-thene astnode)
+                        (node/expr/ite-elsee astnode))]
+        [(node/expr/fun-spacer? astnode)
+         (node/expr/fun-spacer new-info (node/expr-arity astnode)
+                               (node/expr/fun-spacer-name astnode)
+                               (node/expr/fun-spacer-args astnode)
+                               (node/expr/fun-spacer-codomain astnode)
+                               (node/expr/fun-spacer-expanded astnode))]
+        [(node/expr/comprehension? astnode)
+         (node/expr/comprehension new-info (node/expr-arity astnode)
+                                  (node/expr/comprehension-decls astnode)
+                                  (node/expr/comprehension-formula astnode))]
+        [(node/expr/constant? astnode)
+         (node/expr/constant new-info (node/expr-arity astnode) (node/expr/constant-type astnode))]
         [else astnode]))
 
+(define (rebuild-expr-op constructor astnode new-info)
+  (constructor new-info (node/expr-arity astnode) (node/expr/op-children astnode)))
 
 ; --------------------------
 ; these used to be define-simple-macro, but define-simple-macro doesn't

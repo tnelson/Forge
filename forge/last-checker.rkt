@@ -54,7 +54,18 @@
      (check-and-output formula node/formula/constant checker-hash #f)]
 
     [(node/fmla/pred-spacer info name args expanded)
-     (checkFormula run-or-state expanded quantvars checker-hash)]
+    (define domain-types (for/list ([arg args]) 
+                         (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
+    (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
+                      (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
+    (for-each 
+        (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
+            (raise-forge-error
+            #:msg (format "The sig(s) given as an argument to predicate ~a are of incorrect type" name)
+            #:context (apply-record-arg (list-ref args (cadr type))))
+            (void)))
+            arg-types)
+    (checkFormula run-or-state expanded quantvars checker-hash)]
     
     [(node/formula/op info args)
      (check-and-output formula
@@ -260,8 +271,12 @@
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
 (define (checkExpression run-or-state expr quantvars checker-hash)
-  (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
-    (car output)))
+;(printf "expr: ~a~n" expr)
+  (match expr 
+    [(? node/int?) (list (list 'Int))]
+    [(? integer?) (list (list 'Int))]
+    [_ (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
+         (car output))]))
 
 ; similar except that this is called from a formula, so in bsl 
 ; it should check that the multiplicity of the overall expr is 1 
