@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require (only-in racket/function thunk)
-         (only-in racket/list first rest empty empty? flatten remove-duplicates)
+         (only-in racket/list first rest empty empty? flatten remove-duplicates last)
          (only-in racket/pretty pretty-print)
          (prefix-in @ (only-in racket/base display max min - +)) 
          (prefix-in @ racket/set)
@@ -188,6 +188,8 @@
 (define (state-set-option state option value #:original-path [original-path #f])
   (define options (State-options state))
 
+  (unless (hash-ref option-types option #f)
+    (raise-user-error (format "No such option: ~a" option)))
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
                               option (hash-ref option-types option) value)))
@@ -258,7 +260,10 @@
                     [sterling_port value])]
       [(equal? option 'engine_verbosity)
        (struct-copy Options options
-                    [engine_verbosity value])]))
+                    [engine_verbosity value])]
+      [(equal? option 'test_keep)
+       (struct-copy Options options
+                    [test_keep value])]))
 
   (struct-copy State state
                [options new-options]))
@@ -586,40 +591,32 @@
           [(member 'expected '(sat unsat))           
            #,(syntax/loc stx (run name args ...))
            (define first-instance (tree:get-value (Run-result name)))
-           (unless (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected)
-             ;(when (> (get-verbosity) 0)
-             ;  (printf "Unexpected result found, with statistics and metadata:~n")
-             ;  (pretty-print first-instance))
-             ;(display name) ;; Display in Sterling since the test failed.
-             (report-test-failure
-              #:name 'name
-              #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
-                            'name 'expected (if (Sat? first-instance) 'sat 'unsat)
-                            (if (Sat? first-instance)
-                                (format " Found instance ~a" first-instance)
-                                (if (Unsat-core first-instance)
-                                    (format " Core: ~a" (Unsat-core first-instance))
-                                    "")))
-              #:context loc
-              #:instance first-instance
-              #:run name))
-           (close-run name)]
+           (if (not (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected))
+               (report-test-failure
+                #:name 'name
+                #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
+                              'name 'expected (if (Sat? first-instance) 'sat 'unsat)
+                              (if (Sat? first-instance)
+                                  (format " Found instance ~a" first-instance)
+                                  (if (Unsat-core first-instance)
+                                      (format " Core: ~a" (Unsat-core first-instance))
+                                      "")))
+                #:context loc
+                #:instance first-instance
+                #:run name)
+               (close-run name))]
 
           [(equal? 'expected 'theorem)          
            #,(syntax/loc stx (check name args ...))
            (define first-instance (tree:get-value (Run-result name)))
-           (when (Sat? first-instance)
-             ;(when (> (get-verbosity) 0)
-             ;  (printf "Instance found, with statistics and metadata:~n")
-             ;  (pretty-print first-instance))
-             ;(display name) ;; Display in sterling since the test failed.
-             (report-test-failure #:name 'name
-                                  #:msg (format "Theorem ~a failed. Found instance:~n~a"
-                                                'name first-instance)
-                                  #:context loc
-                                  #:instance first-instance
-                                  #:run name))
-           (close-run name)]
+           (if (Sat? first-instance)
+               (report-test-failure #:name 'name
+                                    #:msg (format "Theorem ~a failed. Found instance:~n~a"
+                                                  'name first-instance)
+                                    #:context loc
+                                    #:instance first-instance
+                                    #:run name)
+               (close-run name))]
 
           [else (raise-forge-error                 
                  #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
@@ -638,21 +635,27 @@
             #:context #,(build-source-location stx)))
          #,(syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))
          (define first-instance (tree:get-value (Run-result name)))
-         (when (Unsat? first-instance)
-           #,(syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))
-           (define double-check-instance (tree:get-value (Run-result double-check-name)))
-           (if (Sat? double-check-instance)
-               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
-                                  #:context #,(build-source-location stx)
-                                  #:instance first-instance
-                                  #:run name)
-               (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+         (cond
+           [(Unsat? first-instance)
+            ; Run a second check to see if {} would have also failed, meaning this example
+            ; violates the sig/field declarations.
+            #,(syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))
+            (define double-check-instance (tree:get-value (Run-result double-check-name)))
+            (close-run double-check-instance) ;; always close the double-check run immediately
+            
+            (if (Sat? double-check-instance)
+                (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+                                     #:context #,(build-source-location stx)
+                                     #:instance first-instance
+                                     #:run name)
+                (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
                                                                "This means that the specified bounds conflict with each other "
-                                                               "or with the sig/relation definitions.")
-                                                'name)
-                                  #:context #,(build-source-location stx)
-                                  #:instance first-instance
-                                  #:run name)))))))]))
+                                                               "or with the sig/field definitions.")
+                                                                'name)
+                                     #:context #,(build-source-location stx)
+                                     #:instance first-instance
+                                     #:run name))]
+           [else (close-run name)])))))]))
 
 ; Checks that some predicates are always true.
 ; (check name
@@ -702,7 +705,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; make-model-generator :: Stream<model> -> (-> model)
-; Creates a thunk which generates a new model on each call.
+; Creates a thunk which generates a new instance on each call.
 (define (make-model-generator model-lazy-tree [mode 'next])
   (thunk
     (define ret (tree:get-value model-lazy-tree))
@@ -981,28 +984,38 @@
 ;; Infrastructure for handling multiple test failures / multiple runs
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Struct to hold test-failure information for eventual reporting
 (struct test-failure (name msg context instance run))
-
-(define delayed-test-failures null)                                                      
-
+; Mutable value to store list of test-failure structs
+(define delayed-test-failures null)
+; Called to clear the mutable list
 (define (reset-test-failures!) (set! delayed-test-failures null))
-(define delay-test-failure-reporting? (make-parameter #t))
 
 ; Record (or report, depending on the value of the delay-test-failure-reporting?
 ; parameter) a test failure. 
 (define (report-test-failure #:name name #:msg msg #:context context #:instance [instance #f] #:run run)
-  (cond [(delay-test-failure-reporting?)
-         (printf "Test ~a failed. Continuing to run, and will report details at the end.~n" name)
+  ; Default is to not delay, but options may affect this.
+  (cond [(not (equal? (get-option run 'test_keep) 'first))
+         (unless (equal? (get-verbosity) 0)
+           (printf "Test ~a failed. Continuing to run and will report details at the end.~n" name))
          (set! delayed-test-failures (cons (test-failure name msg context instance run)
                                            delayed-test-failures))]
+        ;; ***** TODO: close prior failing test runs
         [else
+         ; Raise a Forge error and stop execution.
+         ; ***** TODO: does this open Sterling properly? (Likely not)
          (raise-forge-error #:msg msg #:context context)]))
 
+; To be run at the very end of the Forge execution; reports test failures and opens
+; only one failure (as only one solver will be kept open, at the moment)
 (define (output-all-test-failures)
   ; In order, for each failure:  
   (define failures (remove-duplicates (reverse delayed-test-failures)))
   (unless (empty? failures)
-    (printf "~nSome tests failed. Reporting failures in order.~n~n" ))
+    (printf "~nSome tests failed. Reporting failures in order:~n~n" ))
+
+  (define last-failure (if (empty? failures) #f (last failures)))
+  
   (for ([failure failures])
     (define-values (name msg context instance run)
       (values (test-failure-name failure)    (test-failure-msg failure)
@@ -1012,12 +1025,16 @@
     ; Print the error (don't raise an actual exception)
     (define sterling-or-instance (if (equal? (get-option run 'run_sterling) 'off)
                                      (format "Sterling disabled, so reporting raw instance data:~n~a" instance)
-                                     "Running Sterling to show instance (or unsat) generated..."))
+                                     (format "Running Sterling to show instance generated, if any.~n~a"
+                                             (if (equal? failure last-failure)
+                                                 "Solver is active; evaluator and next are available.~n"
+                                                 "For all but the final test failure, the solver was closed to save memory; evaluator and next are unavailable.~n"))))
     (raise-forge-error #:msg (format "~a ~a~n~n" msg sterling-or-instance)
                        #:context context
                        #:raise? #f)
     ; Display in Sterling (if run_sterling is enabled)
-    (true-display run))
+    (when (equal? failure last-failure)
+      (true-display run)))
   
   ; Return to empty-failure-list state.
   (reset-test-failures!))

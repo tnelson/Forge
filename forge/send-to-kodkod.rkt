@@ -343,8 +343,13 @@
   
   ; Print solve
   (define (get-next-model [mode ""])
+    ; If the solver isn't running at all, error:
     (unless (is-running?)
       (raise-user-error "KodKod server is not running."))
+    ; If the solver is running, but this specific run ID is closed, user error
+    (when (is-run-closed? run-name)
+      (raise-user-error (format "Run ~a has been closed." run-name)))
+    
     (pardinus-print (pardinus:solve run-name mode))
     (define result (translate-from-kodkod-cli
                     'run 
