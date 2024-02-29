@@ -5,6 +5,7 @@
 
 (require (only-in rackunit check-eq? check-not-eq? check-exn check-not-exn check-true))
 (set-option! 'verbose 0)
+(set-option! 'run_sterling 'off)
 
 ; Not the default:
 (set-option! 'test_keep 'last) 
@@ -37,3 +38,7 @@
 (check-true (forge:is-run-closed? local-sat-run-A)) 
 (check-true (forge:is-sat? local-sat-run-B))
 (check-true (not (forge:is-run-closed? local-sat-run-B)))
+
+; This is, however, not calling the failure-reporter that the Forge surface languages
+; invoke at the end of their execution -- since this is forge/core.
+; (output-all-test-failures)

@@ -998,9 +998,13 @@
   (cond [(not (equal? (get-option run 'test_keep) 'first))
          (unless (equal? (get-verbosity) 0)
            (printf "Test ~a failed. Continuing to run and will report details at the end.~n" name))
+         ; close previous failure run, since we are keeping only the final failure for Sterling
+         (unless (empty? delayed-test-failures)
+           (close-run (test-failure-run (first delayed-test-failures))))
+         ; then add this failure to the queue
          (set! delayed-test-failures (cons (test-failure name msg context instance run)
                                            delayed-test-failures))]
-        ;; ***** TODO: close prior failing test runs
+        
         [else
          ; Raise a Forge error and stop execution.
          ; ***** TODO: does this open Sterling properly? (Likely not)
@@ -1027,8 +1031,8 @@
                                      (format "Sterling disabled, so reporting raw instance data:~n~a" instance)
                                      (format "Running Sterling to show instance generated, if any.~n~a"
                                              (if (equal? failure last-failure)
-                                                 "Solver is active; evaluator and next are available.~n"
-                                                 "For all but the final test failure, the solver was closed to save memory; evaluator and next are unavailable.~n"))))
+                                                 "Solver is active; evaluator and next are available."
+                                                 "For all but the final test failure, the solver was closed to save memory; evaluator and next are unavailable."))))
     (raise-forge-error #:msg (format "~a ~a~n~n" msg sterling-or-instance)
                        #:context context
                        #:raise? #f)
