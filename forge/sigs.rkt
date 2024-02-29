@@ -641,7 +641,7 @@
             ; violates the sig/field declarations.
             #,(syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))
             (define double-check-instance (tree:get-value (Run-result double-check-name)))
-            (close-run double-check-instance) ;; always close the double-check run immediately
+            (close-run double-check-name) ;; always close the double-check run immediately
             
             (if (Sat? double-check-instance)
                 (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
