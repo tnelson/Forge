@@ -1006,8 +1006,10 @@
                                            delayed-test-failures))]
         
         [else
-         ; Raise a Forge error and stop execution.
-         ; ***** TODO: does this open Sterling properly? (Likely not)
+         ; Raise a Forge error and stop execution; show Sterling if enabled.
+         (when (>= (get-verbosity) 1)
+           (printf "Test ~a failed. Opening Sterling (if able) and stopping.~n" name))
+         (true-display run)
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens

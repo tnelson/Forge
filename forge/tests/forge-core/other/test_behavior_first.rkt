@@ -4,7 +4,7 @@
 ; (This is related to multiple_runs.rkt, but has a different focus.)
 
 (require (only-in rackunit check-eq? check-not-eq? check-exn check-not-exn check-true))
-(set-option! 'verbose 0)
+;(set-option! 'verbose 1)
 ; Default:
 ;(set-option! 'test_keep 'first) 
 
