@@ -4,8 +4,10 @@
 ; (This is related to multiple_runs.rkt, but has a different focus.)
 
 (require (only-in rackunit check-eq? check-not-eq? check-exn check-not-exn check-true))
-;(set-option! 'verbose 1)
-; Default:
+(set-option! 'verbose 0)
+(set-option! 'run_sterling 'off)
+
+; 'first is the default, so no need to run this line:
 ;(set-option! 'test_keep 'first) 
 
 (sig A)
