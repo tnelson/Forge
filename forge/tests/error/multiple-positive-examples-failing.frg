@@ -1,5 +1,6 @@
 #lang forge
 option run_sterling off
+option test_keep last
 option verbose 0 
 
 -- Regression test to confirm that the "double-check" done in example tests 

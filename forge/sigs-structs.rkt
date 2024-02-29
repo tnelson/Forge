@@ -169,6 +169,7 @@
   [run_sterling (or/c string? symbol?)]
   [sterling_port nonnegative-integer?]
   [engine_verbosity nonnegative-integer?]
+  [test_keep symbol?]
   ) #:transparent)
 
 (struct/contract State (
@@ -209,7 +210,7 @@
   [name symbol?]
   [command syntax?]
   [run-spec Run-spec?]
-  [result tree:node?] ; TODO: specify
+  [result tree:node?]
   [server-ports Server-ports?]
   [atoms (listof (or/c symbol? number?))]
   [kodkod-currents Kodkod-current?]
@@ -224,7 +225,8 @@
 (define DEFAULT-SIG-SCOPE (Range 0 4))
 ; an engine_verbosity of 1 logs SEVERE level in the Java engine;
 ;   this will send back info about crashes, but shouldn't spam (and possibly overfill) stderr.
-(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default 'close-noretarget 'fast 0 'off 'on 0 1))
+(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default
+                                 'close-noretarget 'fast 0 'off 'on 0 1 'first))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -255,7 +257,11 @@
         'local_necessity Options-local_necessity
         'run_sterling Options-run_sterling
         'sterling_port Options-sterling_port
-        'engine_verbosity Options-engine_verbosity))
+        'engine_verbosity Options-engine_verbosity
+        'test_keep Options-test_keep))
+
+(define (oneof-pred lst)
+  (lambda (x) (member x lst)))
 
 (define option-types
   (hash 'eval-language symbol?
@@ -268,14 +274,14 @@
         'min_tracelength exact-positive-integer?
         'max_tracelength exact-positive-integer?
         'problem_type symbol?
-        'target_mode (lambda (x)
-                       (member x '(close_noretarget far_noretarget close_retarget far_retarget hamming_cover)))
+        'target_mode (oneof-pred '(close_noretarget far_noretarget close_retarget far_retarget hamming_cover))
         'core_minimization symbol?
         'skolem_depth exact-integer?
         'local_necessity symbol?
         'run_sterling (lambda (x) (or (symbol? x) (string? x))) ; allow for custom visualizer path
         'sterling_port exact-nonnegative-integer?
-        'engine_verbosity exact-nonnegative-integer?))
+        'engine_verbosity exact-nonnegative-integer?
+        'test_keep (oneof-pred '(first last))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;  Initial State  ;;;;;;;
@@ -564,24 +570,46 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (assert-is-running run)
   (Server-ports-stderr (Run-server-ports run)))
 
+;;;;;;;;;;;;;;;;;;;;;;;
+; Per-run closed status
+
+; Keep track of which runs have been closed via close-run
+(define closed-run-names (box (list)))
+; Allows other modules to let this layer know a run is closed; this box
+; is referenced by the instance generator for each run.
+(define (add-closed-run-name! name)
+  (set-box! closed-run-names (cons name (unbox closed-run-names))))
+(define (is-run-closed? name-or-run)
+  (define (truthify x) (if x #t #f))
+  (truthify
+   (cond [(Run? name-or-run) 
+          (member (Run-name name-or-run) (unbox closed-run-names))]
+         [else
+          (member name-or-run (unbox closed-run-names))])))
+
 ; close-run :: Run -> void
 (define (close-run run)
   (assert-is-running run)
   (when (>= (get-verbosity) VERBOSITY_HIGH)
-        (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))  
+        (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))
+  ; Cut off this Run's ability to query the solver, since it's about to be closed
+  ; This state is referenced in the instance-generator thunk
+  (add-closed-run-name! (Run-name run))
+  
   ; Since we're using a single process now, send it instructions to clear this run
   (pardinus:cmd 
       [(get-stdin run)]
-      
       (pardinus:clear (Run-name run))))
 
 ; is-running :: Run -> Boolean
+; This reports whether the _solver server_ is running;
+; *NOT* whether an individual run is still open.
 (define (is-running? run)
   ((Server-ports-is-running? (Run-server-ports run))))
 
 (define (assert-is-running run)
   (unless (is-running? run)
-    (raise-user-error "KodKod server is not running.")))
+    (raise-user-error "KodKod/Pardinus solver process is not running.")))
 
 (require (for-syntax syntax/srcloc)) ; for these macros
 
