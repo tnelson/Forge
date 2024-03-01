@@ -13,7 +13,8 @@
 (require
   rackunit
   (only-in rackunit/text-ui run-tests)
-  racket/runtime-path)
+  racket/runtime-path
+  racket/port)
 
 (define-runtime-path here ".")
 
@@ -21,6 +22,20 @@
 
 (define REGISTRY
   (list
+    ;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Some error tests look at the specific source-location blamed
+   
+    ; misuse of predicates and helper functions with arguments/no-arguments
+    (list "expect-predicate-args.frg" #rx"Ill-formed block")
+    (list "expect-predicate-no-args.frg" #rx"expect-predicate-no-args.frg:13:45.*Tried to give arguments to a predicate, but it takes none")
+
+    ; TODO: needs switch to raise-forge-error so the proper location is in the message
+    ; (list "expect-fun-args.frg" #rx"Racket procedure, which is likely.*expect-fun-args.frg:11")
+    ; TODO: needs to confirm that equality is irrespective of source location (it should be)
+    ;(list "expect-fun-no-args.frg" #rx"TODO")
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;
+    
     ;;;;;;; Source locations ;;;;;;;
     (list "./loc/sig_use_loc_error.frg" #rx"sig_use_loc_error.frg:7:39") ; vs. reachable
     (list "./loc/field_use_loc_error.frg" #rx"field_use_loc_error.frg:7:29")   ; vs. reachable
@@ -32,6 +47,8 @@
     (list "piecewise_domain_too_big.frg" #rx"Field spouse was bounded for atom")
    
     (list "hidden-wheat.frg" #rx"Invalid binding expression")
+    (list "unstated_bounds.frg" #rx"Scope for Match was not declared")
+    (list "multiple-positive-examples-failing.frg" #rx"Invalid example 'e1'.*?Invalid example 'e2'") 
    
     (list "abstract.frg" #rx"abstract")
     (list "bsl-ast-arrow.frg" #rx"Direct use of ->")
@@ -100,13 +117,17 @@
     (list "failed_sat.frg" #rx"Failed test")
     (list "failed_unsat.frg" #rx"Failed test")
     (list "failed_sat.frg" #rx"Failed test") 
-    (list "properties_undirected_tree_underconstraint_error.frg" #rx"Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.")
+    ;;; ? after * makes the match lazy, meaning it will match as few characters as possible while still allowing the remainder of the regular expression to match.
+    
+    (list "multiple_test_failures.frg" #rx".*?Assertion_All_isRoot_is_necessary_for_isNotRoot failed.*?Invalid example 'thisIsNotATree'.*?Theorem t1 failed")
+    (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.*?Assertion_All_TreeWithEdges_is_necessary_for_isUndirectedTree failed")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"Assertion_isUndirected_is_sufficient_for_isUndirectedTree failed.")
     (list "properties_directed_tree_sufficiency_error.frg" #rx"Assertion_All_arethesame_is_sufficient_for_bothRoots failed.")
     (list "properties_directed_tree_necessity_error.frg" #rx"Assertion_All_isRoot_is_necessary_for_isNotRoot failed.")
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "hello.frg" #rx"parsing error")
+    (list "bsl_multiple_failures.frg" #rx".*?Failed test t1.*?Failed test t2")
     
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
@@ -119,8 +140,6 @@
     (list "expr-in-comprehension-condition.frg" #rx"expected a formula")
     (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
     (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
-    (list "expect-predicate-args.frg" #rx"Ill-formed block")
-    (list "expect-predicate-no-args.frg" #rx"Tried to give arguments to a predicate, but it takes none")
 
     (list "override-wrong-arity.frg" #rx"must have same arity")
     (list "override-no-overlap.frg" #rx"will never override anything")
@@ -130,6 +149,15 @@
     (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth")
 
     (list "parsing_less_dash.frg" #rx"Negative numbers must not have blank space between the minus")
+
+    ;;; Mismatched type tests
+    (list "mismatched-arg-type-basic.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-basic-univ.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-arity.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-no-quant.frg" #rx"The sig\\(s\\) given as an argument to predicate p1 are of incorrect type")
+    (list "mismatched-arg-type-no-quant2.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-non-primsig.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-non-primsig2.frg" #rx"The sig\\(s\\) given as an argument to predicate p are of incorrect type")
   ))
 
 
@@ -141,11 +169,22 @@
     (define test-name (car test+pred*))
     (define pred (cadr test+pred*))
     (printf "run test: ~a~n" test-name)
+    
+    
     (with-check-info*
       (list (make-check-name test-name))
       (lambda ()
-        (check-exn pred (lambda () (re-raise-strings (run-error-test test-name))))))
+        (check-exn pred (lambda ()
+                          (define mocked-stderr (open-output-string))
+                          (parameterize ([current-error-port mocked-stderr])
+                            ; run test-name, and if a non-exception was raised, raise it as a user-error
+                            (re-raise-strings (run-error-test test-name))
+                            ; If we reach this point, no exception was raised. Thus, look in mocked stderr
+                            (re-raise-strings (raise (get-output-string mocked-stderr)))
+                            ; will also fail b/c not exception
+                            )))))
     (void)))
+
 
 (define (run-error-test test-name)
   (parameterize ([current-namespace (make-base-empty-namespace)]

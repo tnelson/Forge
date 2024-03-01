@@ -10,7 +10,7 @@
          forge/choose-lang-specific
          forge/translate-to-kodkod-cli
          forge/translate-from-kodkod-cli)
-(require (prefix-in @ (only-in racket/base >= not - = and or max > <))
+(require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract)
@@ -343,8 +343,13 @@
   
   ; Print solve
   (define (get-next-model [mode ""])
+    ; If the solver isn't running at all, error:
     (unless (is-running?)
       (raise-user-error "KodKod server is not running."))
+    ; If the solver is running, but this specific run ID is closed, user error
+    (when (is-run-closed? run-name)
+      (raise-user-error (format "Run ~a has been closed." run-name)))
+    
     (pardinus-print (pardinus:solve run-name mode))
     (define result (translate-from-kodkod-cli
                     'run 
@@ -426,10 +431,11 @@
          (define result (hash-ref (Bound-orig-nodes (Run-spec-bounds run-spec)) the-rel #f))
          (and result (first result))]))
 
-; get-sig-info :: Run-spec -> Map<Symbol, bound>, List<Symbol>
+; get-sig-bounds :: Run-spec -> Map<Symbol, bound>, List<Symbol>
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
 ; sets of atoms for each, and find the total number of atoms needed (including ints).
 (define (get-sig-bounds run-spec raise-run-error)
+  ;;;;; Helpers for extracting declared relational bounds from the run-spec
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))  
   (define (get-bound-lower sig)
     (define pbinding (hash-ref pbindings sig #f))
@@ -440,7 +446,8 @@
     (@and pbinding
           (sbound-upper pbinding)
           (map car (set->list (sbound-upper pbinding)))))
-  
+
+  ;;;;; Helpers for extracting declared numeric scopes from the run-spec
   (define scopes (Run-spec-scope run-spec))
   (define (get-scope-lower sig)
     (define scope (hash-ref (Scope-sig-scopes scopes) (Sig-name sig) #f))
@@ -461,14 +468,17 @@
 
 
 
-  ; Map<Symbol, int>
+  ; Map<Symbol, int>; keeps track of what the "next" generated atom ID should be
   (define curr-atom-number (make-hash))
-  ; Sig -> Symbol
+
+  ; Sig -> Listof<Symbol>; the atom names declared by the user in a partial instance
   (define all-user-atoms 
     (apply append (for/list ([sig (get-sigs run-spec)]
                              #:when (hash-has-key? pbindings sig))
       (define bound (hash-ref pbindings sig))
       (map car (set->list (@or (sbound-upper bound) (sbound-lower bound)))))))
+
+  ; Generate the "next" atom ID for a given sig, based on what's been generated/declared so far
   (define (get-next-name sig)
     (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) -1)))    
     (let loop ([atom-number atom-number])
@@ -477,39 +487,18 @@
       (if (member new-name all-user-atoms)
           (loop (add1 atom-number))
           new-name)))
-    
-;    (if (hash-has-key? tbindings (Sig-name sig))
-;        (let ([bind-names (hash-ref tbindings (Sig-name sig))])                 
-;          (if (@< atom-number (length bind-names))
-;              (list-ref bind-names atom-number)
-;              (if (member default-name bind-names) ; Avoid clash with user atom names
-;                  (get-next-name sig)
-;                  default-name)))          
-  ;)
-  
-  ; Sig, int -> List<Symbol>
-  ; TN changed this to always use the *lowest* unused atom names first
-  ;   this matters if we're manufacturing an instance I2 from an instance I1 and the bounds
-  ;   need to be identical regardless of how many of a given sig appeared in I1.
-  ; (define (get-next-names sig num)
-  ;   (define bind-names (if (hash-has-key? tbindings (Sig-name sig))
-  ;                          (hash-ref tbindings (Sig-name sig))  ; user-defined names    
-  ;                          empty))
-  ;   (define default-names (for/list ([_ (range num)]) (get-next-name sig)))
-  ;   (define new-names (remove* bind-names default-names)) ; (remove* v-lst lst) removes from lst every element of v-lst
-  ;   (define n-new-needed (- num (length bind-names)))
 
-  ;   (append bind-names (if (@> n-new-needed 0) (take new-names n-new-needed) empty)))
+  ; Generate <num> new names for sig <sig>
   (define (generate-names sig num)
     (map (thunk* (get-next-name sig)) (range num)))
 
-
-
+  ; Overall bounds data structures, will be modified as this procedure executes
   (define lower-bounds (make-hash))
   (define upper-bounds (make-hash))
 
-  ; If any #:one children lack tuple-based lower bounds, there is a risk of inconsistency
-  ; since those children must receive a fresh atom name to denote (and for #:one sigs, LB=UB)
+  ; Helper to populate a sig's lower bound based on relational bound given
+  ;   If any #:one children lack tuple-based lower bounds, there is a risk of inconsistency
+  ;   since those children must receive a fresh atom name to denote (and for #:one sigs, LB=UB)
   (define (fill-lower-by-bound sig)
     (define children-lowers
       (apply append (map fill-lower-by-bound (get-children run-spec sig))))
@@ -527,9 +516,11 @@
     (hash-set! lower-bounds sig true-lower)
     true-lower)
 
+  ; Helper to populate a lower bound based on a numeric scope given
   (define (fill-lower-by-scope sig)
     (define children-lowers
       (apply append (map fill-lower-by-scope (get-children run-spec sig))))
+    ;(printf "fill-lower-by-scope case for ~a; chlds-lowers: ~a ~n" sig children-lowers)
     (define curr-lower-bound (get-bound-lower sig))
     (define curr-lower-scope (get-scope-lower-default sig))
     (define true-lower
@@ -559,12 +550,36 @@
 
   ; For use in situations where there is no existing upper (relational) bound
   (define (fill-upper-no-bound sig shared)
+
     ; If the sig has a relational upper bound, don't try to resolve the possible
     ; atom names etc.; ask the user to give an explicit bound on the parent, too.
     (when (get-bound-upper sig)
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
                        (get-blame-node run-spec sig)))
     (define curr-lower (hash-ref lower-bounds sig))
+
+    ; Before doing anything else, confirm that if *no* scope was given for this sig,
+    ; that the declared scopes for its children, combined, are not bigger than the default. 
+    ; We allow a lower-bound to increase the default, but
+    ; not a declared scope. This is consistent with Alloy, where many `one sig`s 
+    ; can increase the default.
+    (when (not (get-scope-upper sig))
+      (define upper-budget
+        (@max (length curr-lower)
+              (get-scope-upper-default sig)))
+      (define child-upper-declared-total
+        (foldl (lambda (curr acc)
+                 (@+ acc (or (get-scope-upper curr) 0)))
+               0
+               (get-children run-spec sig)))
+      (when (< upper-budget child-upper-declared-total)
+        (raise-run-error
+         (format "Scope for ~a was not declared, so ~a would be used. \
+However, the total of declared and inferred child-sig scopes was ~a. \
+Please declare a sufficient scope for ~a."
+                 (Sig-name sig) upper-budget child-upper-declared-total (Sig-name sig))
+         (get-blame-node run-spec sig))))
+    
     ; If the upper-bound's scope is bigger than the lower bound's current contents
     ;   (which should include child sigs' lower bounds), make room using atoms from parent.
     ; Otherwise, upper = lower, since there is no excess capacity.
@@ -574,8 +589,11 @@
     ; Recur on children
     (map (lambda (child) (fill-upper-no-bound child (append curr-lower shared)))
          (get-children run-spec sig)))
-  
+
+  ; List of all atoms that come from sigs, except Int. Will change as this procedure runs.
   (define sig-atoms (list))
+
+  ; Start with each top-level sig
   (for ([root (get-top-level-sigs run-spec)]
         #:unless (equal? (Sig-name root) 'Int))
     (if (get-bound-upper root) ; Do we already have a tuple-based upper bound?
@@ -585,12 +603,19 @@
         (let ()
           (fill-lower-by-scope root) ; No tuple-based bound yet; extrapolate from scope
           (define lower-size (length (hash-ref lower-bounds root)))
+
+          ; The budget for upper-bound atoms is either a declared size (if any) or
+          ; the maximum of the lower-bound size and the default numeric bound (4). 
           (define upper-size
             (or (get-scope-upper root)
                 (@max lower-size
                       (get-scope-upper-default root))))
+          ;(printf "no-rel-bound case for ~a. scope=~a; default-scope:~a~n"
+          ;        root (get-scope-upper root) (get-scope-upper-default root))
 
+          ; Generate new names
           (define shared (generate-names root (@- upper-size lower-size)))
+          ; This function is also responsible for validating totals (we didn't go over budget)
           (fill-upper-no-bound root shared)))
     ;(printf "filling bounds at ~a; upper = ~a; lower = ~a~n" root upper-bounds lower-bounds)
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
@@ -610,6 +635,14 @@
 
   (define all-atoms (append int-atoms sig-atoms))
 
+  ; for ease of understanding, just sort by first atom
+  (define (tuple<? t1 t2)
+    (cond [(and (symbol? t1) (symbol? t2))
+           (symbol<? (first t1) (first t2))]
+          [(and (number? t1) (number? t2))
+           (< (first t1) (first t2))]
+          [else (symbol? t1)]))
+
   ; Map<Symbol, bound>
   (define bounds-hash
     (for/hash ([sig (get-sigs run-spec)])
@@ -624,7 +657,9 @@
         (unless (subset? (list->set lower) (list->set upper))
           (raise-run-error (format "Bounds inconsistency detected for sig ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)
                            (get-blame-node run-spec sig)))
-        (values name (bound rel lower upper)))))
+        (values name (bound rel
+                            (sort (remove-duplicates lower) tuple<?)
+                            (sort (remove-duplicates upper) tuple<?))))))
 
 ;; Issue: one sig will overwrite with lower bound, but looking like that's empty if there's 
 ;;   an inst block that doesnt define it. Need to make that connection between default and provided.

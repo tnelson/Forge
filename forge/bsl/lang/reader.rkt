@@ -20,29 +20,36 @@
   (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                        forge:n))
 
-                  (define-namespace-anchor forge:n) ; Used for evaluator
+                  ;; Used for the evaluator
+                  (define-namespace-anchor forge:n) 
                   (forge:nsa forge:n)
 
                   (require (prefix-in log: forge/logging/2023/main))
                   (require (only-in racket printf uncaught-exception-handler))
 
+                  ;; Set up language-specific error messages
                   (require forge/choose-lang-specific)
-                  (require forge/bsl/lang/bsl-lang-specific-checks) ; TODO: can this be relative?
-                  ; ANSWER: maybe using dynamic-require
+                  (require forge/bsl/lang/bsl-lang-specific-checks)                   
                   (set-checker-hash! bsl-checker-hash)
                   (set-ast-checker-hash! bsl-ast-checker-hash)
                   (set-inst-checker-hash! bsl-inst-checker-hash)
                   (set-check-lang! 'bsl)
-                  ;(printf "ch = ~a~n" bsl-checker-hash) 
 
-                  (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
                   ;; Override default exception handler
-
+                  (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
+                  
+                  ;; Expanded model, etc.
                   ,ints-coerced
-
-                  (module+ execs)
+                  
+                  ;; Declare submodule "execs". Macros like "test" or "run" etc. will add to
+                  ;; this submodule.
+                  (module+ execs (output-all-test-failures))
+                  ;; Declare submodule "main"
                   (module+ main
-                    (require (submod ".." execs)))
+                    ; Invoke the execs submodule
+                    (require (submod ".." execs))
+                    ; After execution of execs, print test failures (if any)
+                    )
                   (log:flush-logs ',compile-time "no-error")))
 
   (define module-datum `(module forge-mod forge/lang/expander

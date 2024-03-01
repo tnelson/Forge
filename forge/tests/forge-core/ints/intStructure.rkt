@@ -36,12 +36,11 @@
       #:scope ([Int 5])
       #:expect theorem)
 
-
 (define (make-n n)
-    (cond
-      [(@= n 0) (sing (int 0))]
-      [(@< n 0) (join succ (make-n (add1 n)))]
-      [(@> n 0) (join (make-n (sub1 n)) succ)]))
+  (cond
+    [(@= n 0) (sing (int 0))]
+    [(@< n 0) (join succ (make-n (add1 n)))]
+    [(@> n 0) (join (make-n (sub1 n)) succ)]))
 
 (pred (Size lower upper)
     ; lower
@@ -51,6 +50,9 @@
     ; upper
     (some (make-n upper)) ; some 0
     (no (make-n (add1 upper)))) ; no 1)
+
+              
+
 
 (test size1
       #:preds [(Size -1 0)]

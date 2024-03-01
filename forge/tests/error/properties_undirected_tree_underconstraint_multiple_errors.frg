@@ -1,5 +1,6 @@
 #lang forge
 option run_sterling off
+option test_keep last
 option verbose 0
 
 sig Node {edges: set Node}
@@ -31,5 +32,6 @@ pred TreeWithEdges
     some edges
  } 
 
- assert TreeWithEdges is necessary for isUndirectedTree
+assert TreeWithEdges is necessary for isUndirectedTree
+assert all n : Node | TreeWithEdges is necessary for isUndirectedTree
 
