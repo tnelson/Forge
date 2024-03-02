@@ -14,7 +14,11 @@ test expect {
   -- Test for lack of arity-checking in direct use of sum
   sum_arity: {sum[age] = 1} is forge_error
   -- test for bad decl arity in sum aggregator
-  foo: {(sum x : age | x.age) = 1} is forge_error
+  sum_aggregator_decl_arity: {(sum x : age | x.age) = 1} is forge_error
+  -- test for bad type in sum aggregator decl
+  sum_aggregator_decl_fmla: {(sum x : (Person = Person) | x.age) = 1} is forge_error
   -- test for bad decl arity in quantification
-  bar: {some x : age | some x} is sat //forge_error
+  quantifier_decl_arity: {some x : age | some x} is forge_error
+  -- test for bad type in quantifier decl 
+  quantifier_decl_arity: {some x : (Person = Person) | some x} is forge_error
 }

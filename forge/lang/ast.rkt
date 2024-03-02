@@ -690,15 +690,20 @@
 (define (sum-quant/func decls raw-int-expr #:info [node-info empty-nodeinfo])
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
-      (raise-argument-error 'set "expr?" e))
+      (raise-forge-error
+       #:msg (format "sum aggregator expected an expression in its declaration, given ~a" e)
+       #:context e))
     (unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error 'set "decl of arity 1" e)))
+      (raise-forge-error
+       #:msg (format "sum aggregator expected its declaration expression to have arity 1, given ~a" e)
+       #:context e)))
   (define int-expr (cond [(node/expr? raw-int-expr) 
                           (expr->intexpr/maybe raw-int-expr #:op 'sum #:info node-info)]
                          [else 
                           raw-int-expr]))
   (unless (node/int? int-expr)
-    (raise-argument-error 'set "int-expr?" int-expr))
+    (raise-forge-error #:msg "sum aggregator body expected an integer expression, got ~a" int-expr
+                       #:context int-expr))
   (node/int/sum-quant node-info decls int-expr))
 
 (define (sum-quant-expr info decls int-expr)
@@ -808,11 +813,14 @@
 (define (quantified-formula info quantifier decls formula)
   (for ([e (in-list (map cdr decls))])
     (unless (node/expr? e)
-      (raise-argument-error quantifier "expr?" e))
-    #'(unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error quantifier "decl of arity 1" e)))
+      (raise-forge-error #:msg (format "~a quantifier expected an expression for domain, got ~a" quantifier e)
+                         #:context e))
+    (unless (equal? (node/expr-arity e) 1)
+      (raise-forge-error #:msg (format "~a quantifier expected an arity-1 expression for domain, got ~a" quantifier e)
+                         #:context e)))
   (unless (or (node/formula? formula) (equal? #t formula))
-    (raise-argument-error quantifier "formula?" formula))
+    (raise-forge-error #:msg (format "~a quantifier body expected a formula, got ~a" quantifier formula)
+                       #:context formula))
   (node/formula/quantified info quantifier decls formula))
 
 ;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
@@ -877,7 +885,9 @@
                      (=> (no-pairwise-intersect (list v0 ...) #:context #,(build-source-location stx)) pred))))]
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)     
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var info
+                                            (if (node/expr? e0) (node/expr-arity e0) 1)
+                                            (gensym (format "~a_all" 'v0)) 'v0)] ...)
          (quantified-formula info 'all (list (cons v0 e0) ...) pred)))]))
 
 ;;; SOME ;;;
@@ -903,7 +913,9 @@
     ; TODO: currently discarding the multiplicity info, unchecked (in this and the following cases)
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var info
+                                            (if (node/expr? e0) (node/expr-arity e0) 1)
+                                            (gensym (format "~a_some" 'v0)) 'v0)] ...)
          (quantified-formula info 'some (list (cons v0 e0) ...) pred)))]
     ; quantifier case with disjointness flag; embed and repeat
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
@@ -942,7 +954,9 @@
     ; quantifier without disj: rewrite as !some
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var info
+                                            (if (node/expr? e0) (node/expr-arity e0) 1)
+                                            (gensym (format "~a_no" 'v0)) 'v0)] ...)
          (! (quantified-formula info 'some (list (cons v0 e0) ...) pred))))]
     [(_ info expr)
      (quasisyntax/loc stx
@@ -1027,7 +1041,9 @@
   (syntax-parse stx
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1 m0:opt-mult-class] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity r1) (gensym (format "~a_sum" 'x1)) 'x1)] ...)
+       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang)
+                                            (if (node/expr? r1) (node/expr-arity r1) 1)
+                                            (gensym (format "~a_sum" 'x1)) 'x1)] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang) (list (cons x1 r1) ...) int-expr)))]))
 
 
