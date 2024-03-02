@@ -103,67 +103,87 @@
         [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
         [else 
-          (define loc (nodeinfo-loc info))
-          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
-          (raise-syntax-error functionname 
-                              (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
-                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
+          (raise-forge-error 
+           #:msg (format "~a operator expected to be given an expression, but instead got ~a, which was ~a."
+                         functionname (deparse a-node) (node-type a-node))
+           #:context a-node)]))
 
 (define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)  
   (@-> node? #:op symbol? #:info nodeinfo? node/int?)  
-  (cond [(node/expr? a-node) (node/int/op/sum (node-info a-node) (list a-node))]
+  (cond [(and (node/expr? a-node)
+              (equal? (node/expr-arity a-node) 1))
+         ; If arity 1, this node/expr can be converted automatically to a node/int
+         (node/int/op/sum (node-info a-node) (list a-node))]
+        [(node/expr? a-node)
+         ; Otherwise, this node/expr has the wrong arity for auto-conversion to a node/int
+         (raise-forge-error
+          #:msg (format "Could not treat ~a as an integer expression. Expected arity 1, got arity ~a"
+                        (deparse a-node) (node/expr-arity a-node))
+          #:context a-node)]
         [(node/int? a-node) a-node]
         [(integer? a-node) (int a-node)]
         [else         
-          (define loc (nodeinfo-loc info))
-          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
-          (raise-syntax-error functionname 
-                              (format "~a operator expected an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
-                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
+          (raise-forge-error 
+           #:msg (format "~a operator expected an expression, but instead got ~a, which was ~a"
+                         functionname (deparse a-node) (node-type a-node))
+           #:context a-node)]))
 
+; Check arguments to an operator declared with define-node-op
 (define (check-args info op args type?
                     #:same-arity? [same-arity? #f] #:arity [arity #f]
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
   (define loc (nodeinfo-loc info))
-  (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-  
+
+  ; check: correct number of arguments
   (when (< (length args) min-length)
-    (raise-syntax-error op (format "building ~a; not enough arguments: required ~a got ~a at loc: ~a"
-                                   op min-length args locstr)
-                        (datum->syntax #f (map deparse args) (build-source-location-syntax loc))))
+    (raise-forge-error
+     #:msg  (format "building ~a; not enough arguments: required ~a got ~a."
+                    op min-length args)
+     #:context loc))
   (unless (false? max-length)
     (when (> (length args) max-length)
-      (raise-syntax-error op (format "too many arguments to ~a; maximum ~a, got ~a at loc: ~a" op max-length args locstr)
-                          (datum->syntax #f (map deparse args) (build-source-location-syntax loc)))))
+      (raise-forge-error
+       #:msg (format "too many arguments to ~a; maximum ~a, got ~a." op max-length args)
+       #:context loc)))
+  
   (for ([a (in-list args)])
+    ; check: type of argument
     (unless (type? a)
-      (raise-syntax-error op (format "argument to ~a had unexpected type. expected ~a, got ~a. loc: ~a" op type? a locstr)
-                          (datum->syntax #f (map deparse args) (build-source-location-syntax loc))))
+      (raise-forge-error
+       #:msg (format "argument to ~a had unexpected type. expected ~a, got ~a." op type? a)
+       #:context loc))
+    ; check: arity of argument
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
-        (raise-syntax-error op (format "argument to ~a was not expression with arity ~v (got: ~a) at loc: ~a" op arity a locstr)
-                            (datum->syntax #f (map deparse args) (build-source-location-syntax loc))))))
+        (raise-forge-error
+         #:msg (format "argument to ~a was not expression with arity ~v (got: ~a)" op arity a)
+         #:context loc))))
+  
   (when same-arity?
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
         (unless (equal? (node/expr-arity a) arity)
-          (raise-syntax-error op (format "arguments to ~a must have same arity. got ~a and ~a at loc: ~a"
-                                         op arity (node/expr-arity a) locstr)
-                           (datum->syntax #f (map deparse args) (build-source-location-syntax loc)))))))
+          (raise-forge-error
+           #:msg (format "arguments to ~a must have same arity. got ~a and ~a"
+                         op arity (node/expr-arity a))
+           #:context loc)))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
-       (raise-syntax-error op (format "join would create a relation of arity 0 at loc: ~a" locstr)
-                           (datum->syntax #f (map deparse args) (build-source-location-syntax loc)))))
+       (raise-forge-error
+        #:msg (format "join would create a relation of arity 0")
+        #:context loc)))
   
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)      
-      (raise-syntax-error op (format "second argument to ~a must have arity 1 at loc: ~a" op locstr)
-                          (datum->syntax #f (map deparse args) (build-source-location-syntax loc)))))
+      (raise-forge-error
+       #:msg (format "second argument to ~a must have arity 1" op)
+       #:context loc)))
   (when domain?
     (unless (equal? (node/expr-arity (car args)) 1)      
-      (raise-syntax-error op (format "first argument to ~a must have arity 1 at loc: ~a" op locstr)
-                             (datum->syntax #f (map deparse args) (build-source-location-syntax loc))))))
+      (raise-forge-error
+       #:msg (format "first argument to ~a must have arity 1" op)
+       #:context loc))))
 
 ;; EXPRESSIONS -----------------------------------------------------------------
 
@@ -244,17 +264,17 @@
   (define c (intexpr->expr/maybe orig-c #:op 'if-then-else #:info info))
   
   (unless (node/formula? a)
-    (raise-syntax-error #f (format "If-then-else expression requires first argument to be a formula")
-                        (datum->syntax #f (deparse a) (build-source-location-syntax (nodeinfo-loc info)))))
+    (raise-forge-error #:msg (format "If-then-else expression requires first argument to be a formula")
+                       #:context (nodeinfo-loc info)))
   (unless (node/expr? b)
-    (raise-syntax-error #f (format "If-then-else expression requires second argument to be an expression")
-                               (datum->syntax #f (deparse b) (build-source-location-syntax (nodeinfo-loc info)))))
+    (raise-forge-error #:msg (format "If-then-else expression requires second argument to be an expression")
+                       #:context (nodeinfo-loc info)))
   (unless (node/expr? c)
-    (raise-syntax-error #f (format "If-then-else expression requires third argument to be an expression")
-                        (datum->syntax #f (deparse c) (build-source-location-syntax (nodeinfo-loc info)))))
+    (raise-forge-error #:msg (format "If-then-else expression requires third argument to be an expression")
+                       #:context (nodeinfo-loc info)))
   (unless (equal? (node/expr-arity b) (node/expr-arity c))
-    (raise-syntax-error #f (format "If-then-else expression requires expression arguments to have same arity")
-                        (datum->syntax #f (deparse c) (build-source-location-syntax (nodeinfo-loc info)))))
+    (raise-forge-error #:msg (format "If-then-else expression requires expression arguments to have same arity")
+                       #:context (nodeinfo-loc info)))
   (node/expr/ite info (node/expr-arity b) a b c))
 
 (define-syntax (ite/info stx)
@@ -605,11 +625,8 @@
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 'univ))])))
 (define-syntax iden (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 2 'iden))])))
-; relations, not constants
-; (define-syntax Int (lambda (stx) (syntax-case stx ()
-;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f))])))
-; (define-syntax succ (lambda (stx) (syntax-case stx ()    
-;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
+
+; Int and succ are built-in relations, not constant expressions
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -625,15 +642,16 @@
 (define-node-op divide node/int/op #f #:min-length 2 #:type node/int?)
 
 ; id, parent, arity, checks
-; card and sum both accept a single node/expr as their argument
+; card and sum both accept a single node/expr as their argument.
 (define-node-op card node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
-(define-node-op sum node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
+; sum must have an argument *of arity 1*; it is used to convert node/expr to node/int. 
+(define-node-op sum node/int/op #f #:min-length 1 #:max-length 1 #:arity 1 #:type node/expr?)
 
 (define-node-op remainder node/int/op #f #:min-length 2 #:max-length 2 #:type node/int?)
 (define-node-op abs node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 (define-node-op sign node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 
-; min and max are now *defined*, not declared, and in sigs-structs.rkt:
+; min and max are now *defined*, not declared, in sigs-structs.rkt.
 
 ;; -- constants ----------------------------------------------------------------
 
@@ -821,8 +839,10 @@
   (unless (node/expr? expr)
     (define loc (nodeinfo-loc info))
     (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
-    (raise-syntax-error mult (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" mult (node-type expr) locstr)
-                             (datum->syntax #f (deparse expr) (build-source-location-syntax loc)))) 
+    (raise-forge-error
+     #:msg (format "~a operator expected to be given an expression, but instead got ~a"
+                   mult (node-type expr))
+     #:context loc)) 
   (node/formula/multiplicity info mult expr))
 
 (define (no-pairwise-intersect vars #:context [context #f])
@@ -1173,7 +1193,7 @@
 (define (pretty-loc loc)
   (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc)))
 
-(define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])  
+(define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])
   (define loc (cond                
                 [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]
                 ; Wheats/chaffs have their inner formula in the info field
