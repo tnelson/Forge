@@ -89,14 +89,14 @@
                                         [domain (cdr decl)])
                                     ; CHECK: shadowed variables
                                     (when (assoc var quantvars)
-                                      (raise-syntax-error #f
-                                                          (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                                          (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
+                                      (raise-forge-error
+                                       #:msg (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                       #:context info))
                                     ; CHECK: recur into domain(s)
                                     (checkExpression run-or-state domain quantvars checker-hash)))
                                 decls)
                               ; Extend domain environment
-                              (let ([new-quantvars (append (map assocify decls) quantvars)])       
+                              (let ([new-quantvars (append (map assocify decls) quantvars)])
                                 ; CHECK: recur into subformula
                                 (checkFormula run-or-state subform new-quantvars checker-hash))))]
     [(node/formula/sealed info)
@@ -371,10 +371,14 @@
                        checker-hash
                        ; Look up in quantvars association list, type is type of domain
                        (cons (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
-                              (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
-                              (raise-syntax-error #f (format "Variable ~a used but was unbound in overall formula being checked. Bound variables: ~a" sym (map car quantvars) )
-                                (datum->syntax #f name (build-source-location-syntax (nodeinfo-loc info)))))
-                              #t))]
+                                 (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
+                                 (raise-forge-error
+                                  #:msg (format "Variable ~a used, but it was unbound at this point.\
+ Often, this means that a sig, field, or helper name is being used as a quantifier variable.\
+ It might also mean that the variable domain references the variable itself.\
+ For help debugging, the bound variables at this point were: ~a" sym (map car quantvars) )
+                                  #:context info))
+                             #t))]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info arity decls subform)
