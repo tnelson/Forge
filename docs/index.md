@@ -87,7 +87,7 @@ Forge is a lightweight formal-methods tool, similar to [Alloy 6](https://alloyto
 
 ### Modern Editor Integration
 
-Edit Forge in your favorite text editor; we have added support in both [Visual Studio Code](https://github.com/csci1710/forge-language-extension-vscode/releases) and DrRacket. 
+Edit Forge in your favorite text editor; we have added support in both [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-language-server) and DrRacket. 
 
 ### Domain-Specific Visualization Support
 
