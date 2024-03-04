@@ -343,8 +343,13 @@
   
   ; Print solve
   (define (get-next-model [mode ""])
+    ; If the solver isn't running at all, error:
     (unless (is-running?)
       (raise-user-error "KodKod server is not running."))
+    ; If the solver is running, but this specific run ID is closed, user error
+    (when (is-run-closed? run-name)
+      (raise-user-error (format "Run ~a has been closed." run-name)))
+    
     (pardinus-print (pardinus:solve run-name mode))
     (define result (translate-from-kodkod-cli
                     'run 
@@ -630,6 +635,14 @@ Please declare a sufficient scope for ~a."
 
   (define all-atoms (append int-atoms sig-atoms))
 
+  ; for ease of understanding, just sort by first atom
+  (define (tuple<? t1 t2)
+    (cond [(and (symbol? t1) (symbol? t2))
+           (symbol<? (first t1) (first t2))]
+          [(and (number? t1) (number? t2))
+           (< (first t1) (first t2))]
+          [else (symbol? t1)]))
+
   ; Map<Symbol, bound>
   (define bounds-hash
     (for/hash ([sig (get-sigs run-spec)])
@@ -644,7 +657,9 @@ Please declare a sufficient scope for ~a."
         (unless (subset? (list->set lower) (list->set upper))
           (raise-run-error (format "Bounds inconsistency detected for sig ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)
                            (get-blame-node run-spec sig)))
-        (values name (bound rel lower upper)))))
+        (values name (bound rel
+                            (sort (remove-duplicates lower) tuple<?)
+                            (sort (remove-duplicates upper) tuple<?))))))
 
 ;; Issue: one sig will overwrite with lower bound, but looking like that's empty if there's 
 ;;   an inst block that doesnt define it. Need to make that connection between default and provided.

@@ -5,12 +5,21 @@
 (require (prefix-in @ rackunit))
 
 ; Tests for AST node equality, etc.
+; Equality should apply irrespective of source location information.
+
+; Note there is some test-duplication between here and the forge-core version.
+;  DO NOT DELETE ONE IN FAVOR OF THE OTHER (especially without confirming that they are 
+;  in fact identical!)
 
 (@check-equal? univ univ)
 (@check-equal? true true)
 (@check-equal? (join iden iden) (join iden iden))
 (@check-equal? (in (join iden iden) (join iden iden))
                (in (join iden iden) (join iden iden)))
+
+; Quantifier variables (node/expr/quantifier-var) have a "sym" field that should be
+; distinct, even if the variable name is the same. This helps to detect shadowing, etc.
+; But as a result, it is not safe to consider "x" = "x" here.
 (@check-not-equal? (some ([x univ]) (in x x))
                    (some ([x univ]) (in x x)))
 (@check-equal? (some univ)
@@ -47,5 +56,8 @@
 (@check-not-equal? (equal-hash-code univ)
                    (equal-hash-code iden))
 
-
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Not testing equality for sig/relation nodes across aliasing here,
+; since that's only done in the Forge expander at the moment.
+; In forge/core, syntax location must be modified manually.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

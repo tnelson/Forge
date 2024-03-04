@@ -11,3 +11,7 @@ pred problem {
     -- to prevent this from making it to AST-creation.
     some {all a: A | a.i > 0}
 }
+
+test expect {
+    should_error: {problem} is sat
+}

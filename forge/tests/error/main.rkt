@@ -22,6 +22,20 @@
 
 (define REGISTRY
   (list
+    ;;;;;;;;;;;;;;;;;;;;;;;;
+    ; Some error tests look at the specific source-location blamed
+   
+    ; misuse of predicates and helper functions with arguments/no-arguments
+    (list "expect-predicate-args.frg" #rx"Ill-formed block")
+    (list "expect-predicate-no-args.frg" #rx"expect-predicate-no-args.frg:13:45.*Tried to give arguments to a predicate, but it takes none")
+
+    ; TODO: needs switch to raise-forge-error so the proper location is in the message
+    ; (list "expect-fun-args.frg" #rx"Racket procedure, which is likely.*expect-fun-args.frg:11")
+    ; TODO: needs to confirm that equality is irrespective of source location (it should be)
+    ;(list "expect-fun-no-args.frg" #rx"TODO")
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;
+    
     ;;;;;;; Source locations ;;;;;;;
     (list "./loc/sig_use_loc_error.frg" #rx"sig_use_loc_error.frg:7:39") ; vs. reachable
     (list "./loc/field_use_loc_error.frg" #rx"field_use_loc_error.frg:7:29")   ; vs. reachable
@@ -126,8 +140,6 @@
     (list "expr-in-comprehension-condition.frg" #rx"expected a formula")
     (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
     (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
-    (list "expect-predicate-args.frg" #rx"Ill-formed block")
-    (list "expect-predicate-no-args.frg" #rx"Tried to give arguments to a predicate, but it takes none")
 
     (list "override-wrong-arity.frg" #rx"must have same arity")
     (list "override-no-overlap.frg" #rx"will never override anything")
@@ -137,6 +149,15 @@
     (list "int_literal_too_big.frg" #rx"could not be represented in the current bitwidth")
 
     (list "parsing_less_dash.frg" #rx"Negative numbers must not have blank space between the minus")
+
+    ;;; Mismatched type tests
+    (list "mismatched-arg-type-basic.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-basic-univ.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-arity.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-no-quant.frg" #rx"The sig\\(s\\) given as an argument to predicate p1 are of incorrect type")
+    (list "mismatched-arg-type-no-quant2.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-non-primsig.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
+    (list "mismatched-arg-type-non-primsig2.frg" #rx"The sig\\(s\\) given as an argument to predicate p are of incorrect type")
   ))
 
 
