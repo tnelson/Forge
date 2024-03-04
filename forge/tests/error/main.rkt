@@ -150,7 +150,7 @@
 
     (list "parsing_less_dash.frg" #rx"Negative numbers must not have blank space between the minus")
 
-    ;;; Mismatched type tests
+    ;; Mismatched type tests - pred
     (list "mismatched-arg-type-basic.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
     (list "mismatched-arg-type-basic-univ.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
     (list "mismatched-arg-type-arity.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
@@ -158,6 +158,17 @@
     (list "mismatched-arg-type-no-quant2.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
     (list "mismatched-arg-type-non-primsig.frg" #rx"The sig\\(s\\) given as an argument to predicate p2 are of incorrect type")
     (list "mismatched-arg-type-non-primsig2.frg" #rx"The sig\\(s\\) given as an argument to predicate p are of incorrect type")
+
+    ;; Mismatched type tests - fun
+    (list "mismatched-arg-type-fun.frg" #rx"The sig\\(s\\) given as an argument to function f are of incorrect type")
+    (list "mismatched-arg-type-fun-arity.frg" #rx"The sig\\(s\\) given as an argument to function f are of incorrect type")
+    (list "mismatched-arg-type-fun-output.frg" #rx"The sig produced as the output of function f is of incorrect type")
+    (list "mismatched-arg-type-fun-codomain.frg" #rx"The sig produced as the output of function f is of incorrect type")
+    (list "mismatched-arg-type-fun-codomain-non-primsig.frg" #rx"The sig produced as the output of function f is of incorrect type")
+    (list "mismatched-arg-type-fun-output-non-primsig.frg" #rx"The sig produced as the output of function f is of incorrect type")
+    (list "mismatched-arg-type-fun-univ-output.frg" #rx"The sig produced as the output of function f is of incorrect type")
+    (list "mismatched-arg-type-fun-output-int.frg" #rx"The sig produced as the output of function f is of incorrect type")
+    (list "mismatched-arg-type-fun-codomain-int.frg" #rx"The sig produced as the output of function f is of incorrect type")
   ))
 
 

@@ -324,8 +324,25 @@
                        (cons (map list (primify run-or-state 'univ))
                              #t))]
 
-    [(node/expr/fun-spacer info arity name args result expanded)
+    [(node/expr/fun-spacer info arity name args codomain expanded)
        ; be certain to call the -mult version, or the multiplicity will be thrown away.
+      (define domain-types (for/list ([arg args]) 
+                         (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
+      (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
+                      (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
+      (for-each 
+        (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
+            (raise-forge-error
+            #:msg (format "The sig(s) given as an argument to function ~a are of incorrect type" name)
+            #:context (apply-record-arg (list-ref args (cadr type))))
+            (void)))
+            arg-types)
+      (define output-type (checkExpression run-or-state expanded quantvars checker-hash))
+      (if (not (member (car output-type) (checkExpression run-or-state (mexpr-expr codomain) quantvars checker-hash)))
+          (raise-forge-error
+          #:msg (format "The sig produced as the output of function ~a is of incorrect type" name)
+          #:context expanded)
+          (void))
        (checkExpression-mult run-or-state expanded quantvars checker-hash)]
     
     [(node/expr/ite info arity a b c)
