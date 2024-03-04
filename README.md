@@ -32,10 +32,10 @@ To install from source, use the following commands. Make sure that you have [Rac
 
 ```
 git clone https://github.com/tnelson/Forge
-cd Forge/forge
-raco pkg install
+cd Forge
+raco pkg install ./forge ./froglet
 ```
 
-To update, `git pull` the repo and run `raco setup forge`.
+To update, `git pull` the repo and run `raco setup forge` to recompile.
 
-Running on the development branch, `dev`, requires only `checkout dev` before installing; this may be unstable, however.
+Running on the development branch, `dev`, requires `checkout dev` before installing; this may be unstable, however.
