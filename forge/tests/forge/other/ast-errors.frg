@@ -23,6 +23,8 @@ test expect {
   sum_aggregator_decl_arity: {(sum x : age | x.age) = 1} is forge_error
   -- test for bad type in sum aggregator decl
   sum_aggregator_decl_fmla: {(sum x : (Person = Person) | x.age) = 1} is forge_error
+  -- test for bad arity in sum-aggregator sub-expression
+  sum_aggregator_decl_fmla: {(sum x : Person | age) = 1} is forge_error
 
 
   ----- quantification -----
@@ -61,11 +63,6 @@ test expect {
   quantifier_no_decl_syntax_type: {no x : (Person = Person) | some x} is forge_error
   quantifier_no_subformula_type: {no x : Person | x} is forge_error
   quantifier_no_decl_arity: {no Person : Person | some Person} is forge_error
-
-
-
-  -- Relational operators
-
 
 
 }
