@@ -109,8 +109,8 @@
 ;(check-full-ast-srclocs Or  "/forge/formulas/booleanFormulaOperators.rkt" #:ignore-outer 2)
 ;(check-full-ast-srclocs Not  "/forge/formulas/booleanFormulaOperators.rkt" #:ignore-outer 2)
 
-(require (only-in "../forge/examples/sudoku.rkt" generatePuzzle))
-(check-full-ast-srclocs generatePuzzle "sudoku.rkt" #:ignore-outer 2)
+(require (only-in "../forge/examples/sudoku.frg" generatePuzzle))
+(check-full-ast-srclocs generatePuzzle "sudoku.frg" #:ignore-outer 2)
 
 ;; TODO: check run parameters as well (catch instances...) 
 ;; TODO: other examples
