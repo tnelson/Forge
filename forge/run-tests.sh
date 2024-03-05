@@ -30,7 +30,7 @@ exitCode=0
 # Print header of test files found
 echo -e "Found the following $numTestFiles test files:\n$breakLine$testFiles\n$breakLine"
 
-Run tests and report progress
+# Run tests and report progress
 for testFile in $testFiles; do
     current=`date "+%X"`
     echo -e "\nRunning $testFile ($current)"
