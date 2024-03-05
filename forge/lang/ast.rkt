@@ -5,7 +5,7 @@
          racket/contract
          racket/match
          forge/shared ; for verbosity level
-         (only-in racket false? empty? first second rest drop const thunk)
+         (only-in racket false? empty? first second rest drop const thunk range)
          (prefix-in @ (only-in racket + - * < > or <=)))
 
 (provide deparse
@@ -104,8 +104,8 @@
         [(node/expr? a-node) a-node]
         [else 
           (raise-forge-error 
-           #:msg (format "~a operator expected to be given an expression, but instead got ~a, which was ~a."
-                         functionname (deparse a-node) (node-type a-node))
+           #:msg (format "~a operator expected to be given an atom- or set-valued expression, but instead got ~a, which was ~a."
+                         functionname (deparse a-node) (pretty-type-of a-node))
            #:context a-node)]))
 
 (define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)  
@@ -125,8 +125,20 @@
         [else         
           (raise-forge-error 
            #:msg (format "~a operator expected an expression, but instead got ~a, which was ~a"
-                         functionname (deparse a-node) (node-type a-node))
+                         functionname (deparse a-node) (pretty-type-of a-node))
            #:context a-node)]))
+
+(define (pretty-name-predicate p)
+  (cond [(equal? p node/expr?) "atom- or set-valued expression"]
+        [(equal? p node/formula?) "boolean-valued formula"]
+        [(equal? p node/int?) "integer-valued expression"]
+        [else p]))
+(define (pretty-type-of x)
+  (cond [(node/formula? x) "boolean-valued formula"]
+        [(node/expr? x) "atom- or set-valued expression"]
+        [(node/int? x) "integer-valued expression"]
+        [(number? x) "number"]
+        [else "unknown expression type"]))
 
 ; Check arguments to an operator declared with define-node-op
 (define (check-args info op args type?
@@ -147,17 +159,20 @@
        #:msg (format "too many arguments to ~a; maximum ~a, got ~a." op max-length args)
        #:context loc)))
   
-  (for ([a (in-list args)])
+  (for ([a (in-list args)]
+        [idx (map add1 (range (length args)))])
     ; check: type of argument
     (unless (type? a)
       (raise-forge-error
-       #:msg (format "argument to ~a had unexpected type. expected ~a, got ~a." op type? a)
+       #:msg (format "argument ~a of ~a to ~a had unexpected type. Expected ~a, got ~a, which was ~a."
+                     idx (length args) op (pretty-name-predicate type?) (deparse a) (pretty-type-of a))
        #:context loc))
     ; check: arity of argument
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
         (raise-forge-error
-         #:msg (format "argument to ~a was not expression with arity ~v (got: ~a)" op arity a)
+         #:msg (format "argument ~a of ~a to ~a was not expression with arity ~v (got: ~a)"
+                       idx (length args) op arity (deparse a))
          #:context loc))))
   
   (when same-arity?
@@ -837,19 +852,13 @@
    (define hash-proc  (make-robust-node-hash-syntax node/formula/multiplicity 0))
    (define hash2-proc (make-robust-node-hash-syntax node/formula/multiplicity 3))])
 
-(define (node-type n) 
-  (cond [(node/expr? n) "expression"]
-        [(node/int? n) "integer expression"]
-        [(node/formula? n) "formula"]
-        [else "unknown type"]))
-
 (define (multiplicity-formula info mult expr)
   (unless (node/expr? expr)
     (define loc (nodeinfo-loc info))
     (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
     (raise-forge-error
-     #:msg (format "~a operator expected to be given an expression, but instead got ~a"
-                   mult (node-type expr))
+     #:msg (format "~a operator expected to be given an atom- or set-valued expression, but instead got ~a"
+                   mult (pretty-type-of expr))
      #:context loc)) 
   (node/formula/multiplicity info mult expr))
 
