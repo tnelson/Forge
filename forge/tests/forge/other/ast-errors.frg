@@ -80,12 +80,20 @@ test expect {
   -- Relational operators mis-used
   join_given_formula_1: {some (some Nim).Nim} is forge_error
   join_given_formula_2: {some Nim.(some Nim)} is forge_error
+  boxjoin_given_formula_1: {some (some Nim)[Nim]} is forge_error
+  boxjoin_given_formula_2: {some Nim[(some Nim)]} is forge_error
   union_given_formula_1: {some (some Nim) + Nim} is forge_error
   union_given_formula_2: {some Nim + (some Nim)} is forge_error
   intersect_given_formula_1: {some (some Nim) & Nim} is forge_error
   intersect_given_formula_2: {some Nim & (some Nim)} is forge_error
   subtract_given_formula_1: {some (some Nim) - Nim} is forge_error
   subtract_given_formula_2: {some Nim - (some Nim)} is forge_error
+  product_given_formula_1: {some (some Nim) -> Nim} is forge_error
+  product_given_formula_2: {some Nim -> (some Nim)} is forge_error
+  tc_given_formula: {some ^(some Person)} is forge_error
+  rtc_given_formula: {some *(some Person)} is forge_error
+  transpose_given_formula: {some ~(some Person)} is forge_error
+  
 
   -- Set comprehension mis-used 
   comprehension_used_quantifier: { some {all x: Person | some x.age}} is forge_error

@@ -91,7 +91,7 @@
             #:context f)]
           [else
            (raise-forge-error
-            #:msg (format "Could not use formula as a function: ~a." (deparse f))
+            #:msg (format "Could not use a boolean-valued formula as a predicate, function, or field name: ~a." (deparse f))
             #:context f)])))
   
 
