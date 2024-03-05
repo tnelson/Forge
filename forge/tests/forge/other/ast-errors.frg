@@ -93,7 +93,8 @@ test expect {
   comprehension_bad_decl_var: { some {Person: Person | some Person.age}} is forge_error
   comprehension_bad_decl_type: { some {x: (Person = Person) | some x.age}} is forge_error
 
-
+  -- Cardinality mis-used
+  card_given_fmla: { #(Person = Person) = 1 } is forge_error
 
   -- Temporal formula operators mis-used
   eventually_given_expr: {eventually Person} is forge_error
@@ -101,4 +102,16 @@ test expect {
   next_state_given_expr: {next_state Person} is forge_error
   until_given_expr_1: {Person until some Person} is forge_error
   until_given_expr_2: {some Person until Person} is forge_error
+  releases_given_expr_1: {Person releases some Person} is forge_error
+  releases_given_expr_2: {some Person releases Person} is forge_error
+  historically_given_expr: {historically Person} is forge_error
+  once_given_expr: {once Person} is forge_error
+  prev_state_given_expr: {prev_state Person} is forge_error
+  since_given_expr_1: {Person since some Person} is forge_error
+  since_given_expr_2: {some Person since Person} is forge_error
+  triggered_given_expr_1: {Person triggered some Person} is forge_error
+  triggered_given_expr_2: {some Person triggered Person} is forge_error
+  
+  
+
 }
