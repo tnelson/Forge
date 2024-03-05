@@ -647,10 +647,11 @@
            (define run-reference #f)
            (with-handlers ([exn:fail:user? void])
              #,(syntax/loc stx (run name args ...))
-             ; Cannot throw the Forge error here, or it will be caught and ignored
+             ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
              (set! run-reference name)
              (close-run name))
-           ; Instead, wait and throw it here
+           ; Instead, wait and throw it here (note this will only happen if _NO_ user-error was
+           ; produced by the run, and thus a run-reference is present.
            (when run-reference
              (report-test-failure
               #:name 'name

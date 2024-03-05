@@ -1,5 +1,7 @@
-#lang forge 
-option verbose 0
+#lang forge
+
+-- Do not decrease the verbosity. This ensures certain checks are run. 
+option verbose 1
 option run_sterling off
 
 -- Tests for some errors of last resort in the AST; some of these 
@@ -119,7 +121,21 @@ test expect {
   since_given_expr_2: {some Person since Person} is forge_error
   triggered_given_expr_1: {Person triggered some Person} is forge_error
   triggered_given_expr_2: {some Person triggered Person} is forge_error
-  
-  
 
+  ----- Errors possibly from outside the AST -----
+
+  -- Join type mismatch
+  empty_join_result: {some age.Nim} is forge_error
+  -- 0-ary join result
+  zero_arity_join_result: {some Nim.Nim} is forge_error
+
+  -- TODO -- 
+
+  -- Variable-name shadowing across quantification
+  -- variable_name_shadowing: { some x: Person | all x: Person | some x } is sat
+
+  -- Variable-name shadowing between quantification and comprehension
+  --comp_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is sat
+  -- Variable-name shadowing within a comprehension
+  --internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat
 }

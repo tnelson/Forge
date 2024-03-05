@@ -391,8 +391,9 @@
                                                 [domain (cdr decl)])
                                             ; CHECK: shadowed variables
                                             (when (assoc var quantvars)
-                                              (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                                (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
+                                              (raise-forge-error
+                                               #:msg (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                               #:context info))
                                             ; CHECK: recur into domain(s)
                                             (checkExpression run-or-state domain quantvars checker-hash)))
                                         decls)]
@@ -484,14 +485,15 @@
                            (when (empty? join-result)
                             (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
                                 ((hash-ref checker-hash 'empty-join) expr)
-                              (raise-syntax-error #f 
-                                                (format "~n join always results in an empty relation: ~n Left argument of join \"~a\" is in ~a~n Right argument of join \"~a\" is in ~a~n There is no possible join result " 
-                                                          (deparse (first (node/expr/op-children expr)))  
-                                                          (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
-                                                          (deparse (second (node/expr/op-children expr)))
-                                                          (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (second child-values)))
-                                                          )
-                                                  (datum->syntax #f (deparse expr) (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
+                              (raise-forge-error
+                               #:msg (format "Join always results in an empty relation:\
+ Left argument of join \"~a\" is in ~a.\
+ Right argument of join \"~a\" is in ~a" 
+                                             (deparse (first (node/expr/op-children expr)))  
+                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
+                                             (deparse (second (node/expr/op-children expr)))
+                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (second child-values))))
+                               #:context expr))))
                            (when (and (not (cdr (first child-values))) (eq? (nodeinfo-lang (node-info expr)) 'bsl))
                                 ((hash-ref checker-hash 'relation-join) expr args))
                            (cons join-result
