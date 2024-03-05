@@ -129,14 +129,17 @@ test expect {
   -- 0-ary join result
   zero_arity_join_result: {some Nim.Nim} is forge_error
 
-  -- TODO -- 
-
   -- Variable-name shadowing across quantification
-  -- variable_name_shadowing: { some x: Person | all x: Person | some x } is sat -- s/b error
-
+  variable_name_shadowing: { some x: Person | all x: Person | some x } is forge_error 
   -- Variable-name shadowing between quantification and comprehension
-  --comp_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is sat -- s/b error
-  -- Variable-name shadowing within a comprehension
+  quant_comp_variable_shadowing: {some {x : Person | some x: Person | some x.age}} is forge_error
+
+  -- TODO --
+  
+  -- Same as above, but in the other direction  
+  --comp_quant_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is sat -- s/b error
+  
+  -- Variable-name shadowing within a single comprehension
   -- internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b error
   -- Variable-name shadowing between nested comprehensions
   -- nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is sat -- s/b error
