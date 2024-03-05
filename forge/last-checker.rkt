@@ -389,6 +389,7 @@
                                     (map (lambda (decl)
                                           (let ([var (car decl)]
                                                 [domain (cdr decl)])
+                                            (printf "!!!!! comprehension case; var: ~a; domain: ~a; quantvars: ~a~n" var domain quantvars)
                                             ; CHECK: shadowed variables
                                             (when (assoc var quantvars)
                                               (raise-forge-error
@@ -445,12 +446,17 @@
     
     ; SETMINUS 
     [(? node/expr/op/-?)
-     (check-and-output expr
-                       node/expr/op/-
-                       checker-hash
-                       ; A-B should have only 2 children. B may be empty.
-                       (cons (checkExpression run-or-state (first args) quantvars checker-hash)
-                              #t))]
+     (begin
+       ; A-B should have only 2 children. B may not exist; use A as the bound returned regardless. 
+       ; However, if B is present, we must /check/ it anyway (and discard non-error results).
+       (when (@> (length args) 1)
+         (checkExpression run-or-state (second args) quantvars checker-hash))
+       (check-and-output expr
+                         node/expr/op/-
+                         checker-hash
+                         ; A-B should have only 2 children. B may be empty.
+                         (cons (checkExpression run-or-state (first args) quantvars checker-hash)
+                               #t)))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)

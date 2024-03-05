@@ -132,10 +132,20 @@ test expect {
   -- TODO -- 
 
   -- Variable-name shadowing across quantification
-  -- variable_name_shadowing: { some x: Person | all x: Person | some x } is sat
+  -- variable_name_shadowing: { some x: Person | all x: Person | some x } is sat -- s/b error
 
   -- Variable-name shadowing between quantification and comprehension
-  --comp_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is sat
+  --comp_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is sat -- s/b error
   -- Variable-name shadowing within a comprehension
-  --internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat
+  -- internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b error
+  -- Variable-name shadowing between nested comprehensions
+  -- nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is sat -- s/b error
+
+  -- Minus operator: check RHS for validity, allow chaining
+  -- set_minus_rhs: {all x: Person, y: Person - x | x != y} is theorem -- should be OK
+
+-- Regression test: checker must descend into RHS of a minus, even if the RHS has no impact
+  -- on the inferred type of the expression.
+  set_minus_rhs_empty_join: { some Person - (age.Nim) } is forge_error
+  
 }
