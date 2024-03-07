@@ -61,7 +61,7 @@
     (for-each 
         (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error
-            #:msg (format "The sig(s) given as an argument to predicate ~a are of incorrect type" name)
+            #:msg (format "Argument ~a of ~a given to predicate ~a is of incorrect type" (add1 (cadr type)) (length args) name)
             #:context (apply-record-arg (list-ref args (cadr type))))
             (void)))
             arg-types)
@@ -268,6 +268,16 @@
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
+; (define (deprimify run-or-state primsigs)
+;   (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
+;     (cond
+;       [(equal? primsigs '(Int))
+;        'Int]
+;       [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
+;        'univ]
+;       [else])))
+      ;; can we do a similar thing as above, but just compare against every single sig primified?
+
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
 (define (checkExpression run-or-state expr quantvars checker-hash)
@@ -333,14 +343,14 @@
       (for-each 
         (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error
-            #:msg (format "The sig(s) given as an argument to function ~a are of incorrect type" name)
+            #:msg (format "Argument ~a of ~a given to function ~a is of incorrect type" (add1 (cadr type)) (length args) name)
             #:context (apply-record-arg (list-ref args (cadr type))))
             (void)))
             arg-types)
       (define output-type (checkExpression run-or-state expanded quantvars checker-hash))
       (if (not (member (car output-type) (checkExpression run-or-state (mexpr-expr codomain) quantvars checker-hash)))
           (raise-forge-error
-          #:msg (format "The sig produced as the output of function ~a is of incorrect type" name)
+          #:msg (format "The output of function ~a is of incorrect type" name)
           #:context expanded)
           (void))
        (checkExpression-mult run-or-state expanded quantvars checker-hash)]
