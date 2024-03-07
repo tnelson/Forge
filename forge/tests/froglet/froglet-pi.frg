@@ -1,5 +1,5 @@
 #lang forge/bsl
-option verbose 0
+option verbose 1
 
 -------------------------------------------------
 -- Tests for the Froglet partial-instance syntax.

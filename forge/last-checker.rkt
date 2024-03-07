@@ -87,7 +87,6 @@
                                 (lambda (decl)
                                   (let ([var (car decl)]
                                         [domain (cdr decl)])
-                                    (printf "!!!!! quantifier case: ~a ~a ~a ~n" var domain quantvars)
                                     ; CHECK: shadowed variables
                                     ; It does NOT suffice to do: (assoc var quantvars), since we now give variables
                                     ; distinct gensym suffixes to help with disambiguation.
@@ -397,9 +396,14 @@
                                                 [domain (cdr decl)])
                                             (printf "!!!!! comprehension case; var: ~a; domain: ~a; quantvars: ~a~n" var domain quantvars)
                                             ; CHECK: shadowed variables
-                                            (when (assoc var quantvars)
+                                            ; It does NOT suffice to do: (assoc var quantvars), since we now give variables
+                                            ; distinct gensym suffixes to help with disambiguation.
+                                            (when (ormap (lambda (qvd)
+                                                   (equal?
+                                                    (node/expr/quantifier-var-name var)
+                                                    (node/expr/quantifier-var-name (first qvd)))) quantvars)
                                               (raise-forge-error
-                                               #:msg (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                               #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
                                                #:context info))
                                             ; CHECK: recur into domain(s)
                                             (checkExpression run-or-state domain quantvars checker-hash)))

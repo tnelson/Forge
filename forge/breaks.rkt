@@ -716,22 +716,37 @@
             (λ () (break bound formulas)))
 ))
 
-(add-strategy 'pfunc (λ (pri rel bound atom-lists rel-list [loc #f])
 
-    (define (pfuncformulajoin quantvarlst) 
-        (cond 
-            [(empty? (rest quantvarlst)) (@join (first quantvarlst) rel)]
-            [else (@join (first quantvarlst) (pfuncformulajoin (rest quantvarlst)))]))
-    (define (pfuncformula rllst quantvarlst)
-        (cond
-            [(empty? (rest (rest rllst))) 
-                (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (@lone (pfuncformulajoin (cons a quantvarlst)))))]
-            [else (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (pfuncformula (rest rllst) (cons a quantvarlst))))]))
-
-    (define formulas (set (pfuncformula rel-list (list))))
-
+(add-strategy 'pfunc
+              (λ (pri rel bound atom-lists rel-list [loc #f])
+                (define (pfuncformulajoin quantvarlst) 
+                  (cond
+                    ; x_n.rel
+                    [(empty? (rest quantvarlst)) (@join (first quantvarlst) rel)]
+                    ; ... x_n-1.x_n.rel
+                    [else (@join (first quantvarlst) (pfuncformulajoin (rest quantvarlst)))]))
+                (define (pfuncformula rllst quantvarlst)
+                  (cond
+                    [(empty? (rest (rest rllst)))
+                     ; Note: the value of "a" defined here will not actually be reflected in what the
+                     ; macro below produces. (TODO: why?)
+                     ;; all/info macro uses 'v0 with QUOTING?
+                     (define foo (let ([a (gensym)])
+                       (printf "gs case 1: ~a~n" a)
+                       (@all/info (@just-location-info loc) ([a (first rllst)])
+                                  (@lone (pfuncformulajoin (cons a quantvarlst)))))
+                       )
+                     (printf "foo: ~a~n" foo)
+                     foo
+                     ]
+                    [else (let ([a (gensym)])
+                            (printf "gs case 2: ~a~n" a)
+                            (@all/info (@just-location-info loc) ([a (first rllst)])
+                                       (pfuncformula (rest rllst) (cons a quantvarlst))))]))
+                (define pf-fmla (pfuncformula rel-list (list)))
+                (printf "pfunc breaker: ~a~n" pf-fmla)
+                (define formulas (set pf-fmla))
+                
     ; OLD CODE
     ; (if (equal? A B)
     ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates

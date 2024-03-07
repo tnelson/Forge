@@ -892,7 +892,7 @@
        (all/info info ([v0 e0 m0] ...)
                  #,(quasisyntax/loc stx
                      (=> (no-pairwise-intersect (list v0 ...) #:context #,(build-source-location stx)) pred))))]
-    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)     
+    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
        (let* ([v0 (node/expr/quantifier-var info
                                             (if (node/expr? e0) (node/expr-arity e0) 1)

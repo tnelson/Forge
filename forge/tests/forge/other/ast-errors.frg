@@ -133,16 +133,15 @@ test expect {
   variable_name_shadowing: { some x: Person | all x: Person | some x } is forge_error 
   -- Variable-name shadowing between quantification and comprehension
   quant_comp_variable_shadowing: {some {x : Person | some x: Person | some x.age}} is forge_error
+  -- Same as above, but in the other direction  
+  comp_quant_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is forge_error
+  -- Variable-name shadowing between nested comprehensions
+  nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is forge_error
 
   -- TODO --
   
-  -- Same as above, but in the other direction  
-  --comp_quant_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is sat -- s/b error
-  
   -- Variable-name shadowing within a single comprehension
-  -- internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b error
-  -- Variable-name shadowing between nested comprehensions
-  -- nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is sat -- s/b error
+  -- internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b FORGE error
 
   -- Minus operator: check RHS for validity, allow chaining
   -- set_minus_rhs: {all x: Person, y: Person - x | x != y} is theorem -- should be OK
@@ -152,3 +151,22 @@ test expect {
   set_minus_rhs_empty_join: { some Person - (age.Nim) } is forge_error
   
 }
+
+
+-- To be integrated with next phase of last-checker improvements
+/*
+
+-- Parse error 
+--fun primeAfterBoxNoGroup[x: Thread]: set Location {World.loc[x]'}
+
+fun baseline[x: Thread]: set Location {World.loc'[x]}
+test expect {
+    non_equiv1: {some x: Thread | baseline[x] != World'.loc[x]} is sat
+    non_equiv2: {some x: Thread | baseline[x] != World.loc[x']} is sat
+    non_equiv3: {some x: Thread | baseline[x] != (World.loc)'[x]} is unsat
+    -- Nothing to do with priming; this one should give an empty-join error
+    -- non_equiv4: {some x: Thread | baseline[x] != World.(loc[x])} is forge_error
+    non_equiv5: {some x: Thread | baseline[x] != (World.loc[x])'} is unsat
+}
+
+*/

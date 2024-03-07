@@ -170,27 +170,28 @@
 
   ; Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
   (define-syntax-class MultClass
-    (pattern ((~datum Mult) "lone") #:attr symbol #'#:lone)
-    (pattern ((~datum Mult) "some") #:attr symbol #'#:some)
-    (pattern ((~datum Mult) "one") #:attr symbol #'#:one)
-    (pattern ((~datum Mult) "two") #:attr symbol #'#:two))
+    (pattern ((~datum Mult) "lone") #:attr symbol (syntax/loc this-syntax #:lone))
+    (pattern ((~datum Mult) "some") #:attr symbol (syntax/loc this-syntax #:some))
+    (pattern ((~datum Mult) "one") #:attr symbol (syntax/loc this-syntax #:one))
+    (pattern ((~datum Mult) "two") #:attr symbol (syntax/loc this-syntax #:two)))
 
   ; ArrowMult : used for field etc. declarations; the symbol attribute references a breaker
   (define-syntax-class ArrowMultClass
-    (pattern ((~datum ArrowMult) "lone") #:attr symbol #'pfunc)
-    (pattern ((~datum ArrowMult) "set") #:attr symbol #'default)
-    (pattern ((~datum ArrowMult) "one") #:attr symbol #'func)
-    (pattern ((~datum ArrowMult) "func") #:attr symbol #'func)
-    (pattern ((~datum ArrowMult) "pfunc") #:attr symbol #'pfunc)
-    (pattern ((~datum ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
+    (pattern ((~datum ArrowMult) "lone") #:attr symbol (syntax/loc this-syntax pfunc))
+    (pattern ((~datum ArrowMult) "set") #:attr symbol (syntax/loc this-syntax default))
+    (pattern ((~datum ArrowMult) "one") #:attr symbol (syntax/loc this-syntax func))
+    (pattern ((~datum ArrowMult) "func") #:attr symbol (syntax/loc this-syntax func))
+    (pattern ((~datum ArrowMult) "pfunc") #:attr symbol (syntax/loc this-syntax pfunc))
+    (pattern ((~datum ArrowMult) "two") #:attr symbol (syntax/loc this-syntax
+                                                        (raise "relation arity two not implemented"))))
 
   ; HelperMult : used for helper fun/pred definitions; the symbol attribute references a symbol
   (define-syntax-class HelperMultClass
-    (pattern ((~datum HelperMult) "lone") #:attr symbol #'(quote lone))
-    (pattern ((~datum HelperMult) "set") #:attr symbol #'(quote set))
-    (pattern ((~datum HelperMult) "one") #:attr symbol #'(quote one))
-    (pattern ((~datum HelperMult) "func") #:attr symbol #'(quote func))
-    (pattern ((~datum HelperMult) "pfunc") #:attr symbol #'(quote pfunc)))
+    (pattern ((~datum HelperMult) "lone") #:attr symbol (syntax/loc this-syntax (quote lone)))
+    (pattern ((~datum HelperMult) "set") #:attr symbol (syntax/loc this-syntax (quote set)))
+    (pattern ((~datum HelperMult) "one") #:attr symbol (syntax/loc this-syntax (quote one)))
+    (pattern ((~datum HelperMult) "func") #:attr symbol (syntax/loc this-syntax (quote func)))
+    (pattern ((~datum HelperMult) "pfunc") #:attr symbol (syntax/loc this-syntax (quote pfunc))))
 
   
   ; Declaration of variables with shared expr, shared optional multiplicity
