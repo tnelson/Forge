@@ -653,10 +653,9 @@
     (define (funcformula rllst quantvarlst)
         (cond
             [(empty? (rest (rest rllst))) 
-                (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (@one (funcformulajoin (cons a quantvarlst)))))]
-            [else (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (funcformula (rest rllst) (cons a quantvarlst))))]))
+              (@all/info (@just-location-info loc) ([a (first rllst)]) (@one (funcformulajoin (cons a quantvarlst))))]
+            [else
+              (@all/info (@just-location-info loc) ([a (first rllst)]) (funcformula (rest rllst) (cons a quantvarlst)))]))
     (define formulas (set (funcformula rel-list (list))))
     
     ; OLD CODE
@@ -724,11 +723,10 @@
             [else (@join (first quantvarlst) (pfuncformulajoin (rest quantvarlst)))]))
     (define (pfuncformula rllst quantvarlst)
         (cond
-            [(empty? (rest (rest rllst))) 
-                (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (@lone (pfuncformulajoin (cons a quantvarlst)))))]
-            [else (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (pfuncformula (rest rllst) (cons a quantvarlst))))]))
+            [(empty? (rest (rest rllst)))
+             (@all/info (@just-location-info loc) ([a (first rllst)]) (@lone (pfuncformulajoin (cons a quantvarlst))))]
+            [else
+              (@all/info (@just-location-info loc) ([a (first rllst)]) (pfuncformula (rest rllst) (cons a quantvarlst)))]))
 
     (define formulas (set (pfuncformula rel-list (list))))
 

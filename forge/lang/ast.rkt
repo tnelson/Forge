@@ -852,12 +852,14 @@
     ; TODO: currently discarding the multiplicity info, unchecked
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (all/info info ([v0 e0 m0] ...)
+       (let ([v0 (gensym)] ...)
+         (all/info info ([v0 e0 m0] ...)
                  #,(quasisyntax/loc stx
-                     (=> (no-pairwise-intersect (list v0 ...) #:context #,(build-source-location stx)) pred))))]
-    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)     
+                     (=> (no-pairwise-intersect (list v0 ...) #:context #,(build-source-location stx)) pred)))))]
+    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
+     #:with (-v0 ...) (generate-temporaries #'(v0 ...))
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_all" '-v0)) '-v0)] ...)
          (quantified-formula info 'all (list (cons v0 e0) ...) pred)))]))
 
 ;;; SOME ;;;
