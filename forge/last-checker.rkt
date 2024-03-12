@@ -58,6 +58,7 @@
                          (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
     (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
                       (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
+    (deprimify run-or-state (list-ref domain-types 0))
     (for-each 
         (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error
@@ -268,15 +269,43 @@
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
-; (define (deprimify run-or-state primsigs)
-;   (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
-;     (cond
-;       [(equal? primsigs '(Int))
-;        'Int]
-;       [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
-;        'univ]
-;       [else])))
-      ;; can we do a similar thing as above, but just compare against every single sig primified?
+; (define (deprimify-helper primsigs type-to-check)
+;     (void))
+    ;; check to see if type-to-check is contained in primsigs
+    ;; if it is, first check equality
+      ;; if it is not equal, check the child
+      ;; if it is equal, return it
+    ;; if it is not, return)
+
+(define (sig-list-builder run-or-state sigs)
+    (if (empty? sigs)
+        '()
+        (if (list? sigs)
+        (for/list ([sig sigs])
+            (cons sig (sig-list-builder run-or-state (get-children run-or-state sig))))
+        (cons sigs (sig-list-builder run-or-state (get-children run-or-state sigs))))))
+
+(define (deprimify run-or-state primsigs)
+  (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
+    (cond
+      [(equal? primsigs '(Int))
+       'Int]
+      [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
+       'univ]
+      [else (define type-list (get-top-level-sigs run-or-state))
+            ; if I don't flatten, primsigs is ((A_remainder) (A_child1) (A_child2))
+            ; and the subset check doesn't work, because primify on A returns (A_remainder A_child1 A_child2)
+            (printf "primsigs: ~a~n" primsigs)
+            (printf "primsigs flattened: ~a~n" (flatten primsigs))
+            (printf "type-list ~a~n" type-list)
+            ; flattening makes traversing easier... but maybe not doing that would be better?
+            (define whole-list (flatten (for/list ([sig type-list])
+                    (sig-list-builder run-or-state sig))))
+            (printf "whole-list ~a~n" whole-list)
+            (define test-fold-list (foldl (lambda (sig acc) (if (equal? (primify run-or-state (Sig-name sig)) (flatten primsigs))
+                                      (append acc (list (Sig-name sig)))
+                                      acc)) '() whole-list))
+            (printf "example result: ~a~n" test-fold-list)])))
 
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
@@ -432,6 +461,11 @@
 
 (define (keep-only keepers pool)
   (filter (lambda (ele) (member ele keepers)) pool))
+
+; (struct/contract expression-type (
+;   [multiplicity any/c]
+;   [type (listof (listof symbol?))]
+;   [temporal-possibility boolean?]))
 
 (define/contract (checkExpressionOp run-or-state expr quantvars args checker-hash)
   (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?)) hash?   
