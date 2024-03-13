@@ -56,13 +56,21 @@
     [(node/fmla/pred-spacer info name args expanded)
     (define domain-types (for/list ([arg args]) 
                          (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
+    
     (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
                       (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
-    (deprimify run-or-state (list-ref domain-types 0))
     (for-each 
         (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error
-            #:msg (format "Argument ~a of ~a given to predicate ~a is of incorrect type" (add1 (cadr type)) (length args) name)
+            #:msg (format "Argument ~a of ~a given to predicate ~a is of incorrect type. Expected type ~a, given type ~a" 
+                  (add1 (cadr type)) (length args) name (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten domain-types))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the domain is univ then just pass in univ
+                                                        (list-ref domain-types (cadr type)))) ; else pass in the sig one by one
+                                                        (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten (car (car arg-types))))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the argument is univ then just pass in univ
+                                                        (car (car type))))) ; else pass in the sig one by one
             #:context (apply-record-arg (list-ref args (cadr type))))
             (void)))
             arg-types)
@@ -269,43 +277,39 @@
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
-; (define (deprimify-helper primsigs type-to-check)
-;     (void))
-    ;; check to see if type-to-check is contained in primsigs
-    ;; if it is, first check equality
-      ;; if it is not equal, check the child
-      ;; if it is equal, return it
-    ;; if it is not, return)
-
-(define (sig-list-builder run-or-state sigs)
-    (if (empty? sigs)
-        '()
-        (if (list? sigs)
-        (for/list ([sig sigs])
-            (cons sig (sig-list-builder run-or-state (get-children run-or-state sig))))
-        (cons sigs (sig-list-builder run-or-state (get-children run-or-state sigs))))))
+(define (dfs-sigs run-or-state func sigs)
+    (define (dfs-sigs-helper todo acc)
+      (printf "todo: ~a~n" todo)
+      (cond [(equal? (length todo) 0) (car acc)]
+      [else (define next (first todo))
+      (define new-acc-and-stop
+        (func next acc))
+        (printf "new-acc-and-stop: ~a~n" new-acc-and-stop)
+        (cond [(cdr new-acc-and-stop) (dfs-sigs-helper (rest todo) (cons (car new-acc-and-stop) #f))]
+              [else (define next-list (if (equal? (length (get-children run-or-state next)) 0)
+                                      (rest todo)
+                                      (cons (get-children run-or-state next) (rest todo))))
+              (dfs-sigs-helper (flatten next-list) new-acc-and-stop)])]))
+    (dfs-sigs-helper sigs (cons '() #f)))
 
 (define (deprimify run-or-state primsigs)
   (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
+    (printf "primsigs: ~a~n" primsigs)
     (cond
       [(equal? primsigs '(Int))
        'Int]
       [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
        'univ]
-      [else (define type-list (get-top-level-sigs run-or-state))
-            ; if I don't flatten, primsigs is ((A_remainder) (A_child1) (A_child2))
-            ; and the subset check doesn't work, because primify on A returns (A_remainder A_child1 A_child2)
-            (printf "primsigs: ~a~n" primsigs)
-            (printf "primsigs flattened: ~a~n" (flatten primsigs))
-            (printf "type-list ~a~n" type-list)
-            ; flattening makes traversing easier... but maybe not doing that would be better?
-            (define whole-list (flatten (for/list ([sig type-list])
-                    (sig-list-builder run-or-state sig))))
-            (printf "whole-list ~a~n" whole-list)
-            (define test-fold-list (foldl (lambda (sig acc) (if (equal? (primify run-or-state (Sig-name sig)) (flatten primsigs))
-                                      (append acc (list (Sig-name sig)))
-                                      acc)) '() whole-list))
-            (printf "example result: ~a~n" test-fold-list)])))
+      [else (define top-level (get-top-level-sigs run-or-state))
+            (printf "top-level ~a~n" top-level)
+            (define pseudo-fold-lambda (lambda (sig acc) (if (or (subset? (primify run-or-state (Sig-name sig)) (flatten primsigs))
+                                                                 (equal? (list (car (primify run-or-state (Sig-name sig)))) (flatten primsigs)))
+                                                                 ; the above check is added for when you have the parent sig, but are expecting the child
+                                      (cons (append (car acc) (list (Sig-name sig))) #t)
+                                      (begin (printf "the subset check was on: ~a~n" (primify run-or-state (Sig-name sig))) acc))))
+            (define final-list (dfs-sigs run-or-state pseudo-fold-lambda top-level))
+            (printf "example result: ~a~n" final-list)
+            final-list])))
 
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
@@ -372,7 +376,15 @@
       (for-each 
         (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error
-            #:msg (format "Argument ~a of ~a given to function ~a is of incorrect type" (add1 (cadr type)) (length args) name)
+            #:msg (format "Argument ~a of ~a given to function ~a is of incorrect type. Expected type ~a, given type ~a" 
+                  (add1 (cadr type)) (length args) name (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten domain-types))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the domain is univ then just pass in univ
+                                                        (list-ref domain-types (cadr type)))) ; else pass in the sig one by one
+                                                        (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten (car (car arg-types))))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the argument is univ then just pass in univ
+                                                        (car (car type))))) ; else pass in the sig one by one
             #:context (apply-record-arg (list-ref args (cadr type))))
             (void)))
             arg-types)
