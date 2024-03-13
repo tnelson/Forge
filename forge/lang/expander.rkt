@@ -1126,7 +1126,7 @@
          (first xs)]         
         [else
          (raise-forge-error
-          #:msg (format "Ill-formed block: expected either one expression or any number of formulas")
+          #:msg (format "Ill-formed block: expected either one expression or any number of formulas; got ~a" xs)
           #:context stx)]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
