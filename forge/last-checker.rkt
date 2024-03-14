@@ -394,7 +394,7 @@
                                     (map (lambda (decl)
                                           (let ([var (car decl)]
                                                 [domain (cdr decl)])
-                                            (printf "!!!!! comprehension case; var: ~a; domain: ~a; quantvars: ~a~n" var domain quantvars)
+                                            ;(printf "!!!!! comprehension case; var: ~a; domain: ~a; quantvars: ~a~n" var domain quantvars)
                                             ; CHECK: shadowed variables
                                             ; It does NOT suffice to do: (assoc var quantvars), since we now give variables
                                             ; distinct gensym suffixes to help with disambiguation.

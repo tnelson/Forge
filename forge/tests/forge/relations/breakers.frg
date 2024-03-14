@@ -44,11 +44,8 @@ test expect {
     -- Overlap with a previous test, but keep since it checks a valuable syntax foible
     cardinalityCheckSyntax: { {#{a: A | some FrontDesk.p[a]}} > 1} is sat
 
-    -- TODO BAD ERRORS: recording here for discussion
-    -- Run-spec: contract violation expected: node/formula? given: (Relation l)
-    --BAD_ERROR_1: {l} is sat 
     -- expander.rkt:701:40: preds: attribute contains non-syntax value    
-    --BAD_ERROR_2: {no l} is sat for {A = `A0 + `A1} is sat
+    -- BAD_ERROR_2: {no l} is sat for {A = `A0 + `A1} is sat
 
     ----- test "linear" -----
 

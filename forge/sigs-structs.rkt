@@ -662,8 +662,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
      (&&/info info
               (=>/info info a b)
               (=>/info info (!/info info a) c))]
-    ; It's an expression if-then-else
-    [(and (node/expr? b) (node/expr? c))
+    ; It's an expression if-then-else (note: mixing int-expr and rel-expr is OK)
+    [(and (or (node/expr? b) (node/int? b) (integer? b))
+          (or (node/expr? c) (node/int? c) (integer? c)))
      (ite/info info a b c)]
     ; It's an error
     [else

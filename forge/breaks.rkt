@@ -652,11 +652,18 @@
 
     (define (funcformula rllst quantvarlst)
         (cond
-            [(empty? (rest (rest rllst))) 
-                (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (@one (funcformulajoin (cons a quantvarlst)))))]
-            [else (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (funcformula (rest rllst) (cons a quantvarlst))))]))
+          [(empty? (rest (rest rllst)))
+           (let* ([var-id (gensym 'pfunc)]
+                  [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
+             (@quantified-formula (@just-location-info loc) 'all
+                                  (list (cons a (first rllst)))
+                                  (@one (funcformulajoin (cons a quantvarlst)))))]
+            [else
+             (let* ([var-id (gensym 'pfunc)]
+                  [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
+             (@quantified-formula (@just-location-info loc) 'all
+                                  (list (cons a (first rllst)))
+                                  (funcformula (rest rllst) (cons a quantvarlst))))]))
     (define formulas (set (funcformula rel-list (list))))
     
     ; OLD CODE
@@ -733,17 +740,12 @@
                        (@quantified-formula (@just-location-info loc) 'all
                                             (list (cons a (first rllst)))
                                             (@lone (pfuncformulajoin (cons a quantvarlst)))))]
-                    ;(@all/info (@just-location-info loc) ([a (first rllst)])
-                    ;           (@lone (pfuncformulajoin (cons a quantvarlst)))))]
                     [else (let* ([var-id (gensym 'pfunc)]
                                  [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
-                            ;(@all/info (@just-location-info loc) ([a (first rllst)])
-                            ;           (pfuncformula (rest rllst) (cons a quantvarlst))
                             (@quantified-formula (@just-location-info loc) 'all
                                                  (list (cons a (first rllst)))
                                                  (pfuncformula (rest rllst) (cons a quantvarlst))))]))
                 (define pf-fmla (pfuncformula rel-list (list)))
-                (printf "pfunc breaker: ~a~n" pf-fmla)
                 (define formulas (set pf-fmla))
                 
     ; OLD CODE
