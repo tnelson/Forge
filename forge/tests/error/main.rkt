@@ -35,6 +35,8 @@
     ;(list "expect-fun-no-args.frg" #rx"TODO")
 
     ;;;;;;;;;;;;;;;;;;;;;;;;
+
+    (list "./malformed-test-double.frg" #rx"FOR-TOK") ;; regression
     
     ;;;;;;; Source locations ;;;;;;;
     (list "./loc/sig_use_loc_error.frg" #rx"sig_use_loc_error.frg:7:39") ; vs. reachable
