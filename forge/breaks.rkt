@@ -728,21 +728,20 @@
                 (define (pfuncformula rllst quantvarlst)
                   (cond
                     [(empty? (rest (rest rllst)))
-                     ; Note: the value of "a" defined here will not actually be reflected in what the
-                     ; macro below produces. (TODO: why?)
-                     ;; all/info macro uses 'v0 with QUOTING?
-                     (define foo (let ([a (gensym)])
-                       (printf "gs case 1: ~a~n" a)
-                       (@all/info (@just-location-info loc) ([a (first rllst)])
-                                  (@lone (pfuncformulajoin (cons a quantvarlst)))))
-                       )
-                     (printf "foo: ~a~n" foo)
-                     foo
-                     ]
-                    [else (let ([a (gensym)])
-                            (printf "gs case 2: ~a~n" a)
-                            (@all/info (@just-location-info loc) ([a (first rllst)])
-                                       (pfuncformula (rest rllst) (cons a quantvarlst))))]))
+                     (let* ([var-id (gensym 'pfunc)]
+                            [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
+                       (@quantified-formula (@just-location-info loc) 'all
+                                            (list (cons a (first rllst)))
+                                            (@lone (pfuncformulajoin (cons a quantvarlst)))))]
+                    ;(@all/info (@just-location-info loc) ([a (first rllst)])
+                    ;           (@lone (pfuncformulajoin (cons a quantvarlst)))))]
+                    [else (let* ([var-id (gensym 'pfunc)]
+                                 [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
+                            ;(@all/info (@just-location-info loc) ([a (first rllst)])
+                            ;           (pfuncformula (rest rllst) (cons a quantvarlst))
+                            (@quantified-formula (@just-location-info loc) 'all
+                                                 (list (cons a (first rllst)))
+                                                 (pfuncformula (rest rllst) (cons a quantvarlst))))]))
                 (define pf-fmla (pfuncformula rel-list (list)))
                 (printf "pfunc breaker: ~a~n" pf-fmla)
                 (define formulas (set pf-fmla))
