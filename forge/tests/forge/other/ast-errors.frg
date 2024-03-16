@@ -148,14 +148,15 @@ test expect {
   -- on the inferred type of the expression.
   set_minus_rhs_empty_join: { some Person - (age.Nim) } is forge_error
 
-
-  -- TODO --
   -- Minus operator: check RHS for validity, allow chaining
-  set_minus_rhs: {all x: Person, y: Person - x | x != y} is theorem -- should be OK
+  set_minus_rhs_quant: {all x: Person, y: Person - x | x != y} is theorem -- should be OK
+  set_minus_rhs_comp: {some {x: Person, y: Person - x | x != y}} is theorem -- should be OK
+
 
   -- TODO -- 
-  -- Regression test: shadowing within a single comprehension will (without a check) cause Pardinus to crash.
-  internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b FORGE error
+  -- Regression test: shadowing within a single comprehension or quantifier would cause Pardinus to crash.
+  internal_comp_variable_name_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b FORGE error
+  internal_quant_variable_name_shadowing: {some x: Person, x: Person | x.age = x.age} is sat
 
   
 }

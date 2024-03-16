@@ -92,27 +92,33 @@
      (check-and-output formula
                        node/formula/quantified
                        checker-hash
-                       (begin (for-each
-                                (lambda (decl)
-                                  (let ([var (car decl)]
-                                        [domain (cdr decl)])
-                                    ; CHECK: shadowed variables
-                                    ; It does NOT suffice to do: (assoc var quantvars), since we now give variables
-                                    ; distinct gensym suffixes to help with disambiguation.
-                                    (when (ormap (lambda (qvd)
-                                                   (equal?
-                                                    (node/expr/quantifier-var-name var)
-                                                    (node/expr/quantifier-var-name (first qvd)))) quantvars)
-                                      (raise-forge-error
-                                       #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                       #:context var))
-                                    ; CHECK: recur into domain(s)
-                                    (checkExpression run-or-state domain quantvars checker-hash)))
-                                decls)
-                              ; Extend domain environment
-                              (let ([new-quantvars (append (map assocify decls) quantvars)])
-                                ; CHECK: recur into subformula
-                                (checkFormula run-or-state subform new-quantvars checker-hash))))]
+                       (begin
+                         ; The new set of quantified variables will be extended by the variables declared here.
+                         ; When checking the domains of each, need to make the _prior_ decls available.
+                         
+                         (let ([new-quantvars
+                                (foldl 
+                                 (lambda (decl sofar)
+                                   (let ([var (car decl)]
+                                         [domain (cdr decl)])
+                                     ; CHECK: shadowed variables
+                                     ; It does NOT suffice to do: (assoc var quantvars), since we now give variables
+                                     ; distinct gensym suffixes to help with disambiguation.
+                                     (when (ormap (lambda (qvd)
+                                                    (equal?
+                                                     (node/expr/quantifier-var-name var)
+                                                     (node/expr/quantifier-var-name (first qvd)))) quantvars)
+                                       (raise-forge-error
+                                        #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                        #:context var))
+                                     ; CHECK: recur into domain(s), carrying decls from prior quantifiers
+                                     ;   (but not this one!)
+                                     (checkExpression run-or-state domain sofar checker-hash)
+                                     ; Add to _end_ of the list, to maintain ordering
+                                     (reverse (cons (assocify decl) (reverse sofar)))))
+                                 quantvars decls)])
+                           ; CHECK: recur into subformula (with extended variable environment)
+                           (checkFormula run-or-state subform new-quantvars checker-hash))))]
     [(node/formula/sealed info)
      (checkFormula run-or-state info quantvars)]
     [else (error (format "no matching case in checkFormula for ~a" (deparse formula)))]))
@@ -453,14 +459,13 @@
      (check-and-output expr
                        node/expr/comprehension
                        checker-hash
+                       ; For rationale here, see the quantified-formula case. This differs slightly
+                       ; because a comprehension is an expression, and thus needs to report its type.
                        (cons (let ([child-values
                                     (map (lambda (decl)
                                           (let ([var (car decl)]
                                                 [domain (cdr decl)])
-                                            ;(printf "!!!!! comprehension case; var: ~a; domain: ~a; quantvars: ~a~n" var domain quantvars)
                                             ; CHECK: shadowed variables
-                                            ; It does NOT suffice to do: (assoc var quantvars), since we now give variables
-                                            ; distinct gensym suffixes to help with disambiguation.
                                             (when (ormap (lambda (qvd)
                                                    (equal?
                                                     (node/expr/quantifier-var-name var)

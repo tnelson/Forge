@@ -50,11 +50,14 @@
   (define id-to-instance-map (make-hash)) ; mutable hash
   
   (define (get-current-instance)
-    (tree:get-value current-tree))
+    (define returned-instance (tree:get-value current-tree))
+    (set-box! (Run-last-sterling-instance the-run) returned-instance)
+    returned-instance)
   (define (get-next-instance [next-mode 'P])    
     (set! current-tree (tree:get-child current-tree next-mode))
     (set! curr-datum-id (+ curr-datum-id 1))
-    (hash-set! id-to-instance-map curr-datum-id (get-current-instance))    
+    ; get-current-instance updates the Run's last sterling instance cursor when called
+    (hash-set! id-to-instance-map curr-datum-id (get-current-instance))
     (values curr-datum-id (get-current-instance)))
   
   (define command-string (format "~a" (syntax->datum command)))

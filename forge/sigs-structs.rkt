@@ -210,11 +210,15 @@
   [name symbol?]
   [command syntax?]
   [run-spec Run-spec?]
+  ; This is the *start* of the exploration tree
   [result tree:node?]
   [server-ports Server-ports?]
   [atoms (listof (or/c symbol? number?))]
   [kodkod-currents Kodkod-current?]
-  [kodkod-bounds (listof any/c)] ; TODO: specify
+  [kodkod-bounds (listof any/c)]
+  ; This is Sterling's current cursor into the exploration tree.
+  ; It is mutated whenever Sterling asks for a new instance.
+  [last-sterling-instance (box/c (or/c false/c tree:node?))]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
