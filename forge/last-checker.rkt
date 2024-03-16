@@ -277,38 +277,33 @@
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
-(define (dfs-sigs run-or-state func sigs)
+(define (dfs-sigs run-or-state func sigs init-acc)
     (define (dfs-sigs-helper todo acc)
-      (printf "todo: ~a~n" todo)
-      (cond [(equal? (length todo) 0) (car acc)]
+      (cond [(equal? (length todo) 0) acc]
       [else (define next (first todo))
-      (define new-acc-and-stop
-        (func next acc))
-        (printf "new-acc-and-stop: ~a~n" new-acc-and-stop)
-        (cond [(cdr new-acc-and-stop) (dfs-sigs-helper (rest todo) (cons (car new-acc-and-stop) #f))]
-              [else (define next-list (if (equal? (length (get-children run-or-state next)) 0)
+      (define-values (new-acc stop)
+        (func next acc)) ; use define-values with the return of func
+        (cond [stop (dfs-sigs-helper (rest todo) new-acc)]
+              [else (define next-list (if (empty? (get-children run-or-state next)) ; empty?
                                       (rest todo)
-                                      (cons (get-children run-or-state next) (rest todo))))
-              (dfs-sigs-helper (flatten next-list) new-acc-and-stop)])]))
-    (dfs-sigs-helper sigs (cons '() #f)))
+                                      (append (get-children run-or-state next) (rest todo)))) ; append instead
+              (dfs-sigs-helper next-list new-acc)])]))
+    (dfs-sigs-helper sigs init-acc)) ; maybe take in initial accumulator as well for more flexibility
 
 (define (deprimify run-or-state primsigs)
   (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
-    (printf "primsigs: ~a~n" primsigs)
     (cond
       [(equal? primsigs '(Int))
        'Int]
       [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
        'univ]
       [else (define top-level (get-top-level-sigs run-or-state))
-            (printf "top-level ~a~n" top-level)
             (define pseudo-fold-lambda (lambda (sig acc) (if (or (subset? (primify run-or-state (Sig-name sig)) (flatten primsigs))
                                                                  (equal? (list (car (primify run-or-state (Sig-name sig)))) (flatten primsigs)))
                                                                  ; the above check is added for when you have the parent sig, but are expecting the child
-                                      (cons (append (car acc) (list (Sig-name sig))) #t)
-                                      (begin (printf "the subset check was on: ~a~n" (primify run-or-state (Sig-name sig))) acc))))
-            (define final-list (dfs-sigs run-or-state pseudo-fold-lambda top-level))
-            (printf "example result: ~a~n" final-list)
+                                      (values (append acc (list (Sig-name sig))) #t) ; replace cons with values
+                                      (values acc #f))))
+            (define final-list (dfs-sigs run-or-state pseudo-fold-lambda top-level '()))
             final-list])))
 
 ; wrap around checkExpression-mult to provide check for multiplicity, 
