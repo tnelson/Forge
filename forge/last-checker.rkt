@@ -56,12 +56,21 @@
     [(node/fmla/pred-spacer info name args expanded)
     (define domain-types (for/list ([arg args]) 
                          (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
+    
     (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
                       (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
     (for-each 
         (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error
-            #:msg (format "The sig(s) given as an argument to predicate ~a are of incorrect type" name)
+            #:msg (format "Argument ~a of ~a given to predicate ~a is of incorrect type. Expected type ~a, given type ~a" 
+                  (add1 (cadr type)) (length args) name (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten domain-types))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the domain is univ then just pass in univ
+                                                        (list-ref domain-types (cadr type)))) ; else pass in the sig one by one
+                                                        (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten (car (car arg-types))))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the argument is univ then just pass in univ
+                                                        (car (car type))))) ; else pass in the sig one by one
             #:context (apply-record-arg (list-ref args (cadr type))))
             (void)))
             arg-types)
@@ -268,6 +277,35 @@
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
+(define (dfs-sigs run-or-state func sigs init-acc)
+    (define (dfs-sigs-helper todo acc)
+      (cond [(equal? (length todo) 0) acc]
+      [else (define next (first todo))
+      (define-values (new-acc stop)
+        (func next acc)) ; use define-values with the return of func
+        (cond [stop (dfs-sigs-helper (rest todo) new-acc)]
+              [else (define next-list (if (empty? (get-children run-or-state next)) ; empty?
+                                      (rest todo)
+                                      (append (get-children run-or-state next) (rest todo)))) ; append instead
+              (dfs-sigs-helper next-list new-acc)])]))
+    (dfs-sigs-helper sigs init-acc)) ; maybe take in initial accumulator as well for more flexibility
+
+(define (deprimify run-or-state primsigs)
+  (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
+    (cond
+      [(equal? primsigs '(Int))
+       'Int]
+      [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
+       'univ]
+      [else (define top-level (get-top-level-sigs run-or-state))
+            (define pseudo-fold-lambda (lambda (sig acc) (if (or (subset? (primify run-or-state (Sig-name sig)) (flatten primsigs))
+                                                                 (equal? (list (car (primify run-or-state (Sig-name sig)))) (flatten primsigs)))
+                                                                 ; the above check is added for when you have the parent sig, but are expecting the child
+                                      (values (append acc (list (Sig-name sig))) #t) ; replace cons with values
+                                      (values acc #f))))
+            (define final-list (dfs-sigs run-or-state pseudo-fold-lambda top-level '()))
+            final-list])))
+
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
 (define (checkExpression run-or-state expr quantvars checker-hash)
@@ -324,8 +362,33 @@
                        (cons (map list (primify run-or-state 'univ))
                              #t))]
 
-    [(node/expr/fun-spacer info arity name args result expanded)
+    [(node/expr/fun-spacer info arity name args codomain expanded)
        ; be certain to call the -mult version, or the multiplicity will be thrown away.
+      (define domain-types (for/list ([arg args]) 
+                         (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
+      (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
+                      (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
+      (for-each 
+        (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
+            (raise-forge-error
+            #:msg (format "Argument ~a of ~a given to function ~a is of incorrect type. Expected type ~a, given type ~a" 
+                  (add1 (cadr type)) (length args) name (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten domain-types))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the domain is univ then just pass in univ
+                                                        (list-ref domain-types (cadr type)))) ; else pass in the sig one by one
+                                                        (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten (car (car arg-types))))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the argument is univ then just pass in univ
+                                                        (car (car type))))) ; else pass in the sig one by one
+            #:context (apply-record-arg (list-ref args (cadr type))))
+            (void)))
+            arg-types)
+      (define output-type (checkExpression run-or-state expanded quantvars checker-hash))
+      (if (not (member (car output-type) (checkExpression run-or-state (mexpr-expr codomain) quantvars checker-hash)))
+          (raise-forge-error
+          #:msg (format "The output of function ~a is of incorrect type" name)
+          #:context expanded)
+          (void))
        (checkExpression-mult run-or-state expanded quantvars checker-hash)]
     
     [(node/expr/ite info arity a b c)
@@ -405,6 +468,11 @@
 
 (define (keep-only keepers pool)
   (filter (lambda (ele) (member ele keepers)) pool))
+
+; (struct/contract expression-type (
+;   [multiplicity any/c]
+;   [type (listof (listof symbol?))]
+;   [temporal-possibility boolean?]))
 
 (define/contract (checkExpressionOp run-or-state expr quantvars args checker-hash)
   (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?)) hash?   
