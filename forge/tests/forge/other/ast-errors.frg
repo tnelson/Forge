@@ -129,26 +129,34 @@ test expect {
   -- 0-ary join result
   zero_arity_join_result: {some Nim.Nim} is forge_error
 
-  -- Variable-name shadowing across quantification
-  variable_name_shadowing: { some x: Person | all x: Person | some x } is forge_error 
+  -- Variable-name shadowing: this is an ergonomic issue. In basic examples, the need for
+  -- an error is "obvious". But even the Forge developers re-use variable names in helper
+  -- predicates, and so a very strict shadowing check would be annoying at best. We're
+  -- sticking with shadowing checks on *identity*, rather than *user-facing name*.
+  -- Thus, these tests won't be run:
+
+  -- Shadowing across quantification
+  --variable_name_shadowing: { some x: Person | all x: Person | some x } is forge_error 
   -- Variable-name shadowing between quantification and comprehension
-  quant_comp_variable_shadowing: {some {x : Person | some x: Person | some x.age}} is forge_error
+  --quant_comp_variable_shadowing: {some {x : Person | some x: Person | some x.age}} is forge_error
   -- Same as above, but in the other direction  
-  comp_quant_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is forge_error
+  --comp_quant_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is forge_error
   -- Variable-name shadowing between nested comprehensions
-  nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is forge_error
+  --nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is forge_error
 
-  -- TODO --
-  
-  -- Variable-name shadowing within a single comprehension
-  -- internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b FORGE error
-
-  -- Minus operator: check RHS for validity, allow chaining
-  -- set_minus_rhs: {all x: Person, y: Person - x | x != y} is theorem -- should be OK
-
--- Regression test: checker must descend into RHS of a minus, even if the RHS has no impact
+  -- Regression test: checker must descend into RHS of a minus, even if the RHS has no impact
   -- on the inferred type of the expression.
   set_minus_rhs_empty_join: { some Person - (age.Nim) } is forge_error
+
+
+  -- TODO --
+  -- Minus operator: check RHS for validity, allow chaining
+  set_minus_rhs: {all x: Person, y: Person - x | x != y} is theorem -- should be OK
+
+  -- TODO -- 
+  -- Regression test: shadowing within a single comprehension will (without a check) cause Pardinus to crash.
+  internal_comp_variable_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b FORGE error
+
   
 }
 
