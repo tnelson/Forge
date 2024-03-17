@@ -126,21 +126,21 @@ test expect {
   zero_arity_join_result: {some Nim.Nim} is forge_error
 
 
-
+  --------------------------------------------------------------------
   -- Variable-name shadowing: this is an ergonomic issue. In basic examples, the need for
   -- an error is "obvious". But even the Forge developers re-use variable names in helper
   -- predicates, and so a very strict shadowing check would be annoying at best. We're
   -- sticking with shadowing checks on *identity*, rather than *user-facing name*.
-  -- Thus, these tests won't be run:
-
+  -- Thus, these tests should *run*, not produce an error.
   -- Shadowing across quantification
-  --variable_name_shadowing: { some x: Person | all x: Person | some x } is forge_error 
+  OK_variable_name_shadowing: { some x: Person | all x: Person | some x } is sat
   -- Variable-name shadowing between quantification and comprehension
-  --quant_comp_variable_shadowing: {some {x : Person | some x: Person | some x.age}} is forge_error
+  OK_quant_comp_variable_shadowing: {some {x : Person | some x: Person | some x.age}} is sat
   -- Same as above, but in the other direction  
-  --comp_quant_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is forge_error
+  OK_comp_quant_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is sat
   -- Variable-name shadowing between nested comprehensions
-  --nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is forge_error
+  OK_nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is sat
+  --------------------------------------------------------------------
 
   -- Regression test: checker must descend into RHS of a minus, even if the RHS has no impact
   -- on the inferred type of the expression.

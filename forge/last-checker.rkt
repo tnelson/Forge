@@ -102,12 +102,14 @@
                                    (let ([var (car decl)]
                                          [domain (cdr decl)])
                                      ; CHECK: shadowed variables
-                                     ; It does NOT suffice to do: (assoc var quantvars), since we now give variables
-                                     ; distinct gensym suffixes to help with disambiguation.
-                                     (when (ormap (lambda (qvd)
-                                                    (equal?
-                                                     (node/expr/quantifier-var-name var)
-                                                     (node/expr/quantifier-var-name (first qvd)))) quantvars)
+                                     ; We look only at identity (taking the gensym suffix into account), rather than
+                                     ; looking at names. See tests/forge/ast-errors.frg. 
+                                     
+                                     (when (assoc var quantvars)
+                                       #;(ormap (lambda (qvd)
+                                                  (equal?
+                                                   (node/expr/quantifier-var-name var)
+                                                   (node/expr/quantifier-var-name (first qvd)))) quantvars)
                                        (raise-forge-error
                                         #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
                                         #:context var))
@@ -463,23 +465,19 @@
                        ; because a comprehension is an expression, and thus needs to report its type.
 
                        (begin
-                         (printf "comp: ~a ~n" decls)
                          (let ([new-decls-and-child-values
                                 (foldl (lambda (decl acc)
                                          (let ([var (car decl)]
                                                [domain (cdr decl)]
                                                [expanded-quantvars (first acc)]
                                                [child-types (second acc)])
-                                           ; CHECK: shadowed variables
-                                           (when (ormap (lambda (qvd)
-                                                          (equal?
-                                                           (node/expr/quantifier-var-name var)
-                                                           (node/expr/quantifier-var-name (first qvd)))) quantvars)
+                                           ; CHECK: shadowed variables (by identity, not by name)
+                                           (when (assoc var quantvars)
                                              (raise-forge-error
                                               #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
                                               #:context info))
+                                           
                                            ; CHECK: recur into domain(s), aware of prior variables
-                                           (printf "checking in comp. ~a : ~a; ~a -- ~a~n" var domain expanded-quantvars child-types)
                                            (let ([next-child-type
                                                   (checkExpression run-or-state domain expanded-quantvars checker-hash)])
                                              ; Accumulator: add current decl, add type (to end)
@@ -729,7 +727,8 @@
        (define domain (cdr decl))
        ; Check and throw away result
        (checkExpression run-or-state domain new-quantvars checker-hash)
-       (cons (list var domain) quantvars))]))
+       (cons (list var domain) quantvars))
+     (void)]))
 
 ; Is this integer literal safe under the current bitwidth?
 (define/contract (check-int-literal run-or-state expr)
