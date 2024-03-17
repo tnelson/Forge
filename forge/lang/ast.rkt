@@ -5,7 +5,7 @@
          racket/contract
          racket/match
          forge/shared ; for verbosity level
-         (only-in racket false? empty? first second rest drop const thunk)
+         (only-in racket false? empty? first second rest drop const thunk range remove-duplicates)
          (prefix-in @ (only-in racket + - * < > or <=)))
 
 (provide deparse
@@ -91,7 +91,7 @@
             #:context f)]
           [else
            (raise-forge-error
-            #:msg (format "Could not use formula as a function: ~a." (deparse f))
+            #:msg (format "Could not use a boolean-valued formula as a predicate, function, or field name: ~a." (deparse f))
             #:context f)])))
   
 
@@ -103,67 +103,102 @@
         [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
         [else 
-          (define loc (nodeinfo-loc info))
-          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
-          (raise-syntax-error functionname 
-                              (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
-                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
+          (raise-forge-error 
+           #:msg (format "~a operator expected to be given an atom- or set-valued expression, but instead got ~a, which was ~a."
+                         functionname (deparse a-node) (pretty-type-of a-node))
+           #:context a-node)]))
 
 (define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)  
   (@-> node? #:op symbol? #:info nodeinfo? node/int?)  
-  (cond [(node/expr? a-node) (node/int/op/sum (node-info a-node) (list a-node))]
+  (cond [(and (node/expr? a-node)
+              (equal? (node/expr-arity a-node) 1))
+         ; If arity 1, this node/expr can be converted automatically to a node/int
+         (node/int/op/sum (node-info a-node) (list a-node))]
+        [(node/expr? a-node)
+         ; Otherwise, this node/expr has the wrong arity for auto-conversion to a node/int
+         (raise-forge-error
+          #:msg (format "Could not treat ~a as an integer expression. Expected arity 1, got arity ~a"
+                        (deparse a-node) (node/expr-arity a-node))
+          #:context a-node)]
         [(node/int? a-node) a-node]
         [(integer? a-node) (int a-node)]
         [else         
-          (define loc (nodeinfo-loc info))
-          (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
-          (raise-syntax-error functionname 
-                              (format "~a operator expected an expression, but instead got ~a at loc: ~a" functionname (node-type a-node) locstr)
-                              (datum->syntax #f (deparse a-node) (build-source-location-syntax loc)))]))
+          (raise-forge-error 
+           #:msg (format "~a operator expected an expression, but instead got ~a, which was ~a"
+                         functionname (deparse a-node) (pretty-type-of a-node))
+           #:context a-node)]))
 
+(define (pretty-name-predicate p)
+  (cond [(equal? p node/expr?) "atom- or set-valued expression"]
+        [(equal? p node/formula?) "boolean-valued formula"]
+        [(equal? p node/int?) "integer-valued expression"]
+        [else p]))
+(define (pretty-type-of x)
+  (cond [(node/formula? x) "boolean-valued formula"]
+        [(node/expr? x) "atom- or set-valued expression"]
+        [(node/int? x) "integer-valued expression"]
+        [(number? x) "number"]
+        [else "unknown expression type"]))
+
+; Check arguments to an operator declared with define-node-op
 (define (check-args info op args type?
                     #:same-arity? [same-arity? #f] #:arity [arity #f]
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
   (define loc (nodeinfo-loc info))
-  (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-  
+
+  ; check: correct number of arguments
   (when (< (length args) min-length)
-    (raise-syntax-error op (format "building ~a; not enough arguments: required ~a got ~a at loc: ~a"
-                                   op min-length args locstr)
-                        (datum->syntax #f (map deparse args) (build-source-location-syntax loc))))
+    (raise-forge-error
+     #:msg  (format "building ~a; not enough arguments: required ~a got ~a."
+                    op min-length args)
+     #:context loc))
   (unless (false? max-length)
     (when (> (length args) max-length)
-      (raise-syntax-error op (format "too many arguments to ~a; maximum ~a, got ~a at loc: ~a" op max-length args locstr)
-                          (datum->syntax #f (map deparse args) (build-source-location-syntax loc)))))
-  (for ([a (in-list args)])
+      (raise-forge-error
+       #:msg (format "too many arguments to ~a; maximum ~a, got ~a." op max-length args)
+       #:context loc)))
+  
+  (for ([a (in-list args)]
+        [idx (map add1 (range (length args)))])
+    ; check: type of argument
     (unless (type? a)
-      (raise-syntax-error op (format "argument to ~a had unexpected type. expected ~a, got ~a. loc: ~a" op type? a locstr)
-                          (datum->syntax #f (map deparse args) (build-source-location-syntax loc))))
+      (raise-forge-error
+       #:msg (format "argument ~a of ~a to ~a had unexpected type. Expected ~a, got ~a, which was ~a."
+                     idx (length args) op (pretty-name-predicate type?) (deparse a) (pretty-type-of a))
+       #:context loc))
+    ; check: arity of argument
     (unless (false? arity)
       (unless (equal? (node/expr-arity a) arity)
-        (raise-syntax-error op (format "argument to ~a was not expression with arity ~v (got: ~a) at loc: ~a" op arity a locstr)
-                            (datum->syntax #f (map deparse args) (build-source-location-syntax loc))))))
+        (raise-forge-error
+         #:msg (format "argument ~a of ~a to ~a was not expression with arity ~v (got: ~a)"
+                       idx (length args) op arity (deparse a))
+         #:context loc))))
+  
   (when same-arity?
     (let ([arity (node/expr-arity (car args))])
       (for ([a (in-list args)])
         (unless (equal? (node/expr-arity a) arity)
-          (raise-syntax-error op (format "arguments to ~a must have same arity. got ~a and ~a at loc: ~a"
-                                         op arity (node/expr-arity a) locstr)
-                           (datum->syntax #f (map deparse args) (build-source-location-syntax loc)))))))
+          (raise-forge-error
+           #:msg (format "arguments to ~a must have same arity. got ~a and ~a"
+                         op arity (node/expr-arity a))
+           #:context loc)))))
   (when join?
     (when (<= (apply join-arity (for/list ([a (in-list args)]) (node/expr-arity a))) 0)
-       (raise-syntax-error op (format "join would create a relation of arity 0 at loc: ~a" locstr)
-                           (datum->syntax #f (map deparse args) (build-source-location-syntax loc)))))
+       (raise-forge-error
+        #:msg (format "join would create a relation of arity 0")
+        #:context loc)))
   
   (when range?
     (unless (equal? (node/expr-arity (cadr args)) 1)      
-      (raise-syntax-error op (format "second argument to ~a must have arity 1 at loc: ~a" op locstr)
-                          (datum->syntax #f (map deparse args) (build-source-location-syntax loc)))))
+      (raise-forge-error
+       #:msg (format "second argument to ~a must have arity 1" op)
+       #:context loc)))
   (when domain?
     (unless (equal? (node/expr-arity (car args)) 1)      
-      (raise-syntax-error op (format "first argument to ~a must have arity 1 at loc: ~a" op locstr)
-                             (datum->syntax #f (map deparse args) (build-source-location-syntax loc))))))
+      (raise-forge-error
+       #:msg (format "first argument to ~a must have arity 1" op)
+       #:context loc))))
 
 ;; EXPRESSIONS -----------------------------------------------------------------
 
@@ -244,17 +279,17 @@
   (define c (intexpr->expr/maybe orig-c #:op 'if-then-else #:info info))
   
   (unless (node/formula? a)
-    (raise-syntax-error #f (format "If-then-else expression requires first argument to be a formula")
-                        (datum->syntax #f (deparse a) (build-source-location-syntax (nodeinfo-loc info)))))
+    (raise-forge-error #:msg (format "If-then-else expression requires first argument to be a formula")
+                       #:context (nodeinfo-loc info)))
   (unless (node/expr? b)
-    (raise-syntax-error #f (format "If-then-else expression requires second argument to be an expression")
-                               (datum->syntax #f (deparse b) (build-source-location-syntax (nodeinfo-loc info)))))
+    (raise-forge-error #:msg (format "If-then-else expression requires second argument to be an expression")
+                       #:context (nodeinfo-loc info)))
   (unless (node/expr? c)
-    (raise-syntax-error #f (format "If-then-else expression requires third argument to be an expression")
-                        (datum->syntax #f (deparse c) (build-source-location-syntax (nodeinfo-loc info)))))
+    (raise-forge-error #:msg (format "If-then-else expression requires third argument to be an expression")
+                       #:context (nodeinfo-loc info)))
   (unless (equal? (node/expr-arity b) (node/expr-arity c))
-    (raise-syntax-error #f (format "If-then-else expression requires expression arguments to have same arity")
-                        (datum->syntax #f (deparse c) (build-source-location-syntax (nodeinfo-loc info)))))
+    (raise-forge-error #:msg (format "If-then-else expression requires expression arguments to have same arity")
+                       #:context (nodeinfo-loc info)))
   (node/expr/ite info (node/expr-arity b) a b c))
 
 (define-syntax (ite/info stx)
@@ -465,9 +500,17 @@
 ; these are shown to an end-user)
 (define (raise-set-comp-quantifier-error e)
   (raise-forge-error
-   #:msg (format "Set-comprehension variable domain expected a singleton or relational expression: ~a" (deparse e))
+   #:msg (format "Set-comprehension variable domain expected a singleton or relational expression of arity 1: ~a" (deparse e))
    #:context e))
+
 (define (comprehension info decls formula)
+  ; Check for re-use of a variable within the same quantifier/comprehension/sum form
+  (define vars (map car decls))
+  (unless (equal? (length (remove-duplicates vars)) (length vars))
+    (raise-forge-error
+     #:msg (format "Set-comprehension cannot use the same variable name more than once; used: ~a." vars)
+     #:context info))
+
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-set-comp-quantifier-error e))
@@ -496,12 +539,18 @@
                    ([r0 e0 m0:opt-mult-class] ...)
                    pred)
         (quasisyntax/loc stx
-          (begin 
+          (let* ([r0 (node/expr/quantifier-var
+                      (nodeinfo #,(build-source-location stx) check-lang.check-lang)
+                      1 (gensym (format "~a_set" 'r0)) 'r0)] ... )
+            ; We need to check these only inside the let*, to allow for later decls to use earlier ones.
             (unless (node/expr? e0)
               (raise-set-comp-quantifier-error e0))
             ...
-            (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang.check-lang) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
-              (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (list (cons r0 e0) ...) pred))))]))
+            (unless (equal? 1 (node/expr-arity e0))
+              (raise-set-comp-quantifier-error e0))
+            ...
+            (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang)
+                      (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 
@@ -605,11 +654,8 @@
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 'univ))])))
 (define-syntax iden (lambda (stx) (syntax-case stx ()    
     [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 2 'iden))])))
-; relations, not constants
-; (define-syntax Int (lambda (stx) (syntax-case stx ()
-;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 1 "Int" '(Int) "univ" #f))])))
-; (define-syntax succ (lambda (stx) (syntax-case stx ()    
-;   [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/relation (nodeinfo #,(build-source-location stx)) 2 "succ" '(Int Int) "Int" #f))])))
+
+; Int and succ are built-in relations, not constant expressions
 
 ;; INTS ------------------------------------------------------------------------
 
@@ -625,15 +671,16 @@
 (define-node-op divide node/int/op #f #:min-length 2 #:type node/int?)
 
 ; id, parent, arity, checks
-; card and sum both accept a single node/expr as their argument
+; card and sum both accept a single node/expr as their argument.
 (define-node-op card node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
-(define-node-op sum node/int/op #f #:min-length 1 #:max-length 1 #:type node/expr?)
+; sum must have an argument *of arity 1*; it is used to convert node/expr to node/int. 
+(define-node-op sum node/int/op #f #:min-length 1 #:max-length 1 #:arity 1 #:type node/expr?)
 
 (define-node-op remainder node/int/op #f #:min-length 2 #:max-length 2 #:type node/int?)
 (define-node-op abs node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 (define-node-op sign node/int/op #f #:min-length 1 #:max-length 1 #:type node/int?)
 
-; min and max are now *defined*, not declared, and in sigs-structs.rkt:
+; min and max are now *defined*, not declared, in sigs-structs.rkt.
 
 ;; -- constants ----------------------------------------------------------------
 
@@ -670,17 +717,26 @@
    (define hash2-proc (make-robust-node-hash-syntax node/int/sum-quant 3))])
 
 (define (sum-quant/func decls raw-int-expr #:info [node-info empty-nodeinfo])
+  (when (@> (length decls) 1)
+    (raise-forge-error
+     #:msg (format "sum aggregator only supports a single variable; if you wish to sum over multiple domains, please use nested sum aggregators.")
+     #:context node-info))
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
-      (raise-argument-error 'set "expr?" e))
+      (raise-forge-error
+       #:msg (format "sum aggregator expected an expression in its declaration, given ~a" e)
+       #:context e))
     (unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error 'set "decl of arity 1" e)))
+      (raise-forge-error
+       #:msg (format "sum aggregator expected its declaration expression to have arity 1, given ~a" e)
+       #:context e)))
   (define int-expr (cond [(node/expr? raw-int-expr) 
                           (expr->intexpr/maybe raw-int-expr #:op 'sum #:info node-info)]
                          [else 
                           raw-int-expr]))
   (unless (node/int? int-expr)
-    (raise-argument-error 'set "int-expr?" int-expr))
+    (raise-forge-error #:msg "sum aggregator body expected an integer expression, got ~a" int-expr
+                       #:context int-expr))
   (node/int/sum-quant node-info decls int-expr))
 
 (define (sum-quant-expr info decls int-expr)
@@ -788,13 +844,23 @@
    (define hash2-proc (make-robust-node-hash-syntax node/formula/quantified 3))])
 
 (define (quantified-formula info quantifier decls formula)
+  ; Check for re-use of a variable within the same quantifier/comprehension/sum form
+  (define vars (map car decls))
+  (unless (equal? (length (remove-duplicates vars)) (length vars))
+    (raise-forge-error
+     #:msg (format "~a quantifier cannot use the same variable name more than once; used: ~a." quantifier vars)
+     #:context info))
+  
   (for ([e (in-list (map cdr decls))])
     (unless (node/expr? e)
-      (raise-argument-error quantifier "expr?" e))
-    #'(unless (equal? (node/expr-arity e) 1)
-      (raise-argument-error quantifier "decl of arity 1" e)))
+      (raise-forge-error #:msg (format "~a quantifier expected an expression for domain, got ~a" quantifier e)
+                         #:context (if (node? e) e info)))
+    (unless (equal? (node/expr-arity e) 1)
+      (raise-forge-error #:msg (format "~a quantifier expected an arity-1 expression for domain, got ~a" quantifier e)
+                         #:context (if (node? e) e info))))
   (unless (or (node/formula? formula) (equal? #t formula))
-    (raise-argument-error quantifier "formula?" formula))
+    (raise-forge-error #:msg (format "~a quantifier body expected a formula, got ~a" quantifier formula)
+                       #:context (if (node? formula) formula info)))
   (node/formula/quantified info quantifier decls formula))
 
 ;(struct node/formula/higher-quantified node/formula (quantifier decls formula))
@@ -811,18 +877,14 @@
    (define hash-proc  (make-robust-node-hash-syntax node/formula/multiplicity 0))
    (define hash2-proc (make-robust-node-hash-syntax node/formula/multiplicity 3))])
 
-(define (node-type n) 
-  (cond [(node/expr? n) "expression"]
-        [(node/int? n) "integer expression"]
-        [(node/formula? n) "formula"]
-        [else "unknown type"]))
-
 (define (multiplicity-formula info mult expr)
   (unless (node/expr? expr)
     (define loc (nodeinfo-loc info))
     (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))    
-    (raise-syntax-error mult (format "~a operator expected to be given an expression, but instead got ~a at loc: ~a" mult (node-type expr) locstr)
-                             (datum->syntax #f (deparse expr) (build-source-location-syntax loc)))) 
+    (raise-forge-error
+     #:msg (format "~a operator expected to be given an atom- or set-valued expression, but instead got ~a"
+                   mult (pretty-type-of expr))
+     #:context loc)) 
   (node/formula/multiplicity info mult expr))
 
 (define (no-pairwise-intersect vars #:context [context #f])
@@ -855,9 +917,11 @@
        (all/info info ([v0 e0 m0] ...)
                  #,(quasisyntax/loc stx
                      (=> (no-pairwise-intersect (list v0 ...) #:context #,(build-source-location stx)) pred))))]
-    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)     
+    [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_all" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var info
+                                            (if (node/expr? e0) (node/expr-arity e0) 1)
+                                            (gensym (format "~a_all" 'v0)) 'v0)] ...)
          (quantified-formula info 'all (list (cons v0 e0) ...) pred)))]))
 
 ;;; SOME ;;;
@@ -883,7 +947,9 @@
     ; TODO: currently discarding the multiplicity info, unchecked (in this and the following cases)
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_some" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var info
+                                            (if (node/expr? e0) (node/expr-arity e0) 1)
+                                            (gensym (format "~a_some" 'v0)) 'v0)] ...)
          (quantified-formula info 'some (list (cons v0 e0) ...) pred)))]
     ; quantifier case with disjointness flag; embed and repeat
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
@@ -922,7 +988,9 @@
     ; quantifier without disj: rewrite as !some
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info (node/expr-arity e0) (gensym (format "~a_no" 'v0)) 'v0)] ...)
+       (let* ([v0 (node/expr/quantifier-var info
+                                            (if (node/expr? e0) (node/expr-arity e0) 1)
+                                            (gensym (format "~a_no" 'v0)) 'v0)] ...)
          (! (quantified-formula info 'some (list (cons v0 e0) ...) pred))))]
     [(_ info expr)
      (quasisyntax/loc stx
@@ -1007,7 +1075,9 @@
   (syntax-parse stx
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1 m0:opt-mult-class] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang) (node/expr-arity r1) (gensym (format "~a_sum" 'x1)) 'x1)] ...)
+       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang)
+                                            (if (node/expr? r1) (node/expr-arity r1) 1)
+                                            (gensym (format "~a_sum" 'x1)) 'x1)] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang) (list (cons x1 r1) ...) int-expr)))]))
 
 
@@ -1173,7 +1243,7 @@
 (define (pretty-loc loc)
   (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc)))
 
-(define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])  
+(define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])
   (define loc (cond                
                 [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]
                 ; Wheats/chaffs have their inner formula in the info field

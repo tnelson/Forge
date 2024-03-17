@@ -13,10 +13,12 @@ fi
 echo "Re-running Forge setup for test efficiency."
 raco setup forge
 
-
 # Get test files
 testDir=$1
-doNotTestPattern="[error|srcloc]/[^/]*\\.frg"
+# In "basic" regular expressions, use the backslashed versions of "(", ")", and "|"
+# Also, apply the pattern deeper than just one directory level (handle error/loc/*.frg)
+#doNotTestPattern="\(error\|srclocs\)/[^/]*\\.frg"
+doNotTestPattern="\(error\|srclocs\)/.*\\.frg"
 # ^ these tests get checked by tests/error/main.rkt
 testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} )"
 numTestFiles="$(echo "$testFiles" | wc -l)"

@@ -632,7 +632,7 @@
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
                  (send-to-kodkod spec command #:run-name name))
   
-  (Run name command spec result server-ports atoms kodkod-currents kodkod-bounds))
+  (Run name command spec result server-ports atoms kodkod-currents kodkod-bounds (box #f)))
 
 
 ;; NOTE WELL: make sure not to re-use run names; this will cause an 

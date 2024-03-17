@@ -638,7 +638,30 @@
      (add-to-execs
       (with-syntax ([loc (build-source-location stx)])
        (quasisyntax/loc stx 
-         (cond 
+         (cond
+           
+          [(equal? 'expected 'forge_error)
+           ; Expecting an error. If we receive one, do nothing. 
+           ; Otherwise, continue to report the error and then close the run.
+           ; (N.B., this assumes the run isn't actually created or sent to the solver.)
+           (define run-reference #f)
+           (with-handlers ([exn:fail:user? void])
+             #,(syntax/loc stx (run name args ...))
+             ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
+             (set! run-reference name)
+             (close-run name))
+           ; Instead, wait and throw it here (note this will only happen if _NO_ user-error was
+           ; produced by the run, and thus a run-reference is present.
+           (when run-reference
+             (report-test-failure
+              #:name 'name
+              #:msg (format "Failed test ~a. No Forge error was produced." 'name)
+              #:context loc
+              #:run run-reference
+              #:sterling #f))
+           (when (member 'name (hash-keys (State-runmap curr-state)))
+             (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))]
+          
           [(member 'expected '(sat unsat))           
            #,(syntax/loc stx (run name args ...))
            (define first-instance (tree:get-value (Run-result name)))
@@ -1036,7 +1059,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Struct to hold test-failure information for eventual reporting
-(struct test-failure (name msg context instance run))
+(struct test-failure (name msg context instance run sterling))
 ; Mutable value to store list of test-failure structs
 (define delayed-test-failures null)
 ; Called to clear the mutable list
@@ -1044,7 +1067,8 @@
 
 ; Record (or report, depending on the value of the delay-test-failure-reporting?
 ; parameter) a test failure. 
-(define (report-test-failure #:name name #:msg msg #:context context #:instance [instance #f] #:run run)
+(define (report-test-failure #:name name #:msg msg #:context context
+                             #:instance [instance #f] #:run run #:sterling [sterling #t])
   ; Default is to not delay, but options may affect this.
   (cond [(not (equal? (get-option run 'test_keep) 'first))
          (unless (equal? (get-verbosity) 0)
@@ -1053,14 +1077,15 @@
          (unless (empty? delayed-test-failures)
            (close-run (test-failure-run (first delayed-test-failures))))
          ; then add this failure to the queue
-         (set! delayed-test-failures (cons (test-failure name msg context instance run)
+         (set! delayed-test-failures (cons (test-failure name msg context instance run sterling)
                                            delayed-test-failures))]
         
         [else
          ; Raise a Forge error and stop execution; show Sterling if enabled.
          (when (>= (get-verbosity) 1)
-           (printf "Test ~a failed. Opening Sterling (if able) and stopping.~n" name))
-         (true-display run)
+           (printf "Test ~a failed. Stopping execution.~n" name))
+         (when sterling
+           (true-display run))
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens
@@ -1074,14 +1099,14 @@
   (define last-failure (if (empty? failures) #f (last failures)))
   
   (for ([failure failures])
-    (define-values (name msg context instance run)
+    (define-values (name msg context instance run sterling)
       (values (test-failure-name failure)    (test-failure-msg failure)
               (test-failure-context failure) (test-failure-instance failure)
-              (test-failure-run failure)))
+              (test-failure-run failure) (test-failure-sterling failure)))
         
     ; Print the error (don't raise an actual exception)
-    (define sterling-or-instance (if (equal? (get-option run 'run_sterling) 'off)
-                                     (format "Sterling disabled, so reporting raw instance data:~n~a" instance)
+    (define sterling-or-instance (if (or (not sterling) (equal? (get-option run 'run_sterling) 'off))
+                                     (format "Sterling disabled for this test. Reporting raw instance data:~n~a" instance)
                                      (format "Running Sterling to show instance generated, if any.~n~a"
                                              (if (equal? failure last-failure)
                                                  "Solver is active; evaluator and next are available."
@@ -1090,7 +1115,7 @@
                        #:context context
                        #:raise? #f)
     ; Display in Sterling (if run_sterling is enabled)
-    (when (equal? failure last-failure)
+    (when (and sterling (equal? failure last-failure))
       (true-display run)))
   
   ; Return to empty-failure-list state.

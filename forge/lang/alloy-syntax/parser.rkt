@@ -85,7 +85,8 @@ ParaDecls : /LEFT-PAREN-TOK @ParaDeclList? /RIGHT-PAREN-TOK
 AssertDecl : /ASSERT-TOK Name? Block
 CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 
-TestDecl : (Name /COLON-TOK)? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK | THEOREM-TOK)
+TestDecl : (Name /COLON-TOK)? (QualName | Block) Scope? (/FOR-TOK Bounds)? /IS-TOK
+           (SAT-TOK | UNSAT-TOK | THEOREM-TOK | FORGE_ERROR-TOK)
 TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)?

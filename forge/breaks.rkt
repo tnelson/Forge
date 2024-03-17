@@ -652,11 +652,18 @@
 
     (define (funcformula rllst quantvarlst)
         (cond
-            [(empty? (rest (rest rllst))) 
-                (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (@one (funcformulajoin (cons a quantvarlst)))))]
-            [else (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (funcformula (rest rllst) (cons a quantvarlst))))]))
+          [(empty? (rest (rest rllst)))
+           (let* ([var-id (gensym 'pfunc)]
+                  [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
+             (@quantified-formula (@just-location-info loc) 'all
+                                  (list (cons a (first rllst)))
+                                  (@one (funcformulajoin (cons a quantvarlst)))))]
+            [else
+             (let* ([var-id (gensym 'pfunc)]
+                  [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
+             (@quantified-formula (@just-location-info loc) 'all
+                                  (list (cons a (first rllst)))
+                                  (funcformula (rest rllst) (cons a quantvarlst))))]))
     (define formulas (set (funcformula rel-list (list))))
     
     ; OLD CODE
@@ -716,22 +723,31 @@
             (λ () (break bound formulas)))
 ))
 
-(add-strategy 'pfunc (λ (pri rel bound atom-lists rel-list [loc #f])
 
-    (define (pfuncformulajoin quantvarlst) 
-        (cond 
-            [(empty? (rest quantvarlst)) (@join (first quantvarlst) rel)]
-            [else (@join (first quantvarlst) (pfuncformulajoin (rest quantvarlst)))]))
-    (define (pfuncformula rllst quantvarlst)
-        (cond
-            [(empty? (rest (rest rllst))) 
-                (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (@lone (pfuncformulajoin (cons a quantvarlst)))))]
-            [else (let ([a (gensym)])
-                    (@all/info (@just-location-info loc) ([a (first rllst)]) (pfuncformula (rest rllst) (cons a quantvarlst))))]))
-
-    (define formulas (set (pfuncformula rel-list (list))))
-
+(add-strategy 'pfunc
+              (λ (pri rel bound atom-lists rel-list [loc #f])
+                (define (pfuncformulajoin quantvarlst) 
+                  (cond
+                    ; x_n.rel
+                    [(empty? (rest quantvarlst)) (@join (first quantvarlst) rel)]
+                    ; ... x_n-1.x_n.rel
+                    [else (@join (first quantvarlst) (pfuncformulajoin (rest quantvarlst)))]))
+                (define (pfuncformula rllst quantvarlst)
+                  (cond
+                    [(empty? (rest (rest rllst)))
+                     (let* ([var-id (gensym 'pfunc)]
+                            [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
+                       (@quantified-formula (@just-location-info loc) 'all
+                                            (list (cons a (first rllst)))
+                                            (@lone (pfuncformulajoin (cons a quantvarlst)))))]
+                    [else (let* ([var-id (gensym 'pfunc)]
+                                 [a (@node/expr/quantifier-var (@just-location-info loc) 1 var-id var-id)])
+                            (@quantified-formula (@just-location-info loc) 'all
+                                                 (list (cons a (first rllst)))
+                                                 (pfuncformula (rest rllst) (cons a quantvarlst))))]))
+                (define pf-fmla (pfuncformula rel-list (list)))
+                (define formulas (set pf-fmla))
+                
     ; OLD CODE
     ; (if (equal? A B)
     ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates

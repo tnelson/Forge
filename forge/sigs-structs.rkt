@@ -210,11 +210,15 @@
   [name symbol?]
   [command syntax?]
   [run-spec Run-spec?]
+  ; This is the *start* of the exploration tree
   [result tree:node?]
   [server-ports Server-ports?]
   [atoms (listof (or/c symbol? number?))]
   [kodkod-currents Kodkod-current?]
-  [kodkod-bounds (listof any/c)] ; TODO: specify
+  [kodkod-bounds (listof any/c)]
+  ; This is Sterling's current cursor into the exploration tree.
+  ; It is mutated whenever Sterling asks for a new instance.
+  [last-sterling-instance (box/c (or/c Sat? Unsat? false/c))]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -652,11 +656,26 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; or expression form (which has its own AST node). Avoid exponential
 ; blowup from chained IFTEs by expanding to a chain of function calls.
 (define (ifte-disambiguator info a b c)
-  (if (node/formula? b)
-      (&&/info info
-               (=>/info info a b)
-               (=>/info info (!/info info a) c))
-      (ite/info info a b c)))
+  (unless (node/formula? a)
+    (raise-forge-error
+     #:msg ("If-then-else needed a boolean-valued formula for its first argument; got ~a." (pretty-type-of a))
+     #:context a))
+  (cond
+    ; It's a formula if-then-else
+    [(and (node/formula? b) (node/formula? c))
+     (&&/info info
+              (=>/info info a b)
+              (=>/info info (!/info info a) c))]
+    ; It's an expression if-then-else (note: mixing int-expr and rel-expr is OK)
+    [(and (or (node/expr? b) (node/int? b) (integer? b))
+          (or (node/expr? c) (node/int? c) (integer? c)))
+     (ite/info info a b c)]
+    ; It's an error
+    [else
+     (raise-forge-error #:msg (format "If-then-else needed consistent types (either both formulas or both expressions) for its true and false branches, but got (~a) and (~a)."
+                                      (pretty-type-of b) (pretty-type-of c))
+                        #:context info)]))
+
 (define-syntax (ifte stx)
   (syntax-parse stx 
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b c) (quasisyntax/loc stx
@@ -722,19 +741,17 @@ Returns whether the given run resulted in sat or unsat, respectively.
             (->/info info univ b)))
 
 (define (domain-check<: a b loc) 
-  (let ([src-line (source-location-line loc)]
-        [src-col (source-location-column loc)]
-        [src-span (source-location-span loc)])
-    (unless (equal? (node/expr-arity b)
-                    (@+ 1 (node/expr-arity a))) 
-                    (raise-user-error (format "<: argument has incorrect arity (~a vs. ~a) in ~a <: ~a on line ~a, column ~a, span ~a" 
-                    (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b) src-line src-col src-span)))))
+  (unless (equal? (node/expr-arity b)
+                  (@+ 1 (node/expr-arity a))) 
+    (raise-forge-error
+     #:msg (format "<: argument has incorrect arity (~a vs. ~a) in ~a <: ~a" 
+                   (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b))
+     #:context loc)))
 
 (define (domain-check:> a b loc) 
-  (let ([src-line (source-location-line loc)]
-        [src-col (source-location-column loc)]
-        [src-span (source-location-span loc)])
-    (unless (equal? (node/expr-arity a)
-                    (@+ 1 (node/expr-arity b))) 
-                    (raise-user-error (format ":> argument has incorrect arity (~a vs. ~a) in ~a :> ~a on line ~a, column ~a, span ~a" 
-                    (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b) src-line src-col src-span)))))
+  (unless (equal? (node/expr-arity a)
+                  (@+ 1 (node/expr-arity b))) 
+    (raise-forge-error
+     #:msg (format ":> argument has incorrect arity (~a vs. ~a) in ~a :> ~a" 
+                   (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b))
+     #:context loc)))

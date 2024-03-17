@@ -61,12 +61,31 @@
 (check-eq? (length (evaluate sat-run-B 'unused B))
            2)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check that we can close a run without closing others
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Check that we can close a run
 (forge:close-run sat-run-A)
-; and still get (new) results from other runs
+; still get (new) results from other runs
 (define b3 (sat-B-gen))
 (check-eq? (Sat? b3) #t)
 (check-not-eq? (first (Sat-instances b3)) (first (Sat-instances b2)))
 (check-not-eq? (first (Sat-instances b3)) (first (Sat-instances b1)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Check behavior if we get a 2nd generator for the same run
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Different generators re-start the model enumeration from the beginning, assuming
+; the sequence of generator-arguments (e.g., 'next) is the same.
+(define sat-B-gen-2 (forge:make-model-generator (forge:get-result sat-run-B) 'next))
+(define b1-2 (sat-B-gen-2))
+(define b2-2 (sat-B-gen-2))
+(define b3-2 (sat-B-gen-2))
+(define b4-2 (sat-B-gen-2))
+(define b4 (sat-B-gen))
+
+(check-eq? (first (Sat-instances b1)) (first (Sat-instances b1-2)))
+(check-eq? (first (Sat-instances b2)) (first (Sat-instances b2-2)))
+(check-eq? (first (Sat-instances b3)) (first (Sat-instances b3-2)))
+(check-eq? (first (Sat-instances b4)) (first (Sat-instances b4-2)))

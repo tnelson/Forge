@@ -35,10 +35,13 @@
     ;(list "expect-fun-no-args.frg" #rx"TODO")
 
     ;;;;;;;;;;;;;;;;;;;;;;;;
+
+    (list "./malformed-test-double.frg" #rx"FOR-TOK") ;; regression
     
     ;;;;;;; Source locations ;;;;;;;
     (list "./loc/sig_use_loc_error.frg" #rx"sig_use_loc_error.frg:7:39") ; vs. reachable
     (list "./loc/field_use_loc_error.frg" #rx"field_use_loc_error.frg:7:29")   ; vs. reachable
+    (list "./loc/ifte-error.frg" #rx"ifte-error.frg:9:5.*If-then-else needed consistent types")  
    
     (list "piecewise-bind-repeat.frg" #rx"rebinding detected")
     (list "piecewise-bind-combine.frg" #rx"may not be combined with complete bounds")
@@ -139,7 +142,7 @@
 
     (list "expr-in-comprehension-condition.frg" #rx"expected a formula")
     (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
-    (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
+    (list "arity-in-comprehension-domain.frg" #rx"expected a singleton or relational expression of arity 1")
 
     (list "override-wrong-arity.frg" #rx"must have same arity")
     (list "override-no-overlap.frg" #rx"will never override anything")

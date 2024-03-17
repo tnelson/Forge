@@ -92,22 +92,35 @@
      (check-and-output formula
                        node/formula/quantified
                        checker-hash
-                       (begin (for-each
-                                (lambda (decl)
-                                  (let ([var (car decl)]
-                                        [domain (cdr decl)])
-                                    ; CHECK: shadowed variables
-                                    (when (assoc var quantvars)
-                                      (raise-syntax-error #f
-                                                          (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                                          (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-                                    ; CHECK: recur into domain(s)
-                                    (checkExpression run-or-state domain quantvars checker-hash)))
-                                decls)
-                              ; Extend domain environment
-                              (let ([new-quantvars (append (map assocify decls) quantvars)])       
-                                ; CHECK: recur into subformula
-                                (checkFormula run-or-state subform new-quantvars checker-hash))))]
+                       (begin
+                         ; The new set of quantified variables will be extended by the variables declared here.
+                         ; When checking the domains of each, need to make the _prior_ decls available.
+                         
+                         (let ([new-quantvars
+                                (foldl 
+                                 (lambda (decl sofar)
+                                   (let ([var (car decl)]
+                                         [domain (cdr decl)])
+                                     ; CHECK: shadowed variables
+                                     ; We look only at identity (taking the gensym suffix into account), rather than
+                                     ; looking at names. See tests/forge/ast-errors.frg. 
+                                     
+                                     (when (assoc var quantvars)
+                                       #;(ormap (lambda (qvd)
+                                                  (equal?
+                                                   (node/expr/quantifier-var-name var)
+                                                   (node/expr/quantifier-var-name (first qvd)))) quantvars)
+                                       (raise-forge-error
+                                        #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                        #:context var))
+                                     ; CHECK: recur into domain(s), carrying decls from prior quantifiers
+                                     ;   (but not this one!)
+                                     (checkExpression run-or-state domain sofar checker-hash)
+                                     ; Add to _end_ of the list, to maintain ordering
+                                     (reverse (cons (assocify decl) (reverse sofar)))))
+                                 quantvars decls)])
+                           ; CHECK: recur into subformula (with extended variable environment)
+                           (checkFormula run-or-state subform new-quantvars checker-hash))))]
     [(node/formula/sealed info)
      (checkFormula run-or-state info quantvars)]
     [else (error (format "no matching case in checkFormula for ~a" (deparse formula)))]))
@@ -434,34 +447,52 @@
                        checker-hash
                        ; Look up in quantvars association list, type is type of domain
                        (cons (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
-                              (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
-                              (raise-syntax-error #f (format "Variable ~a used but was unbound in overall formula being checked. Bound variables: ~a" sym (map car quantvars) )
-                                (datum->syntax #f name (build-source-location-syntax (nodeinfo-loc info)))))
-                              #t))]
+                                 (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
+                                 (raise-forge-error
+                                  #:msg (format "Variable ~a used, but it was unbound at this point.\
+ Often, this means that a sig, field, or helper name is being used as a quantifier variable.\
+ It might also mean that the variable domain references the variable itself.\
+ For help debugging, the bound variables at this point were: ~a" sym (map car quantvars) )
+                                  #:context info))
+                             #t))]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info arity decls subform)
      (check-and-output expr
                        node/expr/comprehension
                        checker-hash
-                       (cons (let ([child-values
-                                    (map (lambda (decl)
-                                          (let ([var (car decl)]
-                                                [domain (cdr decl)])
-                                            ; CHECK: shadowed variables
-                                            (when (assoc var quantvars)
-                                              (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                                (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-                                            ; CHECK: recur into domain(s)
-                                            (checkExpression run-or-state domain quantvars checker-hash)))
-                                        decls)]
-                                  ; Extend domain environment
-                                  [new-quantvars (append (map assocify decls) quantvars)])
-                              ; CHECK: recur into subformula
-                              (checkFormula run-or-state subform new-quantvars checker-hash)
-                              ; Return type constructed from decls above
-                              (map flatten (map append (apply cartesian-product child-values))))
-                              #f))]
+                       ; For rationale here, see the quantified-formula case. This differs slightly
+                       ; because a comprehension is an expression, and thus needs to report its type.
+
+                       (begin
+                         (let ([new-decls-and-child-values
+                                (foldl (lambda (decl acc)
+                                         (let ([var (car decl)]
+                                               [domain (cdr decl)]
+                                               [expanded-quantvars (first acc)]
+                                               [child-types (second acc)])
+                                           ; CHECK: shadowed variables (by identity, not by name)
+                                           (when (assoc var quantvars)
+                                             (raise-forge-error
+                                              #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                              #:context info))
+                                           
+                                           ; CHECK: recur into domain(s), aware of prior variables
+                                           (let ([next-child-type
+                                                  (checkExpression run-or-state domain expanded-quantvars checker-hash)])
+                                             ; Accumulator: add current decl, add type (to end)
+                                             (list (cons (assocify decl) expanded-quantvars)
+                                                   (reverse (cons next-child-type (reverse child-types)))))))
+                                       ; Acc has the form: (quantvars-so-far child-values-in-order)
+                                       (list quantvars '())
+                                       decls)])
+                           ; CHECK: recur into subformula
+                           (define new-quantvars (first new-decls-and-child-values))
+                           (define child-values (second new-decls-and-child-values))
+                           (checkFormula run-or-state subform new-quantvars checker-hash)
+                           ; Return type constructed from decls above
+                           (cons (map flatten (map append (apply cartesian-product child-values)))
+                                 #f))))]
 
     [else (error (format "no matching case in checkExpression for ~a" (deparse expr)))]))
 
@@ -508,12 +539,17 @@
     
     ; SETMINUS 
     [(? node/expr/op/-?)
-     (check-and-output expr
-                       node/expr/op/-
-                       checker-hash
-                       ; A-B should have only 2 children. B may be empty.
-                       (cons (checkExpression run-or-state (first args) quantvars checker-hash)
-                              #t))]
+     (begin
+       ; A-B should have only 2 children. B may not exist; use A as the bound returned regardless. 
+       ; However, if B is present, we must /check/ it anyway (and discard non-error results).
+       (when (@> (length args) 1)
+         (checkExpression run-or-state (second args) quantvars checker-hash))
+       (check-and-output expr
+                         node/expr/op/-
+                         checker-hash
+                         ; A-B should have only 2 children. B may be empty.
+                         (cons (checkExpression run-or-state (first args) quantvars checker-hash)
+                               #t)))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
@@ -548,14 +584,15 @@
                            (when (empty? join-result)
                             (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
                                 ((hash-ref checker-hash 'empty-join) expr)
-                              (raise-syntax-error #f 
-                                                (format "~n join always results in an empty relation: ~n Left argument of join \"~a\" is in ~a~n Right argument of join \"~a\" is in ~a~n There is no possible join result " 
-                                                          (deparse (first (node/expr/op-children expr)))  
-                                                          (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
-                                                          (deparse (second (node/expr/op-children expr)))
-                                                          (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (second child-values)))
-                                                          )
-                                                  (datum->syntax #f (deparse expr) (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
+                              (raise-forge-error
+                               #:msg (format "Join always results in an empty relation:\
+ Left argument of join \"~a\" is in ~a.\
+ Right argument of join \"~a\" is in ~a" 
+                                             (deparse (first (node/expr/op-children expr)))  
+                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
+                                             (deparse (second (node/expr/op-children expr)))
+                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (second child-values))))
+                               #:context expr))))
                            (when (and (not (cdr (first child-values))) (eq? (nodeinfo-lang (node-info expr)) 'bsl))
                                 ((hash-ref checker-hash 'relation-join) expr args))
                            (cons join-result
@@ -684,10 +721,14 @@
      (define decls (node/int/sum-quant-decls expr))
      (let ([new-quantvars (append (map assocify decls) quantvars)])
        (checkInt run-or-state (node/int/sum-quant-int-expr expr) new-quantvars checker-hash))
-     (for ([decl decls])
+     (for/fold ([new-quantvars quantvars])
+               ([decl decls])
        (define var (car decl))
        (define domain (cdr decl))
-       (checkExpression run-or-state domain quantvars checker-hash))]))
+       ; Check and throw away result
+       (checkExpression run-or-state domain new-quantvars checker-hash)
+       (cons (list var domain) quantvars))
+     (void)]))
 
 ; Is this integer literal safe under the current bitwidth?
 (define/contract (check-int-literal run-or-state expr)

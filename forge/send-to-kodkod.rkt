@@ -152,7 +152,7 @@
       [(and (unbox server-state) ((Server-ports-is-running? (unbox server-state))))
        (define sstate (unbox server-state))
        (when (@> (get-verbosity) VERBOSITY_LOW)
-        (printf "Pardinus solver process already running. Starting new run with id ~a.~n" run-name))
+        (printf "Pardinus solver process already running. Preparing to start new run with id ~a.~n" run-name))
        (values (Server-ports-stdin sstate) (Server-ports-stdout sstate) 
                (Server-ports-stderr sstate) (Server-ports-shutdown sstate)
                (Server-ports-is-running? sstate))]
@@ -190,7 +190,43 @@
   
   ; Print configure and declare univ size
   ; Note that target mode is passed separately, nearer to the (solve) invocation
-  (define bitwidth (get-bitwidth run-spec)) 
+  (define bitwidth (get-bitwidth run-spec))
+
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; Generate top-level constraint for this run, execute last-checker
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+  (define (maybe-alwaysify fmla)
+    (if (equal? 'temporal (get-option run-spec 'problem_type))
+        (always/info (node-info fmla) fmla)
+        fmla))
+  
+  ; If in temporal mode, need to always-ify the auto-generated constraints but not the
+  ;   predicates that come from users
+  (define raw-implicit-constraints
+    (append (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error)
+            (get-relation-preds run-spec)
+            (get-extender-preds run-spec)
+            relation-constraints
+            break-preds))
+  (define conjuncts-implicit-constraints
+    (apply append (map maybe-and->list raw-implicit-constraints)))
+  (define implicit-constraints
+    (map maybe-alwaysify conjuncts-implicit-constraints))
+  (define explicit-constraints
+    (apply append (map maybe-and->list (Run-spec-preds run-spec)))) 
+  (define run-constraints 
+    (append explicit-constraints implicit-constraints))
+
+  ; Run last-minute checks for errors  
+  (for-each (lambda (c)
+              (checkFormula run-spec c '() (get-checker-hash)))
+            run-constraints)
+  
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; Beginning to send to Pardinus. All type-checking must be complete _before_ this point.
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (pardinus-print (pardinus:print-cmd (format "(with ~a" run-name)))
   (pardinus-print
     (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"                               
@@ -247,39 +283,6 @@
 
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
-
-  (define (maybe-alwaysify fmla)
-    (if (equal? 'temporal (get-option run-spec 'problem_type))
-        (always/info (node-info fmla) fmla)
-        fmla))
-  
-  ; Get and print predicates
-  ; If in temporal mode, need to always-ify the auto-generated constraints but not the
-  ;   predicates that come from users
-  ; !!!
-  (define raw-implicit-constraints
-    (append (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error)
-            (get-relation-preds run-spec)
-            (get-extender-preds run-spec)
-            relation-constraints
-            break-preds))
-  (define conjuncts-implicit-constraints
-    (apply append (map maybe-and->list raw-implicit-constraints)))
-  (define implicit-constraints
-    (map maybe-alwaysify conjuncts-implicit-constraints))
-  (define explicit-constraints
-    (apply append (map maybe-and->list (Run-spec-preds run-spec)))) 
-              
-  (define run-constraints 
-    (append explicit-constraints implicit-constraints))
-
-  ; Run last-minute checks for errors  
-  (for-each (lambda (c)
-              ;(printf "deparse-constraint: ~a~n" (deparse c))
-              (checkFormula run-spec c '() (get-checker-hash)))
-            run-constraints)
-  ;(when (@>= (get-verbosity) VERBOSITY_LOW)        
-  ;  (printf "  Last-checker finished. Beginning to send problem.~n"))
   
   ; Keep track of which formula corresponds to which CLI assert
   ; for highlighting unsat cores. TODO: map back from CLI output
