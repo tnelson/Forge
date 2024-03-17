@@ -140,6 +140,12 @@ test expect {
   OK_comp_quant_variable_shadowing: {some x: Person | some {x : Person | some x.age}} is sat
   -- Variable-name shadowing between nested comprehensions
   OK_nested_comp_variable_shadowing: {some {x: Person | some {x: Person | some x.age} }} is sat
+
+  -- However, shadowing by name is disallowed within a single construct
+  -- Regression test: shadowing within a *single* comprehension or quantifier would cause Pardinus to crash.
+  internal_comp_variable_name_shadowing: {some {x: Person, x: Person | x.age = x.age}} is forge_error
+  internal_quant_variable_name_shadowing: {some x: Person, x: Person | x.age = x.age} is sat forge_error
+
   --------------------------------------------------------------------
 
   -- Regression test: checker must descend into RHS of a minus, even if the RHS has no impact
@@ -154,12 +160,6 @@ test expect {
   set_minus_rhs_quant_lone: {lone x: Person, y: Person - x | x != y} is sat -- should be OK
   set_minus_rhs_quant_one: {one x: Person, y: Person - x | x != y} is unsat -- should be OK
   set_minus_rhs_comp: {some {x: Person, y: Person - x | x != y}} is sat     -- should be OK
-
-  -- TODO -- 
-  -- Regression test: shadowing within a single comprehension or quantifier would cause Pardinus to crash.
-  
- //internal_quant_variable_name_shadowing: {some x: Person, x: Person | x.age = x.age} is sat
- //internal_comp_variable_name_shadowing: {some {x: Person, x: Person | x.age = x.age}} is sat -- s/b FORGE error
 
   -- test for non-variable in quantifier variable position
   quantifier_some_decl_var: {some Person : Person | some Person} is forge_error

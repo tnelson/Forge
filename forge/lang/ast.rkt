@@ -5,7 +5,7 @@
          racket/contract
          racket/match
          forge/shared ; for verbosity level
-         (only-in racket false? empty? first second rest drop const thunk range)
+         (only-in racket false? empty? first second rest drop const thunk range remove-duplicates)
          (prefix-in @ (only-in racket + - * < > or <=)))
 
 (provide deparse
@@ -502,7 +502,15 @@
   (raise-forge-error
    #:msg (format "Set-comprehension variable domain expected a singleton or relational expression of arity 1: ~a" (deparse e))
    #:context e))
+
 (define (comprehension info decls formula)
+  ; Check for re-use of a variable within the same quantifier/comprehension/sum form
+  (define vars (map car decls))
+  (unless (equal? (length (remove-duplicates vars)) (length vars))
+    (raise-forge-error
+     #:msg (format "Set-comprehension cannot use the same variable name more than once; used: ~a." vars)
+     #:context info))
+
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-set-comp-quantifier-error e))
@@ -535,12 +543,12 @@
                       (nodeinfo #,(build-source-location stx) check-lang.check-lang)
                       1 (gensym (format "~a_set" 'r0)) 'r0)] ... )
             ; We need to check these only inside the let*, to allow for later decls to use earlier ones.
-            ;(unless (node/expr? e0)
-            ;  (raise-set-comp-quantifier-error e0))
-            ;;...
-            ;(unless (equal? 1 (node/expr-arity e0))
-            ;  (raise-set-comp-quantifier-error e0))
-            ;...
+            (unless (node/expr? e0)
+              (raise-set-comp-quantifier-error e0))
+            ...
+            (unless (equal? 1 (node/expr-arity e0))
+              (raise-set-comp-quantifier-error e0))
+            ...
             (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang)
                       (list (cons r0 e0) ...) pred)))]))
 
@@ -836,6 +844,13 @@
    (define hash2-proc (make-robust-node-hash-syntax node/formula/quantified 3))])
 
 (define (quantified-formula info quantifier decls formula)
+  ; Check for re-use of a variable within the same quantifier/comprehension/sum form
+  (define vars (map car decls))
+  (unless (equal? (length (remove-duplicates vars)) (length vars))
+    (raise-forge-error
+     #:msg (format "~a quantifier cannot use the same variable name more than once; used: ~a." quantifier vars)
+     #:context info))
+  
   (for ([e (in-list (map cdr decls))])
     (unless (node/expr? e)
       (raise-forge-error #:msg (format "~a quantifier expected an expression for domain, got ~a" quantifier e)
