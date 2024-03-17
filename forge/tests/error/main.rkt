@@ -142,7 +142,7 @@
 
     (list "expr-in-comprehension-condition.frg" #rx"expected a formula")
     (list "non-expr-in-comprehension-domain.frg" #rx"expected a singleton or relational expression")
-    (list "arity-in-comprehension-domain.frg" #rx"variable domain needs arity = 1")
+    (list "arity-in-comprehension-domain.frg" #rx"expected a singleton or relational expression of arity 1")
 
     (list "override-wrong-arity.frg" #rx"must have same arity")
     (list "override-no-overlap.frg" #rx"will never override anything")

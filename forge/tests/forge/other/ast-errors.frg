@@ -144,7 +144,7 @@ test expect {
   -- However, shadowing by name is disallowed within a single construct
   -- Regression test: shadowing within a *single* comprehension or quantifier would cause Pardinus to crash.
   internal_comp_variable_name_shadowing: {some {x: Person, x: Person | x.age = x.age}} is forge_error
-  internal_quant_variable_name_shadowing: {some x: Person, x: Person | x.age = x.age} is sat forge_error
+  internal_quant_variable_name_shadowing: {some x: Person, x: Person | x.age = x.age} is forge_error
 
   --------------------------------------------------------------------
 
