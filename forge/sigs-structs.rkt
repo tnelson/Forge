@@ -218,7 +218,7 @@
   [kodkod-bounds (listof any/c)]
   ; This is Sterling's current cursor into the exploration tree.
   ; It is mutated whenever Sterling asks for a new instance.
-  [last-sterling-instance (box/c (or/c false/c tree:node?))]
+  [last-sterling-instance (box/c (or/c Sat? Unsat? false/c))]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
