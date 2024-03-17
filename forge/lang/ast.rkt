@@ -500,7 +500,7 @@
 ; these are shown to an end-user)
 (define (raise-set-comp-quantifier-error e)
   (raise-forge-error
-   #:msg (format "Set-comprehension variable domain expected a singleton or relational expression: ~a" (deparse e))
+   #:msg (format "Set-comprehension variable domain expected a singleton or relational expression of arity 1: ~a" (deparse e))
    #:context e))
 (define (comprehension info decls formula)
   (for ([e (map cdr decls)])
@@ -531,12 +531,18 @@
                    ([r0 e0 m0:opt-mult-class] ...)
                    pred)
         (quasisyntax/loc stx
-          (begin 
-            (unless (node/expr? e0)
-              (raise-set-comp-quantifier-error e0))
-            ...
-            (let* ([r0 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang.check-lang) (node/expr-arity e0) (gensym (format "~a_set" 'r0)) 'r0)] ... )
-              (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (list (cons r0 e0) ...) pred))))]))
+          (let* ([r0 (node/expr/quantifier-var
+                      (nodeinfo #,(build-source-location stx) check-lang.check-lang)
+                      1 (gensym (format "~a_set" 'r0)) 'r0)] ... )
+            ; We need to check these only inside the let*, to allow for later decls to use earlier ones.
+            ;(unless (node/expr? e0)
+            ;  (raise-set-comp-quantifier-error e0))
+            ;;...
+            ;(unless (equal? 1 (node/expr-arity e0))
+            ;  (raise-set-comp-quantifier-error e0))
+            ;...
+            (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang)
+                      (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
 
@@ -703,6 +709,10 @@
    (define hash2-proc (make-robust-node-hash-syntax node/int/sum-quant 3))])
 
 (define (sum-quant/func decls raw-int-expr #:info [node-info empty-nodeinfo])
+  (when (@> (length decls) 1)
+    (raise-forge-error
+     #:msg (format "sum aggregator only supports a single variable; if you wish to sum over multiple domains, please use nested sum aggregators.")
+     #:context node-info))
   (for ([e (map cdr decls)])
     (unless (node/expr? e)
       (raise-forge-error

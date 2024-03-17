@@ -461,28 +461,40 @@
                        checker-hash
                        ; For rationale here, see the quantified-formula case. This differs slightly
                        ; because a comprehension is an expression, and thus needs to report its type.
-                       (cons (let ([child-values
-                                    (map (lambda (decl)
-                                          (let ([var (car decl)]
-                                                [domain (cdr decl)])
-                                            ; CHECK: shadowed variables
-                                            (when (ormap (lambda (qvd)
-                                                   (equal?
-                                                    (node/expr/quantifier-var-name var)
-                                                    (node/expr/quantifier-var-name (first qvd)))) quantvars)
-                                              (raise-forge-error
-                                               #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                               #:context info))
-                                            ; CHECK: recur into domain(s)
-                                            (checkExpression run-or-state domain quantvars checker-hash)))
-                                        decls)]
-                                  ; Extend domain environment
-                                  [new-quantvars (append (map assocify decls) quantvars)])
-                              ; CHECK: recur into subformula
-                              (checkFormula run-or-state subform new-quantvars checker-hash)
-                              ; Return type constructed from decls above
-                              (map flatten (map append (apply cartesian-product child-values))))
-                              #f))]
+
+                       (begin
+                         (printf "comp: ~a ~n" decls)
+                         (let ([new-decls-and-child-values
+                                (foldl (lambda (decl acc)
+                                         (let ([var (car decl)]
+                                               [domain (cdr decl)]
+                                               [expanded-quantvars (first acc)]
+                                               [child-types (second acc)])
+                                           ; CHECK: shadowed variables
+                                           (when (ormap (lambda (qvd)
+                                                          (equal?
+                                                           (node/expr/quantifier-var-name var)
+                                                           (node/expr/quantifier-var-name (first qvd)))) quantvars)
+                                             (raise-forge-error
+                                              #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                              #:context info))
+                                           ; CHECK: recur into domain(s), aware of prior variables
+                                           (printf "checking in comp. ~a : ~a; ~a -- ~a~n" var domain expanded-quantvars child-types)
+                                           (let ([next-child-type
+                                                  (checkExpression run-or-state domain expanded-quantvars checker-hash)])
+                                             ; Accumulator: add current decl, add type (to end)
+                                             (list (cons (assocify decl) expanded-quantvars)
+                                                   (reverse (cons next-child-type (reverse child-types)))))))
+                                       ; Acc has the form: (quantvars-so-far child-values-in-order)
+                                       (list quantvars '())
+                                       decls)])
+                           ; CHECK: recur into subformula
+                           (define new-quantvars (first new-decls-and-child-values))
+                           (define child-values (second new-decls-and-child-values))
+                           (checkFormula run-or-state subform new-quantvars checker-hash)
+                           ; Return type constructed from decls above
+                           (cons (map flatten (map append (apply cartesian-product child-values)))
+                                 #f))))]
 
     [else (error (format "no matching case in checkExpression for ~a" (deparse expr)))]))
 
@@ -711,10 +723,13 @@
      (define decls (node/int/sum-quant-decls expr))
      (let ([new-quantvars (append (map assocify decls) quantvars)])
        (checkInt run-or-state (node/int/sum-quant-int-expr expr) new-quantvars checker-hash))
-     (for ([decl decls])
+     (for/fold ([new-quantvars quantvars])
+               ([decl decls])
        (define var (car decl))
        (define domain (cdr decl))
-       (checkExpression run-or-state domain quantvars checker-hash))]))
+       ; Check and throw away result
+       (checkExpression run-or-state domain new-quantvars checker-hash)
+       (cons (list var domain) quantvars))]))
 
 ; Is this integer literal safe under the current bitwidth?
 (define/contract (check-int-literal run-or-state expr)

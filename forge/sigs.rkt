@@ -658,7 +658,9 @@
               #:msg (format "Failed test ~a. No Forge error was produced." 'name)
               #:context loc
               #:run run-reference
-              #:sterling #f))]
+              #:sterling #f))
+           (when (member 'name (hash-keys (State-runmap curr-state)))
+             (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))]
           
           [(member 'expected '(sat unsat))           
            #,(syntax/loc stx (run name args ...))
