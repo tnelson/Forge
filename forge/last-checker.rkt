@@ -301,19 +301,23 @@
 
   (define (infer-from-instance)
     (define tlsigs (if (Run? run) (get-top-level-sigs run) '()))
-    (printf "~a~n" in-instance)
     (define last-matched
       (dfs-sigs run (lambda (s acc)
-                      ;(define b (findf (lambda (b) (equal? s (bound-relation b))) kodkod-bounds))
-                      ;(printf "inferring ~a; looking at ~a; b=~a~n" atom s b)
                       (if (member (list (atom-name atom)) (hash-ref in-instance (Sig-name s)))
                           (values s #f) ; try to find something more specific, don't stop
                           (values acc #t))) ; nothing to find, since this atom isn't in the parent
-                tlsigs
+                (remove Int tlsigs)
                 #f))
-    (if last-matched
-        (map list (primify run (Sig-name last-matched))) ; we have a match
-        (map list (primify run 'univ))))                 ; no match, cannot infer anything
+    (cond
+      ; If most-specific sig has no children, just use that sig name
+      [(and last-matched (empty? (get-children run last-matched)))
+       (list (list (Sig-name last-matched)))]
+      ; If most-specific sig has children, just the remainder
+      [last-matched
+       (list (list (string->symbol (string-append (symbol->string (Sig-name last-matched)) "_remainder"))))]
+      ; Otherwise, we can infer nothing
+      [else 
+        (map list (primify run 'univ))]))
     
   ; Consider top-level sigs only
   (define (infer-from-bounds)

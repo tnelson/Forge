@@ -102,6 +102,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test *from instance* that's been generated
 
+; Here, the instance will only have Node0 in Node, not in any of its child sigs. 
 (run testingAtomSigInference_frominst_top
       #:preds [(&& (in (atom 'Node0) Node)
                    (! (in (atom 'Node0) (+ NodeA NodeB NodeC))))]
@@ -109,17 +110,27 @@
 (check-true (forge:Run? testingAtomSigInference_frominst_top))
 (check-true (is-sat? testingAtomSigInference_frominst_top))
 
-; GET INSTANCE AND PASS
 (define top-gen (forge:make-model-generator (forge:get-result testingAtomSigInference_frominst_top) 'next))
 (define inst-top (top-gen))
-(check-equal? (list->set (infer-atom-type testingAtomSigInference_frominst_top (atom 'Node0) inst-top))
-              (list->set '((Node_remainder)
-                           (NodeA_remainder) 
-                           (NodeAA)
-                           (NodeBA)
-                           (NodeCA)
-                           (NodeB)
-                           (NodeC))))
+(define inst-top0 (first (Sat-instances inst-top)))
+(check-equal? (list->set (infer-atom-type testingAtomSigInference_frominst_top (atom 'Node0) inst-top0))
+              (list->set '((Node_remainder))))
 
-; PASS NOT THE SAT, BUT THE HASH INSIDE
-;; ADD something lower in the hierarchy
+
+; Here, Node0 is found deeper in the tree. We know the atom is in NodeA, but not any of its children,
+; so we expect '(NodeA_remainder) as the only option.
+(run testingAtomSigInference_frominst_middle
+      #:preds [(&& (in (atom 'Node0) Node)
+                   (! (in (atom 'Node0) (+ NodeB NodeC)))
+                   (in (atom 'Node0) NodeA)
+                   (! (in (atom 'Node0) (+ NodeAA NodeBA NodeCA))))]
+      #:scope ([Node 3]))
+(check-true (forge:Run? testingAtomSigInference_frominst_middle))
+(check-true (is-sat? testingAtomSigInference_frominst_middle))
+
+(define middle-gen (forge:make-model-generator (forge:get-result testingAtomSigInference_frominst_middle) 'next))
+(define inst-middle (middle-gen))
+(define inst-middle0 (first (Sat-instances inst-middle)))
+(check-equal? (list->set (infer-atom-type testingAtomSigInference_frominst_middle (atom 'Node0) inst-middle0))
+              (list->set '((NodeA_remainder))))
+
