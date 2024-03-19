@@ -47,7 +47,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test that inference for an atom's most-specific sig is working
-; this is last-checker functionality
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (sig NodeA #:extends Node)
 (sig NodeB #:extends Node)
@@ -55,6 +55,11 @@
 (sig NodeAA #:extends NodeA)
 (sig NodeBA #:extends NodeA)
 (sig NodeCA #:extends NodeA)
+(sig Person)
+(sig Apple)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test *from bounds*, no instance generated yet
 
 ; Require atom to be only in top-level Node sig
 (run testingAtomSigInference_top
@@ -76,7 +81,8 @@
                            (NodeC))))
 
 ; Require atom to be only in mid-level NodeA sig.
-; This will be the same, since inference is only based on upper bounds.
+; This will be the same, since inference is only based on upper bounds, and only queries
+; top-level sigs anyway.
 (run testingAtomSigInference_middle
       #:preds [(&& (in (atom 'Node0) NodeA)
                    (! (in (atom 'Node0) (+ NodeAA NodeBA NodeAA))))]
@@ -93,20 +99,27 @@
                            (NodeB)
                            (NodeC))))
 
-; Use a partial instance to move the kodkod upper bound down the tree of sigs
-(run testingAtomSigInference_pi_middle
-      #:preds []
-      #:bounds ((= Node (atom `Node0))
-                (= NodeA (atom `Node0))
-                (no NodeB)
-                (no NodeC)))
-(check-true (forge:Run? testingAtomSigInference_pi_middle))
-(check-true (is-sat? testingAtomSigInference_pi_middle))
-(check-equal? (list->set (infer-atom-type testingAtomSigInference_pi_middle (atom 'Node0)))
-              ; See above for rationale; this is based on upper bounds not actual instance
-              (list->set '((NodeA_remainder)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Test *from instance* that's been generated
+
+(run testingAtomSigInference_frominst_top
+      #:preds [(&& (in (atom 'Node0) Node)
+                   (! (in (atom 'Node0) (+ NodeA NodeB NodeC))))]
+      #:scope ([Node 3]))
+(check-true (forge:Run? testingAtomSigInference_frominst_top))
+(check-true (is-sat? testingAtomSigInference_frominst_top))
+
+; GET INSTANCE AND PASS
+(define top-gen (forge:make-model-generator (forge:get-result testingAtomSigInference_frominst_top) 'next))
+(define inst-top (top-gen))
+(check-equal? (list->set (infer-atom-type testingAtomSigInference_frominst_top (atom 'Node0) inst-top))
+              (list->set '((Node_remainder)
+                           (NodeA_remainder) 
                            (NodeAA)
                            (NodeBA)
-                           (NodeCA))))
+                           (NodeCA)
+                           (NodeB)
+                           (NodeC))))
 
-;(forge:Run-kodkod-bounds testingAtomSigInference_pi_middle)
+; PASS NOT THE SAT, BUT THE HASH INSIDE
+;; ADD something lower in the hierarchy

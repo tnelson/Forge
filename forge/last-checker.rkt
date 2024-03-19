@@ -291,60 +291,96 @@
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
-; Infer a type for an atom node in the last Sterling instance of this run.
-; Should be used only for the evaluator or in other situations where it is
-; certain the last Sterling instance is the right one to infer in.
-(define (infer-atom-type run atom)  
-  ; Walk the tree of sigs, seeking the most-specific sig this atom belongs to.
-  ; If no inference is possible (e.g., the run is still being created), the backup is univ.
-  (define most-specific
-    (dfs-sigs run
-              (lambda (sig acc)
-                ; We aren't going to look at the last-sterling-instance if we don't need to.
-                ; Instead, look at the kodkod-bounds for this run.
-                (define kodkod-bounds (if (Run? run) (Run-kodkod-bounds run) '()))
-                ;(printf "inferring for ~a: visiting ~a; all kk bounds: ~a~n" atom sig kodkod-bounds)
-                (define sig-kodkod-bounds-in-list
-                  (filter-map (lambda (b)
-                                ;(printf "  considering bounded rel ~a vs target ~a~n" (bound-relation b) sig)
-                                (if (equal? (bound-relation b) sig) (bound-upper b) #f))
-                              kodkod-bounds))
-                ;(printf "  lst=~a~n" sig-kodkod-bounds-in-list)
-                (cond
-                  ; Somehow this sig's kodkod bounds are empty; possibly not all sigs were used, or
-                  ; the run is still being created (i.e., called from send-to-kodkod)
-                  [(empty? sig-kodkod-bounds-in-list) (values acc #t)]
-                  [else 
-                   ; Is a tuple containing this atom's name a member of the upper bounds for this sig?
-                   (define new-acc (if (member (list (atom-name atom))
-                                               (first sig-kodkod-bounds-in-list))
-                                       (if (equal? acc '())
-                                           (list (Sig-name sig))
-                                           (cons (Sig-name sig) acc))
-                                       acc))
-                   (values new-acc #f)]))
-              (get-top-level-sigs run)
-              '()))
-  (when (> (get-verbosity) VERBOSITY_LOW) 
-    (printf "done inferring type for ~a; got sigs/remainders: ~a~n" atom most-specific))
-  ; Since we want most specific types, we cannot use primify directly. Instead, if a sig has
-  ; children (and is not abstract) just add its _remainder. Otherwise, if a sig has no children,
-  ; add it by name. Wrap each symbol in a list to denote a 1-arity tuple.
-  (if (empty? most-specific)
-      (map list (primify run 'univ))
-      (map list (filter-map (lambda (x)
-                              (define s (get-sig run x))
-                              (cond
-                                ; Abstract sigs shouldn't be included
-                                [(Sig-abstract s) #f]
-                                ; if there is no child sig, this sig is included
-                                [(empty? (get-children run s)) x]
-                                ; if this sig has no children that are in the most-specific set
-                                [(set-empty? (set-intersect (list->set (map Sig-name (get-children run s)))
-                                                            (list->set most-specific)))
-                                 (string->symbol (string-append (symbol->string x) "_remainder"))]
-                                [else #f]))
-                            most-specific)))) 
+
+; Infer a type for an atom node. 
+;   Best data source: the last Sterling instance of this run.
+;   Not ideal data source (e.g., sterling hasn't been run): the Kodkod bounds generated for this run,
+;     from which we can at least get the top-level sig to use.
+;   Fallback data source (e.g., run hasn't been generated): none, just use univ.
+(define (infer-atom-type run atom [in-instance #f])
+
+  (define (infer-from-instance)
+    (define tlsigs (if (Run? run) (get-top-level-sigs run) '()))
+    (printf "~a~n" in-instance)
+    (define last-matched
+      (dfs-sigs run (lambda (s acc)
+                      ;(define b (findf (lambda (b) (equal? s (bound-relation b))) kodkod-bounds))
+                      ;(printf "inferring ~a; looking at ~a; b=~a~n" atom s b)
+                      (if (member (list (atom-name atom)) (hash-ref in-instance (Sig-name s)))
+                          (values s #f) ; try to find something more specific, don't stop
+                          (values acc #t))) ; nothing to find, since this atom isn't in the parent
+                tlsigs
+                #f))
+    (if last-matched
+        (map list (primify run (Sig-name last-matched))) ; we have a match
+        (map list (primify run 'univ))))                 ; no match, cannot infer anything
+    
+  ; Consider top-level sigs only
+  (define (infer-from-bounds)
+    (define kodkod-bounds (if (Run? run) (Run-kodkod-bounds run) '()))
+    (define tlsigs-with-atom-in-bounds
+      (filter-map (lambda (tlsig)
+                    (define b (findf (lambda (b) (equal? tlsig (bound-relation b))) kodkod-bounds))
+                    (if (and b (bound? b) (member (list (atom-name atom)) (bound-upper b)))
+                        tlsig
+                        #f))
+                  (get-top-level-sigs run)))
+    (if (empty? tlsigs-with-atom-in-bounds)
+        (map list (primify run 'univ)) ; no match, cannot infer anything
+        (map list (primify run (Sig-name (first tlsigs-with-atom-in-bounds)))))) ; we have a match
+  
+  (cond [(and in-instance (hash? in-instance)) (infer-from-instance)]
+        [(Run? run) (infer-from-bounds)]
+        [else (map list (primify run 'univ))]))
+  
+;;   (define most-specific
+;;     (dfs-sigs run
+;;               (lambda (sig acc)
+;;                 ; We aren't going to look at the last-sterling-instance if we don't need to.
+;;                 ; Instead, look at the kodkod-bounds for this run.
+;;                 (define kodkod-bounds (if (Run? run) (Run-kodkod-bounds run) '()))
+;;                 ;(printf "inferring for ~a: visiting ~a; all kk bounds: ~a~n" atom sig kodkod-bounds)
+;;                 (define sig-kodkod-bounds-in-list
+;;                   (filter-map (lambda (b)
+;;                                 ;(printf "  considering bounded rel ~a vs target ~a~n" (bound-relation b) sig)
+;;                                 (if (equal? (bound-relation b) sig) (bound-upper b) #f))
+;;                               kodkod-bounds))
+;;                 ;(printf "  lst=~a~n" sig-kodkod-bounds-in-list)
+;;                 (cond
+;;                   ; Somehow this sig's kodkod bounds are empty; possibly not all sigs were used, or
+;;                   ; the run is still being created (i.e., called from send-to-kodkod)
+;;                   [(empty? sig-kodkod-bounds-in-list) (values acc #t)]
+;;                   [else 
+;;                    ; Is a tuple containing this atom's name a member of the upper bounds for this sig?
+;;                    (define new-acc (if (member (list (atom-name atom))
+;;                                                (first sig-kodkod-bounds-in-list))
+;;                                        (if (equal? acc '())
+;;                                            (list (Sig-name sig))
+;;                                            (cons (Sig-name sig) acc))
+;;                                        acc))
+;;                    (values new-acc #f)]))
+;;               (get-top-level-sigs run)
+;;               '()))
+;;   (when (> (get-verbosity) VERBOSITY_LOW) 
+;;     (printf "done inferring type for ~a; got sigs/remainders: ~a~n" atom most-specific))
+;;   ; Since we want most specific types, we cannot use primify directly. Instead, if a sig has
+;;   ; children (and is not abstract) just add its _remainder. Otherwise, if a sig has no children,
+;;   ; add it by name. Wrap each symbol in a list to denote a 1-arity tuple.
+;;   (if (empty? most-specific)
+;;       (map list (primify run 'univ))
+;;       (map list (filter-map (lambda (x)
+;;                               (define s (get-sig run x))
+;;                               (cond
+;;                                 ; Abstract sigs shouldn't be included
+;;                                 [(Sig-abstract s) #f]
+;;                                 ; if there is no child sig, this sig is included
+;;                                 [(empty? (get-children run s)) x]
+;;                                 ; if this sig has no children that are in the most-specific set
+;;                                 [(set-empty? (set-intersect (list->set (map Sig-name (get-children run s)))
+;;                                                             (list->set most-specific)))
+;;                                  (string->symbol (string-append (symbol->string x) "_remainder"))]
+;;                                 [else #f]))
+;         most-specific)))) 
   
 ; Runs a DFS over the sigs tree, starting from sigs in <sigs>.
 ; On each visited sig, <func> is called to obtain a new accumulated value
