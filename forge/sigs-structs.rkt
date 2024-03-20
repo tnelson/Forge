@@ -358,6 +358,13 @@ Returns whether the given run resulted in sat or unsat, respectively.
         [(State? run-or-state)
          run-or-state]))
 
+; get-run-spec :: Run-or-State -> Run-spec
+(define (get-run-spec run-or-state)
+    (cond [(Run? run-or-state)
+         (Run-run-spec run-or-state)]
+        [(Run-spec? run-or-state)
+         run-or-state]))
+
 ; get-sig :: Run-or-State (|| Symbol Sig*) -> Sig
 ; Returns the Sig of a given name/ast-relation from a run/state.
 (define (get-sig run-or-state sig-name-or-rel)

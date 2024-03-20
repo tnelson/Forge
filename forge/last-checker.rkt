@@ -3,6 +3,7 @@
 (require 
   forge/sigs-structs
   forge/lang/ast
+  forge/lang/bounds
   forge/shared
   racket/syntax
   syntax/srcloc
@@ -13,7 +14,7 @@
   (except-in racket/set set)
   (only-in racket/contract define/contract or/c listof any))
 
-(provide checkFormula checkExpression primify)
+(provide checkFormula checkExpression checkInt primify infer-atom-type dfs-sigs deprimify)
 
 ; This function only exists for code-reuse - it's so that we don't
 ; need to use begin and hash-ref in every single branch of the match
@@ -290,6 +291,56 @@
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
+
+; Infer a type for an atom node. 
+;   Best data source: the last Sterling instance of this run.
+;   Not ideal data source (e.g., sterling hasn't been run): the Kodkod bounds generated for this run,
+;     from which we can at least get the top-level sig to use.
+;   Fallback data source (e.g., run hasn't been generated): none, just use univ.
+(define (infer-atom-type run atom [in-instance #f])
+
+  (define (infer-from-instance)
+    (define tlsigs (if (Run? run) (get-top-level-sigs run) '()))
+    (define last-matched
+      (dfs-sigs run (lambda (s acc)
+                      (if (member (list (atom-name atom)) (hash-ref in-instance (Sig-name s)))
+                          (values s #f) ; try to find something more specific, don't stop
+                          (values acc #t))) ; nothing to find, since this atom isn't in the parent
+                (remove Int tlsigs)
+                #f))
+    (cond
+      ; If most-specific sig has no children, just use that sig name
+      [(and last-matched (empty? (get-children run last-matched)))
+       (list (list (Sig-name last-matched)))]
+      ; If most-specific sig has children, just the remainder
+      [last-matched
+       (list (list (string->symbol (string-append (symbol->string (Sig-name last-matched)) "_remainder"))))]
+      ; Otherwise, we can infer nothing
+      [else 
+        (map list (primify run 'univ))]))
+    
+  ; Consider top-level sigs only
+  (define (infer-from-bounds)
+    (define kodkod-bounds (if (Run? run) (Run-kodkod-bounds run) '()))
+    (define tlsigs-with-atom-in-bounds
+      (filter-map (lambda (tlsig)
+                    (define b (findf (lambda (b) (equal? tlsig (bound-relation b))) kodkod-bounds))
+                    (if (and b (bound? b) (member (list (atom-name atom)) (bound-upper b)))
+                        tlsig
+                        #f))
+                  (get-top-level-sigs run)))
+    (if (empty? tlsigs-with-atom-in-bounds)
+        (map list (primify run 'univ)) ; no match, cannot infer anything
+        (map list (primify run (Sig-name (first tlsigs-with-atom-in-bounds)))))) ; we have a match
+  
+  (cond [(and in-instance (hash? in-instance)) (infer-from-instance)]
+        [(Run? run) (infer-from-bounds)]
+        [else (map list (primify run 'univ))]))
+  
+  
+; Runs a DFS over the sigs tree, starting from sigs in <sigs>.
+; On each visited sig, <func> is called to obtain a new accumulated value
+; and whether the search should continue to that sig's children.
 (define (dfs-sigs run-or-state func sigs init-acc)
     (define (dfs-sigs-helper todo acc)
       (cond [(equal? (length todo) 0) acc]
@@ -370,9 +421,8 @@
     [(node/expr/atom info arity name)
      (check-and-output expr
                        node/expr/atom
-                       checker-hash
-                       ; overapproximate for now (TODO: get atom's sig)     
-                       (cons (map list (primify run-or-state 'univ))
+                       checker-hash   
+                       (cons (infer-atom-type run-or-state expr)
                              #t))]
 
     [(node/expr/fun-spacer info arity name args codomain expanded)
@@ -735,21 +785,18 @@
   (@-> (or/c Run? State? Run-spec?)
        node/int/constant?
        any)
-  
-  (cond [(not (Run-spec? run-or-state))
-         (printf "Warning: integer literals not checked.~n")]
-        [else 
-         (define val (node/int/constant-value expr))
-         ; Note: get-scope will return number of int atoms, not the range we want. Hence, compute it ourselves.
-         (define max-int (sub1 (expt 2 (sub1 (get-bitwidth run-or-state)))))
-         (define min-int (@- (expt 2 (sub1 (get-bitwidth run-or-state)))))
-         (when (or (@> val max-int) (@> min-int val))
-           (raise-forge-error
-            #:msg (format "Integer literal (~a) could not be represented in the current bitwidth (~a through ~a)"
-                          val min-int max-int)
-            #:context expr))
-         
-         (void)]))
+
+  (define run-spec (get-run-spec run-or-state))
+  (define val (node/int/constant-value expr))
+  ; Note: get-scope will return number of int atoms, not the range we want. Hence, compute it ourselves.
+  (define max-int (sub1 (expt 2 (sub1 (get-bitwidth run-spec)))))
+  (define min-int (@- (expt 2 (sub1 (get-bitwidth run-spec)))))
+  (when (or (@> val max-int) (@> min-int val))
+    (raise-forge-error
+     #:msg (format "Integer literal (~a) could not be represented in the current bitwidth (~a through ~a)"
+                   val min-int max-int)
+     #:context expr))
+  (void))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
