@@ -89,9 +89,17 @@
     (list "froglet-ast-star.frg" #rx"\\* operator is not")
     (list "froglet-ast-transitive-closure.frg" #rx"\\^ operator is not")
     (list "froglet-ast-transpose.frg" #rx"~ operator is not")
+    (list "froglet-ast-notimplies.frg" #rx"parsing error")
     (list "froglet-arrow.frg" #rx"-> operator is not")
+    (list "froglet-compareop0.frg" #rx"inputs to = must have similar type")
+    (list "froglet-compareop1.frg" #rx"inputs to = must have similar type")
+    (list "froglet-compareop2.frg" #rx"expected an Int")
+    (list "froglet-compareop3.frg" #rx"expected an Int")
     (list "froglet-http.frg" #rx"field declaration")
     (list "froglet-int-minus.frg" #rx"- operator is not")
+    (list "froglet-field-shadow.frg" #rx"expected a field")
+    (list "froglet-is-linear0.frg" #rx"outside of bounds block")
+    (list "froglet-is-linear1.frg" #rx"expected a field")
     (list "froglet-join-right.frg" #rx"not an object")
     (list "froglet-join-right2.frg" #rx"not an object")
     (list "froglet-join-right3.frg" #rx"not an object")
@@ -101,16 +109,40 @@
     (list "froglet-join.frg" #rx"not an object")
     (list "froglet-join2.frg" #rx"not a singleton") ;; TODO incomplete or partial?
     (list "froglet-join3.frg" #rx"not an object")
+    (list "froglet-no-field.frg" #rx"expected an object")
     (list "froglet-pred.frg" #rx"expected a formula")
-    (list "froglet-reachable.frg" #rx"field") ;; TODO
-    (list "froglet-reachable2.frg" #rx"not a singleton") ;; TODO
+    (list "froglet-reachable1.frg" #rx"no field match")
+    (list "froglet-reachable2.frg" #rx"expected an object")
+    (list "froglet-reachable3.frg" #rx"parsing error")
+    (list "froglet-reachable4.frg" #rx"reachable expects 2 or more arguments")
+    (list "froglet-reachable5.frg" #rx"reachable found no path to target")
+    (list "froglet-reachable6.frg" #rx"reachable cannot use field")
     (list "froglet-set-singleton-equal.frg" #rx"not a singleton") ;;(#rx"= expects two objects, sig Node is not an object")
     (list "froglet-set.frg" #rx"not a singleton") #;( "pred must return an object, not a set")
-;    (list "froglet-uni-0.frg" #rx"expected a sig")
-;    (list "froglet-uni-1.frg" #rx"expected a sig")
-;    (list "froglet-uni-2.frg" #rx"is not a value") ;; TODO better block checking
-;    (list "froglet-uni-3.frg" #rx"expected a sig")
-;    (list "froglet-uni-4.frg" #rx"expected a sig") ;; TODO reachable, double-check
+    (list "froglet-uni-0.frg" #rx"expected an object")
+    (list "froglet-uni-1.frg" #rx"expected an object")
+    (list "froglet-uni-2.frg" #rx"expected an object") ;; or, a singleton
+    (list "froglet-uni-3.frg" #rx"expected an object")
+    (list "froglet-uni-4.frg" #rx"expected a field")
+    (list "froglet-uni-5.frg" #rx"expected a field")
+    (list "froglet-pubkey2.frg" #rx"field 'k' not found")
+
+    ;; challenge
+    ;; - [X] pubkey2 froglet expected a field got k
+    ;;   ... lookup works for `pairs`, not for `k`,
+    ;;       should find the k parameter in the environment!
+    ;; - [X] expected a formula (why?!) given a name in k
+    ;; - [X] pubkey2: why unknown type for 1st branch
+    ;; - [ ] pubkey2
+    ;;   froglet: binop-check: (#<syntax in> '#s(type #<syntax Unknown>)
+    ;;   '#s((nametype type 1) #<syntax:pubkey2.frg:30:34 Pubk>))
+    ;; - [ ] pubkey2: refine branch type
+    ;; - [ ] pubkey2: is function type parsing broken?
+    ;; TODO catch all bsl errors from here
+    ;; TODO check Ed for bounds errors
+    ;; TODO modeling in anger ... invalid bounds
+
+    ;; FYI forge has an evaluator, used to eval in inst specs, typechecker may need it too!
 
     (list "example_electrum.frg" #rx"example foo: .* temporal")
     (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")

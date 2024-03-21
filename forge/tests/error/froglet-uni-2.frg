@@ -11,5 +11,5 @@ sig Person {
 one sig Tim extends Person {}
 
 pred myPred {
- some father
+  some father
 }
