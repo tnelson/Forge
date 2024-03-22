@@ -348,6 +348,7 @@
              (define ast-checker-hash (get-ast-checker-hash))
              ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
              ;(printf "name: ~a args: ~a    key:~a ~n" 'name raw-args  key)
+             ;(printf "name: ~a args: ~a loc:~a ~n" 'name raw-args (nodeinfo-loc info))
 
              ; Perform intexpr->expr and expr->intexpr coercion if needed:             
              (define args (cond [(equal? node/expr? childtype)
@@ -1240,20 +1241,22 @@
 ; custom user error that contains the row and column information of the offending
 ; AST node.
 
-(define (pretty-loc loc)
-  (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc)))
+(define (pretty-loc context)
+  (define loc
+    (cond [(nodeinfo? context) (nodeinfo-loc context)]
+          ; Wheats/chaffs have their inner formula in the info field
+          [(and (node? context) (node? (node-info context)))
+           (nodeinfo-loc (node-info (node-info context)))]
+          [(node? context) (nodeinfo-loc (node-info context))]
+          [(srcloc? context) context]
+          [(syntax? context) (build-source-location context)]  
+          [else #f]))
+  (if loc
+      (format "~a:~a:~a (span ~a)" (srcloc-source loc) (srcloc-line loc) (srcloc-column loc) (srcloc-span loc))
+      "unknown:?:?"))
 
 (define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])
-  (define loc (cond                
-                [(nodeinfo? context) (pretty-loc (nodeinfo-loc context))]
-                ; Wheats/chaffs have their inner formula in the info field
-                [(and (node? context) (node? (node-info context)))
-                 (pretty-loc (nodeinfo-loc (node-info (node-info context))))]
-                [(node? context) (pretty-loc (nodeinfo-loc (node-info context)))]
-                [(srcloc? context) (pretty-loc context)]
-                [(syntax? context) (pretty-loc (build-source-location context))]                    
-                [else "unknown:?:?"]))
   (if raise? 
-      (raise-user-error (format "[~a] ~a" loc msg))
-      (fprintf (current-error-port) "[~a] ~a" loc msg)))
+      (raise-user-error (format "[~a] ~a" (pretty-loc context) msg))
+      (fprintf (current-error-port) "[~a] ~a" (pretty-loc context) msg)))
 

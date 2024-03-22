@@ -360,39 +360,25 @@
                     all-rels 
                     all-atoms))
     
-    ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
-    (define (do-core-highlight nd)
-      (define loc (nodeinfo-loc (node-info nd)))
-      (when (@>= (get-verbosity) VERBOSITY_LOW)        
-        (printf "  Core contained location: ~a~n" (srcloc->string loc)))
-      (when (@>= (get-verbosity) VERBOSITY_HIGH)        
-        (pretty-print nd)))
-;      (if (is-drracket-linked?) 
-;          (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
-;          (begin
-;            )))
-
+    ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for.
+    (define (pretty-core idx max known? fmla)
+      (fprintf (current-error-port) "Core(~a of ~a): [~a] ~a~n" (@+ idx 1) max (pretty-loc fmla)
+               (if known? (deparse fmla) fmla)))
     (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
         (printf "core: ~a~n" (Unsat-core result)))
-      (cond ;[(is-drracket-linked?) 
-        ; (do-forge-unhighlight 'core)]
-        [else
-         (when (@>= (get-verbosity) VERBOSITY_LOW) 
-           (printf "No DrRacket linked, could not highlight core. Will print instead.~n"))])
-      (for-each do-core-highlight
-                (filter-map (λ (id)
-                              (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
-                                (cond [(member fmla-num (hash-keys core-map))
-                                       ; This is a formula ID and we know it
-                                       ;(printf "LOC: ~a~n" (nodeinfo-loc (node-info (hash-ref core-map fmla-num))))
-                                       (hash-ref core-map fmla-num)]
-                                      [else
-                                       ; This is NOT a known formula id, but it's part of the core
-                                       (printf "WARNING: Core also contained: ~a~n" id)
-                                       #f])))
-                            (Unsat-core result))))
+      (when (@>= (get-verbosity) VERBOSITY_LOW) 
+        (printf "Unsat core available; printing it with source-location (where available):~n"))
+      (for ([id (Unsat-core result)]
+            [idx (range (length (Unsat-core result)))])
+        (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
+          (cond [(member fmla-num (hash-keys core-map))
+                 ; This is a formula ID and we know it
+                 (pretty-core idx (length (Unsat-core result)) fmla-num (hash-ref core-map fmla-num))]
+                [else
+                 ; This is NOT a known formula id, but it's part of the core
+                 (pretty-core idx (length (Unsat-core result)) #f id)]))))
     
     (when (@>= (get-verbosity) VERBOSITY_LOW)
       (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
@@ -785,7 +771,10 @@ Please declare a sufficient scope for ~a."
       (define-values (bound-lower-size bound-upper-size) (values (length bound-lower) (length bound-upper)))
       (match-define (Range int-lower int-upper) 
         (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (Range #f #f)))
-      
+
+      ; Sub-optimal, because it points to the sig definition
+      (define info (nodeinfo (nodeinfo-loc (node-info sig)) 'checklangNoCheck))
+
       (append
         (if (@and int-lower (@> int-lower bound-lower-size))
             (let ()
@@ -794,7 +783,9 @@ Please declare a sufficient scope for ~a."
                                                         "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
                                          sig int-lower (sub1 max-int))
                                  (get-blame-node run-spec sig)))
-              (list (int<= (int int-lower) (card sig))))
+              (list (||/info info
+                             (int</info info (int int-lower) (card sig))
+                             (int=/info info (int int-lower) (card sig)))))
             (list))
         (if (@and int-upper (@< int-upper bound-upper-size))
             (let ()
@@ -803,7 +794,9 @@ Please declare a sufficient scope for ~a."
                                                         "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                          sig int-upper (sub1 max-int))
                                  (get-blame-node run-spec sig)))
-              (list (int<= (card sig) (int int-upper))))
+              (list (||/info info
+                             (int</info info (card sig) (int int-upper))
+                             (int=/info info (card sig) (int int-upper)))))
             (list))))))
 
 
@@ -846,11 +839,10 @@ Please declare a sufficient scope for ~a."
     ; sig1 and sig2 extend sig => (no (& sig1 sig2))
     ; (unless both are #:one, in which case exact-bounds should enforce this constraint)
     (define (disjoin-pair sig1 sig2)
-      (let ([loc (nodeinfo-loc (node-info sig2))])
-        (cond [(and (Sig-one sig1) (Sig-one sig2))
-               true]
-              [else
-               (no (&/info (nodeinfo loc 'checklangNoCheck) sig1 sig2))])))
+      (let* ([loc (nodeinfo-loc (node-info sig2))]
+             [info (nodeinfo loc 'checklangNoCheck)])
+        (cond [(and (Sig-one sig1) (Sig-one sig2)) true]
+              [else (no/info info (&/info info sig1 sig2))])))
     (define (disjoin-list a-sig a-list)
       (map (curry disjoin-pair a-sig) a-list))
     (define (disjoin a-list)
@@ -871,7 +863,8 @@ Please declare a sufficient scope for ~a."
 (define (get-relation-preds run-spec)
   (for/list ([relation (get-relations run-spec)])
     (define sig-rels (get-sigs run-spec relation))
-    (in relation (-> sig-rels))))
+    (define info (nodeinfo (nodeinfo-loc (node-info relation)) 'checklangNoCheck))
+    (in/info info relation (->/info info sig-rels))))
 
 #|
 
