@@ -12,7 +12,7 @@
          forge/translate-from-kodkod-cli)
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
-                         curry range index-of pretty-print filter-map string-prefix? thunk*
+                         curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract)
           racket/hash)
 (require (only-in syntax/srcloc build-source-location-syntax))
@@ -359,11 +359,40 @@
                     (pardinus:read-solution stdout stderr) 
                     all-rels 
                     all-atoms))
-    
+
     ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for.
-    (define (pretty-core idx max known? fmla)
-      (fprintf (current-error-port) "Core(~a of ~a): [~a] ~a~n" (@+ idx 1) max (pretty-loc fmla)
-               (if known? (deparse fmla) fmla)))
+    ; In these cases, the engine should be passing something like "f:0,0" which indexes _child_ formulas.
+    (define (find-core-formula id)
+      (unless (string-prefix? id "f:")
+        (raise-user-error (format "Unexpected error: solver returned invalid formula path ID: ~a" id)))
+      (define path (string-split (first (string-split id "f:")) ","))
+      (printf "core path: ~a~n" path)
+      (unless (and (> (length path) 0) (member (string->number (first path)) (hash-keys core-map)))
+        (raise-user-error (format "Unexpected error: solver path ID prefix was invalid: ~a; valid prefixes: ~a" id (hash-keys core-map))))
+      (for/fold ([fmla #f])
+                ([idx-str path])
+        (define idx (string->number idx-str))
+        ; First step: look up top-level formula. Second+ steps: index child
+        (cond [(not fmla)
+               (hash-ref core-map idx)]
+              [(node/formula/quantified? fmla)
+               ; Quantified: decls formulas first, then sub-formula last
+               (cond [(>= idx (length (node/formula/quantified-decls fmla)))
+                      (node/formula/quantified-formula fmla)]
+                     [else
+                      (define decl (list-ref (node/formula/quantified-decls fmla) idx))
+                      (car decl)])]
+              [(node/formula/op? fmla)
+               ; Operator formula: sub-formulas in order
+               (list-ref (node/formula/op-children fmla) idx)]
+              [else
+               (raise-user-error (format "Unsupported formula type in core: ~a" fmla))])))
+    
+    (define (pretty-core idx max known? fmla-or-id)
+      (define fmla (if known? fmla-or-id (find-core-formula fmla-or-id)))
+      (printf "loc: ~a~n" (nodeinfo-loc (node-info fmla)))
+      (fprintf (current-error-port) "Core(part ~a/~a): [~a] ~a~n" (@+ idx 1) max
+               (pretty-loc fmla) fmla))
     (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
@@ -374,10 +403,10 @@
             [idx (range (length (Unsat-core result)))])
         (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
           (cond [(member fmla-num (hash-keys core-map))
-                 ; This is a formula ID and we know it
+                 ; This is a formula ID and we know it immediately; it's a top-level constraint
                  (pretty-core idx (length (Unsat-core result)) fmla-num (hash-ref core-map fmla-num))]
                 [else
-                 ; This is NOT a known formula id, but it's part of the core
+                 ; This is NOT a known top-level constraint, but it's part of the core
                  (pretty-core idx (length (Unsat-core result)) #f id)]))))
     
     (when (@>= (get-verbosity) VERBOSITY_LOW)

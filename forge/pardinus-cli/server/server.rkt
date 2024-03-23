@@ -40,7 +40,9 @@
     
     (when (>= (get-verbosity) VERBOSITY_HIGH)        
       (printf "  Subprocess invocation information: ~a~n"
-              (list java "-cp" cp "kodkod.cli.KodkodServer" (format "-~a" solver-type) solver-subtype-str "-error-out" error-out)))
+              (list java "-cp" cp lib-path "kodkod.cli.KodkodServer"
+                    (format "-~a" solver-type) solver-subtype-str
+                    "-error-out" error-out)))
 
     (apply
       subprocess #f #f #f java
