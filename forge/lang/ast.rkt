@@ -940,6 +940,14 @@
     [(_ check-lang:opt-check-lang-class expr)
       (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) expr))]))
 
+(define-syntax (qvar stx)
+  (syntax-parse stx
+    [(_ v e quant)
+     (quasisyntax/loc stx
+       (node/expr/quantifier-var (nodeinfo #,(build-source-location #'v) 'checklangNoCheck)
+                                 (if (node/expr? e) (node/expr-arity e) 1)
+                                 (gensym (format "~a_~a" 'v 'quant)) 'v))]))
+
 (define-syntax (some/info stx)
   (syntax-parse stx 
     ; ignore quantifier over no variables
@@ -948,9 +956,7 @@
     ; TODO: currently discarding the multiplicity info, unchecked (in this and the following cases)
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info
-                                            (if (node/expr? e0) (node/expr-arity e0) 1)
-                                            (gensym (format "~a_some" 'v0)) 'v0)] ...)
+       (let* ([v0 (qvar v0 e0 "some")] ...)
          (quantified-formula info 'some (list (cons v0 e0) ...) pred)))]
     ; quantifier case with disjointness flag; embed and repeat
     [(_ info #:disj ([v0 e0 m0:opt-mult-class] ...) pred)
