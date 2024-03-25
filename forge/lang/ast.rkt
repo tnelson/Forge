@@ -1079,7 +1079,7 @@
   (syntax-parse stx
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1 m0:opt-mult-class] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (qvar v0 e0 "sum")] ...)
+       (let* ([x1 (qvar x1 r1 "sum")] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang) (list (cons x1 r1) ...) int-expr)))]))
 
 
