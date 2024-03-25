@@ -478,11 +478,22 @@
   [(define (write-proc self port mode)     
      (fprintf port "~a" (node/expr/quantifier-var-name self)))])
 
+; function to create a unary quantifier-var (no macro)
 (define (var [raw-sym #f] #:info [node-info empty-nodeinfo])
   (define sym (@or raw-sym (gensym 'var)))
   (node/expr/quantifier-var node-info
-                            1 ; TODO: Allow arbitrary arity?
+                            1 
                             sym sym))
+
+; Helper macro to create a quantified variable with proper syntax location
+(define-syntax (qvar stx)
+  (syntax-parse stx
+    [(_ v e quant)
+     (quasisyntax/loc stx
+       (node/expr/quantifier-var (nodeinfo #,(build-source-location #'v) 'checklangNoCheck)
+                                 (if (node/expr? e) (node/expr-arity e) 1)
+                                 (gensym (format "~a_~a" 'v 'quant)) 'v))]))
+
 
 ;; -- comprehensions -----------------------------------------------------------
 
@@ -540,9 +551,7 @@
                    ([r0 e0 m0:opt-mult-class] ...)
                    pred)
         (quasisyntax/loc stx
-          (let* ([r0 (node/expr/quantifier-var
-                      (nodeinfo #,(build-source-location stx) check-lang.check-lang)
-                      1 (gensym (format "~a_set" 'r0)) 'r0)] ... )
+          (let* ([r0 (qvar r0 e0 "set")] ... )
             ; We need to check these only inside the let*, to allow for later decls to use earlier ones.
             (unless (node/expr? e0)
               (raise-set-comp-quantifier-error e0))
@@ -920,9 +929,7 @@
                      (=> (no-pairwise-intersect (list v0 ...) #:context #,(build-source-location stx)) pred))))]
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info
-                                            (if (node/expr? e0) (node/expr-arity e0) 1)
-                                            (gensym (format "~a_all" 'v0)) 'v0)] ...)
+       (let* ([v0 (qvar v0 e0 "all")] ...)
          (quantified-formula info 'all (list (cons v0 e0) ...) pred)))]))
 
 ;;; SOME ;;;
@@ -939,14 +946,6 @@
       (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
     [(_ check-lang:opt-check-lang-class expr)
       (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) expr))]))
-
-(define-syntax (qvar stx)
-  (syntax-parse stx
-    [(_ v e quant)
-     (quasisyntax/loc stx
-       (node/expr/quantifier-var (nodeinfo #,(build-source-location #'v) 'checklangNoCheck)
-                                 (if (node/expr? e) (node/expr-arity e) 1)
-                                 (gensym (format "~a_~a" 'v 'quant)) 'v))]))
 
 (define-syntax (some/info stx)
   (syntax-parse stx 
@@ -995,9 +994,7 @@
     ; quantifier without disj: rewrite as !some
     [(_ info ([v0 e0 m0:opt-mult-class] ...) pred)
      (quasisyntax/loc stx
-       (let* ([v0 (node/expr/quantifier-var info
-                                            (if (node/expr? e0) (node/expr-arity e0) 1)
-                                            (gensym (format "~a_no" 'v0)) 'v0)] ...)
+       (let* ([v0 (qvar v0 e0 "no")] ...)
          (! (quantified-formula info 'some (list (cons v0 e0) ...) pred))))]
     [(_ info expr)
      (quasisyntax/loc stx
@@ -1082,9 +1079,7 @@
   (syntax-parse stx
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1 m0:opt-mult-class] ...) int-expr)
      (quasisyntax/loc stx
-       (let* ([x1 (node/expr/quantifier-var (nodeinfo #,(build-source-location stx) check-lang)
-                                            (if (node/expr? r1) (node/expr-arity r1) 1)
-                                            (gensym (format "~a_sum" 'x1)) 'x1)] ...)
+       (let* ([x1 (qvar v0 e0 "sum")] ...)
          (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang) (list (cons x1 r1) ...) int-expr)))]))
 
 
