@@ -364,7 +364,7 @@
     ; In these cases, the engine should be passing something like "f:0,0" which indexes _child_ formulas.
     (define (find-core-formula id)
       (unless (string-prefix? id "f:")
-        (raise-user-error (format "Unexpected error: solver returned invalid formula path ID: ~a" id)))
+        (raise-user-error (format "Unexpected error: invalid formula path ID: ~a" id)))
       (define path (string-split (first (string-split id "f:")) ","))
       (printf "core path: ~a~n" path)
       (unless (and (> (length path) 0) (member (string->number (first path)) (hash-keys core-map)))
@@ -389,10 +389,19 @@
                (raise-user-error (format "Unsupported formula type in core: ~a" fmla))])))
     
     (define (pretty-core idx max known? fmla-or-id)
-      (define fmla (if known? fmla-or-id (find-core-formula fmla-or-id)))
-      (printf "loc: ~a~n" (nodeinfo-loc (node-info fmla)))
-      (fprintf (current-error-port) "Core(part ~a/~a): [~a] ~a~n" (@+ idx 1) max
-               (pretty-loc fmla) fmla))
+      (cond [known?
+             (define fmla fmla-or-id)
+             (fprintf (current-error-port) "Core(part ~a/~a): [~a] ~a~n" (@+ idx 1) max
+               (pretty-loc fmla) (deparse fmla))]
+            [(string-prefix? fmla-or-id "f:")
+             (define fmla (find-core-formula fmla-or-id))
+             (fprintf (current-error-port) "Core(part ~a/~a): [~a] ~a~n" (@+ idx 1) max
+               (pretty-loc fmla) (deparse fmla))]
+            [else
+             (fprintf (current-error-port) "Core(part ~a/~a): [UNKNOWN] ~a~n" (@+ idx 1) max
+                fmla-or-id)]))
+    
+    
     (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
