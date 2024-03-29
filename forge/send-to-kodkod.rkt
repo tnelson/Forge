@@ -407,7 +407,7 @@
         (printf "core-map: ~a~n" core-map)
         (printf "core: ~a~n" (Unsat-core result)))
       (when (@>= (get-verbosity) VERBOSITY_LOW) 
-        (printf "Unsat core available; printing it with source-location (where available):~n"))
+        (printf "Unsat core available (~a formulas):~n" (length (Unsat-core result))))
       (for ([id (Unsat-core result)]
             [idx (range (length (Unsat-core result)))])
         (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
