@@ -3,6 +3,7 @@
 (require 
   forge/sigs-structs
   forge/lang/ast
+  forge/lang/bounds
   forge/shared
   racket/syntax
   syntax/srcloc
@@ -13,7 +14,7 @@
   (except-in racket/set set)
   (only-in racket/contract define/contract or/c listof any))
 
-(provide checkFormula checkExpression primify)
+(provide checkFormula checkExpression checkInt primify infer-atom-type dfs-sigs deprimify)
 
 ; This function only exists for code-reuse - it's so that we don't
 ; need to use begin and hash-ref in every single branch of the match
@@ -56,12 +57,21 @@
     [(node/fmla/pred-spacer info name args expanded)
     (define domain-types (for/list ([arg args]) 
                          (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
+    
     (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
                       (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
     (for-each 
         (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error
-            #:msg (format "The sig(s) given as an argument to predicate ~a are of incorrect type" name)
+            #:msg (format "Argument ~a of ~a given to predicate ~a is of incorrect type. Expected type ~a, given type ~a" 
+                  (add1 (cadr type)) (length args) name (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten domain-types))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the domain is univ then just pass in univ
+                                                        (list-ref domain-types (cadr type)))) ; else pass in the sig one by one
+                                                        (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten (car (car arg-types))))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the argument is univ then just pass in univ
+                                                        (car (car type))))) ; else pass in the sig one by one
             #:context (apply-record-arg (list-ref args (cadr type))))
             (void)))
             arg-types)
@@ -83,22 +93,35 @@
      (check-and-output formula
                        node/formula/quantified
                        checker-hash
-                       (begin (for-each
-                                (lambda (decl)
-                                  (let ([var (car decl)]
-                                        [domain (cdr decl)])
-                                    ; CHECK: shadowed variables
-                                    (when (assoc var quantvars)
-                                      (raise-syntax-error #f
-                                                          (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                                          (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-                                    ; CHECK: recur into domain(s)
-                                    (checkExpression run-or-state domain quantvars checker-hash)))
-                                decls)
-                              ; Extend domain environment
-                              (let ([new-quantvars (append (map assocify decls) quantvars)])       
-                                ; CHECK: recur into subformula
-                                (checkFormula run-or-state subform new-quantvars checker-hash))))]
+                       (begin
+                         ; The new set of quantified variables will be extended by the variables declared here.
+                         ; When checking the domains of each, need to make the _prior_ decls available.
+                         
+                         (let ([new-quantvars
+                                (foldl 
+                                 (lambda (decl sofar)
+                                   (let ([var (car decl)]
+                                         [domain (cdr decl)])
+                                     ; CHECK: shadowed variables
+                                     ; We look only at identity (taking the gensym suffix into account), rather than
+                                     ; looking at names. See tests/forge/ast-errors.frg. 
+                                     
+                                     (when (assoc var quantvars)
+                                       #;(ormap (lambda (qvd)
+                                                  (equal?
+                                                   (node/expr/quantifier-var-name var)
+                                                   (node/expr/quantifier-var-name (first qvd)))) quantvars)
+                                       (raise-forge-error
+                                        #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                        #:context var))
+                                     ; CHECK: recur into domain(s), carrying decls from prior quantifiers
+                                     ;   (but not this one!)
+                                     (checkExpression run-or-state domain sofar checker-hash)
+                                     ; Add to _end_ of the list, to maintain ordering
+                                     (reverse (cons (assocify decl) (reverse sofar)))))
+                                 quantvars decls)])
+                           ; CHECK: recur into subformula (with extended variable environment)
+                           (checkFormula run-or-state subform new-quantvars checker-hash))))]
     [(node/formula/sealed info)
      (checkFormula run-or-state info quantvars)]
     [else (error (format "no matching case in checkFormula for ~a" (deparse formula)))]))
@@ -268,6 +291,85 @@
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
+
+; Infer a type for an atom node. 
+;   Best data source: the last Sterling instance of this run.
+;   Not ideal data source (e.g., sterling hasn't been run): the Kodkod bounds generated for this run,
+;     from which we can at least get the top-level sig to use.
+;   Fallback data source (e.g., run hasn't been generated): none, just use univ.
+(define (infer-atom-type run atom [in-instance #f])
+
+  (define (infer-from-instance)
+    (define tlsigs (if (Run? run) (get-top-level-sigs run) '()))
+    (define last-matched
+      (dfs-sigs run (lambda (s acc)
+                      (if (member (list (atom-name atom)) (hash-ref in-instance (Sig-name s)))
+                          (values s #f) ; try to find something more specific, don't stop
+                          (values acc #t))) ; nothing to find, since this atom isn't in the parent
+                (remove Int tlsigs)
+                #f))
+    (cond
+      ; If most-specific sig has no children, just use that sig name
+      [(and last-matched (empty? (get-children run last-matched)))
+       (list (list (Sig-name last-matched)))]
+      ; If most-specific sig has children, just the remainder
+      [last-matched
+       (list (list (string->symbol (string-append (symbol->string (Sig-name last-matched)) "_remainder"))))]
+      ; Otherwise, we can infer nothing
+      [else 
+        (map list (primify run 'univ))]))
+    
+  ; Consider top-level sigs only
+  (define (infer-from-bounds)
+    (define kodkod-bounds (if (Run? run) (Run-kodkod-bounds run) '()))
+    (define tlsigs-with-atom-in-bounds
+      (filter-map (lambda (tlsig)
+                    (define b (findf (lambda (b) (equal? tlsig (bound-relation b))) kodkod-bounds))
+                    (if (and b (bound? b) (member (list (atom-name atom)) (bound-upper b)))
+                        tlsig
+                        #f))
+                  (get-top-level-sigs run)))
+    (if (empty? tlsigs-with-atom-in-bounds)
+        (map list (primify run 'univ)) ; no match, cannot infer anything
+        (map list (primify run (Sig-name (first tlsigs-with-atom-in-bounds)))))) ; we have a match
+  
+  (cond [(and in-instance (hash? in-instance)) (infer-from-instance)]
+        [(Run? run) (infer-from-bounds)]
+        [else (map list (primify run 'univ))]))
+  
+  
+; Runs a DFS over the sigs tree, starting from sigs in <sigs>.
+; On each visited sig, <func> is called to obtain a new accumulated value
+; and whether the search should continue to that sig's children.
+(define (dfs-sigs run-or-state func sigs init-acc)
+    (define (dfs-sigs-helper todo acc)
+      (cond [(equal? (length todo) 0) acc]
+      [else (define next (first todo))
+      (define-values (new-acc stop)
+        (func next acc)) ; use define-values with the return of func
+        (cond [stop (dfs-sigs-helper (rest todo) new-acc)]
+              [else (define next-list (if (empty? (get-children run-or-state next)) ; empty?
+                                      (rest todo)
+                                      (append (get-children run-or-state next) (rest todo)))) ; append instead
+              (dfs-sigs-helper next-list new-acc)])]))
+    (dfs-sigs-helper sigs init-acc)) ; maybe take in initial accumulator as well for more flexibility
+
+(define (deprimify run-or-state primsigs)
+  (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
+    (cond
+      [(equal? primsigs '(Int))
+       'Int]
+      [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
+       'univ]
+      [else (define top-level (get-top-level-sigs run-or-state))
+            (define pseudo-fold-lambda (lambda (sig acc) (if (or (subset? (primify run-or-state (Sig-name sig)) (flatten primsigs))
+                                                                 (equal? (list (car (primify run-or-state (Sig-name sig)))) (flatten primsigs)))
+                                                                 ; the above check is added for when you have the parent sig, but are expecting the child
+                                      (values (append acc (list (Sig-name sig))) #t) ; replace cons with values
+                                      (values acc #f))))
+            (define final-list (dfs-sigs run-or-state pseudo-fold-lambda top-level '()))
+            final-list])))
+
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
 (define (checkExpression run-or-state expr quantvars checker-hash)
@@ -319,13 +421,37 @@
     [(node/expr/atom info arity name)
      (check-and-output expr
                        node/expr/atom
-                       checker-hash
-                       ; overapproximate for now (TODO: get atom's sig)     
-                       (cons (map list (primify run-or-state 'univ))
+                       checker-hash   
+                       (cons (infer-atom-type run-or-state expr)
                              #t))]
 
-    [(node/expr/fun-spacer info arity name args result expanded)
+    [(node/expr/fun-spacer info arity name args codomain expanded)
        ; be certain to call the -mult version, or the multiplicity will be thrown away.
+      (define domain-types (for/list ([arg args]) 
+                         (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash)))
+      (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
+                      (list (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash) acc)))
+      (for-each 
+        (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
+            (raise-forge-error
+            #:msg (format "Argument ~a of ~a given to function ~a is of incorrect type. Expected type ~a, given type ~a" 
+                  (add1 (cadr type)) (length args) name (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten domain-types))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the domain is univ then just pass in univ
+                                                        (list-ref domain-types (cadr type)))) ; else pass in the sig one by one
+                                                        (deprimify run-or-state 
+                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten (car (car arg-types))))
+                                                        (map Sig-name (get-sigs run-or-state)) ; if the argument is univ then just pass in univ
+                                                        (car (car type))))) ; else pass in the sig one by one
+            #:context (apply-record-arg (list-ref args (cadr type))))
+            (void)))
+            arg-types)
+      (define output-type (checkExpression run-or-state expanded quantvars checker-hash))
+      (if (not (member (car output-type) (checkExpression run-or-state (mexpr-expr codomain) quantvars checker-hash)))
+          (raise-forge-error
+          #:msg (format "The output of function ~a is of incorrect type" name)
+          #:context expanded)
+          (void))
        (checkExpression-mult run-or-state expanded quantvars checker-hash)]
     
     [(node/expr/ite info arity a b c)
@@ -371,40 +497,63 @@
                        checker-hash
                        ; Look up in quantvars association list, type is type of domain
                        (cons (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
-                              (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
-                              (raise-syntax-error #f (format "Variable ~a used but was unbound in overall formula being checked. Bound variables: ~a" sym (map car quantvars) )
-                                (datum->syntax #f name (build-source-location-syntax (nodeinfo-loc info)))))
-                              #t))]
+                                 (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
+                                 (raise-forge-error
+                                  #:msg (format "Variable ~a used, but it was unbound at this point.\
+ Often, this means that a sig, field, or helper name is being used as a quantifier variable.\
+ It might also mean that the variable domain references the variable itself.\
+ For help debugging, the bound variables at this point were: ~a" sym (map car quantvars) )
+                                  #:context info))
+                             #t))]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info arity decls subform)
      (check-and-output expr
                        node/expr/comprehension
                        checker-hash
-                       (cons (let ([child-values
-                                    (map (lambda (decl)
-                                          (let ([var (car decl)]
-                                                [domain (cdr decl)])
-                                            ; CHECK: shadowed variables
-                                            (when (assoc var quantvars)
-                                              (raise-syntax-error #f (format "Shadowing of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
-                                                (datum->syntax #f var (build-source-location-syntax (nodeinfo-loc info)))))
-                                            ; CHECK: recur into domain(s)
-                                            (checkExpression run-or-state domain quantvars checker-hash)))
-                                        decls)]
-                                  ; Extend domain environment
-                                  [new-quantvars (append (map assocify decls) quantvars)])
-                              ; CHECK: recur into subformula
-                              (checkFormula run-or-state subform new-quantvars checker-hash)
-                              ; Return type constructed from decls above
-                              (map flatten (map append (apply cartesian-product child-values))))
-                              #f))]
+                       ; For rationale here, see the quantified-formula case. This differs slightly
+                       ; because a comprehension is an expression, and thus needs to report its type.
+
+                       (begin
+                         (let ([new-decls-and-child-values
+                                (foldl (lambda (decl acc)
+                                         (let ([var (car decl)]
+                                               [domain (cdr decl)]
+                                               [expanded-quantvars (first acc)]
+                                               [child-types (second acc)])
+                                           ; CHECK: shadowed variables (by identity, not by name)
+                                           (when (assoc var quantvars)
+                                             (raise-forge-error
+                                              #:msg (format "Nested re-use of variable ~a detected. Check for something like \"some x: A | some x : B | ...\"." var)
+                                              #:context info))
+                                           
+                                           ; CHECK: recur into domain(s), aware of prior variables
+                                           (let ([next-child-type
+                                                  (checkExpression run-or-state domain expanded-quantvars checker-hash)])
+                                             ; Accumulator: add current decl, add type (to end)
+                                             (list (cons (assocify decl) expanded-quantvars)
+                                                   (reverse (cons next-child-type (reverse child-types)))))))
+                                       ; Acc has the form: (quantvars-so-far child-values-in-order)
+                                       (list quantvars '())
+                                       decls)])
+                           ; CHECK: recur into subformula
+                           (define new-quantvars (first new-decls-and-child-values))
+                           (define child-values (second new-decls-and-child-values))
+                           (checkFormula run-or-state subform new-quantvars checker-hash)
+                           ; Return type constructed from decls above
+                           (cons (map flatten (map append (apply cartesian-product child-values)))
+                                 #f))))]
 
     [else (error (format "no matching case in checkExpression for ~a" (deparse expr)))]))
 
 
 (define (keep-only keepers pool)
   (filter (lambda (ele) (member ele keepers)) pool))
+
+; (struct/contract expression-type (
+;   [multiplicity any/c]
+;   [type (listof (listof symbol?))]
+;   [temporal-possibility boolean?]))
 
 (define/contract (checkExpressionOp run-or-state expr quantvars args checker-hash)
   (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?)) hash?   
@@ -440,12 +589,17 @@
     
     ; SETMINUS 
     [(? node/expr/op/-?)
-     (check-and-output expr
-                       node/expr/op/-
-                       checker-hash
-                       ; A-B should have only 2 children. B may be empty.
-                       (cons (checkExpression run-or-state (first args) quantvars checker-hash)
-                              #t))]
+     (begin
+       ; A-B should have only 2 children. B may not exist; use A as the bound returned regardless. 
+       ; However, if B is present, we must /check/ it anyway (and discard non-error results).
+       (when (@> (length args) 1)
+         (checkExpression run-or-state (second args) quantvars checker-hash))
+       (check-and-output expr
+                         node/expr/op/-
+                         checker-hash
+                         ; A-B should have only 2 children. B may be empty.
+                         (cons (checkExpression run-or-state (first args) quantvars checker-hash)
+                               #t)))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
@@ -480,14 +634,15 @@
                            (when (empty? join-result)
                             (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
                                 ((hash-ref checker-hash 'empty-join) expr)
-                              (raise-syntax-error #f 
-                                                (format "~n join always results in an empty relation: ~n Left argument of join \"~a\" is in ~a~n Right argument of join \"~a\" is in ~a~n There is no possible join result " 
-                                                          (deparse (first (node/expr/op-children expr)))  
-                                                          (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
-                                                          (deparse (second (node/expr/op-children expr)))
-                                                          (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (second child-values)))
-                                                          )
-                                                  (datum->syntax #f (deparse expr) (build-source-location-syntax (nodeinfo-loc (node-info expr))))))))
+                              (raise-forge-error
+                               #:msg (format "Join always results in an empty relation:\
+ Left argument of join \"~a\" is in ~a.\
+ Right argument of join \"~a\" is in ~a" 
+                                             (deparse (first (node/expr/op-children expr)))  
+                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
+                                             (deparse (second (node/expr/op-children expr)))
+                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (second child-values))))
+                               #:context expr))))
                            (when (and (not (cdr (first child-values))) (eq? (nodeinfo-lang (node-info expr)) 'bsl))
                                 ((hash-ref checker-hash 'relation-join) expr args))
                            (cons join-result
@@ -616,31 +771,32 @@
      (define decls (node/int/sum-quant-decls expr))
      (let ([new-quantvars (append (map assocify decls) quantvars)])
        (checkInt run-or-state (node/int/sum-quant-int-expr expr) new-quantvars checker-hash))
-     (for ([decl decls])
+     (for/fold ([new-quantvars quantvars])
+               ([decl decls])
        (define var (car decl))
        (define domain (cdr decl))
-       (checkExpression run-or-state domain quantvars checker-hash))]))
+       ; Check and throw away result
+       (checkExpression run-or-state domain new-quantvars checker-hash)
+       (cons (list var domain) quantvars))
+     (void)]))
 
 ; Is this integer literal safe under the current bitwidth?
 (define/contract (check-int-literal run-or-state expr)
   (@-> (or/c Run? State? Run-spec?)
        node/int/constant?
        any)
-  
-  (cond [(not (Run-spec? run-or-state))
-         (printf "Warning: integer literals not checked.~n")]
-        [else 
-         (define val (node/int/constant-value expr))
-         ; Note: get-scope will return number of int atoms, not the range we want. Hence, compute it ourselves.
-         (define max-int (sub1 (expt 2 (sub1 (get-bitwidth run-or-state)))))
-         (define min-int (@- (expt 2 (sub1 (get-bitwidth run-or-state)))))
-         (when (or (@> val max-int) (@> min-int val))
-           (raise-forge-error
-            #:msg (format "Integer literal (~a) could not be represented in the current bitwidth (~a through ~a)"
-                          val min-int max-int)
-            #:context expr))
-         
-         (void)]))
+
+  (define run-spec (get-run-spec run-or-state))
+  (define val (node/int/constant-value expr))
+  ; Note: get-scope will return number of int atoms, not the range we want. Hence, compute it ourselves.
+  (define max-int (sub1 (expt 2 (sub1 (get-bitwidth run-spec)))))
+  (define min-int (@- (expt 2 (sub1 (get-bitwidth run-spec)))))
+  (when (or (@> val max-int) (@> min-int val))
+    (raise-forge-error
+     #:msg (format "Integer literal (~a) could not be represented in the current bitwidth (~a through ~a)"
+                   val min-int max-int)
+     #:context expr))
+  (void))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

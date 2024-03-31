@@ -33,5 +33,5 @@ pred TreeWithEdges
  } 
 
 assert TreeWithEdges is necessary for isUndirectedTree
-assert all n : Node | TreeWithEdges is necessary for isUndirectedTree
+assert all x : Node | TreeWithEdges is necessary for isUndirectedTree
 

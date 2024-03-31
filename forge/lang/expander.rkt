@@ -54,7 +54,7 @@
 
 (define-for-syntax (my-expand stx)
   (define core-funcs-and-macros
-    (map (curry datum->syntax stx)
+    (map (lambda (s) (datum->syntax stx s stx))
          '(^ * ~ + - & join
            -> => implies ! not and or && || ifte iff <=>
            = in ni != !in !ni is
@@ -159,38 +159,39 @@
     (pattern ((~datum SigExt)
               "extends"
               name:QualNameClass)
-      #:attr symbol #'#:extends
-      #:attr value #'name.name)
+      #:attr symbol (syntax/loc this-syntax #:extends)
+      #:attr value (syntax/loc this-syntax name.name))
     (pattern ((~datum SigExt)
               "in" 
               name:QualNameClass
               (~seq (~seq "+" names:QualNameClass) ...))
-      #:attr symbol #'#:in
-      #:attr value #'(raise "Extending with in not yet implemented.")))
+      #:attr symbol (syntax/loc this-syntax #:in)
+      #:attr value (syntax/loc this-syntax (raise "Extending with in not yet implemented."))))
 
   ; Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
   (define-syntax-class MultClass
-    (pattern ((~datum Mult) "lone") #:attr symbol #'#:lone)
-    (pattern ((~datum Mult) "some") #:attr symbol #'#:some)
-    (pattern ((~datum Mult) "one") #:attr symbol #'#:one)
-    (pattern ((~datum Mult) "two") #:attr symbol #'#:two))
+    (pattern ((~datum Mult) "lone") #:attr symbol (syntax/loc this-syntax #:lone))
+    (pattern ((~datum Mult) "some") #:attr symbol (syntax/loc this-syntax #:some))
+    (pattern ((~datum Mult) "one") #:attr symbol (syntax/loc this-syntax #:one))
+    (pattern ((~datum Mult) "two") #:attr symbol (syntax/loc this-syntax #:two)))
 
   ; ArrowMult : used for field etc. declarations; the symbol attribute references a breaker
   (define-syntax-class ArrowMultClass
-    (pattern ((~datum ArrowMult) "lone") #:attr symbol #'pfunc)
-    (pattern ((~datum ArrowMult) "set") #:attr symbol #'default)
-    (pattern ((~datum ArrowMult) "one") #:attr symbol #'func)
-    (pattern ((~datum ArrowMult) "func") #:attr symbol #'func)
-    (pattern ((~datum ArrowMult) "pfunc") #:attr symbol #'pfunc)
-    (pattern ((~datum ArrowMult) "two") #:attr symbol #'(raise "relation arity two not implemented")))
+    (pattern ((~datum ArrowMult) "lone") #:attr symbol (syntax/loc this-syntax pfunc))
+    (pattern ((~datum ArrowMult) "set") #:attr symbol (syntax/loc this-syntax default))
+    (pattern ((~datum ArrowMult) "one") #:attr symbol (syntax/loc this-syntax func))
+    (pattern ((~datum ArrowMult) "func") #:attr symbol (syntax/loc this-syntax func))
+    (pattern ((~datum ArrowMult) "pfunc") #:attr symbol (syntax/loc this-syntax pfunc))
+    (pattern ((~datum ArrowMult) "two") #:attr symbol (syntax/loc this-syntax
+                                                        (raise "relation arity two not implemented"))))
 
   ; HelperMult : used for helper fun/pred definitions; the symbol attribute references a symbol
   (define-syntax-class HelperMultClass
-    (pattern ((~datum HelperMult) "lone") #:attr symbol #'(quote lone))
-    (pattern ((~datum HelperMult) "set") #:attr symbol #'(quote set))
-    (pattern ((~datum HelperMult) "one") #:attr symbol #'(quote one))
-    (pattern ((~datum HelperMult) "func") #:attr symbol #'(quote func))
-    (pattern ((~datum HelperMult) "pfunc") #:attr symbol #'(quote pfunc)))
+    (pattern ((~datum HelperMult) "lone") #:attr symbol (syntax/loc this-syntax (quote lone)))
+    (pattern ((~datum HelperMult) "set") #:attr symbol (syntax/loc this-syntax (quote set)))
+    (pattern ((~datum HelperMult) "one") #:attr symbol (syntax/loc this-syntax (quote one)))
+    (pattern ((~datum HelperMult) "func") #:attr symbol (syntax/loc this-syntax (quote func)))
+    (pattern ((~datum HelperMult) "pfunc") #:attr symbol (syntax/loc this-syntax (quote pfunc))))
 
   
   ; Declaration of variables with shared expr, shared optional multiplicity
@@ -208,8 +209,8 @@
                                                #'(if (> (node/expr-arity expr) 1)
                                                      'set
                                                      'one))]) 
-                         #'((names-c.names expr mult) ...))
-      #:attr names #'(names-c.names ...)))
+                         (syntax/loc this-syntax ((names-c.names expr mult) ...)))
+      #:attr names (syntax/loc this-syntax (names-c.names ...))))
   
   ; Declaration of a comma-delimited list of variable declarations with expr and optional multiplicity
   ; DeclList : Decl
@@ -333,7 +334,7 @@
                               pred-block:BlockClass))
               (~optional scope:ScopeClass)
               (~optional bounds:BoundsClass)
-              (~or "sat" "unsat" "theorem"))))
+              (~or "sat" "unsat" "theorem" "forge_error"))))
 
   ; TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
   (define-syntax-class TestBlockClass
@@ -530,7 +531,8 @@
               (~optional "exactly")
               name:QualNameClass)
       #:attr translate (begin (datum->syntax #'name
-                                      (list #'name.name)))))
+                                             (list #'name.name)
+                                             #'name))))
 
   (define-syntax-class QualNameOrAtomOrAtomizedNumberClass
      #:description "name, atom name, or number"
@@ -684,7 +686,9 @@
               (~and op
                     (~or "in" "=" "<" ">" "<=" ">="
                          "is" "ni")))
-      #:attr symbol (datum->syntax #'op (op-symbol-to-operator (string->symbol (syntax->datum #'op))))))
+      #:attr symbol (datum->syntax #'op
+                                   (op-symbol-to-operator (string->symbol (syntax->datum #'op)))
+                                   #'op)))
 
   ; We don't overload (e.g.) <, but we don't want users to need to write (e.g.) "int<". 
   (define (op-symbol-to-operator sym)
@@ -722,7 +726,8 @@
     (pattern ((~datum Quant) (~and q (~or "all" "no" "lone"
                                             "some" "one" "two")))
       #:attr symbol (datum->syntax #'q
-                                   (string->symbol (syntax->datum #'q))))
+                                   (string->symbol (syntax->datum #'q))
+                                   #'q))
     (pattern ((~datum Quant) (~literal sum))
       #:attr symbol (syntax/loc #'q sum-quant)))
 
@@ -831,7 +836,8 @@
                 (with-syntax ([relation-name relation-name-p1]
                               [relation-types (datum->syntax relation-types 
                                                              (cons sig-name ;(syntax->datum sig-name)
-                                                                   (syntax->list relation-types)))]                          
+                                                                   (syntax->list relation-types))
+                                                             relation-types)]                          
                               [relation-mult relation-mult]
                               [is-var relation-is-var])
                       (syntax/loc relation-name-p1 (relation (#:lang (get-check-lang)) relation-name relation-types #:is relation-mult #:is-var is-var))))))))]))
@@ -869,8 +875,10 @@
                         name:NameClass
                         decls:ParaDeclsClass
                         block:BlockClass)
-   (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
-                                                   (syntax->list #'decls.pairs)))]
+   (with-syntax ([decl (datum->syntax #'name
+                                      (cons (syntax->datum #'name.name)
+                                            (syntax->list #'decls.pairs))
+                                      #'name)]
                  [block #'block])
      (quasisyntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
@@ -898,7 +906,8 @@
                        output-expr:ExprClass
                        body:ExprClass)
    (with-syntax ([decl (datum->syntax #'name (cons (syntax->datum #'name.name)
-                                                   (syntax->list #'decls.pairs)))]
+                                                   (syntax->list #'decls.pairs))
+                                      #'name)]
                  ; Parser "Expr" includes both expressions and formulas. Thus, disambiguate
                  ;   (e.g.) the "Expr" `one univ` into true expr and multiplicity in the expander;
                  ;   It's not the job of the `fun` macro to handle this. (Same for `pred`, etc.)
@@ -942,7 +951,8 @@
                        (~optional scope:ScopeClass)
                        (~optional bounds:BoundsClass))
    (with-syntax ([cmd-type (datum->syntax #'cmd-type
-                                         (string->symbol (syntax->datum #'cmd-type)))]
+                                          (string->symbol (syntax->datum #'cmd-type))
+                                          #'cmd-type)]
                  [name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)])
     #`(begin
@@ -963,11 +973,12 @@
                                         preds:BlockClass))
                         (~optional scope:ScopeClass)
                         (~optional bounds:BoundsClass)
-                        (~and expected (~or "sat" "unsat" "theorem")))
+                        (~and expected (~or "sat" "unsat" "theorem" "forge_error")))
    (with-syntax ([name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)]
                  [expected (datum->syntax #'expected
-                                          (string->symbol (syntax->datum #'expected)))])
+                                          (string->symbol (syntax->datum #'expected))
+                                          #'expected)])
      (syntax/loc stx
        (test name (~? (~@ #:preds [preds]))
                   (~? (~@ #:scope scope.translate))
@@ -1008,8 +1019,8 @@
     [qpd:QuantifiedPropertyDeclClass  
     ;;;#:do [(printf "QuantifiedPropertyDeclClass.PropExprs: ~a~n" (syntax->datum #'qpd.prop-exprs))]
      (with-syntax* 
-        ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)))]
-          [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)))]
+        ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)) stx)]
+          [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)) stx)]
         
           [prop-consolidated (if (equal? (syntax->datum #'qpd.prop-exprs) '()) 
                                 (syntax/loc stx qpd.prop-name)
@@ -1125,7 +1136,7 @@
          (first xs)]         
         [else
          (raise-forge-error
-          #:msg (format "Ill-formed block: expected either one expression or any number of formulas")
+          #:msg (format "Ill-formed block: expected either one expression or any number of formulas; got ~a" xs)
           #:context stx)]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
@@ -1244,7 +1255,7 @@
                           op)
                     expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
-                 [op (datum->syntax #'op (string->symbol (syntax->datum #'op)))])
+                 [op (datum->syntax #'op (string->symbol (syntax->datum #'op)) #'op)])
      (syntax/loc stx (op (#:lang (get-check-lang)) expr1)))]
 
   [((~datum Expr) "#" expr1:ExprClass)
@@ -1438,10 +1449,12 @@
      (with-syntax ([ellip '...])
        (syntax/loc stx-outer
          (define-syntax (macro-id stx)
+           ; Uncomment this if debugging loss of syntax location. Look through the spam for
+           ; syntax that doesn't carry a location or that has unexpected location.
+           ;(printf "in macro-id ~a: ~a~n" 'macro-id stx)
            (syntax-parse stx
              #:track-literals
              [((~var macro-id id) . pattern) pattern-directive ... (syntax/loc stx template)]))))]))
-
 
 (dsm-keep (Expr1 stx ...) (Expr stx ...))
 (dsm-keep (Expr2 stx ...) (Expr stx ...))

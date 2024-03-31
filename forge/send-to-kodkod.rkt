@@ -12,7 +12,7 @@
          forge/translate-from-kodkod-cli)
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
-                         curry range index-of pretty-print filter-map string-prefix? thunk*
+                         curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract)
           racket/hash)
 (require (only-in syntax/srcloc build-source-location-syntax))
@@ -152,7 +152,7 @@
       [(and (unbox server-state) ((Server-ports-is-running? (unbox server-state))))
        (define sstate (unbox server-state))
        (when (@> (get-verbosity) VERBOSITY_LOW)
-        (printf "Pardinus solver process already running. Starting new run with id ~a.~n" run-name))
+        (printf "Pardinus solver process already running. Preparing to start new run with id ~a.~n" run-name))
        (values (Server-ports-stdin sstate) (Server-ports-stdout sstate) 
                (Server-ports-stderr sstate) (Server-ports-shutdown sstate)
                (Server-ports-is-running? sstate))]
@@ -190,7 +190,43 @@
   
   ; Print configure and declare univ size
   ; Note that target mode is passed separately, nearer to the (solve) invocation
-  (define bitwidth (get-bitwidth run-spec)) 
+  (define bitwidth (get-bitwidth run-spec))
+
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; Generate top-level constraint for this run, execute last-checker
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  
+  (define (maybe-alwaysify fmla)
+    (if (equal? 'temporal (get-option run-spec 'problem_type))
+        (always/info (node-info fmla) fmla)
+        fmla))
+  
+  ; If in temporal mode, need to always-ify the auto-generated constraints but not the
+  ;   predicates that come from users
+  (define raw-implicit-constraints
+    (append (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error)
+            (get-relation-preds run-spec)
+            (get-extender-preds run-spec)
+            relation-constraints
+            break-preds))
+  (define conjuncts-implicit-constraints
+    (apply append (map maybe-and->list raw-implicit-constraints)))
+  (define implicit-constraints
+    (map maybe-alwaysify conjuncts-implicit-constraints))
+  (define explicit-constraints
+    (apply append (map maybe-and->list (Run-spec-preds run-spec)))) 
+  (define run-constraints 
+    (append explicit-constraints implicit-constraints))
+
+  ; Run last-minute checks for errors  
+  (for-each (lambda (c)
+              (checkFormula run-spec c '() (get-checker-hash)))
+            run-constraints)
+  
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; Beginning to send to Pardinus. All type-checking must be complete _before_ this point.
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (pardinus-print (pardinus:print-cmd (format "(with ~a" run-name)))
   (pardinus-print
     (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"                               
@@ -247,39 +283,6 @@
 
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
-
-  (define (maybe-alwaysify fmla)
-    (if (equal? 'temporal (get-option run-spec 'problem_type))
-        (always/info (node-info fmla) fmla)
-        fmla))
-  
-  ; Get and print predicates
-  ; If in temporal mode, need to always-ify the auto-generated constraints but not the
-  ;   predicates that come from users
-  ; !!!
-  (define raw-implicit-constraints
-    (append (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error)
-            (get-relation-preds run-spec)
-            (get-extender-preds run-spec)
-            relation-constraints
-            break-preds))
-  (define conjuncts-implicit-constraints
-    (apply append (map maybe-and->list raw-implicit-constraints)))
-  (define implicit-constraints
-    (map maybe-alwaysify conjuncts-implicit-constraints))
-  (define explicit-constraints
-    (apply append (map maybe-and->list (Run-spec-preds run-spec)))) 
-              
-  (define run-constraints 
-    (append explicit-constraints implicit-constraints))
-
-  ; Run last-minute checks for errors  
-  (for-each (lambda (c)
-              ;(printf "deparse-constraint: ~a~n" (deparse c))
-              (checkFormula run-spec c '() (get-checker-hash)))
-            run-constraints)
-  ;(when (@>= (get-verbosity) VERBOSITY_LOW)        
-  ;  (printf "  Last-checker finished. Beginning to send problem.~n"))
   
   ; Keep track of which formula corresponds to which CLI assert
   ; for highlighting unsat cores. TODO: map back from CLI output
@@ -356,40 +359,64 @@
                     (pardinus:read-solution stdout stderr) 
                     all-rels 
                     all-atoms))
-    
-    ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for
-    (define (do-core-highlight nd)
-      (define loc (nodeinfo-loc (node-info nd)))
-      (when (@>= (get-verbosity) VERBOSITY_LOW)        
-        (printf "  Core contained location: ~a~n" (srcloc->string loc)))
-      (when (@>= (get-verbosity) VERBOSITY_HIGH)        
-        (pretty-print nd)))
-;      (if (is-drracket-linked?) 
-;          (do-forge-highlight loc CORE-HIGHLIGHT-COLOR 'core)
-;          (begin
-;            )))
 
+    ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for.
+    ; In these cases, the engine should be passing something like "f:0,0" which indexes _child_ formulas.
+    (define (find-core-formula id)
+      (unless (string-prefix? id "f:")
+        (raise-user-error (format "Unexpected error: invalid formula path ID: ~a" id)))
+      (define path (string-split (first (string-split id "f:")) ","))
+      (printf "core path: ~a~n" path)
+      (unless (and (> (length path) 0) (member (string->number (first path)) (hash-keys core-map)))
+        (raise-user-error (format "Unexpected error: solver path ID prefix was invalid: ~a; valid prefixes: ~a" id (hash-keys core-map))))
+      (for/fold ([fmla #f])
+                ([idx-str path])
+        (define idx (string->number idx-str))
+        ; First step: look up top-level formula. Second+ steps: index child
+        (cond [(not fmla)
+               (hash-ref core-map idx)]
+              [(node/formula/quantified? fmla)
+               ; Quantified: decls formulas first, then sub-formula last
+               (cond [(>= idx (length (node/formula/quantified-decls fmla)))
+                      (node/formula/quantified-formula fmla)]
+                     [else
+                      (define decl (list-ref (node/formula/quantified-decls fmla) idx))
+                      (car decl)])]
+              [(node/formula/op? fmla)
+               ; Operator formula: sub-formulas in order
+               (list-ref (node/formula/op-children fmla) idx)]
+              [else
+               (raise-user-error (format "Unsupported formula type in core: ~a" fmla))])))
+    
+    (define (pretty-core idx max known? fmla-or-id)
+      (cond [known?
+             (define fmla fmla-or-id)
+             (fprintf (current-error-port) "Core(part ~a/~a): [~a] ~a~n" (@+ idx 1) max
+               (pretty-loc fmla) (deparse fmla))]
+            [(string-prefix? fmla-or-id "f:")
+             (define fmla (find-core-formula fmla-or-id))
+             (fprintf (current-error-port) "Core(part ~a/~a): [~a] ~a~n" (@+ idx 1) max
+               (pretty-loc fmla) (deparse fmla))]
+            [else
+             (fprintf (current-error-port) "Core(part ~a/~a): [UNKNOWN] ~a~n" (@+ idx 1) max
+                fmla-or-id)]))
+    
+    
     (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
       (when (@>= (get-verbosity) VERBOSITY_DEBUG)
         (printf "core-map: ~a~n" core-map)
         (printf "core: ~a~n" (Unsat-core result)))
-      (cond ;[(is-drracket-linked?) 
-        ; (do-forge-unhighlight 'core)]
-        [else
-         (when (@>= (get-verbosity) VERBOSITY_LOW) 
-           (printf "No DrRacket linked, could not highlight core. Will print instead.~n"))])
-      (for-each do-core-highlight
-                (filter-map (λ (id)
-                              (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
-                                (cond [(member fmla-num (hash-keys core-map))
-                                       ; This is a formula ID and we know it
-                                       ;(printf "LOC: ~a~n" (nodeinfo-loc (node-info (hash-ref core-map fmla-num))))
-                                       (hash-ref core-map fmla-num)]
-                                      [else
-                                       ; This is NOT a known formula id, but it's part of the core
-                                       (printf "WARNING: Core also contained: ~a~n" id)
-                                       #f])))
-                            (Unsat-core result))))
+      (when (@>= (get-verbosity) VERBOSITY_LOW) 
+        (printf "Unsat core available (~a formulas):~n" (length (Unsat-core result))))
+      (for ([id (Unsat-core result)]
+            [idx (range (length (Unsat-core result)))])
+        (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
+          (cond [(member fmla-num (hash-keys core-map))
+                 ; This is a formula ID and we know it immediately; it's a top-level constraint
+                 (pretty-core idx (length (Unsat-core result)) fmla-num (hash-ref core-map fmla-num))]
+                [else
+                 ; This is NOT a known top-level constraint, but it's part of the core
+                 (pretty-core idx (length (Unsat-core result)) #f id)]))))
     
     (when (@>= (get-verbosity) VERBOSITY_LOW)
       (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
@@ -782,7 +809,10 @@ Please declare a sufficient scope for ~a."
       (define-values (bound-lower-size bound-upper-size) (values (length bound-lower) (length bound-upper)))
       (match-define (Range int-lower int-upper) 
         (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (Range #f #f)))
-      
+
+      ; Sub-optimal, because it points to the sig definition
+      (define info (nodeinfo (nodeinfo-loc (node-info sig)) 'checklangNoCheck))
+
       (append
         (if (@and int-lower (@> int-lower bound-lower-size))
             (let ()
@@ -791,7 +821,9 @@ Please declare a sufficient scope for ~a."
                                                         "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
                                          sig int-lower (sub1 max-int))
                                  (get-blame-node run-spec sig)))
-              (list (int<= (int int-lower) (card sig))))
+              (list (||/info info
+                             (int</info info (int int-lower) (card sig))
+                             (int=/info info (int int-lower) (card sig)))))
             (list))
         (if (@and int-upper (@< int-upper bound-upper-size))
             (let ()
@@ -800,7 +832,9 @@ Please declare a sufficient scope for ~a."
                                                         "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                          sig int-upper (sub1 max-int))
                                  (get-blame-node run-spec sig)))
-              (list (int<= (card sig) (int int-upper))))
+              (list (||/info info
+                             (int</info info (card sig) (int int-upper))
+                             (int=/info info (card sig) (int int-upper)))))
             (list))))))
 
 
@@ -843,11 +877,10 @@ Please declare a sufficient scope for ~a."
     ; sig1 and sig2 extend sig => (no (& sig1 sig2))
     ; (unless both are #:one, in which case exact-bounds should enforce this constraint)
     (define (disjoin-pair sig1 sig2)
-      (let ([loc (nodeinfo-loc (node-info sig2))])
-        (cond [(and (Sig-one sig1) (Sig-one sig2))
-               true]
-              [else
-               (no (&/info (nodeinfo loc 'checklangNoCheck) sig1 sig2))])))
+      (let* ([loc (nodeinfo-loc (node-info sig2))]
+             [info (nodeinfo loc 'checklangNoCheck)])
+        (cond [(and (Sig-one sig1) (Sig-one sig2)) true]
+              [else (no/info info (&/info info sig1 sig2))])))
     (define (disjoin-list a-sig a-list)
       (map (curry disjoin-pair a-sig) a-list))
     (define (disjoin a-list)
@@ -868,7 +901,8 @@ Please declare a sufficient scope for ~a."
 (define (get-relation-preds run-spec)
   (for/list ([relation (get-relations run-spec)])
     (define sig-rels (get-sigs run-spec relation))
-    (in relation (-> sig-rels))))
+    (define info (nodeinfo (nodeinfo-loc (node-info relation)) 'checklangNoCheck))
+    (in/info info relation (->/info info sig-rels))))
 
 #|
 
