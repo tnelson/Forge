@@ -338,28 +338,22 @@
              (deparse-int int-expr 0))]
     [else (format "(COULD-NOT-DEPARSE: ~a)" expr)]))
 
+(define (format-nary-call opname args)
+  (format "~a[~a]" opname
+          (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
+                    ([arg (cdr args)])
+            (format "~a, ~a" add-string (deparse-int arg 0)))))
+
 (define (deparse-int-op expr parent-priority)
   (match expr
     [(node/int/op/add info args)
-     (format "add[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
-                       ([arg (cdr args)])
-                (format ", ~a" (deparse-int arg 0))))]
+     (format-nary-call "add" args)]
     [(node/int/op/subtract info args)
-     (format "subtract[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
-                       ([arg (cdr args)])
-                (format ", ~a" (deparse-int arg 0))))]
+     (format-nary-call "subtract" args)]
     [(node/int/op/multiply info args)
-     (format "multiply[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
-                       ([arg (cdr args)])
-                (format ", ~a" (deparse-int arg 0))))]
+     (format-nary-call "multiply" args)]
     [(node/int/op/divide info args)
-     (format "divide[~a]"
-             (for/fold ([add-string (format "~a" (deparse-int (car args) 0))])
-                       ([arg (cdr args)])
-                (format ", ~a" (deparse-int arg 0))))]
+     (format-nary-call "divide" args)]
     [(node/int/op/sum info args)
      (format "sum[~a]" (deparse-expr (first args) 0))]
     [(node/int/op/card info args)
