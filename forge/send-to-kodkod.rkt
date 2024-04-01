@@ -374,7 +374,6 @@
         [else 
          (define idx-str (first path))
          (define idx (string->number idx-str))
-         (printf "descending: ~a ~a~n" idx fmla)
          (cond [(not fmla)
                 (traverse-path-list (rest path)
                                     (hash-ref core-map idx))]
