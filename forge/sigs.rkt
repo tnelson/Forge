@@ -592,7 +592,7 @@
             (~optional (~seq #:target-distance target-distance))
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
-     #`(begin
+     (quasisyntax/loc stx (begin
          ;(define checker-hash (get-ast-checker-hash))
          ;(printf "sigs run ~n ch= ~a~n" checker-hash)
          (define run-state curr-state)
@@ -624,7 +624,7 @@
                            #:backend run-backend
                            #:target run-target
                            #:command run-command))
-         (update-state! (state-add-runmap curr-state 'name name)))]))
+         (update-state! (state-add-runmap curr-state 'name name))))]))
 
 ; Test that a spec is sat or unsat
 ; (test name
@@ -636,17 +636,19 @@
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
      (add-to-execs
-      (with-syntax ([loc (build-source-location stx)])
+      (with-syntax ([loc (build-source-location stx)]
+                    [run-stx (syntax/loc stx (run name args ...))]
+                    [check-stx (syntax/loc stx (check name args ...))])
        (quasisyntax/loc stx 
          (cond
-           
           [(equal? 'expected 'forge_error)
            ; Expecting an error. If we receive one, do nothing. 
            ; Otherwise, continue to report the error and then close the run.
            ; (N.B., this assumes the run isn't actually created or sent to the solver.)
            (define run-reference #f)
            (with-handlers ([exn:fail:user? void])
-             #,(syntax/loc stx (run name args ...))
+             ;#,(syntax/loc stx (run name args ...))
+             run-stx
              ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
              (set! run-reference name)
              (close-run name))
@@ -663,7 +665,8 @@
              (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))]
           
           [(member 'expected '(sat unsat))           
-           #,(syntax/loc stx (run name args ...))
+           ;#,(syntax/loc stx (run name args ...))
+           run-stx
            (define first-instance (tree:get-value (Run-result name)))
            (if (not (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected))
                (report-test-failure
@@ -681,7 +684,8 @@
                (close-run name))]
 
           [(equal? 'expected 'theorem)          
-           #,(syntax/loc stx (check name args ...))
+           ;#,(syntax/loc stx (check name args ...))
+           check-stx
            (define first-instance (tree:get-value (Run-result name)))
            (if (Sat? first-instance)
                (report-test-failure #:name 'name
@@ -701,19 +705,23 @@
   (syntax-parse stx
     [(_ name:id pred bounds ...)
      (add-to-execs
-      (with-syntax ([double-check-name (format-id #'name "double-check_~a_~a" #'name (gensym))])
+      (with-syntax* ([double-check-name (format-id #'name "double-check_~a_~a" #'name (gensym))]
+                     [run-stx (syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))]
+                     [double-check-run-stx (syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))])
        (quasisyntax/loc stx (begin
          (when (eq? 'temporal (get-option curr-state 'problem_type))
            (raise-forge-error
             #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
             #:context #,(build-source-location stx)))
-         #,(syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))
+         ;#,(syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))
+         run-stx
          (define first-instance (tree:get-value (Run-result name)))
          (cond
            [(Unsat? first-instance)
             ; Run a second check to see if {} would have also failed, meaning this example
             ; violates the sig/field declarations.
-            #,(syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))
+            ;#,(syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))
+            double-check-run-stx
             (define double-check-instance (tree:get-value (Run-result double-check-name)))
             (close-run double-check-name) ;; always close the double-check run immediately
             
@@ -740,14 +748,15 @@
   (syntax-parse stx
     [(check name:id
             (~alt
-              (~optional (~seq #:preds (pred ...)))
-              (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
-              (~optional (~seq #:bounds (bound ...)))) ...)
-     (quasisyntax/loc stx
-       #,(syntax/loc stx
-           (run name (~? (~@ #:preds [(! (&& pred ...))]))
-                (~? (~@ #:scope ([sig lower upper] ...)))
-                (~? (~@ #:bounds (bound ...))))))]))
+             (~optional (~seq #:preds (pred ...)))
+             (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
+             (~optional (~seq #:bounds (bound ...)))) ...)
+     (with-syntax* ([pred-conj (syntax/loc stx (&& pred ...))]
+                    [neg-pred-conj (syntax/loc stx (! pred-conj))])
+       (quasisyntax/loc stx
+         (run name (~? (~@ #:preds [neg-pred-conj]))
+              (~? (~@ #:scope ([sig lower upper] ...)))
+              (~? (~@ #:bounds (bound ...))))))]))
 
 
 ; Exprimental: Run in the context of a given external Forge spec
