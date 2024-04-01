@@ -360,8 +360,45 @@
                     all-rels 
                     all-atoms))
 
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for.
     ; In these cases, the engine should be passing something like "f:0,0" which indexes _child_ formulas.
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    (define (traverse-path-list path [fmla #f])
+      ;; Cannot use for/fold or fold here, because we need to _not_ move down the list for
+      ;; a node/fmla/pred-spacer node (and any other node that is invisible to Pardinus).
+      (cond
+        ; Base case: no more indexes to process
+        [(empty? path) fmla]
+        ; We have an index, descend as appropriate
+        [else 
+         (define idx-str (first path))
+         (define idx (string->number idx-str))
+         (printf "descending: ~a ~a~n" idx fmla)
+         (cond [(not fmla)
+                (traverse-path-list (rest path)
+                                    (hash-ref core-map idx))]
+               [(node/formula/quantified? fmla)
+                ; Quantified: decls formulas first, then sub-formula last
+                (cond [(>= idx (length (node/formula/quantified-decls fmla)))
+                       (traverse-path-list (rest path)
+                                           (node/formula/quantified-formula fmla))]
+                      [else
+                       (define decl (list-ref (node/formula/quantified-decls fmla) idx))
+                       (traverse-path-list (rest path)
+                                           (car decl))])]
+               [(node/formula/op? fmla)
+                ; Operator formula: sub-formulas in order. Note that this layer isn't shown
+                ; to Pardinus, so we cannot move down the path index list for this.
+                (traverse-path-list (rest path)
+                                    (list-ref (node/formula/op-children fmla) idx))]
+               [(node/fmla/pred-spacer? fmla)
+                ; Predicate spacer, just use internal formula, and don't move forward in the path
+                (traverse-path-list path
+                                    (node/fmla/pred-spacer-expanded fmla))]
+               [else
+                (raise-user-error (format "Unsupported formula type in core: ~a" fmla))])]))
+    
     (define (find-core-formula id)
       (unless (string-prefix? id "f:")
         (raise-user-error (format "Unexpected error: invalid formula path ID: ~a" id)))
@@ -369,24 +406,7 @@
       (printf "core path: ~a~n" path)
       (unless (and (> (length path) 0) (member (string->number (first path)) (hash-keys core-map)))
         (raise-user-error (format "Unexpected error: solver path ID prefix was invalid: ~a; valid prefixes: ~a" id (hash-keys core-map))))
-      (for/fold ([fmla #f])
-                ([idx-str path])
-        (define idx (string->number idx-str))
-        ; First step: look up top-level formula. Second+ steps: index child
-        (cond [(not fmla)
-               (hash-ref core-map idx)]
-              [(node/formula/quantified? fmla)
-               ; Quantified: decls formulas first, then sub-formula last
-               (cond [(>= idx (length (node/formula/quantified-decls fmla)))
-                      (node/formula/quantified-formula fmla)]
-                     [else
-                      (define decl (list-ref (node/formula/quantified-decls fmla) idx))
-                      (car decl)])]
-              [(node/formula/op? fmla)
-               ; Operator formula: sub-formulas in order
-               (list-ref (node/formula/op-children fmla) idx)]
-              [else
-               (raise-user-error (format "Unsupported formula type in core: ~a" fmla))])))
+      (traverse-path-list path #f))
     
     (define (pretty-core idx max known? fmla-or-id)
       (cond [known?
