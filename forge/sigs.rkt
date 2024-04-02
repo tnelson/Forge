@@ -751,7 +751,7 @@
              (~optional (~seq #:preds (pred ...)))
              (~optional (~seq #:scope ((sig:id (~optional lower:nat #:defaults ([lower #'0])) upper:nat) ...)))
              (~optional (~seq #:bounds (bound ...)))) ...)
-     (with-syntax* ([pred-conj (syntax/loc stx (&& pred ...))]
+     (with-syntax* ([pred-conj (syntax/loc stx (&& (~? (~@ pred ...))))]
                     [neg-pred-conj (syntax/loc stx (! pred-conj))])
        (quasisyntax/loc stx
          (run name (~? (~@ #:preds [neg-pred-conj]))
