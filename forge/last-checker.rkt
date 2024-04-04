@@ -378,7 +378,7 @@
     [(? node/int?) (list (list 'Int))]
     [(? integer?) (list (list 'Int))]
     [_ (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
-         (car output))]))
+         (expression-type-type output))]))
 
 ; similar except that this is called from a formula, so in bsl 
 ; it should check that the multiplicity of the overall expr is 1 
@@ -386,8 +386,8 @@
   (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
       ; insert check for (first here)
     ;(printf "checkExpression-top; node: ~a  ; mult: ~a" expr (cdr output))
-    (when (hash-has-key? checker-hash 'expr-mult) ((hash-ref checker-hash 'expr-mult) expr (cdr output) parent))
-    (car output)))
+    (when (hash-has-key? checker-hash 'expr-mult) ((hash-ref checker-hash 'expr-mult) expr (expression-type-multiplicity output) parent))
+    (expression-type-type output)))
 
 ; For expressions, this descent does two things:
 ;   - collects possible typings of expressions
@@ -413,17 +413,18 @@
      (check-and-output expr
                        node/expr/relation
                        checker-hash
-                       (cons (apply cartesian-product (map primifyThis (typelist-thunk))) 
+                       (expression-type (apply cartesian-product (map primifyThis (typelist-thunk))) 
                              ; TODO refine
-                             (and (equal? 1 (node/expr-arity expr)) (Sig-one expr))))]
+                             (and (equal? 1 (node/expr-arity expr)) (Sig-one expr))
+                             #f))]
 
     ; atom (base case)
     [(node/expr/atom info arity name)
      (check-and-output expr
                        node/expr/atom
                        checker-hash   
-                       (cons (infer-atom-type run-or-state expr)
-                             #t))]
+                       (expression-type (infer-atom-type run-or-state expr)
+                             #t #f))]
 
     [(node/expr/fun-spacer info arity name args codomain expanded)
        ; be certain to call the -mult version, or the multiplicity will be thrown away.
@@ -462,26 +463,26 @@
                               (let ([b-potentials (checkExpression-mult run-or-state b quantvars checker-hash)]
                                     [c-potentials (checkExpression-mult run-or-state c quantvars checker-hash)])
                                 ; Might be a or b, we don't know
-                                (cons (remove-duplicates (append (car b-potentials) (car c-potentials)))
-                                      (and (cdr b-potentials) (cdr c-potentials))))))]
+                                (expression-type (remove-duplicates (append (expression-type-type b-potentials) (expression-type-type c-potentials)))
+                                      (and (expression-type-multiplicity b-potentials) (expression-type-multiplicity c-potentials)) #f))))]
     
     ; The INT Constant
     [(node/expr/constant info 1 'Int)
      (check-and-output expr
                        node/expr/constant
                        checker-hash
-                       (cons (list (list 'Int))
-                             #t))]
+                       (expression-type (list (list 'Int))
+                             #t #f))]
 
     ; other expression constants
     [(node/expr/constant info arity type)
      (check-and-output expr
                        node/expr/constant
                        checker-hash
-                       (cons (let ([prims (primify run-or-state 'univ)])
+                       (expression-type (let ([prims (primify run-or-state 'univ)])
                               (cond [(equal? arity 1) (map list prims)]
                                     [else (cartesian-product prims prims)]))
-                              #t))]
+                              #t #f))]
           
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -496,7 +497,7 @@
                        node/expr/quantifier-var
                        checker-hash
                        ; Look up in quantvars association list, type is type of domain
-                       (cons (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
+                       (expression-type (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
                                  (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash)
                                  (raise-forge-error
                                   #:msg (format "Variable ~a used, but it was unbound at this point.\
@@ -504,7 +505,7 @@
  It might also mean that the variable domain references the variable itself.\
  For help debugging, the bound variables at this point were: ~a" sym (map car quantvars) )
                                   #:context info))
-                             #t))]
+                             #t #f))]
 
     ; set comprehension e.g. {n : Node | some n.edges}
     [(node/expr/comprehension info arity decls subform)
@@ -541,8 +542,8 @@
                            (define child-values (second new-decls-and-child-values))
                            (checkFormula run-or-state subform new-quantvars checker-hash)
                            ; Return type constructed from decls above
-                           (cons (map flatten (map append (apply cartesian-product child-values)))
-                                 #f))))]
+                           (expression-type (map flatten (map append (apply cartesian-product child-values)))
+                                 #f #f))))]
 
     [else (error (format "no matching case in checkExpression for ~a" (deparse expr)))]))
 
@@ -572,19 +573,19 @@
      (check-and-output expr
                        node/expr/op/prime
                        checker-hash
-                       (cons (checkExpression run-or-state (first args) quantvars checker-hash) 
-                             #t))]
+                       (expression-type (checkExpression run-or-state (first args) quantvars checker-hash) 
+                             #t #f))]
 
     ; UNION
     [(? node/expr/op/+?)
      (check-and-output expr
                        node/expr/op/+
                        checker-hash
-                       (cons (remove-duplicates (apply append
+                       (expression-type (remove-duplicates (apply append
                                                  (map (lambda (x)
                                                         (checkExpression run-or-state x quantvars checker-hash))
                                                       args)))
-                              #t))]
+                              #t #f))]
 
     
     ; SETMINUS 
@@ -598,30 +599,30 @@
                          node/expr/op/-
                          checker-hash
                          ; A-B should have only 2 children. B may be empty.
-                         (cons (checkExpression run-or-state (first args) quantvars checker-hash)
-                               #t)))]
+                         (expression-type (checkExpression run-or-state (first args) quantvars checker-hash)
+                               #t #f)))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
      (check-and-output expr
                        node/expr/op/&
                        checker-hash
-                       (cons (foldl
+                       (expression-type (foldl
                               (lambda (x acc)
                                 (keep-only (checkExpression run-or-state x quantvars checker-hash) acc))
                               (checkExpression run-or-state (first args) quantvars checker-hash)
                               (rest args))
-                              #t))]
+                              #t #f))]
     
     ; PRODUCT
     [(? node/expr/op/->?)
      (check-and-output expr
                        node/expr/op/->
                        checker-hash
-                       (cons (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)]
+                       (expression-type (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)]
                                   [result (map flatten (map append (apply cartesian-product child-values)))])       
                             result)
-                              #t))]
+                              #t #f))]
    
     ; JOIN
     [(? node/expr/op/join?)
@@ -629,7 +630,7 @@
                        node/expr/op/join
                        checker-hash
                        (let* ([child-values (map (lambda (x) (checkExpression-mult run-or-state x quantvars checker-hash)) args)]
-                              [join-result (check-join (map car child-values))])
+                              [join-result (check-join (map expression-type-type child-values))])
                          (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
                            (when (empty? join-result)
                             (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
@@ -639,23 +640,23 @@
  Left argument of join \"~a\" is in ~a.\
  Right argument of join \"~a\" is in ~a" 
                                              (deparse (first (node/expr/op-children expr)))  
-                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (first child-values)))
+                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (expression-type-type (first child-values)))
                                              (deparse (second (node/expr/op-children expr)))
-                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (car (second child-values))))
+                                             (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (expression-type-type (second child-values))))
                                #:context expr))))
-                           (when (and (not (cdr (first child-values))) (eq? (nodeinfo-lang (node-info expr)) 'bsl))
+                           (when (and (not (expression-type-multiplicity (first child-values))) (eq? (nodeinfo-lang (node-info expr)) 'bsl))
                                 ((hash-ref checker-hash 'relation-join) expr args))
-                           (cons join-result
-                                   (and (cdr (first child-values)) (not (empty? join-result))(equal? 1 (length (first join-result)))))))]
+                           (expression-type join-result
+                                   (and (expression-type-multiplicity (first child-values)) (not (empty? join-result))(equal? 1 (length (first join-result)))) #f)))]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
      (check-and-output expr
                        node/expr/op/^
                        checker-hash
-                       (cons (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)])     
+                       (expression-type (let* ([child-values (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)])     
                                (check-closure (first child-values)))
-                              #t))]
+                              #t #f))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
@@ -663,17 +664,17 @@
                        node/expr/op/*
                        checker-hash
                        ; includes iden, so might contain any arity-2 tuple
-                       (cons (let ([prims (primify run-or-state 'univ)])
+                       (expression-type (let ([prims (primify run-or-state 'univ)])
                               (cartesian-product prims prims))
-                              #t))]
+                              #t #f))]
 
     ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
     [(? node/expr/op/~?)
      (check-and-output expr
                        node/expr/op/~
                        checker-hash
-                       (cons (map reverse (checkExpression run-or-state (first args) quantvars checker-hash))
-                              #t))]
+                       (expression-type (map reverse (checkExpression run-or-state (first args) quantvars checker-hash))
+                              #t #f))]
     
 
     ; RELATIONAL OVERRIDE
@@ -700,8 +701,8 @@
                               #:context (first args)))
          
          ; ++ has a maximum of two arguments so this should get everything
-         (cons (remove-duplicates (append left-tuples right-tuples))
-                #t)))]
+         (expression-type (remove-duplicates (append left-tuples right-tuples))
+                #t #f)))]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
@@ -710,7 +711,7 @@
      (check-and-output expr
                        node/expr/op/sing
                        checker-hash
-                       (cons (list (list 'Int)) #t))])) 
+                       (expression-type (list (list 'Int)) #t #f))])) 
   RESULT)
 
 (define/contract (check-closure lst)

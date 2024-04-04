@@ -145,6 +145,12 @@
   [distance (or/c 'close_noretarget 'far_noretarget 'close_retarget 'far_retarget 'hamming_cover)]
   ) #:transparent)
 
+(struct expression-type (
+  type ; list symbol?
+  multiplicity ; unsure
+  temporal-variance ; bool?
+  ) #:transparent)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; If adding new option fields, remember to update all of:
