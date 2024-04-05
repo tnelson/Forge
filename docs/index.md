@@ -17,6 +17,13 @@
     border-style: solid;
     width: 60%;
 }
+.logoimg {
+    color: gray;
+    float: left;
+    margin-top: -10px;
+    /* border-style: solid; */
+    width: 35%;
+}
 .viztext {
     display: flex;
     flex-direction: column;
@@ -48,13 +55,19 @@
     margin-left: 10px;
 }
 </style>
-<center>
-<img src="img/logo_trimmed.png" width=30%></img>
-</center>
 
-# A Tool and Language for Teaching Formal Methods
+# Forge: A Tool and Language for Teaching Formal Methods
 
-Forge is a lightweight formal-methods tool, similar to [Alloy 6](https://alloytools.org), built with *teaching* in mind. Forge provides a progression of sub-languages that gradually build in expressive power to match students' experience and expertise. 
+<div class="example">
+  <div class="logoimg"><img src="./img/logo_trimmed.png"/></div> 
+  <div class="viztext">
+    <div class="viznote">Forge is a lightweight formal-methods tool, similar to <a href="https://alloytools.org">Alloy 6</a>, built with <b>teaching</b> in mind. Forge provides a progression of sub-languages that gradually build in expressive power to match students' experience and expertise. 
+    </div>
+  </div>
+</div>
+
+<!-- <img src="img/logo_trimmed.png" width=30%></img> -->
+
 
 ## Forge is for everyone...
 
