@@ -146,7 +146,7 @@
   ) #:transparent)
 
 (struct expression-type (
-  type ; list symbol?
+  type ; list list symbol?
   multiplicity ; unsure
   temporal-variance ; bool?
   ) #:transparent)
