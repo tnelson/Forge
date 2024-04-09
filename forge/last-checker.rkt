@@ -570,8 +570,8 @@
      (let [(expression (checkExpression run-or-state (first args) quantvars checker-hash))]
      (check-and-output expr
                        node/expr/op/prime
-                       checker-hash)
-                       (expression-type (expression-type-type expression) #t (expression-type-temporal-variance expression)))]
+                       checker-hash
+                       (expression-type (expression-type-type expression) #t (expression-type-temporal-variance expression))))]
 
     ; UNION
     [(? node/expr/op/+?)
@@ -598,7 +598,7 @@
                          node/expr/op/-
                          checker-hash
                          ; A-B should have only 2 children. B may be empty.
-                         (expression-type (checkExpression run-or-state (first args) quantvars checker-hash)
+                         (expression-type (expression-type-type (checkExpression run-or-state (first args) quantvars checker-hash))
                                #t
                               (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
                                 (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)))))]

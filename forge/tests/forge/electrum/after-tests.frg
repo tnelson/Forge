@@ -7,7 +7,7 @@ option run_sterling off
 -- from "after" to "next_state" in 2022.
 
 option problem_type temporal
-option verbose 0
+option verbose 10
 
 sig Node {
     var edges : set Node
