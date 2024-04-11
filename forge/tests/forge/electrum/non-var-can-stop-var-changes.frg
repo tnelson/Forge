@@ -13,13 +13,13 @@ sig Apple {
 sig Orange {}
 
 pred prog {
-    always (Orange' = Orange - Apple.org)
+    always (Orange = Orange - Apple.org)
 }
 
 test expect nonVarSigStopsVarRelChanges {
     //Since Orange is not var, it can't change
-    orangeCantChange : {not always Orange' = Orange} is unsat
-    orangeStaysSame : {always Orange' = Orange} is sat
+    orangeCantChange : {not always Orange' = Orange} is forge_error
+    orangeStaysSame : {always Orange' = Orange} is forge_error
     //If org is non-empty, then Orange' = Orange,
     //so org must be empty
     orgMustBeEmpty : {prog and not (always no org)} is unsat
@@ -45,14 +45,14 @@ pred validTree {
 
 test expect nonVarRelStopsVarSigChange {
     //Since parent is not var, it can't change
-    parentCantChange : {not always parent' = parent} is unsat
-    parentStaysSame : {always parent' = parent} is sat
+    parentCantChange : {not always parent' = parent} is forge_error
+    parentStaysSame : {always parent' = parent} is forge_error
     //Since Banana is not var, it can't change
-    bananaCantChange : {not always Banana' = Banana} is unsat
-    bananaStaysSame : {always Banana' = Banana} is sat
+    bananaCantChange : {not always Banana' = Banana} is forge_error
+    bananaStaysSame : {always Banana' = Banana} is forge_error
     //Since Banana and parent can't change, neeither does Banana.parent
-    parentTreeSetCantChange : {not always (Banana.parent)' = Banana.parent} is unsat
-    parentTreeSetStaysSame : {always (Banana.parent)' = Banana.parent} is sat
+    parentTreeSetCantChange : {not always (Banana.parent)' = Banana.parent} is forge_error
+    parentTreeSetStaysSame : {always (Banana.parent)' = Banana.parent} is forge_error
     //Since every BananaTree is in Banana.parent, which stays the same
     //you can't gain BananaTrees (or Banana.parent would have to grow)
     //and you can't lose BananaTrees (or Banana.parent would lose members)

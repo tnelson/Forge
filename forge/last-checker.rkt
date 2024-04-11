@@ -553,6 +553,11 @@
 (define (keep-only keepers pool)
   (filter (lambda (ele) (member ele keepers)) pool))
 
+(define (get-temporal-variance run-or-state expr quantvars args checker-hash)
+  (define (check-temporal-variance x)
+    (expression-type-temporal-variance (checkExpression run-or-state x quantvars checker-hash)))
+  (foldl (lambda (x acc) (or acc (check-temporal-variance x))) #f args))
+
 (define/contract (checkExpressionOp run-or-state expr quantvars args checker-hash)
   (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?)) hash?   
        any)
@@ -568,10 +573,14 @@
     [(? node/expr/op/prime?)
      (check-temporal-mode run-or-state expr)
      (let [(expression (checkExpression run-or-state (first args) quantvars checker-hash))]
-     (check-and-output expr
-                       node/expr/op/prime
-                       checker-hash
-                       (expression-type (expression-type-type expression) #t (expression-type-temporal-variance expression))))]
+     (if (expression-type-temporal-variance expression)
+         (check-and-output expr
+              node/expr/op/prime
+              checker-hash
+              (expression-type (expression-type-type expression) #t (expression-type-temporal-variance expression)))
+         (raise-forge-error
+          #:msg (format "Prime operator used in non-temporal context")
+          #:context expr)))]
 
     ; UNION
     [(? node/expr/op/+?)
@@ -583,8 +592,7 @@
                                                         (expression-type-type (checkExpression run-or-state x quantvars checker-hash)))
                                                       args)))
                               #t
-                              (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                              (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))))]
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)))]
 
     
     ; SETMINUS 
@@ -600,8 +608,7 @@
                          ; A-B should have only 2 children. B may be empty.
                          (expression-type (expression-type-type (checkExpression run-or-state (first args) quantvars checker-hash))
                                #t
-                              (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                                (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)))))]
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash))))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)
@@ -614,8 +621,7 @@
                               (expression-type-type (checkExpression run-or-state (first args) quantvars checker-hash))
                               (rest args))
                               #t 
-                              (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                                (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))))]
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)))]
     
     ; PRODUCT
     [(? node/expr/op/->?)
@@ -626,8 +632,7 @@
                                   [result (map flatten (map append (apply cartesian-product child-values)))])       
                             result)
                               #t 
-                              (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                                (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))))]
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)))]
    
     ; JOIN
     [(? node/expr/op/join?)
@@ -653,8 +658,7 @@
                                 ((hash-ref checker-hash 'relation-join) expr args))
                            (expression-type join-result
                                    (and (expression-type-multiplicity (first child-values)) (not (empty? join-result))(equal? 1 (length (first join-result)))) 
-                           (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                                (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)))))]
+                           (get-temporal-variance run-or-state expr quantvars args checker-hash))))]
     
     ; TRANSITIVE CLOSURE
     [(? node/expr/op/^?)
@@ -664,8 +668,7 @@
                        (expression-type (let* ([child-values (map (lambda (x) (expression-type-type (checkExpression run-or-state x quantvars checker-hash))) args)])     
                                (check-closure (first child-values)))
                               #t 
-                              (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                                (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))))]
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
@@ -676,8 +679,7 @@
                        (expression-type (let ([prims (primify run-or-state 'univ)])
                               (cartesian-product prims prims))
                               #t 
-                              (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                                (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))))]
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)))]
 
     ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
     [(? node/expr/op/~?)
@@ -686,8 +688,7 @@
                        checker-hash
                        (expression-type (map reverse (expression-type-type (checkExpression run-or-state (first args) quantvars checker-hash)))
                               #t 
-                              (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                                (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))))]
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)))]
     
 
     ; RELATIONAL OVERRIDE
@@ -716,8 +717,7 @@
          ; ++ has a maximum of two arguments so this should get everything
          (expression-type (remove-duplicates (append left-tuples right-tuples))
                 #t 
-                (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                  (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args)))))]
+                (get-temporal-variance run-or-state expr quantvars args checker-hash))))]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
@@ -727,8 +727,7 @@
                        node/expr/op/sing
                        checker-hash
                        (expression-type (list (list 'Int)) #t 
-                        (foldl (lambda (x acc) (or acc (expression-type-temporal-variance x))) #f 
-                          (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))))])) 
+                        (get-temporal-variance run-or-state expr quantvars args checker-hash)))])) 
   RESULT)
 
 (define/contract (check-closure lst)

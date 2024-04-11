@@ -174,6 +174,9 @@
     (list "mismatched-arg-type-fun-univ-output.frg" #rx"The output of function f is of incorrect type")
     (list "mismatched-arg-type-fun-output-int.frg" #rx"The output of function f is of incorrect type")
     (list "mismatched-arg-type-fun-codomain-int.frg" #rx"The output of function f is of incorrect type")
+
+    ;; priming error tests
+    (list "priming-basic.frg" #rx"Prime operator used in non-temporal context")
   ))
 
 

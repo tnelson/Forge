@@ -34,18 +34,18 @@ sig VarSigBothRels {
 }
 
 test expect nonVarRelsDontChange {
-    nonVarToNonVarCantChange : {not always nonVarToNonVar' = nonVarToNonVar} is unsat
-    nonVarToNonVarCanStay : {always nonVarToNonVar' = nonVarToNonVar} is sat
-    nonVarToVarCantChange : {not always nonVarToVar' = nonVarToVar} is unsat
-    nonVarToVarCanStay : {always nonVarToVar' = nonVarToVar} is sat
-    varToNonVarCantChange : {not always varToNonVar' = varToNonVar} is unsat
-    varToNonVarCanStay : {always varToNonVar' = varToNonVar} is sat
-    varToVarCantChange : {not always varToVar' = varToVar} is unsat
-    varToVarCanStay : {always varToVar' = varToVar} is sat
-    nonVarBothToVarCantChange : {not always nonVarBothToVar' = nonVarBothToVar} is unsat
-    nonVarBothToVarCanStay : {always nonVarBothToVar' = nonVarBothToVar} is sat
-    varBothToNonVarCantChange : {not always varBothToNonVar' = varBothToNonVar} is unsat
-    varBothToNonVarCanStay : {always varBothToNonVar' = varBothToNonVar} is sat
+    nonVarToNonVarCantChange : {not always nonVarToNonVar' = nonVarToNonVar} is forge_error
+    nonVarToNonVarCanStay : {always nonVarToNonVar' = nonVarToNonVar} is forge_error
+    nonVarToVarCantChange : {not always nonVarToVar' = nonVarToVar} is forge_error
+    nonVarToVarCanStay : {always nonVarToVar' = nonVarToVar} is forge_error
+    varToNonVarCantChange : {not always varToNonVar' = varToNonVar} is forge_error
+    varToNonVarCanStay : {always varToNonVar' = varToNonVar} is forge_error
+    varToVarCantChange : {not always varToVar' = varToVar} is forge_error
+    varToVarCanStay : {always varToVar' = varToVar} is forge_error
+    nonVarBothToVarCantChange : {not always nonVarBothToVar' = nonVarBothToVar} is forge_error
+    nonVarBothToVarCanStay : {always nonVarBothToVar' = nonVarBothToVar} is forge_error
+    varBothToNonVarCantChange : {not always varBothToNonVar' = varBothToNonVar} is forge_error
+    varBothToNonVarCanStay : {always varBothToNonVar' = varBothToNonVar} is forge_error
 }
 
 

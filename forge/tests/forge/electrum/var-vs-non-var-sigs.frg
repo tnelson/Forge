@@ -44,40 +44,40 @@ sig Apricot {}
 
 test expect nonVarSigsCantChange {
     //non-var sig, no relations
-    orangeCantChange : {not always Orange' = Orange} is unsat
-    orangeCanStaySame : {always Orange' = Orange} is sat
+    orangeCantChange : {not always Orange' = Orange} is forge_error
+    orangeCanStaySame : {always Orange' = Orange} is forge_error
     //non-var sig, non-var relation
-    appleCantChange : {not always Apple' = Apple} is unsat
-    appleCanStaySame : {always Apple' = Apple} is sat
+    appleCantChange : {not always Apple' = Apple} is forge_error
+    appleCanStaySame : {always Apple' = Apple} is forge_error
     //non-var sig, has var relation
-    peachCantChange : {not always Peach' = Peach} is unsat
-    peachCanStaySame : {always Peach' = Peach} is sat
+    peachCantChange : {not always Peach' = Peach} is forge_error
+    peachCanStaySame : {always Peach' = Peach} is forge_error
     //non-var sig,  referenced by var relation, has no relations
-    pearCantChange : {not always Pear' = Pear} is unsat
-    pearCanStaySame : {always Pear' = Pear} is sat
+    pearCantChange : {not always Pear' = Pear} is forge_error
+    pearCanStaySame : {always Pear' = Pear} is forge_error
     //non-var sig, referenced by var relation, has var relation
-    mangoCantChange : {not always Mango' = Mango} is unsat
-    mangoCanStaySame : {always Mango' = Mango} is sat
+    mangoCantChange : {not always Mango' = Mango} is forge_error
+    mangoCanStaySame : {always Mango' = Mango} is forge_error
     mangoNoChangeEvenIfPerzChange : {
         (not always perz' = perz) and (always Mango' = Mango)
-    } is sat
+    } is forge_error
     //non-var sig, has non-var relation to var sig
-    grapeCantChange : {not always Grape' = Grape} is unsat
-    grapeCanStaySame : {always Grape' = Grape} is sat
+    grapeCantChange : {not always Grape' = Grape} is forge_error
+    grapeCanStaySame : {always Grape' = Grape} is forge_error
     //non-var sig, has var relation to var sig
-    raisinCantChange : {not always Raisin' = Raisin} is unsat
-    raisinCanStaySame : {always Raisin' = Raisin} is sat
+    raisinCantChange : {not always Raisin' = Raisin} is forge_error
+    raisinCanStaySame : {always Raisin' = Raisin} is forge_error
     raisinNoChangeEvenIfOnOrMelonChange : {
         (not always on' = on) and (always Raisin' = Raisin)
         or
         (not always Melon' = Melon) and (always Raisin' = Raisin)
-    } is sat
+    } is forge_error
     //non-var sig, referenced by non-var relation from var sig
-    tomatoCantChange : {not always Tomato' = Tomato} is unsat
-    tomatoCanStaySame : {always Tomato' = Tomato} is sat
+    tomatoCantChange : {not always Tomato' = Tomato} is forge_error
+    tomatoCanStaySame : {always Tomato' = Tomato} is forge_error
     //non-var sig, referenced by var relation from var sig
-    apricotCantChange : {not always Apricot' = Apricot} is unsat
-    apricotCanStaySame : {always Apricot' = Apricot} is sat
+    apricotCantChange : {not always Apricot' = Apricot} is forge_error
+    apricotCanStaySame : {always Apricot' = Apricot} is forge_error
 }
 
 var sig Cat {}
