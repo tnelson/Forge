@@ -635,14 +635,26 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ;; Added sugar over the AST
 ;; It is vital to PRESERVE SOURCE LOCATION in these, or else errors and highlighting may focus 
 ;; on the macro definition point
-(provide implies iff <=> ifte int>= int<= ni != !in !ni <: :>)
+(provide implies iff <=> ifte int>= int<= ni != !in !ni <: :> xor)
 
+; (xor a b) ----> (or (and a (! b)) (and (! a) b))
+(define-syntax (xor stx)
+  (syntax-parse stx
+    [((~datum xor) (~optional (~and #:lang check-lang)) a b)
+     (with-syntax ([newloc (quasisyntax/loc stx (nodeinfo #,(build-source-location stx)
+                                                          (~? check-lang 'checklangNoCheck)))])
+       (quasisyntax/loc stx (||/info newloc
+                                     (&&/info newloc a (!/info newloc b))
+                                     (&&/info newloc (!/info newloc a) b))))]))
+
+   
 (define-syntax (implies stx) 
   (syntax-case stx () 
     [(_ (#:lang check-lang) a b) 
       (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx) check-lang) a b))]
     [(_ a b) 
       (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)'checklangNoCheck) a b))]))
+
 
 (define-syntax (iff stx) 
   (syntax-case stx () 

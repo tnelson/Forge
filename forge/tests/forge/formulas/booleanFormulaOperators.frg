@@ -45,6 +45,13 @@ pred Or { -- ||, or
     not (False or False)
 }
 
+pred Xor { 
+    not (True xor True)
+    True xor False
+    False xor True
+    not (False xor False)
+}
+
 pred Implies { -- =>, implies, <=>, iff, => else, implies else
     True => True
     not (True => False)
@@ -89,6 +96,7 @@ test expect BooleanFormulaOperators {
     NotOps : Not is theorem
     AndOps : And is theorem
     OrOps : Or is theorem
+    XorOps : Xor is theorem
     ImpliesOps : Implies is theorem
 }
 
