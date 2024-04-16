@@ -181,7 +181,8 @@ Expr    : @Expr1
         | LET-TOK LetDeclList BlockOrBar
         | BIND-TOK LetDeclList BlockOrBar
         | Quant DISJ-TOK? QuantDeclList BlockOrBar
-Expr1   : @Expr2  | Expr1 OR-TOK Expr2
+Expr1   : @Expr1.5  | Expr1 OR-TOK Expr1.5
+Expr1.5 : @Expr2    | Expr1.5 XOR-TOK Expr2
 Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
 ;; right assoc
 Expr3   : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?        
