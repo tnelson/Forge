@@ -24,6 +24,12 @@
     (|| false true)
     (! (|| false false)))
 
+(pred Xor
+    (! (xor true true))
+    (xor true false)
+    (xor false true)
+    (! (xor false false)))
+
 (pred Implies ; =>, implies, <=>, iff, ifte
     (=> true true)
     (! (=> true false))
@@ -65,6 +71,9 @@
       #:expect theorem)
 (test orOps 
       #:preds [Or]
+      #:expect theorem)
+(test xorOps 
+      #:preds [Xor]
       #:expect theorem)
 (test impliesOps 
       #:preds [Implies]

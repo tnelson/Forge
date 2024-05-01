@@ -732,7 +732,7 @@
       #:attr symbol (syntax/loc #'q sum-quant)))
 
   (define-syntax-class ExprClass
-    (pattern ((~or (~datum Expr) (~datum Expr1) (~datum Expr2) (~datum Expr3)
+    (pattern ((~or (~datum Expr) (~datum Expr1) (~datum Expr1.5) (~datum Expr2) (~datum Expr3)
                    (~datum Expr4) (~datum Expr4.5) (~datum Expr5) (~datum Expr6) (~datum Expr7) (~datum Expr7.5)
                    (~datum Expr8) (~datum Expr9) (~datum Expr10) (~datum Expr11)
                    (~datum Expr12) (~datum Expr13) (~datum Expr14) (~datum Expr15)
@@ -1170,6 +1170,13 @@
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (|| expr1 expr2)))]
 
+    ; exclusive OR
+    [((~datum Expr) expr1:ExprClass "xor" expr2:ExprClass)
+     (with-syntax ([expr1 (my-expand #'expr1)]
+                   [expr2 (my-expand #'expr2)])
+       (syntax/loc stx (xor expr1 expr2)))]
+
+    
   [((~datum Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
@@ -1457,6 +1464,7 @@
              [((~var macro-id id) . pattern) pattern-directive ... (syntax/loc stx template)]))))]))
 
 (dsm-keep (Expr1 stx ...) (Expr stx ...))
+(dsm-keep (Expr1.5 stx ...) (Expr stx ...))
 (dsm-keep (Expr2 stx ...) (Expr stx ...))
 (dsm-keep (Expr3 stx ...) (Expr stx ...))
 (dsm-keep (Expr4 stx ...) (Expr stx ...))
