@@ -150,4 +150,4 @@ Got questions? Reach out to [`Tim_Nelson@brown.edu`](mailto:Tim_Nelson@brown.edu
 
 ## Thanks 
 
-We are grateful for support from the U.S. National Science Foundation and Brown University.
+We are grateful for support from the U.S. National Science Foundation ([award #2208731](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2208731)) and Brown University.
