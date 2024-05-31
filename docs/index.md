@@ -144,6 +144,10 @@ Forge was originally created for [CSCI 1710, "Logic for Systems"](https://csci17
 
 Forge is open source and [hosted on Github](http://github.com/tnelson/forge). 
 
+## Example Models
+
+Beyond the notes and documention, you can find many examples of Forge models in the [`forge/examples` folder](https://github.com/tnelson/Forge/tree/main/forge/examples) of the repository. See the [README](https://github.com/tnelson/Forge/blob/main/forge/examples/README.md) for an itemized list. We are adding to this collection regularly!
+
 ## Contact 
 
 Got questions? Reach out to [`Tim_Nelson@brown.edu`](mailto:Tim_Nelson@brown.edu). 
