@@ -190,3 +190,14 @@ test expect {
     mixed_complete_ni: {no BasicA} for both_lower_and_upper is unsat
     mixed_complete_in: {#BasicA = 5} for both_lower_and_upper is sat
 }
+
+// Check error handling for undefined expressions
+
+inst error_undefined_BasicA_in { friendA in BasicA -> BasicA }
+inst error_undefined_BasicA_ni { friendA ni BasicA -> BasicA }
+inst error_undefined_BasicA_eq { friendA = BasicA -> BasicA }
+test expect {
+    error_undefined_expression_in: {} for error_undefined_BasicA_in is forge_error
+    error_undefined_expression_ni: {} for error_undefined_BasicA_ni is forge_error
+    error_undefined_expression_eq: {} for error_undefined_BasicA_eq is forge_error
+}

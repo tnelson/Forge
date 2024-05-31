@@ -224,6 +224,8 @@
                       [else a])) tup))
        tuples))
 
+; The "safe" flag will cause `eval-exp` to throw an error if there's a reference to
+; an expression that `binding` has no value for. 
 (define/contract (safe-fast-eval-exp e binding bitwidth [safe #t])
   (->* (node/expr? hash? number?) (boolean?)
        (listof (listof (or/c number? symbol?))))
@@ -285,8 +287,9 @@
     (define piecewise-binds (Bound-piecewise bound))
     
     ; Add the atom before evaluation, so that (atom ...) will be consistent with non-piecewise bounds.
-    (define the-tuples (safe-fast-eval-exp (ast:-> the-atom the-rhs-expr) (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f))
-    (define the-atom-evaluated (first (first (safe-fast-eval-exp the-atom (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f))))
+    ; Evaluate "safely"; if an expression is undefined in the current binding, produce an error. 
+    (define the-tuples (safe-fast-eval-exp (ast:-> the-atom the-rhs-expr) (Bound-tbindings bound) SUFFICIENT-INT-BOUND #t))
+    (define the-atom-evaluated (first (first (safe-fast-eval-exp the-atom (Bound-tbindings bound) SUFFICIENT-INT-BOUND #t))))
         
     (cond [(hash-has-key? piecewise-binds the-relation)
            (define former-pwb (hash-ref piecewise-binds the-relation))
@@ -385,7 +388,7 @@
     [(node/formula/op/= info (list left right))
      (inst-check bind node/formula/op/=) 
      (cond [(node/expr/relation? left)
-            (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
+            (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)])
               (define new-scope scope)
               (define new-bound (update-bindings bound left tups tups #:node bind))
               (values new-scope new-bound))]
@@ -411,7 +414,7 @@
      (cond
        ; rel in expr
        [(node/expr/relation? left)
-        (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
+        (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)])
           (define new-bound (update-bindings bound left (@set) tups #:node bind))
           (values scope new-bound))]
        ; atom.rel in expr
@@ -427,7 +430,7 @@
         (values scope (update-piecewise-binds 'in the-relation the-atom right))]
        ; rel ni expr
        [(node/expr/relation? right)
-        (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) SUFFICIENT-INT-BOUND #f)])
+        (let ([tups (safe-fast-eval-exp left (Bound-tbindings bound) SUFFICIENT-INT-BOUND)])
           (define new-bound (update-bindings bound right tups #:node bind))
           (values scope new-bound))]
        ; atom.rel ni expr
