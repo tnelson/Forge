@@ -1095,9 +1095,10 @@
   '())
 
 (define (file->froglet-env-datum fn)
-  (parameterize ([current-namespace (make-base-namespace)])
-    ;; id defined in froglet
-    (dynamic-require `(submod ,fn ,type-env-name) type-env-name dyn-require-fail-thunk)))
+  (with-handlers ((exn:fail:contract? (lambda (exn) (dyn-require-fail-thunk))))
+    (parameterize ([current-namespace (make-base-namespace)])
+      ;; id defined in froglet
+      (dynamic-require `(submod ,fn ,type-env-name) type-env-name dyn-require-fail-thunk))))
 
 (define (datum->type-env x* ctx)
   (for/list ((xx (in-list x*)))
