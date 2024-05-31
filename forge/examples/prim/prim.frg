@@ -1,5 +1,7 @@
 #lang forge/temporal
-option max_tracelength 10
+
+-- Default of 5; this model uses 1 time index per state
+option max_tracelength 7
 
 /*
 Prim's algorithm in Forge
@@ -330,5 +332,6 @@ test expect {
     }
     is unsat
 }
--- With the optimizer instance, the test passes in about 5 minutes.
+-- With the optimizer instance, the test passes in about 2.5 minutes at max 
+-- trace length 7.
 
