@@ -4,7 +4,7 @@
 ; Instead, Forge uses it for evaluating expressions in `inst` bounds.
 
 (require racket/match 
-         (only-in "../lang/ast.rkt" relation-name) 
+         (only-in "../lang/ast.rkt" relation-name raise-forge-error) 
          racket/hash
          (only-in racket range take first second rest flatten empty remove-duplicates string-join 
                          empty? set->list list->set set-subtract set-intersect))
@@ -76,7 +76,9 @@
 ; Try eval-int-expr first. If it fails, try eval-exp. If that fails, throw a user error.
 ; (This is a useful function to keep around, even if Sterling calls Kodkod's evaluator now.)
 (define (eval-unknown thing bind bitwidth)
-  (define (final-fallback t b bw) (raise-user-error "Not a formula, expression, or int expression" t))
+  (define (final-fallback t b bw)
+    (raise-forge-error #:msg "Not a formula, expression, or int expression"
+                       #:context t))
   ((try-eval eval-int-expr (try-eval eval-exp final-fallback))
    thing bind bitwidth))
 
@@ -84,6 +86,8 @@
 ; Each query raturns a list of tuples representing a set.  For example,
 ; ((a) (b) (c)) represents the set {a b c}, and ((a b) (b c)) represents
 ; the relation {(a b) (b c)}
+; As of May 2024, this function is not used in the UI evaluator; rather, that's passed
+; down to the solver to answer itself. 
 (define (eval-exp exp bind bitwidth [safe #t])
   (when (>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "evaluating expr : ~v~n" exp))  
@@ -163,15 +167,22 @@
                         (eval-exp kodkod bind2 bitwidth))]
                    [id
                     (cond
-                      [(relation? id) (raise-user-error "Implicit set comprehension is disallowed - use \"set\"")]               
-                      ; relation name
+                      [(relation? id)
+                       (raise-forge-error #:msg "Implicit set comprehension is disallowed - use \"set\""
+                                          #:context id)]   
+                      ; relation name, and we have an entry in the binding: extract the value
                       [(hash-has-key? bind id) (hash-ref bind id)]
-                      ; atom name
+                      ; atom name: return it directly, since it's "semantic" already
                       [(member id (flatten (build-univ bind))) id]
+                      
+                      ; Otherwise, If this is an unsafe evaluation, just return the value
                       [(not safe) id]
-                      ; oops
-                      [else (raise-user-error "Not an expression" id)])]
-                   [_ (raise-user-error "Not a supported expression" exp)]))
+                      ; Otherwise, if this is a safe evaluation, throw an error
+                      [else (raise-forge-error #:msg (format "Value of expression ~a is not defined in this context." id)
+                                               #:context id)])]
+                   [_ (raise-forge-error #:msg "Not a supported expression for Racket-side evaluation"
+                                         #:context exp)]))
+  
   ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination
   ; Also canonicalize so that if we compare relational constants, a list-based representation is OK  
   (define ret (if (not (list? result))
