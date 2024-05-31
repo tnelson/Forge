@@ -17,6 +17,10 @@ While many of these examples are commented more heavily, the [Forge documentatio
 * `examples/bst` contains a series of models of binary search trees. 
   - `bst_1.frg` and `bst_2.frg` are in Relational Forge, and focus on structural invariants for trees and the BST invariant (vs. an incorrect version). `bst_3.frg` and `bst_4.frg` are in Temproal Forge and model a recursive descent on an arbitrary tree following the correct vs. incorrect invariant. Both the Relational and Temporal Forge versions have visualization scripts. 
 
+For a more advanced example, see: 
+
+* `examples/prim`, which contains a model of Prim's MST algorithm, with notes on verification.
+
 ## A Note on Visualization 
 
 Some of these examples use "old style" visualizer scripts, i.e., from 2022 and 2023. These should still work as normal, but please report any issues! 
