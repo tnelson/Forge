@@ -66,6 +66,7 @@
    ["&" (token+ 'AMP-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["+" (token+ 'PLUS-TOK "" lexeme "" lexeme-start lexeme-end)]
    [(or "<=" "=<") (token+ 'LEQ-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["xor" (token+ 'XOR-TOK "" lexeme "" lexeme-start lexeme-end)]
    [(or "!" "not") (token+ 'NEG-TOK "" lexeme "" lexeme-start lexeme-end)]
    [(or "||" "or") (token+ 'OR-TOK "" lexeme "" lexeme-start lexeme-end)]
    [(or "&&" "and") (token+ 'AND-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -205,6 +206,7 @@
            "iden"
            "iff"
            "implies"
+           "xor"
            "in"
            "ni"
            "is"

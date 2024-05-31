@@ -3,9 +3,7 @@
 ![GitHub issues](https://img.shields.io/github/issues/tnelson/Forge)
 ![GitHub Workflow Status (branch)](https://img.shields.io/github/actions/workflow/status/tnelson/Forge/continuousIntegration.yml?branch=main)
 
-
-
-Welcome to Forge! Forge is a tool and language built for **teaching** introductory formal methods and modeling.
+Welcome to [Forge](https://forge-fm.org)! Forge is a tool and language built for **teaching** introductory formal methods and modeling.
 
 Forge is heavily adapted from the excellent [Alloy](https://alloytools.org/), a more widely used and somewhat more scalable tool. Forge and Alloy even use the same engines! Forge adds a number of features designed to support teaching and learning, including:
 - language levels, including froglet (`#lang froglet`, previously `#lang forge/bsl`) for starting out without using relational operators;
@@ -39,3 +37,7 @@ raco pkg install ./forge ./froglet
 To update, `git pull` the repo and run `raco setup forge` to recompile.
 
 Running on the development branch, `dev`, requires `checkout dev` before installing; this may be unstable, however.
+
+## Acknowledgements 
+
+We are grateful for support from the U.S. National Science Foundation ([award #2208731](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2208731)) and Brown University.

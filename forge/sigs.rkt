@@ -82,7 +82,7 @@
 (provide (prefix-out forge: (all-from-out forge/sigs-structs)))
 
 ; Export these from structs without forge: prefix
-(provide implies iff <=> ifte int>= int<= ni != !in !ni <: :>)
+(provide implies iff <=> ifte int>= int<= ni != !in !ni <: :> xor)
 (provide Int succ min max)
 
 ; Export these from sigs-functional

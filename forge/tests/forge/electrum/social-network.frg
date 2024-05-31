@@ -12,6 +12,8 @@ option coregranularity 1
 /*
 Taken from https://github.com/haslab/Electrum2/wiki/Social-Network
 Models a distributed social network
+
+Small modifications by TN for consistency
 */
 
 sig User {}
@@ -19,11 +21,14 @@ sig User {}
 sig Post {}
 
 sig DistributedSN {
-    servers : set Server,
-    friends : set User->User
+    -- Added "var" annotation here, which was not present in the original
+    var servers : set Server,
+    -- Added "var" annotation here, which was not present in the original
+    var friends : set User->User
 }
 
 sig Server {
+    -- Added "var" annotation here, which was not present in the original
     posts : set User->Post,
     capacity : set Int //max number of posts in the Server
 }
@@ -110,12 +115,12 @@ pred behavior {
 }
 
 test expect AddAndDeleteWork {
-    delCanUndoAdd : {
+    prop_delCanUndoAdd : {
         behavior
         all sn : DistributedSN | deleteVsAdd[sn]
     } is sat
-    delMustUndoAdd : {
+    not_prop_delMustUndoAdd : {
         behavior
         not (all sn : DistributedSN | deleteVsAdd[sn])
-    } is unsat
+    } is sat
 }
