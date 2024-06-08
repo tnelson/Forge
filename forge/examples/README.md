@@ -2,11 +2,16 @@
 
 This folder contains a number of curated examples in Forge, from various sources. Some were previously in the [public examples repository](https://github.com/csci1710/public-examples/) for CSCI 1710 at Brown, or in the [lecture notes](https://csci1710.github.io/book/) for the class. As of June 2024, this directory is now the canonical home for them all. *Prior sources will not be kept up to date.*
 
-While many of these examples are commented more heavily, the [Forge documentation](https://csci1710.github.io/forge-documentation/) may still be useful.
+While many of these examples are commented heavily, the [Forge documentation](https://csci1710.github.io/forge-documentation/) may still be useful.
 
 ## Directory Structure 
 
 * `examples/basic/` contains a set of basic examples of Forge use, taken from various demos. 
+  * `buckets.frg` contains a temporal modeling puzzle about how to measure 4 liters of water using only 3, 5, and 8-liter buckets. I borrowed this from my memory of the [TLA+ tutorial](https://github.com/tlaplus/Examples/tree/master/specifications/DieHard), which only has two buckets.
+  * `schoolPuzzle.frg` models a basic logic puzzle about hypothetical reasoning. 
+  * `booleanLogic.frg` is a first attempt at modeling boolean logic in Forge. 
+  * `gameOfLife.frg` models Conway's game of life in Forge. The model can be used to synthesize oscillators, gliders, etc. To abstract the traditionally-infinite board, the model uses the well-known toroidal approximation (which is conveniently embodied by integer overflow for row and column indexes).
+  * `traceSkeletonInst.frg` is a skeletal example, showing how to use the `inst` operator in Forge to define a trace manually.  
 * `examples/tic_tac_toe` contains a model of the game tic-tac-toe, along with a custom visualizer. 
 * `examples/oopsla24` contains the models used in the Forge paper to appear at OOPSLA 2024. 
 * `examples/musical_scales` contains a basic model of diatonic scales, with a "visualizer" that also plays the scales generated. 
