@@ -148,6 +148,10 @@ Forge is open source and [hosted on Github](http://github.com/tnelson/forge).
 
 Beyond the notes and documention, you can find many examples of Forge models in the [`forge/examples` folder](https://github.com/tnelson/Forge/tree/main/forge/examples) of the repository. See the [README](https://github.com/tnelson/Forge/blob/main/forge/examples/README.md) for an itemized list. We are adding to this collection regularly!
 
+## Our Papers 
+
+To read more about our motivation and design, see [our upcoming paper in OOPSLA 2024](https://cs.brown.edu/~tbn/publications/forge-oopsla24.pdf). 
+
 ## Contact 
 
 Got questions? Reach out to [`Tim_Nelson@brown.edu`](mailto:Tim_Nelson@brown.edu). 
