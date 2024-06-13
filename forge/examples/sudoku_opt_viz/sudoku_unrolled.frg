@@ -48,7 +48,7 @@ fun get_grid[s: BoardState, subgrid: Int]: set Int {
         s.board[rows][cols]
 }
 
-pred solution[s: PuzzleState] {
+pred solution[s: BoardState] {
     -- ** Rows and Columns **
     -- don't use #... = 9 here; instead something like:
     all r: values | s.board[r][Int] = values

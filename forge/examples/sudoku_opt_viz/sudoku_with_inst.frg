@@ -45,7 +45,7 @@ fun values: set Int {
     1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9
 }
 
-pred solution[s: PuzzleState] {
+pred solution[s: BoardState] {
     -- ** Rows and Columns **
     -- don't use #... = 9 here; instead something like:
     all r: values | s.board[r][Int] = values

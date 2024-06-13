@@ -35,8 +35,9 @@ for testFile in $testFiles; do
     current=`date "+%X"`
     echo -e "\nRunning $testFile ($current)"
 
-    #start=`date +%s`    
-    racket $testFile > /dev/null
+    #start=`date +%s` 
+    # Use permanent (-O) option flag to always disable Sterling   
+    racket $testFile -O run_sterling \'off > /dev/null
     #end=`date +%s`
     #echo -e "Testfile took $((end-start)) seconds."
     testExitCode=$?
