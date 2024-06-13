@@ -1133,3 +1133,51 @@
 (provide output-all-test-failures
          report-test-failure
          reset-test-failures!)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Support for providing options at the command line
+;   sigs-structs.rkt provides an `option-types` value that
+;   we can use to cast inputs to the appropriate type.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; This will now set initial values for arguments, but will be OVERRIDDEN
+; by file-level option statements. E.g., this at the command line (note the
+; need to escape the backquote):
+; racket ring_of_lights.frg -o run_sterling \'off -o verbose 0
+;   * will NOT run sterling (because the example doesn't give a value for that option)
+;   * WILL give verbose 5 output (because the example gives a value of 5 for that option)
+
+(define (string->option-type name value)
+  (define type-pred (hash-ref option-types name #f))
+  (cond
+    ; Arrived as a number
+    [(string->number value) (string->number value)]
+    ; Arrived as a single-quote prefixed symbol
+    [(equal? (string-ref value 0) #\') (string->symbol (substring value 1))]
+    ; Otherwise, try to infer from the type predicate for the option
+    [(equal? type-pred symbol?) (string->symbol value)]
+    [(equal? type-pred exact-nonnegative-integer?) (string->number value)]
+    [(equal? type-pred exact-positive-integer?) (string->number value)]
+    [(equal? type-pred exact-integer?) (string->number value)]
+    ; This covers too much at the moment (some of the option-types values are /predicates/)
+    [else value]))
+
+(require racket/cmdline)
+
+(define cl-option-handler (command-line
+ #:usage-help
+ "When running Forge from the command line, use the -o or --option flag to send options."
+ "Format: -o <option name> <option value>."
+
+ #:multi
+ [("-o" "--option") OPTION-NAME OPTION-VALUE
+                    "Option set"
+                    (begin 
+                      (printf "Setting ~a = ~a~n" (string->symbol OPTION-NAME) OPTION-VALUE)
+                      (set-option! (string->symbol OPTION-NAME)
+                                   ; Issue: unclear how to use the appropriate type
+                                   (string->option-type OPTION-NAME OPTION-VALUE)))]
+ 
+ #:args () (void)))
