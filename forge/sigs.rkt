@@ -176,9 +176,14 @@
   (struct-copy State state
                [inst-map new-state-inst-map]))
 
+; this is not managed by Forge's "rolling state"; it should only be set by the command-line.
+(define option-overrides (box '()))
+
 (define (set-option! option value #:original-path [original-path #f])
-  (cond [(or (equal? option 'verbosity)
-             (equal? option 'verbose))
+  (cond [(member option (unbox option-overrides))
+         (printf "Option ~a was given when Forge started with --override option; ignoring assignment to ~a.~n"
+                 option value)]
+        [(or (equal? option 'verbosity) (equal? option 'verbose))
          (set-verbosity value)]
         [else
          (update-state! (state-set-option curr-state option value #:original-path original-path))]))
@@ -1142,12 +1147,17 @@
 ;   we can use to cast inputs to the appropriate type.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; This will now set initial values for arguments, but will be OVERRIDDEN
+; The lowercase -o will set an initial option value, but will be OVERRIDDEN
 ; by file-level option statements. E.g., this at the command line (note the
 ; need to escape the backquote):
-; racket ring_of_lights.frg -o run_sterling \'off -o verbose 0
+; racket ring_of_lights.frg -o run_sterling \'off -o verbose 1
 ;   * will NOT run sterling (because the example doesn't give a value for that option)
 ;   * WILL give verbose 5 output (because the example gives a value of 5 for that option)
+
+; In contrast, the uppercase -O will set the initial option value and disallow it changing.
+; E.g.,
+; racket ring_of_lights.frg -o run_sterling \'off -O verbose 1
+; will give verbose 1 output. 
 
 (define (string->option-type name value)
   (define type-pred (hash-ref option-types name #f))
@@ -1161,7 +1171,7 @@
     [(equal? type-pred exact-nonnegative-integer?) (string->number value)]
     [(equal? type-pred exact-positive-integer?) (string->number value)]
     [(equal? type-pred exact-integer?) (string->number value)]
-    ; This covers too much at the moment (some of the option-types values are /predicates/)
+    ; This covers too much at the moment (some of the option-types values are /more complex predicates/)
     [else value]))
 
 (require racket/cmdline)
@@ -1177,7 +1187,14 @@
                     (begin 
                       (printf "Setting ~a = ~a~n" (string->symbol OPTION-NAME) OPTION-VALUE)
                       (set-option! (string->symbol OPTION-NAME)
-                                   ; Issue: unclear how to use the appropriate type
                                    (string->option-type OPTION-NAME OPTION-VALUE)))]
+ [("-O" "--override") OPTION-NAME OPTION-VALUE
+                      "Option set and override"
+                      (begin
+                        (printf "Setting and overriding ~a = ~a~n" (string->symbol OPTION-NAME) OPTION-VALUE)
+                        (set-option! (string->symbol OPTION-NAME)
+                                     (string->option-type OPTION-NAME OPTION-VALUE))
+                        ; Don't allow the Forge file to reset this option.
+                        (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
  
  #:args () (void)))
