@@ -1176,10 +1176,22 @@
 
 (require racket/cmdline)
 
-(define cl-option-handler (command-line
+;; BEWARE: this appears to interact with `raco` when installing the Forge package. E.g.,
+;; printing out `remaining-args` will actually print something when installing Forge, but
+;; with arguments from `raco`:
+;;    cl result: (pkg install ./forge ./froglet)
+;; This could technically cause a conflict with any existing `raco` arguments.
+;; -o and -O are not used by `raco pkg install` as of June 14, 2024.
+
+(define remaining-args (command-line
+ ; Default: 
+ ;#:program (find-system-path 'run-file)
+ ; Default:
+ ;#:argv (current-command-line-arguments)
  #:usage-help
  "When running Forge from the command line, use the -o or --option flag to send options."
  "Format: -o <option name> <option value>."
+ "If the upper-case -O is used, the option cannot be rewritten by the model file."
 
  #:multi
  [("-o" "--option") OPTION-NAME OPTION-VALUE
@@ -1197,4 +1209,4 @@
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
  
- #:args () (void)))
+ #:args remaining-args remaining-args))
