@@ -7,6 +7,8 @@
   (only-in racket index-of match string-join)
   (only-in racket/contract define/contract or/c listof any/c ->*))
 
+(provide interpret-formula)
+
 (define (get-var-idx var quantvars)
   (- (length quantvars) (index-of quantvars var)))
 (define get-sym node/expr/quantifier-var-sym)
@@ -18,6 +20,7 @@
 ; TODO: rename functions
 
 ; Translate a formula AST node
+; (define (interpret-formula run-or-state formula relations atom-names quantvars)  
 (define/contract (interpret-formula run-or-state formula relations atom-names quantvars)  
   (-> (or/c Run? State? Run-spec?)
       node/formula?
@@ -55,10 +58,10 @@
                (if (> (node/expr-arity new-var) 1) "set" "one")
                (interpret-expr run-or-state new-domain relations atom-names new-quantvars)))
         
-     (print-cmd-cont (format "(~a ~a ~a)"
+     (format "(~a ~a ~a)"
                              quantifier
                              (map decl-to-string decls)
-                             (interpret-formula run-or-state form relations atom-names new-quantvars)))]
+                             (interpret-formula run-or-state form relations atom-names new-quantvars))]
     
     [(node/formula/sealed info)
      (interpret-formula info relations atom-names quantvars)]
@@ -74,14 +77,11 @@
      (format "(and ~a)"
              (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args))]
     [(? node/formula/op/||?)
-     ( print-cmd-cont "(|| ")
-     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(or ~a)"
+             (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args))]
     [(? node/formula/op/=>?)
-     ( print-cmd-cont "(=> ")
-     (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
-
+     (format "(=> ~a)"
+             (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args))]
     [(? node/formula/op/always?)
      (raise-forge-error #:msg "Temporal operator unsupported in SMT conversion." #:context formula)]
     [(? node/formula/op/eventually?)
@@ -107,30 +107,24 @@
     ; In *Froglet*, this is very restricted; we may not need to support it except in specific
     ; built-in cases where Forge is generating constraints. E.g., for "A extends B". 
     [(? node/formula/op/in?)
-     (print-cmd-cont "(in ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     (print-cmd-cont ")")]
+     (format "(in ~a)"
+      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     [(? node/formula/op/=?)
-     (print-cmd-cont "(= ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     (print-cmd-cont ")")]
+     (format "(= ~a)" 
+             (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
 
     [(? node/formula/op/!?)
      (format "(not ~a)"
              (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args))]
-    
     [(? node/formula/op/int>?)
-     ( print-cmd-cont "(> ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(> ~a)"
+             (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]
     [(? node/formula/op/int<?)
-     ( print-cmd-cont "(< ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(< ~a)"
+      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]
     [(? node/formula/op/int=?)
-     ( print-cmd-cont "(= ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]))
+     (format "(= ~a)"
+      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -139,8 +133,8 @@
 ; TODO: likely don't need this; if we do, it's certainly different strings!
 (define (format-relname isvar name suffix)
   (if isvar
-      (format "~a~a" (x name) suffix)
-      (format "~a~a" (r name) suffix)))
+      (format "~a~a" name suffix)
+      (format "~a~a" name suffix)))
 
 ; TODO: how will we translate `univ`?
 (define (build-univ-string run-or-state)
@@ -153,21 +147,20 @@
   (match expr
     ; TODO: is this just "name" now?
     [(node/expr/relation info arity name typelist-thunk parent isvar)
-     (print-cmd-cont (format-relname isvar name " "))]
+     (format "~a" (format-relname isvar name " "))]
     ; TODO: lower priority, how to pass atom names down for the evaluator (if that even makes sense)
     ;;   (Should we consider bringing back the Racket-side evaluator for SMT backends?)
     ;;    (This is related to whether the SMT backend is "incremental", or whether it stops after 1 instance.)
     [(node/expr/atom info arity name)
      (unless (member name atom-names) (raise (format "Atom ~a not in available atoms ~a" name atom-names)))
-     ( print-cmd-cont (format "~a " (a (index-of atom-names name))))]
+      (format "~a " (index-of atom-names name))]
     [(node/expr/fun-spacer info arity name args result expanded)
      (interpret-expr run-or-state expanded relations atom-names quantvars)]
     [(node/expr/ite info arity a b c)     
-     ( print-cmd-cont "(ite ")
-     (interpret-formula run-or-state a relations atom-names quantvars)
-     (interpret-expr run-or-state b relations atom-names quantvars)
-     (interpret-expr run-or-state c relations atom-names quantvars)
-     ( print-cmd-cont ") ")]
+     (format "(ite ~a ~a ~a)"
+      (interpret-formula run-or-state a relations atom-names quantvars)
+      (interpret-expr run-or-state b relations atom-names quantvars)
+      (interpret-expr run-or-state c relations atom-names quantvars))]
     [(node/expr/constant info 1 'Int)
      "Int"]
 
@@ -177,13 +170,13 @@
      ;  is not reflected by Kodkod or Pardinus.
      (cond
        [(equal? type 'univ)        
-        (print-cmd-cont (build-univ-string run-or-state))]
+        (format "~a" (build-univ-string run-or-state))]
        [(equal? type 'iden)        
-        (print-cmd-cont (format "(& iden (-> ~a ~a)) "
+        (format "(& iden (-> ~a ~a)) "
                                 (build-univ-string run-or-state)
-                                (build-univ-string run-or-state)))]
+                                (build-univ-string run-or-state))]
        [else
-        (print-cmd-cont (format "~a " type))])]
+        (format "~a " type)])]
     
     [(node/expr/op info arity args)
      (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
@@ -195,69 +188,55 @@
     [(node/expr/comprehension info len decls form)     
      (define vars (map car decls)) ; account for multiple variables
      (let ([quantvars (append vars quantvars)])       
-       ( print-cmd-cont "{(") ; start comprehension, start decls
+       (format "{(~a) ~a}") ; start comprehension, start decls
        (for-each (lambda (d) ; each declaration
-                   (print-cmd-cont (format "[~a : " (v (get-sym (car d)))))
-                   (interpret-expr run-or-state (cdr d) relations atom-names quantvars)
-                   (print-cmd-cont "]"))
+                   (format "[~a : ~a]" (get-sym (car d)))
+                   (interpret-expr run-or-state (cdr d) relations atom-names quantvars))
                  decls)
-       ( print-cmd-cont ") ") ; end decls
-       (interpret-formula run-or-state form relations atom-names quantvars)
-       ( print-cmd-cont "}"))]))
+       (interpret-formula run-or-state form relations atom-names quantvars))]))
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)
   (match expr
     [(? node/expr/op/+?)
-     ( print-cmd-cont "(+ ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(+ ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     [(? node/expr/op/-?)
-     ( print-cmd-cont "(- ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(- ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     [(? node/expr/op/&?)
-     ( print-cmd-cont "(& ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(& ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     [(? node/expr/op/->?)
-     ( print-cmd-cont "(-> ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(-> ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
 
     [(? node/expr/op/prime?)
      (raise-forge-error #:msg "Temporal operator unsupported in SMT conversion." #:context expr)]
 
     [(? node/expr/op/join?)
-     ( print-cmd-cont "(. ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(. ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     [(? node/expr/op/^?)
-     ( print-cmd-cont "(^ ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(^ ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     [(? node/expr/op/*?)
      ; Since * involves iden, we need to intercede so univ is restricted to actual *used* universe
-     (print-cmd-cont
-      (format "(+ (& iden (-> ~a ~a)) (^ "              
+    (format "(+ (& iden (-> ~a ~a)) (^ ~a))"              
               (build-univ-string run-or-state)
-              (build-univ-string run-or-state))) 
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     (print-cmd-cont "))")]
+              (build-univ-string run-or-state) 
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     ; In Racket format strings, "~" is reserved, so we need to escape it.
     [(? node/expr/op/~?)
      (format "(~~ ~a)" 
              (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     [(? node/expr/op/++?)
-     (print-cmd-cont "(++ ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     (print-cmd-cont ")")]
+     (format "(++ ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
 
     ; This is a Kodkod-level thing, and is how "convert from int to wrapped-int" gets done.
     [(? node/expr/op/sing?)
-     (print-cmd-cont "(lone ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     (print-cmd-cont ")")
-     ]))
+     (format "(lone ~a)"
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions
@@ -274,67 +253,54 @@
     [(node/int/sum-quant info decls int-expr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ( print-cmd-cont (format "(sum ([~a : ~a " 
-                                (v (get-sym var))
-                                (if (@> (node/expr-arity var) 1) "set" "one")))
+       (format "(sum ([~a : ~a ~a]) ~a)" 
+                                (get-sym var)
+                                (if (> (node/expr-arity var) 1) "set" "one")
        (interpret-expr run-or-state (cdr (car decls)) relations atom-names quantvars)
-       (print-cmd-cont "]) ")
-       (interpret-int run-or-state int-expr relations atom-names quantvars)
-       (print-cmd-cont ")"))]))
+       (interpret-int run-or-state int-expr relations atom-names quantvars)))]))
 
 (define (interpret-int-op run-or-state expr relations atom-names quantvars args)
   (match expr
     [(? node/int/op/add?)
-     ( print-cmd-cont "(+ ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(+ ~a)"
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]
     [(? node/int/op/subtract?)
-     ( print-cmd-cont "(- ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(- ~a)"
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]
     [(? node/int/op/multiply?)
-     ( print-cmd-cont "(* ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(* ~a)"
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]
     [(? node/int/op/divide?)
-     ( print-cmd-cont "(/ ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars )) args)
-     ( print-cmd-cont ")")]
+     (format "(/ ~a)"
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars )) args))]
 
     ; Does this exist in SMTlib?
     [(? node/int/op/sum?)
-     ( print-cmd-cont "(sum ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars )) args)
-     ( print-cmd-cont ")")]
+     (format "(sum ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars )) args))]
 
     ; TODO
     [(? node/int/op/card?)
-     ( print-cmd-cont "(# ")
-     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(# ~a)"
+     (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
     [(? node/int/op/remainder?)
-     ( print-cmd-cont "(% ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(% ~a)"
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]
     [(? node/int/op/abs?)
-     ( print-cmd-cont "(abs ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(abs ~a)"
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]
     [(? node/int/op/sign?)
-     ( print-cmd-cont "(sgn ")
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
-     ( print-cmd-cont ")")]
+     (format "(sgn ~a)"
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]
 
     ; TODO: Can this ever be called? Seems duplicate code.
     ;;   (Seems no at first glance, but beware.)
     [(node/int/sum-quant info decls int-expr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ( print-cmd-cont (format "(sum ([~a : ~a " (v (get-sym var) #;(get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
+       (format "(sum ([~a : ~a ~a]) ~a)" (get-sym var) (if (> (node/expr-arity var) 1) "set" "one")
        (interpret-expr run-or-state (cdr (car decls)) relations atom-names quantvars)
-       ( print-cmd-cont "]) ")
-       (interpret-int run-or-state int-expr relations atom-names quantvars)
-       ( print-cmd-cont ")"))]
+       (interpret-int run-or-state int-expr relations atom-names quantvars)))]
 
     ))
 
