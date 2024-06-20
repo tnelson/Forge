@@ -24,7 +24,7 @@
          forge/sigs-structs
          forge/evaluator
          (prefix-in tree: forge/lazy-tree)
-         forge/send-to-kodkod)
+         forge/send-to-solver)
 (require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
          (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
 (require (only-in forge/sigs-functional
@@ -876,7 +876,7 @@
                          [target new-target]
                          [state new-state]))
           (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds)
-                         (send-to-kodkod contrast-run-spec))
+                         (send-to-solver contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
                          [name (string->symbol (format "~a-contrast" (Run-name run)))]

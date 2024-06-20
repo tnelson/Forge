@@ -85,7 +85,7 @@
 
 ; NOTE WELL:
 ; The structs below define an intermediate representation; the Kodkod bounds (produced in
-; forge/send-to-kodkod) are what is actually sent to the solver.
+; forge/send-to-solver) are what is actually sent to the solver.
 
 ; ALSO: be aware that the "bounds", "sbounds" etc. structs defined elsewhere are distinct from
 ; the Bounds struct defined here. At some point, we can perhaps condense these into a single IR.
