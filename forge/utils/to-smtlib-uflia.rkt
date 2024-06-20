@@ -5,7 +5,8 @@
   forge/lang/ast
   forge/shared
   (only-in racket index-of match string-join)
-  (only-in racket/contract define/contract or/c listof any/c ->*))
+  (only-in racket/contract define/contract or/c listof any/c)
+  (prefix-in @ (only-in racket/contract ->)))
 
 (provide interpret-formula)
 
@@ -22,7 +23,7 @@
 ; Translate a formula AST node
 ; (define (interpret-formula run-or-state formula relations atom-names quantvars)  
 (define/contract (interpret-formula run-or-state formula relations atom-names quantvars)  
-  (-> (or/c Run? State? Run-spec?)
+  (@-> (or/c Run? State? Run-spec?)
       node/formula?
       list?
       list?
