@@ -1261,3 +1261,15 @@
       (raise-user-error (format "[~a] ~a" (pretty-loc context) msg))
       (fprintf (current-error-port) "[~a] ~a" (pretty-loc context) msg)))
 
+; Helper for other locations we might need to generate a nodeinfo struct from a variety
+; of datatype possibilities.
+(define (build-nodeinfo context)
+    (cond [(nodeinfo? context) context]
+          ; Wheats/chaffs have their inner formula in the info field
+          [(and (node? context) (node? (node-info context)))
+           (node-info (node-info context))]
+          [(node? context) (node-info context)]
+          [(srcloc? context) (nodeinfo context 'empty)]
+          [(syntax? context) (nodeinfo (build-source-location context) 'empty)]  
+          [else empty-nodeinfo]))
+
