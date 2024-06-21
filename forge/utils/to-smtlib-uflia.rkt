@@ -326,3 +326,19 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+; e.g., (build-join-up-to-depth A B fld 3) =
+;   A.fld + A.fld.fld + A.fld.fld.fld
+;   B = A.fld or B = A.fld.fld or B = A.fld.fld.fld
+(define (build-join-equality-up-to-depth A B fld k #:context [context #f])
+  (cond
+    [(<= k 0) (raise-forge-error #:msg "bad use of build-join-up-to-depth" #:context context)] 
+    [(equal? k 1) (= B (build-join-expr-at-depth A B fld k #:context context))]
+    [else (|| (= B (build-join-expr-at-depth A B fld k #:context context))
+              (build-join-equality-up-to-depth A B fld (@- k 1) #:context context))]))
+; Generate a join of width k; caller is responsible for converting to a formula
+(define (build-join-expr-at-depth A B fld k #:context [context #f])
+  (cond
+    [(equal? k 0) A]   
+    [else (join (build-join-expr-at-depth A B fld (@- k 1) #:context context) fld)]))
+
