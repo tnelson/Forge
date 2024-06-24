@@ -118,13 +118,20 @@
 
     ; In *Froglet*, this is very restricted; we may not need to support it except in specific
     ; built-in cases where Forge is generating constraints. E.g., for "A extends B". 
-    [(? node/formula/op/in?)
-    ; (match formula-children
-    ;   [(? node/formula/op/)]
-    ;   [_ (format "(in ~a)"
-    ;     (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))])
-     (format "(in ~a)"
-      (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))]
+    [(node/formula/op/in info children)
+     (printf "hit in case. ~a ~a~n" (car children) (car (cdr children)))
+     
+     (match children
+       [(list lhs (node/expr/op/join _ _ (list join_lhs
+                                               (node/expr/op/^ _ _ (list tc_arg)))))
+        (format "YAY! WE MATCHED! ~a // ~a // ~a" lhs join_lhs tc_arg)]
+       [else "OH NO! UNSUPPORTED!"]
+       ;[_ (format "(in ~a)"
+       ;           (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))]
+       )
+     ;(format "(in ~a)"
+     ; (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))
+     ]
     [(? node/formula/op/=?)
      (format "(= ~a)" 
       (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))]
