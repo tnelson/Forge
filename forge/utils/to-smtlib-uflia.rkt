@@ -30,6 +30,8 @@
       list?
       list?
       string?)
+
+  (begin (printf "Interpreting formula: ~a\n" formula)
   
   (match formula
     [(node/formula/constant info type)
@@ -77,9 +79,11 @@
     ; Handle Racket booleans, in case they appear
     [#t "true"]
     [#f "false"]
-    ))
+    )))
 
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)
+  (begin (printf "Interpreting formula op: ~a\n" formula)
+  (printf "Formula contains the following children: ~a\n" (node/formula/op-children formula))
   (match formula
     [(? node/formula/op/&&?)
      (format "(and ~a)"
@@ -115,23 +119,27 @@
     ; In *Froglet*, this is very restricted; we may not need to support it except in specific
     ; built-in cases where Forge is generating constraints. E.g., for "A extends B". 
     [(? node/formula/op/in?)
+    ; (match formula-children
+    ;   [(? node/formula/op/)]
+    ;   [_ (format "(in ~a)"
+    ;     (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))])
      (format "(in ~a)"
-      (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+      (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/formula/op/=?)
      (format "(= ~a)" 
-      (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+      (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/formula/op/!?)
      (format "(not ~a)"
       (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/formula/op/int>?)
      (format "(> ~a)"
-      (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+      (string-join (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/formula/op/int<?)
      (format "(< ~a)"
-      (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+      (string-join (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/formula/op/int=?)
      (format "(= ~a)"
-      (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]))
+      (string-join (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args) " "))])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -151,6 +159,7 @@
    (string-join (map (lambda (s) (format-relname (node/expr/relation-is-variable s) (Sig-name s) "")) the-sigs) " ")))
 
 (define (interpret-expr run-or-state expr relations atom-names quantvars)
+  (begin (printf "Interpreting expr: ~a\n" expr)
   (match expr
     ; TODO: is this just "name" now?
     [(node/expr/relation info arity name typelist-thunk parent isvar)
@@ -189,7 +198,8 @@
      (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
     ;;  TODO: can this just be "name"?
     [(node/expr/quantifier-var info arity sym name)  
-     (format "~a" name)]
+      (begin     (printf "Expr children: ~a\n" (node/expr/quantifier-var-name expr))
+     (format "~a" name))]
 
     ; TODO
     [(node/expr/comprehension info len decls form)     
@@ -200,7 +210,7 @@
                    (format "[~a : ~a]" (get-sym (car d)))
                    (interpret-expr run-or-state (cdr d) relations atom-names quantvars))
                  decls)
-       (interpret-formula run-or-state form relations atom-names quantvars))]))
+       (interpret-formula run-or-state form relations atom-names quantvars))])))
 
 (define (map-but-last proc lst)
   (if (or (null? lst) (null? (cdr lst)))
@@ -208,14 +218,16 @@
       (cons (proc (car lst)) (map-but-last proc (cdr lst)))))
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)
+  (begin (printf "Interpreting expr op: ~a\n" expr)
+  (printf "Expr op children: ~a\n" (node/expr/op-children expr))
   (match expr
     ; TODO: consider how all of these look w/ uninterp functions
     [(? node/expr/op/+?)
      (format "(set.union ~a)"
-     (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+     (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/expr/op/-?)
      (format "(set.minus ~a)"
-     (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+     (string-join (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/expr/op/&?)
      (format "(set.inter ~a)"
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args))]
@@ -255,7 +267,7 @@
     ; This is a Kodkod-level thing, and is how "convert from int to wrapped-int" gets done.
     [(? node/expr/op/sing?)
      (format "(lone ~a)"
-     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))]))
+     (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args))])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions
@@ -282,16 +294,16 @@
   (match expr
     [(? node/int/op/add?)
      (format "(+ ~a)"
-     (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+     (string-join (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/int/op/subtract?)
      (format "(- ~a)"
-     (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+     (string-join (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/int/op/multiply?)
      (format "(* ~a)"
-     (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+     (string-join (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args) " "))]
     [(? node/int/op/divide?)
      (format "(/ ~a)"
-     (string-join (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args) " "))]
+     (string-join (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args) " "))]
 
     ; Does this exist in SMTlib?
     [(? node/int/op/sum?)
@@ -344,4 +356,3 @@
     [(equal? k 0) A]   
     [else (join/info ctxt
                      (build-join-expr-at-depth A B fld (@- k 1) #:context ctxt) fld)]))
-
