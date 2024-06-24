@@ -61,6 +61,18 @@
 (define (process-children-int run-or-state children relations atom-names quantvars)
   (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) children))
 
+(define (nnf-implies run-or-state children relations atom-names quantvars info)
+  (let ([a (car children)]
+        [b (cdr children)])
+    (list (interpret-formula run-or-state (node/formula/op/! info (list a)) relations atom-names quantvars)
+          (interpret-formula run-or-state (car b) relations atom-names quantvars))))
+
+(define (distribute-not run-or-state args relations atom-names quantvars info)
+  (map (lambda (x) (interpret-formula run-or-state (node/formula/op/! info (list x)) relations atom-names quantvars)) args))
+
+(define (negate-quantifier run-or-state new-quantifier decls form relations atom-names quantvars info)
+  (node/formula/quantified info new-quantifier decls (node/formula/op/! info (list (interpret-formula run-or-state form relations atom-names quantvars)))))
+
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)
   (begin (printf "Interpreting formula op: ~a\n" formula)
   (match formula
@@ -69,7 +81,7 @@
     [(node/formula/op/|| info children)
      (node/formula/op/|| info (process-children-formula run-or-state args relations atom-names quantvars))]
     [(node/formula/op/=> info children)
-     (node/formula/op/=> info (process-children-formula run-or-state args relations atom-names quantvars))]
+     (node/formula/op/|| info (nnf-implies run-or-state args relations atom-names quantvars info))]
     [(node/formula/op/always info children)
      (node/formula/op/always info (process-children-formula run-or-state args relations atom-names quantvars))]
     [(node/formula/op/eventually info children)
@@ -95,7 +107,23 @@
     [(node/formula/op/= info children)
       (node/formula/op/= info (process-children-expr run-or-state args relations atom-names quantvars))]
     [(node/formula/op/! info children)
-      (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (match (car children)
+        ; (not (a and b)) = (not a or not b)
+        [(node/formula/op/&& and-info and-children) (node/formula/op/|| and-info (distribute-not run-or-state and-children relations atom-names quantvars and-info))]
+        ; (not (a or b)) = (not a and not b)
+        [(node/formula/op/|| or-info or-children) (node/formula/op/&& or-info (distribute-not run-or-state or-children relations atom-names quantvars or-info))]
+        ; Remove double not (!(!a)) = a
+        [(node/formula/op/! not-info not-children) (interpret-formula run-or-state (car not-children) relations atom-names quantvars)]
+        ; Converting quantifiers to NNF
+        [(node/formula/quantified quant-info quantifier decls form)
+          (match quantifier 
+            ; not (all x | A) = exists (x | not A)
+            ['all (negate-quantifier run-or-state 'some decls form relations atom-names quantvars quant-info)]
+            ; not (exists x | A) = all (x | not A)
+            ['some (negate-quantifier run-or-state 'all decls form relations atom-names quantvars quant-info)]
+            ; TODO: do we want to extend this to 'no' ?
+            [_ (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars))])]
+        [_ (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars))])]
     [(node/formula/op/int> info children)
       (node/formula/op/int> info (process-children-int run-or-state args relations atom-names quantvars))]
     [(node/formula/op/int< info children)
