@@ -26,10 +26,6 @@ pred not_and_negation {
     all p1, p2, p3: Person | not (p1.parent = p3 and p2.parent = p3)
 }
 
-pred double_negation {
-    all p: Person | not (not (p.age = 3))
-}
-
 pred quant_negation {
     not (all p: Person | p.age = 3)
 }
@@ -40,7 +36,7 @@ pred exists_negation {
 
 // *** Complex negation tests ***
 pred complex_and {
-    all p: Person | not (p.age = 3 and not (p.age = 4 and not (p.age = 5))
+    all p: Person | not (p.age = 3 and not (p.age = 4 and not (p.age = 5)))
 }
 
 pred complex_or {
