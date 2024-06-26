@@ -6,7 +6,7 @@
   forge/sigs-structs
   forge/lang/ast
   forge/shared
-  (only-in racket index-of match string-join)
+  (only-in racket index-of match string-join first second rest)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->)))
 
@@ -45,15 +45,20 @@
     ; how do we want to handle shadowing?
     ; lucy reyes throws an error if a qv shadows target
     ; and she also throws an error if a qv shadows an existing quantvar
-    (define new-quantvars
-        (for/fold ([quantvars quantvars])
-                  ([decl decls])
-          (define new-quantvars (cons (car decl) quantvars))
-          (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars target value)))
-    (let ([processed-form (substitute-formula run-or-state form relations atom-names new-quantvars target value)])
-      (node/formula/quantified info quantifier decls processed-form))]
+    (define new-vs-and-decls
+       (for/fold ([vs-and-decls (list quantvars '())])
+                 ([decl decls])
+         (define curr-quantvars (first vs-and-decls))
+         (define curr-decls (second vs-and-decls))
+         (define new-quantvars (cons (car decl) quantvars))
+         (define new-decl-domain (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars))
+         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
+         (list new-quantvars new-decls)))
+     (define new-quantvars (first new-vs-and-decls))
+     (let ([processed-form (substitute-formula run-or-state form relations atom-names new-quantvars)])
+       (define new-decls (second new-vs-and-decls))
+       (node/formula/quantified info quantifier new-decls processed-form))]
     [(node/formula/sealed info)
-    ; do we need to worry about substituting node-info? 
      (node/formula/sealed info)]
     [#t "true"]
     [#f "false"]
@@ -137,13 +142,19 @@
     [(node/expr/quantifier-var info arity sym name)  
      (if (equal? expr target) value expr)]
     [(node/expr/comprehension info len decls form)     
-      (define new-quantvars
-        (for/fold ([quantvars quantvars])
-                  ([decl decls])
-          (define new-quantvars (cons (car decl) quantvars))
-            (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars target value)))
-      (let ([processed-form (substitute-formula run-or-state form relations atom-names new-quantvars target value)])
-      (node/expr/comprehension info len decls processed-form))])))
+     (define new-vs-and-decls
+       (for/fold ([vs-and-decls (list quantvars '())])
+                 ([decl decls])
+         (define curr-quantvars (first vs-and-decls))
+         (define curr-decls (second vs-and-decls))
+         (define new-quantvars (cons (car decl) quantvars))
+         (define new-decl-domain (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars))
+         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
+         (list new-quantvars new-decls)))
+     (define new-quantvars (first new-vs-and-decls))
+     (let ([processed-form (substitute-formula run-or-state form relations atom-names new-quantvars)])
+       (define new-decls (second new-vs-and-decls))
+     (node/expr/comprehension info len new-decls processed-form))])))
 
 (define (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)
   (begin (printf "Interpreting expr op: ~a\n" expr)
@@ -183,13 +194,19 @@
     [(node/int/op info args)
      (substitute-int-op run-or-state expr relations atom-names quantvars args target value)]
     [(node/int/sum-quant info decls int-expr)
-     (define new-quantvars
-        (for/fold ([quantvars quantvars])
-                  ([decl decls])
-          (define new-quantvars (cons (car decl) quantvars))
-            (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars target value)))
-      (let ([processed-int (substitute-int run-or-state int-expr relations atom-names new-quantvars target value)])
-      (node/int/sum-quant info decls processed-int))])))
+     (define new-vs-and-decls
+       (for/fold ([vs-and-decls (list quantvars '())])
+                 ([decl decls])
+         (define curr-quantvars (first vs-and-decls))
+         (define curr-decls (second vs-and-decls))
+         (define new-quantvars (cons (car decl) quantvars))
+         (define new-decl-domain (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars))
+         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
+         (list new-quantvars new-decls)))
+     (define new-quantvars (first new-vs-and-decls))
+     (let ([processed-int (substitute-int run-or-state int-expr relations atom-names new-quantvars)])
+       (define new-decls (second new-vs-and-decls))
+      (node/int/sum-quant info new-decls processed-int))])))
 
 (define (substitute-int-op run-or-state expr relations atom-names quantvars args target value)
 (begin (printf "Interpreting int-op: ~a\n" expr)

@@ -61,7 +61,7 @@
      (define new-quantvars (first new-vs-and-decls))
      (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
        (define new-decls (second new-vs-and-decls))
-       (node/formula/quantified info quantifier decls processed-form))]
+       (node/formula/quantified info quantifier new-decls processed-form))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
      ; TODO: Need to convert to node/formula/constant bool (maybe just use the true / false keyword constructors from ast)
@@ -176,13 +176,19 @@
     [(node/expr/quantifier-var info arity sym name)  
      (node/expr/quantifier-var info arity sym name)]
     [(node/expr/comprehension info len decls form)     
-      (define new-quantvars
-          (for/fold ([quantvars quantvars])
-                    ([decl decls])
-            (define new-quantvars (cons (car decl) quantvars))
-            (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)))  
-      (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
-     (node/expr/comprehension info len decls processed-form))])))
+     (define new-vs-and-decls
+       (for/fold ([vs-and-decls (list quantvars '())])
+                 ([decl decls])
+         (define curr-quantvars (first vs-and-decls))
+         (define curr-decls (second vs-and-decls))
+         (define new-quantvars (cons (car decl) quantvars))
+         (define new-decl-domain (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars))
+         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
+         (list new-quantvars new-decls)))
+     (define new-quantvars (first new-vs-and-decls))
+     (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
+       (define new-decls (second new-vs-and-decls))
+     (node/expr/comprehension info len new-decls processed-form))])))
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)
   (begin (printf "Interpreting expr op: ~a\n" expr)
@@ -222,14 +228,19 @@
     [(node/int/op info args)
      (interpret-int-op run-or-state expr relations atom-names quantvars args)]
     [(node/int/sum-quant info decls int-expr)
-    (define new-quantvars
-        (for/fold ([quantvars quantvars])
-                  ([decl decls])
-          (define new-quantvars (cons (car decl) quantvars))
-            (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)))
-      (let ([processed-int (interpret-int run-or-state int-expr relations atom-names new-quantvars)])
-      (node/int/sum-quant info decls processed-int))
-     (node/int/sum-quant info decls int-expr)])))
+     (define new-vs-and-decls
+       (for/fold ([vs-and-decls (list quantvars '())])
+                 ([decl decls])
+         (define curr-quantvars (first vs-and-decls))
+         (define curr-decls (second vs-and-decls))
+         (define new-quantvars (cons (car decl) quantvars))
+         (define new-decl-domain (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars))
+         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
+         (list new-quantvars new-decls)))
+     (define new-quantvars (first new-vs-and-decls))
+     (let ([processed-int (interpret-int run-or-state int-expr relations atom-names new-quantvars)])
+       (define new-decls (second new-vs-and-decls))
+      (node/int/sum-quant info new-decls processed-int))])))
 
 (define (interpret-int-op run-or-state expr relations atom-names quantvars args)
 (begin (printf "Interpreting int-op: ~a\n" expr)
