@@ -22,14 +22,30 @@
               #:options (forge:State-options empty-run-state)))
   (is-unsat? equiv-check-run))
 
-; substituting quantified variable nested within quantified expression
 (define quantified-for-quantified quantified_pre)
 ; variables need to be grabbed kind of manually
 (define quantvars-1 (node/formula/quantified-decls (node/formula/quantified-formula (car (node/formula/op-children
                         (car (node/formula/op-children (node/fmla/pred-spacer-expanded quantified-for-quantified))))))))
-(define var-to-sub-1 (car (car quantvars-1)))
-(define var-to-sub-2 (car (car (cdr quantvars-1))))
+(define var-to-sub-1-1 (car (car quantvars-1)))
+(define var-to-sub-1-2 (car (car (cdr quantvars-1))))
 (define quantified-for-quantified-result (substitute-formula run-statement quantified-for-quantified
-                        '() '() '() var-to-sub-1 var-to-sub-2))
-(printf "result: ~a~n: " quantified-for-quantified-result)
+                        '() '() '() var-to-sub-1-1 var-to-sub-1-2))
 (@check are-logically-equivalent/bounds? quantified-for-quantified-result quantified_post)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define quantified-for-int int_pre)
+(define var-to-sub-2-1 (car (node/int/op-children (car (node/formula/op-children (node/formula/quantified-formula (node/formula/quantified-formula (car (node/formula/op-children
+                        (car (node/formula/op-children (node/fmla/pred-spacer-expanded int_pre))))))))))))
+; fetching 'a' for the join expr
+(define quantvar-2 (car (car (node/formula/quantified-decls (car (node/formula/op-children
+                        (car (node/formula/op-children (node/fmla/pred-spacer-expanded int_pre)))))))))
+; I guess this weird way of creating the relation works, since the test passes....
+; This is helpful to now that rel is logically equivalent to Relation.
+; TODO: what is the 'parent' field of a relation?
+(define var-to-sub-2-2 (node/expr/op/join '() 2 (list quantvar-2 (node/expr/relation '() 1 'age (list 'Int) '() #f))))
+(define quantified-for-int-result (substitute-formula run-statement quantified-for-int
+                        '() '() '() var-to-sub-2-1 var-to-sub-2-2))
+(@check are-logically-equivalent/bounds? quantified-for-int-result int_pre)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
