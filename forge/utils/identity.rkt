@@ -40,7 +40,8 @@
         (for/fold ([quantvars quantvars])
                   ([decl decls])
           (define new-quantvars (cons (car decl) quantvars))
-          (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)))
+          (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)
+          new-quantvars))
       (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
       (node/formula/quantified info quantifier decls processed-form))]
     [(node/formula/sealed info)

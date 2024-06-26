@@ -13,7 +13,7 @@
   forge/sigs-structs
   forge/lang/ast
   forge/shared
-  (only-in racket index-of match string-join)
+  (only-in racket index-of match string-join first second rest)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->)))
 
@@ -31,7 +31,7 @@
       list?
       list?
       node?)
-  (begin (printf "Interpreting formula: ~a\n" formula)
+  (begin (printf "Interpreting formula: ~a; quantvars=~a\n" formula quantvars)
   (match formula
     [(node/formula/constant info type)
      (node/formula/constant info type)]    
@@ -43,13 +43,25 @@
     (let ([processed-expr (interpret-expr run-or-state expr relations atom-names quantvars)])
      (node/formula/multiplicity info mult processed-expr))]
     [(node/formula/quantified info quantifier decls form)
-    (define new-quantvars
-        (for/fold ([quantvars quantvars])
-                  ([decl decls])
-          (define new-quantvars (cons (car decl) quantvars))
-          (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)))
-      (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
-      (node/formula/quantified info quantifier decls processed-form))]
+     ; We want to make sure to we apply the replacement to the quantified variable's domain.
+     ; (In NNF, this is only important if it involves set comprehension, but in general we
+     ;  might be doing, e.g., substitution! So it's vital that this get substituted.)
+     ; But if a quantifier declares multiple variables, each preceding variable is in scope
+     ; for the domain of its successor! So we must fold over these, updating the environment...
+     (define new-vs-and-decls
+       (for/fold ([vs-and-decls (list quantvars '())])
+                 ([decl decls])
+         (define curr-quantvars (first vs-and-decls))
+         (define curr-decls (second vs-and-decls))
+         (define new-quantvars (cons (car decl) quantvars))
+         (define new-decl-domain (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars))
+         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
+         (list new-quantvars new-decls)))
+     ; We now have the full updated quantified variables list and the updated decls with new domains.
+     (define new-quantvars (first new-vs-and-decls))
+     (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
+       (define new-decls (second new-vs-and-decls))
+       (node/formula/quantified info quantifier decls processed-form))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
      ; TODO: Need to convert to node/formula/constant bool (maybe just use the true / false keyword constructors from ast)
