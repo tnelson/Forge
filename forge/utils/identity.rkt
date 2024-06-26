@@ -33,21 +33,18 @@
     [(node/formula/op info args)
      (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
     [(node/formula/multiplicity info mult expr)
-    ; Note - this could be losing information about expr ??
     (let ([processed-expr (interpret-expr run-or-state expr relations atom-names quantvars)])
      (node/formula/multiplicity info mult processed-expr))]
     [(node/formula/quantified info quantifier decls form)
-    (let ([processed-form (interpret-formula run-or-state form relations atom-names quantvars)])
       (define new-quantvars
         (for/fold ([quantvars quantvars])
                   ([decl decls])
           (define new-quantvars (cons (car decl) quantvars))
-          ; car decl is the name of the quantvar. the expr below is the type of the quantvar
           (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)))
+      (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
       (node/formula/quantified info quantifier decls processed-form))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
-    ; Handle Racket booleans, in case they appear
     [#t "true"]
     [#f "false"]
     )))
@@ -129,8 +126,14 @@
      (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
     [(node/expr/quantifier-var info arity sym name)  
      (node/expr/quantifier-var info arity sym name)]
-    [(node/expr/comprehension info len decls form)     
-     (node/expr/comprehension info len decls form)])))
+    [(node/expr/comprehension info len decls form)   
+      (define new-quantvars
+        (for/fold ([quantvars quantvars])
+                  ([decl decls])
+          (define new-quantvars (cons (car decl) quantvars))
+          (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)))  
+    (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
+     (node/expr/comprehension info len decls processed-form))])))
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)
   (begin (printf "Interpreting expr op: ~a\n" expr)
@@ -170,7 +173,13 @@
     [(node/int/op info args)
      (interpret-int-op run-or-state expr relations atom-names quantvars args)]
     [(node/int/sum-quant info decls int-expr)
-     (node/int/sum-quant info decls int-expr)])))
+    (define new-quantvars
+        (for/fold ([quantvars quantvars])
+                  ([decl decls])
+          (define new-quantvars (cons (car decl) quantvars))
+            (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)))
+      (let ([processed-int (interpret-int run-or-state int-expr relations atom-names new-quantvars)])
+      (node/int/sum-quant info decls processed-int))])))
 
 (define (interpret-int-op run-or-state expr relations atom-names quantvars args)
 (begin (printf "Interpreting int-op: ~a\n" expr)
@@ -193,9 +202,8 @@
      (node/int/op/abs info (process-children-int run-or-state args relations atom-names quantvars))]
     [(node/int/op/sign info children)
      (node/int/op/sign info (process-children-int run-or-state args relations atom-names quantvars))]
-    ; TODO: complicated one
     [(node/int/sum-quant info decls int-expr)
-     (node/int/sum-quant info decls int-expr)]
+     (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -22,7 +22,6 @@
 ; TODO: rename functions
 
 ; Translate a formula AST node
-; (define (interpret-formula run-or-state formula relations atom-names quantvars)  
 (define/contract (interpret-formula run-or-state formula relations atom-names quantvars)  
   (@-> (or/c Run? State? Run-spec?)
       node/formula?

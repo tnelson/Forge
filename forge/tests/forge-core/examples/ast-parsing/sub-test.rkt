@@ -7,15 +7,9 @@
 
 (run run-statement #:preds [])
 
-; pred sample_pet_substitution {
-;     all a : Person | some b : Pet | b.owner = a
-; }
-
-(define test_fmla (node/formula/quantified-formula (car (node/formula/op-children 
-                        (car (node/formula/op-children (node/fmla/pred-spacer-expanded sample_pet_substitution)))))))
-(define foo (node/formula/quantified-decls test_fmla))
-(printf "sample formula: ~a~n" test_fmla)
-(printf "sample decls: ~a~n" (car (car foo)))
-
-(format "Substituting b for c: ~a" (substitute-formula run-statement sample_pet_substitution 
-                        '() '() '() (car (car foo)) (node/expr/atom '() 1 'c)))
+; substituting quantified variable nested within quantified expression
+(define pred-1 sample_pet_substitution)
+(define var-to-sub-1 (car (car (node/formula/quantified-decls (node/formula/quantified-formula (car (node/formula/op-children
+                        (car (node/formula/op-children (node/fmla/pred-spacer-expanded pred-1))))))))))
+(format "Substituting b for c: ~a" (substitute-formula run-statement pred-1 
+                        '() '() '() var-to-sub-1 (node/expr/atom '() 1 'c)))

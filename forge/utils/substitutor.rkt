@@ -135,9 +135,6 @@
     [(node/expr/op info arity args)
      (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)]
     [(node/expr/quantifier-var info arity sym name)  
-      (printf "Interpreting quantifier-var: ~a\n" expr)
-      (printf "Expr name: ~a\n" sym)
-      (printf "Target name: ~a\n" (node/expr/quantifier-var-sym target))
      (if (equal? expr target) value expr)]
     [(node/expr/comprehension info len decls form)     
       (define new-quantvars
