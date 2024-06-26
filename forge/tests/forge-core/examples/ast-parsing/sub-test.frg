@@ -6,6 +6,10 @@ sig Pet {
     owner : lone Person
 }
 
-pred sample_pet_substitution {
-    all a : Person | some b : Pet | b.owner = a
+pred quantified_pre {
+    all a : Person | some b1, b2 : Pet | b1.owner = a
+}
+
+pred quantified_post {
+    all a : Person | some b1, b2 : Pet | b2.owner = a
 }

@@ -15,7 +15,8 @@
   forge/shared
   (only-in racket index-of match string-join first second rest)
   (only-in racket/contract define/contract or/c listof any/c)
-  (prefix-in @ (only-in racket/contract ->)))
+  (prefix-in @ (only-in racket/contract ->))
+  (prefix-in @ (only-in racket/base >=)) )
 
 (provide interpret-formula)
 
@@ -31,7 +32,8 @@
       list?
       list?
       node?)
-  (begin (printf "Interpreting formula: ~a; quantvars=~a\n" formula quantvars)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "to-nnf: interpret-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
      (node/formula/constant info type)]    
@@ -68,7 +70,7 @@
      ; and widen the contract to include racket bool on input
     [#t "true"]
     [#f "false"]
-    )))
+    ))
 
 (define (process-children-formula run-or-state children relations atom-names quantvars)
   (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) children))
@@ -92,7 +94,8 @@
   (node/formula/quantified info new-quantifier decls (node/formula/op/! info (list (interpret-formula run-or-state form relations atom-names quantvars)))))
 
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)
-  (begin (printf "Interpreting formula op: ~a\n" formula)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "to-nnf: interpret-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
       (node/formula/op/&& info (process-children-formula run-or-state args relations atom-names quantvars))]
@@ -147,17 +150,18 @@
     [(node/formula/op/int< info children)
       (node/formula/op/int< info (process-children-int run-or-state args relations atom-names quantvars))]
     [(node/formula/op/int= info children)
-     (node/formula/op/int= info (process-children-int run-or-state args relations atom-names quantvars))])))
+     (node/formula/op/int= info (process-children-int run-or-state args relations atom-names quantvars))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-expr run-or-state expr relations atom-names quantvars)
-  (begin (printf "Interpreting expr: ~a\n" expr)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+      (printf "to-nnf: interpret-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
-     (node/expr/relation info arity name typelist-thunk parent isvar)]
+     expr]
     [(node/expr/atom info arity name)
      (node/expr/atom info arity name)]
     [(node/expr/fun-spacer info arity name args result expanded)
@@ -188,10 +192,11 @@
      (define new-quantvars (first new-vs-and-decls))
      (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
        (define new-decls (second new-vs-and-decls))
-     (node/expr/comprehension info len new-decls processed-form))])))
+     (node/expr/comprehension info len new-decls processed-form))]))
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)
-  (begin (printf "Interpreting expr op: ~a\n" expr)
+    (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+      (printf "to-nnf: interpret-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
      (node/expr/op/+ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
@@ -214,14 +219,15 @@
     [(node/expr/op/++ info arity children)
      (node/expr/op/++ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
     [(node/expr/op/sing info arity children)
-     (node/expr/op/sing info arity (process-children-int run-or-state args relations atom-names quantvars))])))
+     (node/expr/op/sing info arity (process-children-int run-or-state args relations atom-names quantvars))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-int run-or-state expr relations atom-names quantvars)
-(begin (printf "Interpreting int: ~a\n" expr)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "to-nnf: interpret-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
      (node/int/constant info value)]
@@ -240,10 +246,11 @@
      (define new-quantvars (first new-vs-and-decls))
      (let ([processed-int (interpret-int run-or-state int-expr relations atom-names new-quantvars)])
        (define new-decls (second new-vs-and-decls))
-      (node/int/sum-quant info new-decls processed-int))])))
+      (node/int/sum-quant info new-decls processed-int))]))
 
 (define (interpret-int-op run-or-state expr relations atom-names quantvars args)
-(begin (printf "Interpreting int-op: ~a\n" expr)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "to-nnf: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
       (node/int/op/add info (process-children-int run-or-state args relations atom-names quantvars))]
@@ -265,6 +272,6 @@
      (node/int/op/sign info (process-children-int run-or-state args relations atom-names quantvars))]
     [(node/int/sum-quant info decls int-expr)
     (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
-    )))
+    ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
