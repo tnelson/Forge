@@ -92,10 +92,10 @@ pred expected_nnf {
 }
 
 pred complex_overall_formula {
-    not (some p: Person | p.age = 3 and p.parent.age > 5)
+    not (some p: Person | p.age = 3 and (all q: Person | q.parent.age > 5))
 }
 
 pred complex_expected_nnf {
-    all p: Person | p.age != 3 or p.parent.age <= 5
+    all p: Person | p.age != 3 or (some q: Person | q.parent.age <= 5)
 }
 

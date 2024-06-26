@@ -59,6 +59,26 @@
     (cons complex_expected_nnf "Testing Complex Expected NNF: Check if the NNF conversion holds for complex conditions")
   ))
 
+; Function to interpret two formula and check logical equivalence
+(define (perform-test/compare test-case)
+  (define formulas (car test-case))
+  (define description (cdr test-case))
+  (define formula1 (car formulas))
+  (define formula2 (cdr formulas))
+  (define formula1-result (interpret-formula run-statement formula1 '() '() '()))
+  (define formula2-result (interpret-formula run-statement formula2 '() '() '()))
+  (printf "Running comparision test: ~a\n" description)
+  (@check are-logically-equivalent/bounds? formula1-result formula2-result)
+  (printf "Comparision test completed: ~a\n\n" description))
+
+; Test cases for comparisions
+(define test-cases/compare
+  (list
+    (cons (cons overall_formula expected_nnf) "Comparing Overall Formula with Expected NNF")
+    (cons (cons complex_overall_formula complex_expected_nnf) "Comparing Complex Overall Formula with Expected NNF")
+  ))
+
 ; Run all test cases
 (for-each perform-test/bounded test-cases)
-
+; Run all comparison test cases
+(for-each perform-test/compare test-cases/compare)
