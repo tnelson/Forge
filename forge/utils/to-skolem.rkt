@@ -6,59 +6,114 @@
   forge/sigs-structs
   forge/lang/ast
   forge/shared
-  (only-in racket index-of match string-join first second rest)
+  forge/lang/bounds
+  forge/utils/substitutor
+  (only-in racket index-of match string-join first second rest flatten cartesian-product)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
   (prefix-in @ (only-in racket/base >=)))
-
 (provide interpret-formula)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Boolean formulas
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (create-run-with-bounds run-statement new-bounds)
+  (Run (Run-name run-statement) (Run-command run-statement) (Run-run-spec run-statement) 
+                         (Run-result run-statement) (Run-server-ports run-statement)
+                        (Run-atoms run-statement) (Run-kodkod-currents run-statement) new-bounds
+                        (Run-last-sterling-instance run-statement)))
+
+(define (find-upper-bound kodkod-bounds type)
+  (for/or ([bound kodkod-bounds])
+    (if (equal? (bound-relation bound) type)
+      (bound-upper bound)
+      #f)))
+
+(define (create-join-expr quantvars skolem-relation info)
+  (define join-rhs skolem-relation)
+  (for/fold ([join-rhs join-rhs])
+            ([quantvar quantvars])
+    (define new-join-expr (node/expr/op/join info 2 (list quantvar join-rhs)))
+    new-join-expr))
+
+(define (skolemize-formula run-or-state formula relations atom-names quantvars quantvar-types info quantifier decls form)
+    ; 1. check to see which universals we are in scope of from quantvars
+      ; AMENDMENT: this is just everything in quantvars.
+    (printf "quantvars at start of skolemization: ~a~n" quantvars)
+    (printf "types at start of skolemization: ~a~n" quantvar-types)
+    ; 2. define a new relation, which is a function from (universals) -> (type of the existential)
+    (define skolem-relation (node/expr/relation info (length quantvars) "temp" quantvar-types (list-ref quantvar-types 0) #f))
+    ; 3. fetch the upper bounds and the product them
+    (define kodkod-bounds (Run-kodkod-bounds run-or-state))
+    (define upper-bound-list (for/fold ([upper-bounds '()])
+              ([type quantvar-types])
+      (define type-upper-bound (find-upper-bound kodkod-bounds type))
+      (cons type-upper-bound upper-bounds)))
+    (printf "upper-bound-list: ~a~n" upper-bound-list)
+    (define skolem-upper-bound (apply cartesian-product (map flatten upper-bound-list)))
+    (printf "skolem-upper-bound: ~a~n" skolem-upper-bound)
+    ; 4. add that new relation to the bounds
+    (define skolem-bounds (make-bound skolem-relation '() skolem-upper-bound))
+    (define new-bounds (cons skolem-bounds (Run-kodkod-bounds run-or-state)))
+    (define new-run (create-run-with-bounds run-or-state new-bounds))
+    ; 5. invoke the substitutor on the formula, replacing the existential with the new relation applied to the universals
+    (define target (car (first decls)))
+    (printf "target: ~a~n" target)
+    ; TODO; I don't know if this join is correct
+    (define value (create-join-expr quantvars skolem-relation info))
+    (printf "value: ~a~n" value)
+    (substitute-formula run-or-state form relations atom-names quantvars target value)
+)
 
 ; Translate a formula AST node
-(define/contract (interpret-formula run-or-state formula relations atom-names quantvars)  
+(define/contract (interpret-formula run-or-state formula relations atom-names quantvars quantvar-types)  
   (@-> (or/c Run? State? Run-spec?)
       node/formula?
       list?
       list?
       list?
+      list?
       node?)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "identity: interpret-formula: ~a~n" formula))
+  (when (@>= (get-verbosity) 2)
+    (printf "to-skolem: interpret-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
      (node/formula/constant info type)]    
     [(node/fmla/pred-spacer info name args expanded)
-     (interpret-formula run-or-state expanded relations atom-names quantvars)]
+     (interpret-formula run-or-state expanded relations atom-names quantvars quantvar-types)]
     [(node/formula/op info args)
      (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
     [(node/formula/multiplicity info mult expr)
     (let ([processed-expr (interpret-expr run-or-state expr relations atom-names quantvars)])
      (node/formula/multiplicity info mult processed-expr))]
     [(node/formula/quantified info quantifier decls form)
-     (define new-vs-and-decls
-       (for/fold ([vs-and-decls (list quantvars '())])
+    ; if it is ALL, do the below as normal.
+    ; if it is SOME, we want to skolemize the formula. this involves a few steps which are listed in the helper function
+    (match quantifier
+     ['some (skolemize-formula run-or-state formula relations atom-names quantvars quantvar-types info quantifier decls form)]
+     [_ (define new-vs-decls-types
+       (for/fold ([vs-decls-types (list quantvars '() quantvar-types)])
                  ([decl decls])
-         (define curr-quantvars (first vs-and-decls))
-         (define curr-decls (second vs-and-decls))
+         (define curr-quantvars (first vs-decls-types))
+         (define curr-decls (second vs-decls-types))
          (define new-quantvars (cons (car decl) quantvars))
          (define new-decl-domain (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars))
          (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
-         (list new-quantvars new-decls)))
-     (define new-quantvars (first new-vs-and-decls))
-     (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
-       (define new-decls (second new-vs-and-decls))
-       (node/formula/quantified info quantifier new-decls processed-form))]
+         (define new-quantvar-types (cons (cdr decl) quantvar-types))
+         (list new-quantvars new-decls new-quantvar-types)))
+     (define new-quantvars (list-ref new-vs-decls-types 0))
+     (define new-quantvar-types (list-ref new-vs-decls-types 2))
+     (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars new-quantvar-types)])
+       (define new-decls (list-ref new-vs-decls-types 1))
+       (node/formula/quantified info quantifier new-decls processed-form))])]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
     [#t "true"]
     [#f "false"]
     ))
 
-(define (process-children-formula run-or-state children relations atom-names quantvars)
-  (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) children))
+(define (process-children-formula run-or-state children relations atom-names quantvars quantifiers)
+  (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars quantifiers)) children))
 
 (define (process-children-expr run-or-state children relations atom-names quantvars)
   (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) children))
@@ -67,41 +122,41 @@
   (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) children))
 
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "identity: interpret-formula-op: ~a~n" formula))
+  (when (@>= (get-verbosity) 2)
+    (printf "to-skolem: interpret-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
-      (node/formula/op/&& info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/&& info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/|| info children)
-     (node/formula/op/|| info (process-children-formula run-or-state args relations atom-names quantvars))]
+     (node/formula/op/|| info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/=> info children)
-     (node/formula/op/=> info (process-children-formula run-or-state args relations atom-names quantvars))]
+     (node/formula/op/=> info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/always info children)
-     (node/formula/op/always info (process-children-formula run-or-state args relations atom-names quantvars))]
+     (node/formula/op/always info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/eventually info children)
-     (node/formula/op/eventually info (process-children-formula run-or-state args relations atom-names quantvars))]
+     (node/formula/op/eventually info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/next_state info children)
-      (node/formula/op/next_state info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/next_state info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/releases info children)
-      (node/formula/op/releases info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/releases info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/until info children)
-     (node/formula/op/until info (process-children-formula run-or-state args relations atom-names quantvars))]
+     (node/formula/op/until info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/historically info children)
-      (node/formula/op/historically info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/historically info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/once info children)
-      (node/formula/op/once info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/once info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/prev_state info children)
-      (node/formula/op/prev_state info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/prev_state info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/since info children)
-      (node/formula/op/since info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/since info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/triggered info children)
-      (node/formula/op/triggered info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/triggered info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/in info children)
       (node/formula/op/in info (process-children-expr run-or-state args relations atom-names quantvars))]
     [(node/formula/op/= info children)
       (node/formula/op/= info (process-children-expr run-or-state args relations atom-names quantvars))]
     [(node/formula/op/! info children)
-      (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars))]
+      (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars '()))]
     [(node/formula/op/int> info children)
       (node/formula/op/int> info (process-children-int run-or-state args relations atom-names quantvars))]
     [(node/formula/op/int< info children)
@@ -114,17 +169,17 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-expr run-or-state expr relations atom-names quantvars)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-      (printf "identity: interpret-expr: ~a~n" expr))
+  (when (@>= (get-verbosity) 2)
+      (printf "to-skolem: interpret-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
-     (node/expr/relation info arity name typelist-thunk parent isvar)]
+     expr]
     [(node/expr/atom info arity name)
      (node/expr/atom info arity name)]
     [(node/expr/fun-spacer info arity name args result expanded)
      (interpret-expr run-or-state expanded relations atom-names quantvars)]
     [(node/expr/ite info arity a b c)  
-    (let ([processed-a (interpret-formula run-or-state a relations atom-names quantvars)]
+    (let ([processed-a (interpret-formula run-or-state a relations atom-names quantvars '())]
           [processed-b (interpret-expr run-or-state b relations atom-names quantvars)]
           [processed-c (interpret-expr run-or-state c relations atom-names quantvars)])
      (node/expr/ite info arity processed-a processed-b processed-c))]
@@ -147,13 +202,13 @@
          (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
          (list new-quantvars new-decls)))
      (define new-quantvars (first new-vs-and-decls))
-     (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars)])
+     (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars '())])
        (define new-decls (second new-vs-and-decls))
      (node/expr/comprehension info len new-decls processed-form))]))
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)
-    (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-      (printf "identity: interpret-expr-op: ~a~n" expr))
+    (when (@>= (get-verbosity) 2)
+      (printf "to-skolem: interpret-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
      (node/expr/op/+ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
@@ -183,8 +238,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-int run-or-state expr relations atom-names quantvars)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "identity: interpret-int: ~a~n" expr))
+  (when (@>= (get-verbosity) 2)
+    (printf "to-skolem: interpret-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
      (node/int/constant info value)]
@@ -206,8 +261,8 @@
       (node/int/sum-quant info new-decls processed-int))]))
 
 (define (interpret-int-op run-or-state expr relations atom-names quantvars args)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "identity: interpret-int-op: ~a~n" expr))
+  (when (@>= (get-verbosity) 2)
+    (printf "to-skolem: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
       (node/int/op/add info (process-children-int run-or-state args relations atom-names quantvars))]

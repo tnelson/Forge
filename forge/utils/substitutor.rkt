@@ -20,8 +20,6 @@
 ; Translate a formula AST node
 ; target - the node to be replaced
 ; value - the node to replace the target with
-; TODO: can't use straight up equals comparison, because of the info field.
-; or define a custom = function that only checks... arity and name?
 (define/contract (substitute-formula run-or-state formula relations atom-names quantvars target value)  
   (@-> (or/c Run? State? Run-spec?)
       node/formula?
@@ -32,7 +30,7 @@
       node? 
       node?)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "to-nnf: interpret-formula: ~a~n" formula))
+    (printf "substitutor: interpret-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
      (if (equal? formula target) value formula)]    
@@ -44,9 +42,6 @@
     (let ([processed-expr (substitute-expr run-or-state expr relations atom-names quantvars target value)])
      (node/formula/multiplicity info mult processed-expr))]
     [(node/formula/quantified info quantifier decls form)
-    ; how do we want to handle shadowing?
-    ; lucy reyes throws an error if a qv shadows target
-    ; and she also throws an error if a qv shadows an existing quantvar
     (define new-vs-and-decls
        (for/fold ([vs-and-decls (list quantvars '())])
                  ([decl decls])
@@ -77,7 +72,7 @@
 
 (define (substitute-formula-op run-or-state formula relations atom-names quantvars args target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "to-nnf: interpret-formula-op: ~a~n" formula))
+    (printf "substitutor: interpret-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
       (node/formula/op/&& info (process-children-formula run-or-state args relations atom-names quantvars target value))]
@@ -124,7 +119,7 @@
 
 (define (substitute-expr run-or-state expr relations atom-names quantvars target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-      (printf "to-nnf: interpret-expr: ~a~n" expr))
+      (printf "substitutor: interpret-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
      (if (equal? expr target) value expr)]
@@ -162,7 +157,7 @@
 
 (define (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)
     (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-      (printf "to-nnf: interpret-expr-op: ~a~n" expr))
+      (printf "substitutor: interpret-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
      (node/expr/op/+ info arity (process-children-expr run-or-state args relations atom-names quantvars target value))]
@@ -193,7 +188,7 @@
 
 (define (substitute-int run-or-state expr relations atom-names quantvars target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "to-nnf: interpret-int: ~a~n" expr))
+    (printf "substitutor: interpret-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
      (if (equal? expr target) value expr)]
@@ -216,7 +211,7 @@
 
 (define (substitute-int-op run-or-state expr relations atom-names quantvars args target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "to-nnf: interpret-int-op: ~a~n" expr))
+    (printf "substitutor: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
       (node/int/op/add info (process-children-int run-or-state args relations atom-names quantvars target value))]
