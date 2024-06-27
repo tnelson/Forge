@@ -1,6 +1,7 @@
 #lang racket/base
 
-; This file is intended to take in the Forge AST and return an identity translation of it.
+; This file is intended to take in the Forge AST and return a new AST with all existential quantifiers skolemized.
+; It also returns the kodkod-bounds object. 
 
 (require 
   forge/sigs-structs
@@ -42,7 +43,7 @@
     (printf "quantvars at start of skolemization: ~a~n" quantvars)
     (printf "types at start of skolemization: ~a~n" quantvar-types)
     ; 2. define a new relation, which is a function from (universals) -> (type of the existential)
-    (define skolem-relation (node/expr/relation info (length quantvars) "temp" quantvar-types (list-ref quantvar-types 0) #f))
+    (define skolem-relation (node/expr/relation info (length quantvars) "temp" (lambda () (map Sig-name quantvar-types)) (list-ref quantvar-types 0) #f))
     ; 3. fetch the upper bounds and the product them
     (define kodkod-bounds (Run-kodkod-bounds run-or-state))
     (define upper-bound-list (for/fold ([upper-bounds '()])
@@ -59,11 +60,11 @@
     ; 5. invoke the substitutor on the formula, replacing the existential with the new relation applied to the universals
     (define target (car (first decls)))
     (printf "target: ~a~n" target)
-    ; TODO; I don't know if this join is correct
     (define value (create-join-expr quantvars skolem-relation info))
     (printf "value: ~a~n" value)
-    (substitute-formula run-or-state form relations atom-names quantvars target value)
-)
+    (values (substitute-formula new-run form relations atom-names quantvars target value) new-bounds))
+
+(define current-bounds '())
 
 ; Translate a formula AST node
 (define/contract (interpret-formula run-or-state formula relations atom-names quantvars quantvar-types)  
@@ -73,47 +74,55 @@
       list?
       list?
       list?
-      node?)
+      (values node? list?))
   (when (@>= (get-verbosity) 2)
     (printf "to-skolem: interpret-formula: ~a~n" formula))
-  (match formula
-    [(node/formula/constant info type)
-     (node/formula/constant info type)]    
-    [(node/fmla/pred-spacer info name args expanded)
-     (interpret-formula run-or-state expanded relations atom-names quantvars quantvar-types)]
-    [(node/formula/op info args)
-     (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
-    [(node/formula/multiplicity info mult expr)
-    (let ([processed-expr (interpret-expr run-or-state expr relations atom-names quantvars)])
-     (node/formula/multiplicity info mult processed-expr))]
-    [(node/formula/quantified info quantifier decls form)
-    ; if it is ALL, do the below as normal.
-    ; if it is SOME, we want to skolemize the formula. this involves a few steps which are listed in the helper function
-    (match quantifier
-     ['some (skolemize-formula run-or-state formula relations atom-names quantvars quantvar-types info quantifier decls form)]
-     [_ (define new-vs-decls-types
-       (for/fold ([vs-decls-types (list quantvars '() quantvar-types)])
-                 ([decl decls])
-         (define curr-quantvars (first vs-decls-types))
-         (define curr-decls (second vs-decls-types))
-         (define new-quantvars (cons (car decl) quantvars))
-         (define new-decl-domain (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars))
-         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
-         (define new-quantvar-types (cons (cdr decl) quantvar-types))
-         (list new-quantvars new-decls new-quantvar-types)))
-     (define new-quantvars (list-ref new-vs-decls-types 0))
-     (define new-quantvar-types (list-ref new-vs-decls-types 2))
-     (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars new-quantvar-types)])
-       (define new-decls (list-ref new-vs-decls-types 1))
-       (node/formula/quantified info quantifier new-decls processed-form))])]
-    [(node/formula/sealed info)
-     (node/formula/sealed info)]
-    [#t "true"]
-    [#f "false"]
-    ))
+  (set! current-bounds (Run-kodkod-bounds run-or-state))
+  (let ([resulting-formula 
+    (match formula
+      [(node/formula/constant info type)
+      (node/formula/constant info type)]    
+      [(node/fmla/pred-spacer info name args expanded)
+      (define-values (fmla bounds) (interpret-formula run-or-state expanded relations atom-names quantvars quantvar-types))
+      (set! current-bounds bounds)
+      fmla]
+      [(node/formula/op info args)
+      (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
+      [(node/formula/multiplicity info mult expr)
+      (let ([processed-expr (interpret-expr run-or-state expr relations atom-names quantvars)])
+      (node/formula/multiplicity info mult processed-expr))]
+      [(node/formula/quantified info quantifier decls form)
+      ; if it is ALL, do the below as normal.
+      ; if it is SOME, we want to skolemize the formula. this involves a few steps which are listed in the helper function
+      (match quantifier
+      ['some 
+          (define-values (fmla bounds) (skolemize-formula run-or-state formula relations atom-names quantvars quantvar-types info quantifier decls form))
+          (set! current-bounds bounds)
+          fmla]
+      [_ (define new-vs-decls-types
+        (for/fold ([vs-decls-types (list quantvars '() quantvar-types)])
+                  ([decl decls])
+          (define curr-quantvars (first vs-decls-types))
+          (define curr-decls (second vs-decls-types))
+          (define new-quantvars (cons (car decl) quantvars))
+          (define new-decl-domain (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars))
+          (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
+          (define new-quantvar-types (cons (cdr decl) quantvar-types))
+          (list new-quantvars new-decls new-quantvar-types)))
+      (define new-quantvars (list-ref new-vs-decls-types 0))
+      (define new-quantvar-types (list-ref new-vs-decls-types 2))
+      (let-values ([(processed-form bounds) (interpret-formula run-or-state form relations atom-names new-quantvars new-quantvar-types)])
+        (set! current-bounds bounds)
+        (define new-decls (list-ref new-vs-decls-types 1))
+        (node/formula/quantified info quantifier new-decls processed-form))])]
+      [(node/formula/sealed info)
+      (node/formula/sealed info)]
+      [#t "true"]
+      [#f "false"])]) 
+    (values resulting-formula current-bounds)))
 
 (define (process-children-formula run-or-state children relations atom-names quantvars quantifiers)
-  (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars quantifiers)) children))
+  (map (lambda (x) (define-values (fmla bounds) (interpret-formula run-or-state x relations atom-names quantvars quantifiers)) (set! current-bounds bounds) fmla) children))
 
 (define (process-children-expr run-or-state children relations atom-names quantvars)
   (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) children))
@@ -179,9 +188,10 @@
     [(node/expr/fun-spacer info arity name args result expanded)
      (interpret-expr run-or-state expanded relations atom-names quantvars)]
     [(node/expr/ite info arity a b c)  
-    (let ([processed-a (interpret-formula run-or-state a relations atom-names quantvars '())]
-          [processed-b (interpret-expr run-or-state b relations atom-names quantvars)]
-          [processed-c (interpret-expr run-or-state c relations atom-names quantvars)])
+    (let-values ([(processed-a bounds) (interpret-formula run-or-state a relations atom-names quantvars '())]
+          [(processed-b) (interpret-expr run-or-state b relations atom-names quantvars)]
+          [(processed-c) (interpret-expr run-or-state c relations atom-names quantvars)])
+     (set! current-bounds bounds)
      (node/expr/ite info arity processed-a processed-b processed-c))]
     [(node/expr/constant info 1 'Int)
      (node/expr/constant info 1 'Int)]
@@ -202,8 +212,9 @@
          (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
          (list new-quantvars new-decls)))
      (define new-quantvars (first new-vs-and-decls))
-     (let ([processed-form (interpret-formula run-or-state form relations atom-names new-quantvars '())])
+     (let-values ([(processed-form bounds) (interpret-formula run-or-state form relations atom-names new-quantvars '())])
        (define new-decls (second new-vs-and-decls))
+       (set! current-bounds bounds)
      (node/expr/comprehension info len new-decls processed-form))]))
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)

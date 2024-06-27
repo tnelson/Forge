@@ -24,7 +24,9 @@
 
 (define first_pred quants)
 
-(printf "skolemized-fmla: ~a~n" (interpret-formula run-statement first_pred '() '() '() '()))
-; (@check are-logically-equivalent/bounds? skolemized-fmla quants_expected)
+
+(define-values (skolemized-fmla bounds) (interpret-formula run-statement first_pred '() '() '() '()))
+(printf "skolemized-fmla: ~a\n" skolemized-fmla)
+(printf "bounds: ~a\n" bounds)
 
 
