@@ -39,6 +39,12 @@
   [kind symbol?] ; symbol
   ) #:transparent)
 
+; For SMT backends only, may yield "unknown"
+(struct/contract Unknown (
+  [stats any/c]    ; data on performance, translation, etc. 
+  [metadata any/c] ; any solver-specific data provided about the unknown result
+  )#:transparent)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Sigs and Relations enrich the "relation" AST node with
 ; Forge-specific information, which often leads to added
@@ -573,6 +579,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define (is-unsat? run)
   (define first-instance (tree:get-value (Run-result run)))
   (Unsat? first-instance))
+
+; is-unknown? :: Run -> boolean
+; Checks if a given run result is 'unknown. This kind of result won't be given
+; by all kinds of solver backends, but some do produce it. 
+(define (is-unknown? run)
+  (define first-instance (tree:get-value (Run-result run)))
+  (Unknown? first-instance))
+
 
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)

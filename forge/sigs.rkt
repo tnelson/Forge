@@ -678,9 +678,10 @@
                 #:name 'name
                 #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
                               'name 'expected (if (Sat? first-instance) 'sat 'unsat)
+                              ; Report additional info for Sat and Unsat. If Unknown, report nothing.
                               (if (Sat? first-instance)
                                   (format " Found instance ~a" first-instance)
-                                  (if (Unsat-core first-instance)
+                                  (if (and (Unsat? first-instance) (Unsat-core first-instance))
                                       (format " Core: ~a" (Unsat-core first-instance))
                                       "")))
                 #:context loc

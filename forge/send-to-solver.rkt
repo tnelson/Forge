@@ -15,15 +15,15 @@
           racket/hash)
 (require (only-in syntax/srcloc build-source-location-syntax))
 
-(require (prefix-in pardinus: forge/pardinus-cli/server/kks)
-         (prefix-in pardinus: forge/pardinus-cli/server/server)
-         (prefix-in pardinus: forge/pardinus-cli/server/server-common)
-         )
-
+; Solver-specific backend initializer functions
+(require (prefix-in pardinus: (only-in forge/pardinus-cli/server/kks start-server)))
+(require (prefix-in smtlib: (only-in forge/solver-specific/cvc5-server start-server)))
 
 ; Separate solver-specific translation for each solver backend
 (require (only-in forge/solver-specific/pardinus
                   send-to-kodkod get-next-kodkod-model))
+(require (only-in forge/solver-specific/cvc5-tor
+                  send-to-cvc5-tor get-next-cvc5-tor-model))
 
 ; Disable DrRacket GUI extension/tool
 ;(require "drracket-gui.rkt")
@@ -147,6 +147,7 @@
   (define backend (get-option run-spec 'backend))
   (define-values (stdin stdout stderr shutdown is-running?) 
     (cond
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; if there is an active server state, and the server is running
       [(and (unbox server-state) ((Server-ports-is-running? (unbox server-state))))
        (define sstate (unbox server-state))
@@ -155,8 +156,17 @@
        (values (Server-ports-stdin sstate) (Server-ports-stdout sstate) 
                (Server-ports-stderr sstate) (Server-ports-shutdown sstate)
                (Server-ports-is-running? sstate))]
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ; Backend=Kodkod; server isn't active/running
       [(equal? backend 'kodkod)
-       (raise "Pure Kodkod backend is no longer supported; please use Pardinus backend.")]
+       (raise "Pure Kodkod backend is no longer supported; please use `pardinus` backend instead.")]
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ; Backend=smtlibtor; server isn't active/running
+      [(equal? backend 'smtlibtor)
+       (printf "Will use SMT-LIB-v2 output. This is experimental functionality. Please ensure that cvc5 is on your path.~n")
+       (smtlib:start-server 'stepper (get-option run-spec 'problem_type))]
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ; Backend=Pardinus; server isn't active/running
       [(equal? backend 'pardinus)
        (when (@>= (get-verbosity) VERBOSITY_HIGH)
          (printf "Starting/restarting Pardinus server (prior state=~a)...~n" (unbox server-state)))
@@ -165,6 +175,7 @@
         ; 'default, 'temporal, or 'target (tells Pardinus which solver to load,
         ;  and affects parsing so needs to be known at invocation time)
         (get-option run-spec 'problem_type))]
+
       [else (raise (format "Invalid backend: ~a" backend))]))
 
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
@@ -215,11 +226,21 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Beginning to send to solver. All type-checking must be complete _before_ this point.
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-  (define-values (all-rels core-map)
-    (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
-
-  (define get-next-model (lambda (mode) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))
+  
+  (define get-next-model
+    (cond [(equal? backend 'smtlibtor)
+           (begin
+             (define-values (all-rels core-map)
+               (send-to-cvc5-tor run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
+             (lambda (mode) (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]        
+          [(equal? backend 'pardinus)
+           (begin
+             (define-values (all-rels core-map)
+               (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
+             (lambda (mode) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]   
+          [else (raise (format "Invalid backend: ~a" backend))]))
+           
+     
   
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; DO NOT ADD MORE MESSAGES TO SOLVER AFTER THIS POINT

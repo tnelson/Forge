@@ -23,11 +23,10 @@
 (require forge/sigs-structs
          forge/lang/ast
          forge/shared)
-(require (prefix-in pardinus: forge/pardinus-cli/server/kks)
-         (prefix-in pardinus: forge/pardinus-cli/server/server)
-         (prefix-in pardinus: forge/pardinus-cli/server/server-common))
+(require (prefix-in pardinus: forge/pardinus-cli/server/kks))
 (require forge/translate-to-kodkod-cli
          forge/translate-from-kodkod-cli)
+
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
