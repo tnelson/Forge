@@ -31,9 +31,11 @@
     ; Supports only the default subtype at the moment. 
     (define solver-subtype-str (cond [(equal? solver-subtype 'default) ""]
                                      [else (error (format "Bad solver subtype: ~a" solver-subtype))]))
-    
-    (apply
-      subprocess #f #f #f (list "cvc5" "--incremental" "--interactive"))))
+    ; Find the cvc5 executable on the path
+    (define windows? (equal? (system-type) 'windows))
+    (define cvc5 (find-executable-path (if windows? "cvc5.exe" "cvc5")))
+    (printf "system type: ~a cvc5 path: ~a~n" (system-type) cvc5)
+    (apply subprocess #f #f #f cvc5 (list "--incremental" "--interactive"))))
 
 
 (define (start-server [solver-type 'stepper] [solver-subtype 'default])

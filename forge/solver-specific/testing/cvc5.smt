@@ -21,8 +21,8 @@
 (declare-const b3 B)
 (assert (distinct b0 b1 b2 b3))
 
-(check-sat)
-(get-model)
+;;(check-sat)
+;;(get-model)
 
 ;; --incremental
 ;; --quiet (doesn't avoid the license spam...)

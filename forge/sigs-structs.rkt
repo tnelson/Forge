@@ -10,11 +10,13 @@
 (require (prefix-in @ (only-in racket hash not +)) 
          (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
-(require racket/contract)
+(require racket/contract
+         racket/match)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
 (require (prefix-in tree: forge/lazy-tree))
 (require syntax/srcloc)
 (require (prefix-in pardinus: (only-in forge/pardinus-cli/server/kks clear cmd)))
+(require (prefix-in cvc5: (only-in forge/solver-specific/smtlib-shared smtlib-display)))
 
 (provide (all-defined-out))
 
@@ -50,7 +52,7 @@
 ; Forge-specific information, which often leads to added
 ; constraints.
 
-; DO NOT EXTEND THIS SIG
+; DO NOT EXTEND THIS STRUCT
 (struct Sig node/expr/relation (
   name ; symbol?
   one ; boolean?
@@ -62,7 +64,8 @@
   [(define (write-proc self port mode)
      (fprintf port "(Sig ~a)" (Sig-name self)))])
 
-; DO NOT EXTEND THIS SIG
+; DO NOT EXTEND THIS STRUCT
+; TODO: really this should be called "Field", since it represents that at the surface/core level.
 (struct Relation node/expr/relation (
   name ; symbol?
   sigs-thunks ; (listof (-> Sig?))
@@ -630,9 +633,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (add-closed-run-name! (Run-name run))
   
   ; Since we're using a single process now, send it instructions to clear this run
-  (pardinus:cmd 
-      [(get-stdin run)]
-      (pardinus:clear (Run-name run))))
+  ; Different backends will be cleared in different ways.
+  (define backend (get-option (Run-run-spec run) 'backend))
+  (match backend
+    ['pardinus
+     (pardinus:cmd [(get-stdin run)] (pardinus:clear (Run-name run)))]
+    ['smtlibtor
+     (cvc5:smtlib-display (get-stdin run) "(reset)")]
+    [else
+     (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
+                        #:context #f)]))
 
 ; is-running :: Run -> Boolean
 ; This reports whether the _solver server_ is running;
@@ -642,7 +652,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 (define (assert-is-running run)
   (unless (is-running? run)
-    (raise-user-error "KodKod/Pardinus solver process is not running.")))
+    (raise-user-error "Solver process is not running.")))
 
 (require (for-syntax syntax/srcloc)) ; for these macros
 

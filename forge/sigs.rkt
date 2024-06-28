@@ -336,7 +336,7 @@
          (~? super-sig)
          (update-state! (state-add-sig curr-state true-name name true-parent-name))))]))
 
-; Declare a new relation
+; Declare a new relation (should probably be called "field") 
 ; (relation name (sig1 sig2 sigs ...) [|| [#:is breaker] [#:is-var isv]])
 (define-syntax (relation stx)
   (syntax-parse stx
