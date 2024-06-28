@@ -90,7 +90,9 @@
      ; No statistics or metadata yet
      (begin
        (smtlib-display stdin "(get-model)")
-       (define model-string (read stdout))
+       (define model-s-expression (read stdout))
+       (for ([s-expr model-s-expression])
+         (printf "~a~n" s-expr))
        (Sat '() #f #f))]
     ['unsat
      ; No cores or statistics yet
