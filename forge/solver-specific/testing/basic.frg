@@ -2,8 +2,10 @@
 
 -- Test the SMT-LIB Theory-of-Relations translation
 option backend smtlibtor
--- Do not run Sterling (which will not yet get something it understands)
-option run_sterling off
+
+-- Sterling should now get a workable instance
+--option run_sterling off
+
 -- More debugging output
 option verbose 5 
 
@@ -21,3 +23,5 @@ test expect {
         some n: Node | all n2: Node | n in n2.^edges
     } is sat
 }
+
+run {}

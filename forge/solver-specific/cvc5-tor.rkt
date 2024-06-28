@@ -100,7 +100,7 @@
          (printf "~a~n" s-expr))
        ; Forge still uses the Alloy 6 modality overall: Sat structs contain a _list_ of instances,
        ; each corresponding to the state of the instance at a given time index. Here, just 1.
-       (define response (Sat (list (smtlib-tor-to-instance model-s-expression)) #f #f))
+       (define response (Sat (list (smtlib-tor-to-instance model-s-expression)) #f '()))
        (printf "~nSAT: ~a~n" response)
        response)]
     ['unsat
@@ -124,6 +124,10 @@
     (define-values (key value)
       (match part
 
+        ; Relational value: empty set
+        [(list (quote define-fun) ID (list) TYPE (list (quote as) (quote set.empty) ATOMTYPE))
+         (values ID '())]
+        
         ; Constant bindings to atoms: return unary relation of one tuple
         [(list (quote define-fun) ID (list) TYPE (list (quote as) ATOMID ATOMTYPE))
          (values ID (list (list (process-atom-id ATOMID))))]
@@ -132,10 +136,6 @@
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
          ;; TODO: look at bounds given and assemble the domain of this function, cross-product with value
          (values ID (list (list (process-atom-id ATOMID))))]
-
-        ; Relational value: empty set
-        [(list (quote define-fun) ID (list) TYPE (list (quote as) (quote set.empty) ATOMTYPE))
-         (values ID '(()))]
         
         ; Relational value: union (may contain any number of singletons)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.union) ARGS ...))
