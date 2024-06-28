@@ -11,7 +11,8 @@
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
-                         remove-duplicates subset? cartesian-product match-define cons? set-subtract)
+                         remove-duplicates subset? cartesian-product match-define cons? set-subtract
+                         string-replace)
           racket/hash
           racket/port)
 
@@ -72,7 +73,7 @@
   ;(define result (translate-from-cvc5 'run soln all-rels all-atoms))
 
   ; Mock an SMT-LIB input using theory of relations. Keep the port open!
-  (define mock-problem (port->string (open-input-file "cvc5.smt") #:close? #f))
+  (define mock-problem (port->string (open-input-file "own-grandpa.smt2" #;"cvc5.smt") #:close? #f))
   (smtlib-display stdin mock-problem)
   ; ASSUME: reply format is a single line for the result type, then
   ;   a paren-delimited s-expression with any output of that 
@@ -80,20 +81,28 @@
   (define sat-answer (read stdout))
 
   ;; TODO: stderr handling
+  ;; TODO: statistics: https://cvc5.github.io/docs/cvc5-1.0.2/statistics.html
   ;; TODO: extract instance
-  ;; TODO: close-run not via pardinus!!
-  ;; TODO: multiple runs? (start with just (clear)?)
+  ;; TODO: extract core
+
+  ;; Note: CVC5 interactive mode won't process newlines properly;
+  ;; https://github.com/cvc5/cvc5/issues/10414
+  ;; As of Jun 28 2024, need one command per line
   
   (define result
     (match sat-answer
     ['sat
-     ; No statistics or metadata yet
+     ; No statistics or metadata yet 
      (begin
        (smtlib-display stdin "(get-model)")
        (define model-s-expression (read stdout))
        (for ([s-expr model-s-expression])
          (printf "~a~n" s-expr))
-       (Sat '() #f #f))]
+       ; Forge still uses the Alloy 6 modality overall: Sat structs contain a _list_ of instances,
+       ; each corresponding to the state of the instance at a given time index. Here, just 1.
+       (define response (Sat (list (smtlib-tor-to-instance model-s-expression)) #f #f))
+       (printf "~nSAT: ~a~n" response)
+       response)]
     ['unsat
      ; No cores or statistics yet
      (Unsat #f #f 'unsat)]
@@ -103,3 +112,78 @@
     [else (raise-forge-error #:msg (format "Received unexpected response from CVC5: ~a" sat-answer)
                              #:context #f)]))
   result)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Converting SMT-LIB response expression into a Forge instance
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Building this up from running examples, so the cases may be a bit over-specific
+(define (smtlib-tor-to-instance model-s-expression)
+  (for/fold ([inst (hash)])
+            ([part model-s-expression])
+    (define-values (key value)
+      (match part
+
+        ; Constant bindings to atoms: return unary relation of one tuple
+        [(list (quote define-fun) ID (list) TYPE (list (quote as) ATOMID ATOMTYPE))
+         (values ID (list (list (process-atom-id ATOMID))))]
+
+        ; Uninterpreted function w/ constant value
+        [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
+         ;; TODO: look at bounds given and assemble the domain of this function, cross-product with value
+         (values ID (list (list (process-atom-id ATOMID))))]
+
+        ; Relational value: empty set
+        [(list (quote define-fun) ID (list) TYPE (list (quote as) (quote set.empty) ATOMTYPE))
+         (values ID '(()))]
+        
+        ; Relational value: union (may contain any number of singletons)
+        [(list (quote define-fun) ID (list) TYPE (list (quote set.union) ARGS ...))
+         ; A union may contain an inductive list built from singletons and unions,
+         ;   or multiple singletons within a single list. So pre-process unions
+         ;   and flatten to get a list of singletons.
+         (define singletons (apply append (map process-union-arg ARGS)))
+         (values ID (process-singleton-list singletons))]
+        
+        ; Relational value: singleton (should contain a single tuple)
+        [(list (quote define-fun) ID (list) TYPE (list (quote set.singleton) ARG))
+         (values ID (process-tuple ARG))]
+        
+        ; Catch-all; unknown format
+        [else
+         (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB: ~a" part)
+                            #:context #f)]))
+    (hash-set inst key value)))
+
+; Return a list containing singletons
+(define (process-union-arg arg)
+  (match arg
+    [(list (quote set.singleton) TUPLE)
+     (list arg)]
+    [(list (quote set.union) ARGS ...)
+     (apply append (map process-union-arg ARGS))]
+    [else
+     (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB (process-union-arg): ~a" arg)
+                        #:context #f)]))
+(define (process-singleton-list args)
+  (match args
+    ; a list of singletons (unions should be removed prior)
+    [(list (list (quote set.singleton) TUPLES) ...)
+     (map process-tuple TUPLES)]
+    [else
+     (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB (process-singleton-list): ~a" args)
+                        #:context #f)]))
+
+(define (process-tuple tup)
+  (match tup
+    [(list (quote tuple) (list (quote as) ATOMIDS ATOMTYPES) ...)
+     (map process-atom-id ATOMIDS)]))
+
+(define (process-atom-id atom-id)
+  (define string-atom-id (symbol->string atom-id))
+  (string->symbol
+   (string-replace (string-replace string-atom-id "@" "") "_" "$")))
+
+;(smtlib-tor-to-instance
+;'((define-fun spouse () (Set (Tuple Person Person)) (set.union (set.singleton (tuple (as @Person_0 Person) (as @Person_3 Person))) (set.union (set.singleton (tuple (as @Person_2 Person) (as @Person_1 Person))) (set.union (set.singleton (tuple (as @Person_3 Person) (as @Person_0 Person))) (set.singleton (tuple (as @Person_1 Person) (as @Person_2 Person)))))))
+;))
