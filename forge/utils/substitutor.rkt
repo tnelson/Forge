@@ -26,10 +26,10 @@
       list?
       list?
       list?
-      node? 
+      node?
       node? 
       node?)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+  (when (@>= (get-verbosity) 2)
     (printf "substitutor: interpret-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
@@ -71,7 +71,7 @@
   (map (lambda (x) (substitute-int run-or-state x relations atom-names quantvars target value)) children))
 
 (define (substitute-formula-op run-or-state formula relations atom-names quantvars args target value)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+  (when (@>= (get-verbosity) 2)
     (printf "substitutor: interpret-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
@@ -118,7 +118,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (substitute-expr run-or-state expr relations atom-names quantvars target value)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+  (when (@>= (get-verbosity) 2)
       (printf "substitutor: interpret-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
@@ -156,7 +156,7 @@
      (node/expr/comprehension info len new-decls processed-form))]))
 
 (define (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)
-    (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (when (@>= (get-verbosity) 2)
       (printf "substitutor: interpret-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
@@ -180,15 +180,18 @@
     [(node/expr/op/++ info arity children)
      (node/expr/op/++ info arity (process-children-expr run-or-state args relations atom-names quantvars target value))]
     [(node/expr/op/sing info arity children)
-     (node/expr/op/sing info arity (process-children-int run-or-state args relations atom-names quantvars target value))]))
+     (if (equal? (car children) target) value
+     (node/expr/op/sing info arity (process-children-int run-or-state args relations atom-names quantvars target value)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (substitute-int run-or-state expr relations atom-names quantvars target value)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+  (when (@>= (get-verbosity) 2)
     (printf "substitutor: interpret-int: ~a~n" expr))
+  ; TEMP fix to match int variables. Should probably modify process-children-int to handle constants.
+  (if (equal? expr target) value
   (match expr
     [(node/int/constant info value)
      (if (equal? expr target) value expr)]
@@ -207,10 +210,10 @@
      (define new-quantvars (first new-vs-and-decls))
      (let ([processed-int (substitute-int run-or-state int-expr relations atom-names new-quantvars target value)])
        (define new-decls (second new-vs-and-decls))
-      (node/int/sum-quant info new-decls processed-int))]))
+      (node/int/sum-quant info new-decls processed-int))])))
 
 (define (substitute-int-op run-or-state expr relations atom-names quantvars args target value)
-  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+  (when (@>= (get-verbosity) 2)
     (printf "substitutor: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
@@ -222,7 +225,7 @@
     [(node/int/op/divide info children)
     (node/int/op/divide info (process-children-int run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/sum info children)
-    (node/int/op/sum info (process-children-expr run-or-state args relations atom-names quantvars target value))]
+    (if (equal? expr target) value (node/int/op/sum info (process-children-expr run-or-state args relations atom-names quantvars target value)))]
     [(node/int/op/card info children)
     (node/int/op/card info (process-children-expr run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/remainder info children)

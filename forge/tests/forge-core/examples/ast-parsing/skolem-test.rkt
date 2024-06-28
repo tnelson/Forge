@@ -25,13 +25,13 @@
   (is-unsat? equiv-check-run))
 
 (define first_pred quants)
-
-
 (define-values (skolemized-fmla bounds) (interpret-formula run-statement first_pred '() '() '() '()))
 (printf "skolemized-fmla: ~a\n" skolemized-fmla)
 (printf "bounds: ~a\n" bounds)
 
-(define skolems (map (lambda (b) (forge:bound-relation b)) bounds))
-(are-logically-equivalent/bounds? first_pred skolemized-fmla skolems)
+(define second_pred single)
+(define-values (skolemized-fmla2 bounds2) (interpret-formula run-statement second_pred '() '() '() '()))
+(printf "skolemized-fmla: ~a\n" skolemized-fmla2)
+(printf "bounds: ~a\n" bounds2)
 
 

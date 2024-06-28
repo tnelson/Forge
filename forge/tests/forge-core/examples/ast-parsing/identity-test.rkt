@@ -3,7 +3,7 @@
 (require forge/utils/identity)
 (require "test.frg")
 
-(set-verbosity 0)
+(set-verbosity 2)
 
 
 (run run-statement #:preds [])

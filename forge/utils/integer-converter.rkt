@@ -1,11 +1,13 @@
 #lang racket/base
 
-; This file is intended to take in the Forge AST and return an identity translation of it.
+; This file is intended to take in the Forge AST and return the AST in a form where we have 
+; replaced integer expressions with an existential generation of the Int.
 
 (require 
   forge/sigs-structs
   forge/lang/ast
   forge/shared
+  forge/utils/substitutor
   (only-in racket index-of match string-join first second rest)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
@@ -25,8 +27,8 @@
       list?
       list?
       node?)
-  (when (@>= (get-verbosity) 2)
-    (printf "identity: interpret-formula: ~a~n" formula))
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "integer-converter: interpret-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
      (node/formula/constant info type)]    
@@ -66,9 +68,38 @@
 (define (process-children-int run-or-state children relations atom-names quantvars)
   (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) children))
 
+(define (reconcile-integer-expr run-or-state children relations atom-names quantvars info form)
+  ; sample: <= s.spent 15
+    ; exists x : Int | sing[x] in s.spent && x <= 15
+  ; we know we have an int expression.
+  ; quantified with children
+    ; and with children
+      ; in with children
+        ; sing[x]
+        ; initial child of the non-int-expr child of the thing passed in
+      ; SUBSTITUTED child of the thing passed in (subbing quantified var in for the thing we have 'in' before)
+    ; TODO: only works on 1 expr for now. If we have 2 exprs, we need to handle that (multiple quantvars...)
+  (define quantified-var (var 'x #:info info))
+  (define expr-to-use 
+    (for/or ([child children])
+    (if (node/int/op? child) (car (node/int/op-children child)) #f)))
+  (define expr-to-replace
+    (for/or ([child children])
+      (if (node/int/op? child) child #f)))
+  (node/formula/quantified info 'some (list (cons quantified-var 'Int)) 
+    (node/formula/op/&& info 
+      (list 
+        (node/formula/op/in info 
+          (list (node/expr/op/sing info 1 (list quantified-var)) expr-to-use))
+        (substitute-formula run-or-state form relations atom-names quantvars expr-to-replace quantified-var)
+      )
+    )
+  )
+)
+
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)
-  (when (@>= (get-verbosity) 2)
-    (printf "identity: interpret-formula-op: ~a~n" formula))
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "integer-converter: interpret-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
       (node/formula/op/&& info (process-children-formula run-or-state args relations atom-names quantvars))]
@@ -103,22 +134,22 @@
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars))]
     [(node/formula/op/int> info children)
-      (node/formula/op/int> info (process-children-int run-or-state args relations atom-names quantvars))]
+      (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op/int> info children))]
     [(node/formula/op/int< info children)
-      (node/formula/op/int< info (process-children-int run-or-state args relations atom-names quantvars))]
+      (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op/int< info children))]
     [(node/formula/op/int= info children)
-     (node/formula/op/int= info (process-children-int run-or-state args relations atom-names quantvars))]))
+     (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op/int= info children))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-expr run-or-state expr relations atom-names quantvars)
-  (when (@>= (get-verbosity) 2)
-      (printf "identity: interpret-expr: ~a~n" expr))
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+      (printf "integer-converter: interpret-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
-     (node/expr/relation info arity name typelist-thunk parent isvar)]
+     expr]
     [(node/expr/atom info arity name)
      (node/expr/atom info arity name)]
     [(node/expr/fun-spacer info arity name args result expanded)
@@ -152,8 +183,8 @@
      (node/expr/comprehension info len new-decls processed-form))]))
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)
-    (when (@>= (get-verbosity) 2)
-      (printf "identity: interpret-expr-op: ~a~n" expr))
+    (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+      (printf "integer-converter: interpret-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
      (node/expr/op/+ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
@@ -183,8 +214,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-int run-or-state expr relations atom-names quantvars)
-  (when (@>= (get-verbosity) 2)
-    (printf "identity: interpret-int: ~a~n" expr))
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "integer-converter: interpret-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
      (node/int/constant info value)]
@@ -206,8 +237,8 @@
       (node/int/sum-quant info new-decls processed-int))]))
 
 (define (interpret-int-op run-or-state expr relations atom-names quantvars args)
-  (when (@>= (get-verbosity) 2)
-    (printf "identity: interpret-int-op: ~a~n" expr))
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
+    (printf "integer-converter: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
       (node/int/op/add info (process-children-int run-or-state args relations atom-names quantvars))]
