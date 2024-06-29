@@ -64,16 +64,19 @@
     (printf "  ~a~n" constraint))
 
   ; Convert boxed integer references to existential quantifiers
-  (define step2 (map (lambda (f) ( boxed-int:interpret-formula run-spec f relations all-atoms '())) step1))
+  (define step2 (map (lambda (f) (boxed-int:interpret-formula run-spec f relations all-atoms '())) step1))
   (printf "~nStep 2 (post boxed-integer translation):~n")
   (for ([constraint step2])
     (printf "  ~a~n" constraint))
 
   ; Skolemize (2nd empty list = types for quantified variables, unneeded in other descents)
-  ;(define step3 (map (lambda (f) ( skolemize:interpret-formula run-spec f relations all-atoms '() '())) step2))
-  ;(printf "~nStep 3 (post Skolemization):~n")
-  ;(for ([constraint step3])
-  ;  (printf "  ~a~n" constraint))
+  ; Note that Skolemization changes the *final* bounds. There is no Run struct for this run yet;
+  ; it is only created after send-to-solver returns. So there is no "kodkod-bounds" field to start with.
+  ; Instead, start with the total-bounds produced.
+  (define step3 (map (lambda (f) (skolemize:interpret-formula run-spec total-bounds f relations all-atoms '() '())) step2))
+  (printf "~nStep 3 (post Skolemization):~n")
+  (for ([constraint step3])
+    (printf "  ~a~n" constraint))
   
   (printf "~nBounds:~n")
   (for ([bound total-bounds])

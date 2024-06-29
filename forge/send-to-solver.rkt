@@ -256,7 +256,8 @@
   (values results 
           all-atoms 
           (unbox server-state)
-          (Kodkod-current (length run-constraints) 0 0) 
+          (Kodkod-current (length run-constraints) 0 0)
+          ; This becomes the "kodkod-bounds" field of the Run that is eventually created.
           total-bounds))
 
 
