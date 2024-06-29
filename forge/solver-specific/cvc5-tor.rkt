@@ -73,7 +73,11 @@
   ; Note that Skolemization changes the *final* bounds. There is no Run struct for this run yet;
   ; it is only created after send-to-solver returns. So there is no "kodkod-bounds" field to start with.
   ; Instead, start with the total-bounds produced.
-  (define step3 (map (lambda (f) (skolemize:interpret-formula run-spec total-bounds f relations all-atoms '() '())) step2))
+  (define step3 (map (lambda (f)
+                       (define-values (resulting-formula new-bounds)
+                         (skolemize:interpret-formula run-spec total-bounds f relations all-atoms '() '()))
+                       resulting-formula) step2))
+  ;; TODO: WE ARE THROWING AWAY BOuNDS ABOVE; convert to fold
   (printf "~nStep 3 (post Skolemization):~n")
   (for ([constraint step3])
     (printf "  ~a~n" constraint))
