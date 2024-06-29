@@ -234,7 +234,8 @@
         
         ; Relational value: singleton (should contain a single tuple)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.singleton) ARG))
-         (values ID (process-tuple ARG))]
+         ; Wrap this tuple, because this is a singleton _set_
+         (values ID (list (process-tuple ARG)))]
         
         ; Catch-all; unknown format
         [else
@@ -268,8 +269,8 @@
 
 (define (process-atom-id atom-id)
   (define string-atom-id (symbol->string atom-id))
-  (string->symbol
-   (string-replace (string-replace string-atom-id "@" "") "_" "$")))
+   (string->symbol
+    (string-replace (string-replace string-atom-id "@" "") "_" "$")))
 
 ;(smtlib-tor-to-instance
 ;'((define-fun spouse () (Set (Tuple Person Person)) (set.union (set.singleton (tuple (as @Person_0 Person) (as @Person_3 Person))) (set.union (set.singleton (tuple (as @Person_2 Person) (as @Person_1 Person))) (set.union (set.singleton (tuple (as @Person_3 Person) (as @Person_0 Person))) (set.singleton (tuple (as @Person_1 Person) (as @Person_2 Person)))))))

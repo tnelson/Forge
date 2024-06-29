@@ -21,7 +21,10 @@ test expect {
     {
         -- for every node, there is some in-edge
         all n: Node | some n2: Node | n in n2.edges
-    } is sat
+        -- for every node, there are no in-edges
+        no n: Node  | some n2: Node | n in n2.edges
+    } is unsat
 }
 
-run {}
+-- Currently issue w/ mixing run + tests; Forge is not waiting.
+--run {}
