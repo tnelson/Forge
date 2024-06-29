@@ -49,10 +49,6 @@
 
 (define (deparen lst)
   (string-join lst " "))
-(define (sort-name-of str)
-  (if (equal? str "Int")
-      str
-      (format "~aSort" str)))
 
 (define (convert-bound b)
   ; TODO: for now, assume we have exact bounds, and just use the upper

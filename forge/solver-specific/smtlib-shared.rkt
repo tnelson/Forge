@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require forge/shared)
-(provide smtlib-display)
+(provide smtlib-display sort-name-of)
 
 ; For exporting to other modules, if they have the proper port (from State struct)
 (define (smtlib-display port msg)
@@ -12,3 +12,8 @@
   ; interactive mode: hit enter to begin processing
   (display "\n" port)
   (flush-output port))
+
+(define (sort-name-of str)
+  (if (equal? str "Int")
+      str
+      (format "~aSort" str)))

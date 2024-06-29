@@ -7,6 +7,7 @@
   forge/sigs-structs
   forge/lang/ast
   forge/shared
+  forge/solver-specific/smtlib-shared
   (only-in racket index-of match string-join first second rest)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
@@ -55,7 +56,7 @@
        (format "(~a (~a) ~a)"
                ; SMT-LIB uses "forall", not "all" and "exists", not "some"
                (if (equal? quantifier 'all) "forall" "exists")
-               (string-join (map (lambda (x) (format "(~a ~a)" (car x) (cdr x))) new-decls) " ")
+               (string-join (map (lambda (x) (format "(~a ~a)" (car x) (sort-name-of (cdr x)))) new-decls) " ")
                processed-form))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
