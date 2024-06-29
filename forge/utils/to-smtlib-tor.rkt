@@ -52,7 +52,11 @@
      (define new-quantvars (first new-vs-and-decls))
      (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars)])
        (define new-decls (second new-vs-and-decls))
-       (format "(~a (~a) ~a)" quantifier (string-join (map (lambda (x) (format "(~a ~a)" (car x) (cdr x))) new-decls) " ") processed-form))]
+       (format "(~a (~a) ~a)"
+               ; SMT-LIB uses "forall", not "all" and "exists", not "some"
+               (if (equal? quantifier 'all) "forall" "exists")
+               (string-join (map (lambda (x) (format "(~a ~a)" (car x) (cdr x))) new-decls) " ")
+               processed-form))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
     [#t "true"]

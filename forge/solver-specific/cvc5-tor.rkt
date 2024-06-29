@@ -136,8 +136,10 @@
 
   ; Now, convert bounds into SMT-LIB (theory of relations) and assert all formulas
 
-  ; preamble: theory etc.
-  (define preamble-str (format "(set-logic ALL)~n(set-option :produce-models true)~n(set-option :finite-model-find true)~n"))
+  ; preamble: the (reset) makes (set-logic ...) etc. not give an error on 2nd run
+  ; Note some other options are set in cvc5-server.rkt!
+  ; TODO: we shouldn't need to explicitly reset, but it isn't always being done
+  (define preamble-str (format "(reset)~n(set-logic ALL)~n"))
 
   ; converted bounds:
   (define bounds-str (string-join (map convert-bound step3-bounds) "\n"))
@@ -194,8 +196,10 @@
     ['unknown
      ; No statistics yet
      (Unknown #f #f)]
-    [else (raise-forge-error #:msg (format "Received unexpected response from CVC5: ~a" sat-answer)
-                             #:context #f)]))
+    [else
+     (printf "STDERR: ~a~n" (port->string stderr)) ;; TODO: will this block?
+     (raise-forge-error #:msg (format "Received unexpected response from CVC5: ~a" sat-answer)
+                        #:context #f)]))
   result)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
