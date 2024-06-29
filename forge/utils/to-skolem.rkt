@@ -5,7 +5,7 @@
 
 (require 
   forge/sigs-structs
-  forge/sigs-functional
+  ;forge/sigs-functional ; For KM: OK to remove this to avoid dependency cycle?
   forge/lang/ast
   forge/shared
   forge/lang/bounds

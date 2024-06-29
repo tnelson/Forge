@@ -6,7 +6,12 @@
          forge/lang/ast
          forge/shared
          forge/lang/bounds
-         forge/solver-specific/smtlib-shared)
+         forge/solver-specific/smtlib-shared
+         (prefix-in nnf: forge/utils/to-nnf)
+         (prefix-in boxed-int: forge/utils/integer-converter)
+         (prefix-in skolemize: forge/utils/to-skolem)
+         ;(prefix-in smt-tor: forge/utils/to-smtlib-tor)
+         )
 
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
@@ -34,7 +39,7 @@
     
   ; Send the problem spec to cvc5 via the stdin/out/err connection already opened
   ;; TODO: other arguments may be needed also
-  (define cvc5-command (translate-to-cvc5-tor total-bounds run-constraints))
+  (define cvc5-command (translate-to-cvc5-tor run-spec all-atoms all-rels total-bounds run-constraints))
 
   ; TODO: not yet implemented
   ;(smt5-display stdin cvc5-command)
@@ -43,18 +48,42 @@
   (values all-rels core-map))
 
 
-(define (translate-to-cvc5-tor total-bounds run-constraints)
+(define (translate-to-cvc5-tor run-spec all-atoms relations total-bounds step0)
   ; For now, just print constraints, etc. 
   (printf "Translating to CVC5 theory-of-relations~nConstraints:~n")
-  (for ([constraint run-constraints])
+
+  ; Last version pre-solver, pre-SMT conversion
+  (printf "~nStep 0 (from Forge):~n")
+  (for ([constraint step0])
     (printf "  ~a~n" constraint))
-  (printf "Bounds:~n")
+
+  ; Convert to negation normal form
+  (define step1 (map (lambda (f) (nnf:interpret-formula run-spec f relations all-atoms '())) step0))
+  (printf "~nStep 1 (post NNF conversion):~n")
+  (for ([constraint step1])
+    (printf "  ~a~n" constraint))
+
+  ; Convert boxed integer references to existential quantifiers
+  (define step2 (map (lambda (f) ( boxed-int:interpret-formula run-spec f relations all-atoms '())) step1))
+  (printf "~nStep 2 (post boxed-integer translation):~n")
+  (for ([constraint step2])
+    (printf "  ~a~n" constraint))
+
+  ; Skolemize (2nd empty list = types for quantified variables, unneeded in other descents)
+  ;(define step3 (map (lambda (f) ( skolemize:interpret-formula run-spec f relations all-atoms '() '())) step2))
+  ;(printf "~nStep 3 (post Skolemization):~n")
+  ;(for ([constraint step3])
+  ;  (printf "  ~a~n" constraint))
+  
+  (printf "~nBounds:~n")
   (for ([bound total-bounds])
     (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
     (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
 
   ; Here is where I'd plug in the conversion pipeline, based on the real solver problem.
 
+  
+  
   )
 
 ; No core support yet, see pardinus for possible approaches
