@@ -10,7 +10,7 @@
          (prefix-in nnf: forge/utils/to-nnf)
          (prefix-in boxed-int: forge/utils/integer-converter)
          (prefix-in skolemize: forge/utils/to-skolem)
-         ;(prefix-in smt-tor: forge/utils/to-smtlib-tor)
+         (prefix-in smt-tor: forge/utils/to-smtlib-tor)
          )
 
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
@@ -82,11 +82,17 @@
   (for ([constraint step3])
     (printf "  ~a~n" constraint))
   
-  (printf "~nBounds:~n")
+  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '())) step1))
+  (printf "~nStep 4 (post SMT-LIB conversion):~n")
+  (for ([constraint step4])
+    (printf "  ~a~n" constraint))
+
+  (printf "~nBounds (post Skolemization):~n")
   (for ([bound total-bounds])
     (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
     (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
 
+  
   ; Here is where I'd plug in the conversion pipeline, based on the real solver problem.
 
   
