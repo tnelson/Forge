@@ -35,7 +35,8 @@
     (define windows? (equal? (system-type) 'windows))
     (define cvc5 (find-executable-path (if windows? "cvc5.exe" "cvc5")))
     (printf "system type: ~a cvc5 path: ~a~n" (system-type) cvc5)
-    (apply subprocess #f #f #f cvc5 (list "--incremental" "--interactive"))))
+    ; --sets-ext to use "extended set" operators, which help reconcile sets/relations
+    (apply subprocess #f #f #f cvc5 (list "--incremental" "--interactive" "--sets-ext"))))
 
 
 (define (start-server [solver-type 'stepper] [solver-subtype 'default])

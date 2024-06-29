@@ -127,7 +127,13 @@
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
-     (format "~a" name)]
+     (if (equal? name "Int")
+         ; *******
+         ; TODO: this is not correct *****
+         ;; ************
+         ;"(as set.universe (Set Int))"
+         "(as set.universe (Relation Int))"
+         (format "~a" name))]
     [(node/expr/atom info arity name)
      "TODO: ATOM"]
     [(node/expr/fun-spacer info arity name args result expanded)

@@ -40,15 +40,22 @@
 
 (define (skolemize-formula run-spec total-bounds formula relations atom-names quantvars quantvar-types info quantifier decls form)
     (printf "skolemize-formula: ~a ~a~n" formula quantvars)
+  ; RESTRICTION: Because we are mapping top-level sigs to sorts, we have no "univ".
+  ; Discuss. May be better to not use sorts (or worse).
+  ; TODO: *top level* only! Right now, all sorts get added (For KM: discuss)
+  (unless (Sig? (cdr (first decls)))
+    (raise-forge-error #:msg (format "Skolemization required a sig for quantifier domain of variable ~a; got ~a" (car (first decls)) (cdr (first decls)))
+                       #:context #f))
+  (define qdomain-sig (cdr (first decls)))
+  
     ; 1. check to see which universals we are in scope of from quantvars
       ; AMENDMENT: this is just everything in quantvars.
     ; 2. define a new relation, which is a function from (universals) -> (type of the existential)
     ; for name, could just do string-append $ <variable name that has gensym>
 
-    ;; For KM: We need to add the codomain as well.
-    ;;   Can we do any better than univ? Perhaps by doing what last-checker does?
-    (define codomain-type univ)
-    (define codomain-upper-bound (map list atom-names))
+    ;; For KM: We needed to add the codomain as well.
+    (define codomain-type qdomain-sig)
+    (define codomain-upper-bound (find-upper-bound total-bounds codomain-type))
   
     ; Fields for node/expr/relation: info arity name typelist-thunk parent is-variable
     (define skolem-relation (node/expr/relation
@@ -61,7 +68,7 @@
                              
                              ; Note: this *may* cause issues because 'univ is not a sig name. But we are already
                              ; past the last-checker etc.
-                             (lambda () (append (map Sig-name quantvar-types) (list 'univ)))
+                             (lambda () (append (map Sig-name quantvar-types) (list (Sig-name codomain-type))))
                              (if (empty? quantvar-types) codomain-type (list-ref quantvar-types 0))
                              #f))
     ; (define skolem-relation (make-relation 'temp-name (map (lambda (s) (thunk s)) quantvar-types)))
@@ -75,7 +82,6 @@
                  ([type quantvar-types])
          (define type-upper-bound (find-upper-bound kodkod-bounds type))
          (cons type-upper-bound upper-bounds))
-       ; The co-domain types' upper bounds (all-atoms, if univ)
        (list codomain-upper-bound)))
   
     ; For KM: just applying flatten here will eliminate the tuples entirely.
@@ -105,7 +111,8 @@
   
     ; 4. add that new relation to the bounds
     (define skolem-bounds (make-bound skolem-relation '() skolem-upper-bound))
-    (define new-bounds (cons skolem-bounds total-bounds))
+    ; Skolem bounds _at end_, so that CVC5 conversion doesn't need to hoist bounds for sigs
+    (define new-bounds (append total-bounds (list skolem-bounds)))
     ;(define new-run (create-run-with-bounds run-spec new-bounds))
 
     ; 5. invoke the substitutor on the formula, replacing the existential with the new relation applied to the universals

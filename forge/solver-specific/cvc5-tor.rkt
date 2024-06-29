@@ -47,6 +47,13 @@
   ; Done with the problem spec. Return any needed shared data specific to this backend.
   (values all-rels core-map))
 
+(define (deparen lst)
+  (string-join lst " "))
+(define (sort-name-of str)
+  (if (equal? str "Int")
+      str
+      (format "~aSort" str)))
+
 (define (convert-bound b)
   ; TODO: for now, assume we have exact bounds, and just use the upper
   ; For KM: let's discuss this!
@@ -60,19 +67,21 @@
      ""]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
-      ; For KM: what is the "sort" of Univ? (If we are saying "univ" for a sort name, it does)
-      ;     ^ Perhaps we can just restrict this to sig-bounded quantifiers?
-      (format "(declare-sort ~a 0)~n~a~n"
-              name
-              ; string-join to combine these without wrapping parens 
-              (string-join
-               (map (lambda (tup)
-                      (format "(declare-const ~a ~a)~n" (first tup) name))
-                    (bound-upper b))
-               ""))]
+     ; If we are declaring sigs as _sorts_, we need a separate relation to store
+     ; atoms of that sort that appear in the instance. (Note "Sort" suffix below)
+     ;; TODO: we should only declare top-level sigs as sorts
+     (format "(declare-sort ~aSort 0)~n~a~n(declare-fun ~a () (Relation ~aSort))"
+             ; Declare sort for this sig
+             name
+             ; Declare constant atoms for this sig
+             (deparen (map (lambda (tup)
+                             (format "(declare-const ~a ~aSort)~n" (first tup) name))
+                           (bound-upper b)))
+             ; Declare the "used" relation for this sig
+             name name)]
     ; Fields
     [else
-     (format "(declare-fun ~a () (Relation ~a))~n" name typenames)]))
+     (format "(declare-fun ~a () (Relation ~a))~n" name (deparen (map sort-name-of typenames)))]))
 
 (define (translate-to-cvc5-tor run-spec all-atoms relations total-bounds step0)
   ; For now, just print constraints, etc. 
@@ -159,7 +168,6 @@
 
   ;; TODO: stderr handling
   ;; TODO: statistics: https://cvc5.github.io/docs/cvc5-1.0.2/statistics.html
-  ;; TODO: extract instance
   ;; TODO: extract core
 
   ;; Note: CVC5 interactive mode won't process newlines properly;
