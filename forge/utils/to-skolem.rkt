@@ -13,7 +13,7 @@
   (only-in racket index-of match string-join first second rest flatten cartesian-product thunk empty?)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
-  (prefix-in @ (only-in racket/base >=)))
+  (prefix-in @ (only-in racket/base >= +)))
 (provide interpret-formula)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -45,31 +45,69 @@
     ; 2. define a new relation, which is a function from (universals) -> (type of the existential)
     ; for name, could just do string-append $ <variable name that has gensym>
 
+    ;; For KM: We need to add the codomain as well.
+    ;;   Can we do any better than univ? Perhaps by doing what last-checker does?
+    (define codomain-type univ)
+    (define codomain-upper-bound (map list atom-names))
+  
     ; Fields for node/expr/relation: info arity name typelist-thunk parent is-variable
     (define skolem-relation (node/expr/relation
                              info
-                             (length quantvars)
+                             (@+ (length quantvars) 1)
                              (string-append "$" (symbol->string (node/expr/quantifier-var-sym (car (first decls)))))
-                             ; For KM: I added a fallback if quantvar-types is empty
-                             ;   (i.e., if no universals wrapping this existential)
-                             ;   But shouldn't we know the type of it? To discuss.
-      ; For KM: what happens if there are multiple variables in the decl? This code seems to only get the
-      ;  first of them.
-                             (if (empty? quantvar-types) univ (lambda () (map Sig-name quantvar-types)))
-                             (if (empty? quantvar-types) univ (list-ref quantvar-types 0))
+                             
+                             ; For KM: what happens if there are multiple variables in the decl? This code seems
+                             ; to only get the first of them.
+                             
+                             ; Note: this *may* cause issues because 'univ is not a sig name. But we are already
+                             ; past the last-checker etc.
+                             (lambda () (append (map Sig-name quantvar-types) (list 'univ)))
+                             (if (empty? quantvar-types) codomain-type (list-ref quantvar-types 0))
                              #f))
     ; (define skolem-relation (make-relation 'temp-name (map (lambda (s) (thunk s)) quantvar-types)))
     ; 3. fetch the upper bounds and the product them
     (define kodkod-bounds total-bounds)
-    (define upper-bound-list (for/fold ([upper-bounds '()])
-              ([type quantvar-types])
-      (define type-upper-bound (find-upper-bound kodkod-bounds type))
-      (cons type-upper-bound upper-bounds)))
-    (define skolem-upper-bound (apply cartesian-product (map flatten upper-bound-list)))
+
+    (define upper-bound-list
+      (append
+       ; The domain types' upper bounds; each is a list-of-lists-of-atoms.
+       (for/fold ([upper-bounds '()])
+                 ([type quantvar-types])
+         (define type-upper-bound (find-upper-bound kodkod-bounds type))
+         (cons type-upper-bound upper-bounds))
+       ; The co-domain types' upper bounds (all-atoms, if univ)
+       (list codomain-upper-bound)))
+  
+    ; For KM: just applying flatten here will eliminate the tuples entirely.
+    ; We have something like this: '( (1 2 3) (4 5 6) )
+    ;   - outer list: set of tuples
+    ;   - inner lists: ordered tuples of atoms
+    ; This will work for arity > 1:
+    ;   > (apply cartesian-product '( (1 2 3) (4 5 6)) )
+    ; because it's equivalent to (cartesian-product '(1 2 3) '(4 5 6))
+    ;   '((1 4) (1 5) (1 6) (2 4) (2 5) (2 6) (3 4) (3 5) (3 6))
+    ; But not for arity 1:
+    ;  > (apply cartesian-product '( (1 2 3)) )
+    ;  '((1) (2) (3))
+    ;  > (apply cartesian-product '( (1) (2) (3)) )
+    ;  '((1 2 3))
+    ; ...because cartesian-product can also take a single list as its argument.
+    ; Fortunately, if arity = 1, then we don't need to do the cartesian product at all.
+  
+    ;(define skolem-upper-bound (apply cartesian-product (map flatten upper-bound-list)))
+    (define skolem-upper-bound
+      (if (empty? quantvar-types)
+          ; only one type
+          (first upper-bound-list)
+          ; otherwise, build product
+          (apply cartesian-product upper-bound-list)))
+    (printf "~nskolem-upper-bound: ~a~n" skolem-upper-bound)
+  
     ; 4. add that new relation to the bounds
     (define skolem-bounds (make-bound skolem-relation '() skolem-upper-bound))
     (define new-bounds (cons skolem-bounds total-bounds))
     ;(define new-run (create-run-with-bounds run-spec new-bounds))
+
     ; 5. invoke the substitutor on the formula, replacing the existential with the new relation applied to the universals
     (define target (car (first decls)))
     (define value (create-join-expr quantvars skolem-relation info))

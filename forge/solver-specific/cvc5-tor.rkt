@@ -17,7 +17,7 @@
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract
-                         string-replace)
+                         string-replace second)
           racket/hash
           racket/port)
 
@@ -73,22 +73,29 @@
   ; Note that Skolemization changes the *final* bounds. There is no Run struct for this run yet;
   ; it is only created after send-to-solver returns. So there is no "kodkod-bounds" field to start with.
   ; Instead, start with the total-bounds produced.
-  (define step3 (map (lambda (f)
-                       (define-values (resulting-formula new-bounds)
-                         (skolemize:interpret-formula run-spec total-bounds f relations all-atoms '() '()))
-                       resulting-formula) step2))
-  ;; TODO: WE ARE THROWING AWAY BOuNDS ABOVE; convert to fold
+  (define step3-both
+    (for/fold ([fs-and-bs (list '() total-bounds)])
+              ([f step2])
+      ; Accumulator starts with: no formulas, original total-bounds
+      (define-values (resulting-formula new-bounds)
+        (skolemize:interpret-formula run-spec (second fs-and-bs) f relations all-atoms '() '()))
+      ; Accumulator adds the skolemized formula, updated bounds
+      (list (cons resulting-formula (first fs-and-bs))
+            new-bounds)))
+  
+  (define step3 (first step3-both))
+  (define step3-bounds (second step3-both))
   (printf "~nStep 3 (post Skolemization):~n")
   (for ([constraint step3])
     (printf "  ~a~n" constraint))
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '())) step1))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '())) step3))
   (printf "~nStep 4 (post SMT-LIB conversion):~n")
   (for ([constraint step4])
     (printf "  ~a~n" constraint))
 
   (printf "~nBounds (post Skolemization):~n")
-  (for ([bound total-bounds])
+  (for ([bound step3-bounds])
     (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
     (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
 

@@ -19,8 +19,8 @@ test expect {
         some n: Node | some n2: Node | n2 not in n.^edges
     } is sat
     {
-        -- all can reach n
-        some n: Node | all n2: Node | n in n2.^edges
+        -- for every node, there is some in-edge
+        all n: Node | some n2: Node | n in n2.edges
     } is sat
 }
 
