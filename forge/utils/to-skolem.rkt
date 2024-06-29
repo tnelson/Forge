@@ -152,8 +152,13 @@
       ; if it is ALL, do the below as normal.
       ; if it is SOME, we want to skolemize the formula. this involves a few steps which are listed in the helper function
       (match quantifier
-      ['some 
-          (define-values (fmla bounds) (skolemize-formula run-spec total-bounds formula relations atom-names quantvars quantvar-types info quantifier decls form))
+      ['some
+          ; Make sure to skolemize the _inner_ formula as well, in case of multiple nested existentials.
+          (define-values (new-inner-form new-inner-bounds)
+            (interpret-formula run-spec total-bounds form relations atom-names quantvars quantvar-types))
+          ; Now skolemize, using the skolemized inner formula as the baseline
+          (define-values (fmla bounds)
+            (skolemize-formula run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info quantifier decls new-inner-form))
           (set! current-bounds bounds)
           fmla]
       [_ (define new-vs-decls-types
@@ -179,7 +184,7 @@
     (values resulting-formula current-bounds)))
 
 (define (process-children-formula run-spec total-bounds children relations atom-names quantvars quantvar-types)
-  (map (lambda (x) (define-values (fmla bounds) (interpret-formula total-bounds run-spec x relations atom-names quantvars quantvar-types)) (set! current-bounds bounds) fmla) children))
+  (map (lambda (x) (define-values (fmla bounds) (interpret-formula run-spec total-bounds x relations atom-names quantvars quantvar-types)) (set! current-bounds bounds) fmla) children))
 
 (define (process-children-expr run-spec total-bounds children relations atom-names quantvars)
   (map (lambda (x) (interpret-expr run-spec total-bounds x relations atom-names quantvars)) children))
