@@ -7,7 +7,7 @@ option backend smtlibtor
 -- option run_sterling off
 
 -- More debugging output
--- option verbose 5 
+option verbose 5 
 
 sig Node {edges: set Node}
 

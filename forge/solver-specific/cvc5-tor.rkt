@@ -38,10 +38,8 @@
   (define core-map (make-hash))
     
   ; Send the problem spec to cvc5 via the stdin/out/err connection already opened
-  ;; TODO: other arguments may be needed also
   (define cvc5-command (translate-to-cvc5-tor run-spec all-atoms all-rels total-bounds run-constraints))
-  (printf "~nCOMMAND:~n~a~n" cvc5-command)
-  ; TODO: not yet implemented
+  (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" cvc5-command)
   (smtlib-display stdin cvc5-command)
   
   ; Done with the problem spec. Return any needed shared data specific to this backend.
@@ -53,7 +51,7 @@
 (define (convert-bound b)
   ; TODO: for now, assume we have exact bounds, and just use the upper
   ; For KM: let's discuss this!
-  (printf "convert-bound: ~a~n" b)
+  ;(printf "convert-bound: ~a~n" b)
   (define name (relation-name (bound-relation b)))
   (define arity (relation-arity (bound-relation b)))
   (define typenames ((relation-typelist-thunk (bound-relation b))))
@@ -142,12 +140,15 @@
 
   ; converted formula:
   (define assertions-str (string-join (map (lambda (s) (format "(assert ~a)" s)) step4) "\n"))
+
+  ; DO NOT (check-sat) yet.
   
   (format "~a~n~a~n~a~n" preamble-str bounds-str assertions-str))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""])
-
+  (printf "Getting next model from CVC5...~n")
+  
   ; If the solver isn't running at all, error:
   (unless (is-running?)
     (raise-user-error "CVC5 server is not running."))
@@ -164,7 +165,6 @@
   (smtlib-display stdin "(check-sat)")
   (define sat-answer (read stdout))
 
-  ;; TODO: stderr handling
   ;; TODO: statistics: https://cvc5.github.io/docs/cvc5-1.0.2/statistics.html
   ;; TODO: extract core
 
@@ -179,8 +179,10 @@
      (begin
        (smtlib-display stdin "(get-model)")
        (define model-s-expression (read stdout))
+       (printf "----- RECEIVED -----~n")
        (for ([s-expr model-s-expression])
          (printf "~a~n" s-expr))
+       (printf "--------------------~n")
        ; Forge still uses the Alloy 6 modality overall: Sat structs contain a _list_ of instances,
        ; each corresponding to the state of the instance at a given time index. Here, just 1.
        (define response (Sat (list (smtlib-tor-to-instance model-s-expression)) #f '()))
