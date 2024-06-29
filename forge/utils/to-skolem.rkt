@@ -10,7 +10,7 @@
   forge/shared
   forge/lang/bounds
   forge/utils/substitutor
-  (only-in racket index-of match string-join first second rest flatten cartesian-product thunk)
+  (only-in racket index-of match string-join first second rest flatten cartesian-product thunk empty?)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
   (prefix-in @ (only-in racket/base >=)))
@@ -44,13 +44,19 @@
       ; AMENDMENT: this is just everything in quantvars.
     ; 2. define a new relation, which is a function from (universals) -> (type of the existential)
     ; for name, could just do string-append $ <variable name that has gensym>
+
+    ; Fields for node/expr/relation: info arity name typelist-thunk parent is-variable
     (define skolem-relation (node/expr/relation
                              info
                              (length quantvars)
-                             "temp"
-                             (lambda () (map Sig-name quantvar-types))
-                             ; For KM: what if this list is empty?
-                             (list-ref quantvar-types 0)
+                             (string-append "$" (symbol->string (node/expr/quantifier-var-sym (car (first decls)))))
+                             ; For KM: I added a fallback if quantvar-types is empty
+                             ;   (i.e., if no universals wrapping this existential)
+                             ;   But shouldn't we know the type of it? To discuss.
+      ; For KM: what happens if there are multiple variables in the decl? This code seems to only get the
+      ;  first of them.
+                             (if (empty? quantvar-types) univ (lambda () (map Sig-name quantvar-types)))
+                             (if (empty? quantvar-types) univ (list-ref quantvar-types 0))
                              #f))
     ; (define skolem-relation (make-relation 'temp-name (map (lambda (s) (thunk s)) quantvar-types)))
     ; 3. fetch the upper bounds and the product them
@@ -67,7 +73,7 @@
     ; 5. invoke the substitutor on the formula, replacing the existential with the new relation applied to the universals
     (define target (car (first decls)))
     (define value (create-join-expr quantvars skolem-relation info))
-    (values (substitute-formula run-spec new-bounds form relations atom-names quantvars target value) new-bounds))
+    (values (substitute-formula run-spec form relations atom-names quantvars target value) new-bounds))
 
 (define current-bounds '())
 
