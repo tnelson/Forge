@@ -17,7 +17,7 @@
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract
-                         string-replace second)
+                         string-replace second string-join)
           racket/hash
           racket/port)
 
@@ -40,13 +40,39 @@
   ; Send the problem spec to cvc5 via the stdin/out/err connection already opened
   ;; TODO: other arguments may be needed also
   (define cvc5-command (translate-to-cvc5-tor run-spec all-atoms all-rels total-bounds run-constraints))
-
+  (printf "~nCOMMAND:~n~a~n" cvc5-command)
   ; TODO: not yet implemented
-  ;(smt5-display stdin cvc5-command)
+  (smtlib-display stdin cvc5-command)
   
   ; Done with the problem spec. Return any needed shared data specific to this backend.
   (values all-rels core-map))
 
+(define (convert-bound b)
+  ; TODO: for now, assume we have exact bounds, and just use the upper
+  ; For KM: let's discuss this!
+  (printf "convert-bound: ~a~n" b)
+  (define name (relation-name (bound-relation b)))
+  (define arity (relation-arity (bound-relation b)))
+  (define typenames ((relation-typelist-thunk (bound-relation b))))
+  (cond
+    ; Don't declare Int at all
+    [(equal? name "Int")
+     ""]
+    ; Sigs: unary, and not a skolem name
+    [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
+      ; For KM: what is the "sort" of Univ? (If we are saying "univ" for a sort name, it does)
+      ;     ^ Perhaps we can just restrict this to sig-bounded quantifiers?
+      (format "(declare-sort ~a 0)~n~a~n"
+              name
+              ; string-join to combine these without wrapping parens 
+              (string-join
+               (map (lambda (tup)
+                      (format "(declare-const ~a ~a)~n" (first tup) name))
+                    (bound-upper b))
+               ""))]
+    ; Fields
+    [else
+     (format "(declare-fun ~a () (Relation ~a))~n" name typenames)]))
 
 (define (translate-to-cvc5-tor run-spec all-atoms relations total-bounds step0)
   ; For now, just print constraints, etc. 
@@ -99,12 +125,18 @@
     (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
     (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
 
-  
-  ; Here is where I'd plug in the conversion pipeline, based on the real solver problem.
+  ; Now, convert bounds into SMT-LIB (theory of relations) and assert all formulas
 
+  ; preamble: theory etc.
+  (define preamble-str (format "(set-logic ALL)~n(set-option :produce-models true)~n(set-option :finite-model-find true)~n"))
+
+  ; converted bounds:
+  (define bounds-str (string-join (map convert-bound step3-bounds) "\n"))
+
+  ; converted formula:
+  (define assertions-str (string-join (map (lambda (s) (format "(assert ~a)" s)) step4) "\n"))
   
-  
-  )
+  (format "~a~n~a~n~a~n" preamble-str bounds-str assertions-str))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""])
@@ -117,13 +149,9 @@
   (when (is-run-closed? run-name)
     (raise-user-error (format "Run ~a has been closed." run-name)))
     
-  ;(define sat? (smtlib-check-sat))
-  ;(define soln (if sat? (smtlib-get-model) #f))
-  ;(define result (translate-from-cvc5 'run soln all-rels all-atoms))
-
   ; Mock an SMT-LIB input using theory of relations. Keep the port open!
-  (define mock-problem (port->string (open-input-file "own-grandpa.smt2" #;"cvc5.smt") #:close? #f))
-  (smtlib-display stdin mock-problem)
+  ;(define mock-problem (port->string (open-input-file "own-grandpa.smt2" #;"cvc5.smt") #:close? #f))
+  ;(smtlib-display stdin mock-problem)
   ; ASSUME: reply format is a single line for the result type, then
   ;   a paren-delimited s-expression with any output of that 
   (smtlib-display stdin "(check-sat)")
