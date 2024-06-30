@@ -283,13 +283,20 @@
 
 (define (process-tuple tup)
   (match tup
-    [(list (quote tuple) (list (quote as) ATOMIDS ATOMTYPES) ...)
-     (map process-atom-id ATOMIDS)]))
+    ; Each atom may be an SMT-LIB "qualified identifier" or may be a raw value (e.g., an integer)
+    [(list (quote tuple) ATOMS ...)
+     (map process-atom ATOMS)]))
+(define (process-atom atom-expr)
+ (match atom-expr
+   [(list (quote as) ATOMID ATOMTYPE)
+     (process-atom-id ATOMID)]
+   [ATOMID
+     (process-atom-id ATOMID)]))
 
 (define (process-atom-id atom-id)
-  (define string-atom-id (symbol->string atom-id))
-   (string->symbol
-    (string-replace (string-replace string-atom-id "@" "") "_" "$")))
+  (define string-atom-id (format "~a" atom-id))
+  (string->symbol
+   (string-replace (string-replace string-atom-id "@" "") "_" "$")))
 
 ;(smtlib-tor-to-instance
 ;'((define-fun spouse () (Set (Tuple Person Person)) (set.union (set.singleton (tuple (as @Person_0 Person) (as @Person_3 Person))) (set.union (set.singleton (tuple (as @Person_2 Person) (as @Person_1 Person))) (set.union (set.singleton (tuple (as @Person_3 Person) (as @Person_0 Person))) (set.singleton (tuple (as @Person_1 Person) (as @Person_2 Person)))))))

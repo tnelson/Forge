@@ -47,6 +47,10 @@
   (unless (Sig? (cdr (first decls)))
     (raise-forge-error #:msg (format "Skolemization required a sig for quantifier domain of variable ~a; got ~a" (car (first decls)) (cdr (first decls)))
                        #:context #f))
+  ; RESTRICTION (temporary): quantifiers must be single-decl
+  (unless (equal? 1 (length decls))
+    (raise-forge-error #:msg "SMT backend (temporarily) requires all quantifiers to have a single decl."
+                       #:context formula))
   (define qdomain-sig (cdr (first decls)))
   
     ; 1. check to see which universals we are in scope of from quantvars

@@ -38,8 +38,11 @@
      (convert-formula-op run-or-state formula relations atom-names quantvars args)]
     [(node/formula/multiplicity info mult expr)
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars)])
+      (match mult
+        [no (format "(= set.empty ~a" processed-expr)]
+        [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
      ; I think these require specific cases... not sure which ones get desugared
-      "TODO: MULTIPLICITY")]
+      ;"TODO: MULTIPLICITY")]
     [(node/formula/quantified info quantifier decls form)
      (define new-vs-and-decls
        (for/fold ([vs-and-decls (list quantvars '())])
@@ -90,26 +93,38 @@
      (format "(or ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
     [(node/formula/op/=> info children)
      (format "(=> ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+
     [(node/formula/op/always info children)
-     (format "(always ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+     (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/eventually info children)
-     (format "(eventually ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+     (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/next_state info children)
-      (format "(next_state ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/releases info children)
-      (format "(releases ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/until info children)
-     (format "(until ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+     (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/historically info children)
-      (format "(historically ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/once info children)
-      (format "(once ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/prev_state info children)
-      (format "(prev_state ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/since info children)
-      (format "(since ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
     [(node/formula/op/triggered info children)
-      (format "(triggered ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars) " "))]
+      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context formula)]
+
     [(node/formula/op/in info children)
       (format "(set.subset ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars) " "))]
     [(node/formula/op/= info children)
@@ -182,9 +197,15 @@
     [(node/expr/op/& info arity children)
      (format "(set.inter ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars) " "))]
     [(node/expr/op/-> info arity children)
-     (format "(rel.product ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars) " "))]
+     ; rel.product in CVC5 is _binary_, not nary, so need to chain this.
+     (define child-strings (process-children-expr run-or-state args relations atom-names quantvars))
+     (define rest-string (for/fold ([acc (second child-strings)])
+                                   ([str (rest (rest child-strings))])
+                           (format "(rel.product ~a ~a)" acc str)))
+     (format "(rel.product ~a ~a)" (first child-strings) rest-string)]
     [(node/expr/op/prime info arity children)
-     "TODO: temporal ?"]
+     (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
+                        #:context expr)]
     [(node/expr/op/join info arity children)
      (format "(rel.join ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars) " "))]
     [(node/expr/op/^ info arity children)

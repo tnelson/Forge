@@ -12,6 +12,7 @@ option run_sterling off
 
 sig Node {edges: set Node}
 
+-- Test various quantifier patterns at skolem depth = 0 
 test expect {
     {
         -- all reachable from n
@@ -29,6 +30,36 @@ test expect {
         some n: Node  | some n2: Node | n in n2.edges
     } is unsat
 }
+
+
+/******************************************************************************/
+
+sig WeightedGraphNode {
+    weightedEdges: set WeightedGraphNode -> Int
+}
+fun connectivity: set WeightedGraphNode -> WeightedGraphNode {
+    weightedEdges.Int
+}
+
+-- Test Int in relation
+test expect {
+    {
+        -- Non-immediate connection between 2 different nodes
+        -- some disj w1, w2: WeightedGraphNode | w1 in w2.^connectivity and w1 not in w2.connectivity
+        -- ^ For now, need single decl per quantifier
+        some w1: WeightedGraphNode | some w2: WeightedGraphNode | w1 in w2.^connectivity and w1 not in w2.connectivity
+    } is sat
+    {
+        -- force a contradiction, confirm unsat
+        some w1: WeightedGraphNode | some w2: WeightedGraphNode | {
+            w1 in w2.^connectivity and w1 not in w2.connectivity
+            w1 not in w2.^connectivity 
+        }
+    } is unsat
+    
+}
+
+
 
 -- Currently issue w/ mixing run + tests; Forge is not waiting.
 --run {}
