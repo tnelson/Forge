@@ -91,7 +91,11 @@
   (map (lambda (x) (interpret-formula run-or-state (node/formula/op/! info (list x)) relations atom-names quantvars)) args))
 
 (define (negate-quantifier run-or-state new-quantifier decls form relations atom-names quantvars info)
-  (node/formula/quantified info new-quantifier decls (node/formula/op/! info (list (interpret-formula run-or-state form relations atom-names quantvars)))))
+  ; Called in a context like !(some ...) ~~~> (all !...).
+  ; NNF conversion thus needs to recur on the inner formula _including_ the negation.
+  (define negated-inner-form (node/formula/op/! info (list form)))
+  (define nnf-negated-inner-form (interpret-formula run-or-state negated-inner-form relations atom-names quantvars))
+  (node/formula/quantified info new-quantifier decls nnf-negated-inner-form))
 
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
@@ -137,7 +141,8 @@
         [(node/formula/op/! not-info not-children) (interpret-formula run-or-state (car not-children) relations atom-names quantvars)]
         ; Converting quantifiers to NNF
         [(node/formula/quantified quant-info quantifier decls form)
-          (match quantifier 
+          (match quantifier
+            ; !!! 
             ; not (all x | A) = some (x | not A)
             ['all (negate-quantifier run-or-state 'some decls form relations atom-names quantvars quant-info)]
             ; not (some x | A) = all (x | not A)

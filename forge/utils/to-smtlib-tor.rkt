@@ -132,15 +132,14 @@
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
-     (if (equal? name "Int")
-         ; *******
-         ; TODO: this is not correct *****
-         ;; ************
-         ;"(as set.universe (Set Int))"
-         "(as set.universe (Relation Int))"
-         (format "~a" name))]
+     ; Declared sigs <A> correspond to sort <ASort>, with <A> as a relation to 
+     ; denote which are used. In contrast, <Int> is the _sort_ in SMT. 
+     (cond [(equal? name "Int") "(as set.universe (Relation Int))"]
+           [(equal? #\$ (string-ref name 0)) (format "(set.singleton (tuple ~a))" name)]
+           [else (format "~a" name)])]
     [(node/expr/atom info arity name)
-     "TODO: ATOM"]
+     (raise-forge-error #:msg (format "direct atom references unsupported by SMT backend")
+                        #:context expr)]
     [(node/expr/fun-spacer info arity name args result expanded)
      (convert-expr run-or-state expanded relations atom-names quantvars)]
     [(node/expr/ite info arity a b c)  
@@ -149,6 +148,7 @@
           [processed-c (convert-expr run-or-state c relations atom-names quantvars)])
      (format "(ite ~a ~a ~a)" processed-a processed-b processed-c))]
     [(node/expr/constant info 1 'Int)
+     ; TODO: Is this production being used? 'Int is a symbol, not expanded to the Int sig?
      "TODO: EXPR CONSTANT? IDK WHAT THIS IS"]
     [(node/expr/constant info arity type)
      "TODO: ANOTHER EXPR CONSTANT? IDK WHAT THIS IS"]

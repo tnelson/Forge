@@ -13,7 +13,7 @@
   (only-in racket index-of match string-join first second rest flatten cartesian-product thunk empty?)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
-  (prefix-in @ (only-in racket/base >= +)))
+  (prefix-in @ (only-in racket/base >= + >)))
 (provide interpret-formula)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,7 +39,8 @@
     new-join-expr))
 
 (define (skolemize-formula run-spec total-bounds formula relations atom-names quantvars quantvar-types info quantifier decls form)
-    (printf "skolemize-formula: ~a ~a~n" formula quantvars)
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "skolemize-formula: ~a ~a~n" formula quantvars))
   ; RESTRICTION: Because we are mapping top-level sigs to sorts, we have no "univ".
   ; Discuss. May be better to not use sorts (or worse).
   ; TODO: *top level* only! Right now, all sorts get added (For KM: discuss)
@@ -107,7 +108,7 @@
           (first upper-bound-list)
           ; otherwise, build product
           (apply cartesian-product upper-bound-list)))
-    (printf "~nskolem-upper-bound: ~a~n" skolem-upper-bound)
+    ;(printf "~nskolem-upper-bound: ~a~n" skolem-upper-bound)
   
     ; 4. add that new relation to the bounds
     (define skolem-bounds (make-bound skolem-relation '() skolem-upper-bound))

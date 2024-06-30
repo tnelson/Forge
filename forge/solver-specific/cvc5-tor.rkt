@@ -73,30 +73,43 @@
                            (bound-upper b)))
              ; Declare the "used" relation for this sig
              name name)]
+    ; Skolem relation of arity 1
+    [(equal? (string-ref name 0) #\$)
+     ; Temporarily disable situations where Skolem relations would need to be non-nullary
+     ; this "as uninterpreted function" approach required us to wrap references to these
+     ; in (singleton (tuple ...)) in to-smtlib-tor.rkt.
+     (unless (equal? arity 1)
+       (raise-forge-error #:msg (format "SMT backend does not currently support problems that require Skolemization depth > 0; ~a had arity ~a." name arity)
+                          #:context #f))
+     (format "(declare-const ~a ~a)~n" name (deparen (map sort-name-of typenames)))]
     ; Fields
     [else
      (format "(declare-fun ~a () (Relation ~a))~n" name (deparen (map sort-name-of typenames)))]))
 
 (define (translate-to-cvc5-tor run-spec all-atoms relations total-bounds step0)
-  ; For now, just print constraints, etc. 
+  ; For now, just print constraints, etc.
+  (printf "~n********************************~n")
   (printf "Translating to CVC5 theory-of-relations~nConstraints:~n")
 
   ; Last version pre-solver, pre-SMT conversion
-  (printf "~nStep 0 (from Forge):~n")
-  (for ([constraint step0])
-    (printf "  ~a~n" constraint))
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "~nStep 0 (from Forge):~n")
+    (for ([constraint step0])
+      (printf "  ~a~n" constraint)))
 
   ; Convert to negation normal form
   (define step1 (map (lambda (f) (nnf:interpret-formula run-spec f relations all-atoms '())) step0))
-  (printf "~nStep 1 (post NNF conversion):~n")
-  (for ([constraint step1])
-    (printf "  ~a~n" constraint))
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "~nStep 1 (post NNF conversion):~n")
+    (for ([constraint step1])
+      (printf "  ~a~n" constraint)))
 
   ; Convert boxed integer references to existential quantifiers
   (define step2 (map (lambda (f) (boxed-int:interpret-formula run-spec f relations all-atoms '())) step1))
-  (printf "~nStep 2 (post boxed-integer translation):~n")
-  (for ([constraint step2])
-    (printf "  ~a~n" constraint))
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "~nStep 2 (post boxed-integer translation):~n")
+    (for ([constraint step2])
+      (printf "  ~a~n" constraint)))
 
   ; Skolemize (2nd empty list = types for quantified variables, unneeded in other descents)
   ; Note that Skolemization changes the *final* bounds. There is no Run struct for this run yet;
@@ -114,19 +127,20 @@
   
   (define step3 (first step3-both))
   (define step3-bounds (second step3-both))
-  (printf "~nStep 3 (post Skolemization):~n")
-  (for ([constraint step3])
-    (printf "  ~a~n" constraint))
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "~nStep 3 (post Skolemization):~n")
+    (for ([constraint step3])
+      (printf "  ~a~n" constraint)))
   
   (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '())) step3))
-  (printf "~nStep 4 (post SMT-LIB conversion):~n")
-  (for ([constraint step4])
-    (printf "  ~a~n" constraint))
-
-  (printf "~nBounds (post Skolemization):~n")
-  (for ([bound step3-bounds])
-    (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
-    (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "~nStep 4 (post SMT-LIB conversion):~n")
+    (for ([constraint step4])
+      (printf "  ~a~n" constraint))
+    (printf "~nBounds (post Skolemization):~n")
+    (for ([bound step3-bounds])
+      (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
+      (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound))))
 
   ; Now, convert bounds into SMT-LIB (theory of relations) and assert all formulas
 
@@ -179,16 +193,21 @@
      (begin
        (smtlib-display stdin "(get-model)")
        (define model-s-expression (read stdout))
-       (printf "----- RECEIVED -----~n")
-       (for ([s-expr model-s-expression])
-         (printf "~a~n" s-expr))
-       (printf "--------------------~n")
+       (when (@> (get-verbosity) VERBOSITY_LOW)
+         (printf "----- RECEIVED -----~n")
+         (for ([s-expr model-s-expression])
+           (printf "~a~n" s-expr))
+         (printf "--------------------~n"))
+         
        ; Forge still uses the Alloy 6 modality overall: Sat structs contain a _list_ of instances,
        ; each corresponding to the state of the instance at a given time index. Here, just 1.
        (define response (Sat (list (smtlib-tor-to-instance model-s-expression)) #f '()))
-       (printf "~nSAT: ~a~n" response)
+       (when (@> (get-verbosity) VERBOSITY_LOW)
+         (printf "~nSAT: ~a~n" response))
        response)]
     ['unsat
+     (when (@> (get-verbosity) VERBOSITY_LOW)
+       (printf "~nUNSAT~n"))
      ; No cores or statistics yet
      (Unsat #f #f 'unsat)]
     ['unknown

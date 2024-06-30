@@ -12,7 +12,7 @@
 
 ; Error-checking constructors for bounds
 (define (make-bound relation lower upper)
-  (printf "make-bound; upper was: ~a~n" upper)
+  ;(printf "make-bound; upper was: ~a~n" upper)
   (for ([t (in-list lower)])
     (unless (and (list? t) (= (length t) (relation-arity relation)))
       (raise-arguments-error 'make-bound (format "lower bounds must contain tuples of arity ~a" (relation-arity relation)) "lower" t)))
