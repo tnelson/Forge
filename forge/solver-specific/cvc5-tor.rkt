@@ -162,10 +162,14 @@
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""])
   (printf "Getting next model from CVC5...~n")
-  
+
   ; If the solver isn't running at all, error:
   (unless (is-running?)
-    (raise-user-error "CVC5 server is not running."))
+    ; Note: we are not currently emptying stderr in the normal flow of operation.
+    (printf "Unexpected error: worker process was not running. Printing process output:~n")
+    (printf "  STDOUT: ~a~n" (port->string stdout #:close? #f)) 
+    (printf "  STDERR: ~a~n" (port->string stderr #:close? #f))
+    (raise-user-error "CVC5 server is not running. Could not get next instance."))
 
   ; If the solver is running, but this specific run ID is closed, user error
   (when (is-run-closed? run-name)
@@ -214,7 +218,9 @@
      ; No statistics yet
      (Unknown #f #f)]
     [else
-     (printf "STDERR: ~a~n" (port->string stderr)) ;; TODO: will this block?
+     (printf "Unexpected error: bad response from CVC5. Printing process output:~n")
+     (printf "  STDOUT: ~a~n" (port->string stdout #:close? #f)) 
+     (printf "  STDERR: ~a~n" (port->string stderr #:close? #f)) 
      (raise-forge-error #:msg (format "Received unexpected response from CVC5: ~a" sat-answer)
                         #:context #f)]))
   result)
