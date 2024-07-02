@@ -4,10 +4,10 @@
 ; and returns them in a list. The traversal order can be partly controlled:
 ; pre-order and post-order traversals are supported. Breadth-first traversals
 ; are not currently supported, since the recursive structure would differ.
-; Similarly, in-order traversal is not available since not all nodes are binary,
+; Similarly, "in-order" traversal is not available since not all nodes are binary,
 ; and most binary operators (e.g., boolean "and") have n-ary variants.
 
-; E.g., this utility might be used to collect all the quantifier variables used
+; This utility might be used to collect all the quantifier variables used
 ; in a Forge constraint. It is more similar to `map`+`filter` than `fold`; to
 ; count the number of nodes, one would collect a marker for every node and then
 ; get the length of that resulting list.
@@ -17,6 +17,10 @@
 ; be added to the result list, in the requested traversal order. If the matcher
 ; has side effects, pre/post-order call order is not guaranteed; only the list
 ; ordering of the results is guaranteed.
+
+; Also, the ordering of internal traversals is consistent, but not adjustable:
+; e.g., a quantified formula will always produce
+;   (append <new variables> <collected from domains> <collected from inner formula>) 
 
 ; Finally, duplicates will not be removed. E.g., collecting on (& iden iden) will
 ; produce `iden` twice in the resulting list unless the matcher prevents it.
@@ -77,17 +81,18 @@
     [(node/formula/quantified info quantifier decls form)
      
      (define new-vs-and-collected
-       (for/fold ([vs-and-collected (list quantvars '())])
+       (for/fold ([vs-and-collected (list '() '())])
                  ([decl decls])
-         (define curr-quantvars (first vs-and-collected))
-         (define new-quantvars (cons (car decl) curr-quantvars))
-         (define new-domain-collected (visit (cdr decl) new-quantvars matcher order collected))         
+         (define curr-new-quantvars (first vs-and-collected))
+         (define new-quantvars (cons (car decl) curr-new-quantvars))
+         (define new-domain-collected
+           (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected))         
          (list new-quantvars new-domain-collected)))
      
      (define new-quantvars (first new-vs-and-collected))
      (define new-domain-collected (second new-vs-and-collected))
-     (define form-collected (visit form new-quantvars matcher order collected))
-     (append new-domain-collected form-collected)]
+     (define form-collected (visit form (append new-quantvars quantvars) matcher order collected))
+     (append new-quantvars new-domain-collected form-collected)]
     [(node/formula/sealed info)
      (visit info quantvars matcher order collected)]
     [#t '()]
@@ -95,11 +100,12 @@
 
 (define (interpret-formula-op formula quantvars args matcher order collected)
   (define (process-children children quantvars)
-    (map (lambda (x) (visit x quantvars matcher order collected)) children))
+    (apply append (map (lambda (x) (visit x quantvars matcher order collected)) children)))
 
   (when (@>= (get-verbosity) 2)
     (printf "collector: interpret-formula-op: ~a~n" formula))
-  ; We could get away with only one case here, really, since there's no distinguishing.
+  ; We could get away with only one case here, really, since there's no distinguishing
+  ; but leaving the structure here for now in case we need it for any refinement.
   (match formula
     [(node/formula/op/&& info children)
       (process-children args quantvars)]
@@ -167,25 +173,29 @@
      (interpret-expr-op expr quantvars args matcher order collected)]
     [(node/expr/quantifier-var info arity sym name)  
      '()]
-    [(node/expr/comprehension info len decls form)   
+    [(node/expr/comprehension info len decls form)
      (define new-vs-and-collected
-       (for/fold ([vs-and-collected (list quantvars '())])
+       (for/fold ([vs-and-collected (list '() '())])
                  ([decl decls])
-         (define curr-quantvars (first vs-and-collected))
-         (define new-quantvars (cons (car decl) curr-quantvars))
-         (define new-domain-collected (visit (cdr decl) new-quantvars matcher order collected))
+         (define curr-new-quantvars (first vs-and-collected))
+         (define new-quantvars (cons (car decl) curr-new-quantvars))
+         (define new-domain-collected
+           (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected))         
          (list new-quantvars new-domain-collected)))
+     
      (define new-quantvars (first new-vs-and-collected))
-     (define domain-collected (second new-vs-and-collected))
-     (define inner-collected (visit form new-quantvars matcher order collected))
-     (append domain-collected inner-collected)]))
+     (define new-domain-collected (second new-vs-and-collected))
+     (define form-collected (visit form (append new-quantvars quantvars) matcher order collected))
+     (append new-quantvars new-domain-collected form-collected)]))
 
 (define (interpret-expr-op expr quantvars args matcher order collected)
   (define (process-children children quantvars)
-    (map (lambda (x) (visit x quantvars matcher order collected)) children))
+    (apply append (map (lambda (x) (visit x quantvars matcher order collected)) children)))
 
   (when (@>= (get-verbosity) 2)
     (printf "collector: interpret-expr-op: ~a~n" expr))
+  ; We could get away with only one case here, really, since there's no distinguishing
+  ; but leaving the structure here for now in case we need it for any refinement.
   (match expr
     [(node/expr/op/+ info arity children)
      (process-children args quantvars)]
@@ -224,23 +234,28 @@
      (interpret-int-op expr quantvars args matcher order collected)]
     [(node/int/sum-quant info decls int-expr)
      (define new-vs-and-collected
-       (for/fold ([vs-and-collected (list quantvars '())])
+       (for/fold ([vs-and-collected (list '() '())])
                  ([decl decls])
-         (define curr-quantvars (first vs-and-collected))
-         (define new-quantvars (cons (car decl) curr-quantvars))
-         (define new-domain-collected (visit (cdr decl) new-quantvars matcher order collected))
+         (define curr-new-quantvars (first vs-and-collected))
+         (define new-quantvars (cons (car decl) curr-new-quantvars))
+         (define new-domain-collected
+           (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected))         
          (list new-quantvars new-domain-collected)))
+    
      (define new-quantvars (first new-vs-and-collected))
-     (define domain-collected (second new-vs-and-collected))
+     (define new-domain-collected (second new-vs-and-collected))     
      (define inner-collected (visit int-expr new-quantvars matcher order collected))
-     (append domain-collected inner-collected)]))
+     (append new-quantvars new-domain-collected inner-collected)]))
 
 (define (interpret-int-op expr quantvars args matcher order collected)
   (define (process-children children quantvars)
-    (map (lambda (x) (visit x quantvars matcher order collected)) children))
+    (apply append (map (lambda (x) (visit x quantvars matcher order collected)) children)))
 
   (when (@>= (get-verbosity) 2)
     (printf "collector: interpret-int-op: ~a~n" expr))
+
+  ; We could get away with only one case here, really, since there's no distinguishing
+  ; but leaving the structure here for now in case we need it for any refinement.
   (match expr
     [(node/int/op/add info children)
      (process-children args quantvars)]
@@ -276,11 +291,14 @@
   (check-equal?
    (collect (some univ) (lambda (n) n) #:order 'post-order)
    (list univ (some univ)))
+  
   ; Get all nodes, pre-order
   (check-equal?
    (collect (some univ) (lambda (n) n) #:order 'pre-order)
    (list (some univ) univ))
-  ; Filter only expressions. Note that separate construction of quantifiers = different variables.
+  
+  ; Filter only expressions. Note that separate construction of quantifiers
+  ; produces different variables, hence the let*.
   (let* ([fmla (all ([x univ]) (some (& (-> x x) iden)))]
          [v (car (first (node/formula/quantified-decls fmla)))])
   (check-equal?
