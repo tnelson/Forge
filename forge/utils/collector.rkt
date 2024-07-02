@@ -78,21 +78,8 @@
      (interpret-formula-op formula quantvars args)]
     [(node/formula/multiplicity info mult expr)
      (visit expr quantvars matcher order collected)]
-    [(node/formula/quantified info quantifier decls form)
-     
-     (define new-vs-and-collected
-       (for/fold ([vs-and-collected (list '() '())])
-                 ([decl decls])
-         (define curr-new-quantvars (first vs-and-collected))
-         (define new-quantvars (cons (car decl) curr-new-quantvars))
-         (define new-domain-collected
-           (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected))         
-         (list new-quantvars new-domain-collected)))
-     
-     (define new-quantvars (first new-vs-and-collected))
-     (define new-domain-collected (second new-vs-and-collected))
-     (define form-collected (visit form (append new-quantvars quantvars) matcher order collected))
-     (append new-quantvars new-domain-collected form-collected)]
+    [(node/formula/quantified info quantifier decls inner-form)
+     (process-quant-shaped-node formula decls inner-form quantvars matcher order collected)]
     [(node/formula/sealed info)
      (visit info quantvars matcher order collected)]
     [#t '()]
@@ -173,20 +160,8 @@
      (interpret-expr-op expr quantvars args matcher order collected)]
     [(node/expr/quantifier-var info arity sym name)  
      '()]
-    [(node/expr/comprehension info len decls form)
-     (define new-vs-and-collected
-       (for/fold ([vs-and-collected (list '() '())])
-                 ([decl decls])
-         (define curr-new-quantvars (first vs-and-collected))
-         (define new-quantvars (cons (car decl) curr-new-quantvars))
-         (define new-domain-collected
-           (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected))         
-         (list new-quantvars new-domain-collected)))
-     
-     (define new-quantvars (first new-vs-and-collected))
-     (define new-domain-collected (second new-vs-and-collected))
-     (define form-collected (visit form (append new-quantvars quantvars) matcher order collected))
-     (append new-quantvars new-domain-collected form-collected)]))
+    [(node/expr/comprehension info len decls inner-form)
+     (process-quant-shaped-node expr decls inner-form quantvars matcher order collected)]))
 
 (define (interpret-expr-op expr quantvars args matcher order collected)
   (define (process-children children quantvars)
@@ -233,19 +208,22 @@
     [(node/int/op info args)
      (interpret-int-op expr quantvars args matcher order collected)]
     [(node/int/sum-quant info decls int-expr)
-     (define new-vs-and-collected
-       (for/fold ([vs-and-collected (list '() '())])
-                 ([decl decls])
-         (define curr-new-quantvars (first vs-and-collected))
-         (define new-quantvars (cons (car decl) curr-new-quantvars))
-         (define new-domain-collected
-           (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected))         
-         (list new-quantvars new-domain-collected)))
-    
-     (define new-quantvars (first new-vs-and-collected))
-     (define new-domain-collected (second new-vs-and-collected))     
-     (define inner-collected (visit int-expr new-quantvars matcher order collected))
-     (append new-quantvars new-domain-collected inner-collected)]))
+     (process-quant-shaped-node expr decls int-expr quantvars matcher order collected)]))
+
+(define (process-quant-shaped-node node decls inner-node quantvars matcher order collected)
+  (define new-vs-and-collected
+    (for/fold ([vs-and-collected (list '() '())])
+              ([decl decls])
+      (define curr-new-quantvars (first vs-and-collected))
+      (define new-quantvars (cons (car decl) curr-new-quantvars))
+      (define new-domain-collected
+        (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected))         
+      (list new-quantvars (append (second vs-and-collected) new-domain-collected))))
+  
+  (define new-quantvars (reverse (first new-vs-and-collected)))
+  (define new-domain-collected (second new-vs-and-collected))
+  (define inner-collected (visit inner-node new-quantvars matcher order collected))
+  (append new-quantvars new-domain-collected inner-collected))
 
 (define (interpret-int-op expr quantvars args matcher order collected)
   (define (process-children children quantvars)
@@ -301,8 +279,24 @@
   ; produces different variables, hence the let*.
   (let* ([fmla (all ([x univ]) (some (& (-> x x) iden)))]
          [v (car (first (node/formula/quantified-decls fmla)))])
-  (check-equal?
-   (collect fmla
-            (lambda (n) (if (node/expr? n) n #f)) #:order 'pre-order)
-   (list v univ (& (-> v v) iden) (-> v v) v v iden))))
+    (check-equal?
+     (collect fmla
+              (lambda (n) (if (node/expr? n) n #f)) #:order 'pre-order)
+     (list v univ (& (-> v v) iden) (-> v v) v v iden)))
+  
+  ; Confirm that multi-decl extraction works for the complex quantifier-shaped cases
+  ; which all invoke the process-quant-shaped-node helper
+  (let* ([expr (set ([x univ][y (& univ univ)]) (some (& (-> x y) iden)))]
+         [v1 (car (first (node/expr/comprehension-decls expr)))]
+         [v2 (car (second (node/expr/comprehension-decls expr)))])
+    (check-equal?
+     (collect expr (lambda (n) (if (node/expr/quantifier-var? n) n #f)) #:order 'pre-order)
+     (list v1 v2 v1 v2))
+    (check-equal?
+     (collect expr (lambda (n) (if (node/expr? n) n #f)) #:order 'pre-order)
+     (list expr
+           v1 v2
+           univ (& univ univ) univ univ
+           (& (-> v1 v2) iden) (-> v1 v2) v1 v2 iden))))
+  
 
