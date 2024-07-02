@@ -44,7 +44,7 @@
   ; RESTRICTION: Because we are mapping top-level sigs to sorts, we have no "univ".
   ; Discuss. May be better to not use sorts (or worse).
   ; TODO: *top level* only! Right now, all sorts get added (For KM: discuss)
-  (unless (Sig? (cdr (first decls)))
+  (unless (or (Sig? (cdr (first decls))) (equal? (cdr (first decls)) 'Int))
     (raise-forge-error #:msg (format "Skolemization required a sig for quantifier domain of variable ~a; got ~a" (car (first decls)) (cdr (first decls)))
                        #:context #f))
   ; RESTRICTION (temporary): quantifiers must be single-decl
@@ -171,7 +171,7 @@
                   ([decl decls])
           (define curr-quantvars (first vs-decls-types))
           (define curr-decls (second vs-decls-types))
-          (define new-quantvars (cons (car decl) quantvars))
+          (define new-quantvars (cons (car decl) curr-quantvars))
           (define new-decl-domain (interpret-expr run-spec total-bounds (cdr decl) relations atom-names new-quantvars))
           (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
           (define new-quantvar-types (cons (cdr decl) quantvar-types))
@@ -196,6 +196,13 @@
 
 (define (process-children-int run-spec total-bounds children relations atom-names quantvars)
   (map (lambda (x) (interpret-int run-spec total-bounds x relations atom-names quantvars)) children))
+
+(define (process-children-ambiguous run-or-state total-bounds children relations atom-names quantvars)
+  (for/list ([child children])
+    (match child
+      [(? node/formula? f) (interpret-formula run-or-state total-bounds f relations atom-names quantvars)]
+      [(? node/expr? e) (interpret-expr run-or-state total-bounds e relations atom-names quantvars)]
+      [(? node/int? i) (interpret-int run-or-state total-bounds i relations atom-names quantvars)])))
 
 (define (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types args)
   (when (@>= (get-verbosity) 2)
@@ -234,11 +241,11 @@
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types))]
     [(node/formula/op/int> info children)
-      (node/formula/op/int> info (process-children-int run-spec total-bounds args relations atom-names quantvars))]
+      (node/formula/op/int> info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars))]
     [(node/formula/op/int< info children)
-      (node/formula/op/int< info (process-children-int run-spec total-bounds args relations atom-names quantvars))]
+      (node/formula/op/int< info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars))]
     [(node/formula/op/int= info children)
-     (node/formula/op/int= info (process-children-int run-spec total-bounds args relations atom-names quantvars))]))
+     (node/formula/op/int= info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -309,7 +316,7 @@
     [(node/expr/op/++ info arity children)
      (node/expr/op/++ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars))]
     [(node/expr/op/sing info arity children)
-     (node/expr/op/sing info arity (process-children-int run-spec total-bounds args relations atom-names quantvars))]))
+     (node/expr/op/sing info arity (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions
