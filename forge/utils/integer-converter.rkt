@@ -86,7 +86,7 @@
   (define expr-to-replace
     (for/or ([child children])
       (if (node/int/op? child) child #f)))
-  (node/formula/quantified info 'some (list (cons quantified-var 'Int)) 
+  (node/formula/quantified info 'some (list (cons quantified-var Int)) 
     (node/formula/op/&& info 
       (list 
         (node/formula/op/in info 

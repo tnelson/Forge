@@ -2,7 +2,7 @@
 
 option backend smtlibtor 
 
-option run_sterling off
+// option run_sterling off
 
 option verbose 10
 
@@ -16,4 +16,4 @@ sig Animal {
 }
 
 
-run {some p : Person | no p.parent} 
+run {some p : Person | p.age > 18} 

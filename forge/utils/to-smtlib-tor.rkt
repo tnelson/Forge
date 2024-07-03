@@ -44,7 +44,7 @@
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
         ; crucially, we can't use 'processed-expr' in the get-k-bounds - we have to use the preprocessed so it has nodes, not strings
-        ['no (format "(= (as set.empty ~a) ~a))" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
+        ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         ['one (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)]
         ['some (format "(not (= (as set.empty ~a) ~a)"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         ['all (format "(= set.universe ~a)" processed-expr)]
@@ -98,14 +98,25 @@
   ; map each type to the respective upper bound
   (define nested-atoms-to-use (for/list ([bound bounds])
     (for/list ([type-union list-of-types])
-      (for/list ([type type-union] #:when (equal? (symbol->string type) (relation-name (bound-relation bound))))
+      (for/list ([type type-union] #:when (and (not (equal? type 'Int)) (equal? (symbol->string type) (relation-name (bound-relation bound)))))
           (bound-upper bound)
       )
     )
   ))
   ; probably want to remove duplicates but for now it's fine
   (define atoms-to-use (flatten nested-atoms-to-use))
-  (format "(or ~a)" (string-join (map (lambda (x) (format "(= ~a (set.singleton (tuple ~a)))" processed-expr x)) atoms-to-use)))
+  ; if we have an Int somewhere in the list, we don't want to enumerate the ints.
+  ; let's use a working example to figure out how we want to do this.
+  ; if we have F : A -> one Int, 
+  ; we want to check that the domain is only in A. 
+  ; so we should check that the domain is a subset of A.
+  ; but to do that we have to right join the relation :/ 
+  ; give me one second to check on ints.
+  (if (equal? (length atoms-to-use) 0)
+    ; temporary patch - just don't enumerate anything if it only contains ints
+    (format "true")
+    (format "(or ~a)" (string-join (map (lambda (x) (format "(= ~a (set.singleton (tuple ~a)))" processed-expr x)) atoms-to-use) " "))
+  )
 )
 
 (define (process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds)
@@ -186,6 +197,17 @@
 (define (deparen lst)
   (string-join (map (lambda (x) (format "~a" x)) lst) " "))
 
+(define (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)
+  (for/or ([bound bounds])
+    (if (equal? (bound-relation bound) expr)
+      (cond [(equal? (car ((relation-typelist-thunk (bound-relation bound)))) 'Int) 
+              (format "~a" (node/expr/relation-name expr))] 
+            [else (format "(set.singleton (tuple ~a))" (node/expr/relation-name expr))])
+      #f
+    )
+  )
+)
+
 (define (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)
   (when (@>= (get-verbosity) 2)
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
@@ -194,8 +216,12 @@
      ; Declared sigs are referred to as Atoms, so we refer to them as such
      ; Ints are separate
      (cond [(equal? name "Int") "(as set.universe (Relation Int))"]
-           ; Assuming tagging fun-spacers are being added, this should not be reached:
-           [(equal? #\$ (string-ref name 0)) (format "(set.singleton (tuple ~a))" name)]
+           ; Skolem relations are now handled in the fun-spacer case; this must be
+           ; a normal relation that, somehow, starts with $. So fail noisily; this shouldn't
+           ; actually be reachable code.
+           [(equal? #\$ (string-ref name 0))
+            (raise-forge-error #:msg (format "Unexpected reachable code; tagged skolem relation: ~a" expr)
+                               #:context expr)]
            [else (format "~a" name)])]
     [(node/expr/atom info arity name)
      (raise-forge-error #:msg (format "direct atom references unsupported by SMT backend")
@@ -209,7 +235,7 @@
             (define components (join->list/right expanded))
             (unless (and (node/expr/relation? (last components))
                          (equal? (node/expr/relation-name (last components)) (symbol->string name)))
-              (raise-forge-error #:msg (format "fun-spacer marker did not match: ~a vs. ~a" (last components) name)
+              (raise-forge-error #:msg (format "Skolem (function) fun-spacer marker did not match: ~a vs. ~a" (last components) name)
                                  #:context info))
             ;; replace (note: the arguments must be variables)
             (for ([a (drop-right components 1)])
@@ -218,9 +244,17 @@
                                    #:context a)))
             ; TODO: if used in an int context, do we want to wrap still?
             (format "(set.singleton (tuple (~a ~a)))" name (deparen (drop-right components 1)))]
+           [(equal? #\$ (string-ref (symbol->string name) 0))
+            (unless (and (node/expr/relation? expanded)
+                         (equal? (node/expr/relation-name expanded) (symbol->string name)))
+              (raise-forge-error #:msg (format "Skolem (constant) fun-spacer marker did not match: ~a vs. ~a" expanded name)
+                                 #:context info))
+            (format "(set.singleton (tuple ~a))" name)
+            ;[(equal? #\$ (string-ref name 0)) (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)]
+
+            ]
            [else
-            ; This is either not a Skolem function, or a *nullary* Skolem function, which can be
-            ; treated as a normal expression.
+            ; This is not a Skolem function; continue as normal.
             (convert-expr run-or-state expanded relations atom-names quantvars quantvar-types bounds)])]
     [(node/expr/ite info arity a b c)  
     (let ([processed-a (convert-formula run-or-state a relations atom-names quantvars quantvar-types bounds)]

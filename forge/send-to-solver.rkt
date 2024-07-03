@@ -638,6 +638,10 @@ Please declare a sufficient scope for ~a."
       ; Sub-optimal, because it points to the sig definition
       (define info (nodeinfo (nodeinfo-loc (node-info sig)) 'checklangNoCheck))
 
+      ; Do we need to enforce numeric scope by means other than bounds?
+      ; (This can sometimes happen when a sig extends another and there is ambiguity
+      ;  in how bounds should be resolved. e.g., sig A {} sig B extends A {}
+      ;  run {} for 4 A, 3 B.
       (append
         (if (@and int-lower (@> int-lower bound-lower-size))
             (let ()

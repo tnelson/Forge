@@ -16,6 +16,10 @@
 
 (provide interpret-formula skolemize-formula-helper)
 
+; Context for this recursive descent, with all arguments. 
+;(struct context (run-spec total-bounds formula relations atom-names
+;                          quantvars quantvar-types tag-with-spacer))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Boolean formulas
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -149,6 +153,13 @@
 
 (define current-bounds '())
 
+; Public wrapper for the recursive descent. 
+;(define (skolemize run-spec total-bounds formula relations atom-names
+;                   quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
+;  (interpret-formula (context run-spec total-bounds formula relations atom-names
+;                              quantvars quantvar-types tag-with-spacer)))
+
+
 ; Translate a formula AST node
 (define/contract (interpret-formula run-spec total-bounds formula relations atom-names
                                     quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])  
@@ -197,7 +208,7 @@
                 (define curr-quantvars (first vs-decls-types))
                 (define curr-decls (second vs-decls-types))
                 (define new-quantvars (cons (car decl) curr-quantvars))
-                (define new-decl-domain (interpret-expr run-spec total-bounds (cdr decl) relations atom-names new-quantvars tag-with-spacer))
+                (define new-decl-domain (interpret-expr run-spec total-bounds (cdr decl) relations atom-names new-quantvars new-quantvar-types #:tag-with-spacer tag-with-spacer))
                 (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
                 (define new-quantvar-types (cons (cdr decl) quantvar-types))
                 (list new-quantvars new-decls new-quantvar-types)))
@@ -290,9 +301,9 @@
     [(node/expr/fun-spacer info arity name args result expanded)
      (interpret-expr run-spec expanded relations atom-names quantvars tag-with-spacer)]
     [(node/expr/ite info arity a b c)  
-    (let-values ([(processed-a bounds) (interpret-formula run-spec total-bounds a relations atom-names quantvars '() tag-with-spacer)]
-          [(processed-b) (interpret-expr run-spec total-bounds b relations atom-names quantvars tag-with-spacer)]
-          [(processed-c) (interpret-expr run-spec total-bounds c relations atom-names quantvars tag-with-spacer)])
+     (let-values ([(processed-a bounds) (interpret-formula run-spec total-bounds a relations atom-names quantvars '() tag-with-spacer)]
+                  [(processed-b) (interpret-expr run-spec total-bounds b relations atom-names quantvars tag-with-spacer)]
+                  [(processed-c) (interpret-expr run-spec total-bounds c relations atom-names quantvars tag-with-spacer)])
      (set! current-bounds bounds)
      (node/expr/ite info arity processed-a processed-b processed-c))]
     [(node/expr/constant info 1 'Int)

@@ -20,7 +20,7 @@
       (format "~aSort" str)))
 
 (define (atom-or-int str)
-  (if (equal? str "Int")
+  (if (or (equal? str "Int") (equal? str 'Int))
       "Int"
       "Atom"))
 
