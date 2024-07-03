@@ -75,7 +75,7 @@
     [(node/fmla/pred-spacer info name args expanded)
      (visit expanded quantvars matcher order collected)]
     [(node/formula/op info args)
-     (interpret-formula-op formula quantvars args)]
+     (interpret-formula-op formula quantvars args matcher order collected)]
     [(node/formula/multiplicity info mult expr)
      (visit expr quantvars matcher order collected)]
     [(node/formula/quantified info quantifier decls inner-form)

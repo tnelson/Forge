@@ -314,3 +314,28 @@
     ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Detect if this join is the start of invoking a Skolem function
+;(define (skolem-call-detect-and-convert expr)
+  ; Is there a Skolem relation somewhere in the expr? What if there are multiple?
+  ;; e.g.:
+  ;;  all x: WNode | some y: WNode | some z: WNode | z.edges.(x.edges[y]) = Providence
+  ;;  which would be Alloy-style Skolemized:
+  ;;  all x: WNode | (x.$z).edges.(x.edges[(x.$y)]) = Providence
+  ;;  so we'd see something like: (x.$z).edges.((x.$y).(x.edges))
+  ;;  where:                      ******        ******
+  ;;  need to be converted to SMT function-invocation form.
+
+  ;; Is it worth spending the time to write this, vs. the easier relation/constraint-based
+  ;; approach? What do we expect to get out of it, performance-wise? No way to know.
+
+  ;; Could _collect_ matches, but what about matches internal to a match?
+  ;; Collector: node?, (node? -> any/c) -> list(any/c)
+  ;; #:order 'pre-order / 'in-order / 'post-order
+  ;;   Here, we'd want post-order, right? Higher match listed only after any sub-match.
+  ;) ; Cool function! But would it be directly applicable?
+  ;   b/c would we repeat it at EVERY node? That would be a waste. 
+
+; Alternative: if it's a nullary Skolem relation, use a constant and wrap in singleton-tuple.
+;   If it's >0-ary, use a _relation_, and add appropriate constraints. We'll just need to
+;   ground out universals (unless we write "only one value per input" differently).

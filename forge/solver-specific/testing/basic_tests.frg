@@ -5,7 +5,7 @@ option backend smtlibtor
 
 -- Sterling should now get a workable instance, but leaving it off here since we are testing
 -- soundness and completeness of the translation, not end-to-end functionality. 
-option run_sterling off
+-- option run_sterling off
 
 -- Enable for more debugging output
 option verbose 5
@@ -13,7 +13,7 @@ option verbose 5
 sig Node {edges: set Node}
 
 -- Test various quantifier patterns at skolem depth = 0 
-expect {
+test expect {
     {
         -- all reachable from n
         some n: Node | all n2: Node | n2 in n.^edges
@@ -42,7 +42,7 @@ fun connectivity: set WeightedGraphNode -> WeightedGraphNode {
 }
 
 -- Test Int in relation
-expect {
+test expect {
     {
         -- Non-immediate connection between 2 different nodes
         -- some disj w1, w2: WeightedGraphNode | w1 in w2.^connectivity and w1 not in w2.connectivity
@@ -68,10 +68,10 @@ expect {
 
 
 -- Currently issue w/ mixing run + tests; Forge is not waiting.
-run {
-    some w1: WeightedGraphNode | some w2: WeightedGraphNode | {
-          (w1.weightedEdges)[w2] != (w2.weightedEdges)[w1]
-          some (w1.weightedEdges)[w2]
-          some (w2.weightedEdges)[w1]
-    }
-}
+// run {
+//     some w1: WeightedGraphNode | some w2: WeightedGraphNode | {
+//           (w1.weightedEdges)[w2] != (w2.weightedEdges)[w1]
+//           some (w1.weightedEdges)[w2]
+//           some (w2.weightedEdges)[w1]
+//     }
+// }

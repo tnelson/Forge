@@ -573,8 +573,8 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/expr/relation info arity name typelist-thunk parent is-variable) self)
-     ;(fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent)
-     (fprintf port "(rel ~a)" name))]
+     (fprintf port "(relation ~a ~v ~a ~a)" arity name (typelist-thunk) parent))]
+     ;(fprintf port "(rel ~a)" name))]
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/relation))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/relation 0))
@@ -594,11 +594,12 @@
 
 ; Used by rel macro
 ; pre-functional: *also* used by Sig and relation macros in forge/core (sigs.rkt)
-(define (build-relation loc typelist parent [name #f] [is-var #f])
+(define (build-relation loc typelist parent [name #f] [is-var #f] [lang 'checklangplaceholder])
   (let ([name (cond [(false? name) 
                      (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))]
                      [(symbol? name) (symbol->string name)]
-                     [else name])]
+                     [(string? name) name]
+                     [else (error (format "build-relation expected name to be a string, symbol, or #f: ~a" name))])]
         [types (map (lambda (t)
                       (cond                        
                         [(string? t) t]
@@ -607,7 +608,7 @@
         [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
                                [(string? parent) parent]
                                [else (error (format "build-relation expected parent as either symbol or string"))])])    
-    (node/expr/relation (nodeinfo loc 'checklangplaceholder) (length types) name
+    (node/expr/relation (nodeinfo loc lang) (length types) name
                         (thunk types) scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields
