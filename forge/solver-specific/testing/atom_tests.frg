@@ -16,4 +16,4 @@ sig Animal {
 }
 
 
-run {some p : Person | no p.parent} 
+run {some p : Person | p.age > 18} 

@@ -799,6 +799,9 @@
        (cons (list var domain) quantvars))
      (void)]))
 
+; Do not check integer literals with respect to bitwidth for these backends
+(define UNBOUNDED_INT_BACKENDS '(smtlibtor))
+
 ; Is this integer literal safe under the current bitwidth?
 (define/contract (check-int-literal run-or-state expr)
   (@-> (or/c Run? State? Run-spec?)
@@ -806,17 +809,19 @@
        any)
 
   (define run-spec (get-run-spec run-or-state))
-  (define val (node/int/constant-value expr))
-  ; Note: get-scope will return number of int atoms, not the range we want. Hence, compute it ourselves.
-  (define max-int (sub1 (expt 2 (sub1 (get-bitwidth run-spec)))))
-  (define min-int (@- (expt 2 (sub1 (get-bitwidth run-spec)))))
-  (when (or (@> val max-int) (@> min-int val))
-    (raise-forge-error
-     #:msg (format "Integer literal (~a) could not be represented in the current bitwidth (~a through ~a)"
+  (define backend (get-option run-spec 'backend))
+  (unless (member backend UNBOUNDED_INT_BACKENDS)
+    (define val (node/int/constant-value expr))
+    ; Note: get-scope will return number of int atoms, not the range we want. Hence, compute it ourselves.
+    (define max-int (sub1 (expt 2 (sub1 (get-bitwidth run-spec)))))
+    (define min-int (@- (expt 2 (sub1 (get-bitwidth run-spec)))))
+    (when (or (@> val max-int) (@> min-int val))
+      (raise-forge-error
+       #:msg (format "Integer literal (~a) could not be represented in the current bitwidth (~a through ~a)"
                    val min-int max-int)
-     #:context expr))
-  (void))
-
+       #:context expr))
+    (void)))
+  
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Rackunit
