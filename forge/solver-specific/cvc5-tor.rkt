@@ -17,7 +17,7 @@
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract
-                         string-replace second string-join)
+                         string-replace second string-join take last)
           racket/hash
           racket/port)
 
@@ -102,15 +102,16 @@
              name
              (create-bound-membership b name)
              (relation-constraint b name))]
-    ; Skolem relation of arity 1
+    ; Skolem relation
     [(equal? (string-ref name 0) #\$)
-     ; Temporarily disable situations where Skolem relations would need to be non-nullary
-     ; this "as uninterpreted function" approach required us to wrap references to these
-     ; in (singleton (tuple ...)) in to-smtlib-tor.rkt.
-     (unless (equal? arity 1)
-       (raise-forge-error #:msg (format "SMT backend does not currently support problems that require Skolemization depth > 0; ~a had arity ~a." name arity)
-                          #:context #f))
-     (format "(declare-const ~a ~a)~n" name (deparen (map atom-or-int typenames)))]
+     (cond [(equal? arity 1)
+            (format "(declare-const ~a ~a)~n" name (deparen (map atom-or-int typenames)))]
+           [else
+            (define domain-typenames (take typenames (@- (length typenames) 1)))
+            (define codomain-typename (last typenames))
+            (format "(declare-fun ~a (~a) ~a)" name
+                    (deparen (map atom-or-int domain-typenames))
+                    (atom-or-int codomain-typename))])]
     ; Fields
     [else
     ; Fields are declared as relations of the appropriate arity of atoms or ints

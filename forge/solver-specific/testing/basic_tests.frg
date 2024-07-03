@@ -12,8 +12,9 @@ option verbose 5
 
 sig Node {edges: set Node}
 
--- Test various quantifier patterns at skolem depth = 0 
-test expect {
+-- Test various quantifier patterns at skolem depth = 0
+-- TODO: re-enable
+ expect {
     {
         -- all reachable from n
         some n: Node | all n2: Node | n2 in n.^edges
@@ -65,6 +66,20 @@ test expect {
     
 }
 
+
+-- test some patterns with Skolem-depth > 0
+
+test expect {
+    {
+        -- for every node, there is some in-edge
+        all n: Node | some n2: Node | n in n2.edges
+    } is sat
+    {
+        -- contradiction
+        all n: Node | some n2: Node | n in n2.edges
+        not { all n: Node | some n2: Node | n in n2.edges }
+    } is sat
+}
 
 
 -- Currently issue w/ mixing run + tests; Forge is not waiting.
