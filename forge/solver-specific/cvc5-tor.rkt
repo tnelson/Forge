@@ -48,6 +48,38 @@
 (define (deparen lst)
   (string-join lst " "))
 
+;; Helper function to declare constants for each upper bound element
+(define (const-declarations bound)
+         (deparen (map (lambda (tup)
+                         (format "(declare-const ~a Atom)~n" (first tup)))
+                       (bound-upper bound))))
+
+;; Helper function to create membership assertions between each upper bound element and relation
+(define (create-bound-membership bound rel-name)
+    (format "~a" 
+      (deparen (map (lambda (tup)
+                      (format "(assert (set.member (tuple ~a) ~a))~n" (first tup) rel-name))
+                    (bound-upper bound)))))
+
+;; Function to create a constraint asserting that the relation is the union of the constants as singletons
+(define (relation-constraint bound rel-name)
+  (format "(assert (= ~a (set.union ~a)))~n"
+    rel-name
+    (deparen (map (lambda (tup)
+                      (format "(set.singleton (tuple ~a))" (first tup)))
+                    (bound-upper bound)))))
+
+(define (protect-field field-name upper-bound-list types)
+  (if (member "Int" types) 
+    ""
+    (format "(assert (set.subset ~a (set.union ~a)))~n"
+      field-name
+      (deparen (map (lambda (tup)
+                      (format "(set.singleton (tuple ~a))" (string-join (map (lambda (x) (format "~a" x)) tup) " ")))
+                    upper-bound-list)))
+  )
+)
+
 (define (convert-bound b)
   ; TODO: for now, assume we have exact bounds, and just use the upper
   ; For KM: let's discuss this!
@@ -64,15 +96,12 @@
      ; If we are declaring sigs as _sorts_, we need a separate relation to store
      ; atoms of that sort that appear in the instance. (Note "Sort" suffix below)
      ;; TODO: we should only declare top-level sigs as sorts
-     (format "(declare-sort ~aSort 0)~n~a~n(declare-fun ~a () (Relation ~aSort))"
-             ; Declare sort for this sig
-             name
-             ; Declare constant atoms for this sig
-             (deparen (map (lambda (tup)
-                             (format "(declare-const ~a ~aSort)~n" (first tup) name))
-                           (bound-upper b)))
+     (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n~a~n"
              ; Declare the "used" relation for this sig
-             name name)]
+             (const-declarations b)
+             name
+             (create-bound-membership b name)
+             (relation-constraint b name))]
     ; Skolem relation of arity 1
     [(equal? (string-ref name 0) #\$)
      ; Temporarily disable situations where Skolem relations would need to be non-nullary
@@ -81,10 +110,34 @@
      (unless (equal? arity 1)
        (raise-forge-error #:msg (format "SMT backend does not currently support problems that require Skolemization depth > 0; ~a had arity ~a." name arity)
                           #:context #f))
-     (format "(declare-const ~a ~a)~n" name (deparen (map sort-name-of typenames)))]
+     (format "(declare-const ~a ~a)~n" name (deparen (map atom-or-int typenames)))]
     ; Fields
     [else
-     (format "(declare-fun ~a () (Relation ~a))~n" name (deparen (map sort-name-of typenames)))]))
+    ; Fields are declared as relations of the appropriate arity of atoms or ints
+    ; TODO: need to restrict domain elements and codomain elements
+     (format "(declare-fun ~a () (Relation ~a))~n~a~n" name (deparen (map atom-or-int typenames)) (protect-field name (bound-upper b) typenames))]))
+
+(define (form-disjoint-string relations)
+  (define top-level '())
+  (for/fold ([top-level top-level])
+            ([relation relations])
+    (cond 
+          [(equal? (relation-name relation) "Int") top-level]
+          [(Sig? relation)          
+            (define new-top-level (cons (relation-name relation) top-level)) 
+            new-top-level]
+          [else top-level]
+    )
+  )
+)
+
+(define (disjoint-relations rel-names)
+  (define (pairwise-disjoint relation1 relation2)
+      (if (equal? relation1 relation2) ""
+      (format "(assert (= (set.inter ~a ~a) (as set.empty (Relation Atom))))"
+        relation1 relation2)))
+  (define pairs (cartesian-product rel-names rel-names))
+  (string-join (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs) "\n"))
 
 (define (translate-to-cvc5-tor run-spec all-atoms relations total-bounds step0)
   ; For now, just print constraints, etc.
@@ -132,7 +185,7 @@
     (for ([constraint step3])
       (printf "  ~a~n" constraint)))
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '())) step3))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '() '())) step3))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 4 (post SMT-LIB conversion):~n")
     (for ([constraint step4])
@@ -147,17 +200,20 @@
   ; preamble: the (reset) makes (set-logic ...) etc. not give an error on 2nd run
   ; Note some other options are set in cvc5-server.rkt!
   ; TODO: we shouldn't need to explicitly reset, but it isn't always being done
-  (define preamble-str (format "(reset)~n(set-logic ALL)~n"))
+  ; Also declare Atom sort as the top level sort.
+  (define preamble-str (format "(reset)~n(set-logic ALL)~n(declare-sort Atom 0)~n"))
 
   ; converted bounds:
   (define bounds-str (string-join (map convert-bound step3-bounds) "\n"))
+  (define top-level-disjoint-str (form-disjoint-string (map bound-relation step3-bounds)))
+  (define disjointness-constraint-str (disjoint-relations top-level-disjoint-str))
 
   ; converted formula:
   (define assertions-str (string-join (map (lambda (s) (format "(assert ~a)" s)) step4) "\n"))
 
   ; DO NOT (check-sat) yet.
   
-  (format "~a~n~a~n~a~n" preamble-str bounds-str assertions-str))
+  (format "~a~n~a~n~a~n~a~n" preamble-str bounds-str disjointness-constraint-str assertions-str))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""])

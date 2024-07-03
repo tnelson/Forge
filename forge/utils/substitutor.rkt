@@ -146,7 +146,7 @@
                  ([decl decls])
          (define curr-quantvars (first vs-and-decls))
          (define curr-decls (second vs-and-decls))
-         (define new-quantvars (cons (car decl) quantvars))
+         (define new-quantvars (cons (car decl) curr-quantvars))
          (define new-decl-domain (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars target value))
          (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
          (list new-quantvars new-decls)))

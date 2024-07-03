@@ -2,7 +2,7 @@
 
 
 sig A {
-    test_rel: one B
+    test_rel: lone B
 }
 sig B {}
 sig C {}
