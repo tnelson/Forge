@@ -185,7 +185,7 @@
     (for ([constraint step3])
       (printf "  ~a~n" constraint)))
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '() '())) step3))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '() '() step3-bounds)) step3))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 4 (post SMT-LIB conversion):~n")
     (for ([constraint step4])

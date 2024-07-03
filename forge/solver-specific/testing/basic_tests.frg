@@ -5,7 +5,7 @@ option backend smtlibtor
 
 -- Sterling should now get a workable instance, but leaving it off here since we are testing
 -- soundness and completeness of the translation, not end-to-end functionality. 
---option run_sterling off
+option run_sterling off
 
 -- Enable for more debugging output
 option verbose 5

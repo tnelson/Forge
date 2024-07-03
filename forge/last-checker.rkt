@@ -417,7 +417,8 @@
                        checker-hash
                        (expression-type (apply cartesian-product (map primifyThis (typelist-thunk))) 
                              ; TODO refine
-                             (and (equal? 1 (node/expr-arity expr)) (Sig-one expr))
+                             ; should only hit the 'else' case if it is a constant skolem relation I think
+                             (and (equal? 1 (node/expr-arity expr)) (if (Sig? expr) (Sig-one expr) 1))
                              isvar))]
 
     ; atom (base case)
