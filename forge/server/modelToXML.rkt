@@ -122,15 +122,19 @@
                                 #:tuple-annotations [tuple-annotations (hash)]
                                 #:run-options [run-options #f])    
   (define data
-    (if (Sat? soln) ; if satisfiable, can report relations
-        (map (lambda (a-subinstance) 
-               (for/hash ([(key value) a-subinstance])
-                 ; If no key, this is a relation that the engine has added by itself (likely a Skolem)
-                 (if (hash-has-key? relation-map (symbol->string key))
-                     (values (hash-ref relation-map (symbol->string key)) value)
-                     (values (build-skolem-rel-for key value) value))))
-             (Sat-instances soln))
-        (Unsat-core soln)))
+    (cond
+      [(Sat? soln) ; if satisfiable, can report relations
+       (map (lambda (a-subinstance) 
+              (for/hash ([(key value) a-subinstance])
+                ; If no key, this is a relation that the engine has added by itself (likely a Skolem)
+                (if (hash-has-key? relation-map (symbol->string key))
+                    (values (hash-ref relation-map (symbol->string key)) value)
+                    (values (build-skolem-rel-for key value) value))))
+            (Sat-instances soln))]
+       [(Unsat? soln)
+        (Unsat-core soln)]
+       [(Unknown? soln)
+        '()]))
 
   ; The command string is long and elaborate, something like:
   ; (run temporary-name1 #:preds ((Block (Expr (Expr6 (Expr15 (QualName Counter)) . (Expr16 (QualName value))) (CompareOp =) (Expr7 (Const (Number 0)))) (Expr always (Expr5 (Expr6 (Expr15 (QualName Counter)) . (Expr16 (Expr16 (QualName value)) ')) (CompareOp =) (Expr7 (Expr14 (QualName add)) [ (ExprList (Expr (Expr15 (QualName Counter)) . (Expr16 (QualName value))) (Expr (Const (Number 1)))) ]))))) #:scope ((Int 0 3)))
