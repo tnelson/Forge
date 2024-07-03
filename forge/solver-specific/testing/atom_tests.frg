@@ -2,7 +2,7 @@
 
 option backend smtlibtor 
 
-option run_sterling off
+// option run_sterling off
 
 option verbose 10
 

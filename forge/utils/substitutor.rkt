@@ -70,6 +70,13 @@
 (define (process-children-int run-or-state children relations atom-names quantvars target value)
   (map (lambda (x) (substitute-int run-or-state x relations atom-names quantvars target value)) children))
 
+(define (process-children-ambiguous run-or-state children relations atom-names quantvars target value)
+  (for/list ([child children])
+    (match child
+      [(? node/formula? f) (substitute-formula run-or-state f relations atom-names quantvars target value)]
+      [(? node/expr? e) (substitute-expr run-or-state e relations atom-names quantvars target value)]
+      [(? node/int? i) (substitute-int run-or-state i relations atom-names quantvars target value)])))
+
 (define (substitute-formula-op run-or-state formula relations atom-names quantvars args target value)
   (when (@>= (get-verbosity) 2)
     (printf "substitutor: interpret-formula-op: ~a~n" formula))
@@ -107,11 +114,11 @@
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/int> info children)
-      (node/formula/op/int> info (process-children-int run-or-state args relations atom-names quantvars target value))]
+      (node/formula/op/int> info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/int< info children)
-      (node/formula/op/int< info (process-children-int run-or-state args relations atom-names quantvars target value))]
+      (node/formula/op/int< info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/int= info children)
-     (node/formula/op/int= info (process-children-int run-or-state args relations atom-names quantvars target value))]))
+     (node/formula/op/int= info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -181,7 +188,7 @@
      (node/expr/op/++ info arity (process-children-expr run-or-state args relations atom-names quantvars target value))]
     [(node/expr/op/sing info arity children)
      (if (equal? (car children) target) value
-     (node/expr/op/sing info arity (process-children-int run-or-state args relations atom-names quantvars target value)))]))
+     (node/expr/op/sing info arity (process-children-ambiguous run-or-state args relations atom-names quantvars target value)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions

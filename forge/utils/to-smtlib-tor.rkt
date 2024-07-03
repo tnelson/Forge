@@ -194,6 +194,17 @@
 ; Relational expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)
+  (for/or ([bound bounds])
+    (if (equal? (bound-relation bound) expr)
+      (cond [(equal? (car ((relation-typelist-thunk (bound-relation bound)))) 'Int) 
+              (format "~a" (node/expr/relation-name expr))] 
+            [else (format "(set.singleton (tuple ~a))" (node/expr/relation-name expr))])
+      #f
+    )
+  )
+)
+
 (define (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)
   (when (@>= (get-verbosity) 2)
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
@@ -202,7 +213,7 @@
      ; Declared sigs are referred to as Atoms, so we refer to them as such
      ; Ints are separate
      (cond [(equal? name "Int") "(as set.universe (Relation Int))"]
-           [(equal? #\$ (string-ref name 0)) (format "(set.singleton (tuple ~a))" name)]
+           [(equal? #\$ (string-ref name 0)) (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)]
            [else (format "~a" name)])]
     [(node/expr/atom info arity name)
      (raise-forge-error #:msg (format "direct atom references unsupported by SMT backend")
