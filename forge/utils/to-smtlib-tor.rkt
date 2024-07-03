@@ -211,8 +211,12 @@
                          (equal? (node/expr/relation-name (last components)) (symbol->string name)))
               (raise-forge-error #:msg (format "fun-spacer marker did not match: ~a vs. ~a" (last components) name)
                                  #:context info))
-            ;; replace
-            (printf "components: ~a~n" components)
+            ;; replace (note: the arguments must be variables)
+            (for ([a (drop-right components 1)])
+              (unless (node/expr/quantifier-var? a)
+                (raise-forge-error #:msg (format "Unexpected argument to Skolem function; was not a variable: ~a" a)
+                                   #:context a)))
+            ; TODO: if used in an int context, do we want to wrap still?
             (format "(set.singleton (tuple (~a ~a)))" name (deparen (drop-right components 1)))]
            [else
             ; This is either not a Skolem function, or a *nullary* Skolem function, which can be
