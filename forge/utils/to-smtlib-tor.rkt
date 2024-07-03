@@ -10,10 +10,10 @@
   forge/solver-specific/smtlib-shared
   forge/last-checker
   forge/lang/bounds
-  (only-in racket index-of match string-join first second rest flatten)
+  (only-in racket index-of match string-join first second rest flatten last drop-right)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
-  (prefix-in @ (only-in racket/base >=)))
+  (prefix-in @ (only-in racket/base >= >)))
 
 (provide convert-formula)
 
@@ -183,6 +183,9 @@
 ; Relational expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define (deparen lst)
+  (string-join (map (lambda (x) (format "~a" x)) lst) " "))
+
 (define (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)
   (when (@>= (get-verbosity) 2)
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
@@ -191,13 +194,30 @@
      ; Declared sigs are referred to as Atoms, so we refer to them as such
      ; Ints are separate
      (cond [(equal? name "Int") "(as set.universe (Relation Int))"]
+           ; Assuming tagging fun-spacers are being added, this should not be reached:
            [(equal? #\$ (string-ref name 0)) (format "(set.singleton (tuple ~a))" name)]
            [else (format "~a" name)])]
     [(node/expr/atom info arity name)
      (raise-forge-error #:msg (format "direct atom references unsupported by SMT backend")
                         #:context expr)]
     [(node/expr/fun-spacer info arity name args result expanded)
-     (convert-expr run-or-state expanded relations atom-names quantvars quantvar-types bounds)]
+     ; "arity" will always be 1, since this represents a Skolem function.
+     ; Use the expanded expr's arity instead:
+     (cond [(and (@> (node/expr-arity expanded) 1) (equal? #\$ (string-ref (symbol->string name) 0)))
+            ; This marker is to aid in recognizing the application of a Skolem function.
+            ; E.g., to convert something like b.a.$x into ($x a b).
+            (define components (join->list/right expanded))
+            (unless (and (node/expr/relation? (last components))
+                         (equal? (node/expr/relation-name (last components)) (symbol->string name)))
+              (raise-forge-error #:msg (format "fun-spacer marker did not match: ~a vs. ~a" (last components) name)
+                                 #:context info))
+            ;; replace
+            (printf "components: ~a~n" components)
+            (format "(set.singleton (tuple (~a ~a)))" name (deparen (drop-right components 1)))]
+           [else
+            ; This is either not a Skolem function, or a *nullary* Skolem function, which can be
+            ; treated as a normal expression.
+            (convert-expr run-or-state expanded relations atom-names quantvars quantvar-types bounds)])]
     [(node/expr/ite info arity a b c)  
     (let ([processed-a (convert-formula run-or-state a relations atom-names quantvars quantvar-types bounds)]
           [processed-b (convert-expr run-or-state b relations atom-names quantvars quantvar-types bounds)]
@@ -315,27 +335,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Detect if this join is the start of invoking a Skolem function
-;(define (skolem-call-detect-and-convert expr)
-  ; Is there a Skolem relation somewhere in the expr? What if there are multiple?
-  ;; e.g.:
-  ;;  all x: WNode | some y: WNode | some z: WNode | z.edges.(x.edges[y]) = Providence
-  ;;  which would be Alloy-style Skolemized:
-  ;;  all x: WNode | (x.$z).edges.(x.edges[(x.$y)]) = Providence
-  ;;  so we'd see something like: (x.$z).edges.((x.$y).(x.edges))
-  ;;  where:                      ******        ******
-  ;;  need to be converted to SMT function-invocation form.
-
-  ;; Is it worth spending the time to write this, vs. the easier relation/constraint-based
-  ;; approach? What do we expect to get out of it, performance-wise? No way to know.
-
-  ;; Could _collect_ matches, but what about matches internal to a match?
-  ;; Collector: node?, (node? -> any/c) -> list(any/c)
-  ;; #:order 'pre-order / 'in-order / 'post-order
-  ;;   Here, we'd want post-order, right? Higher match listed only after any sub-match.
-  ;) ; Cool function! But would it be directly applicable?
-  ;   b/c would we repeat it at EVERY node? That would be a waste. 
-
-; Alternative: if it's a nullary Skolem relation, use a constant and wrap in singleton-tuple.
-;   If it's >0-ary, use a _relation_, and add appropriate constraints. We'll just need to
-;   ground out universals (unless we write "only one value per input" differently).
+; Convert a right-associating join to a list. If the join is not of that form,
+; throw an error. 
+(define (join->list/right expr)
+  (match expr
+    [(node/expr/relation info arity name typelist-thunk parent is-var)
+     (list expr)]
+    [(node/expr/op/join info 2 children)
+     (cons (first children) (join->list/right (second children)))]
+    [else (raise-forge-error #:msg (format "join->list/right expected relation or right-chain of binary joins, got ~a" expr)
+                             #:context expr)]))
