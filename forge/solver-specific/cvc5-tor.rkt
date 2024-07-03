@@ -173,7 +173,8 @@
               ([f step2])
       ; Accumulator starts with: no formulas, original total-bounds
       (define-values (resulting-formula new-bounds)
-        (skolemize:interpret-formula run-spec (second fs-and-bs) f relations all-atoms '() '()))
+        (skolemize:interpret-formula run-spec (second fs-and-bs) f relations all-atoms '() '()
+                                     #:tag-with-spacer #t))
       ; Accumulator adds the skolemized formula, updated bounds
       (list (cons resulting-formula (first fs-and-bs))
             new-bounds)))
@@ -271,6 +272,8 @@
      ; No cores or statistics yet
      (Unsat #f #f 'unsat)]
     ['unknown
+     (when (@> (get-verbosity) VERBOSITY_LOW)
+       (printf "~nUNKNOWN~n"))
      ; No statistics yet
      (Unknown #f #f)]
     [else

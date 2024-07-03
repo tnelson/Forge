@@ -11,7 +11,7 @@
   forge/utils/substitutor
   (only-in racket index-of match string-join first second rest flatten cartesian-product thunk empty?)
   (only-in racket/contract define/contract or/c listof any/c)
-  (prefix-in @ (only-in racket/contract ->))
+  (prefix-in @ (only-in racket/contract -> ->*))
   (prefix-in @ (only-in racket/base >= + >)))
 
 (provide interpret-formula skolemize-formula-helper)
@@ -152,13 +152,14 @@
 ; Translate a formula AST node
 (define/contract (interpret-formula run-spec total-bounds formula relations atom-names
                                     quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])  
-  (@-> (or/c Run? State? Run-spec?)
-      any/c
-      node/formula?
-      list?
-      list?
-      list?
-      list?
+  (@->* ((or/c Run? State? Run-spec?)
+         any/c
+         node/formula?
+         list?
+         list?
+         list?
+         list?)
+        (#:tag-with-spacer boolean?)
       (values node? list?))
   (when (@>= (get-verbosity) 2)
     (printf "to-skolem: interpret-formula: ~a~n" formula))
@@ -168,13 +169,13 @@
       [(node/formula/constant info type)
        (node/formula/constant info type)]    
       [(node/fmla/pred-spacer info name args expanded)
-       (define-values (fmla bounds) (interpret-formula run-spec total-bounds expanded relations atom-names quantvars quantvar-types tag-with-spacer))
+       (define-values (fmla bounds) (interpret-formula run-spec total-bounds expanded relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
        (set! current-bounds bounds)
        fmla]
       [(node/formula/op info args)
-       (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types args tag-with-spacer)]
+       (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types args #:tag-with-spacer tag-with-spacer)]
       [(node/formula/multiplicity info mult expr)
-       (let ([processed-expr (interpret-expr run-spec total-bounds expr relations atom-names quantvars tag-with-spacer)])
+       (let ([processed-expr (interpret-expr run-spec total-bounds expr relations atom-names quantvars #:tag-with-spacer tag-with-spacer)])
          (node/formula/multiplicity info mult processed-expr))]
       [(node/formula/quantified info quantifier decls form)
        ; if it is ALL, do the below as normal.
@@ -183,11 +184,11 @@
          ['some
           ; Make sure to skolemize the _inner_ formula as well, in case of multiple nested existentials.
           (define-values (new-inner-form new-inner-bounds)
-            (interpret-formula run-spec total-bounds form relations atom-names quantvars quantvar-types tag-with-spacer))
+            (interpret-formula run-spec total-bounds form relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
           ; Now skolemize, using the skolemized inner formula as the baseline
           (define-values (fmla bounds)
             (skolemize-formula-helper run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info
-                                      decls new-inner-form tag-with-spacer))
+                                      decls new-inner-form #:tag-with-spacer tag-with-spacer))
           (set! current-bounds bounds)
           fmla]
          [_ (define new-vs-decls-types
@@ -202,7 +203,7 @@
                 (list new-quantvars new-decls new-quantvar-types)))
             (define new-quantvars (list-ref new-vs-decls-types 0))
             (define new-quantvar-types (list-ref new-vs-decls-types 2))
-            (let-values ([(processed-form bounds) (interpret-formula run-spec total-bounds form relations atom-names new-quantvars new-quantvar-types tag-with-spacer)])
+            (let-values ([(processed-form bounds) (interpret-formula run-spec total-bounds form relations atom-names new-quantvars new-quantvar-types #:tag-with-spacer tag-with-spacer)])
               (set! current-bounds bounds)
               (define new-decls (list-ref new-vs-decls-types 1))
               (node/formula/quantified info quantifier new-decls processed-form))])]
@@ -212,10 +213,10 @@
       [#f "false"]))
   (values resulting-formula current-bounds))
 
-(define (process-children-formula run-spec total-bounds children relations atom-names quantvars quantvar-types tag-with-spacer)
+(define (process-children-formula run-spec total-bounds children relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)
   (map (lambda (x)
          (define-values (fmla bounds)
-           (interpret-formula run-spec total-bounds x relations atom-names quantvars quantvar-types tag-with-spacer))
+           (interpret-formula run-spec total-bounds x relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
          (set! current-bounds bounds) fmla) children))
 
 (define (process-children-expr run-spec total-bounds children relations atom-names quantvars tag-with-spacer)
@@ -231,42 +232,42 @@
       [(? node/expr? e) (interpret-expr run-or-state total-bounds e relations atom-names quantvars tag-with-spacer)]
       [(? node/int? i) (interpret-int run-or-state total-bounds i relations atom-names quantvars tag-with-spacer)])))
 
-(define (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types args tag-with-spacer)
+(define (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types args #:tag-with-spacer tag-with-spacer)
   (when (@>= (get-verbosity) 2)
     (printf "to-skolem: interpret-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
-      (node/formula/op/&& info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/&& info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/|| info children)
-     (node/formula/op/|| info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+     (node/formula/op/|| info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/=> info children)
-     (node/formula/op/=> info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+     (node/formula/op/=> info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/always info children)
-     (node/formula/op/always info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+     (node/formula/op/always info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/eventually info children)
-     (node/formula/op/eventually info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+     (node/formula/op/eventually info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/next_state info children)
-      (node/formula/op/next_state info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/next_state info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/releases info children)
-      (node/formula/op/releases info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/releases info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/until info children)
-     (node/formula/op/until info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+     (node/formula/op/until info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/historically info children)
-      (node/formula/op/historically info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/historically info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/once info children)
-      (node/formula/op/once info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/once info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/prev_state info children)
-      (node/formula/op/prev_state info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/prev_state info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/since info children)
-      (node/formula/op/since info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/since info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/triggered info children)
-      (node/formula/op/triggered info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/triggered info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/in info children)
       (node/formula/op/in info (process-children-expr run-spec total-bounds args relations atom-names quantvars tag-with-spacer))]
     [(node/formula/op/= info children)
       (node/formula/op/= info (process-children-expr run-spec total-bounds args relations atom-names quantvars tag-with-spacer))]
     [(node/formula/op/! info children)
-      (node/formula/op/! info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types tag-with-spacer))]
+      (node/formula/op/! info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/int> info children)
       (node/formula/op/int> info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars tag-with-spacer))]
     [(node/formula/op/int< info children)
