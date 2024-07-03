@@ -44,7 +44,7 @@
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
         ; crucially, we can't use 'processed-expr' in the get-k-bounds - we have to use the preprocessed so it has nodes, not strings
-        ['no (format "(= (as set.empty ~a) ~a))" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
+        ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         ['one (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)]
         ['some (format "(not (= (as set.empty ~a) ~a)"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         ['all (format "(= set.universe ~a)" processed-expr)]
@@ -98,14 +98,25 @@
   ; map each type to the respective upper bound
   (define nested-atoms-to-use (for/list ([bound bounds])
     (for/list ([type-union list-of-types])
-      (for/list ([type type-union] #:when (equal? (symbol->string type) (relation-name (bound-relation bound))))
+      (for/list ([type type-union] #:when (and (not (equal? type 'Int)) (equal? (symbol->string type) (relation-name (bound-relation bound)))))
           (bound-upper bound)
       )
     )
   ))
   ; probably want to remove duplicates but for now it's fine
   (define atoms-to-use (flatten nested-atoms-to-use))
-  (format "(or ~a)" (string-join (map (lambda (x) (format "(= ~a (set.singleton (tuple ~a)))" processed-expr x)) atoms-to-use)))
+  ; if we have an Int somewhere in the list, we don't want to enumerate the ints.
+  ; let's use a working example to figure out how we want to do this.
+  ; if we have F : A -> one Int, 
+  ; we want to check that the domain is only in A. 
+  ; so we should check that the domain is a subset of A.
+  ; but to do that we have to right join the relation :/ 
+  ; give me one second to check on ints.
+  (if (equal? (length atoms-to-use) 0)
+    ; temporary patch - just don't enumerate anything if it only contains ints
+    (format "true")
+    (format "(or ~a)" (string-join (map (lambda (x) (format "(= ~a (set.singleton (tuple ~a)))" processed-expr x)) atoms-to-use) " "))
+  )
 )
 
 (define (process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds)

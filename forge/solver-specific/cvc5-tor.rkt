@@ -69,17 +69,6 @@
                       (format "(set.singleton (tuple ~a))" (first tup)))
                     (bound-upper bound)))))
 
-(define (protect-field field-name upper-bound-list types)
-  (if (member "Int" types) 
-    ""
-    (format "(assert (set.subset ~a (set.union ~a)))~n"
-      field-name
-      (deparen (map (lambda (tup)
-                      (format "(set.singleton (tuple ~a))" (string-join (map (lambda (x) (format "~a" x)) tup) " ")))
-                    upper-bound-list)))
-  )
-)
-
 (define (convert-bound b)
   ; TODO: for now, assume we have exact bounds, and just use the upper
   ; For KM: let's discuss this!
@@ -115,7 +104,7 @@
     [else
     ; Fields are declared as relations of the appropriate arity of atoms or ints
     ; TODO: need to restrict domain elements and codomain elements
-     (format "(declare-fun ~a () (Relation ~a))~n~a~n" name (deparen (map atom-or-int typenames)) (protect-field name (bound-upper b) typenames))]))
+     (format "(declare-fun ~a () (Relation ~a))~n" name (deparen (map atom-or-int typenames)))]))
 
 (define (form-disjoint-string relations)
   (define top-level '())
