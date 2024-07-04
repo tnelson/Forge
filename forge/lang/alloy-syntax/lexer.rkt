@@ -113,7 +113,8 @@
    ["forge_error" (token+ `FORGE_ERROR-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["two"       (token+ `TWO-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["unknown"   (token+ `UNKNOWN-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["wheat"     (token+ `WHEAT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["sufficient"     (token+ `SUFFICIENT-TOK "" lexeme "" lexeme-start lexeme-end)]  
@@ -231,6 +232,7 @@
            "expect"
            "sat"
            "unsat"
+           "unknown"
            "theorem"
            "univ"
            "break"

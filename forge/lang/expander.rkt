@@ -334,7 +334,7 @@
                               pred-block:BlockClass))
               (~optional scope:ScopeClass)
               (~optional bounds:BoundsClass)
-              (~or "sat" "unsat" "theorem" "forge_error"))))
+              (~or "sat" "unsat" "unknown" "theorem" "forge_error"))))
 
   ; TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
   (define-syntax-class TestBlockClass
@@ -973,7 +973,7 @@
                                         preds:BlockClass))
                         (~optional scope:ScopeClass)
                         (~optional bounds:BoundsClass)
-                        (~and expected (~or "sat" "unsat" "theorem" "forge_error")))
+                        (~and expected (~or "sat" "unsat" "unknown" "theorem" "forge_error")))
    (with-syntax ([name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)]
                  [expected (datum->syntax #'expected

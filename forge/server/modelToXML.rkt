@@ -183,7 +183,19 @@
 here-string-delimiter
                                   ))
   ; Note in the above, univ is always ID=2
-  (cond [(and (Unsat? soln) (equal? (Unsat-kind soln) 'unsat))
+  (cond [(and (Unknown? soln))
+         (string-append prologue instance-prologue
+                        "\n<sig label=\"Unknown\" ID=\"4\" parentID=\"2\">\n"
+                        "<atom label=\"Unknown\"/>"
+                        "</sig>\n"
+                        "\n</instance>\n"
+                        (if data
+                            (string-append "<source filename=\"Explanation\" content=\""
+                                           (agg-lines
+                                            (map clean data))
+                                           "\"></source>\n") "")
+                        "</alloy>")]
+        [(and (Unsat? soln) (equal? (Unsat-kind soln) 'unsat))
          (string-append prologue instance-prologue
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"Unsatisfiable\"/>"
