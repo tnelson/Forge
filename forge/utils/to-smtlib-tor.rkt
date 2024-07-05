@@ -220,7 +220,7 @@
            ; a normal relation that, somehow, starts with $. So fail noisily; this shouldn't
            ; actually be reachable code.
            [(equal? #\$ (string-ref name 0))
-            (raise-forge-error #:msg (format "Unexpected reachable code; tagged skolem relation: ~a" expr)
+            (raise-forge-error #:msg (format "Unexpected reachable code; untagged skolem relation: ~a" expr)
                                #:context expr)]
            [else (format "~a" name)])]
     [(node/expr/atom info arity name)
