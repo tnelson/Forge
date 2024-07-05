@@ -46,59 +46,35 @@
         ; crucially, we can't use 'processed-expr' in the get-k-bounds - we have to use the preprocessed so it has nodes, not strings
         ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         ['one (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)]
-        ['some (format "(not (= (as set.empty ~a) ~a)"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['all (format "(= set.universe ~a)" processed-expr)]
+        ['some (format "(not (= (as set.empty ~a) ~a))"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         ['lone (format "(or ~a (= (as set.empty ~a) ~a))" (format-one run-or-state expr quantvars quantvar-types processed-expr bounds) 
                                                         (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
-     ; I think these require specific cases... not sure which ones get desugared
-      ;"TODO: MULTIPLICITY")]
     [(node/formula/quantified info quantifier decls form)
-     ; new-vs-decls-types: a 3-element
-     ;   list of ( new vars,
-     ;             (vars + translated domain strings), (vars + domain expressions))
-     ; This duplicates some data, but eases mapping over lists depending on context.
-     (define new-vs-decls-types
-       (for/fold ([vs-decls-types (list quantvars '() quantvar-types)])
+     ; new vs-decls => list ((list qv) (list (pair qv expr-decl)))
+     (define new-vs-decls
+       (for/fold ([vs-decls (list quantvars '())])
                  ([decl decls])
-         (define curr-quantvars (first vs-decls-types))
-         (define curr-str-decls (second vs-decls-types))
-         (define curr-expr-decls (third vs-decls-types))
-         
+         (define curr-quantvars (first vs-decls))
+         (define curr-expr-decls (second vs-decls))
          (define new-quantvars (cons (car decl) quantvars))
-         (define str-decl-domain (convert-expr run-or-state (cdr decl) relations atom-names
-                                               new-quantvars
-                                              (map cdr curr-expr-decls)
-                                               bounds))
-         (define new-decls-with-strs (cons (cons (car decl)
-                                                 str-decl-domain)
-                                           curr-str-decls))
-         (define new-decls-with-exprs (cons decl
-                                            curr-expr-decls))
-         (list new-quantvars new-decls-with-strs new-decls-with-exprs)))
-     
-      (define new-quantvars  (list-ref new-vs-decls-types 0))
-      (define new-str-decls  (list-ref new-vs-decls-types 1))
-      (define new-expr-decls (list-ref new-vs-decls-types 2))
-      (define new-quantvar-domain-exprs (map cdr new-expr-decls))
-     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-domain-exprs bounds)])
-
-        ;(printf "in to-smtlib-tor quantified; orig: **** ~a~n" new-decls)
-;;        (printf "in to-smtlib-tor quantified; mapped: **** ~a~n" (map (lambda (x)
-;;                                                                    (printf "in lambda: ~a~n" x)
-;;                                                                    (atom-or-int (cdr x))) new-decls))
-
+         (define new-expr-decls (cons decl curr-expr-decls))
+         (list new-quantvars new-expr-decls)))
+      (define new-quantvars  (first new-vs-decls))
+      (define new-expr-decls (second new-vs-decls))
+      (define new-quantvar-types (map cdr new-expr-decls))
+     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-types bounds)])
        ; In the quantifier declaration, we need the *sort* name, which is Atom or Int
        ; In the guard, we need a SMT *expression*, which is the sort name or the Int-universe expression.
-       (define r (format "(~a (~a) ~a)"
+       ; To get the string expression, we map convert-expr to the cdr of each decl.
+       (define vars-str-decls (map (lambda (x) (cons (car x) (convert-expr run-or-state (cdr x) relations atom-names new-quantvars new-quantvar-types bounds))) new-expr-decls))
+       (printf "vars-str-decls: ~a~n" vars-str-decls)
+       (format "(~a (~a) ~a)"
                          ; SMT-LIB uses "forall", not "all" and "exists", not "some"
                          (if (equal? quantifier 'all) "forall" "exists")
                          (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) new-expr-decls) " ")
-                         ; insert guard predicates here
-                         (if (equal? quantifier 'all) (format "(=> ~a ~a)" (membership-guard new-str-decls) processed-form)
-                             (format "(and ~a ~a)" (membership-guard new-str-decls) processed-form))))
-     (printf "*** ~a~n" r)
-     r)]
+                         (if (equal? quantifier 'all) (format "(=> ~a ~a)" (membership-guard vars-str-decls) processed-form)
+                             (format "(and ~a ~a)" (membership-guard vars-str-decls) processed-form))))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
     [#t "true"]
@@ -295,18 +271,19 @@
     [(node/expr/quantifier-var info arity sym name)  
      (format "(set.singleton (tuple ~a))" name)]
     [(node/expr/comprehension info len decls form)   
-     (define new-vs-and-decls
-       (for/fold ([vs-and-decls (list quantvars '())])
+     (define new-vs-decls
+       (for/fold ([vs-decls (list quantvars '())])
                  ([decl decls])
-         (define curr-quantvars (first vs-and-decls))
-         (define curr-decls (second vs-and-decls))
+         (define curr-quantvars (first vs-decls))
+         (define curr-expr-decls (second vs-decls))
          (define new-quantvars (cons (car decl) quantvars))
-         (define new-decl-domain (convert-expr run-or-state (cdr decl) relations atom-names new-quantvars quantvar-types bounds))
-         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
-         (list new-quantvars new-decls)))
-     (define new-quantvars (first new-vs-and-decls))
-     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars quantvar-types bounds)])
-       (define new-decls (second new-vs-and-decls))
+         (define new-expr-decls (cons decl curr-expr-decls))
+         (list new-quantvars new-expr-decls)))
+      (define new-quantvars  (first new-vs-decls))
+      (define new-expr-decls (second new-vs-decls))
+      (define new-quantvar-types (map cdr new-expr-decls))
+     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-types bounds)])
+       (define new-decls (second new-vs-decls))
      "TODO: COMPREHENSION")]))
 
 (define (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
@@ -355,18 +332,19 @@
     [(node/int/op info args)
      (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)]
     [(node/int/sum-quant info decls int-expr)
-     (define new-vs-and-decls
-       (for/fold ([vs-and-decls (list quantvars '())])
+    (define new-vs-decls
+       (for/fold ([vs-decls (list quantvars '())])
                  ([decl decls])
-         (define curr-quantvars (first vs-and-decls))
-         (define curr-decls (second vs-and-decls))
+         (define curr-quantvars (first vs-decls))
+         (define curr-expr-decls (second vs-decls))
          (define new-quantvars (cons (car decl) quantvars))
-         (define new-decl-domain (convert-expr run-or-state (cdr decl) relations atom-names new-quantvars quantvar-types bounds))
-         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
-         (list new-quantvars new-decls)))
-     (define new-quantvars (first new-vs-and-decls))
-     (let ([processed-int (convert-int run-or-state int-expr relations atom-names new-quantvars quantvar-types bounds)])
-       (define new-decls (second new-vs-and-decls))
+         (define new-expr-decls (cons decl curr-expr-decls))
+         (list new-quantvars new-expr-decls)))
+      (define new-quantvars  (first new-vs-decls))
+      (define new-expr-decls (second new-vs-decls))
+      (define new-quantvar-types (map cdr new-expr-decls))
+     (let ([processed-form (convert-formula run-or-state int-expr relations atom-names new-quantvars new-quantvar-types bounds)])
+       (define new-decls (second new-vs-decls))
       "TODO: sum quant")]))
 
 (define (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
