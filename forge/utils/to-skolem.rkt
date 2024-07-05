@@ -140,6 +140,7 @@
 
   ; TODO: this will need an apply-record for every argument to the Skolem function
   (define apply-records '()) 
+  (printf "TAG WITH SPACER FOR RELATION ~a: ~a~n" skolem-relation-name tag-with-spacer)
   (define value (if tag-with-spacer
                     ; This isn't fully accurate (we aren't bothering to give domain/codomain info, and are using
                     ; that empty list value as an added flag that this is a skolem application.)

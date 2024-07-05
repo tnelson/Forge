@@ -133,7 +133,8 @@
     [(node/expr/atom info arity name)
      (if (equal? expr target) value expr)]
     [(node/expr/fun-spacer info arity name args result expanded)
-     (substitute-expr run-or-state expanded relations atom-names quantvars target value)]
+     (let ([new-expanded (substitute-expr run-or-state expanded relations atom-names quantvars target value)])
+     (node/expr/fun-spacer info arity name args result new-expanded))]
     [(node/expr/ite info arity a b c)  
     (let ([processed-a (substitute-formula run-or-state a relations atom-names quantvars target value)]
           [processed-b (substitute-expr run-or-state b relations atom-names quantvars target value)]
