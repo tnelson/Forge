@@ -80,9 +80,42 @@
       ; SUBSTITUTED child of the thing passed in (subbing quantified var in for the thing we have 'in' before)
     ; TODO: only works on 1 expr for now. If we have 2 exprs, we need to handle that (multiple quantvars...)
   (define quantified-var (var 'x #:info info))
+
+  ;;;;;;;;;;;;;;;
+  ; TN comment: read the below not as "fix these" but perhaps notes to help us to think how to solve
+  ;   the conversion problem. The problem we're facing (outside the below) is one of context.
+  ;   E.g., in p.age >= 100, we need to recognize later on, in the final SMT-LIB conversion, that
+  ;   in (p.age = x and p.age >= 100) only the first needs wrapping in set.singleton and tuple:
+  ;   (and (= (rel.join p age) (set.singleton (tuple x)))
+  ;        (>= x 100))
+  ;   - Option: match on, specifically, (some ((x Int)) (&& FOO BAR) with this form. But is there
+  ;     risk of over-eager matching?
+  ;   - Option: leave a contextual tag as part of this process. sum[x] perhaps, if x is a quant-var.
+  ;     This does feel mildly kludgey, since users could have written sum themselves.
+  ;   - Option: We know the type of "x" when we're doing the final recursive descent that produces
+  ;     strings. So we could tell that "x" is of type "Int". We also know that this converter has
+  ;     been run. Is there a resulting invariant we can make use of? If "x" is "Int", and we see
+  ;     an integer comparison operator with quant-var "x" on one side, can we know for sure?
+
+  ;;;;;;;;;;;;;;;
+  ; TN question: what should we do for `all i: Int | i >= -8 or i <= 7`? 
+  ;   There's no relational operator, no conversion is needed! Can we detect this via the type of the var?
+  ;   There might be `sing` and `sum` application in the original AST, though. 
+  
+  ;;;;;;;;;;;;;;;
+  ; TN question: what happens if both sides are relational? E.g., p.father.age > p.age ?
+  ;    Right now, I think expr-to-replace is empty, and expr-to-use will throw away all but last match.
+  ;   (I think this is a real correctness issue; referred to in TODO above?)
+
+  ;;;;;;;;;;;;;;;
+  ; TN question: what happens if we have multiple parallel comparison operators?
+  ;    Right now, I think (e.g.)  (p.age >= 18 and p.age <= 100) would generate
+  ;    multiple quantifier variables for the Int value of p.age, rather than one.
+  ;  (This is just a potential performance issue, right? We don't know if it actually is one.)
+  
   (define expr-to-use 
     (for/or ([child children])
-    (if (node/int/op? child) (car (node/int/op-children child)) #f)))
+      (if (node/int/op? child) (car (node/int/op-children child)) #f)))
   (define expr-to-replace
     (for/or ([child children])
       (if (node/int/op? child) child #f)))
