@@ -10,7 +10,7 @@
   forge/solver-specific/smtlib-shared
   forge/last-checker
   forge/lang/bounds
-  (only-in racket index-of match string-join first second rest flatten last drop-right)
+  (only-in racket index-of match string-join first second rest flatten last drop-right third)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
   (prefix-in @ (only-in racket/base >= >)))
@@ -54,27 +54,51 @@
      ; I think these require specific cases... not sure which ones get desugared
       ;"TODO: MULTIPLICITY")]
     [(node/formula/quantified info quantifier decls form)
+     ; new-vs-decls-types: a 3-element
+     ;   list of ( new vars,
+     ;             (vars + translated domain strings), (vars + domain expressions))
+     ; This duplicates some data, but eases mapping over lists depending on context.
      (define new-vs-decls-types
        (for/fold ([vs-decls-types (list quantvars '() quantvar-types)])
                  ([decl decls])
          (define curr-quantvars (first vs-decls-types))
-         (define curr-decls (second vs-decls-types))
+         (define curr-str-decls (second vs-decls-types))
+         (define curr-expr-decls (third vs-decls-types))
+         
          (define new-quantvars (cons (car decl) quantvars))
-         (define new-decl-domain (convert-expr run-or-state (cdr decl) relations atom-names new-quantvars quantvar-types bounds))
-         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
-         (define new-quantvar-types (cons (cdr decl) quantvar-types))
-         (list new-quantvars new-decls new-quantvar-types)))
-      (define new-quantvars (list-ref new-vs-decls-types 0))
-      (define new-quantvar-types (list-ref new-vs-decls-types 2))
-     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-types bounds)])
-       (define new-decls (second new-vs-decls-types))
-       (format "(~a (~a) ~a)"
-               ; SMT-LIB uses "forall", not "all" and "exists", not "some"
-               (if (equal? quantifier 'all) "forall" "exists")
-               (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) new-decls) " ")
-               ; insert guard predicates here
-               (if (equal? quantifier 'all) (format "(=> ~a ~a)" (membership-guard decls) processed-form)
-                                            (format "(and ~a ~a)" (membership-guard decls) processed-form))))]
+         (define str-decl-domain (convert-expr run-or-state (cdr decl) relations atom-names
+                                               new-quantvars
+                                              (map cdr curr-expr-decls)
+                                               bounds))
+         (define new-decls-with-strs (cons (cons (car decl)
+                                                 str-decl-domain)
+                                           curr-str-decls))
+         (define new-decls-with-exprs (cons decl
+                                            curr-expr-decls))
+         (list new-quantvars new-decls-with-strs new-decls-with-exprs)))
+     
+      (define new-quantvars  (list-ref new-vs-decls-types 0))
+      (define new-str-decls  (list-ref new-vs-decls-types 1))
+      (define new-expr-decls (list-ref new-vs-decls-types 2))
+      (define new-quantvar-domain-exprs (map cdr new-expr-decls))
+     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-domain-exprs bounds)])
+
+        ;(printf "in to-smtlib-tor quantified; orig: **** ~a~n" new-decls)
+;;        (printf "in to-smtlib-tor quantified; mapped: **** ~a~n" (map (lambda (x)
+;;                                                                    (printf "in lambda: ~a~n" x)
+;;                                                                    (atom-or-int (cdr x))) new-decls))
+
+       ; In the quantifier declaration, we need the *sort* name, which is Atom or Int
+       ; In the guard, we need a SMT *expression*, which is the sort name or the Int-universe expression.
+       (define r (format "(~a (~a) ~a)"
+                         ; SMT-LIB uses "forall", not "all" and "exists", not "some"
+                         (if (equal? quantifier 'all) "forall" "exists")
+                         (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) new-expr-decls) " ")
+                         ; insert guard predicates here
+                         (if (equal? quantifier 'all) (format "(=> ~a ~a)" (membership-guard new-str-decls) processed-form)
+                             (format "(and ~a ~a)" (membership-guard new-str-decls) processed-form))))
+     (printf "*** ~a~n" r)
+     r)]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
     [#t "true"]

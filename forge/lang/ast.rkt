@@ -138,6 +138,8 @@
         [(node/expr? x) "atom- or set-valued expression"]
         [(node/int? x) "integer-valued expression"]
         [(number? x) "number"]
+        [(symbol? x) "symbol"]
+        [(string? x) "string"]
         [else "unknown expression type"]))
 
 ; Check arguments to an operator declared with define-node-op

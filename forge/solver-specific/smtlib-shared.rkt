@@ -19,19 +19,35 @@
       str
       (format "~aSort" str)))
 
-(define (atom-or-int str)
-  (if (or (equal? str "Int") (equal? str 'Int))
+(define (atom-or-int arg)
+  (printf "~a~n" (pretty-type-of arg))
+  (define str (cond [(string? arg) arg]
+                    [(symbol? arg) (symbol->string arg)]
+                    [(and (node/expr/relation? arg)
+                          (string? (node/expr/relation-name arg)))
+                     (node/expr/relation-name arg)]
+                    [(and (node/expr/relation? arg)
+                          (symbol? (node/expr/relation-name arg)))
+                     (symbol->string (node/expr/relation-name arg))]
+                    [else
+                     (printf "~n~n*** ELSE CASE: ~a~n~n" (pretty-type-of arg))
+                     arg]))
+  (printf "atom-or-int stringified value: ~a; ~v~n" (pretty-type-of str) str)
+  (if (equal? str "Int")
       "Int"
       "Atom"))
 
 ;; Function to create a membership guard for a list of declarations
 (define (membership-guard decls)
-  (printf "decls: ~a\n" decls)
+  (printf "membership-guard for decls: ~v\n" decls)
   ; have a blank "and" statement that we are going to start adding onto
   ; for each decl, we want to add (set.member (tuple (car decl)) (cdr decl)) to the and statement
   (format "(and ~a)" (string-join (map (lambda (decl)
                                          (format "(set.member (tuple ~a) ~a)"
                                                  (car decl)
-                                                 (relation-name (cdr decl))))
+                                                 ; Has already been converted to SMT-LIB by caller
+                                                 ;(relation-name (cdr decl))
+                                                 (cdr decl)
+                                                 ))
                                        decls)
                                        " ")))
