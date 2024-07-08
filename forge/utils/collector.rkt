@@ -18,6 +18,10 @@
 ; has side effects, pre/post-order call order is not guaranteed; only the list
 ; ordering of the results is guaranteed.
 
+; If the optional stop argument returns a non-#f value for a node, that node's
+; children will not be explored, although the node itself may be matched and
+; retained in the return value. The stop policy is separate from the matcher.
+
 ; Also, the ordering of internal traversals is consistent, but not adjustable:
 ; e.g., a quantified formula will always produce
 ;   (append <new variables> <collected from domains> <collected from inner formula>) 
@@ -31,7 +35,7 @@
   forge/shared
   (only-in racket index-of match string-join first second rest)
   (only-in racket/contract define/contract or/c listof any/c one-of/c)
-  (prefix-in @ (only-in racket/contract ->))
+  (prefix-in @ (only-in racket/contract -> ->*))
   (prefix-in @ (only-in racket/base >=)))
 
 (provide collect)
@@ -41,53 +45,59 @@
 ;   portion of a spacer node; at the moment only actually-used-in-constraint nodes
 ;   are visited.
 
-(define/contract (collect node matcher #:order order)
-  (@-> node? (@-> node? any/c) #:order (one-of/c 'pre-order 'post-order)
-       (listof any/c))
-  (visit node '() matcher order '()))
+(define/contract (collect node matcher #:order order #:stop [stop (lambda (n) #f)])
+  (@->* (node? (@-> node? any/c)
+               #:order (one-of/c 'pre-order 'post-order))
+        (#:stop (@-> node? boolean?))
+        (listof any/c))
+  (visit node '() matcher order '() stop))
 
-(define (visit node quantvars matcher order collected)
+(define (visit node quantvars matcher order collected stop)
   (define matched? (matcher node))
-  (define collected-within
-    (cond
-      [(node/formula? node) (interpret-formula node '() matcher order collected)]
-      [(node/expr? node)    (interpret-expr node '() matcher order collected)]
-      [(node/int? node)     (interpret-int node '() matcher order collected)]
-      [else (raise-forge-error #:msg (format "Collector was given a non-node input: ~a" node)
-                               #:context node)]))
-  (cond [(and matched? (equal? order 'pre-order))
-         (cons matched? collected-within)]
-        [(and matched? (equal? order 'post-order))
-         (append collected-within (list matched?))]
-        [else collected-within]))
+  (define stop? (stop node))
+  (cond
+    [stop? (list matched?)]
+    [else 
+     (define collected-within
+       (cond
+         [(node/formula? node) (interpret-formula node '() matcher order collected stop)]
+         [(node/expr? node)    (interpret-expr node '() matcher order collected stop)]
+         [(node/int? node)     (interpret-int node '() matcher order collected stop)]
+         [else (raise-forge-error #:msg (format "Collector was given a non-node input: ~a" node)
+                                  #:context node)]))
+     (cond [(and matched? (equal? order 'pre-order))
+            (cons matched? collected-within)]
+           [(and matched? (equal? order 'post-order))
+            (append collected-within (list matched?))]
+           [else collected-within])]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Boolean formulas
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Translate a formula AST node
-(define (interpret-formula formula quantvars matcher order collected)  
+(define (interpret-formula formula quantvars matcher order collected stop)  
   (when (@>= (get-verbosity) 2)
     (printf "collector: interpret-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
      '()]    
     [(node/fmla/pred-spacer info name args expanded)
-     (visit expanded quantvars matcher order collected)]
+     (visit expanded quantvars matcher order collected stop)]
     [(node/formula/op info args)
-     (interpret-formula-op formula quantvars args matcher order collected)]
+     (interpret-formula-op formula quantvars args matcher order collected stop)]
     [(node/formula/multiplicity info mult expr)
-     (visit expr quantvars matcher order collected)]
+     (visit expr quantvars matcher order collected stop)]
     [(node/formula/quantified info quantifier decls inner-form)
-     (process-quant-shaped-node formula decls inner-form quantvars matcher order collected)]
+     (process-quant-shaped-node formula decls inner-form quantvars matcher order collected stop)]
     [(node/formula/sealed info)
-     (visit info quantvars matcher order collected)]
+     (visit info quantvars matcher order collected stop)]
     [#t '()]
     [#f '()]))
 
-(define (interpret-formula-op formula quantvars args matcher order collected)
+(define (interpret-formula-op formula quantvars args matcher order collected stop)
   (define (process-children children quantvars)
-    (apply append (map (lambda (x) (visit x quantvars matcher order collected)) children)))
+    (apply append (map (lambda (x) (visit x quantvars matcher order collected stop)) children)))
 
   (when (@>= (get-verbosity) 2)
     (printf "collector: interpret-formula-op: ~a~n" formula))
@@ -137,7 +147,7 @@
 ; Relational expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (interpret-expr expr quantvars matcher order collected)
+(define (interpret-expr expr quantvars matcher order collected stop)
   (when (@>= (get-verbosity) 2)
       (printf "collector: interpret-expr: ~a~n" expr))
   (match expr
@@ -146,26 +156,26 @@
     [(node/expr/atom info arity name)
      '()]
     [(node/expr/fun-spacer info arity name args result expanded)
-     (visit expanded quantvars matcher order collected)]
+     (visit expanded quantvars matcher order collected stop)]
     [(node/expr/ite info arity a b c) 
-    (let ([processed-a (visit a quantvars matcher order collected)]
-          [processed-b (visit b quantvars matcher order collected)]
-          [processed-c (visit c quantvars matcher order collected)])
+    (let ([processed-a (visit a quantvars matcher order collected stop)]
+          [processed-b (visit b quantvars matcher order collected stop)]
+          [processed-c (visit c quantvars matcher order collected stop)])
      (append a b c))]
     [(node/expr/constant info 1 'Int)
      '()]
     [(node/expr/constant info arity type)
      '()]
     [(node/expr/op info arity args)
-     (interpret-expr-op expr quantvars args matcher order collected)]
+     (interpret-expr-op expr quantvars args matcher order collected stop)]
     [(node/expr/quantifier-var info arity sym name)  
      '()]
     [(node/expr/comprehension info len decls inner-form)
-     (process-quant-shaped-node expr decls inner-form quantvars matcher order collected)]))
+     (process-quant-shaped-node expr decls inner-form quantvars matcher order collected stop)]))
 
-(define (interpret-expr-op expr quantvars args matcher order collected)
+(define (interpret-expr-op expr quantvars args matcher order collected stop)
   (define (process-children children quantvars)
-    (apply append (map (lambda (x) (visit x quantvars matcher order collected)) children)))
+    (apply append (map (lambda (x) (visit x quantvars matcher order collected stop)) children)))
 
   (when (@>= (get-verbosity) 2)
     (printf "collector: interpret-expr-op: ~a~n" expr))
@@ -199,35 +209,35 @@
 ; Integer expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (interpret-int expr quantvars matcher order collected)
+(define (interpret-int expr quantvars matcher order collected stop)
   (when (@>= (get-verbosity) 2)
     (printf "collector: interpret-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
      '()]
     [(node/int/op info args)
-     (interpret-int-op expr quantvars args matcher order collected)]
+     (interpret-int-op expr quantvars args matcher order collected stop)]
     [(node/int/sum-quant info decls int-expr)
-     (process-quant-shaped-node expr decls int-expr quantvars matcher order collected)]))
+     (process-quant-shaped-node expr decls int-expr quantvars matcher order collected stop)]))
 
-(define (process-quant-shaped-node node decls inner-node quantvars matcher order collected)
+(define (process-quant-shaped-node node decls inner-node quantvars matcher order collected stop)
   (define new-vs-and-collected
     (for/fold ([vs-and-collected (list '() '())])
               ([decl decls])
       (define curr-new-quantvars (first vs-and-collected))
       (define new-quantvars (cons (car decl) curr-new-quantvars))
       (define new-domain-collected
-        (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected))         
+        (visit (cdr decl) (append curr-new-quantvars new-quantvars) matcher order collected stop))         
       (list new-quantvars (append (second vs-and-collected) new-domain-collected))))
   
   (define new-quantvars (reverse (first new-vs-and-collected)))
   (define new-domain-collected (second new-vs-and-collected))
-  (define inner-collected (visit inner-node new-quantvars matcher order collected))
+  (define inner-collected (visit inner-node new-quantvars matcher order collected stop))
   (append new-quantvars new-domain-collected inner-collected))
 
-(define (interpret-int-op expr quantvars args matcher order collected)
+(define (interpret-int-op expr quantvars args matcher order collected stop)
   (define (process-children children quantvars)
-    (apply append (map (lambda (x) (visit x quantvars matcher order collected)) children)))
+    (apply append (map (lambda (x) (visit x quantvars matcher order collected stop)) children)))
 
   (when (@>= (get-verbosity) 2)
     (printf "collector: interpret-int-op: ~a~n" expr))
@@ -297,6 +307,14 @@
      (list expr
            v1 v2
            univ (& univ univ) univ univ
-           (& (-> v1 v2) iden) (-> v1 v2) v1 v2 iden))))
+           (& (-> v1 v2) iden) (-> v1 v2) v1 v2 iden)))
+
+  ; Confirm that the stop policy is respected
+  (check-equal?
+   (collect (&& (some (-> univ univ))) (lambda (n) n)
+            #:order 'pre-order
+            #:stop (lambda (n) (not (node/formula/op? n))))
+   (list (&& (some (-> univ univ)))
+         (some (-> univ univ)))))
   
 
