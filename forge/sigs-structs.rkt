@@ -251,9 +251,9 @@
 ;;;;;;    Constants    ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax Int (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 "Int" (thunk '("Int")) "univ" #f 'Int #f #f #f #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 1 "Int" (thunk '("Int")) "univ" #f 'Int #f #f #f #f))])))
 (define-syntax succ (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 2 "succ" (thunk '("Int" "Int")) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 2 "succ" (thunk '("Int" "Int")) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
 
 (define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
@@ -666,7 +666,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (syntax-parse stx
     [((~datum xor) (~optional (~and #:lang check-lang)) a b)
      (with-syntax ([newloc (quasisyntax/loc stx (nodeinfo #,(build-source-location stx)
-                                                          (~? check-lang 'checklangNoCheck)))])
+                                                          (~? check-lang 'checklangNoCheck)
+                                                          #f))])
        (quasisyntax/loc stx (||/info newloc
                                      (&&/info newloc a (!/info newloc b))
                                      (&&/info newloc (!/info newloc a) b))))]))
@@ -675,31 +676,31 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (implies stx) 
   (syntax-case stx () 
     [(_ (#:lang check-lang) a b) 
-      (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx) check-lang) a b))]
+      (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) a b))]
     [(_ a b) 
-      (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)'checklangNoCheck) a b))]))
+      (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b))]))
 
 
 (define-syntax (iff stx) 
   (syntax-case stx () 
     [(_ (#:lang check-lang) a b) 
       (quasisyntax/loc stx 
-        (&&/info (nodeinfo #,(build-source-location stx) check-lang)
-                 (=>/info (nodeinfo #,(build-source-location stx) check-lang) a b)
-                 (=>/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]
+        (&&/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                 (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)
+                 (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) b a)))]
     [(_ a b) 
       (quasisyntax/loc stx 
-        (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                 (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
-                 (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) b a)))]))
+        (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                 (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)
+                 (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) b a)))]))
 (define-syntax (<=> stx) 
   (syntax-case stx () 
-    [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) check-lang)
-                                  (=>/info (nodeinfo #,(build-source-location stx) check-lang) a b)
-                                  (=>/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]
-    [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                                  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
-                                  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) b a)))]))
+    [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                  (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)
+                                  (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) b a)))]
+    [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                                  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)
+                                  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) b a)))]))
 
 ; for ifte, use struct type to decide whether this is a formula (sugar)
 ; or expression form (which has its own AST node). Avoid exponential
@@ -728,43 +729,43 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (ifte stx)
   (syntax-parse stx 
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b c) (quasisyntax/loc stx
-                 (ifte-disambiguator (nodeinfo #,(build-source-location stx) check-lang) a b c))]))
+                 (ifte-disambiguator (nodeinfo #,(build-source-location stx) check-lang #f) a b c))]))
 
 (define-syntax (ni stx) (syntax-case stx () 
-      [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) b a))]
-      [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) check-lang) b a))]))
-(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                                                             (=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
+      [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) b a))]
+      [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) check-lang #f) b a))]))
+(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                                                             (=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)))]
                                             [(_ (#:lang check-lang) a b) (quasisyntax/loc stx 
-                                                             (!/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                                     (=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
+                                                             (!/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                                     (=/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)))]))
 (define-syntax (!in stx) (syntax-parse stx [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b) 
-                                                    (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
+                                                    (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)))]))
 (define-syntax (!ni stx) (syntax-parse stx [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b) 
-                                                    (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]))
-(define-syntax (int>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                                                              (int>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
-                                            [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                              (int>/info (nodeinfo #,(build-source-location stx) check-lang) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
-(define-syntax (int<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                                                              (int</info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
-                                            [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                              (int</info (nodeinfo #,(build-source-location stx) check-lang) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
+                                                    (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang #f) b a)))]))
+(define-syntax (int>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                                                              (int>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)))]
+                                            [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                              (int>/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)))]))
+(define-syntax (int<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                                                              (int</info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)))]
+                                            [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                              (int</info (nodeinfo #,(build-source-location stx) check-lang #f) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)))]))
 
 (define-syntax (<: stx) 
   (syntax-case stx () 
     [(_ a b) 
       (quasisyntax/loc stx 
-        (<:helper a b (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))]
+        (<:helper a b (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)))]
     [(_ (#:lang check-lang) a b) 
       (quasisyntax/loc stx 
-        (<:helper a b (nodeinfo #,(build-source-location stx) check-lang)))]))
+        (<:helper a b (nodeinfo #,(build-source-location stx) check-lang #f)))]))
 
 ; TODO: this only functions for binary relations
 (define (<:helper a b info)
@@ -777,10 +778,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (syntax-case stx () 
     [(_ a b) 
       (quasisyntax/loc stx 
-        (:>helper a b (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))]
+        (:>helper a b (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)))]
     [(_ (#:lang check-lang) a b) 
       (quasisyntax/loc stx 
-        (:>helper a b (nodeinfo #,(build-source-location stx) check-lang)))]))
+        (:>helper a b (nodeinfo #,(build-source-location stx) check-lang #f)))]))
 
 ; TODO: this only functions for binary relations
 (define (:>helper a b info)

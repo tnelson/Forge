@@ -327,7 +327,7 @@
                                 #:is-var isv
                                 ;let #:in default to #f until it is implemented
                                 #:extends true-parent
-                                #:info (nodeinfo #,(build-source-location stx) check-lang)))
+                                #:info (nodeinfo #,(build-source-location stx) check-lang #f)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var isv true-name))
          ;Currently when lang/expander.rkt calls sig with #:in,
@@ -360,7 +360,7 @@
                                      true-sigs
                                      #:is true-breaker
                                      #:is-var isv
-                                     #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))
+                                     #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]
@@ -385,7 +385,7 @@
                                      true-sigs
                                      #:is true-breaker
                                      #:is-var isv
-                                     #:info (nodeinfo #,(build-source-location stx) check-lang)))
+                                     #:info (nodeinfo #,(build-source-location stx) check-lang #f)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]))
@@ -437,7 +437,7 @@
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
-     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang)]
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang #f)]
                    [inner-unsyntax #'unsyntax])
        (quasisyntax/loc stx
          (begin
@@ -448,7 +448,7 @@
                [name
                 (quasisyntax/loc stx2
                   ; - "pred spacer" still present, even if no arguments, to consistently record use of a predicate
-                  (let* ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang)]
+                  (let* ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang #f)]
                         [ast-node (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...)))])
                     (update-state! (state-add-pred curr-state 'name ast-node))
                     ast-node))])) )))]
@@ -457,7 +457,7 @@
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            (name:id decls:param-decl-class  ...+) conds:expr ...+)
-     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang)]
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang #f)]
                    [inner-unsyntax #'unsyntax])
        (define result-stx
          (with-syntax ([functionname (format-id #'name "~a/func" #'name)])
@@ -472,14 +472,14 @@
                    [(name args (... ...))
                     (quasisyntax/loc stx2
                       (functionname args (... ...) #:info (nodeinfo
-                                                           (inner-unsyntax (build-source-location stx2)) check-lang)))]
+                                                           (inner-unsyntax (build-source-location stx2)) check-lang #f)))]
                    ; If it's just the macro name, expand to a lambda that can take the same arguments when available
                    [name:id
                     (quasisyntax/loc stx2
                       (lambda (decls.name ...)
                         (functionname decls.name ...
                                       #:info (nodeinfo
-                                              (inner-unsyntax (build-source-location stx2)) check-lang))))]
+                                              (inner-unsyntax (build-source-location stx2)) check-lang #f))))]
                    ))
                
                ; - "pred spacer" added to record use of predicate along with original argument declarations etc.
@@ -517,7 +517,7 @@
 
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
 
-     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)]
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)]
                    [functionname (format-id #'name "~a/func" #'name)]
                    [inner-unsyntax #'unsyntax])
        (quasisyntax/loc stx
@@ -528,11 +528,11 @@
                [(name args (... ...))
                 (quasisyntax/loc stx2
                   (functionname args (... ...) #:info (nodeinfo
-                                                       (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck)))]
+                                                       (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck #f)))]
                [name:id
                 (quasisyntax/loc stx2
                   (lambda (decls.name ...)
-                    (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck))))]))
+                    (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck #f))))]))
            
            ; - "fun spacer" added to record use of function along with original argument declarations etc.           
            (define (functionname decls.name ... #:info [the-info #f])
@@ -951,12 +951,12 @@
             ; Note use of "ellip" to denote "..." for the inner macro.
             [(opName inner-args:id ellip)
              (quasisyntax/loc stxx
-               (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) inner-args ellip))]
+               (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck #f) inner-args ellip))]
             ; For use with #lang forge; identifier by itself expands to 3+-ary procedure
             [opName
              (quasisyntax/loc stxx
                (lambda (args ...)
-                 (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) args ...)))]))
+                 (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck #f) args ...)))]))
         
         (define (opName/func locArg args ...)
           body)
@@ -1054,11 +1054,11 @@
     (raise-forge-error #:msg (format "The reachable predicate expected at least three arguments, given ~a" (@+ (length r) 2))
                        #:context loc))
   
-  (in/info (nodeinfo loc 'checklangNoCheck) 
+  (in/info (nodeinfo loc 'checklangNoCheck #f) 
            a 
-           (join/info (nodeinfo loc (get-check-lang)) 
+           (join/info (nodeinfo loc (get-check-lang) #f) 
                       b 
-                      (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
+                      (^/info (nodeinfo loc 'checklangNoCheck #f) (union-relations loc r)))))
 
 (define (union-relations loc r-or-rs)
   (cond
@@ -1077,7 +1077,7 @@
          (raise-forge-error
           #:msg (format "Field argument given to reachable is not a field: ~a" (deparse r))
           #:context r)))
-       (+/info (nodeinfo loc 'checklangNoCheck) (first r-or-rs) (union-relations loc (rest r-or-rs)))]))
+       (+/info (nodeinfo loc 'checklangNoCheck #f) (first r-or-rs) (union-relations loc (rest r-or-rs)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Infrastructure for handling multiple test failures / multiple runs
