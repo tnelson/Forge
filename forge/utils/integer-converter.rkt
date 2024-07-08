@@ -119,7 +119,12 @@
 
   ; TN QUESTION: Why are we removing a layer, here?
   ; It seems to result in changing (int= (sign 5) 1) to (&& (in (sing x) 5) (int= x 1)))
-  ; which I initially thought was a typo.
+  ; which I initially thought was a typo. Is the problem that the (car ...) is meant to
+  ; remove a sing or sum, but is removing sign instead?
+
+  ;; TN QUESTION: can we rely on these always being binary? That is,
+  ;   <form> is always a node/formula? with 2 children?
+  
   
   (define expr-to-use 
     (for/or ([child children])
