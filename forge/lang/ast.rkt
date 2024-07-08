@@ -628,7 +628,7 @@
         [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
                                [(string? parent) parent]
                                [else (error (format "build-relation expected parent as either symbol or string"))])])    
-    (node/expr/relation (nodeinfo loc lang) (length types) name
+    (node/expr/relation (nodeinfo loc lang #f) (length types) name
                         (thunk types) scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields
