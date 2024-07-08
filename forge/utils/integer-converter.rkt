@@ -79,7 +79,10 @@
         ; initial child of the non-int-expr child of the thing passed in
       ; SUBSTITUTED child of the thing passed in (subbing quantified var in for the thing we have 'in' before)
     ; TODO: only works on 1 expr for now. If we have 2 exprs, we need to handle that (multiple quantvars...)
-  (define quantified-var (var 'x #:info info))
+
+  
+  (define annotated-info (update-annotation info 'smt/int-unwrap form))
+  (define quantified-var (var 'x #:info annotated-info))
 
   ;;;;;;;;;;;;;;;
   ; TN comment: read the below not as "fix these" but perhaps notes to help us to think how to solve

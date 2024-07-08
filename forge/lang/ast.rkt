@@ -56,7 +56,7 @@
 ;  loc: a stx-loc struct
 ;  lang: a symbol? describing the language this node should be interpreted in
 ;  annotations: either #f, or a hash, with symbol? keys and any value, which is used to
-;    store internal annotations on AST nodes to aid translation, etc. 
+;    store internal annotations on AST nodes to aid translation, etc. Keys must be IMMUTABLE.
 (struct nodeinfo (loc lang annotations) #:transparent  
   #:methods gen:custom-write
   [(define (write-proc self port mode)
@@ -77,11 +77,13 @@
       (nodeinfo loc 'empty #f)
       (nodeinfo (build-source-location #f) 'empty #f)))
 
-; Update the annotations for a nodeinfo struct
+; Update the annotations for a nodeinfo struct.
 (define (update-annotation ninfo key value)
   (struct-copy nodeinfo ninfo
                [annotations (if (nodeinfo-annotations ninfo)
+                                ; functional update (i.e., doesn't change ninfo)
                                 (hash-set ninfo key value)
+                                ; manufacture a new hash with this single key-value pair in it
                                 (hash key value))]))
 
 
