@@ -1129,7 +1129,7 @@
          (first xs)]
          ; Body of a predicate: any number of formulas
         [(andmap node/formula? xs)
-         (define info (nodeinfo (build-source-location stx) 'checklangplaceholder))
+         (define info (nodeinfo (build-source-location stx) 'checklangplaceholder #f))
          (&&/info info xs)]
          ; body of a helper function that produces an int-expression: one int-expression
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
@@ -1392,7 +1392,7 @@
   ;(printf "correct-id-loc: ~a; ~a; ~a~n" astnode (node? astnode) loc)
   
   (define new-info (if (node? astnode)
-                       (nodeinfo loc (nodeinfo-lang (node-info astnode)))
+                       (nodeinfo loc (nodeinfo-lang (node-info astnode)) #f)
                        #f))
   (cond [(forge:Sig? astnode)
          (forge:Sig new-info

@@ -830,7 +830,7 @@ Please declare a sufficient scope for ~a."
         (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (Range #f #f)))
 
       ; Sub-optimal, because it points to the sig definition
-      (define info (nodeinfo (nodeinfo-loc (node-info sig)) 'checklangNoCheck))
+      (define info (nodeinfo (nodeinfo-loc (node-info sig)) 'checklangNoCheck #f))
 
       (append
         (if (@and int-lower (@> int-lower bound-lower-size))
@@ -881,12 +881,12 @@ Please declare a sufficient scope for ~a."
       ; TODO : location not correct
       (let ([loc (nodeinfo-loc (node-info sig))])
         (if (@= (length extenders) 1)
-            (=/info (nodeinfo loc 'checklangNoCheck) sig (car extenders))
-            (=/info (nodeinfo loc 'checklangNoCheck) sig (+ extenders)))))
+            (=/info (nodeinfo loc 'checklangNoCheck #f) sig (car extenders))
+            (=/info (nodeinfo loc 'checklangNoCheck #f) sig (+ extenders)))))
     (define (parent sig1 sig2)
       ; loc of sig2?
       (let ([loc (nodeinfo-loc (node-info sig2))])
-        (in/info (nodeinfo loc 'checklangNoCheck) sig2 sig1)))
+        (in/info (nodeinfo loc 'checklangNoCheck #f) sig2 sig1)))
 
     (define extends-constraints 
       (if (and (Sig-abstract sig) (cons? (get-children run-spec sig)))
@@ -897,7 +897,7 @@ Please declare a sufficient scope for ~a."
     ; (unless both are #:one, in which case exact-bounds should enforce this constraint)
     (define (disjoin-pair sig1 sig2)
       (let* ([loc (nodeinfo-loc (node-info sig2))]
-             [info (nodeinfo loc 'checklangNoCheck)])
+             [info (nodeinfo loc 'checklangNoCheck #f)])
         (cond [(and (Sig-one sig1) (Sig-one sig2)) true]
               [else (no/info info (&/info info sig1 sig2))])))
     (define (disjoin-list a-sig a-list)
@@ -920,7 +920,7 @@ Please declare a sufficient scope for ~a."
 (define (get-relation-preds run-spec)
   (for/list ([relation (get-relations run-spec)])
     (define sig-rels (get-sigs run-spec relation))
-    (define info (nodeinfo (nodeinfo-loc (node-info relation)) 'checklangNoCheck))
+    (define info (nodeinfo (nodeinfo-loc (node-info relation)) 'checklangNoCheck #f))
     (in/info info relation (->/info info sig-rels))))
 
 #|

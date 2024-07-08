@@ -52,20 +52,38 @@
 ;; -----------------------------------------------------------------------------
 
 ; Struct to hold metadata about an AST node (like source location)
-; Group information in one struct to make change easier
-(struct nodeinfo (loc lang) #:transparent  
+; Group information in one struct to make change easier.
+;  loc: a stx-loc struct
+;  lang: a symbol? describing the language this node should be interpreted in
+;  annotations: either #f, or a hash, with symbol? keys and any value, which is used to
+;    store internal annotations on AST nodes to aid translation, etc. 
+(struct nodeinfo (loc lang annotations) #:transparent  
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (nodeinfo loc lang) self)
+     (match-define (nodeinfo loc lang annotations) self)
      ; hide nodeinfo when printing; don't print anything or this will become overwhelming
      ;(fprintf port "")
      (void))])
 
-(define empty-nodeinfo (nodeinfo (build-source-location #f) 'empty))
+; The default, empty nodeinfo struct
+(define empty-nodeinfo (nodeinfo
+                        (build-source-location #f)
+                        'empty
+                        #f))
+
+; Manufacture a nodeinfo struct containing only a syntax location and nothing else.
 (define (just-location-info loc)
   (if loc 
-      (nodeinfo loc 'empty)
-      (build-source-location #f)))
+      (nodeinfo loc 'empty #f)
+      (nodeinfo (build-source-location #f) 'empty #f)))
+
+; Update the annotations for a nodeinfo struct
+(define (update-annotation ninfo key value)
+  (struct-copy nodeinfo ninfo
+               [annotations (if (nodeinfo-annotations ninfo)
+                                (hash-set ninfo key value)
+                                (hash key value))]))
+
 
 ; Base node struct, should be ancestor of all AST node types
 ; Should never be directly instantiated
@@ -211,7 +229,7 @@
          (define loc1 (nodeinfo-loc (node-info sofar)))
          (define loc2 (nodeinfo-loc (node-info (first todo))))
          (build-box-join (join/info
-                          (nodeinfo (build-source-location loc1 loc2) 'checklangplaceholder)
+                          (nodeinfo (build-source-location loc1 loc2) 'checklangplaceholder #f)
                                     (first todo) sofar)
                           (rest todo))]))
 
@@ -301,7 +319,7 @@
 (define-syntax (ite stx)
   (syntax-parse stx
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b c) 
-      (quasisyntax/loc stx (ite/info (nodeinfo #,(build-source-location stx) check-lang) a b c))]))
+      (quasisyntax/loc stx (ite/info (nodeinfo #,(build-source-location stx) check-lang #f) a b c))]))
 
 (define (empty-check node) (lambda ()(void)))
 
@@ -384,10 +402,10 @@
                   (quasisyntax/loc stx2
                     ;(begin
                     ;(printf "arguments:~a ; ~a ; ~a ~n" check-lang e ellip))]
-                    (macroname/info (nodeinfo #,(build-source-location stx2) check-lang) e ellip))]
+                    (macroname/info (nodeinfo #,(build-source-location stx2) check-lang #f) e ellip))]
                 [(_ e ellip)                
                   (quasisyntax/loc stx2
-                    (macroname/info (nodeinfo #,(build-source-location stx2) 'checklangNoCheck) e ellip))]))
+                    (macroname/info (nodeinfo #,(build-source-location stx2) 'checklangNoCheck #f) e ellip))]))
 
 
            (define (macroname/info-help info args-raw)
@@ -490,7 +508,7 @@
   (syntax-parse stx
     [(_ v e quant)
      (quasisyntax/loc stx
-       (node/expr/quantifier-var (nodeinfo #,(build-source-location #'v) 'checklangNoCheck)
+       (node/expr/quantifier-var (nodeinfo #,(build-source-location #'v) 'checklangNoCheck #f)
                                  (if (node/expr? e) (node/expr-arity e) 1)
                                  (gensym (format "~a_~a" 'v 'quant)) 'v))]))
 
@@ -559,7 +577,7 @@
             (unless (equal? 1 (node/expr-arity e0))
               (raise-set-comp-quantifier-error e0))
             ...
-            (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang)
+            (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f)
                       (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
@@ -607,7 +625,7 @@
         [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
                                [(string? parent) parent]
                                [else (error (format "build-relation expected parent as either symbol or string"))])])    
-    (node/expr/relation (nodeinfo loc 'checklangplaceholder) (length types) name
+    (node/expr/relation (nodeinfo loc 'checklangplaceholder #f) (length types) name
                         (thunk types) scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields
@@ -638,7 +656,7 @@
 (define-syntax (atom stx)
   (syntax-case stx ()    
     [(_ name)
-     (quasisyntax/loc stx (atom/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
+     (quasisyntax/loc stx (atom/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f)
                                      name))]))
 
 (define (atom-name rel)
@@ -659,11 +677,11 @@
 
 ; constants
 (define-syntax none (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 'none))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 1 'none))])))
 (define-syntax univ (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 'univ))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 1 'univ))])))
 (define-syntax iden (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 2 'iden))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 2 'iden))])))
 
 ; Int and succ are built-in relations, not constant expressions
 
@@ -710,7 +728,7 @@
   (syntax-case stx ()
     [(_ n)
      (quasisyntax/loc stx       
-         (int/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) n))]))
+         (int/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) n))]))
 
 ;; -- sum quantifier -----------------------------------------------------------
 (struct node/int/sum-quant node/int (decls int-expr)
@@ -778,9 +796,9 @@
    (define hash2-proc (make-robust-node-hash-syntax node/formula/constant 3))])
 
 (define-syntax true (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'true))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 'true))])))
 (define-syntax false (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'false))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 'false))])))
 
 
 
@@ -916,7 +934,7 @@
 (define-syntax (all stx)
   (syntax-parse stx
     [(_ check-lang:opt-check-lang-class (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred)     
-      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (~? disj) ([v0 e0 m0] ...) pred))]))
+      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]))
 
 (define-syntax (all/info stx)
   (syntax-parse stx
@@ -943,9 +961,9 @@
 (define-syntax (some stx)
   (syntax-parse stx
     [(_ check-lang:opt-check-lang-class (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
     [(_ check-lang:opt-check-lang-class expr)
-      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) expr))]))
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) expr))]))
 
 (define-syntax (some/info stx)
   (syntax-parse stx 
@@ -981,10 +999,10 @@
   (syntax-parse stx
     ; quantifier
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
     ; multiplicity
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
-      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
 
 (define-syntax (no/info stx)
   (syntax-parse stx
@@ -1012,10 +1030,10 @@
   (syntax-parse stx
     ; quantifier
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
     ; multiplicity
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
-      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
 
 (define-syntax (one/info stx)
   (syntax-parse stx
@@ -1048,9 +1066,9 @@
 (define-syntax (lone stx)
   (syntax-parse stx    
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
-      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
 
 (define-syntax (lone/info stx)
   (syntax-parse stx
@@ -1080,7 +1098,7 @@
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1 m0:opt-mult-class] ...) int-expr)
      (quasisyntax/loc stx
        (let* ([x1 (qvar x1 r1 "sum")] ...)
-         (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang) (list (cons x1 r1) ...) int-expr)))]))
+         (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang #f) (list (cons x1 r1) ...) int-expr)))]))
 
 
 ;; -- sealing (for examplar) -----------------------------------------------------------
@@ -1209,7 +1227,7 @@
   (syntax-case stx ()
     [(make-breaker id sym)
       #'(define-syntax id (lambda (stx) (syntax-case stx ()    
-          [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx) 'checklangplaceholder) sym))])))]))
+          [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) sym))])))]))
 
 (make-breaker cotree 'cotree)
 (make-breaker cofunc 'cofunc)
