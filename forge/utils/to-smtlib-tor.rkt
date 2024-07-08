@@ -328,7 +328,8 @@
     [(node/expr/op/~ info arity children)
      (format "(rel.transpose ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/expr/op/++ info arity children)
-     "TODO: ++ (idk what that is)"]
+     (raise-forge-error #:msg "Relational update currently unsupported by SMT-LIB translation in Forge."
+                        #:context info)]
     [(node/expr/op/sing info arity children)
      (format "(set.singleton (tuple ~a))" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]))
 
