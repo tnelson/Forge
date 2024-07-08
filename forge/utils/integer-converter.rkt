@@ -124,6 +124,38 @@
 
   ;; TN QUESTION: can we rely on these always being binary? That is,
   ;   <form> is always a node/formula? with 2 children?
+
+  ; This function is only called for int=, int<, and int>.
+  (unless (equal? (length children) 2)
+    (raise-forge-error #:msg (format "SMT-LIB conversion reconciling ~a, but unexpected number of arguments to int operator" form)
+                       #:context form))
+  (define lhs (first children))
+  (define rhs (second children))
+
+  ; We are now in an expression context. It is possible that LHS and/or RHS use a
+  ; relational->integer operator (sum or card) at any depth.
+  ; E.g., add[a.r, 5] = sign[abs[remainder[b.r, c.r]]]
+  ;   would need to have both a.r and b.r unwrapped, becoming
+  ;   some x_1, x_2 : Int |
+  ;       x_1 = a.r and x_2 = b.r and x_3 = c.r and
+  ;       add[x_1, 5] = sign[abs[remainder[x_2, x_3]]]
+  ; Because of the arbitrary depth, and potential need to quantify for any number of expressions,
+  ; We proceed as follows:
+  ;  (1) Gather all relational->integer expressions within the LHS and RHS
+  ;  (2) Create one new quantifier variable for each
+  ;  (3) Substitute each rel->int expression for its corresponding quantifier variable
+  ;  (4) Assemble a quantified formula, over those variables, with domain Int, with body
+  ;     a conjunction of (v1 = expr1) and ... and (vk = exprk) and subst(LHS) = SUBST(RHS)
+  
+
+  ; 1 = 2 : no unwrapping needed
+  ; 1 = sum[relexpr] : unwrap the RHS (after reconciling the sum?)
+  ; sum[relexpr] = 1 : unwrap the LHS (after reconciling the sum?)
+  ; sum[relexpr] = sum[relexpr] : need to unwrap both LHS and RHS (reconcile sums?)
+
+  ; 1 = add[intexpr, intexpr] : no unwrapping to do, but must descend in case of inner expr
+  ; add[intexpr, intexpr] = 1 : no unwrapping to do, but must descend in case of inner expr
+  
   
   
   (define expr-to-use 
@@ -132,6 +164,10 @@
   (define expr-to-replace
     (for/or ([child children])
       (if (node/int/op? child) child #f)))
+
+  
+  
+  ; Produce "some x: Int | x = (lhs) and x = (rhs)"
   (node/formula/quantified info 'some (list (cons quantified-var Int)) 
     (node/formula/op/&& info 
       (list 
