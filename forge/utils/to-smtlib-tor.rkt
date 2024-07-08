@@ -13,7 +13,7 @@
   (only-in racket index-of match string-join first second rest flatten last drop-right third)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
-  (prefix-in @ (only-in racket/base >= >)))
+  (prefix-in @ (only-in racket/base >= > -)))
 
 (provide convert-formula)
 
@@ -270,7 +270,10 @@
     [(node/expr/constant info arity 'iden)
      "TODO: identity relation"]
     [(node/expr/constant info arity 'none)
-     "TODO: k-ary product of set.empty"]
+     ; produce an empty set of the appropriate arity
+     (for/fold ([acc "set.empty"])
+               ([todo (build-list (@- arity 1) (lambda (x) x))])
+       (format "(rel.product set.empty ~a)" acc))]
     [(node/expr/constant info arity type)
      (raise-forge-error #:msg (format "Unexpected node reached by to-smtlib-tor: node/expr/constant with type " type)
                         #:context info)]
