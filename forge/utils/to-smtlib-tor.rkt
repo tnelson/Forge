@@ -268,8 +268,13 @@
      "TODO: ANOTHER EXPR CONSTANT? IDK WHAT THIS IS"]
     [(node/expr/op info arity args)
      (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)]
-    [(node/expr/quantifier-var info arity sym name)  
-     (format "(set.singleton (tuple ~a))" name)]
+    [(node/expr/quantifier-var info arity sym name)
+     ; If this is an integer-unwrapping quantifier variable, it will be declared of sort Int,
+     ; and should not be wrapped to make it a singleton-set-of-tuples. Otherwise, it must be
+     ; wrapped so that relational operators can work with it directly.
+     (if (get-annotation info 'smt/int-unwrap)
+         (format "~a" name)
+         (format "(set.singleton (tuple ~a))" name))]
     [(node/expr/comprehension info len decls form)   
      (define new-vs-decls
        (for/fold ([vs-decls (list quantvars '())])

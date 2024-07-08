@@ -77,6 +77,15 @@
       (nodeinfo loc 'empty #f)
       (nodeinfo (build-source-location #f) 'empty #f)))
 
+; Get the annotation for this info struct, if any
+(define (get-annotation info key)
+  (cond [(not info) #f]
+        [(not (nodeinfo-annotations info)) #f]
+        [(hash-has-key? (nodeinfo-annotations info) 'smt/int-unwrap)
+         (hash-ref (nodeinfo-annotations info))]
+        [else #f]))
+  
+
 ; Update the annotations for a nodeinfo struct.
 (define (update-annotation ninfo key value)
   (struct-copy nodeinfo ninfo
