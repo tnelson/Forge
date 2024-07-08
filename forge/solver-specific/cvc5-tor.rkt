@@ -188,11 +188,14 @@
 
   ; Now, convert bounds into SMT-LIB (theory of relations) and assert all formulas
 
-  ; preamble: the (reset) makes (set-logic ...) etc. not give an error on 2nd run
-  ; Note some other options are set in cvc5-server.rkt!
-  ; TODO: we shouldn't need to explicitly reset, but it isn't always being done
-  ; Also declare Atom sort as the top level sort.
-  (define preamble-str (format "(reset)~n(set-logic ALL)~n(declare-sort Atom 0)~n"))
+  ; Preamble: the (reset) makes (set-logic ...) etc. not give an error on 2nd run
+  ; Note some other options are set in cvc5-server.rkt! We explicitly reset here just in case.
+  ; Also declare Atom sort as the top level sort, and define various helper SMT functions.
+  
+  (define defined-funs (list
+     "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"))
+  (define preamble-str (format "(reset)~n~a~n(set-logic ALL)~n(declare-sort Atom 0)~n"
+                               (string-join defined-funs "\n")))
 
   ; converted bounds:
   (define bounds-str (string-join (map convert-bound step3-bounds) "\n"))

@@ -115,6 +115,11 @@
   ;    Right now, I think (e.g.)  (p.age >= 18 and p.age <= 100) would generate
   ;    multiple quantifier variables for the Int value of p.age, rather than one.
   ;  (This is just a potential performance issue, right? We don't know if it actually is one.)
+
+
+  ; TN QUESTION: Why are we removing a layer, here?
+  ; It seems to result in changing (int= (sign 5) 1) to (&& (in (sing x) 5) (int= x 1)))
+  ; which I initially thought was a typo.
   
   (define expr-to-use 
     (for/or ([child children])

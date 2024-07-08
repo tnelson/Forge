@@ -373,7 +373,8 @@
     [(node/int/op/abs info children)
      (format "(abs ~a)" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/sign info children)
-     "TODO: sign"]
+     ; The Forge->SMT-LIB generator preamble defines a function "sign"
+     (format "(sign ~a)")]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     ))
