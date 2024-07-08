@@ -262,10 +262,18 @@
           [processed-c (convert-expr run-or-state c relations atom-names quantvars quantvar-types bounds)])
      (format "(ite ~a ~a ~a)" processed-a processed-b processed-c))]
     [(node/expr/constant info 1 'Int)
-     ; TODO: Is this production being used? 'Int is a symbol, not expanded to the Int sig?
-     "TODO: EXPR CONSTANT? IDK WHAT THIS IS"]
+     (raise-forge-error #:msg "Unexpected node reached by to-smtlib-tor: node/expr/constant with 'Int"
+                        #:context info)]
+    ; univ, iden, none
+    [(node/expr/constant info arity 'univ)
+     "TODO: universe -- atoms + ints"]
+    [(node/expr/constant info arity 'iden)
+     "TODO: identity relation"]
+    [(node/expr/constant info arity 'none)
+     "TODO: k-ary product of set.empty"]
     [(node/expr/constant info arity type)
-     "TODO: ANOTHER EXPR CONSTANT? IDK WHAT THIS IS"]
+     (raise-forge-error #:msg (format "Unexpected node reached by to-smtlib-tor: node/expr/constant with type " type)
+                        #:context info)]
     [(node/expr/op info arity args)
      (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)]
     [(node/expr/quantifier-var info arity sym name)
