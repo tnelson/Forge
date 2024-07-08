@@ -20,6 +20,15 @@
 
 (define fake-spec (Run-spec init-state '() (Scope #f #f (hash))
                             (Bound (hash) (hash) (hash) (hash)) #f))
+(define fake-solution-tree (tree:make-node #f #f))
+; Experiment: can we make a fake Run as well?
+(define fake-run (Run 'fake #'fake fake-spec fake-solution-tree 
+  (Server-ports #f #f #f #f #f)
+  '(Atom0 Atom1 1 2 3)
+  (Kodkod-current 1 2 3)
+  '() ; bounds here
+  (box #f)))
+
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check "base case" -- the skolemization itself. 
