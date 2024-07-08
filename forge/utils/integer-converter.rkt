@@ -136,7 +136,7 @@
   ; relational->integer operator (sum or card) at any depth.
   ; E.g., add[a.r, 5] = sign[abs[remainder[b.r, c.r]]]
   ;   would need to have both a.r and b.r unwrapped, becoming
-  ;   some x_1, x_2 : Int |
+  ;   some x_1, x_2, x_3 : Int |
   ;       x_1 = a.r and x_2 = b.r and x_3 = c.r and
   ;       add[x_1, 5] = sign[abs[remainder[x_2, x_3]]]
   ; Because of the arbitrary depth, and potential need to quantify for any number of expressions,
