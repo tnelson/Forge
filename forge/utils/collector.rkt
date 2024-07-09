@@ -56,7 +56,7 @@
   (define matched? (matcher node))
   (define stop? (stop node))
   (cond
-    [stop? (list matched?)]
+    [stop? (if matched? (list matched?) '())]
     [else 
      (define collected-within
        (cond
