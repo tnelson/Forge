@@ -11,6 +11,7 @@
          (prefix-in boxed-int: forge/utils/integer-converter)
          (prefix-in skolemize: forge/utils/to-skolem)
          (prefix-in smt-tor: forge/utils/to-smtlib-tor)
+         (prefix-in quant-grounding: forge/utils/quantifier-grounding)
          )
 
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
@@ -175,8 +176,10 @@
     (printf "~nStep 3 (post Skolemization):~n")
     (for ([constraint step3])
       (printf "  ~a~n" constraint)))
+
+  (define step3.5 (map (lambda (f) (quant-grounding:interpret-formula run-spec f relations all-atoms '() '() step3-bounds)) step3))
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '() '() step3-bounds)) step3))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '() '() step3-bounds)) step3.5))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 4 (post SMT-LIB conversion):~n")
     (for ([constraint step4])

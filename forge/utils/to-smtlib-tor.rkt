@@ -57,7 +57,7 @@
                  ([decl decls])
          (define curr-quantvars (first vs-decls))
          (define curr-expr-decls (second vs-decls))
-         (define new-quantvars (cons (car decl) quantvars))
+         (define new-quantvars (cons (car decl) curr-quantvars))
          (define new-expr-decls (cons decl curr-expr-decls))
          (list new-quantvars new-expr-decls)))
       (define new-quantvars  (first new-vs-decls))
@@ -82,11 +82,16 @@
     ))
 
 (define (get-k-bounds run-or-state expr quantvars quantvar-types)
+  (printf "quantvars: ~a~n" quantvars)
+  (printf "quantvar-types: ~a~n" quantvar-types)
   (define quantvar-pairs (map list quantvars quantvar-types))
   (define dummy-hash (make-hash))
   (define list-of-types (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
   (define top-level-type-list (for/list ([type list-of-types])
     (if (index-of type 'Int) "Int" "Atom")))
+  (printf "TOP LEVEL TYPE LIST: ~a~n" top-level-type-list)
+  (printf "LIST OF TYPES: ~a~n" list-of-types)
+  (printf "EXPR: ~a~n" expr)
   (format "(Relation ~a)" (string-join top-level-type-list " "))
 )
 
@@ -224,8 +229,7 @@
                                #:context expr)]
            [else (format "~a" name)])]
     [(node/expr/atom info arity name)
-     (raise-forge-error #:msg (format "direct atom references unsupported by SMT backend")
-                        #:context expr)]
+     (format "(set.singleton (tuple ~a))" name)]
     [(node/expr/fun-spacer info arity name args result expanded)
      ; "arity" will always be 1, since this represents a Skolem function.
      ; Use the expanded expr's arity instead:
@@ -354,7 +358,7 @@
                  ([decl decls])
          (define curr-quantvars (first vs-decls))
          (define curr-expr-decls (second vs-decls))
-         (define new-quantvars (cons (car decl) quantvars))
+         (define new-quantvars (cons (car decl) curr-quantvars))
          (define new-expr-decls (cons decl curr-expr-decls))
          (list new-quantvars new-expr-decls)))
       (define new-quantvars  (first new-vs-decls))
@@ -377,6 +381,8 @@
     [(node/int/op/divide info children)
       (format "(div ~a)" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/sum info children)
+    ; if we can discover that the argument is provably a singleton, we can just erase the 'sum' node
+    ; what in the world do we do in the other case? probably either be inspired by cvc5 work or fortress translation
     "TODO: sum"]
     [(node/int/op/card info children)
     "TODO: cardinality"]
