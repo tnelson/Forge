@@ -496,7 +496,6 @@
  
     ; quantifier variable
     [(node/expr/quantifier-var info arity sym name)
-    (printf "test: ~a~n" (assoc expr quantvars))
      (check-and-output expr
                        node/expr/quantifier-var
                        checker-hash

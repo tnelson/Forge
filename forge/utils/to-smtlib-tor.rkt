@@ -82,16 +82,11 @@
     ))
 
 (define (get-k-bounds run-or-state expr quantvars quantvar-types)
-  (printf "quantvars: ~a~n" quantvars)
-  (printf "quantvar-types: ~a~n" quantvar-types)
   (define quantvar-pairs (map list quantvars quantvar-types))
   (define dummy-hash (make-hash))
   (define list-of-types (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
   (define top-level-type-list (for/list ([type list-of-types])
     (if (index-of type 'Int) "Int" "Atom")))
-  (printf "TOP LEVEL TYPE LIST: ~a~n" top-level-type-list)
-  (printf "LIST OF TYPES: ~a~n" list-of-types)
-  (printf "EXPR: ~a~n" expr)
   (format "(Relation ~a)" (string-join top-level-type-list " "))
 )
 
@@ -255,7 +250,6 @@
                                  #:context info))
             (format "(set.singleton (tuple ~a))" name)
             ;[(equal? #\$ (string-ref name 0)) (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)]
-
             ]
            [else
             ; This is not a Skolem function; continue as normal.

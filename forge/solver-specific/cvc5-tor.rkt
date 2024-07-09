@@ -12,6 +12,7 @@
          (prefix-in skolemize: forge/utils/to-skolem)
          (prefix-in smt-tor: forge/utils/to-smtlib-tor)
          (prefix-in quant-grounding: forge/utils/quantifier-grounding)
+         (prefix-in lazy-tree: forge/lazy-tree)
          )
 
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
@@ -135,6 +136,13 @@
   (printf "~n********************************~n")
   (printf "Translating to CVC5 theory-of-relations~nConstraints:~n")
 
+  ; First concept of turning run-spec into run statement:
+  (define fake-solution-tree (lazy-tree:make-node #f #f))
+  (define fake-server-ports (Server-ports #f #f #f #f #f))
+  (define fake-kodkod-current (Kodkod-current 1 2 3))
+  (define fake-run (Run 'fake #'fake run-spec fake-solution-tree 
+                        fake-server-ports all-atoms fake-kodkod-current total-bounds (box #f)))
+
   ; Last version pre-solver, pre-SMT conversion
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 0 (from Forge):~n")
@@ -142,14 +150,14 @@
       (printf "  ~a~n" constraint)))
 
   ; Convert to negation normal form
-  (define step1 (map (lambda (f) (nnf:interpret-formula run-spec f relations all-atoms '())) step0))
+  (define step1 (map (lambda (f) (nnf:interpret-formula fake-run f relations all-atoms '())) step0))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 1 (post NNF conversion):~n")
     (for ([constraint step1])
       (printf "  ~a~n" constraint)))
 
   ; Convert boxed integer references to existential quantifiers
-  (define step2 (map (lambda (f) (boxed-int:interpret-formula run-spec f relations all-atoms '())) step1))
+  (define step2 (map (lambda (f) (boxed-int:interpret-formula fake-run f relations all-atoms '())) step1))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 2 (post boxed-integer translation):~n")
     (for ([constraint step2])
@@ -164,7 +172,7 @@
               ([f step2])
       ; Accumulator starts with: no formulas, original total-bounds
       (define-values (resulting-formula new-bounds)
-        (skolemize:interpret-formula run-spec (second fs-and-bs) f relations all-atoms '() '()
+        (skolemize:interpret-formula fake-run (second fs-and-bs) f relations all-atoms '() '()
                                      #:tag-with-spacer #t))
       ; Accumulator adds the skolemized formula, updated bounds
       (list (cons resulting-formula (first fs-and-bs))
@@ -176,10 +184,14 @@
     (printf "~nStep 3 (post Skolemization):~n")
     (for ([constraint step3])
       (printf "  ~a~n" constraint)))
+    
+  ; Modify the bounds of the fake run from step 3
+  (define new-fake-run (Run 'fake #'fake (Run-run-spec fake-run) fake-solution-tree 
+                            fake-server-ports (Run-atoms fake-run) fake-kodkod-current step3-bounds (box #f)))
 
-  (define step3.5 (map (lambda (f) (quant-grounding:interpret-formula run-spec f relations all-atoms '() '() step3-bounds)) step3))
+  (define step3.5 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step3-bounds)) step3))
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula run-spec f relations all-atoms '() '() step3-bounds)) step3.5))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() step3-bounds)) step3.5))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 4 (post SMT-LIB conversion):~n")
     (for ([constraint step4])

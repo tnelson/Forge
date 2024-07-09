@@ -25,4 +25,10 @@ pred double_quant {
     }
 }
 
-run {double_quant}
+pred disjoint_quant {
+    all disj p1, p2: Person | {
+        p1.spouse = p2 => p2.spouse = p1
+    }
+}
+
+run {disjoint_quant}

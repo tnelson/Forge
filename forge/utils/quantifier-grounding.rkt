@@ -1,6 +1,8 @@
 #lang racket/base
 
-; This file is intended to take in the Forge AST and return an identity translation of it.
+; This file is intended to take in the Forge AST and return a translation of it
+; where quantifier variables are 'grounded out' into applying the formula to each 
+; element of the upper bound of the quantifier variable.
 
 (require 
   forge/sigs-structs
@@ -49,9 +51,7 @@
       (match quantifier
         ['all 
           ; recursively descend on the inner formula, in case there are nested quantifiers.
-          (printf "old inner formula: ~a~n" form)
           (define new-inner-form (interpret-formula run-or-state form relations atom-names quantvars quantvar-types bounds))
-          (printf "new inner formula: ~a~n" new-inner-form)
           ; now ground out the quantifier we are currently on, using the helper
           (grounding-helper run-or-state decls new-inner-form relations atom-names quantvars quantvar-types bounds info)]
         [_
@@ -76,11 +76,8 @@
 
 (define (grounding-helper run-or-state decls new-inner-form relations atom-names quantvars quantvar-types bounds info)
   ; decls has the info we need to ground out the quantifier.
-  (printf "~n~n~n BEGINNING GROUNDING ~n~n~n")
-  (printf "~n~n~n INNER FORM: ~a~n~n~n" new-inner-form)
   (define dummy-hash (make-hash))
   ; map each type to the respective upper bound
-  (printf "decls: ~a~n" decls)
   (define vars-atoms
     (for/fold ([acc '()]) ([bound bounds])
       (append acc
@@ -89,11 +86,6 @@
                                             (equal? (relation-name (cdr decl)) (relation-name (bound-relation bound))))
                                 (cons (cons (car decl) (flatten (bound-upper bound))) inner-acc)
                                 inner-acc)))))
-  (printf "vars-atoms ~a~n"(car vars-atoms))
-  (define var-to-replace (car (car vars-atoms)))
-  (define vars-to-substitute (cdr (car vars-atoms)))
-  (printf "var-to-replace ~a~n" var-to-replace)
-  (printf "vars-to-substitute ~a~n" vars-to-substitute)
   ; now we want to essentially return an 'and' node where the sub expressions are 
   ; the inner formula with each element of the upper bound substituted in for the quantvar.
   (define (inner-formula-helper inner-formula-list var-and-atoms)
@@ -102,12 +94,10 @@
     (define inner-substituted-list
       (for/list ([inner-fmla inner-formula-list])
         (for/list ([var vars-to-substitute])
-          (printf "inner fmla: ~a~n" inner-fmla)
           (substitute-formula run-or-state inner-fmla relations atom-names quantvars var-to-replace (node/expr/atom info 1 var))
         )
       )
     )
-    (printf "INNER SUBSTITUTED LIST: ~a~n" (apply append inner-substituted-list))
     (apply append inner-substituted-list)
   )
 

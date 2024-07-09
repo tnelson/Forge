@@ -155,6 +155,12 @@
 
   ; 1 = add[intexpr, intexpr] : no unwrapping to do, but must descend in case of inner expr
   ; add[intexpr, intexpr] = 1 : no unwrapping to do, but must descend in case of inner expr
+
+  ; (1) Gather all relational->integer expressions within the LHS and RHS
+    ; Use the collector for this. 
+      ; The collector takes in a fmla, a comparison lambda (matcher), an optional traversal order 
+      ; argument, and an optional 'stop' lambda, which in this case should be when we encounter 
+      ; a relational expression that needs to be unwrapped (so the child of an int operation node)
   
   
   
