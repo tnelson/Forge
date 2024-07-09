@@ -127,42 +127,44 @@
 (define (substitute-expr run-or-state expr relations atom-names quantvars target value)
   (when (@>= (get-verbosity) 2)
       (printf "substitutor: interpret-expr: ~a~n" expr))
-  (match expr
-    [(node/expr/relation info arity name typelist-thunk parent isvar)
-     (if (equal? expr target) value expr)]
-    [(node/expr/atom info arity name)
-     (if (equal? expr target) value expr)]
-    [(node/expr/fun-spacer info arity name args result expanded)
-     (let ([new-expanded (substitute-expr run-or-state expanded relations atom-names quantvars target value)])
-     (node/expr/fun-spacer info arity name args result new-expanded))]
-    [(node/expr/ite info arity a b c)  
-    (let ([processed-a (substitute-formula run-or-state a relations atom-names quantvars target value)]
-          [processed-b (substitute-expr run-or-state b relations atom-names quantvars target value)]
-          [processed-c (substitute-expr run-or-state c relations atom-names quantvars target value)])
-     (node/expr/ite info arity processed-a processed-b processed-c))]
-    [(node/expr/constant info 1 'Int)
-     (if (equal? expr target) value expr)]
-    [(node/expr/constant info arity type)
-     (if (equal? expr target) value expr)]
-    [(node/expr/op info arity args)
-     (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)]
-    [(node/expr/quantifier-var info arity sym name)  
-     (if (equal? expr target) value expr)]
-    [(node/expr/comprehension info len decls form)     
-     (define new-vs-and-decls
-       (for/fold ([vs-and-decls (list quantvars '())])
-                 ([decl decls])
-         (define curr-quantvars (first vs-and-decls))
-         (define curr-decls (second vs-and-decls))
-         (define new-quantvars (cons (car decl) curr-quantvars))
-         (define new-decl-domain (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars target value))
-         (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
-         (list new-quantvars new-decls)))
-     (define new-quantvars (first new-vs-and-decls))
-     (let ([processed-form (substitute-formula run-or-state form relations atom-names new-quantvars target value)])
-       (define new-decls (second new-vs-and-decls))
-     (node/expr/comprehension info len new-decls processed-form))]))
-
+  (if (equal? expr target)
+      value
+      (match expr
+        [(node/expr/relation info arity name typelist-thunk parent isvar)
+         (if (equal? expr target) value expr)]
+        [(node/expr/atom info arity name)
+         (if (equal? expr target) value expr)]
+        [(node/expr/fun-spacer info arity name args result expanded)
+         (let ([new-expanded (substitute-expr run-or-state expanded relations atom-names quantvars target value)])
+           (node/expr/fun-spacer info arity name args result new-expanded))]
+        [(node/expr/ite info arity a b c)  
+         (let ([processed-a (substitute-formula run-or-state a relations atom-names quantvars target value)]
+               [processed-b (substitute-expr run-or-state b relations atom-names quantvars target value)]
+               [processed-c (substitute-expr run-or-state c relations atom-names quantvars target value)])
+           (node/expr/ite info arity processed-a processed-b processed-c))]
+        [(node/expr/constant info 1 'Int)
+         (if (equal? expr target) value expr)]
+        [(node/expr/constant info arity type)
+         (if (equal? expr target) value expr)]
+        [(node/expr/op info arity args)
+         (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)]
+        [(node/expr/quantifier-var info arity sym name)  
+         (if (equal? expr target) value expr)]
+        [(node/expr/comprehension info len decls form)     
+         (define new-vs-and-decls
+           (for/fold ([vs-and-decls (list quantvars '())])
+                     ([decl decls])
+             (define curr-quantvars (first vs-and-decls))
+             (define curr-decls (second vs-and-decls))
+             (define new-quantvars (cons (car decl) curr-quantvars))
+             (define new-decl-domain (substitute-expr run-or-state (cdr decl) relations atom-names new-quantvars target value))
+             (define new-decls (cons (cons (car decl) new-decl-domain) curr-decls))
+             (list new-quantvars new-decls)))
+         (define new-quantvars (first new-vs-and-decls))
+         (let ([processed-form (substitute-formula run-or-state form relations atom-names new-quantvars target value)])
+           (define new-decls (second new-vs-and-decls))
+           (node/expr/comprehension info len new-decls processed-form))])))
+  
 (define (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)
     (when (@>= (get-verbosity) 2)
       (printf "substitutor: interpret-expr-op: ~a~n" expr))
