@@ -8,6 +8,7 @@
   forge/lang/ast
   forge/shared
   forge/utils/substitutor
+  forge/utils/collector
   (only-in racket index-of match string-join first second rest)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
@@ -132,6 +133,10 @@
   (define lhs (first children))
   (define rhs (second children))
 
+  (printf "form: ~a~n" form)
+  (printf "lhs: ~a~n" lhs)
+  (printf "rhs: ~a~n" rhs)
+
   ; We are now in an expression context. It is possible that LHS and/or RHS use a
   ; relational->integer operator (sum or card) at any depth.
   ; E.g., add[a.r, 5] = sign[abs[remainder[b.r, c.r]]]
@@ -158,31 +163,61 @@
 
   ; (1) Gather all relational->integer expressions within the LHS and RHS
     ; Use the collector for this. 
-      ; The collector takes in a fmla, a comparison lambda (matcher), an optional traversal order 
-      ; argument, and an optional 'stop' lambda, which in this case should be when we encounter 
-      ; a relational expression that needs to be unwrapped (so the child of an int operation node)
-  
-  
-  
-  (define expr-to-use 
-    (for/or ([child children])
-      (if (node/int/op? child) (car (node/int/op-children child)) #f)))
-  (define expr-to-replace
-    (for/or ([child children])
-      (if (node/int/op? child) child #f)))
+    ; Collector lambda should return non-int-op nodes, since we're looking for relational->int ops.
+  (define collector-lambda (lambda (n) (if (not (node/int? n)) n #f)))
+    ; The collector also requires a stopping lambda, which should stop at the same condition as when we collect.
+    ; This is because supposed we had sign[sum[join[sum x, y]]], we would want to stop at the join,
+    ; since recursive descent will have already unwrapped the inner x and y.
+  (define stopping-lambda (lambda (n) (if (node/int? n) #f #t)))
+    ; I don't think we need the optional 'order' argument, since it doesn't really matter
+  (define lhs-relational-exprs (collect lhs collector-lambda #:order 'pre-order #:stop stopping-lambda))
+  (define rhs-relational-exprs (collect rhs collector-lambda #:order 'pre-order #:stop stopping-lambda))
 
+  (printf "lhs-relational-exprs: ~a~n" lhs-relational-exprs)
+  (printf "rhs-relational-exprs: ~a~n" rhs-relational-exprs)
+
+  (define lhs-quantifiers 
+    (for/list ([x lhs-relational-exprs])
+      (var (string->symbol (string-append "x_" (symbol->string (gensym)))) #:info annotated-info)))
+  (define rhs-quantifiers 
+    (for/list ([x rhs-relational-exprs])
+      (var (string->symbol (string-append "x_" (symbol->string (gensym)))) #:info annotated-info)))
+
+  (printf "lhs-quantifiers: ~a~n" lhs-quantifiers)
+  (printf "rhs-quantifiers: ~a~n" rhs-quantifiers)
+  ; (3) Substitute each rel->int expression for its corresponding quantifier variable
+  (define lhs-substituted (if (equal? lhs-relational-exprs '()) (list lhs)
+                          (for/list ([rel-expr lhs-relational-exprs] [new-quantifier lhs-quantifiers])
+                          (substitute-ambig run-or-state lhs relations atom-names 
+                          quantvars (node/int/op/sum (node-info rel-expr) (list rel-expr)) new-quantifier))))
+  (define rhs-substituted (if (equal? rhs-relational-exprs '()) (list rhs)
+                          (for/list ([rel-expr rhs-relational-exprs] [new-quantifier rhs-quantifiers])
+                          (substitute-ambig run-or-state rhs relations atom-names 
+                          quantvars (node/int/op/sum (node-info rel-expr) (list rel-expr)) new-quantifier))))
+
+   (printf "lhs-substituted: ~a~n" lhs-substituted)
+    (printf "rhs-substituted: ~a~n" rhs-substituted)
+  ; (4) Assemble a quantified formula, over those variables, with domain Int, with body
+  ;    a conjunction of (v1 = expr1) and ... and (vk = exprk) and subst(LHS) = SUBST(RHS)
+  (define lhs-equality-formulas (for/list ([lhs-quant lhs-quantifiers] [lhs-expr lhs-relational-exprs])
+                            (node/formula/op/= annotated-info (list lhs-quant lhs-expr))))
+  (define rhs-equality-formulas (for/list ([rhs-quant rhs-quantifiers] [rhs-expr rhs-relational-exprs])
+                            (node/formula/op/= annotated-info (list rhs-quant rhs-expr))))
+  (define fmla-equality (node/formula/op/= annotated-info (append lhs-substituted rhs-substituted)))
+
+  (printf "lhs-equality-formulas: ~a~n" lhs-equality-formulas)
+  (printf "rhs-equality-formulas: ~a~n" rhs-equality-formulas)
+  (printf "fmla-equality: ~a~n" fmla-equality)
+
+  (define quantifiers (append lhs-quantifiers rhs-quantifiers))
+  (define var-int-pairs (for/list ([quant quantifiers])
+                          (cons quant Int)))
+
+  (printf "quantifiers: ~a~n" quantifiers)
+  (printf "var-int-pairs: ~a~n" var-int-pairs)
   
-  
-  ; Produce "some x: Int | x = (lhs) and x = (rhs)"
-  (node/formula/quantified info 'some (list (cons quantified-var Int)) 
-    (node/formula/op/&& info 
-      (list 
-        (node/formula/op/in info 
-          (list (node/expr/op/sing info 1 (list quantified-var)) expr-to-use))
-        (substitute-formula run-or-state form relations atom-names quantvars expr-to-replace quantified-var)
-      )
-    )
-  )
+  (node/formula/quantified annotated-info 'some var-int-pairs 
+    (node/formula/op/&& annotated-info (cons fmla-equality (append lhs-equality-formulas rhs-equality-formulas))))
 )
 
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)

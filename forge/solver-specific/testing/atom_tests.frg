@@ -16,4 +16,4 @@ sig Animal {
 }
 
 
-run {all x : Int | some p : Person | p.age <= x} 
+run {some p : Person | p.age < 10} 

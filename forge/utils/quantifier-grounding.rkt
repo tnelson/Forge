@@ -123,6 +123,13 @@
 (define (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds)
   (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars quantvar-types bounds)) children))
 
+(define (process-children-ambiguous run-or-state children relations atom-names quantvars quantvar-types bounds)
+  (for/list ([child children])
+      (match child
+        [(? node/formula? f) (interpret-formula run-or-state f relations atom-names quantvars quantvar-types bounds)]
+        [(? node/expr? e) (interpret-expr run-or-state e relations atom-names quantvars quantvar-types bounds)]
+        [(? node/int? i) (interpret-int run-or-state i relations atom-names quantvars quantvar-types bounds)])))
+
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars quantvar-types args bounds)
   (when (@>= (get-verbosity) 2)
     (printf "quantifier-grounding: interpret-formula-op: ~a~n" formula))
@@ -156,7 +163,7 @@
     [(node/formula/op/in info children)
       (node/formula/op/in info (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/= info children)
-      (node/formula/op/= info (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
+      (node/formula/op/= info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/int> info children)

@@ -11,7 +11,7 @@
   (prefix-in @ (only-in racket/contract ->))
   (prefix-in @ (only-in racket/base >=)))
 
-(provide substitute-formula)
+(provide substitute-formula substitute-ambig)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Boolean formulas
@@ -77,6 +77,14 @@
       [(? node/expr? e) (substitute-expr run-or-state e relations atom-names quantvars target value)]
       [(? node/int? i) (substitute-int run-or-state i relations atom-names quantvars target value)])))
 
+(define (substitute-ambig run-or-state formula relations atom-names quantvars target value)
+  (match formula 
+    [(? node/formula? f) (substitute-formula run-or-state f relations atom-names quantvars target value)]
+    [(? node/expr? e) (substitute-expr run-or-state e relations atom-names quantvars target value)]
+    [(? node/int? i) (substitute-int run-or-state i relations atom-names quantvars target value)]
+  )
+)
+
 (define (substitute-formula-op run-or-state formula relations atom-names quantvars args target value)
   (when (@>= (get-verbosity) 2)
     (printf "substitutor: interpret-formula-op: ~a~n" formula))
@@ -110,7 +118,7 @@
     [(node/formula/op/in info children)
       (node/formula/op/in info (process-children-expr run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/= info children)
-      (node/formula/op/= info (process-children-expr run-or-state args relations atom-names quantvars target value))]
+      (node/formula/op/= info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/int> info children)

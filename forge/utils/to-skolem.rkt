@@ -277,7 +277,7 @@
     [(node/formula/op/in info children)
       (node/formula/op/in info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/= info children)
-      (node/formula/op/= info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+      (node/formula/op/= info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/int> info children)
