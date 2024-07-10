@@ -82,7 +82,7 @@
   (cond [(not info) #f]
         [(not (nodeinfo-annotations info)) #f]
         [(hash-has-key? (nodeinfo-annotations info) 'smt/int-unwrap)
-         (hash-ref (nodeinfo-annotations info))]
+         (hash-ref (nodeinfo-annotations info) key)]
         [else #f]))
   
 
@@ -625,7 +625,8 @@
 
 ; Used by rel macro
 ; pre-functional: *also* used by Sig and relation macros in forge/core (sigs.rkt)
-(define (build-relation loc typelist parent [name #f] [is-var #f] [lang 'checklangplaceholder])
+(define (build-relation loc typelist parent [name #f] [is-var #f] [lang 'checklangplaceholder]
+                        #:annotations [annotations #f])
   (let ([name (cond [(false? name) 
                      (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))]
                      [(symbol? name) (symbol->string name)]
@@ -639,7 +640,7 @@
         [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
                                [(string? parent) parent]
                                [else (error (format "build-relation expected parent as either symbol or string"))])])    
-    (node/expr/relation (nodeinfo loc lang #f) (length types) name
+    (node/expr/relation (nodeinfo loc lang annotations) (length types) name
                         (thunk types) scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields

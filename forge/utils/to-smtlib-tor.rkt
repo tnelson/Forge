@@ -248,7 +248,9 @@
                          (equal? (node/expr/relation-name expanded) (symbol->string name)))
               (raise-forge-error #:msg (format "Skolem (constant) fun-spacer marker did not match: ~a vs. ~a" expanded name)
                                  #:context info))
-            (format "(set.singleton (tuple ~a))" name)
+            (if (get-annotation info 'smt/int-unwrap)
+                (format "~a" name)
+                (format "(set.singleton (tuple ~a))" name))
             ;[(equal? #\$ (string-ref name 0)) (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)]
             ]
            [else

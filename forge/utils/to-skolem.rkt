@@ -66,11 +66,12 @@
     ; 2. define a new relation, which is a function from (universals) -> (type of the existential)
     ; for name, could just do string-append $ <variable name that has gensym>
 
+    (define qvar (car (first decls)))
     (define codomain-type qdomain-sig)
     (define codomain-upper-bound (find-upper-bound total-bounds codomain-type))
   
     ; Fields for node/expr/relation: info arity name typelist-thunk parent is-variable
-    (define skolem-relation-name (string-append "$" (symbol->string (node/expr/quantifier-var-sym (car (first decls))))))
+    (define skolem-relation-name (string-append "$" (symbol->string (node/expr/quantifier-var-sym qvar))))
     (define skolem-relation
       (build-relation (nodeinfo-loc info)
                       (append (map Sig-name quantvar-types) (list (Sig-name codomain-type)))
@@ -79,7 +80,8 @@
                           (Sig-name (list-ref quantvar-types 0)))
                       skolem-relation-name
                       #f
-                      (nodeinfo-lang info)))
+                      (nodeinfo-lang info)
+                      #:annotations (nodeinfo-annotations (node-info qvar))))
 
   ; TODO support multiple variables in one decl
                              
