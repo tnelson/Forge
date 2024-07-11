@@ -315,6 +315,9 @@
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
          ;; TODO: look at bounds given and assemble the domain of this function, cross-product with value
          (values ID (list (list (process-atom-id ATOMID))))]
+        ; Uninterpreted function w/ constant Int value, no parameters; e.g., an Int-valued Skolem function
+        [(list (quote define-fun) ID (list) (quote Int) ATOMID)
+         (values ID (list (list (process-atom-id ATOMID))))]
         
         ; Relational value: union (may contain any number of singletons)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.union) ARGS ...))
