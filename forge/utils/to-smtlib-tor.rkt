@@ -12,7 +12,7 @@
   forge/lang/bounds
   (only-in racket index-of match string-join first second rest flatten last drop-right third)
   (only-in racket/contract define/contract or/c listof any/c)
-  (prefix-in @ (only-in racket/contract ->))
+  (prefix-in @ (only-in racket/contract -> ->*))
   (prefix-in @ (only-in racket/base >= > -)))
 
 (provide convert-formula)
@@ -22,14 +22,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Translate a formula AST node
-(define/contract (convert-formula run-or-state formula relations atom-names quantvars quantvar-types bounds)  
-  (@-> (or/c Run? State? Run-spec?)
+(define/contract (convert-formula run-or-state formula relations atom-names quantvars quantvar-types bounds [par-info #f])  
+  (@->* ((or/c Run? State? Run-spec?)
       node/formula?
       list?
       list?
       list?
       list?
-      list?
+      list?)
+      ((or/c nodeinfo? boolean?))
       string?)
   (when (@>= (get-verbosity) 2)
     (printf "to-smtlib-tor: convert-formula: ~a~n" formula))
@@ -128,14 +129,14 @@
 (define (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds)
   (map (lambda (x) (convert-int run-or-state x relations atom-names quantvars quantvar-types bounds)) children))
 
-(define (process-children-ambiguous run-or-state children relations atom-names quantvars quantvar-types bounds)
+(define (process-children-ambiguous run-or-state children relations atom-names quantvars quantvar-types bounds [par-info #f])
   (for/list ([child children])
     (match child
-      [(? node/formula? f) (convert-formula run-or-state f relations atom-names quantvars quantvar-types bounds)]
-      [(? node/expr? e) (convert-expr run-or-state e relations atom-names quantvars quantvar-types bounds)]
-      [(? node/int? i) (convert-int run-or-state i relations atom-names quantvars quantvar-types bounds)])))
+      [(? node/formula? f) (convert-formula run-or-state f relations atom-names quantvars quantvar-types bounds par-info)]
+      [(? node/expr? e) (convert-expr run-or-state e relations atom-names quantvars quantvar-types bounds par-info)]
+      [(? node/int? i) (convert-int run-or-state i relations atom-names quantvars quantvar-types bounds par-info)])))
 
-(define (convert-formula-op run-or-state formula relations atom-names quantvars quantvar-types args bounds)
+(define (convert-formula-op run-or-state formula relations atom-names quantvars quantvar-types args bounds [par-info #f])
   (when (@>= (get-verbosity) 2)
     (printf "to-smtlib-tor: convert-formula-op: ~a~n" formula))
   (match formula
@@ -180,15 +181,15 @@
     [(node/formula/op/in info children)
       (format "(set.subset ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/formula/op/= info children)
-      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds info) " "))]
     [(node/formula/op/! info children)
       (format "(not ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds) ""))]
     [(node/formula/op/int> info children)
-      (format "(> ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
+      (format "(> ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds info)))]
     [(node/formula/op/int< info children)
-      (format "(< ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
+      (format "(< ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds info)))]
     [(node/formula/op/int= info children)
-     (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]))
+     (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds info)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -208,7 +209,7 @@
   )
 )
 
-(define (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)
+(define (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds [par-info #f])
   (when (@>= (get-verbosity) 2)
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
   (match expr
@@ -248,7 +249,7 @@
                          (equal? (node/expr/relation-name expanded) (symbol->string name)))
               (raise-forge-error #:msg (format "Skolem (constant) fun-spacer marker did not match: ~a vs. ~a" expanded name)
                                  #:context info))
-            (if (get-annotation info 'smt/int-unwrap)
+            (if (get-annotation par-info 'smt/int-unwrap)
                 (format "~a" name)
                 (format "(set.singleton (tuple ~a))" name))
             ;[(equal? #\$ (string-ref name 0)) (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)]
@@ -302,7 +303,7 @@
        (define new-decls (second new-vs-decls))
      "TODO: COMPREHENSION")]))
 
-(define (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
+(define (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds [par-info #f])
     (when (@>= (get-verbosity) 2)
       (printf "to-smtlib-tor: convert-expr-op: ~a~n" expr))
   (match expr
@@ -340,7 +341,7 @@
 ; Integer expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (convert-int run-or-state expr relations atom-names quantvars quantvar-types bounds)
+(define (convert-int run-or-state expr relations atom-names quantvars quantvar-types bounds [par-info #f])
   (when (@>= (get-verbosity) 2)
     (printf "to-smtlib-tor: convert-int: ~a~n" expr))
   (match expr
@@ -364,7 +365,7 @@
        (define new-decls (second new-vs-decls))
       "TODO: sum quant")]))
 
-(define (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
+(define (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds [par-info #f])
   (when (@>= (get-verbosity) 2)
     (printf "to-smtlib-tor: convert-int-op: ~a~n" expr))
   (match expr

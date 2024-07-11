@@ -167,11 +167,11 @@
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/int> info children)
-      (node/formula/op/int> info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+      (node/formula/op/int> info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/int< info children)
-      (node/formula/op/int< info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+      (node/formula/op/int< info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/int= info children)
-     (node/formula/op/int= info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]))
+     (node/formula/op/int= info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions

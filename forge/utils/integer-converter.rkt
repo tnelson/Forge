@@ -83,7 +83,6 @@
 
   
   (define annotated-info (update-annotation info 'smt/int-unwrap form))
-  (define quantified-var (var 'x #:info annotated-info))
 
   ;;;;;;;;;;;;;;;
   ; TN comment: read the below not as "fix these" but perhaps notes to help us to think how to solve
@@ -178,13 +177,14 @@
 
   (define lhs-quantifiers 
     (for/list ([x lhs-relational-exprs])
-      (var (string->symbol (string-append "x_" (symbol->string (gensym)))) #:info annotated-info)))
+      (var (string->symbol (string-append "x_" (symbol->string (gensym)))) #:info info)))
   (define rhs-quantifiers 
     (for/list ([x rhs-relational-exprs])
-      (var (string->symbol (string-append "x_" (symbol->string (gensym)))) #:info annotated-info)))
+      (var (string->symbol (string-append "x_" (symbol->string (gensym)))) #:info info)))
 
   (printf "lhs-quantifiers: ~a~n" lhs-quantifiers)
   (printf "rhs-quantifiers: ~a~n" rhs-quantifiers)
+
   ; (3) Substitute each rel->int expression for its corresponding quantifier variable
   (define lhs-substituted (if (equal? lhs-relational-exprs '()) (list lhs)
                           (for/list ([rel-expr lhs-relational-exprs] [new-quantifier lhs-quantifiers])
@@ -198,16 +198,24 @@
    (printf "lhs-substituted: ~a~n" lhs-substituted)
     (printf "rhs-substituted: ~a~n" rhs-substituted)
   ; (4) Assemble a quantified formula, over those variables, with domain Int, with body
-  ;    a conjunction of (v1 = expr1) and ... and (vk = exprk) and subst(LHS) = SUBST(RHS)
+  ;    a conjunction of (v1 = expr1) and ... and (vk = exprk) and subst(LHS) (operator) SUBST(RHS)
   (define lhs-equality-formulas (for/list ([lhs-quant lhs-quantifiers] [lhs-expr lhs-relational-exprs])
-                            (node/formula/op/= annotated-info (list lhs-quant lhs-expr))))
+                            (node/formula/op/= info (list lhs-quant lhs-expr))))
   (define rhs-equality-formulas (for/list ([rhs-quant rhs-quantifiers] [rhs-expr rhs-relational-exprs])
-                            (node/formula/op/= annotated-info (list rhs-quant rhs-expr))))
-  (define fmla-equality (node/formula/op/= annotated-info (append lhs-substituted rhs-substituted)))
+                            (node/formula/op/= info (list rhs-quant rhs-expr))))
+  (define new-fmla 
+    (match form 
+      [(? node/formula/op/int<? form) (node/formula/op/int< annotated-info (append lhs-substituted rhs-substituted))]
+      [(? node/formula/op/int=? form) (node/formula/op/int= annotated-info (append lhs-substituted rhs-substituted))]
+      [(? node/formula/op/int>? form) (node/formula/op/int> annotated-info (append lhs-substituted rhs-substituted))]
+      [(? node/formula/op/=? form) (node/formula/op/= annotated-info (append lhs-substituted rhs-substituted))]
+    )
+  )
+
 
   (printf "lhs-equality-formulas: ~a~n" lhs-equality-formulas)
   (printf "rhs-equality-formulas: ~a~n" rhs-equality-formulas)
-  (printf "fmla-equality: ~a~n" fmla-equality)
+  (printf "new-fmla ~a~n" new-fmla)
 
   (define quantifiers (append lhs-quantifiers rhs-quantifiers))
   (define var-int-pairs (for/list ([quant quantifiers])
@@ -215,9 +223,12 @@
 
   (printf "quantifiers: ~a~n" quantifiers)
   (printf "var-int-pairs: ~a~n" var-int-pairs)
-  
-  (node/formula/quantified annotated-info 'some var-int-pairs 
-    (node/formula/op/&& annotated-info (cons fmla-equality (append lhs-equality-formulas rhs-equality-formulas))))
+  ; if var-int-pairs is empty, just return new-fmla
+  (if (equal? var-int-pairs '())
+    new-fmla
+    (node/formula/quantified info 'some var-int-pairs 
+      (node/formula/op/&& info (cons new-fmla (append lhs-equality-formulas rhs-equality-formulas))))
+  )
 )
 
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)
