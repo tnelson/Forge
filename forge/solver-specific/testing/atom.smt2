@@ -1,6 +1,8 @@
 (set-logic ALL)
 (set-option :produce-models true)
-(set-option :finite-model-find true)
+(set-option :sets-ext true)
+(set-option :interactive true)
+(set-option :incremental true)
 
 (declare-sort Atom 0)
 
@@ -35,31 +37,34 @@
 
 (declare-fun succ () (Relation Int Int))
 
-
 (declare-fun parent () (Relation Atom Atom))
-(assert (set.subset parent (set.union (set.singleton (tuple Person1 Person2)) (set.singleton (tuple Person2 Person1)) (set.singleton (tuple Person2 Person2)) (set.singleton (tuple Person1 Person1)) (set.singleton (tuple Person2 Person0)) (set.singleton (tuple Person0 Person3)) (set.singleton (tuple Person2 Person3)) (set.singleton (tuple Person3 Person0)) (set.singleton (tuple Person3 Person3)) (set.singleton (tuple Person1 Person3)) (set.singleton (tuple Person0 Person2)) (set.singleton (tuple Person1 Person0)) (set.singleton (tuple Person3 Person1)) (set.singleton (tuple Person3 Person2)) (set.singleton (tuple Person0 Person1)) (set.singleton (tuple Person0 Person0)))))
-
 
 (declare-fun age () (Relation Atom Int))
 
+(declare-fun friends () (Relation Atom Int))
 
 (declare-fun owner () (Relation Atom Atom))
-(assert (set.subset owner (set.union (set.singleton (tuple Animal1 Person1)) (set.singleton (tuple Animal0 Person3)) (set.singleton (tuple Animal2 Person3)) (set.singleton (tuple Animal0 Person2)) (set.singleton (tuple Animal0 Person1)) (set.singleton (tuple Animal1 Person3)) (set.singleton (tuple Animal2 Person0)) (set.singleton (tuple Animal0 Person0)) (set.singleton (tuple Animal3 Person1)) (set.singleton (tuple Animal2 Person2)) (set.singleton (tuple Animal2 Person1)) (set.singleton (tuple Animal1 Person2)) (set.singleton (tuple Animal1 Person0)) (set.singleton (tuple Animal3 Person3)) (set.singleton (tuple Animal3 Person2)) (set.singleton (tuple Animal3 Person0)))))
 
+(declare-const $x_g4685 Int)
 
-(declare-const $p_some17195 Atom)
-
+(declare-const $p_some4680 Atom)
 
 (assert (= (set.inter Animal Person) (as set.empty (Relation Atom))))
 (assert (= (set.inter Person Animal) (as set.empty (Relation Atom))))
 
-(assert (forall ((pfunc17198 Atom)) (=> (and (set.member (tuple pfunc17198) Animal)) (or (or (= (rel.join (set.singleton (tuple pfunc17198)) owner) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple pfunc17198)) owner) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple pfunc17198)) owner) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple pfunc17198)) owner) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple pfunc17198)) owner)))))
-;(assert (forall ((pfunc17197 Atom)) (=> (and (set.member (tuple pfunc17197) Person)) (or (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple -8))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple -7))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple -6))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple -5))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple -4))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple -3))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple -2))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple -1))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple 0))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple 1))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple 2))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple 3))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple 4))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple 5))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple 6))) (= (rel.join (set.singleton (tuple pfunc17197)) age) (set.singleton (tuple 7)))))))
-(assert (forall ((pfunc17196 Atom)) (=> (and (set.member (tuple pfunc17196) Person)) (or (or (= (rel.join (set.singleton (tuple pfunc17196)) parent) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple pfunc17196)) parent) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple pfunc17196)) parent) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple pfunc17196)) parent) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple pfunc17196)) parent))))))
+(assert (and (or (or (= (rel.join (set.singleton (tuple Animal0)) owner) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple Animal0)) owner) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple Animal0)) owner) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple Animal0)) owner) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple Animal0)) owner))) (or (or (= (rel.join (set.singleton (tuple Animal1)) owner) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple Animal1)) owner) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple Animal1)) owner) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple Animal1)) owner) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple Animal1)) owner))) (or (or (= (rel.join (set.singleton (tuple Animal2)) owner) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple Animal2)) owner) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple Animal2)) owner) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple Animal2)) owner) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple Animal2)) owner))) (or (or (= (rel.join (set.singleton (tuple Animal3)) owner) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple Animal3)) owner) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple Animal3)) owner) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple Animal3)) owner) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple Animal3)) owner)))))
+(assert (and true true true true))
+(assert (and (or (or (= (rel.join (set.singleton (tuple Person0)) parent) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple Person0)) parent) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple Person0)) parent) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple Person0)) parent) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple Person0)) parent))) (or (or (= (rel.join (set.singleton (tuple Person1)) parent) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple Person1)) parent) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple Person1)) parent) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple Person1)) parent) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple Person1)) parent))) (or (or (= (rel.join (set.singleton (tuple Person2)) parent) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple Person2)) parent) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple Person2)) parent) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple Person2)) parent) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple Person2)) parent))) (or (or (= (rel.join (set.singleton (tuple Person3)) parent) (set.singleton (tuple Person0))) (= (rel.join (set.singleton (tuple Person3)) parent) (set.singleton (tuple Person1))) (= (rel.join (set.singleton (tuple Person3)) parent) (set.singleton (tuple Person2))) (= (rel.join (set.singleton (tuple Person3)) parent) (set.singleton (tuple Person3)))) (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple Person3)) parent)))))
+(assert (and true true true true))
 (assert (set.subset owner (rel.product Animal Person)))
-;(assert (set.subset age (rel.product Person (as set.universe (Relation Int)))))
+(assert (set.subset friends (rel.product Person (as set.universe (Relation Int)))))
+(assert (set.subset age (rel.product Person (as set.universe (Relation Int)))))
 (assert (set.subset parent (rel.product Person Person)))
-;(assert (set.subset succ (rel.product (as set.universe (Relation Int)) (as set.universe (Relation Int)))))
-(assert (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple $p_some17195)) parent)))
+(assert (set.subset succ (rel.product (as set.universe (Relation Int)) (as set.universe (Relation Int)))))
+(assert (= (rel.join age (as set.universe (Relation Int))) Person))
+(assert (and (> $x_g4685 10) (= (set.singleton (tuple $x_g4685)) (rel.join (set.singleton (tuple $p_some4680)) age))))
+
+(assert (= (set.card (rel.join (set.singleton (tuple Person0)) age)) 1))
+
 (check-sat)
 (get-model)
