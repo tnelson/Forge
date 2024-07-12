@@ -1,7 +1,8 @@
 #lang froglet
 
 option backend smtlibtor
-// option verbose 2
+
+option verbose 3
 
 sig Person {
     parent1 : lone Person,

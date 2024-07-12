@@ -125,7 +125,7 @@
   
     ; 4. add that new relation to the bounds
     (define skolem-bounds (make-bound skolem-relation '() skolem-upper-bound))
-    ; Skolem bounds _at end_, so that CVC5 conversion doesn't need to hoist bounds for sigs
+    ; Skolem bounds _at end_, so that CVC5 conversion doesn't need to hoist bounds for sigs")
     (define new-bounds (append total-bounds (list skolem-bounds)))
     ;(define new-run (create-run-with-bounds run-spec new-bounds))
 
@@ -162,6 +162,15 @@
 ;  (interpret-formula (context run-spec total-bounds formula relations atom-names
 ;                              quantvars quantvar-types tag-with-spacer)))
 
+
+(define (skolemize-formula-decl-helper run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info
+                                      decls new-inner-form #:tag-with-spacer tag-with-spacer)
+  (for/fold ([form new-inner-form] [bounds new-inner-bounds])
+            ([decl decls])
+    (define-values (new-form new-bounds)
+      (skolemize-formula-helper run-spec bounds formula relations atom-names quantvars quantvar-types info
+                                (list decl) form #:tag-with-spacer tag-with-spacer))
+    (values new-form new-bounds)))
 
 ; Translate a formula AST node
 (define/contract (interpret-formula run-spec total-bounds formula relations atom-names
@@ -200,8 +209,9 @@
           (define-values (new-inner-form new-inner-bounds)
             (interpret-formula run-spec total-bounds form relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
           ; Now skolemize, using the skolemized inner formula as the baseline
+          ; Unrap the decls and recursively skolemize 1 at a time.
           (define-values (fmla bounds)
-            (skolemize-formula-helper run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info
+            (skolemize-formula-decl-helper run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info
                                       decls new-inner-form #:tag-with-spacer tag-with-spacer))
           (set! current-bounds bounds)
           fmla]
@@ -230,7 +240,7 @@
 (define (process-children-formula run-spec total-bounds children relations atom-names quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
   (map (lambda (x)
          (define-values (fmla bounds)
-           (interpret-formula run-spec total-bounds x relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
+           (interpret-formula run-spec current-bounds x relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
          (set! current-bounds bounds) fmla) children))
 
 (define (process-children-expr run-spec total-bounds children relations atom-names quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])

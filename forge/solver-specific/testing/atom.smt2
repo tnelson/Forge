@@ -61,10 +61,7 @@
 (assert (set.subset age (rel.product Person (as set.universe (Relation Int)))))
 (assert (set.subset parent (rel.product Person Person)))
 (assert (set.subset succ (rel.product (as set.universe (Relation Int)) (as set.universe (Relation Int)))))
-(assert (= (rel.join age (as set.universe (Relation Int))) Person))
 (assert (and (> $x_g4685 10) (= (set.singleton (tuple $x_g4685)) (rel.join (set.singleton (tuple $p_some4680)) age))))
-
-(assert (= (set.card (rel.join (set.singleton (tuple Person0)) age)) 1))
 
 (check-sat)
 (get-model)

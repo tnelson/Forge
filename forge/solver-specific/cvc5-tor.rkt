@@ -64,12 +64,14 @@
                     (bound-upper bound)))))
 
 ;; Function to create a constraint asserting that the relation is the union of the constants as singletons
-(define (relation-constraint bound rel-name)
+(define (relation-constraint bound rel-name one?)
+  (if (not one?)
   (format "(assert (= ~a (set.union ~a)))~n"
     rel-name
     (deparen (map (lambda (tup)
                       (format "(set.singleton (tuple ~a))" (first tup)))
-                    (bound-upper bound)))))
+                    (bound-upper bound))))
+  (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
 
 (define (convert-bound b)
   ; TODO: for now, assume we have exact bounds, and just use the upper
@@ -78,6 +80,8 @@
   (define name (relation-name (bound-relation b)))
   (define arity (relation-arity (bound-relation b)))
   (define typenames ((relation-typelist-thunk (bound-relation b))))
+  (define parent (relation-parent (bound-relation b)))
+  (define one? (if (Sig? (bound-relation b)) (Sig-one (bound-relation b)) #f))
   (cond
     ; Don't declare Int at all
     [(equal? name "Int")
@@ -89,10 +93,10 @@
      ;; TODO: we should only declare top-level sigs as sorts
      (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n~a~n"
              ; Declare the "used" relation for this sig
-             (const-declarations b)
+             (if (equal? parent "univ") (const-declarations b) "")
              name
              (create-bound-membership b name)
-             (relation-constraint b name))]
+             (relation-constraint b name one?))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)

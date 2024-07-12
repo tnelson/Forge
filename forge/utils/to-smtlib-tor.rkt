@@ -104,17 +104,11 @@
       )
     )
   ))
-  ; probably want to remove duplicates but for now it's fine
   (define atoms-to-use (flatten nested-atoms-to-use))
-  ; if we have an Int somewhere in the list, we don't want to enumerate the ints.
-  ; let's use a working example to figure out how we want to do this.
-  ; if we have F : A -> one Int, 
-  ; we want to check that the domain is only in A. 
-  ; so we should check that the domain is a subset of A.
-  ; but to do that we have to right join the relation :/ 
-  ; give me one second to check on ints.
   (if (equal? (length atoms-to-use) 0)
-    ; temporary patch - just don't enumerate anything if it only contains ints
+    ; note: some repeated code, since quantifiers ground out to the multiplicity being called for each atom.
+    ; list is empty when codomain is Int.
+    ; (format "(set.is_singleton ~a)" processed-expr)
     (format "true")
     (format "(or ~a)" (string-join (map (lambda (x) (format "(= ~a (set.singleton (tuple ~a)))" processed-expr x)) atoms-to-use) " "))
   )
@@ -239,7 +233,7 @@
                                  #:context info))
             ;; replace (note: the arguments must be variables)
             (for ([a (drop-right components 1)])
-              (unless (node/expr/quantifier-var? a)
+              (unless (or (node/expr/quantifier-var? a) (node/expr/atom? a))
                 (raise-forge-error #:msg (format "Unexpected argument to Skolem function; was not a variable: ~a" a)
                                    #:context a)))
             ; TODO: if used in an int context, do we want to wrap still?
