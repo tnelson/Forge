@@ -121,6 +121,7 @@
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass)
     (pattern decl:QuantifiedPropertyDeclClass)
+    (pattern decl:SatisfiabilityDeclClass)
     (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
@@ -353,7 +354,8 @@
     (pattern decl:ExampleDeclClass)
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass)
-    (pattern decl:QuantifiedPropertyDeclClass))
+    (pattern decl:QuantifiedPropertyDeclClass)
+    (pattern decl:SatisfiabilityDeclClass))
 
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
@@ -390,6 +392,20 @@
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
+
+
+  (define-syntax-class SatisfiabilityDeclClass
+    #:attributes (pred-name expected scope bounds)
+    (pattern ((~datum SatisfiabilityDecl)
+              -pred-name:NameClass
+              (~and (~or "sat" "unsat" "forge_error") ct)
+              (~optional -scope:ScopeClass)
+              (~optional -bounds:BoundsClass))
+      #:with pred-name #'-pred-name.name)
+      #:with expected (string->symbol (syntax-e #'ct))
+      #:with scope (if (attribute -scope) #'-scope.translate #'())
+      #:with bounds (if (attribute -bounds) #'-bounds.translate #'()))
+
 
 
   (define-syntax-class TestSuiteDeclClass
@@ -1046,6 +1062,19 @@
          #:scope qpd.scope
          #:bounds qpd.bounds
          #:expect theorem )))]))
+
+
+(define-syntax (SatisfiabilityDecl stx)
+  (syntax-parse stx
+  [sd:SatisfiabilityDeclClass 
+   #:with test_name (format-id stx "Assertion_~a_is_sat" #'sd.pred-name )
+   (syntax/loc stx
+      (test
+        test_name
+        #:preds [sd.pred-name]
+        #:scope sd.scope
+        #:bounds sd.bounds
+        #:expect sd.expected ))]))
 
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.
