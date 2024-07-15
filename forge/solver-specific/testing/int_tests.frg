@@ -6,7 +6,7 @@ option verbose 2
 
 sig Person {
     age : one Int,
-    friend_length : set Person -> Int
+    friend_length : set Person -> Person -> Int
 }
 
 pred test_pred {
@@ -17,4 +17,10 @@ pred test_pred {
     }
 }
 
-run {test_pred}
+pred big_arity {
+    some p : Person | {
+        all other_p : Person | p.friend_length[p][p] < p.age
+    }
+}
+
+run {big_arity}

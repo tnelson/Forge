@@ -226,6 +226,7 @@
      (cond [(and (@> (node/expr-arity expanded) 1) (equal? #\$ (string-ref (symbol->string name) 0)))
             ; This marker is to aid in recognizing the application of a Skolem function.
             ; E.g., to convert something like b.a.$x into ($x a b).
+            (printf "EXPANDED: ~a~n " expanded)
             (define components (join->list/right expanded))
             (unless (and (node/expr/relation? (last components))
                          (equal? (node/expr/relation-name (last components)) (symbol->string name)))
@@ -236,8 +237,14 @@
               (unless (or (node/expr/quantifier-var? a) (node/expr/atom? a))
                 (raise-forge-error #:msg (format "Unexpected argument to Skolem function; was not a variable: ~a" a)
                                    #:context a)))
+            (printf "components: ~a~n" (deparen (drop-right components 1)))
+            (printf "node/expr/atom? ~a~n" (node/expr/atom? (car (drop-right components 1))))
+            (define modified-args (map (lambda (x) (if (node/expr/atom? x) (node/expr/atom-name x) x)) (drop-right components 1)))
+            (printf "modified args: ~a~n" modified-args)
             ; TODO: if used in an int context, do we want to wrap still?
-            (format "(set.singleton (tuple (~a ~a)))" name (deparen (drop-right components 1)))]
+            (if (get-annotation par-info 'smt/int-unwrap)
+                (format "(~a ~a)" name (deparen modified-args))
+                (format "(set.singleton (tuple (~a ~a)))" name (deparen modified-args)))]
            [(equal? #\$ (string-ref (symbol->string name) 0))
             (unless (and (node/expr/relation? expanded)
                          (equal? (node/expr/relation-name expanded) (symbol->string name)))
@@ -374,7 +381,8 @@
     [(node/int/op/sum info children)
     ; if we can discover that the argument is provably a singleton, we can just erase the 'sum' node
     ; what in the world do we do in the other case? probably either be inspired by cvc5 work or fortress translation
-    "TODO: sum"]
+    ; temporary fix - assume it's a singleton
+    (format "~a" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/card info children)
     "TODO: cardinality"]
     [(node/int/op/remainder info children)
