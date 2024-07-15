@@ -17,11 +17,13 @@ pred impossible {
     not isDirectedTree
 }
 
+
 assert isDirectedTree is sat
 assert impossible is unsat
 
 test suite for isDirectedTree {
     assert isDirectedTree is sat for 3 Node
+
 }
 
 test suite for impossible {
