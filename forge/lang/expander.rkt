@@ -1065,7 +1065,7 @@
 (define-syntax (SatisfiabilityDecl stx)
   (syntax-parse stx
   [sd:SatisfiabilityDeclClass 
-   #:with test_name (format-id stx "Assertion_~a_is_~a" #'sd.pred-name #'sd.expected)
+   #:with test_name (format-id stx "Assertion_~a_is_~a_~a" #'sd.pred-name #'sd.expected (make-temporary-name stx))
    (syntax/loc stx
       (test
         test_name
