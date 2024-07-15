@@ -393,19 +393,17 @@
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
-
-  (define-syntax-class SatisfiabilityDeclClass
-    #:attributes (pred-name expected scope bounds)
-    (pattern ((~datum SatisfiabilityDecl)
-              -pred-name:NameClass
-              (~and (~or "sat" "unsat" "forge_error") ct)
-              (~optional -scope:ScopeClass)
-              (~optional -bounds:BoundsClass))
-      #:with pred-name #'-pred-name.name)
-      #:with expected (string->symbol (syntax-e #'ct))
-      #:with scope (if (attribute -scope) #'-scope.translate #'())
-      #:with bounds (if (attribute -bounds) #'-bounds.translate #'()))
-
+(define-syntax-class SatisfiabilityDeclClass
+  #:attributes (pred-name expected scope bounds)
+  (pattern ((~datum SatisfiabilityDecl)
+            -pred-name:NameClass
+            (~and (~or "sat" "unsat" "forge_error") ct)
+            (~optional -scope:ScopeClass)
+            (~optional -bounds:BoundsClass))
+    #:with pred-name #'-pred-name.name
+    #:with expected (string->symbol (syntax-e #'ct))
+    #:with scope (if (attribute -scope) #'-scope.translate #'())
+    #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 
   (define-syntax-class TestSuiteDeclClass
