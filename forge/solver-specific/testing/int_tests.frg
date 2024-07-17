@@ -2,7 +2,9 @@
 
 option backend smtlibtor 
 
-option verbose 2
+option run_sterling off
+
+option verbose 0
 
 sig Person {
     age : one Int,
@@ -23,4 +25,31 @@ pred big_arity {
     }
 }
 
-run {big_arity}
+
+pred adding_single_rel {
+    some p : Person | {
+        add[p.age, 3] > 5
+    }
+}
+
+pred adding_double_rel {
+    some p1 : Person | {
+        some p2 : Person | {
+            add[p1.age, p2.age] > 5
+        }
+    }
+}
+
+pred nested_check {
+    some p : Person | {
+        add[p.age, p.age] = p.age
+    }
+}
+
+pred in_check {
+    some p : Person | {
+        add[p.age, p.age] in p.age
+    }
+}
+
+run {nested_check}
