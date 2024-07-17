@@ -229,7 +229,8 @@
   (format "~a~n~a~n~a~n~a~n" preamble-str bounds-str disjointness-constraint-str assertions-str))
 
 ; No core support yet, see pardinus for possible approaches
-(define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""])
+(define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]
+                                 #:run-command run-command)
   (printf "Getting next model from CVC5...~n")
 
   ; If the solver isn't running at all, error:
@@ -238,11 +239,13 @@
     (printf "Unexpected error: worker process was not running. Printing process output:~n")
     (printf "  STDOUT: ~a~n" (port->string stdout #:close? #f)) 
     (printf "  STDERR: ~a~n" (port->string stderr #:close? #f))
-    (raise-user-error "CVC5 server is not running. Could not get next instance."))
+    (raise-forge-error #:msg "CVC5 server is not running. Could not get next instance."
+                       #:context run-command))
 
   ; If the solver is running, but this specific run ID is closed, user error
   (when (is-run-closed? run-name)
-    (raise-user-error (format "Run ~a has been closed." run-name)))
+    (raise-forge-error #:msg (format "Run ~a has been closed." run-name)
+                       #:context run-command))
     
   ; Mock an SMT-LIB input using theory of relations. Keep the port open!
   ;(define mock-problem (port->string (open-input-file "own-grandpa.smt2" #;"cvc5.smt") #:close? #f))
@@ -274,7 +277,7 @@
          
        ; Forge still uses the Alloy 6 modality overall: Sat structs contain a _list_ of instances,
        ; each corresponding to the state of the instance at a given time index. Here, just 1.
-       (define response (Sat (list (smtlib-tor-to-instance model-s-expression)) #f '()))
+       (define response (Sat (list (smtlib-tor-to-instance model-s-expression run-command)) #f '()))
        (when (@> (get-verbosity) VERBOSITY_LOW)
          (printf "~nSAT: ~a~n" response))
        response)]
@@ -293,15 +296,16 @@
      (printf "  STDOUT: ~a~n" (port->string stdout #:close? #f)) 
      (printf "  STDERR: ~a~n" (port->string stderr #:close? #f)) 
      (raise-forge-error #:msg (format "Received unexpected response from CVC5: ~a" sat-answer)
-                        #:context #f)]))
+                        #:context run-command)]))
   result)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Converting SMT-LIB response expression into a Forge instance
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Building this up from running examples, so the cases may be a bit over-specific
-(define (smtlib-tor-to-instance model-s-expression)
+; Building this up from running examples, so the cases may be a bit over-specific.
+; Accept the `run-command` for better syntax-location information if the run fails.
+(define (smtlib-tor-to-instance model-s-expression run-command)
   (for/fold ([inst (hash)])
             ([part model-s-expression])
     (define-values (key value)
@@ -313,67 +317,67 @@
         
         ; Constant bindings to atoms: return unary relation of one tuple
         [(list (quote define-fun) ID (list) TYPE (list (quote as) ATOMID ATOMTYPE))
-         (values ID (list (list (process-atom-id ATOMID))))]
+         (values ID (list (list (process-atom-id ATOMID run-command))))]
 
         ; Uninterpreted function w/ constant value
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
          ;; TODO: look at bounds given and assemble the domain of this function, cross-product with value
-         (values ID (list (list (process-atom-id ATOMID))))]
+         (values ID (list (list (process-atom-id ATOMID run-command))))]
         ; Uninterpreted function w/ constant Int value, no parameters; e.g., an Int-valued Skolem function
         [(list (quote define-fun) ID (list) (quote Int) ATOMID)
-         (values ID (list (list (process-atom-id ATOMID))))]
+         (values ID (list (list (process-atom-id ATOMID run-command))))]
         
         ; Relational value: union (may contain any number of singletons)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.union) ARGS ...))
          ; A union may contain an inductive list built from singletons and unions,
          ;   or multiple singletons within a single list. So pre-process unions
          ;   and flatten to get a list of singletons.
-         (define singletons (apply append (map process-union-arg ARGS)))
-         (values ID (process-singleton-list singletons))]
+         (define singletons (apply append (map (lambda (a) (process-union-arg a run-command)) ARGS)))
+         (values ID (process-singleton-list singletons run-command))]
         
         ; Relational value: singleton (should contain a single tuple)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.singleton) ARG))
          ; Wrap this tuple, because this is a singleton _set_
-         (values ID (list (process-tuple ARG)))]
+         (values ID (list (process-tuple ARG run-command)))]
         
         ; Catch-all; unknown format
         [else
          (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB: ~a" part)
-                            #:context #f)]))
+                            #:context run-command)]))
     (hash-set inst key value)))
 
 ; Return a list containing singletons
-(define (process-union-arg arg)
+(define (process-union-arg arg run-command)
   (match arg
     [(list (quote set.singleton) TUPLE)
      (list arg)]
     [(list (quote set.union) ARGS ...)
-     (apply append (map process-union-arg ARGS))]
+     (apply append (map (lambda (a) (process-union-arg a run-command)) ARGS))]
     [else
      (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB (process-union-arg): ~a" arg)
-                        #:context #f)]))
-(define (process-singleton-list args)
+                        #:context run-command)]))
+(define (process-singleton-list args run-command)
   (match args
     ; a list of singletons (unions should be removed prior)
     [(list (list (quote set.singleton) TUPLES) ...)
-     (map process-tuple TUPLES)]
+     (map (lambda (t) (process-tuple t run-command)) TUPLES)]
     [else
      (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB (process-singleton-list): ~a" args)
-                        #:context #f)]))
+                        #:context run-command)]))
 
-(define (process-tuple tup)
+(define (process-tuple tup run-command)
   (match tup
     ; Each atom may be an SMT-LIB "qualified identifier" or may be a raw value (e.g., an integer)
     [(list (quote tuple) ATOMS ...)
-     (map process-atom ATOMS)]))
-(define (process-atom atom-expr)
+     (map (lambda (a) (process-atom a run-command)) ATOMS)]))
+(define (process-atom atom-expr run-command)
  (match atom-expr
    [(list (quote as) ATOMID ATOMTYPE)
-     (process-atom-id ATOMID)]
+     (process-atom-id ATOMID run-command)]
    [ATOMID
-     (process-atom-id ATOMID)]))
+     (process-atom-id ATOMID run-command)]))
 
-(define (process-atom-id atom-id)
+(define (process-atom-id atom-id run-command)
   (define string-atom-id (format "~a" atom-id))
   (string->symbol
    (string-replace (string-replace string-atom-id "@" "") "_" "$")))
