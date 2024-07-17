@@ -17,9 +17,16 @@ pred impossible {
     not isDirectedTree
 }
 
+pred producesErr {
+
+    Node in Node->Node
+}
+
 
 assert isDirectedTree is sat
 assert impossible is unsat
+
+assert producesErr is forge_error
 
 test suite for isDirectedTree {
     assert isDirectedTree is sat for 3 Node
