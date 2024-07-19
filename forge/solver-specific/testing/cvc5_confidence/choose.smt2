@@ -207,14 +207,14 @@
         (set.union (set.singleton (tuple Alice))
                    (set.singleton (tuple Bob)))))
 
-; Without this, they all go to 0! (Why?)
-(assert (> (sum-q-dot-age (as set.universe (Relation Atom))) 200))
-
-; Without this, the last 2 get-value calls return the same thing (221). Why?
-;(declare-fun aliceSum () Int)
-;(declare-fun bobSum () Int)
-;(assert (= (sum-q-dot-age (set.singleton (tuple Alice))) aliceSum))
-;(assert (= (sum-q-dot-age (set.singleton (tuple Bob))) bobSum))
+; Without this, they all go to 0! (Do we need to use the fun to have it available?)
+; No, because if we leave this out but include the 2 lines below, all is well for 
+; the individual values, but the total for the universe fails.
+(assert (not (= (sum-q-dot-age (as set.universe (Relation Atom))) 0)))
+(assert (not (= (sum-q-dot-age (set.singleton (tuple Alice)))  0)))
+(assert (not (= (sum-q-dot-age (set.singleton (tuple Bob)))  0)))
+; So it seems that the term (or some variant thereof?) to be used with get-value 
+; must appear in a constraint pre-solving.
 
 (check-sat)
 (get-model)
