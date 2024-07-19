@@ -269,7 +269,7 @@
      (begin
        (smtlib-display stdin "(get-model)")
        (define model-s-expression (read stdout))
-       (when (@> (get-verbosity) VERBOSITY_LOW)
+       (when (@> (get-verbosity) 0)
          (printf "----- RECEIVED -----~n")
          (for ([s-expr model-s-expression])
            (printf "~a~n" s-expr))

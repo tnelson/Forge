@@ -142,7 +142,6 @@
 
   ; TODO: this will need an apply-record for every argument to the Skolem function
   (define apply-records '()) 
-  (printf "TAG WITH SPACER FOR RELATION ~a: ~a~n" skolem-relation-name tag-with-spacer)
   (define value (if tag-with-spacer
                     ; This isn't fully accurate (we aren't bothering to give domain/codomain info, and are using
                     ; that empty list value as an added flag that this is a skolem application.)
@@ -252,7 +251,8 @@
 (define (process-children-ambiguous run-or-state total-bounds children relations atom-names quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
   (for/list ([child children])
     (match child
-      [(? node/formula? f) (interpret-formula run-or-state total-bounds f relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)]
+      [(? node/formula? f) (define-values (fmla bounds) (interpret-formula run-or-state total-bounds f relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
+                            (set! current-bounds bounds) fmla]
       [(? node/expr? e) (interpret-expr run-or-state total-bounds e relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)]
       [(? node/int? i) (interpret-int run-or-state total-bounds i relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)])))
 
@@ -402,23 +402,23 @@
     (printf "to-skolem: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
-      (node/int/op/add info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+      (node/int/op/add info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/subtract info children)
-    (node/int/op/subtract info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    (node/int/op/subtract info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/multiply info children)
-    (node/int/op/multiply info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    (node/int/op/multiply info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/divide info children)
-    (node/int/op/divide info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    (node/int/op/divide info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/sum info children)
     (node/int/op/sum info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/card info children)
     (node/int/op/card info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/remainder info children)
-     (node/int/op/remainder info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+     (node/int/op/remainder info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/abs info children)
-     (node/int/op/abs info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+     (node/int/op/abs info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/sign info children)
-     (node/int/op/sign info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+     (node/int/op/sign info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     ))

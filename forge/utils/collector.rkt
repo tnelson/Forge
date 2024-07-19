@@ -174,7 +174,7 @@
     (let ([processed-a (visit a quantvars matcher order collected stop context get-new-context)]
           [processed-b (visit b quantvars matcher order collected stop context get-new-context)]
           [processed-c (visit c quantvars matcher order collected stop context get-new-context)])
-     (append a b c))]
+     (append processed-a processed-b processed-c))]
     [(node/expr/constant info 1 'Int)
      '()]
     [(node/expr/constant info arity type)

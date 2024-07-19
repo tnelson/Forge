@@ -2,7 +2,7 @@
 
 option backend smtlibtor 
 
-option verbose 2
+option verbose 0
 
 abstract sig Person { 
     time: one Int,  -- how long it takes this person to cross
