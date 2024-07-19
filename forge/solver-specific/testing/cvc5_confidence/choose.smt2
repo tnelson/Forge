@@ -32,6 +32,9 @@
 (declare-fun age () (Relation Atom Int))
 (declare-fun Alice () Atom)
 (declare-fun Bob () Atom)
+; Don't neglect these constraints, to have a sig relation to put them in.
+(assert (set.member (tuple Alice) (as set.universe (Relation Atom))))
+(assert (set.member (tuple Bob) (as set.universe (Relation Atom))))
 
 ; Unlike in the regression test, we won't say that S is a singleton. 
 
@@ -167,4 +170,65 @@
 
 (pop)
 (push)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; What about the sum "quantifier"? One approach might be to choose-iterate 
+; over the domain, and hard-code the expression into the function. This seems
+; limited, of course, and likely scales poorly.
+
+; **Because choose is always deterministic, the two choose terms should be equal.**
+(define-fun-rec int-sum ((aset (Relation Int))) Int
+  (ite (= (as set.empty (Relation Int)) aset) 
+       0
+       (+ (int-sum (set.minus aset (set.singleton (set.choose aset))))
+          ((_ tuple.select 0) (set.choose aset)))))
+(define-fun-rec sum-q-dot-age ((domain (Relation Atom))) Int
+  (ite (= (as set.empty (Relation Atom)) domain) 
+       0
+       (+
+         ; Choose a domain element and do the join, then sum over its value(s)
+         (int-sum (rel.join (set.singleton (set.choose domain)) age))
+         ; Recursive call on remainder of domain 
+         (sum-q-dot-age (set.minus domain (set.singleton (set.choose domain))))
+        )))
+
+; Alice total = 21
+(assert (= (rel.join (set.singleton (tuple Alice)) age) 
+           (set.union (set.singleton (tuple 10))
+                      (set.singleton (tuple 11)))))
+; Bob total = 221
+(assert (= (rel.join (set.singleton (tuple Bob)) age) 
+           (set.union (set.singleton (tuple 110))
+                      (set.singleton (tuple 111)))))
+
+; Only two Atoms: Alice and Bob 
+(assert (= (as set.universe (Relation Atom))
+        (set.union (set.singleton (tuple Alice))
+                   (set.singleton (tuple Bob)))))
+
+; Without this, they all go to 0! (Why?)
+(assert (> (sum-q-dot-age (as set.universe (Relation Atom))) 200))
+
+; Without this, the last 2 get-value calls return the same thing (221). Why?
+;(declare-fun aliceSum () Int)
+;(declare-fun bobSum () Int)
+;(assert (= (sum-q-dot-age (set.singleton (tuple Alice))) aliceSum))
+;(assert (= (sum-q-dot-age (set.singleton (tuple Bob))) bobSum))
+
+(check-sat)
+(get-model)
+
+; These look OK
+(get-value ((as set.universe (Relation Atom))))
+(get-value ((sum-q-dot-age (as set.universe (Relation Atom)))))
+(get-value ((int-sum (rel.join (set.singleton (tuple Alice)) age))))
+(get-value ((int-sum (rel.join (set.singleton (tuple Bob)) age))))
+
+; These worry me; why are they evaluating to the same thing?
+(get-value ((sum-q-dot-age (set.singleton (tuple Alice)))))
+(get-value ((sum-q-dot-age (set.singleton (tuple Bob)))))
+
+
+
 
