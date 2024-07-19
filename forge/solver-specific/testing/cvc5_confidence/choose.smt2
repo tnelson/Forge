@@ -31,6 +31,7 @@
 (declare-sort Atom 0)
 (declare-fun age () (Relation Atom Int))
 (declare-fun Alice () Atom)
+(declare-fun Bob () Atom)
 
 ; Unlike in the regression test, we won't say that S is a singleton. 
 
@@ -137,3 +138,33 @@
 
 (pop)
 (push)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; How does this implementation of sum scale with larger sets, arithmetic, etc.?
+; Poorly. Notice the slowdown even at just 7 elements in Alice's age set.
+
+; **Because choose is always deterministic, the two choose terms should be equal.**
+(define-fun-rec int-sum ((aset (Relation Int))) Int
+  (ite (= (as set.empty (Relation Int)) aset) 
+       0
+       (+ (int-sum (set.minus aset (set.singleton (set.choose aset))))
+          ((_ tuple.select 0) (set.choose aset)))))
+
+(assert (= (rel.join (set.singleton (tuple Alice)) age) 
+           (set.union (set.singleton (tuple 10))
+                      (set.singleton (tuple 11))
+                      (set.singleton (tuple 12))
+                      (set.singleton (tuple 13))
+                      (set.singleton (tuple 14))
+                      (set.singleton (tuple 15))
+                      (set.singleton (tuple 16)))))
+
+(assert (> (int-sum (rel.join (set.singleton (tuple Alice)) age)) 21))
+
+(set-info :status sat) 
+(check-sat)
+
+(pop)
+(push)
+
