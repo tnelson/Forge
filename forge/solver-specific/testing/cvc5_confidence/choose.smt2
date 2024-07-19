@@ -80,16 +80,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Can we redefine our own filter?
-;; TODO
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Can we use set.filter (without HO_ALL logic) if we don't use lambdas?
-;; TODO
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 ; Can we use set.choose and (_ tuple.select i) to extract an int 
 ; from its enclosing relational context? Assume that the relation is 
 ; a singleton.
@@ -124,3 +114,26 @@
 (push)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Can we write "sum"?
+
+; **Because choose is always deterministic, the two choose terms should be equal.**
+(define-fun-rec int-sum ((aset (Relation Int))) Int
+  (ite (= (as set.empty (Relation Int)) aset) 
+       0
+       (+ (int-sum (set.minus aset (set.singleton (set.choose aset))))
+          ((_ tuple.select 0) (set.choose aset)))))
+
+; Note we never said that age was functional in the constraints above. So:
+(assert (= (rel.join (set.singleton (tuple Alice)) age) 
+           (set.union (set.singleton (tuple 10))
+                      (set.singleton (tuple 20)))))
+(assert (> (int-sum (rel.join (set.singleton (tuple Alice)) age)) 21))
+(set-info :status sat) 
+(check-sat)
+(assert (not (= (int-sum (rel.join (set.singleton (tuple Alice)) age)) 30)))
+(set-info :status unsat) 
+(check-sat)
+
+(pop)
+(push)
