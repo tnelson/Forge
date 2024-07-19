@@ -64,12 +64,14 @@
                     (bound-upper bound)))))
 
 ;; Function to create a constraint asserting that the relation is the union of the constants as singletons
-(define (relation-constraint bound rel-name)
+(define (relation-constraint bound rel-name one?)
+  (if (not one?)
   (format "(assert (= ~a (set.union ~a)))~n"
     rel-name
     (deparen (map (lambda (tup)
                       (format "(set.singleton (tuple ~a))" (first tup)))
-                    (bound-upper bound)))))
+                    (bound-upper bound))))
+  (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
 
 (define (convert-bound b)
   ; TODO: for now, assume we have exact bounds, and just use the upper
@@ -78,6 +80,8 @@
   (define name (relation-name (bound-relation b)))
   (define arity (relation-arity (bound-relation b)))
   (define typenames ((relation-typelist-thunk (bound-relation b))))
+  (define parent (relation-parent (bound-relation b)))
+  (define one? (if (Sig? (bound-relation b)) (Sig-one (bound-relation b)) #f))
   (cond
     ; Don't declare Int at all
     [(equal? name "Int")
@@ -89,10 +93,10 @@
      ;; TODO: we should only declare top-level sigs as sorts
      (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n~a~n"
              ; Declare the "used" relation for this sig
-             (const-declarations b)
+             (if (equal? parent "univ") (const-declarations b) "")
              name
              (create-bound-membership b name)
-             (relation-constraint b name))]
+             (relation-constraint b name one?))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
@@ -114,7 +118,7 @@
   (for/fold ([top-level top-level])
             ([relation relations])
     (cond 
-          [(equal? (relation-name relation) "Int") top-level]
+          [(or (not (equal? (relation-parent relation) "univ")) (equal? (relation-name relation) "Int")) top-level]
           [(Sig? relation)          
             (define new-top-level (cons (relation-name relation) top-level)) 
             new-top-level]
@@ -156,20 +160,13 @@
     (for ([constraint step1])
       (printf "  ~a~n" constraint)))
 
-  ; Convert boxed integer references to existential quantifiers
-  (define step2 (map (lambda (f) (boxed-int:interpret-formula fake-run f relations all-atoms '())) step1))
-  (when (@> (get-verbosity) VERBOSITY_LOW)
-    (printf "~nStep 2 (post boxed-integer translation):~n")
-    (for ([constraint step2])
-      (printf "  ~a~n" constraint)))
-
   ; Skolemize (2nd empty list = types for quantified variables, unneeded in other descents)
   ; Note that Skolemization changes the *final* bounds. There is no Run struct for this run yet;
   ; it is only created after send-to-solver returns. So there is no "kodkod-bounds" field to start with.
   ; Instead, start with the total-bounds produced.
-  (define step3-both
+  (define step2-both
     (for/fold ([fs-and-bs (list '() total-bounds)])
-              ([f step2])
+              ([f step1])
       ; Accumulator starts with: no formulas, original total-bounds
       (define-values (resulting-formula new-bounds)
         (skolemize:interpret-formula fake-run (second fs-and-bs) f relations all-atoms '() '()
@@ -178,26 +175,26 @@
       (list (cons resulting-formula (first fs-and-bs))
             new-bounds)))
   
-  (define step3 (first step3-both))
-  (define step3-bounds (second step3-both))
+  (define step2 (first step2-both))
+  (define step2-bounds (second step2-both))
   (when (@> (get-verbosity) VERBOSITY_LOW)
-    (printf "~nStep 3 (post Skolemization):~n")
-    (for ([constraint step3])
+    (printf "~nStep 2 (post Skolemization):~n")
+    (for ([constraint step2])
       (printf "  ~a~n" constraint)))
     
   ; Modify the bounds of the fake run from step 3
   (define new-fake-run (Run 'fake #'fake (Run-run-spec fake-run) fake-solution-tree 
-                            fake-server-ports (Run-atoms fake-run) fake-kodkod-current step3-bounds (box #f)))
+                            fake-server-ports (Run-atoms fake-run) fake-kodkod-current step2-bounds (box #f)))
 
-  (define step3.5 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step3-bounds)) step3))
+  (define step3 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() step3-bounds)) step3.5))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step3))
   (when (@> (get-verbosity) VERBOSITY_LOW)
-    (printf "~nStep 4 (post SMT-LIB conversion):~n")
+    (printf "~nStep 3 (post SMT-LIB conversion):~n")
     (for ([constraint step4])
       (printf "  ~a~n" constraint))
     (printf "~nBounds (post Skolemization):~n")
-    (for ([bound step3-bounds])
+    (for ([bound step2-bounds])
       (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
       (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound))))
 
@@ -208,13 +205,15 @@
   ; Also declare Atom sort as the top level sort, and define various helper SMT functions.
   
   (define defined-funs (list
-     "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"))
+     "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"
+     "(define-fun reconcile-int ((aset (Relation Int))) Int (ite (= (as set.empty (Relation Int)) aset) 0 ((_ tuple.select 0) (set.choose aset))))"))
   (define preamble-str (format "(reset)~n~a~n(set-logic ALL)~n(declare-sort Atom 0)~n"
                                (string-join defined-funs "\n")))
 
   ; converted bounds:
-  (define bounds-str (string-join (map convert-bound step3-bounds) "\n"))
-  (define top-level-disjoint-str (form-disjoint-string (map bound-relation step3-bounds)))
+  (define bounds-str (string-join (map convert-bound step2-bounds) "\n"))
+  ; bound disjointness
+  (define top-level-disjoint-str (form-disjoint-string (map bound-relation step2-bounds)))
   (define disjointness-constraint-str (disjoint-relations top-level-disjoint-str))
 
   ; converted formula:
@@ -225,7 +224,8 @@
   (format "~a~n~a~n~a~n~a~n" preamble-str bounds-str disjointness-constraint-str assertions-str))
 
 ; No core support yet, see pardinus for possible approaches
-(define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""])
+(define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]
+                                 #:run-command run-command)
   (printf "Getting next model from CVC5...~n")
 
   ; If the solver isn't running at all, error:
@@ -234,11 +234,13 @@
     (printf "Unexpected error: worker process was not running. Printing process output:~n")
     (printf "  STDOUT: ~a~n" (port->string stdout #:close? #f)) 
     (printf "  STDERR: ~a~n" (port->string stderr #:close? #f))
-    (raise-user-error "CVC5 server is not running. Could not get next instance."))
+    (raise-forge-error #:msg "CVC5 server is not running. Could not get next instance."
+                       #:context run-command))
 
   ; If the solver is running, but this specific run ID is closed, user error
   (when (is-run-closed? run-name)
-    (raise-user-error (format "Run ~a has been closed." run-name)))
+    (raise-forge-error #:msg (format "Run ~a has been closed." run-name)
+                       #:context run-command))
     
   ; Mock an SMT-LIB input using theory of relations. Keep the port open!
   ;(define mock-problem (port->string (open-input-file "own-grandpa.smt2" #;"cvc5.smt") #:close? #f))
@@ -262,7 +264,7 @@
      (begin
        (smtlib-display stdin "(get-model)")
        (define model-s-expression (read stdout))
-       (when (@> (get-verbosity) VERBOSITY_LOW)
+       (when (@> (get-verbosity) 0)
          (printf "----- RECEIVED -----~n")
          (for ([s-expr model-s-expression])
            (printf "~a~n" s-expr))
@@ -270,7 +272,7 @@
          
        ; Forge still uses the Alloy 6 modality overall: Sat structs contain a _list_ of instances,
        ; each corresponding to the state of the instance at a given time index. Here, just 1.
-       (define response (Sat (list (smtlib-tor-to-instance model-s-expression)) #f '()))
+       (define response (Sat (list (smtlib-tor-to-instance model-s-expression run-command)) #f '()))
        (when (@> (get-verbosity) VERBOSITY_LOW)
          (printf "~nSAT: ~a~n" response))
        response)]
@@ -289,15 +291,16 @@
      (printf "  STDOUT: ~a~n" (port->string stdout #:close? #f)) 
      (printf "  STDERR: ~a~n" (port->string stderr #:close? #f)) 
      (raise-forge-error #:msg (format "Received unexpected response from CVC5: ~a" sat-answer)
-                        #:context #f)]))
+                        #:context run-command)]))
   result)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Converting SMT-LIB response expression into a Forge instance
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Building this up from running examples, so the cases may be a bit over-specific
-(define (smtlib-tor-to-instance model-s-expression)
+; Building this up from running examples, so the cases may be a bit over-specific.
+; Accept the `run-command` for better syntax-location information if the run fails.
+(define (smtlib-tor-to-instance model-s-expression run-command)
   (for/fold ([inst (hash)])
             ([part model-s-expression])
     (define-values (key value)
@@ -309,64 +312,67 @@
         
         ; Constant bindings to atoms: return unary relation of one tuple
         [(list (quote define-fun) ID (list) TYPE (list (quote as) ATOMID ATOMTYPE))
-         (values ID (list (list (process-atom-id ATOMID))))]
+         (values ID (list (list (process-atom-id ATOMID run-command))))]
 
         ; Uninterpreted function w/ constant value
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
          ;; TODO: look at bounds given and assemble the domain of this function, cross-product with value
-         (values ID (list (list (process-atom-id ATOMID))))]
+         (values ID (list (list (process-atom-id ATOMID run-command))))]
+        ; Uninterpreted function w/ constant Int value, no parameters; e.g., an Int-valued Skolem function
+        [(list (quote define-fun) ID (list) (quote Int) ATOMID)
+         (values ID (list (list (process-atom-id ATOMID run-command))))]
         
         ; Relational value: union (may contain any number of singletons)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.union) ARGS ...))
          ; A union may contain an inductive list built from singletons and unions,
          ;   or multiple singletons within a single list. So pre-process unions
          ;   and flatten to get a list of singletons.
-         (define singletons (apply append (map process-union-arg ARGS)))
-         (values ID (process-singleton-list singletons))]
+         (define singletons (apply append (map (lambda (a) (process-union-arg a run-command)) ARGS)))
+         (values ID (process-singleton-list singletons run-command))]
         
         ; Relational value: singleton (should contain a single tuple)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.singleton) ARG))
          ; Wrap this tuple, because this is a singleton _set_
-         (values ID (list (process-tuple ARG)))]
+         (values ID (list (process-tuple ARG run-command)))]
         
         ; Catch-all; unknown format
         [else
          (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB: ~a" part)
-                            #:context #f)]))
+                            #:context run-command)]))
     (hash-set inst key value)))
 
 ; Return a list containing singletons
-(define (process-union-arg arg)
+(define (process-union-arg arg run-command)
   (match arg
     [(list (quote set.singleton) TUPLE)
      (list arg)]
     [(list (quote set.union) ARGS ...)
-     (apply append (map process-union-arg ARGS))]
+     (apply append (map (lambda (a) (process-union-arg a run-command)) ARGS))]
     [else
      (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB (process-union-arg): ~a" arg)
-                        #:context #f)]))
-(define (process-singleton-list args)
+                        #:context run-command)]))
+(define (process-singleton-list args run-command)
   (match args
     ; a list of singletons (unions should be removed prior)
     [(list (list (quote set.singleton) TUPLES) ...)
-     (map process-tuple TUPLES)]
+     (map (lambda (t) (process-tuple t run-command)) TUPLES)]
     [else
      (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB (process-singleton-list): ~a" args)
-                        #:context #f)]))
+                        #:context run-command)]))
 
-(define (process-tuple tup)
+(define (process-tuple tup run-command)
   (match tup
     ; Each atom may be an SMT-LIB "qualified identifier" or may be a raw value (e.g., an integer)
     [(list (quote tuple) ATOMS ...)
-     (map process-atom ATOMS)]))
-(define (process-atom atom-expr)
+     (map (lambda (a) (process-atom a run-command)) ATOMS)]))
+(define (process-atom atom-expr run-command)
  (match atom-expr
    [(list (quote as) ATOMID ATOMTYPE)
-     (process-atom-id ATOMID)]
+     (process-atom-id ATOMID run-command)]
    [ATOMID
-     (process-atom-id ATOMID)]))
+     (process-atom-id ATOMID run-command)]))
 
-(define (process-atom-id atom-id)
+(define (process-atom-id atom-id run-command)
   (define string-atom-id (format "~a" atom-id))
   (string->symbol
    (string-replace (string-replace string-atom-id "@" "") "_" "$")))

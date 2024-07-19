@@ -232,7 +232,8 @@
            (begin
              (define-values (all-rels core-map)
                (send-to-cvc5-tor run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
-             (lambda (mode) (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]        
+             (lambda (mode) (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode
+                                                     #:run-command run-command)))]        
           [(equal? backend 'pardinus)
            (begin
              (define-values (all-rels core-map)

@@ -110,7 +110,6 @@
 
   (define inner-formula-list (inner-formula-recursive-helper vars-atoms (list new-inner-form)))
   (define and-node (node/formula/op/&& info inner-formula-list))
-  (printf "and node: ~a~n" and-node)
   and-node
 )
 
@@ -122,6 +121,13 @@
 
 (define (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds)
   (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars quantvar-types bounds)) children))
+
+(define (process-children-ambiguous run-or-state children relations atom-names quantvars quantvar-types bounds)
+  (for/list ([child children])
+      (match child
+        [(? node/formula? f) (interpret-formula run-or-state f relations atom-names quantvars quantvar-types bounds)]
+        [(? node/expr? e) (interpret-expr run-or-state e relations atom-names quantvars quantvar-types bounds)]
+        [(? node/int? i) (interpret-int run-or-state i relations atom-names quantvars quantvar-types bounds)])))
 
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars quantvar-types args bounds)
   (when (@>= (get-verbosity) 2)
@@ -156,15 +162,15 @@
     [(node/formula/op/in info children)
       (node/formula/op/in info (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/= info children)
-      (node/formula/op/= info (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
+      (node/formula/op/= info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/int> info children)
-      (node/formula/op/int> info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+      (node/formula/op/int> info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/int< info children)
-      (node/formula/op/int< info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+      (node/formula/op/int< info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/int= info children)
-     (node/formula/op/int= info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]))
+     (node/formula/op/int= info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -267,23 +273,23 @@
     (printf "quantifier-grounding: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
-      (node/int/op/add info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+    (node/int/op/add info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/subtract info children)
-    (node/int/op/subtract info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+    (node/int/op/subtract info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/multiply info children)
-    (node/int/op/multiply info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+    (node/int/op/multiply info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/divide info children)
-    (node/int/op/divide info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+    (node/int/op/divide info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/sum info children)
     (node/int/op/sum info (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/card info children)
     (node/int/op/card info (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/remainder info children)
-     (node/int/op/remainder info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+     (node/int/op/remainder info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/abs info children)
-     (node/int/op/abs info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+     (node/int/op/abs info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/sign info children)
-     (node/int/op/sign info (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds))]
+     (node/int/op/sign info (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     ))

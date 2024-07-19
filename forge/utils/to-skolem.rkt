@@ -66,11 +66,12 @@
     ; 2. define a new relation, which is a function from (universals) -> (type of the existential)
     ; for name, could just do string-append $ <variable name that has gensym>
 
+    (define qvar (car (first decls)))
     (define codomain-type qdomain-sig)
     (define codomain-upper-bound (find-upper-bound total-bounds codomain-type))
   
     ; Fields for node/expr/relation: info arity name typelist-thunk parent is-variable
-    (define skolem-relation-name (string-append "$" (symbol->string (node/expr/quantifier-var-sym (car (first decls))))))
+    (define skolem-relation-name (string-append "$" (symbol->string (node/expr/quantifier-var-sym qvar))))
     (define skolem-relation
       (build-relation (nodeinfo-loc info)
                       (append (map Sig-name quantvar-types) (list (Sig-name codomain-type)))
@@ -79,7 +80,8 @@
                           (Sig-name (list-ref quantvar-types 0)))
                       skolem-relation-name
                       #f
-                      (nodeinfo-lang info)))
+                      (nodeinfo-lang info)
+                      #:annotations (nodeinfo-annotations (node-info qvar))))
 
   ; TODO support multiple variables in one decl
                              
@@ -123,7 +125,7 @@
   
     ; 4. add that new relation to the bounds
     (define skolem-bounds (make-bound skolem-relation '() skolem-upper-bound))
-    ; Skolem bounds _at end_, so that CVC5 conversion doesn't need to hoist bounds for sigs
+    ; Skolem bounds _at end_, so that CVC5 conversion doesn't need to hoist bounds for sigs")
     (define new-bounds (append total-bounds (list skolem-bounds)))
     ;(define new-run (create-run-with-bounds run-spec new-bounds))
 
@@ -140,7 +142,6 @@
 
   ; TODO: this will need an apply-record for every argument to the Skolem function
   (define apply-records '()) 
-  (printf "TAG WITH SPACER FOR RELATION ~a: ~a~n" skolem-relation-name tag-with-spacer)
   (define value (if tag-with-spacer
                     ; This isn't fully accurate (we aren't bothering to give domain/codomain info, and are using
                     ; that empty list value as an added flag that this is a skolem application.)
@@ -160,6 +161,15 @@
 ;  (interpret-formula (context run-spec total-bounds formula relations atom-names
 ;                              quantvars quantvar-types tag-with-spacer)))
 
+
+(define (skolemize-formula-decl-helper run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info
+                                      decls new-inner-form #:tag-with-spacer tag-with-spacer)
+  (for/fold ([form new-inner-form] [bounds new-inner-bounds])
+            ([decl decls])
+    (define-values (new-form new-bounds)
+      (skolemize-formula-helper run-spec bounds formula relations atom-names quantvars quantvar-types info
+                                (list decl) form #:tag-with-spacer tag-with-spacer))
+    (values new-form new-bounds)))
 
 ; Translate a formula AST node
 (define/contract (interpret-formula run-spec total-bounds formula relations atom-names
@@ -198,8 +208,9 @@
           (define-values (new-inner-form new-inner-bounds)
             (interpret-formula run-spec total-bounds form relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
           ; Now skolemize, using the skolemized inner formula as the baseline
+          ; Unrap the decls and recursively skolemize 1 at a time.
           (define-values (fmla bounds)
-            (skolemize-formula-helper run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info
+            (skolemize-formula-decl-helper run-spec new-inner-bounds formula relations atom-names quantvars quantvar-types info
                                       decls new-inner-form #:tag-with-spacer tag-with-spacer))
           (set! current-bounds bounds)
           fmla]
@@ -228,7 +239,7 @@
 (define (process-children-formula run-spec total-bounds children relations atom-names quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
   (map (lambda (x)
          (define-values (fmla bounds)
-           (interpret-formula run-spec total-bounds x relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
+           (interpret-formula run-spec current-bounds x relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
          (set! current-bounds bounds) fmla) children))
 
 (define (process-children-expr run-spec total-bounds children relations atom-names quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
@@ -240,7 +251,8 @@
 (define (process-children-ambiguous run-or-state total-bounds children relations atom-names quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
   (for/list ([child children])
     (match child
-      [(? node/formula? f) (interpret-formula run-or-state total-bounds f relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)]
+      [(? node/formula? f) (define-values (fmla bounds) (interpret-formula run-or-state total-bounds f relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
+                            (set! current-bounds bounds) fmla]
       [(? node/expr? e) (interpret-expr run-or-state total-bounds e relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)]
       [(? node/int? i) (interpret-int run-or-state total-bounds i relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)])))
 
@@ -277,7 +289,7 @@
     [(node/formula/op/in info children)
       (node/formula/op/in info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/= info children)
-      (node/formula/op/= info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+      (node/formula/op/= info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/formula/op/int> info children)
@@ -390,23 +402,23 @@
     (printf "to-skolem: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
-      (node/int/op/add info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+      (node/int/op/add info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/subtract info children)
-    (node/int/op/subtract info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    (node/int/op/subtract info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/multiply info children)
-    (node/int/op/multiply info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    (node/int/op/multiply info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/divide info children)
-    (node/int/op/divide info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    (node/int/op/divide info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/sum info children)
     (node/int/op/sum info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/card info children)
     (node/int/op/card info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/remainder info children)
-     (node/int/op/remainder info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+     (node/int/op/remainder info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/abs info children)
-     (node/int/op/abs info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+     (node/int/op/abs info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/op/sign info children)
-     (node/int/op/sign info (process-children-int run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+     (node/int/op/sign info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     ))

@@ -20,7 +20,6 @@
       (format "~aSort" str)))
 
 (define (atom-or-int arg)
-  (printf "~a~n" (pretty-type-of arg))
   (define str (cond [(string? arg) arg]
                     [(symbol? arg) (symbol->string arg)]
                     [(and (node/expr/relation? arg)
@@ -32,7 +31,6 @@
                     [else
                      (printf "~n~n*** ELSE CASE: ~a~n~n" (pretty-type-of arg))
                      arg]))
-  (printf "atom-or-int stringified value: ~a; ~v~n" (pretty-type-of str) str)
   (if (equal? str "Int")
       "Int"
       "Atom"))

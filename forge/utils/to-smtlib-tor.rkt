@@ -12,7 +12,7 @@
   forge/lang/bounds
   (only-in racket index-of match string-join first second rest flatten last drop-right third)
   (only-in racket/contract define/contract or/c listof any/c)
-  (prefix-in @ (only-in racket/contract ->))
+  (prefix-in @ (only-in racket/contract -> ->*))
   (prefix-in @ (only-in racket/base >= > -)))
 
 (provide convert-formula)
@@ -23,15 +23,15 @@
 
 ; Translate a formula AST node
 (define/contract (convert-formula run-or-state formula relations atom-names quantvars quantvar-types bounds)  
-  (@-> (or/c Run? State? Run-spec?)
+  (@->* ((or/c Run? State? Run-spec?)
       node/formula?
       list?
       list?
       list?
       list?
-      list?
+      list?)
       string?)
-  (when (@>= (get-verbosity) 2)
+  (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
@@ -45,9 +45,9 @@
       (match mult
         ; crucially, we can't use 'processed-expr' in the get-k-bounds - we have to use the preprocessed so it has nodes, not strings
         ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['one (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)]
+        ['one (format "(set.is_singleton ~a)" processed-expr)]
         ['some (format "(not (= (as set.empty ~a) ~a))"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['lone (format "(or ~a (= (as set.empty ~a) ~a))" (format-one run-or-state expr quantvars quantvar-types processed-expr bounds) 
+        ['lone (format "(or (set.is_singleton ~a) (= (as set.empty ~a) ~a))" processed-expr 
                                                         (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
     [(node/formula/quantified info quantifier decls form)
@@ -90,35 +90,6 @@
   (format "(Relation ~a)" (string-join top-level-type-list " "))
 )
 
-(define (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)
-  ; anticipate the type of the expr with last checker
-  (define quantvar-pairs (map list quantvars quantvar-types))
-  (define dummy-hash (make-hash))
-  (define list-of-types (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
-  ; map each type to the respective upper bound
-  (define nested-atoms-to-use (for/list ([bound bounds])
-    (for/list ([type-union list-of-types])
-      (for/list ([type type-union] #:when (and (not (equal? type 'Int)) (equal? (symbol->string type) (relation-name (bound-relation bound)))))
-          (bound-upper bound)
-      )
-    )
-  ))
-  ; probably want to remove duplicates but for now it's fine
-  (define atoms-to-use (flatten nested-atoms-to-use))
-  ; if we have an Int somewhere in the list, we don't want to enumerate the ints.
-  ; let's use a working example to figure out how we want to do this.
-  ; if we have F : A -> one Int, 
-  ; we want to check that the domain is only in A. 
-  ; so we should check that the domain is a subset of A.
-  ; but to do that we have to right join the relation :/ 
-  ; give me one second to check on ints.
-  (if (equal? (length atoms-to-use) 0)
-    ; temporary patch - just don't enumerate anything if it only contains ints
-    (format "true")
-    (format "(or ~a)" (string-join (map (lambda (x) (format "(= ~a (set.singleton (tuple ~a)))" processed-expr x)) atoms-to-use) " "))
-  )
-)
-
 (define (process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds)
   (map (lambda (x) (convert-formula run-or-state x relations atom-names quantvars quantvar-types bounds)) children))
 
@@ -136,7 +107,7 @@
       [(? node/int? i) (convert-int run-or-state i relations atom-names quantvars quantvar-types bounds)])))
 
 (define (convert-formula-op run-or-state formula relations atom-names quantvars quantvar-types args bounds)
-  (when (@>= (get-verbosity) 2)
+  (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
@@ -180,7 +151,7 @@
     [(node/formula/op/in info children)
       (format "(set.subset ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/formula/op/= info children)
-      (format "(= ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/formula/op/! info children)
       (format "(not ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds) ""))]
     [(node/formula/op/int> info children)
@@ -188,7 +159,7 @@
     [(node/formula/op/int< info children)
       (format "(< ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
     [(node/formula/op/int= info children)
-     (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]))
+      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -209,7 +180,7 @@
 )
 
 (define (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)
-  (when (@>= (get-verbosity) 2)
+  (when (@> (get-verbosity) VERBOSITY_LOW)
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
@@ -231,6 +202,7 @@
      (cond [(and (@> (node/expr-arity expanded) 1) (equal? #\$ (string-ref (symbol->string name) 0)))
             ; This marker is to aid in recognizing the application of a Skolem function.
             ; E.g., to convert something like b.a.$x into ($x a b).
+            (printf "EXPANDED: ~a~n " expanded)
             (define components (join->list/right expanded))
             (unless (and (node/expr/relation? (last components))
                          (equal? (node/expr/relation-name (last components)) (symbol->string name)))
@@ -238,17 +210,25 @@
                                  #:context info))
             ;; replace (note: the arguments must be variables)
             (for ([a (drop-right components 1)])
-              (unless (node/expr/quantifier-var? a)
+              (unless (or (node/expr/quantifier-var? a) (node/expr/atom? a))
                 (raise-forge-error #:msg (format "Unexpected argument to Skolem function; was not a variable: ~a" a)
                                    #:context a)))
+            (printf "components: ~a~n" (deparen (drop-right components 1)))
+            (printf "node/expr/atom? ~a~n" (node/expr/atom? (car (drop-right components 1))))
+            (define modified-args (map (lambda (x) (if (node/expr/atom? x) (node/expr/atom-name x) x)) (drop-right components 1)))
+            (printf "modified args: ~a~n" modified-args)
             ; TODO: if used in an int context, do we want to wrap still?
-            (format "(set.singleton (tuple (~a ~a)))" name (deparen (drop-right components 1)))]
+            (if (get-annotation info 'smt/int-unwrap)
+                (format "(~a ~a)" name (deparen modified-args))
+                (format "(set.singleton (tuple (~a ~a)))" name (deparen modified-args)))]
            [(equal? #\$ (string-ref (symbol->string name) 0))
             (unless (and (node/expr/relation? expanded)
                          (equal? (node/expr/relation-name expanded) (symbol->string name)))
               (raise-forge-error #:msg (format "Skolem (constant) fun-spacer marker did not match: ~a vs. ~a" expanded name)
                                  #:context info))
-            (format "(set.singleton (tuple ~a))" name)
+            (if (get-annotation info 'smt/int-unwrap)
+                (format "~a" name)
+                (format "(set.singleton (tuple ~a))" name))
             ;[(equal? #\$ (string-ref name 0)) (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)]
             ]
            [else
@@ -269,9 +249,11 @@
      "TODO: identity relation"]
     [(node/expr/constant info arity 'none)
      ; produce an empty set of the appropriate arity
-     (for/fold ([acc "set.empty"])
-               ([todo (build-list (@- arity 1) (lambda (x) x))])
-       (format "(rel.product set.empty ~a)" acc))]
+    ;  (for/fold ([acc "set.empty"])
+    ;            ([todo (build-list (@- arity 1) (lambda (x) x))])
+    ;    (format "(rel.product set.empty ~a)" acc))]
+    ; temporary patch - make it an empty set of int relations, but eventually we want to use atom-or-int to some capacity
+    (format "(as set.empty (Relation Int))")]
     [(node/expr/constant info arity type)
      (raise-forge-error #:msg (format "Unexpected node reached by to-smtlib-tor: node/expr/constant with type " type)
                         #:context info)]
@@ -301,7 +283,7 @@
      "TODO: COMPREHENSION")]))
 
 (define (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
-    (when (@>= (get-verbosity) 2)
+    (when (@> (get-verbosity) VERBOSITY_LOW)
       (printf "to-smtlib-tor: convert-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
@@ -339,7 +321,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (convert-int run-or-state expr relations atom-names quantvars quantvar-types bounds)
-  (when (@>= (get-verbosity) 2)
+  (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
@@ -363,27 +345,28 @@
       "TODO: sum quant")]))
 
 (define (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
-  (when (@>= (get-verbosity) 2)
+  (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
-      (format "(+ ~a)" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      (format "(+ ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/subtract info children)
-      (format "(- ~a)" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      (format "(- ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/multiply info children)
-      (format "(* ~a)" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      (format "(* ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/divide info children)
-      (format "(div ~a)" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      (format "(div ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/sum info children)
     ; if we can discover that the argument is provably a singleton, we can just erase the 'sum' node
     ; what in the world do we do in the other case? probably either be inspired by cvc5 work or fortress translation
-    "TODO: sum"]
+    ; temporary fix - assume it's a singleton
+    (format "(reconcile-int ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/card info children)
     "TODO: cardinality"]
     [(node/int/op/remainder info children)
-     (format "(mod ~a)" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     (format "(mod ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/abs info children)
-     (format "(abs ~a)" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     (format "(abs ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/sign info children)
      ; The Forge->SMT-LIB generator preamble defines a function "sign"
      (format "(sign ~a)")]
