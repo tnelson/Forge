@@ -229,7 +229,7 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (pardinus-print (pardinus:print-cmd (format "(with ~a" run-name)))
   (pardinus-print
-    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a ~a ~a"                               
+    (pardinus:configure (format ":bitwidth ~a :solver ~a :max-solutions 1 :verbosity ~a :skolem-depth ~a :sb ~a :core-gran ~a :core-minimization ~a :log-trans ~a :no-overflow ~a ~a ~a"                               
                                bitwidth 
                                solverspec
                                (get-option run-spec 'engine_verbosity) ; see the Wiki for levels
@@ -238,6 +238,7 @@
                                (get-option run-spec 'coregranularity)
                                (get-option run-spec 'core_minimization)
                                (get-option run-spec 'logtranslation)
+                               (get-option run-spec 'no_overflow)
                                (if (equal? 'temporal (get-option run-spec 'problem_type))
                                    (format ":min-trace-length ~a" (get-option run-spec 'min_tracelength))
                                    "")
