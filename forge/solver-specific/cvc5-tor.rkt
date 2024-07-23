@@ -325,7 +325,7 @@
         ; Uninterpreted function with if-then-else value (likely a Skolem function)
         ; TODO: sending this back empty to avoid blocking development; need to evaluate it properly
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN (list (quote ite) COND T F))
-         (values ID (list (list )))]
+         (values ID '())]
         
         ; Relational value: union (may contain any number of singletons)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.union) ARGS ...))
