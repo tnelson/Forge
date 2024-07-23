@@ -61,7 +61,8 @@
 <div class="example">
   <div class="logoimg"><img src="./img/logo_trimmed.png"/></div> 
   <div class="viztext">
-    <div class="viznote">Forge is a lightweight formal-methods tool, similar to <a href="https://alloytools.org">Alloy 6</a>, built with <b>teaching</b> in mind. Forge provides a progression of sub-languages that gradually build in expressive power to match students' experience and expertise. 
+    <div class="viznote">Forge is a lightweight formal-methods tool, similar to <a href="https://alloytools.org">Alloy 6</a>, built with <b>teaching</b> in mind. Forge provides a progression of sub-languages that gradually build in expressive power to match students' experience and expertise. <br/><br/>
+    <A href="https://csci1710.github.io/forge-documentation/getting-started/installation.html">Installation and Documentation</A>
     </div>
   </div>
 </div>
