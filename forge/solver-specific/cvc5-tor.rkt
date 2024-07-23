@@ -23,7 +23,6 @@
           racket/hash
           racket/port)
 
-; TODO: connect w/ translation in and translation out
 ; TODO: is it possible to have multiple simultaneous runs in cvc5?
 
 (provide send-to-cvc5-tor get-next-cvc5-tor-model smtlib-display)
@@ -74,8 +73,6 @@
   (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
 
 (define (convert-bound b)
-  ; TODO: for now, assume we have exact bounds, and just use the upper
-  ; For KM: let's discuss this!
   ;(printf "convert-bound: ~a~n" b)
   (define name (relation-name (bound-relation b)))
   (define arity (relation-arity (bound-relation b)))
@@ -89,9 +86,6 @@
      ""]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
-     ; If we are declaring sigs as _sorts_, we need a separate relation to store
-     ; atoms of that sort that appear in the instance. (Note "Sort" suffix below)
-     ;; TODO: we should only declare top-level sigs as sorts
      (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n~a~n"
              ; Declare the "used" relation for this sig
              (if (equal? parent "univ") (const-declarations b) "")
@@ -111,7 +105,6 @@
     ; Fields
     [else
     ; Fields are declared as relations of the appropriate arity of atoms or ints
-    ; TODO: need to restrict domain elements and codomain elements
      (format "(declare-fun ~a () (Relation ~a))~n" name (deparen (map atom-or-int typenames)))]))
 
 (define (form-disjoint-string relations)
