@@ -29,7 +29,7 @@ pred ownGrandparent {
         p.parent1.parent1.spouse = p or
         p.parent1.parent2.spouse = p or
         p.parent1.spouse.parent1 = p or
-        p.parent1.spouse.parent1.spouse = p
+        p.parent1.spouse.parent1.spouse = p or
         p.parent1.spouse.parent2 = p or
         p.parent1.spouse.parent2.spouse = p or
         p.parent2.parent1.spouse = p or
