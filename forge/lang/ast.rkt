@@ -117,7 +117,7 @@
 
 (define/contract (intexpr->expr/maybe a-node #:op functionname #:info info)
   (@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
-  (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
+  (cond [(node/int? a-node) (node/expr/op/sing (update-annotation (node-info a-node) 'automatic-int-conversion #t) 1 (list a-node))]
         [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
         [else 
@@ -131,7 +131,7 @@
   (cond [(and (node/expr? a-node)
               (equal? (node/expr-arity a-node) 1))
          ; If arity 1, this node/expr can be converted automatically to a node/int
-         (node/int/op/sum (node-info a-node) (list a-node))]
+         (node/int/op/sum (update-annotation (node-info a-node) 'automatic-int-conversion #t) (list a-node))]
         [(node/expr? a-node)
          ; Otherwise, this node/expr has the wrong arity for auto-conversion to a node/int
          (raise-forge-error
