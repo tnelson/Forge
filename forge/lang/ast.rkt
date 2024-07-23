@@ -336,9 +336,10 @@
 ; parent: the node struct type that is the parent of this new one
 ; arity: the arity of the new node, in terms of the arities of its children
 (define-syntax (define-node-op stx)
+  
   (syntax-case stx ()
-    [(_ id parent arity checks ... #:lift @op #:type childtype)
-     ;(printf "defining: ~a~n" stx)
+    [(_ id parent arity checks ... #:lift @op #:type childtype #:elim-unary? elim-unary?)
+     ;(printf "define-node-op defn case: ~a~n" stx)
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
                    [functionname (format-id #'id "~a/func" #'id)]
@@ -365,7 +366,7 @@
            (define (functionname #:info [info empty-nodeinfo] . raw-args)
              (define ast-checker-hash (get-ast-checker-hash))
              ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
-             ;(printf "name: ~a args: ~a    key:~a ~n" 'name raw-args  key)
+             ;(printf "name: ~a raw-args: ~a ~n" 'name raw-args)
              ;(printf "name: ~a args: ~a loc:~a ~n" 'name raw-args (nodeinfo-loc info))
 
              ; Perform intexpr->expr and expr->intexpr coercion if needed:             
@@ -377,20 +378,26 @@
              
              (check-and-output args key ast-checker-hash info)
              (check-args info 'id args childtype checks ...)
-             (if arity
-                 ; expression
-                 (cond [(andmap node/expr? args)                       
-                        ; expression with ~all~ expression children (common case)
-                        (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                          (name info (apply arity arities) args))]
-                       ; expression with non-expression children or const arity (e.g., sing or expr form of ITE)                                       
-                       [else             
-                        (name info (arity) args)]) 
-                 ; intexpression or formula
-                 (name info args)))
+             (cond
+               ; If the elim-unary flag has been provided, and the call would create a 1-arg node,
+               ; omit it, and just keep the single arg. E.g., (&& A) -> A.
+               [(and elim-unary? (equal? 1 (length args)))
+                (first args)]
+               ; expression operator
+               [arity
+                (cond [(andmap node/expr? args)                       
+                       ; expression with ~all~ expression children (common case)
+                       (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
+                         (name info (apply arity arities) args))]
+                      ; expression with non-expression children or const arity (e.g., sing or expr form of ITE)                                       
+                      [else             
+                       (name info (arity) args)]) ]
+               ; intexpression or formula
+               [else
+                (name info args)]))
            
            
-
+           
            ; For expander to use check-lang on this macro, use the format
            ; (id (#:lang (get-check-lang)) args ...) for pattern matching
 
@@ -435,17 +442,11 @@
                     
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
                     (macroname/info-help info (list e ellip))))])))))]
-                  ;)))]
-    [(_ id parent arity checks ... #:lift @op)
-     (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
+    [(_ id parent arity checks ... #:type childtype)
      (syntax/loc stx
-       (define-node-op id parent arity checks ... #:lift @op #:type node/expr?))]
-    [(_ id parent arity checks ... #:type childtype)    
-     (syntax/loc stx
-       (define-node-op id parent arity checks ... #:lift #f #:type childtype))]
-    [(_ id parent arity checks ...)     
-     (syntax/loc stx
-       (define-node-op id parent arity checks ... #:lift #f))]))
+       (define-node-op id parent arity checks ... #:lift #f #:type childtype #:elim-unary? #f))]
+    [else
+     (raise (error (format "tried to create an operator, but no matching case: ~a" stx)))]))
 
 (define get-first
   (lambda e (car e)))
@@ -813,35 +814,35 @@
 (define-node-op ordered node/formula/op #f #:max-length 2 #:type node/expr?)
 
 ; allow empty && to facilitate  {} blocks
-(define-node-op && node/formula/op #f #:min-length 0 #:lift #f #:type node/formula?)
-(define-node-op || node/formula/op #f #:min-length 1 #:lift #f #:type node/formula?)
-(define-node-op => node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/formula?)
-(define-node-op ! node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op int> node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
-(define-node-op int< node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
-(define-node-op int= node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
+(define-node-op && node/formula/op #f #:min-length 0 #:lift #f #:type node/formula? #:elim-unary? #t)
+(define-node-op || node/formula/op #f #:min-length 1 #:lift #f #:type node/formula? #:elim-unary? #t)
+(define-node-op => node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op ! node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op int> node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/int? #:elim-unary? #f)
+(define-node-op int< node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/int? #:elim-unary? #f)
+(define-node-op int= node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/int? #:elim-unary? #f)
 
 ; Electrum temporal operators
-(define-node-op always node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op eventually node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op next_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
-(define-node-op releases node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op always node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op eventually node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op next_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op releases node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
 
 ; Electrum past-time temporal operators
-(define-node-op historically node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op once node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op historically node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op once node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
 ; Note that prev_state F is false in state 0 for any F
-(define-node-op prev_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op since node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
-(define-node-op triggered node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op prev_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op since node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op triggered node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
 
 ; --------------------------------------------------------
 
 (define (int=-lifter i1 i2)
   (int= i1 i2))
 
-(define-node-op = node/formula/op #f #:same-arity? #t #:max-length 2 #:lift int=-lifter #:type node/expr?) 
+(define-node-op = node/formula/op #f #:same-arity? #t #:max-length 2 #:lift int=-lifter #:type node/expr? #:elim-unary? #f)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
