@@ -44,5 +44,3 @@ pred ownGrandparent {
 test expect {
     own_grandpa : {FamilyFact and ownGrandparent} is sat
 }
-
-run { FamilyFact and ownGrandparent }
