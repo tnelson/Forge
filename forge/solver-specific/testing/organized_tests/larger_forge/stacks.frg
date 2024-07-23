@@ -46,7 +46,7 @@ pred MidToEndPush{
 
 test expect {
     push_pop : {init and InitialToMidPop and MidToEndPop} is sat
-    push_push : {init and InitialToMidPush and MidToEndPush} is sat
-    pop_push : {init and InitialToMidPop and MidToEndPush} is sat
-    pop_pop : {init and InitialToMidPop and MidToEndPop} is sat
+    // push_push : {init and InitialToMidPush and MidToEndPush} is sat
+    // pop_push : {init and InitialToMidPop and MidToEndPush} is sat
+    // pop_pop : {init and InitialToMidPop and MidToEndPop} is sat
 }

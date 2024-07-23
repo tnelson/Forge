@@ -82,6 +82,7 @@
   (define typenames ((relation-typelist-thunk (bound-relation b))))
   (define parent (relation-parent (bound-relation b)))
   (define one? (if (Sig? (bound-relation b)) (Sig-one (bound-relation b)) #f))
+  (define abstract? (if (Sig? (bound-relation b)) (Sig-abstract (bound-relation b)) #f))
   (cond
     ; Don't declare Int at all
     [(equal? name "Int")

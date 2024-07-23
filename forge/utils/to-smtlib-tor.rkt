@@ -43,11 +43,10 @@
     [(node/formula/multiplicity info mult expr)
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
-        ; crucially, we can't use 'processed-expr' in the get-k-bounds - we have to use the preprocessed so it has nodes, not strings
-        ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['one (format "(set.is_singleton ~a)" processed-expr)]
+       ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
+        ['one (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)]
         ['some (format "(not (= (as set.empty ~a) ~a))"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['lone (format "(or (set.is_singleton ~a) (= (as set.empty ~a) ~a))" processed-expr 
+        ['lone (format "(or ~a (= (as set.empty ~a) ~a))" (format-one run-or-state expr quantvars quantvar-types processed-expr bounds) 
                                                         (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
     [(node/formula/quantified info quantifier decls form)
@@ -88,6 +87,24 @@
   (define top-level-type-list (for/list ([type list-of-types])
     (if (index-of type 'Int) "Int" "Atom")))
   (format "(Relation ~a)" (string-join top-level-type-list " "))
+)
+
+(define (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)
+  (define quantvar-pairs (map list quantvars quantvar-types))
+  (define dummy-hash (make-hash))
+  (define list-of-types (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
+  (define nested-atoms-to-use (for/list ([bound bounds])
+    (for/list ([type-union list-of-types])
+      (for/list ([type type-union] #:when (and (not (equal? type 'Int)) (equal? (symbol->string type) (relation-name (bound-relation bound)))))
+          (bound-upper bound)
+      )
+    )
+  ))
+  (define atoms-to-use (flatten nested-atoms-to-use))
+  (if (equal? (length atoms-to-use) 0)
+    (format "true")
+    (format "(or ~a)" (string-join (map (lambda (x) (format "(= ~a (set.singleton (tuple ~a)))" processed-expr x)) atoms-to-use) " "))
+  )
 )
 
 (define (process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds)
