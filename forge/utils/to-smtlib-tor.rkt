@@ -10,7 +10,7 @@
   forge/solver-specific/smtlib-shared
   forge/last-checker
   forge/lang/bounds
-  (only-in racket index-of match string-join first second rest flatten last drop-right third)
+  (only-in racket index-of match string-join first second rest flatten last drop-right third empty)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract -> ->*))
   (prefix-in @ (only-in racket/base >= > -)))
@@ -45,9 +45,12 @@
       (match mult
        ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         ['one (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)]
+        ; ['one (format "set.is_singleton ~a)" processed-expr)]
         ['some (format "(not (= (as set.empty ~a) ~a))"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         ['lone (format "(or ~a (= (as set.empty ~a) ~a))" (format-one run-or-state expr quantvars quantvar-types processed-expr bounds) 
                                                         (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
+        ; ['lone (format "(or (set.is_singleton ~a) (= (as set.empty ~a) ~a))" processed-expr
+        ;                                         (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
     [(node/formula/quantified info quantifier decls form)
      ; new vs-decls => list ((list qv) (list (pair qv expr-decl)))
@@ -61,13 +64,12 @@
          (list new-quantvars new-expr-decls)))
       (define new-quantvars  (first new-vs-decls))
       (define new-expr-decls (second new-vs-decls))
-      (define new-quantvar-types (map cdr new-expr-decls))
+      (define new-quantvar-types (append (map cdr new-expr-decls) quantvar-types))
      (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-types bounds)])
        ; In the quantifier declaration, we need the *sort* name, which is Atom or Int
        ; In the guard, we need a SMT *expression*, which is the sort name or the Int-universe expression.
        ; To get the string expression, we map convert-expr to the cdr of each decl.
        (define vars-str-decls (map (lambda (x) (cons (car x) (convert-expr run-or-state (cdr x) relations atom-names new-quantvars new-quantvar-types bounds))) new-expr-decls))
-       (printf "vars-str-decls: ~a~n" vars-str-decls)
        (format "(~a (~a) ~a)"
                          ; SMT-LIB uses "forall", not "all" and "exists", not "some"
                          (if (equal? quantifier 'all) "forall" "exists")
@@ -86,7 +88,7 @@
   (define list-of-types (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
   (define top-level-type-list (for/list ([type list-of-types])
     (if (index-of type 'Int) "Int" "Atom")))
-  (format "(Relation ~a)" (string-join top-level-type-list " "))
+  (if (equal? (length quantvar-pairs) quantvar-pairs) (format "(Relation Atom)") (format "(Relation ~a)" (string-join top-level-type-list " ")))
 )
 
 (define (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)

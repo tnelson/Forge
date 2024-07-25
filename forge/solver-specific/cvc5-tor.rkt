@@ -7,6 +7,7 @@
          forge/shared
          forge/lang/bounds
          forge/solver-specific/smtlib-shared
+         forge/last-checker
          (prefix-in nnf: forge/utils/to-nnf)
          (prefix-in boxed-int: forge/utils/integer-converter)
          (prefix-in skolemize: forge/utils/to-skolem)
@@ -72,8 +73,29 @@
                     (bound-upper bound))))
   (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
 
+(define (child-constraint run-or-state bound)
+  (define name (relation-name (bound-relation bound)))
+  (define arity (relation-arity (bound-relation bound)))
+  (cond 
+    [(equal? name "Int")
+    ""]
+    ; we only want this to operate on arity 1 non-skolem relations, aka sigs
+    [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
+      (define primsigs (if (Sig? (bound-relation bound)) (primify run-or-state (Sig-name (bound-relation bound))) '()))
+      (define remove-remainder-lambda (lambda (sig-name) (regexp-replace #rx"_.*$" (symbol->string sig-name) "")))
+      (cond [(or (equal? 1 (length primsigs)) (empty? primsigs)) ""]
+            [else
+            (format "(assert (= ~a (set.union ~a)))~n"
+                    (relation-name (bound-relation bound))
+                    (deparen (map remove-remainder-lambda primsigs)))])
+    ]
+    [(equal? (string-ref name 0) #\$)
+    ""]
+    [else ""]
+  )
+)
+
 (define (convert-bound b)
-  ;(printf "convert-bound: ~a~n" b)
   (define name (relation-name (bound-relation b)))
   (define arity (relation-arity (bound-relation b)))
   (define typenames ((relation-typelist-thunk (bound-relation b))))
@@ -86,12 +108,12 @@
      ""]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
-     (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n~a~n"
-             ; Declare the "used" relation for this sig
+     (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n"
+             ; Only instantiate constants for top level sigs
              (if (equal? parent "univ") (const-declarations b) "")
              name
-             (create-bound-membership b name)
-             (relation-constraint b name one?))]
+             ; Only create membership assertions for top level sigs or one sigs
+             (if (or one? (equal? parent "univ")) (create-bound-membership b name) ""))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
@@ -176,13 +198,14 @@
     (for ([constraint step2])
       (printf "  ~a~n" constraint)))
     
-  ; Modify the bounds of the fake run from step 3
+  ; Create a new fake run with the new bounds
   (define new-fake-run (Run 'fake #'fake (Run-run-spec fake-run) fake-solution-tree 
                             fake-server-ports (Run-atoms fake-run) fake-kodkod-current step2-bounds (box #f)))
 
-  (define step3 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
+  ; 7/25: Commented out quantifier grounding for now.
+  ; (define step3 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step3))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 3 (post SMT-LIB conversion):~n")
     (for ([constraint step4])
@@ -206,6 +229,7 @@
 
   ; converted bounds:
   (define bounds-str (string-join (map convert-bound step2-bounds) "\n"))
+  (define bounds-str-2 (string-join (map (lambda (b) (child-constraint new-fake-run b)) step2-bounds) "\n"))
   ; bound disjointness
   (define top-level-disjoint-str (form-disjoint-string (map bound-relation step2-bounds)))
   (define disjointness-constraint-str (disjoint-relations top-level-disjoint-str))

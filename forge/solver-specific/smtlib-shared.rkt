@@ -37,7 +37,6 @@
 
 ;; Function to create a membership guard for a list of declarations
 (define (membership-guard decls)
-  (printf "membership-guard for decls: ~v\n" decls)
   ; have a blank "and" statement that we are going to start adding onto
   ; for each decl, we want to add (set.member (tuple (car decl)) (cdr decl)) to the and statement
   (format "(and ~a)" (string-join (map (lambda (decl)
