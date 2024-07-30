@@ -65,7 +65,8 @@
 
 ;; Function to create a constraint asserting that the relation is the union of the constants as singletons
 (define (relation-constraint bound rel-name one?)
-  (if (not one?)
+  (printf "upper bound for bound ~a: ~a~n" rel-name (bound-upper bound))
+  (if (and (not one?) (not (equal? (length (bound-upper bound)) 1)))
   (format "(assert (= ~a (set.union ~a)))~n"
     rel-name
     (deparen (map (lambda (tup)
@@ -85,14 +86,29 @@
       (define remove-remainder-lambda (lambda (sig-name) (regexp-replace #rx"_.*$" (symbol->string sig-name) "")))
       (cond [(or (equal? 1 (length primsigs)) (empty? primsigs)) ""]
             [else
-            (format "(assert (= ~a (set.union ~a)))~n"
+            (format "(assert (= ~a (set.union ~a)))~n~a~n"
                     (relation-name (bound-relation bound))
-                    (deparen (map remove-remainder-lambda primsigs)))])
+                    (deparen (map remove-remainder-lambda primsigs))
+                    (child-disjointness run-or-state (bound-relation bound)))])
     ]
     [(equal? (string-ref name 0) #\$)
     ""]
     [else ""]
   )
+)
+
+(define (child-disjointness run-or-state sig) 
+  ; get the children of the sig that has at least 1 level of children
+  (define children (get-children run-or-state sig))
+  ; get the names of the children
+  (define child-names (map relation-name children))
+  ; pairwise disjoint constraint them
+  (define (pairwise-disjoint relation1 relation2)
+      (if (equal? relation1 relation2) ""
+      (format "(assert (= (set.inter ~a ~a) (as set.empty (Relation Atom))))"
+        relation1 relation2)))
+  (define pairs (cartesian-product child-names child-names))
+  (string-join (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs) "\n")
 )
 
 (define (convert-bound b)
@@ -108,12 +124,13 @@
      ""]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
-     (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n"
+     (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n~a~n"
              ; Only instantiate constants for top level sigs
              (if (equal? parent "univ") (const-declarations b) "")
              name
              ; Only create membership assertions for top level sigs or one sigs
-             (if (or one? (equal? parent "univ")) (create-bound-membership b name) ""))]
+             (if (or one? (equal? parent "univ")) (create-bound-membership b name) "")
+             (if (or one? (equal? parent "univ")) (relation-constraint b name one?) ""))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
@@ -180,40 +197,41 @@
   ; Note that Skolemization changes the *final* bounds. There is no Run struct for this run yet;
   ; it is only created after send-to-solver returns. So there is no "kodkod-bounds" field to start with.
   ; Instead, start with the total-bounds produced.
-  (define step2-both
-    (for/fold ([fs-and-bs (list '() total-bounds)])
-              ([f step1])
-      ; Accumulator starts with: no formulas, original total-bounds
-      (define-values (resulting-formula new-bounds)
-        (skolemize:interpret-formula fake-run (second fs-and-bs) f relations all-atoms '() '()
-                                     #:tag-with-spacer #t))
-      ; Accumulator adds the skolemized formula, updated bounds
-      (list (cons resulting-formula (first fs-and-bs))
-            new-bounds)))
+  ; (define step2-both
+  ;   (for/fold ([fs-and-bs (list '() total-bounds)])
+  ;             ([f step1])
+  ;     ; Accumulator starts with: no formulas, original total-bounds
+  ;     (define-values (resulting-formula new-bounds)
+  ;       (skolemize:interpret-formula fake-run (second fs-and-bs) f relations all-atoms '() '()
+  ;                                    #:tag-with-spacer #t))
+  ;     ; Accumulator adds the skolemized formula, updated bounds
+  ;     (list (cons resulting-formula (first fs-and-bs))
+  ;           new-bounds)))
   
-  (define step2 (first step2-both))
-  (define step2-bounds (second step2-both))
-  (when (@> (get-verbosity) VERBOSITY_LOW)
-    (printf "~nStep 2 (post Skolemization):~n")
-    (for ([constraint step2])
-      (printf "  ~a~n" constraint)))
+  ; (define step2 (first step2-both))
+  ; (define step2-bounds (second step2-both))
+  ; (when (@> (get-verbosity) VERBOSITY_LOW)
+  ;   (printf "~nStep 2 (post Skolemization):~n")
+  ;   (for ([constraint step2])
+  ;     (printf "  ~a~n" constraint)))
     
   ; Create a new fake run with the new bounds
   (define new-fake-run (Run 'fake #'fake (Run-run-spec fake-run) fake-solution-tree 
-                            fake-server-ports (Run-atoms fake-run) fake-kodkod-current step2-bounds (box #f)))
+                            fake-server-ports (Run-atoms fake-run) fake-kodkod-current total-bounds (box #f)))
 
   ; 7/25: Commented out quantifier grounding for now.
   ; (define step3 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() total-bounds)) step1))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 3 (post SMT-LIB conversion):~n")
     (for ([constraint step4])
       (printf "  ~a~n" constraint))
     (printf "~nBounds (post Skolemization):~n")
-    (for ([bound step2-bounds])
-      (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
-      (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound))))
+    ; (for ([bound step2-bounds])
+    ;   (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
+    ;   (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
+      )
 
   ; Now, convert bounds into SMT-LIB (theory of relations) and assert all formulas
 
@@ -228,10 +246,10 @@
                                (string-join defined-funs "\n")))
 
   ; converted bounds:
-  (define bounds-str (string-join (map convert-bound step2-bounds) "\n"))
-  (define bounds-str-2 (string-join (map (lambda (b) (child-constraint new-fake-run b)) step2-bounds) "\n"))
+  (define bounds-str (string-join (map convert-bound total-bounds) "\n"))
+  (define bounds-str-2 (string-join (map (lambda (b) (child-constraint new-fake-run b)) total-bounds) "\n"))
   ; bound disjointness
-  (define top-level-disjoint-str (form-disjoint-string (map bound-relation step2-bounds)))
+  (define top-level-disjoint-str (form-disjoint-string (map bound-relation total-bounds)))
   (define disjointness-constraint-str (disjoint-relations top-level-disjoint-str))
 
   ; converted formula:
@@ -239,7 +257,7 @@
 
   ; DO NOT (check-sat) yet.
   
-  (format "~a~n~a~n~a~n~a~n" preamble-str bounds-str disjointness-constraint-str assertions-str))
+  (format "~a~n~a~n~a~n~a~n~a~n" preamble-str bounds-str bounds-str-2 disjointness-constraint-str assertions-str))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]

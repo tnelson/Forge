@@ -10,7 +10,7 @@
   forge/solver-specific/smtlib-shared
   forge/last-checker
   forge/lang/bounds
-  (only-in racket index-of match string-join first second rest flatten last drop-right third empty)
+  (only-in racket index-of match string-join first second rest flatten last drop-right third empty remove-duplicates)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract -> ->*))
   (prefix-in @ (only-in racket/base >= > -)))
@@ -85,10 +85,10 @@
 (define (get-k-bounds run-or-state expr quantvars quantvar-types)
   (define quantvar-pairs (map list quantvars quantvar-types))
   (define dummy-hash (make-hash))
-  (define list-of-types (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
+  (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))
   (define top-level-type-list (for/list ([type list-of-types])
-    (if (index-of type 'Int) "Int" "Atom")))
-  (if (equal? (length quantvar-pairs) quantvar-pairs) (format "(Relation Atom)") (format "(Relation ~a)" (string-join top-level-type-list " ")))
+    (if (equal? type 'Int) "Int" "Atom")))
+  (if (equal? (length quantvar-pairs) 0) (format "(Relation Atom)") (format "(Relation ~a)" (string-join top-level-type-list " ")))
 )
 
 (define (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)
@@ -263,9 +263,9 @@
                         #:context info)]
     ; univ, iden, none
     [(node/expr/constant info arity 'univ)
-     "TODO: universe -- atoms + ints"]
+     (format "(as set.universe (Relation Atom))")]
     [(node/expr/constant info arity 'iden)
-     "TODO: identity relation"]
+     (format "(rel.iden (as set.universe (Relation Atom)))")]
     [(node/expr/constant info arity 'none)
      ; produce an empty set of the appropriate arity
     ;  (for/fold ([acc "set.empty"])
@@ -299,7 +299,7 @@
       (define new-quantvar-types (map cdr new-expr-decls))
      (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-types bounds)])
        (define new-decls (second new-vs-decls))
-     "TODO: COMPREHENSION")]))
+    (format "(set.comprehension (~a) ~a (tuple ~a))" (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) new-expr-decls) " ") processed-form (car (car new-expr-decls))))]))
 
 (define (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
     (when (@> (get-verbosity) VERBOSITY_LOW)
@@ -326,7 +326,7 @@
     [(node/expr/op/^ info arity children)
      (format "(rel.tclosure ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/expr/op/* info arity children)
-      "TODO: reflexive tclosure"]
+     (format "(set.union (rel.tclosure ~a) (rel.iden (as set.universe (Relation Atom))))" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/expr/op/~ info arity children)
      (format "(rel.transpose ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/expr/op/++ info arity children)

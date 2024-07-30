@@ -70,6 +70,12 @@ pred TransitionStates {
     }
 }
 
+pred stateExists { 
+    some s : State | {
+        s.spent = -1
+    }
+}
+
 pred Speeds {
     A.time = 1
     B.time = 2
@@ -78,7 +84,7 @@ pred Speeds {
 }
 
 test expect {
-    crossing : { ValidStates and TransitionStates and Speeds } is sat
+    crossing : { ValidStates and TransitionStates and Speeds } for 6 State is sat
 }
 
 
