@@ -11,7 +11,8 @@
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
-(require (only-in racket empty? first))
+(require (only-in racket empty? first)
+         (prefix-in @ (only-in racket +)))
 (require forge/sigs)
 (require forge/choose-lang-specific)
 (require (only-in forge/lang/ast raise-forge-error))
@@ -1133,8 +1134,17 @@
          (&&/info info xs)]
          ; body of a helper function that produces an int-expression: one int-expression
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
-         (first xs)]         
+         (first xs)]
         [else
+         ; First, check and see whether any individual member of xs is a procedure. If so, it's likely
+         ; the model is using a helper function or predicate incorrectly.
+         (for ([x xs]
+               [i (build-list 5 (lambda (x) (@+ x 1)))])
+           (when (procedure? x)
+             (raise-forge-error
+              #:msg (format "Element ~a of this block was an ill-formed predicate or helper function call. Check that the number of arguments given matches the declaration." i)
+              #:context stx)))
+         ; Otherwise, give a general error message.
          (raise-forge-error
           #:msg (format "Ill-formed block: expected either one expression or any number of formulas; got ~a" xs)
           #:context stx)]))
