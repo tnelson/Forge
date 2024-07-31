@@ -1,9 +1,11 @@
 alloy_benchmarks/loc_int.frg, 1s
-alloy_benchmarks/academia_1.frg, 3s
-alloy_benchmarks/academia_0.frg, 1s
-alloy_benchmarks/academia_2.frg, 2s
-alloy_benchmarks/javatypes.frg, 1s
-alloy_benchmarks/academia_3.frg, 2s
+alloy_benchmarks/academia_4.frg, 1s
+alloy_benchmarks/family_1.frg, 1s
+alloy_benchmarks/academia_1.frg, 19s
+alloy_benchmarks/academia_0.frg, 4s
+alloy_benchmarks/academia_2.frg, 1s
+alloy_benchmarks/javatypes.frg, 2s
+alloy_benchmarks/academia_3.frg, 5s
 alloy_benchmarks/cf_0.frg, 1s
 alloy_benchmarks/number_1.frg, 2s
 alloy_benchmarks/set.frg, 1s

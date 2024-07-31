@@ -43,13 +43,13 @@ pred Biology {
 
 pred Bible {
     -- every person except Adam and Eve has a mother and father
-    all p: Person | p in (Person - (Adam + Eve)) => {
+    all p: Person | p in Person => {
         one mother: Woman, father: Man |
             p.parents = mother + father}
     -- Adam and Eve have no parents
-    no (Adam + Eve).parents
+    // no (Adam + Eve).parents
     -- Adam's spouse is Eve
-    Adam.spouse = Eve
+    // Adam.spouse = Eve
     }
 
 pred SocialNorms {
@@ -70,7 +70,7 @@ pred NoIncest {
     }
 
 pred model_facts {
-    Biology and Bible and SocialNorms and NoIncest
+    Bible
 }
 
 pred Show {
