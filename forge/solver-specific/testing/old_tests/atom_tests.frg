@@ -3,12 +3,12 @@
 option backend smtlibtor 
 
 // option run_sterling off
-
 // option verbose 10
 
 sig Person {
     parent : lone Person,
-    age : one Int
+    age : one Int,
+    friends : one Int
 }
 
 sig Animal {
@@ -16,4 +16,6 @@ sig Animal {
 }
 
 
-run {all x : Int | some p : Person | p.age <= x} 
+run {some p : Person | p.age > 10 and p.friends < 18}
+
+

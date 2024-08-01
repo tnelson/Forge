@@ -11,7 +11,7 @@
   (prefix-in @ (only-in racket/contract ->))
   (prefix-in @ (only-in racket/base >=)))
 
-(provide substitute-formula)
+(provide substitute-formula substitute-ambig)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Boolean formulas
@@ -77,6 +77,14 @@
       [(? node/expr? e) (substitute-expr run-or-state e relations atom-names quantvars target value)]
       [(? node/int? i) (substitute-int run-or-state i relations atom-names quantvars target value)])))
 
+(define (substitute-ambig run-or-state formula relations atom-names quantvars target value)
+  (match formula 
+    [(? node/formula? f) (substitute-formula run-or-state f relations atom-names quantvars target value)]
+    [(? node/expr? e) (substitute-expr run-or-state e relations atom-names quantvars target value)]
+    [(? node/int? i) (substitute-int run-or-state i relations atom-names quantvars target value)]
+  )
+)
+
 (define (substitute-formula-op run-or-state formula relations atom-names quantvars args target value)
   (when (@>= (get-verbosity) 2)
     (printf "substitutor: interpret-formula-op: ~a~n" formula))
@@ -110,7 +118,7 @@
     [(node/formula/op/in info children)
       (node/formula/op/in info (process-children-expr run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/= info children)
-      (node/formula/op/= info (process-children-expr run-or-state args relations atom-names quantvars target value))]
+      (node/formula/op/= info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/! info children)
       (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars target value))]
     [(node/formula/op/int> info children)
@@ -227,23 +235,23 @@
     (printf "substitutor: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
-      (node/int/op/add info (process-children-int run-or-state args relations atom-names quantvars target value))]
+      (node/int/op/add info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/subtract info children)
-    (node/int/op/subtract info (process-children-int run-or-state args relations atom-names quantvars target value))]
+    (node/int/op/subtract info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/multiply info children)
-    (node/int/op/multiply info (process-children-int run-or-state args relations atom-names quantvars target value))]
+    (node/int/op/multiply info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/divide info children)
-    (node/int/op/divide info (process-children-int run-or-state args relations atom-names quantvars target value))]
+    (node/int/op/divide info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/sum info children)
     (if (equal? expr target) value (node/int/op/sum info (process-children-expr run-or-state args relations atom-names quantvars target value)))]
     [(node/int/op/card info children)
     (node/int/op/card info (process-children-expr run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/remainder info children)
-     (node/int/op/remainder info (process-children-int run-or-state args relations atom-names quantvars target value))]
+     (node/int/op/remainder info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/abs info children)
-     (node/int/op/abs info (process-children-int run-or-state args relations atom-names quantvars target value))]
+     (node/int/op/abs info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/int/op/sign info children)
-     (node/int/op/sign info (process-children-int run-or-state args relations atom-names quantvars target value))]
+     (node/int/op/sign info (process-children-ambiguous run-or-state args relations atom-names quantvars target value))]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     ))

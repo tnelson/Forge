@@ -67,12 +67,12 @@
 (define (relation-constraint bound rel-name one?)
   (printf "upper bound for bound ~a: ~a~n" rel-name (bound-upper bound))
   (if (and (not one?) (not (equal? (length (bound-upper bound)) 1)))
-  (format "(assert (= ~a (set.union ~a)))~n"
-    rel-name
-    (deparen (map (lambda (tup)
-                      (format "(set.singleton (tuple ~a))" (first tup)))
-                    (bound-upper bound))))
-  (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
+      (format "(assert (= ~a (set.union ~a)))~n"
+              rel-name
+              (deparen (map (lambda (tup)
+                              (format "(set.singleton (tuple ~a))" (first tup)))
+                            (bound-upper bound))))
+      (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
 
 (define (child-constraint run-or-state bound)
   (define name (relation-name (bound-relation bound)))
