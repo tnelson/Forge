@@ -26,7 +26,7 @@
     ; Some error tests look at the specific source-location blamed
    
     ; misuse of predicates and helper functions with arguments/no-arguments
-    (list "expect-predicate-args.frg" #rx"Ill-formed block")
+    (list "expect-predicate-args.frg" #rx"Element 1 of this block was an ill-formed")
     (list "expect-predicate-no-args.frg" #rx"expect-predicate-no-args.frg:13:45.*Tried to give arguments to a predicate, but it takes none")
 
     ; TODO: needs switch to raise-forge-error so the proper location is in the message

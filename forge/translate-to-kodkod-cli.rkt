@@ -19,7 +19,10 @@
 ; How to refactor? Instead of printing in many small pieces, accumulate a string and just print that.
 ; with maybe a formatting function?
 
-(define get-sym node/expr/quantifier-var-sym)
+; Do not give Kodkod the disambiguating suffix. E.g., a variable "x" will have name "x" and
+; a sym field like "x_some12345" (where "some" is the quantifier type and "12345" is a gensym).
+; This is useful internally, but Kodkod will disambiguate by reference. 
+(define get-sym node/expr/quantifier-var-name)
 
 ; quantvars should start at -1
 (define (interpret-formula run-or-state formula relations atom-names quantvars)
@@ -41,7 +44,7 @@
        (for/fold ([quantvars quantvars])
                  ([decl decls])
          (define new-quantvars (cons (car decl) quantvars))
-         (print-cmd-cont (format "[~a : ~a " (v (get-sym (car decl)) #;(get-var-idx (car decl) new-quantvars)) (if (@> (node/expr-arity (car decl)) 1) "set" "one")))
+         (print-cmd-cont (format "[~a : ~a " (v (get-sym (car decl))) (if (@> (node/expr-arity (car decl)) 1) "set" "one")))
          (interpret-expr run-or-state (cdr decl) relations atom-names new-quantvars)
          (print-cmd-cont "] ")
          new-quantvars))
@@ -189,7 +192,8 @@
     [(node/expr/op info arity args)
      (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
     [(node/expr/quantifier-var info arity sym name)     
-     (print-cmd-cont (symbol->string (v sym #;(get-var-idx expr quantvars))))
+     ;(print-cmd-cont (symbol->string (v sym)))
+     (print-cmd-cont (symbol->string (v (get-sym expr))))
      (print-cmd-cont " ")]
     [(node/expr/comprehension info len decls form)     
      (define vars (map car decls)) ; account for multiple variables
@@ -197,7 +201,7 @@
      (let ([quantvars (append vars quantvars)])       
        ( print-cmd-cont "{(") ; start comprehension, start decls
        (for-each (lambda (d) ; each declaration
-                   (print-cmd-cont (format "[~a : " (v (get-sym (car d)) #;(get-var-idx (car d) quantvars))))
+                   (print-cmd-cont (format "[~a : " (v (get-sym (car d)))))
                    (interpret-expr run-or-state (cdr d) relations atom-names quantvars)
                    (print-cmd-cont "]"))
                  decls)
@@ -269,7 +273,7 @@
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
        ( print-cmd-cont (format "(sum ([~a : ~a " 
-                                (v (get-sym var) #;(get-var-idx var quantvars))
+                                (v (get-sym var))
                                 (if (@> (node/expr-arity var) 1) "set" "one")))
        (interpret-expr run-or-state (cdr (car decls)) relations atom-names quantvars)
        (print-cmd-cont "]) ")
@@ -317,7 +321,7 @@
     [(node/int/sum-quant info decls int-expr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
-       ( print-cmd-cont (format "(sum ([~a : ~a " (v (get-sym var) #;(get-var-idx var quantvars)) (if (@> (node/expr-arity var) 1) "set" "one")))
+       ( print-cmd-cont (format "(sum ([~a : ~a " (v (get-sym var)) (if (@> (node/expr-arity var) 1) "set" "one")))
        (interpret-expr run-or-state (cdr (car decls)) relations atom-names quantvars)
        ( print-cmd-cont "]) ")
        (interpret-int run-or-state int-expr relations atom-names quantvars)

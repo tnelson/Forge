@@ -11,7 +11,8 @@
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
-(require (only-in racket empty? first))
+(require (only-in racket empty? first)
+         (prefix-in @ (only-in racket +)))
 (require forge/sigs)
 (require forge/choose-lang-specific)
 (require (only-in forge/lang/ast raise-forge-error))
@@ -121,6 +122,7 @@
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass)
     (pattern decl:QuantifiedPropertyDeclClass)
+    (pattern decl:SatisfiabilityDeclClass)
     (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
@@ -353,7 +355,8 @@
     (pattern decl:ExampleDeclClass)
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass)
-    (pattern decl:QuantifiedPropertyDeclClass))
+    (pattern decl:QuantifiedPropertyDeclClass)
+    (pattern decl:SatisfiabilityDeclClass))
 
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
@@ -390,6 +393,18 @@
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
+
+(define-syntax-class SatisfiabilityDeclClass
+  #:attributes (pred-name expected scope bounds)
+  (pattern ((~datum SatisfiabilityDecl)
+            -pred-name:NameClass
+            (~and (~or "sat" "unsat" "forge_error") ct)
+            (~optional -scope:ScopeClass)
+            (~optional -bounds:BoundsClass))
+    #:with pred-name #'-pred-name.name
+    #:with expected (string->symbol (syntax-e #'ct))
+    #:with scope (if (attribute -scope) #'-scope.translate #'())
+    #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 
   (define-syntax-class TestSuiteDeclClass
@@ -1047,6 +1062,19 @@
          #:bounds qpd.bounds
          #:expect theorem )))]))
 
+
+(define-syntax (SatisfiabilityDecl stx)
+  (syntax-parse stx
+  [sd:SatisfiabilityDeclClass 
+   #:with test_name (format-id stx "Assertion_~a_is_~a_~a" #'sd.pred-name #'sd.expected (make-temporary-name stx))
+   (syntax/loc stx
+      (test
+        test_name
+        #:preds [sd.pred-name]
+        #:scope sd.scope
+        #:bounds sd.bounds
+        #:expect sd.expected ))]))
+
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.
 
@@ -1133,8 +1161,17 @@
          (&&/info info xs)]
          ; body of a helper function that produces an int-expression: one int-expression
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
-         (first xs)]         
+         (first xs)]
         [else
+         ; First, check and see whether any individual member of xs is a procedure. If so, it's likely
+         ; the model is using a helper function or predicate incorrectly.
+         (for ([x xs]
+               [i (build-list 5 (lambda (x) (@+ x 1)))])
+           (when (procedure? x)
+             (raise-forge-error
+              #:msg (format "Element ~a of this block was an ill-formed predicate or helper function call. Check that the number of arguments given matches the declaration." i)
+              #:context stx)))
+         ; Otherwise, give a general error message.
          (raise-forge-error
           #:msg (format "Ill-formed block: expected either one expression or any number of formulas; got ~a" xs)
           #:context stx)]))

@@ -197,7 +197,7 @@
     (raise-user-error (format "No such option: ~a" option)))
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
-                              option (hash-ref option-types option) value)))
+                              option (hash-ref option-types-names option) value)))
   
   (define new-options
     (cond
@@ -268,7 +268,10 @@
                     [engine_verbosity value])]
       [(equal? option 'test_keep)
        (struct-copy Options options
-                    [test_keep value])]))
+                    [test_keep value])]
+      [(equal? option 'no_overflow)
+       (struct-copy Options options
+                    [no_overflow value])]))
 
   (struct-copy State state
                [options new-options]))
