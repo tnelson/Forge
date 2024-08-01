@@ -20,7 +20,6 @@
       (format "~aSort" str)))
 
 (define (atom-or-int arg)
-  (printf "~a~n" (pretty-type-of arg))
   (define str (cond [(string? arg) arg]
                     [(symbol? arg) (symbol->string arg)]
                     [(and (node/expr/relation? arg)
@@ -32,14 +31,12 @@
                     [else
                      (printf "~n~n*** ELSE CASE: ~a~n~n" (pretty-type-of arg))
                      arg]))
-  (printf "atom-or-int stringified value: ~a; ~v~n" (pretty-type-of str) str)
   (if (equal? str "Int")
-      "Int"
+      "IntAtom"
       "Atom"))
 
 ;; Function to create a membership guard for a list of declarations
 (define (membership-guard decls)
-  (printf "membership-guard for decls: ~v\n" decls)
   ; have a blank "and" statement that we are going to start adding onto
   ; for each decl, we want to add (set.member (tuple (car decl)) (cdr decl)) to the and statement
   (format "(and ~a)" (string-join (map (lambda (decl)

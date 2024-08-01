@@ -8,6 +8,7 @@
   forge/lang/ast
   forge/shared
   forge/utils/substitutor
+  forge/utils/collector
   (only-in racket index-of match string-join first second rest)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract ->))
@@ -82,7 +83,6 @@
 
   
   (define annotated-info (update-annotation info 'smt/int-unwrap form))
-  (define quantified-var (var 'x #:info annotated-info))
 
   ;;;;;;;;;;;;;;;
   ; TN comment: read the below not as "fix these" but perhaps notes to help us to think how to solve
@@ -158,30 +158,70 @@
 
   ; (1) Gather all relational->integer expressions within the LHS and RHS
     ; Use the collector for this. 
-      ; The collector takes in a fmla, a comparison lambda (matcher), an optional traversal order 
-      ; argument, and an optional 'stop' lambda, which in this case should be when we encounter 
-      ; a relational expression that needs to be unwrapped (so the child of an int operation node)
-  
-  
-  
-  (define expr-to-use 
-    (for/or ([child children])
-      (if (node/int/op? child) (car (node/int/op-children child)) #f)))
-  (define expr-to-replace
-    (for/or ([child children])
-      (if (node/int/op? child) child #f)))
+    ; Collector lambda should return non-int-op nodes, since we're looking for relational->int ops.
+    ; 7/17 - We don't want to stop on, or collect, 'sing' nodes
+  (define collector-lambda (lambda (n ctxt) (if (and (not (node/expr/op/sing? n)) (not (node/int? n))) n #f)))
+    ; The collector also requires a stopping lambda, which should stop at the same condition as when we collect.
+    ; This is because supposed we had sign[sum[join[sum x, y]]], we would want to stop at the join,
+    ; since recursive descent will have already unwrapped the inner x and y.
+  (define stopping-lambda (lambda (n ctxt) (if (or (node/expr/op/sing? n) (node/int? n)) #f #t)))
+    ; Context? Not entirely sure
+  (define lhs-relational-exprs (collect lhs collector-lambda #:order 'pre-order #:stop stopping-lambda))
+  (define rhs-relational-exprs (collect rhs collector-lambda #:order 'pre-order #:stop stopping-lambda))
 
+
+  (define lhs-quantifiers 
+    (for/list ([x lhs-relational-exprs])
+      (var (string->symbol (string-append "x_" (symbol->string (gensym)))) #:info info)))
+  (define rhs-quantifiers 
+    (for/list ([x rhs-relational-exprs])
+      (var (string->symbol (string-append "x_" (symbol->string (gensym)))) #:info info)))
+
+  ; (3) Substitute each rel->int expression for its corresponding quantifier variable
+  ; Should be a fold, not a for/list
+  (define lhs-substituted (if (equal? lhs-relational-exprs '()) lhs
+                            (for/fold ([substituted-expr lhs])
+                                    ([rel-expr lhs-relational-exprs] [new-quantifier lhs-quantifiers])
+                                    (substitute-ambig run-or-state substituted-expr relations atom-names 
+                                    quantvars (node/int/op/sum (node-info rel-expr) (list rel-expr)) new-quantifier))))
+  (define rhs-substituted (if (equal? rhs-relational-exprs '()) rhs
+                            (for/fold ([substituted-expr rhs])
+                                    ([rel-expr rhs-relational-exprs] [new-quantifier rhs-quantifiers])
+                                    (substitute-ambig run-or-state substituted-expr relations atom-names 
+                                    quantvars (node/int/op/sum (node-info rel-expr) (list rel-expr)) new-quantifier))))
   
+  (define int-flag true)
+  ; if both sides of the equality are equal to the empty list, both the 'in' and '=' case should NOT contain annotated-info. 
+  ; this case is added because we need to potentially reconcile integer expressions for those two operators,
+  ; but if there are no sub int expressions we just want to return the normal node.
+  (if (and (equal? rhs-relational-exprs '()) (equal? lhs-relational-exprs '())) (set! int-flag false) (void))
+
+  ; (4) Assemble a quantified formula, over those variables, with domain Int, with body
+  ;    a conjunction of (v1 = expr1) and ... and (vk = exprk) and subst(LHS) (operator) SUBST(RHS)
+  (define lhs-equality-formulas (for/list ([lhs-quant lhs-quantifiers] [lhs-expr lhs-relational-exprs])
+                            (node/formula/op/= info (list lhs-quant lhs-expr))))
+  (define rhs-equality-formulas (for/list ([rhs-quant rhs-quantifiers] [rhs-expr rhs-relational-exprs])
+                            (node/formula/op/= info (list rhs-quant rhs-expr))))
   
-  ; Produce "some x: Int | x = (lhs) and x = (rhs)"
-  (node/formula/quantified info 'some (list (cons quantified-var Int)) 
-    (node/formula/op/&& info 
-      (list 
-        (node/formula/op/in info 
-          (list (node/expr/op/sing info 1 (list quantified-var)) expr-to-use))
-        (substitute-formula run-or-state form relations atom-names quantvars expr-to-replace quantified-var)
-      )
+  (define new-fmla 
+    (match form 
+      [(? node/formula/op/int<? form) (node/formula/op/int< (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op/int=? form) (node/formula/op/int= (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op/int>? form) (node/formula/op/int> (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op/=? form) (node/formula/op/= (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op/in? form) (node/formula/op/in (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
     )
+  )
+
+  (define quantifiers (append lhs-quantifiers rhs-quantifiers))
+  (define var-int-pairs (for/list ([quant quantifiers])
+                          (cons quant Int)))
+
+  ; if var-int-pairs is empty, just return new-fmla
+  (if (equal? var-int-pairs '())
+    new-fmla
+    (node/formula/quantified info 'some var-int-pairs 
+      (node/formula/op/&& info (cons new-fmla (append lhs-equality-formulas rhs-equality-formulas))))
   )
 )
 

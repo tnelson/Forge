@@ -41,7 +41,7 @@
     
     (define cmdline-options
       (list "--incremental" "--interactive" "--sets-ext" "--force-logic=ALL"
-            "--produce-models"))
+            "--produce-models" "--finite-model-find"))
     (printf "system type: ~a cvc5 path: ~a~ncommand-line options: ~a~n" (system-type) cvc5 cmdline-options)
     ; --sets-ext to use "extended set" operators, which help reconcile sets/relations
     (apply subprocess #f #f #f cvc5 cmdline-options)))

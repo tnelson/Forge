@@ -65,7 +65,7 @@
     (skolemize-formula-helper fake-spec total-bounds outer
                              relations atom-names '() '()
                              empty-nodeinfo (list (cons x Node)) inner #:tag-with-spacer #t))
-  (define spacers (collect f2 (lambda (n) (if (node/expr/fun-spacer? n) n #f)) #:order 'pre-order))
+  (define spacers (collect f2 (lambda (n ctxt) (if (node/expr/fun-spacer? n) n #f)) #:order 'pre-order))
   (check-equal? (length spacers) 1)
   (define edited (substitute-formula fake-spec f2 relations atom-names '()
                                      (first spacers) (node/expr/fun-spacer-expanded (first spacers))))
