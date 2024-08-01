@@ -81,7 +81,7 @@
 (define (get-annotation info key)
   (cond [(not info) #f]
         [(not (nodeinfo-annotations info)) #f]
-        [(hash-has-key? (nodeinfo-annotations info) 'smt/int-unwrap)
+        [(hash-has-key? (nodeinfo-annotations info) key)
          (hash-ref (nodeinfo-annotations info) key)]
         [else #f]))
   
