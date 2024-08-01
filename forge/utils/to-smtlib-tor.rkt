@@ -44,13 +44,17 @@
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
        ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['one (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)]
-        ; ['one (format "set.is_singleton ~a)" processed-expr)]
+        ; ['one (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)]
+        ['one (format "(and (forall ((x1 ~a) (x2 ~a)) (=> (and (set.subset (set.singleton (tuple x1)) ~a) (set.subset (set.singleton (tuple x2)) ~a)) (= x1 x2))) (exists ((x1 ~a)) (set.subset (set.singleton (tuple x1)) ~a)))"
+              (get-expr-type run-or-state expr quantvars quantvar-types)
+              (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr processed-expr
+              (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr)]
         ['some (format "(not (= (as set.empty ~a) ~a))"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['lone (format "(or ~a (= (as set.empty ~a) ~a))" (format-one run-or-state expr quantvars quantvar-types processed-expr bounds) 
-                                                        (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ; ['lone (format "(or (set.is_singleton ~a) (= (as set.empty ~a) ~a))" processed-expr
-        ;                                         (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
+        ; ['lone (format "(or ~a (= (as set.empty ~a) ~a))" (format-one run-or-state expr quantvars quantvar-types processed-expr bounds) 
+        ;                                                 (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
+        ['lone (format "(forall ((x1 ~a) (x2 ~a)) (=> (and (set.subset (set.singleton (tuple x1)) ~a) (set.subset (set.singleton (tuple x2)) ~a)) (= x1 x2)))"
+              (get-expr-type run-or-state expr quantvars quantvar-types)
+              (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr processed-expr)]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
     [(node/formula/quantified info quantifier decls form)
      ; new vs-decls => list ((list qv) (list (pair qv expr-decl)))
@@ -82,12 +86,21 @@
     [#f "false"]
     ))
 
+(define (get-expr-type run-or-state expr quantvars quantvar-types)
+  (define quantvar-pairs (map list quantvars quantvar-types))
+  (define dummy-hash (make-hash))
+  (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))
+  (define top-level-type-list (for/list ([type list-of-types])
+    (if (equal? type 'Int) "IntAtom" "Atom")))
+  (if (equal? (length quantvar-pairs) 0) (format "Atom") (format "~a" (string-join top-level-type-list " ")))
+)
+
 (define (get-k-bounds run-or-state expr quantvars quantvar-types)
   (define quantvar-pairs (map list quantvars quantvar-types))
   (define dummy-hash (make-hash))
   (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))
   (define top-level-type-list (for/list ([type list-of-types])
-    (if (equal? type 'Int) "Int" "Atom")))
+    (if (equal? type 'Int) "IntAtom" "Atom")))
   (if (equal? (length quantvar-pairs) 0) (format "(Relation Atom)") (format "(Relation ~a)" (string-join top-level-type-list " ")))
 )
 
@@ -205,7 +218,7 @@
     [(node/expr/relation info arity name typelist-thunk parent isvar)
      ; Declared sigs are referred to as Atoms, so we refer to them as such
      ; Ints are separate
-     (cond [(equal? name "Int") "(as set.universe (Relation Int))"]
+     (cond [(equal? name "Int") "(as set.universe (Relation IntAtom))"]
            ; Skolem relations are now handled in the fun-spacer case; this must be
            ; a normal relation that, somehow, starts with $. So fail noisily; this shouldn't
            ; actually be reachable code.
@@ -379,9 +392,9 @@
     ; if we can discover that the argument is provably a singleton, we can just erase the 'sum' node
     ; what in the world do we do in the other case? probably either be inspired by cvc5 work or fortress translation
     ; temporary fix - assume it's a singleton
-    (format "(reconcile-int ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+    (format "(IntAtom-to-Int (reconcile-int_atom ~a))" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/card info children)
-    "TODO: cardinality"]
+    (format "(set.card ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/remainder info children)
      (format "(mod ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/abs info children)

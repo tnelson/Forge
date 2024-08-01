@@ -32,7 +32,7 @@
                      (printf "~n~n*** ELSE CASE: ~a~n~n" (pretty-type-of arg))
                      arg]))
   (if (equal? str "Int")
-      "Int"
+      "IntAtom"
       "Atom"))
 
 ;; Function to create a membership guard for a list of declarations

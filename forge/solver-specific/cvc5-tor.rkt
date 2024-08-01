@@ -124,13 +124,7 @@
      ""]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
-     (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n~a~n"
-             ; Only instantiate constants for top level sigs
-             (if (equal? parent "univ") (const-declarations b) "")
-             name
-             ; Only create membership assertions for top level sigs or one sigs
-             (if (or one? (equal? parent "univ")) (create-bound-membership b name) "")
-             (if (or one? (equal? parent "univ")) (relation-constraint b name one?) ""))]
+     (format "(declare-fun ~a () (Relation Atom))~n" name)]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
@@ -221,6 +215,8 @@
 
   ; 7/25: Commented out quantifier grounding for now.
   ; (define step3 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
+
+  (printf "Step 1: ~a~n" step1)
   
   (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() total-bounds)) step1))
   (when (@> (get-verbosity) VERBOSITY_LOW)
@@ -241,8 +237,9 @@
   
   (define defined-funs (list
      "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"
-     "(define-fun reconcile-int ((aset (Relation Int))) Int (ite (= (as set.empty (Relation Int)) aset) 0 ((_ tuple.select 0) (set.choose aset))))"))
-  (define preamble-str (format "(reset)~n~a~n(set-logic ALL)~n(declare-sort Atom 0)~n"
+     "(define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))"
+     "(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))"))
+  (define preamble-str (format "(reset)~n(declare-sort Atom 0)~n(declare-sort IntAtom 0)~n(declare-fun IntAtom-to-Int (IntAtom) Int)~n~a~n"
                                (string-join defined-funs "\n")))
 
   ; converted bounds:
