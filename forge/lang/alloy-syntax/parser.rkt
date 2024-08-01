@@ -109,7 +109,7 @@ TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
 # BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK
-#       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | DOT-TOK ;SUBT-TOK | SUPT-TOK
+#       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | DOT-TOK | SUBT-TOK | SUPT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
 CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | IS-TOK | NI-TOK
 LetDecl : @Name /EQ-TOK Expr
