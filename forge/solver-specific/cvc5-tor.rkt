@@ -350,12 +350,19 @@
         ; Uninterpreted function w/ constant value
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
          (values ID (list (list (process-atom-id ATOMID run-command))))]
+
+        ; Uninterpreted function w/ constant value (Integer-valued). E.g.,
+        ; (define-fun IntAtom-to-Int (($x1 IntAtom)) Int 0)
+        ;; TODO: arity will be off, because this is a function, no representation of domain yet
+        [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE VAL)
+         (values ID (list (list VAL)))]
+        
         ; Uninterpreted function w/ constant Int value, no parameters; e.g., an Int-valued Skolem function
         [(list (quote define-fun) ID (list) (quote Int) ATOMID)
          (values ID (list (list (process-atom-id ATOMID run-command))))]
 
         ; Uninterpreted function with if-then-else value (likely a Skolem function)
-        ; TODO: sending this back empty to avoid blocking development; need to evaluate it properly
+        ;; TODO: sending this back empty to avoid blocking development; need to evaluate it properly
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN (list (quote ite) COND T F))
          (values ID '())]
         
