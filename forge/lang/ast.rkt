@@ -1305,4 +1305,3 @@
           [(srcloc? context) (nodeinfo context 'empty)]
           [(syntax? context) (nodeinfo (build-source-location context) 'empty)]  
           [else empty-nodeinfo]))
-

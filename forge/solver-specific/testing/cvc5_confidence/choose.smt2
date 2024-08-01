@@ -32,6 +32,7 @@
 (declare-fun age () (Relation Atom Int))
 (declare-fun Alice () Atom)
 (declare-fun Bob () Atom)
+
 ; Don't neglect these constraints, to have a sig relation to put them in.
 (assert (set.member (tuple Alice) (as set.universe (Relation Atom))))
 (assert (set.member (tuple Bob) (as set.universe (Relation Atom))))
@@ -228,7 +229,3 @@
 ; These worry me; why are they evaluating to the same thing?
 (get-value ((sum-q-dot-age (set.singleton (tuple Alice)))))
 (get-value ((sum-q-dot-age (set.singleton (tuple Bob)))))
-
-
-
-

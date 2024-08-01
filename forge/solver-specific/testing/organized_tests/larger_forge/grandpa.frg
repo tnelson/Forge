@@ -2,8 +2,6 @@
 
 option backend smtlibtor
 
-option verbose 3
-
 sig Person {
     parent1 : lone Person,
     parent2 : lone Person,
@@ -27,16 +25,7 @@ pred FamilyFact {
 }
 
 pred ownGrandparent {
-    // Working simplified example
-    // some p, parent: Person | {
-    //     p.parent1 = parent or p.parent2 = parent
-    //     reachable[p, parent, parent1, parent2, spouse]
-    // // --> Starting from parent to reach p should enforce a loop in the family tree
-    // }
-
-    // General constraints:
     some p : Person | {
-        // Ask students for two of these constraints
         p.parent1.parent1.spouse = p or
         p.parent1.parent2.spouse = p or
         p.parent1.spouse.parent1 = p or
@@ -52,4 +41,6 @@ pred ownGrandparent {
     }
 }
 
-run {FamilyFact ownGrandparent} for exactly 4 Person
+test expect {
+    own_grandpa : {FamilyFact and ownGrandparent} is sat
+}

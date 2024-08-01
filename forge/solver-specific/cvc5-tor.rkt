@@ -7,6 +7,7 @@
          forge/shared
          forge/lang/bounds
          forge/solver-specific/smtlib-shared
+         forge/last-checker
          (prefix-in nnf: forge/utils/to-nnf)
          (prefix-in boxed-int: forge/utils/integer-converter)
          (prefix-in skolemize: forge/utils/to-skolem)
@@ -23,7 +24,6 @@
           racket/hash
           racket/port)
 
-; TODO: connect w/ translation in and translation out
 ; TODO: is it possible to have multiple simultaneous runs in cvc5?
 
 (provide send-to-cvc5-tor get-next-cvc5-tor-model smtlib-display)
@@ -65,38 +65,66 @@
 
 ;; Function to create a constraint asserting that the relation is the union of the constants as singletons
 (define (relation-constraint bound rel-name one?)
-  (if (not one?)
-  (format "(assert (= ~a (set.union ~a)))~n"
-    rel-name
-    (deparen (map (lambda (tup)
-                      (format "(set.singleton (tuple ~a))" (first tup)))
-                    (bound-upper bound))))
-  (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
+  (printf "upper bound for bound ~a: ~a~n" rel-name (bound-upper bound))
+  (if (and (not one?) (not (equal? (length (bound-upper bound)) 1)))
+      (format "(assert (= ~a (set.union ~a)))~n"
+              rel-name
+              (deparen (map (lambda (tup)
+                              (format "(set.singleton (tuple ~a))" (first tup)))
+                            (bound-upper bound))))
+      (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
+
+(define (child-constraint run-or-state bound)
+  (define name (relation-name (bound-relation bound)))
+  (define arity (relation-arity (bound-relation bound)))
+  (cond 
+    [(equal? name "Int")
+    ""]
+    ; we only want this to operate on arity 1 non-skolem relations, aka sigs
+    [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
+      (define primsigs (if (Sig? (bound-relation bound)) (primify run-or-state (Sig-name (bound-relation bound))) '()))
+      (define remove-remainder-lambda (lambda (sig-name) (regexp-replace #rx"_.*$" (symbol->string sig-name) "")))
+      (cond [(or (equal? 1 (length primsigs)) (empty? primsigs)) ""]
+            [else
+            (format "(assert (= ~a (set.union ~a)))~n~a~n"
+                    (relation-name (bound-relation bound))
+                    (deparen (map remove-remainder-lambda primsigs))
+                    (child-disjointness run-or-state (bound-relation bound)))])
+    ]
+    [(equal? (string-ref name 0) #\$)
+    ""]
+    [else ""]
+  )
+)
+
+(define (child-disjointness run-or-state sig) 
+  ; get the children of the sig that has at least 1 level of children
+  (define children (get-children run-or-state sig))
+  ; get the names of the children
+  (define child-names (map relation-name children))
+  ; pairwise disjoint constraint them
+  (define (pairwise-disjoint relation1 relation2)
+      (if (equal? relation1 relation2) ""
+      (format "(assert (= (set.inter ~a ~a) (as set.empty (Relation Atom))))"
+        relation1 relation2)))
+  (define pairs (cartesian-product child-names child-names))
+  (string-join (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs) "\n")
+)
 
 (define (convert-bound b)
-  ; TODO: for now, assume we have exact bounds, and just use the upper
-  ; For KM: let's discuss this!
-  ;(printf "convert-bound: ~a~n" b)
   (define name (relation-name (bound-relation b)))
   (define arity (relation-arity (bound-relation b)))
   (define typenames ((relation-typelist-thunk (bound-relation b))))
   (define parent (relation-parent (bound-relation b)))
   (define one? (if (Sig? (bound-relation b)) (Sig-one (bound-relation b)) #f))
+  (define abstract? (if (Sig? (bound-relation b)) (Sig-abstract (bound-relation b)) #f))
   (cond
     ; Don't declare Int at all
     [(equal? name "Int")
      ""]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
-     ; If we are declaring sigs as _sorts_, we need a separate relation to store
-     ; atoms of that sort that appear in the instance. (Note "Sort" suffix below)
-     ;; TODO: we should only declare top-level sigs as sorts
-     (format "~a~n(declare-fun ~a () (Relation Atom))~n~a~n~a~n"
-             ; Declare the "used" relation for this sig
-             (if (equal? parent "univ") (const-declarations b) "")
-             name
-             (create-bound-membership b name)
-             (relation-constraint b name one?))]
+     (format "(declare-fun ~a () (Relation Atom))~n" name)]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
@@ -110,7 +138,6 @@
     ; Fields
     [else
     ; Fields are declared as relations of the appropriate arity of atoms or ints
-    ; TODO: need to restrict domain elements and codomain elements
      (format "(declare-fun ~a () (Relation ~a))~n" name (deparen (map atom-or-int typenames)))]))
 
 (define (form-disjoint-string relations)
@@ -118,7 +145,7 @@
   (for/fold ([top-level top-level])
             ([relation relations])
     (cond 
-          [(equal? (relation-name relation) "Int") top-level]
+          [(or (not (equal? (relation-parent relation) "univ")) (equal? (relation-name relation) "Int")) top-level]
           [(Sig? relation)          
             (define new-top-level (cons (relation-name relation) top-level)) 
             new-top-level]
@@ -160,50 +187,47 @@
     (for ([constraint step1])
       (printf "  ~a~n" constraint)))
 
-  ; Convert boxed integer references to existential quantifiers
-  (define step2 (map (lambda (f) (boxed-int:interpret-formula fake-run f relations all-atoms '())) step1))
-  (when (@> (get-verbosity) VERBOSITY_LOW)
-    (printf "~nStep 2 (post boxed-integer translation):~n")
-    (for ([constraint step2])
-      (printf "  ~a~n" constraint)))
-
   ; Skolemize (2nd empty list = types for quantified variables, unneeded in other descents)
   ; Note that Skolemization changes the *final* bounds. There is no Run struct for this run yet;
   ; it is only created after send-to-solver returns. So there is no "kodkod-bounds" field to start with.
   ; Instead, start with the total-bounds produced.
-  (define step3-both
-    (for/fold ([fs-and-bs (list '() total-bounds)])
-              ([f step2])
-      ; Accumulator starts with: no formulas, original total-bounds
-      (define-values (resulting-formula new-bounds)
-        (skolemize:interpret-formula fake-run (second fs-and-bs) f relations all-atoms '() '()
-                                     #:tag-with-spacer #t))
-      ; Accumulator adds the skolemized formula, updated bounds
-      (list (cons resulting-formula (first fs-and-bs))
-            new-bounds)))
+  ; (define step2-both
+  ;   (for/fold ([fs-and-bs (list '() total-bounds)])
+  ;             ([f step1])
+  ;     ; Accumulator starts with: no formulas, original total-bounds
+  ;     (define-values (resulting-formula new-bounds)
+  ;       (skolemize:interpret-formula fake-run (second fs-and-bs) f relations all-atoms '() '()
+  ;                                    #:tag-with-spacer #t))
+  ;     ; Accumulator adds the skolemized formula, updated bounds
+  ;     (list (cons resulting-formula (first fs-and-bs))
+  ;           new-bounds)))
   
-  (define step3 (first step3-both))
-  (define step3-bounds (second step3-both))
-  (when (@> (get-verbosity) VERBOSITY_LOW)
-    (printf "~nStep 3 (post Skolemization):~n")
-    (for ([constraint step3])
-      (printf "  ~a~n" constraint)))
+  ; (define step2 (first step2-both))
+  ; (define step2-bounds (second step2-both))
+  ; (when (@> (get-verbosity) VERBOSITY_LOW)
+  ;   (printf "~nStep 2 (post Skolemization):~n")
+  ;   (for ([constraint step2])
+  ;     (printf "  ~a~n" constraint)))
     
-  ; Modify the bounds of the fake run from step 3
+  ; Create a new fake run with the new bounds
   (define new-fake-run (Run 'fake #'fake (Run-run-spec fake-run) fake-solution-tree 
-                            fake-server-ports (Run-atoms fake-run) fake-kodkod-current step3-bounds (box #f)))
+                            fake-server-ports (Run-atoms fake-run) fake-kodkod-current total-bounds (box #f)))
 
-  (define step3.5 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step3-bounds)) step3))
+  ; 7/25: Commented out quantifier grounding for now.
+  ; (define step3 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
+
+  (printf "Step 1: ~a~n" step1)
   
-  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() step3-bounds)) step3.5))
+  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() total-bounds)) step1))
   (when (@> (get-verbosity) VERBOSITY_LOW)
-    (printf "~nStep 4 (post SMT-LIB conversion):~n")
+    (printf "~nStep 3 (post SMT-LIB conversion):~n")
     (for ([constraint step4])
       (printf "  ~a~n" constraint))
     (printf "~nBounds (post Skolemization):~n")
-    (for ([bound step3-bounds])
-      (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
-      (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound))))
+    ; (for ([bound step2-bounds])
+    ;   (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
+    ;   (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
+      )
 
   ; Now, convert bounds into SMT-LIB (theory of relations) and assert all formulas
 
@@ -212,13 +236,17 @@
   ; Also declare Atom sort as the top level sort, and define various helper SMT functions.
   
   (define defined-funs (list
-     "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"))
-  (define preamble-str (format "(reset)~n~a~n(set-logic ALL)~n(declare-sort Atom 0)~n"
+     "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"
+     "(define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))"
+     "(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))"))
+  (define preamble-str (format "(reset)~n(declare-sort Atom 0)~n(declare-sort IntAtom 0)~n(declare-fun IntAtom-to-Int (IntAtom) Int)~n~a~n"
                                (string-join defined-funs "\n")))
 
   ; converted bounds:
-  (define bounds-str (string-join (map convert-bound step3-bounds) "\n"))
-  (define top-level-disjoint-str (form-disjoint-string (map bound-relation step3-bounds)))
+  (define bounds-str (string-join (map convert-bound total-bounds) "\n"))
+  (define bounds-str-2 (string-join (map (lambda (b) (child-constraint new-fake-run b)) total-bounds) "\n"))
+  ; bound disjointness
+  (define top-level-disjoint-str (form-disjoint-string (map bound-relation total-bounds)))
   (define disjointness-constraint-str (disjoint-relations top-level-disjoint-str))
 
   ; converted formula:
@@ -226,7 +254,7 @@
 
   ; DO NOT (check-sat) yet.
   
-  (format "~a~n~a~n~a~n~a~n" preamble-str bounds-str disjointness-constraint-str assertions-str))
+  (format "~a~n~a~n~a~n~a~n~a~n" preamble-str bounds-str bounds-str-2 disjointness-constraint-str assertions-str))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]
@@ -321,11 +349,15 @@
 
         ; Uninterpreted function w/ constant value
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
-         ;; TODO: look at bounds given and assemble the domain of this function, cross-product with value
          (values ID (list (list (process-atom-id ATOMID run-command))))]
         ; Uninterpreted function w/ constant Int value, no parameters; e.g., an Int-valued Skolem function
         [(list (quote define-fun) ID (list) (quote Int) ATOMID)
          (values ID (list (list (process-atom-id ATOMID run-command))))]
+
+        ; Uninterpreted function with if-then-else value (likely a Skolem function)
+        ; TODO: sending this back empty to avoid blocking development; need to evaluate it properly
+        [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN (list (quote ite) COND T F))
+         (values ID '())]
         
         ; Relational value: union (may contain any number of singletons)
         [(list (quote define-fun) ID (list) TYPE (list (quote set.union) ARGS ...))
