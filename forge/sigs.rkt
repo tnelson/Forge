@@ -1174,7 +1174,7 @@
 ; will give verbose 1 output. 
 
 (define (string->option-type name value)
-  (define type-pred (hash-ref option-types name #f))
+  (define type-pred (hash-ref option-types (if (string? name) (string->symbol name) name) #f))
   (cond
     ; Arrived as a number
     [(string->number value) (string->number value)]

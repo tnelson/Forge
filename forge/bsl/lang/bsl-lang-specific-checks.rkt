@@ -6,6 +6,9 @@
          syntax/srcloc)
 (require (only-in racket first second string-join))
 
+(provide bsl-checker-hash)
+(provide bsl-ast-checker-hash)
+
 (define (raise-bsl-error message node loc)
   (raise-forge-error #:msg (format "~a in ~a" message (deparse node))
                      #:context node))
@@ -37,60 +40,12 @@
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
 
-;; ---
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (check-node-formula-constant formula-node)
+(define (check-node-formula-multiplicity formula-node type/maybe child-types/maybe)
   (void))
 
-(define (check-node-formula-op formula-node)
-  (void))
-
-(define (check-node-formula-multiplicity formula-node)
-  (void))
-
-(define (check-node-formula-quantified formula-node)
-  (void))
-
-(define (check-node-formula-op-always formula-node)
-  (void))
-
-(define (check-node-formula-op-eventually formula-node)
-  (void))
-
-(define (check-node-formula-op-until formula-node)
-  (void))
-
-(define (check-node-formula-op-releases formula-node)
-  (void))
-
-(define (check-node-formula-op-next_state formula-node)
-  (void))
-
-(define (check-node-formula-op-historically formula-node)
-  (void))
-
-(define (check-node-formula-op-once formula-node)
-  (void))
-
-(define (check-node-formula-op-prev_state formula-node)
-  (void))
-
-(define (check-node-formula-op-since formula-node)
-  (void))
-
-(define (check-node-formula-op-triggered formula-node)
-  (void))
-
-(define (check-node-formula-op-&& formula-node)
-  (void))
-
-(define (check-node-formula-op-|| formula-node)
-  (void))
-
-(define (check-node-formula-op-=> formula-node)
-  (void))
-
-(define (check-node-formula-op-in formula-node)  
+(define (check-node-formula-op-in formula-node type/maybe child-types/maybe)  
   (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info formula-node)))
     (raise-bsl-relational-error "\"in\"" formula-node loc)))
@@ -98,35 +53,6 @@
 (define (check-node-formula-op-= formula-node)
   (void))
 
-(define (check-node-formula-op-! formula-node)
-  (void))
-
-(define (check-node-formula-op-int> formula-node)
-  (void))
-
-(define (check-node-formula-op-int< formula-node)
-  (void))
-
-(define (check-node-formula-op-int= formula-node)
-  (void))
-
-(define (check-node-expr-relation expr-node)
-  (void))
-
-(define (check-node-expr-atom expr-node)
-  (void))
-
-(define (check-node-expr-ite expr-node)
-  (void))
-
-(define (check-node-expr-constant expr-node)
-  (void))
-
-(define (check-node-expr-op expr-node)
-  (void))
-
-(define (check-node-expr-quantifier-var expr-node)
-  (void))
 
 #;(define (check-node-expr-comprehension expr-node)
     (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
@@ -134,9 +60,6 @@
       (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
       (printf "Set Comprehension at ~a at loc: ~a~n" (deparse expr-node) locstr)))
       ;(raise-bsl-error "Set Comprehension" expr-node loc)
-
-(define (check-node-expr-op-prime expr-node)
-  (void))
 
 (define (check-node-expr-op-+ expr-node)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
@@ -183,9 +106,6 @@
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "~~" expr-node loc)))
 
-(define (check-node-expr-op-sing expr-node)
-  (void))
-
 (define (err-empty-join expr-node)
   (define loc (nodeinfo-loc (node-info expr-node)))
   (raise-bsl-error "Sig does not have such a field" expr-node loc))
@@ -194,51 +114,19 @@
   (define loc (nodeinfo-loc (node-info expr-node)))
   (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node loc))
 
-(define (check-node-expr-fun-spacer expr-node)
-  (void))
-(define (check-node-fmla-pred-spacer expr-node)
-  (void))
-
-
 (define bsl-checker-hash (make-hash))
+(define (check-expr-mult expr-node sing parent-expr)
+  (when (and (not sing) (eq? (nodeinfo-lang (node-info parent-expr)) 'bsl))
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (raise-forge-error #:msg (format "Froglet: ~a not a singleton in ~a"  (deparse expr-node) (deparse parent-expr))
+                       #:context expr-node)))
 
-
-(hash-set! bsl-checker-hash node/fmla/pred-spacer check-node-fmla-pred-spacer)
-(hash-set! bsl-checker-hash node/expr/fun-spacer check-node-expr-fun-spacer)
-
+(hash-set! bsl-checker-hash node/formula/multiplicity check-expr-mult)
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
 (hash-set! bsl-checker-hash 'relation-join err-relation-join)
-(hash-set! bsl-checker-hash node/formula/constant check-node-formula-constant)
-(hash-set! bsl-checker-hash node/formula/op check-node-formula-op)
 (hash-set! bsl-checker-hash node/formula/multiplicity check-node-formula-multiplicity)
-(hash-set! bsl-checker-hash node/formula/quantified check-node-formula-quantified)
-(hash-set! bsl-checker-hash node/formula/op/always check-node-formula-op-always)
-(hash-set! bsl-checker-hash node/formula/op/eventually check-node-formula-op-eventually)
-(hash-set! bsl-checker-hash node/formula/op/until check-node-formula-op-until)
-(hash-set! bsl-checker-hash node/formula/op/releases check-node-formula-op-releases)
-(hash-set! bsl-checker-hash node/formula/op/next_state check-node-formula-op-next_state)
-(hash-set! bsl-checker-hash node/formula/op/historically check-node-formula-op-historically)
-(hash-set! bsl-checker-hash node/formula/op/once check-node-formula-op-once)
-(hash-set! bsl-checker-hash node/formula/op/prev_state check-node-formula-op-prev_state)
-(hash-set! bsl-checker-hash node/formula/op/since check-node-formula-op-since)
-(hash-set! bsl-checker-hash node/formula/op/triggered check-node-formula-op-triggered)
-(hash-set! bsl-checker-hash node/formula/op/&& check-node-formula-op-&&)
-(hash-set! bsl-checker-hash node/formula/op/|| check-node-formula-op-||)
-(hash-set! bsl-checker-hash node/formula/op/=> check-node-formula-op-=>)
 (hash-set! bsl-checker-hash node/formula/op/in check-node-formula-op-in)
 (hash-set! bsl-checker-hash node/formula/op/= check-node-formula-op-=)
-(hash-set! bsl-checker-hash node/formula/op/! check-node-formula-op-!)
-(hash-set! bsl-checker-hash node/formula/op/int> check-node-formula-op-int>)
-(hash-set! bsl-checker-hash node/formula/op/int< check-node-formula-op-int<)
-(hash-set! bsl-checker-hash node/formula/op/int= check-node-formula-op-int=)
-(hash-set! bsl-checker-hash node/expr/relation check-node-expr-relation)
-(hash-set! bsl-checker-hash node/expr/atom check-node-expr-atom)
-(hash-set! bsl-checker-hash node/expr/ite check-node-expr-ite)
-(hash-set! bsl-checker-hash node/expr/constant check-node-expr-constant)
-(hash-set! bsl-checker-hash node/expr/op check-node-expr-op)
-(hash-set! bsl-checker-hash node/expr/quantifier-var check-node-expr-quantifier-var)
-;(hash-set! bsl-checker-hash node/expr/comprehension check-node-expr-comprehension)
-(hash-set! bsl-checker-hash node/expr/op/prime check-node-expr-op-prime)
 (hash-set! bsl-checker-hash node/expr/op/+ check-node-expr-op-+)
 (hash-set! bsl-checker-hash node/expr/op/- check-node-expr-op--)
 (hash-set! bsl-checker-hash node/expr/op/& check-node-expr-op-&)
@@ -247,17 +135,41 @@
 (hash-set! bsl-checker-hash node/expr/op/^ check-node-expr-op-^)
 (hash-set! bsl-checker-hash node/expr/op/* check-node-expr-op-*)
 (hash-set! bsl-checker-hash node/expr/op/~ check-node-expr-op-~)
-(hash-set! bsl-checker-hash node/expr/op/sing check-node-expr-op-sing)
 
+;(hash-set! bsl-checker-hash node/fmla/pred-spacer check-node-fmla-pred-spacer)
+;(hash-set! bsl-checker-hash node/expr/fun-spacer check-node-expr-fun-spacer)
+;(hash-set! bsl-checker-hash node/formula/constant check-node-formula-constant)
+;(hash-set! bsl-checker-hash node/formula/op check-node-formula-op)
+;(hash-set! bsl-checker-hash node/formula/quantified check-node-formula-quantified)
+;(hash-set! bsl-checker-hash node/formula/op/always check-node-formula-op-always)
+;(hash-set! bsl-checker-hash node/formula/op/eventually check-node-formula-op-eventually)
+;(hash-set! bsl-checker-hash node/formula/op/until check-node-formula-op-until)
+;(hash-set! bsl-checker-hash node/formula/op/releases check-node-formula-op-releases)
+;(hash-set! bsl-checker-hash node/formula/op/next_state check-node-formula-op-next_state)
+;(hash-set! bsl-checker-hash node/formula/op/historically check-node-formula-op-historically)
+;(hash-set! bsl-checker-hash node/formula/op/once check-node-formula-op-once)
+;(hash-set! bsl-checker-hash node/formula/op/prev_state check-node-formula-op-prev_state)
+;(hash-set! bsl-checker-hash node/formula/op/since check-node-formula-op-since)
+;(hash-set! bsl-checker-hash node/formula/op/triggered check-node-formula-op-triggered)
+;(hash-set! bsl-checker-hash node/formula/op/&& check-node-formula-op-&&)
+;(hash-set! bsl-checker-hash node/formula/op/|| check-node-formula-op-||)
+;(hash-set! bsl-checker-hash node/formula/op/=> check-node-formula-op-=>)
+;(hash-set! bsl-checker-hash node/formula/op/! check-node-formula-op-!)
+;(hash-set! bsl-checker-hash node/formula/op/int> check-node-formula-op-int>)
+;(hash-set! bsl-checker-hash node/formula/op/int< check-node-formula-op-int<)
+;(hash-set! bsl-checker-hash node/formula/op/int= check-node-formula-op-int=)
+;(hash-set! bsl-checker-hash node/expr/relation check-node-expr-relation)
+;(hash-set! bsl-checker-hash node/expr/atom check-node-expr-atom)
+;(hash-set! bsl-checker-hash node/expr/ite check-node-expr-ite)
+;(hash-set! bsl-checker-hash node/expr/constant check-node-expr-constant)
+;(hash-set! bsl-checker-hash node/expr/op check-node-expr-op)
+;(hash-set! bsl-checker-hash node/expr/quantifier-var check-node-expr-quantifier-var)
+;(hash-set! bsl-checker-hash node/expr/comprehension check-node-expr-comprehension)
+;(hash-set! bsl-checker-hash node/expr/op/prime check-node-expr-op-prime)
+;(hash-set! bsl-checker-hash node/expr/op/sing check-node-expr-op-sing)
 
-(define (check-expr-mult expr-node sing parent-expr)
-  (when (and (not sing) (eq? (nodeinfo-lang (node-info parent-expr)) 'bsl))
-    (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-forge-error #:msg (format "Froglet: ~a not a singleton in ~a"  (deparse expr-node) (deparse parent-expr))
-                       #:context expr-node)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(hash-set! bsl-checker-hash 'expr-mult check-expr-mult)
-(provide bsl-checker-hash)
 
 
 (define (bsl-ast-arg-checks args)
@@ -329,7 +241,6 @@
 (hash-set! bsl-ast-checker-hash node/expr/op/^ check-args-node-expr-op-^)
 (hash-set! bsl-ast-checker-hash node/expr/op/* check-args-node-expr-op-*)
 (hash-set! bsl-ast-checker-hash node/expr/op/~ check-args-node-expr-op-~)
-;(hash-set! bsl-ast-checker-hash node/expr/op/join check-node-expr-op-join-args)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Partial instances and example instance blocks
@@ -340,7 +251,6 @@
 ; apply to inst. For example, even in BSL we could say 
 ; next in `Node1->`Node2
 
-(provide bsl-ast-checker-hash)
 (define bsl-inst-checker-hash (make-hash))
 
 ;(define (inst-check-node-formula-op-in formula-node)  

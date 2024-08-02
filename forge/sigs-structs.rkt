@@ -154,10 +154,10 @@
   [distance (or/c 'close_noretarget 'far_noretarget 'close_retarget 'far_retarget 'hamming_cover)]
   ) #:transparent)
 
-(struct expression-type (
-  type ; list list symbol?
-  multiplicity ; unsure
-  temporal-variance ; bool?
+(struct/contract expression-type (
+  [type (listof (listof symbol?))]
+  [multiplicity (or/c 'set 'lone 'one 'no 'func 'pfunc)]
+  [temporal-variance (or/c boolean? string?)]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -829,3 +829,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
      #:msg (format ":> argument has incorrect arity (~a vs. ~a) in ~a :> ~a" 
                    (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b))
      #:context loc)))
+
+; A Field relation is functional if it has a functional breaker assigned. 
+(define (Relation-is-functional? r)
+  (or (Relation-is? r '(pfunc func))))
+
+(define (Relation-is? r sym-list)
+  (and (Relation? r)
+       (node/breaking/break? (Relation-breaker r))
+       (member (node/breaking/break-break (Relation-breaker r)) sym-list)))
