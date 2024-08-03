@@ -572,40 +572,49 @@
   (foldl (lambda (x acc) (or acc (check-temporal-variance x))) #f args))
 
 (define (intersection-multiplicity m1 m2 context)
-  (cond [(equal? m1 'set) m2]
-        [(equal? m2 'set) m1]
-        [(or (equal? m1 'pfunc) (equal? m2 'pfunc)) 'set]
-        [(or (equal? m1 'func)  (equal? m2 'func)) 'set]
-        [(or (equal? m1 'no) (equal? m2 'no)) 'no]
-        [(or (equal? m1 'lone) (equal? m2 'lone)) 'lone]
-        [(and (equal? m1 'one) (equal? m2 'one)) 'lone]
-        [else (raise-forge-error #:msg (format "Inferring multiplicity, unrecognized tags: ~a, ~a" m1 m2)
-                                 #:context context)]))
+  (cond
+    [(equal? m1 'set) m2]
+    [(equal? m2 'set) m1]
+    [(or (equal? m1 'pfunc) (equal? m2 'pfunc)) 'set]
+    [(or (equal? m1 'func)  (equal? m2 'func)) 'set]
+    [(or (equal? m1 'no) (equal? m2 'no)) 'no]
+    [(or (equal? m1 'lone) (equal? m2 'lone)) 'lone]
+    [(and (equal? m1 'one) (equal? m2 'one)) 'lone]
+    [else (raise-forge-error #:msg (format "Inferring multiplicity, unrecognized tags: ~a, ~a" m1 m2)
+                             #:context context)]))
 
 (define (join-multiplicity args child-values join-result context)
-  (printf "child-values: ~a~n" child-values)
+  (printf "join-multiplicity: child-values: ~a~n" child-values)
   ;; TODO: very coarse
-  (cond [(not (equal? (expression-type-multiplicity (first child-values)) 'one))
-         'set]
-        [(empty? join-result) 'no]
-        ;[(not (equal? 1 (length (first join-result)))) 'set]
-        [(equal? (expression-type-multiplicity (second child-values)) 'one) 'one]
-        [(and (equal? 1 (length (first join-result)))
-              (Relation-is? (second args) '(func)))
-         'one]
-        [(and (equal? 1 (length (first join-result)))
-              (Relation-is? (second args) '(pfunc)))
-         'lone]
-        [(Relation-is? (second args) '(func))
-         'func]
-        [(Relation-is? (second args) '(pfunc))
-         'pfunc]
-        [else 'set]))
+  (cond
+    ; Do not try to infer anything beyond "set" if the LHS is not a singleton. This is a
+    ; "Froglet-centric" perspective and likely could be improved.
+    [(not (member (expression-type-multiplicity (first child-values)) '(lone one))) 'set]
+    ; If the join is necessarily empty, infer that in the type. 
+    [(empty? join-result) 'no]
+    ; Otherwise, look at the RHS of the join. 
+    [(equal? (expression-type-multiplicity (second child-values)) 'one) 'one]
+    [(equal? (expression-type-multiplicity (second child-values)) 'lone) 'lone]
+
+    ; If the RHS is non-nullary functional, and the result is arity 1, the function has been applied. 
+    [(and (equal? 1 (length (first join-result)))
+          (Relation-is? (second args) '(func)))
+     'one]
+    [(and (equal? 1 (length (first join-result)))
+          (Relation-is? (second args) '(pfunc)))
+     'lone]
+    ; If the RHS is non-nullary functional, and the result is arity >1, the singleton result exists in
+    ; potential, but is not yet realized. The join result remains functional.
+    [(Relation-is? (second args) '(func))
+     'func]
+    [(Relation-is? (second args) '(pfunc))
+     'pfunc]
+    ; Infer "set" as a last resort. 
+    [else 'set]))
 
 (define/contract (checkExpressionOp run-or-state expr quantvars args checker-hash)
   (@-> (or/c Run? State? Run-spec?) node/expr/op? list? (listof (or/c node/expr? node/int?)) hash?   
        any)
-       ;(listof (listof symbol?)))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "last-checker: checkExpressionOp: ~a~n" expr))

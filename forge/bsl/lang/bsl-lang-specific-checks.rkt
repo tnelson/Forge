@@ -9,6 +9,10 @@
 (provide bsl-checker-hash)
 (provide bsl-ast-checker-hash)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Helper functions for errors
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (define (raise-bsl-error message node loc)
   (raise-forge-error #:msg (format "~a in ~a" message (deparse node))
                      #:context node))
@@ -40,12 +44,35 @@
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
 
+(define (err-empty-join expr-node node-type child-types)
+  (define loc (nodeinfo-loc (node-info expr-node)))
+  (raise-bsl-error "Sig does not have such a field" expr-node loc))
+
+(define (err-relation-join expr-node args)
+  (define loc (nodeinfo-loc (node-info expr-node)))
+  (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node loc))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Checker functions and checker-hash definitions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (check-node-formula-multiplicity formula-node type/maybe child-types/maybe)
-  (void))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Part 1: checker-hash. These are invoked in the last-checker recursive descent, before
+; the problem is passed to the solver. At this point, all AST nodes have been generated.
+; 
+; The convention is that, when defining a checker function, it accepts three arguments:
+;    - the AST node to be checked
+;    - the inferred type of this node, if applicable (expressions only; #f otherwise)
+;    - the inferred type of its children, if applicable (expressions only; #f otherwise)
+; Each checker may use, or not use, each argument as needed. This is merely a standard 
+; polymorphic interface that the checker module uses to pass data.
+;
+; Checker functions' return results will be ignored. They should invoke raise-forge-error
+; to trigger (or queue, depending on settings) an error message.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (check-node-formula-op-in formula-node type/maybe child-types/maybe)  
+(define (check-node-formula-op-in formula-node node-type child-types)  
   (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info formula-node)))
     (raise-bsl-relational-error "\"in\"" formula-node loc)))
@@ -54,34 +81,34 @@
   (void))
 
 
-#;(define (check-node-expr-comprehension expr-node)
+#;(define (check-node-expr-comprehension expr-node node-type child-types)
     (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
       (define loc (nodeinfo-loc (node-info expr-node)))
       (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
       (printf "Set Comprehension at ~a at loc: ~a~n" (deparse expr-node) locstr)))
       ;(raise-bsl-error "Set Comprehension" expr-node loc)
 
-(define (check-node-expr-op-+ expr-node)
+(define (check-node-expr-op-+ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "+" expr-node loc "You may have meant to use the `add` predicate instead.")))
 
-(define (check-node-expr-op-- expr-node)
+(define (check-node-expr-op-- expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "-" expr-node loc "You may have meant to use the `subtract` predicate instead.")))
 
-(define (check-node-expr-op-& expr-node)
+(define (check-node-expr-op-& expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "&" expr-node loc)))
 
-(define (check-node-expr-op--> expr-node)  
+(define (check-node-expr-op--> expr-node node-type child-types)  
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-error "Use of -> in expressions is not allowed in forge/bsl" expr-node loc)))
 
-(define (check-node-expr-op-join expr-node)
+(define (check-node-expr-op-join expr-node node-type child-types)
   (void))
   ; ;(printf "checking join: ~a~n" expr-node)
   ; (define left-hand-side (first (node/expr/op-children expr-node)))
@@ -91,40 +118,32 @@
   ;         (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
   ;   (raise-bsl-error "Left hand side to field access must be a sig" expr-node loc))
 
-(define (check-node-expr-op-^ expr-node)
+(define (check-node-expr-op-^ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "^" expr-node loc)))
 
-(define (check-node-expr-op-* expr-node)
+(define (check-node-expr-op-* expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "*" expr-node loc)))
 
-(define (check-node-expr-op-~ expr-node)
+(define (check-node-expr-op-~ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "~~" expr-node loc)))
 
-(define (err-empty-join expr-node)
-  (define loc (nodeinfo-loc (node-info expr-node)))
-  (raise-bsl-error "Sig does not have such a field" expr-node loc))
-
-(define (err-relation-join expr-node args)
-  (define loc (nodeinfo-loc (node-info expr-node)))
-  (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node loc))
-
-(define bsl-checker-hash (make-hash))
 (define (check-expr-mult expr-node sing parent-expr)
   (when (and (not sing) (eq? (nodeinfo-lang (node-info parent-expr)) 'bsl))
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-forge-error #:msg (format "Froglet: ~a not a singleton in ~a"  (deparse expr-node) (deparse parent-expr))
                        #:context expr-node)))
 
+(define bsl-checker-hash (make-hash))
 (hash-set! bsl-checker-hash node/formula/multiplicity check-expr-mult)
+;(hash-set! bsl-checker-hash node/formula/multiplicity check-node-formula-multiplicity)
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
 (hash-set! bsl-checker-hash 'relation-join err-relation-join)
-(hash-set! bsl-checker-hash node/formula/multiplicity check-node-formula-multiplicity)
 (hash-set! bsl-checker-hash node/formula/op/in check-node-formula-op-in)
 (hash-set! bsl-checker-hash node/formula/op/= check-node-formula-op-=)
 (hash-set! bsl-checker-hash node/expr/op/+ check-node-expr-op-+)
@@ -168,12 +187,19 @@
 ;(hash-set! bsl-checker-hash node/expr/op/prime check-node-expr-op-prime)
 ;(hash-set! bsl-checker-hash node/expr/op/sing check-node-expr-op-sing)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-
-(define (bsl-ast-arg-checks args)
-  (void))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Part 2: ast-checker-hash. These are invoked when an AST node is being created, in order
+; to allow the sub-language to provide its own errors at that stage. This is important
+; because some attempts to create AST nodes will result in an error of last resort. For
+; example, making the union of two expressions whose arities differ.
+;
+; At this point, however, the types of each given expression have not yet been inferred.
+; Thus, each checker accepts two arguments:
+;   - the children of this (prospective) AST node; and
+;   - the node-info that this AST node will receive, if it is created successfully (which
+;     is useful for assigning syntax locations in errors given). 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; motivation: if student use join on relations and get arity error, that could be confusing
 #;(define (check-node-expr-op-join-args expr-args)
@@ -232,7 +258,6 @@
 
 
 (define bsl-ast-checker-hash (make-hash))
-(hash-set! bsl-ast-checker-hash "check-args" bsl-ast-arg-checks)
 (hash-set! bsl-ast-checker-hash 'field-decl bsl-field-decl-func)
 (hash-set! bsl-ast-checker-hash node/expr/op/-> check-args-node-expr-op-->)
 (hash-set! bsl-ast-checker-hash node/expr/op/+ check-args-node-expr-op-+)
