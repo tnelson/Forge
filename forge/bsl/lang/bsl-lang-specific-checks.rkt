@@ -63,12 +63,18 @@
 ; The convention is that, when defining a checker function, it accepts three arguments:
 ;    - the AST node to be checked
 ;    - the inferred type of this node, if applicable (expressions only; #f otherwise)
-;    - the inferred type of its children, if applicable (expressions only; #f otherwise)
+;    - the inferred type of its children, if applicable (child expressions only; #f otherwise)
 ; Each checker may use, or not use, each argument as needed. This is merely a standard 
 ; polymorphic interface that the checker module uses to pass data.
 ;
 ; Checker functions' return results will be ignored. They should invoke raise-forge-error
 ; to trigger (or queue, depending on settings) an error message.
+;
+; The key that identifies a given checker function will either be:
+;     - an AST node type (i.e., the constructor function defined in ast.rkt), denoting
+;       that a node of this type is being visited
+;     - a symbol, denoting a specific error type that has been recognized, giving the
+;       checker an opportunity to override that error with something language-specific.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
