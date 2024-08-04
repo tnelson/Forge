@@ -584,7 +584,7 @@
                              #:context context)]))
 
 (define (join-multiplicity args child-values join-result context)
-  (printf "join-multiplicity: child-values: ~a~n" child-values)
+  ;(printf "join-multiplicity: ~a; child-values: ~a~n" context child-values)
   ;; TODO: very coarse
   (cond
     ; Do not try to infer anything beyond "set" if the LHS is not a singleton. This is a

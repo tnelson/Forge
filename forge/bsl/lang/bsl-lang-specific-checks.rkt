@@ -9,6 +9,8 @@
 (provide bsl-checker-hash)
 (provide bsl-ast-checker-hash)
 
+(define LANG_ID 'bsl)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Helper functions for errors
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -76,89 +78,91 @@
 ; Checker functions' return results will be ignored. They should invoke raise-forge-error
 ; to trigger (or queue, depending on settings) an error message.
 ;
+; All checker functions are responsible for confirming the language tag on each AST node,
+; because some may come from "blessed" contexts such as the reachable built-in.
+;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (check-node-formula-op-in formula-node node-type child-types)  
-  (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
+  (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info formula-node)))
     (raise-bsl-relational-error "\"in\"" formula-node loc)))
 
 (define (check-top-expression formula-parent expr-node t)
   (when (and (member t '(func pfunc))
-             (eq? (nodeinfo-lang (node-info formula-parent)) 'bsl))
+             (eq? (nodeinfo-lang (node-info formula-parent)) LANG_ID))
     (raise-forge-error #:msg (format "Chain of field applications did not result in a singleton value: ~a" (deparse expr-node))
                        #:context expr-node))
   (when (and (member t '(set))
-             (eq? (nodeinfo-lang (node-info formula-parent)) 'bsl))
+             (eq? (nodeinfo-lang (node-info formula-parent)) LANG_ID))
     (raise-forge-error #:msg (format "Expression was not a singleton value: ~a" (deparse expr-node))
                        #:context expr-node)))
 
 (define (check-node-formula-op-= formula-node node-type child-types)
-  (define t1 (expression-type-multiplicity (first child-types)))
-  (define t2 (expression-type-multiplicity (second child-types)))
-  (define node1 (first (node/formula/op-children formula-node)))
-  (define node2 (second (node/formula/op-children formula-node)))
-  (check-top-expression formula-node node1 t1)
-  (check-top-expression formula-node node2 t2))
+  (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
+    (define t1 (expression-type-multiplicity (first child-types)))
+    (define t2 (expression-type-multiplicity (second child-types)))
+    (define node1 (first (node/formula/op-children formula-node)))
+    (define node2 (second (node/formula/op-children formula-node)))
+    (check-top-expression formula-node node1 t1)
+    (check-top-expression formula-node node2 t2)))
 
 (define (check-formula-mult formula-node node-type child-types)
-  (define t (expression-type-multiplicity (first child-types)))
-  (define expr-node (node/formula/multiplicity-expr formula-node))
-  (check-top-expression formula-node expr-node t))
+  (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
+    (define t (expression-type-multiplicity (first child-types)))
+    (define expr-node (node/formula/multiplicity-expr formula-node))
+    (check-top-expression formula-node expr-node t)))
 
 
 #;(define (check-node-expr-comprehension expr-node node-type child-types)
-    (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+    (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
       (define loc (nodeinfo-loc (node-info expr-node)))
       (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
       (printf "Set Comprehension at ~a at loc: ~a~n" (deparse expr-node) locstr)))
       ;(raise-bsl-error "Set Comprehension" expr-node loc)
 
 (define (check-node-expr-op-+ expr-node node-type child-types)
-  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "+" expr-node loc "You may have meant to use the `add` predicate instead.")))
 
 (define (check-node-expr-op-- expr-node node-type child-types)
-  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "-" expr-node loc "You may have meant to use the `subtract` predicate instead.")))
 
 (define (check-node-expr-op-& expr-node node-type child-types)
-  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "&" expr-node loc)))
 
 (define (check-node-expr-op--> expr-node node-type child-types)  
-  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-error "Use of -> in expressions is not allowed in forge/bsl" expr-node loc)))
 
 (define (check-node-expr-op-join expr-node node-type child-types)
-  (define lhs-type (first child-types))
-  (define rhs-type (second child-types))
-  (define args (node/expr/op-children expr-node))
-  (unless (member (expression-type-multiplicity lhs-type) '(one lone))
-    (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node))
-  (unless (member (expression-type-multiplicity rhs-type) '(pfunc func))
-    (raise-bsl-error (format "\"~a\" was not usable as a field." (deparse (second args))) expr-node)))
-
-  ; (unless (or (node/expr/quantifier-var? left-hand-side)
-  ;         (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
-  ;   (raise-bsl-error "Left hand side to field access must be a sig" expr-node loc))
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
+    (define lhs-type (first child-types))
+    (define rhs-type (second child-types))
+    (define args (node/expr/op-children expr-node))
+    (unless (member (expression-type-multiplicity lhs-type) '(one lone))
+      (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node))
+    (unless (member (expression-type-multiplicity rhs-type) '(pfunc func))
+      (raise-bsl-error (format "\"~a\" was not usable as a field." (deparse (second args))) expr-node))))
 
 (define (check-node-expr-op-^ expr-node node-type child-types)
-  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "^" expr-node loc)))
 
 (define (check-node-expr-op-* expr-node node-type child-types)
-  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "*" expr-node loc)))
 
 (define (check-node-expr-op-~ expr-node node-type child-types)
-  (when (eq? (nodeinfo-lang (node-info expr-node)) 'bsl)
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "~~" expr-node loc)))
 
@@ -237,46 +241,46 @@
   ;NOTE: make better error message 
 
 (define (check-args-node-expr-op--> expr-args info)
-    (when (eq? (nodeinfo-lang info) 'bsl)
-      (define loc (nodeinfo-loc info))
-      (raise-bsl-error-deparsed-str "Direct use of -> is not allowed in forge/bsl" (format "(~a->~a)" (deparse (first expr-args)) (deparse (second expr-args))) loc)))
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define loc (nodeinfo-loc info))
+    (raise-bsl-error-deparsed-str "Direct use of -> in a formula is not allowed in Froglet" (format "(~a->~a)" (deparse (first expr-args)) (deparse (second expr-args))) loc)))
 
 (define (check-args-node-expr-op-+ expr-args info)
-  (when (eq? (nodeinfo-lang info) 'bsl)
-      (define loc (nodeinfo-loc info))
-      (raise-bsl-relational-error-expr-args "+" expr-args loc "You may have meant to use the `add` predicate instead.")))
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define loc (nodeinfo-loc info))
+    (raise-bsl-relational-error-expr-args "+" expr-args loc "You may have meant to use the `add` predicate instead.")))
 
 
 (define (check-args-node-expr-op-- expr-args info)
-  (when (eq? (nodeinfo-lang info) 'bsl)
-      (define loc (nodeinfo-loc info))
-      (raise-bsl-relational-error-expr-args "-" expr-args loc "You may have meant to use the `subtract` predicate instead.")))
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define loc (nodeinfo-loc info))
+    (raise-bsl-relational-error-expr-args "-" expr-args loc "You may have meant to use the `subtract` predicate instead.")))
 
 (define (check-args-node-expr-op-& expr-args info)
-  (when (eq? (nodeinfo-lang info) 'bsl)
-      (define loc (nodeinfo-loc info))
-      (raise-bsl-relational-error-expr-args "&" expr-args loc)))
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define loc (nodeinfo-loc info))
+    (raise-bsl-relational-error-expr-args "&" expr-args loc)))
 
 (define (check-args-node-expr-op-^ expr-args info)
-  (when (eq? (nodeinfo-lang info) 'bsl)
-      (define loc (nodeinfo-loc info))
-      (raise-bsl-relational-error-expr-args "^" expr-args loc)))
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define loc (nodeinfo-loc info))
+    (raise-bsl-relational-error-expr-args "^" expr-args loc)))
 
 (define (check-args-node-expr-op-* expr-args info)
-  (when (eq? (nodeinfo-lang info) 'bsl)
-      (define loc (nodeinfo-loc info))
-      (raise-bsl-relational-error-expr-args "*" expr-args loc)))
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define loc (nodeinfo-loc info))
+    (raise-bsl-relational-error-expr-args "*" expr-args loc)))
 
 (define (check-args-node-expr-op-~ expr-args info)
-  (when (eq? (nodeinfo-lang info) 'bsl)
-      (define loc (nodeinfo-loc info))
-      (raise-bsl-relational-error-expr-args "~~" expr-args loc)))
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define loc (nodeinfo-loc info))
+    (raise-bsl-relational-error-expr-args "~~" expr-args loc)))
 
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
   (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
-  (raise-forge-error #:msg (format "forge/bsl: Field declaration must be one, lone, func, or pfunc")
-                     #:context true-breaker)))
+    (raise-forge-error #:msg (format "Froglet: Field declaration must be one, lone, func, or pfunc")
+                       #:context true-breaker)))
 
 
 
@@ -302,7 +306,7 @@
 (define bsl-inst-checker-hash (make-hash))
 
 ;(define (inst-check-node-formula-op-in formula-node)  
-;  (when (eq? (nodeinfo-lang (node-info formula-node)) 'bsl)
+;  (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
 ;    (define loc (nodeinfo-loc (node-info formula-node)))
 ;    (raise-bsl-relational-error "\"in\"" formula-node loc)))
 

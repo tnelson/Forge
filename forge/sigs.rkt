@@ -1056,10 +1056,13 @@
   (when (and (list? r) (< (length r) 1))
     (raise-forge-error #:msg (format "The reachable predicate expected at least three arguments, given ~a" (@+ (length r) 2))
                        #:context loc))
-  
+
+  ; a in b.^(r + ...)
+  ; While a, b, and all rs should be checked by the specific language the user is running, the 
+  ; AST nodes created specifically for helpers should not be.
   (in/info (nodeinfo loc 'checklangNoCheck #f) 
            a 
-           (join/info (nodeinfo loc (get-check-lang) #f) 
+           (join/info (nodeinfo loc 'checklangNoCheck #f) 
                       b 
                       (^/info (nodeinfo loc 'checklangNoCheck #f) (union-relations loc r)))))
 
