@@ -584,7 +584,7 @@
                              #:context context)]))
 
 (define (join-multiplicity args child-values join-result context)
-  ;(printf "join-multiplicity: child-values: ~a~n" child-values)
+  (printf "join-multiplicity: child-values: ~a~n" child-values)
   ;; TODO: very coarse
   (cond
     ; Do not try to infer anything beyond "set" if the LHS is not a singleton. This is a
@@ -596,18 +596,18 @@
     [(equal? (expression-type-multiplicity (second child-values)) 'one) 'one]
     [(equal? (expression-type-multiplicity (second child-values)) 'lone) 'lone]
 
-    ; If the RHS is non-nullary functional, and the result is arity 1, the function has been applied. 
+    ; If the RHS is non-nullary functional, and the result is arity 1, the function has been applied.
     [(and (equal? 1 (length (first join-result)))
-          (Relation-is? (second args) '(func)))
+          (equal? (expression-type-multiplicity (second child-values)) 'func))
      'one]
     [(and (equal? 1 (length (first join-result)))
-          (Relation-is? (second args) '(pfunc)))
+          (equal? (expression-type-multiplicity (second child-values)) 'pfunc))
      'lone]
     ; If the RHS is non-nullary functional, and the result is arity >1, the singleton result exists in
     ; potential, but is not yet realized. The join result remains functional.
-    [(Relation-is? (second args) '(func))
+    [(equal? (expression-type-multiplicity (second child-values)) 'func)
      'func]
-    [(Relation-is? (second args) '(pfunc))
+    [(equal? (expression-type-multiplicity (second child-values)) 'pfunc)
      'pfunc]
     ; Infer "set" as a last resort. 
     [else 'set]))
