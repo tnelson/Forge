@@ -93,7 +93,7 @@
      (check-and-output formula
                        node/formula/multiplicity
                        checker-hash
-                       expr-type
+                       (void)
                        (list expr-type))]
     
     [(node/formula/quantified info quantifier decls subform)
@@ -240,11 +240,11 @@
     
     ; EQUALS 
     [(? node/formula/op/=?)
-     (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash formula)) args))
+     (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output formula
                        node/formula/op/=
                        checker-hash
-                       child-types
+                       (void)
                        child-types)]
 
     ; NEGATION

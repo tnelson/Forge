@@ -44,7 +44,7 @@
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
 
-(define (err-empty-join expr-node node-type child-types)
+(define (err-empty-join expr-node)
   (define loc (nodeinfo-loc (node-info expr-node)))
   (raise-bsl-error "Sig does not have such a field" expr-node loc))
 
@@ -55,22 +55,26 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Part 1: checker-hash. These are invoked in the last-checker recursive descent, before
 ; the problem is passed to the solver. At this point, all AST nodes have been generated.
-; 
-; The convention is that, when defining a checker function, it accepts three arguments:
-;    - the AST node to be checked
-;    - the inferred type of this node, if applicable (expressions only; #f otherwise)
-;    - the inferred type of its children, if applicable (child expressions only; #f otherwise)
-; Each checker may use, or not use, each argument as needed. This is merely a standard 
-; polymorphic interface that the checker module uses to pass data.
-;
-; Checker functions' return results will be ignored. They should invoke raise-forge-error
-; to trigger (or queue, depending on settings) an error message.
 ;
 ; The key that identifies a given checker function will either be:
 ;     - an AST node type (i.e., the constructor function defined in ast.rkt), denoting
 ;       that a node of this type is being visited
 ;     - a symbol, denoting a specific error type that has been recognized, giving the
 ;       checker an opportunity to override that error with something language-specific.
+;
+; For the FIRST CASE:
+; The convention is that, when defining a checker function, it accepts three arguments:
+;    - the AST node to be checked
+;    - the inferred type of this node, if applicable (expressions only; #f otherwise)
+;    - the inferred type of its children, if applicable (child expressions only; #f otherwise)
+;
+; For the SECOND CASE: only the node itself is passed.
+;
+; Each checker may use, or not use, each argument as needed. This is merely a standard 
+; polymorphic interface that the checker module uses to pass data.
+;
+; Checker functions' return results will be ignored. They should invoke raise-forge-error
+; to trigger (or queue, depending on settings) an error message.
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -83,6 +87,10 @@
   (when (and (member t '(func pfunc))
              (eq? (nodeinfo-lang (node-info formula-parent)) 'bsl))
     (raise-forge-error #:msg (format "Chain of field applications did not result in a singleton value: ~a" (deparse expr-node))
+                       #:context expr-node))
+  (when (and (member t '(set))
+             (eq? (nodeinfo-lang (node-info formula-parent)) 'bsl))
+    (raise-forge-error #:msg (format "Expression was not a singleton value: ~a" (deparse expr-node))
                        #:context expr-node)))
 
 (define (check-node-formula-op-= formula-node node-type child-types)
