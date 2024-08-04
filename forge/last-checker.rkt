@@ -24,7 +24,7 @@
 ; In the case of an expression, the output is an expression-type struct, which
 ; the language-specific checking might use to decide whether there is an error.
 (define (check-and-output ast-node to-handle checker-hash result [child-types #f])
-  (printf "check-and-output: ~a; ~a; ~a; ~a~n" ast-node to-handle result child-types)
+  ;(printf "check-and-output: ~a; ~a; ~a; ~a~n" ast-node to-handle result child-types)
   (begin
     (when (hash-has-key? checker-hash to-handle)
       ((hash-ref checker-hash to-handle) ast-node result child-types))
@@ -730,7 +730,7 @@
                          ;  ((hash-ref checker-hash 'relation-join) expr args))
                          
                          (define join-multip (join-multiplicity args child-types join-result expr))
-                         (printf "***** ~a~n     ~a     ~a~n" expr args join-multip)
+                         ;(printf "***** ~a~n     ~a     ~a~n" expr args join-multip)
                          (expression-type
                             join-result
                             join-multip
