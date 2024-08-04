@@ -24,7 +24,7 @@
 ; In the case of an expression, the output is an expression-type struct, which
 ; the language-specific checking might use to decide whether there is an error.
 (define (check-and-output ast-node to-handle checker-hash result [child-types #f])
-  (printf "check-and-output: ~a; ~a; ~a; ~a~n" ast-node to-handle result child-types)
+  ;(printf "check-and-output: ~a; ~a; ~a; ~a~n" ast-node to-handle result child-types)
   (begin
     (when (hash-has-key? checker-hash to-handle)
       ((hash-ref checker-hash to-handle) ast-node result child-types))
@@ -673,8 +673,8 @@
                          (let ([a-type (first child-types)])
                            (expression-type (expression-type-type a-type)
                                             (expression-type-multiplicity a-type) ; minus can't make a singleton non-singleton
-                                            (get-temporal-variance run-or-state expr quantvars args checker-hash))))
-       child-types)]
+                                            (get-temporal-variance run-or-state expr quantvars args checker-hash)))
+                         child-types))]
     
     ; INTERSECTION
     [(? node/expr/op/&?)

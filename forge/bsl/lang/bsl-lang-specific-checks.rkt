@@ -83,7 +83,7 @@
     (define loc (nodeinfo-loc (node-info formula-node)))
     (raise-bsl-relational-error "\"in\"" formula-node loc)))
 
-(define (check-node-formula-op-= formula-node)
+(define (check-node-formula-op-= formula-node node-type child-types)
   (void))
 
 
