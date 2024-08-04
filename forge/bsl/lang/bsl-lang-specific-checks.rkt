@@ -13,7 +13,7 @@
 ; Helper functions for errors
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (raise-bsl-error message node loc)
+(define (raise-bsl-error message node [ignore-loc #f])
   (raise-forge-error #:msg (format "~a in ~a" message (deparse node))
                      #:context node))
 
@@ -48,10 +48,6 @@
   (define loc (nodeinfo-loc (node-info expr-node)))
   (raise-bsl-error "Sig does not have such a field" expr-node loc))
 
-(define (err-relation-join expr-node args)
-  (define loc (nodeinfo-loc (node-info expr-node)))
-  (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node loc))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Checker functions and checker-hash definitions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -83,8 +79,24 @@
     (define loc (nodeinfo-loc (node-info formula-node)))
     (raise-bsl-relational-error "\"in\"" formula-node loc)))
 
+(define (check-top-expression formula-parent expr-node t)
+  (when (and (member t '(func pfunc))
+             (eq? (nodeinfo-lang (node-info formula-parent)) 'bsl))
+    (raise-forge-error #:msg (format "Chain of field applications did not result in a singleton value: ~a" (deparse expr-node))
+                       #:context expr-node)))
+
 (define (check-node-formula-op-= formula-node node-type child-types)
-  (void))
+  (define t1 (expression-type-multiplicity (first child-types)))
+  (define t2 (expression-type-multiplicity (second child-types)))
+  (define node1 (first (node/formula/op-children formula-node)))
+  (define node2 (second (node/formula/op-children formula-node)))
+  (check-top-expression formula-node node1 t1)
+  (check-top-expression formula-node node2 t2))
+
+(define (check-formula-mult formula-node node-type child-types)
+  (define t (expression-type-multiplicity (first child-types)))
+  (define expr-node (node/formula/multiplicity-expr formula-node))
+  (check-top-expression formula-node expr-node t))
 
 
 #;(define (check-node-expr-comprehension expr-node node-type child-types)
@@ -115,11 +127,14 @@
     (raise-bsl-error "Use of -> in expressions is not allowed in forge/bsl" expr-node loc)))
 
 (define (check-node-expr-op-join expr-node node-type child-types)
-  (void))
-  ; ;(printf "checking join: ~a~n" expr-node)
-  ; (define left-hand-side (first (node/expr/op-children expr-node)))
-  ; (define loc (nodeinfo-loc (node-info left-hand-side)))
-  ; (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
+  (define lhs-type (first child-types))
+  (define rhs-type (second child-types))
+  (define args (node/expr/op-children expr-node))
+  (unless (member (expression-type-multiplicity lhs-type) '(one lone))
+    (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node))
+  (unless (member (expression-type-multiplicity rhs-type) '(pfunc func))
+    (raise-bsl-error (format "\"~a\" was not usable as a field." (deparse (second args))) expr-node)))
+
   ; (unless (or (node/expr/quantifier-var? left-hand-side)
   ;         (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
   ;   (raise-bsl-error "Left hand side to field access must be a sig" expr-node loc))
@@ -139,17 +154,11 @@
     (define loc (nodeinfo-loc (node-info expr-node)))
     (raise-bsl-relational-error "~~" expr-node loc)))
 
-(define (check-expr-mult expr-node sing parent-expr)
-  (when (and (not sing) (eq? (nodeinfo-lang (node-info parent-expr)) 'bsl))
-    (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-forge-error #:msg (format "Froglet: ~a not a singleton in ~a"  (deparse expr-node) (deparse parent-expr))
-                       #:context expr-node)))
-
 (define bsl-checker-hash (make-hash))
-(hash-set! bsl-checker-hash node/formula/multiplicity check-expr-mult)
+(hash-set! bsl-checker-hash node/formula/multiplicity check-formula-mult)
 ;(hash-set! bsl-checker-hash node/formula/multiplicity check-node-formula-multiplicity)
 (hash-set! bsl-checker-hash 'empty-join err-empty-join)
-(hash-set! bsl-checker-hash 'relation-join err-relation-join)
+;(hash-set! bsl-checker-hash 'relation-join err-relation-join)
 (hash-set! bsl-checker-hash node/formula/op/in check-node-formula-op-in)
 (hash-set! bsl-checker-hash node/formula/op/= check-node-formula-op-=)
 (hash-set! bsl-checker-hash node/expr/op/+ check-node-expr-op-+)

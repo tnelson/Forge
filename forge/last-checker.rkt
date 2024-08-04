@@ -24,7 +24,7 @@
 ; In the case of an expression, the output is an expression-type struct, which
 ; the language-specific checking might use to decide whether there is an error.
 (define (check-and-output ast-node to-handle checker-hash result [child-types #f])
-  ;(printf "check-and-output: ~a; ~a; ~a; ~a~n" ast-node to-handle result child-types)
+  (printf "check-and-output: ~a; ~a; ~a; ~a~n" ast-node to-handle result child-types)
   (begin
     (when (hash-has-key? checker-hash to-handle)
       ((hash-ref checker-hash to-handle) ast-node result child-types))
@@ -89,11 +89,12 @@
                        (checkFormulaOp run-or-state formula quantvars args checker-hash))]
         
     [(node/formula/multiplicity info mult expr)
-     ; TODO: this should pass child types
+     (define expr-type (checkExpression run-or-state expr quantvars checker-hash))
      (check-and-output formula
                        node/formula/multiplicity
                        checker-hash
-                       (checkExpression-top run-or-state expr quantvars checker-hash formula))]
+                       expr-type
+                       (list expr-type))]
     
     [(node/formula/quantified info quantifier decls subform)
      (check-and-output formula
@@ -239,10 +240,12 @@
     
     ; EQUALS 
     [(? node/formula/op/=?)
+     (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash formula)) args))
      (check-and-output formula
                        node/formula/op/=
                        checker-hash
-                       (for-each (lambda (x) (checkExpression-top run-or-state x quantvars checker-hash formula)) args))]
+                       child-types
+                       child-types)]
 
     ; NEGATION
     [(? node/formula/op/!?)
@@ -382,15 +385,6 @@
     ; [_ (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
     ;      (expression-type-type output))]))
     [_ (checkExpression-mult run-or-state expr quantvars checker-hash)]))
-
-; similar except that this is called from a formula, so in bsl 
-; it should check that the multiplicity of the overall expr is 1 
-(define (checkExpression-top run-or-state expr quantvars checker-hash parent)
-  (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
-    ; insert check for (first here)
-    (when (hash-has-key? checker-hash 'expr-top)
-      ((hash-ref checker-hash 'expr-top) expr (expression-type-multiplicity output) parent))
-    (expression-type-type output)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -590,7 +584,7 @@
                              #:context context)]))
 
 (define (join-multiplicity args child-values join-result context)
-  (printf "join-multiplicity: child-values: ~a~n" child-values)
+  ;(printf "join-multiplicity: child-values: ~a~n" child-values)
   ;; TODO: very coarse
   (cond
     ; Do not try to infer anything beyond "set" if the LHS is not a singleton. This is a
@@ -727,15 +721,16 @@
                                              (deparse (second (node/expr/op-children expr)))
                                              (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (expression-type-type (second child-types))))
                                #:context expr))))
+                         
                          ; If we are in Froglet ("bsl"), and the LHS expression is not a singleton or empty, lang-specific check
                          ; TODO: disentangle this; it should be handled by the join case of the checker hash
-                         (when (and (not (member (expression-type-multiplicity (first child-types)) '(one lone)))
-                                    (eq? (nodeinfo-lang (node-info expr)) 'bsl)
-                                    (hash-has-key? checker-hash 'relation-join))
-                           ((hash-ref checker-hash 'relation-join) expr args))
+                         ;(when (and (not (member (expression-type-multiplicity (first child-types)) '(one lone)))
+                         ;           (eq? (nodeinfo-lang (node-info expr)) 'bsl)
+                         ;           (hash-has-key? checker-hash 'relation-join))
+                         ;  ((hash-ref checker-hash 'relation-join) expr args))
                          
                          (define join-multip (join-multiplicity args child-types join-result expr))
-                         ;(printf "***** ~a~n     ~a     ~a     ~a     ~a~n" args child-values join-multip (expression-type-multiplicity (first child-values)) (expression-type-multiplicity (second child-values)))
+                         (printf "***** ~a~n     ~a     ~a~n" expr args join-multip)
                          (expression-type
                             join-result
                             join-multip
