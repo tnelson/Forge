@@ -10,7 +10,7 @@
   forge/solver-specific/smtlib-shared
   forge/last-checker
   forge/lang/bounds
-  (only-in racket index-of match string-join first second rest flatten last drop-right third empty remove-duplicates)
+  (only-in racket index-of match string-join first second rest flatten last drop-right third empty remove-duplicates empty?)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract -> ->*))
   (prefix-in @ (only-in racket/base >= > -)))
@@ -31,6 +31,7 @@
       list?
       list?)
       string?)
+  (defensive-checks "convert-formula" run-or-state formula relations atom-names quantvars quantvar-types '() bounds) 
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-formula: ~a~n" formula))
   (match formula
@@ -57,9 +58,8 @@
               (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr processed-expr)]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
     [(node/formula/quantified info quantifier decls form)
-     ; new vs-decls => list ((list qv) (list (pair qv expr-decl)))
      (define new-vs-decls
-       (for/fold ([vs-decls (list quantvars '())])
+       (for/fold ([vs-decls (list quantvars quantvar-types)])
                  ([decl decls])
          (define curr-quantvars (first vs-decls))
          (define curr-expr-decls (second vs-decls))
@@ -68,7 +68,7 @@
          (list new-quantvars new-expr-decls)))
       (define new-quantvars  (first new-vs-decls))
       (define new-expr-decls (second new-vs-decls))
-      (define new-quantvar-types (append (map cdr new-expr-decls) quantvar-types))
+      (define new-quantvar-types new-expr-decls) ; (append (map cdr new-expr-decls) quantvar-types))
      (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-types bounds)])
        ; In the quantifier declaration, we need the *sort* name, which is Atom or Int
        ; In the guard, we need a SMT *expression*, which is the sort name or the Int-universe expression.
@@ -86,8 +86,10 @@
     [#f "false"]
     ))
 
+(define (pair->list p) (list (car p) (cdr p)))
+
 (define (get-expr-type run-or-state expr quantvars quantvar-types)
-  (define quantvar-pairs (map list quantvars quantvar-types))
+ (define quantvar-pairs (map pair->list quantvar-types))
   (define dummy-hash (make-hash))
   (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))
   (define top-level-type-list (for/list ([type list-of-types])
@@ -96,7 +98,7 @@
 )
 
 (define (get-k-bounds run-or-state expr quantvars quantvar-types)
-  (define quantvar-pairs (map list quantvars quantvar-types))
+  (define quantvar-pairs (map pair->list quantvar-types))
   (define dummy-hash (make-hash))
   (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))
   (define top-level-type-list (for/list ([type list-of-types])
@@ -105,7 +107,7 @@
 )
 
 (define (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)
-  (define quantvar-pairs (map list quantvars quantvar-types))
+  (define quantvar-pairs (map (pair->list quantvar-types)))
   (define dummy-hash (make-hash))
   (define list-of-types (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
   (define nested-atoms-to-use (for/list ([bound bounds])
@@ -138,7 +140,22 @@
       [(? node/expr? e) (convert-expr run-or-state e relations atom-names quantvars quantvar-types bounds)]
       [(? node/int? i) (convert-int run-or-state i relations atom-names quantvars quantvar-types bounds)])))
 
+; Spot bugs, etc. noisily
+(define (defensive-checks label run-or-state node relations atom-names quantvars quantvar-types args bounds)
+  (unless (and (list? quantvar-types)
+               (or (empty? quantvar-types)
+                   (pair? (first quantvar-types))))
+    (raise-forge-error #:msg (format "Internal error; ~a on ~a; quantvar-types was not an association list: ~a"
+                                     label node quantvar-types)
+                       #:context node))
+  (unless (equal? (length quantvars) (length quantvar-types))
+    (raise-forge-error #:msg (format "Internal error; ~a on ~a; quantvars and types were not of the same length: ~a vs. ~a"
+                                     label node quantvars quantvar-types)
+                       #:context node)))
+
+
 (define (convert-formula-op run-or-state formula relations atom-names quantvars quantvar-types args bounds)
+  (defensive-checks "convert-formula-op" run-or-state formula relations atom-names quantvars quantvar-types args bounds) 
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-formula-op: ~a~n" formula))
   (match formula
@@ -212,6 +229,7 @@
 )
 
 (define (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)
+  (defensive-checks "convert-expr" run-or-state expr relations atom-names quantvars quantvar-types '() bounds) 
   (when (@> (get-verbosity) VERBOSITY_LOW)
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
   (match expr
@@ -298,23 +316,24 @@
      (if (get-annotation info 'smt/int-unwrap)
          (format "~a" name)
          (format "(set.singleton (tuple ~a))" name))]
-    [(node/expr/comprehension info len decls form)   
+    [(node/expr/comprehension info len decls form)
      (define new-vs-decls
-       (for/fold ([vs-decls (list quantvars '())])
+       (for/fold ([vs-decls (list quantvars quantvar-types)])
                  ([decl decls])
          (define curr-quantvars (first vs-decls))
          (define curr-expr-decls (second vs-decls))
-         (define new-quantvars (cons (car decl) quantvars))
+         (define new-quantvars (cons (car decl) curr-quantvars))
          (define new-expr-decls (cons decl curr-expr-decls))
+         ;(printf "growing lists: ~a; ~a~n" new-quantvars new-expr-decls)
          (list new-quantvars new-expr-decls)))
       (define new-quantvars  (first new-vs-decls))
       (define new-expr-decls (second new-vs-decls))
-      (define new-quantvar-types (map cdr new-expr-decls))
-     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-types bounds)])
+     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-expr-decls bounds)])
        (define new-decls (second new-vs-decls))
     (format "(set.comprehension (~a) ~a (tuple ~a))" (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) new-expr-decls) " ") processed-form (car (car new-expr-decls))))]))
 
 (define (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
+  (defensive-checks "convert-expr-op" run-or-state expr relations atom-names quantvars quantvar-types args bounds) 
     (when (@> (get-verbosity) VERBOSITY_LOW)
       (printf "to-smtlib-tor: convert-expr-op: ~a~n" expr))
   (match expr
@@ -353,6 +372,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (convert-int run-or-state expr relations atom-names quantvars quantvar-types bounds)
+  (defensive-checks "convert-int" run-or-state expr relations atom-names quantvars quantvar-types '() bounds) 
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-int: ~a~n" expr))
   (match expr
@@ -377,6 +397,7 @@
       "TODO: sum quant")]))
 
 (define (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)
+  (defensive-checks "convert-int-op" run-or-state expr relations atom-names quantvars quantvar-types args bounds) 
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-int-op: ~a~n" expr))
   (match expr
@@ -389,9 +410,17 @@
     [(node/int/op/divide info children)
       (format "(div ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/sum info children)
-    ; if we can discover that the argument is provably a singleton, we can just erase the 'sum' node
-    ; what in the world do we do in the other case? probably either be inspired by cvc5 work or fortress translation
-    ; temporary fix - assume it's a singleton
+     ; Since we are following the CRS/cvc4 work for integer-handling, the child must always be a singleton.
+     ; This holds whether or not the "sum" was added automatically, but manual/auto affects the nature of the error.
+     ;(printf "qv-types: ~a; qvs: ~a~n" quantvar-types quantvars)
+     (define inferred-multiplicity (expression-type-multiplicity
+                                    (checkExpression run-or-state (first children) (map pair->list quantvar-types) (make-hash))))
+     ; (printf "***** inferred-multiplicity: ~a ~a~n" (first children) inferred-multiplicity)
+     ; TODO: pass back something better than #t or #f
+     (unless (member inferred-multiplicity '(one lone no #t))
+       (if (get-annotation info 'automatic-int-conversion)
+           (raise-forge-error #:msg "SMT backend requires that this expression evaluates to a singleton integer, but could not infer this." #:context expr)
+           (raise-forge-error #:msg "SMT backend does not currently support `sum` over multiple integer values, but could not infer safety." #:context expr)))
     (format "(IntAtom-to-Int (reconcile-int_atom ~a))" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/card info children)
     (format "(set.card ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
