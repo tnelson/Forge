@@ -345,6 +345,12 @@
 ; Converting SMT-LIB response expression into a Forge instance
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Rename or exclude these entries in the resulting instance
+(define (maybe-rename-id relname)
+  (cond [(equal? relname 'univInt) 'Int]
+        [else relname]))
+(define EXCLUDE_KEYS '(IntAtom-to-Int))
+
 ; Building this up from running examples, so the cases may be a bit over-specific.
 ; Accept the `run-command` for better syntax-location information if the run fails.
 (define (smtlib-tor-to-instance model-s-expression run-command)
@@ -355,30 +361,30 @@
 
         ; Relational value: empty set
         [(list (quote define-fun) ID (list) TYPE (list (quote as) (quote set.empty) ATOMTYPE))
-         (values ID '())]
+         (values (maybe-rename-id ID) '())]
         
         ; Constant bindings to atoms: return unary relation of one tuple
         [(list (quote define-fun) ID (list) TYPE (list (quote as) ATOMID ATOMTYPE))
-         (values ID (list (list (process-atom-id ATOMID run-command))))]
+         (values (maybe-rename-id ID) (list (list (process-atom-id ATOMID run-command))))]
 
         ; Uninterpreted function w/ constant value
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
-         (values ID (list (list (process-atom-id ATOMID run-command))))]
+         (values (maybe-rename-id ID) (list (list (process-atom-id ATOMID run-command))))]
 
         ; Uninterpreted function w/ constant value (Integer-valued). E.g.,
         ; (define-fun IntAtom-to-Int (($x1 IntAtom)) Int 0)
         ;; TODO: arity will be off, because this is a function, no representation of domain yet
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE VAL)
-         (values ID (list (list VAL)))]
+         (values (maybe-rename-id ID) (list (list VAL)))]
         
         ; Uninterpreted function w/ constant Int value, no parameters; e.g., an Int-valued Skolem function
         [(list (quote define-fun) ID (list) (quote Int) ATOMID)
-         (values ID (list (list (process-atom-id ATOMID run-command))))]
+         (values (maybe-rename-id ID) (list (list (process-atom-id ATOMID run-command))))]
 
         ; Uninterpreted function with if-then-else value (likely a Skolem function)
         ;; TODO: sending this back empty to avoid blocking development; need to evaluate it properly
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN (list (quote ite) COND T F))
-         (values ID '())]
+         (values (maybe-rename-id ID) '())]
         
         ; Relational value: union (may contain any number of singletons)
         ; Because this includes helper functions that are relation-valued, we need to support non-nullary.
@@ -387,19 +393,21 @@
          ;   or multiple singletons within a single list. So pre-process unions
          ;   and flatten to get a list of singletons.
          (define singletons (apply append (map (lambda (a) (process-union-arg a run-command)) ARGS)))
-         (values ID (process-singleton-list singletons run-command))]
+         (values (maybe-rename-id ID) (process-singleton-list singletons run-command))]
         
         ; Relational value: singleton (should contain a single tuple)
         ; Because this includes helper functions that are relation-valued, we need to support non-nullary.
         [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) TYPE (list (quote set.singleton) ARG))
          ; Wrap this tuple, because this is a singleton _set_
-         (values ID (list (process-tuple ARG run-command)))]
+         (values (maybe-rename-id ID) (list (process-tuple ARG run-command)))]
         
         ; Catch-all; unknown format
         [else
          (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB: ~a" part)
                             #:context run-command)]))
-    (hash-set inst key value)))
+    (if (member key EXCLUDE_KEYS)
+        inst
+        (hash-set inst key value))))
 
 ; Return a list containing singletons
 (define (process-union-arg arg run-command)
