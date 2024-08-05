@@ -1,7 +1,6 @@
 #lang forge
 
 option backend smtlibtor
-
 ---------------- Signatures ----------------
 
 abstract sig Person {}

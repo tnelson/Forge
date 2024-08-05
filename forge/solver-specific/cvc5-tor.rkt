@@ -241,7 +241,9 @@
   (define defined-funs (list
      "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"
      "(define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))"
-     "(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))"))
+     "(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))"
+     "(declare-fun univInt () (Relation Int))"
+     "(assert (= univInt (as set.universe (Relation Int))))"))
   (define preamble-str (format "(reset)~n(declare-sort Atom 0)~n(declare-sort IntAtom 0)~n(declare-fun IntAtom-to-Int (IntAtom) Int)~n~a~n"
                                (string-join defined-funs "\n")))
 
@@ -379,7 +381,8 @@
          (values ID '())]
         
         ; Relational value: union (may contain any number of singletons)
-        [(list (quote define-fun) ID (list) TYPE (list (quote set.union) ARGS ...))
+        ; Because this includes helper functions that are relation-valued, we need to support non-nullary.
+        [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) TYPE (list (quote set.union) ARGS ...))
          ; A union may contain an inductive list built from singletons and unions,
          ;   or multiple singletons within a single list. So pre-process unions
          ;   and flatten to get a list of singletons.
@@ -387,7 +390,8 @@
          (values ID (process-singleton-list singletons run-command))]
         
         ; Relational value: singleton (should contain a single tuple)
-        [(list (quote define-fun) ID (list) TYPE (list (quote set.singleton) ARG))
+        ; Because this includes helper functions that are relation-valued, we need to support non-nullary.
+        [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) TYPE (list (quote set.singleton) ARG))
          ; Wrap this tuple, because this is a singleton _set_
          (values ID (list (process-tuple ARG run-command)))]
         

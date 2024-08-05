@@ -88,13 +88,14 @@
     (define loc (nodeinfo-loc (node-info formula-node)))
     (raise-bsl-relational-error "\"in\"" formula-node loc)))
 
-(define (check-top-expression formula-parent expr-node t)
+(define (check-top-expression formula-parent expr-node t #:allow-sigs [allow-sigs #f])
   (when (and (member t '(func pfunc))
              (eq? (nodeinfo-lang (node-info formula-parent)) LANG_ID))
     (raise-forge-error #:msg (format "Chain of field applications did not result in a singleton value: ~a" (deparse expr-node))
                        #:context expr-node))
   (when (and (member t '(set))
-             (eq? (nodeinfo-lang (node-info formula-parent)) LANG_ID))
+             (eq? (nodeinfo-lang (node-info formula-parent)) LANG_ID)
+             (or (not allow-sigs) (not (Sig? expr-node))))
     (raise-forge-error #:msg (format "Expression was not a singleton value: ~a" (deparse expr-node))
                        #:context expr-node)))
 
@@ -111,7 +112,7 @@
   (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
     (define t (expression-type-multiplicity (first child-types)))
     (define expr-node (node/formula/multiplicity-expr formula-node))
-    (check-top-expression formula-node expr-node t)))
+    (check-top-expression formula-node expr-node t #:allow-sigs #t)))
 
 
 #;(define (check-node-expr-comprehension expr-node node-type child-types)
