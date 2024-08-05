@@ -58,28 +58,25 @@
               (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr processed-expr)]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
     [(node/formula/quantified info quantifier decls form)
-     (define new-vs-decls
-       (for/fold ([vs-decls (list quantvars quantvar-types)])
-                 ([decl decls])
-         (define curr-quantvars (first vs-decls))
-         (define curr-expr-decls (second vs-decls))
-         (define new-quantvars (cons (car decl) curr-quantvars))
-         (define new-expr-decls (cons decl curr-expr-decls))
-         (list new-quantvars new-expr-decls)))
-      (define new-quantvars  (first new-vs-decls))
-      (define new-expr-decls (second new-vs-decls))
-      (define new-quantvar-types new-expr-decls) ; (append (map cdr new-expr-decls) quantvar-types))
-     (let ([processed-form (convert-formula run-or-state form relations atom-names new-quantvars new-quantvar-types bounds)])
-       ; In the quantifier declaration, we need the *sort* name, which is Atom or Int
+
+     (define newly-defined-vars (map car decls))
+     (define updated-quantvars (append newly-defined-vars quantvars))
+     (define updated-quantvar-types (append decls quantvar-types))
+     
+     (let ([processed-form (convert-formula run-or-state form relations atom-names updated-quantvars updated-quantvar-types bounds)])
+       ; In the quantifier declaration, we need the *sort* name, which is Atom or IntAtom
        ; In the guard, we need a SMT *expression*, which is the sort name or the Int-universe expression.
        ; To get the string expression, we map convert-expr to the cdr of each decl.
-       (define vars-str-decls (map (lambda (x) (cons (car x) (convert-expr run-or-state (cdr x) relations atom-names new-quantvars new-quantvar-types bounds))) new-expr-decls))
+       (define vars-str-decls (map (lambda (x) (cons (car x) (convert-expr run-or-state (cdr x) relations atom-names updated-quantvars updated-quantvar-types bounds)))
+                                   decls))
        (format "(~a (~a) ~a)"
-                         ; SMT-LIB uses "forall", not "all" and "exists", not "some"
-                         (if (equal? quantifier 'all) "forall" "exists")
-                         (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) new-expr-decls) " ")
-                         (if (equal? quantifier 'all) (format "(=> ~a ~a)" (membership-guard vars-str-decls) processed-form)
-                             (format "(and ~a ~a)" (membership-guard vars-str-decls) processed-form))))]
+               ; SMT-LIB uses "forall", not "all" and "exists", not "some"
+               (if (equal? quantifier 'all) "forall" "exists")
+               (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x))))
+                                 decls) " ")
+               (if (equal? quantifier 'all)
+                   (format "(=> ~a ~a)" (membership-guard vars-str-decls) processed-form)
+                   (format "(and ~a ~a)" (membership-guard vars-str-decls) processed-form))))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
     [#t "true"]

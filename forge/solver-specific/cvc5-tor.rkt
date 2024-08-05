@@ -281,6 +281,7 @@
   ; ASSUME: reply format is a single line for the result type, then
   ;   a paren-delimited s-expression with any output of that 
   (smtlib-display stdin "(check-sat)")
+  ;(smtlib-display stdin "(exit)") ; FOR DEBUGGING
   (define sat-answer (read stdout))
 
   ;; TODO: statistics: https://cvc5.github.io/docs/cvc5-1.0.2/statistics.html
