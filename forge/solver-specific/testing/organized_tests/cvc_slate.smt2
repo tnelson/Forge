@@ -7,45 +7,13 @@
 (assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))
 
 
-(declare-fun Title () (Relation Atom))
-
-(declare-fun Book () (Relation Atom))
-
-(declare-fun Copy () (Relation Atom))
-
-(declare-fun Reference () (Relation Atom))
-
-(declare-fun General () (Relation Atom))
-
-(declare-fun Borrower () (Relation Atom))
-
-(declare-fun Student () (Relation Atom))
-
-(declare-fun Faculty () (Relation Atom))
+(declare-fun Person () (Relation Atom))
 
 (declare-fun succ () (Relation IntAtom IntAtom))
 
-(declare-fun name () (Relation Atom Atom))
+(declare-fun parent () (Relation Atom Atom))
 
-(declare-fun description () (Relation Atom Atom))
-
-(declare-fun checkedout () (Relation Atom Atom))
-
-
-
-
-(assert (= Copy (set.union Reference General)))
-
-(assert (= (set.inter Reference General) (as set.empty (Relation Atom))))
-(assert (= (set.inter General Reference) (as set.empty (Relation Atom))))
-
-
-
-
-(assert (= Borrower (set.union Student Faculty)))
-
-(assert (= (set.inter Student Faculty) (as set.empty (Relation Atom))))
-(assert (= (set.inter Faculty Student) (as set.empty (Relation Atom))))
+(declare-fun age () (Relation Atom IntAtom))
 
 
 
@@ -53,33 +21,24 @@
 
 
 
-
-
-(assert (= (set.inter Borrower Copy) (as set.empty (Relation Atom))))
-(assert (= (set.inter Borrower Book) (as set.empty (Relation Atom))))
-(assert (= (set.inter Borrower Title) (as set.empty (Relation Atom))))
-(assert (= (set.inter Copy Borrower) (as set.empty (Relation Atom))))
-
-(assert (= (set.inter Copy Book) (as set.empty (Relation Atom))))
-(assert (= (set.inter Copy Title) (as set.empty (Relation Atom))))
-(assert (= (set.inter Book Borrower) (as set.empty (Relation Atom))))
-(assert (= (set.inter Book Copy) (as set.empty (Relation Atom))))
-
-(assert (= (set.inter Book Title) (as set.empty (Relation Atom))))
-(assert (= (set.inter Title Borrower) (as set.empty (Relation Atom))))
-(assert (= (set.inter Title Copy) (as set.empty (Relation Atom))))
-(assert (= (set.inter Title Book) (as set.empty (Relation Atom))))
-
-(assert (or (or (not (or (not (and (and (forall ((s Atom)) (=> (and (set.member (tuple s) Student)) (or (< (set.card (rel.join (set.singleton (tuple s)) checkedout)) 3) (= (set.card (rel.join (set.singleton (tuple s)) checkedout)) 3)))) (forall ((c Atom)) (=> (and (set.member (tuple c) General)) (forall ((x1 Atom) (x2 Atom)) (=> (and (set.subset (set.singleton (tuple x1)) (rel.join checkedout (set.singleton (tuple c)))) (set.subset (set.singleton (tuple x2)) (rel.join checkedout (set.singleton (tuple c))))) (= x1 x2)))))))) (and (and (forall ((c Atom)) (=> (and (set.member (tuple c) General)) (< (set.card (rel.join checkedout (set.singleton (tuple c)))) 2))))))))))
+(declare-const g48061_atom IntAtom)
+(declare-fun g48060 () (Relation IntAtom))
+(assert (exists () (and (= (IntAtom-to-Int g48061_atom) g48059_atom) (set.subset (set.singleton (tuple g48061_atom)) g48060))))
+(declare-const g48059_atom IntAtom)
+(assert (= (IntAtom-to-Int g48059_atom) 5))
+(declare-const g48058_atom IntAtom)
+(declare-fun g48057 () (Relation IntAtom))
+(assert (exists () (and (= (IntAtom-to-Int g48058_atom) g48056_atom) (set.subset (set.singleton (tuple g48058_atom)) g48057))))
+(declare-const g48056_atom IntAtom)
+(assert (= (IntAtom-to-Int g48056_atom) 5))
+(declare-const g48053_atom IntAtom)
+(declare-fun g48052 (Atom Atom) (Relation IntAtom))
+(assert (exists ((p2 Atom) (p1 Atom)) (and (= (IntAtom-to-Int g48053_atom) (+ (IntAtom-to-Int (reconcile-int_atom (rel.join (set.singleton (tuple p1)) age))) 1)) (set.subset (set.singleton (tuple g48053_atom)) (g48052 p2 p1)))))
+(assert (= g48057 g48060))
 (assert (set.subset succ (rel.product (as set.universe (Relation IntAtom)) (as set.universe (Relation IntAtom)))))
-(assert (set.subset name (rel.product Book Title)))
-(assert (set.subset description (rel.product Copy Book)))
-(assert (set.subset checkedout (rel.product Borrower General)))
-(assert (= Copy (set.union Reference General)))
-(assert (= (as set.empty (Relation Atom)) (set.inter Reference General)))
-(assert (= Borrower (set.union Student Faculty)))
-(assert (= (as set.empty (Relation Atom)) (set.inter Student Faculty)))
-(assert (forall ((pfunc9773 Atom)) (=> (and (set.member (tuple pfunc9773) Copy)) (and (forall ((x1 Atom) (x2 Atom)) (=> (and (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc9773)) description)) (set.subset (set.singleton (tuple x2)) (rel.join (set.singleton (tuple pfunc9773)) description))) (= x1 x2))) (exists ((x1 Atom)) (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc9773)) description)))))))
-(assert (forall ((pfunc9772 Atom)) (=> (and (set.member (tuple pfunc9772) Book)) (and (forall ((x1 Atom) (x2 Atom)) (=> (and (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc9772)) name)) (set.subset (set.singleton (tuple x2)) (rel.join (set.singleton (tuple pfunc9772)) name))) (= x1 x2))) (exists ((x1 Atom)) (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc9772)) name)))))))
+(assert (set.subset parent (rel.product Person Person)))
+(assert (set.subset age (rel.product Person (as set.universe (Relation IntAtom)))))
+(assert (forall ((pfunc48054 Atom)) (=> (and (set.member (tuple pfunc48054) Person)) (and (forall ((x1 Atom) (x2 Atom)) (=> (and (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc48054)) parent)) (set.subset (set.singleton (tuple x2)) (rel.join (set.singleton (tuple pfunc48054)) parent))) (= x1 x2))) (exists ((x1 Atom)) (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc48054)) parent)))))))
+(assert (forall ((pfunc48055 Atom)) (=> (and (set.member (tuple pfunc48055) Person)) (and (forall ((x1 IntAtom) (x2 IntAtom)) (=> (and (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc48055)) age)) (set.subset (set.singleton (tuple x2)) (rel.join (set.singleton (tuple pfunc48055)) age))) (= x1 x2))) (exists ((x1 IntAtom)) (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc48055)) age)))))))
 (check-sat)
 (get-model)

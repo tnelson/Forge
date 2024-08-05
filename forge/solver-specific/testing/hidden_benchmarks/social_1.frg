@@ -11,7 +11,7 @@ abstract sig Person {
 
 sig Man, Woman extends Person {}
 
-sig Helper {
+one sig Helper {
     spouse : pfunc Person -> Person
 }
 ---------------- Functions ----------------

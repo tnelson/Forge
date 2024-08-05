@@ -124,7 +124,10 @@
      ""]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
-     (format "(declare-fun ~a () (Relation Atom))~n" name)]
+     (if one? 
+     (format "(declare-fun ~a () (Relation Atom))~n(declare-const ~a_atom Atom)~n(assert (= ~a (set.singleton (tuple ~a_atom))))~n"
+             name name name name)
+     (format "(declare-fun ~a () (Relation Atom))~n" name))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
@@ -249,12 +252,14 @@
   (define top-level-disjoint-str (form-disjoint-string (map bound-relation total-bounds)))
   (define disjointness-constraint-str (disjoint-relations top-level-disjoint-str))
 
+  (define comprehension-strs (string-join (smt-tor:get-new-top-level-strings) "\n"))
+
   ; converted formula:
   (define assertions-str (string-join (map (lambda (s) (format "(assert ~a)" s)) step4) "\n"))
 
   ; DO NOT (check-sat) yet.
   
-  (format "~a~n~a~n~a~n~a~n~a~n" preamble-str bounds-str bounds-str-2 disjointness-constraint-str assertions-str))
+  (format "~a~n~a~n~a~n~a~n~a~n~a~n" preamble-str bounds-str bounds-str-2 disjointness-constraint-str comprehension-strs assertions-str))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]

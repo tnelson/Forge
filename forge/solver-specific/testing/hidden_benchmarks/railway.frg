@@ -62,6 +62,6 @@ pred model_facts {
 
 -- has counterexample in scope of 4
 test expect {
-    railway: {model_facts => PolicyWorks} for 2 Train, 1 GateState, 2 TrainState, 4 Seg is sat
+    railway: {{model_facts => PolicyWorks} and some Train and some Seg and some GateState and some TrainState} for 2 Train, 1 GateState, 2 TrainState, 4 Seg is sat
 }
 

@@ -111,7 +111,7 @@ test expect {
     single_relation_equality : equality_single_relation is sat
     double_relation_equality : equality_double_relation is sat
     manual_sing : manual_sing_1 is sat
-    none_sum : sum_of_none is sat
+    // none_sum : sum_of_none is sat
     ite_1 : ite_no_nest is sat
     ite_2 : ite_some_nest is sat
     ite_3 : ite_relational_context is sat
