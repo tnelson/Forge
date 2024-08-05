@@ -321,9 +321,15 @@
      ; No statistics yet
      (Unknown #f #f)]
     [else
-     (printf "Unexpected error: bad response from CVC5. Printing process output:~n")
-     (printf "  STDOUT: ~a~n" (port->string stdout #:close? #f)) 
-     (printf "  STDERR: ~a~n" (port->string stderr #:close? #f)) 
+     (printf "Unexpected error: bad response from CVC5.~n")
+     (cond
+       [(not (is-running?))
+        (printf "Worker process closed. Printing remaining data in output ports:~n")
+        ; these will block, hence calling only if the process is closed.
+        (printf "  STDOUT: ~a~n" (port->string stdout #:close? #f)) 
+        (printf "  STDERR: ~a~n" (port->string stderr #:close? #f))]
+       [else
+        (printf "Worker process is still running, but received unexpected respose.~n")])
      (raise-forge-error #:msg (format "Received unexpected response from CVC5: ~a" sat-answer)
                         #:context run-command)]))
   result)
