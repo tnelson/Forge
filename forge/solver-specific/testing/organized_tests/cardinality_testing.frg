@@ -1,0 +1,50 @@
+#lang forge
+
+option backend smtlibtor
+
+option run_sterling off
+
+sig Person {
+    age : one Int,
+    spouse : lone Person
+}
+
+sig Animal {}
+
+pred simple_card_greater {
+    #{Person} > 4
+}
+
+pred simple_card_equal {
+    #{Person} = 4
+}
+
+pred simple_card_less {
+    #{Person} < 4
+}
+
+pred simple_card_leq {
+    #{Person} <= 4
+}
+
+pred simple_card_geq {
+    #{Person} >= 4
+}
+
+pred union_card {
+    #{Person + Animal} > 6 
+}
+
+pred comprehension_card {
+    #{p : Person | p.age > 10} = 2
+}
+
+test expect {
+    simple_greater : {simple_card_greater} is sat
+    simple_equal : {simple_card_equal} is sat
+    simple_less : {simple_card_less} is sat
+    simple_leq : {simple_card_leq} is sat
+    simple_geq : {simple_card_geq} is sat
+    union : {union_card} is sat
+    comprehension : {comprehension_card} is sat
+}

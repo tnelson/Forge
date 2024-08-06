@@ -14,7 +14,7 @@
   (only-in racket index-of match string-join first second rest flatten last drop-right third empty remove-duplicates empty? filter-map member)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract -> ->*))
-  (prefix-in @ (only-in racket/base >= > -)))
+  (prefix-in @ (only-in racket/base >= > - +)))
 
 (provide convert-formula get-new-top-level-strings)
 
@@ -93,7 +93,7 @@
 (define (get-expr-type run-or-state expr quantvars quantvar-types)
  (define quantvar-pairs (map pair->list quantvar-types))
   (define dummy-hash (make-hash))
-  (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))
+  (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (list (car (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))))
   (define top-level-type-list (for/list ([type list-of-types])
     (if (equal? type 'Int) "IntAtom" "Atom")))
   (if (equal? (length quantvar-pairs) 0) (format "Atom") (format "~a" (string-join top-level-type-list " ")))
@@ -102,7 +102,7 @@
 (define (get-k-bounds run-or-state expr quantvars quantvar-types)
   (define quantvar-pairs (map pair->list quantvar-types))
   (define dummy-hash (make-hash))
-  (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))
+  (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (list (car (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))))
   (define top-level-type-list (for/list ([type list-of-types])
     (if (equal? type 'Int) "IntAtom" "Atom")))
   (if (equal? (length quantvar-pairs) 0) (format "(Relation Atom)") (format "(Relation ~a)" (string-join top-level-type-list " ")))
@@ -202,15 +202,23 @@
     [(node/formula/op/in info children)
       (format "(set.subset ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/formula/op/= info children)
-      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
+      (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "=" bounds)
+      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))))]
     [(node/formula/op/! info children)
       (format "(not ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds) ""))]
     [(node/formula/op/int> info children)
-      (format "(> ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t)))]
+      (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
+      (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children ">" bounds)
+      (format "(> ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))))]
     [(node/formula/op/int< info children)
-      (format "(< ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t)))]
+      (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
+      (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "<" bounds)
+      (format "(< ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))))]
     [(node/formula/op/int= info children)
-      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t)))]))
+      (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
+      (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "=" bounds)
+      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -259,7 +267,7 @@
   get-set
 )
 
-(define (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types args bounds processed-form)
+(define (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types processed-form bounds)
   ; This function is used to handle `sing` expressions.
   ; This allows for us to not worry about type mismatches between Int and IntAtom, because 
   ; any Int wrapped in a singleton (aka becoming a (Relation Int)) will now produce a set 
@@ -282,6 +290,53 @@
   (set! new-top-level-strings (append (list new-decl declaration-str) new-top-level-strings))
   (set! new-top-level-strings (append new-top-level-strings (list constraint-str)))
   get-set
+)
+
+(define (flip-op op) 
+  (match op 
+    [">" "<"]
+    ["<" ">"]
+    ["=" "="]
+  )
+)
+
+(define (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children op bounds)
+  ; Ensure that the child that is not a cardinality operator is an int constant.
+  (define int-expr (for/or ([child children] #:when (not (node/int/op/card? child))) child))
+  (define card-expr (for/or ([child children] #:when (node/int/op/card? child)) (car (node/int/op-children child))))
+  (define card-expr-type (list (car (car (expression-type-type (checkExpression run-or-state card-expr quantvar-types (make-hash)))))))
+  (define processed-card-expr (convert-expr run-or-state card-expr relations atom-names quantvars quantvar-types bounds))
+  (define value 0)
+  (if (not (node/int/constant? int-expr))
+    (raise-forge-error #:msg "Cardinality operator must be applied to an integer constant."
+                       #:context formula)                
+    (set! value (node/int/constant-value int-expr))
+  )
+  ; Flip if LHS is the int to make casework simpelr
+  (if (equal? (car children) int-expr) (set! op (flip-op op)) (void))
+  ; modify value to adhere to strictness (since <= >= get desugared)
+  (match op 
+    [">" (set! value (@+ value 1))]
+    ["<" (set! value (@- value 1))]
+    ["=" (set! value value)]
+  )
+  ; build atoms for existential
+  (define type-list (string-join (for/list ([type card-expr-type])
+    (if (equal? type 'Int) "IntAtom" "Atom")) " "))
+  (define atom-list (for/list ([i (in-range value)]) (format "(x_~a ~a)" i type-list)))
+  ; build union of singletons for containment
+  (define union-list (if (equal? (length atom-list) 0) "(as set.empty (Relation Atom))" 
+                         (if (equal? (length atom-list) 1) (format "(set.singleton (tuple x_0))") 
+                         (format "(set.union ~a)" (string-join (for/list ([i (in-range value)]) (format "(set.singleton (tuple x_~a))" i)) " ")))))
+  ; assert each atom is distinct
+  (define distinct-list (if (equal? (length atom-list) 0) "" 
+                          (if (equal? (length atom-list) 1) "" 
+                          (format "(distinct ~a)" (string-join (for/list ([i (in-range value)]) (format "x_~a" i)) " ")))))
+  (match op 
+    ["<" (format "(exists ~a (and (set.subset ~a ~a) ~a))" atom-list processed-card-expr union-list distinct-list)]
+    [">" (format "(exists ~a (and (set.subset ~a ~a) ~a))" atom-list union-list processed-card-expr distinct-list)]
+    ["=" (format "(exists ~a (and (= ~a ~a) ~a))" atom-list processed-card-expr union-list distinct-list)]
+  )
 )
 
 
@@ -415,7 +470,6 @@
     [(node/expr/op/sing info arity children)
       (let ([processed-form (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds #t)])
         (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types processed-form bounds processed-form))]))
-    ;  (format "(set.singleton (tuple ~a))" (string-join (process-children-int run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions
@@ -480,7 +534,8 @@
            (raise-forge-error #:msg "SMT backend does not currently support `sum` over multiple integer values, but could not infer safety." #:context expr)))
     (format "(IntAtom-to-Int (reconcile-int_atom ~a))" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/card info children)
-    (format "(set.card ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+    (let ([processed-form (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " ")])
+    processed-form)]
     [(node/int/op/remainder info children)
      (format "(mod ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/int/op/abs info children)
