@@ -21,7 +21,7 @@ run {
 
   -- TODO in Sterling:
   -- Make sure that Sterling isn't hard-limiting the set Int based on bitwidth 
-  -- all p: Person | p.age > 10
+  all p: Person | p.age > 1000
 }
 -- ^ Bounds are ignored, so we cannot say something like "for exactly 6 Person" here.
 -- Instead, added the p1.age = p2.age constraint.
