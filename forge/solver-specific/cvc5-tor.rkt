@@ -14,7 +14,7 @@
          (prefix-in smt-tor: forge/utils/to-smtlib-tor)
          (prefix-in quant-grounding: forge/utils/quantifier-grounding)
          (prefix-in lazy-tree: forge/lazy-tree)
-         )
+         (for-syntax racket/base))
 
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
@@ -351,63 +351,156 @@
         [else relname]))
 (define EXCLUDE_KEYS '(IntAtom-to-Int))
 
+;;;;;;;;;;;;;;;;;;;;;;
+; Helpers to handle the nested (ite cond truebranch falsebranch) pattern
+; E.g., (ite (= (as @IntAtom_1 IntAtom) $x1) 1 0)
+;;;;;;;;;;;;;;;;;;;;;;
+
+(define (eval-cond COND #:env env)
+  (match COND
+    [(list (quote =) (list (quote as) aid atype) vid)
+     (equal? (hash-ref env vid) aid)]
+    [else (raise-forge-error #:msg (format "unrecognized ite match: ~a" COND)
+                             #:context #f)]))
+
+(define (eval-ite s-expr lookup)
+  ;(printf "eval-ite: ~a~n" s-expr)
+  (define (match-branch-helper VAL)
+    (match VAL
+      [(list (quote ite) C T F) (eval-ite VAL lookup)]
+      [v v]))
+  
+  (match s-expr
+    [(list (quote ite) COND T F)
+     (if (eval-cond COND #:env lookup)
+         (match-branch-helper T)
+         (match-branch-helper F))]
+    [else (raise-forge-error #:msg (format "bad ite: ~a" s-expr)
+                             #:context #f)]))
+
+(define-syntax (ite->lambda stx)
+  (syntax-case stx ()
+    [(_ AWT COND T F)
+     ; We cannot use AWT's value in the macro, because it doesn't exist yet.
+     ; Thus, accept an arbitrary list of arguments and order them after-the-fact.
+     #'(lambda (args)
+         (define lookup (for/hash ([v (map car AWT)]
+                                   [arg args])
+                          (values v arg)))
+         ;(printf "lookup: ~a~n" lookup)
+         (eval-ite (list 'ite COND T F) lookup))]))
+
+
 ; Building this up from running examples, so the cases may be a bit over-specific.
 ; Accept the `run-command` for better syntax-location information if the run fails.
 (define (smtlib-tor-to-instance model-s-expression run-command)
-  (for/fold ([inst (hash)])
-            ([part model-s-expression])
+  (define raw-result
+    (for/fold ([inst (hash)])
+              ([part model-s-expression])
+      ;(printf "s-expr: ~a~n" part)
+      
+      ; Results come as a series of s-expressions ("parts"), each of which defines the 
+      ; value of a specific SMT solver variable. Usually, these define relation-valued 
+      ; functions, but sometimes the functions are Int valued, as in IntAtom-to-Int. These
+      ; may or may not have arguments, in which case the function may or may not be defined
+      ; in if-then-else style. Thus, we have a number of cases to handle.  
+                       
     (define-values (key value)
       (match part
 
+        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ; Relational uninterpreted functions
+        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        
         ; Relational value: empty set
-        [(list (quote define-fun) ID (list) TYPE (list (quote as) (quote set.empty) ATOMTYPE))
+        [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) CODOMAIN (list (quote as) (quote set.empty) ATOMTYPE))
          (values (maybe-rename-id ID) '())]
         
-        ; Constant bindings to atoms: return unary relation of one tuple
-        [(list (quote define-fun) ID (list) TYPE (list (quote as) ATOMID ATOMTYPE))
-         (values (maybe-rename-id ID) (list (list (process-atom-id ATOMID run-command))))]
-
-        ; Uninterpreted function w/ constant value
-        [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE (list (quote as) ATOMID ATOMTYPE))
-         (values (maybe-rename-id ID) (list (list (process-atom-id ATOMID run-command))))]
-
-        ; Uninterpreted function w/ constant value (Integer-valued). E.g.,
-        ; (define-fun IntAtom-to-Int (($x1 IntAtom)) Int 0)
-        ;; TODO: arity will be off, because this is a function, no representation of domain yet
-        [(list (quote define-fun) ID (list ARGS-WITH-TYPES) TYPE VAL)
-         (values (maybe-rename-id ID) (list (list VAL)))]
-        
-        ; Uninterpreted function w/ constant Int value, no parameters; e.g., an Int-valued Skolem function
-        [(list (quote define-fun) ID (list) (quote Int) ATOMID)
-         (values (maybe-rename-id ID) (list (list (process-atom-id ATOMID run-command))))]
-
-        ; Uninterpreted function with if-then-else value (likely a Skolem function)
-        ;; TODO: sending this back empty to avoid blocking development; need to evaluate it properly
-        [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN (list (quote ite) COND T F))
-         (values (maybe-rename-id ID) '())]
-        
+        ; Relational value: singleton (should contain a single tuple)
+        [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) CODOMAIN (list (quote set.singleton) ARG))
+         (values (maybe-rename-id ID) (list (process-tuple ARG run-command)))]
+                
         ; Relational value: union (may contain any number of singletons)
-        ; Because this includes helper functions that are relation-valued, we need to support non-nullary.
-        [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) TYPE (list (quote set.union) ARGS ...))
+        ; This includes relation-valued helper functions, so we need to support arguments.
+        [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) CODOMAIN (list (quote set.union) ARGS ...))
          ; A union may contain an inductive list built from singletons and unions,
          ;   or multiple singletons within a single list. So pre-process unions
          ;   and flatten to get a list of singletons.
          (define singletons (apply append (map (lambda (a) (process-union-arg a run-command)) ARGS)))
          (values (maybe-rename-id ID) (process-singleton-list singletons run-command))]
+
+        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ; Non-relational uninterpreted functions
+        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ; Uninterpreted functions should never be "primary variables" in the Pardinus
+        ; sense, and don't feature directly in an instance. But we must handle them
+        ; because (a) they are part of the result from the solver and (b) some of them
+        ; are used for post-processing (e.g., IntAtom-to-Int).
         
-        ; Relational value: singleton (should contain a single tuple)
-        ; Because this includes helper functions that are relation-valued, we need to support non-nullary.
-        [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) TYPE (list (quote set.singleton) ARG))
-         ; Wrap this tuple, because this is a singleton _set_
-         (values (maybe-rename-id ID) (list (process-tuple ARG run-command)))]
+        ; Function with if-then-else definition
+        [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN (list (quote ite) COND T F))
+         (values (maybe-rename-id ID) (ite->lambda ARGS-WITH-TYPES COND T F))]
+
+        ; Uninterpreted function w/ constant, non-relational value
+        [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) TYPE (list (quote as) ATOMID ATOMTYPE))
+         (values (maybe-rename-id ID) (lambda (args) (process-atom-id ATOMID run-command)))]
+        
+        ; Uninterpreted function with non-relational constant value
+        ; NOTE: this must go last, because of the generic "VAL".
+        [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN VAL)
+         (values (maybe-rename-id ID) (lambda (args) (process-atom-id VAL run-command)))]
         
         ; Catch-all; unknown format
         [else
          (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB: ~a" part)
                             #:context run-command)]))
-    (if (member key EXCLUDE_KEYS)
-        inst
-        (hash-set inst key value))))
+    ; We need IntAtom-to-Int long enough to substitute all references to IntAtoms
+    ; in other relations.
+    (hash-set inst key value)))
+
+  (define keys (hash-keys raw-result))
+
+  ; Substitute out IntAtoms via IntAtom-to-Int
+  (define ia2i (hash-ref raw-result 'IntAtom-to-Int))
+  (printf "ia2i: ~a~n" ia2i)
+
+  (define (mapper inst key)
+    (printf "mapper for key: ~a~n" key)
+    (define initial-tuples (hash-ref inst key))
+    (define renamed-tuples
+      ; for each tuple in the initial instance
+      (for/list ([tup initial-tuples])
+        (printf "processing tuple: ~a~n" tup)
+        (map (lambda (a)
+               (cond [(string-prefix? (symbol->string a) "IntAtom")
+                      (printf "replacing ~a~n" a)
+                      (ia2i (list a))]
+                     [else a])) tup)))
+    (printf "renamed: ~a~n" renamed-tuples)
+    (hash-set inst key renamed-tuples))
+  
+  (define substituted-result
+    (for/fold ([inst raw-result])
+              ([k keys])
+      (define tups (hash-ref inst k))
+      (printf "subst. for ~a~n" k)
+      (printf "tups= ~a~n" tups)
+      ; If this is a non-empty relational variable, substitute out IntAtoms
+      (cond [(and (list? tups) (not (empty? tups)) (list? (first tups))) (mapper inst k)]
+            [else inst])))
+
+  ; Clean up the instance. hash-filter-keys would make this easy, but don't want a
+  ; dependency on Racket 8.12+ yet.
+  ;(hash-filter-keys result (lambda (k) (not (member k EXCLUDE_KEYS))))
+  
+  (for/fold ([inst substituted-result])
+            ([k keys])
+    ; Don't retain any excluded keys, or entries mapping to lambdas
+    (if (or (member k EXCLUDE_KEYS)
+            (procedure? (hash-ref inst k)))
+        (hash-remove inst k)
+        inst)))
 
 ; Return a list containing singletons
 (define (process-union-arg arg run-command)
