@@ -359,12 +359,13 @@
 (define (eval-cond COND #:env env)
   (match COND
     [(list (quote =) (list (quote as) aid atype) vid)
-     (equal? (hash-ref env vid) aid)]
+     ;(printf "     **** eval-cond: ~a ~a ~a~n" (hash-ref env vid) aid (equal? (hash-ref env vid) aid))
+     (equal? (hash-ref env vid) (process-atom-id aid))]
     [else (raise-forge-error #:msg (format "unrecognized ite match: ~a" COND)
                              #:context #f)]))
 
 (define (eval-ite s-expr lookup)
-  ;(printf "eval-ite: ~a~n" s-expr)
+  ;(printf "eval-ite: ~a; ~a~n" s-expr lookup)
   (define (match-branch-helper VAL)
     (match VAL
       [(list (quote ite) C T F) (eval-ite VAL lookup)]
@@ -418,7 +419,7 @@
         
         ; Relational value: singleton (should contain a single tuple)
         [(list (quote define-fun) ID (list VARS_WITH_TYPES ...) CODOMAIN (list (quote set.singleton) ARG))
-         (values (maybe-rename-id ID) (list (process-tuple ARG run-command)))]
+         (values (maybe-rename-id ID) (list (process-tuple ARG)))]
                 
         ; Relational value: union (may contain any number of singletons)
         ; This includes relation-valued helper functions, so we need to support arguments.
@@ -516,24 +517,24 @@
   (match args
     ; a list of singletons (unions should be removed prior)
     [(list (list (quote set.singleton) TUPLES) ...)
-     (map (lambda (t) (process-tuple t run-command)) TUPLES)]
+     (map (lambda (t) (process-tuple t)) TUPLES)]
     [else
      (raise-forge-error #:msg (format "Unsupported response s-expression from SMT-LIB (process-singleton-list): ~a" args)
                         #:context run-command)]))
 
-(define (process-tuple tup run-command)
+(define (process-tuple tup)
   (match tup
     ; Each atom may be an SMT-LIB "qualified identifier" or may be a raw value (e.g., an integer)
     [(list (quote tuple) ATOMS ...)
-     (map (lambda (a) (process-atom a run-command)) ATOMS)]))
-(define (process-atom atom-expr run-command)
+     (map (lambda (a) (process-atom a)) ATOMS)]))
+(define (process-atom atom-expr)
  (match atom-expr
    [(list (quote as) ATOMID ATOMTYPE)
-     (process-atom-id ATOMID run-command)]
+     (process-atom-id ATOMID)]
    [ATOMID
-     (process-atom-id ATOMID run-command)]))
+     (process-atom-id ATOMID)]))
 
-(define (process-atom-id atom-id run-command)
+(define (process-atom-id atom-id)
   (define string-atom-id (format "~a" atom-id))
   (string->symbol
    (string-replace (string-replace string-atom-id "@" "") "_" "$")))
