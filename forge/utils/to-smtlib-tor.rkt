@@ -93,19 +93,19 @@
 (define (get-expr-type run-or-state expr quantvars quantvar-types)
  (define quantvar-pairs (map pair->list quantvar-types))
   (define dummy-hash (make-hash))
-  (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (list (car (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))))
+  (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
   (define top-level-type-list (for/list ([type list-of-types])
     (if (equal? type 'Int) "IntAtom" "Atom")))
-  (if (equal? (length quantvar-pairs) 0) (format "Atom") (format "~a" (string-join top-level-type-list " ")))
+    (format "~a" (string-join top-level-type-list " "))
 )
 
 (define (get-k-bounds run-or-state expr quantvars quantvar-types)
   (define quantvar-pairs (map pair->list quantvar-types))
   (define dummy-hash (make-hash))
-  (define list-of-types (if (equal? (length quantvar-pairs) 0) '() (list (car (car (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))))))
+  (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
   (define top-level-type-list (for/list ([type list-of-types])
     (if (equal? type 'Int) "IntAtom" "Atom")))
-  (if (equal? (length quantvar-pairs) 0) (format "(Relation Atom)") (format "(Relation ~a)" (string-join top-level-type-list " ")))
+  (format "(Relation ~a)" (string-join top-level-type-list " "))
 )
 
 (define (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)
@@ -245,6 +245,7 @@
   ; step 2: split up the decls
   (define decl-vars (map car decls))
   (define decl-types (map cdr decls))
+  (define processed-decl-types (string-join (map (lambda (decl) (convert-expr run-or-state (cdr decl) relations atom-names quantvars quantvar-types bounds)) decls) " "))
   ; step 3: we only want the quantvars that are not declared within the comprehension to be the arguments to the function that returns the set.
   (define argument-vars (filter-map (lambda (var) (if (not (member var decl-vars)) var #f)) quantvars))
   (define argument-types (map (lambda (var) (cdr (assoc var quantvar-types))) argument-vars))
@@ -253,6 +254,8 @@
   (define declaration-str (format "(declare-fun ~a (~a) (Relation ~a))" set-name (string-join (map (lambda (x) (atom-or-int x)) argument-types) " ")
                                                                                  (string-join (map (lambda (x) (atom-or-int x)) decl-types) " ")))
   ; step 5: create the constraints: the equality gives us the IFF, and subset is how we build our new set
+  (define membership-string (format "(and ~a)" (string-join (map (lambda (atom) 
+                                               (format "(set.subset (set.singleton (tuple ~a)) ~a)" atom (convert-expr run-or-state (cdr (assoc atom decls)) relations atom-names quantvars quantvar-types bounds))) decl-vars) " ")))
   (define subset-string (if (equal? (length decl-vars) 1) 
                             (format "(set.singleton (tuple ~a))" (car decl-vars)) 
                             (format "(set.singleton (tuple ~a))" (string-join (map (lambda (x) (format "~a" x)) decl-vars) " "))))
@@ -260,9 +263,13 @@
   (define constraint-args (append decl-vars argument-vars))
   (define constraint-types (append decl-types argument-types))
   (define constraint-pairs (map cons constraint-args constraint-types))
-  (define constraint-str (format "(assert (forall (~a) (= ~a (set.subset ~a ~a))))" 
+  (define constraint-str (format "(assert (forall (~a) (= (and ~a ~a) (set.subset ~a ~a))))" 
                                   (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) constraint-pairs) " ") 
-                                  processed-form subset-string get-set))
+                                  ; first subset is ensuring quantvars are in the decl set
+                                  membership-string
+                                  processed-form 
+                                  ; second subset is ensuring quantvars are in the new set
+                                  subset-string get-set))
   (set! new-top-level-strings (append (list declaration-str constraint-str) new-top-level-strings))
   get-set
 )
@@ -469,7 +476,7 @@
                         #:context info)]
     [(node/expr/op/sing info arity children)
       (let ([processed-form (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds #t)])
-        (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types processed-form bounds processed-form))]))
+        (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types processed-form bounds))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions

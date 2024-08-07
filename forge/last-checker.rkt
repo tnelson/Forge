@@ -380,13 +380,22 @@
 ;(printf "expr: ~a~n" expr)
   (match expr 
     ; extra work done on int - adding 1 to a var
-    [(? node/int?) (expression-type (list (list 'Int)) 'one #f)]
-    [(? integer?) (expression-type (list (list 'Int)) 'one #f)]
+    [(? node/int?) (expression-type (list (list 'Int)) 'one #f (list 'Int))]
+    [(? integer?) (expression-type (list (list 'Int)) 'one #f (list 'Int))]
     ; [_ (let ([output (checkExpression-mult run-or-state expr quantvars checker-hash)])
     ;      (expression-type-type output))]))
     [_ (checkExpression-mult run-or-state expr quantvars checker-hash)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Gets the top levels; i.e. ('Int / 'univ ... arity times)
+(define/contract (get-top-levels type-list)
+  (@-> list? list?)
+  ; should be passing in a list of lists
+  (for/list ([type (car type-list)])
+    (if (equal? type 'Int) 'Int 'univ)
+  )
+)
 
 ; For expressions, this descent does two things:
 ;   - collects possible typings of expressions
@@ -419,7 +428,8 @@
                                               [(and (equal? 1 (node/expr-arity expr))
                                                     (if (Sig? expr) (Sig-one expr) 1)) 'one]
                                               [else 'set])
-                                        isvar)
+                                        isvar
+                                        (get-top-levels (apply cartesian-product (map primifyThis (typelist-thunk)))))
                        '())]
 
     ; atom (base case)
@@ -428,7 +438,7 @@
                        node/expr/atom
                        checker-hash   
                        (expression-type (infer-atom-type run-or-state expr)
-                             'one #f) '())]
+                             'one #f (get-top-levels (infer-atom-type run-or-state expr))) '())]
 
     [(node/expr/fun-spacer info arity name args codomain expanded)
      ; be certain to call the -mult version at the end, or the multiplicity will be thrown away.
@@ -475,7 +485,10 @@
                                                           (member (expression-type-multiplicity c-potentials) '(one lone)))
                                                      'lone
                                                      'set)
-                                                 #f))
+                                                 #f
+                                                 (get-top-levels (remove-duplicates (append (expression-type-type b-potentials)
+                                                                                           (expression-type-type c-potentials))))
+                                                 ))
                          (list b-potentials c-potentials)))]
     
     ; The INT Constant
@@ -484,7 +497,7 @@
                        node/expr/constant
                        checker-hash
                        (expression-type (list (list 'Int))
-                             'set #f) '())]
+                             'set #f (list 'Int)) '())]
 
     ; other expression constants (e.g., univ)
     [(node/expr/constant info arity type)
@@ -494,7 +507,10 @@
                        (expression-type (let ([prims (primify run-or-state 'univ)])
                               (cond [(equal? arity 1) (map list prims)]
                                     [else (cartesian-product prims prims)]))
-                              'set #f) '())]
+                              'set #f
+                              (let ([prims (primify run-or-state 'univ)])
+                              (cond [(equal? arity 1) (get-top-levels (map list prims))]
+                                    [else (get-top-levels (cartesian-product prims prims))]))) '())]
           
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -516,7 +532,9 @@
  It might also mean that the variable domain references the variable itself.\
  For help debugging, the bound variables at this point were: ~a" sym (map car quantvars) )
                                   #:context info))
-                             'one #f)
+                             'one #f
+                             (expression-type-top-level-types (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash))
+                             )
                        ; TODO: technically, this should pass the expression-types of the domains
                        '())]
 
@@ -556,7 +574,7 @@
                            (checkFormula run-or-state subform new-quantvars checker-hash)
                            ; Return type constructed from decls above
                            (expression-type (map flatten (map append (apply cartesian-product child-values)))
-                                 'set #f)))
+                                 'set #f (get-top-levels (map flatten (map append (apply cartesian-product child-values)))))))
                        ; TODO: technically, this should pass the expression types of the domains
                        '())]
 
@@ -632,7 +650,8 @@
               checker-hash
               (expression-type (expression-type-type expression)
                                'set ; TODO: can we re-use the subexpression safely, even if in a different state?
-                               (expression-type-temporal-variance expression)))
+                               (expression-type-temporal-variance expression)
+                               (expression-type-top-level-types expression)))
          (raise-forge-error
           #:msg (format "Prime operator used in non-temporal context")
           #:context expr)))]
@@ -648,7 +667,10 @@
                                                   (map (lambda (x) (expression-type-type x))
                                                        child-types)))
                               'set ; union may produce non-singleton from two singletons
-                              (get-temporal-variance run-or-state expr quantvars args checker-hash))
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                              (get-top-levels (remove-duplicates (apply append
+                                                  (map (lambda (x) (expression-type-type x))
+                                                       child-types)))))
                        child-types)]
 
     
@@ -667,7 +689,8 @@
                          (let ([a-type (first child-types)])
                            (expression-type (expression-type-type a-type)
                                             (expression-type-multiplicity a-type) ; minus can't make a singleton non-singleton
-                                            (get-temporal-variance run-or-state expr quantvars args checker-hash)))
+                                            (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                                            (expression-type-top-level-types a-type)))
                          child-types))]
     
     ; INTERSECTION
@@ -683,7 +706,10 @@
                         (foldl (lambda (x acc) (intersection-multiplicity acc (expression-type-multiplicity x) expr))
                                (expression-type-multiplicity (first sub-results))
                                (rest sub-results))
-                        (get-temporal-variance run-or-state expr quantvars args checker-hash))
+                        (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                        (foldl (lambda (x acc) (keep-only (expression-type-top-level-types x) acc))
+                               (expression-type-top-level-types (first sub-results))
+                               (rest sub-results)))
                        sub-results)]
     
     ; PRODUCT
@@ -698,7 +724,8 @@
                          (expression-type  
                           result
                           (if all-singleton 'one 'set) ; TODO: very coarse
-                          (get-temporal-variance run-or-state expr quantvars args checker-hash)))
+                          (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                          (get-top-levels result)))
                        child-types)]
    
     ; JOIN
@@ -734,7 +761,8 @@
                          (expression-type
                             join-result
                             join-multip
-                            (get-temporal-variance run-or-state expr quantvars args checker-hash)))
+                            (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                            (get-top-levels join-result)))
                        child-types)]
     
     ; TRANSITIVE CLOSURE
@@ -746,7 +774,9 @@
                        (expression-type (let* ([child-values (map (lambda (x) (expression-type-type x)) child-types)])     
                                (check-closure (first child-values)))
                               'set ; TODO
-                              (get-temporal-variance run-or-state expr quantvars args checker-hash)))]
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                              (let* ([child-values (map (lambda (x) (expression-type-type x)) child-types)])    
+                              (get-top-levels (check-closure (first child-values))))))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
@@ -758,7 +788,9 @@
                        (expression-type (let ([prims (primify run-or-state 'univ)])
                               (cartesian-product prims prims))
                               'set ; TODO
-                              (get-temporal-variance run-or-state expr quantvars args checker-hash))
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                              (let ([prims (primify run-or-state 'univ)])
+                              (get-top-levels (cartesian-product prims prims))))
                        child-types)]
 
     ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
@@ -769,7 +801,9 @@
                        checker-hash
                        (expression-type (map reverse (expression-type-type (first child-types)))
                               'set ; TODO
-                              (get-temporal-variance run-or-state expr quantvars args checker-hash))
+                              (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                              (get-top-levels (map reverse (expression-type-type (first child-types))))
+                              )
                        child-types)]
     
 
@@ -800,7 +834,8 @@
          ; ++ has a maximum of two arguments so this should get everything
          (expression-type (remove-duplicates (append left-tuples right-tuples))
                 'set ; TODO
-                (get-temporal-variance run-or-state expr quantvars args checker-hash))))]
+                (get-temporal-variance run-or-state expr quantvars args checker-hash)
+                (get-top-levels (remove-duplicates (append left-tuples right-tuples))))))]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
@@ -810,7 +845,7 @@
                        node/expr/op/sing
                        checker-hash
                        (expression-type (list (list 'Int)) 'one
-                        (get-temporal-variance run-or-state expr quantvars args checker-hash))
+                        (get-temporal-variance run-or-state expr quantvars args checker-hash) (list 'Int))
                        #f)])) 
   RESULT)
 

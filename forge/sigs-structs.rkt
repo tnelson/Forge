@@ -158,6 +158,7 @@
   [type (listof (listof symbol?))]
   [multiplicity (or/c 'set 'lone 'one 'no 'func 'pfunc)]
   [temporal-variance (or/c boolean? string?)]
+  [top-level-types (listof (or/c 'Int 'univ))]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

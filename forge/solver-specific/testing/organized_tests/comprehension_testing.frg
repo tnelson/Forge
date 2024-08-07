@@ -2,6 +2,8 @@
 
 option backend smtlibtor
 
+option verbosity 10
+
 sig Person {
     parents : set Person,
     siblings : set Person,
@@ -30,6 +32,6 @@ pred int_comp {
 test expect {
     outside : {outside_quant} is sat   
     inside: {inside_quant} is sat
-    arity_2: {arity_2_comp} is sat
+    arity_2: {arity_2_comp and some mapping} is sat
     int: {int_comp} is sat
 }

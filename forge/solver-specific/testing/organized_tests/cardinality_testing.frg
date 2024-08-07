@@ -31,6 +31,14 @@ pred simple_card_geq {
     #{Person} >= 4
 }
 
+pred int_on_left_greater {
+    4 > #{Person}
+}
+
+pred int_on_left_less {
+    4 < #{Person}
+}
+
 pred union_card {
     #{Person + Animal} > 6 
 }
@@ -45,6 +53,8 @@ test expect {
     simple_less : {simple_card_less} is sat
     simple_leq : {simple_card_leq} is sat
     simple_geq : {simple_card_geq} is sat
+    left_greater : {int_on_left_greater} is sat
+    left_less : {int_on_left_less} is sat
     union : {union_card} is sat
     comprehension : {comprehension_card} is sat
 }
