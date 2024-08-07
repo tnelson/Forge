@@ -242,8 +242,9 @@
      "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"
      "(define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))"
      "(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))"
-     "(declare-fun univInt () (Relation Int))"
-     "(assert (= univInt (as set.universe (Relation Int))))"))
+     "(declare-fun univInt () (Relation IntAtom))"
+     ; IntAtom, because those are what appear in sets. Just Int could end up empty.
+     "(assert (= univInt (as set.universe (Relation IntAtom))))"))
   (define preamble-str (format "(reset)~n(declare-sort Atom 0)~n(declare-sort IntAtom 0)~n(declare-fun IntAtom-to-Int (IntAtom) Int)~n~a~n"
                                (string-join defined-funs "\n")))
 

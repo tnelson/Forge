@@ -1,7 +1,7 @@
 #lang forge
 
 option backend smtlibtor
-option verbose 2
+option verbose 3
 
 sig Person {
     -- changed; seemed to not terminate otherwise? 
