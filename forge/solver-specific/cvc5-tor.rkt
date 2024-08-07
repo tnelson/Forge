@@ -369,6 +369,7 @@
   (define (match-branch-helper VAL)
     (match VAL
       [(list (quote ite) C T F) (eval-ite VAL lookup)]
+      [(list (quote -) v) (@- v)]
       [v v]))
   
   (match s-expr
