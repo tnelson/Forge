@@ -53,14 +53,14 @@
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
        ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['one (format "(and (forall ((x1 ~a) (x2 ~a)) (=> (and (set.subset (set.singleton (tuple x1)) ~a) (set.subset (set.singleton (tuple x2)) ~a)) (= x1 x2))) (exists ((x1 ~a)) (set.subset (set.singleton (tuple x1)) ~a)))"
-              (get-expr-type run-or-state expr quantvars quantvar-types)
-              (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr processed-expr
-              (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr)]
+        ; ['one (format "(and (forall ((x1 ~a) (x2 ~a)) (=> (and (set.subset (set.singleton (tuple x1)) ~a) (set.subset (set.singleton (tuple x2)) ~a)) (= x1 x2))) (exists ((x1 ~a)) (set.subset (set.singleton (tuple x1)) ~a)))"
+        ;       (get-expr-type run-or-state expr quantvars quantvar-types)
+        ;       (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr processed-expr
+        ;       (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr)]
+        ['one (format "(and ~a ~a)" (format-one-forall run-or-state expr quantvars quantvar-types processed-expr)
+                                     (format-one-exists run-or-state expr quantvars quantvar-types processed-expr))]
         ['some (format "(not (= (as set.empty ~a) ~a))"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['lone (format "(forall ((x1 ~a) (x2 ~a)) (=> (and (set.subset (set.singleton (tuple x1)) ~a) (set.subset (set.singleton (tuple x2)) ~a)) (= x1 x2)))"
-              (get-expr-type run-or-state expr quantvars quantvar-types)
-              (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr processed-expr)]
+        ['lone (format-one-forall run-or-state expr quantvars quantvar-types processed-expr)]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
     [(node/formula/quantified info quantifier decls form)
 
@@ -90,10 +90,49 @@
 
 (define (pair->list p) (list (car p) (cdr p)))
 
+(define (format-one-forall run-or-state expr quantvars quantvar-types processed-expr)
+  (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-types (make-hash))))
+  (define new-quantvars (for/list ([i (in-range (@+ (length list-of-types) (length list-of-types)))])
+    (format "x_~a" i)))
+  (define new-decls (for/list ([var new-quantvars] [type (append list-of-types list-of-types)])
+    (format "(~a ~a)" var (if (equal? type 'Int) "IntAtom" "Atom"))))
+  (define subset-constraints-first
+    (format "(set.subset (set.singleton (tuple ~a)) ~a)" 
+      (string-join 
+        (for/list ([i (in-range (length list-of-types))])
+          (format "~a" (list-ref new-quantvars i))) 
+      " ") 
+      processed-expr))
+  (define subset-constraints-second
+    (format "(set.subset (set.singleton (tuple ~a)) ~a)" 
+      (string-join 
+        (for/list ([i (in-range (length list-of-types))])
+          (format "~a" (list-ref new-quantvars (@+ i (length list-of-types))))) 
+      " ") 
+      processed-expr))
+  (define pairwise-equality-constraints 
+    (string-join (for/list ([i (in-range (length list-of-types))])
+      (format "(= ~a ~a)" 
+        (list-ref new-quantvars i) 
+        (list-ref new-quantvars (@+ i (length list-of-types))))) " ")
+  )
+  (format "(forall ~a (=> (and ~a ~a) (and ~a)))" new-decls subset-constraints-first subset-constraints-second pairwise-equality-constraints)
+)
+
+(define (format-one-exists run-or-state expr quantvars quantvar-types processed-expr)
+  (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-types (make-hash))))
+  (define new-quantvars (for/list ([i (in-range (length list-of-types))]) (format "x_~a" i)))
+  (define new-decls (for/list ([var new-quantvars] [type list-of-types]) (format "(~a ~a)" var (if (equal? type 'Int) "IntAtom" "Atom"))))
+  (define subset-constraint (format "(set.subset (set.singleton (tuple ~a)) ~a)" (string-join new-quantvars " ") processed-expr))
+  (format "(exists ~a ~a)" new-decls subset-constraint)
+)
+
 (define (get-expr-type run-or-state expr quantvars quantvar-types)
  (define quantvar-pairs (map pair->list quantvar-types))
   (define dummy-hash (make-hash))
+  (printf "expr: ~a~n" expr)
   (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
+  (printf "list-of-types: ~a~n" list-of-types)
   (define top-level-type-list (for/list ([type list-of-types])
     (if (equal? type 'Int) "IntAtom" "Atom")))
     (format "~a" (string-join top-level-type-list " "))
@@ -106,24 +145,6 @@
   (define top-level-type-list (for/list ([type list-of-types])
     (if (equal? type 'Int) "IntAtom" "Atom")))
   (format "(Relation ~a)" (string-join top-level-type-list " "))
-)
-
-(define (format-one run-or-state expr quantvars quantvar-types processed-expr bounds)
-  (define quantvar-pairs (map (pair->list quantvar-types)))
-  (define dummy-hash (make-hash))
-  (define list-of-types (expression-type-type (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
-  (define nested-atoms-to-use (for/list ([bound bounds])
-    (for/list ([type-union list-of-types])
-      (for/list ([type type-union] #:when (and (not (equal? type 'Int)) (equal? (symbol->string type) (relation-name (bound-relation bound)))))
-          (bound-upper bound)
-      )
-    )
-  ))
-  (define atoms-to-use (flatten nested-atoms-to-use))
-  (if (equal? (length atoms-to-use) 0)
-    (format "true")
-    (format "(or ~a)" (string-join (map (lambda (x) (format "(= ~a (set.singleton (tuple ~a)))" processed-expr x)) atoms-to-use) " "))
-  )
 )
 
 (define (process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds [int-ctxt #f])
@@ -311,7 +332,10 @@
   ; Ensure that the child that is not a cardinality operator is an int constant.
   (define int-expr (for/or ([child children] #:when (not (node/int/op/card? child))) child))
   (define card-expr (for/or ([child children] #:when (node/int/op/card? child)) (car (node/int/op-children child))))
-  (define card-expr-type (list (car (car (expression-type-type (checkExpression run-or-state card-expr quantvar-types (make-hash)))))))
+  (printf "quantvars: ~a~n" quantvars)
+  (printf "quantvar-types: ~a~n" quantvar-types)
+  (printf "card-expr: ~a~n" card-expr)
+  (define card-expr-type (expression-type-top-level-types (checkExpression run-or-state card-expr quantvar-types (make-hash))))
   (define processed-card-expr (convert-expr run-or-state card-expr relations atom-names quantvars quantvar-types bounds))
   (define value 0)
   (if (not (node/int/constant? int-expr))

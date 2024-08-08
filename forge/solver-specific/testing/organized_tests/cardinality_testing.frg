@@ -46,6 +46,10 @@ pred comprehension_card {
     #{p : Person | p.age > 10} = 2
 }
 
+pred testing_quick {
+    one parent
+}
+
 pred quantified_card {
     all p : Person | #{q : Person | q.age = p.age} = 1
 }
@@ -64,6 +68,7 @@ test expect {
     left_less : {int_on_left_less} is sat
     union : {union_card} is sat
     comprehension : {comprehension_card} is sat
+    quick : {testing_quick} is sat
     quantified : {quantified_card} is sat
     no_excess : {no_excess_quantified_card} is sat
 }

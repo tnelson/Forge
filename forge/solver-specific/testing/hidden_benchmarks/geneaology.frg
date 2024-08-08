@@ -70,12 +70,12 @@ pred NoIncest {
     }
 
 pred model_facts {
-    Bible
+    Bible and Biology and SocialNorms and NoIncest
 }
 
 pred Show {
     some p: Person | (p in (Person - (Adam + Eve))) and some p.spouse
-    }
+}
     
 pred prop {
 	!Show
