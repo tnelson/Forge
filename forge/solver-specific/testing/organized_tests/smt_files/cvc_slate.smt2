@@ -5,6 +5,8 @@
 (define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))
 (define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))
 (assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))
+(declare-fun univInt () (Relation IntAtom))
+(assert (= univInt (as set.universe (Relation IntAtom))))
 
 
 (declare-fun Person () (Relation Atom))
@@ -46,9 +48,9 @@
 
 
 
-(declare-fun g15800 (Atom) (Relation Atom Atom))
-(assert (forall ((father Atom) (mother Atom) (p Atom)) (= (= (rel.join (set.singleton (tuple p)) parents) (set.union (set.singleton (tuple mother)) (set.singleton (tuple father)))) (set.subset (set.singleton (tuple father mother)) (g15800 p)))))
-(assert (not (or (not (forall ((p Atom)) (=> (and (set.member (tuple p) Person)) (or (not (set.subset (set.singleton (tuple p)) Person)) (and (forall ((x1 Atom) (x2 Atom)) (=> (and (set.subset (set.singleton (tuple x1)) (g15800 p)) (set.subset (set.singleton (tuple x2)) (g15800 p))) (= x1 x2))) (exists ((x1 Atom)) (set.subset (set.singleton (tuple x1)) (g15800 p)))))))) (not (exists ((p Atom)) (and (and (set.member (tuple p) Person)) (and (set.subset (set.singleton (tuple p)) (set.minus Person (set.union Adam Eve))) (not (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple p)) spouse))))))))))
+(declare-fun g18954 (Atom) (Relation Atom Atom))
+(assert (forall ((father Atom) (mother Atom) (p Atom)) (= (and (and (set.subset (set.singleton (tuple father)) Man) (set.subset (set.singleton (tuple mother)) Woman)) (= (rel.join (set.singleton (tuple p)) parents) (set.union (set.singleton (tuple mother)) (set.singleton (tuple father))))) (set.subset (set.singleton (tuple father mother)) (g18954 p)))))
+(assert (not (or (not (forall ((p Atom)) (=> (and (set.member (tuple p) Person)) (or (not (set.subset (set.singleton (tuple p)) Person)) (and (forall ((x1 Atom Atom) (x2 Atom Atom)) (=> (and (set.subset (set.singleton (tuple x1)) (g18954 p)) (set.subset (set.singleton (tuple x2)) (g18954 p))) (= x1 x2))) (exists ((x1 Atom Atom)) (set.subset (set.singleton (tuple x1)) (g18954 p)))))))) (not (exists ((p Atom)) (and (and (set.member (tuple p) Person)) (and (set.subset (set.singleton (tuple p)) (set.minus Person (set.union Adam Eve))) (not (= (as set.empty (Relation Atom)) (rel.join (set.singleton (tuple p)) spouse))))))))))
 (assert (set.subset succ (rel.product (as set.universe (Relation IntAtom)) (as set.universe (Relation IntAtom)))))
 (assert (set.subset spouse (rel.product Person Person)))
 (assert (set.subset parents (rel.product Person Person)))
@@ -56,6 +58,6 @@
 (assert (= (as set.empty (Relation Atom)) (set.inter Man Woman)))
 (assert (set.subset Adam Man))
 (assert (set.subset Eve Woman))
-(assert (forall ((pfunc15799 Atom)) (=> (and (set.member (tuple pfunc15799) Person)) (forall ((x1 Atom) (x2 Atom)) (=> (and (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc15799)) spouse)) (set.subset (set.singleton (tuple x2)) (rel.join (set.singleton (tuple pfunc15799)) spouse))) (= x1 x2))))))
+(assert (forall ((pfunc18953 Atom)) (=> (and (set.member (tuple pfunc18953) Person)) (forall ((x1 Atom) (x2 Atom)) (=> (and (set.subset (set.singleton (tuple x1)) (rel.join (set.singleton (tuple pfunc18953)) spouse)) (set.subset (set.singleton (tuple x2)) (rel.join (set.singleton (tuple pfunc18953)) spouse))) (= x1 x2))))))
 (check-sat)
 (get-model)

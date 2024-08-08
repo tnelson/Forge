@@ -2,8 +2,6 @@
 
 option backend smtlibtor
 
-option verbosity 10
-
 sig Person {
     parents : set Person,
     siblings : set Person,

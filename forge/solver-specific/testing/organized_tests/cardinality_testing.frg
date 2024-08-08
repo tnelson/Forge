@@ -6,7 +6,7 @@ option run_sterling off
 
 sig Person {
     age : one Int,
-    spouse : lone Person
+    parent : set Person
 }
 
 sig Animal {}
@@ -47,6 +47,14 @@ pred comprehension_card {
     #{p : Person | p.age > 10} = 2
 }
 
+pred quantified_card {
+    all p : Person | #{q : Person | q.age = p.age} = 1
+}
+
+pred no_excess_quantified_card {
+    all p : Person | #{p.parent} = 2
+}
+
 test expect {
     simple_greater : {simple_card_greater} is sat
     simple_equal : {simple_card_equal} is sat
@@ -57,4 +65,6 @@ test expect {
     left_less : {int_on_left_less} is sat
     union : {union_card} is sat
     comprehension : {comprehension_card} is sat
+    quantified : {quantified_card} is sat
+    no_excess : {no_excess_quantified_card} is sat
 }
