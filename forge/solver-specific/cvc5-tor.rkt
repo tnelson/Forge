@@ -466,29 +466,24 @@
 
   ; Substitute out IntAtoms via IntAtom-to-Int
   (define ia2i (hash-ref raw-result 'IntAtom-to-Int))
-  (printf "ia2i: ~a~n" ia2i)
 
   (define (mapper inst key)
-    (printf "mapper for key: ~a~n" key)
     (define initial-tuples (hash-ref inst key))
     (define renamed-tuples
       ; for each tuple in the initial instance
       (for/list ([tup initial-tuples])
-        (printf "processing tuple: ~a~n" tup)
+        ;(printf "processing tuple: ~a~n" tup)
         (map (lambda (a)
                (cond [(string-prefix? (symbol->string a) "IntAtom")
-                      (printf "replacing ~a~n" a)
                       (ia2i (list a))]
                      [else a])) tup)))
-    (printf "renamed: ~a~n" renamed-tuples)
+    ;(printf "renamed: ~a~n" renamed-tuples)
     (hash-set inst key renamed-tuples))
   
   (define substituted-result
     (for/fold ([inst raw-result])
               ([k keys])
       (define tups (hash-ref inst k))
-      (printf "subst. for ~a~n" k)
-      (printf "tups= ~a~n" tups)
       ; If this is a non-empty relational variable, substitute out IntAtoms
       (cond [(and (list? tups) (not (empty? tups)) (list? (first tups))) (mapper inst k)]
             [else inst])))
