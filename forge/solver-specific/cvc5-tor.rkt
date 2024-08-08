@@ -447,12 +447,12 @@
 
         ; Uninterpreted function w/ constant, non-relational value
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) TYPE (list (quote as) ATOMID ATOMTYPE))
-         (values (maybe-rename-id ID) (lambda (args) (process-atom-id ATOMID run-command)))]
+         (values (maybe-rename-id ID) (lambda (args) (process-atom-id ATOMID)))]
         
         ; Uninterpreted function with non-relational constant value
         ; NOTE: this must go last, because of the generic "VAL".
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN VAL)
-         (values (maybe-rename-id ID) (lambda (args) (process-atom-id VAL run-command)))]
+         (values (maybe-rename-id ID) (lambda (args) (process-atom-id VAL)))]
         
         ; Catch-all; unknown format
         [else
