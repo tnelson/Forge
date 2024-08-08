@@ -1,7 +1,6 @@
 #lang forge
 
 option backend smtlibtor
-
 option run_sterling off
 
 sig Person {

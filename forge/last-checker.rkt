@@ -53,7 +53,7 @@
        (or/c boolean? void? (listof (listof symbol?))))
 
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
-    (printf "last-checker: checkFormula: ~a~n" formula))
+    (printf "last-checker: checkFormula: ~a; quantvars: ~a~n" formula quantvars))
   
   (match formula    
     [(node/formula/constant info type)
@@ -129,6 +129,10 @@
      (checkFormula run-or-state info quantvars)]
     [else (error (format "no matching case in checkFormula for ~a" (deparse formula)))]))
 
+; This should probably be called "decl->list"; it's really _de_-associfying since
+; an association list is a list of (car cdr) pairs. But "assoc" works with "car", so
+; it seems to function to retrieve the entry even if the inner elements are lists,
+; not pairs. 
 (define (assocify a-pair)  
   (list (car a-pair) (cdr a-pair)))
 
@@ -358,6 +362,11 @@
               (dfs-sigs-helper next-list new-acc)])]))
     (dfs-sigs-helper sigs init-acc)) ; maybe take in initial accumulator as well for more flexibility
 
+; Be robust to callers who pass quantifier-vars as either (var . domain) or as '(var domain).
+(define (second/safe list-or-pair)
+  (cond [(list? list-or-pair) (second list-or-pair)]
+        [else (cdr list-or-pair)]))
+
 (define (deprimify run-or-state primsigs)
   (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
     (cond
@@ -525,7 +534,7 @@
                        checker-hash
                        ; Look up in quantvars association list, type is type of domain
                        (expression-type (if (assoc expr quantvars) ; expr, not sym (decls are over var nodes)
-                                 (expression-type-type (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash))
+                                 (expression-type-type (checkExpression run-or-state (second/safe (assoc expr quantvars)) quantvars checker-hash))
                                  (raise-forge-error
                                   #:msg (format "Variable ~a used, but it was unbound at this point.\
  Often, this means that a sig, field, or helper name is being used as a quantifier variable.\
@@ -533,7 +542,7 @@
  For help debugging, the bound variables at this point were: ~a" sym (map car quantvars) )
                                   #:context info))
                              'one #f
-                             (expression-type-top-level-types (checkExpression run-or-state (second (assoc expr quantvars)) quantvars checker-hash))
+                             (expression-type-top-level-types (checkExpression run-or-state (second/safe (assoc expr quantvars)) quantvars checker-hash))
                              )
                        ; TODO: technically, this should pass the expression-types of the domains
                        '())]

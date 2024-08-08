@@ -433,18 +433,22 @@
          (values (maybe-rename-id ID) (process-singleton-list singletons run-command))]
 
         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ; Uninterpreted functions that might be either relational or not
+        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+        ; Function with if-then-else definition. This may be relational or non-relational.
+        [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN (list (quote ite) COND T F))
+         (values (maybe-rename-id ID) (ite->lambda ARGS-WITH-TYPES COND T F))]
+        
+        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
         ; Non-relational uninterpreted functions
         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-        ; Uninterpreted functions should never be "primary variables" in the Pardinus
+        ; Non-relational UFs should never be "primary variables" in the Pardinus
         ; sense, and don't feature directly in an instance. But we must handle them
         ; because (a) they are part of the result from the solver and (b) some of them
         ; are used for post-processing (e.g., IntAtom-to-Int).
         
-        ; Function with if-then-else definition
-        [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) CODOMAIN (list (quote ite) COND T F))
-         (values (maybe-rename-id ID) (ite->lambda ARGS-WITH-TYPES COND T F))]
-
         ; Uninterpreted function w/ constant, non-relational value
         [(list (quote define-fun) ID (list ARGS-WITH-TYPES ...) TYPE (list (quote as) ATOMID ATOMTYPE))
          (values (maybe-rename-id ID) (lambda (args) (process-atom-id ATOMID)))]

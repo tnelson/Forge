@@ -250,7 +250,7 @@
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont "))")]
     [(? node/expr/op/~?)
-     (print-cmd-cont "(~a " '~) ;WHY IS THIS ONE DIFFERENT
+     (print-cmd-cont "(~a " '~) ; Likely '~ added this way because ~ would need to be escaped 
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont ")")]
     [(? node/expr/op/++?)

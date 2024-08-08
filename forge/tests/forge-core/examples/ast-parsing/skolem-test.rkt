@@ -24,6 +24,9 @@
               #:options (forge:State-options empty-run-state)))
   (is-unsat? equiv-check-run))
 
+;(define/contract (interpret-formula run-spec total-bounds formula relations atom-names
+;                                    quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f]) 
+
 (define first_pred quants)
 (define-values (skolemized-fmla bounds) (interpret-formula run-statement first_pred '() '() '() '()))
 (printf "skolemized-fmla: ~a\n" skolemized-fmla)
