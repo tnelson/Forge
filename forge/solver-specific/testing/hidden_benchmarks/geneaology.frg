@@ -47,9 +47,9 @@ pred Bible {
         one mother: Woman, father: Man |
             p.parents = mother + father}
     -- Adam and Eve have no parents
-    // no (Adam + Eve).parents
+    no (Adam + Eve).parents
     -- Adam's spouse is Eve
-    // Adam.spouse = Eve
+    Adam.spouse = Eve
     }
 
 pred SocialNorms {
