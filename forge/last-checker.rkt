@@ -7,7 +7,7 @@
   forge/shared
   racket/syntax
   syntax/srcloc
-  (prefix-in @ (only-in racket -> >= - >))
+  (prefix-in @ (only-in racket -> >= - > ->*))
   racket/list
   racket/match
   (only-in racket/string string-join)
@@ -268,15 +268,17 @@
 
 ; Turn signame into list of all primsigs it contains
 ; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
-(define/contract (primify run-or-state raw-signame)
-  (@-> (or/c Run? State? Run-spec?) (or/c symbol? string?) (listof symbol?))  
+(define/contract (primify run-or-state raw-signame [univ-no-int #f])
+  (@->* ((or/c Run? State? Run-spec?) (or/c symbol? string?)) (boolean?) (listof symbol?))  
   (let ([signame (cond [(string? raw-signame) (string->symbol raw-signame)]
                        [(Sig? raw-signame) (Sig-name raw-signame)]
                        [else raw-signame])])
     (cond [(equal? 'Int signame)           
            '(Int)]
-          [(equal? 'univ signame)           
-           (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int (map Sig-name (get-sigs run-or-state))))))]
+          [(equal? 'univ signame)
+           (if univ-no-int       
+           (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (remove 'Int (map Sig-name (get-sigs run-or-state))))))  
+           (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int (map Sig-name (get-sigs run-or-state)))))))]
           [else           
            (define the-sig (get-sig run-or-state signame))
            (define all-primitive-descendants
@@ -743,7 +745,8 @@
      (check-and-output expr
                        node/expr/op/join
                        checker-hash
-                       (let* ([join-result (check-join (map expression-type-type child-types))])
+                       (let* ([join-result (check-join (map expression-type-type child-types))]
+                              [join-top-level (check-join (map (lambda (x) (list (expression-type-top-level-types x))) child-types))])
                          (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
                            (when (empty? join-result)
                             (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
@@ -771,7 +774,7 @@
                             join-result
                             join-multip
                             (get-temporal-variance run-or-state expr quantvars args checker-hash)
-                            (get-top-levels join-result)))
+                            (get-top-levels join-top-level)))
                        child-types)]
     
     ; TRANSITIVE CLOSURE
@@ -790,6 +793,7 @@
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
+     (define univ-no-int (if (member (get-option (get-run-spec run-or-state) 'backend) UNBOUNDED_INT_BACKENDS) #t #f))
      (check-and-output expr
                        node/expr/op/*
                        checker-hash
@@ -798,7 +802,7 @@
                               (cartesian-product prims prims))
                               'set ; TODO
                               (get-temporal-variance run-or-state expr quantvars args checker-hash)
-                              (let ([prims (primify run-or-state 'univ)])
+                              (let ([prims (primify run-or-state 'univ univ-no-int)])
                               (get-top-levels (cartesian-product prims prims))))
                        child-types)]
 

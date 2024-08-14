@@ -58,6 +58,34 @@ pred no_excess_quantified_card {
     all p : Person | #{p.parent} = 2
 }
 
+pred less_than_1 { 
+    all p : Person | #{p.parent} < 1
+}
+
+pred equal_zero {
+    all p : Person | #{p.parent} = 0
+}
+
+pred less_than_zero {
+    all p : Person | #{p.parent} < 0
+}
+
+pred equal_negative {
+    all p : Person | #{p.parent} = -1
+}
+
+pred greater_than_negative {
+    all p : Person | #{p.parent} > -1
+}
+
+pred greater_than_smaller_negative {
+    all p : Person | #{p.parent} > -5
+}
+
+pred less_than_negative {
+    all p : Person | #{p.parent} < -3
+}
+
 test expect {
     simple_greater : {simple_card_greater} is sat
     simple_equal : {simple_card_equal} is sat
@@ -71,4 +99,11 @@ test expect {
     quick : {testing_quick} is sat
     quantified : {quantified_card} is sat
     no_excess : {no_excess_quantified_card} is sat
+    zero_1 : {less_than_1} is sat
+    zero_2 : {equal_zero} is sat
+    neg_1 : {less_than_zero} is forge_error
+    neg_2 : {equal_negative} is forge_error
+    neg_3 : {greater_than_negative} is sat
+    neg_4 : {greater_than_smaller_negative} is sat
+    neg_5 : {less_than_negative} is forge_error
 }

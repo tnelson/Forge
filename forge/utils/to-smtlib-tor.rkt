@@ -14,7 +14,7 @@
   (only-in racket index-of match string-join first second rest flatten last drop-right third empty remove-duplicates empty? filter-map member)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract -> ->*))
-  (prefix-in @ (only-in racket/base >= > - +)))
+  (prefix-in @ (only-in racket/base >= > - + <)))
 
 (provide convert-formula get-new-top-level-strings)
 
@@ -332,9 +332,6 @@
   ; Ensure that the child that is not a cardinality operator is an int constant.
   (define int-expr (for/or ([child children] #:when (not (node/int/op/card? child))) child))
   (define card-expr (for/or ([child children] #:when (node/int/op/card? child)) (car (node/int/op-children child))))
-  (printf "quantvars: ~a~n" quantvars)
-  (printf "quantvar-types: ~a~n" quantvar-types)
-  (printf "card-expr: ~a~n" card-expr)
   (define card-expr-type (expression-type-top-level-types (checkExpression run-or-state card-expr quantvar-types (make-hash))))
   (define processed-card-expr (convert-expr run-or-state card-expr relations atom-names quantvars quantvar-types bounds))
   (define value 0)
@@ -351,6 +348,11 @@
     ["<" (set! value (@- value 1))]
     ["=" (set! value value)]
   )
+  (if (and (@< value 0) (not (equal? op ">")))
+    (raise-forge-error #:msg "Cardinality operator must be applied to a non-negative integer constant."
+                       #:context formula) 
+    (set! value 0) ; case where we have > negative... should set to 0 so we dont try to construct list of negative len
+  )
   ; build atoms for existential
   (define type-list (string-join (for/list ([type card-expr-type])
     (if (equal? type 'Int) "IntAtom" "Atom")) " "))
@@ -360,14 +362,15 @@
                          (if (equal? (length atom-list) 1) (format "(set.singleton (tuple x_0))") 
                          (format "(set.union ~a)" (string-join (for/list ([i (in-range value)]) (format "(set.singleton (tuple x_~a))" i)) " ")))))
   ; assert each atom is distinct
-  (define distinct-list (if (equal? (length atom-list) 0) "" 
-                          (if (equal? (length atom-list) 1) "" 
+  (define distinct-list (if (equal? (length atom-list) 0) "true" 
+                          (if (equal? (length atom-list) 1) "true" 
                           (format "(distinct ~a)" (string-join (for/list ([i (in-range value)]) (format "x_~a" i)) " ")))))
+  (if (equal? value 0) (format "(= ~a ~a)" union-list processed-card-expr) 
   (match op 
     ["<" (format "(exists ~a (and (set.subset ~a ~a) ~a))" atom-list processed-card-expr union-list distinct-list)]
     [">" (format "(exists ~a (and (set.subset ~a ~a) ~a))" atom-list union-list processed-card-expr distinct-list)]
     ["=" (format "(exists ~a (and (= ~a ~a) ~a))" atom-list processed-card-expr union-list distinct-list)]
-  )
+  ))
 )
 
 
@@ -496,8 +499,18 @@
     [(node/expr/op/~ info arity children)
      (format "(rel.transpose ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
     [(node/expr/op/++ info arity children)
-     (raise-forge-error #:msg "Relational update currently unsupported by SMT-LIB translation in Forge."
-                        #:context info)]
+      ; R 
+      (define R (first children))
+      (define k_u (node/expr/op-children (second children)))
+      (define k (first k_u))
+      (define u (second k_u))
+      (define R_codomain (get-expr-type run-or-state u quantvars quantvar-types))
+      (format "(set.union (set.minus ~a (rel.product ~a (as set.universe (Relation ~a)))) (rel.product ~a ~a))" 
+            (convert-expr run-or-state R relations atom-names quantvars quantvar-types bounds)
+            (convert-expr run-or-state k relations atom-names quantvars quantvar-types bounds)
+            R_codomain
+            (convert-expr run-or-state k relations atom-names quantvars quantvar-types bounds)
+            (convert-expr run-or-state u relations atom-names quantvars quantvar-types bounds))]
     [(node/expr/op/sing info arity children)
       (let ([processed-form (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds #t)])
         (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types processed-form bounds))]))
