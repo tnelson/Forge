@@ -348,11 +348,10 @@
     ["<" (set! value (@- value 1))]
     ["=" (set! value value)]
   )
-  (if (and (@< value 0) (not (equal? op ">")))
-    (raise-forge-error #:msg "Cardinality operator must be applied to a non-negative integer constant."
-                       #:context formula) 
-    (set! value 0) ; case where we have > negative... should set to 0 so we dont try to construct list of negative len
-  )
+  (if (@< value 0) (if (equal? op ">") (set! value 0)     
+                                        (raise-forge-error #:msg "Cardinality operator must be applied to a non-negative integer constant."
+                                        #:context formula))
+                    (void))
   ; build atoms for existential
   (define type-list (string-join (for/list ([type card-expr-type])
     (if (equal? type 'Int) "IntAtom" "Atom")) " "))
