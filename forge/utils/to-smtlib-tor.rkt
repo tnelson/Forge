@@ -271,7 +271,7 @@
   (define argument-vars (filter-map (lambda (var) (if (not (member var decl-vars)) var #f)) quantvars))
   (define argument-types (map (lambda (var) (cdr (assoc var quantvar-types))) argument-vars))
   ; step 4: establish our set we are creating
-  (define set-name (gensym))
+  (define set-name (format "_~a_set" (gensym)))
   (define declaration-str (format "(declare-fun ~a (~a) (Relation ~a))" set-name (string-join (map (lambda (x) (atom-or-int x)) argument-types) " ")
                                                                                  (string-join (map (lambda (x) (atom-or-int x)) decl-types) " ")))
   ; step 5: create the constraints: the equality gives us the IFF, and subset is how we build our new set
@@ -303,11 +303,11 @@
   ; certainly also be a (Relation IntAtom). 
   (define argument-vars quantvars)
   (define argument-types (map (lambda (var) (cdr (assoc var quantvar-types))) quantvars))
-  (define set-name (gensym))
+  (define set-name (format "_~a_comp" (gensym)))
   (define declaration-str (format "(declare-fun ~a (~a) (Relation IntAtom))" set-name (string-join (map (lambda (x) (atom-or-int x)) argument-types) " ")))
   (define get-set (if (equal? (length argument-vars) 0) (format "~a" set-name) (format "(~a ~a)" set-name (string-join (map (lambda (var) (format "~a" var)) argument-vars) " "))))
   (define constraint-pairs (map cons argument-vars argument-types))
-  (define const-name (format "~a_atom" (gensym)))
+  (define const-name (format "_~a_atom" (gensym)))
   (define new-decl (format "(declare-const ~a IntAtom)" const-name))
   (define new-constraint (format "(= (IntAtom-to-Int ~a) ~a)" const-name (car processed-form)))
   (define constraint-str (if (equal? (length constraint-pairs) 0) 
@@ -528,7 +528,7 @@
      (cond 
       [int-ctxt (format "~a" value)]
       [else         
-        (define const-name (format "~a_atom" (gensym)))
+        (define const-name (format "_~a_atom" (gensym)))
         (define new-decl (format "(declare-const ~a IntAtom)" const-name))
         (define new-constraint (format "(assert (= (IntAtom-to-Int ~a) ~a))" const-name value))
         (set! new-top-level-strings (append (list new-decl new-constraint) new-top-level-strings))

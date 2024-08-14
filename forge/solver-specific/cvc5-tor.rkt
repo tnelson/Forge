@@ -400,7 +400,7 @@
   (define raw-result
     (for/fold ([inst (hash)])
               ([part model-s-expression])
-      ;(printf "s-expr: ~a~n" part)
+      ;(printf "smtlib-tor-to-instance: s-expr: ~a~n" part)
       
       ; Results come as a series of s-expressions ("parts"), each of which defines the 
       ; value of a specific SMT solver variable. Usually, these define relation-valued 
@@ -498,9 +498,11 @@
   
   (for/fold ([inst substituted-result])
             ([k keys])
-    ; Don't retain any excluded keys, or entries mapping to lambdas
+    ; Don't retain any excluded keys, entries mapping to lambdas, or translation-helper
+    ; relations (which start with underscore). 
     (if (or (member k EXCLUDE_KEYS)
-            (procedure? (hash-ref inst k)))
+            (procedure? (hash-ref inst k))
+            (string-prefix? (symbol->string k) "_"))
         (hash-remove inst k)
         inst)))
 

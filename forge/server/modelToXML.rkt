@@ -160,8 +160,7 @@
   
   (define prologue (string-append "<alloy builddate=\"" (date->string (current-date)) "\">\n"))
   (define (instance-prologue idx)
-    (printf "instance-prologue: ~a; ~a~n" idx 
-                  (list-ref data idx))
+    ;(printf "instance-prologue: ~a~n" idx)
     (string-append 
      "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
      command-for-display "\" filename=\"" filepath
