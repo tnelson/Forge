@@ -358,7 +358,7 @@
     (if (equal? type 'Int) "IntAtom" "Atom")) " "))
   (define atom-list (for/list ([i (in-range value)]) (format "(x_~a ~a)" i type-list)))
   ; build union of singletons for containment
-  (define union-list (if (equal? (length atom-list) 0) "(as set.empty (Relation Atom))" 
+  (define union-list (if (equal? (length atom-list) 0) (format "(as set.empty (Relation ~a))" type-list)
                          (if (equal? (length atom-list) 1) (format "(set.singleton (tuple x_0))") 
                          (format "(set.union ~a)" (string-join (for/list ([i (in-range value)]) (format "(set.singleton (tuple x_~a))" i)) " ")))))
   ; assert each atom is distinct

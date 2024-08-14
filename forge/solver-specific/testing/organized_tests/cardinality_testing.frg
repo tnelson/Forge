@@ -86,6 +86,10 @@ pred less_than_negative {
     all p : Person | #{p.parent} < -3
 }
 
+pred int_zero {
+    #Int = 0
+}
+
 test expect {
     simple_greater : {simple_card_greater} is sat
     simple_equal : {simple_card_equal} is sat
@@ -106,4 +110,5 @@ test expect {
     neg_3 : {greater_than_negative} is sat
     neg_4 : {greater_than_smaller_negative} is sat
     neg_5 : {less_than_negative} is forge_error
+    int_1 : {int_zero} is sat
 }
