@@ -32,6 +32,11 @@ test expect {
           $barrier = 10.
         Then there is one candidate for "x", 12. And there exists 
         1 < d < 10 in Int: 6. 
+
+        (Note that if you convert this test to a run, you will not 
+         see a Skolem witness, because these are not currently reported
+         back to Forge from cvc5. To make the Skolem witness visible, 
+         you would need to manually convert `barrier` to a field.)
     */
     finitelyManyPrimes: {
         some barrier: Int | all x: Int | (x > barrier) implies {
