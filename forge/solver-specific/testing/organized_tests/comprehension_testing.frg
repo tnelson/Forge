@@ -26,10 +26,15 @@ pred int_comp {
     {i : Int | some p : Person | p.age = i} = sing[1]
 }
 
+pred existential_comp { 
+    some p : Person | {q : Person | q.age = p.age} = p
+}
+
 
 test expect {
     outside : {outside_quant} is sat   
     inside: {inside_quant} is sat
     arity_2: {arity_2_comp and some mapping} is sat
     int: {int_comp} is sat
+    existential: {existential_comp} is sat
 }

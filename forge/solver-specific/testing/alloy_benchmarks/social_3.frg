@@ -43,7 +43,7 @@ pred model_facts {
 		(p in Man implies s in Woman) and
 		(p in Woman implies s in Man)
 
-	-- A (Helper.spouse) can't be a siblings
+	-- A spouse can't be a siblings
 	no p: Person | p.(Helper.spouse) in p.siblings
 
 	-- A person can't be married to a blood relative
@@ -57,15 +57,15 @@ pred model_facts {
 
 ---------------- Assertions ----------------
 
--- No person shares a common ancestor with his (Helper.spouse) (i.e., (Helper.spouse) isn't related by blood). 
-pred NoIncest {
-	no p: Person | 
-		some (p.^parents & p.(Helper.spouse).^parents)
+-- No person has a parents that's also a siblings.
+pred parentsArentsiblings {    
+	all p: Person | no p.parents & p.siblings 
 }
 
 test expect {
-    social_2 : {model_facts => NoIncest} for 30 is theorem
+    social_3 : {model_facts => parentsArentsiblings} for 30 is theorem
 }
+
 
 
 

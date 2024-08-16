@@ -6,3 +6,4 @@ test expect {
     singletonInt: {#Int = 1} is sat
     pairInt: {#Int = 2} is sat
     trioInt: {#Int = 3} is sat
+}

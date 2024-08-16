@@ -17,14 +17,6 @@ one sig Helper {
 }
 ---------------- Functions ----------------
 
-
----------------- Predicate ----------------
-
--- Two persons are blood relatives iff they have a common ancestor
-pred BloodRelatives [p: Person, q: Person] {
-	some p.*parents & q.*parents
-}
-
 ---------------- Facts ----------------
 
 pred model_facts {
@@ -35,7 +27,7 @@ pred model_facts {
 	-- No person can have more than one father or mother
 	all p: Person | (lone (p.parents & Man)) and (lone (p.parents & Woman)) 
 
-	-- A person P's siblingss are those people with the same parentss as P (excluding P)
+	-- A person P's siblings are those people with the same parentss as P (excluding P)
 	all p: Person | p.siblings = {q: Person | p.parents = q.parents} - p
 
 	-- Each married man (woman) has a wife (husband) 
@@ -43,30 +35,18 @@ pred model_facts {
 		(p in Man implies s in Woman) and
 		(p in Woman implies s in Man)
 
-	-- A (Helper.spouse) can't be a siblings
+	-- A spouse can't be a siblings
 	no p: Person | p.(Helper.spouse) in p.siblings
 
-	-- A person can't be married to a blood relative
-	no p: Person | BloodRelatives [p, p.(Helper.spouse)]
-
-	-- A person can't have children with a blood relative
-	all p, q: Person |
-		(some p.children & q.children and p != q) implies
-        not BloodRelatives [p, q]
 }
 
 ---------------- Assertions ----------------
 
--- No person shares a common ancestor with his (Helper.spouse) (i.e., (Helper.spouse) isn't related by blood). 
-pred NoIncest {
-	no p: Person | 
-		some (p.^parents & p.(Helper.spouse).^parents)
+-- Every person's siblings are his/her siblings' siblings. 
+pred siblingsSiblings {
+	all p: Person | p.siblings = p.siblings.siblings  
 }
 
 test expect {
-    social_2 : {model_facts => NoIncest} for 30 is theorem
+    social_5 : {model_facts => siblingsSiblings} for 30 is theorem
 }
-
-
-
-

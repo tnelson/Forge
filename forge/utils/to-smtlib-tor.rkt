@@ -53,10 +53,6 @@
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
        ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ; ['one (format "(and (forall ((x1 ~a) (x2 ~a)) (=> (and (set.subset (set.singleton (tuple x1)) ~a) (set.subset (set.singleton (tuple x2)) ~a)) (= x1 x2))) (exists ((x1 ~a)) (set.subset (set.singleton (tuple x1)) ~a)))"
-        ;       (get-expr-type run-or-state expr quantvars quantvar-types)
-        ;       (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr processed-expr
-        ;       (get-expr-type run-or-state expr quantvars quantvar-types) processed-expr)]
         ['one (format "(and ~a ~a)" (format-one-forall run-or-state expr quantvars quantvar-types processed-expr)
                                      (format-one-exists run-or-state expr quantvars quantvar-types processed-expr))]
         ['some (format "(not (= (as set.empty ~a) ~a))"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]

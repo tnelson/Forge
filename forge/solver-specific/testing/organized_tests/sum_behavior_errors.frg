@@ -15,10 +15,8 @@ test expect {
     {sum[Helper.anInt + Helper.anInt] = 1} is forge_error
     {sum[Helper.anInt & Helper.anInt] = 1} is sat
     {sum[Helper.someInts & Helper.someInts] = 1} is forge_error
-    
-    // TODO: support sing[1] in this form
-    //{Helper.anInt = 1} is sat
-    //{Helper.someInts = 1} is forge_error
+    {Helper.anInt = 1} is sat
+    {Helper.someInts = 1} is sat
 }
 
 

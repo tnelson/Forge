@@ -6,7 +6,6 @@ option backend smtlibtor
 
 abstract sig Person {
 	children: set Person,
-	parents: set Person,
 	siblings: set Person
 } 
 
@@ -17,6 +16,8 @@ one sig Helper {
 }
 ---------------- Functions ----------------
 
+-- Define the parents relation as an auxiliary one
+fun parents : Person -> Person { ~children }
 
 ---------------- Predicate ----------------
 
@@ -28,7 +29,7 @@ pred BloodRelatives [p: Person, q: Person] {
 ---------------- Facts ----------------
 
 pred model_facts {
-	parents = ~children
+
 	-- No person can be their own ancestor
 	no p: Person | p in p.^parents
 
@@ -43,7 +44,7 @@ pred model_facts {
 		(p in Man implies s in Woman) and
 		(p in Woman implies s in Man)
 
-	-- A (Helper.spouse) can't be a siblings
+	-- A spouse can't be a siblings
 	no p: Person | p.(Helper.spouse) in p.siblings
 
 	-- A person can't be married to a blood relative
@@ -57,15 +58,15 @@ pred model_facts {
 
 ---------------- Assertions ----------------
 
--- No person shares a common ancestor with his (Helper.spouse) (i.e., (Helper.spouse) isn't related by blood). 
-pred NoIncest {
-	no p: Person | 
-		some (p.^parents & p.(Helper.spouse).^parents)
+-- Every person's siblings are his/her siblings' siblings. 
+pred siblingsSiblings {
+	all p: Person | p.siblings = p.siblings.siblings
 }
 
 test expect {
-    social_2 : {model_facts => NoIncest} for 30 is theorem
+    social_6: {model_facts => siblingsSiblings} for 30 is theorem
 }
+
 
 
 
