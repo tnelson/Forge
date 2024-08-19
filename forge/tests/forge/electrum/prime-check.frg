@@ -35,6 +35,6 @@ test expect {
     noError_univ_when_var_sig: {some univ'} is sat
     noError_iden_when_var_sig: {some iden'} is sat
     -- `none` won't vary over time, even if some sigs are var.
-    error_none_when_var_sig: {some none'} is forge_error : "non-temporal context"
+    error_none_when_var_sig: {some none'} is forge_error "non-temporal context"
    
 }
