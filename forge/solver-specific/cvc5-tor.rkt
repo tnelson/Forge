@@ -52,48 +52,32 @@
 
 ;; Helper function to declare constants for each upper bound element
 (define (const-declarations bound)
-         (deparen (map (lambda (tup)
-                         (format "(declare-const ~a Atom)~n" (first tup)))
-                       (bound-upper bound))))
-
-;; Helper function to create membership assertions between each upper bound element and relation
-(define (create-bound-membership bound rel-name)
-    (format "~a" 
-      (deparen (map (lambda (tup)
-                      (format "(assert (set.member (tuple ~a) ~a))~n" (first tup) rel-name))
-                    (bound-upper bound)))))
-
-;; Function to create a constraint asserting that the relation is the union of the constants as singletons
-(define (relation-constraint bound rel-name one?)
-  (printf "upper bound for bound ~a: ~a~n" rel-name (bound-upper bound))
-  (if (and (not one?) (not (equal? (length (bound-upper bound)) 1)))
-      (format "(assert (= ~a (set.union ~a)))~n"
-              rel-name
-              (deparen (map (lambda (tup)
-                              (format "(set.singleton (tuple ~a))" (first tup)))
-                            (bound-upper bound))))
-      (format "(assert (= ~a (set.singleton (tuple ~a))))~n" rel-name (car (first (bound-upper bound))))))
+         `(map (lambda (tup)
+            (string->symbol (format "(declare-const ~a Atom)~n" (first tup))))
+                       (bound-upper bound)))
 
 (define (child-constraint run-or-state bound)
   (define name (relation-name (bound-relation bound)))
   (define arity (relation-arity (bound-relation bound)))
   (cond 
     [(equal? name "Int")
-    ""]
+    '()]
     ; we only want this to operate on arity 1 non-skolem relations, aka sigs
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
       (define primsigs (if (Sig? (bound-relation bound)) (primify run-or-state (Sig-name (bound-relation bound))) '()))
       (define remove-remainder-lambda (lambda (sig-name) (regexp-replace #rx"_.*$" (symbol->string sig-name) "")))
-      (cond [(or (equal? 1 (length primsigs)) (empty? primsigs)) ""]
+      (cond [(or (equal? 1 (length primsigs)) (empty? primsigs)) '()]
             [else
-            (format "(assert (= ~a (set.union ~a)))~n~a~n"
-                    (relation-name (bound-relation bound))
-                    (deparen (map remove-remainder-lambda primsigs))
-                    (child-disjointness run-or-state (bound-relation bound)))])
+            ; (format "(assert (= ~a (set.union ~a)))~n~a~n"
+            ;         (relation-name (bound-relation bound))
+            ;         (deparen (map remove-remainder-lambda primsigs))
+            ;         (child-disjointness run-or-state (bound-relation bound)))
+            (list `(assert (= ,(relation-name (bound-relation bound)) (set.union ,@(map remove-remainder-lambda primsigs)))
+                  (child-disjointness run-or-state (bound-relation bound))))])
     ]
     [(equal? (string-ref name 0) #\$)
-    ""]
-    [else ""]
+    '()]
+    [else '()]
   )
 )
 
@@ -104,14 +88,13 @@
   (define child-names (map relation-name children))
   ; pairwise disjoint constraint them
   (define (pairwise-disjoint relation1 relation2)
-      (if (equal? relation1 relation2) ""
-      (format "(assert (= (set.inter ~a ~a) (as set.empty (Relation Atom))))"
-        relation1 relation2)))
+      (if (equal? relation1 relation2) '()
+      (`(assert (= (set.inter ,relation1 ,relation2) (as set.empty (Relation Atom)))))))
   (define pairs (cartesian-product child-names child-names))
-  (string-join (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs) "\n")
+  (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs)
 )
 
-(define (convert-bound b)
+(define (declare-sigs b)
   (define name (relation-name (bound-relation b)))
   (define arity (relation-arity (bound-relation b)))
   (define typenames ((relation-typelist-thunk (bound-relation b))))
@@ -121,28 +104,25 @@
   (cond
     ; Don't declare Int at all
     [(equal? name "Int")
-     ""]
+     '()]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
      (if one? 
-     (format "(declare-fun ~a () (Relation Atom))~n(declare-const ~a_atom Atom)~n(assert (= ~a (set.singleton (tuple ~a_atom))))~n"
-             name name name name)
-     (format "(declare-fun ~a () (Relation Atom))~n" name))]
+     (list `(declare-fun ,name () (Relation Atom)) `(declare-const ,(string->symbol (format "~a_atom" name)) Atom) `(assert (= ,name (set.singleton (tuple ,(string->symbol (format "~a_atom" name)))))))
+     `(declare-fun ,name () (Relation Atom)))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
-            (format "(declare-const ~a ~a)~n" name (deparen (map atom-or-int typenames)))]
+            `(declare-const ,name ,@(map atom-or-int typenames))]
            [else
             (define domain-typenames (take typenames (@- (length typenames) 1)))
             (define codomain-typename (last typenames))
-            (format "(declare-fun ~a (~a) ~a)" name
-                    (deparen (map atom-or-int domain-typenames))
-                    (atom-or-int codomain-typename))])]
+            `(declare-fun ,name (,@(map atom-or-int domain-typenames)) ,(atom-or-int codomain-typename))])]
     ; Fields
     [else
     ; Fields are declared as relations of the appropriate arity of atoms or ints
-     (format "(declare-fun ~a () (Relation ~a))~n" name (deparen (map atom-or-int typenames)))]))
-
+     `(declare-fun ,name () (Relation ,@(map atom-or-int typenames)))]))
+     
 (define (form-disjoint-string relations)
   (define top-level '())
   (for/fold ([top-level top-level])
@@ -159,11 +139,10 @@
 
 (define (disjoint-relations rel-names)
   (define (pairwise-disjoint relation1 relation2)
-      (if (equal? relation1 relation2) ""
-      (format "(assert (= (set.inter ~a ~a) (as set.empty (Relation Atom))))"
-        relation1 relation2)))
+      (if (equal? relation1 relation2) '()
+      `(assert (= (set.inter ,relation1 ,relation2) (as set.empty (Relation Atom))))))
   (define pairs (cartesian-product rel-names rel-names))
-  (string-join (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs) "\n"))
+  (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs))
 
 (define (translate-to-cvc5-tor run-spec all-atoms relations total-bounds step0)
   ; For now, just print constraints, etc.
@@ -239,30 +218,34 @@
   ; Also declare Atom sort as the top level sort, and define various helper SMT functions.
   
   (define defined-funs (list
-     "(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))"
-     "(define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))"
-     "(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))"
-     "(declare-fun univInt () (Relation IntAtom))"
+     `(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))`
+     `(define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))
+     `(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))
+     `(declare-fun univInt () (Relation IntAtom))
      ; IntAtom, because those are what appear in sets. Just Int could end up empty.
-     "(assert (= univInt (as set.universe (Relation IntAtom))))"))
-  (define preamble-str (format "(reset)~n(declare-sort Atom 0)~n(declare-sort IntAtom 0)~n(declare-fun IntAtom-to-Int (IntAtom) Int)~n~a~n"
-                               (string-join defined-funs "\n")))
-
-  ; converted bounds:
-  (define bounds-str (string-join (map convert-bound total-bounds) "\n"))
-  (define bounds-str-2 (string-join (map (lambda (b) (child-constraint new-fake-run b)) total-bounds) "\n"))
+     `(assert (= univInt (as set.universe (Relation IntAtom))))))
+  (define preamble-str (append (list `(reset) `(declare-sort Atom 0) `(declare-sort IntAtom 0) `(declare-fun IntAtom-to-Int (IntAtom) Int)) defined-funs))
+  (printf "preamble done ~n")
+  (define bounds-str (map declare-sigs total-bounds))
+  (printf "bounds 1 done ~n")
+  (define bounds-constraint-strs (map (lambda (b) (child-constraint new-fake-run b)) total-bounds))
+  (printf "bounds 2 done ~n")
   ; bound disjointness
   (define top-level-disjoint-str (form-disjoint-string (map bound-relation total-bounds)))
+  (printf "bounds 3 done ~n")
   (define disjointness-constraint-str (disjoint-relations top-level-disjoint-str))
+  (printf "bounds 4 done ~n")
 
-  (define comprehension-strs (string-join (smt-tor:get-new-top-level-strings) "\n"))
+  (define comprehension-strs (smt-tor:get-new-top-level-strings))
+  (printf "comprehension done ~n")
 
   ; converted formula:
-  (define assertions-str (string-join (map (lambda (s) (format "(assert ~a)" s)) step4) "\n"))
+  (define assertion-strs (map (lambda (s) `(assert ,s)) step4))
+  (printf "assertions done ~n")
 
   ; DO NOT (check-sat) yet.
-  
-  (format "~a~n~a~n~a~n~a~n~a~n~a~n" preamble-str bounds-str bounds-str-2 disjointness-constraint-str comprehension-strs assertions-str))
+  ; list rather than format for s-exp
+  (list preamble-str bounds-str bounds-constraint-strs top-level-disjoint-str disjointness-constraint-str comprehension-strs assertion-strs))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]

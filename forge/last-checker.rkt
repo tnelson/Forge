@@ -875,7 +875,7 @@
 ; a type is a (listof symbol?) denoting a sequence of primsigs
 (define/contract (check-join child-values)
   (@-> (listof (listof (listof symbol?))) (listof (listof symbol?)))
-
+  
   (let ([product-of-children (apply cartesian-product child-values)])
     (remove-duplicates    
      (filter-map
