@@ -2,7 +2,8 @@
 
 (require forge/shared forge/lang/ast)
 (require (only-in racket string-join))
-(provide smtlib-display sort-name-of atom-or-int membership-guard)
+(require (only-in racket/contract/base flat-rec-contract listof))
+(provide smtlib-display sort-name-of atom-or-int membership-guard s-expression/c)
 
 ; For exporting to other modules, if they have the proper port (from State struct)
 (define (smtlib-display port msg)
@@ -20,31 +21,30 @@
       (format "~aSort" str)))
 
 (define (atom-or-int arg)
-  (define str (cond [(string? arg) arg]
-                    [(symbol? arg) (symbol->string arg)]
+  (define str (cond [(string? arg) (string->symbol arg)]
+                    [(symbol? arg) arg]
                     [(and (node/expr/relation? arg)
                           (string? (node/expr/relation-name arg)))
-                     (node/expr/relation-name arg)]
+                     (string->symbol (node/expr/relation-name arg))]
                     [(and (node/expr/relation? arg)
                           (symbol? (node/expr/relation-name arg)))
-                     (symbol->string (node/expr/relation-name arg))]
+                     (node/expr/relation-name arg)]
                     [else
                      (printf "~n~n*** ELSE CASE: ~a~n~n" (pretty-type-of arg))
                      arg]))
-  (if (equal? str "Int")
-      "IntAtom"
-      "Atom"))
+  (if (equal? str 'Int)
+      'IntAtom
+      'Atom))
 
 ;; Function to create a membership guard for a list of declarations
 (define (membership-guard decls)
   ; have a blank "and" statement that we are going to start adding onto
   ; for each decl, we want to add (set.member (tuple (car decl)) (cdr decl)) to the and statement
-  (format "(and ~a)" (string-join (map (lambda (decl)
-                                         (format "(set.member (tuple ~a) ~a)"
-                                                 (car decl)
-                                                 ; Has already been converted to SMT-LIB by caller
-                                                 ;(relation-name (cdr decl))
-                                                 (cdr decl)
-                                                 ))
-                                       decls)
-                                       " ")))
+  `(and  ,@(map (lambda (decl)
+                  `(set.member (tuple ,(car decl)) ,(cdr decl))) decls)))
+
+(define s-expression/c
+  (flat-rec-contract s-exp
+                     (listof s-exp)
+                     number?
+                     symbol?))

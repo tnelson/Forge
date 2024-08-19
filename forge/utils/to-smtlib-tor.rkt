@@ -38,13 +38,13 @@
       list?
       list?)
      (boolean?)
-      string?)
+      any/c)
   (defensive-checks "convert-formula" run-or-state formula relations atom-names quantvars quantvar-types '() bounds) 
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "to-smtlib-tor: convert-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
-     (if type "true" "false")]    
+     (if type 'true 'false)]    
     [(node/fmla/pred-spacer info name args expanded)
      (convert-formula run-or-state expanded relations atom-names quantvars quantvar-types bounds)]
     [(node/formula/op info args)
@@ -52,11 +52,11 @@
     [(node/formula/multiplicity info mult expr)
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
-       ['no (format "(= (as set.empty ~a) ~a)" (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['one (format "(and ~a ~a)" (format-one-forall run-or-state expr quantvars quantvar-types processed-expr)
-                                     (format-one-exists run-or-state expr quantvars quantvar-types processed-expr))]
-        ['some (format "(not (= (as set.empty ~a) ~a))"  (get-k-bounds run-or-state expr quantvars quantvar-types) processed-expr)]
-        ['lone (format-one-forall run-or-state expr quantvars quantvar-types processed-expr)]
+       ['no `(= (as set.empty ,(get-k-bounds run-or-state expr quantvars quantvar-types)) ,processed-expr)]
+        ['one `(and ,(format-one-forall run-or-state expr quantvars quantvar-types processed-expr)
+                     ,(format-one-exists run-or-state expr quantvars quantvar-types processed-expr))]
+        ['some `(not (= (as set.empty ,(get-k-bounds run-or-state expr quantvars quantvar-types)) ,processed-expr))]
+        ['lone `(,(format-one-forall run-or-state expr quantvars quantvar-types processed-expr))]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
     [(node/formula/quantified info quantifier decls form)
 
@@ -70,18 +70,13 @@
        ; To get the string expression, we map convert-expr to the cdr of each decl.
        (define vars-str-decls (map (lambda (x) (cons (car x) (convert-expr run-or-state (cdr x) relations atom-names updated-quantvars updated-quantvar-types bounds)))
                                    decls))
-       (format "(~a (~a) ~a)"
-               ; SMT-LIB uses "forall", not "all" and "exists", not "some"
-               (if (equal? quantifier 'all) "forall" "exists")
-               (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x))))
-                                 decls) " ")
-               (if (equal? quantifier 'all)
-                   (format "(=> ~a ~a)" (membership-guard vars-str-decls) processed-form)
-                   (format "(and ~a ~a)" (membership-guard vars-str-decls) processed-form))))]
+        `(,(if (equal? quantifier 'all) 'forall 'exists)
+          ,(map (lambda (x) (list (car x) (atom-or-int (cdr x)))) decls)
+          (,(if (equal? quantifier 'all) '=> 'and) ,(membership-guard vars-str-decls) ,processed-form)))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
-    [#t "true"]
-    [#f "false"]
+    [#t 'true]
+    [#f 'false]
     ))
 
 (define (pair->list p) (list (car p) (cdr p)))
@@ -89,49 +84,43 @@
 (define (format-one-forall run-or-state expr quantvars quantvar-types processed-expr)
   (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-types (make-hash))))
   (define new-quantvars (for/list ([i (in-range (@+ (length list-of-types) (length list-of-types)))])
-    (format "x_~a" i)))
+    (string->symbol (format "x_~a" i))))
   (define new-decls (for/list ([var new-quantvars] [type (append list-of-types list-of-types)])
-    (format "(~a ~a)" var (if (equal? type 'Int) "IntAtom" "Atom"))))
+    `(,var ,(if (equal? type 'Int) 'IntAtom 'Atom))))
   (define subset-constraints-first
-    (format "(set.subset (set.singleton (tuple ~a)) ~a)" 
-      (string-join 
-        (for/list ([i (in-range (length list-of-types))])
-          (format "~a" (list-ref new-quantvars i))) 
-      " ") 
-      processed-expr))
+    `(set.subset 
+        (set.singleton (tuple
+          ,@(for/list ([i (in-range (length list-of-types))])
+             (list-ref new-quantvars i))))
+        ,processed-expr))
   (define subset-constraints-second
-    (format "(set.subset (set.singleton (tuple ~a)) ~a)" 
-      (string-join 
-        (for/list ([i (in-range (length list-of-types))])
-          (format "~a" (list-ref new-quantvars (@+ i (length list-of-types))))) 
-      " ") 
-      processed-expr))
+    `(set.subset 
+        (set.singleton (tuple
+          ,@(for/list ([i (in-range (length list-of-types))])
+             (list-ref new-quantvars (@+ i (length list-of-types))))))
+        ,processed-expr))
   (define pairwise-equality-constraints 
-    (string-join (for/list ([i (in-range (length list-of-types))])
-      (format "(= ~a ~a)" 
-        (list-ref new-quantvars i) 
-        (list-ref new-quantvars (@+ i (length list-of-types))))) " ")
+  `(,@(for/list ([i (in-range (length list-of-types))])
+      `(= ,(list-ref new-quantvars i) ,(list-ref new-quantvars (@+ i (length list-of-types))))))
   )
-  (format "(forall ~a (=> (and ~a ~a) (and ~a)))" new-decls subset-constraints-first subset-constraints-second pairwise-equality-constraints)
+  `(forall ,new-decls (=> (and ,subset-constraints-first ,subset-constraints-second) (and ,pairwise-equality-constraints)))
 )
 
 (define (format-one-exists run-or-state expr quantvars quantvar-types processed-expr)
   (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-types (make-hash))))
-  (define new-quantvars (for/list ([i (in-range (length list-of-types))]) (format "x_~a" i)))
-  (define new-decls (for/list ([var new-quantvars] [type list-of-types]) (format "(~a ~a)" var (if (equal? type 'Int) "IntAtom" "Atom"))))
-  (define subset-constraint (format "(set.subset (set.singleton (tuple ~a)) ~a)" (string-join new-quantvars " ") processed-expr))
-  (format "(exists ~a ~a)" new-decls subset-constraint)
+  (define new-quantvars (for/list ([i (in-range (length list-of-types))]) (string->symbol (format "x_~a" i))))
+  (define new-decls (for/list ([var new-quantvars] [type list-of-types]) `(,var ,(if (equal? type 'Int) 'IntAtom 'Atom))))
+  (define subset-constraint `(set.subset (set.singleton (tuple ,@new-quantvars))))
+  `(exists ,new-decls ,subset-constraint)
 )
 
 (define (get-expr-type run-or-state expr quantvars quantvar-types)
  (define quantvar-pairs (map pair->list quantvar-types))
   (define dummy-hash (make-hash))
-  (printf "expr: ~a~n" expr)
   (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
-  (printf "list-of-types: ~a~n" list-of-types)
   (define top-level-type-list (for/list ([type list-of-types])
-    (if (equal? type 'Int) "IntAtom" "Atom")))
-    (format "~a" (string-join top-level-type-list " "))
+    (if (equal? type 'Int) 'IntAtom 'Atom)))
+  top-level-type-list
 )
 
 (define (get-k-bounds run-or-state expr quantvars quantvar-types)
@@ -139,8 +128,8 @@
   (define dummy-hash (make-hash))
   (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-pairs dummy-hash)))
   (define top-level-type-list (for/list ([type list-of-types])
-    (if (equal? type 'Int) "IntAtom" "Atom")))
-  (format "(Relation ~a)" (string-join top-level-type-list " "))
+    (if (equal? type 'Int) 'IntAtom 'Atom)))
+  `(Relation ,@top-level-type-list)
 )
 
 (define (process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds [int-ctxt #f])
@@ -179,12 +168,11 @@
     (printf "to-smtlib-tor: convert-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
-      (format "(and ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(and ,@(process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/|| info children)
-     (format "(or ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(or ,@(process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/=> info children)
-     (format "(=> ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
-
+     `(=> ,@(process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/always info children)
      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
@@ -215,34 +203,33 @@
     [(node/formula/op/triggered info children)
       (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-
     [(node/formula/op/in info children)
-      (format "(set.subset ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      `(set.subset ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/= info children)
       (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
       (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "=" bounds)
-      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))))]
+      `(= ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
     [(node/formula/op/! info children)
-      (format "(not ~a)" (string-join (process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds) ""))]
+      `(not ,@(process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/formula/op/int> info children)
       (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
       (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children ">" bounds)
-      (format "(> ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))))]
+      `(> ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
     [(node/formula/op/int< info children)
       (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
       (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "<" bounds)
-      (format "(< ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))))]
+      `(< ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
     [(node/formula/op/int= info children)
       (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
       (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "=" bounds)
-      (format "(= ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))))]))
+       `(= ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (deparen lst)
-  (string-join (map (lambda (x) (format "~a" x)) lst) " "))
+  (map (lambda (x) (string->symbol (format "~a" x))) lst))
 
 (define (check-skolem-type run-or-state expr relations atom-names quantvars quantvar-types bounds)
   (for/or ([bound bounds])
@@ -262,31 +249,32 @@
   ; step 2: split up the decls
   (define decl-vars (map car decls))
   (define decl-types (map cdr decls))
-  (define processed-decl-types (string-join (map (lambda (decl) (convert-expr run-or-state (cdr decl) relations atom-names quantvars quantvar-types bounds)) decls) " "))
+  (define processed-decl-types (map (lambda (decl) (convert-expr run-or-state (cdr decl) relations atom-names quantvars quantvar-types bounds)) decls))
   ; step 3: we only want the quantvars that are not declared within the comprehension to be the arguments to the function that returns the set.
   (define argument-vars (filter-map (lambda (var) (if (not (member var decl-vars)) var #f)) quantvars))
   (define argument-types (map (lambda (var) (cdr (assoc var quantvar-types))) argument-vars))
   ; step 4: establish our set we are creating
-  (define set-name (format "_~a_set" (gensym)))
-  (define declaration-str (format "(declare-fun ~a (~a) (Relation ~a))" set-name (string-join (map (lambda (x) (atom-or-int x)) argument-types) " ")
-                                                                                 (string-join (map (lambda (x) (atom-or-int x)) decl-types) " ")))
+  (define set-name (string->symbol (format "_~a_set" (gensym))))
+  (define declaration-str `(declare-fun ,set-name ,@(map (lambda (x) (atom-or-int x)) argument-types) (Relation ,@(map (lambda (x) (atom-or-int x)) decl-types))))
   ; step 5: create the constraints: the equality gives us the IFF, and subset is how we build our new set
-  (define membership-string (format "(and ~a)" (string-join (map (lambda (atom) 
-                                               (format "(set.subset (set.singleton (tuple ~a)) ~a)" atom (convert-expr run-or-state (cdr (assoc atom decls)) relations atom-names quantvars quantvar-types bounds))) decl-vars) " ")))
+  (define membership-string `(and ,@(map (lambda (atom) 
+                                          (string->symbol (format "(set.subset (set.singleton (tuple ~a)) ~a)" 
+                                          atom (convert-expr run-or-state (cdr (assoc atom decls)) relations atom-names quantvars quantvar-types bounds))))
+                                          decl-vars)))
   (define subset-string (if (equal? (length decl-vars) 1) 
-                            (format "(set.singleton (tuple ~a))" (car decl-vars)) 
-                            (format "(set.singleton (tuple ~a))" (string-join (map (lambda (x) (format "~a" x)) decl-vars) " "))))
-  (define get-set (if (equal? (length argument-vars) 0) (format "~a" set-name) (format "(~a ~a)" set-name (string-join (map (lambda (var) (format "~a" var)) argument-vars) " "))))
+                            `(set.singleton (tuple ,(car decl-vars)))
+                            `(set.singleton (tuple ~a (string->symbol (string-join (map (lambda (x) (format "~a" x)) decl-vars) " "))))))
+  (define get-set (if (equal? (length argument-vars) 0) 
+                      (string->symbol (format "~a" set-name)) 
+                      `(,set-name ,@(map (lambda (var) (format "~a" var)) argument-vars))))
   (define constraint-args (append decl-vars argument-vars))
   (define constraint-types (append decl-types argument-types))
   (define constraint-pairs (map cons constraint-args constraint-types))
-  (define constraint-str (format "(assert (forall (~a) (= (and ~a ~a) (set.subset ~a ~a))))" 
-                                  (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) constraint-pairs) " ") 
+  (define constraint-str `(assert (forall (,@(map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) constraint-pairs)) 
+                                  (= (and ,membership-string ,processed-form) 
+                                     (set.subset ,subset-string ,get-set)))))
                                   ; first subset is ensuring quantvars are in the decl set
-                                  membership-string
-                                  processed-form 
                                   ; second subset is ensuring quantvars are in the new set
-                                  subset-string get-set))
   (set! new-top-level-strings (append (list declaration-str constraint-str) new-top-level-strings))
   get-set
 )
@@ -299,18 +287,19 @@
   ; certainly also be a (Relation IntAtom). 
   (define argument-vars quantvars)
   (define argument-types (map (lambda (var) (cdr (assoc var quantvar-types))) quantvars))
-  (define set-name (format "_~a_comp" (gensym)))
-  (define declaration-str (format "(declare-fun ~a (~a) (Relation IntAtom))" set-name (string-join (map (lambda (x) (atom-or-int x)) argument-types) " ")))
-  (define get-set (if (equal? (length argument-vars) 0) (format "~a" set-name) (format "(~a ~a)" set-name (string-join (map (lambda (var) (format "~a" var)) argument-vars) " "))))
+  (define set-name (string->symbol (format "_~a_comp" (gensym))))
+  (define declaration-str `(declare-fun ,set-name (,@(map (lambda (x) (atom-or-int x)) argument-types)) (Relation IntAtom)))
+  (define get-set (if (equal? (length argument-vars) 0) 
+                      (string->symbol (format "~a" set-name)) 
+                      `(,set-name ,@(map (lambda (var) (string->symbol (format "~a" var))) argument-vars))))
   (define constraint-pairs (map cons argument-vars argument-types))
-  (define const-name (format "_~a_atom" (gensym)))
-  (define new-decl (format "(declare-const ~a IntAtom)" const-name))
-  (define new-constraint (format "(= (IntAtom-to-Int ~a) ~a)" const-name (car processed-form)))
+  (define const-name (string->symbol (format "_~a_atom" (gensym))))
+  (define new-decl `(declare-const ,const-name IntAtom))
+  (define new-constraint `(= (IntAtom-to-Int ,const-name) ,(car processed-form)))
   (define constraint-str (if (equal? (length constraint-pairs) 0) 
-                                  (format "(assert (and ~a (set.subset (set.singleton (tuple ~a)) ~a)))" new-constraint const-name get-set)
-                                  (format "(assert (exists (~a) (and ~a (set.subset (set.singleton (tuple ~a)) ~a))))" 
-                                  (string-join (map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) constraint-pairs) " ") 
-                                  new-constraint const-name get-set)))
+                                  `(assert (and ,new-constraint (set.subset (set.singleton (tuple ,const-name)) ,get-set)))
+                                  `(assert (exists (,@(map (lambda (x) (string->symbol (format "(~a ~a)" (car x) (atom-or-int (cdr x))))) constraint-pairs)) 
+                                  (and ,new-constraint (set.subset (set.singleton (tuple ,const-name)) ,get-set))))))
   (set! new-top-level-strings (append (list new-decl declaration-str) new-top-level-strings))
   (set! new-top-level-strings (append new-top-level-strings (list constraint-str)))
   get-set
@@ -349,22 +338,22 @@
                                         #:context formula))
                     (void))
   ; build atoms for existential
-  (define type-list (string-join (for/list ([type card-expr-type])
-    (if (equal? type 'Int) "IntAtom" "Atom")) " "))
-  (define atom-list (for/list ([i (in-range value)]) (format "(x_~a ~a)" i type-list)))
+  (define type-list (for/list ([type card-expr-type])
+    (if (equal? type 'Int) 'IntAtom 'Atom)))
+  (define atom-list (for/list ([i (in-range value)]) `(x_,i ,@type-list)))
   ; build union of singletons for containment
-  (define union-list (if (equal? (length atom-list) 0) (format "(as set.empty (Relation ~a))" type-list)
-                         (if (equal? (length atom-list) 1) (format "(set.singleton (tuple x_0))") 
-                         (format "(set.union ~a)" (string-join (for/list ([i (in-range value)]) (format "(set.singleton (tuple x_~a))" i)) " ")))))
+  (define union-list (if (equal? (length atom-list) 0) `(as set.empty (Relation ,@type-list))
+                         (if (equal? (length atom-list) 1) `(set.singleton (tuple x_0))
+                         `(set.union ,@(for/list ([i (in-range value)]) (string->symbol (format "(set.singleton (tuple x_~a))" i)))))))
   ; assert each atom is distinct
-  (define distinct-list (if (equal? (length atom-list) 0) "true" 
-                          (if (equal? (length atom-list) 1) "true" 
-                          (format "(distinct ~a)" (string-join (for/list ([i (in-range value)]) (format "x_~a" i)) " ")))))
-  (if (equal? value 0) (format "(= ~a ~a)" union-list processed-card-expr) 
+  (define distinct-list (if (equal? (length atom-list) 0) 'true
+                          (if (equal? (length atom-list) 1) 'true 
+                          `(distinct ,@(for/list ([i (in-range value)]) (string->symbol (format "x_~a" i)))))))
+  (if (equal? value 0) `(= ,union-list ,processed-card-expr)
   (match op 
-    ["<" (format "(exists ~a (and (set.subset ~a ~a) ~a))" atom-list processed-card-expr union-list distinct-list)]
-    [">" (format "(exists ~a (and (set.subset ~a ~a) ~a))" atom-list union-list processed-card-expr distinct-list)]
-    ["=" (format "(exists ~a (and (= ~a ~a) ~a))" atom-list processed-card-expr union-list distinct-list)]
+    ["<" `(exists ,atom-list (and (set.subset ,processed-card-expr ,union-list) ,distinct-list))]
+    [">" `(exists ,atom-list (and (set.subset ,union-list ,processed-card-expr) ,distinct-list))]
+    ["=" `(exists ,atom-list (and (= ,processed-card-expr ,union-list) ,distinct-list))]
   ))
 )
 
@@ -377,16 +366,16 @@
     [(node/expr/relation info arity name typelist-thunk parent isvar)
      ; Declared sigs are referred to as Atoms, so we refer to them as such
      ; Ints are separate
-     (cond [(equal? name "Int") "(as set.universe (Relation IntAtom))"]
+     (cond [(equal? name "Int") `(as set.universe (Relation IntAtom))]
            ; Skolem relations are now handled in the fun-spacer case; this must be
            ; a normal relation that, somehow, starts with $. So fail noisily; this shouldn't
            ; actually be reachable code.
            [(equal? #\$ (string-ref name 0))
             (raise-forge-error #:msg (format "Unexpected reachable code; untagged skolem relation: ~a" expr)
                                #:context expr)]
-           [else (format "~a" name)])]
+           [else (string->symbol (format "~a" name))])]
     [(node/expr/atom info arity name)
-     (format "(set.singleton (tuple ~a))" name)]
+     `(set.singleton (tuple ,name))]
     [(node/expr/fun-spacer info arity name args result expanded)
      ; "arity" will always be 1, since this represents a Skolem function.
      ; Use the expanded expr's arity instead:
@@ -429,22 +418,22 @@
     (let ([processed-a (convert-formula run-or-state a relations atom-names quantvars quantvar-types bounds)]
           [processed-b (convert-expr run-or-state b relations atom-names quantvars quantvar-types bounds)]
           [processed-c (convert-expr run-or-state c relations atom-names quantvars quantvar-types bounds)])
-     (format "(ite ~a ~a ~a)" processed-a processed-b processed-c))]
+     `(ite ,processed-a ,processed-b ,processed-c))]
     [(node/expr/constant info 1 'Int)
      (raise-forge-error #:msg "Unexpected node reached by to-smtlib-tor: node/expr/constant with 'Int"
                         #:context info)]
     ; univ, iden, none
     [(node/expr/constant info arity 'univ)
-     (format "(as set.universe (Relation Atom))")]
+     `(as set.universe (Relation Atom))]
     [(node/expr/constant info arity 'iden)
-     (format "(rel.iden (as set.universe (Relation Atom)))")]
+     `(rel.iden (as set.universe (Relation Atom)))]
     [(node/expr/constant info arity 'none)
      ; produce an empty set of the appropriate arity
     ;  (for/fold ([acc "set.empty"])
     ;            ([todo (build-list (@- arity 1) (lambda (x) x))])
     ;    (format "(rel.product set.empty ~a)" acc))]
     ; temporary patch - make it an empty set of int relations, but eventually we want to use atom-or-int to some capacity
-    (format "(as set.empty (Relation Int))")]
+    `(as set.empty (Relation Int))]
     [(node/expr/constant info arity type)
      (raise-forge-error #:msg (format "Unexpected node reached by to-smtlib-tor: node/expr/constant with type " type)
                         #:context info)]
@@ -455,8 +444,8 @@
      ; and should not be wrapped to make it a singleton-set-of-tuples. Otherwise, it must be
      ; wrapped so that relational operators can work with it directly.
      (if (get-annotation info 'smt/int-unwrap)
-         (format "~a" name)
-         (format "(set.singleton (tuple ~a))" name))]
+         (string->symbol (format "~a" name))
+         `(set.singleton (tuple ,name)))]
     [(node/expr/comprehension info len decls form)
      (define newly-defined-vars (map car decls))
      (define updated-quantvars (append newly-defined-vars quantvars))
@@ -470,42 +459,42 @@
       (printf "to-smtlib-tor: convert-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
-     (format "(set.union ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(set.union ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/expr/op/- info arity children)
-     (format "(set.minus ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(set.minus ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/expr/op/& info arity children)
-     (format "(set.inter ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(set.inter ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/expr/op/-> info arity children)
      ; rel.product in CVC5 is _binary_, not nary, so need to chain this.
      (define child-strings (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))
      (define rest-string (for/fold ([acc (second child-strings)])
                                    ([str (rest (rest child-strings))])
-                           (format "(rel.product ~a ~a)" acc str)))
-     (format "(rel.product ~a ~a)" (first child-strings) rest-string)]
+                           `(rel.product ,acc ,str)))
+     `(rel.product ,(first child-strings) ,rest-string)]
     [(node/expr/op/prime info arity children)
      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context expr)]
     [(node/expr/op/join info arity children)
-     (format "(rel.join ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(rel.join ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/expr/op/^ info arity children)
-     (format "(rel.tclosure ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(rel.tclosure ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/expr/op/* info arity children)
-     (format "(set.union (rel.tclosure ~a) (rel.iden (as set.universe (Relation Atom))))" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(set.union (rel.tclosure ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds)) 
+                 (rel.iden (as set.universe (Relation Atom))))]
     [(node/expr/op/~ info arity children)
-     (format "(rel.transpose ~a)" (string-join (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+     `(rel.transpose ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/expr/op/++ info arity children)
-      ; R 
+      ; R' = R - (k -> codomain) + (k -> u)
       (define R (first children))
       (define k_u (node/expr/op-children (second children)))
       (define k (first k_u))
       (define u (second k_u))
       (define R_codomain (get-expr-type run-or-state u quantvars quantvar-types))
-      (format "(set.union (set.minus ~a (rel.product ~a (as set.universe (Relation ~a)))) (rel.product ~a ~a))" 
-            (convert-expr run-or-state R relations atom-names quantvars quantvar-types bounds)
-            (convert-expr run-or-state k relations atom-names quantvars quantvar-types bounds)
-            R_codomain
-            (convert-expr run-or-state k relations atom-names quantvars quantvar-types bounds)
-            (convert-expr run-or-state u relations atom-names quantvars quantvar-types bounds))]
+      `(set.union (set.minus ,(convert-expr run-or-state R relations atom-names quantvars quantvar-types bounds) 
+            (rel.product ,(convert-expr run-or-state k relations atom-names quantvars quantvar-types bounds) 
+            (as set.universe (Relation ,R_codomain)))) 
+            (rel.product ,(convert-expr run-or-state k relations atom-names quantvars quantvar-types bounds)
+            ,(convert-expr run-or-state u relations atom-names quantvars quantvar-types bounds)))]
     [(node/expr/op/sing info arity children)
       (let ([processed-form (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds #t)])
         (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types processed-form bounds))]))
@@ -521,13 +510,13 @@
   (match expr
     [(node/int/constant info value)
      (cond 
-      [int-ctxt (format "~a" value)]
+      [int-ctxt (string->symbol (format "~a" value))]
       [else         
-        (define const-name (format "_~a_atom" (gensym)))
-        (define new-decl (format "(declare-const ~a IntAtom)" const-name))
-        (define new-constraint (format "(assert (= (IntAtom-to-Int ~a) ~a))" const-name value))
+        (define const-name (string->symbol (format "_~a_atom" (gensym))))
+        (define new-decl `(declare-const ,const-name IntAtom))
+        (define new-constraint `(assert (= (IntAtom-to-Int ,const-name) ,value)))
         (set! new-top-level-strings (append (list new-decl new-constraint) new-top-level-strings))
-        (format "~a" const-name)])]
+        (string->symbol (format "~a" const-name))])]
     [(node/int/op info args)
      (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)]
     [(node/int/sum-quant info decls int-expr)
@@ -552,13 +541,13 @@
     (printf "to-smtlib-tor: convert-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
-      (format "(+ ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t) " "))]
+      `(+ ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
     [(node/int/op/subtract info children)
-      (format "(- ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t) " "))]
+      `(- ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
     [(node/int/op/multiply info children)
-      (format "(* ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t) " "))]
+      `(* ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
     [(node/int/op/divide info children)
-      (format "(div ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t) " "))]
+      `(div ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
     [(node/int/op/sum info children)
      ; Since we are following the CRS/cvc4 work for integer-handling, the child must always be a singleton.
      ; This holds whether or not the "sum" was added automatically, but manual/auto affects the nature of the error.
@@ -571,17 +560,17 @@
        (if (get-annotation info 'automatic-int-conversion)
            (raise-forge-error #:msg "SMT backend requires that this expression evaluates to a singleton integer, but could not infer this." #:context expr)
            (raise-forge-error #:msg "SMT backend does not currently support `sum` over multiple integer values, but could not infer safety." #:context expr)))
-    (format "(IntAtom-to-Int (reconcile-int_atom ~a))" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+    `(IntAtom-to-Int (reconcile-int_atom ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
     [(node/int/op/card info children)
-    (let ([processed-form (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " ")])
+    (let ([processed-form (string->symbol (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))])
     processed-form)]
     [(node/int/op/remainder info children)
-     (format "(mod ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      `(mod ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/abs info children)
-     (format "(abs ~a)" (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))]
+      `(abs ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/sign info children)
      ; The Forge->SMT-LIB generator preamble defines a function "sign"
-     (format "(sign ~a)")]
+     `(sign ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     ))
