@@ -20,7 +20,7 @@
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract
-                         string-replace second string-join take last)
+                         string-replace second string-join take last flatten)
           racket/hash
           racket/port)
 
@@ -41,8 +41,15 @@
     
   ; Send the problem spec to cvc5 via the stdin/out/err connection already opened
   (define cvc5-command (translate-to-cvc5-tor run-spec all-atoms all-rels total-bounds run-constraints))
-  (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" cvc5-command)
-  (smtlib-display stdin cvc5-command)
+  ; (smtlib-display stdin cvc5-command)
+  (for ([line cvc5-command])
+    (if (not (empty? line)) 
+      ; (begin (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" line)
+        (smtlib-display stdin line)
+      ; )
+      (void)
+    )
+  )
   
   ; Done with the problem spec. Return any needed shared data specific to this backend.
   (values all-rels core-map))
@@ -72,8 +79,9 @@
             ;         (relation-name (bound-relation bound))
             ;         (deparen (map remove-remainder-lambda primsigs))
             ;         (child-disjointness run-or-state (bound-relation bound)))
-            (list `(assert (= ,(relation-name (bound-relation bound)) (set.union ,@(map remove-remainder-lambda primsigs)))
-                  (child-disjointness run-or-state (bound-relation bound))))])
+            (let ([assertion `(assert (= ,(relation-name (bound-relation bound)) (set.union ,@(map remove-remainder-lambda primsigs))))])
+                (cons assertion (child-disjointness run-or-state (bound-relation bound)))
+            )])
     ]
     [(equal? (string-ref name 0) #\$)
     '()]
@@ -89,9 +97,12 @@
   ; pairwise disjoint constraint them
   (define (pairwise-disjoint relation1 relation2)
       (if (equal? relation1 relation2) '()
-      (`(assert (= (set.inter ,relation1 ,relation2) (as set.empty (Relation Atom)))))))
+      `(assert (= (set.inter ,relation1 ,relation2) (as set.empty (Relation Atom))))))
   (define pairs (cartesian-product child-names child-names))
-  (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs)
+  (filter-map (lambda (pair) 
+                (let ([result (pairwise-disjoint (first pair) (second pair))])
+                  (if (empty? result) #f result))) 
+              pairs)
 )
 
 (define (declare-sigs b)
@@ -104,24 +115,24 @@
   (cond
     ; Don't declare Int at all
     [(equal? name "Int")
-     '()]
+     (list '())]
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
      (if one? 
      (list `(declare-fun ,name () (Relation Atom)) `(declare-const ,(string->symbol (format "~a_atom" name)) Atom) `(assert (= ,name (set.singleton (tuple ,(string->symbol (format "~a_atom" name)))))))
-     `(declare-fun ,name () (Relation Atom)))]
+     (list `(declare-fun ,name () (Relation Atom))))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
-            `(declare-const ,name ,@(map atom-or-int typenames))]
+            (list `(declare-const ,name ,@(map atom-or-int typenames)))]
            [else
             (define domain-typenames (take typenames (@- (length typenames) 1)))
             (define codomain-typename (last typenames))
-            `(declare-fun ,name (,@(map atom-or-int domain-typenames)) ,(atom-or-int codomain-typename))])]
+            (list `(declare-fun ,name (,@(map atom-or-int domain-typenames)) ,(atom-or-int codomain-typename)))])]
     ; Fields
     [else
     ; Fields are declared as relations of the appropriate arity of atoms or ints
-     `(declare-fun ,name () (Relation ,@(map atom-or-int typenames)))]))
+     (list `(declare-fun ,name () (Relation ,@(map atom-or-int typenames))))]))
      
 (define (form-disjoint-string relations)
   (define top-level '())
@@ -218,34 +229,28 @@
   ; Also declare Atom sort as the top level sort, and define various helper SMT functions.
   
   (define defined-funs (list
-     `(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))`
+     `(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))
      `(define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))
      `(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))
      `(declare-fun univInt () (Relation IntAtom))
      ; IntAtom, because those are what appear in sets. Just Int could end up empty.
      `(assert (= univInt (as set.universe (Relation IntAtom))))))
   (define preamble-str (append (list `(reset) `(declare-sort Atom 0) `(declare-sort IntAtom 0) `(declare-fun IntAtom-to-Int (IntAtom) Int)) defined-funs))
-  (printf "preamble done ~n")
-  (define bounds-str (map declare-sigs total-bounds))
-  (printf "bounds 1 done ~n")
-  (define bounds-constraint-strs (map (lambda (b) (child-constraint new-fake-run b)) total-bounds))
-  (printf "bounds 2 done ~n")
+  (define bounds-str (apply append (map (lambda (b) (declare-sigs b)) total-bounds)))
+  (define bounds-constraint-strs (apply append (filter-map (lambda (b) 
+                                                (let ([result (child-constraint new-fake-run b)])
+                                                  (if (empty? result) #f result)
+                                                )) total-bounds)))
   ; bound disjointness
   (define top-level-disjoint-str (form-disjoint-string (map bound-relation total-bounds)))
-  (printf "bounds 3 done ~n")
   (define disjointness-constraint-str (disjoint-relations top-level-disjoint-str))
-  (printf "bounds 4 done ~n")
-
   (define comprehension-strs (smt-tor:get-new-top-level-strings))
-  (printf "comprehension done ~n")
-
   ; converted formula:
   (define assertion-strs (map (lambda (s) `(assert ,s)) step4))
-  (printf "assertions done ~n")
 
   ; DO NOT (check-sat) yet.
   ; list rather than format for s-exp
-  (list preamble-str bounds-str bounds-constraint-strs top-level-disjoint-str disjointness-constraint-str comprehension-strs assertion-strs))
+  (append preamble-str bounds-str bounds-constraint-strs disjointness-constraint-str comprehension-strs assertion-strs))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]
