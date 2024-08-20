@@ -62,8 +62,13 @@
 
 (define (setup language port path)
   (define peek-port (peeking-input-port port))
-  (define project (read peek-port))
-  (define user (read peek-port))
+  (define-values [project user]
+    (let* ((err? (lambda (ee) (or (exn:fail:contract? ee) (exn:fail:read? ee))))
+           (default (lambda (ee) (list #f #f)))
+           (res*
+            (with-handlers ((err? default))
+              (list (read peek-port) (read peek-port)))))
+      (apply values res*)))
   (close-input-port peek-port)
   (if (and (string? project) (string? user))
       (let ((got-data-file? (path-string? (get-log-file))))
