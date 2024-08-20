@@ -184,7 +184,8 @@
 <types> <type ID="2"/><type ID="2"/> </types>
 </field>
 here-string-delimiter
-             (if idx
+             ; Only attempt to fill in a concrete value if one is included, and if we have an instance.
+             (if (and idx (hash-has-key? (list-ref data idx) Int))
                  (sig-contents-to-XML-string (list-ref data idx) Int tuple-annotations)
                  ""))))
   ; Note in the above, univ is always ID=2

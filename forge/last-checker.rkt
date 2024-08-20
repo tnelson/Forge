@@ -270,15 +270,15 @@
 
 ; Turn signame into list of all primsigs it contains
 ; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
-(define/contract (primify run-or-state raw-signame [univ-no-int #f])
-  (@->* ((or/c Run? State? Run-spec?) (or/c symbol? string?)) (boolean?) (listof symbol?))  
+(define/contract (primify run-or-state raw-signame)
+  (@-> (or/c Run? State? Run-spec?) (or/c symbol? string?) (listof symbol?))  
   (let ([signame (cond [(string? raw-signame) (string->symbol raw-signame)]
                        [(Sig? raw-signame) (Sig-name raw-signame)]
                        [else raw-signame])])
     (cond [(equal? 'Int signame)           
            '(Int)]
           [(equal? 'univ signame)
-           (if univ-no-int       
+           (if (member (get-option (get-run-spec run-or-state) 'backend) UNBOUNDED_INT_BACKENDS)       
            (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (remove 'Int (map Sig-name (get-sigs run-or-state))))))  
            (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int (map Sig-name (get-sigs run-or-state)))))))]
           [else           
@@ -402,12 +402,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Gets the top levels; i.e. ('Int / 'univ ... arity times)
-(define/contract (get-top-levels type-list)
-  (@-> list? list?)
+(define/contract (get-top-levels type-list run-or-state)
+  (@-> list? (or/c Run? State? Run-spec?) list?)
+  (let ([smt-backend (member (get-option (get-run-spec run-or-state) 'backend) UNBOUNDED_INT_BACKENDS)]) 
+  (if (empty? type-list) (list 'univ)
   ; should be passing in a list of lists
   (for/list ([type (car type-list)])
-    (if (equal? type 'Int) 'Int 'univ)
-  )
+    (if smt-backend (if (equal? type 'Int) 'Int 'univ) 'univ)
+  )))
 )
 
 ; For expressions, this descent does two things:
@@ -442,7 +444,7 @@
                                                     (if (Sig? expr) (Sig-one expr) 1)) 'one]
                                               [else 'set])
                                         isvar
-                                        (get-top-levels (apply cartesian-product (map primifyThis (typelist-thunk)))))
+                                        (get-top-levels (apply cartesian-product (map primifyThis (typelist-thunk))) run-or-state))
                        '())]
 
     ; atom (base case)
@@ -451,7 +453,7 @@
                        node/expr/atom
                        checker-hash   
                        (expression-type (infer-atom-type run-or-state expr)
-                             'one #f (get-top-levels (infer-atom-type run-or-state expr))) '())]
+                             'one #f (get-top-levels (infer-atom-type run-or-state expr) run-or-state)) '())]
 
     [(node/expr/fun-spacer info arity name args codomain expanded)
      ; be certain to call the -mult version at the end, or the multiplicity will be thrown away.
@@ -500,7 +502,8 @@
                                                      'set)
                                                  (get-temporal-variance run-or-state expr quantvars (list a b c) checker-hash)
                                                  (get-top-levels (remove-duplicates (append (expression-type-type b-potentials)
-                                                                                           (expression-type-type c-potentials))))
+                                                                                           (expression-type-type c-potentials)))
+                                                                                           run-or-state)
                                                  ))
                          (list b-potentials c-potentials)))]
     
@@ -526,8 +529,8 @@
                                        (not (empty? (andmap (lambda (s) (node/expr/relation-is-variable s)) (get-sigs run-or-state)))))
                                   #t #f) 
                               (let ([prims (primify run-or-state 'univ)])
-                                (cond [(equal? arity 1) (get-top-levels (map list prims))]
-                                      [else (get-top-levels (cartesian-product prims prims))]))) '())]
+                              (cond [(equal? arity 1) (get-top-levels (map list prims) run-or-state)]
+                                    [else (get-top-levels (cartesian-product prims prims) run-or-state)]))) '())]
           
     ; expression w/ operator (union, intersect, ~, etc...)
     [(node/expr/op info arity args)
@@ -595,7 +598,7 @@
                             'set
                             ; need to check temporal variance for both all domains _AND_ the inner formula
                             (get-temporal-variance run-or-state expr quantvars (cons subform (map cdr decls)) checker-hash)
-                            (get-top-levels (map flatten (map append (apply cartesian-product child-values)))))))
+                            (get-top-levels (map flatten (map append (apply cartesian-product child-values))) run-or-state))))
                        ; TODO: technically, this should pass the expression types of the domains
                        '())]
 
@@ -642,7 +645,6 @@
     ; Otherwise, look at the RHS of the join. 
     [(equal? (expression-type-multiplicity (second child-values)) 'one) 'one]
     [(equal? (expression-type-multiplicity (second child-values)) 'lone) 'lone]
-
     ; If the RHS is non-nullary functional, and the result is arity 1, the function has been applied.
     [(and (equal? 1 (length (first join-result)))
           (equal? (expression-type-multiplicity (second child-values)) 'func))
@@ -699,7 +701,7 @@
                               (get-temporal-variance run-or-state expr quantvars args checker-hash)
                               (get-top-levels (remove-duplicates (apply append
                                                   (map (lambda (x) (expression-type-type x))
-                                                       child-types)))))
+                                                       child-types))) run-or-state))
                        child-types)]
 
     
@@ -754,7 +756,7 @@
                           result
                           (if all-singleton 'one 'set) ; TODO: very coarse
                           (get-temporal-variance run-or-state expr quantvars args checker-hash)
-                          (get-top-levels result)))
+                          (get-top-levels result run-or-state)))
                        child-types)]
    
     ; JOIN
@@ -792,7 +794,7 @@
                             join-result
                             join-multip
                             (get-temporal-variance run-or-state expr quantvars args checker-hash)
-                            (get-top-levels join-top-level)))
+                            (get-top-levels join-top-level run-or-state)))
                        child-types)]
     
     ; TRANSITIVE CLOSURE
@@ -806,12 +808,11 @@
                               'set ; TODO
                               (get-temporal-variance run-or-state expr quantvars args checker-hash)
                               (let* ([child-values (map (lambda (x) (expression-type-type x)) child-types)])    
-                              (get-top-levels (check-closure (first child-values))))))]
+                              (get-top-levels (check-closure (first child-values)) run-or-state))))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE
     [(? node/expr/op/*?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
-     (define univ-no-int (if (member (get-option (get-run-spec run-or-state) 'backend) UNBOUNDED_INT_BACKENDS) #t #f))
      (check-and-output expr
                        node/expr/op/*
                        checker-hash
@@ -820,8 +821,8 @@
                               (cartesian-product prims prims))
                               'set ; TODO
                               (get-temporal-variance run-or-state expr quantvars args checker-hash)
-                              (let ([prims (primify run-or-state 'univ univ-no-int)])
-                              (get-top-levels (cartesian-product prims prims))))
+                              (let ([prims (primify run-or-state 'univ)])
+                              (get-top-levels (cartesian-product prims prims) run-or-state)))
                        child-types)]
 
     ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
@@ -833,7 +834,7 @@
                        (expression-type (map reverse (expression-type-type (first child-types)))
                               'set ; TODO
                               (get-temporal-variance run-or-state expr quantvars args checker-hash)
-                              (get-top-levels (map reverse (expression-type-type (first child-types))))
+                              (get-top-levels (map reverse (expression-type-type (first child-types))) run-or-state)
                               )
                        child-types)]
     
@@ -866,7 +867,7 @@
          (expression-type (remove-duplicates (append left-tuples right-tuples))
                 'set ; TODO
                 (get-temporal-variance run-or-state expr quantvars args checker-hash)
-                (get-top-levels (remove-duplicates (append left-tuples right-tuples))))))]
+                (get-top-levels (remove-duplicates (append left-tuples right-tuples)) run-or-state))))]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
     [(? node/expr/op/sing?)
