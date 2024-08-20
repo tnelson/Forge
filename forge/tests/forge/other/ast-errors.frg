@@ -1,4 +1,4 @@
-#lang forge
+#lang forge/temporal
 
 -- Do not decrease the verbosity. This ensures certain checks are run. 
 option verbose 1
@@ -218,21 +218,26 @@ test expect {
   all_multiple_vars_ok: {all x: Person, y: Person | x != y} is unsat -- should be OK
 }
 
-
 -- To be integrated with next phase of last-checker improvements
-/*
 
 -- Parse error 
 --fun primeAfterBoxNoGroup[x: Thread]: set Location {World.loc[x]'}
 
+sig Location {}
+sig Thread {}
+one sig World {var loc: func Thread -> Location}
 fun baseline[x: Thread]: set Location {World.loc'[x]}
-test expect {
-    non_equiv1: {some x: Thread | baseline[x] != World'.loc[x]} is sat
-    non_equiv2: {some x: Thread | baseline[x] != World.loc[x']} is sat
-    non_equiv3: {some x: Thread | baseline[x] != (World.loc)'[x]} is unsat
-    -- Nothing to do with priming; this one should give an empty-join error
-    -- non_equiv4: {some x: Thread | baseline[x] != World.(loc[x])} is forge_error
-    non_equiv5: {some x: Thread | baseline[x] != (World.loc[x])'} is unsat
-}
 
-*/
+test expect {
+    non_equiv1: {some x: Thread | baseline[x] != World'.loc[x]} 
+      is forge_error "Prime operator used in non-temporal context"
+    non_equiv2: {some x: Thread | baseline[x] != World.loc[x']} 
+      is forge_error "Prime operator used in non-temporal context"
+    non_equiv3: {some x: Thread | baseline[x] != (World.loc)'[x]} 
+      is unsat
+    -- Nothing to do with priming; this one should give an empty-join error
+    non_equiv4: {some x: Thread | baseline[x] != World.(loc[x])} 
+      is forge_error
+    non_equiv5: {some x: Thread | baseline[x] != (World.loc[x])'} 
+      is unsat
+}
