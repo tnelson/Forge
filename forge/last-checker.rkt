@@ -14,6 +14,8 @@
   (except-in racket/set set)
   (only-in racket/contract define/contract or/c listof any))
 
+(require forge/utils/collector)
+
 (provide checkFormula checkExpression checkInt primify infer-atom-type dfs-sigs deprimify)
 
 ; This function only exists for code-reuse - it's so that we don't
@@ -498,7 +500,7 @@
                                                           (member (expression-type-multiplicity c-potentials) '(one lone)))
                                                      'lone
                                                      'set)
-                                                 #f
+                                                 (get-temporal-variance run-or-state expr quantvars (list a b c) checker-hash)
                                                  (get-top-levels (remove-duplicates (append (expression-type-type b-potentials)
                                                                                            (expression-type-type c-potentials)))
                                                                                            run-or-state)
@@ -521,7 +523,11 @@
                        (expression-type (let ([prims (primify run-or-state 'univ)])
                               (cond [(equal? arity 1) (map list prims)]
                                     [else (cartesian-product prims prims)]))
-                              'set #f
+                              'set
+                              ; If any of the sigs are "var", then univ and iden may vary.
+                              (if (and (member type '(univ iden))
+                                       (not (empty? (andmap (lambda (s) (node/expr/relation-is-variable s)) (get-sigs run-or-state)))))
+                                  #t #f) 
                               (let ([prims (primify run-or-state 'univ)])
                               (cond [(equal? arity 1) (get-top-levels (map list prims) run-or-state)]
                                     [else (get-top-levels (cartesian-product prims prims) run-or-state)]))) '())]
@@ -587,8 +593,12 @@
                            (define child-values (second new-decls-and-child-values))
                            (checkFormula run-or-state subform new-quantvars checker-hash)
                            ; Return type constructed from decls above
-                           (expression-type (map flatten (map append (apply cartesian-product child-values)))
-                                 'set #f (get-top-levels (map flatten (map append (apply cartesian-product child-values))) run-or-state))))
+                           (expression-type
+                            (map flatten (map append (apply cartesian-product child-values)))
+                            'set
+                            ; need to check temporal variance for both all domains _AND_ the inner formula
+                            (get-temporal-variance run-or-state expr quantvars (cons subform (map cdr decls)) checker-hash)
+                            (get-top-levels (map flatten (map append (apply cartesian-product child-values))) run-or-state))))
                        ; TODO: technically, this should pass the expression types of the domains
                        '())]
 
@@ -598,11 +608,19 @@
 (define (keep-only keepers pool)
   (filter (lambda (ele) (member ele keepers)) pool))
 
-(define (get-temporal-variance run-or-state expr quantvars args checker-hash)
-  (define (check-temporal-variance x)
-    (expression-type-temporal-variance (checkExpression run-or-state x quantvars checker-hash)))
-  (foldl (lambda (x acc) (or acc (check-temporal-variance x))) #f args))
-
+; can this expression vary with time? I.e., does it involve any var-declared relations?
+; Because different expressions might involve different kinds of nodes to check (e.g., comprehensions)
+; this function takes the "args" to be checked, rather than using the node itself.
+(define (get-temporal-variance run-or-state node quantvars args checker-hash)
+  (define var-relations
+    ; TODO: this will perform poorly on VERY large formulas, because we aren't caching results and 
+    ; thus the linear last-check ends up being quadratic in the worst case. 
+    (apply append (map (lambda (arg)
+                         (collect arg (lambda (n ctxt) (and (node/expr/relation? n)
+                                                            (node/expr/relation-is-variable n))) #:order 'pre-order))
+                       args)))
+  (not (empty? var-relations)))
+  
 (define (intersection-multiplicity m1 m2 context)
   (cond
     [(equal? m1 'set) m2]

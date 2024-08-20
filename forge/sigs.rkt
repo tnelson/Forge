@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require (only-in racket/function thunk)
-         (only-in racket/list first rest empty empty? flatten remove-duplicates last)
+         (only-in racket/list first second rest empty empty? flatten remove-duplicates last)
          (only-in racket/pretty pretty-print)
          (prefix-in @ (only-in racket/base display max min - +)) 
          (prefix-in @ racket/set)
@@ -640,20 +640,33 @@
 ;       [|| sat unsat]))
 (define-syntax (test stx)
   (syntax-case stx ()
-    [(test name args ... #:expect expected)  
+    [(test name args ... #:expect expected)
+     (syntax/loc stx (test name args ... #:expect expected #:expect-details #f))]
+    [(test name args ... #:expect expected #:expect-details expected-details)
      (add-to-execs
       (with-syntax ([loc (build-source-location stx)]
                     [run-stx (syntax/loc stx (run name args ...))]
                     [check-stx (syntax/loc stx (check name args ...))])
        (quasisyntax/loc stx 
          (cond
+           ; TODO: isn't this known at expansion time? We'll have the value of <expected>.
           [(equal? 'expected 'forge_error)
            ; Expecting an error. If we receive one, do nothing. 
            ; Otherwise, continue to report the error and then close the run.
            ; (N.B., this assumes the run isn't actually created or sent to the solver.)
            (define run-reference #f)
-           (with-handlers ([exn:fail:user? void])
-             ;#,(syntax/loc stx (run name args ...))
+           
+           (with-handlers ([exn:fail:user?
+                            (lambda (e) 
+                              (unless (or (not expected-details)
+                                          (regexp-match (regexp expected-details) (exn-message e)))
+                                (report-test-failure
+                                 #:name 'name
+                                 #:msg (format "Failed test ~a. Forge error was produced with unexpected message. Expected match: ~a. Actual message: ~a."
+                                               'name expected-details (exn-message e))
+                                 #:context loc
+                                 #:run curr-state ; no run, so pass current state instead
+                                 #:sterling #f)))])
              run-stx
              ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
              (set! run-reference name)
@@ -715,7 +728,7 @@
                   (close-run name)])]
 
           [else (raise-forge-error                 
-                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, theorem, or forge_error."
                                'expected)
                  #:context loc)]))))]))
 
@@ -1090,7 +1103,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Struct to hold test-failure information for eventual reporting
-(struct test-failure (name msg context instance run sterling))
+(struct test-failure (name msg context instance run-or-state sterling))
 ; Mutable value to store list of test-failure structs
 (define delayed-test-failures null)
 ; Called to clear the mutable list
@@ -1099,24 +1112,25 @@
 ; Record (or report, depending on the value of the delay-test-failure-reporting?
 ; parameter) a test failure. 
 (define (report-test-failure #:name name #:msg msg #:context context
-                             #:instance [instance #f] #:run run #:sterling [sterling #t])
+                             #:instance [instance #f] #:run run-or-state #:sterling [sterling #t])
   ; Default is to not delay, but options may affect this.
-  (cond [(not (equal? (get-option run 'test_keep) 'first))
+  (cond [(not (equal? (get-option run-or-state 'test_keep) 'first))
          (unless (equal? (get-verbosity) 0)
            (printf "Test ~a failed. Continuing to run and will report details at the end.~n" name))
          ; close previous failure run, since we are keeping only the final failure for Sterling
-         (unless (empty? delayed-test-failures)
-           (close-run (test-failure-run (first delayed-test-failures))))
+         (unless (or (empty? delayed-test-failures)
+                     (not (Run? (test-failure-run-or-state (first delayed-test-failures)))))
+           (close-run (test-failure-run-or-state (first delayed-test-failures))))
          ; then add this failure to the queue
-         (set! delayed-test-failures (cons (test-failure name msg context instance run sterling)
+         (set! delayed-test-failures (cons (test-failure name msg context instance run-or-state sterling)
                                            delayed-test-failures))]
         
         [else
          ; Raise a Forge error and stop execution; show Sterling if enabled.
          (when (>= (get-verbosity) 1)
            (printf "Test ~a failed. Stopping execution.~n" name))
-         (when sterling
-           (true-display run))
+         (when (and (Run? run-or-state) sterling)
+           (true-display run-or-state))
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens
@@ -1133,7 +1147,7 @@
     (define-values (name msg context instance run sterling)
       (values (test-failure-name failure)    (test-failure-msg failure)
               (test-failure-context failure) (test-failure-instance failure)
-              (test-failure-run failure) (test-failure-sterling failure)))
+              (test-failure-run-or-state failure) (test-failure-sterling failure)))
         
     ; Print the error (don't raise an actual exception)
     (define sterling-or-instance (if (or (not sterling) (equal? (get-option run 'run_sterling) 'off))

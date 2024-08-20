@@ -19,10 +19,15 @@
 ; How to refactor? Instead of printing in many small pieces, accumulate a string and just print that.
 ; with maybe a formatting function?
 
-; Do not give Kodkod the disambiguating suffix. E.g., a variable "x" will have name "x" and
-; a sym field like "x_some12345" (where "some" is the quantifier type and "12345" is a gensym).
-; This is useful internally, but Kodkod will disambiguate by reference. 
-(define get-sym node/expr/quantifier-var-name)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; It is necessary to send Kodkod the full variable sym, including the
+; disambiguating suffix. This is because the Racket<-->Java interface
+; is _string_ based. "x" may be a different reference from "x" in Racket,
+; but Java will just see a variable named "x". 
+
+; E.g., a variable "x" will have name "x" and a sym field like "x_some12345"
+; (where "some" is the quantifier type and "12345" is a gensym).
+(define get-sym node/expr/quantifier-var-sym)
 
 ; quantvars should start at -1
 (define (interpret-formula run-or-state formula relations atom-names quantvars)

@@ -15,9 +15,9 @@
    [(from/to "/*$" "*/")
     (token+ 'SEXPR-TOK "/*$" lexeme "*/" lexeme-start lexeme-end)]
 
-   ;; file paths
+   ;; file paths or regexp strings
    [(from/to "\"" "\"")
-    (token+ 'FILE-PATH-TOK "\"" lexeme "\"" lexeme-start lexeme-end)]
+    (token+ 'PATH-OR-STR-TOK "\"" lexeme "\"" lexeme-start lexeme-end)]
 
    ;; old instances (old, to remove)
    ;[(from/to "<instance" "</instance>")
