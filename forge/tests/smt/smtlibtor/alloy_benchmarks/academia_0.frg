@@ -61,8 +61,9 @@ pred AllWaitsHavePrereqs {
      all s: Student | (waitlist.s).prerequisites in s.transcript
 }
 
+-- ALLOY-TO-FORGE NOTE: this was originally a failing `check`:
 test expect {
-    academia_0: {model_facts => AllWaitsHavePrereqs} for 30 is theorem
+    academia_0: {not {model_facts => AllWaitsHavePrereqs}} for 30 is sat
 }
 
 

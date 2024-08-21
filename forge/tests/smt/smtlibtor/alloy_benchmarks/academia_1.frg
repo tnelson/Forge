@@ -86,6 +86,7 @@ pred CommitteeMembersInMajor {
   all s: Student | (incommittee.s).(Helper.department) in s.major
 } 
 
-test expect{
-    academia_1 : {(field_facts and model_facts) => CommitteeMembersInMajor} for 30 is theorem
+-- ALLOY-TO-FORGE NOTE: this was originally a failing `check`:
+test expect {
+    academia_1 : {not {(field_facts and model_facts) => CommitteeMembersInMajor}} for 30 is sat
 }

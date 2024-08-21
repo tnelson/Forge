@@ -46,8 +46,9 @@ pred NoEnrolledAndWaiting {
   all c: Course | no (c.enrolled & c.waitlist)
 }
 
+-- ALLOY-TO-FORGE NOTE: this was originally a failing `check`:
 test expect {
-    academia_2 : {(field_facts and model_facts) => NoEnrolledAndWaiting} for 30 is theorem
+    academia_2 : {not {(field_facts and model_facts) => NoEnrolledAndWaiting}} for 30 is sat
 }
 
 

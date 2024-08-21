@@ -14,7 +14,7 @@ pred Closed {
 			s2.elements = s0.elements + s1.elements
 	}
 
-
+-- ALLOY-TO-FORGE NOTE: this was originally a failing `check`:
 test expect {
-    set_test : Closed for 10 is theorem
+    set_test : {not Closed} for 10 is sat
 }

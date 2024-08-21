@@ -6,6 +6,7 @@ option backend smtlibtor
 
 abstract sig Person {
 	children: set Person,
+	parents: set Person,
 	siblings: set Person
 } 
 
@@ -16,12 +17,10 @@ one sig Helper {
 }
 ---------------- Functions ----------------
 
--- Define the parents relation as an auxiliary one
-fun parents : Person -> Person { ~children }
-
 ---------------- Facts ----------------
 
 pred model_facts {
+	parents = ~children
 	-- No person can be their own ancestor
 	no p: Person | p in p.^parents
 
@@ -32,27 +31,23 @@ pred model_facts {
 	all p: Person | p.siblings = {q: Person | p.parents = q.parents} - p
 
 	-- Each married man (woman) has a wife (husband) 
-	all p: Person | p in (Helper.spouse).Person => {
-        let s = p.(Helper.spouse) |
-		    (p in Man implies s in Woman) and
-		    (p in Woman implies s in Man)
-    }
+	all p: Person | let s = p.(Helper.spouse) |
+		(p in Man implies s in Woman) and
+		(p in Woman implies s in Man)
 
 	-- A spouse can't be a siblings
-	no p: Person | p in (Helper.spouse).Person => {p.(Helper.spouse) in p.siblings}
+	no p: Person | p.(Helper.spouse) in p.siblings
 
 }
 
 ---------------- Assertions ----------------
 
--- No person shares a common ancestor with his spouse (i.e., spouse isn't related by blood). 
-pred NoIncest {
-	no p: Person | p in (Helper.spouse).Person and some p.^parents & p.(Helper.spouse).^parents
+-- Every person's siblings are his/her siblings' siblings. 
+pred siblingsSiblings {
+	all p: Person | p.siblings = p.siblings.siblings  
 }
 
+-- ALLOY-TO-FORGE NOTE: this was originally a failing `check`:
 test expect {
-    social_1 : {model_facts => NoIncest} for 30 is theorem
+    social_5 : {not {model_facts => siblingsSiblings}} for 30 is sat
 }
-
-
-

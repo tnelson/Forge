@@ -53,7 +53,8 @@ pred a {
  f1.shareRegion != f2
 }
 
+-- ALLOY-TO-FORGE NOTE: this was originally a failing `check`:
 test expect {
-    loc_int : {model_facts => a} for 10 is theorem
+    loc_int : {not {model_facts => a}} for 10 is sat
 }
 

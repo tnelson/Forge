@@ -50,6 +50,7 @@ pred prop {
 	!Show
 }
 
+-- ALLOY-TO-FORGE NOTE: this was originally a failing `check`:
 test expect {
-    javatypes : {(TypeHierarchy and TypeSoundness) => prop} for 30 is theorem
+    javatypes : {not {(TypeHierarchy and TypeSoundness) => prop}} for 30 is sat
 }
