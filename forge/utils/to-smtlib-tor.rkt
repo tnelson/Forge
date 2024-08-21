@@ -71,7 +71,7 @@
        (define vars-str-decls (map (lambda (x) (cons (car x) (convert-expr run-or-state (cdr x) relations atom-names updated-quantvars updated-quantvar-types bounds)))
                                    decls))
         `(,(if (equal? quantifier 'all) 'forall 'exists)
-          ,(map (lambda (x) (list (car x) (atom-or-int (cdr x)))) decls)
+          ,(map (lambda (x) (list (node/expr/quantifier-var-name (car x)) (atom-or-int (cdr x)))) decls)
           (,(if (equal? quantifier 'all) '=> 'and) ,(membership-guard vars-str-decls) ,processed-form)))]
     [(node/formula/sealed info)
      (node/formula/sealed info)]
@@ -103,7 +103,12 @@
   `(,@(for/list ([i (in-range (length list-of-types))])
       `(= ,(list-ref new-quantvars i) ,(list-ref new-quantvars (@+ i (length list-of-types))))))
   )
-  `(forall ,new-decls (=> (and ,subset-constraints-first ,subset-constraints-second) (and ,@pairwise-equality-constraints)))
+  (define result `(forall ,new-decls (=> (and ,subset-constraints-first ,subset-constraints-second) (and ,@pairwise-equality-constraints))))
+  (unless (s-expression/c result)
+    (raise-forge-error #:msg (format "Format-one-forall on ~a; result was not an s-expression: ~a"
+                                     expr result)
+                       #:context expr))
+  result
 )
 
 (define (format-one-exists run-or-state expr quantvars quantvar-types processed-expr)
@@ -262,7 +267,7 @@
                                           atom (convert-expr run-or-state (cdr (assoc atom decls)) relations atom-names quantvars quantvar-types bounds))))
                                           decl-vars)))
   (define subset-string (if (equal? (length decl-vars) 1) 
-                            `(set.singleton (tuple ,(car decl-vars)))
+                            `(set.singleton (tuple ,(node/expr/quantifier-var-name (car decl-vars))))
                             `(set.singleton (tuple ,(string->symbol (string-join (map (lambda (x) (format "~a" x)) decl-vars) " "))))))
   (define get-set (if (equal? (length argument-vars) 0) 
                       (string->symbol (format "~a" set-name)) 
@@ -510,7 +515,7 @@
   (match expr
     [(node/int/constant info value)
      (cond 
-      [int-ctxt (string->symbol (format "~a" value))]
+      [int-ctxt value]
       [else         
         (define const-name (string->symbol (format "_~a_atom" (gensym))))
         (define new-decl `(declare-const ,const-name IntAtom))

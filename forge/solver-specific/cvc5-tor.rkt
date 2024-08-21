@@ -42,11 +42,22 @@
   ; Send the problem spec to cvc5 via the stdin/out/err connection already opened
   (define cvc5-command (translate-to-cvc5-tor run-spec all-atoms all-rels total-bounds run-constraints))
   ; (smtlib-display stdin cvc5-command)
-  (for ([line cvc5-command])
+  (define matcher (lambda (exp) 
+    (match exp 
+      [(list (quote reconcile-int_atom) 
+             (list (quote set.singleton) 
+                   (list (quote tuple)
+                         X))) X]
+      [else #f]    
+    )
+  ))
+  (define optimized-cvc5-command (descend-s-exp cvc5-command matcher))
+
+  (for ([line optimized-cvc5-command])
     (if (not (empty? line)) 
-      ; (begin (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" line)
+      (begin (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" line)
         (smtlib-display stdin line)
-      ; )
+      )
       (void)
     )
   )
@@ -119,8 +130,8 @@
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
      (if one? 
-     (list `(declare-fun ,name () (Relation Atom)) `(declare-const ,(string->symbol (format "~a_atom" name)) Atom) `(assert (= ,name (set.singleton (tuple ,(string->symbol (format "~a_atom" name)))))))
-     (list `(declare-fun ,name () (Relation Atom))))]
+     (list `(declare-fun ,(string->symbol name) () (Relation Atom)) `(declare-const ,(string->symbol (format "~a_atom" name)) Atom) `(assert (= ,name (set.singleton (tuple ,(string->symbol (format "~a_atom" name)))))))
+     (list `(declare-fun ,(string->symbol name) () (Relation Atom))))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
      (cond [(equal? arity 1)
@@ -128,11 +139,11 @@
            [else
             (define domain-typenames (take typenames (@- (length typenames) 1)))
             (define codomain-typename (last typenames))
-            (list `(declare-fun ,name (,@(map atom-or-int domain-typenames)) ,(atom-or-int codomain-typename)))])]
+            (list `(declare-fun ,(string->symbol name) (,@(map atom-or-int domain-typenames)) ,(atom-or-int codomain-typename)))])]
     ; Fields
     [else
     ; Fields are declared as relations of the appropriate arity of atoms or ints
-     (list `(declare-fun ,name () (Relation ,@(map atom-or-int typenames))))]))
+     (list `(declare-fun ,(string->symbol name) () (Relation ,@(map atom-or-int typenames))))]))
      
 (define (form-disjoint-string relations)
   (define top-level '())
