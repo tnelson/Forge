@@ -24,8 +24,9 @@
 
 (define quantified-for-quantified quantified_pre)
 ; variables need to be grabbed kind of manually
-(define quantvars-1 (node/formula/quantified-decls (node/formula/quantified-formula (car (node/formula/op-children
-                        (car (node/formula/op-children (node/fmla/pred-spacer-expanded quantified-for-quantified))))))))
+
+(define quantvars-1 (node/formula/quantified-decls
+                      (node/formula/quantified-formula (node/fmla/pred-spacer-expanded quantified-for-quantified))))
 (define var-to-sub-1-1 (car (car quantvars-1)))
 (define var-to-sub-1-2 (car (car (cdr quantvars-1))))
 (define quantified-for-quantified-result (substitute-formula run-statement quantified-for-quantified
@@ -35,11 +36,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define quantified-for-int int_pre)
-(define var-to-sub-2-1 (car (node/int/op-children (car (node/formula/op-children (node/formula/quantified-formula (node/formula/quantified-formula (car (node/formula/op-children
-                        (car (node/formula/op-children (node/fmla/pred-spacer-expanded int_pre))))))))))))
+(define var-to-sub-2-1 (car (car (node/formula/quantified-decls (node/fmla/pred-spacer-expanded int_pre)))))
 ; fetching 'a' for the join expr
-(define quantvar-2 (car (car (node/formula/quantified-decls (car (node/formula/op-children
-                        (car (node/formula/op-children (node/fmla/pred-spacer-expanded int_pre)))))))))
+(define quantvar-2 (car (car (node/formula/quantified-decls (node/fmla/pred-spacer-expanded int_pre)))))
 ; I guess this weird way of creating the relation works, since the test passes....
 ; This is helpful to now that rel is logically equivalent to Relation.
 ; TODO: what is the 'parent' field of a relation?

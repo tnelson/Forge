@@ -28,13 +28,13 @@
 ;                                    quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f]) 
 
 (define first_pred quants)
-(define-values (skolemized-fmla bounds) (interpret-formula run-statement first_pred '() '() '() '()))
-(printf "skolemized-fmla: ~a\n" skolemized-fmla)
-(printf "bounds: ~a\n" bounds)
+(define-values (skolemized-fmla bounds) (interpret-formula run-statement (forge:Run-kodkod-bounds run-statement) first_pred '() '() '() '()))
+; (printf "skolemized-fmla: ~a\n" skolemized-fmla)
+; (printf "bounds: ~a\n" bounds)
 
 (define second_pred single)
-(define-values (skolemized-fmla2 bounds2) (interpret-formula run-statement second_pred '() '() '() '()))
-(printf "skolemized-fmla: ~a\n" skolemized-fmla2)
-(printf "bounds: ~a\n" bounds2)
+(define-values (skolemized-fmla2 bounds2) (interpret-formula run-statement (forge:Run-kodkod-bounds run-statement) second_pred '() '() '() '()))
+; (printf "skolemized-fmla: ~a\n" skolemized-fmla2)
+; (printf "bounds: ~a\n" bounds2)
 
 

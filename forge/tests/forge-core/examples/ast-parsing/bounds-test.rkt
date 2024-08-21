@@ -10,7 +10,7 @@
 
 (run run-statement #:preds [])
 
-(define skolem-bound (make-bound (Relation '() 2 'X '() A '()) '() '()))
+(define skolem-bound (make-bound (Relation A '() #f) '() '()))
 
 (format "Relation typelist: ~a" (relation-typelist-thunk parent))
 (format "Relation name: ~a" (relation-name parent))
