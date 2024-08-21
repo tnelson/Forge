@@ -21,6 +21,7 @@
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract
                          string-replace second string-join take last flatten)
+          (only-in racket/file make-temporary-file display-lines-to-file)
           racket/hash
           racket/port)
 
@@ -31,7 +32,7 @@
 ; Assumes the backend server is already running.
 (define (send-to-cvc5-tor run-name run-spec bitwidth all-atoms solverspec
                       total-bounds bound-lower bound-upper run-constraints stdin stdout stderr)
-   
+   ; 
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
   
@@ -53,6 +54,12 @@
   ))
   (define optimized-cvc5-command (descend-s-exp cvc5-command matcher))
 
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+     (define temp-dir-path (get-temp-dir))
+     (define temp-file (make-temporary-file "~a" #:base-dir temp-dir-path))
+     (display-lines-to-file optimized-cvc5-command temp-file #:exists 'replace)
+     (printf "Wrote SMT-lib output to ~a~n" temp-file)
+  )
   (for ([line optimized-cvc5-command])
     (if (not (empty? line)) 
       ; (begin (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" line)

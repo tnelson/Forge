@@ -2,8 +2,6 @@
 
 option backend smtlibtor
 
-option verbose 4
-
 sig Mammal {}
 
 sig Person extends Mammal {}

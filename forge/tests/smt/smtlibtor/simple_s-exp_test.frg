@@ -6,4 +6,6 @@ sig Person {
     parent : set Person 
 }
 
-run {} 
+test expect {
+    vacuity : {} is sat
+}
