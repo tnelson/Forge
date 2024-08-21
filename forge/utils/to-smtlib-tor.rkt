@@ -271,11 +271,11 @@
                             `(set.singleton (tuple ,(string->symbol (string-join (map (lambda (x) (format "~a" x)) decl-vars) " "))))))
   (define get-set (if (equal? (length argument-vars) 0) 
                       (string->symbol (format "~a" set-name)) 
-                      `(,set-name ,@(map (lambda (var) (format "~a" var)) argument-vars))))
+                      `(,set-name ,@(map (lambda (var) (string->symbol (format "~a" var))) argument-vars))))
   (define constraint-args (append decl-vars argument-vars))
   (define constraint-types (append decl-types argument-types))
   (define constraint-pairs (map cons constraint-args constraint-types))
-  (define constraint-str `(assert (forall (,@(map (lambda (x) (format "(~a ~a)" (car x) (atom-or-int (cdr x)))) constraint-pairs)) 
+  (define constraint-str `(assert (forall (,@(map (lambda (x) (string->symbol (format "(~a ~a)" (car x) (atom-or-int (cdr x))))) constraint-pairs)) 
                                   (= (and ,membership-string ,processed-form) 
                                      (set.subset ,subset-string ,get-set)))))
                                   ; first subset is ensuring quantvars are in the decl set

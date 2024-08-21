@@ -55,9 +55,9 @@
 
   (for ([line optimized-cvc5-command])
     (if (not (empty? line)) 
-      (begin (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" line)
+      ; (begin (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" line)
         (smtlib-display stdin line)
-      )
+      ; )
       (void)
     )
   )
@@ -83,14 +83,14 @@
     ; we only want this to operate on arity 1 non-skolem relations, aka sigs
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
       (define primsigs (if (Sig? (bound-relation bound)) (primify run-or-state (Sig-name (bound-relation bound))) '()))
-      (define remove-remainder-lambda (lambda (sig-name) (regexp-replace #rx"_.*$" (symbol->string sig-name) "")))
+      (define remove-remainder-lambda (lambda (sig-name) (string->symbol (regexp-replace #rx"_.*$" (symbol->string sig-name) ""))))
       (cond [(or (equal? 1 (length primsigs)) (empty? primsigs)) '()]
             [else
             ; (format "(assert (= ~a (set.union ~a)))~n~a~n"
             ;         (relation-name (bound-relation bound))
             ;         (deparen (map remove-remainder-lambda primsigs))
             ;         (child-disjointness run-or-state (bound-relation bound)))
-            (let ([assertion `(assert (= ,(relation-name (bound-relation bound)) (set.union ,@(map remove-remainder-lambda primsigs))))])
+            (let ([assertion `(assert (= ,(string->symbol (relation-name (bound-relation bound))) (set.union ,@(map remove-remainder-lambda primsigs))))])
                 (cons assertion (child-disjointness run-or-state (bound-relation bound)))
             )])
     ]
@@ -108,7 +108,7 @@
   ; pairwise disjoint constraint them
   (define (pairwise-disjoint relation1 relation2)
       (if (equal? relation1 relation2) '()
-      `(assert (= (set.inter ,relation1 ,relation2) (as set.empty (Relation Atom))))))
+      `(assert (= (set.inter ,(string->symbol relation1) ,(string->symbol relation2)) (as set.empty (Relation Atom))))))
   (define pairs (cartesian-product child-names child-names))
   (filter-map (lambda (pair) 
                 (let ([result (pairwise-disjoint (first pair) (second pair))])
@@ -130,7 +130,7 @@
     ; Sigs: unary, and not a skolem name
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
      (if one? 
-     (list `(declare-fun ,(string->symbol name) () (Relation Atom)) `(declare-const ,(string->symbol (format "~a_atom" name)) Atom) `(assert (= ,name (set.singleton (tuple ,(string->symbol (format "~a_atom" name)))))))
+     (list `(declare-fun ,(string->symbol name) () (Relation Atom)) `(declare-const ,(string->symbol (format "~a_atom" name)) Atom) `(assert (= ,(string->symbol name) (set.singleton (tuple ,(string->symbol (format "~a_atom" name)))))))
      (list `(declare-fun ,(string->symbol name) () (Relation Atom))))]
     ; Skolem relation
     [(equal? (string-ref name 0) #\$)
@@ -162,7 +162,7 @@
 (define (disjoint-relations rel-names)
   (define (pairwise-disjoint relation1 relation2)
       (if (equal? relation1 relation2) '()
-      `(assert (= (set.inter ,relation1 ,relation2) (as set.empty (Relation Atom))))))
+      `(assert (= (set.inter ,(string->symbol relation1) ,(string->symbol relation2)) (as set.empty (Relation Atom))))))
   (define pairs (cartesian-product rel-names rel-names))
   (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs))
 
