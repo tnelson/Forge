@@ -9,12 +9,17 @@ on:
     branches:
     - main
     - dev
-    - feat_smt
+
+# Docker images for various Racket versions available on DockerHub 
+# as racket/racket:<version>
+# (https://github.com/racket/docker)
+# We use features that require at least 8.4; try to use latest.
 
 jobs:
   forge-tests:
     runs-on: ubuntu-latest
-    container: docker://racket/racket:8.3
+    
+    container: docker://racket/racket:8.13
     steps:
     - name: Checkout repo
       uses: actions/checkout@v2
@@ -28,6 +33,7 @@ jobs:
         apt-get install -y sudo 
         sudo apt-get update
         sudo apt-get install -y cvc5
+        cvc5 --version 
     - name: Install Forge
       run: |
         raco pkg install --auto --no-docs ./forge ./froglet
