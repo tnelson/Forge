@@ -251,7 +251,7 @@
   ; Also declare Atom sort as the top level sort, and define various helper SMT functions.
   
   (define defined-funs (list
-     `(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) -1 (ite (> x__sign 0) 1 0)))
+     `(define-fun sign ((x__sign Int)) Int (ite (< x__sign 0) (- 1) (ite (> x__sign 0) 1 0)))
      `(define-fun reconcile-int_atom ((aset (Relation IntAtom))) IntAtom ((_ tuple.select 0) (set.choose aset)))
      `(assert (forall ((x1 IntAtom) (x2 IntAtom)) (=> (not (= x1 x2)) (not (= (IntAtom-to-Int x1) (IntAtom-to-Int x2))))))
      `(declare-fun univInt () (Relation IntAtom))
