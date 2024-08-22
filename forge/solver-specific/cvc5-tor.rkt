@@ -55,7 +55,9 @@
                          X))) X]
       ; Otherwise, no replacement.
       [else #f])))
-  (define optimized-cvc5-command (descend-s-exp cvc5-command matcher))
+  (define optimized-cvc5-command
+    (filter (lambda (line) (not (empty? line)))
+            (descend-s-exp cvc5-command matcher)))
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ; By default (verbosity >0) save a temporary file and say where it's located
@@ -69,9 +71,7 @@
   ; Send each SMT-lib expression individually to cvc5
   ; via the stdin/out/err connection already opened
   (for ([line optimized-cvc5-command])
-    (if (not (empty? line)) 
-        (smtlib-display stdin line)
-        (void)))
+    (smtlib-display stdin line))
   
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ; Done with the problem spec. Return any needed shared data specific to this backend.

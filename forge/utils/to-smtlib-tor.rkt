@@ -40,7 +40,7 @@
      (boolean?)
       any/c)
   (defensive-checks "convert-formula" run-or-state formula relations atom-names quantvars quantvar-types '() bounds) 
-  (when (@> (get-verbosity) VERBOSITY_LOW)
+  (when (@>= (get-verbosity) VERBOSITY_HIGH)
     (printf "to-smtlib-tor: convert-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
@@ -169,7 +169,7 @@
 
 (define (convert-formula-op run-or-state formula relations atom-names quantvars quantvar-types args bounds [int-ctxt #f])
   (defensive-checks "convert-formula-op" run-or-state formula relations atom-names quantvars quantvar-types args bounds) 
-  (when (@> (get-verbosity) VERBOSITY_LOW)
+  (when (@>= (get-verbosity) VERBOSITY_HIGH)
     (printf "to-smtlib-tor: convert-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
@@ -365,7 +365,7 @@
 
 (define (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)
   (defensive-checks "convert-expr" run-or-state expr relations atom-names quantvars quantvar-types '() bounds) 
-  (when (@> (get-verbosity) VERBOSITY_LOW)
+  (when (@>= (get-verbosity) VERBOSITY_HIGH)
       (printf "to-smtlib-tor: convert-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
@@ -460,7 +460,7 @@
 
 (define (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds [int-ctxt #f])
   (defensive-checks "convert-expr-op" run-or-state expr relations atom-names quantvars quantvar-types args bounds) 
-    (when (@> (get-verbosity) VERBOSITY_LOW)
+    (when (@>= (get-verbosity) VERBOSITY_HIGH)
       (printf "to-smtlib-tor: convert-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
@@ -510,7 +510,7 @@
 
 (define (convert-int run-or-state expr relations atom-names quantvars quantvar-types bounds [int-ctxt #f])
   (defensive-checks "convert-int" run-or-state expr relations atom-names quantvars quantvar-types '() bounds) 
-  (when (@> (get-verbosity) VERBOSITY_LOW)
+  (when (@>= (get-verbosity) VERBOSITY_HIGH)
     (printf "to-smtlib-tor: convert-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
@@ -544,7 +544,7 @@
 
 (define (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds [int-ctxt #f])
   (defensive-checks "convert-int-op" run-or-state expr relations atom-names quantvars quantvar-types args bounds) 
-  (when (@> (get-verbosity) VERBOSITY_LOW)
+  (when (@>= (get-verbosity) VERBOSITY_HIGH)
     (printf "to-smtlib-tor: convert-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)
