@@ -30,11 +30,29 @@ pred existential_comp {
     some p : Person | {q : Person | q.age = p.age} = p
 }
 
-
 test expect {
     outside : {outside_quant} is sat   
     inside: {inside_quant} is sat
     arity_2: {arity_2_comp and some mapping} is sat
     int: {int_comp} is sat
     existential: {existential_comp} is sat
+
+    -- The set of people for whom there exists someone else with the same age...
+    one_sameage_mult: {
+        -- cannot be singleton
+        not { one {q : Person | some r: Person-q | r.age = q.age} }
+    } is theorem
+    no_sameage_mult: {
+        -- can be empty
+        no {q : Person | some r: Person-q | r.age = q.age}
+    } is sat
+    not_always_someone_sameage: {
+        not { some p: Person | p in {q : Person | some r: Person-q | r.age = q.age} }
+    } is sat
+    two_sameage_quant: { 
+        some disj p1, p2: Person | p1+p2 = {q : Person | some r: Person-q | r.age = q.age}
+    } is sat
+    two_equal_sameage_quant: { 
+        some p1, p2: Person | p1=p2 and p1+p2 = {q : Person | some r: Person-q | r.age = q.age}
+    } is unsat
 }
