@@ -1,11 +1,15 @@
 name: Continuous Integration
 
 on:
-  pull_request: ~
+  pull_request: 
+    branches:
+    - main
+    - dev
   push:
     branches:
     - main
     - dev
+    - feat_smt
 
 jobs:
   forge-tests:
@@ -19,7 +23,11 @@ jobs:
       with:
         java-version: '11'
     - name: Install cvc5 for SMT (Theory of Relations) backend engine
-      run: sudo apt-get install -y cvc5
+      run: |
+        apt-get update 
+        apt-get install -y sudo 
+        sudo apt-get update
+        sudo apt-get install -y cvc5
     - name: Install Forge
       run: |
         raco pkg install --auto --no-docs ./forge ./froglet
