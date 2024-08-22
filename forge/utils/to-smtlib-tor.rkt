@@ -14,7 +14,7 @@
   (only-in racket index-of match string-join first second rest flatten last drop-right third empty remove-duplicates empty? filter-map member)
   (only-in racket/contract define/contract or/c listof any/c)
   (prefix-in @ (only-in racket/contract -> ->*))
-  (prefix-in @ (only-in racket/base >= > - + <)))
+  (prefix-in @ (only-in racket/base >= > - + < *)))
 
 (provide convert-formula get-new-top-level-strings)
 
@@ -515,7 +515,9 @@
   (match expr
     [(node/int/constant info value)
      (cond 
-      [int-ctxt value]
+      [int-ctxt
+       ; Older versions of cvc5, and SMT lib in general, like negative ints to be wrapped.
+       (if (< value 0) `(- ,(@* -1 value)) value)]
       [else         
         (define const-name (string->symbol (format "_~a_atom" (gensym))))
         (define new-decl `(declare-const ,const-name IntAtom))
