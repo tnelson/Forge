@@ -233,7 +233,9 @@
   ; 7/25: Commented out quantifier grounding for now.
   ; (define step3 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
 
-  (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() total-bounds)) step1))
+  ; Because this was written with mutation, we need to manually reset its top-level constraint library
+  (smt-tor:clear-new-top-level-strings)
+  (define step4 (map (lambda (f) (smt-tor:convert-constraint new-fake-run f relations all-atoms '() '() total-bounds)) step1))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 3 (post SMT-LIB conversion):~n")
     (for ([constraint step4])
@@ -243,7 +245,7 @@
     ;   (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
     ;   (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
       )
-
+  
   ; Now, convert bounds into SMT-LIB (theory of relations) and assert all formulas
 
   ; Preamble: the (reset) makes (set-logic ...) etc. not give an error on 2nd run
@@ -277,7 +279,8 @@
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]
                                  #:run-command run-command)
-  (printf "Getting next model from CVC5...~n")
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "Getting next model from CVC5...~n"))
 
   ; If the solver isn't running at all, error:
   (unless (is-running?)

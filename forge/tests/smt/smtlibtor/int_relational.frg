@@ -119,3 +119,50 @@ test expect {
     sing_2 : using_sing_2 is sat
     sing_sum : sing_sum_stack is sat
 }
+
+/** Regression tests for uniqueness of integer values */ 
+test expect {
+    regression_int_unique_eq: {
+        some x: Int | {
+            x = 1
+            x = 2
+        }
+    } is unsat
+
+    regression_int_unique_in: {
+        some y: Int | {
+            y in 3
+            y in 4
+        }
+    } is unsat
+
+    regression_int_unique_ni: {
+        some z: Int | {
+            5 in z
+            6 in z
+        }
+    } is unsat
+
+    regression_int_unique_in_union: {
+        some y: Int | {
+            y in 13+14+15
+            y in 16+17+18
+        }
+    } is unsat
+
+    int_unique_with_arithmetic: {
+        some a: Int | {
+            a in add[100,200]
+            a in add[300,400]
+        }
+    } is unsat
+
+    int_unique_dependent: {
+        some a: Int | some disj p1, p2: Person {
+           p1.age != p2.age
+           a in add[p1.age, 1]
+           a in add[p2.age, 1]
+        } 
+    } is unsat
+
+}

@@ -16,17 +16,22 @@
   (prefix-in @ (only-in racket/contract -> ->*))
   (prefix-in @ (only-in racket/base >= > - + < *)))
 
-(provide convert-formula get-new-top-level-strings)
+(provide convert-constraint get-new-top-level-strings clear-new-top-level-strings)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Boolean formulas
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define new-top-level-strings '())
+(define new-top-level-strings (box '()))
 
 (define (get-new-top-level-strings)
-  new-top-level-strings
-)
+  (unbox new-top-level-strings))
+(define (clear-new-top-level-strings)
+  (set-box! new-top-level-strings '()))
+
+; Top-level conversion function for other modules to call. 
+(define (convert-constraint formula relations atom-names quantvars quantvar-types bounds [int-ctxt #f])
+  (convert-formula formula relations atom-names quantvars quantvar-types bounds int-ctxt))
 
 ; Translate a formula AST node
 (define/contract (convert-formula run-or-state formula relations atom-names quantvars quantvar-types bounds [int-ctxt #f])  
@@ -248,9 +253,12 @@
 )
 
 (define (form-comprehension run-or-state expr relations atom-names quantvars quantvar-types decls bounds processed-form)
+
   ; step 1: collect each of the variables in the formula
-  (define collector-lambda (lambda (n ctxt) (if (node/expr/quantifier-var? n) n #f)))
-  (define comprehension-quantvars (remove-duplicates (collect expr collector-lambda #:order 'pre-order)))
+  ;(define collector-lambda (lambda (n ctxt) (if (node/expr/quantifier-var? n) n #f)))
+  ;(define comprehension-quantvars (remove-duplicates (collect expr collector-lambda #:order 'pre-order)))
+  ; ^ Unused now. Strategy is based only on outer context and decls of the comprehension itself.
+  
   ; step 2: split up the decls
   (define decl-vars (map car decls))
   (define decl-types (map cdr decls))
@@ -280,7 +288,7 @@
                                      (set.subset ,subset-string ,get-set)))))
                                   ; first subset is ensuring quantvars are in the decl set
                                   ; second subset is ensuring quantvars are in the new set
-  (set! new-top-level-strings (append new-top-level-strings (list declaration-str constraint-str) ))
+  (set-box! new-top-level-strings (append (get-new-top-level-strings) (list declaration-str constraint-str) ))
   get-set
 )
 
@@ -289,24 +297,40 @@
   ; This allows for us to not worry about type mismatches between Int and IntAtom, because 
   ; any Int wrapped in a singleton (aka becoming a (Relation Int)) will now produce a set 
   ; that is really just a (Relation IntAtom), and so whatever it is being compared to will 
-  ; certainly also be a (Relation IntAtom). 
+  ; certainly also be a (Relation IntAtom).
+
+  ; Concrete example: (+ 5 5) yields an Int
+  ; If we must convert that to an IntAtom, we can't use IntAtom-to-Int, because that's the
+  ; wrong direction. Instead, we'll do something similar to what we do for comprehensions:
+  ; create a distinct SMT function that accepts the variables free in the child expression
+  ; and evaluates to a (Relation IntAtom). E.g.,
+  ; (+ p.age 5) needs to vary depending on the environment value for variable `p`.
+  
   (define argument-vars quantvars)
   (define argument-types (map (lambda (var) (cdr (assoc var quantvar-types))) quantvars))
+
   (define set-name (string->symbol (format "_~a_comp" (gensym))))
   (define declaration-str `(declare-fun ,set-name (,@(map (lambda (x) (atom-or-int x)) argument-types)) (Relation IntAtom)))
   (define get-set (if (equal? (length argument-vars) 0) 
                       (string->symbol (format "~a" set-name)) 
                       `(,set-name ,@(map (lambda (var) (string->symbol (format "~a" var))) argument-vars))))
   (define constraint-pairs (map cons argument-vars argument-types))
-  (define const-name (string->symbol (format "_~a_atom" (gensym))))
-  (define new-decl `(declare-const ,const-name IntAtom))
-  (define new-constraint `(= (IntAtom-to-Int ,const-name) ,(car processed-form)))
+  ;(define const-name (string->symbol (format "_~a_atom" (gensym))))
+  ;(define new-decl `(declare-const ,const-name IntAtom))
+  ;(define new-constraint `(= (IntAtom-to-Int ,const-name) ,(car processed-form)))
+
   (define constraint-str (if (equal? (length constraint-pairs) 0) 
-                                  `(assert (and ,new-constraint (set.subset (set.singleton (tuple ,const-name)) ,get-set)))
-                                  `(assert (exists (,@(map (lambda (x) (string->symbol (format "(~a ~a)" (car x) (atom-or-int (cdr x))))) constraint-pairs)) 
-                                  (and ,new-constraint (set.subset (set.singleton (tuple ,const-name)) ,get-set))))))
-  (set! new-top-level-strings (append (list new-decl declaration-str) new-top-level-strings))
-  (set! new-top-level-strings (append new-top-level-strings (list constraint-str)))
+                                  `(assert (and ;,new-constraint
+                                                ;(set.subset (set.singleton (tuple ,const-name)) ,get-set)))
+                                                (= ,(car processed-form) (IntAtom-to-Int (reconcile-int_atom ,get-set)))))
+                                  `(assert (forall (,@(map (lambda (x) (string->symbol (format "(~a ~a)" (car x) (atom-or-int (cdr x))))) constraint-pairs)) 
+                                                   (and ;,new-constraint
+                                                        ;(set.subset (set.singleton (tuple ,const-name)) ,get-set))))))
+                                                    (= ,(car processed-form) (IntAtom-to-Int (reconcile-int_atom ,get-set)))
+                                                    (set.is_singleton ,get-set))))))
+
+  (set-box! new-top-level-strings (append (list #;new-decl declaration-str) (get-new-top-level-strings)))
+  (set-box! new-top-level-strings (append (get-new-top-level-strings) (list constraint-str)))
   get-set
 )
 
@@ -522,7 +546,7 @@
         (define const-name (string->symbol (format "_~a_atom" (gensym))))
         (define new-decl `(declare-const ,const-name IntAtom))
         (define new-constraint `(assert (= (IntAtom-to-Int ,const-name) ,value)))
-        (set! new-top-level-strings (append (list new-decl new-constraint) new-top-level-strings))
+        (set-box! new-top-level-strings (append (list new-decl new-constraint) (get-new-top-level-strings)))
         (string->symbol (format "~a" const-name))])]
     [(node/int/op info args)
      (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)]

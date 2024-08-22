@@ -55,4 +55,30 @@ test expect {
     two_equal_sameage_quant: { 
         some p1, p2: Person | p1=p2 and p1+p2 = {q : Person | some r: Person-q | r.age = q.age}
     } is unsat
+
+    -- exists-forall outer quantification testing
+    -- There is someone who is a different age from everyone else, 
+    -- phrased elaborately via comprehensions. `p1` is not used in the comprehension.
+
+    ea_mixed_outer_sat: {
+        some p1: Person | all p2: Person-p1 | {
+            p1 not in {q : Person | p2.age = q.age}
+        }
+    } is sat
+    ea_mixed_outer_unsat: {
+        #Person > 1
+        some p1: Person | all p2: Person-p1 | {
+            p1 not in {q : Person | p2.age = q.age}
+            p1 in {r : Person | p2.age = r.age}
+        }
+    } is unsat
+
+    -- Int quantification
+    some_int_same: {
+        some i: Int | i = {i2: Int | some p: Person | p.age = i2}
+    } is sat
+    some_int_same_diff: {
+        #Int > 1
+        all i: Int | i = {i2: Int | some p: Person | p.age = i2}
+    } is unsat
 }
