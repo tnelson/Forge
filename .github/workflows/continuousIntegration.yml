@@ -18,6 +18,8 @@ jobs:
       uses: actions/setup-java@v1
       with:
         java-version: '11'
+    - name: Install cvc5 for SMT (Theory of Relations) backend engine
+      run: sudo apt-get install -y cvc5
     - name: Install Forge
       run: |
         raco pkg install --auto --no-docs ./forge ./froglet

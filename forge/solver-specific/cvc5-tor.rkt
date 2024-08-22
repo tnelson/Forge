@@ -32,7 +32,7 @@
 ; Assumes the backend server is already running.
 (define (send-to-cvc5-tor run-name run-spec bitwidth all-atoms solverspec
                       total-bounds bound-lower bound-upper run-constraints stdin stdout stderr)
-   ; 
+  
   ; Declare assertions
   (define all-rels (get-all-rels run-spec))
   
@@ -40,35 +40,40 @@
   ; for highlighting unsat cores. (TODO: this is not high priority yet re: CVC5)
   (define core-map (make-hash))
     
-  ; Send the problem spec to cvc5 via the stdin/out/err connection already opened
+  ; Translate the problem to SMT-lib (theory of relations)
   (define cvc5-command (translate-to-cvc5-tor run-spec all-atoms all-rels total-bounds run-constraints))
-  ; (smtlib-display stdin cvc5-command)
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ; Post-processing for optimization. The `matcher` lambda defines a substitution.
+  ; At the moment, there is only one shape being removed.
   (define matcher (lambda (exp) 
-    (match exp 
+    (match exp
+      ; replace (reconcile-int_atom (set.singleton (tuple X))) with X.
       [(list (quote reconcile-int_atom) 
              (list (quote set.singleton) 
                    (list (quote tuple)
                          X))) X]
-      [else #f]    
-    )
-  ))
+      ; Otherwise, no replacement.
+      [else #f])))
   (define optimized-cvc5-command (descend-s-exp cvc5-command matcher))
 
-  (when (@> (get-verbosity) VERBOSITY_LOW)
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ; By default (verbosity >0) save a temporary file and say where it's located
+  (when (@>= (get-verbosity) VERBOSITY_LOW)
      (define temp-dir-path (get-temp-dir))
      (define temp-file (make-temporary-file "~a" #:base-dir temp-dir-path))
      (display-lines-to-file optimized-cvc5-command temp-file #:exists 'replace)
-     (printf "Wrote SMT-lib output to ~a~n" temp-file)
-  )
+     (printf "Wrote SMT-lib output to ~a~n" temp-file))
+
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ; Send each SMT-lib expression individually to cvc5
+  ; via the stdin/out/err connection already opened
   (for ([line optimized-cvc5-command])
     (if (not (empty? line)) 
-      ; (begin (printf "~nSENDING TO CVC5:~n~a~n-------------------------~n" line)
         (smtlib-display stdin line)
-      ; )
-      (void)
-    )
-  )
+        (void)))
   
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ; Done with the problem spec. Return any needed shared data specific to this backend.
   (values all-rels core-map))
 
@@ -174,9 +179,10 @@
   (map (lambda (pair) (pairwise-disjoint (first pair) (second pair))) pairs))
 
 (define (translate-to-cvc5-tor run-spec all-atoms relations total-bounds step0)
-  ; For now, just print constraints, etc.
-  (printf "~n********************************~n")
-  (printf "Translating to CVC5 theory-of-relations~nConstraints:~n")
+  
+  (when (@> (get-verbosity) VERBOSITY_LOW)
+    (printf "~n********************************~n")
+    (printf "Translating to CVC5 theory-of-relations~n"))
 
   ; First concept of turning run-spec into run statement:
   (define fake-solution-tree (lazy-tree:make-node #f #f))
@@ -227,14 +233,12 @@
   ; 7/25: Commented out quantifier grounding for now.
   ; (define step3 (map (lambda (f) (quant-grounding:interpret-formula new-fake-run f relations all-atoms '() '() step2-bounds)) step2))
 
-  (printf "Step 1: ~a~n" step1)
-  
   (define step4 (map (lambda (f) (smt-tor:convert-formula new-fake-run f relations all-atoms '() '() total-bounds)) step1))
   (when (@> (get-verbosity) VERBOSITY_LOW)
     (printf "~nStep 3 (post SMT-LIB conversion):~n")
     (for ([constraint step4])
       (printf "  ~a~n" constraint))
-    (printf "~nBounds (post Skolemization):~n")
+    ;(printf "~nBounds (post Skolemization):~n")
     ; (for ([bound step2-bounds])
     ;   (printf "  ~a/lower: ~a~n" (bound-relation bound) (bound-lower bound))
     ;   (printf "  ~a/upper: ~a~n" (bound-relation bound) (bound-upper bound)))
@@ -312,7 +316,7 @@
      (begin
        (smtlib-display stdin "(get-model)")
        (define model-s-expression (read stdout))
-       (when (@> (get-verbosity) 0)
+       (when (@> (get-verbosity) VERBOSITY_LOW)
          (printf "----- RECEIVED -----~n")
          (for ([s-expr model-s-expression])
            (printf "~a~n" s-expr))
