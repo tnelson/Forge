@@ -95,7 +95,7 @@
     ; we only want this to operate on arity 1 non-skolem relations, aka sigs
     [(and (equal? arity 1) (not (equal? (string-ref name 0) #\$)))
       (define primsigs (if (Sig? (bound-relation bound)) (primify run-or-state (Sig-name (bound-relation bound))) '()))
-      (define remove-remainder-lambda (lambda (sig-name) (string->symbol (regexp-replace #rx"_.*$" (symbol->string sig-name) ""))))
+      (define remove-remainder-lambda (lambda (sig-name) (string->symbol (regexp-replace #rx"_remainder$" (symbol->string sig-name) ""))))
       (cond [(or (equal? 1 (length primsigs)) (empty? primsigs)) '()]
             [else
             ; (format "(assert (= ~a (set.union ~a)))~n~a~n"

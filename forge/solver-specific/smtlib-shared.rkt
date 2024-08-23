@@ -30,7 +30,7 @@
                           (symbol? (node/expr/relation-name arg)))
                      (node/expr/relation-name arg)]
                     [else
-                     (printf "~n~n*** ELSE CASE: ~a~n~n" (pretty-type-of arg))
+                     (printf "~n*** atom-or-int ELSE CASE: ~a. Value=~a~n" (pretty-type-of arg) arg)
                      arg]))
   (if (equal? str 'Int)
       'IntAtom
