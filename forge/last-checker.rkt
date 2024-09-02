@@ -38,7 +38,7 @@
 (define/contract (check-temporal-mode run-or-state a-node)
   (@-> (or/c Run? State? Run-spec?) 
        node?
-       void?)  
+       void?)
   (unless (equal? 'temporal 
                   (get-option run-or-state 'problem_type))
           (raise-syntax-error #f (format "Error: use of LTL operator without temporal problem_type declared")
@@ -67,6 +67,7 @@
     
     (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
                       (list (expression-type-type (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash)) acc)))
+    ;(printf "pred spacer: ~a~n~a~n~a~n" name domain-types arg-types)
     (for-each 
         (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
             (raise-forge-error

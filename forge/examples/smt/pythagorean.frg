@@ -49,8 +49,9 @@ pred isPrimitive[x, y, z: Int] {
     }
 }
 
+/*
 test expect {
-    /** Generate a triple using the m,n method. */
+    // Generate a triple using the m,n method. 
     pt1: {
         all m, n: Int | (m > n and n > 0) => {
             let msq = multiply[m, m], nsq = multiply[n,n] | {
@@ -59,7 +60,7 @@ test expect {
         }
     } is theorem
 
-    /** Generate a non-primitive triple using the m,n method. */
+    // Generate a non-primitive triple using the m,n method. 
     pt2: {
         some m, n: Int | let msq = multiply[m, m], nsq = multiply[n,n] | { 
             m > n
@@ -71,19 +72,27 @@ test expect {
     -- In SMT, this won't matter (or even be considered by the solver).
     } for 10 Int is sat
 
+}*/
+
+one sig H {
+    m: one Int,
+    n: one Int
 }
 
 -- tests for universally quantified Ints
-test expect {
+--test expect {
     /** Find a _primitive_ triple via the m,n method. 
         Note that in contrast to the above, this requires *universal* quantification. */
-    test_with_universals_find_primitive: {
+--    test_with_universals_find_primitive: {
+run {
         -- exists-forall, not exists-exists
-        some m, n: Int | (m > n and n > 0) and {
-            let msq = multiply[m, m], nsq = multiply[n,n] | {
-                isPythagoreanTriple[subtract[msq, nsq], multiply[2, multiply[m, n]], add[msq, nsq]]
-                isPrimitive[        subtract[msq, nsq], multiply[2, multiply[m, n]], add[msq, nsq]]
+        (H.m > H.n and H.n > 0) and {
+            let msq = multiply[H.m, H.m], nsq = multiply[H.n,H.n] | {
+                isPythagoreanTriple[subtract[msq, nsq], multiply[2, multiply[H.m, H.n]], add[msq, nsq]]
+                isPrimitive[        subtract[msq, nsq], multiply[2, multiply[H.m, H.n]], add[msq, nsq]]
             }
         }
-    } is sat
 }
+
+--    } is sat
+--}

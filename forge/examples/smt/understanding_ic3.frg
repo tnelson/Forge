@@ -67,8 +67,10 @@ pred goal[s: State] {
 
 /** Both systems satisfy initiation */
 test expect {
-    initiation_1: {all s: State | init_1[s] implies goal[s]} for 1 State is theorem
-    initiation_2: {all s: State | init_2[s] implies goal[s]} for 1 State is theorem
+    initiation_1: {all s: State | init_1[s] implies goal[s]} 
+      for 1 State is theorem
+    initiation_2: {all s: State | init_2[s] implies goal[s]} 
+      for 1 State is theorem
 }
 
 /** *Both* fail consecution. The goal is not inductive.  
@@ -76,9 +78,11 @@ test expect {
     of failure: the negation of the requirement is satisfiable. */
 test expect {
     consecution_1: {not {all pre, post: State | 
-        (goal[pre] and delta_1[pre, post]) implies goal[post]}} for 2 State is sat
+        (goal[pre] and delta_1[pre, post]) implies goal[post]}} 
+          for 2 State is sat
     consecution_2: {not {all pre, post: State | 
-        (goal[pre] and delta_2[pre, post]) implies goal[post]}} for 2 State is sat
+        (goal[pre] and delta_2[pre, post]) implies goal[post]}} 
+          for 2 State is sat
 }
 
 -----------------------------------------------------------

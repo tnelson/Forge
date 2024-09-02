@@ -1,7 +1,6 @@
 #lang forge
 
 option backend smtlibtor
-// option run_sterling false
 option verbose 0
 
 sig Person { 
@@ -165,4 +164,14 @@ test expect {
         } 
     } is unsat
 
+}
+
+// Smoke-tests for integer operators 
+test expect {
+    smoke_abs: {some p: Person | abs[p.age] = 1} is sat
+    smoke_add: {some p: Person | add[p.age, 1] = 2} is sat
+    smoke_sub: {some p: Person | subtract[p.age, 1] = 0} is sat
+    smoke_div: {some p: Person | divide[p.age, 2] = 0} is sat
+    smoke_mul: {some p: Person | multiply[p.age, 2] = 0} is sat
+    smoke_mod: {some p: Person | remainder[p.age, 2] = 0} is sat
 }

@@ -596,7 +596,8 @@
     (let ([processed-form (string->symbol (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))])
     processed-form)]
     [(node/int/op/remainder info children)
-      `(mod ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
+     ; TODO: do we need int-ctxt, or can it be inferred?
+      `(mod ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
     [(node/int/op/abs info children)
       `(abs ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/op/sign info children)
