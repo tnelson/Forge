@@ -273,8 +273,9 @@
   (define assertion-strs (map (lambda (s) `(assert ,s)) step4))
 
   ; DO NOT (check-sat) yet.
-  ; list rather than format for s-exp
-  (append preamble-str bounds-str bounds-constraint-strs disjointness-constraint-str comprehension-strs assertion-strs))
+  (filter (lambda (expr) (not (equal? expr '(assert true))))
+          (append preamble-str bounds-str bounds-constraint-strs disjointness-constraint-str
+                  comprehension-strs assertion-strs)))
 
 ; No core support yet, see pardinus for possible approaches
 (define (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr [mode ""]
