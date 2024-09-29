@@ -38,10 +38,11 @@
     ; Omitting:
     ;  "--finite-model-find": use finite model finding heuristic for quantifier instantiation
     ;  we should not have any quantifiers remaining, save perhaps Int quantifiers.
-    
+
+    ; Options like these are now added in the SMT-lib output, for better debugging from file.
+    ; "--force-logic=ALL" "--finite-model-find" "--nl-cov" "--produce-models" "--sets-ext"
     (define cmdline-options
-      (list "--incremental" "--interactive" "--sets-ext" "--force-logic=ALL"
-            "--produce-models" "--finite-model-find" "--nl-cov"))
+      (list "--incremental" "--interactive"))
     (printf "system type: ~a cvc5 path: ~a~ncommand-line options: ~a~n" (system-type) cvc5 cmdline-options)
     ; --sets-ext to use "extended set" operators, which help reconcile sets/relations
     (apply subprocess #f #f #f cvc5 cmdline-options)))
