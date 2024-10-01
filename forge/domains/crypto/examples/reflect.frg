@@ -17,8 +17,6 @@ open "reflect.rkt"
 // Note the visualizer file. As of summer 2024 this is not automatically opened in Sterling.
 option run_sterling "../vis/crypto_viz.js"
 
-option verbose 2
-
 /** Run the protocol from the responder's point of view. */ 
 
 reflect_responder_pov: run {
@@ -65,5 +63,32 @@ reflect_responder_pov: run {
       because they are declared as "one" sigs by the expander, and thus act as constants.
 
     - Attacker and AttackerStrand are likewise "one" sigs (declared in base.frg).
+*/
+
+/*
+  Note on output:
+
+    - You may see multiple shapes produced by the visualizer, depending on which the 
+      solver generates first. This query says that there must be an initiator and 
+      a responder strand, but those terms (initiator, responder) don't have semantic
+      weight. So all we have is their isolated perspectives, and (e.g.) these two shapes 
+      both work:
+
+      initiator          attacker         responder
+          ----------------->
+                             ----------------->
+                             <-----------------
+          <-----------------
+
+      attacker           responder        initiator
+          ------------------>
+          <------------------------------------
+          <------------------
+          ------------------------------------>
+
+      After all, from the responder's POV it receives a valid message 1 and replies
+      with a valid message 2; similarly for the initiator. The one important thing to 
+      notice is that the contents of the message must be something the attacker has 
+      to start with, such as one of the public keys. 
 */
 

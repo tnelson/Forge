@@ -22,7 +22,9 @@
      (send (enc a (invk b))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Multiple point-of-view strands
+; Multiple point-of-view strands; these will be converted to Forge predicates 
+; according to the order they are listed in the file. (CPSA provides no identifier
+; for these that we can use.)
 
 (defskeleton reflect
   (vars (a b akey))
