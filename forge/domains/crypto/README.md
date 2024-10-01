@@ -2,6 +2,8 @@
 
 This Forge language echoes the description in [Prototyping Formal Methods Tools: A Protocol Analysis Case Study](https://cs.brown.edu/~tbn/publications/ssdnk-fest21-forge.pdf) by Siegel, et al. We suggest using `#lang forge` to write your queries, importing the requisite [CPSA](https://github.com/mitre/cpsa) definitions from a similarly-named `#lang forge/domains/crypto` file. You can see an example of how this works in [`examples/reflect.rkt`](examples/reflect.rkt) (the CSPA definitions) and [`examples/reflect.frg`](examples/reflect.frg) (the queries to be run). 
 
+A reader interested in only the _domain model_ should skip to the final section of this page, which touches on lessons learned.
+
 ## CPSA 
 
 This system accepts protocol definitions in CPSA's input language. As this effort was meant for teaching, we only support the "simple" term language at the moment, and some more advanced features may be elided. Concretely, there are two CPSA languages:
@@ -65,6 +67,10 @@ There are also a number of helper predicates made available:
   * `getInv[k: akey]` accepts an asymmetric key and produces that key's inverse, if it exists; 
   * `attacker_learns[s: strand, d: mesg]` accepts a strand and field name, and evaluates to true if and only if the attacker eventually learns the value of field `d` in strand `s`; ...
 
+Finally, there will be a `sig` assigned for each skeleton and role strand. These will have 
+appropriate fields for each variable declared. E.g., the initiator strand would be represented
+as `reflect_resp` (since the protocol name is `reflect` and the role name is `resp`). It would have fields `reflect_resp_a` and `reflect_resp_b` for the variables `a` and `b` declared for that role strand.
+
 After asserting `wellformed` and the pertinent role and skeleton predicates, the query can also contain additional constraints. For example, the reflection example we provide gives:
 
 ```
@@ -80,4 +86,30 @@ E.g., we might say that there are no more than `3` names in an execution of the 
 
 ### Visualizing Executions 
 
-When Sterling opens, the default visualization will appear as a dense cluster of boxes and lines. To switch to the sequence diagram version, click on the 'Script' tab and paste in the contents of the [visualization script](./vis/crypto_viz.js). Then click 'Run'. 
+When Sterling opens, the solver will (perhaps after some delay) produce an instance. The default visualization will appear as a dense cluster of boxes and lines. To switch to the sequence diagram version, click on the 'Script' tab and paste in the contents of the [visualization script](./vis/crypto_viz.js). Then click 'Run'. 
+
+## Notes on the Model (Lessons Learned)
+
+The domain model is contained in `base.frg`. The biggest challenge we faced in the modeling was the propagation of knowledge. This is complicated by the existence of nested ciphertexts. For example, one may receive a series of terms:
+* `enc(k2, enc(k3, invk(k2)), invk(k1))`
+* `enc(x, invk(k3))`
+* `k1`
+at which point, `k1` can be used to unlock the outer layer of encryption, yielding:
+* `k2`
+* `enc(k3, invk(k2))`
+but then `k2` can be used to unlock the newly-learned term to yield:
+* `k3`
+which can finally be used to unlock the second term received to learn:
+* `x`. 
+
+All of this learning may be triggered by receiving a single term (in this case, `k1`), resulting in multiple decryption steps. When ciphertext terms can have unbounded nesting, this is challenging to model. 
+
+The problem is even more complex because cyclic justifications must be excluded. E.g., if an agent receives:
+* enc(x, inv(x))
+then knowing `x` would allow the term to be decrypted, yet decrypting the term allows the agent to learn `x`; a flawed model might allow the agent to learn `x` because, after all, it "knows the key `x`" in that time step. 
+
+Nevertheless, we wanted to explore this idea; it was, after all, originally an independent-study project! Thus, the crypto domain model in `base.frg` uses a micro-tick system to potentially unlock multiple nested ciphertext terms in one transition. _This has a negative impact on both performance and understandability._
+
+Yet, none of the examples from the paper were so complex! Our examples didn't target terms with more than 2 layers of nesting. It would have been far simpler to elide the micro-tick approach and just encode a single "chained" decryption as part of the constraint describing how knowledge is gained. In hindsight, that would have been a better choice for the _tool demo_, but we preserve the original model both as a research artifact and, perhaps, an interesting essay in the art of modeling.
+
+
