@@ -10,11 +10,13 @@
 (require (prefix-in @ (only-in racket hash not +)) 
          (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
-(require racket/contract)
+(require racket/contract
+         racket/match)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
 (require (prefix-in tree: forge/lazy-tree))
 (require syntax/srcloc)
 (require (prefix-in pardinus: (only-in forge/pardinus-cli/server/kks clear cmd)))
+(require (prefix-in cvc5: (only-in forge/solver-specific/smtlib-shared smtlib-display)))
 
 (provide (all-defined-out))
 
@@ -39,12 +41,18 @@
   [kind symbol?] ; symbol
   ) #:transparent)
 
+; For SMT backends only, may yield "unknown"
+(struct/contract Unknown (
+  [stats any/c]    ; data on performance, translation, etc. 
+  [metadata any/c] ; any solver-specific data provided about the unknown result
+  )#:transparent)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Sigs and Relations enrich the "relation" AST node with
 ; Forge-specific information, which often leads to added
 ; constraints.
 
-; DO NOT EXTEND THIS SIG
+; DO NOT EXTEND THIS STRUCT
 (struct Sig node/expr/relation (
   name ; symbol?
   one ; boolean?
@@ -56,7 +64,8 @@
   [(define (write-proc self port mode)
      (fprintf port "(Sig ~a)" (Sig-name self)))])
 
-; DO NOT EXTEND THIS SIG
+; DO NOT EXTEND THIS STRUCT
+; TODO: really this should be called "Field", since it represents that at the surface/core level.
 (struct Relation node/expr/relation (
   name ; symbol?
   sigs-thunks ; (listof (-> Sig?))
@@ -85,7 +94,7 @@
 
 ; NOTE WELL:
 ; The structs below define an intermediate representation; the Kodkod bounds (produced in
-; forge/send-to-kodkod) are what is actually sent to the solver.
+; forge/send-to-solver) are what is actually sent to the solver.
 
 ; ALSO: be aware that the "bounds", "sbounds" etc. structs defined elsewhere are distinct from
 ; the Bounds struct defined here. At some point, we can perhaps condense these into a single IR.
@@ -145,10 +154,11 @@
   [distance (or/c 'close_noretarget 'far_noretarget 'close_retarget 'far_retarget 'hamming_cover)]
   ) #:transparent)
 
-(struct expression-type (
-  type ; list list symbol?
-  multiplicity ; unsure
-  temporal-variance ; bool?
+(struct/contract expression-type (
+  [type (listof (listof symbol?))]
+  [multiplicity (or/c 'set 'lone 'one 'no 'func 'pfunc)]
+  [temporal-variance (or/c boolean? string?)]
+  [top-level-types (listof (or/c 'Int 'univ))]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -225,7 +235,7 @@
   [kodkod-bounds (listof any/c)]
   ; This is Sterling's current cursor into the exploration tree.
   ; It is mutated whenever Sterling asks for a new instance.
-  [last-sterling-instance (box/c (or/c Sat? Unsat? false/c))]
+  [last-sterling-instance (box/c (or/c Sat? Unsat? Unknown? false/c))]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -598,6 +608,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define first-instance (tree:get-value (Run-result run)))
   (Unsat? first-instance))
 
+; is-unknown? :: Run -> boolean
+; Checks if a given run result is 'unknown. This kind of result won't be given
+; by all kinds of solver backends, but some do produce it. 
+(define (is-unknown? run)
+  (define first-instance (tree:get-value (Run-result run)))
+  (Unknown? first-instance))
+
+
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)
   (assert-is-running run)
@@ -640,9 +658,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (add-closed-run-name! (Run-name run))
   
   ; Since we're using a single process now, send it instructions to clear this run
-  (pardinus:cmd 
-      [(get-stdin run)]
-      (pardinus:clear (Run-name run))))
+  ; Different backends will be cleared in different ways.
+  (define backend (get-option (Run-run-spec run) 'backend))
+  (match backend
+    ['pardinus
+     (pardinus:cmd [(get-stdin run)] (pardinus:clear (Run-name run)))]
+    ['smtlibtor
+     (cvc5:smtlib-display (get-stdin run) "(reset)")]
+    [else
+     (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
+                        #:context #f)]))
 
 ; is-running :: Run -> Boolean
 ; This reports whether the _solver server_ is running;
@@ -652,7 +677,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 (define (assert-is-running run)
   (unless (is-running? run)
-    (raise-user-error "KodKod/Pardinus solver process is not running.")))
+    (raise-user-error "Solver process is not running.")))
 
 (require (for-syntax syntax/srcloc)) ; for these macros
 
@@ -805,3 +830,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
      #:msg (format ":> argument has incorrect arity (~a vs. ~a) in ~a :> ~a" 
                    (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b))
      #:context loc)))
+
+; A Field relation is functional if it has a functional breaker assigned. 
+(define (Relation-is-functional? r)
+  (or (Relation-is? r '(pfunc func))))
+
+(define (Relation-is? r sym-list)
+  (and (Relation? r)
+       (node/breaking/break? (Relation-breaker r))
+       (member (node/breaking/break-break (Relation-breaker r)) sym-list)))

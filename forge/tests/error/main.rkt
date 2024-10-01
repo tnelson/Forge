@@ -69,7 +69,8 @@
     (list "bsl-join-right5.frg" #rx"not an object")
     (list "bsl-join-right6.frg" #rx"not an object")
     (list "bsl-join.frg" #rx"not an object")
-    (list "bsl-join2.frg" #rx"not a singleton")
+    (list "bsl-join2.frg" #rx"did not result in a singleton value")
+
     (list "bsl-join3.frg" #rx"not an object")
     (list "bsl-reachable.frg" #rx"field")
     (list "bsl-reachable2.frg" #rx"not a singleton")
