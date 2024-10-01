@@ -87,8 +87,9 @@ reflect_responder_pov: run {
           ------------------------------------>
 
       After all, from the responder's POV it receives a valid message 1 and replies
-      with a valid message 2; similarly for the initiator. The one important thing to 
-      notice is that the contents of the message must be something the attacker has 
-      to start with, such as one of the public keys. 
+      with a valid message 2; similarly for the initiator. The important things to 
+      notice are that the contents of the message must be something the attacker has 
+      to start with, such as one of the public keys, and that it must either be able
+      to echo back the same message or open one of the messages it receives.
 */
 
