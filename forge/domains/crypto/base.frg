@@ -185,8 +185,17 @@ pred wellformed {
   -- assume long-term keys are used for only one agent pair (or unused)
   all k: skey | lone (KeyPairs.ltks).k
 
-  -- Attacker's strand
+  -- The Attacker agent is represented by the attacker strand
   AttackerStrand.agent = Attacker
+
+  -- If one agent has a key, it is different from any other agent's key
+  all a1, a2: name | { 
+    (some KeyPairs.owners.a1 and a1 != a2) implies 
+      (KeyPairs.owners.a1 != KeyPairs.owners.a2)
+  }
+
+  -- private key ownership is unique 
+  all p: PrivateKey | one p.(KeyPairs.owners) 
 
   -- generation only of text and keys, not complex terms
   --  furthermore, only generate if unknown
@@ -240,31 +249,7 @@ pred strand_agent_learns[learner: strand, s: strand, d: mesg] {
   s.d in (learner.agent).learned_times.Timeslot
 }
 
-pred temporary {
-  -- upper bounds for one sig have size > 1 at the moment; fix
-  one Attacker
-
-  -- for checking, debugging:
-  all a1, a2: name | { 
-    -- If one has a key, keys are different
-    (some KeyPairs.owners.a1 and a1 != a2) implies 
-      (KeyPairs.owners.a1 != KeyPairs.owners.a2)
-  }
-
-  all p: PrivateKey | one p.(KeyPairs.owners) 
-
-  -- The Attacker agent is represented by the attacker strand
-  agent.Attacker = AttackerStrand
-
-  -- there are some keys in the world 
-  #Key > 0
-
-  -- abstractness performance experiment
-  --all m : mesg | m in Key + name + Ciphertext + text
-  --all k : Key | k in skey + akey
-  --all ak : akey | ak in PrivateKey + PublicKey
-
-}
+/***************************************************************/
 
 ------------------------------------------------------
 -- Keeping notes on what didn't work in modeling;
@@ -276,9 +261,6 @@ pred temporary {
 --    needs knowledge to grow on the way through the tree, possibly sideways
 -- so this approach won't work
 /*fun accessibleSubterms[supers: set mesg, known: set mesg]: set mesg {
-  -- VITAL: ditto above 
-  -- plaintext: Ciphertext -> set mesg
-  -- set of Ciphertexts this agent can now open: 
   let openable = {c: Ciphertext | getInv[c.encryptionKey] in known} |
     supers + 
     supers.^(plaintext & (openable -> mesg))
