@@ -265,7 +265,6 @@
                                      `(set-option :produce-models true)
                                      `(set-option :finite-model-find true)
                                      `(set-option :nl-cov true)
-                                     `(set-option :finite-model-find true)
                                      `(declare-sort Atom 0)
                                      `(declare-sort IntAtom 0)
                                      `(declare-fun IntAtom-to-Int (IntAtom) Int))

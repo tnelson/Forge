@@ -57,9 +57,10 @@
     [(node/formula/multiplicity info mult expr)
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
-       ['no `(= (as set.empty ,(get-k-bounds run-or-state expr quantvars quantvar-types)) ,processed-expr)]
-        ['one `(and ,(format-one-forall run-or-state expr quantvars quantvar-types processed-expr)
-                     ,(format-one-exists run-or-state expr quantvars quantvar-types processed-expr))]
+        ['no `(= (as set.empty ,(get-k-bounds run-or-state expr quantvars quantvar-types)) ,processed-expr)]
+        ['one `(and
+                ;,(format-one-forall run-or-state expr quantvars quantvar-types processed-expr)
+                ,(format-one-exists run-or-state expr quantvars quantvar-types processed-expr #:exact #t))]
         ['some `(not (= (as set.empty ,(get-k-bounds run-or-state expr quantvars quantvar-types)) ,processed-expr))]
         ['lone `(,@(format-one-forall run-or-state expr quantvars quantvar-types processed-expr))]
         [else (raise-forge-error #:msg "SMT backend does not support this multiplicity.")]))]
@@ -116,11 +117,12 @@
   result
 )
 
-(define (format-one-exists run-or-state expr quantvars quantvar-types processed-expr)
+(define (format-one-exists run-or-state expr quantvars quantvar-types processed-expr #:exact [exact #f])
   (define list-of-types (expression-type-top-level-types (checkExpression run-or-state expr quantvar-types (make-hash))))
   (define new-quantvars (for/list ([i (in-range (length list-of-types))]) (string->symbol (format "x_~a" i))))
   (define new-decls (for/list ([var new-quantvars] [type list-of-types]) `(,var ,(if (equal? type 'Int) 'IntAtom 'Atom))))
-  (define subset-constraint `(set.subset (set.singleton (tuple ,@new-quantvars)) ,processed-expr))
+  (define subset-constraint `(,(if exact '= 'set.subset)
+                              (set.singleton (tuple ,@new-quantvars)) ,processed-expr))
   `(exists ,new-decls ,subset-constraint)
 )
 
