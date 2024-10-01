@@ -3,7 +3,7 @@
 (require (only-in racket/port port->list))
 (require (prefix-in racket: (only-in racket/base read-syntax)))
 
-(define (read-syntax path port)
+(define (read-syntax path port)  
   ; Using "read" will not bring in syntax location info
   (define parse-tree (port->list (lambda (x) (racket:read-syntax path x)) port))
 
@@ -19,8 +19,8 @@
 
                                 (require forge/sigs
                                          forge/domains/crypto/expander)
-                                (provide (except-out (all-defined-out)
-                                                     forge:n))
+                                (provide (except-out (all-defined-out) forge:n)
+                                         (all-from-out forge/domains/crypto/expander))
                                 ; For evaluating
                                 (define-namespace-anchor forge:n)
                                 (forge:nsa forge:n)
@@ -30,7 +30,7 @@
                                 ; Include any tests, run commands, etc.
                                 (module+ execs)
                                 (module+ main
-                                (require (submod ".." execs)))))
+                                (require (submod ".." execs)))))  
   (datum->syntax #f module-datum))
 
 (provide read-syntax)
