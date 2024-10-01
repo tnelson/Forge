@@ -110,6 +110,6 @@ then knowing `x` would allow the term to be decrypted, yet decrypting the term a
 
 Nevertheless, we wanted to explore this idea; it was, after all, originally an independent-study project! Thus, the crypto domain model in `base.frg` uses a micro-tick system to potentially unlock multiple nested ciphertext terms in one transition. _This has a negative impact on both performance and understandability._
 
-Yet, none of the examples from the paper were so complex! Our examples didn't target terms with more than 2 layers of nesting. It would have been far simpler to elide the micro-tick approach and just encode a single "chained" decryption as part of the constraint describing how knowledge is gained. In hindsight, that would have been a better choice for the _tool demo_, but we preserve the original model both as a research artifact and, perhaps, an interesting essay in the art of modeling.
+Yet, none of the examples from the paper were so complex! Our examples didn't target terms with more than 2 layers of nesting. It would have been far simpler to elide the micro-tick approach and just encode a single "chained" decryption as part of the constraint describing how knowledge is gained. In hindsight, that would have been a better choice for the _tool demo_; we did not need to reach for this level of generality. We preserve the original model both as a research artifact and, perhaps, an interesting essay in the art of modeling.
 
 
