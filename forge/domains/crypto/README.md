@@ -94,11 +94,14 @@ The domain model is contained in `base.frg`. The biggest challenge we faced in t
 * `enc(k2, enc(k3, invk(k2)), invk(k1))`
 * `enc(x, invk(k3))`
 * `k1`
+
 at which point, `k1` can be used to unlock the outer layer of encryption, yielding:
 * `k2`
 * `enc(k3, invk(k2))`
+  
 but then `k2` can be used to unlock the newly-learned term to yield:
 * `k3`
+  
 which can finally be used to unlock the second term received to learn:
 * `x`. 
 
@@ -106,6 +109,7 @@ All of this learning may be triggered by receiving a single term (in this case, 
 
 The problem is even more complex because cyclic justifications must be excluded. E.g., if an agent receives:
 * enc(x, inv(x))
+  
 then knowing `x` would allow the term to be decrypted, yet decrypting the term allows the agent to learn `x`; a flawed model might allow the agent to learn `x` because, after all, it "knows the key `x`" in that time step. 
 
 Nevertheless, we wanted to explore this idea; it was, after all, originally an independent-study project! Thus, the crypto domain model in `base.frg` uses a micro-tick system to potentially unlock multiple nested ciphertext terms in one transition. _This has a negative impact on both performance and understandability._
