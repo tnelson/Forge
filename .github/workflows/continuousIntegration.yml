@@ -29,10 +29,9 @@ jobs:
         java-version: '11'
     - name: Install cvc5 for SMT (Theory of Relations) backend engine
       run: |
-        apt-get update 
-        apt-get install -y sudo 
-        sudo apt-get update
-        sudo apt-get install -y cvc5
+        wget https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
+        unzip cvc5-Linux-x86_64-static.zip
+        export PATH=$PATH:`pwd`/cvc5-Linux-x86_64-static/bin
         cvc5 --version 
     - name: Install Forge
       run: |
