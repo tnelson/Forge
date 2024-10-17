@@ -1,5 +1,6 @@
 #lang forge 
 option backend smtlibtor
+option verbose 0
 one sig Helper { x, y: one Int }
 test expect {
     emptyInt: {#Int = 0} is unsat

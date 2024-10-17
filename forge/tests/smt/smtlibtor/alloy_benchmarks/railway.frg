@@ -1,6 +1,7 @@
 #lang forge
 
 option backend smtlibtor
+option verbose 0
 
 /*
  * A simple model of a railway system. Trains sit on segments of tracks

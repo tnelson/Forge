@@ -2,6 +2,7 @@
 
 option backend smtlibtor
 option run_sterling off
+option verbose 0
 
 sig Person {
     age : one Int,

@@ -1,6 +1,6 @@
 #lang forge 
 option backend smtlibtor 
-option verbose 1 
+option verbose 0
 
 /**
   The semantics of "Int" under smtlibtor are not exactly the same 

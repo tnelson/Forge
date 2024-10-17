@@ -1,6 +1,7 @@
 #lang forge
 
 option backend smtlibtor
+option verbose 0
 
 sig Person {
     parents : set Person,

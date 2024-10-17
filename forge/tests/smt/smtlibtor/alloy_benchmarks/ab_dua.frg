@@ -1,6 +1,7 @@
 #lang forge
 
 option backend smtlibtor
+option verbose 0
 
 /** This is a model of an address book as described on Page 23 of the software abstractions book.
  * The model has the following interesting constructs:

@@ -1,6 +1,7 @@
 #lang forge
 
 option backend smtlibtor
+option verbose 0
 
 /*
  * In his 1973 song, Paul Simon said "One Man's Ceiling Is Another Man's Floor".

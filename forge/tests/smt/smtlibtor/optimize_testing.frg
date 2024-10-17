@@ -1,5 +1,5 @@
 #lang forge
-option verbose 3
+option verbose 0
 option backend smtlibtor
 
 ---------------------------------------------------------------------------------------------------
