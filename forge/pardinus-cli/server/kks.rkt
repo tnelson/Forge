@@ -6,8 +6,8 @@
 
 (require forge/shared)
 (require racket/class racket/match)
-(require forge/pardinus-cli/server/server
-         forge/pardinus-cli/server/server-common
+(require forge/pardinus-cli/server/pardinus-server
+         forge/solver-specific/server-common
          (only-in racket thunk ~a))
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eoi cmd declare-univ
@@ -32,7 +32,7 @@
   (define close-server (thunk 
     (begin 
       (when (>= (get-verbosity) VERBOSITY_HIGH)
-        (printf "Shutting down Pardinus solver process...~n"))
+        (printf "Shutting down ~a solver process...~n" server-name))
       (send kks shutdown))))
   (define is-running? (thunk (send kks initialized?)))
   (values stdin-val stdout-val stderr-val close-server is-running?))

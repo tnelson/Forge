@@ -4,7 +4,7 @@
 
 (require forge/amalgam/desugar/desugar)
 (require forge/amalgam/lift-bounds/lift-bounds)
-(require forge/send-to-kodkod)
+(require forge/send-to-solver)
 
 (require (only-in racket/contract define/contract ->i and/c or/c listof))
 (require (only-in racket cartesian-product first second rest empty?
@@ -55,7 +55,7 @@
   ; which means we have its Run-spec
   ; which is post-processing by the run macro
   (define modified-run-spec (struct-copy Run-spec (Run-run-spec orig-run) [scope scope] [bounds bounds]))
-  (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-kodkod modified-run-spec (Run-command orig-run)))        
+  (define-values (run-result atoms server-ports kodkod-currents kodkod-bounds) (send-to-solver modified-run-spec (Run-command orig-run)))        
   (Run (Run-name orig-run) (Run-command orig-run) modified-run-spec run-result server-ports atoms kodkod-currents kodkod-bounds))
 
 ; takes a hash-table representation of an instance and a tuple and flips the truth of
