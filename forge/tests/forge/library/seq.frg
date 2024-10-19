@@ -26,4 +26,5 @@ test expect {
     lastidx: {order implies (lastIdxOf[Data.seq, A] = 2)} is theorem
     dups: {order implies (hasDups[Data.seq])} is theorem
     notempty: {order implies (not isEmpty[Data.seq])} is theorem
+    idx_produces_first: {order implies (idxOf[Data.seq, A] = 0)} is theorem
 }
