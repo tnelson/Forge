@@ -27,5 +27,5 @@ pred plusPrime {
 
 test expect {
 	--Time is 0 indexed in this title
-	threeNodeInTime2 : {plusPrime implies (#(Node'') = 3)} is theorem
+	threeNodeInTime2 : {plusPrime implies (#(Node'') = 3)} is checked
 }

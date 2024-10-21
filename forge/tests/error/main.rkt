@@ -154,7 +154,7 @@
     (list "failed_sat.frg" #rx"Failed test") 
     ;;; ? after * makes the match lazy, meaning it will match as few characters as possible while still allowing the remainder of the regular expression to match.
     
-    (list "multiple_test_failures.frg" #rx".*?Assertion_All_isRoot_is_necessary_for_isNotRoot failed.*?Invalid example 'thisIsNotATree'.*?Theorem t1 failed")
+    (list "multiple_test_failures.frg" #rx".*?Assertion_All_isRoot_is_necessary_for_isNotRoot failed.*?Invalid example 'thisIsNotATree'.*?Test t1 failed")
     (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.*?Assertion_All_TreeWithEdges_is_necessary_for_isUndirectedTree failed")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"Assertion_isUndirected_is_sufficient_for_isUndirectedTree failed.")
     (list "properties_directed_tree_sufficiency_error.frg" #rx"Assertion_All_arethesame_is_sufficient_for_bothRoots failed.")
@@ -209,6 +209,10 @@
 
     ;; priming error tests
     (list "priming-basic.frg" #rx"Prime operator used in non-temporal context")
+
+    ;; The "is theorem" test construct is temporarily disabled in favor of "is checked";
+    ;; it will be re-enabled for complete solver backends only
+    (list "is_theorem_disabled.frg" #rx"use 'is checked' instead")
   ))
 
 

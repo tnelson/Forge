@@ -9,7 +9,7 @@
 (make-test #:name 'abstractEnforced 
            #:preds (list (= Abstract (+ Extension1 Extension2)))
            #:sigs (list Abstract Extension1 Extension2)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'extensionsAllowed 
            #:preds (list (some Extension1))
            #:sigs (list Abstract Extension1 Extension2)
@@ -17,5 +17,5 @@
 (make-test #:name 'emptyExtensionsEmptyAbstract 
            #:preds (list (=> (no (+ Extension1 Extension2)) (no Abstract)))
            #:sigs (list Abstract Extension1 Extension2)
-           #:expect 'theorem)
+           #:expect 'checked)
 

@@ -24,7 +24,7 @@
 
 (test arity2
 	  #:preds [overArity2]
-	  #:expect theorem)
+	  #:expect checked)
 
 (pred overArity3
 	  (in (-> F2 (-> F2 P2)) (++ ffp (-> F2 (-> F2 P2))))
@@ -32,7 +32,7 @@
 
 (test arity3
 	  #:preds [overArity3]
-	  #:expect theorem)
+	  #:expect checked)
 
 ; Hopefully this test would fail if there were ever any issues
 ; with big arities larger than 3
@@ -43,7 +43,7 @@
 
 (test arity5
 	  #:preds [overArity5]
-	  #:expect theorem)
+	  #:expect checked)
 
 (pred overEntireRelation
 	  (in (-> F2 fp) (++ ffp (-> F2 fp)))
@@ -51,7 +51,7 @@
 
 (test overrideWithEntireRelation
 	  #:preds [overEntireRelation]
-	  #:expect theorem)
+	  #:expect checked)
 
 ; left arity bigger than right arity
 (check-exn exn:fail?

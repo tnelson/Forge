@@ -16,7 +16,7 @@ pred oneVarOneDisj {
     one disj n0: Node | n0 in Node.edges
 }
 test expect {
-    oneOne : {oneVarOne iff oneVarOneDisj} is theorem
+    oneOne : {oneVarOne iff oneVarOneDisj} is checked
 }
 
 pred twoVarOne {
@@ -29,7 +29,7 @@ pred twoVarOneDisj {
     one disj n1, n2: Node | n1 in n2.edges
 }
 test expect {
-    twoOne : {twoVarOne iff twoVarOneDisj} is theorem
+    twoOne : {twoVarOne iff twoVarOneDisj} is checked
 }
 
 pred manyVarOne {
@@ -41,5 +41,5 @@ pred manyVarOneDisj {
 }
             
 test expect {
-    manyVar : {manyVarOne iff manyVarOneDisj} is theorem
+    manyVar : {manyVarOne iff manyVarOneDisj} is checked
 }

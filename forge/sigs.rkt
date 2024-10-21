@@ -634,12 +634,11 @@
                            #:command run-command))
          (update-state! (state-add-runmap curr-state 'name name))))]))
 
-; Test that a spec is sat or unsat
-; (test name
-;       [#:preds [(pred ...)]] 
-;       [#:scope [((sig [lower 0] upper) ...)]]
-;       [#:bounds [bound ...]]
-;       [|| sat unsat]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Primary testing form: check whether a constraint-set, under
+; some provided bounds, is sat, unsat, or an error. 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax (test stx)
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
@@ -691,21 +690,25 @@
                 #:run name)
                (close-run name))]
 
-          [(equal? 'expected 'theorem)          
+          [(equal? 'expected 'checked)
            ;#,(syntax/loc stx (check name args ...))
            check-stx
            (define first-instance (tree:get-value (Run-result name)))
            (if (Sat? first-instance)
                (report-test-failure #:name 'name
-                                    #:msg (format "Theorem ~a failed. Found instance:~n~a"
+                                    #:msg (format "Test ~a failed. Found counterexample instance:~n~a"
                                                   'name first-instance)
                                     #:context loc
                                     #:instance first-instance
                                     #:run name)
                (close-run name))]
+          
+          [(equal? 'expected 'theorem)
+           (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
+                              #:context loc)]
 
           [else (raise-forge-error                 
-                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
                                'expected)
                  #:context loc)]))))]))
 

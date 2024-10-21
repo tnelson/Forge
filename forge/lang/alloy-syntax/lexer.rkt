@@ -111,7 +111,8 @@
    ["test"      (token+ `TEST-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["theorem"   (token+ `THEOREM-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["forge_error" (token+ `FORGE_ERROR-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["two"       (token+ `TWO-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["checked"   (token+ `CHECKED-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ;["two"       (token+ `TWO-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["wheat"     (token+ `WHEAT-TOK "" lexeme "" lexeme-start lexeme-end)]
@@ -150,6 +151,7 @@
    ["'"  (token+ `PRIME-TOK "" lexeme "" lexeme-start lexeme-end)]      
 
    ; Tokenize this to prevent it from being used as a sig/relation name
+   ; (Not intended to be a user-facing error message.)
    ["Time"      (token+ `TIME-TOK "" lexeme "" lexeme-start lexeme-end)]
    
    ;; int stuff
@@ -173,7 +175,7 @@
 
    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    ;; identifiers   
-   ; Don't allow priming
+   ; Don't allow priming, as this is now semantic ("next state")
    [(: (or alphabetic "@" "_") (* (or alphabetic numeric "_" "\"")))   ;; "’" "”"
     (token+ 'IDENTIFIER-TOK "" lexeme "" lexeme-start lexeme-end #f #t)]
    [(* (char-set "➡️"))   ;; "’" "”"
@@ -227,11 +229,13 @@
            "some"
            "sum"
            "test"
-           "two"
+           ;"two"
            "expect"
            "sat"
            "unsat"
            "theorem"
+           "forge_error"
+           "checked"
            "univ"
            "break"
 

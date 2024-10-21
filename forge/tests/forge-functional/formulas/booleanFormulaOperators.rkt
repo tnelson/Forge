@@ -58,16 +58,16 @@
 
 (make-test #:name 'basicTrueFalse
            #:preds (list TrueFalse)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'notOps
            #:preds (list Not)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'andOps 
            #:preds (list And)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'orOps 
            #:preds (list Or)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'impliesOps 
            #:preds (list Implies)
-           #:expect 'theorem)
+           #:expect 'checked)

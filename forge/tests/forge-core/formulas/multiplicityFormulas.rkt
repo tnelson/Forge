@@ -123,33 +123,33 @@
 (test someAsMultiplicity
       #:preds [Some]
       #:bounds [test-inst]
-      #:expect theorem)
+      #:expect checked)
 
 (test noAsMultiplicity
       #:preds [No]
       #:bounds [test-inst]
-      #:expect theorem)
+      #:expect checked)
 
 (test oneAsMultiplicity
       #:preds [One1]
       #:bounds [test-inst]
-      #:expect theorem)
+      #:expect checked)
 
 (test loneAsMultiplicity
       #:preds [Lone1]
       #:bounds [test-inst]
-      #:expect theorem)
+      #:expect checked)
 
 ; (test oneAsQuantifer ; CUURRENTLY BUGGED
 ;       #:preds [One2]
 ;       #:bounds [test-inst]
-;       #:expect theorem)
+;       #:expect checked)
 
 ; (test loneAsQuantifer ; CUURRENTLY BUGGED
 ;       #:preds [Lone2]
 ;       #:bounds [test-inst]
-;       #:expect theorem)
+;       #:expect checked)
 
 (test loneEquivalentOneNo
       #:preds [Equivalence]
-      #:expect theorem)
+      #:expect checked)

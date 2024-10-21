@@ -29,7 +29,7 @@ pred overArity2 {
 }
 
 test expect {
-	arity2: {overArity2} is theorem
+	arity2: {overArity2} is checked
 }
 
 pred overArity3 {
@@ -38,7 +38,7 @@ pred overArity3 {
 }
 
 test expect {
-	arity3: {overArity3} is theorem
+	arity3: {overArity3} is checked
 }
 
 -- Detect issues with arities larger than 3
@@ -48,7 +48,7 @@ pred overArity5 {
 }
 
 test expect {
-	arity5: {overArity5} is theorem
+	arity5: {overArity5} is checked
 }
 
 pred overEntireRelation {
@@ -57,5 +57,5 @@ pred overEntireRelation {
 }
 
 test expect {
-	overrideWithEntireRelation: {overEntireRelation} is theorem
+	overrideWithEntireRelation: {overEntireRelation} is checked
 }

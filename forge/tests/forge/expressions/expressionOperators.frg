@@ -100,23 +100,23 @@ fun canConvertIntExprUnary[nodes: set Node]: one Int {
 fun forceSpacerAroundNode[n: Node]: one Node { n }
 
 test expect ExpressionOperators {
-    tilde : Tilde is theorem
-    caret : Caret is theorem
-    star : Star is theorem
-    plus : Plus is theorem
-    minus : Minus is theorem
-    ampersand : Ampersand is theorem
-    arrow : Arrow is theorem
-    dot : Dot is theorem
-    lessColon : LessColon is theorem
-    colonGreater : ColonGreater is theorem
+    tilde : Tilde is checked
+    caret : Caret is checked
+    star : Star is checked
+    plus : Plus is checked
+    minus : Minus is checked
+    ampersand : Ampersand is checked
+    arrow : Arrow is checked
+    dot : Dot is checked
+    lessColon : LessColon is checked
+    colonGreater : ColonGreater is checked
 
     ite1 : IfThenElse1 is unsat
     ite2 : IfThenElse2 is unsat
 
-    helpers : HelperFun is theorem
-    autoConvertIntFun : {canConvertIntExprNullary <= #Node} is theorem
-    autoConvertIntFun_args : {canConvertIntExprUnary[Node] <= #Node} is theorem
+    helpers : HelperFun is checked
+    autoConvertIntFun : {canConvertIntExprNullary <= #Node} is checked
+    autoConvertIntFun_args : {canConvertIntExprUnary[Node] <= #Node} is checked
 
     -- Regression test for last-checker/join/spacer issue; Jan 05 2024
     regression_join_on_spacer : {

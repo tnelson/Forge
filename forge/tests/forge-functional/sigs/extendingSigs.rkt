@@ -10,7 +10,7 @@
 (make-test #:name 'extensionEnforced
            #:preds (list (in (+ Extension1 Extension2) ToExtend))
            #:sigs (list ToExtend Extension1 Extension2 Extension3)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'multipleExtensions 
            #:preds (list (&& (some Extension1) (some Extension2)))
            #:sigs (list ToExtend Extension1 Extension2 Extension3)
@@ -26,7 +26,7 @@
 (make-test #:name 'doubleExtendingWorks 
            #:preds (list (&& (in Extension3 Extension2) (in Extension2 ToExtend)))
            #:sigs (list ToExtend Extension1 Extension2 Extension3)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (define Parent (make-sig 'Parent))
 (define Child (make-sig 'Child #:extends Parent))
@@ -38,7 +38,7 @@
            #:preds (list (in (join Parent parentRel) Child))
            #:sigs (list ToExtend Extension1 Extension2 Extension3 Parent Child)
            #:relations (list parentRel childRel)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'extensionsInheritRelations
            #:preds (list (some (join Child parentRel)))
            #:sigs (list ToExtend Extension1 Extension2 Extension3 Parent Child)
@@ -48,4 +48,4 @@
            #:preds (list (in (join childRel Parent) Child))
            #:sigs (list ToExtend Extension1 Extension2 Extension3 Parent Child)
            #:relations (list parentRel childRel)
-           #:expect 'theorem)
+           #:expect 'checked)

@@ -15,10 +15,10 @@ test expect {
         isSeqOf[Wrapper.s, Element] implies {
             no Wrapper.s or min[Wrapper.s.Element] = 0
         }
-    } is theorem
+    } is checked
 
     seqLastTest: {
         isSeqOf[Wrapper.s, Element] and some Wrapper.s implies 
           #(Wrapper.s) = add[1, #(seqRest[Wrapper.s])]
-    } is theorem
+    } is checked
 }

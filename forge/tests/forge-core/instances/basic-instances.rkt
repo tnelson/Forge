@@ -17,7 +17,7 @@
 (test basic-sizes
       #:preds [(int= (card A) (int 3))]
       #:bounds [inst1]
-      #:expect theorem)
+      #:expect checked)
 
 (inst inst2
     (= A (+ (atom 'A1) (+ (atom 'A2) (atom 'A3)))))
@@ -26,7 +26,7 @@
 (test basic-set-size
       #:preds [(int= (card A) (int 3))]
       #:bounds [inst2]
-      #:expect theorem)
+      #:expect checked)
 (test basic-unset-size
       #:preds [(int= (card B) (int 2))
                (int= (card R) (int 5))]

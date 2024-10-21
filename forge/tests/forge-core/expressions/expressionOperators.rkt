@@ -95,20 +95,20 @@
               (set ([n1 Node] [n2 Node]) (&& (in (-> n1 n2) edges)
                                               (in n2 (join n edges)))))))
 
-(test tilde #:preds [Tilde] #:expect theorem)
-(test caret #:preds [Caret] #:expect theorem)
-(test star #:preds [Star] #:expect theorem)
-(test plus #:preds [Plus] #:expect theorem)
-(test minus #:preds [Minus] #:expect theorem)
-(test ampersandd #:preds [Ampersand] #:expect theorem)
-(test arrow #:preds [Arrow] #:expect theorem)
-(test dot #:preds [Dot] #:expect theorem)
+(test tilde #:preds [Tilde] #:expect checked)
+(test caret #:preds [Caret] #:expect checked)
+(test star #:preds [Star] #:expect checked)
+(test plus #:preds [Plus] #:expect checked)
+(test minus #:preds [Minus] #:expect checked)
+(test ampersandd #:preds [Ampersand] #:expect checked)
+(test arrow #:preds [Arrow] #:expect checked)
+(test dot #:preds [Dot] #:expect checked)
 
 (test ite1 #:preds [IfThenElse1] #:expect unsat)
 (test ite2 #:preds [IfThenElse2] #:expect unsat)
 
-(test domainRestriction #:preds [DomainRestriction] #:expect theorem)
-(test rangeRestriction #:preds [RangeRestriction] #:expect theorem)
+(test domainRestriction #:preds [DomainRestriction] #:expect checked)
+(test rangeRestriction #:preds [RangeRestriction] #:expect checked)
 
 
 ; Helper functions `fun`
@@ -148,7 +148,7 @@
               (= (helper2d value1 value2) (& value2 value1))
               (= (helper2e value1 value2) (& value2 value1))
               (= (helper2f value1 value2) (& value2 value1)))))
-(test helperfuns #:preds [HelperFun] #:expect theorem)
+(test helperfuns #:preds [HelperFun] #:expect checked)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
