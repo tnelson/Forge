@@ -1,8 +1,6 @@
 #lang forge
 
 option run_sterling off
-
-
 option verbose 0
 
 sig A {}
@@ -15,6 +13,6 @@ test expect sigsPopulate {
 
 test expect sigProperties {
     sigsDisjoint : { no A & B } is checked
-    -- sigsSpanUniv : { univ = A + B + Int } is checked -- CURRENTLY BUGGED
+    sigsSpanUniv : { univ = A + B + Int } is checked
 }
 

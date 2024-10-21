@@ -16,7 +16,7 @@
       #:preds [(no (& A B))]
       #:expect checked)
 
-; (test sigsSpanUniv
-;       #:preds [(= univ (+ A B Int))]
-;       #:expect checked) ; CURRENTLY BUGGED
+(test sigsSpanUniv
+       #:preds [(= univ (+ A B Int))]
+       #:expect checked)
 

@@ -63,7 +63,7 @@ pred Equivalences {
 test expect QuantifiedFormulas {
     AllQuant : All for TestInst is checked
     SomeQuant : Some for TestInst is checked
-    --NoQuant : No for TestInst is checked -- CURRENTLY BUGGED!
+    NoQuant : No for TestInst is checked
 
     QuantifierEquivalences : Equivalences is checked
 }

@@ -98,7 +98,7 @@ test expect MultiplicityFormulas {
     loneAsMultiplicity : Lone1 for TestInst is checked
 
     -- oneAsQuantifer : One2 for TestInst is checked -- CURRENTLY BUGGED!
-    -- loneAsQuantifer : Lone2 for TestInst is checked -- CURRENTLY BUGGED!
+    loneAsQuantifer : Lone2 for TestInst is checked -- CURRENTLY BUGGED!
 
     loneEquivalentOneNo : Equivalence is checked
 }
