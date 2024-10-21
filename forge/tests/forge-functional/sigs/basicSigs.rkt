@@ -19,7 +19,8 @@
            #:sigs (list A B)
            #:expect 'checked)
 
-; (test sigsSpanUniv
-;       #:preds [(= univ (+ A B Int))]
-;       #:expect checked) ; CURRENTLY BUGGED
+(make-test #:name 'sigsSpanUniv
+           #:preds (list (= univ (+ A B Int)))
+           #:sigs (list A B)
+           #:expect 'checked) 
 
