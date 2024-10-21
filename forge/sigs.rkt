@@ -634,12 +634,11 @@
                            #:command run-command))
          (update-state! (state-add-runmap curr-state 'name name))))]))
 
-; Test that a spec is sat or unsat
-; (test name
-;       [#:preds [(pred ...)]] 
-;       [#:scope [((sig [lower 0] upper) ...)]]
-;       [#:bounds [bound ...]]
-;       [|| sat unsat]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Primary testing form: check whether a constraint-set, under
+; some provided bounds, is sat, unsat, or an error. 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax (test stx)
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
@@ -691,7 +690,7 @@
                 #:run name)
                (close-run name))]
 
-          [(equal? 'expected 'theorem)          
+          [(or (equal? 'expected 'theorem) (equal? 'expected 'checked))
            ;#,(syntax/loc stx (check name args ...))
            check-stx
            (define first-instance (tree:get-value (Run-result name)))
