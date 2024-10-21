@@ -61,24 +61,25 @@ pred Lone1 {
     not (lone (edges.Red).N3)
 }
 
--- These are treated as multiplicity formulas by ast.rkt,
--- rather than quantifier formulas.
+-- one/lone quantifiers are treated as multiplicity formulas by ast.rkt,
+-- rather than quantifier formulas. But we still must check that they are consistent.
 
 pred One2 {
-    one n: Node | n->Node in edges.Green
-    one n1, n2: Node | (n1 != n2 and ((n1->n2 + n2->n1) in edges.Green))
-    one n: Node, c: Color | n->Node->c in edges
+    not {one n: Node | n in N1.(edges.Red)}
+    one n: Node | n in N2.(edges.Red)
+    one n: Node | n in N3.(edges.Red)
+    not {one n: Node | n in (edges.Red).N1}
+    one n: Node | n in (edges.Red).N2
+    not {one n: Node | n in (edges.Red).N3}
 }
 
 pred Lone2 {
-    lone n: Node | n->Node in edges.Green -- one
-    lone n: Node | Node->n in edges.Green -- no
-
-    lone n1, n2: Node | n1 != n2 and n1->n2 + n2->n1 in edges.Green -- one
-    lone n1, n2: Node | Node->(n1 + n2) + (n1 + n2)->Node in edges.Green -- no
-
-    lone n: Node, c: Color | n->Node->c in edges -- one
-    lone n: Node, c: Color | (n->Node + Node->n)->c in edges -- no
+    not {lone n: Node | n in  N1.(edges.Red)}
+    lone n: Node | n in N2.(edges.Red)
+    lone n: Node | n in  N3.(edges.Red)
+    lone n: Node | n in (edges.Red).N1
+    lone n: Node | n in (edges.Red).N2
+    not {lone n: Node | n in (edges.Red).N3}
 }
 
 pred SomePred[n: Node] {
@@ -97,8 +98,8 @@ test expect MultiplicityFormulas {
     oneAsMultiplicity : One1 for TestInst is checked
     loneAsMultiplicity : Lone1 for TestInst is checked
 
-    -- oneAsQuantifer : One2 for TestInst is checked -- CURRENTLY BUGGED!
-    loneAsQuantifer : Lone2 for TestInst is checked -- CURRENTLY BUGGED!
+    oneAsQuantifer : One2 for TestInst is checked 
+    loneAsQuantifer : Lone2 for TestInst is checked 
 
     loneEquivalentOneNo : Equivalence is checked
 }
