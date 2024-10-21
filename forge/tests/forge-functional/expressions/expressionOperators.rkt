@@ -111,42 +111,42 @@ pred ColonGreater {
            #:preds (list Tilde)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'caret
            #:preds (list Caret)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'star
            #:preds (list Star)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'plus
            #:preds (list Plus)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'minus
            #:preds (list Minus)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'ampersand
            #:preds (list Ampersand)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'arrow
            #:preds (list Arrow)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'dot
            #:preds (list Dot)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'ite1
            #:preds (list IfThenElse1)
@@ -161,5 +161,5 @@ pred ColonGreater {
 
 
 
-; (test lessColon #:preds [LessColon] #:expect theorem)
-; (test colonGreater #:preds [ColonGreater] #:expect theorem)
+; (test lessColon #:preds [LessColon] #:expect checked)
+; (test colonGreater #:preds [ColonGreater] #:expect checked)

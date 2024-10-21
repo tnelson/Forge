@@ -154,7 +154,7 @@ test expect {
 
   -- Minus operator: check RHS for validity, allow chaining
   -- (Does not apply to sum aggregator, since that requires only one decl)
-  set_minus_rhs_quant_all: {all x: Person, y: Person - x | x != y} is theorem -- should be OK
+  set_minus_rhs_quant_all: {all x: Person, y: Person - x | x != y} is checked -- should be OK
   set_minus_rhs_quant_no: {no x: Person, y: Person - x | x != y} is sat     -- should be OK
   set_minus_rhs_quant_some: {some x: Person, y: Person - x | x != y} is sat -- should be OK
   set_minus_rhs_quant_lone: {lone x: Person, y: Person - x | x != y} is sat -- should be OK

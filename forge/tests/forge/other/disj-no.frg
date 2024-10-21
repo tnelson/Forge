@@ -16,7 +16,7 @@ sig Node {
 //     no disj | true
 // }
 // test expect {
-//     emptyno : {noVarno iff noVarnoDisj} is theorem
+//     emptyno : {noVarno iff noVarnoDisj} is checked
 // }
 
 pred oneVarno {
@@ -26,7 +26,7 @@ pred oneVarnoDisj {
     no disj n0: Node | n0 in Node.edges
 }
 test expect {
-    oneVar : {oneVarno iff oneVarnoDisj} is theorem
+    oneVar : {oneVarno iff oneVarnoDisj} is checked
 }
 
 pred twoVarno {
@@ -38,7 +38,7 @@ pred twoVarnoDisj {
 }
 
 test expect {
-    twoVar : {twoVarno iff twoVarnoDisj} is theorem
+    twoVar : {twoVarno iff twoVarnoDisj} is checked
 }
 
 pred manyVarno {
@@ -50,5 +50,5 @@ pred manyVarnoDisj {
 }
             
 test expect {
-    manyVar : {manyVarno iff manyVarnoDisj} is theorem
+    manyVar : {manyVarno iff manyVarnoDisj} is checked
 }

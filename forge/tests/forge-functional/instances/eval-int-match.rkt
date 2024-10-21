@@ -22,7 +22,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= (sing (int 1)) (join Node ntoi)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define sum-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -42,7 +42,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= (sing (int 8)) (join Node ntoi)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define max-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -62,7 +62,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= (sing (int 7)) (join Node ntoi)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define min-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -81,7 +81,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= (sing (int 3)) (join Node ntoi)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define card-inst
 	(make-inst (list (= Node (+ (atom 'N1) (atom 'N2)))
@@ -97,7 +97,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 2)))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define add-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -116,7 +116,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 9)))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define subtract-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -133,7 +133,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 3)))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define multiply-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -152,7 +152,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 48)))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define divide-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -171,7 +171,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 3)))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define remainder-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -190,7 +190,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 1)))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define abs-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -207,7 +207,7 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int 2)))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define sign-inst
 	(make-inst (list (= Node (atom 'N1))
@@ -227,4 +227,4 @@
 	       #:sigs (list Node)
 	       #:relations (list ntoi)
 	       #:preds (list (= ntoi (-> Node (sing (int -8)))))
-	       #:expect 'theorem)
+	       #:expect 'checked)

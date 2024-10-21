@@ -10,5 +10,5 @@ fun conditional: one Node {
 }
 
 test expect {
-    {conditional = A} is theorem
+    {conditional = A} is checked
 }

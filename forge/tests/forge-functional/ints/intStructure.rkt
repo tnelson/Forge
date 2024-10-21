@@ -19,23 +19,23 @@
 (make-test #:name 'succStructure1
            #:preds (list SuccStructure)
            #:scope (list (list Int 1))
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'succStructure2
            #:preds (list SuccStructure)
            #:scope (list (list Int 2))
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'succStructure3
            #:preds (list SuccStructure)
            #:scope (list (list Int 3))
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'succStructure4
            #:preds (list SuccStructure)
            #:scope (list (list Int 4))
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'succStructure5
            #:preds (list SuccStructure)
            #:scope (list (list Int 5))
-           #:expect 'theorem)
+           #:expect 'checked)
 
 
 (define (make-n n)
@@ -57,24 +57,24 @@
 (make-test #:name 'size1
            #:preds (list (Size -1 0))
            #:scope (list (list Int 1))
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'size2
            #:preds (list (Size -2 1))
            #:scope (list (list Int 2))
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'size3
            #:preds (list (Size -4 3))
            #:scope (list (list Int 3))
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'size4
            #:preds (list (Size -8 7))
            #:scope (list (list Int 4))
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'size5
            #:preds (list (Size -16 15))
            #:scope (list (list Int 5))
-           #:expect 'theorem)
+           #:expect 'checked)

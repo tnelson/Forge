@@ -102,13 +102,13 @@
 (test abs-check
       #:preds [Abs]
       #:scope ([Int 4])
-      #:expect theorem)
+      #:expect checked)
 (test sign-check
       #:preds [Sign]
       #:scope ([Int 4])
-      #:expect theorem)
+      #:expect checked)
 
-(test add-check #:preds [Add] #:expect theorem)
-(test subtract-check #:preds [Subtract] #:expect theorem)
-(test multiply-check #:preds [Multiply] #:expect theorem)
-(test divide-check #:preds [DivideRemainder] #:expect theorem)
+(test add-check #:preds [Add] #:expect checked)
+(test subtract-check #:preds [Subtract] #:expect checked)
+(test multiply-check #:preds [Multiply] #:expect checked)
+(test divide-check #:preds [DivideRemainder] #:expect checked)

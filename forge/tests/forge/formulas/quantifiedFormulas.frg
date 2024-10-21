@@ -61,9 +61,9 @@ pred Equivalences {
 }
 
 test expect QuantifiedFormulas {
-    AllQuant : All for TestInst is theorem
-    SomeQuant : Some for TestInst is theorem
-    --NoQuant : No for TestInst is theorem -- CURRENTLY BUGGED!
+    AllQuant : All for TestInst is checked
+    SomeQuant : Some for TestInst is checked
+    --NoQuant : No for TestInst is checked -- CURRENTLY BUGGED!
 
-    QuantifierEquivalences : Equivalences is theorem
+    QuantifierEquivalences : Equivalences is checked
 }

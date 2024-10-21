@@ -8,11 +8,11 @@
 
 (pred noVarSome (some () true))
 (pred noVarSomeDisj (some #:disj () true))
-(test emptySome #:preds [(iff noVarSome noVarSomeDisj)] #:expect theorem)
+(test emptySome #:preds [(iff noVarSome noVarSomeDisj)] #:expect checked)
 
 (pred oneVarSome (some ([n0 Node]) (in n0 (join Node edges))))
 (pred oneVarSomeDisj (some #:disj ([n0 Node]) (in n0 (join Node edges))))
-(test oneSome #:preds [(iff oneVarSome oneVarSomeDisj)] #:expect theorem)
+(test oneSome #:preds [(iff oneVarSome oneVarSomeDisj)] #:expect checked)
 
 (pred twoVarSome
       (some ([n1 Node] [n2 Node])
@@ -21,7 +21,7 @@
 (pred twoVarSomeDisj
       (some #:disj ([n1 Node] [n2 Node])
         (in n1 (join n2 edges))))
-(test twoSome #:preds [(iff twoVarSome twoVarSomeDisj)] #:expect theorem)
+(test twoSome #:preds [(iff twoVarSome twoVarSomeDisj)] #:expect checked)
 
 (pred manyVarSome
       (some ([n0 Node] [n1 Node] [n2 Node] [n3 Node])
@@ -33,4 +33,4 @@
     (some #:disj ([n0 Node] [n1 Node] [n2 Node] [n3 Node])
         (&& (in (-> n1 n2) edges)
             (in (-> n3 n0) edges))))
-(test manySome #:preds [(iff manyVarSome manyVarSomeDisj)] #:expect theorem)
+(test manySome #:preds [(iff manyVarSome manyVarSomeDisj)] #:expect checked)

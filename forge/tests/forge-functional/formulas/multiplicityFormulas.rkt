@@ -134,41 +134,41 @@
            #:bounds (list test-inst)
            #:sigs (list Color Red Green Blue Node N1 N2 N3)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'noAsMultiplicity
            #:preds (list No)
            #:bounds (list test-inst)
            #:sigs (list Color Red Green Blue Node N1 N2 N3)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'oneAsMultiplicity
            #:preds (list One1)
            #:bounds (list test-inst)
            #:sigs (list Color Red Green Blue Node N1 N2 N3)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'loneAsMultiplicity
            #:preds (list Lone1)
            #:bounds (list test-inst)
            #:sigs (list Color Red Green Blue Node N1 N2 N3)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 ; (test oneAsQuantifer ; CUURRENTLY BUGGED
 ;       #:preds [One2]
 ;       #:bounds [test-inst]
-;       #:expect theorem)
+;       #:expect checked)
 
 ; (test loneAsQuantifer ; CUURRENTLY BUGGED
 ;       #:preds [Lone2]
 ;       #:bounds [test-inst]
-;       #:expect theorem)
+;       #:expect checked)
 
 (make-test #:name 'loneEquivalentOneNo
            #:preds (list Equivalence)
            #:sigs (list Color Red Green Blue Node N1 N2 N3)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)

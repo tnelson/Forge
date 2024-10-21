@@ -10,6 +10,6 @@ sig Node {
 }
 
 test expect One {
-    positive: { all n: Node | one n.edge } is theorem
+    positive: { all n: Node | one n.edge } is checked
     negative: { some n: Node | one n.edge } is sat
 }

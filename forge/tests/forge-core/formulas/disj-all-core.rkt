@@ -9,7 +9,7 @@
 
 (pred oneVarall (all ([n0 Node]) (in n0 (join Node edges))))
 (pred oneVarallDisj (all #:disj ([n0 Node]) (in n0 (join Node edges))))
-(test oneall #:preds [(iff oneVarall oneVarallDisj)] #:expect theorem)
+(test oneall #:preds [(iff oneVarall oneVarallDisj)] #:expect checked)
 
 (pred twoVarall
       (all ([n1 Node] [n2 Node])
@@ -18,7 +18,7 @@
 (pred twoVarallDisj
       (all #:disj ([n1 Node] [n2 Node])
         (in n1 (join n2 edges))))
-(test twoall #:preds [(iff twoVarall twoVarallDisj)] #:expect theorem)
+(test twoall #:preds [(iff twoVarall twoVarallDisj)] #:expect checked)
 
 (pred manyVarall
       (all ([n0 Node] [n1 Node] [n2 Node] [n3 Node])
@@ -30,4 +30,4 @@
     (all #:disj ([n0 Node] [n1 Node] [n2 Node] [n3 Node])
         (&& (in (-> n1 n2) edges)
             (in (-> n3 n0) edges))))
-(test manyall #:preds [(iff manyVarall manyVarallDisj)] #:expect theorem)
+(test manyall #:preds [(iff manyVarall manyVarallDisj)] #:expect checked)

@@ -92,13 +92,13 @@ pred Equivalence {
 }
 
 test expect MultiplicityFormulas {
-    someAsMultiplicity : Some for TestInst is theorem
-    noAsMultiplicity : No for TestInst is theorem
-    oneAsMultiplicity : One1 for TestInst is theorem
-    loneAsMultiplicity : Lone1 for TestInst is theorem
+    someAsMultiplicity : Some for TestInst is checked
+    noAsMultiplicity : No for TestInst is checked
+    oneAsMultiplicity : One1 for TestInst is checked
+    loneAsMultiplicity : Lone1 for TestInst is checked
 
-    -- oneAsQuantifer : One2 for TestInst is theorem -- CURRENTLY BUGGED!
-    -- loneAsQuantifer : Lone2 for TestInst is theorem -- CURRENTLY BUGGED!
+    -- oneAsQuantifer : One2 for TestInst is checked -- CURRENTLY BUGGED!
+    -- loneAsQuantifer : Lone2 for TestInst is checked -- CURRENTLY BUGGED!
 
-    loneEquivalentOneNo : Equivalence is theorem
+    loneEquivalentOneNo : Equivalence is checked
 }

@@ -7,7 +7,7 @@
 
 (pred oneVarone (one ([n0 onede]) (in n0 (join onede edges))))
 (pred oneVaroneDisj (one #:disj ([n0 onede]) (in n0 (join onede edges))))
-(test oneone #:preds [(iff oneVarone oneVaroneDisj)] #:expect theorem)
+(test oneone #:preds [(iff oneVarone oneVaroneDisj)] #:expect checked)
 
 (pred twoVarone
       (one ([n1 onede] [n2 onede])
@@ -16,7 +16,7 @@
 (pred twoVaroneDisj
       (one #:disj ([n1 onede] [n2 onede])
         (in n1 (join n2 edges))))
-(test twoVar #:preds [(iff twoVarone twoVaroneDisj)] #:expect theorem)
+(test twoVar #:preds [(iff twoVarone twoVaroneDisj)] #:expect checked)
 
 (pred manyVarone
       (one ([n0 onede] [n1 onede] [n2 onede] [n3 onede])
@@ -28,4 +28,4 @@
     (one #:disj ([n0 onede] [n1 onede] [n2 onede] [n3 onede])
         (&& (in (-> n1 n2) edges)
             (in (-> n3 n0) edges))))
-(test manyone #:preds [(iff manyVarone manyVaroneDisj)] #:expect theorem)
+(test manyone #:preds [(iff manyVarone manyVaroneDisj)] #:expect checked)

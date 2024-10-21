@@ -17,9 +17,9 @@
 (make-test #:name 'sigsDisjoint 
            #:preds (list (no (& A B)))
            #:sigs (list A B)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 ; (test sigsSpanUniv
 ;       #:preds [(= univ (+ A B Int))]
-;       #:expect theorem) ; CURRENTLY BUGGED
+;       #:expect checked) ; CURRENTLY BUGGED
 

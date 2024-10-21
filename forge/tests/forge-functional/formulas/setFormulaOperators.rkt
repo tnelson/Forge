@@ -78,16 +78,16 @@
       #:preds (list In)
       #:sigs (list Node)
       #:relations (list edges)
-      #:expect 'theorem)
+      #:expect 'checked)
 
 (make-test #:name 'EqualsOp 
       #:preds (list Equals)
       #:sigs (list Node)
       #:relations (list edges)
-      #:expect 'theorem)
+      #:expect 'checked)
 
 (make-test #:name 'ComboNotOps 
       #:preds (list ComboNot)
       #:sigs (list Node)
       #:relations (list edges)
-      #:expect 'theorem)
+      #:expect 'checked)

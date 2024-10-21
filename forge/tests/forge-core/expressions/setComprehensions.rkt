@@ -43,12 +43,12 @@
 (test comprehensionsOnSigs 
       #:preds [ComprehensionsOnSigs]
       #:bounds [relations]
-      #:expect theorem)
+      #:expect checked)
 (test comprehensionsOnSets
       #:preds [ComprehensionsOnSets]
       #:bounds [relations]
-      #:expect theorem)
+      #:expect checked)
 (test multiComprehension
       #:preds [MultiComprehension]
       #:bounds [relations]
-      #:expect theorem)
+      #:expect checked)

@@ -696,7 +696,7 @@
            (define first-instance (tree:get-value (Run-result name)))
            (if (Sat? first-instance)
                (report-test-failure #:name 'name
-                                    #:msg (format "Theorem ~a failed. Found instance:~n~a"
+                                    #:msg (format "Test ~a failed. Found counterexample instance:~n~a"
                                                   'name first-instance)
                                     #:context loc
                                     #:instance first-instance
@@ -708,7 +708,7 @@
                               #:context loc)]
 
           [else (raise-forge-error                 
-                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
                                'expected)
                  #:context loc)]))))]))
 

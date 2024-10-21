@@ -14,9 +14,9 @@
 
 (test sigsDisjoint 
       #:preds [(no (& A B))]
-      #:expect theorem)
+      #:expect checked)
 
 ; (test sigsSpanUniv
 ;       #:preds [(= univ (+ A B Int))]
-;       #:expect theorem) ; CURRENTLY BUGGED
+;       #:expect checked) ; CURRENTLY BUGGED
 

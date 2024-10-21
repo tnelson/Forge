@@ -1026,7 +1026,7 @@
         #:preds [imp_total]
         #:scope pwd.scope
         #:bounds pwd.bounds
-        #:expect theorem ))]))
+        #:expect checked ))]))
 
 
 (define-syntax (QuantifiedPropertyDecl stx)
@@ -1060,7 +1060,7 @@
          #:preds [imp_total]
          #:scope qpd.scope
          #:bounds qpd.bounds
-         #:expect theorem )))]))
+         #:expect checked )))]))
 
 
 (define-syntax (SatisfiabilityDecl stx)

@@ -14,7 +14,7 @@ test expect sigsPopulate {
 }
 
 test expect sigProperties {
-    sigsDisjoint : { no A & B } is theorem
-    -- sigsSpanUniv : { univ = A + B + Int } is theorem -- CURRENTLY BUGGED
+    sigsDisjoint : { no A & B } is checked
+    -- sigsSpanUniv : { univ = A + B + Int } is checked -- CURRENTLY BUGGED
 }
 

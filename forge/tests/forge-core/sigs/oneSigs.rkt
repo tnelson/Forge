@@ -8,7 +8,7 @@
 
 (test oneSigEnforced
       #:preds [(= (card UniqueObject) (int 1))]
-      #:expect theorem)
+      #:expect checked)
 (test oneSigIsntPersistent
       #:preds [(= (card Stuff) (int 2))]
       #:expect sat)
@@ -20,10 +20,10 @@
 
 (test oneExtendActuallyExtends
       #:preds [(in SpecialThing Thing)]
-      #:expect theorem)
+      #:expect checked)
 (test oneExtendEnforced
       #:preds [(= (card SpecialThing) (int 1))]
-      #:expect theorem)
+      #:expect checked)
 (test oneExtendDoesntSpread
       #:preds [(= (card UnspecialThing) (int 2))] 
       #:expect sat)
