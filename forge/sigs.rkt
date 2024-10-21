@@ -690,7 +690,7 @@
                 #:run name)
                (close-run name))]
 
-          [(or (equal? 'expected 'theorem) (equal? 'expected 'checked))
+          [(equal? 'expected 'checked)
            ;#,(syntax/loc stx (check name args ...))
            check-stx
            (define first-instance (tree:get-value (Run-result name)))
@@ -702,6 +702,10 @@
                                     #:instance first-instance
                                     #:run name)
                (close-run name))]
+          
+          [(equal? 'expected 'theorem)
+           (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
+                              #:context loc)]
 
           [else (raise-forge-error                 
                  #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
