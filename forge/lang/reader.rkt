@@ -91,6 +91,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+ (require racket/pretty)
+
 ; Forge's reader function
 (define (read-syntax path port)
   (define this-lang 'forge)
@@ -146,7 +148,9 @@
 
   (define module-datum `(module forge-mod forge/lang/expander
                           ,@final))
-  ; (printf "Ints-coerced: ~a~n" ints-coerced)
+  ; For debugging purposes, convert to a datum first or pretty-format will truncate.
+  ;(printf "Ints-coerced: ~a~n" (pretty-format (syntax->datum ints-coerced)))
+
   ; (raise "STOP")
   (define result (datum->syntax #f module-datum))
   ;(printf "debug result of expansion: ~a~n" result)
