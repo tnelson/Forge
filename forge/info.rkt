@@ -26,6 +26,7 @@
                "basedir"              ; used in logging
                "request"              ; used in logging
                "sha"                  ; used in logging
+               "http-easy"            ; used for checking version
                ))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
