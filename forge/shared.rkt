@@ -2,7 +2,7 @@
 
 (require racket/runtime-path racket/file)
 (require (only-in racket/draw color%)
-         (only-in racket make-object match)
+         (only-in racket make-object)
          (only-in racket/system system*)
          (only-in racket/string string-trim)
          (only-in racket/port call-with-output-string)
@@ -70,7 +70,7 @@
             [json-data (string->jsexpr (bytes->string/utf-8 body))]
             [content (hash-ref json-data 'content)]
             [decoded-content (bytes->string/utf-8 (base64-decode (string->bytes/utf-8 content)))]
-           [version (regexp-match #px"\\(define version \"([0-9]+\\.[0-9]+)\"\\)" decoded-content)])
+           [version (regexp-match #px"\\(define version \"([0-9]+[.0-9]+)\"\\)" decoded-content)])
         (car (cdr version)))
       void)))
 

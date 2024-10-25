@@ -60,15 +60,20 @@
   (when (and no-version-printed-yet (@>= (get-verbosity) VERBOSITY_LOW))
     (set! no-version-printed-yet #f)
     (printf "Forge version: ~a~n" forge-version)
-    (let ([curr-forge-version (curr-forge-version)])
-    (cond [(not (void? curr-forge-version))
-              (if (equal? forge-version curr-forge-version)
-                  (printf "Forge is up-to-date.~n")
-                  (printf "Forge is out-of-date. You are on version ~a, but the latest version is ~a.~n"
-                          forge-version curr-forge-version))]))
-    (let ([git-info (forge-git-info)])
-      (when (pair? git-info)
-        (apply printf " branch: ~a~n commit: ~a~n timestamp: ~a~n" git-info)))
+    (let* ([git-info (forge-git-info)]
+          [git-valid (pair? git-info)])
+      (when git-valid
+        (apply printf " branch: ~a~n commit: ~a~n timestamp: ~a~n" git-info)
+      ; Check local forge version vs. latest version on main branch
+      (let ([curr-forge-version (curr-forge-version)])
+        (cond [(and (not (void? curr-forge-version)) (and git-valid (equal? (car git-info) "main")))
+                  (if (equal? forge-version curr-forge-version)
+                      (printf "Forge is up-to-date.~n")
+                      (printf "Forge is out-of-date. You are on version ~a, but main is on version ~a.~n"
+                              forge-version curr-forge-version))]
+              [(or (not git-valid) (not (equal? (car git-info) "main")))
+                  (printf "Skipping version check vs. main branch.~n")]))))
+    
     (printf "To report issues with Forge, please visit ~a~n"
             "https://report.forge-fm.org"))
   
