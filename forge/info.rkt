@@ -2,7 +2,7 @@
 
 (define collection "forge")
 
-(define version "3.5")
+(define version "3.5.1")
 
 (define implies '("froglet"))
 (define deps '("base"
