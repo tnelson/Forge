@@ -26,6 +26,7 @@
                "basedir"              ; used in logging
                "request"              ; used in logging
                "sha"                  ; used in logging
+               "http-easy"            ; used for checking version
                ))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
@@ -33,6 +34,7 @@
 (define compile-omit-paths '("example" "examples" "doc" "tests" "check-ex-spec/demo"
                              "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"                            
                              "amalgam/tests" "amalgam"
+                             "domains/crypto/examples" "domains/abac/tests"
                              ))
 
 
