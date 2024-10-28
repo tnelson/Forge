@@ -1,9 +1,9 @@
 #lang forge
 
-option run_sterling off
+// option run_sterling off
 
 
-option verbose 0
+// option verbose 0
 
 -- Taken from Tim's lecture code
 
