@@ -817,11 +817,32 @@ Please declare a sufficient scope for ~a."
   (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
 
+; Helpers to build formulas constraining the cardinality of a sig. Avoid using the actual
+; cardinality operator and instead use disjoint quantification where possible. 
+(define (no-smaller-than the-sig int-bound info)
+  (let* ([vars (build-list int-bound
+                           (lambda (idx)
+                             (gensym (format "upper_~a_~a" (Sig-name the-sig) (number->string idx)))))]
+         [decls (map (lambda (var) (cons var the-sig)) vars)]
+         [fmla (no-pairwise-intersect vars #:context info)])
+    (list (some-quant/func decls fmla #:info info))))
+
+(define (no-larger-than run-spec the-sig int-bound info raise-run-error)
+  (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
+  (let ()
+    (unless (@< int-bound max-int)
+      (raise-run-error (format (string-append "Upper bound too large for given BitWidth; "
+                                              "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
+                               the-sig int-bound (sub1 max-int))
+                       (get-blame-node run-spec the-sig)))
+    (list (||/info info
+                   (int</info info (card the-sig) (int int-bound))
+                   (int=/info info (card the-sig) (int int-bound))))))
+
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig to restrict
 ; it to the correct lower/upper bound.
 (define (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error) 
-  (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
   (apply append
     (for/list ([sig (get-sigs run-spec)]
                #:unless (equal? (Sig-name sig) 'Int))
@@ -833,28 +854,24 @@ Please declare a sufficient scope for ~a."
       ; Sub-optimal, because it points to the sig definition
       (define info (nodeinfo (nodeinfo-loc (node-info sig)) 'checklangNoCheck #f))
 
+      ; Do we need to enforce numeric scope by means other than bounds?
+      ; (This can sometimes happen when a sig extends another and there is ambiguity
+      ;  in how bounds should be resolved. e.g.,
+      ;  sig A {}
+      ;  sig B extends A {}
+      ;  run {} for 4 A, 3 B.
+      ; This could be done via cardinality constraints, but that scales poorly
+      ;   (and, worse, requires the user to set -- or for Forge to invisibly set
+      ;   the bitwidth for the run). Instead, follow Alloy's example of using `some`
+      ;   quantification.
       (append
         (if (@and int-lower (@> int-lower bound-lower-size))
-            (let ()
-              (unless (@< int-lower max-int)
-                (raise-run-error (format (string-append "Lower bound too large for given BitWidth; "
-                                                        "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
-                                         sig int-lower (sub1 max-int))
-                                 (get-blame-node run-spec sig)))
-              (list (||/info info
-                             (int</info info (int int-lower) (card sig))
-                             (int=/info info (int int-lower) (card sig)))))
+            ; #sig can be no smaller than int-lower
+            (no-smaller-than sig int-lower info)              
             (list))
         (if (@and int-upper (@< int-upper bound-upper-size))
-            (let ()
-              (unless (@< int-upper max-int)
-                (raise-run-error (format (string-append "Upper bound too large for given BitWidth; "
-                                                        "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
-                                         sig int-upper (sub1 max-int))
-                                 (get-blame-node run-spec sig)))
-              (list (||/info info
-                             (int</info info (card sig) (int int-upper))
-                             (int=/info info (card sig) (int int-upper)))))
+            ; #sig can be no larger than int-upper
+            (no-larger-than run-spec sig int-upper raise-run-error)
             (list))))))
 
 
