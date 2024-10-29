@@ -66,13 +66,18 @@
         (apply printf " branch: ~a~n commit: ~a~n timestamp: ~a~n" git-info)
       ; Check local forge version vs. latest version on main branch
       (let ([curr-forge-version (curr-forge-version)])
-        (cond [(and (not (void? curr-forge-version)) (and git-valid (equal? (car git-info) "main")))
+        (cond [(and (not (void? curr-forge-version)) (and git-valid (equal? (car git-info) "main"))) ; git install, main branch, successful retrieve
                   (if (equal? forge-version curr-forge-version)
                       (printf "Forge is up-to-date.~n")
                       (printf "Forge is out-of-date. You are on version ~a, but main is on version ~a.~n"
                               forge-version curr-forge-version))]
-              [(or (not git-valid) (not (equal? (car git-info) "main")))
-                  (printf "Skipping version check vs. main branch.~n")]))))
+              [(or (void? curr-forge-version) (and git-valid (not (equal? (car git-info) "main")))) ; unsucessful git retrieve, or git install, but branched
+                  (printf "Skipping version check vs. main branch.~n")]
+              [(and (not git-valid) (not (void? curr-forge-version))) ; package install, successful retrieve
+                  (if (equal? forge-version curr-forge-version)
+                      (printf "Forge is up-to-date.~n")
+                      (printf "Forge is out-of-date. You are on version ~a, but main is on version ~a.~n"
+                              forge-version curr-forge-version))]))))
     
     (printf "To report issues with Forge, please visit ~a~n"
             "https://report.forge-fm.org"))
