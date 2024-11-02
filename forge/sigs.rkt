@@ -637,80 +637,96 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Primary testing form: check whether a constraint-set, under
-; some provided bounds, is sat, unsat, or an error. 
+; some provided bounds, is sat, unsat, or an error. Separate out
+; the _creation_ of the test run from the _execution_ of the test
+; run, so that the execution can be added to the `execs` submodule.
+; The creation of `is forge_error` runs are also deferred to `execs`,
+; since the expectation is that they will raise an error at creation time.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (execute_test_sat_unsat name the-run loc expected)
+  (define first-instance (tree:get-value (Run-result the-run)))
+  (if (not (equal? (if (Sat? first-instance) 'sat 'unsat) expected))
+      (report-test-failure
+       #:name name
+       #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
+                     name expected (if (Sat? first-instance) 'sat 'unsat)
+                     (if (Sat? first-instance)
+                         (format " Found instance ~a" first-instance)
+                         (if (Unsat-core first-instance)
+                             (format " Core: ~a" (Unsat-core first-instance))
+                             "")))
+       #:context loc
+       #:instance first-instance
+       #:run the-run)
+      (close-run the-run)))
+
+(define (execute_test_checked name the-run loc)
+  (define first-instance (tree:get-value (Run-result the-run)))
+  (if (Sat? first-instance)
+      (report-test-failure #:name name
+                           #:msg (format "Test ~a failed. Found counterexample instance:~n~a"
+                                         name first-instance)
+                           #:context loc
+                           #:instance first-instance
+                           #:run the-run)
+      (close-run the-run)))
+
 (define-syntax (test stx)
   (syntax-case stx ()
     [(test name args ... #:expect expected)  
-     (add-to-execs
-      (with-syntax ([loc (build-source-location stx)]
-                    [run-stx (syntax/loc stx (run name args ...))]
-                    [check-stx (syntax/loc stx (check name args ...))])
-       (quasisyntax/loc stx 
-         (cond
-          [(equal? 'expected 'forge_error)
-           ; Expecting an error. If we receive one, do nothing. 
-           ; Otherwise, continue to report the error and then close the run.
-           ; (N.B., this assumes the run isn't actually created or sent to the solver.)
-           (define run-reference #f)
-           (with-handlers ([exn:fail:user? void])
-             ;#,(syntax/loc stx (run name args ...))
-             run-stx
-             ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
-             (set! run-reference name)
-             (close-run name))
-           ; Instead, wait and throw it here (note this will only happen if _NO_ user-error was
-           ; produced by the run, and thus a run-reference is present.
-           (when run-reference
-             (report-test-failure
-              #:name 'name
-              #:msg (format "Failed test ~a. No Forge error was produced." 'name)
-              #:context loc
-              #:run run-reference
-              #:sterling #f))
-           (when (member 'name (hash-keys (State-runmap curr-state)))
-             (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))]
-          
-          [(member 'expected '(sat unsat))           
-           ;#,(syntax/loc stx (run name args ...))
-           run-stx
-           (define first-instance (tree:get-value (Run-result name)))
-           (if (not (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected))
-               (report-test-failure
-                #:name 'name
-                #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
-                              'name 'expected (if (Sat? first-instance) 'sat 'unsat)
-                              (if (Sat? first-instance)
-                                  (format " Found instance ~a" first-instance)
-                                  (if (Unsat-core first-instance)
-                                      (format " Core: ~a" (Unsat-core first-instance))
-                                      "")))
-                #:context loc
-                #:instance first-instance
-                #:run name)
-               (close-run name))]
-
-          [(equal? 'expected 'checked)
-           ;#,(syntax/loc stx (check name args ...))
-           check-stx
-           (define first-instance (tree:get-value (Run-result name)))
-           (if (Sat? first-instance)
-               (report-test-failure #:name 'name
-                                    #:msg (format "Test ~a failed. Found counterexample instance:~n~a"
-                                                  'name first-instance)
-                                    #:context loc
-                                    #:instance first-instance
-                                    #:run name)
-               (close-run name))]
-          
-          [(equal? 'expected 'theorem)
-           (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
-                              #:context loc)]
-
-          [else (raise-forge-error                 
-                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
-                               'expected)
-                 #:context loc)]))))]))
+     (with-syntax ([loc (build-source-location stx)]
+                   [run-stx (syntax/loc stx (run name args ...))]
+                   [check-stx (syntax/loc stx (check name args ...))])
+       (cond
+         [(equal? (syntax->datum #'expected) 'forge_error)
+          (add-to-execs
+           (quasisyntax/loc stx
+             (begin 
+               ; Expecting an error. If we receive one, do nothing. 
+               ; Otherwise, continue to report the error and then close the run.
+               ; (N.B., this assumes the run isn't actually created or sent to the solver.)
+               (define run-reference #f)
+               (with-handlers ([exn:fail:user? void])
+                 run-stx
+                 ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
+                 (set! run-reference name)
+                 (close-run name))
+               ; Instead, wait and throw it here (note this will only happen if _NO_ user-error was
+               ; produced by the run, and thus a run-reference is present.
+               (when run-reference
+                 (report-test-failure
+                  #:name 'name
+                  #:msg (format "Failed test ~a. No Forge error was produced." 'name)
+                  #:context loc
+                  #:run run-reference
+                  #:sterling #f))
+               (when (member 'name (hash-keys (State-runmap curr-state)))
+                 (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name)))))]
+         
+         [(member (syntax->datum #'expected) '(sat unsat))
+          (quasisyntax/loc stx
+            (begin
+              run-stx
+              #,(add-to-execs (quasisyntax/loc stx (execute_test_sat_unsat 'name name loc 'expected)))))]
+         
+         [(equal? (syntax->datum #'expected) 'checked)
+          (quasisyntax/loc stx
+            (begin 
+              check-stx
+              #,(add-to-execs (quasisyntax/loc stx (execute_test_checked 'name name loc)))))]
+         
+         [(equal? (syntax->datum #'expected) 'theorem)
+          (quasisyntax/loc stx
+            (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
+                               #:context loc))]
+         
+         [else
+          (quasisyntax/loc stx
+            (raise-forge-error                 
+             #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
+                           'expected)
+             #:context loc))]))]))
 
 (define-syntax (example stx)  
   (syntax-parse stx
@@ -782,6 +798,10 @@
          (update-state! temp-state)
          result)]))
 
+; Place <stx> within the `execs` submodule of the expanded Forge model file.
+; To see why this matters, look at the #lang forge reader. In short, we want
+; importing a Forge file to import predicates, named runs, etc. but not actually
+; _execute_ those runs unless the context asks for it. 
 (define-for-syntax (add-to-execs stx)  
   (if (equal? (syntax-local-context) 'module)
       #`(module+ execs #,stx)
