@@ -9,6 +9,7 @@ on:
     branches:
     - main
     - dev
+    - feat_smt
 
 # Docker images for various Racket versions available on DockerHub 
 # as racket/racket:<version>
