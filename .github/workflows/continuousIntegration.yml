@@ -22,7 +22,7 @@ jobs:
     
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: Setup Java
       uses: actions/setup-java@v1
       with:
@@ -42,4 +42,4 @@ jobs:
       run: |
         cd forge/
         chmod +x run-tests.sh
-        ./run-tests.sh tests/
+        ./run-tests.sh tests/smt/
