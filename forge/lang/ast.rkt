@@ -1308,3 +1308,40 @@
           [(srcloc? context) (nodeinfo context 'empty)]
           [(syntax? context) (nodeinfo (build-source-location context) 'empty)]  
           [else empty-nodeinfo]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Isolate a specific column in a relation
+;   project-to-column E k --> extract column k of E. 
+; Requires: k >= 0, k < arity(E)
+; Note well: no thought has been given to the efficiency of the expression produced!
+(define (project-to-column E k #:context [context #f])
+  (define arity (node/expr-arity E))
+  (define (remove-from-end R c)
+    (cond [(> c 0) (remove-from-end (join R univ) (@- c 1))] [else R]))
+  (define (remove-from-start R c)
+    (cond [(> c 0) (remove-from-end (join univ R) (@- c 1))] [else R]))
+  (cond
+    ; If the relation is too narrow for this column, or column is negative
+    [(or (>= k arity) (< k 0))
+     (raise-forge-error #:msg (format "Tried to isolate column ~a of ~a-ary expression." 
+                                      k arity)
+                        #:context context)]
+    [else 
+      ; Example: (project-to-column (A -> B -> C -> D) 0)
+      ;          Needs to remove 0 from start, 3 from end. 
+      ; Example: (project-to-column (A -> B -> C -> D) 1)
+      ;          Needs to remove 1 from start, 2 from end.
+      ;   [len = k]T[len = (arity - k - 1)]
+      (remove-from-start (remove-from-end E (@- arity (@+ k 1)))
+                         k)]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Build a product of `k` copies of E
+; Requires: k >= 1
+(define (product-of-k E k #:context [context #f])
+  (when (< k 1) 
+    (raise-forge-error #:msg (format "Could not generate a product of arity ~a" k) 
+                       #:context context))
+  (for/fold ([acc E]) 
+            ([idx (range (@- k 1))]) 
+          (-> acc E)))

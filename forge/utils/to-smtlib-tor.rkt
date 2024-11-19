@@ -515,17 +515,18 @@
     [(node/expr/op/~ info arity children)
      `(rel.transpose ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/expr/op/++ info arity children)
-      ; R' = R - (k -> codomain) + (k -> u)
+      ; The relational-override expression R ++ (key -> B) is equivalent to:
+      ;   R - (key -> univ) + (key -> B)
+      ; Note that `B` may be of arity > 1, it must be of arity 1 less than R.
       (define R (first children))
-      (define k_u (node/expr/op-children (second children)))
-      (define k (first k_u))
-      (define u (second k_u))
-      (define R_codomain (get-expr-type run-or-state u quantvars quantvar-types))
-      `(set.union (set.minus ,(convert-expr run-or-state R relations atom-names quantvars quantvar-types bounds) 
-            (rel.product ,(convert-expr run-or-state k relations atom-names quantvars quantvar-types bounds) 
-            (as set.universe (Relation ,@R_codomain)))) 
-            (rel.product ,(convert-expr run-or-state k relations atom-names quantvars quantvar-types bounds)
-            ,(convert-expr run-or-state u relations atom-names quantvars quantvar-types bounds)))]
+      (define RHS (second children))
+      (define key (project-to-column RHS 0 #:context RHS))
+      (define to-remove (-> key (product-of-k univ (@- (node/expr-arity RHS) 1) #:context RHS)))
+      (define converted-R (convert-expr run-or-state R relations atom-names quantvars quantvar-types bounds))
+      (define converted-to-remove (convert-expr run-or-state to-remove relations atom-names quantvars quantvar-types bounds))
+      (define converted-RHS (convert-expr run-or-state RHS relations atom-names quantvars quantvar-types bounds))
+      `(set.union (set.minus ,converted-R ,converted-to-remove) ,converted-RHS)]
+            
     [(node/expr/op/sing info arity children)
       (let ([processed-form (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds #t)])
         (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types processed-form bounds))]))
