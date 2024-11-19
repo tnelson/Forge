@@ -9,7 +9,6 @@ on:
     branches:
     - main
     - dev
-    - feat_smt
 
 # Docker images for various Racket versions available on DockerHub 
 # as racket/racket:<version>
@@ -31,4 +30,4 @@ jobs:
       run: |
         cd forge/
         chmod +x run-tests.sh
-        ./run-tests.sh tests/smt/
+        ./run-tests.sh tests/
