@@ -5,5 +5,5 @@ option verbose 0
 sig Cell {}
 
 test expect {    
-    foo: {Cell != Cell} is theorem    
+    foo: {Cell != Cell} is checked    
 }

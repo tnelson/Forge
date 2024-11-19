@@ -200,7 +200,7 @@
            #:scope (list (list Int 4) (list IntSet 5))
            #:sigs (list IntSet S1 S2 S3 S4 S5)
            #:relations (list ints)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'sums
            #:preds (list Sum)
@@ -208,7 +208,7 @@
            #:scope (list (list Int 4) (list IntSet 5))
            #:sigs (list IntSet S1 S2 S3 S4 S5)
            #:relations (list ints)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 ; Bitwidth 4 (-8 through +7), 0-5 IntSet atoms
 (make-test #:name 'sumQuants
@@ -217,7 +217,7 @@
            #:scope (list (list Int 4) (list IntSet 5))
            #:sigs (list IntSet S1 S2 S3 S4 S5)
            #:relations (list ints)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'cards
            #:preds (list Card)
@@ -225,7 +225,7 @@
            #:scope (list (list Int 4) (list IntSet 5))
            #:sigs (list IntSet S1 S2 S3 S4 S5)
            #:relations (list ints)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'maxMins
            #:preds (list MaxMin)
@@ -233,7 +233,7 @@
            #:scope (list (list Int 4) (list IntSet 5))
            #:sigs (list IntSet S1 S2 S3 S4 S5)
            #:relations (list ints)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; test implicit sing/sum

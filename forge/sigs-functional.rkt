@@ -760,7 +760,7 @@
         #:command syntax?)
        void?)
   (cond
-    [(equal? expected 'theorem)
+    [(equal? expected 'checked)
      (let* ([test-check (check-from-state state
                                           #:name name
                                           #:preds preds
@@ -772,7 +772,7 @@
                                           #:command command)]
             [first-instance (tree:get-value (Run-result test-check))])
        (if (Sat? first-instance)
-           (raise (format "Theorem ~a failed. Found instance:~n~a"
+           (raise (format "Test ~a failed. Found counterexample instance:~n~a"
                           name first-instance))
            (close-run test-check)))]
     [(or (equal? expected 'sat) (equal? expected 'unsat))
@@ -795,7 +795,7 @@
                               (if (Unsat-core first-instance)
                                   (format " Core: ~a" (Unsat-core first-instance))
                                   ""))))))]
-    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
                          expected))]))
 
 ; Creates a new run to use for a test, then calls test-from-run

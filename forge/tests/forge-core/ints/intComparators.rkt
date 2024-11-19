@@ -46,13 +46,13 @@
         (iff (!= (sum i1) (sum i2))
              (! (= (sum i1) (sum i2))))))
 
-(test equal #:preds [EQ] #:expect theorem)
-(test greaterThan #:preds [GT] #:expect theorem)
-(test lessThan #:preds [LT] #:expect theorem)
-(test greaterThanEqual #:preds [GTE] #:expect theorem)
-(test lessThanEqual #:preds [LTE] #:expect theorem)
+(test equal #:preds [EQ] #:expect checked)
+(test greaterThan #:preds [GT] #:expect checked)
+(test lessThan #:preds [LT] #:expect checked)
+(test greaterThanEqual #:preds [GTE] #:expect checked)
+(test lessThanEqual #:preds [LTE] #:expect checked)
 
-(test notEqual #:preds [NEQ] #:expect theorem)
+(test notEqual #:preds [NEQ] #:expect checked)
 
 ; + is union not addition
 ; but because of the semantics of union, this works out without an exception

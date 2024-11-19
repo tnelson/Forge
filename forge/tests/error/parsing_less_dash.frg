@@ -7,5 +7,5 @@ test expect {
     parsing_should_error: {
         (Person.age <- 1)
         iff
-        (Person.age < -1)} is theorem
+        (Person.age < -1)} is checked
 }

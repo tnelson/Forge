@@ -336,7 +336,7 @@
                               pred-block:BlockClass))
               (~optional scope:ScopeClass)
               (~optional bounds:BoundsClass)
-              (~or "sat" "unsat" "unknown" "theorem" (~seq "forge_error" (~optional msg:string))))))
+              (~or "sat" "unsat" "unknown" "theorem" "checked" (~seq "forge_error" (~optional msg:string))))))
 
   ; TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
   (define-syntax-class TestBlockClass
@@ -988,7 +988,7 @@
                                         preds:BlockClass))
                         (~optional scope:ScopeClass)
                         (~optional bounds:BoundsClass)
-                        (~and expected (~or "sat" "unsat" "unknown" "theorem" "forge_error"))
+                        (~and expected (~or "sat" "unsat" "unknown" "theorem" "forge_error" "checked"))
                         (~optional expected-details))
    (with-syntax ([name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)]
@@ -1028,7 +1028,7 @@
         #:preds [imp_total]
         #:scope pwd.scope
         #:bounds pwd.bounds
-        #:expect theorem ))]))
+        #:expect checked ))]))
 
 
 (define-syntax (QuantifiedPropertyDecl stx)
@@ -1062,7 +1062,7 @@
          #:preds [imp_total]
          #:scope qpd.scope
          #:bounds qpd.bounds
-         #:expect theorem )))]))
+         #:expect checked )))]))
 
 
 (define-syntax (SatisfiabilityDecl stx)

@@ -18,23 +18,23 @@
 (test succStructure1
       #:preds [SuccStructure]
       #:scope ([Int 1])
-      #:expect theorem)
+      #:expect checked)
 (test succStructure2
       #:preds [SuccStructure]
       #:scope ([Int 2])
-      #:expect theorem)
+      #:expect checked)
 (test succStructure3
       #:preds [SuccStructure]
       #:scope ([Int 3])
-      #:expect theorem)
+      #:expect checked)
 (test succStructure4
       #:preds [SuccStructure]
       #:scope ([Int 4])
-      #:expect theorem)
+      #:expect checked)
 (test succStructure5
       #:preds [SuccStructure]
       #:scope ([Int 5])
-      #:expect theorem)
+      #:expect checked)
 
 (define (make-n n)
   (cond
@@ -57,24 +57,24 @@
 (test size1
       #:preds [(Size -1 0)]
       #:scope ([Int 1])
-      #:expect theorem)
+      #:expect checked)
 
 (test size2
       #:preds [(Size -2 1)]
       #:scope ([Int 2])
-      #:expect theorem)
+      #:expect checked)
 
 (test size3
       #:preds [(Size -4 3)]
       #:scope ([Int 3])
-      #:expect theorem)
+      #:expect checked)
 
 (test size4
       #:preds [(Size -8 7)]
       #:scope ([Int 4])
-      #:expect theorem)
+      #:expect checked)
 
 (test size5
       #:preds [(Size -16 15)]
       #:scope ([Int 5])
-      #:expect theorem)
+      #:expect checked)

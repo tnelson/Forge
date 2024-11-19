@@ -8,7 +8,7 @@
 
 (pred loneVarlone (lone ([n0 lonede]) (in n0 (join lonede edges))))
 (pred loneVarloneDisj (lone #:disj ([n0 lonede]) (in n0 (join lonede edges))))
-(test lonelone #:preds [(iff loneVarlone loneVarloneDisj)] #:expect theorem)
+(test lonelone #:preds [(iff loneVarlone loneVarloneDisj)] #:expect checked)
 
 (pred twoVarlone
       (lone ([n1 lonede] [n2 lonede])
@@ -17,7 +17,7 @@
 (pred twoVarloneDisj
       (lone #:disj ([n1 lonede] [n2 lonede])
         (in n1 (join n2 edges))))
-(test twoVar #:preds [(iff twoVarlone twoVarloneDisj)] #:expect theorem)
+(test twoVar #:preds [(iff twoVarlone twoVarloneDisj)] #:expect checked)
 
 (pred manyVarlone
       (lone ([n0 lonede] [n1 lonede] [n2 lonede] [n3 lonede])
@@ -29,4 +29,4 @@
     (lone #:disj ([n0 lonede] [n1 lonede] [n2 lonede] [n3 lonede])
         (&& (in (-> n1 n2) edges)
             (in (-> n3 n0) edges))))
-(test manylone #:preds [(iff manyVarlone manyVarloneDisj)] #:expect theorem)
+(test manylone #:preds [(iff manyVarlone manyVarloneDisj)] #:expect checked)

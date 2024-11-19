@@ -92,61 +92,46 @@
               univ
               none))))
 
-
-
-#|
-CURRENTLY BUGGED?
-pred LessColon {
-    all n: Node |
-        n.edges <: edges = {n1: Node, n2: Node | n1->n2 in edges and n1 in n.edges}
-}
-
-pred ColonGreater {
-    all n: Node |
-        edges :> n.edges = {n1: Node, n2: Node | n1->n2 in edges and n2 in n.edges}
-}
-|#
-
 (make-test #:name 'tilde
            #:preds (list Tilde)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'caret
            #:preds (list Caret)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'star
            #:preds (list Star)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'plus
            #:preds (list Plus)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'minus
            #:preds (list Minus)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'ampersand
            #:preds (list Ampersand)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'arrow
            #:preds (list Arrow)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'dot
            #:preds (list Dot)
            #:sigs (list Node)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'ite1
            #:preds (list IfThenElse1)
@@ -159,7 +144,26 @@ pred ColonGreater {
            #:relations (list edges)
            #:expect 'unsat)
 
+; All elements of RHS that start with an element of LHS
+(pred DomainRestriction
+      (all ([n Node])
+           (= (<: (join n edges) edges)
+              (set ([n1 Node] [n2 Node]) (&& (in (-> n1 n2) edges)
+                                              (in n1 (join n edges)))))))
+; All elements of LHS that end with an element of RHS
+(pred RangeRestriction
+      (all ([n Node])
+           (= (:> edges (join n edges))
+              (set ([n1 Node] [n2 Node]) (&& (in (-> n1 n2) edges)
+                                              (in n2 (join n edges)))))))
 
-
-; (test lessColon #:preds [LessColon] #:expect theorem)
-; (test colonGreater #:preds [ColonGreater] #:expect theorem)
+(make-test #:name 'lessColon
+           #:preds (list DomainRestriction)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'checked)
+(make-test #:name 'colonGreater
+           #:preds (list RangeRestriction)
+           #:sigs (list Node)
+           #:relations (list edges)
+           #:expect 'checked)

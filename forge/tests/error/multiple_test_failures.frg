@@ -34,5 +34,5 @@ example thisIsNotATree is {isDirectedTree} for {
 }
 
 test expect {
-    t1 : {some r1 : Node | isRoot[r1]} is theorem
+    t1 : {some r1 : Node | isRoot[r1]} is checked
 }

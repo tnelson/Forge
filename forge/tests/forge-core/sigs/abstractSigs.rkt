@@ -8,11 +8,11 @@
 
 (test abstractEnforced 
       #:preds [(= Abstract (+ Extension1 Extension2))]
-      #:expect theorem)
+      #:expect checked)
 (test extensionsAllowed 
       #:preds [(some Extension1)] 
       #:expect sat)
 (test emptyExtensionsEmptyAbstract 
       #:preds [(=> (no (+ Extension1 Extension2)) (no Abstract))]
-      #:expect theorem)
+      #:expect checked)
 

@@ -26,7 +26,7 @@ pred plusPrime {
 
 test expect {
     --Time is 0 indexed in this test name
-    threeNodeInTime2 : {plusPrime implies (#(Node'') = 3)} is theorem
+    threeNodeInTime2 : {plusPrime implies (#(Node'') = 3)} is checked
 
     -- Regression tests
     noError_comprehension: { some {n: Node | some n}' } is sat
@@ -35,6 +35,5 @@ test expect {
     noError_univ_when_var_sig: {some univ'} is sat
     noError_iden_when_var_sig: {some iden'} is sat
     -- `none` won't vary over time, even if some sigs are var.
-    error_none_when_var_sig: {some none'} is forge_error "non-temporal context"
-   
+    error_none_when_var_sig: {some none'} is forge_error "non-temporal context"   
 }

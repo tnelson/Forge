@@ -97,25 +97,25 @@
            #:bounds (list test-inst)
            #:sigs (list Node Color Red Green Blue)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'SomeQuant
            #:preds (list Some)
            #:bounds (list test-inst)
            #:sigs (list Node Color Red Green Blue)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'NoQuant
            #:preds (list No)
            #:bounds (list test-inst)
            #:sigs (list Node Color Red Green Blue)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 
 (make-test #:name 'QuantifierEquivalences
            #:preds (list Equivalences)
            #:sigs (list Node Color Red Green Blue)
            #:relations (list edges)
-           #:expect 'theorem)
+           #:expect 'checked)
