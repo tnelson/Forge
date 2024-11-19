@@ -20,5 +20,5 @@ pred SomeDir {
 	}
 
 test expect {
-    fs_sd: {model_facts => SomeDir} is theorem
+    fs_sd: {model_facts => SomeDir} is checked
 }

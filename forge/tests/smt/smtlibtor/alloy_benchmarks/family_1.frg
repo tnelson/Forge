@@ -53,5 +53,5 @@ pred HeteroSexError {
     all p : Person | p in Men => p.spouse in Women and p in Women => p.spouse in Men
 }
 test expect{
-    family_1: {model_facts => HeteroSexError} is theorem
+    family_1: {model_facts => HeteroSexError} is checked
 } 

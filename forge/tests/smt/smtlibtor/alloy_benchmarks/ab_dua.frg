@@ -50,6 +50,6 @@ pred delUndoesAdd {
 
 // This should not find any counterexample.
 test expect {
-    ab_dua : {model_facts => delUndoesAdd} is theorem
+    ab_dua : {model_facts => delUndoesAdd} is checked
 }
 

@@ -60,6 +60,6 @@ pred AddWorks {
     }
 
 test expect {
-    birthday: {field_facts => AddWorks} is theorem
+    birthday: {field_facts => AddWorks} is checked
 }
 

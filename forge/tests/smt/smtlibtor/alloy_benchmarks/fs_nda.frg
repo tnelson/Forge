@@ -91,5 +91,5 @@ pred model_facts {
 //check { OneParent_buggyVersion => NoDirAliases } for 5 expect 1
 
 test expect {
-    fs_sd: {model_facts => prop} is theorem
+    fs_sd: {model_facts => prop} is checked
 }

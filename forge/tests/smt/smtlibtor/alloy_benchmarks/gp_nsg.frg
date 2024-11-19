@@ -34,5 +34,5 @@ pred NoSelfGrandpa {
 }
 
 test expect {
-    gp_nsg: {model_facts => NoSelfGrandpa} is theorem
+    gp_nsg: {model_facts => NoSelfGrandpa} is checked
 }

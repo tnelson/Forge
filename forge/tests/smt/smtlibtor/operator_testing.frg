@@ -43,32 +43,34 @@ pred overArity2 {
 }
 
 test expect {
-	arity2: {overArity2} is theorem
+	arity2: {overArity2} is checked
 }
-// Issues over arity 2?
-// pred overArity3 {
-// 	F2->F2->P2 in (ffp ++ F2->F2->P2)
-// 	one F2.(ffp ++ F2->F2->P2)
-// }
-// test expect {
-// 	arity3: {overArity3} is theorem
-// }
 
-// -- Detect issues with arities larger than 3
-// pred overArity5 {
-// 	F3->F1->P3->F2->P1 in ffpfp ++ F3->F1->P3->F2->P1
-// 	one F3.(ffpfp++F3->F1->P3->F2->P1) 
-// }
+// TODO: this generates a counterexample (notable delay)
+pred overArity3 {
+	F2->F2->P2 in (ffp ++ F2->F2->P2)
+	one F2.(ffp ++ F2->F2->P2)
+}
+/*test expect {
+	arity3: {overArity3} is checked
+}*/
 
-// test expect {
-// 	arity5: {overArity5} is theorem
-// }
+// TODO: this takes a very long time to run.
+pred overArity5 {
+	F3->F1->P3->F2->P1 in ffpfp ++ F3->F1->P3->F2->P1
+	one F3.(ffpfp++F3->F1->P3->F2->P1) 
+}
+/*test expect {
+	arity5: {overArity5} is checked
+}*/
 
-// pred overEntireRelation {
-// 	F2->fp1 in (ffp ++ F2->fp1)
-// 	(some fp1) implies (fp1 = F2.(ffp ++ F2->fp1))
-// }
 
-// test expect {
-// 	overrideWithEntireRelation: {overEntireRelation} is theorem
-// }
+// TODO: this generates a counterexample 
+pred overEntireRelation {
+	F2->fp1 in (ffp ++ F2->fp1)
+	(some fp1) implies (fp1 = F2.(ffp ++ F2->fp1))
+}
+/*
+test expect {
+	overrideWithEntireRelation: {overEntireRelation} is checked
+}*/

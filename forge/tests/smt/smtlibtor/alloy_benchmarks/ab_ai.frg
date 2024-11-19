@@ -47,7 +47,7 @@ pred addIdempotent {
 }
 
 test expect {
-    ab_ai: {book_facts => addIdempotent} is theorem
+    ab_ai: {book_facts => addIdempotent} is checked
 }
     
 

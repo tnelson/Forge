@@ -27,7 +27,7 @@ pred NoSelfFather {
 }
 // This should not find any counterexample.
 test expect {
-    gp_nsf: {model_facts => NoSelfFather} is theorem
+    gp_nsf: {model_facts => NoSelfFather} is checked
 }
 
 

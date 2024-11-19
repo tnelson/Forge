@@ -51,5 +51,5 @@ pred  NoSelfMarriage {
  no p : Person | p in p.spouse
 }
 test expect { 
-    family_2: {model_facts => NoSelfMarriage} is theorem 
+    family_2: {model_facts => NoSelfMarriage} is checked 
 }

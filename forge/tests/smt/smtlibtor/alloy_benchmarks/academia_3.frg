@@ -87,5 +87,5 @@ pred NoWaitingTeacher {
 }
 
 test expect {
-    academia_3 : {(field_facts and model_facts) => NoWaitingTeacher} for 30 is theorem
+    academia_3 : {(field_facts and model_facts) => NoWaitingTeacher} for 30 is checked
 }

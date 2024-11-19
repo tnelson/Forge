@@ -42,7 +42,7 @@ test expect {
     one_sameage_mult: {
         -- cannot be singleton
         not { one {q : Person | some r: Person-q | r.age = q.age} }
-    } is theorem
+    } is checked
     no_sameage_mult: {
         -- can be empty
         no {q : Person | some r: Person-q | r.age = q.age}

@@ -1,5 +1,5 @@
 #lang forge
 
 test expect { 
-  {} is theorem
+  {} is checked
 }

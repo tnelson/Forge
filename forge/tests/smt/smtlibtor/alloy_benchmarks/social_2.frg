@@ -65,7 +65,7 @@ pred NoIncest {
 }
 
 test expect {
-    social_2 : {model_facts => NoIncest} for 30 is theorem
+    social_2 : {model_facts => NoIncest} for 30 is checked
 }
 
 

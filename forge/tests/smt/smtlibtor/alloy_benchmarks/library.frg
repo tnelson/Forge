@@ -23,5 +23,5 @@ all c: General | lone checkedout.c
 
 pred NoMultCheckouts {all c: General | #checkedout.c < 2}
 test expect { 
-    library: {OneCheckOut => NoMultCheckouts} is theorem
+    library: {OneCheckOut => NoMultCheckouts} is checked
 }

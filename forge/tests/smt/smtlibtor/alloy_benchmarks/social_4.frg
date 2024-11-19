@@ -61,7 +61,7 @@ pred parentsArentsiblings {
 }
 
 test expect { 
-    social_4 : {model_facts => parentsArentsiblings} for 30 is theorem
+    social_4 : {model_facts => parentsArentsiblings} for 30 is checked
 }
 
 
