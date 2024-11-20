@@ -3,7 +3,7 @@
 (require forge/lang/ast racket/date xml racket/string
          forge/sigs-structs ; for Sat/Unsat
          forge/shared
-         (prefix-in @ (only-in racket and or not > - +))
+         (prefix-in @ (only-in racket > - +))
          (only-in racket/port port->string)
          racket/hash
          (only-in racket first second rest empty empty? remove-duplicates curry
@@ -122,15 +122,19 @@
                                 #:tuple-annotations [tuple-annotations (hash)]
                                 #:run-options [run-options #f])    
   (define data
-    (if (Sat? soln) ; if satisfiable, can report relations
-        (map (lambda (a-subinstance) 
-               (for/hash ([(key value) a-subinstance])
-                 ; If no key, this is a relation that the engine has added by itself (likely a Skolem)
-                 (if (hash-has-key? relation-map (symbol->string key))
-                     (values (hash-ref relation-map (symbol->string key)) value)
-                     (values (build-skolem-rel-for key value) value))))
-             (Sat-instances soln))
-        (Unsat-core soln)))
+    (cond
+      [(Sat? soln) ; if satisfiable, can report relations
+       (map (lambda (a-subinstance) 
+              (for/hash ([(key value) a-subinstance])
+                ; If no key, this is a relation that the engine has added by itself (likely a Skolem)
+                (if (hash-has-key? relation-map (symbol->string key))
+                    (values (hash-ref relation-map (symbol->string key)) value)
+                    (values (build-skolem-rel-for key value) value))))
+            (Sat-instances soln))]
+       [(Unsat? soln)
+        (Unsat-core soln)]
+       [(Unknown? soln)
+        '()]))
 
   ; The command string is long and elaborate, something like:
   ; (run temporary-name1 #:preds ((Block (Expr (Expr6 (Expr15 (QualName Counter)) . (Expr16 (QualName value))) (CompareOp =) (Expr7 (Const (Number 0)))) (Expr always (Expr5 (Expr6 (Expr15 (QualName Counter)) . (Expr16 (Expr16 (QualName value)) ')) (CompareOp =) (Expr7 (Expr14 (QualName add)) [ (ExprList (Expr (Expr15 (QualName Counter)) . (Expr16 (QualName value))) (Expr (Const (Number 1)))) ]))))) #:scope ((Int 0 3)))
@@ -155,19 +159,22 @@
         ""))
   
   (define prologue (string-append "<alloy builddate=\"" (date->string (current-date)) "\">\n"))
-  (define instance-prologue (string-append 
-                                  "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
-                                  command-for-display "\" filename=\"" filepath
-                                  
-                                  "\" version=\"" forge-version "\" "
-                                  maybe-temporal-metadata
-                                  " >\n"
-                                  #<<here-string-delimiter
+  (define (instance-prologue idx)
+    ;(printf "instance-prologue: ~a~n" idx)
+    (string-append 
+     "<instance bitwidth=\"" (number->string bitwidth) "\" maxseq=\"-1\" command=\""
+     command-for-display "\" filename=\"" filepath
+     
+     "\" version=\"" forge-version "\" "
+     maybe-temporal-metadata
+     " >\n"
+     (format #<<here-string-delimiter
 
 <sig label="seq/Int" ID="0" parentID="1" builtin="yes">
 </sig>
 
 <sig label="Int" ID="1" parentID="2" builtin="yes">
+~a
 </sig>
 
 <sig label="univ" ID="2" builtin="yes">
@@ -177,10 +184,25 @@
 <types> <type ID="2"/><type ID="2"/> </types>
 </field>
 here-string-delimiter
-                                  ))
+             ; Only attempt to fill in a concrete value if one is included, and if we have an instance.
+             (if (and idx (hash-has-key? (list-ref data idx) Int))
+                 (sig-contents-to-XML-string (list-ref data idx) Int tuple-annotations)
+                 ""))))
   ; Note in the above, univ is always ID=2
-  (cond [(and (Unsat? soln) (equal? (Unsat-kind soln) 'unsat))
-         (string-append prologue instance-prologue
+  (cond [(and (Unknown? soln))
+         (string-append prologue (instance-prologue #f)
+                        "\n<sig label=\"Unknown\" ID=\"4\" parentID=\"2\">\n"
+                        "<atom label=\"Unknown\"/>"
+                        "</sig>\n"
+                        "\n</instance>\n"
+                        (if data
+                            (string-append "<source filename=\"Explanation\" content=\""
+                                           (agg-lines
+                                            (map clean data))
+                                           "\"></source>\n") "")
+                        "</alloy>")]
+        [(and (Unsat? soln) (equal? (Unsat-kind soln) 'unsat))
+         (string-append prologue (instance-prologue #f)
                         "\n<sig label=\"UNSAT\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"Unsatisfiable\"/>"
                         "</sig>\n"
@@ -194,7 +216,7 @@ here-string-delimiter
 
         ; ** Special display for "out of instances" vs. "unsat" **
         [(and (Unsat? soln) (equal? (Unsat-kind soln) 'no-more-instances))
-         (string-append prologue instance-prologue
+         (string-append prologue (instance-prologue #f)
                         "\n<sig label=\"No more instances! Some equivalent instances may have been removed through symmetry breaking.\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"No more instances\"/>\n"
                         "</sig>\n"
@@ -202,7 +224,7 @@ here-string-delimiter
 
         ; ** Special display for "no counterexample" vs. "unsat"
         [(and (Unsat? soln) (equal? (Unsat-kind soln) 'no-counterexample))
-          (string-append prologue instance-prologue
+          (string-append prologue (instance-prologue #f)
                         "\n<sig label=\"No counterexample found. Assertion may be valid.\" ID=\"4\" parentID=\"2\">\n"
                         "<atom label=\"No counterexample found\"/>\n"
                         "</sig>\n"
@@ -223,20 +245,28 @@ here-string-delimiter
            (string-append
             prologue
             (apply string-append
-                   (map (lambda (ihash) (model-to-XML-string ihash filepath instance-prologue tuple-annotations)) data))
+                   (map (lambda (ihash idx)
+                          (model-to-XML-string idx ihash filepath instance-prologue tuple-annotations))
+                        data (build-list (length data) (lambda (i) i))))
             epilogue))
          
          message]))
 
-(define (model-to-XML-string data filepath prologue tuple-annotations)
+(define (model-to-XML-string state-idx data filepath instance-prologue tuple-annotations)
   
   ; Do not include unary Skolem relations as sigs! Sterling expects these as <skolem> decls, not <sig> decls          
   ; Remember to use *Racket* not + and here
-  (set! data (hash-remove data Int))
+
+  ; Don't remove this. Even if we're using a bitwidth-defined Int set, it's unlikely to be large enough
+  ; to cause issues if we include it in the XML. 
+  ;(set! data (hash-remove data Int))
+  ; Instead, it will be added via calling instance-prologue.
+  
   
   (define sigs-unsorted (filter
-                         (λ (key) (@and (equal? (relation-arity key) 1)
-                                        (@not (string-prefix? (relation-name key) "$"))))
+                         (λ (key) (and (equal? (relation-arity key) 1)
+                                        (not (equal? (relation-name key) "Int"))
+                                        (not (string-prefix? (relation-name key) "$"))))
                          (hash-keys data)))
   
   (define skolems (filter (lambda (key) (string-prefix? (relation-name key) "$")) (hash-keys data)))
@@ -302,7 +332,7 @@ here-string-delimiter
 
   ; RACKET "or"
   (define fields (filter-not
-                  (λ (key) (@or (equal? (relation-arity key) 1)
+                  (λ (key) (or (equal? (relation-arity key) 1)
                                 (string-prefix? (relation-name key) "$")))
                   (hash-keys data)))  
 
@@ -320,6 +350,7 @@ here-string-delimiter
                                               (sig-to-XML-string cleaned-model sig id ID-hash tuple-annotations))
                                             sigs
                                             (range 4 (@+ 4 sigs#)))))
+
   
   (define field-strings (apply string-append (map
                                               (λ (field id)
@@ -333,20 +364,9 @@ here-string-delimiter
                                                skolems
                                                (range (@+ 4 sigs# (length fields)) (@+ 4 sigs# (length fields) (length skolems))))))
          
-  ;; old sterling version:
-  ;(define epilogue (string-append
-  ;                  "\n</instance>\n"
-  ;                  "<source filename=\"" filepath "\">"
-  ;                  (with-handlers ([exn:fail:filesystem:errno?
-  ;                                   (λ (exn) "// Couldn't open source file! Maybe you forgot to save it?")])
-  ;                    (clean (agg-lines (port->lines (open-input-file filepath)))))
-  ;                  "</source>\n"
-  ;                  "</alloy>"))
-
-  ;; new sterling version:
   (define epilogue  "\n</instance>\n")
                                            
-  (define result (string-append prologue
+  (define result (string-append (instance-prologue state-idx)
                                 "\n\n"
                                 sig-strings
                                 field-strings

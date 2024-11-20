@@ -56,7 +56,7 @@
 ;  loc: a stx-loc struct
 ;  lang: a symbol? describing the language this node should be interpreted in
 ;  annotations: either #f, or a hash, with symbol? keys and any value, which is used to
-;    store internal annotations on AST nodes to aid translation, etc. 
+;    store internal annotations on AST nodes to aid translation, etc. Keys must be IMMUTABLE.
 (struct nodeinfo (loc lang annotations) #:transparent  
   #:methods gen:custom-write
   [(define (write-proc self port mode)
@@ -77,11 +77,22 @@
       (nodeinfo loc 'empty #f)
       (nodeinfo (build-source-location #f) 'empty #f)))
 
-; Update the annotations for a nodeinfo struct
+; Get the annotation for this info struct, if any
+(define (get-annotation info key)
+  (cond [(not info) #f]
+        [(not (nodeinfo-annotations info)) #f]
+        [(hash-has-key? (nodeinfo-annotations info) key)
+         (hash-ref (nodeinfo-annotations info) key)]
+        [else #f]))
+  
+
+; Update the annotations for a nodeinfo struct.
 (define (update-annotation ninfo key value)
   (struct-copy nodeinfo ninfo
                [annotations (if (nodeinfo-annotations ninfo)
+                                ; functional update (i.e., doesn't change ninfo)
                                 (hash-set ninfo key value)
+                                ; manufacture a new hash with this single key-value pair in it
                                 (hash key value))]))
 
 
@@ -156,6 +167,8 @@
         [(node/expr? x) "atom- or set-valued expression"]
         [(node/int? x) "integer-valued expression"]
         [(number? x) "number"]
+        [(symbol? x) "symbol"]
+        [(string? x) "string"]
         [else "unknown expression type"]))
 
 ; Check arguments to an operator declared with define-node-op
@@ -471,8 +484,10 @@
   (define-node-op id node/expr/op join-arity #:join? #t #:type node/expr?))
 (define-op/join join)
 
+; These are implemented as macros in sigs-structs.rkt, although we only support restricting binary relations for now.
 ;(define-node-op <: node/expr/op get-second #:max-length 2 #:domain? #t #:type node/expr?)
 ;(define-node-op :> node/expr/op get-first  #:max-length 2 #:range? #t #:type node/expr?)
+
 (define-node-op ++ node/expr/op get-first #:same-arity? #t #:min-length 2 #:max-length 2 #:type node/expr?)
 (define-node-op sing node/expr/op (const 1) #:min-length 1 #:max-length 1 #:type node/int?)
 
@@ -592,8 +607,8 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/expr/relation info arity name typelist-thunk parent is-variable) self)
-     ;(fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent)
-     (fprintf port "(rel ~a)" name))]
+     (fprintf port "(relation ~a ~v ~a ~a)" arity name (typelist-thunk) parent))]
+     ;(fprintf port "(rel ~a)" name))]
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/relation))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/relation 0))
@@ -613,11 +628,13 @@
 
 ; Used by rel macro
 ; pre-functional: *also* used by Sig and relation macros in forge/core (sigs.rkt)
-(define (build-relation loc typelist parent [name #f] [is-var #f])
+(define (build-relation loc typelist parent [name #f] [is-var #f] [lang 'checklangplaceholder]
+                        #:annotations [annotations #f])
   (let ([name (cond [(false? name) 
                      (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))]
                      [(symbol? name) (symbol->string name)]
-                     [else name])]
+                     [(string? name) name]
+                     [else (error (format "build-relation expected name to be a string, symbol, or #f: ~a" name))])]
         [types (map (lambda (t)
                       (cond                        
                         [(string? t) t]
@@ -626,7 +643,7 @@
         [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
                                [(string? parent) parent]
                                [else (error (format "build-relation expected parent as either symbol or string"))])])    
-    (node/expr/relation (nodeinfo loc 'checklangplaceholder #f) (length types) name
+    (node/expr/relation (nodeinfo loc lang annotations) (length types) name
                         (thunk types) scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields
@@ -1280,3 +1297,51 @@
       (raise-user-error (format "[~a] ~a" (pretty-loc context) msg))
       (fprintf (current-error-port) "[~a] ~a" (pretty-loc context) msg)))
 
+; Helper for other locations we might need to generate a nodeinfo struct from a variety
+; of datatype possibilities.
+(define (build-nodeinfo context)
+    (cond [(nodeinfo? context) context]
+          ; Wheats/chaffs have their inner formula in the info field
+          [(and (node? context) (node? (node-info context)))
+           (node-info (node-info context))]
+          [(node? context) (node-info context)]
+          [(srcloc? context) (nodeinfo context 'empty)]
+          [(syntax? context) (nodeinfo (build-source-location context) 'empty)]  
+          [else empty-nodeinfo]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Isolate a specific column in a relation
+;   project-to-column E k --> extract column k of E. 
+; Requires: k >= 0, k < arity(E)
+; Note well: no thought has been given to the efficiency of the expression produced!
+(define (project-to-column E k #:context [context #f])
+  (define arity (node/expr-arity E))
+  (define (remove-from-end R c)
+    (cond [(> c 0) (remove-from-end (join R univ) (@- c 1))] [else R]))
+  (define (remove-from-start R c)
+    (cond [(> c 0) (remove-from-end (join univ R) (@- c 1))] [else R]))
+  (cond
+    ; If the relation is too narrow for this column, or column is negative
+    [(or (>= k arity) (< k 0))
+     (raise-forge-error #:msg (format "Tried to isolate column ~a of ~a-ary expression." 
+                                      k arity)
+                        #:context context)]
+    [else 
+      ; Example: (project-to-column (A -> B -> C -> D) 0)
+      ;          Needs to remove 0 from start, 3 from end. 
+      ; Example: (project-to-column (A -> B -> C -> D) 1)
+      ;          Needs to remove 1 from start, 2 from end.
+      ;   [len = k]T[len = (arity - k - 1)]
+      (remove-from-start (remove-from-end E (@- arity (@+ k 1)))
+                         k)]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Build a product of `k` copies of E
+; Requires: k >= 1
+(define (product-of-k E k #:context [context #f])
+  (when (< k 1) 
+    (raise-forge-error #:msg (format "Could not generate a product of arity ~a" k) 
+                       #:context context))
+  (for/fold ([acc E]) 
+            ([idx (range (@- k 1))]) 
+          (-> acc E)))

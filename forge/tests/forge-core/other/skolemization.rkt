@@ -5,7 +5,7 @@
 ; the skolem_depth option and the exact form of the constraints passed. 
 
 (require (only-in rackunit check-eq? check-not-eq? check-true check-false)
-         (only-in racket empty?))
+         (only-in racket empty? string-prefix?))
 (require racket/syntax syntax/parse)
 (require (for-syntax racket/base racket/syntax syntax/parse))
 
@@ -32,15 +32,29 @@
            (check-true (forge:Sat? sat-soln))
            ;(printf "~a: ~a~n    ~a~n" 'run-name fmla (first (Sat-instances sat-soln)))
            (for ([r result-list])
-             (define present? (hash-has-key? (first (Sat-instances sat-soln)) (skolem-result-v r)))
+             
+             ; The skolem relation name will have a disambiguating suffix, which we don't know
+             ; ahead of time. Instead, look it up in the hash's keys.
+             (define keys (hash-keys (first (Sat-instances sat-soln))))
+             (define skolem-key-candidates (filter (lambda (key)
+                                                     (string-prefix?
+                                                      (symbol->string key)
+                                                      (symbol->string (skolem-result-v r))))
+                                                   keys))
+             
              (cond [(skolem-result-arity r)
-                    (check-true present? (format "~a: expected ~a relation present but was not" 'run-name (skolem-result-v r)))
-                    (when present?                      
-                      (define val (hash-ref (first (Sat-instances sat-soln)) (skolem-result-v r)))
-                      (check-true (equal? (skolem-result-arity r) (length (first val)))
-                                  (format "~a: expected ~a relation to have arity ~a, but was not" 'run-name (skolem-result-v r) (skolem-result-arity r))))]
+                    ; There needs to be only one Skolem relation with this prefix.
+                    (check-true (equal? (length skolem-key-candidates) 1)
+                                (format "~a: expected ~a relation present and unambiguous but was not" 'run-name (skolem-result-v r)))
+                    (define full-key (first skolem-key-candidates))
+
+                    ; The relation must have the expected arity.
+                    (define val (hash-ref (first (Sat-instances sat-soln)) full-key))
+                    (check-true (equal? (skolem-result-arity r) (length (first val)))
+                                (format "~a: expected ~a relation to have arity ~a, but was not" 'run-name (skolem-result-v r) (skolem-result-arity r)))]
                    [else
-                    (check-false (hash-has-key? (first (Sat-instances sat-soln)) (skolem-result-v r)))]))))]))
+                    ; There should be no Skolem relation with this prefix.
+                    (check-true (empty? skolem-key-candidates))]))))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

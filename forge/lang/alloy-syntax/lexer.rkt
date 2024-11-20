@@ -15,9 +15,9 @@
    [(from/to "/*$" "*/")
     (token+ 'SEXPR-TOK "/*$" lexeme "*/" lexeme-start lexeme-end)]
 
-   ;; file paths
+   ;; file paths or regexp strings
    [(from/to "\"" "\"")
-    (token+ 'FILE-PATH-TOK "\"" lexeme "\"" lexeme-start lexeme-end)]
+    (token+ 'PATH-OR-STR-TOK "\"" lexeme "\"" lexeme-start lexeme-end)]
 
    ;; old instances (old, to remove)
    ;[(from/to "<instance" "</instance>")
@@ -114,7 +114,8 @@
    ["checked"   (token+ `CHECKED-TOK "" lexeme "" lexeme-start lexeme-end)]
    ;["two"       (token+ `TWO-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["univ"      (token+ `UNIV-TOK "" lexeme "" lexeme-start lexeme-end)]
-   ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["unsat"     (token+ `UNSAT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["unknown"   (token+ `UNKNOWN-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["wheat"     (token+ `WHEAT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["sufficient"     (token+ `SUFFICIENT-TOK "" lexeme "" lexeme-start lexeme-end)]  
@@ -233,6 +234,7 @@
            "expect"
            "sat"
            "unsat"
+           "unknown"
            "theorem"
            "forge_error"
            "checked"

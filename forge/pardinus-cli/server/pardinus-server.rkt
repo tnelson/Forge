@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require racket/runtime-path
-         forge/pardinus-cli/server/server-common
+         forge/solver-specific/server-common
          forge/shared)
 (require (for-syntax racket/base))
 (require (only-in racket curry add-between))

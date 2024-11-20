@@ -32,7 +32,7 @@ AlloyModule :
 
 ; Import other Forge files by name
 Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
-       | /OPEN-TOK FILE-PATH-TOK (AS-TOK Name)?
+       | /OPEN-TOK PATH-OR-STR-TOK (AS-TOK Name)?
 
 ; Basic top-level constructs of a model: sigs, preds, commands, etc.
 @Paragraph : 
@@ -87,7 +87,7 @@ AssertDecl : /ASSERT-TOK Name? Block
 CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
 
 TestDecl : (Name /COLON-TOK)? (QualName | Block) Scope? (/FOR-TOK Bounds)? /IS-TOK
-           (SAT-TOK | UNSAT-TOK | THEOREM-TOK | FORGE_ERROR-TOK | CHECKED-TOK)
+           (SAT-TOK | UNSAT-TOK | UNKNOWN-TOK | THEOREM-TOK | FORGE_ERROR-TOK (PATH-OR-STR-TOK)? | CHECKED-TOK )
 TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
 TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)?
@@ -109,7 +109,7 @@ TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct
 # UnOp : Mult
 #      | NEG-TOK | NO-TOK | SET-TOK | HASH-TOK | TILDE-TOK | STAR-TOK | EXP-TOK
 # BinOp : OR-TOK | AND-TOK | IFF-TOK | IMP-TOK | AMP-TOK
-#       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | DOT-TOK ;SUBT-TOK | SUPT-TOK
+#       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | DOT-TOK | SUBT-TOK | SUPT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
 CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | IS-TOK | NI-TOK
 LetDecl : @Name /EQ-TOK Expr
@@ -117,7 +117,7 @@ Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
 BlockOrBar : Block | BAR-TOK Expr 
 Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
 QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK | SUM-TOK
-OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | MINUS-TOK? Number)
+OptionDecl : /OPTION-TOK QualName (QualName | PATH-OR-STR-TOK | MINUS-TOK? Number)
 
 Name : IDENTIFIER-TOK
 NameList : @Name

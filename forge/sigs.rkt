@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require (only-in racket/function thunk)
-         (only-in racket/list first rest empty empty? flatten remove-duplicates last)
+         (only-in racket/list first second rest empty empty? flatten remove-duplicates last)
          (only-in racket/pretty pretty-print)
          (prefix-in @ (only-in racket/base display max min - +)) 
          (prefix-in @ racket/set)
@@ -24,7 +24,7 @@
          forge/sigs-structs
          forge/evaluator
          (prefix-in tree: forge/lazy-tree)
-         forge/send-to-kodkod)
+         forge/send-to-solver)
 (require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
          (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
 (require (only-in forge/sigs-functional
@@ -48,7 +48,7 @@
 (provide instance-diff solution-diff evaluate)
 
 ; Instance analysis functions
-(provide is-unsat? is-sat?)
+(provide is-unsat? is-sat? is-unknown?)
 
 ; export AST macros and struct definitions (for matching)
 ; Make sure that nothing is double-provided
@@ -339,7 +339,7 @@
          (~? super-sig)
          (update-state! (state-add-sig curr-state true-name name true-parent-name))))]))
 
-; Declare a new relation
+; Declare a new relation (should probably be called "field") 
 ; (relation name (sig1 sig2 sigs ...) [|| [#:is breaker] [#:is-var isv]])
 (define-syntax (relation stx)
   (syntax-parse stx
@@ -352,12 +352,11 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ;(printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
+         ;(printf "relation sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
-         ;(printf "relatoin breaker: ~a~n" true-breaker)
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
          (define name (make-relation true-name
@@ -378,12 +377,11 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ;(printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
+         ;(printf "relation sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
-         ;(printf "relatoin breaker: ~a~n" true-breaker)
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
          (define name (make-relation true-name
@@ -641,20 +639,33 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax (test stx)
   (syntax-case stx ()
-    [(test name args ... #:expect expected)  
+    [(test name args ... #:expect expected)
+     (syntax/loc stx (test name args ... #:expect expected #:expect-details #f))]
+    [(test name args ... #:expect expected #:expect-details expected-details)
      (add-to-execs
       (with-syntax ([loc (build-source-location stx)]
                     [run-stx (syntax/loc stx (run name args ...))]
                     [check-stx (syntax/loc stx (check name args ...))])
        (quasisyntax/loc stx 
          (cond
+           ; TODO: isn't this known at expansion time? We'll have the value of <expected>.
           [(equal? 'expected 'forge_error)
            ; Expecting an error. If we receive one, do nothing. 
            ; Otherwise, continue to report the error and then close the run.
            ; (N.B., this assumes the run isn't actually created or sent to the solver.)
            (define run-reference #f)
-           (with-handlers ([exn:fail:user? void])
-             ;#,(syntax/loc stx (run name args ...))
+           
+           (with-handlers ([exn:fail:user?
+                            (lambda (e) 
+                              (unless (or (not expected-details)
+                                          (regexp-match (regexp expected-details) (exn-message e)))
+                                (report-test-failure
+                                 #:name 'name
+                                 #:msg (format "Failed test ~a. Forge error was produced with unexpected message. Expected match: ~a. Actual message: ~a."
+                                               'name expected-details (exn-message e))
+                                 #:context loc
+                                 #:run curr-state ; no run, so pass current state instead
+                                 #:sterling #f)))])
              run-stx
              ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
              (set! run-reference name)
@@ -670,21 +681,25 @@
               #:sterling #f))
            (when (member 'name (hash-keys (State-runmap curr-state)))
              (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))]
-          
-          [(member 'expected '(sat unsat))           
-           ;#,(syntax/loc stx (run name args ...))
+
+          ; It may not be immediately obvious why we would ever test for unknown,
+          ; but it seems reasonable to support it in the engine, regardless.
+          [(member 'expected '(sat unsat unknown))           
            run-stx
            (define first-instance (tree:get-value (Run-result name)))
            (if (not (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected))
                (report-test-failure
                 #:name 'name
                 #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
-                              'name 'expected (if (Sat? first-instance) 'sat 'unsat)
-                              (if (Sat? first-instance)
-                                  (format " Found instance ~a" first-instance)
-                                  (if (Unsat-core first-instance)
-                                      (format " Core: ~a" (Unsat-core first-instance))
-                                      "")))
+                              'name 'expected (cond [(Sat? first-instance) 'sat]
+                                                    [(Unsat? first-instance) 'unsat]
+                                                    [(Unknown? first-instance) 'unknown])
+                              ; Report additional info for Sat and Unsat. If Unknown, report nothing.
+                              (cond [(Sat? first-instance)
+                                     (format " Found instance ~a" first-instance)]
+                                     [(and (Unsat? first-instance) (Unsat-core first-instance))
+                                      (format " Core: ~a" (Unsat-core first-instance))]
+                                     [else ""]))
                 #:context loc
                 #:instance first-instance
                 #:run name)
@@ -694,21 +709,29 @@
            ;#,(syntax/loc stx (check name args ...))
            check-stx
            (define first-instance (tree:get-value (Run-result name)))
-           (if (Sat? first-instance)
-               (report-test-failure #:name 'name
-                                    #:msg (format "Test ~a failed. Found counterexample instance:~n~a"
-                                                  'name first-instance)
-                                    #:context loc
-                                    #:instance first-instance
-                                    #:run name)
-               (close-run name))]
-          
+           (cond [(Sat? first-instance)
+                  (report-test-failure #:name 'name
+                                       #:msg (format "Test ~a failed. Found counterexample instance:~n~a"
+                                                     'name first-instance)
+                                       #:context loc
+                                       #:instance first-instance
+                                       #:run name)]
+                 [(Unknown? first-instance)
+                  (report-test-failure #:name 'name
+                                       #:msg (format "Test ~a failed. Solver returned Unknown.~n"
+                                                     'name)
+                                       #:context loc
+                                       #:instance first-instance
+                                       #:run name)]
+                 [else 
+                  (close-run name)])]
+
           [(equal? 'expected 'theorem)
            (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
                               #:context loc)]
 
           [else (raise-forge-error                 
-                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
+                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, checked, or forge_error."
                                'expected)
                  #:context loc)]))))]))
 
@@ -724,37 +747,38 @@
            (raise-forge-error
             #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
             #:context #,(build-source-location stx)))
-         ;#,(syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))
          run-stx
          (define first-instance (tree:get-value (Run-result name)))
          (cond
            [(Unsat? first-instance)
             ; Run a second check to see if {} would have also failed, meaning this example
             ; violates the sig/field declarations.
-            ;#,(syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))
             double-check-run-stx
             (define double-check-instance (tree:get-value (Run-result double-check-name)))
             (close-run double-check-name) ;; always close the double-check run immediately
             
-            (if (Sat? double-check-instance)
-                (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+            (cond
+              [(Sat? double-check-instance)
+               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
                                      #:context #,(build-source-location stx)
                                      #:instance first-instance
-                                     #:run name)
-                (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
-                                                               "This means that the specified bounds conflict with each other "
-                                                               "or with the sig/field definitions.")
-                                                                'name)
+                                     #:run name)]
+              [(Unsat? double-check-instance)
+               (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+                                                                              "This means that the specified bounds conflict with each other "
+                                                                              "or with the sig/field definitions.")
+                                                               'name)
                                      #:context #,(build-source-location stx)
                                      #:instance first-instance
-                                     #:run name))]
+                                     #:run name)]
+              [(Unknown? double-check-instance)
+               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'. Unable to determine if the instance given satisfies the sig/field definitions or specified bounds." 'name)
+                                     #:context #,(build-source-location stx)
+                                     #:instance first-instance
+                                     #:run name)])]
            [else (close-run name)])))))]))
 
 ; Checks that some predicates are always true.
-; (check name
-;        #:preds [(pred ...)]
-;        [#:scope [((sig [lower 0] upper) ...)]]
-;        [#:bounds [bound ...]]))
 (define-syntax (check stx)
   (syntax-parse stx
     [(check name:id
@@ -882,7 +906,7 @@
                          [target new-target]
                          [state new-state]))
           (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds)
-                         (send-to-kodkod contrast-run-spec))
+                         (send-to-solver contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
                          [name (string->symbol (format "~a-contrast" (Run-name run)))]
@@ -1048,10 +1072,13 @@
   (when (and (list? r) (< (length r) 1))
     (raise-forge-error #:msg (format "The reachable predicate expected at least three arguments, given ~a" (@+ (length r) 2))
                        #:context loc))
-  
+
+  ; a in b.^(r + ...)
+  ; While a, b, and all rs should be checked by the specific language the user is running, the 
+  ; AST nodes created specifically for helpers should not be.
   (in/info (nodeinfo loc 'checklangNoCheck #f) 
            a 
-           (join/info (nodeinfo loc (get-check-lang) #f) 
+           (join/info (nodeinfo loc 'checklangNoCheck #f) 
                       b 
                       (^/info (nodeinfo loc 'checklangNoCheck #f) (union-relations loc r)))))
 
@@ -1079,7 +1106,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Struct to hold test-failure information for eventual reporting
-(struct test-failure (name msg context instance run sterling))
+(struct test-failure (name msg context instance run-or-state sterling))
 ; Mutable value to store list of test-failure structs
 (define delayed-test-failures null)
 ; Called to clear the mutable list
@@ -1088,24 +1115,25 @@
 ; Record (or report, depending on the value of the delay-test-failure-reporting?
 ; parameter) a test failure. 
 (define (report-test-failure #:name name #:msg msg #:context context
-                             #:instance [instance #f] #:run run #:sterling [sterling #t])
+                             #:instance [instance #f] #:run run-or-state #:sterling [sterling #t])
   ; Default is to not delay, but options may affect this.
-  (cond [(not (equal? (get-option run 'test_keep) 'first))
+  (cond [(not (equal? (get-option run-or-state 'test_keep) 'first))
          (unless (equal? (get-verbosity) 0)
            (printf "Test ~a failed. Continuing to run and will report details at the end.~n" name))
          ; close previous failure run, since we are keeping only the final failure for Sterling
-         (unless (empty? delayed-test-failures)
-           (close-run (test-failure-run (first delayed-test-failures))))
+         (unless (or (empty? delayed-test-failures)
+                     (not (Run? (test-failure-run-or-state (first delayed-test-failures)))))
+           (close-run (test-failure-run-or-state (first delayed-test-failures))))
          ; then add this failure to the queue
-         (set! delayed-test-failures (cons (test-failure name msg context instance run sterling)
+         (set! delayed-test-failures (cons (test-failure name msg context instance run-or-state sterling)
                                            delayed-test-failures))]
         
         [else
          ; Raise a Forge error and stop execution; show Sterling if enabled.
          (when (>= (get-verbosity) 1)
            (printf "Test ~a failed. Stopping execution.~n" name))
-         (when sterling
-           (true-display run))
+         (when (and (Run? run-or-state) sterling)
+           (true-display run-or-state))
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens
@@ -1122,7 +1150,7 @@
     (define-values (name msg context instance run sterling)
       (values (test-failure-name failure)    (test-failure-msg failure)
               (test-failure-context failure) (test-failure-instance failure)
-              (test-failure-run failure) (test-failure-sterling failure)))
+              (test-failure-run-or-state failure) (test-failure-sterling failure)))
         
     ; Print the error (don't raise an actual exception)
     (define sterling-or-instance (if (or (not sterling) (equal? (get-option run 'run_sterling) 'off))
@@ -1166,7 +1194,7 @@
 ; will give verbose 1 output. 
 
 (define (string->option-type name value)
-  (define type-pred (hash-ref option-types name #f))
+  (define type-pred (hash-ref option-types (if (string? name) (string->symbol name) name) #f))
   (cond
     ; Arrived as a number
     [(string->number value) (string->number value)]

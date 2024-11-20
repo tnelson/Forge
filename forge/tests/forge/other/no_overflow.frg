@@ -1,6 +1,6 @@
 #lang forge
 option no_overflow true
-option run_sterling false
+option run_sterling off
 option verbose 0
 one sig Counter { x: one Int }
 -- Confirm that the no_overflow option excludes instances due to overflow
