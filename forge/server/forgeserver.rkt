@@ -12,7 +12,7 @@
          racket/hash
          (only-in racket empty? first rest)
          (only-in forge/server/eval-model ->string)
-         (prefix-in tree: forge/lazy-tree)
+         (prefix-in tree: forge/utils/lazy-tree)
          json
          racket/contract
          (prefix-in @ (only-in racket >= <= > <)))

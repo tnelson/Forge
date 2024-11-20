@@ -5,7 +5,7 @@
 (require forge/lang/ast)
 (require forge/lang/bounds)
 (require forge/shared
-         (prefix-in tree: forge/lazy-tree)
+         (prefix-in tree: forge/utils/lazy-tree)
          forge/last-checker
          forge/choose-lang-specific)
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))

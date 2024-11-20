@@ -13,7 +13,7 @@
 (require racket/contract
          racket/match)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
-(require (prefix-in tree: forge/lazy-tree))
+(require (prefix-in tree: forge/utils/lazy-tree))
 (require syntax/srcloc)
 (require (prefix-in pardinus: (only-in forge/pardinus-cli/server/kks clear cmd)))
 (require (prefix-in cvc5: (only-in forge/solver-specific/smtlib-shared smtlib-display)))

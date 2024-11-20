@@ -19,8 +19,8 @@
                "web-server-lib"       ; used for Sterling server
                "draw-lib"             ; ???                                             
                "mischief"             ; for amalgam (stream cartesian product)
-               "gui-lib"              ; for syntax highlighting in tool
-               "drracket-plugin-lib"  ; for tool
+               "gui-lib"              ; for syntax highlighting in tool (DEPRECATED)
+               "drracket-plugin-lib"  ; for tool (DEPRECATED)
                "pretty-format"        ; for occasional wrapping of large formulas
                "predicates"           ; for occasional ease of defining boolean-valued functions
                "basedir"              ; used in logging

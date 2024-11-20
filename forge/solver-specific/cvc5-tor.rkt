@@ -13,7 +13,7 @@
          (prefix-in skolemize: forge/utils/to-skolem)
          (prefix-in smt-tor: forge/solver-specific/to-smtlib-tor)
          (prefix-in quant-grounding: forge/utils/quantifier-grounding)
-         (prefix-in lazy-tree: forge/lazy-tree)
+         (prefix-in lazy-tree: forge/utils/lazy-tree)
          (for-syntax racket/base))
 
 (require (prefix-in @ (only-in racket/base >= not - = and or max > < +))

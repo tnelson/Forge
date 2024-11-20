@@ -38,6 +38,15 @@ To update, `git pull` the repo and run `raco setup forge` to recompile.
 
 Running on the development branch, `dev`, requires `checkout dev` before installing; this may be unstable, however.
 
+## Repository Structure 
+
+- The `forge` and `froglet` subdirectories contain the `forge` and `froglet` Racket packages. 
+  - Relational Forge (`#lang forge`) is defined in the package root (`main.rkt`); 
+  - Temporal Forge (`#lang forge/temporal`) is defined in `temporal/main.rkt`.
+- The `forge/examples/` subdirectory contains a set of curated examples that can be run without reference to the Forge book or other resources. 
+- As of November 2024, the `OLD` and `Notes` subdirectories contain old code snippets and developer notes, much of which is outdated but retained for reference. We are in the process of moving these to a different respository. 
+
+
 ## Acknowledgements 
 
 We are grateful for support from the U.S. National Science Foundation ([award #2208731](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2208731)) and Brown University.

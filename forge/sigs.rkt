@@ -19,11 +19,11 @@
 (require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
 (require forge/server/eval-model)
 (require forge/server/forgeserver)
-(require forge/translate-to-kodkod-cli
-         forge/translate-from-kodkod-cli
+(require forge/solver-specific/translate-to-kodkod-cli
+         forge/solver-specific/translate-from-kodkod-cli
          forge/sigs-structs
          forge/evaluator
-         (prefix-in tree: forge/lazy-tree)
+         (prefix-in tree: forge/utils/lazy-tree)
          forge/send-to-solver)
 (require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
          (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
@@ -77,7 +77,7 @@
 
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
-(provide (all-from-out forge/lazy-tree))
+(provide (all-from-out forge/utils/lazy-tree))
 
 (provide (prefix-out forge: (all-from-out forge/sigs-structs)))
 
