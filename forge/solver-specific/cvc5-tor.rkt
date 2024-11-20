@@ -11,7 +11,7 @@
          (prefix-in nnf: forge/utils/to-nnf)
          (prefix-in boxed-int: forge/utils/integer-converter)
          (prefix-in skolemize: forge/utils/to-skolem)
-         (prefix-in smt-tor: forge/utils/to-smtlib-tor)
+         (prefix-in smt-tor: forge/solver-specific/to-smtlib-tor)
          (prefix-in quant-grounding: forge/utils/quantifier-grounding)
          (prefix-in lazy-tree: forge/lazy-tree)
          (for-syntax racket/base))
