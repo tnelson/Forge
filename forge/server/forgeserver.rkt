@@ -45,6 +45,9 @@
          filepath bitwidth funs-n-preds get-contrast-model-generator)
   (do-time "forgeserver display-model")
 
+  (define state-for-run (Run-spec-state (Run-run-spec the-run)))
+  (define defined-run-names (hash-keys (State-runmap state-for-run)))
+
   (define current-tree orig-lazy-tree)
   (define curr-datum-id 1) ; nonzero
   (define id-to-instance-map (make-hash)) ; mutable hash
@@ -110,7 +113,7 @@
                   [else
                    (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
-          (define response (make-sterling-data xml datum-id temporal? old-datum-id))
+          (define response (make-sterling-data xml datum-id name temporal? old-datum-id))
           (send-to-sterling response #:connection connection)]
          [else
           (printf "Sterling: unexpected onClick: ~a~n" json-m)])     
@@ -123,7 +126,7 @@
        (define inst (get-current-instance)) 
        (define id curr-datum-id)
        (define xml (get-xml inst))
-       (define response (make-sterling-data xml id temporal?))
+       (define response (make-sterling-data xml id name temporal?))
        (send-to-sterling response #:connection connection)     
        ]
       [(equal? (hash-ref json-m 'type) "eval")
@@ -143,7 +146,7 @@
       [(equal? (hash-ref json-m 'type) "meta")
        ; A message requesting data about the data provider, such as the provider's
        ; name and the types of views it supports. Respond in turn with a meta message.
-       (send-to-sterling (make-sterling-meta) #:connection connection)]      
+       (send-to-sterling (make-sterling-meta (cons name defined-run-names)) #:connection connection)]      
       [else
        (send-to-sterling "BAD REQUEST" #:connection connection)
        (printf "Sterling message contained unexpected type field: ~a~n" json-m)]))
@@ -192,7 +195,7 @@
          ; Once a character is read, stop the server
          (stop-service)]))
 
-(define (make-sterling-data xml id temporal? [old-id #f])
+(define (make-sterling-data xml id run-name temporal? [old-id #f])
   (jsexpr->string
    (hash
     'type "data"
@@ -200,6 +203,7 @@
     'payload (hash
               'enter (list
                       (hash 'id id
+                            'generatorName (->string run-name)
                             'format "alloy"
                             'data xml
                             'buttons (cond [temporal?
@@ -228,14 +232,15 @@
          'payload (hash 'id (->string id)
                         'result (->string result)))))
 
-(define/contract (make-sterling-meta)
-  (-> string?)
+(define/contract (make-sterling-meta defined-run-names)
+  (-> (listof symbol?) string?)
   (jsexpr->string	
    (hash 'type "meta"
          'version 1
          'payload (hash 'name "Forge"
                         'evaluator #t
-                        'views (list "graph" "table" "script")))))
+                        'views (list "graph" "table" "script")
+                        'generators (map ->string defined-run-names)))))
   
 
 
