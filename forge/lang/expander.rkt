@@ -123,6 +123,7 @@
     (pattern decl:PropertyDeclClass)
     (pattern decl:QuantifiedPropertyDeclClass)
     (pattern decl:SatisfiabilityDeclClass)
+    (pattern decl:ConsistencyDeclClass)
     (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
@@ -356,7 +357,8 @@
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass)
     (pattern decl:QuantifiedPropertyDeclClass)
-    (pattern decl:SatisfiabilityDeclClass))
+    (pattern decl:SatisfiabilityDeclClass)
+    (pattern decl:ConsistencyDeclClass))
 
   (define-syntax-class PropertyDeclClass
     #:attributes (prop-name pred-name constraint-type scope bounds)
@@ -406,6 +408,18 @@
     #:with scope (if (attribute -scope) #'-scope.translate #'())
     #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
+
+(define-syntax-class ConsistencyDeclClass
+  #:attributes (test-expr pred-name scope bounds)
+  (pattern ((~datum PropertyDecl)      
+            -test-expr:ExprClass
+            -pred-name:NameClass
+            (~optional -scope:ScopeClass)
+            (~optional -bounds:BoundsClass))
+    #:with test-expr #'-test-expr    ;;; sid; is this correct?
+    #:with pred-name #'-pred-name.name
+    #:with scope (if (attribute -scope) #'-scope.translate #'())
+    #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class TestSuiteDeclClass
     #:attributes (pred-name (test-constructs 1))
@@ -1068,7 +1082,7 @@
 (define-syntax (SatisfiabilityDecl stx)
   (syntax-parse stx
   [sd:SatisfiabilityDeclClass 
-   #:with test_name (format-id stx "Assertion_~a_is_~a_~a" #'sd.pred-name #'sd.expected (make-temporary-name stx))
+   #:with test_name (format-id stx "Assertion_~a_is_~a" #'sd.pred-name (make-temporary-name stx))
    (syntax/loc stx
       (test
         test_name
@@ -1076,6 +1090,19 @@
         #:scope sd.scope
         #:bounds sd.bounds
         #:expect sd.expected ))]))
+
+(define-syntax (ConsistencyDecl stx)
+  (syntax-parse stx
+  [cd:ConsistencyDeclClass 
+    #:with test_name (format-id stx "Assertion_consistency_~a_~a" #'sd.pred-name #'cd.expected (make-temporary-name stx))
+    #:with conj_total (syntax/loc stx (and cd.test-expr cd.pred-name))
+   (syntax/loc stx
+      (test
+        test_name
+        #:preds [conj_total]
+        #:scope sd.scope
+        #:bounds sd.bounds
+        #:expect sat ))]))
 
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.
