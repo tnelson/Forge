@@ -159,6 +159,9 @@
     (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.*?Assertion_All_TreeWithEdges_is_necessary_for_isUndirectedTree failed")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"Assertion_isUndirected_is_sufficient_for_isUndirectedTree failed.")
     (list "properties_directed_tree_sufficiency_error.frg" #rx"Assertion_All_arethesame_is_sufficient_for_bothRoots failed.")
+    (list "consistency-error.frg" #rx"Failed test Assert_consistent_q_")
+    (list "inconsistency-error.frg" #rx"Failed test Assert_inconsistent_q_")
+    
     (list "properties_directed_tree_necessity_error.frg" #rx"Assertion_All_isRoot_is_necessary_for_isNotRoot failed.")
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
