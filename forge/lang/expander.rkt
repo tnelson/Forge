@@ -1095,13 +1095,13 @@
   (syntax-parse stx
   [cd:ConsistencyDeclClass 
     #:with test_name (format-id stx "Assertion_consistency_~a_~a" #'cd.pred-name (make-temporary-name stx))
-    #:with conj_total (syntax/loc stx (and cd.test-expr cd.pred-name))
+   #:with conj_total (syntax/loc stx (&& cd.test-expr cd.pred-name))
    (syntax/loc stx
       (test
         test_name
-        #:preds [conj_total]
-        #:scope sd.scope
-        #:bounds sd.bounds
+        #:preds [conj_total] ;; Couldn't this just be a list of the exprs
+        #:scope cd.scope
+        #:bounds cd.bounds
         #:expect sat ))]))
 
 ;; Quick and dirty static check to ensure a test
