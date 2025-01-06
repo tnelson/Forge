@@ -410,14 +410,17 @@
 
 
 (define-syntax-class ConsistencyDeclClass
-  #:attributes (test-expr pred-name scope bounds)
+  #:attributes (test-expr pred-name consistency expected scope bounds)
   (pattern ((~datum ConsistencyDecl)      
             -test-expr:ExprClass
+            (~and (~or "consistent" "inconsistent") ct)
             -pred-name:NameClass
             (~optional -scope:ScopeClass)
             (~optional -bounds:BoundsClass))
-    #:with test-expr #'-test-expr    ;;; sid; is this correct?
+    #:with test-expr #'-test-expr
     #:with pred-name #'-pred-name.name
+    #:with consistency (string->symbol (syntax-e #'ct)) ;; This is for good test naming
+    #:with expected (if (equal? (syntax-e #'ct) "consistent") 'sat 'unsat)
     #:with scope (if (attribute -scope) #'-scope.translate #'())
     #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
@@ -1094,15 +1097,17 @@
 (define-syntax (ConsistencyDecl stx)
   (syntax-parse stx
   [cd:ConsistencyDeclClass 
-    #:with test_name (format-id stx "Assertion_consistency_~a_~a" #'cd.pred-name (make-temporary-name stx))
+    
+
+    #:with test_name (format-id stx "Assert_~a_~a_~a" #'cd.consistency #'cd.pred-name (make-temporary-name stx))
     #:with conj_total (syntax/loc stx (&& cd.test-expr cd.pred-name))
    (syntax/loc stx
       (test
         test_name
-        #:preds [conj_total] ;; Couldn't this just be a list of the exprs
+        #:preds [conj_total] 
         #:scope cd.scope
         #:bounds cd.bounds
-        #:expect sat ))]))
+        #:expect cd.expected ))]))
 
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.

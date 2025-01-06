@@ -81,6 +81,7 @@
    ["but"       (token+ `BUT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["check"     (token+ `CHECK-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["consistent" (token+ `CONSISTENT-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["inconsistent" (token+ `INCONSISTENT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["disj"      (token+ `DISJ-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["else"      (token+ `ELSE-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["exactly"   (token+ `EXACTLY-TOK "" lexeme "" lexeme-start lexeme-end)] 

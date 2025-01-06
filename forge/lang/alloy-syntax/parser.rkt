@@ -102,7 +102,7 @@ PropertyDecl : /ASSERT-TOK Name /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TO
 QuantifiedPropertyDecl : /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)?  /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
 
 ; Should this have a unique name?
-ConsistencyDecl: /ASSERT-TOK Expr /IS-TOK /CONSISTENT-TOK /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
+ConsistencyDecl: /ASSERT-TOK Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
 
 
 TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
