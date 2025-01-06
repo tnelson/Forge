@@ -16,5 +16,5 @@ pred p {
 pred q{}
 
 
-assert q is consistent with p
+assert {} is consistent with p
 

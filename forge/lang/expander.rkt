@@ -411,7 +411,7 @@
 
 (define-syntax-class ConsistencyDeclClass
   #:attributes (test-expr pred-name scope bounds)
-  (pattern ((~datum PropertyDecl)      
+  (pattern ((~datum ConsistencyDecl)      
             -test-expr:ExprClass
             -pred-name:NameClass
             (~optional -scope:ScopeClass)
@@ -1099,7 +1099,7 @@
    (syntax/loc stx
       (test
         test_name
-        #:preds [cd.pred-name, cd.test-expr] ;; Couldn't this just be a list of the exprs
+        #:preds [conj_total] ;; Couldn't this just be a list of the exprs
         #:scope cd.scope
         #:bounds cd.bounds
         #:expect sat ))]))
