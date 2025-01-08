@@ -163,7 +163,11 @@
     (list "consistency-error.frg" #rx"Failed test consistent_assertion_for_q_")
     (list "inconsistency-error.frg" #rx"Failed test inconsistent_assertion_for_q_")
     (list "properties_directed_tree_necessity_error.frg" #rx".*?quantified_necessary_assertion_for_isNotRoot.*?failed.")
-
+    ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions
+    (list "exp-on-rhs-assert.frg" #rx"parsing error")
+    (list "exp-on-rhs-quantified-assert.frg" #rx"parsing error")
+    (list "exp-on-rhs-inconsistency.frg" #rx"parsing error")
+    (list "exp-on-rhs-consistency.frg" #rx"parsing error")
 
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
