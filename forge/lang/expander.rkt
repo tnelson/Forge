@@ -1034,9 +1034,9 @@
   (syntax-parse stx
   [pwd:PropertyDeclClass 
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
-                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
-                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;; q => p : p is a necessary condition for q
-   #:with test_name (format-id stx "Assertion_~a_is_~a_for_~a" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name)
+                        (syntax/loc stx (implies pwd.prop pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
+                        (syntax/loc stx (implies pwd.pred pwd.prop-name))) ;; q => p : p is a necessary condition for q
+   #:with test_name (format-id stx "Assertion_~a_is_~a_for_~a" #'pwd.prop #'pwd.constraint-type #'pwd.pred-name) ;; TODO: The name here is off.
    (syntax/loc stx
       (test
         test_name
@@ -1046,31 +1046,32 @@
         #:expect checked ))]))
 
 
+;; TODO: prop pred expr
 (define-syntax (QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
     ;;;#:do [(printf "QuantifiedPropertyDeclClass.PropExprs: ~a~n" (syntax->datum #'qpd.prop-exprs))]
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)) stx)]
-          [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)) stx)]
+          ;;[(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)) stx)]
         
-          [prop-consolidated (if (equal? (syntax->datum #'qpd.prop-exprs) '()) 
-                                (syntax/loc stx qpd.prop-name)
-                                (syntax/loc stx (exp-prop-exprs ...)))]
+          ; [prop-consolidated (if (equal? (syntax->datum #'qpd.prop-exprs) '()) 
+          ;                       (syntax/loc stx qpd.prop-name)
+          ;                       (syntax/loc stx (exp-prop-exprs ...)))]
           [pred-consolidated (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
                                 (syntax/loc stx qpd.pred-name)
                                 (syntax/loc stx (exp-pred-exprs ...)))]
                                 
-          [test_name (format-id stx "~a__Assertion_All_~a_is_~a_for_~a" (make-temporary-name stx) #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)]
+          [test_name (format-id stx "~a__Assertion_All_~a_is_~a_for_~a" (make-temporary-name stx) #'qpd.prop #'qpd.constraint-type #'qpd.pred-name)] ;; TODO: Name is probably wrong here
           ;;; This is ugly, I'm sure there are better ways to write this
           [imp_total
             (if (eq? (syntax-e #'qpd.disj) 'disj)
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
-                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies prop-consolidated pred-consolidated)))
-                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies pred-consolidated prop-consolidated))))
+                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies #'qpd.prop pred-consolidated)))
+                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies pred-consolidated #'qpd.prop))))
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
-                    (syntax/loc stx (all  qpd.quant-decls (implies prop-consolidated pred-consolidated)))
-                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated prop-consolidated)))))])
+                    (syntax/loc stx (all  qpd.quant-decls (implies #'qpd.prop pred-consolidated)))
+                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated #'qpd.prop)))))])
      (syntax/loc stx
        (test
          test_name
@@ -1083,11 +1084,11 @@
 (define-syntax (SatisfiabilityDecl stx)
   (syntax-parse stx
   [sd:SatisfiabilityDeclClass 
-   #:with test_name (format-id stx "Assertion_~a_is_~a_~a" #'sd.pred-name #'sd.expected (make-temporary-name stx))
+   #:with test_name (format-id stx "~a_Assertion_~a" #'sd.expected (make-temporary-name stx))
    (syntax/loc stx
       (test
         test_name
-        #:preds [sd.pred-name]
+        #:preds [sd.prop]
         #:scope sd.scope
         #:bounds sd.bounds
         #:expect sd.expected ))]))
@@ -1095,8 +1096,6 @@
 (define-syntax (ConsistencyDecl stx)
   (syntax-parse stx
   [cd:ConsistencyDeclClass 
-    
-
     #:with test_name (format-id stx "Assert_~a_~a_~a" #'cd.consistency #'cd.pred-name (make-temporary-name stx))
     #:with conj_total (syntax/loc stx (&& cd.test-expr cd.pred-name))
    (syntax/loc stx
