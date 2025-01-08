@@ -361,26 +361,25 @@
     (pattern decl:ConsistencyDeclClass))
 
   (define-syntax-class PropertyDeclClass
-    #:attributes (prop-name pred-name constraint-type scope bounds)
+    #:attributes (prop pred-name constraint-type scope bounds)
     (pattern ((~datum PropertyDecl)      
-              -prop-name:NameClass
+              -prop:ExprClass
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
-      #:with prop-name #'-prop-name.name
+      #:with prop #'-prop
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class QuantifiedPropertyDeclClass
-    #:attributes (quant-decls disj prop-name prop-exprs pred-name pred-exprs constraint-type scope bounds)
+    #:attributes (quant-decls disj prop pred-name pred-exprs constraint-type scope bounds)
     (pattern ((~datum QuantifiedPropertyDecl)
               (~optional (~and "disj" -disj))
               -quant-decls:DeclListClass
-              -prop-name:NameClass
-              (~optional -prop-exprs:ExprListClass)
+              -prop:ExprClass
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
               (~optional -pred-exprs:ExprListClass)
@@ -388,22 +387,21 @@
               (~optional -bounds:BoundsClass))
       #:with disj (if (attribute -disj) (string->symbol (syntax-e #'-disj)) '())
       #:with quant-decls #'-quant-decls.translate
-      #:with prop-name #'-prop-name.name
+      #:with prop-name #'-prop
       #:with pred-name #'-pred-name.name
       #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.exprs ...) #'()) 
-      #:with prop-exprs (if (attribute -prop-exprs)  #'(-prop-exprs.exprs ...) #'())
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 (define-syntax-class SatisfiabilityDeclClass
-  #:attributes (pred-name expected scope bounds)
+  #:attributes (prop expected scope bounds)
   (pattern ((~datum SatisfiabilityDecl)
-            -pred-name:NameClass
+            -prop:ExprClass
             (~and (~or "sat" "unsat" "forge_error") ct)
             (~optional -scope:ScopeClass)
             (~optional -bounds:BoundsClass))
-    #:with pred-name #'-pred-name.name
+    #:with prop #'-prop
     #:with expected (string->symbol (syntax-e #'ct))
     #:with scope (if (attribute -scope) #'-scope.translate #'())
     #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
