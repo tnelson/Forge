@@ -15,14 +15,15 @@
          (prefix-in tree: forge/utils/lazy-tree)
          json
          racket/contract
-         (prefix-in @ (only-in racket >= <= > <)))
+         (prefix-in @ (only-in racket >= <= > <))
+         syntax/srcloc)
 
 ; for verbosity option
 (require forge/shared)
 ; for get-option
 (require forge/sigs-structs)
 
-(provide display-model)
+(provide display-model start-sterling-menu)
 
 (define-runtime-path sterling-path "../sterling/build/index.html")
 
@@ -113,7 +114,7 @@
                   [else
                    (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
-          (define response (make-sterling-data xml datum-id name temporal? old-datum-id))
+          (define response (make-sterling-data xml datum-id name temporal? (Sat? inst) old-datum-id))
           (send-to-sterling response #:connection connection)]
          [else
           (printf "Sterling: unexpected onClick: ~a~n" json-m)])     
@@ -195,7 +196,7 @@
          ; Once a character is read, stop the server
          (stop-service)]))
 
-(define (make-sterling-data xml id run-name temporal? [old-id #f])
+(define (make-sterling-data xml id run-name temporal? not-done? [old-id #f])
   (jsexpr->string
    (hash
     'type "data"
@@ -206,7 +207,8 @@
                             'generatorName (->string run-name)
                             'format "alloy"
                             'data xml
-                            'buttons (cond [temporal?
+                            'buttons (cond [(not not-done?) (list)]
+                                           [temporal?
                                             (list (hash 'text "Next Trace"
                                                         'mouseover "(Keeps configuration constant)"
                                                         'onClick "next-P")
@@ -242,121 +244,217 @@
                         'views (list "graph" "table" "script")
                         'generators (map ->string defined-run-names)))))
   
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Infrastructure for starting up sterling in "command selector" mode
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (start-sterling-menu curr-state)
+  ; The runs defined in the state at this point, which should be after all declarations.
+  (define runmap (State-runmap curr-state))
+  (define defined-run-names (hash-keys runmap))
 
+  ; Assumption: if Sterling is the source of instance requests, there will be no
+  ; instance requests seen from any other sources.
 
-#|
-[(equal? m "current")
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: current~n"))
-                  (ws-send! connection (get-xml (get-current-instance)))]                 
-                 [(equal? m "next-C") 
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: next-C~n"))
-                  (get-next-instance 'C)                  
-                  (ws-send! connection (get-xml (get-current-instance)))]
+  ; Keep track of current instance context for each run. We do this because (Run-result r)
+  ; is not modified, so that other parts of Forge can read the entire instance history if
+  ; necessary. This is only populated lazily, to avoid running the solver at once on everything.
+  (define current-tree-locations (make-hash)) ; mutable hash
 
-                 [(equal? m "next")
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: next~n"))
-                  (get-next-instance)
-                  ; TN disabled for now 01/25/2021
-                  ;(make-contrast-model-generators)
-                  (ws-send! connection (get-xml (get-current-instance)))]
+  (when (> (get-verbosity) VERBOSITY_LOW)
+    (printf "Starting Sterling in command-selection mode...~n")
+    (printf "Available commands: ~a~n" defined-run-names))
+  
+  (define (send-to-sterling m #:connection connection)
+    (when (@>= (get-verbosity) VERBOSITY_STERLING) 
+      (printf "Sending message to Sterling: ~a~n" m))
+    (ws-send! connection m))
 
-                 ; Sterling is notifying Forge of some event, so that Forge can log or take action
-                 ;“NOTIFY:${view}:${LN}“, so you’ll have four possible messages:
-                 ;NOTIFY:GRAPH:LN+
-                 ;NOTIFY:GRAPH:LN-
-                 ;NOTIFY:TABLE:LN+
-                 ;NOTIFY:TABLE:LN-
-                 [(string-prefix? m "NOTIFY:")
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: notification (TODO: log if enabled)~n"))
-                  ; No reply needed
-                  ]
-                 
-                 [(equal? m "compare-min")
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: compare-min~n"))
-                  (define contrast-model (get-next-contrast-model 'compare-min))
-                  (ws-send! connection (string-append "CMP:MIN:" (get-xml contrast-model)))]
+  (define curr-datum-id 0) ; nonzero
+  (define id-to-instance-map (make-hash)) ; mutable hash
 
-                 [(equal? m "compare-max")
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: compare-max~n"))
-                  (define contrast-model (get-next-contrast-model 'compare-max))
-                  (ws-send! connection (string-append "CMP:MAX:" (get-xml contrast-model)))]
+  
+  ; This (large) handler processes incoming request messages from Sterling
+  (define (handle-json connection m)
+    (define json-m
+      (with-handlers ([exn:fail:syntax?
+                       (lambda (e)                      
+                         (send-to-sterling "BAD REQUEST" #:connection connection)
+                         (printf "Expected JSON request from Sterling, got: ~a~n" m))])
+        (string->jsexpr m)))
+    (unless (and (hash? json-m) (hash-has-key? json-m 'type))
+      (send-to-sterling "BAD REQUEST" #:connection connection)
+      (printf "Expected hash-table JSON request with type field, got: ~a~n" m))
 
-                 [(equal? m "contrast-min")
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: contrast-min~n"))
-                  (define contrast-model (get-next-contrast-model 'contrast-min))
-                  (ws-send! connection (string-append "CST:MIN:" (get-xml contrast-model)))]
+    (when (> (get-verbosity) VERBOSITY_LOW)
+      (printf "DEBUG: Sterling sent: ~a...~n" json-m))
+    
+    (cond
+      [(equal? (hash-ref json-m 'type) "click")
+       ; A message notifying the data provider that a Button was clicked
+       ; by the user. This may be in the context of a specific datum, entail a
+       ; request for a datum from a (named) generator, or neither.
+       (unless (and
+                (hash-has-key? json-m 'payload)
+                (hash-has-key? (hash-ref json-m 'payload) 'onClick)
+                (hash-has-key? (hash-ref json-m 'payload) 'context)
+                (hash-has-key? (hash-ref (hash-ref json-m 'payload) 'context) 'generatorName))
+         (printf "Got a click event from Sterling without a well-formed payload: ~a~n" json-m))
 
-                 [(equal? m "contrast-max")
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "RECEIVED: contrast-max~n"))
-                  (define contrast-model (get-next-contrast-model 'contrast-max))
-                  (ws-send! connection (string-append "CST:MAX:" (get-xml contrast-model)))]
+       (define payload (hash-ref json-m 'payload))
+       (define onClick (hash-ref payload 'onClick))
+       (define context (hash-ref payload 'context))
+       (define generatorName (string->symbol (hash-ref context 'generatorName)))
+       (define next? (equal? "next" (substring onClick 0 4)))
+       (unless (hash-has-key? runmap generatorName)
+         (printf "Sterling requested 'next' data for a nonexistent command: ~a~n" generatorName))
+       (define the-run (hash-ref runmap generatorName))
+       (define temporal? (equal? (get-option the-run 'problem_type) 'temporal))
+       (define name (Run-name the-run))
 
-                 [(string-prefix? m "EVL:") ; (equal? m "eval-exp")
-                  (define parts (regexp-match #px"^EVL:(\\d+):(.*)$" m))
-                  (define command (third parts))
-                  (when (> (get-verbosity) VERBOSITY_LOW)
-                    (printf "Eval query: ~a~n" command))
-                  (define result (evaluate-func command))                  
-                  (ws-send! connection (format "EVL:~a:~a" (second parts) result))]
-                 [else
-                  (ws-send! connection "BAD REQUEST")
-                  (printf "Bad request: ~a~n" m)])
-|#
+       ; Get the current location in this run's lazy result tree.
+       (define (get-current-tree)
+         (cond 
+           [(hash-has-key? current-tree-locations name) (hash-ref current-tree-locations name)]
+           [else (Run-result the-run)]))
 
+       ; Get the _next_ location in this run's lazy result tree (no mutation)
+       ; If we have not enumerated an instance yet, use the first one given.
+       (define (get-next-tree [next-mode 'P])
+         (cond 
+           [(hash-has-key? current-tree-locations name)
+            (tree:get-child (hash-ref current-tree-locations name) next-mode)]
+           [else (Run-result the-run)]))
 
- ; For compare/contrast models.
-  ; Map of generators
-  ;  (define contrast-model-generators #f)
-  ;  (define contrast-models #f)
+       ; Get the latest instance of this run's lazy result tree. Do not advance the tree pointer.
+       (define (get-current-instance)
+         (define returned-instance (tree:get-value (get-current-tree)))
+         (set-box! (Run-last-sterling-instance the-run) returned-instance)
+         returned-instance)
+       
+       ; Get the next instance of this run's lazy result tree. Advance the tree pointer.
+       (define (get-next-instance [next-mode 'P])
+         (define next-tree (get-next-tree next-mode))
+         (set! curr-datum-id (+ curr-datum-id 1))
 
-  ; TODO: TN, re-enable these
-  ;  (define (make-contrast-model-generators)
-  ;    (define make-generator (curry get-contrast-model-generator model))
-  ;    (set! contrast-model-generators
-  ;      (hash 'compare-min (make-generator 'compare 'close)
-  ;            'compare-max (make-generator 'compare 'far)
-  ;            'contrast-min (make-generator 'contrast 'close)
-  ;            'contrast-max (make-generator 'contrast 'far)))
-  ;
-  ;    (set! contrast-models
-  ;      (make-hash (list (cons 'compare-min #f)
-  ;                       (cons 'compare-max #f)
-  ;                       (cons 'contrast-min #f)
-  ;                       (cons 'contrast-max #f)))))
-  ;(make-contrast-model-generators)
+         ; update the pointer into the enumeration of instances
+         (hash-set! current-tree-locations name next-tree)
+         (printf "current-tree-locations after set: ~a~n" current-tree-locations)
 
-  ;  (define (get-current-contrast-model type)
-  ;    (hash-ref contrast-models type))
-  ;  (define (get-next-contrast-model type)
-  ;    (hash-set! contrast-models type 
-  ;               ((hash-ref contrast-model-generators type)))
-  ;    (hash-ref contrast-models type))
+         ; call get-current-instance to update the Run's last sterling cursor
+         ; this must happen after current-tree-locations is updated.
+         (hash-set! id-to-instance-map curr-datum-id (get-current-instance))
+         
+         (values curr-datum-id (get-current-instance)))
 
-  ;  ; Define a hashof(relname-symbol, hashof(listof(atom-symbol), listof(annotation-symbol))    
-  ;  (define (build-tuple-annotations-for-ln model)
-  ;    (define (build-tann-hash relname pair-list ksym vsym)
-  ;      (for/hash ([pr (filter (lambda (maybe-pr) (equal? relname (cdr maybe-pr))) pair-list)])
-  ;        ; build *LIST* of annotations, each of which is a pair
-  ;        (values (car pr) (list (cons ksym vsym))))) 
-  ;    
-  ;    ; only for the first element of a trace TODO
-  ;    (when (> (get-verbosity) VERBOSITY_LOW)
-  ;      (printf "generating locally-necessary tuples...model field unused...~n"))
-  ;    (match-define (cons yes no) (get-locally-necessary-list the-run (get-current-instance)))
-  ;    ; To ease building annotation hash, just discover which relations are present in advance
-  ;    ;(printf "LNtuples+: ~a~n LNtuples-: ~a~n" yes no)
-  ;    (for/hash ([relname (remove-duplicates (map cdr (append yes no)))])
-  ;      (let ([true-hash (build-tann-hash relname yes 'LN 'true)]
-  ;            [false-hash (build-tann-hash relname no 'LN 'false)])
-  ;      ; uppercase
-  ;      ;(printf "building union of ~a~n  and ~a~n" true-hash false-hash)
-  ;      (values relname (hash-union true-hash false-hash)))))
-  ;  
+       ; The command string that corresponds to this generator.
+       (define command-string (format "~a" (syntax->datum (Run-command the-run))))
+
+       ; The filepath of the command. We could also get this, possibly (?) more 
+       ; reliably, via (current-load-relative-directory) in the expander.)
+       (define filepath (if (source-location-source (Run-command the-run))
+                            (path->string (source-location-source (Run-command the-run)))
+                            "/no-name.frg"))
+
+       ; The bitwidth for this run.
+       (define bitwidth (get-bitwidth (Run-run-spec the-run)))
+       
+       ; Helper to convert a solution to Alloy-format instance XML
+       (define (get-xml soln)    
+         (define tuple-annotations (hash)) ; no annotations at the moment
+         (solution-to-XML-string soln
+                                 (get-relation-map the-run) name command-string filepath
+                                 bitwidth forge-version #:tuple-annotations tuple-annotations
+                                 #:run-options (State-options (Run-spec-state (Run-run-spec the-run)))))
+
+       (cond
+        [next?          
+         (define old-datum-id curr-datum-id)
+         (define-values (datum-id inst)
+           (cond [(equal? onClick "next-C") (get-next-instance 'C)]
+                 [(equal? onClick "next-P") (get-next-instance 'P)]
+                [(equal? onClick "next") (get-next-instance)]
+                [else
+                 (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
+        (define xml (get-xml inst))
+        (define response (make-sterling-data xml datum-id name temporal? (Sat? inst) old-datum-id))
+        (send-to-sterling response #:connection connection)]
+       [else
+        (printf "Sterling: unexpected onClick: ~a~n" json-m)])]
+      [(equal? (hash-ref json-m 'type) "data")
+       ; A message requesting the current data to display to the user.
+       ; This message will be sent when the connection is established
+       ; (or re-established). Respond in turn with a data message.
+       ; TODO: should we re-enable make-contrast-model-generators?
+       ;;(define inst (get-current-instance)) 
+       ;;(define id curr-datum-id)
+       ;;(define xml (get-xml inst))
+       ;;(define response (make-sterling-data xml id name temporal?))
+       ;;(send-to-sterling response #:connection connection)
+       (printf "Ignoring Sterling 'data' request...~n")
+       ]
+      [(equal? (hash-ref json-m 'type) "eval")
+       ; A message requesting that the provider evaluate some expression
+       ; associated with a specific datum. Respond with the result of
+       ; evaluating the expression with an eval message.
+       ;;(define expression (get-from-json json-m '(payload expression)))
+       ;;(define id (get-from-json json-m '(payload id)))
+       ;;(define datum-id (get-from-json json-m '(payload datumId)))
+
+       ;; Racket-side this is an int; Sterling-side this is a string:
+       ;;(when (not (equal? (->string datum-id) (->string curr-datum-id)))
+       ;;  (printf "Error: Sterling requested outdated evaluator (id=~a; curr-id=~a); reporting back inaccurate data!" datum-id curr-datum-id))
+       ;;(define result (evaluate-func expression))       
+       ;;(define response (make-sterling-eval result id datum-id))
+       (define response "mock")
+       (send-to-sterling response #:connection connection)]     
+      [(equal? (hash-ref json-m 'type) "meta")
+       ; A message requesting data about the data provider, such as the provider's
+       ; name and the types of views it supports. Respond in turn with a meta message.
+       (send-to-sterling (make-sterling-meta defined-run-names) #:connection connection)]      
+      [else
+       (send-to-sterling "BAD REQUEST" #:connection connection)
+       (printf "Sterling message contained unexpected type field: ~a~n" json-m)]))
+  
+  (define chan (make-async-channel))
+
+  ; After this is defined, the service is active and should be listening
+  (define stop-service    
+    (ws-serve
+     ; This is the connection handler function, it has total control over the connection
+     ; from the time that conn-headers finishes responding to the connection request, to the time
+     ; the connection closes. The server generates a new handler thread for this function
+     ; every time a connection is initiated.
+     (λ (connection _)       
+       (let loop ()         
+         (define m (ws-recv connection))
+         (unless (eof-object? m)           
+           (when (@>= (get-verbosity) VERBOSITY_STERLING) 
+             (printf "Message received from Sterling: ~a~n" m))
+           (cond [(equal? m "ping")
+                  (send-to-sterling "pong" #:connection connection)]
+                 [else (handle-json connection m)])
+           (loop))))
+     ; default #:port 0 will assign an ephemeral port
+     #:port (get-option curr-state 'sterling_port) #:confirmation-channel chan))
+
+  (define port (async-channel-get chan))
+  (cond [(string? port)
+         (displayln "NO PORTS AVAILABLE. Unable to start web server and Sterling visualizer.")]
+        [(equal? 'off (get-option curr-state 'run_sterling))
+         (void)]
+        [else
+         ; Attempt to open a browser to the Sterling index.html, with the proper port
+         ; If this cannot be opened for whatever reason, keep the server open but print
+         ; a warning, allowing the user a workaround.
+         (with-handlers ([exn?
+                          (lambda (e) (printf "Racket could not open a browser on your system; you may be able manually navigate to this address, which is where Forge expects Sterling to load:~n  ~a~n"
+                                              (string-append (path->string sterling-path) "?" (number->string port))))])
+           (send-url/file sterling-path #f #:query (number->string port)))
+         
+         (printf "Sterling running. Hit enter to stop service.\n")
+         (when (> (get-verbosity) VERBOSITY_LOW)
+           (printf "Using port: ~a~n" (number->string port)))
+         (flush-output)
+         (void (read-char))
+         ; Once a character is read, stop the server
+         (stop-service)]))

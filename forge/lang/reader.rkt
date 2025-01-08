@@ -133,12 +133,14 @@
                   ,ints-coerced
                   (do-time "forge-mod ints-coerced")
 
-                  ;; Declare submodule "execs". Macros like "test" or "run" etc. will add to
-                  ;; this submodule.
-                  ;; TODO: is this line now unnecessary, since the following line declares execs?
-                  (module+ execs)
-                  ; After execution of execs, print test failures (if any)
-                  (module+ execs (output-all-test-failures))
+                  ; Declare submodule "execs". Macros like "test" or "run" etc. will add to 
+                  ; this submodule. After execution of execs, print test failures (if any).
+                  (module+ execs
+                    ; All tests should have been added to `execs` prior to this point. 
+                    (output-all-test-failures)
+                    ; At this point, all commands should be defined. Open Sterling.
+                    (start-sterling-menu forge:curr-state))
+
                   ;; Declare submodule "main"
                   (module+ main
                     ; Invoke the execs submodule

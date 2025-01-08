@@ -974,7 +974,10 @@
        #,(syntax/loc stx (cmd-type name (~? (~@ #:preds [preds]))
                       (~? (~@ #:scope scope.translate))
                       (~? (~@ #:bounds bounds.translate))))
-       #,(syntax/loc stx (display name))))]))
+       ; This should no longer be called per-command. Instead, an external coordinator
+       ; (such as Sterling) will say when (and if) each command should be executed.
+       ;#,(syntax/loc stx (display name))
+       ))]))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
 (define-syntax (TestDecl stx)
