@@ -23,6 +23,9 @@ pred producesErr {
 
 assert isDirectedTree is sat
 assert impossible is unsat
+
+assert { isDirectedTree and !isDirectedTree } is unsat
+
 assert producesErr is forge_error
 
 -- Test in suite context
