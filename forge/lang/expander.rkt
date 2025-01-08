@@ -1067,11 +1067,11 @@
           [imp_total
             (if (eq? (syntax-e #'qpd.disj) 'disj)
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
-                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies #'qpd.prop pred-consolidated)))
-                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies pred-consolidated #'qpd.prop))))
+                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies qpd.prop pred-consolidated)))
+                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies pred-consolidated qpd.prop))))
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
-                    (syntax/loc stx (all  qpd.quant-decls (implies #'qpd.prop pred-consolidated)))
-                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated #'qpd.prop)))))])
+                    (syntax/loc stx (all  qpd.quant-decls (implies qpd.prop pred-consolidated)))
+                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated qpd.prop)))))])
      (syntax/loc stx
        (test
          test_name

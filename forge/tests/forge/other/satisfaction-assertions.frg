@@ -25,6 +25,8 @@ assert isDirectedTree is sat
 assert impossible is unsat
 
 assert { isDirectedTree and !isDirectedTree } is unsat
+assert {} is sat
+
 
 assert producesErr is forge_error
 
