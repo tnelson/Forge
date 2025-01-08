@@ -139,7 +139,7 @@
                     ; All tests should have been added to `execs` prior to this point. 
                     (output-all-test-failures)
                     ; At this point, all commands should be defined. Open Sterling.
-                    (start-sterling-menu forge:curr-state))
+                    (start-sterling-menu forge:curr-state forge:nsa))
 
                   ;; Declare submodule "main"
                   (module+ main

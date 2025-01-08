@@ -14,8 +14,9 @@
 ;   should be called for any context where a menu of commands doesn't fit (such as a
 ;   failing test, perhaps). 
 
-(require (only-in forge/lang/ast relation-name)
+(require (only-in forge/lang/ast relation-name raise-forge-error)
          forge/server/modelToXML
+         forge/evaluator
          xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel
@@ -27,6 +28,9 @@
          racket/contract
          (prefix-in @ (only-in racket >= <= > <))
          syntax/srcloc)
+(require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
+         (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
+
 
 ; for verbosity option
 (require forge/shared)
@@ -229,7 +233,7 @@
                                             (list (hash 'text "Next"
                                                         'mouseover "(Get next instance)"
                                                         'onClick "next"))])                            
-                            'evaluator #t))
+                            'evaluator not-done?))
                 'update (if old-id 
                             (list (hash 'id old-id
                                         'actions (list)
@@ -256,8 +260,9 @@
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Infrastructure for starting up sterling in "command selector" mode
+;; The namespace is passed to aid evaluation
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (start-sterling-menu curr-state)
+(define (start-sterling-menu curr-state nsa)
   ; The runs defined in the state at this point, which should be after all declarations.
   (define runmap (State-runmap curr-state))
   (define defined-run-names (hash-keys runmap))
@@ -281,22 +286,24 @@
 
   (define curr-datum-id 0) ; nonzero
   (define id-to-instance-map (make-hash)) ; mutable hash
+  (define id-to-run-map (make-hash)) ; mutable hash
 
   
   ; This (large) handler processes incoming request messages from Sterling
-  (define (handle-json connection m)
+  (define (handle-json connection m #:context [context #f])
     (define json-m
       (with-handlers ([exn:fail:syntax?
                        (lambda (e)                      
                          (send-to-sterling "BAD REQUEST" #:connection connection)
-                         (printf "Expected JSON request from Sterling, got: ~a~n" m))])
+                         (raise-forge-error
+                          #:msg (format "Expected JSON request from Sterling, got: ~a~n" m)
+                          #:context context))])
         (string->jsexpr m)))
     (unless (and (hash? json-m) (hash-has-key? json-m 'type))
       (send-to-sterling "BAD REQUEST" #:connection connection)
-      (printf "Expected hash-table JSON request with type field, got: ~a~n" m))
-
-    (when (> (get-verbosity) VERBOSITY_LOW)
-      (printf "DEBUG: Sterling sent: ~a...~n" json-m))
+      (raise-forge-error
+       #:msg (format "Expected hash-table JSON request with type field, got: ~a~n" m)
+       #:context context))
     
     (cond
       [(equal? (hash-ref json-m 'type) "click")
@@ -308,7 +315,9 @@
                 (hash-has-key? (hash-ref json-m 'payload) 'onClick)
                 (hash-has-key? (hash-ref json-m 'payload) 'context)
                 (hash-has-key? (hash-ref (hash-ref json-m 'payload) 'context) 'generatorName))
-         (printf "Got a click event from Sterling without a well-formed payload: ~a~n" json-m))
+         (raise-forge-error
+          #:msg (format "Got a click event from Sterling without a well-formed payload: ~a~n" json-m)
+          #:context context))
 
        (define payload (hash-ref json-m 'payload))
        (define onClick (hash-ref payload 'onClick))
@@ -316,7 +325,10 @@
        (define generatorName (string->symbol (hash-ref context 'generatorName)))
        (define next? (equal? "next" (substring onClick 0 4)))
        (unless (hash-has-key? runmap generatorName)
-         (printf "Sterling requested 'next' data for a nonexistent command: ~a~n" generatorName))
+         (raise-forge-error
+          #:msg (format "Sterling requested 'next' data for a nonexistent command: ~a~n" generatorName)
+          #:context context))
+         
        (define the-run (hash-ref runmap generatorName))
        (define temporal? (equal? (get-option the-run 'problem_type) 'temporal))
        (define name (Run-name the-run))
@@ -348,11 +360,11 @@
 
          ; update the pointer into the enumeration of instances
          (hash-set! current-tree-locations name next-tree)
-         (printf "current-tree-locations after set: ~a~n" current-tree-locations)
 
          ; call get-current-instance to update the Run's last sterling cursor
          ; this must happen after current-tree-locations is updated.
          (hash-set! id-to-instance-map curr-datum-id (get-current-instance))
+         (hash-set! id-to-run-map curr-datum-id the-run)
          
          (values curr-datum-id (get-current-instance)))
 
@@ -384,12 +396,15 @@
                  [(equal? onClick "next-P") (get-next-instance 'P)]
                 [(equal? onClick "next") (get-next-instance)]
                 [else
-                 (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
+                 (raise-forge-error
+                  #:msg (format "Error: Sterling sent unexpected 'next' request type: ~a~n" json-m)
+                  #:context context)]))
         (define xml (get-xml inst))
         (define response (make-sterling-data xml datum-id name temporal? (Sat? inst) old-datum-id))
         (send-to-sterling response #:connection connection)]
        [else
-        (printf "Sterling: unexpected onClick: ~a~n" json-m)])]
+        (raise-forge-error #:msg (format "Sterling: unexpected onClick: ~a~n" json-m)
+                           #:context context)])]
       [(equal? (hash-ref json-m 'type) "data")
        ; A message requesting the current data to display to the user.
        ; This message will be sent when the connection is established
@@ -406,16 +421,50 @@
        ; A message requesting that the provider evaluate some expression
        ; associated with a specific datum. Respond with the result of
        ; evaluating the expression with an eval message.
-       ;;(define expression (get-from-json json-m '(payload expression)))
-       ;;(define id (get-from-json json-m '(payload id)))
-       ;;(define datum-id (get-from-json json-m '(payload datumId)))
+       (define expression (get-from-json json-m '(payload expression)))
+       (define id (get-from-json json-m '(payload id)))
+       (define datum-id (string->number (get-from-json json-m '(payload datumId))))
 
        ;; Racket-side this is an int; Sterling-side this is a string:
-       ;;(when (not (equal? (->string datum-id) (->string curr-datum-id)))
-       ;;  (printf "Error: Sterling requested outdated evaluator (id=~a; curr-id=~a); reporting back inaccurate data!" datum-id curr-datum-id))
-       ;;(define result (evaluate-func expression))       
-       ;;(define response (make-sterling-eval result id datum-id))
-       (define response "mock")
+       (when (not (equal? (->string datum-id) (->string curr-datum-id)))
+         (raise-forge-error
+          #:msg (format "Error: Sterling requested outdated evaluator (id=~a; curr-id=~a); reporting back inaccurate data!" datum-id curr-datum-id)
+          #:context context))
+       (unless (hash-has-key? id-to-run-map datum-id)
+         (raise-forge-error
+          #:msg (format "Error: Sterling provided an unknown instance ID in evaluator query (id=~a))" datum-id)
+          #:context context))
+       (define the-run (hash-ref id-to-run-map datum-id))
+       
+       (define (evaluate-func str-command)
+         (define pipe1 (open-input-string str-command))
+         (define pipe2 (open-input-string (format "eval ~a" str-command)))
+         
+         (with-handlers ([(lambda (x) #t) 
+                          (lambda (exn) (exn-message exn))])
+           ; Read command as syntax from pipe
+           (define expr
+             (cond [(equal? (get-option curr-state 'eval-language) 'surface)
+                    (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))]
+                   [(equal? (get-option curr-state 'eval-language) 'core)
+                    (read-syntax 'Evaluator pipe1)]
+                   [else (raise-forge-error
+                          #:msg "Could not evaluate in current language - must be surface or core."
+                          #:context #f)]))
+           
+           ; Evaluate command
+           (define full-command (datum->syntax #f `(let
+                                                       ,(for/list ([atom (Run-atoms the-run)]
+                                                                   #:when (symbol? atom))
+                                                          `[,atom (atom ',atom)])
+                                                     ,expr)))
+           (define ns (namespace-anchor->namespace (nsa)))
+           (define command (eval full-command ns))
+           (evaluate the-run '() command)))
+       
+       
+       (define result (evaluate-func expression))       
+       (define response (make-sterling-eval result id datum-id))
        (send-to-sterling response #:connection connection)]     
       [(equal? (hash-ref json-m 'type) "meta")
        ; A message requesting data about the data provider, such as the provider's
@@ -423,7 +472,9 @@
        (send-to-sterling (make-sterling-meta defined-run-names) #:connection connection)]      
       [else
        (send-to-sterling "BAD REQUEST" #:connection connection)
-       (printf "Sterling message contained unexpected type field: ~a~n" json-m)]))
+       (raise-forge-error
+        #:msg (format "Sterling message contained unexpected type field: ~a~n" json-m)
+        #:context context)]))
   
   (define chan (make-async-channel))
 
