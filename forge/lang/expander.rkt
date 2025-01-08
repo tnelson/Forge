@@ -1036,7 +1036,8 @@
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
                         (syntax/loc stx (implies pwd.prop pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
                         (syntax/loc stx (implies pwd.pred-name pwd.prop))) ;; q => p : p is a necessary condition for q
-   #:with test_name (format-id stx "Assertion_~a_is_~a_for_~a" #'pwd.prop #'pwd.constraint-type #'pwd.pred-name) ;; TODO: The name here is off.
+  
+   #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'pwd.constraint-type #'pwd.pred-name (make-temporary-name stx)) ;; Use the string in the test name
    (syntax/loc stx
       (test
         test_name
@@ -1062,8 +1063,7 @@
                                 (syntax/loc stx qpd.pred-name)
                                 (syntax/loc stx (exp-pred-exprs ...)))]
                                 
-          [test_name (format-id stx "~a__Assertion_All_~a_is_~a_for_~a" (make-temporary-name stx) #'qpd.prop #'qpd.constraint-type #'qpd.pred-name)] ;; TODO: Name is probably wrong here
-          ;;; This is ugly, I'm sure there are better ways to write this
+          [test_name (format-id stx "quantified_~a_assertion_for_~a_~a" #'qpd.constraint-type #'qpd.pred-name) (make-temporary-name stx)] 
           [imp_total
             (if (eq? (syntax-e #'qpd.disj) 'disj)
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
