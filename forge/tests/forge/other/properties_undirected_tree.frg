@@ -19,7 +19,7 @@ pred isUndirectedTree {
 
 assert {} is necessary for isUndirectedTree
 
-//assert {all m, n : Node | n->m in edges implies m->n in edges} is necessary for isUndirectedTree
+assert {all m, n : Node | n->m in edges implies m->n in edges} is necessary for isUndirectedTree
 
 
 pred isUndirected

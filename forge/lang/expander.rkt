@@ -1046,19 +1046,12 @@
         #:bounds pwd.bounds
         #:expect checked ))]))
 
-
-;; TODO: prop pred expr
 (define-syntax (QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
     ;;;#:do [(printf "QuantifiedPropertyDeclClass.PropExprs: ~a~n" (syntax->datum #'qpd.prop-exprs))]
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)) stx)]
-          ;;[(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)) stx)]
-        
-          ; [prop-consolidated (if (equal? (syntax->datum #'qpd.prop-exprs) '()) 
-          ;                       (syntax/loc stx qpd.prop-name)
-          ;                       (syntax/loc stx (exp-prop-exprs ...)))]
           [pred-consolidated (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
                                 (syntax/loc stx qpd.pred-name)
                                 (syntax/loc stx (exp-pred-exprs ...)))]
