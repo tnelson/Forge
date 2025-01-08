@@ -4,6 +4,16 @@
 ; Using the December 2021 protocol found here:
 ;   https://sterling-docs.vercel.app/sterling-connection/receive
 
+;;;;;;;;;;;;;;;;;;;;
+; This module provides two very similar functions.
+;
+; start-sterling-menu:
+;   should be called at the very end of the `execs` submodule, to start Sterling
+;   proactively and provide a menu of commands to get instances for.
+; display-model:
+;   should be called for any context where a menu of commands doesn't fit (such as a
+;   failing test, perhaps). 
+
 (require (only-in forge/lang/ast relation-name)
          forge/server/modelToXML
          xml
@@ -47,7 +57,6 @@
   (do-time "forgeserver display-model")
 
   (define state-for-run (Run-spec-state (Run-run-spec the-run)))
-  (define defined-run-names (hash-keys (State-runmap state-for-run)))
 
   (define current-tree orig-lazy-tree)
   (define curr-datum-id 1) ; nonzero
@@ -127,7 +136,7 @@
        (define inst (get-current-instance)) 
        (define id curr-datum-id)
        (define xml (get-xml inst))
-       (define response (make-sterling-data xml id name temporal?))
+       (define response (make-sterling-data xml id name temporal? (Sat? inst)))
        (send-to-sterling response #:connection connection)     
        ]
       [(equal? (hash-ref json-m 'type) "eval")
@@ -147,7 +156,8 @@
       [(equal? (hash-ref json-m 'type) "meta")
        ; A message requesting data about the data provider, such as the provider's
        ; name and the types of views it supports. Respond in turn with a meta message.
-       (send-to-sterling (make-sterling-meta (cons name defined-run-names)) #:connection connection)]      
+       ; ***** In this function, only a single run is available. *****
+       (send-to-sterling (make-sterling-meta (list name)) #:connection connection)]      
       [else
        (send-to-sterling "BAD REQUEST" #:connection connection)
        (printf "Sterling message contained unexpected type field: ~a~n" json-m)]))
