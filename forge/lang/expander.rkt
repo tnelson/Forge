@@ -1063,7 +1063,7 @@
                                 (syntax/loc stx qpd.pred-name)
                                 (syntax/loc stx (exp-pred-exprs ...)))]
                                 
-          [test_name (format-id stx "quantified_~a_assertion_for_~a_~a" #'qpd.constraint-type #'qpd.pred-name) (make-temporary-name stx)] 
+          [test_name (format-id stx "quantified_~a_assertion_for_~a_~a" #'qpd.constraint-type #'qpd.pred-name (make-temporary-name stx))] 
           [imp_total
             (if (eq? (syntax-e #'qpd.disj) 'disj)
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
