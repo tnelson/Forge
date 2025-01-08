@@ -97,9 +97,9 @@ Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
-SatisfiabilityDecl : /ASSERT-TOK Name /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)? 
-PropertyDecl : /ASSERT-TOK Name /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)? 
-QuantifiedPropertyDecl : /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)?  /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
+SatisfiabilityDecl : /ASSERT-TOK Expr /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)? 
+PropertyDecl : /ASSERT-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)? 
+QuantifiedPropertyDecl : /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
 
 ; Should this have a unique name?
 ConsistencyDecl: /ASSERT-TOK Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
