@@ -1077,7 +1077,7 @@
 (define-syntax (SatisfiabilityDecl stx)
   (syntax-parse stx
   [sd:SatisfiabilityDeclClass 
-   #:with test_name (format-id stx "~a_Assertion_~a" #'sd.expected (make-temporary-name stx))
+   #:with test_name (format-id stx "~a_assertion_~a" #'sd.expected (make-temporary-name stx))
    (syntax/loc stx
       (test
         test_name
@@ -1089,7 +1089,7 @@
 (define-syntax (ConsistencyDecl stx)
   (syntax-parse stx
   [cd:ConsistencyDeclClass 
-    #:with test_name (format-id stx "Assert_~a_~a_~a" #'cd.consistency #'cd.pred-name (make-temporary-name stx))
+    #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'cd.consistency #'cd.pred-name (make-temporary-name stx))
     #:with conj_total (syntax/loc stx (&& cd.test-expr cd.pred-name))
    (syntax/loc stx
       (test
