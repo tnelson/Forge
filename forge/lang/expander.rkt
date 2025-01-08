@@ -387,7 +387,7 @@
               (~optional -bounds:BoundsClass))
       #:with disj (if (attribute -disj) (string->symbol (syntax-e #'-disj)) '())
       #:with quant-decls #'-quant-decls.translate
-      #:with prop-name #'-prop
+      #:with prop #'-prop
       #:with pred-name #'-pred-name.name
       #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.exprs ...) #'()) 
       #:with constraint-type (string->symbol (syntax-e #'ct))
@@ -1035,7 +1035,7 @@
   [pwd:PropertyDeclClass 
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
                         (syntax/loc stx (implies pwd.prop pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
-                        (syntax/loc stx (implies pwd.pred pwd.prop-name))) ;; q => p : p is a necessary condition for q
+                        (syntax/loc stx (implies pwd.pred-name pwd.prop))) ;; q => p : p is a necessary condition for q
    #:with test_name (format-id stx "Assertion_~a_is_~a_for_~a" #'pwd.prop #'pwd.constraint-type #'pwd.pred-name) ;; TODO: The name here is off.
    (syntax/loc stx
       (test
