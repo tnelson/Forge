@@ -44,11 +44,21 @@
                   ;; Override default exception handler
 
                   (set-option! 'problem_type 'temporal)
+                  ;; Expanded model, etc.
                   ,ints-coerced
 
-                  (module+ execs)
+                  ; Declare submodule "execs". Macros like "test" or "run" etc. will add to 
+                  ; this submodule. After execution of execs, print test failures (if any).
+                  (module+ execs
+                    ; All tests should have been added to `execs` prior to this point. 
+                    (output-all-test-failures)
+                    ; At this point, all commands should be defined. Open Sterling.
+                    (start-sterling-menu forge:curr-state forge:nsa))
+
+                  ;; Declare submodule "main"
                   (module+ main
-                    (require (submod ".." execs)))
+                    ; Invoke the execs submodule
+                    (require (submod ".." execs)))                                    
                   (log:flush-logs ',compile-time "no-error")))
 
   (define module-datum `(module forge-mod forge/lang/expander
