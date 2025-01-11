@@ -27,7 +27,8 @@
          json
          racket/contract
          (prefix-in @ (only-in racket >= <= > <))
-         syntax/srcloc)
+         syntax/srcloc
+         forge/server/serve-sterling-static)
 (require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
          (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
 
@@ -497,25 +498,29 @@
            (loop))))
      ; default #:port 0 will assign an ephemeral port
      #:port (get-option curr-state 'sterling_port) #:confirmation-channel chan))
-
   (define port (async-channel-get chan))
-  (cond [(string? port)
-         (displayln "NO PORTS AVAILABLE. Unable to start web server and Sterling visualizer.")]
-        [(equal? 'off (get-option curr-state 'run_sterling))
-         (void)]
-        [else
-         ; Attempt to open a browser to the Sterling index.html, with the proper port
-         ; If this cannot be opened for whatever reason, keep the server open but print
-         ; a warning, allowing the user a workaround.
-         (with-handlers ([exn?
-                          (lambda (e) (printf "Racket could not open a browser on your system; you may be able manually navigate to this address, which is where Forge expects Sterling to load:~n  ~a~n"
-                                              (string-append (path->string sterling-path) "?" (number->string port))))])
-           (send-url/file sterling-path #f #:query (number->string port)))
-         
-         (printf "Sterling running. Hit enter to stop service.\n")
-         (when (> (get-verbosity) VERBOSITY_LOW)
-           (printf "Using port: ~a~n" (number->string port)))
-         (flush-output)
-         (void (read-char))
-         ; Once a character is read, stop the server
-         (stop-service)]))
+  
+  ; Now, serve the static sterling website files (this will be a different server/port).
+  (unless (equal? 'off (get-option curr-state 'run_sterling))
+    (serve-sterling-static #:provider-port port)))
+  
+;;   (cond [(string? port)
+;;          (displayln "NO PORTS AVAILABLE. Unable to start web server that listens for Sterling messages.")]
+;;         [(equal? 'off (get-option curr-state 'run_sterling))
+;;          (void)]
+;;         [else
+;;          ; Attempt to open a browser to the Sterling index.html, with the proper port
+;;          ; If this cannot be opened for whatever reason, keep the server open but print
+;;          ; a warning, allowing the user a workaround.
+;;          (with-handlers ([exn?
+;;                           (lambda (e) (printf "Racket could not open a browser on your system; you may be able manually navigate to this address, which is where Forge expects Sterling to load:~n  ~a~n"
+;;                                               (string-append (path->string sterling-path) "?" (number->string port))))])
+;;            (send-url/file sterling-path #f #:query (number->string port)))
+;;          
+;;          (printf "Sterling running. Hit enter to stop service.\n")
+;;          (when (> (get-verbosity) VERBOSITY_LOW)
+;;            (printf "Using port: ~a~n" (number->string port)))
+;;          (flush-output)
+;;          (void (read-char))
+;;          ; Once a character is read, stop the server
+;;          (stop-service)]))
