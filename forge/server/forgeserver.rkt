@@ -499,6 +499,8 @@
      ; default #:port 0 will assign an ephemeral port
      #:port (get-option curr-state 'sterling_port) #:confirmation-channel chan))
   (define port (async-channel-get chan))
+  (when (string? port)
+    (printf "NO PORTS AVAILABLE. Could not start provider server.~n"))
   
   ; Now, serve the static sterling website files (this will be a different server/port).
   (unless (equal? 'off (get-option curr-state 'run_sterling))
