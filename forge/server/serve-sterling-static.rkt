@@ -50,6 +50,10 @@
          (printf "Opening Forge menu in Sterling (static server port=~a). Press enter to stop Forge.~n" port)
        
          (flush-output)
+         ; On Windows, this blocks all Racket threads, which delays output until input is read.
+         ; See: https://github.com/racket/racket/issues/4417
+         ; This is bad, especially when something like the VSCode extension is being used for, e.g.,
+         ; unsat-core highlighting, and happens even in something like Git Bash. 
          (void (read-char))
          ; Once a character is read, stop the server
          (stop-static-server)]))
