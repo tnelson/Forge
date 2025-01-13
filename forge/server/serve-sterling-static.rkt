@@ -25,7 +25,8 @@
 (define (windows-read-char-patch)
   (define bytes-read (read-bytes-avail!* windows-read-buffer))
   (cond [(eof-object? bytes-read) eof]
-        [(equal? bytes-read 0)
+        [(equal? bytes-read 0)         
+         (flush-output) ; flush (without this call, even a printf here won't output)
          (sleep 0.025) ; sleep the current thread for 25ms
          (windows-read-char-patch)]
         [else
