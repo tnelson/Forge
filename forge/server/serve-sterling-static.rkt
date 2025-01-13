@@ -13,14 +13,23 @@
          web-server/dispatchers/filesystem-map
          (prefix-in files: web-server/dispatchers/dispatch-files)
          racket/runtime-path
-         racket/async-channel)
-
-(require forge/shared) ; for verbosity option
+         racket/async-channel
+         forge/shared)
+(provide serve-sterling-static)
 
 (define-runtime-path sterling-path "../sterling/build/")
 (define sterling-index (build-path sterling-path "index.html"))
 
-(provide serve-sterling-static)
+(define buffer-size 2048)
+(define windows-read-buffer (make-bytes buffer-size))
+(define (windows-read-char-patch)
+  (define bytes-read (read-bytes-avail!* windows-read-buffer))
+  (cond [(eof-object? bytes-read) eof]
+        [(equal? bytes-read 0)
+         (sleep 0.025) ; sleep the current thread for 25ms
+         (windows-read-char-patch)]
+        [else
+         bytes-read]))
 
 (define (serve-sterling-static #:provider-port [provider-port 0])
   (define confirm-chan (make-async-channel))
@@ -53,7 +62,14 @@
          ; On Windows, this blocks all Racket threads, which delays output until input is read.
          ; See: https://github.com/racket/racket/issues/4417
          ; This is bad, especially when something like the VSCode extension is being used for, e.g.,
-         ; unsat-core highlighting, and happens even in something like Git Bash. 
-         (void (read-char))
+         ; unsat-core highlighting, and happens even in something like Git Bash.
+
+         ; For now, if Forge is running on windows, switch to polling. 
+         (cond 
+           [(equal? (system-type) 'windows)
+            (void (windows-read-char-patch))]
+           [else
+            (void (read-char))])
+       
          ; Once a character is read, stop the server
          (stop-static-server)]))

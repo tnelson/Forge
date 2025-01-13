@@ -4,7 +4,6 @@
   Example of defining a trace skeleton using `inst` manually.
 */
 
-option verbosity 10
 
 sig State { successor: set State }
 sig Initial extends State {}
