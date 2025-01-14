@@ -1,4 +1,4 @@
-#lang forge/bsl 
+#lang forge/froglet 
 
 /*
   Rough model of binary search on an array of integers.  

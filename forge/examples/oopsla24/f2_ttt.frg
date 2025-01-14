@@ -1,5 +1,7 @@
-#lang froglet 
--- ^ A.K.A. #lang forge/bsl in many tests, etc.
+#lang forge/froglet 
+
+// NOTE WELL: This was "froglet" in the OOPSLA24 paper; we have since renamed the 
+// starter language to be named consistently with Racket style.
 
 abstract sig Player {}
 one sig X , O extends Player {}
