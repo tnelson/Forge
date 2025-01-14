@@ -9,7 +9,7 @@
          racket/pretty)
 (require forge/lang/alloy-syntax/parser)
 (require forge/lang/alloy-syntax/tokenizer)
-(require (prefix-in log: forge/logging/2023/main))
+;(require (prefix-in log: forge/logging/2023/main))
 (require forge/shared)
 
 (do-time "forge/lang/reader")
@@ -113,7 +113,7 @@
       path port LANG-NAME CH ACH ICH EXTRA-REQUIRES (~optional INJECTED #:defaults ([INJECTED #''()])))
      (quasisyntax/loc stx
        (begin 
-         (define-values (logging-on? project email) (log:setup LANG-NAME port path))
+         ;(define-values (logging-on? project email) (plog:setup LANG-NAME port path))
          (define compile-time (current-seconds))
          (define injected-if-any INJECTED)
          (define extra-requires EXTRA-REQUIRES)
