@@ -1,4 +1,4 @@
-#lang froglet
+#lang forge/froglet
 option run_sterling off
 
 -- error: useless field, cannot reach a sig that might use the field

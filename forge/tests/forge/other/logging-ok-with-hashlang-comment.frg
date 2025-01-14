@@ -1,6 +1,6 @@
 #lang forge/temporal
 
-// #lang froglet
+// #lang forge/froglet
 
 abstract sig Player {}
 

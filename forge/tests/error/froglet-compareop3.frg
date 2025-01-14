@@ -1,4 +1,4 @@
-#lang froglet
+#lang forge/froglet
 
 abstract sig Position {}
 one sig Near extends Position {}
