@@ -1,4 +1,4 @@
-#lang forge/bsl
+#lang forge/froglet
 
 /*
   Synthesis of (western) musical scales
