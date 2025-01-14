@@ -123,6 +123,7 @@
     (pattern decl:PropertyDeclClass)
     (pattern decl:QuantifiedPropertyDeclClass)
     (pattern decl:SatisfiabilityDeclClass)
+    (pattern decl:ConsistencyDeclClass)
     (pattern decl:TestSuiteDeclClass)
     (pattern decl:SexprDeclClass)
     ; (pattern decl:BreakDeclClass)
@@ -356,29 +357,29 @@
     (pattern decl:TestExpectDeclClass)
     (pattern decl:PropertyDeclClass)
     (pattern decl:QuantifiedPropertyDeclClass)
-    (pattern decl:SatisfiabilityDeclClass))
+    (pattern decl:SatisfiabilityDeclClass)
+    (pattern decl:ConsistencyDeclClass))
 
   (define-syntax-class PropertyDeclClass
-    #:attributes (prop-name pred-name constraint-type scope bounds)
+    #:attributes (prop pred-name constraint-type scope bounds)
     (pattern ((~datum PropertyDecl)      
-              -prop-name:NameClass
+              -prop:ExprClass
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
-      #:with prop-name #'-prop-name.name
+      #:with prop #'-prop
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class QuantifiedPropertyDeclClass
-    #:attributes (quant-decls disj prop-name prop-exprs pred-name pred-exprs constraint-type scope bounds)
+    #:attributes (quant-decls disj prop pred-name pred-exprs constraint-type scope bounds)
     (pattern ((~datum QuantifiedPropertyDecl)
               (~optional (~and "disj" -disj))
               -quant-decls:DeclListClass
-              -prop-name:NameClass
-              (~optional -prop-exprs:ExprListClass)
+              -prop:ExprClass
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
               (~optional -pred-exprs:ExprListClass)
@@ -386,26 +387,40 @@
               (~optional -bounds:BoundsClass))
       #:with disj (if (attribute -disj) (string->symbol (syntax-e #'-disj)) '())
       #:with quant-decls #'-quant-decls.translate
-      #:with prop-name #'-prop-name.name
+      #:with prop #'-prop
       #:with pred-name #'-pred-name.name
       #:with pred-exprs  (if (attribute -pred-exprs) #'(-pred-exprs.exprs ...) #'()) 
-      #:with prop-exprs (if (attribute -prop-exprs)  #'(-prop-exprs.exprs ...) #'())
       #:with constraint-type (string->symbol (syntax-e #'ct))
       #:with scope (if (attribute -scope) #'-scope.translate #'())
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 (define-syntax-class SatisfiabilityDeclClass
-  #:attributes (pred-name expected scope bounds)
+  #:attributes (prop expected scope bounds)
   (pattern ((~datum SatisfiabilityDecl)
-            -pred-name:NameClass
+            -prop:ExprClass
             (~and (~or "sat" "unsat" "forge_error") ct)
             (~optional -scope:ScopeClass)
             (~optional -bounds:BoundsClass))
-    #:with pred-name #'-pred-name.name
+    #:with prop #'-prop
     #:with expected (string->symbol (syntax-e #'ct))
     #:with scope (if (attribute -scope) #'-scope.translate #'())
     #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
+
+(define-syntax-class ConsistencyDeclClass
+  #:attributes (test-expr pred-name consistency expected scope bounds)
+  (pattern ((~datum ConsistencyDecl)      
+            -test-expr:ExprClass
+            (~and (~or "consistent" "inconsistent") ct)
+            -pred-name:NameClass
+            (~optional -scope:ScopeClass)
+            (~optional -bounds:BoundsClass))
+    #:with test-expr #'-test-expr
+    #:with pred-name #'-pred-name.name
+    #:with consistency (string->symbol (syntax-e #'ct)) ;; This is for good test naming
+    #:with expected (if (equal? (syntax-e #'ct) "consistent") 'sat 'unsat)
+    #:with scope (if (attribute -scope) #'-scope.translate #'())
+    #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class TestSuiteDeclClass
     #:attributes (pred-name (test-constructs 1))
@@ -1022,9 +1037,10 @@
   (syntax-parse stx
   [pwd:PropertyDeclClass 
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
-                        (syntax/loc stx (implies pwd.prop-name pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
-                        (syntax/loc stx (implies pwd.pred-name pwd.prop-name))) ;; q => p : p is a necessary condition for q
-   #:with test_name (format-id stx "Assertion_~a_is_~a_for_~a" #'pwd.prop-name #'pwd.constraint-type #'pwd.pred-name)
+                        (syntax/loc stx (implies pwd.prop pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
+                        (syntax/loc stx (implies pwd.pred-name pwd.prop))) ;; q => p : p is a necessary condition for q
+  
+   #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'pwd.constraint-type #'pwd.pred-name (make-temporary-name stx)) ;; Use the string in the test name
    (syntax/loc stx
       (test
         test_name
@@ -1033,32 +1049,25 @@
         #:bounds pwd.bounds
         #:expect checked ))]))
 
-
 (define-syntax (QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
     ;;;#:do [(printf "QuantifiedPropertyDeclClass.PropExprs: ~a~n" (syntax->datum #'qpd.prop-exprs))]
      (with-syntax* 
         ( [(exp-pred-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.pred-name) (syntax->datum #'qpd.pred-exprs)) stx)]
-          [(exp-prop-exprs ...) (datum->syntax stx (cons (syntax->datum #'qpd.prop-name) (syntax->datum #'qpd.prop-exprs)) stx)]
-        
-          [prop-consolidated (if (equal? (syntax->datum #'qpd.prop-exprs) '()) 
-                                (syntax/loc stx qpd.prop-name)
-                                (syntax/loc stx (exp-prop-exprs ...)))]
           [pred-consolidated (if (equal? (syntax->datum #'qpd.pred-exprs) '()) 
                                 (syntax/loc stx qpd.pred-name)
                                 (syntax/loc stx (exp-pred-exprs ...)))]
                                 
-          [test_name (format-id stx "~a__Assertion_All_~a_is_~a_for_~a" (make-temporary-name stx) #'qpd.prop-name #'qpd.constraint-type #'qpd.pred-name)]
-          ;;; This is ugly, I'm sure there are better ways to write this
+          [test_name (format-id stx "quantified_~a_assertion_for_~a_~a" #'qpd.constraint-type #'qpd.pred-name (make-temporary-name stx))] 
           [imp_total
             (if (eq? (syntax-e #'qpd.disj) 'disj)
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
-                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies prop-consolidated pred-consolidated)))
-                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies pred-consolidated prop-consolidated))))
+                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies qpd.prop pred-consolidated)))
+                    (syntax/loc stx (all #:disj  qpd.quant-decls (implies pred-consolidated qpd.prop))))
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
-                    (syntax/loc stx (all  qpd.quant-decls (implies prop-consolidated pred-consolidated)))
-                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated prop-consolidated)))))])
+                    (syntax/loc stx (all  qpd.quant-decls (implies qpd.prop pred-consolidated)))
+                    (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated qpd.prop)))))])
      (syntax/loc stx
        (test
          test_name
@@ -1071,14 +1080,27 @@
 (define-syntax (SatisfiabilityDecl stx)
   (syntax-parse stx
   [sd:SatisfiabilityDeclClass 
-   #:with test_name (format-id stx "Assertion_~a_is_~a_~a" #'sd.pred-name #'sd.expected (make-temporary-name stx))
+   #:with test_name (format-id stx "~a_assertion_~a" #'sd.expected (make-temporary-name stx))
    (syntax/loc stx
       (test
         test_name
-        #:preds [sd.pred-name]
+        #:preds [sd.prop]
         #:scope sd.scope
         #:bounds sd.bounds
         #:expect sd.expected ))]))
+
+(define-syntax (ConsistencyDecl stx)
+  (syntax-parse stx
+  [cd:ConsistencyDeclClass 
+    #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'cd.consistency #'cd.pred-name (make-temporary-name stx))
+    #:with conj_total (syntax/loc stx (&& cd.test-expr cd.pred-name))
+   (syntax/loc stx
+      (test
+        test_name
+        #:preds [conj_total] 
+        #:scope cd.scope
+        #:bounds cd.bounds
+        #:expect cd.expected ))]))
 
 ;; Quick and dirty static check to ensure a test
 ;; references a predicate.
