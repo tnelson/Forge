@@ -1,6 +1,12 @@
 const d3 = require('d3')
 // At the moment, if using base d3, the require needs to be the first line. 
 
+// Prevent the visualization from going off-screen. Scrolling is enabled 
+// if you manually set this to something bigger than 100%, however.
+const svgContainer = document.getElementById('svg-container')
+svgContainer.getElementsByTagName('svg')[0].style.height = '100%'
+svgContainer.getElementsByTagName('svg')[0].style.width = '100%'
+
 // constants for our visualization
 const BASE_X = 150;
 const BASE_Y = 100;

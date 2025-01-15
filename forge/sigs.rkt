@@ -44,7 +44,7 @@
 
 ; Commands
 (provide sig relation fun const pred inst with)
-(provide run check test example display execute)
+(provide run check test example display execute start-sterling-menu)
 (provide instance-diff solution-diff evaluate)
 
 ; Instance analysis functions
@@ -176,8 +176,13 @@
   (struct-copy State state
                [inst-map new-state-inst-map]))
 
-; this is not managed by Forge's "rolling state"; it should only be set by the command-line.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Command-line flag status variables
+; These are not managed by Forge's "rolling state"; they should only be set by the command-line.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define option-overrides (box '()))
+(define disable-tests (box #f))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (set-option! option value #:original-path [original-path #f])
   (cond [(member option (unbox option-overrides))
@@ -922,9 +927,8 @@
                        evaluate-str
                        (Run-name run) 
                        (Run-command run) 
-                       "/no-name.rkt" 
-                       (get-bitwidth
-                         (Run-run-spec run)) 
+                       "/no-name.frg" 
+                       (get-bitwidth (Run-run-spec run)) 
                        empty
                        get-contrast-model-generator))))
 
@@ -1234,6 +1238,7 @@
                       (printf "Setting ~a = ~a~n" (string->symbol OPTION-NAME) OPTION-VALUE)
                       (set-option! (string->symbol OPTION-NAME)
                                    (string->option-type OPTION-NAME OPTION-VALUE)))]
+ #:multi
  [("-O" "--override") OPTION-NAME OPTION-VALUE
                       "Option set and override"
                       (begin
@@ -1242,5 +1247,11 @@
                                      (string->option-type OPTION-NAME OPTION-VALUE))
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
+ [("-N" "--notests")
+  "Disable tests for this model execution"
+  (begin
+    (printf "Tests disabled.~n")
+    (set-box! disable-tests #t))]
+ 
  
  #:args remaining-args remaining-args))

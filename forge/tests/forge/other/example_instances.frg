@@ -1,4 +1,4 @@
-#lang forge/bsl
+#lang forge/froglet
 
 // Examples are instances, but they have a separate syntax macro in core.
 // Make sure that example bounds are being processed correctly.

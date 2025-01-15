@@ -1,4 +1,4 @@
-#lang forge/bsl
+#lang forge/froglet
 
 sig Person {age: one Int}
 one sig Nim extends Person {}

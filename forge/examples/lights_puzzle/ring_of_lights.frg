@@ -1,5 +1,7 @@
 #lang forge/temporal
 
+option run_sterling "lights.js"
+
 /*
   When using the custom vis script, remember to click "Run" after
   asking for a new trace or config! (the script doesn't re-run automatically)

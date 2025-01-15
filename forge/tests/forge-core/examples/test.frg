@@ -1,4 +1,4 @@
-#lang froglet
+#lang forge/froglet
 
 abstract sig Person { 
     time: one Int,  -- how long it takes this person to cross

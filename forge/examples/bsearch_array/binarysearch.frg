@@ -1,4 +1,4 @@
-#lang forge/bsl 
+#lang forge/froglet 
 
 /*
   Rough model of binary search on an array of integers.  
@@ -246,10 +246,10 @@ assert all s1, s2: SearchState | stepFromGoodState[s1,s2] is sufficient for bsea
   for exactly 1 IntArray, exactly 2 SearchState
 
 -- These pass (but only after we add the enrichment). 
--- To see an example, uncomment the run below.
+-- To see an example, see the run below.
 
 option run_sterling "binarysearch.js"
-run {
+example_first_transition: run {
     some disj s1,s2: SearchState | { 
         init[s1]
         validArray[s1.arr]

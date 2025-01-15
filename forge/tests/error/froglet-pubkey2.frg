@@ -1,4 +1,4 @@
-#lang froglet -- forge
+#lang forge/froglet -- forge
 
 abstract sig Key {}
 sig Pubk, Privk extends Key {}
