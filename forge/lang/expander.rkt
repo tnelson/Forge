@@ -399,12 +399,14 @@
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 (define-syntax-class SatisfiabilityDeclClass
-  #:attributes (prop expected scope bounds)
+  #:attributes (testname prop expected scope bounds)
   (pattern ((~datum SatisfiabilityDecl)
+            -testname:NameClass
             -prop:ExprClass
             (~and (~or "sat" "unsat" "forge_error") ct)
             (~optional -scope:ScopeClass)
             (~optional -bounds:BoundsClass))
+    #:with testname #'-testname.name
     #:with prop #'-prop
     #:with expected (string->symbol (syntax-e #'ct))
     #:with scope (if (attribute -scope) #'-scope.translate #'())
