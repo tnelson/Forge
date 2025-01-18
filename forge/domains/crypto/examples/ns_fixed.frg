@@ -8,8 +8,6 @@
   "ns_fixed.rkt" module is imported, NOT "ns.rkt" and the run is named differently.
 */
 
-// Base domain model
-open "../base.frg"
 // Protocol definitions in CPSA DSL -- FIXED VERSION
 open "ns_fixed.rkt" 
 // Domain-specific visualizer script

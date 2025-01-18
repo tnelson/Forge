@@ -5,8 +5,6 @@
   from Siegel, et al. 
 */
 
-// Base domain model
-open "../base.frg"
 // Protocol definitions in CPSA DSL
 open "ns.rkt" 
 // Domain-specific visualizer script
