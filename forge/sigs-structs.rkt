@@ -10,11 +10,13 @@
 (require (prefix-in @ (only-in racket hash not +)) 
          (only-in racket nonnegative-integer? thunk curry first)
          (prefix-in @ racket/set))
-(require racket/contract)
+(require racket/contract
+         racket/match)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
-(require (prefix-in tree: forge/lazy-tree))
+(require (prefix-in tree: forge/utils/lazy-tree))
 (require syntax/srcloc)
 (require (prefix-in pardinus: (only-in forge/pardinus-cli/server/kks clear cmd)))
+(require (prefix-in cvc5: (only-in forge/solver-specific/smtlib-shared smtlib-display)))
 
 (provide (all-defined-out))
 
@@ -39,12 +41,18 @@
   [kind symbol?] ; symbol
   ) #:transparent)
 
+; For SMT backends only, may yield "unknown"
+(struct/contract Unknown (
+  [stats any/c]    ; data on performance, translation, etc. 
+  [metadata any/c] ; any solver-specific data provided about the unknown result
+  )#:transparent)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Sigs and Relations enrich the "relation" AST node with
 ; Forge-specific information, which often leads to added
 ; constraints.
 
-; DO NOT EXTEND THIS SIG
+; DO NOT EXTEND THIS STRUCT
 (struct Sig node/expr/relation (
   name ; symbol?
   one ; boolean?
@@ -56,7 +64,8 @@
   [(define (write-proc self port mode)
      (fprintf port "(Sig ~a)" (Sig-name self)))])
 
-; DO NOT EXTEND THIS SIG
+; DO NOT EXTEND THIS STRUCT
+; TODO: really this should be called "Field", since it represents that at the surface/core level.
 (struct Relation node/expr/relation (
   name ; symbol?
   sigs-thunks ; (listof (-> Sig?))
@@ -85,7 +94,7 @@
 
 ; NOTE WELL:
 ; The structs below define an intermediate representation; the Kodkod bounds (produced in
-; forge/send-to-kodkod) are what is actually sent to the solver.
+; forge/send-to-solver) are what is actually sent to the solver.
 
 ; ALSO: be aware that the "bounds", "sbounds" etc. structs defined elsewhere are distinct from
 ; the Bounds struct defined here. At some point, we can perhaps condense these into a single IR.
@@ -145,10 +154,11 @@
   [distance (or/c 'close_noretarget 'far_noretarget 'close_retarget 'far_retarget 'hamming_cover)]
   ) #:transparent)
 
-(struct expression-type (
-  type ; list list symbol?
-  multiplicity ; unsure
-  temporal-variance ; bool?
+(struct/contract expression-type (
+  [type (listof (listof symbol?))]
+  [multiplicity (or/c 'set 'lone 'one 'no 'func 'pfunc)]
+  [temporal-variance (or/c boolean? string?)]
+  [top-level-types (listof (or/c 'Int 'univ))]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -176,6 +186,7 @@
   [sterling_port nonnegative-integer?]
   [engine_verbosity nonnegative-integer?]
   [test_keep symbol?]
+  [no_overflow symbol?]
   ) #:transparent)
 
 (struct/contract State (
@@ -224,7 +235,7 @@
   [kodkod-bounds (listof any/c)]
   ; This is Sterling's current cursor into the exploration tree.
   ; It is mutated whenever Sterling asks for a new instance.
-  [last-sterling-instance (box/c (or/c Sat? Unsat? false/c))]
+  [last-sterling-instance (box/c (or/c Sat? Unsat? Unknown? false/c))]
   ) #:transparent)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -236,15 +247,15 @@
 ; an engine_verbosity of 1 logs SEVERE level in the Java engine;
 ;   this will send back info about crashes, but shouldn't spam (and possibly overfill) stderr.
 (define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default
-                                 'close-noretarget 'fast 0 'off 'on 0 1 'first))
+                                 'close-noretarget 'fast 0 'off 'on 0 1 'first 'false))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax Int (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 "Int" (thunk '("Int")) "univ" #f 'Int #f #f #f #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Sig (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 1 "Int" (thunk '("Int")) "univ" #f 'Int #f #f #f #f))])))
 (define-syntax succ (lambda (stx) (syntax-case stx ()
-  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 2 "succ" (thunk '("Int" "Int")) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
+  [val (identifier? (syntax val)) (quasisyntax/loc stx (Relation (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 2 "succ" (thunk '("Int" "Int")) "Int" #f 'succ (list (thunk Int) (thunk Int)) #f))])))
 
 (define (max s-int)
   (sum (- s-int (join (^ succ) s-int))))
@@ -268,7 +279,8 @@
         'run_sterling Options-run_sterling
         'sterling_port Options-sterling_port
         'engine_verbosity Options-engine_verbosity
-        'test_keep Options-test_keep))
+        'test_keep Options-test_keep
+        'no_overflow Options-no_overflow))
 
 (define (oneof-pred lst)
   (lambda (x) (member x lst)))
@@ -291,7 +303,29 @@
         'run_sterling (lambda (x) (or (symbol? x) (string? x))) ; allow for custom visualizer path
         'sterling_port exact-nonnegative-integer?
         'engine_verbosity exact-nonnegative-integer?
-        'test_keep (oneof-pred '(first last))))
+        'test_keep (oneof-pred '(first last))
+        'no_overflow (oneof-pred '(false true))))
+
+(define option-types-names
+  (hash 'eval-language "symbol"
+        'solver "symbol or string"
+        'backend "symbol"
+        'sb "non-negative integer"
+        'coregranularity "non-negative integer"
+        'logtranslation "non-negative integer"
+        'min_tracelength "positive integer"
+        'max_tracelength "positive integer"
+        'problem_type "symbol"
+        'target_mode "one of: close_noretarget far_noretarget close_retarget far_retarget hamming_cover"
+        'core_minimization "symbol"
+        'skolem_depth "integer"
+        'local_necessity "symbol"
+        'run_sterling "symbol or string"
+        'sterling_port "non-negative integer"
+        'engine_verbosity "non-negative integer"
+        'test_keep "one of: first or last"
+        'no_overflow "one of: false or true"))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;  Initial State  ;;;;;;;
@@ -574,6 +608,14 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (define first-instance (tree:get-value (Run-result run)))
   (Unsat? first-instance))
 
+; is-unknown? :: Run -> boolean
+; Checks if a given run result is 'unknown. This kind of result won't be given
+; by all kinds of solver backends, but some do produce it. 
+(define (is-unknown? run)
+  (define first-instance (tree:get-value (Run-result run)))
+  (Unknown? first-instance))
+
+
 ; get-stdin :: Run -> input-port?
 (define (get-stdin run)
   (assert-is-running run)
@@ -616,9 +658,16 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (add-closed-run-name! (Run-name run))
   
   ; Since we're using a single process now, send it instructions to clear this run
-  (pardinus:cmd 
-      [(get-stdin run)]
-      (pardinus:clear (Run-name run))))
+  ; Different backends will be cleared in different ways.
+  (define backend (get-option (Run-run-spec run) 'backend))
+  (match backend
+    ['pardinus
+     (pardinus:cmd [(get-stdin run)] (pardinus:clear (Run-name run)))]
+    ['smtlibtor
+     (cvc5:smtlib-display (get-stdin run) "(reset)")]
+    [else
+     (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
+                        #:context #f)]))
 
 ; is-running :: Run -> Boolean
 ; This reports whether the _solver server_ is running;
@@ -628,7 +677,7 @@ Returns whether the given run resulted in sat or unsat, respectively.
 
 (define (assert-is-running run)
   (unless (is-running? run)
-    (raise-user-error "KodKod/Pardinus solver process is not running.")))
+    (raise-user-error "Solver process is not running.")))
 
 (require (for-syntax syntax/srcloc)) ; for these macros
 
@@ -642,7 +691,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (syntax-parse stx
     [((~datum xor) (~optional (~and #:lang check-lang)) a b)
      (with-syntax ([newloc (quasisyntax/loc stx (nodeinfo #,(build-source-location stx)
-                                                          (~? check-lang 'checklangNoCheck)))])
+                                                          (~? check-lang 'checklangNoCheck)
+                                                          #f))])
        (quasisyntax/loc stx (||/info newloc
                                      (&&/info newloc a (!/info newloc b))
                                      (&&/info newloc (!/info newloc a) b))))]))
@@ -651,31 +701,31 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (implies stx) 
   (syntax-case stx () 
     [(_ (#:lang check-lang) a b) 
-      (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx) check-lang) a b))]
+      (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) a b))]
     [(_ a b) 
-      (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx)'checklangNoCheck) a b))]))
+      (quasisyntax/loc stx  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b))]))
 
 
 (define-syntax (iff stx) 
   (syntax-case stx () 
     [(_ (#:lang check-lang) a b) 
       (quasisyntax/loc stx 
-        (&&/info (nodeinfo #,(build-source-location stx) check-lang)
-                 (=>/info (nodeinfo #,(build-source-location stx) check-lang) a b)
-                 (=>/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]
+        (&&/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                 (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)
+                 (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) b a)))]
     [(_ a b) 
       (quasisyntax/loc stx 
-        (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                 (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
-                 (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) b a)))]))
+        (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                 (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)
+                 (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) b a)))]))
 (define-syntax (<=> stx) 
   (syntax-case stx () 
-    [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) check-lang)
-                                  (=>/info (nodeinfo #,(build-source-location stx) check-lang) a b)
-                                  (=>/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]
-    [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                                  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
-                                  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) b a)))]))
+    [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                  (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)
+                                  (=>/info (nodeinfo #,(build-source-location stx) check-lang #f) b a)))]
+    [(_ a b) (quasisyntax/loc stx (&&/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                                  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)
+                                  (=>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) b a)))]))
 
 ; for ifte, use struct type to decide whether this is a formula (sugar)
 ; or expression form (which has its own AST node). Avoid exponential
@@ -704,43 +754,43 @@ Returns whether the given run resulted in sat or unsat, respectively.
 (define-syntax (ifte stx)
   (syntax-parse stx 
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b c) (quasisyntax/loc stx
-                 (ifte-disambiguator (nodeinfo #,(build-source-location stx) check-lang) a b c))]))
+                 (ifte-disambiguator (nodeinfo #,(build-source-location stx) check-lang #f) a b c))]))
 
 (define-syntax (ni stx) (syntax-case stx () 
-      [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) b a))]
-      [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) check-lang) b a))]))
-(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                                                             (=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
+      [(_ a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) b a))]
+      [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (in/info (nodeinfo #,(build-source-location stx) check-lang #f) b a))]))
+(define-syntax (!= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                                                             (=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)))]
                                             [(_ (#:lang check-lang) a b) (quasisyntax/loc stx 
-                                                             (!/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                                     (=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
+                                                             (!/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                                     (=/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)))]))
 (define-syntax (!in stx) (syntax-parse stx [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b) 
-                                                    (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
+                                                    (quasisyntax/loc stx  (!/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)))]))
 (define-syntax (!ni stx) (syntax-parse stx [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b) 
-                                                    (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang) b a)))]))
-(define-syntax (int>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                                                              (int>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
-                                            [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                              (int>/info (nodeinfo #,(build-source-location stx) check-lang) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
-(define-syntax (int<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)
-                                                              (int</info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck) a b)))]
-                                            [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang)
-                                                              (int</info (nodeinfo #,(build-source-location stx) check-lang) a b)
-                                                              (int=/info (nodeinfo #,(build-source-location stx) check-lang) a b)))]))
+                                                    (quasisyntax/loc stx (!/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                              (in/info (nodeinfo #,(build-source-location stx) check-lang #f) b a)))]))
+(define-syntax (int>= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                                                              (int>/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)))]
+                                            [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                              (int>/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)))]))
+(define-syntax (int<= stx) (syntax-case stx () [(_ a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)
+                                                              (int</info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f) a b)))]
+                                            [(_ (#:lang check-lang) a b) (quasisyntax/loc stx (||/info (nodeinfo #,(build-source-location stx) check-lang #f)
+                                                              (int</info (nodeinfo #,(build-source-location stx) check-lang #f) a b)
+                                                              (int=/info (nodeinfo #,(build-source-location stx) check-lang #f) a b)))]))
 
 (define-syntax (<: stx) 
   (syntax-case stx () 
     [(_ a b) 
       (quasisyntax/loc stx 
-        (<:helper a b (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))]
+        (<:helper a b (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)))]
     [(_ (#:lang check-lang) a b) 
       (quasisyntax/loc stx 
-        (<:helper a b (nodeinfo #,(build-source-location stx) check-lang)))]))
+        (<:helper a b (nodeinfo #,(build-source-location stx) check-lang #f)))]))
 
 ; TODO: this only functions for binary relations
 (define (<:helper a b info)
@@ -753,10 +803,10 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (syntax-case stx () 
     [(_ a b) 
       (quasisyntax/loc stx 
-        (:>helper a b (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))]
+        (:>helper a b (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)))]
     [(_ (#:lang check-lang) a b) 
       (quasisyntax/loc stx 
-        (:>helper a b (nodeinfo #,(build-source-location stx) check-lang)))]))
+        (:>helper a b (nodeinfo #,(build-source-location stx) check-lang #f)))]))
 
 ; TODO: this only functions for binary relations
 (define (:>helper a b info)
@@ -780,3 +830,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
      #:msg (format ":> argument has incorrect arity (~a vs. ~a) in ~a :> ~a" 
                    (node/expr-arity a) (node/expr-arity b) (deparse a) (deparse b))
      #:context loc)))
+
+; A Field relation is functional if it has a functional breaker assigned. 
+(define (Relation-is-functional? r)
+  (or (Relation-is? r '(pfunc func))))
+
+(define (Relation-is? r sym-list)
+  (and (Relation? r)
+       (node/breaking/break? (Relation-breaker r))
+       (member (node/breaking/break-break (Relation-breaker r)) sym-list)))

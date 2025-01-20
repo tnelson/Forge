@@ -1,4 +1,4 @@
-#lang forge/bsl 
+#lang forge/froglet
 
 /*
   This is a variant of an in-class demo where we model tic-tac-toe (TTT). 

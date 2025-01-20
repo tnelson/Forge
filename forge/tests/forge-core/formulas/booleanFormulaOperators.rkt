@@ -62,22 +62,22 @@
 
 (test basicTrueFalse 
       #:preds [TrueFalse]
-      #:expect theorem)
+      #:expect checked)
 (test notOps 
       #:preds [Not]
-      #:expect theorem)
+      #:expect checked)
 (test andOps 
       #:preds [And]
-      #:expect theorem)
+      #:expect checked)
 (test orOps 
       #:preds [Or]
-      #:expect theorem)
+      #:expect checked)
 (test xorOps 
       #:preds [Xor]
-      #:expect theorem)
+      #:expect checked)
 (test impliesOps 
       #:preds [Implies]
-      #:expect theorem)
+      #:expect checked)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test helper predicates and captured metadata
@@ -101,7 +101,7 @@
               (iff (pred2d value1 value2) (and (in value1 Int) (in value2 Int)))
               ; cannot easily test higher-order helper predicate with forall, so pred_arity2_arg is left out here
               )))
-(test helperpreds #:preds [HelperPred] #:expect theorem)
+(test helperpreds #:preds [HelperPred] #:expect checked)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test metadata

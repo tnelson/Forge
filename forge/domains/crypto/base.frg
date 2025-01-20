@@ -34,9 +34,9 @@ sig PublicKey extends akey {}
 
 -- Helper to hold relations that match key pairs
 one sig KeyPairs {
-  pairs: set PrivateKey -> PublicKey, -- asymmetric key pairing
-  owners: set PrivateKey -> name,     -- who owns a key
-  ltks: set name -> name -> skey      -- symmetric long-term keys
+  pairs: set PrivateKey -> PublicKey,
+  owners: func PrivateKey -> name,
+  ltks: set name -> name -> skey
 }
 
 /** Get a long-term key associated with a pair of agents */
@@ -200,8 +200,15 @@ pred wellformed {
 
   (KeyPairs.pairs).PublicKey = PrivateKey -- total
   PrivateKey.(KeyPairs.pairs) = PublicKey -- total
-  all privKey: PrivateKey | {one pubKey: PublicKey | privKey->pubKey in KeyPairs.pairs} -- uniqueness
+  all privKey: PrivateKey | {one pubKey: PublicKey | privKey->pubKey in KeyPairs.pairs} -- uniqueness re: pairing
   all priv1: PrivateKey | all priv2: PrivateKey - priv1 | all pub: PublicKey | priv1->pub in KeyPairs.pairs implies priv2->pub not in KeyPairs.pairs
+
+  -- Private keys are disjoint with respect to ownership
+  all a1, a2: name | { 
+    (some KeyPairs.owners.a1 and a1 != a2) implies 
+      (KeyPairs.owners.a1 != KeyPairs.owners.a2)
+  }
+
 
   -- at most one long-term key per (ordered) pair of names
   all a:name, b:name | lone getLTK[a,b]
@@ -212,6 +219,7 @@ pred wellformed {
   -- The Attacker agent is represented by the attacker strand
   AttackerStrand.agent = Attacker
 
+/*
   -- If one agent has a key, it is different from any other agent's key
   all a1, a2: name | { 
     (some KeyPairs.owners.a1 and a1 != a2) implies 
@@ -220,6 +228,7 @@ pred wellformed {
 
   -- private key ownership is unique 
   all p: PrivateKey | one p.(KeyPairs.owners) 
+*/
 
   -- generation only of text and keys, not complex terms
   --  furthermore, only generate if unknown
@@ -275,8 +284,6 @@ pred attacker_learns[s: strand, d: mesg] {
 pred strand_agent_learns[learner: strand, s: strand, d: mesg] {
   s.d in (learner.agent).learned_times.Timeslot
 }
-
-/***************************************************************/
 
 ------------------------------------------------------
 -- Keeping notes on what didn't work in modeling;

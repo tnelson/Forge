@@ -1,12 +1,13 @@
 #lang racket/base
 
+; This is specific to the kodkod/pardinus back end for the moment.
+; (For SMT etc., see and update eval-model.rkt.)
+
 (require forge/sigs-structs
          forge/lang/ast
-         forge/translate-to-kodkod-cli
-         forge/translate-from-kodkod-cli)
-(require (prefix-in pardinus: forge/pardinus-cli/server/kks)
-         (prefix-in pardinus: forge/pardinus-cli/server/server)
-         (prefix-in pardinus: forge/pardinus-cli/server/server-common))
+         forge/solver-specific/translate-to-kodkod-cli
+         forge/solver-specific/translate-from-kodkod-cli)
+(require (prefix-in pardinus: forge/pardinus-cli/server/kks))
 
 ; Enable dynamic check before sending query to Pardinus
 (require forge/last-checker

@@ -4,7 +4,7 @@
 
 (module reader racket
   (provide read-syntax)
-  (require "lang/reader.rkt")
+  (require forge/lang/reader)
   (provide get-info)
   (define (get-info port src-mod src-line src-col src-pos)
     (define (handle-query key default)

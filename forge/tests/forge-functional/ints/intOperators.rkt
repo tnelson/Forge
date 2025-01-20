@@ -128,13 +128,13 @@
 (make-test #:name 'abs-check
            #:preds (list Abs)
            #:scope (list (list Int 4))
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'sign-check
            #:preds (list Sign)
            #:scope (list (list Int 4))
-           #:expect 'theorem)
+           #:expect 'checked)
 
-(make-test #:name 'add-check #:preds (list Add) #:expect 'theorem)
-(make-test #:name 'subtract-check #:preds (list Subtract) #:expect 'theorem)
-(make-test #:name 'multiply-check #:preds (list Multiply) #:expect 'theorem)
-(make-test #:name 'divide-check #:preds (list DivideRemainder) #:expect 'theorem)
+(make-test #:name 'add-check #:preds (list Add) #:expect 'checked)
+(make-test #:name 'subtract-check #:preds (list Subtract) #:expect 'checked)
+(make-test #:name 'multiply-check #:preds (list Multiply) #:expect 'checked)
+(make-test #:name 'divide-check #:preds (list DivideRemainder) #:expect 'checked)

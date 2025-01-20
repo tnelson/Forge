@@ -80,10 +80,10 @@ pred DivideRemainder {
 }
 
 test expect {
-    absTest : Abs for 4 Int is theorem
-    signTest : Sign for 4 Int is theorem
-    addTest : Add is theorem
-    subtractTest : Subtract is theorem
-    multiplyTest : Multiply is theorem
-    divideRemainderTest : DivideRemainder is theorem
+    absTest : Abs for 4 Int is checked
+    signTest : Sign for 4 Int is checked
+    addTest : Add is checked
+    subtractTest : Subtract is checked
+    multiplyTest : Multiply is checked
+    divideRemainderTest : DivideRemainder is checked
 }

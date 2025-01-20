@@ -6,7 +6,7 @@
 Welcome to [Forge](https://forge-fm.org)! Forge is a tool and language built for **teaching** introductory formal methods and modeling.
 
 Forge is heavily adapted from the excellent [Alloy](https://alloytools.org/), a more widely used and somewhat more scalable tool. Forge and Alloy even use the same engines! Forge adds a number of features designed to support teaching and learning, including:
-- language levels, including froglet (`#lang froglet`, previously `#lang forge/bsl`) for starting out without using relational operators;
+- language levels, including froglet (`#lang forge/froglet`) for starting out without using relational operators;
 - partial instance bounds (`inst`) for optimization and testing;
 - ease of scriptability (Forge is a Racket library as well as a language, and has a REPL); and
 - interaction modes designed for use in the classroom and on assignments.
@@ -37,6 +37,15 @@ raco pkg install ./forge ./froglet
 To update, `git pull` the repo and run `raco setup forge` to recompile.
 
 Running on the development branch, `dev`, requires `checkout dev` before installing; this may be unstable, however.
+
+## Repository Structure 
+
+- The `forge` and `froglet` subdirectories contain the `forge` and `froglet` Racket packages. 
+  - Relational Forge (`#lang forge`) is defined in the package root (`main.rkt`); 
+  - Temporal Forge (`#lang forge/temporal`) is defined in `temporal/main.rkt`.
+- The `forge/examples/` subdirectory contains a set of curated examples that can be run without reference to the Forge book or other resources. 
+- As of November 2024, the `OLD` and `Notes` subdirectories contain old code snippets and developer notes, much of which is outdated but retained for reference. We are in the process of moving these to a different respository. 
+
 
 ## Acknowledgements 
 

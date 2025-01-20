@@ -26,7 +26,7 @@
 	       #:relations (list edges node-int)
 	       #:preds (list (&& (in (sing (int 2)) (join Node node-int))
 	       	                 (one (join Node node-int))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-expr+
 	(make-inst (list (= Node (+ (atom 'N1) (atom 'N2))))))
@@ -41,7 +41,7 @@
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (= (card Node) (int 2)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-expr-
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
@@ -60,7 +60,7 @@
 	       #:preds (list (one (set ([n Node])
 	       	                    (&& (in n Node)
 	       	                    	 (! (in n Child))))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-intersect
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
@@ -77,7 +77,7 @@
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (= Child (join Node edges)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-cross-prod
 	(make-inst (list (= Node (+ (atom 'N1) (atom 'N2)))
@@ -93,7 +93,7 @@
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (= edges (-> Node Node)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-join
 	(make-inst (list (= Node (+ (atom 'Node1) (atom 'Node2)))
@@ -115,7 +115,7 @@
 	       #:relations (list edges node-int)
 	       #:preds (list (= Child (join Node edges))
 	       	             (one Child))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-transitive-closure
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
@@ -137,7 +137,7 @@
 	       #:preds (list (one (set ([n Node])
 	       	                    (! (in n Child))))
 	                     (= Child (join Node edges)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-reflexive-transitive-closure
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
@@ -157,7 +157,7 @@
 	       #:relations (list edges node-int)
 	       #:preds (list (= Node Child)
 	       	             (= Child (join Node (* edges))))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-transpose
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
@@ -178,7 +178,7 @@
 	       #:relations (list edges node-int)
 	       #:preds (list (= edges (~ edges))
 	       	             (= (join Node edges) (join edges Node)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-constant
 	(make-inst (list (= Node (+ (atom 'N1) (+ (atom 'N2) (atom 'N3))))
@@ -202,7 +202,7 @@
 	       	             (no node-int)
 	       	             (= Node Child)
 	       	             (= edges (-> Node Node)))
-	       #:expect 'theorem)
+	       #:expect 'checked)
 
 (define inst-atom
 	(make-inst (list (= Node (atom 'Node0)))))
@@ -217,4 +217,4 @@
 	       #:sigs (list Node Child)
 	       #:relations (list edges node-int)
 	       #:preds (list (one Node))
-	       #:expect 'theorem)
+	       #:expect 'checked)

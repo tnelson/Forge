@@ -1,7 +1,6 @@
-#lang forge/bsl
+#lang forge/froglet
 option run_sterling off
 
-option run_sterling off
 sig Node {
     field: pfunc Node -> Node
 }

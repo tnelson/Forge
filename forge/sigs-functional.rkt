@@ -26,11 +26,11 @@
 (require forge/shared
          forge/sigs-structs
          forge/evaluator
-         forge/send-to-kodkod)
+         forge/send-to-solver)
 
 (require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
          (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
-(require (prefix-in tree: forge/lazy-tree))
+(require (prefix-in tree: forge/utils/lazy-tree))
 
 ; Commands
 (provide make-sig make-relation make-inst)
@@ -80,7 +80,7 @@
 
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
-(provide (all-from-out forge/lazy-tree))
+(provide (all-from-out forge/utils/lazy-tree))
 
 ; ; Export everything for doing scripting
 ; (provide (prefix-out forge: (all-defined-out)))
@@ -601,7 +601,7 @@
   ; piecewise (incomplete), it cannot be bound complete. E.g., we cannot mix "`Alice.father = ..."
   ; and "father = " ...
   ; However, we cannot actually convert 'in/'= piecewise bounds to complete upper bounds until
-  ; send-to-kodkod, when we have created the universe of atoms and can "fill in" missing upper bounds.
+  ; send-to-solver, when we have created the universe of atoms and can "fill in" missing upper bounds.
   ; (Piecewise 'ni bounds should be fine to convert here.)
   (for/list ([rel (hash-keys (Bound-piecewise bounds))])
     (when (or (hash-has-key? (Bound-tbindings bounds) rel)
@@ -614,10 +614,10 @@
       (define pwb (hash-ref (Bound-piecewise bounds) rel))
       (define tups (PiecewiseBound-tuples pwb))
       (cond [(equal? '= (PiecewiseBound-operator pwb))
-             ; update only lower bound, not upper (handled in send-to-kodkod)
+             ; update only lower bound, not upper (handled in send-to-solver)
              (update-bindings bs rel tups #f #:node #f)] 
             [(equal? 'in (PiecewiseBound-operator pwb))
-             ; do nothing (upper bound handled in send-to-kodkod)
+             ; do nothing (upper bound handled in send-to-solver)
              bs]
             [(equal? 'ni (PiecewiseBound-operator pwb))
              ; update lower-bound
@@ -633,7 +633,7 @@
   
   (define spec (Run-spec state preds scope bounds-with-piecewise-lower target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
-                 (send-to-kodkod spec command #:run-name name))
+                 (send-to-solver spec command #:run-name name))
   
   (Run name command spec result server-ports atoms kodkod-currents kodkod-bounds (box #f)))
 
@@ -760,7 +760,7 @@
         #:command syntax?)
        void?)
   (cond
-    [(equal? expected 'theorem)
+    [(equal? expected 'checked)
      (let* ([test-check (check-from-state state
                                           #:name name
                                           #:preds preds
@@ -772,7 +772,7 @@
                                           #:command command)]
             [first-instance (tree:get-value (Run-result test-check))])
        (if (Sat? first-instance)
-           (raise (format "Theorem ~a failed. Found instance:~n~a"
+           (raise (format "Test ~a failed. Found counterexample instance:~n~a"
                           name first-instance))
            (close-run test-check)))]
     [(or (equal? expected 'sat) (equal? expected 'unsat))
@@ -795,7 +795,7 @@
                               (if (Unsat-core first-instance)
                                   (format " Core: ~a" (Unsat-core first-instance))
                                   ""))))))]
-    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+    [else (raise (format "Illegal argument to test. Received ~a, expected sat, unsat, or checked."
                          expected))]))
 
 ; Creates a new run to use for a test, then calls test-from-run
@@ -911,7 +911,7 @@
                          [target new-target]
                          [state new-state]))
           (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds) 
-                         (send-to-kodkod contrast-run-spec))
+                         (send-to-solver contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
                          [name (string->symbol (format "~a-contrast" (Run-name run)))]

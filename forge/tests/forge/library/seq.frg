@@ -1,4 +1,4 @@
-#lang forge/bsl
+#lang forge/froglet
 
 option run_sterling off
 
@@ -20,10 +20,11 @@ pred order {
 }
 
 test expect {
-    first: {order implies (seqFirst[Data.seq] = A)} is theorem
-    last: {order implies (seqLast[Data.seq] = D)} is theorem
-    idx: {order implies (idxOf[Data.seq, D] = 4)} is theorem
-    lastidx: {order implies (lastIdxOf[Data.seq, A] = 2)} is theorem
-    dups: {order implies (hasDups[Data.seq])} is theorem
-    notempty: {order implies (not isEmpty[Data.seq])} is theorem
+    first: {order implies (seqFirst[Data.seq] = A)} is checked
+    last: {order implies (seqLast[Data.seq] = D)} is checked
+    idx: {order implies (idxOf[Data.seq, D] = 4)} is checked
+    lastidx: {order implies (lastIdxOf[Data.seq, A] = 2)} is checked
+    dups: {order implies (hasDups[Data.seq])} is checked
+    notempty: {order implies (not isEmpty[Data.seq])} is checked
+    idx_produces_first: {order implies (idxOf[Data.seq, A] = 0)} is checked
 }

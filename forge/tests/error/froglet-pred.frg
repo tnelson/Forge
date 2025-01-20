@@ -1,4 +1,4 @@
-#lang froglet
+#lang forge/froglet
 
 sig A {}
 one sig a extends A {}

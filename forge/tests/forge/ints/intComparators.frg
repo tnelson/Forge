@@ -62,15 +62,15 @@ pred NLTE {
 }
 
 test expect IntComparators {
-    equal : EQ is theorem
-    greaterThan : GT is theorem
-    lessThan : LT is theorem
-    greaterThanEqual : GTE is theorem
-    lessThanEqual : LTE is theorem
+    equal : EQ is checked
+    greaterThan : GT is checked
+    lessThan : LT is checked
+    greaterThanEqual : GTE is checked
+    lessThanEqual : LTE is checked
 
-    notEqual : NEQ is theorem
-    notGreaterThan : NGT is theorem
-    notLessThan : NLT is theorem
-    notGreaterThanEqual : NGTE is theorem
-    notLessThanEqual : NLTE is theorem
+    notEqual : NEQ is checked
+    notGreaterThan : NGT is checked
+    notLessThan : NLT is checked
+    notGreaterThanEqual : NGTE is checked
+    notLessThanEqual : NLTE is checked
 }

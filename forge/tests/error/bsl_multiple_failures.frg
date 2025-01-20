@@ -1,4 +1,4 @@
-#lang forge/bsl
+#lang forge/froglet
 option run_sterling off
 option test_keep last
 option verbose 0

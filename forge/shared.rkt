@@ -14,7 +14,7 @@
 
 (provide get-verbosity set-verbosity
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
-         VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
+         VERBOSITY_DEBUG VERBOSITY_LASTCHECK get-temp-dir)
 (provide forge-version forge-git-info instance-diff CORE-HIGHLIGHT-COLOR curr-forge-version)
 (provide stream-map/once port-echo java>=1.9? do-time)
 
@@ -56,6 +56,14 @@
           (shell git-exe '("rev-parse" "--abbrev-ref" "HEAD"))
           (shell git-exe '("rev-parse" "--short" "HEAD"))
           (shell git-exe '("log" "-1" "--format=%cd")))))))
+
+; Returns temp directory for files
+(define (get-temp-dir)
+  (define temp-dir-path (build-path (find-system-path 'temp-dir) "forge_smt_temp"))
+  (if (directory-exists? temp-dir-path)
+    (begin (delete-directory/files temp-dir-path) (make-directory (path->string temp-dir-path)))
+    (make-directory (path->string temp-dir-path)))
+  temp-dir-path)
 
 (define (curr-forge-version)
   (with-handlers ([exn:fail? void])

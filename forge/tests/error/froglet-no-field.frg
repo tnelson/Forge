@@ -1,4 +1,4 @@
-#lang froglet
+#lang forge/froglet
 
 // no father = disallowed at toplevel
 

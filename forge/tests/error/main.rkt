@@ -26,7 +26,7 @@
     ; Some error tests look at the specific source-location blamed
    
     ; misuse of predicates and helper functions with arguments/no-arguments
-    (list "expect-predicate-args.frg" #rx"Ill-formed block")
+    (list "expect-predicate-args.frg" #rx"Element 1 of this block was an ill-formed")
     (list "expect-predicate-no-args.frg" #rx"expect-predicate-no-args.frg:13:45.*Tried to give arguments to a predicate, but it takes none")
 
     ; TODO: needs switch to raise-forge-error so the proper location is in the message
@@ -69,7 +69,8 @@
     (list "bsl-join-right5.frg" #rx"not an object")
     (list "bsl-join-right6.frg" #rx"not an object")
     (list "bsl-join.frg" #rx"not an object")
-    (list "bsl-join2.frg" #rx"not a singleton")
+    (list "bsl-join2.frg" #rx"did not result in a singleton value")
+
     (list "bsl-join3.frg" #rx"not an object")
     (list "bsl-reachable.frg" #rx"field")
     (list "bsl-reachable2.frg" #rx"not a singleton")
@@ -82,7 +83,7 @@
     (list "bsl-reachable-too-few-arguments.frg" #rx"The reachable predicate expected at least three arguments, given 2")
 
 ;    (list "froglet-ast-arrow.frg" #rx"-> operator is not")
-    (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
+;    (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
 ;    (list "froglet-ast-intersect.frg" #rx"& operator is not")
 ;    (list "froglet-ast-minus.frg" #rx"- operator is not")
 ;    (list "froglet-ast-plus.frg" #rx"\\+ operator is not")
@@ -90,13 +91,13 @@
 ;    (list "froglet-ast-transitive-closure.frg" #rx"\\^ operator is not")
 ;    (list "froglet-ast-transpose.frg" #rx"~ operator is not")
 ;    (list "froglet-ast-notimplies.frg" #rx"parsing error")
-    (list "froglet-arrow.frg" #rx"-> operator is not")
+;    (list "froglet-arrow.frg" #rx"-> operator is not")
 ;    (list "froglet-compareop0.frg" #rx"inputs to = must have similar type")
 ;    (list "froglet-compareop1.frg" #rx"inputs to = must have similar type")
 ;    (list "froglet-compareop2.frg" #rx"expected an Int")
 ;    (list "froglet-compareop3.frg" #rx"expected an Int")
-    (list "froglet-http.frg" #rx"field declaration")
-    (list "froglet-int-minus.frg" #rx"- operator is not")
+;    (list "froglet-http.frg" #rx"field declaration")
+;    (list "froglet-int-minus.frg" #rx"- operator is not")
 ;    (list "froglet-field-shadow.frg" #rx"expected a field")
 ;    (list "froglet-is-linear0.frg" #rx"outside of bounds block")
 ;    (list "froglet-is-linear1.frg" #rx"expected a field")
@@ -154,11 +155,20 @@
     (list "failed_sat.frg" #rx"Failed test") 
     ;;; ? after * makes the match lazy, meaning it will match as few characters as possible while still allowing the remainder of the regular expression to match.
     
-    (list "multiple_test_failures.frg" #rx".*?Assertion_All_isRoot_is_necessary_for_isNotRoot failed.*?Invalid example 'thisIsNotATree'.*?Theorem t1 failed")
-    (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?Assertion_TreeWithEdges_is_necessary_for_isUndirectedTree failed.*?Assertion_All_TreeWithEdges_is_necessary_for_isUndirectedTree failed")
-    (list "properties_undirected_tree_overconstraint_error.frg" #rx"Assertion_isUndirected_is_sufficient_for_isUndirectedTree failed.")
-    (list "properties_directed_tree_sufficiency_error.frg" #rx"Assertion_All_arethesame_is_sufficient_for_bothRoots failed.")
-    (list "properties_directed_tree_necessity_error.frg" #rx"Assertion_All_isRoot_is_necessary_for_isNotRoot failed.")
+
+    (list "multiple_test_failures.frg" #rx".*?quantified_necessary_assertion_for_isNotRoot.*? failed.*?Invalid example 'thisIsNotATree'.*?Test t1 failed")
+    (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?necessary_assertion_for_isUndirectedTree.*? failed.*?quantified_necessary_assertion_for_isUndirectedTree.*?failed")
+    (list "properties_undirected_tree_overconstraint_error.frg" #rx"sufficient_assertion_for_isUndirectedTree.*?failed.")
+    (list "properties_directed_tree_sufficiency_error.frg" #rx".*?quantified_sufficient_assertion_for_bothRoots.*?failed.")
+    (list "consistency-error.frg" #rx"Failed test consistent_assertion_for_q_")
+    (list "inconsistency-error.frg" #rx"Failed test inconsistent_assertion_for_q_")
+    (list "properties_directed_tree_necessity_error.frg" #rx".*?quantified_necessary_assertion_for_isNotRoot.*?failed.")
+    ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions
+    (list "exp-on-rhs-assert.frg" #rx"parsing error")
+    (list "exp-on-rhs-quantified-assert.frg" #rx"parsing error")
+    (list "exp-on-rhs-inconsistency.frg" #rx"parsing error")
+    (list "exp-on-rhs-consistency.frg" #rx"parsing error")
+
     (list "formula_comprehension_cardinality.frg" #rx"expected to be given")
     (list "formula_comprehension_multiplicity.frg" #rx"expected to be given")
     (list "hello.frg" #rx"parsing error")
@@ -209,6 +219,10 @@
 
     ;; priming error tests
     (list "priming-basic.frg" #rx"Prime operator used in non-temporal context")
+
+    ;; The "is theorem" test construct is temporarily disabled in favor of "is checked";
+    ;; it will be re-enabled for complete solver backends only
+    (list "is_theorem_disabled.frg" #rx"use 'is checked' instead")
   ))
 
 

@@ -4,9 +4,7 @@
 
 (define version "3.7")
 
-(define implies '("froglet"))
 (define deps '("base"
-               "froglet"
                "syntax-classes"       ; used in parser and expander
                "br-parser-tools-lib"  ; used in parser
                "brag-lib"             ; used in parser
@@ -19,8 +17,8 @@
                "web-server-lib"       ; used for Sterling server
                "draw-lib"             ; ???                                             
                "mischief"             ; for amalgam (stream cartesian product)
-               "gui-lib"              ; for syntax highlighting in tool
-               "drracket-plugin-lib"  ; for tool
+               ;"gui-lib"              ; for syntax highlighting in tool (DEPRECATED)
+               ;"drracket-plugin-lib"  ; for tool (DEPRECATED)
                "pretty-format"        ; for occasional wrapping of large formulas
                "predicates"           ; for occasional ease of defining boolean-valued functions
                "basedir"              ; used in logging
@@ -33,8 +31,7 @@
 
 (define compile-omit-paths '("example" "examples" "doc" "tests" "check-ex-spec/demo"
                              "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"                            
-                             "amalgam/tests" "amalgam"
-                             "domains/crypto/examples" "domains/abac/tests"
+                             "amalgam/tests" "amalgam" "domains/crypto/examples" "domains/abac/tests"
                              ))
 
 

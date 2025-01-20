@@ -1,7 +1,7 @@
 #lang racket/base
 
 (require (only-in racket/function thunk)
-         (only-in racket/list first rest empty empty? flatten remove-duplicates last)
+         (only-in racket/list first second rest empty empty? flatten remove-duplicates last)
          (only-in racket/pretty pretty-print)
          (prefix-in @ (only-in racket/base display max min - +)) 
          (prefix-in @ racket/set)
@@ -19,12 +19,12 @@
 (require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
 (require forge/server/eval-model)
 (require forge/server/forgeserver)
-(require forge/translate-to-kodkod-cli
-         forge/translate-from-kodkod-cli
+(require forge/solver-specific/translate-to-kodkod-cli
+         forge/solver-specific/translate-from-kodkod-cli
          forge/sigs-structs
          forge/evaluator
-         (prefix-in tree: forge/lazy-tree)
-         forge/send-to-kodkod)
+         (prefix-in tree: forge/utils/lazy-tree)
+         forge/send-to-solver)
 (require (only-in forge/lang/alloy-syntax/parser [parse forge-lang:parse])
          (only-in forge/lang/alloy-syntax/tokenizer [make-tokenizer forge-lang:make-tokenizer]))
 (require (only-in forge/sigs-functional
@@ -44,11 +44,11 @@
 
 ; Commands
 (provide sig relation fun const pred inst with)
-(provide run check test example display execute)
+(provide run check test example display execute start-sterling-menu)
 (provide instance-diff solution-diff evaluate)
 
 ; Instance analysis functions
-(provide is-unsat? is-sat?)
+(provide is-unsat? is-sat? is-unknown?)
 
 ; export AST macros and struct definitions (for matching)
 ; Make sure that nothing is double-provided
@@ -77,7 +77,7 @@
 
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
-(provide (all-from-out forge/lazy-tree))
+(provide (all-from-out forge/utils/lazy-tree))
 
 (provide (prefix-out forge: (all-from-out forge/sigs-structs)))
 
@@ -176,8 +176,13 @@
   (struct-copy State state
                [inst-map new-state-inst-map]))
 
-; this is not managed by Forge's "rolling state"; it should only be set by the command-line.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Command-line flag status variables
+; These are not managed by Forge's "rolling state"; they should only be set by the command-line.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define option-overrides (box '()))
+(define disable-tests (box #f))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (set-option! option value #:original-path [original-path #f])
   (cond [(member option (unbox option-overrides))
@@ -197,7 +202,7 @@
     (raise-user-error (format "No such option: ~a" option)))
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
-                              option (hash-ref option-types option) value)))
+                              option (hash-ref option-types-names option) value)))
   
   (define new-options
     (cond
@@ -268,7 +273,10 @@
                     [engine_verbosity value])]
       [(equal? option 'test_keep)
        (struct-copy Options options
-                    [test_keep value])]))
+                    [test_keep value])]
+      [(equal? option 'no_overflow)
+       (struct-copy Options options
+                    [no_overflow value])]))
 
   (struct-copy State state
                [options new-options]))
@@ -327,7 +335,7 @@
                                 #:is-var isv
                                 ;let #:in default to #f until it is implemented
                                 #:extends true-parent
-                                #:info (nodeinfo #,(build-source-location stx) check-lang)))
+                                #:info (nodeinfo #,(build-source-location stx) check-lang #f)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var isv true-name))
          ;Currently when lang/expander.rkt calls sig with #:in,
@@ -336,7 +344,7 @@
          (~? super-sig)
          (update-state! (state-add-sig curr-state true-name name true-parent-name))))]))
 
-; Declare a new relation
+; Declare a new relation (should probably be called "field") 
 ; (relation name (sig1 sig2 sigs ...) [|| [#:is breaker] [#:is-var isv]])
 (define-syntax (relation stx)
   (syntax-parse stx
@@ -349,19 +357,18 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ;(printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
+         ;(printf "relation sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
-         ;(printf "relatoin breaker: ~a~n" true-breaker)
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
          (define name (make-relation true-name
                                      true-sigs
                                      #:is true-breaker
                                      #:is-var isv
-                                     #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck)))
+                                     #:info (nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]
@@ -375,19 +382,18 @@
          (define true-sigs (list (thunk (get-sig curr-state sig1))
                                  (thunk (get-sig curr-state sig2))
                                  (thunk (get-sig curr-state sigs)) ...))
-         ;(printf "relatoin sigs: ~a~n" (list sig1 sig2 sigs ...))
+         ;(printf "relation sigs: ~a~n" (list sig1 sig2 sigs ...))
          ; (define true-sigs (map (compose Sig-name ;;; Bugged since relation before sig in #lang forge
          ;                                 (curry get-sig curr-state ))
          ;                        (list sig1 sig2 sigs ...)))
          (define true-breaker (~? breaker #f))
-         ;(printf "relatoin breaker: ~a~n" true-breaker)
          (define checker-hash (get-ast-checker-hash))
          (when (hash-has-key? checker-hash 'field-decl) ((hash-ref checker-hash 'field-decl) true-breaker))
          (define name (make-relation true-name
                                      true-sigs
                                      #:is true-breaker
                                      #:is-var isv
-                                     #:info (nodeinfo #,(build-source-location stx) check-lang)))
+                                     #:info (nodeinfo #,(build-source-location stx) check-lang #f)))
          ;make sure it isn't a var sig if not in temporal mode
          (~@ (check-temporal-for-var isv true-name))
          (update-state! (state-add-relation curr-state true-name name))))]))
@@ -439,7 +445,7 @@
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
-     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang)]
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang #f)]
                    [inner-unsyntax #'unsyntax])
        (quasisyntax/loc stx
          (begin
@@ -450,7 +456,7 @@
                [name
                 (quasisyntax/loc stx2
                   ; - "pred spacer" still present, even if no arguments, to consistently record use of a predicate
-                  (let* ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang)]
+                  (let* ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang #f)]
                         [ast-node (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...)))])
                     (update-state! (state-add-pred curr-state 'name ast-node))
                     ast-node))])) )))]
@@ -459,7 +465,7 @@
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            (name:id decls:param-decl-class  ...+) conds:expr ...+)
-     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang)]
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang #f)]
                    [inner-unsyntax #'unsyntax])
        (define result-stx
          (with-syntax ([functionname (format-id #'name "~a/func" #'name)])
@@ -474,14 +480,14 @@
                    [(name args (... ...))
                     (quasisyntax/loc stx2
                       (functionname args (... ...) #:info (nodeinfo
-                                                           (inner-unsyntax (build-source-location stx2)) check-lang)))]
+                                                           (inner-unsyntax (build-source-location stx2)) check-lang #f)))]
                    ; If it's just the macro name, expand to a lambda that can take the same arguments when available
                    [name:id
                     (quasisyntax/loc stx2
                       (lambda (decls.name ...)
                         (functionname decls.name ...
                                       #:info (nodeinfo
-                                              (inner-unsyntax (build-source-location stx2)) check-lang))))]
+                                              (inner-unsyntax (build-source-location stx2)) check-lang #f))))]
                    ))
                
                ; - "pred spacer" added to record use of predicate along with original argument declarations etc.
@@ -519,7 +525,7 @@
 
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
 
-     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck)]
+     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)]
                    [functionname (format-id #'name "~a/func" #'name)]
                    [inner-unsyntax #'unsyntax])
        (quasisyntax/loc stx
@@ -530,11 +536,11 @@
                [(name args (... ...))
                 (quasisyntax/loc stx2
                   (functionname args (... ...) #:info (nodeinfo
-                                                       (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck)))]
+                                                       (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck #f)))]
                [name:id
                 (quasisyntax/loc stx2
                   (lambda (decls.name ...)
-                    (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck))))]))
+                    (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck #f))))]))
            
            ; - "fun spacer" added to record use of function along with original argument declarations etc.           
            (define (functionname decls.name ... #:info [the-info #f])
@@ -631,28 +637,40 @@
                            #:command run-command))
          (update-state! (state-add-runmap curr-state 'name name))))]))
 
-; Test that a spec is sat or unsat
-; (test name
-;       [#:preds [(pred ...)]] 
-;       [#:scope [((sig [lower 0] upper) ...)]]
-;       [#:bounds [bound ...]]
-;       [|| sat unsat]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Primary testing form: check whether a constraint-set, under
+; some provided bounds, is sat, unsat, or an error. 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax (test stx)
   (syntax-case stx ()
-    [(test name args ... #:expect expected)  
+    [(test name args ... #:expect expected)
+     (syntax/loc stx (test name args ... #:expect expected #:expect-details #f))]
+    [(test name args ... #:expect expected #:expect-details expected-details)
      (add-to-execs
       (with-syntax ([loc (build-source-location stx)]
                     [run-stx (syntax/loc stx (run name args ...))]
                     [check-stx (syntax/loc stx (check name args ...))])
        (quasisyntax/loc stx 
          (cond
+           ; TODO: isn't this known at expansion time? We'll have the value of <expected>.
           [(equal? 'expected 'forge_error)
            ; Expecting an error. If we receive one, do nothing. 
            ; Otherwise, continue to report the error and then close the run.
            ; (N.B., this assumes the run isn't actually created or sent to the solver.)
            (define run-reference #f)
-           (with-handlers ([exn:fail:user? void])
-             ;#,(syntax/loc stx (run name args ...))
+           
+           (with-handlers ([exn:fail:user?
+                            (lambda (e) 
+                              (unless (or (not expected-details)
+                                          (regexp-match (regexp expected-details) (exn-message e)))
+                                (report-test-failure
+                                 #:name 'name
+                                 #:msg (format "Failed test ~a. Forge error was produced with unexpected message. Expected match: ~a. Actual message: ~a."
+                                               'name expected-details (exn-message e))
+                                 #:context loc
+                                 #:run curr-state ; no run, so pass current state instead
+                                 #:sterling #f)))])
              run-stx
              ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
              (set! run-reference name)
@@ -668,41 +686,57 @@
               #:sterling #f))
            (when (member 'name (hash-keys (State-runmap curr-state)))
              (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))]
-          
-          [(member 'expected '(sat unsat))           
-           ;#,(syntax/loc stx (run name args ...))
+
+          ; It may not be immediately obvious why we would ever test for unknown,
+          ; but it seems reasonable to support it in the engine, regardless.
+          [(member 'expected '(sat unsat unknown))           
            run-stx
            (define first-instance (tree:get-value (Run-result name)))
            (if (not (equal? (if (Sat? first-instance) 'sat 'unsat) 'expected))
                (report-test-failure
                 #:name 'name
                 #:msg (format "Failed test ~a. Expected ~a, got ~a.~a"
-                              'name 'expected (if (Sat? first-instance) 'sat 'unsat)
-                              (if (Sat? first-instance)
-                                  (format " Found instance ~a" first-instance)
-                                  (if (Unsat-core first-instance)
-                                      (format " Core: ~a" (Unsat-core first-instance))
-                                      "")))
+                              'name 'expected (cond [(Sat? first-instance) 'sat]
+                                                    [(Unsat? first-instance) 'unsat]
+                                                    [(Unknown? first-instance) 'unknown])
+                              ; Report additional info for Sat and Unsat. If Unknown, report nothing.
+                              (cond [(Sat? first-instance)
+                                     (format " Found instance ~a" first-instance)]
+                                     [(and (Unsat? first-instance) (Unsat-core first-instance))
+                                      (format " Core: ~a" (Unsat-core first-instance))]
+                                     [else ""]))
                 #:context loc
                 #:instance first-instance
                 #:run name)
                (close-run name))]
 
-          [(equal? 'expected 'theorem)          
+          [(equal? 'expected 'checked)
            ;#,(syntax/loc stx (check name args ...))
            check-stx
            (define first-instance (tree:get-value (Run-result name)))
-           (if (Sat? first-instance)
-               (report-test-failure #:name 'name
-                                    #:msg (format "Theorem ~a failed. Found instance:~n~a"
-                                                  'name first-instance)
-                                    #:context loc
-                                    #:instance first-instance
-                                    #:run name)
-               (close-run name))]
+           (cond [(Sat? first-instance)
+                  (report-test-failure #:name 'name
+                                       #:msg (format "Test ~a failed. Found counterexample instance:~n~a"
+                                                     'name first-instance)
+                                       #:context loc
+                                       #:instance first-instance
+                                       #:run name)]
+                 [(Unknown? first-instance)
+                  (report-test-failure #:name 'name
+                                       #:msg (format "Test ~a failed. Solver returned Unknown.~n"
+                                                     'name)
+                                       #:context loc
+                                       #:instance first-instance
+                                       #:run name)]
+                 [else 
+                  (close-run name)])]
+
+          [(equal? 'expected 'theorem)
+           (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
+                              #:context loc)]
 
           [else (raise-forge-error                 
-                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, or theorem."
+                 #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, checked, or forge_error."
                                'expected)
                  #:context loc)]))))]))
 
@@ -718,37 +752,38 @@
            (raise-forge-error
             #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
             #:context #,(build-source-location stx)))
-         ;#,(syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))
          run-stx
          (define first-instance (tree:get-value (Run-result name)))
          (cond
            [(Unsat? first-instance)
             ; Run a second check to see if {} would have also failed, meaning this example
             ; violates the sig/field declarations.
-            ;#,(syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))
             double-check-run-stx
             (define double-check-instance (tree:get-value (Run-result double-check-name)))
             (close-run double-check-name) ;; always close the double-check run immediately
             
-            (if (Sat? double-check-instance)
-                (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+            (cond
+              [(Sat? double-check-instance)
+               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
                                      #:context #,(build-source-location stx)
                                      #:instance first-instance
-                                     #:run name)
-                (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
-                                                               "This means that the specified bounds conflict with each other "
-                                                               "or with the sig/field definitions.")
-                                                                'name)
+                                     #:run name)]
+              [(Unsat? double-check-instance)
+               (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+                                                                              "This means that the specified bounds conflict with each other "
+                                                                              "or with the sig/field definitions.")
+                                                               'name)
                                      #:context #,(build-source-location stx)
                                      #:instance first-instance
-                                     #:run name))]
+                                     #:run name)]
+              [(Unknown? double-check-instance)
+               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'. Unable to determine if the instance given satisfies the sig/field definitions or specified bounds." 'name)
+                                     #:context #,(build-source-location stx)
+                                     #:instance first-instance
+                                     #:run name)])]
            [else (close-run name)])))))]))
 
 ; Checks that some predicates are always true.
-; (check name
-;        #:preds [(pred ...)]
-;        [#:scope [((sig [lower 0] upper) ...)]]
-;        [#:bounds [bound ...]]))
 (define-syntax (check stx)
   (syntax-parse stx
     [(check name:id
@@ -876,7 +911,7 @@
                          [target new-target]
                          [state new-state]))
           (define-values (run-result atom-rels server-ports kodkod-currents kodkod-bounds)
-                         (send-to-kodkod contrast-run-spec))
+                         (send-to-solver contrast-run-spec))
           (define contrast-run 
             (struct-copy Run run
                          [name (string->symbol (format "~a-contrast" (Run-name run)))]
@@ -892,9 +927,8 @@
                        evaluate-str
                        (Run-name run) 
                        (Run-command run) 
-                       "/no-name.rkt" 
-                       (get-bitwidth
-                         (Run-run-spec run)) 
+                       "/no-name.frg" 
+                       (get-bitwidth (Run-run-spec run)) 
                        empty
                        get-contrast-model-generator))))
 
@@ -940,12 +974,12 @@
             ; Note use of "ellip" to denote "..." for the inner macro.
             [(opName inner-args:id ellip)
              (quasisyntax/loc stxx
-               (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) inner-args ellip))]
+               (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck #f) inner-args ellip))]
             ; For use with #lang forge; identifier by itself expands to 3+-ary procedure
             [opName
              (quasisyntax/loc stxx
                (lambda (args ...)
-                 (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck) args ...)))]))
+                 (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck #f) args ...)))]))
         
         (define (opName/func locArg args ...)
           body)
@@ -1042,12 +1076,15 @@
   (when (and (list? r) (< (length r) 1))
     (raise-forge-error #:msg (format "The reachable predicate expected at least three arguments, given ~a" (@+ (length r) 2))
                        #:context loc))
-  
-  (in/info (nodeinfo loc 'checklangNoCheck) 
+
+  ; a in b.^(r + ...)
+  ; While a, b, and all rs should be checked by the specific language the user is running, the 
+  ; AST nodes created specifically for helpers should not be.
+  (in/info (nodeinfo loc 'checklangNoCheck #f) 
            a 
-           (join/info (nodeinfo loc (get-check-lang)) 
+           (join/info (nodeinfo loc 'checklangNoCheck #f) 
                       b 
-                      (^/info (nodeinfo loc 'checklangNoCheck) (union-relations loc r)))))
+                      (^/info (nodeinfo loc 'checklangNoCheck #f) (union-relations loc r)))))
 
 (define (union-relations loc r-or-rs)
   (cond
@@ -1066,14 +1103,14 @@
          (raise-forge-error
           #:msg (format "Field argument given to reachable is not a field: ~a" (deparse r))
           #:context r)))
-       (+/info (nodeinfo loc 'checklangNoCheck) (first r-or-rs) (union-relations loc (rest r-or-rs)))]))
+       (+/info (nodeinfo loc 'checklangNoCheck #f) (first r-or-rs) (union-relations loc (rest r-or-rs)))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Infrastructure for handling multiple test failures / multiple runs
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; Struct to hold test-failure information for eventual reporting
-(struct test-failure (name msg context instance run sterling))
+(struct test-failure (name msg context instance run-or-state sterling))
 ; Mutable value to store list of test-failure structs
 (define delayed-test-failures null)
 ; Called to clear the mutable list
@@ -1082,24 +1119,25 @@
 ; Record (or report, depending on the value of the delay-test-failure-reporting?
 ; parameter) a test failure. 
 (define (report-test-failure #:name name #:msg msg #:context context
-                             #:instance [instance #f] #:run run #:sterling [sterling #t])
+                             #:instance [instance #f] #:run run-or-state #:sterling [sterling #t])
   ; Default is to not delay, but options may affect this.
-  (cond [(not (equal? (get-option run 'test_keep) 'first))
+  (cond [(not (equal? (get-option run-or-state 'test_keep) 'first))
          (unless (equal? (get-verbosity) 0)
            (printf "Test ~a failed. Continuing to run and will report details at the end.~n" name))
          ; close previous failure run, since we are keeping only the final failure for Sterling
-         (unless (empty? delayed-test-failures)
-           (close-run (test-failure-run (first delayed-test-failures))))
+         (unless (or (empty? delayed-test-failures)
+                     (not (Run? (test-failure-run-or-state (first delayed-test-failures)))))
+           (close-run (test-failure-run-or-state (first delayed-test-failures))))
          ; then add this failure to the queue
-         (set! delayed-test-failures (cons (test-failure name msg context instance run sterling)
+         (set! delayed-test-failures (cons (test-failure name msg context instance run-or-state sterling)
                                            delayed-test-failures))]
         
         [else
          ; Raise a Forge error and stop execution; show Sterling if enabled.
          (when (>= (get-verbosity) 1)
            (printf "Test ~a failed. Stopping execution.~n" name))
-         (when sterling
-           (true-display run))
+         (when (and (Run? run-or-state) sterling)
+           (true-display run-or-state))
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens
@@ -1116,7 +1154,7 @@
     (define-values (name msg context instance run sterling)
       (values (test-failure-name failure)    (test-failure-msg failure)
               (test-failure-context failure) (test-failure-instance failure)
-              (test-failure-run failure) (test-failure-sterling failure)))
+              (test-failure-run-or-state failure) (test-failure-sterling failure)))
         
     ; Print the error (don't raise an actual exception)
     (define sterling-or-instance (if (or (not sterling) (equal? (get-option run 'run_sterling) 'off))
@@ -1160,7 +1198,7 @@
 ; will give verbose 1 output. 
 
 (define (string->option-type name value)
-  (define type-pred (hash-ref option-types name #f))
+  (define type-pred (hash-ref option-types (if (string? name) (string->symbol name) name) #f))
   (cond
     ; Arrived as a number
     [(string->number value) (string->number value)]
@@ -1200,6 +1238,7 @@
                       (printf "Setting ~a = ~a~n" (string->symbol OPTION-NAME) OPTION-VALUE)
                       (set-option! (string->symbol OPTION-NAME)
                                    (string->option-type OPTION-NAME OPTION-VALUE)))]
+ #:multi
  [("-O" "--override") OPTION-NAME OPTION-VALUE
                       "Option set and override"
                       (begin
@@ -1208,5 +1247,11 @@
                                      (string->option-type OPTION-NAME OPTION-VALUE))
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
+ [("-N" "--notests")
+  "Disable tests for this model execution"
+  (begin
+    (printf "Tests disabled.~n")
+    (set-box! disable-tests #t))]
+ 
  
  #:args remaining-args remaining-args))

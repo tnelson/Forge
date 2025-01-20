@@ -1,6 +1,12 @@
 const d3 = require('d3')
 // At the moment, if using base d3, the require needs to be the first line. 
 
+// Prevent the visualization from going off-screen. Scrolling is enabled 
+// if you manually set this to something bigger than 100%, however.
+const svgContainer = document.getElementById('svg-container')
+svgContainer.getElementsByTagName('svg')[0].style.height = '100%'
+svgContainer.getElementsByTagName('svg')[0].style.width = '100%'
+
 // constants for our visualization
 const BASE_X = 150;
 const BASE_Y = 100;
@@ -352,6 +358,8 @@ function parseKey(itemString, prefix, map) {
 }
 
 function parseTerms(items) {
+    const ciphertextStrings = instance.signature('Ciphertext').atoms().map(e => e.toString())
+    const textStrings = instance.signature('text').atoms().map(e => e.toString())
 
     const newItems = items.map((item) => {
 
@@ -363,7 +371,7 @@ function parseTerms(items) {
             return parseKey(itemString, "privK", privKeyMap);
         } else if (ltksMap[itemString]) {
             return parseKey(itemString, "ltk", ltksMap);
-        } else if (itemString.includes("Ciphertext")) {
+        } else if (ciphertextStrings.includes(itemString)) {
             const pt = ciphertextMap[itemString];
             const key = cipherKeyMap[itemString]; // in progress see TODO above
             const parsedKey = parseTerms([key])[0];
@@ -374,11 +382,12 @@ function parseTerms(items) {
             }
         } else {
             return {
-                content: itemString
+                content: itemString,
+                isText: textStrings.includes(itemString)
             };
         }
     });
-
+    
     return newItems;
 }
 
@@ -412,6 +421,7 @@ function flattenParsedTerms(parsedTerms) {
                 shared: term.shared
             });
         } else {
+            // Leaf of AST, usually text
             array.push({content: term.content});
         } 
     }
@@ -486,6 +496,7 @@ function printFlattenedTerms(terms, container, x, y, color, shouldPrint) {
                 .attr('x', x + w)
                 .attr('y', y)
                 .style('font-family', '"Open Sans", sans-serif')
+                .style('font-variant-caps', 'normal')
                 .style('fill', color)
                 .text(term.content);
             

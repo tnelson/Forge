@@ -17,11 +17,11 @@ pred SuccStructure {
 }
 
 test expect SuccessorRelation {
-    succStructure1 : SuccStructure for 1 Int is theorem
-    succStructure2 : SuccStructure for 2 Int is theorem
-    succStructure3 : SuccStructure for 3 Int is theorem
-    succStructure4 : SuccStructure for 4 Int is theorem
-    succStructure5 : SuccStructure for 5 Int is theorem
+    succStructure1 : SuccStructure for 1 Int is checked
+    succStructure2 : SuccStructure for 2 Int is checked
+    succStructure3 : SuccStructure for 3 Int is checked
+    succStructure4 : SuccStructure for 4 Int is checked
+    succStructure5 : SuccStructure for 5 Int is checked
 }
 
 
@@ -83,8 +83,8 @@ pred Size5 {
 
 
 test expect IntSet {
-    size1 : Size1 for 1 Int is theorem
-    size2 : Size2 for 2 Int is theorem
-    size3 : Size3 for 3 Int is theorem
-    size4 : Size4 for 4 Int is theorem
+    size1 : Size1 for 1 Int is checked
+    size2 : Size2 for 2 Int is checked
+    size3 : Size3 for 3 Int is checked
+    size4 : Size4 for 4 Int is checked
 }

@@ -19,8 +19,11 @@
 
                                 (require forge/sigs
                                          forge/domains/crypto/expander)
+                                ; We must provide all-defined-out here, because otherwise sig, pred, etc.
+                                ; definitions expanded below wouldn't be available to the importing module.
                                 (provide (except-out (all-defined-out) forge:n)
                                          (all-from-out forge/domains/crypto/expander))
+                                
                                 ; For evaluating
                                 (define-namespace-anchor forge:n)
                                 (forge:nsa forge:n)
