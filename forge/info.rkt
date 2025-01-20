@@ -8,6 +8,7 @@
 (define deps '("base"
                "syntax-classes"       ; used in parser and expander
                "br-parser-tools-lib"  ; used in parser
+               "parser-tools-lib"     ; used in parser/br
                "brag-lib"             ; used in parser
                "beautiful-racket"     ; used in indenter
                "syntax-color-lib"     ; used in syntax coloring for #lang forge
@@ -26,6 +27,7 @@
                "request"              ; used in logging
                "sha"                  ; used in logging
                "http-easy"            ; used for checking version
+               "base64-lib"
                ))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
@@ -56,4 +58,5 @@
                               "example/store/"
                               "examples"
                               "amalgam"
+                              "pardinus-cli/server/"
                               "OLD"))
