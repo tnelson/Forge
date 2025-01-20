@@ -25,14 +25,17 @@ def updateVersion(curVersion, updateType, prerelease=None):
     
     # update version
     if updateType == "major":
-        major += 1
+        if major != None: major += 1 
+        else: major = 1
         minor = 0
         patch = None
     elif updateType == "minor":
-        minor += 1
+        if minor != None: minor += 1
+        else: minor = 0
         patch = None
     elif updateType == "patch":
-        patch += 1
+        if patch != None: patch += 1
+        else: patch = 1
     else:
         raise Exception("Invalid version update type given")
 
@@ -57,16 +60,16 @@ def writeVersion(filename, updateType, prerelease=None):
 
     for i in range(len(fileInfo)):
         line = fileInfo[i]
-        match = re.match(r'^\(define version "(\d+\.\d+\.\d+(\-[a-z0-9]*)?)"\)$', line)
+        match = re.match(r'^\(define version "(\d+\.\d+(\.\d+)?(\-[a-z0-9]*)?)"\)$', line)
         if match:
             newVer = updateVersion(match.group(1), updateType, prerelease)
-            
             fileInfo[i] = f'(define version "{newVer}")\n'
+            print(f'Found version; new version is: {newVer}')
     
     with open(filename, "w") as file:
         file.writelines(fileInfo)
+        
     
-    print(newVer)
 
 
 if __name__ == "__main__":
