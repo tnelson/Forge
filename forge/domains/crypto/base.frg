@@ -1,35 +1,50 @@
 #lang forge
 
 /*
-  Base model of strand space (style) crypto
-  Tim Mia Abby
-  Opting to build in normal Forge, not Electrum
+  Base domain model of strand space style crypto (2021)
+    Abby Siegel
+    Mia Santomauro 
+    Tim Nelson 
+
+  We say "strand space style" above because this model approximates the strand-space 
+  formalism. See the "Prototyping Formal Methods Tools" paper for more information.
+
+  Design notes: 
+    - We opted to build this in Relational Forge, not Temporal Forge; at the time, 
+      Temporal Forge was very new and still being tested. 
+    - Forge has a somewhat more restricted syntax than Alloy. E.g., Forge doesn't 
+      have `facts` (which are always true); instead, predicates must be asserted. 
+    - CPSA has some idiosyncratic terminology, which we echo here somewhat. For 
+      example, the "strand" is not the same as the "agent" for that strand; it 
+      may be best to think of the agent as a knowledge database and the strand 
+      as the protocol role execution.
+    - This model embraces Dolev-Yao in a very concrete way: there is an explicit 
+      attacker, who is also the medium of communication between participants.
 */
 
-abstract sig mesg {} -- CPSA name for any term
+-- NOTE WELL: `mesg` is what CPSA calls terms; we echo that here, do not confuse 
+-- `mesg` with just messages being sent or received.
+abstract sig mesg {} 
 
 abstract sig Key extends mesg {}
-abstract sig akey extends Key {}
-sig skey extends Key {}
+abstract sig akey extends Key {} -- asymmetric key
+sig skey extends Key {}          -- symmetric key
 sig PrivateKey extends akey {}
 sig PublicKey extends akey {}
 
--- Cannot just write fun akey: set Key { PublicKey + PrivateKey }
---   since the macro expands variable declarations to field definitions,
---   and those need to be in terms of sigs
-
--- relation to match key pairs -- 
-
+-- Helper to hold relations that match key pairs
 one sig KeyPairs {
   pairs: set PrivateKey -> PublicKey,
   owners: func PrivateKey -> name,
   ltks: set name -> name -> skey
 }
 
+/** Get a long-term key associated with a pair of agents */
 fun getLTK[name_a: name, name_b: name]: lone skey {
   (KeyPairs.ltks)[name_a][name_b]
 }
 
+/** Get the inverse key for a given key (if any) */
 fun getInv[k: Key]: one Key {
   (k in PublicKey => ((KeyPairs.pairs).k) else (k.(KeyPairs.pairs)))
   +
@@ -37,12 +52,13 @@ fun getInv[k: Key]: one Key {
 }
 
 
--- t=0, t=1, ...
+-- Time indexes (t=0, t=1, ...). These are also used as micro-tick indexes, so the 
+-- bound on `Timeslot` will also affect how many microticks are available between ticks.
 sig Timeslot {
-  -- structure of time
+  -- structure of time (must be rendered linear in every run via `next is linear`)
   next: lone Timeslot,
   
-  -- <=1 actual "message" per timeslot
+  -- <=1 actual "message tuple" sent/received per timeslot
   sender: one strand,
   receiver: one strand,  
   data: set mesg,
@@ -52,7 +68,8 @@ sig Timeslot {
   workspace: set Timeslot -> mesg
 }
 
--- As names are sent messages, they learn pieces of data
+-- As names process received messages, they learn pieces of data
+-- (they may also generate new values on their own)
 sig name extends mesg {
   learned_times: set mesg -> Timeslot,
   generated_times: set mesg -> Timeslot
@@ -63,11 +80,12 @@ abstract sig strand {
   -- the name associated with this strand
   agent: one name
 }
-one sig AttackerStrand extends strand {}
 
+one sig AttackerStrand extends strand {}
 one sig Attacker extends name {}
 
 sig Ciphertext extends mesg {
+   -- encrypted with this key
    encryptionKey: one Key,
    -- result in concating plaintexts
    plaintext: set mesg
@@ -76,6 +94,7 @@ sig Ciphertext extends mesg {
 -- Non-name base value (e.g., nonces)
 sig text extends mesg {}
 
+/** The starting knowledge base for all agents */
 fun baseKnown[a: name]: set mesg {
     -- name knows all public keys
     PublicKey
@@ -90,6 +109,7 @@ fun baseKnown[a: name]: set mesg {
     a
 }
 
+/** This (large) predicate contains the vast majority of domain axioms */
 pred wellformed {
   -- Design choice: only one message event per timeslot;
   --   assume we have a shared notion of time
@@ -101,18 +121,20 @@ pred wellformed {
   all m: Timeslot | m.sender not in m.receiver
 
   -- workspace: workaround to avoid cyclic justification within just deconstructions
-  --  e.g., knowing or receiving enc(x, x)
   -- AGENT -> TICK -> MICRO-TICK LEARNED_SUBTERM
-  all d: mesg | all t: Timeslot | all microt: Timeslot | let a = t.receiver.agent | d in (workspace[t])[microt] iff {
-    -- received in the clear just now (base case)
+  all d: mesg | all t, microt: Timeslot | let a = t.receiver.agent | d in (workspace[t])[microt] iff {
+    -- Base case:
+    -- received the data in the clear just now 
     {d in t.data and no microt.~next}
     or
-    -- breaking down a ciphertext we learned *previously*, or that we've produced from something larger this timeslot
-    --     via a key we learned *previously*, or that we've produced from something larger in this timeslot
-    --  Note use of "previously" by subtracting the *R*TC is crucial in preventing cyclic justification.
-    -- the baseKnown function includes e.g. an agent's private key, otherwise "prior knowledge" is empty (even of their private key)
+    -- Inductive case:
+    -- breaking down a ciphertext we learned *previously*, or that we've produced from 
+    -- something larger this timeslot via a key we learned *previously*, or that we've 
+    -- produced from something larger in this timeslot Note use of "previously" by 
+    -- subtracting the *reflexive* transitive closure is crucial in preventing cyclic justification.
+    --   Note: the baseKnown function includes an agent's private key, otherwise "prior
+    --   knowledge" is empty (even of their private key!)
     { 
-      
       --d not in ((a.workspace)[t])[Timeslot - microt.^next] and -- first time appearing
       {some superterm : Ciphertext | {      
       d in superterm.plaintext and     
@@ -122,12 +144,13 @@ pred wellformed {
   }
  
   -- names only learn information that associated strands are explicitly sent 
+  -- (start big disjunction for learned_times)
   all d: mesg | all t: Timeslot | all a: name | d->t in a.learned_times iff {
     -- they have not already learned this value
     {d not in (a.learned_times).(Timeslot - t.*next)} and 
 
-    -- This base-case is handled in the workspace now
-    -- They received a message directly containing d (may be a ciphertext)
+    -- This base-case is handled in the workspace now, hence commented out:
+    --   They received a message directly containing d (may be a ciphertext)
     { --{some m: Message | {d in m.data and t = m.sendTime and m.receiver.agent = a}}
     --or
     
@@ -135,7 +158,7 @@ pred wellformed {
     -- constrain time to reception to avoid cyclic justification of knowledge. e.g.,
     --    "I know enc(other-agent's-private-key, pubk(me)) [from below via construct]"
     --    "I know other-agent's-private-key [from above via deconstruct]""
-    -- instead: separate the two temporally: deconstruct on recv, construct on non-reception?
+    -- instead: separate the two temporally: deconstruct on recv, construct on non-reception
     -- in that case, the cycle can't exist in the same timeslot
     -- might think to write an accessibleSubterms function as below, except:
     -- consider: (k1, enc(k2, enc(n1, invk(k2)), invk(k1)))
@@ -158,7 +181,7 @@ pred wellformed {
     or
     -- This was a value generated by the name in this timeslot
     {d in (a.generated_times).t}    
-    }} -- end big disjunction for learned_times 
+    }} -- (end big disjunction for learned_times)
   
   -- If you generate something, you do it once only
   all a: name | all d: text | lone t: Timeslot | d in (a.generated_times).t
@@ -169,9 +192,10 @@ pred wellformed {
   all m: Timeslot | m.sender = AttackerStrand or m.receiver = AttackerStrand 
 
   -- plaintext relation is acyclic  
-  --  NOTE WELL: if ever add another type of mesg that contains data, + inside ^.
+  --  NOTE WELL: if ever add another type of mesg that contains data, add with + inside ^.
   all d: mesg | d not in d.^(plaintext)
-
+  
+  -- Disallow empty ciphertexts
   all c: Ciphertext | some c.plaintext
 
   (KeyPairs.pairs).PublicKey = PrivateKey -- total
@@ -192,9 +216,19 @@ pred wellformed {
   -- assume long-term keys are used for only one agent pair (or unused)
   all k: skey | lone (KeyPairs.ltks).k
 
-  -- Attacker's strand
+  -- The Attacker agent is represented by the attacker strand
   AttackerStrand.agent = Attacker
 
+/*
+  -- If one agent has a key, it is different from any other agent's key
+  all a1, a2: name | { 
+    (some KeyPairs.owners.a1 and a1 != a2) implies 
+      (KeyPairs.owners.a1 != KeyPairs.owners.a2)
+  }
+
+  -- private key ownership is unique 
+  all p: PrivateKey | one p.(KeyPairs.owners) 
+*/
 
   -- generation only of text and keys, not complex terms
   --  furthermore, only generate if unknown
@@ -209,13 +243,16 @@ pred wellformed {
   }
 }
 
+/** Definition of subterms for some set of terms */
 fun subterm[supers: set mesg]: set mesg {
   -- VITAL: if you add a new subterm relation, needs to be added here, too!
   supers +
   supers.^(plaintext) -- union on new subterm relations inside parens
 }
 
--- Note it's vital this definition is about strands, not names
+/** When does a strand 'originate' some term? 
+(Note: it's vital this definition is about strands, not names.)
+*/
 pred originates[s: strand, d: mesg] {
 
   -- unsigned term t originates on n in N iff
@@ -258,9 +295,6 @@ pred strand_agent_learns[learner: strand, s: strand, d: mesg] {
 --    needs knowledge to grow on the way through the tree, possibly sideways
 -- so this approach won't work
 /*fun accessibleSubterms[supers: set mesg, known: set mesg]: set mesg {
-  -- VITAL: ditto above 
-  -- plaintext: Ciphertext -> set mesg
-  -- set of Ciphertexts this agent can now open: 
   let openable = {c: Ciphertext | getInv[c.encryptionKey] in known} |
     supers + 
     supers.^(plaintext & (openable -> mesg))

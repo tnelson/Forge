@@ -2,7 +2,7 @@
 
 (define collection "forge")
 
-(define version "3.5")
+(define version "3.7")
 
 (define deps '("base"
                "syntax-classes"       ; used in parser and expander
@@ -24,6 +24,7 @@
                "basedir"              ; used in logging
                "request"              ; used in logging
                "sha"                  ; used in logging
+               "http-easy"            ; used for checking version
                ))
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))

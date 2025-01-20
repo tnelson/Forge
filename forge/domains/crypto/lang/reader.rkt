@@ -3,7 +3,7 @@
 (require (only-in racket/port port->list))
 (require (prefix-in racket: (only-in racket/base read-syntax)))
 
-(define (read-syntax path port)
+(define (read-syntax path port)  
   ; Using "read" will not bring in syntax location info
   (define parse-tree (port->list (lambda (x) (racket:read-syntax path x)) port))
 
@@ -33,7 +33,7 @@
                                 ; Include any tests, run commands, etc.
                                 (module+ execs)
                                 (module+ main
-                                (require (submod ".." execs)))))
+                                (require (submod ".." execs)))))  
   (datum->syntax #f module-datum))
 
 (provide read-syntax)
