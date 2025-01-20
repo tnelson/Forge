@@ -64,7 +64,8 @@ def writeVersion(filename, updateType, prerelease=None):
         if match:
             newVer = updateVersion(match.group(1), updateType, prerelease)
             fileInfo[i] = f'(define version "{newVer}")\n'
-            print(f'Found version; new version is: {newVer}')
+            print(newVer)
+            break;
     
     with open(filename, "w") as file:
         file.writelines(fileInfo)
