@@ -322,12 +322,15 @@
            univ (& univ univ) univ univ
            (& (-> v1 v2) iden) (-> v1 v2) v1 v2 iden)))
 
-  ; Confirm that the stop policy is respected
+  ; Confirm that the stop policy is respected.
+  ; (This should collect the outer conjunction and the inner atomic formula only.)
+  ; Note that, since && and || will short-circuit in AST-node construction, this sort of test isn't well-suited to _those_ operators.
   (check-equal?
-   (collect (&& (some (-> univ univ))) (lambda (n ctxt) n)
+   (collect (! (some (-> univ univ)))
+            (lambda (n ctxt) n)
             #:order 'pre-order
             #:stop (lambda (n ctxt) (not (node/formula/op? n))))
-   (list (&& (some (-> univ univ)))
+   (list (! (some (-> univ univ)))
          (some (-> univ univ))))
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;
