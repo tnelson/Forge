@@ -29,6 +29,10 @@
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
+
+(define license '(MIT))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ; compile-omit-paths
 ;;;;;;;;;;;;;;;;;;;;;;;;;
