@@ -66,6 +66,6 @@
   (cond [(and (node/expr/relation? r) 
               (> (node/expr-arity r) 1)
               (equal? "True" (last types)))
-              (join r True)]
+         (join r True)]
         [else r]))
   

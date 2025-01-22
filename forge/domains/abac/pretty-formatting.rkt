@@ -49,7 +49,10 @@
          (when msg
            (printf "~a~n" msg))
          ]
-        [else (printf "-----------------------------------~nNo scenario existed matching those conditions.~n")]))
+        [else 
+          (define sol (tree:get-value (forge:Run-result run)))
+          (printf "~a; ~a~n" sol (Unsat-core sol))
+          (printf "-----------------------------------~nNo scenario existed matching those conditions.~n")]))
 
 (define (pretty-format-condition c)
   (define signis (cond [(condition-sign c) "is"]

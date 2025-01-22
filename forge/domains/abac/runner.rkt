@@ -4,8 +4,7 @@
 ; Because this DSL is built for a narrow set of exercises, there is no support 
 ; for equality or arbitrary queries; only conjunctive queries are supported.
 ; Adapted by Tim from EMCSABAC (which used Rosette/Ocelot) in January 2024
-
-;(require "abac.frg")
+; Adapted again in January 2025 to factor out the domain model.
 
 (require forge/domains/abac/lexparse
          forge/domains/abac/pretty-formatting
@@ -15,7 +14,16 @@
 
 (provide run-commands boxed-env)
 
+; Options other than 'verbose will not be carried into make-run, as that 
+; is from forge/functional and expects a #:options parameter.
 (set-option! 'verbose 0)
+
+; For debugging only
+(set-option! 'solver 'MiniSatProver)
+(set-option! 'logtranslation 1)
+(set-option! 'coregranularity 1)
+(set-option! 'core_minimization 'rce)
+
 
 ; State of policy environment, so that REPL can access it after definitions have been run
 (define boxed-env (box empty))
@@ -26,9 +34,6 @@
 ; so just count unique identifiers to be complete (will possibly over-estimate).
 
 ; Skolem relations for the scenario's request 
-;(relation reqS_rel (Request Subject) #:is func)
-;(relation reqA_rel (Request Action) #:is func)
-;(relation reqR_rel (Request Resource) #:is func)
 (define reqS (join Request reqS_rel))
 (define reqA (join Request reqA_rel))
 (define reqR (join Request reqR_rel))
@@ -116,6 +121,7 @@
                      #:preds (list query)
                      #:sigs the-sigs
                      #:relations the-fields
+                     #:options (forge:State-options forge:curr-state)
                      ;#:scope (list (list Node 6))
                      #:bounds the-bounds))
                       
@@ -263,11 +269,9 @@
               #:preds (cons queryP1NP2 where-fmlas)
               #:sigs the-sigs
               #:relations the-fields
+              #:options (forge:State-options forge:curr-state)
               ;#:scope (list (list Node 6))
               #:bounds the-bounds))
-           
-           ;(define solver-result-stream (forge:Run-result p1_notin_p2))
-           ;(define first-solution (tree:get-value solver-result-stream))
            
            (cond [(forge:is-sat? p1_notin_p2)               
                   (pretty-printf-result #:bounds the-bounds
@@ -287,11 +291,10 @@
                       #:preds (cons queryP2NP1 where-fmlas)
                       #:sigs the-sigs
                       #:relations the-fields
+                      #:options (forge:State-options forge:curr-state)
                       ;#:scope (list (list Node 6))
                       #:bounds the-bounds))
            
-;                  (define solver-result-stream (forge:Run-result p2_notin_p1))
-;                  (define first-solution (tree:get-value solver-result-stream))
                   (pretty-printf-result #:bounds the-bounds
                       #:run p2_notin_p1
                       #:request-vars request-vars

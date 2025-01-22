@@ -46,7 +46,9 @@ one sig Request {
     reqA_rel: one Action,
     reqR_rel: one Resource
 }
+
 ///////////////////////
 // Domain predicates
 ///////////////////////
 
+// These are currently all done in the parser/expander for the language 

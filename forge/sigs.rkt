@@ -1138,6 +1138,8 @@
            (printf "Test ~a failed. Stopping execution.~n" name))
          (when (and (Run? run-or-state) sterling)
            (true-display run-or-state))
+         ;; !!!!! ^^^^ This is a problem! Because the error is raised only after Sterling terminates.
+         ;;   (and this is a single thread only)
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens
