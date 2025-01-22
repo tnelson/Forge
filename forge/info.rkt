@@ -29,6 +29,9 @@
 
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
+
+(define license '(MIT))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ; compile-omit-paths
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -43,6 +46,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ; test-omit-paths
+;   The Racket index will use: raco test --jobs 2 --drdr --package forge
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; By default, setup will run all .rkt file test cases. We actually don't want to run most of these
@@ -62,7 +66,7 @@
                               "examples"
                               "amalgam"
                               "pardinus-cli/server/"
-                              "tests/forge-core/"
-                              "tests/forge-functional/"
+                              #rx"tests/forge-core/*"
+                              #rx"tests/forge-functional/*"
                               "tests/error/"
                               "OLD"))
