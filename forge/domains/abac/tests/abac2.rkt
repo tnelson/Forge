@@ -10,8 +10,8 @@ policy original
   // Files being audited can't be changed by customers
   deny   if: a is write, r is file, r is under-audit.
   // Customers have full access to files they own
-  permit if: s is customer, a is read, s is owner-of r.
-  permit if: s is customer, a is write, s is owner-of r.
+  permit if: s is customer, a is read, r is owned-by s.
+  permit if: s is customer, a is write, r is owned-by s.
 end;
 
 // Cloud services company. Customers store/update their data. Sometimes audits need to be performed. At first the company is small,
@@ -26,8 +26,8 @@ policy modified
   // Files being audited can't be changed by customers
   deny   if: a is write, r is file, r is under-audit.
   // Customers have full access to files they own
-  permit if: s is customer, a is read, s is owner-of r.
-  permit if: s is customer, a is write, s is owner-of r.
+  permit if: s is customer, a is read, r is owned-by s.
+  permit if: s is customer, a is write, r is owned-by s.
 
   // Once completing training, accountants can read and write (for annotation) to files under audit
   deny   if: s is in-training.
@@ -48,8 +48,8 @@ policy modified2
   // Files being audited can't be changed by customers
   deny   if: a is write, r is file, r is under-audit.
   // Customers have full access to files they own
-  permit if: s is customer, a is read, s is owner-of r.
-  permit if: s is customer, a is write, s is owner-of r.
+  permit if: s is customer, a is read, r is owned-by s.
+  permit if: s is customer, a is write, r is owned-by s.
 
 end;
 

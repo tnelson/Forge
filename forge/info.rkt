@@ -69,4 +69,6 @@
                               #rx"tests/forge-core/*"
                               #rx"tests/forge-functional/*"
                               "tests/error/"
+                              "domains/abac/tests/"
+                              "domains/crypto/examples/"
                               "OLD"))

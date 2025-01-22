@@ -5,14 +5,15 @@
 ; for equality or arbitrary queries; only conjunctive queries are supported.
 ; Adapted by Tim from EMCSABAC (which used Rosette/Ocelot) in January 2024
 
+;(require "abac.frg")
+
 (require forge/domains/abac/lexparse
          forge/domains/abac/pretty-formatting
          forge/domains/abac/helpers)
 (require (only-in racket second string-join remove-duplicates flatten
                          cartesian-product))
 
-(provide run-commands
-         boxed-env)
+(provide run-commands boxed-env)
 
 (set-option! 'verbose 0)
 
@@ -21,26 +22,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; We know what the relations are in advance (since this is just for one exercise).
-; We do NOT necessarily know what rules they might write/modify. But we're working in EPL,
-; so just count unique identifiers (will possibly over-estimate).
-
-(sig Subject)
-(sig Action)
-(sig Resource)
-(sig Employee #:extends Subject)
-(sig Admin #:extends Employee)
-(sig Accountant #:extends Employee)
-(sig Customer #:extends Subject)
-(sig Read #:extends Action)
-(sig Write #:extends Action)
-(sig File #:extends Resource)
-
-; As of January 2024, forge/core requires relations to be 2-ary or greater.
-; Thus, we'll model these subsets as boolean-valued relations.
-(relation Audit (File True))        ; file under audit
-(relation Training (Employee True)) ; employee in training
-
-(relation Owner (Customer File))    ; customer file ownership 
+; We do NOT necessarily know what rules users might write/modify. But we're working in EPL,
+; so just count unique identifiers to be complete (will possibly over-estimate).
 
 ; Skolem relations for the scenario's request 
 (sig Request #:one)
@@ -54,17 +37,11 @@
 (define request-vars '(s a r))
 (define REQUEST-SKOLEM-RELATIONS (list reqS reqA reqR))
 
-;(define structural-axioms
-;  (&& (one reqS) ; Skolem constants
-;      (one reqA)
-;      (one reqR)))
-
-
 (define relations (hash "Admin" Admin  "Employee" Employee  
                         "Accountant" Accountant "Customer" Customer
                         "Read" Read       "Write" Write  
-                        "File" File       "Under-Audit" Audit     "Owner-Of" Owner                        
-                        "In-Training" Training
+                        "File" File       "Under-Audit" audit     "Owned-By" owner                        
+                        "In-Training" training
                         "Subject" Subject "Action" Action "Resource" Resource
                         "reqS_rel" reqS_rel "reqA_rel" reqA_rel "reqR_rel" reqR_rel
                         "True" True "Request" Request))
@@ -90,7 +67,7 @@
   (define polname (first args))
   (define decname (second args))
   (define conditions (rest (rest args)))
-  (define conditions-fmla (&& (map (lambda (c) (build-condition c relations var->maybe-skolem)) conditions)))
+  (define conditions-fmla (&& (map (lambda (c) (build-condition relations var->maybe-skolem c)) conditions)))
   (define pol (find-pol env polname))
   (cond [(equal? pol #f) 
          (raise-user-error (format "Unknown policy: ~a" polname))]
@@ -120,9 +97,9 @@
                         (make-bound U reqS_rel)
                         (make-bound U reqA_rel)
                         (make-bound U reqR_rel)
-                        (make-bound U Owner)
-                        (make-bound U Training)
-                        (make-bound U Audit)))
+                        (make-bound U owner)
+                        (make-bound U training)
+                        (make-bound U audit)))
 
          ;(printf "decision: ~a; ~a~n" decision (node? decision))
          ;(printf "cf: ~a; ~a~n" conditions-fmla (node? conditions-fmla))
@@ -274,9 +251,9 @@
                         (make-bound U reqS_rel)
                         (make-bound U reqA_rel)
                         (make-bound U reqR_rel)
-                        (make-bound U Owner)
-                        (make-bound U Training)
-                        (make-bound U Audit)))
+                        (make-bound U owner)
+                        (make-bound U training)
+                        (make-bound U audit)))
 
            ; Try each direction separately so that we can print out which policy decides what.
            ;   (1) P1.permit is not subset of P2.permit
