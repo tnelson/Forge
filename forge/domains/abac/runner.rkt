@@ -26,10 +26,9 @@
 ; so just count unique identifiers to be complete (will possibly over-estimate).
 
 ; Skolem relations for the scenario's request 
-(sig Request #:one)
-(relation reqS_rel (Request Subject) #:is func)
-(relation reqA_rel (Request Action))
-(relation reqR_rel (Request Resource))
+;(relation reqS_rel (Request Subject) #:is func)
+;(relation reqA_rel (Request Action) #:is func)
+;(relation reqR_rel (Request Resource) #:is func)
 (define reqS (join Request reqS_rel))
 (define reqA (join Request reqA_rel))
 (define reqR (join Request reqR_rel))
@@ -233,7 +232,7 @@
            (define queryP1NP2 (&& permit1 (! permit2))) ; first
            (define queryP2NP1 (&& permit2 (! permit1))) ; second           
            (define where-fmlas (map (lambda (c) 
-                  (build-condition c relations var->maybe-skolem)) where)) ; added constraints (if any)
+                  (build-condition relations var->maybe-skolem c)) where)) ; added constraints (if any)
            
            (define the-bounds (append 
                         (make-bound U Subject)

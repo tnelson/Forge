@@ -39,7 +39,14 @@ sig File extends Resource {
     audit: lone True
 }
 
-// TODO: Note directionality
-// (relation Audit (File True))        ; file under audit (same direction)
-// (relation Training (Employee True)) ; employee in training (same direction)
-// (relation Owner (Customer File))    ; customer file ownership (REVERSED)
+// This model works with a single request at a time
+one sig Request {
+    // Every request has a single subject, action, and resource.
+    reqS_rel: one Subject,
+    reqA_rel: one Action,
+    reqR_rel: one Resource
+}
+///////////////////////
+// Domain predicates
+///////////////////////
+
