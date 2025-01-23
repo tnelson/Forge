@@ -24,7 +24,7 @@ sig Customer extends Subject {}
 sig Employee extends Subject {
   // Notice we don't say "one Boolean" here.
   // We *could*, but in *this* specific example it might make testing more elaborate. 
-  training: one True 
+  training: lone True 
 }
 sig Accountant, Admin extends Employee {}
 

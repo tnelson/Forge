@@ -15,14 +15,15 @@
 (provide run-commands boxed-env)
 
 ; Options other than 'verbose will not be carried into make-run, as that 
-; is from forge/functional and expects a #:options parameter.
+; is from forge/functional and expects a #:options parameter. This is why the 
+; calls below explicitly pass the current-state's options.
 (set-option! 'verbose 0)
 
 ; For debugging only
-(set-option! 'solver 'MiniSatProver)
-(set-option! 'logtranslation 1)
-(set-option! 'coregranularity 1)
-(set-option! 'core_minimization 'rce)
+;(set-option! 'solver 'MiniSatProver)
+;(set-option! 'logtranslation 2)
+;(set-option! 'coregranularity 2)
+;(set-option! 'core_minimization 'rce)
 
 
 ; State of policy environment, so that REPL can access it after definitions have been run
