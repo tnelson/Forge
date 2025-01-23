@@ -48,31 +48,34 @@ one sig Request {
 }
 
 ///////////////////////
-// Domain predicates
-// These are currently all done in the parser/expander for #lang forge/domains/abac
-// But let's try to approximate them in Froglet!
+// Policy predicates
 ///////////////////////
+
+// These are currently all done in the parser/expander for #lang forge/domains/abac
+// But let's try to approximate them in Froglet! Here are two very basic policies:
 
 /*
 policy original
   permit if: s is admin, a is read, r is file.
 end;
 
-policy mod1
+policy modified
   permit if: s is admin, a is read, r is file.
   permit if: s is accountant, a is read, r is under-audit.
 end;
-
-compare original mod1;
 */
 
 // TODO: problem: Froglet disables "in", but we need a type predicate.
 
 pred original_permits_if[s: Subject, a: Action, r: Resource] {
+  // TASK: write a constraint that evaluates to true exactly when the 'original'
+  // policy would permit the request.
   s in Admin and a in Read and r in File
 }
 
 pred modified_permits_if[s: Subject, a: Action, r: Resource] {
+  // TASK: write a constraint that evaluates to true exactly when the 'modified'
+  // policy would permit the request.
   (s in Admin      and a in Read and r in File) or
   (s in Accountant and a in Read and r.audit = True)
 }
@@ -80,6 +83,8 @@ pred modified_permits_if[s: Subject, a: Action, r: Resource] {
 // This won't run when the file is imported by the abac language. It will only 
 // run (and load the visualizer) if the Forge file is run directly.
 difference_original_modified: run {
+  // TASK: write a constraint that evaluates to true exactly when the two policies
+  // disagree on permitting some request.
   some s: Subject, a: Action, r: Resource | {
     not (original_permits_if[s,a,r] iff modified_permits_if[s,a,r])
   }
