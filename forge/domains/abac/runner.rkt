@@ -34,11 +34,6 @@
 ; We do NOT necessarily know what rules users might write/modify. But we're working in EPL,
 ; so just count unique identifiers to be complete (will possibly over-estimate).
 
-; Skolem relations for the scenario's request 
-(define reqS (join Request reqS_rel))
-(define reqA (join Request reqA_rel))
-(define reqR (join Request reqR_rel))
-
 (define request-vars '(s a r))
 (define REQUEST-SKOLEM-RELATIONS (list reqS reqA reqR))
 
@@ -48,7 +43,7 @@
                         "File" File       "Under-Audit" audit     "Owned-By" owner                        
                         "In-Training" training
                         "Subject" Subject "Action" Action "Resource" Resource
-                        "reqS_rel" reqS_rel "reqA_rel" reqA_rel "reqR_rel" reqR_rel
+                        "reqS" reqS "reqA" reqA "reqR" reqR
                         "True" True "Request" Request))
 (define the-sigs (filter (lambda (r) (equal? (node/expr-arity r) 1)) (hash-values relations)))
 (define the-fields (filter (lambda (r) (> (node/expr-arity r) 1)) (hash-values relations)))
@@ -99,9 +94,9 @@
                         (make-bound U File)
                         (make-bound U True)
                         (make-bound U Request)
-                        (make-bound U reqS_rel)
-                        (make-bound U reqA_rel)
-                        (make-bound U reqR_rel)
+                        (make-bound U reqS)
+                        (make-bound U reqA)
+                        (make-bound U reqR)
                         (make-bound U owner)
                         (make-bound U training)
                         (make-bound U audit)))
@@ -163,9 +158,9 @@
 
 ; Replace variable names with Skolem relation if called for
 (define (var->maybe-skolem v)
-  (cond [(equal? v 's) reqS]
-        [(equal? v 'a) reqA]
-        [(equal? v 'r) reqR]
+  (cond [(equal? v 's) (join Request reqS)]
+        [(equal? v 'a) (join Request reqA)]
+        [(equal? v 'r) (join Request reqR)]
         [else v]))
 
 ; construct set of atoms to use in bounds
@@ -193,12 +188,12 @@
      (list (in (atom 'r$0) Resource)
            (in Resource (+ atoms)))]
     ; Skolem relations:
-    [(equal? (relation-name r) "reqS_rel")     
-     (list (= reqS_rel (-> (atom 'Request) (atom 's$0))))]
-    [(equal? (relation-name r) "reqA_rel")
-     (list (= reqA_rel (-> (atom 'Request) (atom 'a$0))))]
-    [(equal? (relation-name r) "reqR_rel")
-     (list (= reqR_rel (-> (atom 'Request) (atom 'r$0))))]
+    [(equal? (relation-name r) "reqS")     
+     (list (= reqS (-> (atom 'Request) (atom 's$0))))]
+    [(equal? (relation-name r) "reqA")
+     (list (= reqA (-> (atom 'Request) (atom 'a$0))))]
+    [(equal? (relation-name r) "reqR")
+     (list (= reqR (-> (atom 'Request) (atom 'r$0))))]
     [(equal? (relation-name r) "True")
      (list (= r (atom 'True)))]
     [(equal? (relation-name r) "Request")
@@ -254,9 +249,9 @@
                         (make-bound U File)
                         (make-bound U True)
                         (make-bound U Request)
-                        (make-bound U reqS_rel)
-                        (make-bound U reqA_rel)
-                        (make-bound U reqR_rel)
+                        (make-bound U reqS)
+                        (make-bound U reqA)
+                        (make-bound U reqR)
                         (make-bound U owner)
                         (make-bound U training)
                         (make-bound U audit)))
