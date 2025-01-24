@@ -46,9 +46,15 @@
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
 
-(define (err-empty-join expr-node)
+; TODO: Special case: take only the node and child-types
+; Should be unified with other registered functions
+(define (err-empty-join expr-node child-types)
   (define loc (nodeinfo-loc (node-info expr-node)))
-  (raise-bsl-error "Sig does not have such a field" expr-node loc))
+  (define lhs-type (expression-type-type (first child-types)))
+  (if (and (equal? 1 (length lhs-type))
+           (equal? 1 (length (first lhs-type))))
+      (raise-bsl-error (format "Sig ~a does not have such a field" (first (first lhs-type))) expr-node loc)
+      (raise-bsl-error (format "No such field in possible types of left-hand-side (~a)" lhs-type) expr-node loc)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Checker functions and checker-hash definitions
@@ -83,10 +89,16 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; The "in" operator is not allowed in Froglet, except when the LHS is a singleton and the 
+; RHS is a sig. I.e., it is allowed only when it is used as a type predicate.
+
 (define (check-node-formula-op-in formula-node node-type child-types)  
   (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
-    (define loc (nodeinfo-loc (node-info formula-node)))
-    (raise-bsl-relational-error "\"in\"" formula-node loc)))
+    (define lhs-multiplicity (expression-type-multiplicity (first child-types)))
+    (unless (and (equal? lhs-multiplicity 'one)
+                 (Sig? (second (node/formula/op-children formula-node))))            
+      (define loc (nodeinfo-loc (node-info formula-node)))
+      (raise-bsl-relational-error "\"in\"" formula-node loc))))
 
 (define (check-top-expression formula-parent expr-node t #:allow-sigs [allow-sigs #f])
   (when (and (member t '(func pfunc))

@@ -240,10 +240,14 @@
     
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
+     (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output formula
                        node/formula/op/in
                        checker-hash
-                       (for-each (lambda (x) (expression-type-type (checkExpression run-or-state x quantvars checker-hash))) args))]
+                       ;(for-each (lambda (x) (expression-type-type (checkExpression run-or-state x quantvars checker-hash))) args)
+                       (void)
+                       child-types
+                       )]
     
     ; EQUALS 
     [(? node/formula/op/=?)
@@ -770,8 +774,9 @@
                               [join-top-level (check-join (map (lambda (x) (list (expression-type-top-level-types x))) child-types))])
                          (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
                            (when (empty? join-result)
+                           ;; TODO remove, this should be handled more centrally
                             (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
-                                ((hash-ref checker-hash 'empty-join) expr)
+                                ((hash-ref checker-hash 'empty-join) expr child-types)
                               (raise-forge-error
                                #:msg (format "Join always results in an empty relation:\
  Left argument of join \"~a\" is in ~a.\
