@@ -290,7 +290,7 @@
 (define (check-args-node-expr-op-~ expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "~~" expr-args loc)))
+    (raise-bsl-relational-error-expr-args "~" expr-args loc)))
 
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
