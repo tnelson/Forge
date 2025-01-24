@@ -51,7 +51,9 @@
          ]
         [else 
           (define sol (tree:get-value (forge:Run-result run)))
-          (printf "~a; ~a~n" sol (Unsat-core sol))
+          
+          (when (and (Unsat? sol) (Unsat-core sol)) 
+                (printf "The solver had core-extraction enabled; printing core information.~n~a~n" sol (Unsat-core sol)))
           (printf "-----------------------------------~nNo scenario existed matching those conditions.~n")]))
 
 (define (pretty-format-condition c)

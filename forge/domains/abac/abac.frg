@@ -61,31 +61,30 @@ end;
 
 policy modified
   permit if: s is admin, a is read, r is file.
+  deny if: s is accountant, a is write.
   permit if: s is accountant, a is read, r is under-audit.
 end;
 */
 
-// TODO: problem: Froglet disables "in", but we need a type predicate.
-
-pred original_permits_if[s: Subject, a: Action, r: Resource] {
+pred original_permits_request {
   // TASK: write a constraint that evaluates to true exactly when the 'original'
   // policy would permit the request.
-  s in Admin and a in Read and r in File
+  Request.reqS in Admin and Request.reqA in Read and Request.reqR in File
 }
 
-pred modified_permits_if[s: Subject, a: Action, r: Resource] {
+pred modified_permits_request {
   // TASK: write a constraint that evaluates to true exactly when the 'modified'
   // policy would permit the request.
-  (s in Admin      and a in Read and r in File) or
-  (s in Accountant and a in Read and r.audit = True)
+  
+  (Request.reqS in Admin      and Request.reqA in Read and Request.reqR in File) or
+  ( (Request.reqS in Accountant and Request.reqA in Read and Request.reqR.audit = True) and
+    not (Request.reqS in Accountant and Request.reqA in Write))
 }
 
 // This won't run when the file is imported by the abac language. It will only 
 // run (and load the visualizer) if the Forge file is run directly.
 difference_original_modified: run {
   // TASK: write a constraint that evaluates to true exactly when the two policies
-  // disagree on permitting some request.
-  some s: Subject, a: Action, r: Resource | {
-    not (original_permits_if[s,a,r] iff modified_permits_if[s,a,r])
-  }
+  // disagree on permitting some request. 
+  not (original_permits_request iff modified_permits_request)
 }
