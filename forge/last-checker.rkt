@@ -493,6 +493,7 @@
     [(node/expr/ite info arity a b c)
      (let ([b-potentials (checkExpression-mult run-or-state b quantvars checker-hash)]
            [c-potentials (checkExpression-mult run-or-state c quantvars checker-hash)])
+       
        (check-and-output expr
                          node/expr/ite
                          checker-hash
@@ -528,7 +529,7 @@
                        (expression-type (let ([prims (primify run-or-state 'univ)])
                               (cond [(equal? arity 1) (map list prims)]
                                     [else (cartesian-product prims prims)]))
-                              'set
+                              (if (equal? type 'none) 'lone 'set)
                               ; If any of the sigs are "var", then univ and iden may vary.
                               (if (and (member type '(univ iden))
                                        (not (empty? (andmap (lambda (s) (node/expr/relation-is-variable s)) (get-sigs run-or-state)))))

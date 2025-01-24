@@ -18,16 +18,23 @@ sig Ctenophore extends Animal {}
 sig Chordate extends Animal {
     cakesEaten: one Int
 }
-sig Dog extends Chordate {}
-sig Cat extends Chordate {}
-sig Human extends Chordate {}
-one sig NimTelson extends Human {}
+sig Dog extends Chordate {
+    buddy: one Cat
+}
+sig Cat extends Chordate {
+    bff: one Dog
+}
 
 option run_sterling off
 
 pred hasFriend[e: Eukaryote] { some e.bestFriend }
 pred eatenCakes[e: Eukaryote] { some e.cakesEaten }
 pred eatenCakesImpossible[c: Ctenophore] { some c.cakesEaten }
+
+/* This "narrowing" will not occur as of January 2025. */ 
+fun getBuddyOrBFF[c: Chordate]: lone Chordate {
+  (c in Dog => c.buddy else c in Cat => c.bff else none)
+}
 
 test expect {
     disallowRHS_unary_join: {some e: Eukaryote | e in cakesEaten.Int} 
@@ -40,6 +47,14 @@ test expect {
     allow_pred2: {some e: Eukaryote | eatenCakes[e]} is sat
     error_pred: {some c: Ctenophore | eatenCakesImpossible[c]} 
       is forge_error "Sig Ctenophore does not have such a field"
+    
+    // Tests for non-existence of "narrowing" behavior
+    no_narrowing_needed: {some c: Chordate | some getBuddyOrBFF[c]} is sat
+    no_narrowing_option1: {some d: Dog | some getBuddyOrBFF[d]} 
+      is forge_error "Sig Dog does not have such a field in \(d.bff\)"  
+    no_narrowing_option2: {some c: Cat | some getBuddyOrBFF[c]}
+      is forge_error "Sig Cat does not have such a field in \(c.buddy\)"  
 
 }
+
 
