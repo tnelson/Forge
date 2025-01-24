@@ -29,7 +29,7 @@
     (list "expect-predicate-args.frg" #rx"Element 1 of this block was an ill-formed")
     (list "expect-predicate-no-args.frg" #rx"expect-predicate-no-args.frg:13:45.*Tried to give arguments to a predicate, but it takes none")
 
-    (list "expect-fun-args.frg" #rx"Racket procedure, which is likely.*expect-fun-args.frg:11")
+    (list "expect-fun-args.frg" #rx".*expect-fun-args.frg:11.*got unknown expression type")
     
     ; TODO: needs to confirm that equality is irrespective of source location (it should be)
     ;(list "expect-fun-no-args.frg" #rx"TODO")
