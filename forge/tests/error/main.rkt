@@ -126,20 +126,6 @@
 ;    (list "froglet-reachable5.frg" #rx"reachable found no path to target")
 ;    (list "froglet-reachable6.frg" #rx"reachable cannot use field")
 ;    (list "froglet-pubkey2.frg" #rx"field 'k' not found")
-    
-
-    ;; challenge
-    ;; - [X] pubkey2 froglet expected a field got k
-    ;;   ... lookup works for `pairs`, not for `k`,
-    ;;       should find the k parameter in the environment!
-    ;; - [X] expected a formula (why?!) given a name in k
-    ;; - [X] pubkey2: why unknown type for 1st branch
-    ;; - [ ] pubkey2
-    ;;   froglet: binop-check: (#<syntax in> '#s(type #<syntax Unknown>)
-    ;;   '#s((nametype type 1) #<syntax:pubkey2.frg:30:34 Pubk>))
-    ;; - [ ] pubkey2: refine branch type
-    ;; - [ ] pubkey2: is function type parsing broken?
-    ;; TODO catch all bsl errors from here
 
     ;; FYI forge has an evaluator, used to eval in inst specs, typechecker may need it too!
 
