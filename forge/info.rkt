@@ -30,7 +30,7 @@
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
 
-(define license '(MIT))
+(define license 'MIT)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ; compile-omit-paths
