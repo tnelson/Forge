@@ -69,16 +69,15 @@ end;
 pred original_permits_request {
   // TASK: write a constraint that evaluates to true exactly when the 'original'
   // policy would permit the request.
-  Request.reqS in Admin and Request.reqA in Read and Request.reqR in File
+
+  // FILL
 }
 
 pred modified_permits_request {
   // TASK: write a constraint that evaluates to true exactly when the 'modified'
   // policy would permit the request.
   
-  (Request.reqS in Admin      and Request.reqA in Read and Request.reqR in File) or
-  ( (Request.reqS in Accountant and Request.reqA in Read and Request.reqR.audit = True) and
-    not (Request.reqS in Accountant and Request.reqA in Write))
+  // FILL
 }
 
 // This won't run when the file is imported by the abac language. It will only 
@@ -86,5 +85,6 @@ pred modified_permits_request {
 difference_original_modified: run {
   // TASK: write a constraint that evaluates to true exactly when the two policies
   // disagree on permitting some request. 
-  not (original_permits_request iff modified_permits_request)
+  
+  // FILL
 }
