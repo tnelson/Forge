@@ -24,6 +24,7 @@ sig Dog extends Chordate {
 sig Cat extends Chordate {
     bff: one Dog
 }
+one sig Boatswain extends Dog {}
 
 option run_sterling off
 
@@ -48,12 +49,23 @@ test expect {
     error_pred: {some c: Ctenophore | eatenCakesImpossible[c]} 
       is forge_error "Sig Ctenophore does not have such a field"
     
-    // Tests for non-existence of "narrowing" behavior
+    // Tests for non-existence of "narrowing" behavior (related, but not same as "in")
     no_narrowing_needed: {some c: Chordate | some getBuddyOrBFF[c]} is sat
     no_narrowing_option1: {some d: Dog | some getBuddyOrBFF[d]} 
       is forge_error "Sig Dog does not have such a field in \(d.bff\)"  
     no_narrowing_option2: {some c: Cat | some getBuddyOrBFF[c]}
       is forge_error "Sig Cat does not have such a field in \(c.buddy\)"  
+
+    // Tests for unusual LHS terms
+    no_general_sig_lhs: {Dog in Chordate} is forge_error "invalid use of"
+    ok_one_sig_lhs: {Boatswain in Chordate} is sat
+
+    // #{...} is allowed in Froglet, and we should allow proper "in" use inside and outside. 
+    singleton_in_numeric: {#{a: Animal | a in Dog} in Int} is sat
+    // No Forge error expected here; for the moment we are allowing always-false "instanceof" 
+    nonsingleton_in_numeric: {#{a: Animal | a in Dog} in Animal} is unsat
+    
+
 
 }
 
