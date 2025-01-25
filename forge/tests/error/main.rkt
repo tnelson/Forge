@@ -93,21 +93,8 @@
     (list "froglet-arrow.frg" #rx"->")
     (list "froglet-http.frg" #rx"Field declaration")
     (list "froglet-int-minus.frg" #rx"invalid use of the -")
-
-; This keyword is unsupported.
-;    (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
-
-; TODO: support these again
-;    (list "froglet-compareop0.frg" #rx"inputs to = must have similar type")
-;    (list "froglet-compareop1.frg" #rx"inputs to = must have similar type")
-;    (list "froglet-compareop2.frg" #rx"expected an Int")
-;    (list "froglet-compareop3.frg" #rx"expected an Int")
-;    (list "froglet-pred.frg" #rx"expected a formula")
-
-;    (list "froglet-field-shadow.frg" #rx"expected a field")
-;    (list "froglet-is-linear0.frg" #rx"outside of bounds block")
-;    (list "froglet-is-linear1.frg" #rx"expected a field")
-
+    (list "froglet-pred.frg" #rx"ill-formed predicate")
+    (list "froglet-is-linear0.frg" #rx"was a binding expression")
     (list "froglet-join-right.frg" #rx"not an object")
     (list "froglet-join-right2.frg" #rx"not an object")
     (list "froglet-join-right3.frg" #rx"not an object")
@@ -119,15 +106,18 @@
     (list "froglet-join3.frg" #rx"not an object")
     (list "froglet-set-singleton-equal.frg" #rx"not a singleton")
     (list "froglet-set.frg" #rx"not a singleton")
+    (list "froglet-reachable5.frg" #rx"reachable found no path to target")
+    (list "froglet-reachable6.frg" #rx"reachable cannot use field")
+    (list "froglet-is-linear1.frg" #rx"Attempted to set or modify bound")
+    
+; This keyword is unsupported.
+;    (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
+    
+; TODO: shadowing error is being pre-empted by bad join error
+;    (list "froglet-field-shadow.frg" #rx"expected a field")
 
 ; TODO: this error is bad (? because the join is within the reachable?)
 ;    (list "froglet-reachable1.frg" #rx"no field match")
-; TODO: needs to be in run context
-;    (list "froglet-reachable5.frg" #rx"reachable found no path to target")
-;    (list "froglet-reachable6.frg" #rx"reachable cannot use field")
-;    (list "froglet-pubkey2.frg" #rx"field 'k' not found")
-
-    ;; FYI forge has an evaluator, used to eval in inst specs, typechecker may need it too!
 
     (list "example_electrum.frg" #rx"example foo: .* temporal")
     (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")

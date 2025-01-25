@@ -15,7 +15,7 @@ sig NC extends Node {
   nc: lone NA
 }
 
-pred cycle {
+reach5: run {
   all n: NA | reachable[n, n.na, na, nb]
 }
 

@@ -9,7 +9,8 @@
                          set-subtract! set-map list->mutable-set set-remove! append* set-member?
                          set-empty? set-union! drop-right take-right for/set for*/set filter-not
                          second set-add match identity)
-         racket/contract)
+         racket/contract
+         racket/hash)
 (require (only-in forge/shared get-verbosity VERBOSITY_HIGH))
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
@@ -204,7 +205,7 @@
         (define break-key
             (cond [(symbol? break) break]
                   [(@node/breaking/break? break) (@node/breaking/break-break break)]
-                  [else (raise-user-error (format "Not a valid break name: ~a~n" break))]))
+                  [else (@raise-forge-error #:msg (format "Not a valid break name: ~a~n" break) #:ctxt #f)]))
         (unless (hash-has-key? strategies break-key)
                 (error (format "break not implemented among ~a" strategies) break-key))
         (hash-add! rel-breaks rel break)
@@ -254,7 +255,7 @@
 
     (for ([bound total-bounds])
         ; get declared breaks for the relation associated with this bound        
-        (define rel (bound-relation bound))
+        (define rel (bound-relation bound))        
         (define breaks (hash-ref rel-breaks rel (set)))        
         (define break-pris (hash-ref rel-break-pri rel (make-hash)))
         ; compose breaks
@@ -264,6 +265,9 @@
         (cond [(set-empty? breaks)
             (unless defined (cons! new-total-bounds bound))
         ][else
+            (unless (hash-has-key? relations-store rel)
+              (@raise-forge-error #:msg (format "Attempted to set or modify bounds of ~a, but the annotation given was of the wrong form (sig vs. field).~n" rel)
+                                 #:context #f))
             (define rel-list (hash-ref relations-store rel))
             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
 
@@ -272,8 +276,8 @@
                 (define break-sym
                     (cond [(symbol? break) break]
                           [(@node/breaking/break? break) (@node/breaking/break-break break)]
-                          [else (raise-user-error (format "constrain-bounds: not a valid break name: ~a~n"
-                                                          break))]))
+                          [else (@raise-forge-error #:msg (format "constrain-bounds: not a valid break name: ~a~n" break)
+                                                   #:context #f)]))
                 (define loc (if (@node? break) 
                                 (@nodeinfo-loc (@node-info break)) 
                                 #f))

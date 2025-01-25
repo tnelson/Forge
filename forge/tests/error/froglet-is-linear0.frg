@@ -5,7 +5,8 @@ sig Node {
     next: lone Node
 }
 
-pred pp {
+// Attempt to use a binding expression in a predicate, rather than inst/example
+pred ppred {
     next is linear
 }
-
+run {ppred}
