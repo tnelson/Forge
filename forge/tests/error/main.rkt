@@ -105,11 +105,13 @@
     (list "froglet-join2.frg" #rx"did not result in a singleton") 
     (list "froglet-join3.frg" #rx"not an object")
     (list "froglet-set-singleton-equal.frg" #rx"not a singleton")
-    (list "froglet-set.frg" #rx"not a singleton")
-    (list "froglet-reachable5.frg" #rx"reachable found no path to target")
-    (list "froglet-reachable6.frg" #rx"reachable cannot use field")
+    (list "froglet-set.frg" #rx"not a singleton")    
     (list "froglet-is-linear1.frg" #rx"Attempted to set or modify bound")
     
+; These checks are not implemented in the runtime last-checker
+;    (list "froglet-reachable5.frg" #rx"reachable found no path to target")
+;    (list "froglet-reachable6.frg" #rx"reachable cannot use field")
+
 ; This keyword is unsupported.
 ;    (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
     

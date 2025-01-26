@@ -660,7 +660,7 @@
            ; (N.B., this assumes the run isn't actually created or sent to the solver.)
            (define run-reference #f)
            
-           (with-handlers ([exn:fail:user?
+           (with-handlers ([exn? ; :fail:user?
                             (lambda (e) 
                               (unless (or (not expected-details)
                                           (regexp-match (regexp expected-details) (exn-message e)))

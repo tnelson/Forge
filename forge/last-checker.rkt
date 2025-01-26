@@ -701,10 +701,10 @@
                        checker-hash
                        (let* ([join-result (check-join (map expression-type-type child-types))]
                               [join-top-level (check-join (map (lambda (x) (list (expression-type-top-level-types x))) child-types))])
-                         (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
                            (when (empty? join-result)
-                           ;; TODO remove, this should be handled more centrally
-                            (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
+                            ; The last-checker doesn't issue many errors on its own, but this is one such situation.
+                            ; Make sure the language doesn't want to produce its own custom error in this case.
+                            (if (hash-has-key? checker-hash 'empty-join)
                                 ((hash-ref checker-hash 'empty-join) expr child-types #:run-or-state run-or-state)
                               (raise-forge-error
                                #:msg (format "Join always results in an empty relation:\
@@ -714,17 +714,9 @@
                                              (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (expression-type-type (first child-types)))
                                              (deparse (second (node/expr/op-children expr)))
                                              (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (expression-type-type (second child-types))))
-                               #:context expr))))
-                         
-                         ; If we are in Froglet ("bsl"), and the LHS expression is not a singleton or empty, lang-specific check
-                         ; TODO: disentangle this; it should be handled by the join case of the checker hash
-                         ;(when (and (not (member (expression-type-multiplicity (first child-types)) '(one lone)))
-                         ;           (eq? (nodeinfo-lang (node-info expr)) 'bsl)
-                         ;           (hash-has-key? checker-hash 'relation-join))
-                         ;  ((hash-ref checker-hash 'relation-join) expr args))
-                         
+                               #:context expr)))
+                                                  
                          (define join-multip (join-multiplicity args child-types join-result expr))
-                         ;(printf "***** ~a~n     ~a     ~a~n" expr args join-multip)
                          (expression-type
                             join-result
                             join-multip

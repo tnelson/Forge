@@ -205,7 +205,7 @@
         (define break-key
             (cond [(symbol? break) break]
                   [(@node/breaking/break? break) (@node/breaking/break-break break)]
-                  [else (@raise-forge-error #:msg (format "Not a valid break name: ~a~n" break) #:ctxt #f)]))
+                  [else (@raise-forge-error #:msg (format "Not a valid break name: ~a~n" break) #:context #f)]))
         (unless (hash-has-key? strategies break-key)
                 (error (format "break not implemented among ~a" strategies) break-key))
         (hash-add! rel-breaks rel break)

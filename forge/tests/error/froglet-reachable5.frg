@@ -1,4 +1,5 @@
 #lang forge/froglet
+option verbose 0
 option run_sterling off
 
 -- error: cannot reach target because types don't line up

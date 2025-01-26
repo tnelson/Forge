@@ -14,7 +14,11 @@ sig Person {
 }
 one sig Tim extends Person {}
 
-sig Node {next: Node}
+sig Node {next: lone Node}
+
+pred helper[n1,n2: Node] {
+  n1 = n2
+}
 
 test expect {
   uni0: {father.grad = mother.grad} is forge_error
@@ -28,7 +32,17 @@ test expect {
   uni5: {some Tim.Tim} is forge_error
   
   reach2: {all n: Node | reachable[next, n, next]} is forge_error "not a singleton"
-  reach4: {all n: Node | reachable[n.next]} is forge_error
+
+  // We currently trust *Racket*'s arity errors when a model gives the wrong number of arguments
+  // to a helper predicate. 
+
+  // This one isn't ideal, because reachable actually requires _3_, but *Racket* checks for 2+
+  reach4: {all n: Node | reachable[n.next]} is forge_error "expected: at least 2"
+  // ...If only 2 are given, the reachable *procedure* will throw this error.
+  reach2plus: {some n1, n2: Node | reachable[n1, n2]} is forge_error "reachable predicate expected at least three arguments"
+  // Check that user-defined helper predicates (not just internally defined helpers) give this error, too
+  helper_arity: {some n: Node | helper[n]} is forge_error "expected: 2"
+
 }
 
 
