@@ -128,8 +128,9 @@
          
          (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                               forge:n))         ; but don't share the namespace anchor
-                         (require (only-in racket/base unless hash-empty?)) ; needed to use "unless" etc.
-                         (require forge/sigs-structs) ; needed to access State struct
+                         ; Most Forge stuff should be available via the module language below. But some 
+                         ; Racket functions are needed too.
+                         (require (only-in racket/base unless hash-empty?))
                          (require (only-in forge/shared do-time))
                          
                          (do-time "forge-mod toplevel")
@@ -167,7 +168,7 @@
                            (output-all-test-failures)
                            ; At this point, all commands should be defined. Open Sterling, if there
                            ; are commands to visualize. If not, don't try to open Sterling.
-                           (unless (hash-empty? (State-runmap forge:curr-state))
+                           (unless (hash-empty? (forge:State-runmap forge:curr-state))
                              (start-sterling-menu forge:curr-state forge:nsa)))
                          
                          ;; Declare submodule "main"
