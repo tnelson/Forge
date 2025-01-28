@@ -107,7 +107,12 @@
     (list "froglet-set-singleton-equal.frg" #rx"not a singleton")
     (list "froglet-set.frg" #rx"not a singleton")    
     (list "froglet-is-linear1.frg" #rx"Attempted to set or modify bound")
-    
+
+    (list "froglet-reachable-2.frg" #rx"is not a singleton")
+    (list "froglet-reachable-3.frg" #rx"parsing error")
+    (list "froglet-reachable-4.frg" #rx"expected: at least 2")
+
+
 ; These checks are not implemented in the runtime last-checker
 ;    (list "froglet-reachable5.frg" #rx"reachable found no path to target")
 ;    (list "froglet-reachable6.frg" #rx"reachable cannot use field")

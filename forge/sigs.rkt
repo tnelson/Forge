@@ -660,7 +660,10 @@
            ; (N.B., this assumes the run isn't actually created or sent to the solver.)
            (define run-reference #f)
            
-           (with-handlers ([exn? ; :fail:user?
+           ; `is forge_error` should be satisfied by an error produced via raise-forge-error. These 
+           ; are exn:fail:user values. Other Racket errors, such as arity errors, use a different 
+           ; error value type, and so would not be considered valid for `is forge_error` testing. 
+           (with-handlers ([exn:fail:user?
                             (lambda (e) 
                               (unless (or (not expected-details)
                                           (regexp-match (regexp expected-details) (exn-message e)))

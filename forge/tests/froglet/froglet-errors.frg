@@ -33,15 +33,18 @@ test expect {
   
   reach2: {all n: Node | reachable[next, n, next]} is forge_error "not a singleton"
 
-  // We currently trust *Racket*'s arity errors when a model gives the wrong number of arguments
-  // to a helper predicate. 
+  /////////////////////////////////////////////////////////////////////////////
+  // We currently trust *Racket*'s arity errors when a model gives the wrong number 
+  // of arguments to a helper predicate. 
+  // These should not be caught by `is forge_error`; to avoid regressions, we're going to keep 
+  // that satisfied only by actual raise-forge-error errors. Instead, see tests/error/main.rkt. 
 
   // This one isn't ideal, because reachable actually requires _3_, but *Racket* checks for 2+
-  reach4: {all n: Node | reachable[n.next]} is forge_error "expected: at least 2"
-  // ...If only 2 are given, the reachable *procedure* will throw this error.
-  reach2plus: {some n1, n2: Node | reachable[n1, n2]} is forge_error "reachable predicate expected at least three arguments"
+  //   reach4: {all n: Node | reachable[n.next]} is forge_error "expected: at least 2"
+  // If only 2 are given, the reachable *procedure* will throw this error.
+  //   reach2plus: {some n1, n2: Node | reachable[n1, n2]} is forge_error "reachable predicate expected at least three arguments"
   // Check that user-defined helper predicates (not just internally defined helpers) give this error, too
-  helper_arity: {some n: Node | helper[n]} is forge_error "expected: 2"
+  //   helper_arity: {some n: Node | helper[n]} is forge_error "expected: 2"
 
 }
 
