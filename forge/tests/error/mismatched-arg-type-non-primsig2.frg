@@ -1,4 +1,5 @@
 #lang forge/froglet
+option verbose 0
 
 sig A {
     f2: lone B

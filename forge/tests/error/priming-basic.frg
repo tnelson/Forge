@@ -1,5 +1,5 @@
 #lang forge/temporal
-
+option verbose 0
 
 sig Person {}
 

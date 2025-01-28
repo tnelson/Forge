@@ -3,15 +3,17 @@
 ; Structures and helper functions for running Forge, along with some constants and
 ; configuration code (e.g., most options).
 
-(require (except-in forge/lang/ast ->)
+(require (except-in forge/lang/ast -> set)
          forge/lang/bounds
          forge/breaks
          (only-in forge/shared get-verbosity VERBOSITY_HIGH))
 (require (prefix-in @ (only-in racket hash not +)) 
-         (only-in racket nonnegative-integer? thunk curry first)
+         (only-in racket nonnegative-integer? thunk curry)
          (prefix-in @ racket/set))
 (require racket/contract
-         racket/match)
+         racket/match
+         racket/set
+         racket/list)
 (require (for-syntax racket/base racket/syntax syntax/srcloc syntax/parse))
 (require (prefix-in tree: forge/utils/lazy-tree))
 (require syntax/srcloc)
@@ -839,3 +841,82 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (and (Relation? r)
        (node/breaking/break? (Relation-breaker r))
        (member (node/breaking/break-break (Relation-breaker r)) sym-list)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; "Primification"-related utilities
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Do not check integer literals with respect to bitwidth for these backends
+(define UNBOUNDED_INT_BACKENDS '(smtlibtor))
+
+; Turn signame into list of all primsigs it contains
+; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
+(define/contract (primify run-or-state raw-signame)
+  (-> (or/c Run? State? Run-spec?) (or/c symbol? string?) (listof symbol?))  
+  (let ([signame (cond [(string? raw-signame) (string->symbol raw-signame)]
+                       [(Sig? raw-signame) (Sig-name raw-signame)]
+                       [else raw-signame])])
+    (cond [(equal? 'Int signame)           
+           '(Int)]
+          [(equal? 'univ signame)
+           (if (member (get-option (get-run-spec run-or-state) 'backend) UNBOUNDED_INT_BACKENDS)       
+           (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (remove 'Int (map Sig-name (get-sigs run-or-state))))))  
+           (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int (map Sig-name (get-sigs run-or-state)))))))]
+          [else           
+           (define the-sig (get-sig run-or-state signame))
+           (define all-primitive-descendants
+             (remove-duplicates
+              (flatten
+               (map (lambda (n) (primify run-or-state n))
+                    (get-children run-or-state signame)))))
+           (cond
+             [(Sig-abstract the-sig)
+              
+             (if (empty? (get-children run-or-state signame))
+                 (raise-forge-error
+                  #:msg (format "The abstract sig ~a is not extended by any children" (symbol->string signame))
+                  #:context the-sig)
+                 all-primitive-descendants)]
+             [else (cons 
+                        (string->symbol (string-append (symbol->string signame) 
+                            (if (empty? (get-children run-or-state signame))
+                                ""
+                                "_remainder")))
+                         all-primitive-descendants)])])))
+
+(define (deprimify run-or-state primsigs)
+  (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
+    (cond
+      [(equal? primsigs '(Int))
+       'Int]
+      [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
+       'univ]
+      [else (define top-level (get-top-level-sigs run-or-state))
+            (define pseudo-fold-lambda (lambda (sig acc) (if (or (subset? (primify run-or-state (Sig-name sig)) (flatten primsigs))
+                                                                 (equal? (list (car (primify run-or-state (Sig-name sig)))) (flatten primsigs)))
+                                                                 ; the above check is added for when you have the parent sig, but are expecting the child
+                                      (values (append acc (list (Sig-name sig))) #t) ; replace cons with values
+                                      (values acc #f))))
+            (define final-list (dfs-sigs run-or-state pseudo-fold-lambda top-level '()))
+            final-list])))
+
+; Runs a DFS over the sigs tree, starting from sigs in <sigs>.
+; On each visited sig, <func> is called to obtain a new accumulated value
+; and whether the search should continue to that sig's children.
+(define (dfs-sigs run-or-state func sigs init-acc)
+    (define (dfs-sigs-helper todo acc)
+      (cond [(equal? (length todo) 0) acc]
+      [else (define next (first todo))
+      (define-values (new-acc stop)
+        (func next acc)) ; use define-values with the return of func
+        (cond [stop (dfs-sigs-helper (rest todo) new-acc)]
+              [else (define next-list (if (empty? (get-children run-or-state next)) ; empty?
+                                      (rest todo)
+                                      (append (get-children run-or-state next) (rest todo)))) ; append instead
+              (dfs-sigs-helper next-list new-acc)])]))
+    (dfs-sigs-helper sigs init-acc)) ; maybe take in initial accumulator as well for more flexibility
+
+; Be robust to callers who pass quantifier-vars as either (var . domain) or as '(var domain).
+(define (second/safe list-or-pair)
+  (cond [(list? list-or-pair) (second list-or-pair)]
+        [else (cdr list-or-pair)]))

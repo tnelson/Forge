@@ -1,4 +1,5 @@
 #lang forge/froglet
+option verbose 0
 option run_sterling off
 
 -- error: cannot reach target because types don't line up
@@ -15,7 +16,7 @@ sig NC extends Node {
   nc: lone NA
 }
 
-pred cycle {
+reach5: run {
   all n: NA | reachable[n, n.na, na, nb]
 }
 

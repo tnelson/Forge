@@ -25,14 +25,14 @@
 
 (define (raise-bsl-relational-error rel-str node loc [optional-str #f])  
   (raise-bsl-error 
-          (format "forge/bsl didn't recognize the ~a operator ~a"
+          (format "Froglet: invalid use of the ~a operator ~a"
             rel-str
             (if optional-str (format "; ~a" optional-str) "")) 
           node loc))
 
 (define (raise-bsl-relational-error-expr-args rel-str args loc [optional-str #f])  
   (raise-bsl-error-deparsed-str 
-          (format "forge/bsl didn't recognize the ~a operator~a"
+          (format "Froglet: invalid use of the ~a operator~a"
             rel-str
             (if optional-str (format "; ~a" optional-str) "")) 
           (cond 
@@ -46,9 +46,18 @@
 (define (srcloc->string loc)
   (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
 
-(define (err-empty-join expr-node)
+; TODO: Special case: take only the node and child-types
+; Should be unified with other registered functions
+(define (err-empty-join expr-node child-types #:run-or-state [run-or-state #f])
   (define loc (nodeinfo-loc (node-info expr-node)))
-  (raise-bsl-error "Sig does not have such a field" expr-node loc))
+  ; Deprimification lets us print, e.g., "Animal" rather than "(Dog Cat Human ...)"
+  (define lhs-type (if run-or-state 
+                       (deprimify run-or-state (expression-type-type (first child-types)))
+                       (expression-type-type (first child-types))))
+  (if (and (equal? 1 (length lhs-type))
+           (symbol? (first lhs-type)))
+      (raise-bsl-error (format "Sig ~a does not have such a field" (first lhs-type)) expr-node loc)
+      (raise-bsl-error (format "No such field in possible types of left-hand-side (~a)" lhs-type) expr-node loc)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Checker functions and checker-hash definitions
@@ -83,10 +92,16 @@
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; The "in" operator is not allowed in Froglet, except when the LHS is a singleton and the 
+; RHS is a sig. I.e., it is allowed only when it is used as a type predicate.
+
 (define (check-node-formula-op-in formula-node node-type child-types)  
   (when (eq? (nodeinfo-lang (node-info formula-node)) LANG_ID)
-    (define loc (nodeinfo-loc (node-info formula-node)))
-    (raise-bsl-relational-error "\"in\"" formula-node loc)))
+    (define lhs-multiplicity (expression-type-multiplicity (first child-types)))
+    (unless (and (equal? lhs-multiplicity 'one)
+                 (Sig? (second (node/formula/op-children formula-node))))
+      (define loc (nodeinfo-loc (node-info formula-node)))
+      (raise-bsl-relational-error "\"in\"" formula-node loc))))
 
 (define (check-top-expression formula-parent expr-node t #:allow-sigs [allow-sigs #f])
   (when (and (member t '(func pfunc))
@@ -275,7 +290,7 @@
 (define (check-args-node-expr-op-~ expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "~~" expr-args loc)))
+    (raise-bsl-relational-error-expr-args "~" expr-args loc)))
 
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)

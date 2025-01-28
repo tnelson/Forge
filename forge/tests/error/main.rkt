@@ -29,8 +29,8 @@
     (list "expect-predicate-args.frg" #rx"Element 1 of this block was an ill-formed")
     (list "expect-predicate-no-args.frg" #rx"expect-predicate-no-args.frg:13:45.*Tried to give arguments to a predicate, but it takes none")
 
-    ; TODO: needs switch to raise-forge-error so the proper location is in the message
-    ; (list "expect-fun-args.frg" #rx"Racket procedure, which is likely.*expect-fun-args.frg:11")
+    (list "expect-fun-args.frg" #rx".*expect-fun-args.frg:11.*got unknown expression type")
+    
     ; TODO: needs to confirm that equality is irrespective of source location (it should be)
     ;(list "expect-fun-no-args.frg" #rx"TODO")
 
@@ -82,68 +82,49 @@
     (list "bsl-reachable-nonfield.frg" #rx"Field argument given to reachable is not a field")
     (list "bsl-reachable-too-few-arguments.frg" #rx"The reachable predicate expected at least three arguments, given 2")
 
-;    (list "froglet-ast-arrow.frg" #rx"-> operator is not")
-;    (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
-;    (list "froglet-ast-intersect.frg" #rx"& operator is not")
-;    (list "froglet-ast-minus.frg" #rx"- operator is not")
-;    (list "froglet-ast-plus.frg" #rx"\\+ operator is not")
-;    (list "froglet-ast-star.frg" #rx"\\* operator is not")
-;    (list "froglet-ast-transitive-closure.frg" #rx"\\^ operator is not")
-;    (list "froglet-ast-transpose.frg" #rx"~ operator is not")
-;    (list "froglet-ast-notimplies.frg" #rx"parsing error")
-;    (list "froglet-arrow.frg" #rx"-> operator is not")
-;    (list "froglet-compareop0.frg" #rx"inputs to = must have similar type")
-;    (list "froglet-compareop1.frg" #rx"inputs to = must have similar type")
-;    (list "froglet-compareop2.frg" #rx"expected an Int")
-;    (list "froglet-compareop3.frg" #rx"expected an Int")
-;    (list "froglet-http.frg" #rx"field declaration")
-;    (list "froglet-int-minus.frg" #rx"- operator is not")
-;    (list "froglet-field-shadow.frg" #rx"expected a field")
-;    (list "froglet-is-linear0.frg" #rx"outside of bounds block")
-;    (list "froglet-is-linear1.frg" #rx"expected a field")
-;    (list "froglet-join-right.frg" #rx"not an object")
-;    (list "froglet-join-right2.frg" #rx"not an object")
-;    (list "froglet-join-right3.frg" #rx"not an object")
-;    (list "froglet-join-right4.frg" #rx"not an object")
-;    (list "froglet-join-right5.frg" #rx"not an object") ;;(#rx"Expected a singleton sig") ;; TODO is not a Node
-;    (list "froglet-join-right6.frg" #rx"not an object")
-;    (list "froglet-join.frg" #rx"not an object")
-;    (list "froglet-join2.frg" #rx"not a singleton") ;; TODO incomplete or partial?
-;    (list "froglet-join3.frg" #rx"not an object")
-;    (list "froglet-no-field.frg" #rx"expected an object")
-;    (list "froglet-pred.frg" #rx"expected a formula")
-;    (list "froglet-reachable1.frg" #rx"no field match")
-;    (list "froglet-reachable2.frg" #rx"expected an object")
-;    (list "froglet-reachable3.frg" #rx"parsing error")
-;    (list "froglet-reachable4.frg" #rx"reachable expects 2 or more arguments")
+    (list "froglet-ast-arrow.frg" #rx"-> in a formula")
+    (list "froglet-ast-intersect.frg" #rx"invalid use of the &")
+    (list "froglet-ast-minus.frg" #rx"invalid use of the -")
+    (list "froglet-ast-plus.frg" #rx"invalid use of the \\+")
+    (list "froglet-ast-star.frg" #rx"invalid use of the \\*")
+    (list "froglet-ast-transitive-closure.frg" #rx"invalid use of the \\^")
+    (list "froglet-ast-transpose.frg" #rx"invalid use of the ~ operator")
+    (list "froglet-ast-notimplies.frg" #rx"parsing error")
+    (list "froglet-arrow.frg" #rx"->")
+    (list "froglet-http.frg" #rx"Field declaration")
+    (list "froglet-int-minus.frg" #rx"invalid use of the -")
+    (list "froglet-pred.frg" #rx"ill-formed predicate")
+    (list "froglet-is-linear0.frg" #rx"was a binding expression")
+    (list "froglet-join-right.frg" #rx"not an object")
+    (list "froglet-join-right2.frg" #rx"not an object")
+    (list "froglet-join-right3.frg" #rx"not an object")
+    (list "froglet-join-right4.frg" #rx"not an object")
+    (list "froglet-join-right5.frg" #rx"not an object") 
+    (list "froglet-join-right6.frg" #rx"not an object")
+    (list "froglet-join.frg" #rx"not an object")
+    (list "froglet-join2.frg" #rx"did not result in a singleton") 
+    (list "froglet-join3.frg" #rx"not an object")
+    (list "froglet-set-singleton-equal.frg" #rx"not a singleton")
+    (list "froglet-set.frg" #rx"not a singleton")    
+    (list "froglet-is-linear1.frg" #rx"Attempted to set or modify bound")
+
+    (list "froglet-reachable-2.frg" #rx"is not a singleton")
+    (list "froglet-reachable-3.frg" #rx"parsing error")
+    (list "froglet-reachable-4.frg" #rx"expected: at least 2")
+
+
+; These checks are not implemented in the runtime last-checker
 ;    (list "froglet-reachable5.frg" #rx"reachable found no path to target")
 ;    (list "froglet-reachable6.frg" #rx"reachable cannot use field")
-;    (list "froglet-set-singleton-equal.frg" #rx"not a singleton") ;;(#rx"= expects two objects, sig Node is not an object")
-;    (list "froglet-set.frg" #rx"not a singleton") #;( "pred must return an object, not a set")
-;    (list "froglet-uni-0.frg" #rx"expected an object")
-;    (list "froglet-uni-1.frg" #rx"expected an object")
-;    (list "froglet-uni-2.frg" #rx"expected an object") ;; or, a singleton
-;    (list "froglet-uni-3.frg" #rx"expected an object")
-;    (list "froglet-uni-4.frg" #rx"expected a field")
-;    (list "froglet-uni-5.frg" #rx"expected a field")
-;    (list "froglet-pubkey2.frg" #rx"field 'k' not found")
 
-    ;; challenge
-    ;; - [X] pubkey2 froglet expected a field got k
-    ;;   ... lookup works for `pairs`, not for `k`,
-    ;;       should find the k parameter in the environment!
-    ;; - [X] expected a formula (why?!) given a name in k
-    ;; - [X] pubkey2: why unknown type for 1st branch
-    ;; - [ ] pubkey2
-    ;;   froglet: binop-check: (#<syntax in> '#s(type #<syntax Unknown>)
-    ;;   '#s((nametype type 1) #<syntax:pubkey2.frg:30:34 Pubk>))
-    ;; - [ ] pubkey2: refine branch type
-    ;; - [ ] pubkey2: is function type parsing broken?
-    ;; TODO catch all bsl errors from here
-    ;; TODO check Ed for bounds errors
-    ;; TODO modeling in anger ... invalid bounds
+; This keyword is unsupported.
+;    (list "froglet-ast-bind.frg" #rx"bind is not part of the language")
+    
+; TODO: shadowing error is being pre-empted by bad join error
+;    (list "froglet-field-shadow.frg" #rx"expected a field")
 
-    ;; FYI forge has an evaluator, used to eval in inst specs, typechecker may need it too!
+; TODO: this error is bad (? because the join is within the reachable?)
+;    (list "froglet-reachable1.frg" #rx"no field match")
 
     (list "example_electrum.frg" #rx"example foo: .* temporal")
     (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")
@@ -153,8 +134,9 @@
     (list "failed_sat.frg" #rx"Failed test")
     (list "failed_unsat.frg" #rx"Failed test")
     (list "failed_sat.frg" #rx"Failed test") 
-    ;;; ? after * makes the match lazy, meaning it will match as few characters as possible while still allowing the remainder of the regular expression to match.
     
+    ;;; ? after * makes the match lazy, meaning it will match as few characters as 
+    ;;; possible while still allowing the remainder of the regular expression to match.
 
     (list "multiple_test_failures.frg" #rx".*?quantified_necessary_assertion_for_isNotRoot.*? failed.*?Invalid example 'thisIsNotATree'.*?Test t1 failed")
     (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?necessary_assertion_for_isUndirectedTree.*? failed.*?quantified_necessary_assertion_for_isUndirectedTree.*?failed")
@@ -163,6 +145,7 @@
     (list "consistency-error.frg" #rx"Failed test consistent_assertion_for_q_")
     (list "inconsistency-error.frg" #rx"Failed test inconsistent_assertion_for_q_")
     (list "properties_directed_tree_necessity_error.frg" #rx".*?quantified_necessary_assertion_for_isNotRoot.*?failed.")
+    
     ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions
     (list "exp-on-rhs-assert.frg" #rx"parsing error")
     (list "exp-on-rhs-quantified-assert.frg" #rx"parsing error")

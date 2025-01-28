@@ -30,7 +30,7 @@
 ;(define scribblings '(("doc/quickstart.scrbl" ())))
 
 
-(define license '(MIT))
+(define license 'MIT)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ; compile-omit-paths
@@ -69,4 +69,6 @@
                               #rx"tests/forge-core/*"
                               #rx"tests/forge-functional/*"
                               "tests/error/"
+                              #rx"domains/abac/tests/*"
+                              #rx"domains/crypto/examples/*"
                               "OLD"))

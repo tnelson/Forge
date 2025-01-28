@@ -11,7 +11,7 @@ sig NB extends Node {
   nb: lone NB
 }
 
-pred cycle {
+reach6: run {
   all n: NA | reachable[n, n.na, na, nb]
 }
 

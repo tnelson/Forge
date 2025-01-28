@@ -1,6 +1,6 @@
 #lang forge/froglet
 option run_sterling off
-
+option verbose 0
 
 sig Node {
     next: lone Node

@@ -16,7 +16,7 @@
 
 (require forge/utils/collector)
 
-(provide checkFormula checkExpression checkInt primify infer-atom-type dfs-sigs deprimify)
+(provide checkFormula checkExpression checkInt infer-atom-type)
 
 ; This function only exists for code-reuse - it's so that we don't
 ; need to use begin and hash-ref in every single branch of the match
@@ -240,10 +240,14 @@
     
     ; IN (atomic fmla)
     [(? node/formula/op/in?)
+     (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output formula
                        node/formula/op/in
                        checker-hash
-                       (for-each (lambda (x) (expression-type-type (checkExpression run-or-state x quantvars checker-hash))) args))]
+                       ;(for-each (lambda (x) (expression-type-type (checkExpression run-or-state x quantvars checker-hash))) args)
+                       (void)
+                       child-types
+                       )]
     
     ; EQUALS 
     [(? node/formula/op/=?)
@@ -268,41 +272,6 @@
       ; descend into the integer-expression within and confirm no literals are unsafe
      (checkInt run-or-state (first (node/formula/op-children formula)) quantvars checker-hash)
      (checkInt run-or-state (second (node/formula/op-children formula)) quantvars checker-hash)]))
-
-; Turn signame into list of all primsigs it contains
-; Note we use Alloy-style "_remainder" names here; these aren't necessarily embodied in Forge
-(define/contract (primify run-or-state raw-signame)
-  (@-> (or/c Run? State? Run-spec?) (or/c symbol? string?) (listof symbol?))  
-  (let ([signame (cond [(string? raw-signame) (string->symbol raw-signame)]
-                       [(Sig? raw-signame) (Sig-name raw-signame)]
-                       [else raw-signame])])
-    (cond [(equal? 'Int signame)           
-           '(Int)]
-          [(equal? 'univ signame)
-           (if (member (get-option (get-run-spec run-or-state) 'backend) UNBOUNDED_INT_BACKENDS)       
-           (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (remove 'Int (map Sig-name (get-sigs run-or-state))))))  
-           (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int (map Sig-name (get-sigs run-or-state)))))))]
-          [else           
-           (define the-sig (get-sig run-or-state signame))
-           (define all-primitive-descendants
-             (remove-duplicates
-              (flatten
-               (map (lambda (n) (primify run-or-state n))
-                    (get-children run-or-state signame)))))
-           (cond
-             [(Sig-abstract the-sig)
-              
-             (if (empty? (get-children run-or-state signame))
-                 (raise-forge-error
-                  #:msg (format "The abstract sig ~a is not extended by any children" (symbol->string signame))
-                  #:context the-sig)
-                 all-primitive-descendants)]
-             [else (cons 
-                        (string->symbol (string-append (symbol->string signame) 
-                            (if (empty? (get-children run-or-state signame))
-                                ""
-                                "_remainder")))
-                         all-primitive-descendants)])])))
 
 
 ; Infer a type for an atom node. 
@@ -350,43 +319,6 @@
         [(Run? run) (infer-from-bounds)]
         [else (map list (primify run 'univ))]))
   
-  
-; Runs a DFS over the sigs tree, starting from sigs in <sigs>.
-; On each visited sig, <func> is called to obtain a new accumulated value
-; and whether the search should continue to that sig's children.
-(define (dfs-sigs run-or-state func sigs init-acc)
-    (define (dfs-sigs-helper todo acc)
-      (cond [(equal? (length todo) 0) acc]
-      [else (define next (first todo))
-      (define-values (new-acc stop)
-        (func next acc)) ; use define-values with the return of func
-        (cond [stop (dfs-sigs-helper (rest todo) new-acc)]
-              [else (define next-list (if (empty? (get-children run-or-state next)) ; empty?
-                                      (rest todo)
-                                      (append (get-children run-or-state next) (rest todo)))) ; append instead
-              (dfs-sigs-helper next-list new-acc)])]))
-    (dfs-sigs-helper sigs init-acc)) ; maybe take in initial accumulator as well for more flexibility
-
-; Be robust to callers who pass quantifier-vars as either (var . domain) or as '(var domain).
-(define (second/safe list-or-pair)
-  (cond [(list? list-or-pair) (second list-or-pair)]
-        [else (cdr list-or-pair)]))
-
-(define (deprimify run-or-state primsigs)
-  (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
-    (cond
-      [(equal? primsigs '(Int))
-       'Int]
-      [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
-       'univ]
-      [else (define top-level (get-top-level-sigs run-or-state))
-            (define pseudo-fold-lambda (lambda (sig acc) (if (or (subset? (primify run-or-state (Sig-name sig)) (flatten primsigs))
-                                                                 (equal? (list (car (primify run-or-state (Sig-name sig)))) (flatten primsigs)))
-                                                                 ; the above check is added for when you have the parent sig, but are expecting the child
-                                      (values (append acc (list (Sig-name sig))) #t) ; replace cons with values
-                                      (values acc #f))))
-            (define final-list (dfs-sigs run-or-state pseudo-fold-lambda top-level '()))
-            final-list])))
 
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
@@ -489,6 +421,7 @@
     [(node/expr/ite info arity a b c)
      (let ([b-potentials (checkExpression-mult run-or-state b quantvars checker-hash)]
            [c-potentials (checkExpression-mult run-or-state c quantvars checker-hash)])
+       
        (check-and-output expr
                          node/expr/ite
                          checker-hash
@@ -524,7 +457,7 @@
                        (expression-type (let ([prims (primify run-or-state 'univ)])
                               (cond [(equal? arity 1) (map list prims)]
                                     [else (cartesian-product prims prims)]))
-                              'set
+                              (if (equal? type 'none) 'lone 'set)
                               ; If any of the sigs are "var", then univ and iden may vary.
                               (if (and (member type '(univ iden))
                                        (not (empty? (andmap (lambda (s) (node/expr/relation-is-variable s)) (get-sigs run-or-state)))))
@@ -768,10 +701,11 @@
                        checker-hash
                        (let* ([join-result (check-join (map expression-type-type child-types))]
                               [join-top-level (check-join (map (lambda (x) (list (expression-type-top-level-types x))) child-types))])
-                         (when (@>= (get-verbosity) VERBOSITY_LASTCHECK) 
                            (when (empty? join-result)
-                            (if (eq? (nodeinfo-lang (node-info expr)) 'bsl)
-                                ((hash-ref checker-hash 'empty-join) expr)
+                            ; The last-checker doesn't issue many errors on its own, but this is one such situation.
+                            ; Make sure the language doesn't want to produce its own custom error in this case.
+                            (if (hash-has-key? checker-hash 'empty-join)
+                                ((hash-ref checker-hash 'empty-join) expr child-types #:run-or-state run-or-state)
                               (raise-forge-error
                                #:msg (format "Join always results in an empty relation:\
  Left argument of join \"~a\" is in ~a.\
@@ -780,17 +714,9 @@
                                              (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (expression-type-type (first child-types)))
                                              (deparse (second (node/expr/op-children expr)))
                                              (map (lambda (lst) (string-join (map (lambda (c) (symbol->string c)) lst) " -> " #:before-first "(" #:after-last ")")) (expression-type-type (second child-types))))
-                               #:context expr))))
-                         
-                         ; If we are in Froglet ("bsl"), and the LHS expression is not a singleton or empty, lang-specific check
-                         ; TODO: disentangle this; it should be handled by the join case of the checker hash
-                         ;(when (and (not (member (expression-type-multiplicity (first child-types)) '(one lone)))
-                         ;           (eq? (nodeinfo-lang (node-info expr)) 'bsl)
-                         ;           (hash-has-key? checker-hash 'relation-join))
-                         ;  ((hash-ref checker-hash 'relation-join) expr args))
-                         
+                               #:context expr)))
+                                                  
                          (define join-multip (join-multiplicity args child-types join-result expr))
-                         ;(printf "***** ~a~n     ~a     ~a~n" expr args join-multip)
                          (expression-type
                             join-result
                             join-multip
@@ -948,9 +874,6 @@
        (expression-type-type (checkExpression run-or-state domain new-quantvars checker-hash))
        (cons (list var domain) quantvars))
      (void)]))
-
-; Do not check integer literals with respect to bitwidth for these backends
-(define UNBOUNDED_INT_BACKENDS '(smtlibtor))
 
 ; Is this integer literal safe under the current bitwidth?
 (define/contract (check-int-literal run-or-state expr)
