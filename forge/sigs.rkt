@@ -660,6 +660,9 @@
            ; (N.B., this assumes the run isn't actually created or sent to the solver.)
            (define run-reference #f)
            
+           ; `is forge_error` should be satisfied by an error produced via raise-forge-error. These 
+           ; are exn:fail:user values. Other Racket errors, such as arity errors, use a different 
+           ; error value type, and so would not be considered valid for `is forge_error` testing. 
            (with-handlers ([exn:fail:user?
                             (lambda (e) 
                               (unless (or (not expected-details)
@@ -1138,6 +1141,8 @@
            (printf "Test ~a failed. Stopping execution.~n" name))
          (when (and (Run? run-or-state) sterling)
            (true-display run-or-state))
+         ;; !!!!! ^^^^ This is a problem! Because the error is raised only after Sterling terminates.
+         ;;   (and this is a single thread only)
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens

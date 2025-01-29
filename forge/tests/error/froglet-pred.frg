@@ -8,3 +8,5 @@ pred foo {
   a
   a
 }
+
+run { foo }

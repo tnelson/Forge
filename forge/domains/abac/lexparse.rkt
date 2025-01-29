@@ -157,7 +157,7 @@
 (define allowed-relations-lc
   '("admin" "accountant" "customer"
             "read" "write" "file" "under-audit"
-            "owner-of" "in-training"))
+            "owned-by" "in-training"))
 
 (define (command-parser source-name)
 

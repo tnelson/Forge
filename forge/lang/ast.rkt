@@ -1238,7 +1238,7 @@
 ;; BREAKERS --------------------------------------------------------------------
 
 (struct node/breaking node () #:transparent)
-(struct node/breaking/op node (children) #:transparent)
+(struct node/breaking/op node/breaking (children) #:transparent)
 (define-node-op is node/breaking/op #f #:max-length 2 #:type (lambda (n) (@or (node/expr? n) (node/breaking/break? n))))
 (struct node/breaking/break node/breaking (break) #:transparent)
 (define-syntax (make-breaker stx)

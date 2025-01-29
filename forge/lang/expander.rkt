@@ -1190,13 +1190,21 @@
         [(and (equal? 1 (length xs)) (node/int? (first xs)))
          (first xs)]
         [else
+         ; *** Error cases ***
          ; First, check and see whether any individual member of xs is a procedure. If so, it's likely
          ; the model is using a helper function or predicate incorrectly.
          (for ([x xs]
-               [i (build-list 5 (lambda (x) (@+ x 1)))])
+               [i (build-list (length xs) (lambda (x) (@+ x 1)))])
            (when (procedure? x)
              (raise-forge-error
               #:msg (format "Element ~a of this block was an ill-formed predicate or helper function call. Check that the number of arguments given matches the declaration." i)
+              #:context stx)))
+         ; Next, is there an element of the block that is a binding expression (i.e., meant for inst/example)?
+         (for ([x xs]
+               [i (build-list (length xs) (lambda (x) (@+ x 1)))])            
+           (when (node/breaking? x)
+             (raise-forge-error
+              #:msg (format "Element ~a of this block was a binding expression, which should only appear in an `example`, an `inst` declaration, or the bounds annotations of a command. " i)
               #:context stx)))
          ; Otherwise, give a general error message.
          (raise-forge-error
@@ -1388,13 +1396,16 @@
      (syntax/loc stx (join (#:lang (get-check-lang)) expr1 expr2)))]
 
   [((~datum Expr) name:NameClass "[" exprs:ExprListClass "]")
+   ; Is this production ever used? Both box join and helper use seem to use the Expr version below.
+   ; (printf "expander: Name[Expr...]: ~a~n" #'name)
    (with-syntax ([name #'name.name]
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (name exprs ...)))]
 
-    
-  [((~datum Expr) expr1:ExprClass "[" exprs:ExprListClass "]")
-     (with-syntax ([expr1 (my-expand #'expr1)]
+  [((~datum Expr) expr1orig:ExprClass "[" exprs:ExprListClass "]")
+     ; This might be a helper function or predicate invocation (with arguments), or a box join.
+     ; Note that expr1 might be a macro name *or* a procedure, so we can't necessarily "apply" it.
+     (with-syntax ([expr1 (my-expand #'expr1orig)]
                    [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
        (syntax/loc stx (expr1 exprs ...)))]
 
@@ -1419,9 +1430,11 @@
 
   [((~datum Expr) name:QualNameClass)
    (define local-value (syntax-local-value #'name.name (lambda () #f)))
-   ;(printf "local-value for ~a: ~a~n" #'name.name local-value)
+   ; (printf "local-value for ~a: ~a~n" #'name.name local-value)
    (if local-value
        ; if we have a local-value, it's likely a Forge macro or Forge-defined helper procedure
+       ; (Node ops in the AST are defined as _macros_ to allow the capture of stx location. Thus, 
+       ;  e.g., `add` is a macro.)
        (syntax/loc stx name.name)
        ; otherwise, it's likely an AST node (to be functionally updated with proper syntax 
        ; location at runtime). Note this is a QualName at compile time, but may be substituted
@@ -1443,7 +1456,6 @@
 
     [((~datum Expr) sexpr:SexprClass)
      (syntax/loc stx (read sexpr))]))
-
 
 ; struct-copy would not retain the sub-struct identity and fields, producing just a node
 ; ditto the struct-update-lib library

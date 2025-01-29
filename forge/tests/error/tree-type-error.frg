@@ -1,4 +1,5 @@
 #lang forge
+option verbose 0
 
 sig A{ }
 sig A_child1 extends A { } 

@@ -1,4 +1,5 @@
 #lang forge 
+option verbose 0
 
 // Detect when sufficient bounds have not been provided. 
 
