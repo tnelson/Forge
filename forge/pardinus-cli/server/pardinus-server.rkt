@@ -41,7 +41,7 @@
                                      [else (error (format "Bad solver subtype: ~a" solver-subtype))]))
 
     (unless (file-exists? java)
-      (raise-user-error 'start-server "Could not find a Java executable. Given or inferred location was: ~a" java))
+      (raise-user-error 'start-server "Could not find a Java executable. Given or inferred location was: ~a. Type was: ~a" java (file-or-directory-type java)))
     
     (when (>= (get-verbosity) VERBOSITY_HIGH)        
       (printf "  Subprocess invocation information: ~a~n"
