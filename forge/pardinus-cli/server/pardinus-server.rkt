@@ -19,7 +19,7 @@
                     (filter (curry regexp-match #rx".+\\.jar")
                             (directory-list pardinus/jar)))]
          [windows? (equal? (system-type) 'windows)]
-         [java (if java-exe
+         [java (if (and java-exe (> (string-length java-exe) 0))
                    (build-path java-exe)
                    (find-executable-path (if windows? "java.exe" "java")))]
          [path-separator (if windows? ";" ":")]

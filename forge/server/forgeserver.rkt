@@ -421,7 +421,8 @@
        ;;(define xml (get-xml inst))
        ;;(define response (make-sterling-data xml id name temporal?))
        ;;(send-to-sterling response #:connection connection)
-       (printf "Ignoring Sterling 'data' request...~n")
+       (when (@>= (get-verbosity) VERBOSITY_STERLING)
+         (printf "Ignoring Sterling 'data' request...~n"))
        ]
       [(equal? (hash-ref json-m 'type) "eval")
        ; A message requesting that the provider evaluate some expression
