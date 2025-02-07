@@ -361,13 +361,16 @@
     (pattern decl:ConsistencyDeclClass))
 
   (define-syntax-class PropertyDeclClass
-    #:attributes (prop pred-name constraint-type scope bounds)
-    (pattern ((~datum PropertyDecl)      
+    #:attributes (tname prop pred-name constraint-type scope bounds)
+    (pattern (
+              (~datum PropertyDecl)      
+              (~optional -tname:NameClass)
               -prop:ExprClass
               (~and (~or "sufficient" "necessary") ct)
               -pred-name:NameClass
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
+      #:with tname (if (attribute -tname) #'-tname.name #'())
       #:with prop #'-prop
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))
@@ -375,8 +378,9 @@
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
   (define-syntax-class QuantifiedPropertyDeclClass
-    #:attributes (quant-decls disj prop pred-name pred-exprs constraint-type scope bounds)
+    #:attributes (tname quant-decls disj prop pred-name pred-exprs constraint-type scope bounds)
     (pattern ((~datum QuantifiedPropertyDecl)
+              (~optional -tname:NameClass)
               (~optional (~and "disj" -disj))
               -quant-decls:DeclListClass
               -prop:ExprClass
@@ -385,6 +389,7 @@
               (~optional -pred-exprs:ExprListClass)
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
+      #:with tname (if (attribute -tname) #'-tname.name #'())
       #:with disj (if (attribute -disj) (string->symbol (syntax-e #'-disj)) '())
       #:with quant-decls #'-quant-decls.translate
       #:with prop #'-prop
@@ -397,10 +402,12 @@
 (define-syntax-class SatisfiabilityDeclClass
   #:attributes (prop expected scope bounds)
   (pattern ((~datum SatisfiabilityDecl)
+            (~optional -tname:NameClass)
             -prop:ExprClass
             (~and (~or "sat" "unsat" "forge_error") ct)
             (~optional -scope:ScopeClass)
             (~optional -bounds:BoundsClass))
+    #:with tname (if (attribute -tname) #'-tname.name #'())
     #:with prop #'-prop
     #:with expected (string->symbol (syntax-e #'ct))
     #:with scope (if (attribute -scope) #'-scope.translate #'())
@@ -409,12 +416,14 @@
 
 (define-syntax-class ConsistencyDeclClass
   #:attributes (test-expr pred-name consistency expected scope bounds)
-  (pattern ((~datum ConsistencyDecl)      
+  (pattern ((~datum ConsistencyDecl) 
+            (~optional -tname:NameClass)     
             -test-expr:ExprClass
             (~and (~or "consistent" "inconsistent") ct)
             -pred-name:NameClass
             (~optional -scope:ScopeClass)
             (~optional -bounds:BoundsClass))
+    #:with tname (if (attribute -tname) #'-tname.name #'())
     #:with test-expr #'-test-expr
     #:with pred-name #'-pred-name.name
     #:with consistency (string->symbol (syntax-e #'ct)) ;; This is for good test naming
