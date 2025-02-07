@@ -370,7 +370,7 @@
               -pred-name:NameClass
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
-      #:with tname (if (attribute -tname) #'-tname.name #'())
+      #:with tname (if (attribute -tname) #'-tname.name (make-temporary-name (datum->syntax #f '())))
       #:with prop #'-prop
       #:with pred-name #'-pred-name.name
       #:with constraint-type (string->symbol (syntax-e #'ct))
@@ -389,7 +389,7 @@
               (~optional -pred-exprs:ExprListClass)
               (~optional -scope:ScopeClass)
               (~optional -bounds:BoundsClass))
-      #:with tname (if (attribute -tname) #'-tname.name #'())
+      #:with tname (if (attribute -tname) #'-tname.name (make-temporary-name (datum->syntax #f '())))
       #:with disj (if (attribute -disj) (string->symbol (syntax-e #'-disj)) '())
       #:with quant-decls #'-quant-decls.translate
       #:with prop #'-prop
@@ -400,14 +400,14 @@
       #:with bounds (if (attribute -bounds) #'-bounds.translate #'())))
 
 (define-syntax-class SatisfiabilityDeclClass
-  #:attributes (prop expected scope bounds)
+  #:attributes (tname prop expected scope bounds)
   (pattern ((~datum SatisfiabilityDecl)
             (~optional -tname:NameClass)
             -prop:ExprClass
             (~and (~or "sat" "unsat" "forge_error") ct)
             (~optional -scope:ScopeClass)
             (~optional -bounds:BoundsClass))
-    #:with tname (if (attribute -tname) #'-tname.name #'())
+    #:with tname (if (attribute -tname) #'-tname.name (make-temporary-name (datum->syntax #f '())))
     #:with prop #'-prop
     #:with expected (string->symbol (syntax-e #'ct))
     #:with scope (if (attribute -scope) #'-scope.translate #'())
@@ -415,7 +415,7 @@
 
 
 (define-syntax-class ConsistencyDeclClass
-  #:attributes (test-expr pred-name consistency expected scope bounds)
+  #:attributes (tname test-expr pred-name consistency expected scope bounds)
   (pattern ((~datum ConsistencyDecl) 
             (~optional -tname:NameClass)     
             -test-expr:ExprClass
@@ -423,7 +423,7 @@
             -pred-name:NameClass
             (~optional -scope:ScopeClass)
             (~optional -bounds:BoundsClass))
-    #:with tname (if (attribute -tname) #'-tname.name #'())
+    #:with tname (if (attribute -tname) #'-tname.name (make-temporary-name (datum->syntax #f '())))
     #:with test-expr #'-test-expr
     #:with pred-name #'-pred-name.name
     #:with consistency (string->symbol (syntax-e #'ct)) ;; This is for good test naming
@@ -1049,7 +1049,7 @@
                         (syntax/loc stx (implies pwd.prop pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
                         (syntax/loc stx (implies pwd.pred-name pwd.prop))) ;; q => p : p is a necessary condition for q
   
-   #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'pwd.constraint-type #'pwd.pred-name (make-temporary-name stx)) ;; Use the string in the test name
+   #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'pwd.constraint-type #'pwd.pred-name #'pwd.tname) ;; Use the string in the test name
    (syntax/loc stx
       (test
         test_name
@@ -1068,7 +1068,7 @@
                                 (syntax/loc stx qpd.pred-name)
                                 (syntax/loc stx (exp-pred-exprs ...)))]
                                 
-          [test_name (format-id stx "quantified_~a_assertion_for_~a_~a" #'qpd.constraint-type #'qpd.pred-name (make-temporary-name stx))] 
+          [test_name (format-id stx "quantified_~a_assertion_for_~a_~a" #'qpd.constraint-type #'qpd.pred-name #'qpd.tname)] 
           [imp_total
             (if (eq? (syntax-e #'qpd.disj) 'disj)
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
@@ -1089,7 +1089,7 @@
 (define-syntax (SatisfiabilityDecl stx)
   (syntax-parse stx
   [sd:SatisfiabilityDeclClass 
-   #:with test_name (format-id stx "~a_assertion_~a" #'sd.expected (make-temporary-name stx))
+   #:with test_name (format-id stx "~a_assertion_~a" #'sd.expected #'sd.tname)
    (syntax/loc stx
       (test
         test_name
@@ -1101,7 +1101,7 @@
 (define-syntax (ConsistencyDecl stx)
   (syntax-parse stx
   [cd:ConsistencyDeclClass 
-    #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'cd.consistency #'cd.pred-name (make-temporary-name stx))
+    #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'cd.consistency #'cd.pred-name #'cd.tname )
     #:with conj_total (syntax/loc stx (&& cd.test-expr cd.pred-name))
    (syntax/loc stx
       (test

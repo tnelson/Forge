@@ -25,5 +25,5 @@ pred isNotRoot[n : Node] {
 }
 
 // Ensures we aren't forcing disj
-assert all r1, r2 : Node | isRoot[r1] is necessary for isNotRoot[r2] 
+tnecc: assert all r1, r2 : Node | isRoot[r1] is necessary for isNotRoot[r2] 
 

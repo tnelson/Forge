@@ -88,7 +88,7 @@ test suite for isUndirectedTree {
 
     assert treeWithEdges is sufficient for isUndirectedTree
 
-    assert isUndirectedTree is necessary for isUndirectedTree
+    identest: assert isUndirectedTree is necessary for isUndirectedTree
     assert isUndirectedTree is sufficient for isUndirectedTree
 
 }
