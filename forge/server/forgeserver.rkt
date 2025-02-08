@@ -260,13 +260,9 @@
   (define useful-run-names (filter
                             (lambda (rn)
                               (define this-run (hash-ref runmap rn))
-                              (printf "Handling name=~a; is-evaled=~a; sat?=~a~n"
-                                      rn
-                                      (tree:is-evaluated? (Run-result this-run))
-                                      (if (tree:is-evaluated? (Run-result this-run)) (Sat? this-run) 'not-evaluated-yet))
                               ; Include if this run hasn't been solved yet, or if it's solved and sat.
                               (or (not (tree:is-evaluated? (Run-result this-run)))
-                                  (Sat? this-run)))
+                                  (is-sat? this-run)))
                             defined-run-names))
 
   ; Assumption: if Sterling is the source of instance requests, there will be no
