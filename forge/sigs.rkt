@@ -1138,11 +1138,18 @@
         [else
          ; Raise a Forge error and stop execution; show Sterling if enabled.
          (when (>= (get-verbosity) 1)
-           (printf "Test ~a failed. Stopping execution.~n" name))
-         (when (and (Run? run-or-state) sterling)
-           (true-display run-or-state))
-         ;; !!!!! ^^^^ This is a problem! Because the error is raised only after Sterling terminates.
-         ;;   (and this is a single thread only)
+           (printf "******************** TEST FAILED *******************~nTest ~a failed. Stopping execution.~n" name))
+         (cond [(and (Run? run-or-state) sterling (Sat? instance))
+                (when (>= (get-verbosity) 1)
+                  (printf "Test failed due to finding a counterexample, which will be displayed in Sterling.~n")
+                  (printf "*****************************************************~n"))
+                (true-display run-or-state)]
+               [else
+                (when (>= (get-verbosity) 1)
+                  (printf "Test failed due to unsat/inconsistency. No counterexample to display.~n")
+                  (printf "*****************************************************~n"))])
+             
+         ;; The error below is raised only after Sterling terminates, so messaging above is vital.
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens

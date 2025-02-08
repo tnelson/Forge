@@ -190,26 +190,12 @@
      #:port (get-option the-run 'sterling_port) #:confirmation-channel chan))
 
   (define port (async-channel-get chan))
-  (cond [(string? port)
-         (displayln "NO PORTS AVAILABLE. Unable to start web server and Sterling visualizer.")]
-        [(equal? 'off (get-option the-run 'run_sterling))
-         (void)]
-        [else
-         ; Attempt to open a browser to the Sterling index.html, with the proper port
-         ; If this cannot be opened for whatever reason, keep the server open but print
-         ; a warning, allowing the user a workaround.
-         (with-handlers ([exn?
-                          (lambda (e) (printf "Racket could not open a browser on your system; you may be able manually navigate to this address, which is where Forge expects Sterling to load:~n  ~a~n"
-                                              (string-append (path->string sterling-path) "?" (number->string port))))])
-           (send-url/file sterling-path #f #:query (number->string port)))
-         
-         (printf "Sterling running. Hit enter to stop service.\n")
-         (when (> (get-verbosity) VERBOSITY_LOW)
-           (printf "Using port: ~a~n" (number->string port)))
-         (flush-output)
-         (void (read-char))
-         ; Once a character is read, stop the server
-         (stop-service)]))
+  (when (string? port)
+    (printf "NO PORTS AVAILABLE. Could not start provider server.~n"))
+  
+  ; Now, serve the static sterling website files (this will be a different server/port).
+  (unless (equal? 'off (get-option state-for-run 'run_sterling))
+    (serve-sterling-static #:provider-port port)))
 
 (define (make-sterling-data xml id run-name temporal? not-done? [old-id #f])
   (jsexpr->string
@@ -249,7 +235,7 @@
          'payload (hash 'id (->string id)
                         'result (->string result)))))
 
-(define/contract (make-sterling-meta defined-run-names)
+(define/contract (make-sterling-meta included-run-names)
   (-> (listof symbol?) string?)
   (jsexpr->string	
    (hash 'type "meta"
@@ -257,7 +243,7 @@
          'payload (hash 'name "Forge"
                         'evaluator #t
                         'views (list "graph" "table" "script")
-                        'generators (map ->string defined-run-names)))))
+                        'generators (map ->string included-run-names)))))
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Infrastructure for starting up sterling in "command selector" mode
@@ -267,6 +253,21 @@
   ; The runs defined in the state at this point, which should be after all declarations.
   (define runmap (State-runmap curr-state))
   (define defined-run-names (hash-keys runmap))
+
+  ; Filter out runs that are not useful to visualize, like tests that failed due to unsat.
+  ; ASSUME: non-tests (e.g., `run`) won't have been invoked yet.
+  ; It is *VITAL* that `or` short-circuits, since Sat? will invoke the solver if needed.
+  (define useful-run-names (filter
+                            (lambda (rn)
+                              (define this-run (hash-ref runmap rn))
+                              (printf "Handling name=~a; is-evaled=~a; sat?=~a~n"
+                                      rn
+                                      (tree:is-evaluated? (Run-result this-run))
+                                      (if (tree:is-evaluated? (Run-result this-run)) (Sat? this-run) 'not-evaluated-yet))
+                              ; Include if this run hasn't been solved yet, or if it's solved and sat.
+                              (or (not (tree:is-evaluated? (Run-result this-run)))
+                                  (Sat? this-run)))
+                            defined-run-names))
 
   ; Assumption: if Sterling is the source of instance requests, there will be no
   ; instance requests seen from any other sources.
@@ -278,7 +279,7 @@
 
   (when (> (get-verbosity) VERBOSITY_LOW)
     (printf "Starting Sterling in command-selection mode...~n")
-    (printf "Available commands: ~a~n" defined-run-names))
+    (printf "Available commands: ~a~n" useful-run-names))
   
   (define (send-to-sterling m #:connection connection)
     (when (@>= (get-verbosity) VERBOSITY_STERLING) 
@@ -475,7 +476,7 @@
       [(equal? (hash-ref json-m 'type) "meta")
        ; A message requesting data about the data provider, such as the provider's
        ; name and the types of views it supports. Respond in turn with a meta message.
-       (send-to-sterling (make-sterling-meta defined-run-names) #:connection connection)]      
+       (send-to-sterling (make-sterling-meta useful-run-names) #:connection connection)]      
       [else
        (send-to-sterling "BAD REQUEST" #:connection connection)
        (raise-forge-error
@@ -508,5 +509,8 @@
     (printf "NO PORTS AVAILABLE. Could not start provider server.~n"))
   
   ; Now, serve the static sterling website files (this will be a different server/port).
-  (unless (equal? 'off (get-option curr-state 'run_sterling))
-    (serve-sterling-static #:provider-port port)))
+  (unless (or (equal? 'off (get-option curr-state 'run_sterling))
+              (empty? useful-run-names))
+    (serve-sterling-static #:provider-port port))
+  (when (empty? useful-run-names)
+    (printf "There was nothing useful to visualize: all commads were already executed and produced no instances.~n")))
