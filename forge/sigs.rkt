@@ -276,7 +276,11 @@
                     [test_keep value])]
       [(equal? option 'no_overflow)
        (struct-copy Options options
-                    [no_overflow value])]))
+                    [no_overflow value])]
+      [(equal? option 'java_exe_location)
+       (struct-copy Options options
+                    [java_exe_location value])]
+      ))
 
   (struct-copy State state
                [options new-options]))
@@ -1267,9 +1271,9 @@
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
  [("-N" "--notests")
-  "Disable tests for this model execution"
+  "Disable tests for this model execution (NOT YET SUPPORTED)"
   (begin
-    (printf "Tests disabled.~n")
+    (printf "(NOT YET SUPPORTED) Tests disabled.~n")
     (set-box! disable-tests #t))]
  
  

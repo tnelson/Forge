@@ -19,12 +19,12 @@
 (define server-name "Pardinus")
 
 (provide start-server) ; stdin stdout)
-(define (start-server [solver-type 'stepper] [solver-subtype 'default])
+(define (start-server [solver-type 'stepper] [solver-subtype 'default] [java-exe #f])
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "Starting ~a server.~n" server-name))
   (define kks (new server%
                    [name server-name]
-                   [initializer (thunk (pardinus-initializer solver-type solver-subtype))]))
+                   [initializer (thunk (pardinus-initializer solver-type solver-subtype java-exe))]))
   (send kks initialize)
   (define stdin-val (send kks stdin))
   (define stderr-val (send kks stderr))
