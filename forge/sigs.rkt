@@ -642,6 +642,10 @@
 ; Primary testing form: check whether a constraint-set, under
 ; some provided bounds, is sat, unsat, or an error. 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (report-passing-test #:name name)
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (printf "    Test passed: ~a~n" name)))
+
 (define-syntax (test stx)
   (syntax-case stx ()
     [(test name args ... #:expect expected)
@@ -688,7 +692,8 @@
               #:run run-reference
               #:sterling #f))
            (when (member 'name (hash-keys (State-runmap curr-state)))
-             (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))]
+             (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))
+           (report-passing-test #:name 'name)]
 
           ; It may not be immediately obvious why we would ever test for unknown,
           ; but it seems reasonable to support it in the engine, regardless.
@@ -711,7 +716,8 @@
                 #:context loc
                 #:instance first-instance
                 #:run name)
-               (close-run name))]
+               (begin (report-passing-test #:name 'name)
+                      (close-run name)))]
 
           [(equal? 'expected 'checked)
            ;#,(syntax/loc stx (check name args ...))
@@ -731,8 +737,9 @@
                                        #:context loc
                                        #:instance first-instance
                                        #:run name)]
-                 [else 
-                  (close-run name)])]
+                 [else
+                  (begin (report-passing-test #:name 'name)
+                         (close-run name))])]
 
           [(equal? 'expected 'theorem)
            (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
