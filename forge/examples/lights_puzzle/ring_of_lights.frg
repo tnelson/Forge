@@ -1,7 +1,6 @@
 #lang forge/temporal
 
 option run_sterling "lights.js"
-option java_exe_location "C:/Program Files/Common Files/Oracle/Java/javapath_target_30678640/java.exe"
 
 
 /*
