@@ -4,7 +4,7 @@
 (require syntax/parse/define)
 (require (only-in racket empty? match cons? first thunk))
 
-(provide node? make-node get-child get-children get-value lazy-tree-map)
+(provide node? make-node get-child get-children get-value lazy-tree-map is-evaluated?)
 
 (struct computation ())
 (struct computation/delayed computation (thnk))
@@ -18,6 +18,12 @@
 
 (struct node ([datum #:mutable] child-generator children [ancestors #:mutable]))
 
+; Has get-value been called on this node yet? 
+(define/contract (is-evaluated? a-node)
+  (node? . -> . any/c)
+  (match (node-datum a-node)
+    [(computation/evaluated value) #t]
+    [else #f]))
 
 (define/contract (root-node? node)
   (any/c . -> . boolean?)

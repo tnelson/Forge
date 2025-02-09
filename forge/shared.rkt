@@ -149,7 +149,7 @@
           (set-box! success? (apply system* exe cmd*))))))
   (if (unbox success?)
     str
-    (raise-user-error 'shell "failed to apply '~a' to arguments '~a'" exe cmd*)))
+    (raise-user-error 'shell "failed to apply '~a' to arguments '~a': got ~a" exe cmd* (unbox success?))))
 
 ;; --- timing
 
