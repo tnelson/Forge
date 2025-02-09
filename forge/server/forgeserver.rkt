@@ -71,7 +71,9 @@
     (define returned-instance (tree:get-value current-tree))
     (set-box! (Run-last-sterling-instance the-run) returned-instance)
     returned-instance)
-  (define (get-next-instance [next-mode 'P])    
+  (define (get-next-instance [next-mode 'P])
+    (when (@>= (get-verbosity) VERBOSITY_LOW)
+      (printf "Solving for next instance.~n"))
     (set! current-tree (tree:get-child current-tree next-mode))
     (set! curr-datum-id (+ curr-datum-id 1))
     ; get-current-instance updates the Run's last sterling instance cursor when called
@@ -353,6 +355,9 @@
        
        ; Get the next instance of this run's lazy result tree. Advance the tree pointer.
        (define (get-next-instance [next-mode 'P])
+         (when (@>= (get-verbosity) VERBOSITY_LOW)
+           (printf "Solving for next instance.~n"))
+
          (define next-tree (get-next-tree next-mode))
          (set! curr-datum-id (+ curr-datum-id 1))
 
