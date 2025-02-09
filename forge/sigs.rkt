@@ -795,7 +795,9 @@
                                      #:context #,(build-source-location stx)
                                      #:instance first-instance
                                      #:run name)])]
-           [else (close-run name)])))))]))
+           [else
+            (report-passing-test #:name 'name)
+            (close-run name)])))))]))
 
 ; Checks that some predicates are always true.
 (define-syntax (check stx)
