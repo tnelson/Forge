@@ -169,6 +169,7 @@
 ;  -- DEFAULT_OPTIONS
 ;  -- symbol->proc
 ;  -- option-types
+;  -- option-types-names
 ;  -- state-set-option (in sigs.rkt)
 (struct/contract Options (
   [eval-language symbol?]
@@ -189,6 +190,7 @@
   [engine_verbosity nonnegative-integer?]
   [test_keep symbol?]
   [no_overflow symbol?]
+  [java_exe_location (or/c false/c string?)]
   ) #:transparent)
 
 (struct/contract State (
@@ -229,14 +231,17 @@
   [name symbol?]
   [command syntax?]
   [run-spec Run-spec?]
-  ; This is the *start* of the exploration tree
+  ; This is the *start* of the exploration tree.
   [result tree:node?]
   [server-ports Server-ports?]
   [atoms (listof (or/c symbol? number?))]
   [kodkod-currents Kodkod-current?]
   [kodkod-bounds (listof any/c)]
   ; This is Sterling's current cursor into the exploration tree.
-  ; It is mutated whenever Sterling asks for a new instance.
+  ; It is mutated whenever Sterling asks for a new instance. We keep this
+  ; separately, since there may be multiple cursors into the lazy tree if
+  ; the run is also being processed in a script, but the programmatic cursor
+  ; and the Sterling cursor should not interfere. 
   [last-sterling-instance (box/c (or/c Sat? Unsat? Unknown? false/c))]
   ) #:transparent)
 
@@ -249,7 +254,7 @@
 ; an engine_verbosity of 1 logs SEVERE level in the Java engine;
 ;   this will send back info about crashes, but shouldn't spam (and possibly overfill) stderr.
 (define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default
-                                 'close-noretarget 'fast 0 'off 'on 0 1 'first 'false))
+                                 'close-noretarget 'fast 0 'off 'on 0 1 'first 'false #f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -282,7 +287,8 @@
         'sterling_port Options-sterling_port
         'engine_verbosity Options-engine_verbosity
         'test_keep Options-test_keep
-        'no_overflow Options-no_overflow))
+        'no_overflow Options-no_overflow
+        'java_exe_location Options-java_exe_location))
 
 (define (oneof-pred lst)
   (lambda (x) (member x lst)))
@@ -306,7 +312,8 @@
         'sterling_port exact-nonnegative-integer?
         'engine_verbosity exact-nonnegative-integer?
         'test_keep (oneof-pred '(first last))
-        'no_overflow (oneof-pred '(false true))))
+        'no_overflow (oneof-pred '(false true))
+        'java_exe_location (lambda (x) (or (equal? x #f) (string? x)))))
 
 (define option-types-names
   (hash 'eval-language "symbol"
@@ -326,7 +333,8 @@
         'sterling_port "non-negative integer"
         'engine_verbosity "non-negative integer"
         'test_keep "one of: first or last"
-        'no_overflow "one of: false or true"))
+        'no_overflow "one of: false or true"
+        'java_exe_location "string"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
