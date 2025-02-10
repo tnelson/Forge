@@ -190,7 +190,9 @@
         'stepper ; always a stepper problem (there is a "next" button)
         ; 'default, 'temporal, or 'target (tells Pardinus which solver to load,
         ;  and affects parsing so needs to be known at invocation time)
-        (get-option run-spec 'problem_type))]
+        (get-option run-spec 'problem_type)
+        ; control version of java used (by path string)
+        (get-option run-spec 'java_exe_location))]
 
       [else (raise (format "Invalid backend: ~a" backend))]))
 

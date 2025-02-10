@@ -10,7 +10,7 @@
 
 (define-runtime-path pardinus (build-path ".."))
 
-(define (pardinus-initializer solver-type solver-subtype)
+(define (pardinus-initializer solver-type solver-subtype java-exe)
   (unless (member solver-type '(incremental stepper))
     (raise (format  "Invalid solver type: ~a" solver-type)))
 
@@ -19,7 +19,9 @@
                     (filter (curry regexp-match #rx".+\\.jar")
                             (directory-list pardinus/jar)))]
          [windows? (equal? (system-type) 'windows)]
-         [java (find-executable-path (if windows? "java.exe" "java"))]
+         [java (if (and java-exe (> (string-length java-exe) 0))
+                   (build-path java-exe)
+                   (find-executable-path (if windows? "java.exe" "java")))]
          [path-separator (if windows? ";" ":")]
          [cp (foldl string-append "" (add-between (map path->string jars) path-separator))]
          ;[lib (path->string (build-path pardinus/jni (case (system-type)
@@ -27,7 +29,7 @@
                                                      ;[(unix) "linux_x86_64"]
                                                      ;[(windows) "win_x86_64"])))]
          ;[-Djava.library.path (string-append "-Djava.library.path=" lib)]
-         [error-out (build-path (find-system-path 'home-dir) "error-output.txt")])
+         [error-out (build-path (find-system-path 'home-dir) "forge-pardinus-error-output.txt")])
     
     (when (> (get-verbosity) VERBOSITY_LOW)        
       (printf "  Starting solver process. subtype: ~a~n" solver-subtype))
@@ -37,6 +39,9 @@
                                      [(equal? solver-subtype 'temporal) "-temporal"]
                                      [(equal? solver-subtype 'default) ""]
                                      [else (error (format "Bad solver subtype: ~a" solver-subtype))]))
+
+    (unless (file-exists? java)
+      (raise-user-error 'start-server "Could not find a Java executable. Given or inferred location was: ~a. Type was: ~a" java (file-or-directory-type java)))
     
     (when (>= (get-verbosity) VERBOSITY_HIGH)        
       (printf "  Subprocess invocation information: ~a~n"

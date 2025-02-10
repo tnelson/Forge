@@ -276,7 +276,11 @@
                     [test_keep value])]
       [(equal? option 'no_overflow)
        (struct-copy Options options
-                    [no_overflow value])]))
+                    [no_overflow value])]
+      [(equal? option 'java_exe_location)
+       (struct-copy Options options
+                    [java_exe_location value])]
+      ))
 
   (struct-copy State state
                [options new-options]))
@@ -642,6 +646,10 @@
 ; Primary testing form: check whether a constraint-set, under
 ; some provided bounds, is sat, unsat, or an error. 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (report-passing-test #:name name)
+  (when (>= (get-verbosity) VERBOSITY_LOW)
+    (printf "    Test passed: ~a~n" name)))
+
 (define-syntax (test stx)
   (syntax-case stx ()
     [(test name args ... #:expect expected)
@@ -688,7 +696,8 @@
               #:run run-reference
               #:sterling #f))
            (when (member 'name (hash-keys (State-runmap curr-state)))
-             (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))]
+             (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))
+           (report-passing-test #:name 'name)]
 
           ; It may not be immediately obvious why we would ever test for unknown,
           ; but it seems reasonable to support it in the engine, regardless.
@@ -711,7 +720,8 @@
                 #:context loc
                 #:instance first-instance
                 #:run name)
-               (close-run name))]
+               (begin (report-passing-test #:name 'name)
+                      (close-run name)))]
 
           [(equal? 'expected 'checked)
            ;#,(syntax/loc stx (check name args ...))
@@ -731,8 +741,9 @@
                                        #:context loc
                                        #:instance first-instance
                                        #:run name)]
-                 [else 
-                  (close-run name)])]
+                 [else
+                  (begin (report-passing-test #:name 'name)
+                         (close-run name))])]
 
           [(equal? 'expected 'theorem)
            (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
@@ -784,7 +795,9 @@
                                      #:context #,(build-source-location stx)
                                      #:instance first-instance
                                      #:run name)])]
-           [else (close-run name)])))))]))
+           [else
+            (report-passing-test #:name 'name)
+            (close-run name)])))))]))
 
 ; Checks that some predicates are always true.
 (define-syntax (check stx)
@@ -1138,11 +1151,18 @@
         [else
          ; Raise a Forge error and stop execution; show Sterling if enabled.
          (when (>= (get-verbosity) 1)
-           (printf "Test ~a failed. Stopping execution.~n" name))
-         (when (and (Run? run-or-state) sterling)
-           (true-display run-or-state))
-         ;; !!!!! ^^^^ This is a problem! Because the error is raised only after Sterling terminates.
-         ;;   (and this is a single thread only)
+           (printf "******************** TEST FAILED *******************~nTest ~a failed. Stopping execution.~n" name))
+         (cond [(and (Run? run-or-state) sterling (Sat? instance))
+                (when (>= (get-verbosity) 1)
+                  (printf "Test failed due to finding a counterexample, which will be displayed in Sterling.~n")
+                  (printf "*****************************************************~n"))
+                (true-display run-or-state)]
+               [else
+                (when (>= (get-verbosity) 1)
+                  (printf "Test failed due to unsat/inconsistency. No counterexample to display.~n")
+                  (printf "*****************************************************~n"))])
+             
+         ;; The error below is raised only after Sterling terminates, so messaging above is vital.
          (raise-forge-error #:msg msg #:context context)]))
 
 ; To be run at the very end of the Forge execution; reports test failures and opens
@@ -1253,9 +1273,9 @@
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
  [("-N" "--notests")
-  "Disable tests for this model execution"
+  "Disable tests for this model execution (NOT YET SUPPORTED)"
   (begin
-    (printf "Tests disabled.~n")
+    (printf "(NOT YET SUPPORTED) Tests disabled.~n")
     (set-box! disable-tests #t))]
  
  

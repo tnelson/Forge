@@ -57,7 +57,7 @@
                                               e))])
            (send-url sterling-url))
        
-         (printf "Opening Forge menu in Sterling (static server port=~a). Press enter to stop Forge.~n" port)
+         (printf "Opening Forge menu in Sterling (static server port=~a). Press enter to stop Forge (or click 'Stop' in VSCode).~n" port)
        
          (flush-output)
          ; On Windows, this blocks all Racket threads, which delays output until input is read.

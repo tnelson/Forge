@@ -23,7 +23,7 @@
   ; assume that cvc5 is on the user's path. 
   (let* ([windows? (equal? (system-type) 'windows)]
          [path-separator (if windows? ";" ":")]
-         [error-out (build-path (find-system-path 'home-dir) "error-output.txt")])
+         [error-out (build-path (find-system-path 'home-dir) "forge-cvc5-error-output.txt")])
     
     (when (> (get-verbosity) VERBOSITY_LOW)        
       (printf "  Starting solver process for ~a. subtype: ~a~n" server-name solver-subtype))
