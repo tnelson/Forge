@@ -441,6 +441,8 @@
       #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one))))
   )
 
+(define helpers-enclosing (make-parameter '()))
+
 ; Declare a new predicate
 ; Two cases: one with args, and one with no args
 (define-syntax (pred stx)
@@ -500,8 +502,13 @@
                    (error (format "Argument '~a' to pred ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
                                   'decls.name 'name decls.name)))
                  ...
-                 (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...)
-                                                 (&&/info the-info conds ...))))
+                 (when (member 'name (helpers-enclosing))
+                   (raise-forge-error #:msg (format "recursive predicate detected: ~a eventually called itself. The chain of calls involved: ~a.~n"
+                                                    'name (helpers-enclosing))
+                                      #:context the-info))
+                 (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
+                   (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...)
+                                                   (&&/info the-info conds ...)))))
                
 
                
