@@ -465,24 +465,24 @@
        (quasisyntax/loc stx
          (begin
            ; - Use a macro in order to capture the location of the _use_.
-           ; For 0-arg predicates, produce the AST node immediately
+           ; For 0-arg predicates, produce the AST node immediately.
+           ; Still, break the chain of macro expansions with a runtime procedure.
+           (define (functionname #:info [the-info #f])
+             ; Check: cyclic references?
+             (when (member 'name (helpers-enclosing))
+               (raise-forge-error #:msg (format "recursive predicate detected: ~a eventually called itself. The chain of calls involved: ~a.~n"
+                                                'name (helpers-enclosing))
+                                  #:context the-info))
+             (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
+               (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...)))))
+           
            (define-syntax (name stx2)
              (syntax-parse stx2
                [name
                 (quasisyntax/loc stx2
-                  (let ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang #f)])
-                    ; Check: cyclic references?
-                    ;; TODO: this is not yet effective, because the infinite recursion is happening
-                    ;; in macro-expansion for this case (there is no intervening procedure call).
-                    (when (member 'name (helpers-enclosing))
-                      (raise-forge-error #:msg (format "recursive predicate detected: ~a eventually called itself. The chain of calls involved: ~a.~n"
-                                                       'name (helpers-enclosing))
-                                         #:context the-info))
-                    ; - "pred spacer" still present, even if no arguments, to consistently record use of a predicate
-                    (let ([ast-node (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
-                                      (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))])
-                      (update-state! (state-add-pred curr-state 'name ast-node))
-                      ast-node)))])) )))]
+                  (let ([ast-node (functionname #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang #f))])
+                    (update-state! (state-add-pred curr-state 'name ast-node))
+                    ast-node))])) )))]
 
     ;;;;;;;;;;;;;;;;;
     ; >= 1-args case: predicate must be called to evaluate it
