@@ -441,13 +441,22 @@
       #:attr mexpr #'(mexpr expr (if (> (node/expr-arity expr) 1) 'set 'one))))
   )
 
+; A list of helper names that have been expanded to reach the current context.
+; (This is roughly analogous to a call-stack in programming, although there is
+;  no actual stack.) Used to detect cyclic predicate references.
+;
+; The check is done in phase 0, when all macros are done expanding and AST 
+; construction is just a series of nested procedure calls, and `parameterize`
+; will keep the stack context for checking. That is, if referencing or altering
+; this parameter, make sure it is done in a normal function, not a macro.
 (define helpers-enclosing (make-parameter '()))
 
 ; Declare a new predicate
 ; Two cases: one with args, and one with no args
 (define-syntax (pred stx)
   (syntax-parse stx
-    ; no decls: predicate is already the AST node value, without calling it
+    ;;;;;;;;;;;;;;;;;
+    ; 0-args case: predicate is already the AST node value, without calling it
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
@@ -461,13 +470,22 @@
              (syntax-parse stx2
                [name
                 (quasisyntax/loc stx2
-                  ; - "pred spacer" still present, even if no arguments, to consistently record use of a predicate
-                  (let* ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang #f)]
-                        [ast-node (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...)))])
-                    (update-state! (state-add-pred curr-state 'name ast-node))
-                    ast-node))])) )))]
+                  (let ([the-info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang #f)])
+                    ; Check: cyclic references?
+                    ;; TODO: this is not yet effective, because the infinite recursion is happening
+                    ;; in macro-expansion for this case (there is no intervening procedure call).
+                    (when (member 'name (helpers-enclosing))
+                      (raise-forge-error #:msg (format "recursive predicate detected: ~a eventually called itself. The chain of calls involved: ~a.~n"
+                                                       'name (helpers-enclosing))
+                                         #:context the-info))
+                    ; - "pred spacer" still present, even if no arguments, to consistently record use of a predicate
+                    (let ([ast-node (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
+                                      (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...))))])
+                      (update-state! (state-add-pred curr-state 'name ast-node))
+                      ast-node)))])) )))]
 
-    ; some decls: predicate must be called to evaluate it
+    ;;;;;;;;;;;;;;;;;
+    ; >= 1-args case: predicate must be called to evaluate it
     [(pred pt:pred-type
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            (name:id decls:param-decl-class  ...+) conds:expr ...+)
@@ -478,9 +496,7 @@
            (quasisyntax/loc stx
              (begin
                ; - Use a macro in order to capture the location of the _use_.
-
                (define-syntax (name stx2)
-                 ;(printf "in macro: ~a~n" stx2)
                  (syntax-parse stx2
                    ; If it's the macro name and all the args, expand to an invocation of the procedure
                    [(name args (... ...))
@@ -493,8 +509,7 @@
                       (lambda (decls.name ...)
                         (functionname decls.name ...
                                       #:info (nodeinfo
-                                              (inner-unsyntax (build-source-location stx2)) check-lang #f))))]
-                   ))
+                                              (inner-unsyntax (build-source-location stx2)) check-lang #f))))]))
                
                ; - "pred spacer" added to record use of predicate along with original argument declarations etc.
                (define (functionname decls.name ... #:info [the-info #f])
@@ -502,6 +517,7 @@
                    (error (format "Argument '~a' to pred ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
                                   'decls.name 'name decls.name)))
                  ...
+                 ; Check: cyclic references?
                  (when (member 'name (helpers-enclosing))
                    (raise-forge-error #:msg (format "recursive predicate detected: ~a eventually called itself. The chain of calls involved: ~a.~n"
                                                     'name (helpers-enclosing))
@@ -509,9 +525,6 @@
                  (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
                    (pt.seal (node/fmla/pred-spacer the-info 'name (list (apply-record 'decls.name decls.mexpr decls.name) ...)
                                                    (&&/info the-info conds ...)))))
-               
-
-               
                
                (update-state! (state-add-pred curr-state 'name functionname)))))) 
        result-stx)]))
