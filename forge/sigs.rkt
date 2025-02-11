@@ -461,12 +461,11 @@
            (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck]))
            name:id conds:expr ...+)
      (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) check-lang #f)]
-                   [inner-unsyntax #'unsyntax])
+                   [inner-unsyntax #'unsyntax]
+                   [functionname (format-id #'name "~a/func" #'name)])
        (quasisyntax/loc stx
          (begin
-           ; - Use a macro in order to capture the location of the _use_.
-           ; For 0-arg predicates, produce the AST node immediately.
-           ; Still, break the chain of macro expansions with a runtime procedure.
+           ; Break the chain of macro expansions with a runtime procedure.
            (define (functionname #:info [the-info #f])
              ; Check: cyclic references?
              (when (member 'name (helpers-enclosing))
@@ -475,14 +474,18 @@
                                   #:context the-info))
              (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
                (pt.seal (node/fmla/pred-spacer the-info 'name '() (&&/info the-info conds ...)))))
-           
+
+           ; - Use a macro in order to capture the location of the _use_.
+           ; For 0-arg predicates, produce the AST node immediately.
            (define-syntax (name stx2)
              (syntax-parse stx2
                [name
                 (quasisyntax/loc stx2
                   (let ([ast-node (functionname #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) check-lang #f))])
                     (update-state! (state-add-pred curr-state 'name ast-node))
-                    ast-node))])) )))]
+                    ast-node))]))
+           
+           (update-state! (state-add-pred curr-state 'name functionname)))))]
 
     ;;;;;;;;;;;;;;;;;
     ; >= 1-args case: predicate must be called to evaluate it
@@ -546,57 +549,62 @@
           (~optional (~seq #:codomain codomain:codomain-class)
                      #:defaults ([codomain.mexpr #'(mexpr (repeat-product univ (node/expr-arity result))
                                                           (if (> (node/expr-arity result) 1) 'set 'one))])))
-
      ; TODO: there is no check-lang in this macro; does that mean that language-level details are lost within a helper fun?
-
-     (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)]
-                   [functionname (format-id #'name "~a/func" #'name)]
-                   [inner-unsyntax #'unsyntax])
-       (quasisyntax/loc stx
-         (begin
-           ; - create a macro that captures the syntax location of the _use_
-           (define-syntax (name stx2)
-             (syntax-parse stx2
-               [(name args (... ...))
-                (quasisyntax/loc stx2
-                  (functionname args (... ...) #:info (nodeinfo
+     (define result-syntax
+       (with-syntax ([decl-info #`(nodeinfo #,(build-source-location stx) 'checklangNoCheck #f)]
+                     [functionname (format-id #'name "~a/func" #'name)]
+                     [inner-unsyntax #'unsyntax])
+         (quasisyntax/loc stx
+           (begin
+             ; - create a macro that captures the syntax location of the _use_
+             (define-syntax (name stx2)
+               (syntax-parse stx2
+                 [(name args (... ...))
+                  (quasisyntax/loc stx2
+                    (functionname args (... ...) #:info (nodeinfo
                                                        (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck #f)))]
-               [name:id
-                (quasisyntax/loc stx2
-                  (lambda (decls.name ...)
-                    (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck #f))))]))
-           
-           ; - "fun spacer" added to record use of function along with original argument declarations etc.           
-           (define (functionname decls.name ... #:info [the-info #f])
-             (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
-               (error (format "Argument '~a' to fun ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
-                              'decls.name 'name decls.name)))
-             ...
-             (when (member 'name (helpers-enclosing))
-               (raise-forge-error #:msg (format "recursive helper function detected: ~a eventually called itself. The chain of calls involved: ~a.~n"
-                                                'name (helpers-enclosing))
-                                  #:context the-info))
-             ; maintain the invariant that helper functions are always rel-expression valued
-             (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
-               (define safe-result
-                 (cond [(node/int? result)
-                        (node/expr/op/sing (node-info result) 1 (list result))]
-                       [else result]))
-               (node/expr/fun-spacer
-                the-info                      ; from node
-                (node/expr-arity safe-result) ; from node/expr
-                'name
-                (list (apply-record 'decls.name decls.mexpr decls.name) ...)
-                codomain.mexpr
-                safe-result)))
-           (update-state! (state-add-fun curr-state 'name name)))))]))
+                 [name:id
+                  (quasisyntax/loc stx2
+                    (lambda (decls.name ...)
+                      (functionname decls.name ... #:info (nodeinfo (inner-unsyntax (build-source-location stx2)) 'checklangNoCheck #f))))]))
+             
+             (define (functionname decls.name ... #:info [the-info #f])
+               (unless (or (integer? decls.name) (node/expr? decls.name) (node/int? decls.name))
+                 (error (format "Argument '~a' to fun ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
+                                'decls.name 'name decls.name)))
+               ...
+               (when (member 'name (helpers-enclosing))
+                 (raise-forge-error #:msg (format "recursive helper function detected: ~a eventually called itself. The chain of calls involved: ~a.~n"
+                                                  'name (helpers-enclosing))
+                                    #:context the-info))
+               (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
+                 ; avoid expanding result more than once
+                 (define result-once result)
+                 ; maintain the invariant that helper functions are always rel-expression valued
+                 (define safe-result
+                   (cond [(node/int? result-once)
+                          (node/expr/op/sing (node-info result-once) 1 (list result-once))]
+                         [else result-once]))
+                 ; - "fun spacer" added to record use of function along with original argument declarations etc.           
+                 (node/expr/fun-spacer
+                  the-info                      ; from node
+                  (node/expr-arity safe-result) ; from node/expr
+                  'name
+                  (list (apply-record 'decls.name decls.mexpr decls.name) ...)
+                  codomain.mexpr
+                  safe-result)))
+             (update-state! (state-add-fun curr-state 'name functionname))))))
+     result-syntax]))
 
 ; Declare a new constant
 ; (const name value)
 (define-syntax (const stx)
   (syntax-parse stx
-    [(const name:id value:expr) 
-      #'(begin 
+    [(const name:id value:expr)
+      #'(begin
+          ; TODO: this requires 0-ary helper functions to be defined in order.
+          ; Note that if this issue is fixed, suitable checks for cyclic reference
+          ; must be added (see the `pred` and `fun` macros).
           (define name value)
           (update-state! (state-add-const curr-state 'name name)))]))
 

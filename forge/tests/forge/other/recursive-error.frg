@@ -38,8 +38,24 @@ pred r5[a: A] { r }
 pred r6x[a1: A, a2: A] { r6y[a1] }
 pred r6y[a: A] { r6x[a, a] }
 
+
+// 0-arg function is harder to self-loop, 
+// because we get an identifier-ref-before-definition error
+// See the comments in `const` in sigs.rkt.
+//fun i: one A { i }
+//fun j1: one A { j2 }
+//fun j2: one A { j1 }
+
+
+// 1-arg function, self loop
+fun h[a: A]: one A { h[a] }
+// 1-arg functions, 2-call loop
 fun f[a: A]: one A { g[a] }
 fun g[a: A]: one A { f[a] }
+
+
+
+
 
 test expect {
     recur_pred_0arg_self:       {r} is forge_error "r eventually called itself"
@@ -56,4 +72,5 @@ test expect {
     recur_pred_2arg_1arg_2loop: {some a: A | r6x[a,a] } is forge_error "r6x eventually called itself"
     
     recur_fun_2loop: {some a: A | f[a]} is forge_error "f eventually called itself"
+    recur_fun_self:  {some a: A | h[a]} is forge_error "h eventually called itself"
 }
