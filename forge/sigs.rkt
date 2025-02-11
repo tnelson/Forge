@@ -572,18 +572,23 @@
                (error (format "Argument '~a' to fun ~a was not a Forge expression, integer-expression, or Racket integer. Got ~v instead."
                               'decls.name 'name decls.name)))
              ...
+             (when (member 'name (helpers-enclosing))
+               (raise-forge-error #:msg (format "recursive helper function detected: ~a eventually called itself. The chain of calls involved: ~a.~n"
+                                                'name (helpers-enclosing))
+                                  #:context the-info))
              ; maintain the invariant that helper functions are always rel-expression valued
-             (define safe-result
-               (cond [(node/int? result)
-                      (node/expr/op/sing (node-info result) 1 (list result))]
-                     [else result]))
-             (node/expr/fun-spacer
-              the-info                      ; from node
-              (node/expr-arity safe-result) ; from node/expr
-              'name
-              (list (apply-record 'decls.name decls.mexpr decls.name) ...)
-              codomain.mexpr
-              safe-result))
+             (parameterize ([helpers-enclosing (cons 'name (helpers-enclosing))])
+               (define safe-result
+                 (cond [(node/int? result)
+                        (node/expr/op/sing (node-info result) 1 (list result))]
+                       [else result]))
+               (node/expr/fun-spacer
+                the-info                      ; from node
+                (node/expr-arity safe-result) ; from node/expr
+                'name
+                (list (apply-record 'decls.name decls.mexpr decls.name) ...)
+                codomain.mexpr
+                safe-result)))
            (update-state! (state-add-fun curr-state 'name name)))))]))
 
 ; Declare a new constant

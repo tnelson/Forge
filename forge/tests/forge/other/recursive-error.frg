@@ -38,8 +38,8 @@ pred r5[a: A] { r }
 pred r6x[a1: A, a2: A] { r6y[a1] }
 pred r6y[a: A] { r6x[a, a] }
 
--- This is actually hard to manage. So why is pred so permissive?
--- fun f[a: A]: one A { f[a] }
+fun f[a: A]: one A { g[a] }
+fun g[a: A]: one A { f[a] }
 
 test expect {
     recur_pred_0arg_self:       {r} is forge_error "r eventually called itself"
@@ -55,6 +55,5 @@ test expect {
     recur_pred_1arg_2arg_2loop: {some a: A | r6y[a] } is forge_error "r6y eventually called itself"
     recur_pred_2arg_1arg_2loop: {some a: A | r6x[a,a] } is forge_error "r6x eventually called itself"
     
-    
-     --try_recur_fun: {some f} is forge_error
+    recur_fun_2loop: {some a: A | f[a]} is forge_error "f eventually called itself"
 }
