@@ -1,4 +1,5 @@
 #lang forge/froglet 
+option verbose 0
 option run_sterling off
 
 /*
@@ -14,7 +15,10 @@ sig Person {
 }
 one sig Tim extends Person {}
 
-sig Node {next: lone Node}
+sig Node {
+  next: lone Node,
+  weights: pfunc Node -> Int
+}
 
 pred helper[n1,n2: Node] {
   n1 = n2
@@ -46,6 +50,9 @@ test expect {
   // Check that user-defined helper predicates (not just internally defined helpers) give this error, too
   //   helper_arity: {some n: Node | helper[n]} is forge_error "expected: 2"
 
+  // Check order of error production. weights[n2] desugars to n2.weights.
+  forgot_start_of_chain_left: {some n1,n2: Node | weights[n2] = 0} is forge_error "Left-hand side of equality was not a singleton atom"
+  forgot_start_of_chain_right: {some n1,n2: Node | 0 = weights[n2]} is forge_error "Right-hand side of equality was not a singleton atom"
 }
 
 
