@@ -292,6 +292,23 @@
     (define loc (nodeinfo-loc info))
     (raise-bsl-relational-error-expr-args "~" expr-args loc)))
 
+; Prevent the forge/core arity error from appearing, since it breaks closure
+(define (check-args-node-formula-op-= expr-args info)
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (when (or (not (equal? (length expr-args) 2))
+              (not (equal? (node/expr-arity (first expr-args))
+                           (node/expr-arity (second expr-args)))))
+      (cond
+        [(> (node/expr-arity (first expr-args)) 1)
+         (raise-forge-error #:msg (format "Left-hand side of equality was not a singleton atom.")
+                            #:context info)]
+        [(> (node/expr-arity (second expr-args)) 1)
+         (raise-forge-error #:msg (format "Right-hand side of equality was not a singleton atom.")
+                            #:context info)]
+        [else
+         (raise-forge-error #:msg (format "Froglet could not equate these expressions.")
+                            #:context info)]))))
+
 ; TODO: add a global field-decl check outside bsl
 (define (bsl-field-decl-func true-breaker)
   (unless (or (equal? 'func (node/breaking/break-break true-breaker)) (equal? 'pfunc (node/breaking/break-break true-breaker))) 
@@ -302,6 +319,7 @@
 
 (define bsl-ast-checker-hash (make-hash))
 (hash-set! bsl-ast-checker-hash 'field-decl bsl-field-decl-func)
+(hash-set! bsl-ast-checker-hash node/formula/op/= check-args-node-formula-op-=)
 (hash-set! bsl-ast-checker-hash node/expr/op/-> check-args-node-expr-op-->)
 (hash-set! bsl-ast-checker-hash node/expr/op/+ check-args-node-expr-op-+)
 (hash-set! bsl-ast-checker-hash node/expr/op/- check-args-node-expr-op--)

@@ -919,16 +919,20 @@
 (define-syntax (FunDecl stx)
   (syntax-parse stx
   ; TODO: output type declared is currently being lost
+
+  ; 0-ary function
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        (~optional output-mult:HelperMultClass)
                        output-expr:ExprClass
                        body:ExprClass)
+   
    (with-syntax ([body #'body])
      (syntax/loc stx (begin
        (~? (raise (format "Prefixes not allowed: ~a" 'prefix)))
        (const name.name body))))]
 
+  ; >0-ary function
   [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        decls:ParaDeclsClass
