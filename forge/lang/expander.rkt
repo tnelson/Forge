@@ -1049,10 +1049,10 @@
                         (syntax/loc stx (implies pwd.prop pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
                         (syntax/loc stx (implies pwd.pred-name pwd.prop))) ;; q => p : p is a necessary condition for q
   
-   #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'pwd.constraint-type #'pwd.pred-name #'pwd.tname) ;; Use the string in the test name
+  ;;;  #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'pwd.constraint-type #'pwd.pred-name #'pwd.tname) ;; Use the string in the test name
    (syntax/loc stx
       (test
-        test_name
+        pwd.tname
         #:preds [imp_total]
         #:scope pwd.scope
         #:bounds pwd.bounds
@@ -1068,7 +1068,7 @@
                                 (syntax/loc stx qpd.pred-name)
                                 (syntax/loc stx (exp-pred-exprs ...)))]
                                 
-          [test_name (format-id stx "quantified_~a_assertion_for_~a_~a" #'qpd.constraint-type #'qpd.pred-name #'qpd.tname)] 
+          ;;[test_name (format-id stx "quantified_~a_assertion_for_~a_~a" #'qpd.constraint-type #'qpd.pred-name #'qpd.tname)] 
           [imp_total
             (if (eq? (syntax-e #'qpd.disj) 'disj)
                 (if (eq? (syntax-e #'qpd.constraint-type) 'sufficient)
@@ -1079,7 +1079,7 @@
                     (syntax/loc stx (all  qpd.quant-decls (implies pred-consolidated qpd.prop)))))])
      (syntax/loc stx
        (test
-         test_name
+         qpd.tname
          #:preds [imp_total]
          #:scope qpd.scope
          #:bounds qpd.bounds
@@ -1089,10 +1089,10 @@
 (define-syntax (SatisfiabilityDecl stx)
   (syntax-parse stx
   [sd:SatisfiabilityDeclClass 
-   #:with test_name (format-id stx "~a_assertion_~a" #'sd.expected #'sd.tname)
+   ;;#:with test_name (format-id stx "~a_assertion_~a" #'sd.expected #'sd.tname)
    (syntax/loc stx
       (test
-        test_name
+        sd.tname
         #:preds [sd.prop]
         #:scope sd.scope
         #:bounds sd.bounds
@@ -1101,11 +1101,11 @@
 (define-syntax (ConsistencyDecl stx)
   (syntax-parse stx
   [cd:ConsistencyDeclClass 
-    #:with test_name (format-id stx "~a_assertion_for_~a_~a" #'cd.consistency #'cd.pred-name #'cd.tname )
+    ;;#:with test_name (format-id stx "~a_assertion_for_~a_~a" #'cd.consistency #'cd.pred-name #'cd.tname )
     #:with conj_total (syntax/loc stx (&& cd.test-expr cd.pred-name))
    (syntax/loc stx
       (test
-        test_name
+        cd.tname
         #:preds [conj_total] 
         #:scope cd.scope
         #:bounds cd.bounds
