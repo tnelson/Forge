@@ -97,12 +97,17 @@ Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
-SatisfiabilityDecl : (Name /COLON-TOK)? /ASSERT-TOK Expr /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)? 
-PropertyDecl : (Name /COLON-TOK)? /ASSERT-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)? 
-QuantifiedPropertyDecl : (Name /COLON-TOK)? /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
+SatisfiabilityDecl : Name /COLON-TOK /ASSERT-TOK Expr /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)? 
+                         | /ASSERT-TOK Expr /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)?
 
-; Should this have a unique name?
-ConsistencyDecl: (Name /COLON-TOK)? /ASSERT-TOK Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
+PropertyDecl : Name /COLON-TOK /ASSERT-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)?
+             | /ASSERT-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)?
+
+QuantifiedPropertyDecl : Name /COLON-TOK /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
+             | /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
+
+ConsistencyDecl: Name /COLON-TOK /ASSERT-TOK Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
+                | /ASSERT-TOK Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
 
 
 TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
