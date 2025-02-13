@@ -1049,7 +1049,7 @@
                         (syntax/loc stx (implies pwd.prop pwd.pred-name))  ;; p => q : p is a sufficient condition for q 
                         (syntax/loc stx (implies pwd.pred-name pwd.prop))) ;; q => p : p is a necessary condition for q
   
-  #:with test_name  (if (equal? (syntax-e #'qpd.tname) "")
+  #:with test_name  (if (equal? (syntax-e #'pwd.tname) "")
                       (format-id stx "~a_assertion_for_~a_~a" #'pwd.constraint-type #'pwd.pred-name (make-temporary-name stx))
                       #'pwd.tname)
     
