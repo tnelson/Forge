@@ -17,10 +17,10 @@ pred q { no Node }
 assert {} is consistent with p
 
 test suite for p {
-	assert q is consistent with p
+	qp: assert q is consistent with p
 	assert lone edges is 	consistent with p
 	assert (lone edges) is 	consistent with p for 1 Node
-	assert (some edges) is 	inconsistent with p for 1 Node
+	ep1n: assert (some edges) is 	inconsistent with p for 1 Node
 	assert q is 			inconsistent with p for exactly 2 Node
 }
 

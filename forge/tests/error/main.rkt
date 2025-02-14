@@ -142,9 +142,9 @@
     (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?necessary_assertion_for_isUndirectedTree.*? failed.*?quantified_necessary_assertion_for_isUndirectedTree.*?failed")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"sufficient_assertion_for_isUndirectedTree.*?failed.")
     (list "properties_directed_tree_sufficiency_error.frg" #rx".*?quantified_sufficient_assertion_for_bothRoots.*?failed.")
-    (list "consistency-error.frg" #rx"Failed test consistent_assertion_for_q_")
+    (list "consistency-error.frg" #rx"Failed test thisisatestname")
     (list "inconsistency-error.frg" #rx"Failed test inconsistent_assertion_for_q_")
-    (list "properties_directed_tree_necessity_error.frg" #rx".*?quantified_necessary_assertion_for_isNotRoot.*?failed.")
+    (list "properties_directed_tree_necessity_error.frg" #rx"tnecc failed.")
     
     ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions
     (list "exp-on-rhs-assert.frg" #rx"parsing error")

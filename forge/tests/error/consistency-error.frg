@@ -11,5 +11,5 @@ sig Node {edges: set Node}
 pred q { no Node }
 
 // Assertions do not support is_forge_error
-assert (some Node) is consistent with q
+thisisatestname: assert (some Node) is consistent with q
 
