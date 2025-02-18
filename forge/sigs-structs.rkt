@@ -892,19 +892,33 @@ Returns whether the given run resulted in sat or unsat, respectively.
                                 "_remainder")))
                          all-primitive-descendants)])])))
 
-(define (deprimify run-or-state primsigs)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Reversing `primify` to produce a shortest set of sig names
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; We assume that the list of sigs given is already primified; i.e., there are no non-primitive
+; sig names (X_remainder counts as a primitive sig) being passed to this function.
+; This version works only for lists of primified sig symbols, e.g. (A B C D_remainder)
+(define/contract (deprimify run-or-state primsigs)
+  (-> (or/c Run? State? Run-spec?) (non-empty-listof symbol?) (non-empty-listof symbol?))
   (let ([all-sigs (map Sig-name (get-sigs run-or-state))])
     (cond
-      [(equal? primsigs '(Int))
-       'Int]
-      [(equal? primsigs (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs)))))
-       'univ]
+      ; In case this is a singleton list, we can't improve anything
+      [(and (list? primsigs) (equal? 1 (length primsigs)))
+       primsigs]
+      ; In case all sigs are represented here, it's univ
+      [(equal? (list->set primsigs)
+               (list->set (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int all-sigs))))))
+       '(univ)]
+      ; Otherwise, compress as much as possible
+      ; Use primify to handle the X_remainder cases.
       [else (define top-level (get-top-level-sigs run-or-state))
-            (define pseudo-fold-lambda (lambda (sig acc) (if (or (subset? (primify run-or-state (Sig-name sig)) (flatten primsigs))
-                                                                 (equal? (list (car (primify run-or-state (Sig-name sig)))) (flatten primsigs)))
-                                                                 ; the above check is added for when you have the parent sig, but are expecting the child
-                                      (values (append acc (list (Sig-name sig))) #t) ; replace cons with values
-                                      (values acc #f))))
+            (define pseudo-fold-lambda (lambda (sig acc)
+                                         (if (or (subset? (primify run-or-state (Sig-name sig)) (flatten primsigs))
+                                                 (equal? (list (car (primify run-or-state (Sig-name sig)))) (flatten primsigs)))
+                                             ; the above check is added for when you have the parent sig, but are expecting the child
+                                             (values (append acc (list (Sig-name sig))) #t) ; replace cons with values
+                                             (values acc #f))))
             (define final-list (dfs-sigs run-or-state pseudo-fold-lambda top-level '()))
             final-list])))
 

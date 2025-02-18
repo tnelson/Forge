@@ -515,4 +515,4 @@
               (empty? useful-run-names))
     (serve-sterling-static #:provider-port port))
   (when (empty? useful-run-names)
-    (printf "There was nothing useful to visualize: all commads were already executed and produced no instances.~n")))
+    (printf "There was nothing useful to visualize: all commands were already executed and produced no instances.~n")))

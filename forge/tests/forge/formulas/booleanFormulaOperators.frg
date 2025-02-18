@@ -1,8 +1,10 @@
 #lang forge
 
+/*
+  Note: forge-core/formulas/booleanFormulaOperators contains more tests than this module. 
+*/
+
 option run_sterling off
-
-
 option verbose 0
 
 pred True {
