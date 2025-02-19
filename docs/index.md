@@ -141,7 +141,7 @@ Forge uses the [Sterling](https://sterling-js.github.io) visualizer to enable cu
 
 To get started with Forge, follow [these instructions](https://csci1710.github.io/forge-documentation/getting-started/installation.html).
 
-Forge was originally created for [CSCI 1710, "Logic for Systems"](https://csci1710.github.io/) at Brown University. The notes and materials (except for recordings, which we cannot release) are public  and free to use. A [textbook draft](https://tnelson.github.io/forgebook/) is also available, and the first version will be finalized and used in Spring Semester 2025.
+Forge was originally created for [CSCI 1710, "Logic for Systems"](https://csci1710.github.io/) at Brown University. The notes and materials (except for recordings, which we cannot release) are public  and free to use. A [textbook draft](https://csci1710.github.io/book/) is also available, and the first version will be finalized and used in Spring Semester 2025.
 
 Forge is open source and [hosted on Github](http://github.com/tnelson/forge). 
 
