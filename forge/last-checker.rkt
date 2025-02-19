@@ -45,6 +45,52 @@
                                  (datum->syntax #f (deparse a-node) (build-source-location-syntax (nodeinfo-loc (node-info a-node)))))))
 
 
+; Within this run, do the argument types fall inside the domain types?
+(define (check-helper-args run-or-state helper-type name args arg-types domain-types)    
+  (for-each
+   ; Check that each potential type in argument K is contained in the type of parameter K.
+   ; These types are represented as a union (list) of products (list).
+   ; E.g., ( (A) (B) (C) ) represents A+B+C. 
+   (lambda (type)
+     (define arg-union-of-products (car type)) ; e.g., ( (A) (B) (C) )
+     (define arg-position (cadr type))
+     ; These products are not necessarily unary. We'll deprimify if they are, but otherwise
+     ; the error may not be very pretty. 
+     (define deprimified-arg-union-of-products
+       (if (and (list? arg-union-of-products)
+                (not (empty? arg-union-of-products))
+                (list? (car arg-union-of-products))
+                (equal? 1 (length (car arg-union-of-products))))
+           (map list (deprimify run-or-state (map car arg-union-of-products)))
+           arg-union-of-products))
+     
+     ; A bit early to do this, but make the code more clear
+     (define domain-products (list-ref domain-types arg-position))
+     (define deprimified-domain-products
+       (if (and (list? domain-products)
+                (not (empty? domain-products))
+                (list? (car domain-products))
+                (equal? 1 (length (car domain-products))))
+           (map list (deprimify run-or-state (map car domain-products)))
+           domain-products))
+     
+     ;(printf "Checking idx=~a~n deprim-type=~a~n deprim-domain=~a~n"
+     ;        arg-position deprimified-arg-union-of-products deprimified-domain-products)
+     (for-each
+      (lambda (a-product)
+        ; (printf "    Checking the product: ~a~n" a-product)
+        
+        (unless (member a-product domain-products)
+          (raise-forge-error
+           #:msg (format "Argument ~a of ~a given to ~a ~a is of incorrect type. Expected type in ~a, but argument was in type ~a." 
+                         (add1 arg-position) (length args) helper-type name
+                         deprimified-domain-products
+                         ; Don't use a-product here because it is a single product only.
+                         deprimified-arg-union-of-products)
+           #:context (apply-record-arg (list-ref args arg-position)))))
+      arg-union-of-products))
+   arg-types))
+
 ; Recursive descent for last-minute consistency checking
 ; Catch potential issues not detected by AST construction + generate warnings
 (define/contract (checkFormula run-or-state formula quantvars checker-hash)
@@ -62,27 +108,16 @@
      (check-and-output formula node/formula/constant checker-hash #f)]
 
     [(node/fmla/pred-spacer info name args expanded)
-    (define domain-types (for/list ([arg args]) 
-                         (expression-type-type (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash))))
+    (define domain-types (for/list ([arg args])
+                           (define inferred-param (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash))
+                           (expression-type-type inferred-param)))
     
-    (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
-                      (list (expression-type-type (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash)) acc)))
-    ;(printf "pred spacer: ~a~n~a~n~a~n" name domain-types arg-types)
-    (for-each 
-        (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
-            (raise-forge-error
-            #:msg (format "Argument ~a of ~a given to predicate ~a is of incorrect type. Expected type ~a, given type ~a" 
-                  (add1 (cadr type)) (length args) name (deprimify run-or-state 
-                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten domain-types))
-                                                        (map Sig-name (get-sigs run-or-state)) ; if the domain is univ then just pass in univ
-                                                        (list-ref domain-types (cadr type)))) ; else pass in the sig one by one
-                                                        (deprimify run-or-state 
-                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten (car (car arg-types))))
-                                                        (map Sig-name (get-sigs run-or-state)) ; if the argument is univ then just pass in univ
-                                                        (car (car type))))) ; else pass in the sig one by one
-            #:context (apply-record-arg (list-ref args (cadr type))))
-            (void)))
-            arg-types)
+    (define arg-types (for/list ([arg args]
+                                 [acc (range 0 (length args))])
+                        (define inferred-arg (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash))
+                        (list (expression-type-type inferred-arg) acc)))
+    
+    (check-helper-args run-or-state 'predicate name args arg-types domain-types)
     (checkFormula run-or-state expanded quantvars checker-hash)]
     
     [(node/formula/op info args)
@@ -323,7 +358,7 @@
 ; wrap around checkExpression-mult to provide check for multiplicity, 
 ; while throwing the multiplicity away in output; DO NOT CALL THIS AS PASSTHROUGH!
 (define (checkExpression run-or-state expr quantvars checker-hash)
-;(printf "expr: ~a~n" expr)
+  ;(printf "checkExpression for: ~a~n" expr)
   (match expr 
     ; extra work done on int - adding 1 to a var
     [(? node/int?) (expression-type (list (list 'Int)) 'one #f (list 'Int))]
@@ -395,25 +430,14 @@
                          (expression-type-type (checkExpression run-or-state (mexpr-expr (apply-record-domain arg)) quantvars checker-hash))))
       (define arg-types (for/list ([arg args]  [acc (range 0 (length args))])
                       (list (expression-type-type (checkExpression run-or-state (apply-record-arg arg) quantvars checker-hash)) acc)))
-      (for-each 
-        (lambda (type) (if (not (member (car (car type)) (list-ref domain-types (cadr type))))
-            (raise-forge-error
-            #:msg (format "Argument ~a of ~a given to function ~a is of incorrect type. Expected type ~a, given type ~a" 
-                  (add1 (cadr type)) (length args) name (deprimify run-or-state 
-                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten domain-types))
-                                                        (map Sig-name (get-sigs run-or-state)) ; if the domain is univ then just pass in univ
-                                                        (list-ref domain-types (cadr type)))) ; else pass in the sig one by one
-                                                        (deprimify run-or-state 
-                                                        (if (equal? (map Sig-name (get-sigs run-or-state)) (flatten (car (car arg-types))))
-                                                        (map Sig-name (get-sigs run-or-state)) ; if the argument is univ then just pass in univ
-                                                        (car (car type))))) ; else pass in the sig one by one
-            #:context (apply-record-arg (list-ref args (cadr type))))
-            (void)))
-            arg-types)
+
+      (check-helper-args run-or-state 'function name args arg-types domain-types)
+      
       (define output-type (expression-type-type (checkExpression run-or-state expanded quantvars checker-hash)))
-      (if (not (member (car output-type) (expression-type-type (checkExpression run-or-state (mexpr-expr codomain) quantvars checker-hash))))
+      (define codomain-type (expression-type-type (checkExpression run-or-state (mexpr-expr codomain) quantvars checker-hash)))
+      (if (not (member (car output-type) codomain-type))
           (raise-forge-error
-          #:msg (format "The output of function ~a is of incorrect type" name)
+          #:msg (format "The output of function ~a is of incorrect type. Got ~a, expected in ~a" name (car output-type) codomain-type)
           #:context expanded)
           (void))
        (checkExpression-mult run-or-state expanded quantvars checker-hash)]

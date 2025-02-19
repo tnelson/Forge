@@ -1,4 +1,6 @@
 #lang forge/froglet 
+option verbose 0
+option run_sterling off
 
 /*
   Froglet allows the "in" operator to be used under very specific circumstances. 
