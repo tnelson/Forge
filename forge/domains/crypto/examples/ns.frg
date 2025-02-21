@@ -19,7 +19,7 @@ pred attack_exists {
 // Proxy for the concrete attack, used to debug and check the model:
 //   some message is sent encrypted with the attacker's public key
 pred proxy_shape {
-    some m: Message | {
+    some m: mesg | {
         // getInv[m.data.encryptionKey] in (KeyPairs.owners.Attacker)
         getInv[m.data.encryptionKey] in (KeyPairs.owners.(ns_init.agent))
     }
