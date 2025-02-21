@@ -1,6 +1,10 @@
 #lang forge/core
 
+;  Note: forge/formulas/booleanFormulaOperators contains more tests than this module. 
+;  Do not delete this without integrating the missing tests somewhere.
+
 (set-option! 'verbose 0)
+(set-option! 'run_sterling 'off)
 
 ; No more overloading (<and> and <or> are normal Racket operators now)
 
@@ -93,15 +97,20 @@
 
 ; Check the expansion of these helpers at least has the correct semantics
 (pred HelperPred    
-    (all ([value1 univ] [value2 univ])
+    (all ([value1 univ] [value2 univ] [someInt Int])
          (and (iff (pred1a value1) (in value1 Int))
               (iff (pred2a value1 value2) (and (in value1 Int) (in value2 Int)))
               (iff (pred2b value1 value2) (and (in value1 Int) (in value2 Int)))
               (iff (pred2c value1 value2) (and (in value1 Int) (in value2 Int)))
-              (iff (pred2d value1 value2) (and (in value1 Int) (in value2 Int)))
+              (iff (pred2d someInt value2) (and (in someInt Int) (in value2 Int)))
               ; cannot easily test higher-order helper predicate with forall, so pred_arity2_arg is left out here
               )))
 (test helperpreds #:preds [HelperPred] #:expect checked)
+
+(pred ExpectError 
+  (all ([value1 univ] [value2 univ])
+     (iff (pred2d value1 value2) (and (in value1 Int) (in value2 Int)))))
+(test ExpectErrorTest #:preds [ExpectError] #:expect forge_error)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test metadata

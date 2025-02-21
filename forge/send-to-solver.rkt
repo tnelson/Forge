@@ -499,10 +499,11 @@ Please declare a sufficient scope for ~a."
   (hash-set! lower-bounds (get-sig run-spec Int) int-atoms)
   (hash-set! upper-bounds (get-sig run-spec Int) int-atoms)
 
-  ; Special case: allow sigs to extend Int
-  (for ([sig (get-children run-spec Int)])
-    (hash-set! lower-bounds (Sig-name sig) '())
-    (hash-set! upper-bounds (Sig-name sig) int-atoms))  
+  ; Special case: allow sigs to extend Int.
+  (define int-extenders (get-children run-spec Int))
+  (for ([sig int-extenders])
+    (hash-set! lower-bounds sig '())
+    (hash-set! upper-bounds sig int-atoms))  
 
   (define all-atoms (append int-atoms sig-atoms))
 
@@ -520,10 +521,14 @@ Please declare a sufficient scope for ~a."
       (let* ([name (Sig-name sig)]
              [rel sig]
              [lower (map list (hash-ref lower-bounds sig))]
-             ; Override generated upper bounds for #:one sigs
+             ; Override generated upper bounds for #:one sigs, unless they extend Int
+             ; (In this case, we cannot generate an arbitrary atom for them, since Int atoms
+             ;  have semantic value -- i.e., they are not isomorphic.)
              [upper
-              (cond [(Sig-one sig) lower]
-                    [else (map list (hash-ref upper-bounds sig))])])
+              (cond [(and (Sig-one sig) (not (member sig int-extenders)))
+                     lower]
+                    [else
+                     (map list (hash-ref upper-bounds sig))])])
         ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                            
         (unless (subset? (list->set lower) (list->set upper))
           (raise-run-error (format "Bounds inconsistency detected for sig ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)

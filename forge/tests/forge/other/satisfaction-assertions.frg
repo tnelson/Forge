@@ -28,7 +28,7 @@ assert { isDirectedTree and !isDirectedTree } is unsat
 assert {} is sat
 
 
-assert producesErr is forge_error
+stderr: assert producesErr is forge_error
 
 -- Test in suite context
 test suite for isDirectedTree { assert isDirectedTree is sat for 3 Node }

@@ -142,9 +142,9 @@
     (list "properties_undirected_tree_underconstraint_multiple_errors.frg" #rx".*?necessary_assertion_for_isUndirectedTree.*? failed.*?quantified_necessary_assertion_for_isUndirectedTree.*?failed")
     (list "properties_undirected_tree_overconstraint_error.frg" #rx"sufficient_assertion_for_isUndirectedTree.*?failed.")
     (list "properties_directed_tree_sufficiency_error.frg" #rx".*?quantified_sufficient_assertion_for_bothRoots.*?failed.")
-    (list "consistency-error.frg" #rx"Failed test consistent_assertion_for_q_")
+    (list "consistency-error.frg" #rx"Failed test thisisatestname")
     (list "inconsistency-error.frg" #rx"Failed test inconsistent_assertion_for_q_")
-    (list "properties_directed_tree_necessity_error.frg" #rx".*?quantified_necessary_assertion_for_isNotRoot.*?failed.")
+    (list "properties_directed_tree_necessity_error.frg" #rx"tnecc failed.")
     
     ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions
     (list "exp-on-rhs-assert.frg" #rx"parsing error")
@@ -179,19 +179,19 @@
     (list "parsing_less_dash.frg" #rx"Negative numbers must not have blank space between the minus")
 
     ;; Mismatched type tests - pred
-    (list "mismatched-arg-type-basic.frg" #rx"Argument 1 of 1 given to predicate p2 is of incorrect type. Expected type \\(B\\), given type \\(A\\)")
-    (list "mismatched-arg-type-basic-univ.frg" #rx"Argument 1 of 1 given to predicate p2 is of incorrect type. Expected type \\(B\\), given type univ") 
-    (list "mismatched-arg-type-arity.frg" #rx"Argument 2 of 2 given to predicate p2 is of incorrect type. Expected type \\(B\\), given type \\(A\\)")
-    (list "mismatched-arg-type-no-quant.frg" #rx"Argument 1 of 1 given to predicate p1 is of incorrect type. Expected type \\(A\\), given type \\(C\\)")
-    (list "mismatched-arg-type-no-quant2.frg" #rx"Argument 2 of 2 given to predicate p2 is of incorrect type. Expected type \\(B\\), given type \\(A\\)")
-    (list "mismatched-arg-type-non-primsig.frg" #rx"Argument 1 of 1 given to predicate p2 is of incorrect type. Expected type \\(B\\), given type \\(A\\)")
-    (list "mismatched-arg-type-non-primsig2.frg" #rx"Argument 1 of 1 given to predicate p is of incorrect type. Expected type \\(C\\), given type \\(B\\)")
-    (list "tree-type-error.frg" #rx"Argument 1 of 1 given to predicate p is of incorrect type. Expected type \\(A B_child1\\), given type \\(B_child2\\)")
-    (list "mismatched-arg-type-int.frg" #rx"Argument 1 of 1 given to predicate p2 is of incorrect type. Expected type \\(Int\\), given type \\(A\\)")
+    (list "mismatched-arg-type-basic.frg"      #rx"Argument 1 of 1 given to predicate p2 is of incorrect type. Expected type in \\(\\(B\\)\\), but argument was in type \\(\\(A\\)\\)")
+    (list "mismatched-arg-type-basic-univ.frg" #rx"Argument 1 of 1 given to predicate p2 is of incorrect type. Expected type in \\(\\(B\\)\\), but argument was in type \\(\\(univ\\)\\)") 
+    (list "mismatched-arg-type-arity.frg" #rx"Argument 2 of 2 given to predicate p2 is of incorrect type. Expected type in \\(\\(B\\)\\), but argument was in type \\(\\(A\\)\\)")
+    (list "mismatched-arg-type-no-quant.frg" #rx"Argument 1 of 1 given to predicate p1 is of incorrect type. Expected type in \\(\\(A\\)\\), but argument was in type \\(\\(C\\)\\)")
+    (list "mismatched-arg-type-no-quant2.frg" #rx"Argument 2 of 2 given to predicate p2 is of incorrect type. Expected type in \\(\\(B\\)\\), but argument was in type \\(\\(A\\)\\)")
+    (list "mismatched-arg-type-non-primsig.frg" #rx"Argument 1 of 1 given to predicate p2 is of incorrect type. Expected type in \\(\\(B\\)\\), but argument was in type \\(\\(A\\)\\)")
+    (list "mismatched-arg-type-non-primsig2.frg" #rx"Argument 1 of 1 given to predicate p is of incorrect type. Expected type in \\(\\(C\\)\\), but argument was in type \\(\\(B\\)\\)")
+    (list "tree-type-error.frg" #rx"Argument 1 of 1 given to predicate p is of incorrect type. Expected type in \\(\\(A\\) \\(B_child1\\)\\), but argument was in type \\(\\(B_child2\\)\\)")
+    (list "mismatched-arg-type-int.frg" #rx"Argument 1 of 1 given to predicate p2 is of incorrect type. Expected type in \\(\\(Int\\)\\), but argument was in type \\(\\(A\\)\\)")
 
     ;; Mismatched type tests - fun
-    (list "mismatched-arg-type-fun.frg" #rx"Argument 1 of 1 given to function f is of incorrect type. Expected type \\(A\\), given type \\(B\\)")
-    (list "mismatched-arg-type-fun-arity.frg" #rx"Argument 2 of 2 given to function f is of incorrect type. Expected type \\(A\\), given type \\(B\\)")
+    (list "mismatched-arg-type-fun.frg" #rx"Argument 1 of 1 given to function f is of incorrect type. Expected type in \\(\\(A\\)\\), but argument was in type \\(\\(B\\)\\)")
+    (list "mismatched-arg-type-fun-arity.frg" #rx"Argument 2 of 2 given to function f is of incorrect type. Expected type in \\(\\(A\\)\\), but argument was in type \\(\\(B\\)\\)")
     (list "mismatched-arg-type-fun-output.frg" #rx"The output of function f is of incorrect type")
     (list "mismatched-arg-type-fun-codomain.frg" #rx"The output of function f is of incorrect type")
     (list "mismatched-arg-type-fun-codomain-non-primsig.frg" #rx"The output of function f is of incorrect type")

@@ -50,9 +50,9 @@
 ; Should be unified with other registered functions
 (define (err-empty-join expr-node child-types #:run-or-state [run-or-state #f])
   (define loc (nodeinfo-loc (node-info expr-node)))
-  ; Deprimification lets us print, e.g., "Animal" rather than "(Dog Cat Human ...)"
+  ; Deprimification lets us print, e.g., "(Animal)" rather than "((Dog) (Cat) (Human) ...)"
   (define lhs-type (if run-or-state 
-                       (deprimify run-or-state (expression-type-type (first child-types)))
+                       (deprimify run-or-state (map car (expression-type-type (first child-types))))
                        (expression-type-type (first child-types))))
   (if (and (equal? 1 (length lhs-type))
            (symbol? (first lhs-type)))
