@@ -126,8 +126,10 @@
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
-(define/contract (intexpr->expr/maybe a-node #:op functionname #:info info)
-  (@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
+; We don't want a contract here, because we wish to control the error message given
+; if somehow the user has provided something ill-typed that wasn't caught elsewhere.
+(define (intexpr->expr/maybe a-node #:op functionname #:info info)
+  ;(@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
   (cond [(node/int? a-node) (node/expr/op/sing (update-annotation (node-info a-node) 'automatic-int-conversion #t) 1 (list a-node))]
         [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
@@ -135,7 +137,7 @@
           (raise-forge-error 
            #:msg (format "~a operator expected to be given an atom- or set-valued expression, but instead got ~a, which was ~a."
                          functionname (deparse a-node) (pretty-type-of a-node))
-           #:context a-node)]))
+           #:context (if info info a-node))]))
 
 (define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)  
   (@-> node? #:op symbol? #:info nodeinfo? node/int?)  
