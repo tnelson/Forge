@@ -437,7 +437,7 @@
       (define codomain-type (expression-type-type (checkExpression run-or-state (mexpr-expr codomain) quantvars checker-hash)))
       (if (not (member (car output-type) codomain-type))
           (raise-forge-error
-          #:msg (format "The output of function ~a is of incorrect type. Got ~a, expected in ~a" name (car output-type) codomain-type)
+          #:msg (format "The output of function ~a is of incorrect type. Got ~a, expected in ~a" name output-type codomain-type)
           #:context expanded)
           (void))
        (checkExpression-mult run-or-state expanded quantvars checker-hash)]
