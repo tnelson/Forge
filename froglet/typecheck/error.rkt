@@ -11,6 +11,8 @@
 (require
   froglet/util)
 
+(error-print-context-length 4)
+
 ;; ---
 
 (define who 'froglet)

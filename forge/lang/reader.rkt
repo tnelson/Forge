@@ -1,12 +1,15 @@
 #lang racket/base
 
 (provide coerce-ints-to-atoms
-         read-syntax)
+         read-syntax
+         generic-forge-reader)
 
-(require syntax/parse)
+(require syntax/parse
+         (for-syntax racket/base syntax/parse)
+         racket/pretty)
 (require forge/lang/alloy-syntax/parser)
 (require forge/lang/alloy-syntax/tokenizer)
-(require (prefix-in log: forge/logging/2023/main))
+;(require (prefix-in log: forge/logging/2023/main))
 (require forge/shared)
 
 (do-time "forge/lang/reader")
@@ -91,64 +94,100 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; Forge's reader function
+; Forge's reader function. Use the 'forge language, and inject nothing.
 (define (read-syntax path port)
-  (define this-lang 'forge)
-  (define-values (logging-on? project email) (log:setup this-lang port path))
-  (define compile-time (current-seconds))
-  (when logging-on?
-    (uncaught-exception-handler (log:error-handler logging-on? compile-time (uncaught-exception-handler)))
-    (log:register-run compile-time project this-lang email path))
-  (define parse-tree (parse path (make-tokenizer port)))
-  (define ints-coerced (coerce-ints-to-atoms parse-tree))
+  (generic-forge-reader
+   path
+   port
+   'forge
+   forge-checker-hash
+   forge-ast-checker-hash
+   forge-inst-checker-hash
+   '(forge/lang/lang-specific-checks)))
 
-  ;(printf "ints-coerced/parse-tree: ~a~n" ints-coerced)
-  
-  (define final `((provide (except-out (all-defined-out) ; So other programs can require it
-                                       forge:n))
-                  (require (only-in forge/shared do-time))
-                  (do-time "forge-mod toplevel")
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-                  ;; Used for the evaluator
-                  (define-namespace-anchor forge:n) 
-                  (forge:nsa forge:n)
+(define-syntax (generic-forge-reader stx)
+  (syntax-parse stx
+    [((~datum generic-forge-reader)
+      path port LANG-NAME CH ACH ICH EXTRA-REQUIRES (~optional INJECTED #:defaults ([INJECTED #''()])))
+     (quasisyntax/loc stx
+       (begin 
+         ;(define-values (logging-on? project email) (plog:setup LANG-NAME port path))
+         (define compile-time (current-seconds))
+         (define injected-if-any INJECTED)
+         (define extra-requires EXTRA-REQUIRES)
 
-                  (require (prefix-in log: forge/logging/2023/main))
-                  (require (only-in racket printf uncaught-exception-handler))
+         ; We no longer do in-Forge logging.
+         ;(when logging-on?
+         ;  (uncaught-exception-handler (log:error-handler logging-on? compile-time (uncaught-exception-handler)))
+         ;  (log:register-run compile-time project LANG-NAME email path))
 
-                  ;; Set up language-specific error messages
-                  (require forge/choose-lang-specific)
-                  (require forge/lang/lang-specific-checks)              
-                  (set-checker-hash! forge-checker-hash)
-                  (set-ast-checker-hash! forge-ast-checker-hash)
-                  (set-inst-checker-hash! forge-inst-checker-hash)
-                  (set-check-lang! 'forge)                  
+         (define parse-tree (parse path (make-tokenizer port)))
+         (define ints-coerced (coerce-ints-to-atoms parse-tree))
+         
+         (define final `((provide (except-out (all-defined-out) ; So other programs can require it
+                                              forge:n))         ; but don't share the namespace anchor
+                         ; Most Forge stuff should be available via the module language below. But some 
+                         ; Racket functions are needed too.
+                         (require (only-in racket/base unless hash-empty?))
+                         (require (only-in forge/shared do-time))
+                         
+                         (do-time "forge-mod toplevel")
+                         
+                         ;; Used for the evaluator
+                         (define-namespace-anchor forge:n) 
+                         (forge:nsa forge:n)
 
-                  ;; Override default exception handler
-                  (uncaught-exception-handler (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
+                         ; We no longer do in-Forge logging
+                         ;(require (prefix-in log: forge/logging/2023/main))
+                         ;(require (only-in racket printf uncaught-exception-handler))
+                         
+                         ;; Set up language-specific error messages
+                         (require forge/choose-lang-specific
+                                  ,@extra-requires)             
+                         (set-checker-hash! CH)
+                         (set-ast-checker-hash! ACH)
+                         (set-inst-checker-hash! ICH)
+                         (set-check-lang! LANG-NAME)                  
+                         
+                         ;; Override default exception handler
+                         ;(uncaught-exception-handler
+                         ; (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
 
-                  ;; Expanded model, etc.
-                  ,ints-coerced
-                  (do-time "forge-mod ints-coerced")
+                         ;; Add any code to inject before the model is expanded
+                         ,@injected-if-any
+                         ;; Expanded model, etc.
+                         ,ints-coerced
+                         (do-time "forge-mod ints-coerced")
+                         
+                         ; Declare submodule "execs". Macros like "test" or "run" etc. will add to 
+                         ; this submodule. After execution of execs, print test failures (if any).
+                         (module+ execs
+                           ; All tests should have been added to `execs` prior to this point. 
+                           (output-all-test-failures)
+                           ; At this point, all commands should be defined. Open Sterling, if there
+                           ; are commands to visualize. If not, don't try to open Sterling.
+                           (unless (hash-empty? (forge:State-runmap forge:curr-state))
+                             (start-sterling-menu forge:curr-state forge:nsa)))
+                         
+                         ;; Declare submodule "main"
+                         (module+ main
+                           ; Invoke the execs submodule
+                           (require (submod ".." execs)))                                    
 
-                  ;; Declare submodule "execs". Macros like "test" or "run" etc. will add to
-                  ;; this submodule.
-                  ;; TODO: is this line now unnecessary, since the following line declares execs?
-                  (module+ execs)
-                  ; After execution of execs, print test failures (if any)
-                  (module+ execs (output-all-test-failures))
-                  ;; Declare submodule "main"
-                  (module+ main
-                    ; Invoke the execs submodule
-                    (require (submod ".." execs)))                                    
-                  
-                  (log:flush-logs ',compile-time "no-error")))
-
-  (define module-datum `(module forge-mod forge/lang/expander
-                          ,@final))
-  ; (printf "Ints-coerced: ~a~n" ints-coerced)
-  ; (raise "STOP")
-  (define result (datum->syntax #f module-datum))
-  ;(printf "debug result of expansion: ~a~n" result)
-  result)
-
+                         ; We no longer do in-Forge logging
+                         ;(log:flush-logs ',compile-time "no-error")
+                         ))
+         
+         (define module-datum `(module forge-mod forge/lang/expander
+                                 ,@final))
+         
+         ; For debugging purposes, convert to a datum first or pretty-format will truncate.
+         ;(printf "Ints-coerced: ~a~n" (pretty-format (syntax->datum ints-coerced)))
+         
+         (define result (datum->syntax #f module-datum))
+         ;(printf "debug result of expansion: ~a~n" result)
+         result)
+       )]))
+       

@@ -4,6 +4,7 @@
 ; Because this DSL is built for a narrow set of exercises, there is no support 
 ; for equality or arbitrary queries; only conjunctive queries are supported.
 ; Adapted by Tim from EMCSABAC (which used Rosette/Ocelot) in January 2024
+; Adapted again in January 2025 to factor out the domain model.
 
 (require forge/domains/abac/lexparse
          forge/domains/abac/pretty-formatting
@@ -11,62 +12,38 @@
 (require (only-in racket second string-join remove-duplicates flatten
                          cartesian-product))
 
-(provide run-commands
-         boxed-env)
+(provide run-commands boxed-env)
 
+; Options other than 'verbose will not be carried into make-run, as that 
+; is from forge/functional and expects a #:options parameter. This is why the 
+; calls below explicitly pass the current-state's options.
 (set-option! 'verbose 0)
+
+; For debugging only
+;(set-option! 'solver 'MiniSatProver)
+;(set-option! 'logtranslation 2)
+;(set-option! 'coregranularity 2)
+;(set-option! 'core_minimization 'rce)
+
 
 ; State of policy environment, so that REPL can access it after definitions have been run
 (define boxed-env (box empty))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; We know what the relations are in advance (since this is just for one exercise).
-; We do NOT necessarily know what rules they might write/modify. But we're working in EPL,
-; so just count unique identifiers (will possibly over-estimate).
-
-(sig Subject)
-(sig Action)
-(sig Resource)
-(sig Employee #:extends Subject)
-(sig Admin #:extends Employee)
-(sig Accountant #:extends Employee)
-(sig Customer #:extends Subject)
-(sig Read #:extends Action)
-(sig Write #:extends Action)
-(sig File #:extends Resource)
-
-; As of January 2024, forge/core requires relations to be 2-ary or greater.
-; Thus, we'll model these subsets as boolean-valued relations.
-(relation Audit (File True))        ; file under audit
-(relation Training (Employee True)) ; employee in training
-
-(relation Owner (Customer File))    ; customer file ownership 
-
-; Skolem relations for the scenario's request 
-(sig Request #:one)
-(relation reqS_rel (Request Subject) #:is func)
-(relation reqA_rel (Request Action))
-(relation reqR_rel (Request Resource))
-(define reqS (join Request reqS_rel))
-(define reqA (join Request reqA_rel))
-(define reqR (join Request reqR_rel))
+; We do NOT necessarily know what rules users might write/modify. But we're working in EPL,
+; so just count unique identifiers to be complete (will possibly over-estimate).
 
 (define request-vars '(s a r))
 (define REQUEST-SKOLEM-RELATIONS (list reqS reqA reqR))
 
-;(define structural-axioms
-;  (&& (one reqS) ; Skolem constants
-;      (one reqA)
-;      (one reqR)))
-
-
 (define relations (hash "Admin" Admin  "Employee" Employee  
                         "Accountant" Accountant "Customer" Customer
                         "Read" Read       "Write" Write  
-                        "File" File       "Under-Audit" Audit     "Owner-Of" Owner                        
-                        "In-Training" Training
+                        "File" File       "Under-Audit" audit     "Owned-By" owner                        
+                        "In-Training" training
                         "Subject" Subject "Action" Action "Resource" Resource
-                        "reqS_rel" reqS_rel "reqA_rel" reqA_rel "reqR_rel" reqR_rel
+                        "reqS" reqS "reqA" reqA "reqR" reqR
                         "True" True "Request" Request))
 (define the-sigs (filter (lambda (r) (equal? (node/expr-arity r) 1)) (hash-values relations)))
 (define the-fields (filter (lambda (r) (> (node/expr-arity r) 1)) (hash-values relations)))
@@ -90,7 +67,7 @@
   (define polname (first args))
   (define decname (second args))
   (define conditions (rest (rest args)))
-  (define conditions-fmla (&& (map (lambda (c) (build-condition c relations var->maybe-skolem)) conditions)))
+  (define conditions-fmla (&& (map (lambda (c) (build-condition relations var->maybe-skolem c)) conditions)))
   (define pol (find-pol env polname))
   (cond [(equal? pol #f) 
          (raise-user-error (format "Unknown policy: ~a" polname))]
@@ -117,12 +94,12 @@
                         (make-bound U File)
                         (make-bound U True)
                         (make-bound U Request)
-                        (make-bound U reqS_rel)
-                        (make-bound U reqA_rel)
-                        (make-bound U reqR_rel)
-                        (make-bound U Owner)
-                        (make-bound U Training)
-                        (make-bound U Audit)))
+                        (make-bound U reqS)
+                        (make-bound U reqA)
+                        (make-bound U reqR)
+                        (make-bound U owner)
+                        (make-bound U training)
+                        (make-bound U audit)))
 
          ;(printf "decision: ~a; ~a~n" decision (node? decision))
          ;(printf "cf: ~a; ~a~n" conditions-fmla (node? conditions-fmla))
@@ -140,6 +117,7 @@
                      #:preds (list query)
                      #:sigs the-sigs
                      #:relations the-fields
+                     #:options (forge:State-options forge:curr-state)
                      ;#:scope (list (list Node 6))
                      #:bounds the-bounds))
                       
@@ -180,9 +158,9 @@
 
 ; Replace variable names with Skolem relation if called for
 (define (var->maybe-skolem v)
-  (cond [(equal? v 's) reqS]
-        [(equal? v 'a) reqA]
-        [(equal? v 'r) reqR]
+  (cond [(equal? v 's) (join Request reqS)]
+        [(equal? v 'a) (join Request reqA)]
+        [(equal? v 'r) (join Request reqR)]
         [else v]))
 
 ; construct set of atoms to use in bounds
@@ -210,12 +188,12 @@
      (list (in (atom 'r$0) Resource)
            (in Resource (+ atoms)))]
     ; Skolem relations:
-    [(equal? (relation-name r) "reqS_rel")     
-     (list (= reqS_rel (-> (atom 'Request) (atom 's$0))))]
-    [(equal? (relation-name r) "reqA_rel")
-     (list (= reqA_rel (-> (atom 'Request) (atom 'a$0))))]
-    [(equal? (relation-name r) "reqR_rel")
-     (list (= reqR_rel (-> (atom 'Request) (atom 'r$0))))]
+    [(equal? (relation-name r) "reqS")     
+     (list (= reqS (-> (atom 'Request) (atom 's$0))))]
+    [(equal? (relation-name r) "reqA")
+     (list (= reqA (-> (atom 'Request) (atom 'a$0))))]
+    [(equal? (relation-name r) "reqR")
+     (list (= reqR (-> (atom 'Request) (atom 'r$0))))]
     [(equal? (relation-name r) "True")
      (list (= r (atom 'True)))]
     [(equal? (relation-name r) "Request")
@@ -256,7 +234,7 @@
            (define queryP1NP2 (&& permit1 (! permit2))) ; first
            (define queryP2NP1 (&& permit2 (! permit1))) ; second           
            (define where-fmlas (map (lambda (c) 
-                  (build-condition c relations var->maybe-skolem)) where)) ; added constraints (if any)
+                  (build-condition relations var->maybe-skolem c)) where)) ; added constraints (if any)
            
            (define the-bounds (append 
                         (make-bound U Subject)
@@ -271,12 +249,12 @@
                         (make-bound U File)
                         (make-bound U True)
                         (make-bound U Request)
-                        (make-bound U reqS_rel)
-                        (make-bound U reqA_rel)
-                        (make-bound U reqR_rel)
-                        (make-bound U Owner)
-                        (make-bound U Training)
-                        (make-bound U Audit)))
+                        (make-bound U reqS)
+                        (make-bound U reqA)
+                        (make-bound U reqR)
+                        (make-bound U owner)
+                        (make-bound U training)
+                        (make-bound U audit)))
 
            ; Try each direction separately so that we can print out which policy decides what.
            ;   (1) P1.permit is not subset of P2.permit
@@ -287,11 +265,9 @@
               #:preds (cons queryP1NP2 where-fmlas)
               #:sigs the-sigs
               #:relations the-fields
+              #:options (forge:State-options forge:curr-state)
               ;#:scope (list (list Node 6))
               #:bounds the-bounds))
-           
-           ;(define solver-result-stream (forge:Run-result p1_notin_p2))
-           ;(define first-solution (tree:get-value solver-result-stream))
            
            (cond [(forge:is-sat? p1_notin_p2)               
                   (pretty-printf-result #:bounds the-bounds
@@ -311,11 +287,10 @@
                       #:preds (cons queryP2NP1 where-fmlas)
                       #:sigs the-sigs
                       #:relations the-fields
+                      #:options (forge:State-options forge:curr-state)
                       ;#:scope (list (list Node 6))
                       #:bounds the-bounds))
            
-;                  (define solver-result-stream (forge:Run-result p2_notin_p1))
-;                  (define first-solution (tree:get-value solver-result-stream))
                   (pretty-printf-result #:bounds the-bounds
                       #:run p2_notin_p1
                       #:request-vars request-vars

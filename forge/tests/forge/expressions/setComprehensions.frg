@@ -26,7 +26,7 @@ pred MultiComprehension {
 }
 
 test expect {
-    comprehensionsOnSigs : ComprehensionsOnSigs is theorem
-    comprehensionsOnSets : ComprehensionsOnSets is theorem
-    multiComprehension : MultiComprehension is theorem
+    comprehensionsOnSigs : ComprehensionsOnSigs is checked
+    comprehensionsOnSets : ComprehensionsOnSets is checked
+    multiComprehension : MultiComprehension is checked
 }

@@ -1,8 +1,6 @@
 #lang forge
 
 option run_sterling off
-
-
 option verbose 0
 
 -- sing      int -> set
@@ -150,10 +148,10 @@ pred MaxMin {
 
 
 test expect {
-    sings : Sing for 4 Int, 5 IntSet is theorem
-    implicit_sings : ImplicitSingWithNegatives for 4 Int, 5 IntSet is theorem
-    sums : Sum for 5 IntSet for SumInst is theorem
-    sumQuants : SumQuant for 5 IntSet for SumInst is theorem
-    cards : Card for 5 IntSet for CardInst is theorem
-    maxMins : MaxMin for 5 IntSet for MaxMinInst is theorem
+    sings : Sing for 4 Int, 5 IntSet is checked
+    implicit_sings : ImplicitSingWithNegatives for 4 Int, 5 IntSet is checked
+    sums : Sum for 5 IntSet for SumInst is checked
+    sumQuants : SumQuant for 5 IntSet for SumInst is checked
+    cards : Card for 5 IntSet for CardInst is checked
+    maxMins : MaxMin for 5 IntSet for MaxMinInst is checked
 }

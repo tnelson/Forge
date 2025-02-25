@@ -52,20 +52,49 @@
 ;; -----------------------------------------------------------------------------
 
 ; Struct to hold metadata about an AST node (like source location)
-; Group information in one struct to make change easier
-(struct nodeinfo (loc lang) #:transparent  
+; Group information in one struct to make change easier.
+;  loc: a stx-loc struct
+;  lang: a symbol? describing the language this node should be interpreted in
+;  annotations: either #f, or a hash, with symbol? keys and any value, which is used to
+;    store internal annotations on AST nodes to aid translation, etc. Keys must be IMMUTABLE.
+(struct nodeinfo (loc lang annotations) #:transparent  
   #:methods gen:custom-write
   [(define (write-proc self port mode)
-     (match-define (nodeinfo loc lang) self)
+     (match-define (nodeinfo loc lang annotations) self)
      ; hide nodeinfo when printing; don't print anything or this will become overwhelming
      ;(fprintf port "")
      (void))])
 
-(define empty-nodeinfo (nodeinfo (build-source-location #f) 'empty))
+; The default, empty nodeinfo struct
+(define empty-nodeinfo (nodeinfo
+                        (build-source-location #f)
+                        'empty
+                        #f))
+
+; Manufacture a nodeinfo struct containing only a syntax location and nothing else.
 (define (just-location-info loc)
   (if loc 
-      (nodeinfo loc 'empty)
-      (build-source-location #f)))
+      (nodeinfo loc 'empty #f)
+      (nodeinfo (build-source-location #f) 'empty #f)))
+
+; Get the annotation for this info struct, if any
+(define (get-annotation info key)
+  (cond [(not info) #f]
+        [(not (nodeinfo-annotations info)) #f]
+        [(hash-has-key? (nodeinfo-annotations info) key)
+         (hash-ref (nodeinfo-annotations info) key)]
+        [else #f]))
+  
+
+; Update the annotations for a nodeinfo struct.
+(define (update-annotation ninfo key value)
+  (struct-copy nodeinfo ninfo
+               [annotations (if (nodeinfo-annotations ninfo)
+                                ; functional update (i.e., doesn't change ninfo)
+                                (hash-set ninfo key value)
+                                ; manufacture a new hash with this single key-value pair in it
+                                (hash key value))]))
+
 
 ; Base node struct, should be ancestor of all AST node types
 ; Should never be directly instantiated
@@ -97,23 +126,25 @@
 
 ;; ARGUMENT CHECKS -------------------------------------------------------------
 
-(define/contract (intexpr->expr/maybe a-node #:op functionname #:info info)
-  (@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
-  (cond [(node/int? a-node) (node/expr/op/sing (node-info a-node) 1 (list a-node))]
+; We don't want a contract here, because we wish to control the error message given
+; if somehow the user has provided something ill-typed that wasn't caught elsewhere.
+(define (intexpr->expr/maybe a-node #:op functionname #:info info)
+  ;(@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
+  (cond [(node/int? a-node) (node/expr/op/sing (update-annotation (node-info a-node) 'automatic-int-conversion #t) 1 (list a-node))]
         [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
         [else 
           (raise-forge-error 
            #:msg (format "~a operator expected to be given an atom- or set-valued expression, but instead got ~a, which was ~a."
                          functionname (deparse a-node) (pretty-type-of a-node))
-           #:context a-node)]))
+           #:context (if info info a-node))]))
 
 (define/contract (expr->intexpr/maybe a-node #:op functionname #:info info)  
   (@-> node? #:op symbol? #:info nodeinfo? node/int?)  
   (cond [(and (node/expr? a-node)
               (equal? (node/expr-arity a-node) 1))
          ; If arity 1, this node/expr can be converted automatically to a node/int
-         (node/int/op/sum (node-info a-node) (list a-node))]
+         (node/int/op/sum (update-annotation (node-info a-node) 'automatic-int-conversion #t) (list a-node))]
         [(node/expr? a-node)
          ; Otherwise, this node/expr has the wrong arity for auto-conversion to a node/int
          (raise-forge-error
@@ -138,6 +169,8 @@
         [(node/expr? x) "atom- or set-valued expression"]
         [(node/int? x) "integer-valued expression"]
         [(number? x) "number"]
+        [(symbol? x) "symbol"]
+        [(string? x) "string"]
         [else "unknown expression type"]))
 
 ; Check arguments to an operator declared with define-node-op
@@ -211,7 +244,7 @@
          (define loc1 (nodeinfo-loc (node-info sofar)))
          (define loc2 (nodeinfo-loc (node-info (first todo))))
          (build-box-join (join/info
-                          (nodeinfo (build-source-location loc1 loc2) 'checklangplaceholder)
+                          (nodeinfo (build-source-location loc1 loc2) 'checklangplaceholder #f)
                                     (first todo) sofar)
                           (rest todo))]))
 
@@ -301,7 +334,7 @@
 (define-syntax (ite stx)
   (syntax-parse stx
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) a b c) 
-      (quasisyntax/loc stx (ite/info (nodeinfo #,(build-source-location stx) check-lang) a b c))]))
+      (quasisyntax/loc stx (ite/info (nodeinfo #,(build-source-location stx) check-lang #f) a b c))]))
 
 (define (empty-check node) (lambda ()(void)))
 
@@ -318,9 +351,10 @@
 ; parent: the node struct type that is the parent of this new one
 ; arity: the arity of the new node, in terms of the arities of its children
 (define-syntax (define-node-op stx)
+  
   (syntax-case stx ()
-    [(_ id parent arity checks ... #:lift @op #:type childtype)
-     ;(printf "defining: ~a~n" stx)
+    [(_ id parent arity checks ... #:lift @op #:type childtype #:elim-unary? elim-unary?)
+     ;(printf "define-node-op defn case: ~a~n" stx)
      (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
                    [functionname (format-id #'id "~a/func" #'id)]
@@ -347,7 +381,7 @@
            (define (functionname #:info [info empty-nodeinfo] . raw-args)
              (define ast-checker-hash (get-ast-checker-hash))
              ;(printf "ast-checker-hash ~a~n" (get-ast-checker-hash))
-             ;(printf "name: ~a args: ~a    key:~a ~n" 'name raw-args  key)
+             ;(printf "name: ~a raw-args: ~a ~n" 'name raw-args)
              ;(printf "name: ~a args: ~a loc:~a ~n" 'name raw-args (nodeinfo-loc info))
 
              ; Perform intexpr->expr and expr->intexpr coercion if needed:             
@@ -359,20 +393,26 @@
              
              (check-and-output args key ast-checker-hash info)
              (check-args info 'id args childtype checks ...)
-             (if arity
-                 ; expression
-                 (cond [(andmap node/expr? args)                       
-                        ; expression with ~all~ expression children (common case)
-                        (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
-                          (name info (apply arity arities) args))]
-                       ; expression with non-expression children or const arity (e.g., sing or expr form of ITE)                                       
-                       [else             
-                        (name info (arity) args)]) 
-                 ; intexpression or formula
-                 (name info args)))
+             (cond
+               ; If the elim-unary flag has been provided, and the call would create a 1-arg node,
+               ; omit it, and just keep the single arg. E.g., (&& A) -> A.
+               [(and elim-unary? (equal? 1 (length args)))
+                (first args)]
+               ; expression operator
+               [arity
+                (cond [(andmap node/expr? args)                       
+                       ; expression with ~all~ expression children (common case)
+                       (let ([arities (for/list ([a (in-list args)]) (node/expr-arity a))])
+                         (name info (apply arity arities) args))]
+                      ; expression with non-expression children or const arity (e.g., sing or expr form of ITE)                                       
+                      [else             
+                       (name info (arity) args)]) ]
+               ; intexpression or formula
+               [else
+                (name info args)]))
            
            
-
+           
            ; For expander to use check-lang on this macro, use the format
            ; (id (#:lang (get-check-lang)) args ...) for pattern matching
 
@@ -384,10 +424,10 @@
                   (quasisyntax/loc stx2
                     ;(begin
                     ;(printf "arguments:~a ; ~a ; ~a ~n" check-lang e ellip))]
-                    (macroname/info (nodeinfo #,(build-source-location stx2) check-lang) e ellip))]
+                    (macroname/info (nodeinfo #,(build-source-location stx2) check-lang #f) e ellip))]
                 [(_ e ellip)                
                   (quasisyntax/loc stx2
-                    (macroname/info (nodeinfo #,(build-source-location stx2) 'checklangNoCheck) e ellip))]))
+                    (macroname/info (nodeinfo #,(build-source-location stx2) 'checklangNoCheck #f) e ellip))]))
 
 
            (define (macroname/info-help info args-raw)
@@ -417,17 +457,11 @@
                     
                     ; allow to work with a list of args or a spliced list e.g. (+ 'univ 'univ) or (+ (list univ univ)).                   
                     (macroname/info-help info (list e ellip))))])))))]
-                  ;)))]
-    [(_ id parent arity checks ... #:lift @op)
-     (printf "Warning: ~a was defined without a child type; defaulting to node/expr?~n" (syntax->datum #'id))
+    [(_ id parent arity checks ... #:type childtype)
      (syntax/loc stx
-       (define-node-op id parent arity checks ... #:lift @op #:type node/expr?))]
-    [(_ id parent arity checks ... #:type childtype)    
-     (syntax/loc stx
-       (define-node-op id parent arity checks ... #:lift #f #:type childtype))]
-    [(_ id parent arity checks ...)     
-     (syntax/loc stx
-       (define-node-op id parent arity checks ... #:lift #f))]))
+       (define-node-op id parent arity checks ... #:lift #f #:type childtype #:elim-unary? #f))]
+    [else
+     (raise (error (format "tried to create an operator, but no matching case: ~a" stx)))]))
 
 (define get-first
   (lambda e (car e)))
@@ -452,8 +486,10 @@
   (define-node-op id node/expr/op join-arity #:join? #t #:type node/expr?))
 (define-op/join join)
 
+; These are implemented as macros in sigs-structs.rkt, although we only support restricting binary relations for now.
 ;(define-node-op <: node/expr/op get-second #:max-length 2 #:domain? #t #:type node/expr?)
 ;(define-node-op :> node/expr/op get-first  #:max-length 2 #:range? #t #:type node/expr?)
+
 (define-node-op ++ node/expr/op get-first #:same-arity? #t #:min-length 2 #:max-length 2 #:type node/expr?)
 (define-node-op sing node/expr/op (const 1) #:min-length 1 #:max-length 1 #:type node/int?)
 
@@ -490,7 +526,7 @@
   (syntax-parse stx
     [(_ v e quant)
      (quasisyntax/loc stx
-       (node/expr/quantifier-var (nodeinfo #,(build-source-location #'v) 'checklangNoCheck)
+       (node/expr/quantifier-var (nodeinfo #,(build-source-location #'v) 'checklangNoCheck #f)
                                  (if (node/expr? e) (node/expr-arity e) 1)
                                  (gensym (format "~a_~a" 'v 'quant)) 'v))]))
 
@@ -559,7 +595,7 @@
             (unless (equal? 1 (node/expr-arity e0))
               (raise-set-comp-quantifier-error e0))
             ...
-            (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang)
+            (set/func #:info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f)
                       (list (cons r0 e0) ...) pred)))]))
 
 ;; -- relations ----------------------------------------------------------------
@@ -573,8 +609,8 @@
   #:methods gen:custom-write
   [(define (write-proc self port mode)
      (match-define (node/expr/relation info arity name typelist-thunk parent is-variable) self)
-     ;(fprintf port "(relation ~a ~v ~a ~a)" arity name typelist parent)
-     (fprintf port "(rel ~a)" name))]
+     (fprintf port "(relation ~a ~v ~a ~a)" arity name (typelist-thunk) parent))]
+     ;(fprintf port "(rel ~a)" name))]
   #:methods gen:equal+hash
   [(define equal-proc (make-robust-node-equal-syntax node/expr/relation))
    (define hash-proc  (make-robust-node-hash-syntax node/expr/relation 0))
@@ -594,11 +630,13 @@
 
 ; Used by rel macro
 ; pre-functional: *also* used by Sig and relation macros in forge/core (sigs.rkt)
-(define (build-relation loc typelist parent [name #f] [is-var #f])
+(define (build-relation loc typelist parent [name #f] [is-var #f] [lang 'checklangplaceholder]
+                        #:annotations [annotations #f])
   (let ([name (cond [(false? name) 
                      (begin0 (format "r~v" next-name) (set! next-name (add1 next-name)))]
                      [(symbol? name) (symbol->string name)]
-                     [else name])]
+                     [(string? name) name]
+                     [else (error (format "build-relation expected name to be a string, symbol, or #f: ~a" name))])]
         [types (map (lambda (t)
                       (cond                        
                         [(string? t) t]
@@ -607,7 +645,7 @@
         [scrubbed-parent (cond [(symbol? parent) (symbol->string parent)]
                                [(string? parent) parent]
                                [else (error (format "build-relation expected parent as either symbol or string"))])])    
-    (node/expr/relation (nodeinfo loc 'checklangplaceholder) (length types) name
+    (node/expr/relation (nodeinfo loc lang annotations) (length types) name
                         (thunk types) scrubbed-parent is-var)))
 
 ; Helpers to more cleanly talk about relation fields
@@ -638,7 +676,7 @@
 (define-syntax (atom stx)
   (syntax-case stx ()    
     [(_ name)
-     (quasisyntax/loc stx (atom/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder)
+     (quasisyntax/loc stx (atom/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f)
                                      name))]))
 
 (define (atom-name rel)
@@ -659,11 +697,11 @@
 
 ; constants
 (define-syntax none (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 'none))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 1 'none))])))
 (define-syntax univ (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 1 'univ))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 1 'univ))])))
 (define-syntax iden (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 2 'iden))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/expr/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 2 'iden))])))
 
 ; Int and succ are built-in relations, not constant expressions
 
@@ -710,7 +748,7 @@
   (syntax-case stx ()
     [(_ n)
      (quasisyntax/loc stx       
-         (int/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder) n))]))
+         (int/func #:info (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) n))]))
 
 ;; -- sum quantifier -----------------------------------------------------------
 (struct node/int/sum-quant node/int (decls int-expr)
@@ -778,9 +816,9 @@
    (define hash2-proc (make-robust-node-hash-syntax node/formula/constant 3))])
 
 (define-syntax true (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'true))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 'true))])))
 (define-syntax false (lambda (stx) (syntax-case stx ()    
-    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder) 'false))])))
+    [val (identifier? (syntax val)) (quasisyntax/loc stx (node/formula/constant (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) 'false))])))
 
 
 
@@ -795,35 +833,35 @@
 (define-node-op ordered node/formula/op #f #:max-length 2 #:type node/expr?)
 
 ; allow empty && to facilitate  {} blocks
-(define-node-op && node/formula/op #f #:min-length 0 #:lift #f #:type node/formula?)
-(define-node-op || node/formula/op #f #:min-length 1 #:lift #f #:type node/formula?)
-(define-node-op => node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/formula?)
-(define-node-op ! node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op int> node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
-(define-node-op int< node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
-(define-node-op int= node/formula/op #f #:min-length 2 #:max-length 2 #:type node/int?)
+(define-node-op && node/formula/op #f #:min-length 0 #:lift #f #:type node/formula? #:elim-unary? #t)
+(define-node-op || node/formula/op #f #:min-length 1 #:lift #f #:type node/formula? #:elim-unary? #t)
+(define-node-op => node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op ! node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op int> node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/int? #:elim-unary? #f)
+(define-node-op int< node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/int? #:elim-unary? #f)
+(define-node-op int= node/formula/op #f #:min-length 2 #:max-length 2 #:lift #f #:type node/int? #:elim-unary? #f)
 
 ; Electrum temporal operators
-(define-node-op always node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op eventually node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op next_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
-(define-node-op releases node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op always node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op eventually node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op next_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op until node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op releases node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
 
 ; Electrum past-time temporal operators
-(define-node-op historically node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op once node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
+(define-node-op historically node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op once node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
 ; Note that prev_state F is false in state 0 for any F
-(define-node-op prev_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula?)
-(define-node-op since node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
-(define-node-op triggered node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula?)
+(define-node-op prev_state node/formula/op #f #:min-length 1 #:max-length 1 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op since node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
+(define-node-op triggered node/formula/op #f #:min-length 1 #:max-length 2 #:lift #f #:type node/formula? #:elim-unary? #f)
 
 ; --------------------------------------------------------
 
 (define (int=-lifter i1 i2)
   (int= i1 i2))
 
-(define-node-op = node/formula/op #f #:same-arity? #t #:max-length 2 #:lift int=-lifter #:type node/expr?) 
+(define-node-op = node/formula/op #f #:same-arity? #t #:max-length 2 #:lift int=-lifter #:type node/expr? #:elim-unary? #f)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -916,7 +954,7 @@
 (define-syntax (all stx)
   (syntax-parse stx
     [(_ check-lang:opt-check-lang-class (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred)     
-      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (~? disj) ([v0 e0 m0] ...) pred))]))
+      (quasisyntax/loc stx (all/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]))
 
 (define-syntax (all/info stx)
   (syntax-parse stx
@@ -943,9 +981,9 @@
 (define-syntax (some stx)
   (syntax-parse stx
     [(_ check-lang:opt-check-lang-class (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
     [(_ check-lang:opt-check-lang-class expr)
-      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang) expr))]))
+      (quasisyntax/loc stx (some/info (nodeinfo #,(build-source-location stx) check-lang.check-lang #f) expr))]))
 
 (define-syntax (some/info stx)
   (syntax-parse stx 
@@ -981,10 +1019,10 @@
   (syntax-parse stx
     ; quantifier
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
     ; multiplicity
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
-      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+      (quasisyntax/loc stx (no/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
 
 (define-syntax (no/info stx)
   (syntax-parse stx
@@ -1012,10 +1050,10 @@
   (syntax-parse stx
     ; quantifier
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
     ; multiplicity
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
-      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+      (quasisyntax/loc stx (one/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
 
 (define-syntax (one/info stx)
   (syntax-parse stx
@@ -1048,9 +1086,9 @@
 (define-syntax (lone stx)
   (syntax-parse stx    
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) (~optional (~and #:disj disj)) ([v0 e0 m0:opt-mult-class] ...) pred) 
-      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) (~? disj) ([v0 e0 m0] ...) pred))]
+      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang #f) (~? disj) ([v0 e0 m0] ...) pred))]
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) expr)
-      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang) expr))]))
+      (quasisyntax/loc stx (lone/info (nodeinfo #,(build-source-location stx) check-lang #f) expr))]))
 
 (define-syntax (lone/info stx)
   (syntax-parse stx
@@ -1080,7 +1118,7 @@
     [(_ (~optional (#:lang check-lang) #:defaults ([check-lang #''checklangNoCheck])) ([x1 r1 m0:opt-mult-class] ...) int-expr)
      (quasisyntax/loc stx
        (let* ([x1 (qvar x1 r1 "sum")] ...)
-         (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang) (list (cons x1 r1) ...) int-expr)))]))
+         (sum-quant-expr (nodeinfo #,(build-source-location stx) check-lang #f) (list (cons x1 r1) ...) int-expr)))]))
 
 
 ;; -- sealing (for examplar) -----------------------------------------------------------
@@ -1202,14 +1240,14 @@
 ;; BREAKERS --------------------------------------------------------------------
 
 (struct node/breaking node () #:transparent)
-(struct node/breaking/op node (children) #:transparent)
+(struct node/breaking/op node/breaking (children) #:transparent)
 (define-node-op is node/breaking/op #f #:max-length 2 #:type (lambda (n) (@or (node/expr? n) (node/breaking/break? n))))
 (struct node/breaking/break node/breaking (break) #:transparent)
 (define-syntax (make-breaker stx)
   (syntax-case stx ()
     [(make-breaker id sym)
       #'(define-syntax id (lambda (stx) (syntax-case stx ()    
-          [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx) 'checklangplaceholder) sym))])))]))
+          [val (identifier? (syntax val)) (quasisyntax/loc stx (node/breaking/break (nodeinfo #,(build-source-location stx) 'checklangplaceholder #f) sym))])))]))
 
 (make-breaker cotree 'cotree)
 (make-breaker cofunc 'cofunc)
@@ -1261,3 +1299,51 @@
       (raise-user-error (format "[~a] ~a" (pretty-loc context) msg))
       (fprintf (current-error-port) "[~a] ~a" (pretty-loc context) msg)))
 
+; Helper for other locations we might need to generate a nodeinfo struct from a variety
+; of datatype possibilities.
+(define (build-nodeinfo context)
+    (cond [(nodeinfo? context) context]
+          ; Wheats/chaffs have their inner formula in the info field
+          [(and (node? context) (node? (node-info context)))
+           (node-info (node-info context))]
+          [(node? context) (node-info context)]
+          [(srcloc? context) (nodeinfo context 'empty)]
+          [(syntax? context) (nodeinfo (build-source-location context) 'empty)]  
+          [else empty-nodeinfo]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Isolate a specific column in a relation
+;   project-to-column E k --> extract column k of E. 
+; Requires: k >= 0, k < arity(E)
+; Note well: no thought has been given to the efficiency of the expression produced!
+(define (project-to-column E k #:context [context #f])
+  (define arity (node/expr-arity E))
+  (define (remove-from-end R c)
+    (cond [(> c 0) (remove-from-end (join R univ) (@- c 1))] [else R]))
+  (define (remove-from-start R c)
+    (cond [(> c 0) (remove-from-end (join univ R) (@- c 1))] [else R]))
+  (cond
+    ; If the relation is too narrow for this column, or column is negative
+    [(or (>= k arity) (< k 0))
+     (raise-forge-error #:msg (format "Tried to isolate column ~a of ~a-ary expression." 
+                                      k arity)
+                        #:context context)]
+    [else 
+      ; Example: (project-to-column (A -> B -> C -> D) 0)
+      ;          Needs to remove 0 from start, 3 from end. 
+      ; Example: (project-to-column (A -> B -> C -> D) 1)
+      ;          Needs to remove 1 from start, 2 from end.
+      ;   [len = k]T[len = (arity - k - 1)]
+      (remove-from-start (remove-from-end E (@- arity (@+ k 1)))
+                         k)]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Build a product of `k` copies of E
+; Requires: k >= 1
+(define (product-of-k E k #:context [context #f])
+  (when (< k 1) 
+    (raise-forge-error #:msg (format "Could not generate a product of arity ~a" k) 
+                       #:context context))
+  (for/fold ([acc E]) 
+            ([idx (range (@- k 1))]) 
+          (-> acc E)))

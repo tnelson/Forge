@@ -6,8 +6,8 @@
 
 (require forge/shared)
 (require racket/class racket/match)
-(require forge/pardinus-cli/server/server
-         forge/pardinus-cli/server/server-common
+(require forge/pardinus-cli/server/pardinus-server
+         forge/solver-specific/server-common
          (only-in racket thunk ~a))
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eoi cmd declare-univ
@@ -19,12 +19,12 @@
 (define server-name "Pardinus")
 
 (provide start-server) ; stdin stdout)
-(define (start-server [solver-type 'stepper] [solver-subtype 'default])
+(define (start-server [solver-type 'stepper] [solver-subtype 'default] [java-exe #f])
   (when (>= (get-verbosity) VERBOSITY_HIGH)
     (printf "Starting ~a server.~n" server-name))
   (define kks (new server%
                    [name server-name]
-                   [initializer (thunk (pardinus-initializer solver-type solver-subtype))]))
+                   [initializer (thunk (pardinus-initializer solver-type solver-subtype java-exe))]))
   (send kks initialize)
   (define stdin-val (send kks stdin))
   (define stderr-val (send kks stderr))
@@ -32,7 +32,7 @@
   (define close-server (thunk 
     (begin 
       (when (>= (get-verbosity) VERBOSITY_HIGH)
-        (printf "Shutting down Pardinus solver process...~n"))
+        (printf "Shutting down ~a solver process...~n" server-name))
       (send kks shutdown))))
   (define is-running? (thunk (send kks initialized?)))
   (values stdin-val stdout-val stderr-val close-server is-running?))

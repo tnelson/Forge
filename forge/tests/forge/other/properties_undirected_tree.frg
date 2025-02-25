@@ -16,6 +16,12 @@ pred isUndirectedTree {
     }
 }
 
+
+assert {} is necessary for isUndirectedTree
+
+assert {all m, n : Node | n->m in edges implies m->n in edges} is necessary for isUndirectedTree
+
+
 pred isUndirected
 {
      all m, n : Node | n->m in edges implies m->n in edges
@@ -82,8 +88,9 @@ test suite for isUndirectedTree {
 
     assert treeWithEdges is sufficient for isUndirectedTree
 
-    assert isUndirectedTree is necessary for isUndirectedTree
+    identest: assert isUndirectedTree is necessary for isUndirectedTree
     assert isUndirectedTree is sufficient for isUndirectedTree
+
 }
 
 

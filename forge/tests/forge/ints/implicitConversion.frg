@@ -15,22 +15,22 @@ one sig Test {
 test expect {    
     -- node/formula needing node/int->node/expr child conversion
     intToExpr1: {Test.num = max[Test.r[A]] iff 
-                 Test.num = sing[max[Test.r[A]]]} is theorem
+                 Test.num = sing[max[Test.r[A]]]} is checked
     -- node/expr (in definition of "max") needing node/int->node/expr child conversion
     intToExpr2: {max[1] = 1 iff 
-                 max[sing[1]] = 1 } is theorem
+                 max[sing[1]] = 1 } is checked
     -- node/int needing node/int->node/expr child conversion
     intToExpr3: {sum[1] = 1 iff 
-                 sum[sing[1]] = 1} is theorem
+                 sum[sing[1]] = 1} is checked
     -- ite (has its own macro)
     intToExpr4: {Test.num = {(some r) => -1 else 0} iff 
-                 Test.num = {(some r) => sing[-1] else sing[0]}} is theorem
+                 Test.num = {(some r) => sing[-1] else sing[0]}} is checked
 
     -- node/int needing node/expr->node/int child conversion    
     exprToInt1: {add[Test.num, 1] > 0 iff 
-                 add[sing[Test.num], 1] > 0} is theorem
+                 add[sing[Test.num], 1] > 0} is checked
     -- node/expr needing node/expr->node/int child conversion
-    exprToInt2: {sing[Test.num] = Test.num } is theorem
+    exprToInt2: {sing[Test.num] = Test.num } is checked
     -- sum aggregator (sum in "quantifier form") has its own macro
-    exprToInt3: {(sum a: A | Test.r[a]) = (sum a: A | sum[Test.r[a]]) } is theorem
+    exprToInt3: {(sum a: A | Test.r[a]) = (sum a: A | sum[Test.r[a]]) } is checked
 }

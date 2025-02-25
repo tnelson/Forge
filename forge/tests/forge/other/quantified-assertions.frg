@@ -44,6 +44,8 @@ pred sameNumber [x : Int, y : Int] {
 test suite for isTwo {
     assert all x : Int | isTwo[x] is necessary for sameNumber[x, 2]
 
+    assert all x : Int | (x = 2) is sufficient for isTwo[x]
+
     //Testing expressions
     assert all x : Int | isTwo[x] is necessary for sameNumber[x, add[1, 1]]
     assert all x : Int | isTwo[x] is sufficient for sameNumber[x,  (x = 2) => add[1, 1] else 3]
@@ -82,5 +84,5 @@ test suite for isDirectedTree {
 }
 // Ensure that it's OK for the suite to be for a predicate with arguments, which we quantify over
 test suite for isRoot {
-    assert all r1, r2 : Node | isRoot[r1] is sufficient for isRoot[r1]
+    istroottest: assert all r1, r2 : Node | isRoot[r1] is sufficient for isRoot[r1]
 }

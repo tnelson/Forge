@@ -2,10 +2,10 @@
 
 ; Module to translate CPSA protocol and skeleton definitions into a system model
 ; in Forge, that can be composed the the crypto domain model in `base.frg`. 
-;   Tim and Abby (Spring 2021)
+;   Tim Nelson and Abigail Siegel (Spring 2021)
 
 ; For reference on CPSA and its protocol language, see:
-;https://hackage.haskell.org/package/cpsa-3.3.2/src/doc/cpsamanual.pdf
+; https://hackage.haskell.org/package/cpsa-3.3.2/src/doc/cpsamanual.pdf
 ; At the moment, we have support for the "basic" algebra only.
 
 ; DESIGN CHOICES:
@@ -17,7 +17,7 @@
 ;   - recall that forge/core now uses &&, ||, and ! to denote FORMULA "and", "or", 
 ;     and "not" respectively. Do not attempt to use (e.g.) "and" to construct
 ;     a conjunction, as "and" is Racket's boolean operator---and Racket is truthy, so
-;     (and <fmla> <fmla>) will produce #t.
+;     (and <fmla 1> <fmla 2>) will produce <fmla 2>.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Dependencies 
@@ -629,46 +629,3 @@
 ;        a protocol in which two types of simple values exist that cannot be
 ;        confused for each other."
 ;     mesg: sort of messages, which can stand in for any value 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Debugging and notes; adjust these as needed
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(set-option! 'verbose 1)
-(set-option! 'solver 'Glucose)
-;(set-option! 'solver 'MiniSatProver)
-;(set-option! 'logtranslation 2)
-;(set-option! 'coregranularity 2)
-;(set-option! 'core_minimization 'rce)
-
-; Skolemize (producing "$r" relations) past up to K universal quantifications
-(set-option! 'skolem_depth 2)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; TODO: need forge/core to allow constructing scope at runtime while invoking run
-; until that works, cannot do easy inference of bounds. Leaving this here as use-case.
-;(define-syntax (run-crypto stx)
-;  (syntax-case stx ()
-;    [(_ name (preds ...) #:n-strands n-strands #:scopes )
-;     (quasisyntax/loc stx
-;       (run name
-;          #:preds preds ...
-;          #:bounds [(is next linear)]
-;          #:scope
-;          [(mesg 16)
-;           (Key 6 6)
-;           (name 3 3)
-;           (KeyPairs 1 1)
-;           (Timeslot 6 6) ; TODO: for opt, consider merge with Message?
-;           (Message 6 6) ; not "mesg"
-;           (text 2 2)
-;           (Ciphertext 5 5)
-;           (Attacker 1 1)
-;           (ns_init 1 1)
-;           (ns_resp 1 1)
-;           (PrivateKey 3 3)
-;           (PublicKey 3 3)
-;           (skey 0 0)
-;           (skeleton_ns_0 1 1)
-;           (skeleton_ns_1 1 1)]))]))
-

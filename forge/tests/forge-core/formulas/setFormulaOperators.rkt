@@ -78,12 +78,12 @@
 
 (test InOps 
       #:preds [In] 
-      #:expect theorem)
+      #:expect checked)
 
 (test EqualsOp 
       #:preds [Equals] 
-      #:expect theorem)
+      #:expect checked)
 
 (test ComboNotOps 
       #:preds [ComboNot] 
-      #:expect theorem)
+      #:expect checked)

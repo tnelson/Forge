@@ -1,4 +1,4 @@
-#lang forge/bsl
+#lang forge/froglet
 option verbose 1
 
 -------------------------------------------------
@@ -86,7 +86,7 @@ test expect {
   inst_piecewise_in_sat: {} for inst_piecewise_in is sat
   inst_piecewise_ni_sat: {} for inst_piecewise_ni is sat
   
-  card_semantics_eq: {#Thing = 1} for inst_piecewise is theorem
+  card_semantics_eq: {#Thing = 1} for inst_piecewise is checked
   
   piecewise_semantics_eq: {
     some disj b0, b1: Board | {
@@ -100,7 +100,7 @@ test expect {
       #b0.board = 3
       #b1.board = 3
     }
-  } for inst_piecewise is theorem
+  } for inst_piecewise is checked
   piecewise_semantics_eq_unconstrained_maybe_empty: {
     some b2: Board | #b2.board = 0
   } for inst_piecewise is sat
@@ -112,7 +112,7 @@ test expect {
     some b: Board | {
       #b.board <= 2
     }
-  } for inst_piecewise_in is theorem
+  } for inst_piecewise_in is checked
   piecewise_semantics_in_other_unaffected: {
     some b: Board | {
       #b.board > 2
@@ -125,7 +125,7 @@ test expect {
       b.board[1][1] = X
       b.board[1][2] = O
     }
-  } for inst_piecewise_ni is theorem
+  } for inst_piecewise_ni is checked
   piecewise_semantics_ni_other_unaffected: {
     some b: Board | {
       #b.board < 2
@@ -137,7 +137,7 @@ test expect {
     some b: Board | {
       #b.board = 0                                     
     }
-  } for inst_piecewise_no is theorem
+  } for inst_piecewise_no is checked
   piecewise_semantics_no_other_unaffected: {
     some b: Board | {
       #b.board > 0                          

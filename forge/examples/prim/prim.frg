@@ -159,7 +159,7 @@ pred difflengthedges_2 {
 // Are 2 of these options equivalent? If yes, our confidence increases:
 test expect {
   {wellformedgraph implies {difflengthedges iff difflengthedges_2}}
-    for 5 Node is theorem
+    for 5 Node is checked
 }
 
 -- Find a graph where all possible edges are present (at some weight)

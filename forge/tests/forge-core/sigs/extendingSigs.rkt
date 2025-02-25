@@ -9,7 +9,7 @@
 
 (test extensionEnforced 
       #:preds [(in (+ Extension1 Extension2) ToExtend)]
-      #:expect theorem)
+      #:expect checked)
 (test multipleExtensions 
       #:preds [(&& (some Extension1) (some Extension2))]
       #:expect sat)
@@ -21,7 +21,7 @@
       #:expect sat)
 (test doubleExtendingWorks 
       #:preds [(&& (in Extension3 Extension2) (in Extension2 ToExtend))]
-      #:expect theorem)
+      #:expect checked)
 
 
 (sig Parent)
@@ -32,10 +32,10 @@
 
 (test relationsIntoExtension
       #:preds [(in (join Parent parentRel) Child)]
-      #:expect theorem)
+      #:expect checked)
 (test extensionsInheritRelations
       #:preds [(some (join Child parentRel))]
       #:expect sat)
 (test parentsDontGetExtensionRelations
       #:preds [(in (join childRel Parent) Child)]
-      #:expect theorem)
+      #:expect checked)

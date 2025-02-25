@@ -46,7 +46,7 @@ fun get_grid[s: BoardState, row_offset, col_offset: Int]: set Int {
         s.board[rows][cols]
 }
 
-pred solution[s: PuzzleState] {
+pred solution[s: BoardState] {
     -- ** Rows and Columns **
     -- don't use #... = 9 here; instead something like:
     all r: Helper.values | s.board[r][Int] = Helper.values

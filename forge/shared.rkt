@@ -8,11 +8,14 @@
          (only-in racket/port call-with-output-string)
          (only-in pkg/lib pkg-directory))
 (require racket/stream)
+(require net/http-easy
+         json 
+         base64)
 
 (provide get-verbosity set-verbosity
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
-         VERBOSITY_DEBUG VERBOSITY_LASTCHECK)
-(provide forge-version forge-git-info instance-diff CORE-HIGHLIGHT-COLOR)
+         VERBOSITY_DEBUG VERBOSITY_LASTCHECK get-temp-dir)
+(provide forge-version forge-git-info instance-diff CORE-HIGHLIGHT-COLOR curr-forge-version)
 (provide stream-map/once port-echo java>=1.9? do-time)
 
 (module+ test (require rackunit))
@@ -53,6 +56,31 @@
           (shell git-exe '("rev-parse" "--abbrev-ref" "HEAD"))
           (shell git-exe '("rev-parse" "--short" "HEAD"))
           (shell git-exe '("log" "-1" "--format=%cd")))))))
+
+; Returns temp directory for files
+(define (get-temp-dir)
+  (define temp-dir-path (build-path (find-system-path 'temp-dir) "forge_smt_temp"))
+  (if (directory-exists? temp-dir-path)
+    (begin (delete-directory/files temp-dir-path) (make-directory (path->string temp-dir-path)))
+    (make-directory (path->string temp-dir-path)))
+  temp-dir-path)
+
+(define (curr-forge-version)
+  (with-handlers ([exn:fail? void])
+  (define URL (format "https://api.github.com/repos/~a/~a/contents/~a"
+                      "tnelson"
+                      "Forge"
+                      "forge/info.rkt"))
+
+  (define response (get URL))
+  (if (= (response-status-code response) 200)
+      (let* ([body (response-body response)]
+            [json-data (string->jsexpr (bytes->string/utf-8 body))]
+            [content (hash-ref json-data 'content)]
+            [decoded-content (bytes->string/utf-8 (base64-decode (string->bytes/utf-8 content)))]
+           [version (regexp-match #px"\\(define version \"([0-9]+[.0-9]+)\"\\)" decoded-content)])
+        (car (cdr version)))
+      void)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -121,7 +149,7 @@
           (set-box! success? (apply system* exe cmd*))))))
   (if (unbox success?)
     str
-    (raise-user-error 'shell "failed to apply '~a' to arguments '~a'" exe cmd*)))
+    (raise-user-error 'shell "failed to apply '~a' to arguments '~a': got ~a" exe cmd* (unbox success?))))
 
 ;; --- timing
 

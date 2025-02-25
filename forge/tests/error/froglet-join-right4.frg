@@ -1,5 +1,6 @@
-#lang froglet
+#lang forge/froglet
 option run_sterling off
+option verbose 0
 
 sig Course {}
 sig Grade {}

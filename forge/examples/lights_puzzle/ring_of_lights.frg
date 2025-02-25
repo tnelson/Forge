@@ -1,5 +1,8 @@
 #lang forge/temporal
 
+option run_sterling "lights.js"
+
+
 /*
   When using the custom vis script, remember to click "Run" after
   asking for a new trace or config! (the script doesn't re-run automatically)
@@ -42,7 +45,6 @@ option min_tracelength 5
 // We need more than 5 states to find a solution
 option max_tracelength 10 
 
-option verbose 5
 run {
     -- well-formedness constraints
     ring

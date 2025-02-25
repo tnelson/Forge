@@ -16,7 +16,7 @@ sig Node {
 //     lone disj | true
 // }
 // test expect {
-//     emptylone : {noVarlone iff noVarloneDisj} is theorem
+//     emptylone : {noVarlone iff noVarloneDisj} is checked
 // }
 
 pred oneVarlone {
@@ -26,7 +26,7 @@ pred oneVarloneDisj {
     lone disj n0: Node | n0 in Node.edges
 }
 test expect {
-    onelone : {oneVarlone iff oneVarloneDisj} is theorem
+    onelone : {oneVarlone iff oneVarloneDisj} is checked
 }
 
 pred twoVarlone {
@@ -38,7 +38,7 @@ pred twoVarloneDisj {
 }
 
 test expect {
-    twolone : {twoVarlone iff twoVarloneDisj} is theorem
+    twolone : {twoVarlone iff twoVarloneDisj} is checked
 }
 
 pred manyVarlone {
@@ -50,5 +50,5 @@ pred manyVarloneDisj {
 }
             
 test expect {
-    manyVar : {manyVarlone iff manyVarloneDisj} is theorem
+    manyVar : {manyVarlone iff manyVarloneDisj} is checked
 }

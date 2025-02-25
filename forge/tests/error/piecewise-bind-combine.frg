@@ -1,4 +1,4 @@
-#lang forge/bsl
+#lang forge/froglet
 option verbose 0
 
 abstract sig Player {}

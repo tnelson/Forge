@@ -24,7 +24,7 @@
            #:bounds (list inst1)
            #:sigs (list A B)
            #:relations (list R)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 
 (define inst2
@@ -41,7 +41,7 @@
            #:bounds (list inst2)
            #:sigs (list A B)
            #:relations (list R)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'basic-unset-size
            #:preds (list (int= (card B) (int 2))
                          (int= (card R) (int 5)))

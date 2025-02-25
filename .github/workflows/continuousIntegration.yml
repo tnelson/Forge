@@ -1,23 +1,24 @@
 name: Continuous Integration
 
 on:
-  pull_request: ~
+  pull_request: ~ 
   push:
     branches:
     - main
     - dev
 
+# Docker images for various Racket versions available on DockerHub 
+# as racket/racket:<version>
+# (https://github.com/racket/docker)
+# We use features that require at least 8.4; try to use latest.
+
 jobs:
   forge-tests:
     runs-on: ubuntu-latest
-    container: docker://racket/racket:8.3
+    container: docker://karimmouline/forge-dev-img:latest
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v2
-    - name: Setup Java
-      uses: actions/setup-java@v1
-      with:
-        java-version: '11'
+      uses: actions/checkout@v3
     - name: Install Forge
       run: |
         raco pkg install --auto --no-docs ./forge ./froglet

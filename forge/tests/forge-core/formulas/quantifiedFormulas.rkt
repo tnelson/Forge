@@ -98,20 +98,20 @@
 (test AllQuant
       #:preds [All]
       #:bounds [test-inst]
-      #:expect theorem)
+      #:expect checked)
 
 (test SomeQuant
       #:preds [Some]
       #:bounds [test-inst]
-      #:expect theorem)
+      #:expect checked)
 
 (test NoQuant
       #:preds [No]
       #:bounds [test-inst]
-      #:expect theorem)
+      #:expect checked)
 
 
 (test QuantifierEquivalences
       #:preds [Equivalences]
-      #:expect theorem)
+      #:expect checked)
 

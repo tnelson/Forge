@@ -1,4 +1,4 @@
-#lang forge/bsl 
+#lang forge/froglet 
 
 -- Test adapted from in-class example
 option solver MiniSatProver

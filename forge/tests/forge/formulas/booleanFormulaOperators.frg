@@ -1,8 +1,10 @@
 #lang forge
 
+/*
+  Note: forge-core/formulas/booleanFormulaOperators contains more tests than this module. 
+*/
+
 option run_sterling off
-
-
 option verbose 0
 
 pred True {
@@ -93,11 +95,11 @@ pred Implies { -- =>, implies, <=>, iff, => else, implies else
 }
 
 test expect BooleanFormulaOperators {
-    NotOps : Not is theorem
-    AndOps : And is theorem
-    OrOps : Or is theorem
-    XorOps : Xor is theorem
-    ImpliesOps : Implies is theorem
+    NotOps : Not is checked
+    AndOps : And is checked
+    OrOps : Or is checked
+    XorOps : Xor is checked
+    ImpliesOps : Implies is checked
 }
 
 

@@ -52,20 +52,20 @@
 
 (make-test #:name 'equal
            #:preds (list EQ)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'greaterThan
            #:preds (list GT)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'lessThan
            #:preds (list LT)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'greaterThanEqual
            #:preds (list GTE)
-           #:expect 'theorem)
+           #:expect 'checked)
 (make-test #:name 'lessThanEqual
            #:preds (list LTE)
-           #:expect 'theorem)
+           #:expect 'checked)
 
 (make-test #:name 'notEqual
            #:preds (list NEQ)
-           #:expect 'theorem)
+           #:expect 'checked)
