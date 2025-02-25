@@ -147,7 +147,21 @@ Forge is open source and [hosted on Github](http://github.com/tnelson/forge).
 
 ## Example Models
 
-Beyond the notes and documention, you can find many examples of Forge models in the [`forge/examples` folder](https://github.com/tnelson/Forge/tree/main/forge/examples) of the repository. See the [README](https://github.com/tnelson/Forge/blob/main/forge/examples/README.md) for an itemized list. We are adding to this collection regularly!
+Beyond the notes and documention, you can find many examples of Forge models in the [`forge/examples` folder](https://github.com/tnelson/Forge/tree/main/forge/examples) of the repository. See the [README](https://github.com/tnelson/Forge/blob/main/forge/examples/README.md) for an itemized list. We are adding to this collection regularly! A selection of these that we use for teaching includes:
+
+### Sample Systems- and Datastructure-Oriented Models
+
+* [Raft leader election](https://github.com/tnelson/Forge/blob/main/forge/examples/raft/leader.frg)
+* [Binary Decision Diagrams](https://github.com/tnelson/Forge/blob/main/forge/examples/bdds/bdds.frg)
+* [Prim's algorithm](https://github.com/tnelson/Forge/blob/main/forge/examples/prim/prim.frg)
+* [Destination-based MAC-layer network forwarding](https://github.com/tnelson/Forge/blob/main/forge/examples/network/network.frg)
+* [Basic crypto-protocol domain model](https://github.com/tnelson/Forge/blob/main/forge/domains/crypto/base.frg)
+
+### Sample Mathematically-Oriented Models 
+
+* [Boolean logic](https://github.com/tnelson/Forge/blob/main/forge/examples/basic/booleanLogic.frg)
+* [Finite-trace linear temporal logic](https://github.com/tnelson/Forge/blob/main/forge/examples/ltlf/ltl_f.frg)
+* [Conway's Game of Life](https://github.com/tnelson/Forge/blob/main/forge/examples/basic/gameOfLife.frg) 
 
 ## Our Papers 
 

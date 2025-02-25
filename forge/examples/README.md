@@ -9,7 +9,7 @@ While many of these examples are commented heavily, the [Forge documentation](ht
 * `examples/basic/` contains a set of basic examples of Forge use, taken from various demos. 
   * `buckets.frg` contains a temporal modeling puzzle about how to measure 4 liters of water using only 3, 5, and 8-liter buckets. I borrowed this from my memory of the [TLA+ tutorial](https://github.com/tlaplus/Examples/tree/master/specifications/DieHard), which only has two buckets.
   * `schoolPuzzle.frg` models a basic logic puzzle about hypothetical reasoning. 
-  * `booleanLogic.frg` is a first attempt at modeling boolean logic in Forge. 
+  * `booleanLogic.frg` is a model boolean logic in Forge that checks the relationship between implication and disjunction. 
   * `gameOfLife.frg` models Conway's game of life in Forge. The model can be used to synthesize oscillators, gliders, etc. To abstract the traditionally-infinite board, the model uses the well-known toroidal approximation (which is conveniently embodied by integer overflow for row and column indexes).
   * `traceSkeletonInst.frg` is a skeletal example, showing how to use the `inst` operator in Forge to define a trace manually.  
 * `examples/tic_tac_toe` contains a model of the game tic-tac-toe, along with a custom visualizer. 
@@ -27,6 +27,7 @@ While many of these examples are commented heavily, the [Forge documentation](ht
 For more advanced examples, see: 
 
 * `examples/prim`, which contains a model of Prim's MST algorithm, with notes on verification.
+* `examples/raft`, for leader-election in the Raft protocol.
 
 ## A Note on Visualization 
 
