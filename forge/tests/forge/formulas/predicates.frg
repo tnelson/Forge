@@ -40,3 +40,11 @@ test expect {
       is forge_error "argument was in type" // until we deprimify >1-ary arguments
 
 }
+
+// Confirm that mis-use of predicate names produces a Forge error,
+// not a contract violation.
+pred bad[x: Animal->Animal] {}
+test expect {
+  // Regression test: if the reference is within a formula tree, i.e., not just {bad}
+  pred_without_args: {some Animal and bad} is forge_error "Expected boolean-valued formula, got"
+}

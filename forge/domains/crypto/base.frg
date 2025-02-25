@@ -44,11 +44,13 @@ fun getLTK[name_a: name, name_b: name]: lone skey {
   (KeyPairs.ltks)[name_a][name_b]
 }
 
-/** Get the inverse key for a given key (if any) */
+/** Get the inverse key for a given key (if any). The structure of this predicate 
+    is due to Forge's typechecking as of January 2025. The (none & Key) is a workaround
+    to give Key type to none, which has univ type by default.  */
 fun getInv[k: Key]: one Key {
   (k in PublicKey => ((KeyPairs.pairs).k) else (k.(KeyPairs.pairs)))
   +
-  (k in skey => k else none)
+  (k in skey => k else (none & Key))
 }
 
 
