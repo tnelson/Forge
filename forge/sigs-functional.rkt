@@ -2,7 +2,10 @@
 
 ; Functional interface to the Forge library and solver. 
 ;   Formula/expression macros should largely be kept in sigs.rkt instead. 
-;   The design intent is: forge -> forge/core (in sigs.rkt) -> functional forge (this module)
+;   The design intent is:
+;     * forge surface languages use ->
+;       * forge/core (in sigs.rkt) uses ->
+;         * functional forge (this module)
 
 ;; TODO: there is still some duplicate logic (+ importing?) between this module + sigs, and possibly
 ;;   still unused imports...
@@ -57,10 +60,7 @@
 (provide let quote)
 
 ; ; Technical stuff
-; (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
-; (provide set-path!)
 (provide set-option!)
-; (define (set-path! path) #f)
 
 ; ; Data structures
 (provide (prefix-out forge: (struct-out Sig))
@@ -81,14 +81,6 @@
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
 (provide (all-from-out forge/utils/lazy-tree))
-
-; ; Export everything for doing scripting
-; (provide (prefix-out forge: (all-defined-out)))
-; (provide (prefix-out forge: (struct-out bound)))
-; (provide (prefix-out forge: relation-name))
-
-; (provide (struct-out Sat)
-;          (struct-out Unsat))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Language-Specific Checks ;;
@@ -376,8 +368,6 @@
        [(node/expr/op/~ info arity (list left-rel))
         (break left-rel (get-co right))]
        [_ (fail "is")])
-     ; hopefully the above calls to break update these somehow
-     ; and hopefully they don't rely on state :(
      (values scope bound)]
 
     ; Other instances (which may add new scope, bound, piecewise-bound information)
@@ -446,9 +436,6 @@
         (values scope (update-piecewise-binds 'ni the-relation the-atom left))]
        ; anything else is unexpected
        [else (fail "rel in/ni")])]    
-
-    ; Bitwidth
-    ; what does (Int n:nat) look like in the AST?
     
     [_ (fail "Invalid binding expression")]))
 
