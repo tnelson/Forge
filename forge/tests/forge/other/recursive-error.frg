@@ -53,7 +53,9 @@ fun h[a: A]: one A { h[a] }
 fun f[a: A]: one A { g[a] }
 fun g[a: A]: one A { f[a] }
 
-
+// cycle between a function and a predicate
+fun i[a: A]: one A { some {b: A | j[b]} }
+pred j[a: A] { some i[a] }
 
 
 
@@ -73,4 +75,7 @@ test expect {
     
     recur_fun_2loop: {some a: A | f[a]} is forge_error "f eventually called itself"
     recur_fun_self:  {some a: A | h[a]} is forge_error "h eventually called itself"
+
+    recur_pred_fun: {some a: A | j[a]} is forge_error "j eventually called itself"
+    recur_fun_pred: {some a: A | some i[a]} is forge_error "i eventually called itself"
 }
