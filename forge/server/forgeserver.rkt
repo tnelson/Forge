@@ -511,7 +511,10 @@
     (printf "NO PORTS AVAILABLE. Could not start provider server.~n"))
   
   ; Now, serve the static sterling website files (this will be a different server/port).
-  (unless (or (equal? 'off (get-option curr-state 'run_sterling))
+  ; Switch Sterling off for the "off" string too, because users may neglect the \'
+  ; if providing an override at the command line. This means that one cannot provide
+  ; a script in a file named "off".
+  (unless (or (member (get-option curr-state 'run_sterling) (list 'off "off" #f))
               (empty? useful-run-names))
     (serve-sterling-static #:provider-port port))
   (when (empty? useful-run-names)
