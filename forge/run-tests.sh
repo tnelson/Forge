@@ -20,6 +20,8 @@ testDir=$1
 #doNotTestPattern="\(error\|srclocs\)/[^/]*\\.frg"
 doNotTestPattern="\(error\|srclocs\)/.*\\.frg"
 # ^ these tests get checked by tests/error/main.rkt
+
+# This will create a newline-separated list of file names. But note comments on `for` below.
 testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} )"
 numTestFiles="$(echo "$testFiles" | wc -l)"
 
@@ -31,6 +33,10 @@ exitCode=0
 echo -e "Found the following $numTestFiles test files:\n$breakLine$testFiles\n$breakLine"
 
 # Run tests and report progress
+# Default bash `for` will word-split on blank space only, ignoring the quotes added above.
+# So we set the "internal field separator" and then reset it after the loop.
+IFS='
+'
 for testFile in $testFiles; do
     current=`date "+%X"`
     echo -e "\nRunning $testFile ($current)"
