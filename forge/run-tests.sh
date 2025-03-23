@@ -54,4 +54,21 @@ for testFile in $testFiles; do
     fi
 done
 
+# Windows disallows quotes in a filename, but Linux and MacOS permit it. 
+# To test that Forge is properly handling these without breaking the 
+# test suite on Windows, we create the file dynamically based on OS. 
+if [[ $(uname) != "Windows" ]]; then
+    echo "Creating file with quotes in its name..."
+    touch "$testDir/forge/other/quotes_in_\"_'_filename.frg"
+    cat "$testDir/forge/other/QUOTES_TEMPLATE.txt" > "$testDir/forge/other/quotes_in_\"_'_filename.frg"
+    
+    racket "$testDir/forge/other/quotes_in_\"_'_filename.frg" -O run_sterling \'off > /dev/null
+    testExitCode=$?
+    if [[ $testExitCode -ne 0 ]]; then
+        echo "Test failed with code $testExitCode"
+        exitCode=1
+    fi
+else
+    echo "Windows forbids files with quotes in their name; skipping that test..."
+fi
 exit $exitCode
