@@ -56,8 +56,10 @@ done
 
 # Windows disallows quotes in a filename, but Linux and MacOS permit it. 
 # To test that Forge is properly handling these without breaking the 
-# test suite on Windows, we create the file dynamically based on OS. 
-if [[ $(uname) != "Windows" ]]; then
+# test suite on Windows, we create the file dynamically based on OS.
+#   If running from Git Bash, uname will return a different value. 
+osid=$(uname)
+if [[ osid != "Windows" && ![[osid =~ ^MINGW]] ]]; then
     echo "Creating file with quotes in its name..."
     touch "$testDir/forge/other/quotes_in_\"_'_filename.frg"
     cat "$testDir/forge/other/QUOTES_TEMPLATE.txt" > "$testDir/forge/other/quotes_in_\"_'_filename.frg"
