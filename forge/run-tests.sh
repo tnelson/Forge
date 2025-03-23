@@ -68,6 +68,7 @@ if [[ $(uname) != "Windows" ]]; then
         echo "Test failed with code $testExitCode"
         exitCode=1
     fi
+    rm "$testDir/forge/other/quotes_in_\"_'_filename.frg"
 else
     echo "Windows forbids files with quotes in their name; skipping that test..."
 fi
