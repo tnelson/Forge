@@ -20,6 +20,8 @@ testDir=$1
 #doNotTestPattern="\(error\|srclocs\)/[^/]*\\.frg"
 doNotTestPattern="\(error\|srclocs\)/.*\\.frg"
 # ^ these tests get checked by tests/error/main.rkt
+
+# This will create a newline-separated list of file names. But note comments on `for` below.
 testFiles="$( find $testDir -type f \( -name "*.rkt" -o -name "*.frg" \) | grep --invert-match ${doNotTestPattern} )"
 numTestFiles="$(echo "$testFiles" | wc -l)"
 
@@ -31,6 +33,10 @@ exitCode=0
 echo -e "Found the following $numTestFiles test files:\n$breakLine$testFiles\n$breakLine"
 
 # Run tests and report progress
+# Default bash `for` will word-split on blank space only, ignoring the quotes added above.
+# So we set the "internal field separator" and then reset it after the loop.
+IFS='
+'
 for testFile in $testFiles; do
     current=`date "+%X"`
     echo -e "\nRunning $testFile ($current)"
@@ -48,4 +54,24 @@ for testFile in $testFiles; do
     fi
 done
 
+# Windows disallows quotes in a filename, but Linux and MacOS permit it. 
+# To test that Forge is properly handling these without breaking the 
+# test suite on Windows, we create the file dynamically based on OS.
+#   If running from Git Bash, uname will return a different value. 
+osid=$(uname)
+if [[ osid != "Windows" && ![[osid =~ ^MINGW]] ]]; then
+    echo "Creating file with quotes in its name..."
+    touch "$testDir/forge/other/quotes_in_\"_'_filename.frg"
+    cat "$testDir/forge/other/QUOTES_TEMPLATE.txt" > "$testDir/forge/other/quotes_in_\"_'_filename.frg"
+    
+    racket "$testDir/forge/other/quotes_in_\"_'_filename.frg" -O run_sterling \'off > /dev/null
+    testExitCode=$?
+    if [[ $testExitCode -ne 0 ]]; then
+        echo "Test failed with code $testExitCode"
+        exitCode=1
+    fi
+    rm "$testDir/forge/other/quotes_in_\"_'_filename.frg"
+else
+    echo "Windows forbids files with quotes in their name; skipping that test..."
+fi
 exit $exitCode

@@ -33,3 +33,5 @@ forge/kodkod-cli/out/
 forge/pardinus-cli/out
 forge/pardinus-cli/classes
 *.icloud
+
+*quotes_in_*filename.frg

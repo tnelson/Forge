@@ -6,7 +6,8 @@
 (require syntax/parse/define racket/stxparam
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
                      syntax/srcloc racket/match racket/list                     
-                     (only-in racket/path file-name-from-path))
+                     (only-in racket/path file-name-from-path)
+                     (only-in racket/string string-replace))
          syntax/srcloc
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
@@ -971,16 +972,24 @@
 (define-for-syntax make-temporary-name
   (let ((name-counter (box 1)))
     (lambda (stx)
+      ; A run name cannot have empty space in it, yet a filename might.
+      ; (Requires "pre compiled regexp" #px to use \s)
+      (define (scrub s)
+        (let* ([no_blanks (string-replace s #px"\\s" "_" #:all? #t)]
+               [no_sq     (string-replace no_blanks #px"'" "SQ" #:all? #t)]
+               [no_dq     (string-replace no_sq #px"\"" "DQ" #:all? #t)])        
+          no_dq))
       (define curr-num (unbox name-counter))
       (set-box! name-counter (+ 1 curr-num))
       (define source_disambiguator
-        (cond [(and (source-location-source stx)
-                    (or (path-string? (source-location-source stx))
-                        (path-for-some-system? (source-location-source stx)))
-                    (file-name-from-path (source-location-source stx)))
-               (path-replace-extension (file-name-from-path (source-location-source stx)) #"")]
-              [(symbol? (source-location-source stx)) (symbol->string (source-location-source stx))]
-              [else "unknown"]))
+        (scrub
+         (cond [(and (source-location-source stx)
+                     (or (path-string? (source-location-source stx))
+                         (path-for-some-system? (source-location-source stx)))
+                     (file-name-from-path (source-location-source stx)))
+                (path-element->string (path-replace-extension (file-name-from-path (source-location-source stx)) #""))]
+               [(symbol? (source-location-source stx)) (symbol->string (source-location-source stx))]
+               [else "unknown"])))
       (string->symbol (format "temporary-name_~a_~a" source_disambiguator curr-num)))))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
