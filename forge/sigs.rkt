@@ -633,16 +633,19 @@
             (~optional (~seq #:scope ((sig:id (~optional lower:nat) upper:nat) ...)))
             (~optional (~or (~seq #:bounds (boundss ...))
                             (~seq #:bounds bound)))
+            
             (~optional (~seq #:solver solver-choice)) ;unused
             (~optional (~seq #:backend backend-choice)) ;unused
-            (~optional (~seq #:target target-instance))
+
+            (~optional (~seq #:target target-instance-hash))
             ;the last 3 appear to be unused in functional forge
             (~optional (~seq #:target-distance target-distance))
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
+     
      (quasisyntax/loc stx (begin
          ;(define checker-hash (get-ast-checker-hash))
-         ;(printf "sigs run ~n ch= ~a~n" checker-hash)
+;         (printf "sigs run ~n ch= ~a~n" checker-hash)
          (define run-state curr-state)
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
          (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
@@ -650,18 +653,14 @@
            (~? (~@ (list (~? (~@ (list sig lower upper))
                              (~@ (list sig upper))) ...))
                (~@ (list))))
-         #;(define run-scope
-           (~? (list (list sig (~? lower) upper) ...) (list)))
-         #;(define run-scope
-           (~? (list (~? (list sig lower upper) (list sig upper)) ...) (list)))
          (define run-bounds (~? (list boundss ...) (~? (list bound) (list))))                  
          (define run-solver (~? 'solver-choice #f))
          (define run-backend (~? 'backend #f))
          (define run-target
-           (~? (Target target-instance ;(cdr target-instance)
+           (~? (Target target-instance-hash
                        (~? 'target-distance 'close_noretarget))
                #f))
-         (define run-command #'#,command)         
+         (define run-command #'#,command)
          (define name
            (run-from-state run-state
                            #:name run-name

@@ -123,7 +123,11 @@
    ["break"     (token+ `BREAK-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["sufficient"     (token+ `SUFFICIENT-TOK "" lexeme "" lexeme-start lexeme-end)]  
    ["necessary"     (token+ `NECESSARY-TOK "" lexeme "" lexeme-start lexeme-end)]  
-   ["suite"     (token+ `SUITE-TOK "" lexeme "" lexeme-start lexeme-end)]  
+   ["suite"     (token+ `SUITE-TOK "" lexeme "" lexeme-start lexeme-end)]
+
+   ; Target orientation 
+   ["target_int"   (token+ `TARGET_INT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["target_pi"    (token+ `TARGET_PI-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]
    ;["facts"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]  

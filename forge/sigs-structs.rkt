@@ -150,7 +150,11 @@
 
 ; A Target describes the goal of a target-oriented model-finding run.
 (struct/contract Target (
-  [instance (hash/c symbol? (listof (listof symbol?)))]
+  [target (or/c
+           ; Original forge/core partial-instance notation
+           (hash/c symbol? (listof (listof (or/c number? symbol?))))
+           ; `inst` notation from #lang forge
+           Inst?)]
   ; This is not the same as option target_mode, which provides a global default.
   ; Rather, this is per target.
   [distance (or/c 'close_noretarget 'far_noretarget 'close_retarget 'far_retarget 'hamming_cover)]
