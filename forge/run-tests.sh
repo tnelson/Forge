@@ -72,6 +72,6 @@ if [[ osid != "Windows" && ![[osid =~ ^MINGW]] ]]; then
     fi
     rm "$testDir/forge/other/quotes_in_\"_'_filename.frg"
 else
-    echo "Windows forbids files with quotes in their name; skipping that test..."
+    echo "Windows (uname = $uname) forbids files with quotes in their name; skipping that test..."
 fi
 exit $exitCode

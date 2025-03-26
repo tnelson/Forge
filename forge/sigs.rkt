@@ -671,7 +671,8 @@
          (define-values (target-pi bounds-maybe-with-gadget preds-maybe-with-gadget)
            (~?
             (cond
-              [(Inst? target-pi-or-int)
+              [(or (Inst? target-pi-or-int)
+                   (hash? target-pi-or-int))
                (values target-pi-or-int run-bounds run-preds)]
               [(node/int? target-pi-or-int)
                ; curr-state should be a box. But that would be a wide-ranging change,
