@@ -258,7 +258,7 @@
 ; an engine_verbosity of 1 logs SEVERE level in the Java engine;
 ;   this will send back info about crashes, but shouldn't spam (and possibly overfill) stderr.
 (define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default
-                                 'close-noretarget 'fast 0 'off 'on 0 1 'first 'false #f))
+                                 'close_noretarget 'fast 0 'off 'on 0 1 'first 'false #f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;

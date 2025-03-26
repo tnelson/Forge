@@ -169,7 +169,7 @@
   (define-syntax-rule (pardinus-print lines ...)
     (pardinus:cmd [stdin] lines ...)) 
   
-  ; If the solver isn't running at all, error:
+  ; If the solver process isn't running at all, error:
   (unless (is-running?)
     (raise-user-error "KodKod server is not running."))
   ; If the solver is running, but this specific run ID is closed, user error

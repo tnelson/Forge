@@ -47,7 +47,8 @@
          display)
 (provide Int succ)
 (provide (prefix-out forge: make-model-generator))
-(provide solution-diff)         
+(provide solution-diff)
+(provide reset-run-name-history! stop-solver-process!)
 
 ; ; Instance analysis functions
 ; (provide is-sat? is-unsat?)

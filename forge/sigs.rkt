@@ -39,7 +39,9 @@
                   check-from-state
                   make-check
                   test-from-state
-                  make-test))
+                  make-test
+                  reset-run-name-history!
+                  stop-solver-process!))
 (require forge/choose-lang-specific)
 
 ; Commands
@@ -95,7 +97,9 @@
          check-from-state
          make-check
          test-from-state
-         make-test)
+         make-test
+         reset-run-name-history!
+         stop-solver-process!)
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
@@ -294,6 +298,7 @@
 (define curr-state init-state)
 (define (update-state! new-state) 
   (set! curr-state new-state))
+
 
 ; check-temporal-for-var :: Boolean String -> void
 ; raises an error if is-var is true and the problem_type option is 'temporal
@@ -637,9 +642,11 @@
             (~optional (~seq #:solver solver-choice)) ;unused
             (~optional (~seq #:backend backend-choice)) ;unused
 
+            ; In forge/functional, these 2 options are passed together as part of a Target struct.
             (~optional (~seq #:target target-instance-hash))
-            ;the last 3 appear to be unused in functional forge
             (~optional (~seq #:target-distance target-distance))
+            
+            ;the last 2 appear to be unused in functional forge
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
      
