@@ -874,8 +874,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
            (if (member (get-option (get-run-spec run-or-state) 'backend) UNBOUNDED_INT_BACKENDS)       
            (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (remove 'Int (map Sig-name (get-sigs run-or-state))))))  
            (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int (map Sig-name (get-sigs run-or-state)))))))]
-          [else           
+          [else
            (define the-sig (get-sig run-or-state signame))
+           
            (define all-primitive-descendants
              (remove-duplicates
               (flatten

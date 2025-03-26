@@ -654,7 +654,7 @@
      (quasisyntax/loc stx (begin
          ;(define checker-hash (get-ast-checker-hash))
 ;         (printf "sigs run ~n ch= ~a~n" checker-hash)
-         (define run-state curr-state)
+                     
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
          (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
          (define run-scope
@@ -683,13 +683,16 @@
                (raise-forge-error #:msg (format "Unexpected target type: ~a" target-pi-or-int)
                                   #:context name)])
             (values #f run-bounds run-preds)))
+         
          (define run-target
            (if target-pi
                (Target target-pi
                        (~? 'target-distance 'close_noretarget))
                #f))
          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-         
+         ;; TODO: this _really_ ought to be a box. If the above calls update-state!,
+         ;; this is no longer aliased. 
+         (define run-state curr-state) 
          (define run-command #'#,command)
          (define name
            (run-from-state run-state
