@@ -37,5 +37,9 @@ tomf_test_hamming_noNode: run {}
 
 
 
+tomf_test_close_noretarget_numNode: run {}
+  target_int {#Node} close_noretarget 
+
+
 
 

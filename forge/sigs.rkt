@@ -15,7 +15,8 @@
 (require forge/shared)
 (require forge/lang/ast 
          forge/lang/bounds 
-         forge/breaks)
+         forge/breaks
+         forge/utils/target-oriented)
 (require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
 (require forge/server/eval-model)
 (require forge/server/forgeserver)
@@ -131,7 +132,8 @@
     (raise-user-error (format "tried to add sig ~a, but it already existed" name)))
   ;(define new-sig (Sig name rel one abstract extends))
   (when (and extends (not (member extends (State-sig-order state))))
-    (raise-user-error "Can't extend nonexistent sig."))
+    (raise-user-error (format "Can't extend nonexistent sig ~a. Options were: ~a"
+                              extends (State-sig-order state))))
 
   (define new-state-sigs (hash-set (State-sigs state) name new-sig))
   (define new-state-sig-order (append (State-sig-order state) (list name)))
@@ -296,9 +298,8 @@
 
 ; The environment threaded through commands
 (define curr-state init-state)
-(define (update-state! new-state) 
+(define (update-state! new-state)
   (set! curr-state new-state))
-
 
 ; check-temporal-for-var :: Boolean String -> void
 ; raises an error if is-var is true and the problem_type option is 'temporal
@@ -643,7 +644,7 @@
             (~optional (~seq #:backend backend-choice)) ;unused
 
             ; In forge/functional, these 2 options are passed together as part of a Target struct.
-            (~optional (~seq #:target target-instance-hash))
+            (~optional (~seq #:target target-pi-or-int))
             (~optional (~seq #:target-distance target-distance))
             
             ;the last 2 appear to be unused in functional forge
@@ -663,22 +664,45 @@
          (define run-bounds (~? (list boundss ...) (~? (list bound) (list))))                  
          (define run-solver (~? 'solver-choice #f))
          (define run-backend (~? 'backend #f))
+
+         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+         ; If the run has asked for an _integer expression_ to be targeted,
+         ; augment the run with a "gadget" which must appear in the relational bounds.
+         (define-values (target-pi bounds-maybe-with-gadget preds-maybe-with-gadget)
+           (~?
+            (cond
+              [(Inst? target-pi-or-int)
+               (values target-pi-or-int run-bounds run-preds)]
+              [(node/int? target-pi-or-int)
+               ; curr-state should be a box. But that would be a wide-ranging change,
+               ; so instead provide a getter lambda so call-by-value works for us.
+               (build-int-opt-gadget target-pi-or-int run-scope run-bounds run-preds
+                                     (lambda () curr-state)
+                                     update-state! state-add-sig state-add-relation)]
+              [else
+               (raise-forge-error #:msg (format "Unexpected target type: ~a" target-pi-or-int)
+                                  #:context name)])
+            (values #f run-bounds run-preds)))
          (define run-target
-           (~? (Target target-instance-hash
+           (if target-pi
+               (Target target-pi
                        (~? 'target-distance 'close_noretarget))
                #f))
+         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+         
          (define run-command #'#,command)
          (define name
            (run-from-state run-state
                            #:name run-name
-                           #:preds run-preds
+                           #:preds preds-maybe-with-gadget
                            #:scope run-scope
-                           #:bounds run-bounds
+                           #:bounds bounds-maybe-with-gadget
                            #:solver run-solver
                            #:backend run-backend
                            #:target run-target
                            #:command run-command))
          (update-state! (state-add-runmap curr-state 'name name))))]))
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

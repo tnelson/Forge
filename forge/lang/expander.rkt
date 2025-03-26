@@ -742,7 +742,7 @@
     
     (pattern ((~datum TOMFParams)
               (~datum "target_int")
-              tgt_ie:ExprClass
+              tgt_ie:BlockClass
               mode:NameClass)
       #:attr translate_tgt #'tgt_ie
       #:attr translate_mode #'mode.name))
