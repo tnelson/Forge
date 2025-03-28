@@ -4,11 +4,7 @@
 ; Helper module for gadgets related to target-oriented model finding
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(require ;(for-syntax racket/base
-         ;            syntax/parse
-         ;            racket/syntax)
-         (prefix-in @ (only-in racket/base - +))
-         ;forge/sigs-structs
+(require (prefix-in @ (only-in racket/base - +))
          forge/sigs-functional
          (only-in forge/lang/ast atom -> + int))
 
@@ -69,20 +65,41 @@
   ; Step 1: set up the fixed helper relations and prepare to build bounds.
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  ;; box would be useful here
+  ; Because the notion of the "state" is so entangled with the run pipeline, we'll
+  ; enable these helper relations permanently as soon as Forge processes _one_ of
+  ; these integer-optimization commands. This isn't ideal.
   
   ; The full set of possible helper atoms
-  (define __K_HELPER_ATOM (make-sig '__K_HELPER_ATOM))
-  (update-state! (state-add-sig (get-curr-state) '__K_HELPER_ATOM __K_HELPER_ATOM #f))
+  (define __K_HELPER_ATOM
+    (cond [(get-sig (get-curr-state) '__K_HELPER_ATOM)
+           (get-sig (get-curr-state) '__K_HELPER_ATOM)]
+          [else
+           (let ([new-sig (make-sig '__K_HELPER_ATOM)])
+             (update-state! (state-add-sig (get-curr-state)
+                                           '__K_HELPER_ATOM
+                                           new-sig #f))
+             new-sig)]))
   
-  ; The exact-bounded helper relation 
-  (define __OPT_K_HELPER (make-relation '__OPT_K_HELPER (list Int __K_HELPER_ATOM)))
-  (update-state! (state-add-relation (get-curr-state) '__OPT_K_HELPER __OPT_K_HELPER))
+  ; The exact-bounded helper relation
+  (define __OPT_K_HELPER
+    (cond [(get-relation (get-curr-state) '__OPT_K_HELPER)
+           (get-relation (get-curr-state) '__OPT_K_HELPER)]
+          [else
+           (let ([new-rel (make-relation '__OPT_K_HELPER (list Int __K_HELPER_ATOM))])
+             (update-state! (state-add-relation (get-curr-state) '__OPT_K_HELPER new-rel))
+             new-rel)]))
   
   ; The set of counting-helper atoms that are used in a given instance
-  (define __OPT_K_COUNT_SET (make-sig '__OPT_K_COUNT_SET #:extends __K_HELPER_ATOM))
-  (update-state! (state-add-sig (get-curr-state) '__OPT_K_COUNT_SET __OPT_K_COUNT_SET '__K_HELPER_ATOM))
-
+  (define __OPT_K_COUNT_SET
+    (cond [(get-sig (get-curr-state) '__OPT_K_COUNT_SET)
+           (get-sig (get-curr-state) '__OPT_K_COUNT_SET)]
+          [else
+           (let ([new-sig (make-sig '__OPT_K_COUNT_SET #:extends __K_HELPER_ATOM)])
+             (update-state! (state-add-sig (get-curr-state)
+                                           '__OPT_K_COUNT_SET
+                                           new-sig #f))
+             new-sig)]))
+  
   (define (bind-k-helper-atom kmin kmax)
     (= __K_HELPER_ATOM (+ (list-helper-atoms kmin kmax))))
   
@@ -107,7 +124,6 @@
   ; ...will be the result of looking up the given-int-expr's value in the __OPT_K_HELPER table.
   (define __OPT_K_WELLFORMED (= __OPT_K_COUNT_SET (join given-int-expr __OPT_K_HELPER)))
 
-  (printf "~a~n" (State-sig-order (get-curr-state)))
   (values
    ; the target, in hash-instance format
    (hash '__OPT_K_COUNT_SET '())
@@ -115,7 +131,12 @@
    (or (and (Inst? run-bounds) (make-inst (list __OPT_K_INST run-bounds)))
        __OPT_K_INST)
    ; the augmented constraint set
-   (cons __OPT_K_WELLFORMED run-preds)))
+   (cons __OPT_K_WELLFORMED run-preds)
+   ; the two sigs
+   ;(list __OPT_K_COUNT_SET __K_HELPER_ATOM)
+   ; the one relation
+   ;(list __OPT_K_HELPER)
+   ))
 
 
 

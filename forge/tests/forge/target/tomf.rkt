@@ -111,6 +111,7 @@
                  #:checkers [(card-checker '((Node 4)))
                              (card-checker '((Node 0)))])
 
+; Hamming can currently cause a large slowdown in getting the 2nd model.
 #;(run-target-test #:file-name "tomf.frg"
                  #:run-name tomf_test_hamming_noNode
                  #:checkers [(card-checker '((Node 0)))

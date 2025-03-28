@@ -267,7 +267,8 @@ here-string-delimiter
   (define sigs-unsorted (filter
                          (λ (key) (and (equal? (relation-arity key) 1)
                                         (not (equal? (relation-name key) "Int"))
-                                        (not (string-prefix? (relation-name key) "$"))))
+                                        (not (string-prefix? (relation-name key) "$"))
+                                        (not (string-prefix? (relation-name key) "__"))))
                          (hash-keys data)))
   
   (define skolems (filter (lambda (key) (string-prefix? (relation-name key) "$")) (hash-keys data)))
@@ -334,7 +335,10 @@ here-string-delimiter
   ; RACKET "or"
   (define fields (filter-not
                   (λ (key) (or (equal? (relation-arity key) 1)
-                                (string-prefix? (relation-name key) "$")))
+                                ; Skolem relations (which may have arity >1)
+                                (string-prefix? (relation-name key) "$")
+                                ; Helper relations added internally
+                                (string-prefix? (relation-name key) "__")))
                   (hash-keys data)))  
 
   (define sigs# (length sigs))
