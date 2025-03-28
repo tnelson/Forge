@@ -15,7 +15,8 @@
          (for-syntax racket/base syntax/parse racket/syntax)
          (only-in rackunit check-true check-eq?)
          (only-in forge/sigs forge:make-model-generator forge:get-result
-                  set-option! forge:Sat? Sat-instances))
+                  set-option! forge:Sat? Sat-instances sum-quant join)
+         (only-in forge/server/eval-model eval-int-expr))
 
 (define (card-checker list-of-reqs)
   (lambda (test-name an-instance idx)
@@ -117,6 +118,35 @@
                  #:checkers [(card-checker '((Node 0)))
                              (card-checker '((Node 1)))])
 
+
+
+; Test integer-expression targeting
+
+(run-target-test #:file-name "tomf.frg"
+                 #:run-name tomf_test_close_noretarget_int_numNode
+                 #:checkers [(card-checker '((Node 0)))
+                             (card-checker '((Node 1)))])
+
+
+(define (sum-edges-minus-8 test-name an-instance idx)  
+  (check-true (hash? an-instance) (format "instance for ~a is a hash?" test-name))
+  (define edges (hash-ref an-instance 'edges))
+  (define sum-total (for/fold ([the-sum 0])
+                              ([tuple edges])
+                      (define so-far (+ the-sum (third tuple)))
+                      (cond [(< so-far -8)
+                             (+ 16 so-far)]
+                            [(> so-far 7)
+                             (- 16 so-far)]
+                            [else so-far])))
+  (check-eq? sum-total -8 
+             (format "checking for minimizing total edge weights for instance ~a of ~a" idx test-name)))
+
+
+(run-target-test #:file-name "tomf.frg"
+                 #:run-name tomf_test_close_noretarget_int_totalWeight
+                 #:checkers [sum-edges-minus-8
+                             sum-edges-minus-8])
 
 
 

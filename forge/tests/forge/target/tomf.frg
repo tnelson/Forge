@@ -38,12 +38,12 @@ tomf_test_hamming_noNode: run {}
 
 
 // TODO: at present, the extra relations taint the state for all runs
-tomf_test_close_noretarget_numNode: run {}
+tomf_test_close_noretarget_int_numNode: run {}
   target_int {#Node} close_noretarget 
 
 // This will not help (but why? we say that <set-to-minimize> = <int-expr>.<helper>)
 option no_overflow true
-tomf_test_close_noretarget_totalWeight: run {} for exactly 2 Node
+tomf_test_close_noretarget_int_totalWeight: run {} for exactly 2 Node
   target_int {sum m: Node | sum n: Node | m.edges[n]} close_noretarget 
 
 
