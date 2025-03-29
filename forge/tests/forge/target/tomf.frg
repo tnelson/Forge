@@ -21,10 +21,14 @@ tomf_test_close_noretarget_noNode: run {}
   target_pi {no Node} close_noretarget 
 tomf_test_far_noretarget_noNode: run {}
   target_pi {no Node} far_noretarget 
+
+// Not reliable yet
 tomf_test_close_retarget_noNode: run {}
   target_pi {no Node} close_retarget 
 tomf_test_far_retarget_noNode: run {}
   target_pi {no Node} far_retarget 
+
+// Not reliable yet
 tomf_test_hamming_noNode: run {}
   target_pi {no Node} hamming_cover
 
