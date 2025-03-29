@@ -2,6 +2,8 @@
 
 **ADVISORY: This feature of Forge is experimental.**
 
+**This README file is preliminary, and will be moved from the testing folder into the docs when the feature goes live.**
+
 Forge uses a modified version of the [Pardinus model finder](https://github.com/haslab/Pardinus) as its back end. Pardinus supports a form of optimization that [_targets_](https://link.springer.com/content/pdf/10.1007/978-3-642-54804-8_2.pdf) a specific goal instance (which may or may not satisfy the given constraints). 
 
 **TODO: examples**
@@ -20,9 +22,9 @@ option solver PMaxSAT4J
 The `target_mode` option provides the global default for how the solver treats the target. There are 5 options currently available:
 * `close_noretarget`: Get as close to the target as possible. When enumerating instances, keep targeting the original target.
 * `far_noretarget`: Get as far from the target as possible (up to the given bounds). When enumerating instances, keep targeting the original target.
-* `close_retarget`: Get as close to the target as possible. When enumerating instances, reset the target to the last produced instance. 
-* `far_retarget`: Get as far from the target as possible (up to the given bounds). When enumerating instances, reset the target to the last produced instance.
-* `hamming_cover`: View instances as vectors of boolean variables, where each variable corresponds to a potential tuple membership in a relation. Define the distance between two instances to be the Hamming distance between their boolean vectors. Enumerate instances that maximize the distance from previously produced instances. 
+* `close_retarget`: Get as close to the target as possible. When enumerating instances, reset the target to the last produced instance. **(Not yet reliable)**
+* `far_retarget`: Get as far from the target as possible (up to the given bounds). When enumerating instances, reset the target to the last produced instance. **(Not yet reliable)**
+* `hamming_cover`: View instances as vectors of boolean variables, where each variable corresponds to a potential tuple membership in a relation. Define the distance between two instances to be the Hamming distance between their boolean vectors. Enumerate instances that maximize the distance from previously produced instances. **(Not yet reliable)**
 
 Absent an explicit target, the engine will target the first instance generated. Therefore, use the global option if you don't have a specific target in mind, but want to customize the enumeration strategy that the solver follows. 
 
