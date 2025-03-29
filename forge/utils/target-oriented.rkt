@@ -6,7 +6,8 @@
 
 (require (prefix-in @ (only-in racket/base - +))
          forge/sigs-functional
-         (only-in forge/lang/ast atom -> + int))
+         (only-in forge/lang/ast atom -> + int)
+         racket/list)
 
 (provide build-int-opt-gadget)
 
@@ -108,10 +109,31 @@
   
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ; Step 2: Use the bitwidth given by the actual Forge problem to
-  ; generate bounds on the helper relations.
+  ; generate bounds on the helper relations. We get this from the scope,
+  ; but this might be either a Scope struct or a list of size lists. 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  (define bitwidth (or (and (Scope? run-scope) (Scope-bitwidth run-scope))
-                       DEFAULT-BITWIDTH))
+  (define-values (bitwidth found?)
+    (cond [(Scope? run-scope) (Scope-bitwidth run-scope)]
+          [(list? run-scope)
+           (for/fold ([bw DEFAULT-BITWIDTH]
+                      [found? #f])
+                     ([sc run-scope])
+             (cond [(and (equal? Int (first sc))
+                         (equal? (length sc) 2))
+                    (values (second sc) #t)]
+                   [(and (equal? Int (first sc))
+                         (equal? (length sc) 3))
+                    (values (third sc) #t)]
+                   [(equal? Int (first sc))
+                    (raise-forge-error #:msg (format "Unexpected scope-list format: ~a~n" sc)
+                                       #:context #f)]
+                   [else (if found?
+                             (values bw #t)
+                             (values DEFAULT-BITWIDTH #f))]))]
+          [else
+           (raise-forge-error #:msg (format "Unexpected scope format: ~a~n")
+                              #:context #f)]))
+  
   (define num-ints (expt 2 bitwidth))
   (define min-int (@- (/ num-ints 2)))
   (define max-int (@- (/ num-ints 2) 1))

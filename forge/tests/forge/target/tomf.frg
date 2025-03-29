@@ -43,8 +43,17 @@ tomf_test_close_noretarget_int_numNode: run {}
 
 // This will not help (but why? we say that <set-to-minimize> = <int-expr>.<helper>)
 option no_overflow true
-tomf_test_close_noretarget_int_totalWeight: run {} for exactly 2 Node
+
+// Should give sum = -8 (mod)
+tomf_test_close_noretarget_int_totalWeight4: run {} for exactly 2 Node
   target_int {sum m: Node | sum n: Node | m.edges[n]} close_noretarget 
 
+// Should give sum = -2 (mod)
+tomf_test_close_noretarget_int_totalWeight2: run {} for exactly 2 Node, 2 Int
+  target_int {sum m: Node | sum n: Node | m.edges[n]} close_noretarget 
+
+// Should give sum = -16 (mod)
+tomf_test_close_noretarget_int_totalWeight5: run {} for exactly 2 Node, 5 Int
+  target_int {sum m: Node | sum n: Node | m.edges[n]} close_noretarget 
 
 
