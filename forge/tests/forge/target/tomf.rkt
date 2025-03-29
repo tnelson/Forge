@@ -120,12 +120,23 @@
 
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Test integer-expression targeting
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; "close_noretarget" should *minimize*
 (run-target-test #:file-name "tomf.frg"
                  #:run-name tomf_test_close_noretarget_int_numNode
                  #:checkers [(card-checker '((Node 0)))
                              (card-checker '((Node 1)))])
+
+
+; "far_noretarget" should *maximize*
+(run-target-test #:file-name "tomf.frg"
+                 #:run-name tomf_test_far_noretarget_int_numNode
+                 #:checkers [(card-checker '((Node 4)))
+                             (card-checker '((Node 4)))])
+
 
 
 (define (sum-edges-is val min max int-size)
@@ -159,6 +170,11 @@
                  #:run-name tomf_test_close_noretarget_int_totalWeight5
                  #:checkers [(sum-edges-is -16 -16 15 32)
                              (sum-edges-is -16 -16 15 32)])
+
+(run-target-test #:file-name "tomf.frg"
+                 #:run-name tomf_test_far_noretarget_int_totalWeight4
+                 #:checkers [(sum-edges-is 7 -8 7 16)
+                             (sum-edges-is 7 -8 7 16)])
 
 
 

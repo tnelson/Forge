@@ -7,7 +7,7 @@
 
 option problem_type target
 option solver PMaxSAT4J
-//option run_sterling off
+option run_sterling off
 
 sig Node { edges: pfunc Node -> Int }
 
@@ -28,20 +28,26 @@ tomf_test_far_retarget_noNode: run {}
 tomf_test_hamming_noNode: run {}
   target_pi {no Node} hamming_cover
 
-// TODO: int-minimization encoding 
+
 
 // TODO: why is 2nd instance of hamming cover taking so long??
 
 // TODO: forge-core tests were only looking at the noretarget variants.
 //    (Maybe the retargeting versions never worked?)
 
-
-
 // TODO: at present, the extra relations taint the state for all runs
+
+
+//////////////////////
+// Int Minimization //
+//////////////////////
+
+// Minimize number of nodes
 tomf_test_close_noretarget_int_numNode: run {}
   target_int {#Node} close_noretarget 
 
-// This will not help (but why? we say that <set-to-minimize> = <int-expr>.<helper>)
+// This setting won't avoid, e.g., (-8 + -8 + -8) even though it "wraps"
+// I believe this is because there is no _arithmetic_ involved. 
 option no_overflow true
 
 // Should give sum = -8 (mod)
@@ -56,4 +62,15 @@ tomf_test_close_noretarget_int_totalWeight2: run {} for exactly 2 Node, 2 Int
 tomf_test_close_noretarget_int_totalWeight5: run {} for exactly 2 Node, 5 Int
   target_int {sum m: Node | sum n: Node | m.edges[n]} close_noretarget 
 
+//////////////////////
+// Int Maximization //
+//////////////////////
+
+// Maximize number of nodes
+tomf_test_far_noretarget_int_numNode: run {}
+  target_int {#Node} far_noretarget 
+
+// Should give sum = 8 (mod)
+tomf_test_far_noretarget_int_totalWeight4: run {} for exactly 2 Node
+  target_int {sum m: Node | sum n: Node | m.edges[n]} far_noretarget 
 
