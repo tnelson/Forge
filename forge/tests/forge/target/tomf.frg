@@ -24,11 +24,21 @@ tomf_test_far_noretarget_noNode: run {}
 
 // This confirms that the _partiality_ works: we don't say what 
 // the potential other node is connected to, if it exists.
-tomf_test_close_noretarget_contains_k3: run {}
+tomf_test_close_noretarget_close_k3: run {}
   target_pi {
     Node = `Node0 + `Node1 + `Node2
     edges = Node -> Node -> 0
   } close_noretarget 
+
+inst k3 {
+    Node = `Node0 + `Node1 + `Node2
+    edges = Node -> Node -> 0
+}
+tomf_test_use_named_inst: run {}
+  target_pi {k3} close_noretarget 
+
+
+
 
 // TODO: why is this experiencing bad performance?
 tomf_test_far_noretarget_contains_k3: run {}
@@ -55,6 +65,7 @@ tomf_test_hamming_noNode: run {}
 
 
 // TODO: why is 2nd instance of hamming cover taking so long??
+// TODO: same for k3 "far"
 
 // TODO: forge-core tests were only looking at the noretarget variants.
 //    (Maybe the retargeting versions never worked?)

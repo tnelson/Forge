@@ -178,6 +178,28 @@
 
 
 
+(run-target-test #:file-name "tomf.frg"
+                 #:run-name tomf_test_close_noretarget_close_k3
+                 #:checkers [(card-checker '((Node 3)
+                                             (edges 9)))
+                             (lambda (test-name an-instance idx)
+                               (or
+                                ; Various ways of differing by one boolean:
+                                ;   * lose an edge 
+                                ((card-checker '((Node 3)
+                                                 (edges 8))) test-name an-instance idx)
+                                ;   * add a node, same edges
+                                ((card-checker '((Node 4)
+                                                 (edges 9))) test-name an-instance idx)))])
+
+
+; Just confirm that named-instance version runs
+(run-target-test #:file-name "tomf.frg"
+                 #:run-name tomf_test_use_named_inst
+                 #:checkers [(card-checker '((Node 3)
+                                             (edges 9)))]) 
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Setup state
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
