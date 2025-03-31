@@ -130,6 +130,13 @@
                  #:checkers [(card-checker '((Node 0)))
                              (card-checker '((Node 1)))])
 
+; Confirming the above in the presence of constraints that limit #Node
+(run-target-test #:file-name "tomf.frg"
+                 #:run-name tomf_test_close_noretarget_int_numNode_gte3
+                 #:checkers [(card-checker '((Node 3)))
+                             (card-checker '((Node 3)))])
+
+
 
 ; "far_noretarget" should *maximize*
 (run-target-test #:file-name "tomf.frg"

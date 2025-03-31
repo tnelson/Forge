@@ -83,6 +83,10 @@ tomf_test_hamming_noNode: run {}
 // Minimize number of nodes
 tomf_test_close_noretarget_int_numNode: run {}
   target_int {#Node} close_noretarget 
+// Make sure that the constraints are respected
+tomf_test_close_noretarget_int_numNode_gte3: run {#Node >= 3}
+  target_int {#Node} close_noretarget 
+
 
 // This setting won't avoid, e.g., (-8 + -8 + -8) even though it "wraps"
 // I believe this is because there is no _arithmetic_ involved. 
@@ -107,6 +111,7 @@ tomf_test_close_noretarget_int_totalWeight5: run {} for exactly 2 Node, 5 Int
 // Maximize number of nodes
 tomf_test_far_noretarget_int_numNode: run {}
   target_int {#Node} far_noretarget 
+
 
 // Should give sum = 8 (mod)
 tomf_test_far_noretarget_int_totalWeight4: run {} for exactly 2 Node
