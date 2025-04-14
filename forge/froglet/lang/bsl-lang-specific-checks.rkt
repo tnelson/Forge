@@ -150,7 +150,12 @@
 (define (check-node-expr-op-& expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "&" expr-node loc)))
+    (raise-bsl-relational-error "&" expr-node loc "Set intersection (`&`) is not supported. Consider using `and` or `&&` instead.")))
+
+(define (check-node-expr-op-| expr-node node-type child-types)
+  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
+    (define loc (nodeinfo-loc (node-info expr-node)))
+    (raise-bsl-relational-error "|" expr-node loc "Bitwise operator (`|`) is not supported. Consider using `or` or `||` instead.")))
 
 (define (check-node-expr-op--> expr-node node-type child-types)  
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
@@ -170,17 +175,17 @@
 (define (check-node-expr-op-^ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "^" expr-node loc)))
+    (raise-bsl-relational-error "^" expr-node loc "The `^` operator is unsupported in Froglet. Transitive closure isn't available here.")))
 
 (define (check-node-expr-op-* expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "*" expr-node loc)))
+    (raise-bsl-relational-error "*" expr-node loc "You may have meant to use the `multiply` predicate instead.")))
 
 (define (check-node-expr-op-~ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "~~" expr-node loc)))
+    (raise-bsl-relational-error "~~" expr-node loc "Bitwise operator (`~`) is not supported. Consider using `not` or `!` instead.")))
 
 (define bsl-checker-hash (make-hash))
 (hash-set! bsl-checker-hash node/formula/multiplicity check-formula-mult)
@@ -275,22 +280,27 @@
 (define (check-args-node-expr-op-& expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "&" expr-args loc)))
+    (raise-bsl-relational-error-expr-args "&" expr-args loc "Set intersection (`&`) is not supported. Consider using `and` or `&&` instead.")))
+
+(define (check-args-node-expr-op-| expr-args info)
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define loc (nodeinfo-loc info))
+    (raise-bsl-relational-error-expr-args "|" expr-args loc "Bitwise operator (`|`) is not supported. Consider using `or` or `||` instead.")))
 
 (define (check-args-node-expr-op-^ expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "^" expr-args loc)))
+    (raise-bsl-relational-error-expr-args "^" expr-args loc "The `^` operator is unsupported in Froglet. Transitive closure isn't available here.")))
 
 (define (check-args-node-expr-op-* expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "*" expr-args loc)))
+    (raise-bsl-relational-error-expr-args "*" expr-args loc "You may have meant to use the `multiply` predicate instead.")))
 
 (define (check-args-node-expr-op-~ expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "~" expr-args loc)))
+    (raise-bsl-relational-error-expr-args "~" expr-args loc "Bitwise operator (`~`) is not supported. Consider using `not` or `!` instead.")))
 
 ; Prevent the forge/core arity error from appearing, since it breaks closure
 (define (check-args-node-formula-op-= expr-args info)
