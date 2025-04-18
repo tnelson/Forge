@@ -213,6 +213,16 @@
                                              (edges 9)))]) 
 
 
+; Just confirm that PI-bounds can be combined with a PI-target.
+; (There are some major restrictions; see tomf.frg.)
+(run-target-test #:file-name "tomf.frg"
+                 #:run-name tomf_test_close_noretarget_close_k3_with_pi_bounds
+                 #:checkers [(card-checker '((Node 2)
+                                             (edges 4)))]) 
+
+
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the tests in the change-making example
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

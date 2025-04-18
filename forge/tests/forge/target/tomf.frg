@@ -54,6 +54,27 @@ tomf_test_close_k3_someIsolated: run {
     edges = Node -> Node -> 0
 } 
 
+// option verbose 5
+
+/////////////////////////////////////////////////////////////////
+// Confirm that the PI bounds are respected, though. 
+//   N.B.: at the moment, the target must use a SUBSET of the PI bound atoms (this is a Forge-side thing)
+//   N.B.: also, the target needs to contain the lower-bound for the run (this is a Pardinus-side thing)
+// Together, these actually restrict how we can combine PI-bounds and targets pretty significantly.
+tomf_test_close_noretarget_close_k3_with_pi_bounds: run {}
+  // Lower/upper bounds in PI
+  for {
+    // Will be rejected by Pardinus (need verbose 5 to see the error)
+    // Node = `Node0 + `Node1 + `Node2
+    Node in `Node0 + `Node1 + `Node2
+  }
+  // Target lower/upper bounds
+  target_pi {
+    Node = `Node0 + `Node2
+    edges = Node -> Node -> 0
+  }
+/////////////////////////////////////////////////////////////////
+
 
 // Not supported yet (this example shows bad performance)
 // tomf_test_far_noretarget_contains_k3: run {}
