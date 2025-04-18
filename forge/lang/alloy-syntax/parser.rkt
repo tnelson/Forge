@@ -86,8 +86,9 @@ ParaDecls : /LEFT-PAREN-TOK @ParaDeclList? /RIGHT-PAREN-TOK
 
 ; Configure target-oriented model finding, or integer optimization (which builds on TOMF).
 ; Expect the type of targeted search, followed by the target, and then the mode (optionally).
-TOMFParams : TARGET_PI-TOK  Bounds Name
-           | TARGET_INT-TOK Block  Name
+TOMFParams : TARGET_PI-TOK  Bounds
+           | MINIMIZE_INT-TOK Block
+           | MAXIMIZE_INT-TOK Block
 
 AssertDecl : /ASSERT-TOK Name? Block
 CmdDecl :  Name /COLON-TOK (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)? (TOMFParams)?

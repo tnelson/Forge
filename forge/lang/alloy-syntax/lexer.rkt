@@ -126,7 +126,8 @@
    ["suite"     (token+ `SUITE-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ; Target orientation 
-   ["target_int"   (token+ `TARGET_INT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["minimize_int"   (token+ `MINIMIZE_INT-TOK "" lexeme "" lexeme-start lexeme-end)]
+   ["maximize_int"   (token+ `MAXIMIZE_INT-TOK "" lexeme "" lexeme-start lexeme-end)]
    ["target_pi"    (token+ `TARGET_PI-TOK "" lexeme "" lexeme-start lexeme-end)]
 
    ;["state"     (token+ `STATE-TOK "" lexeme "" lexeme-start lexeme-end)]

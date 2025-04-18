@@ -722,30 +722,32 @@
               (~optional (~or "lone" "some" "one" "two" "set"))))
     (pattern ((~datum ArrowOp) "*")))
 
-  ; TOMF annotation on a `run`
-  ;TOMFParams : TARGET_PI-TOK (QualName | Block) Name?
-  ;           | TARGET_INT-TOK Expr Name?
-  
-  
+  ; TOMF annotation on a `run`  
   (define-syntax-class TOMFClass
     (pattern ((~datum TOMFParams)
               (~datum "target_pi")
-              tgt_b:BoundsClass
-              mode:NameClass)
+              tgt_b:BoundsClass)
       ; This syntax takes the same form as a partial-instance block. These may refer to other
       ; instance blocks, so the dependencies need to be resolved by `make-inst`. The resulting
       ; Inst struct then needs to be converted to inst-hash format. (The restriction that the
       ; partial instance be exact-bounds only is checked by the final conversion step, which
       ; is done in sigs-functional.)
       #:attr translate_tgt #`(make-inst (flatten (list #,@#'tgt_b.translate)))
-      #:attr translate_mode #'mode.name)
-    
+      #:attr translate_mode #'close_noretarget)
+
+    ; The syntax for int optimization doesn't expect a partial instance, but rather a
+    ; {}-delimited integer expression.
     (pattern ((~datum TOMFParams)
-              (~datum "target_int")
-              tgt_ie:BlockClass
-              mode:NameClass)
+              (~datum "minimize_int")
+              tgt_ie:BlockClass)
       #:attr translate_tgt #'tgt_ie
-      #:attr translate_mode #'mode.name))
+      #:attr translate_mode #'close_noretarget)
+
+    (pattern ((~datum TOMFParams)
+              (~datum "maximize_int")
+              tgt_ie:BlockClass)
+      #:attr translate_tgt #'tgt_ie
+      #:attr translate_mode #'far_noretarget)  )
 
 
   ; CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK

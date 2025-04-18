@@ -52,7 +52,7 @@ pred correct57 {
 //     We need 2 pennies at minimum, leaving us only 4 to make 55 cents.)
 //  Instance 3: 9 coins (2 quarters, 7 pennies)
 change57_min_coins: run {correct57} for 8 Int, exactly 15 Coin
-  target_int {#Transaction.used} close_noretarget 
+  minimize_int {#Transaction.used}
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -61,7 +61,7 @@ change57_min_coins: run {correct57} for 8 Int, exactly 15 Coin
 // Instance 1:    (1 quarter, 1 dime, 3 nickels, 7 pennies)
 
 change57_max_1_5: run {correct57} for 8 Int, exactly 15 Coin
-  target_int {#(Transaction.used & (Penny + Nickel))} far_noretarget 
+  maximize_int {#(Transaction.used & (Penny + Nickel))}
 
 ////////////////////////////////////////////////////////////////////////////
 

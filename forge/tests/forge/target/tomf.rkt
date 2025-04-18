@@ -84,6 +84,7 @@
 
 ; Stay as close as possible to the initial instance (whatever that is)
 (define same-card-defaults (same-card 'Node))
+
 (run-target-test #:file-name "tomf.frg"
                  #:run-name tomf_test_defaults
                  #:checkers [same-card-defaults
@@ -93,10 +94,12 @@
                  #:run-name tomf_test_close_noretarget_noNode
                  #:checkers [(card-checker '((Node 0)))
                              (card-checker '((Node 1)))])
-(run-target-test #:file-name "tomf.frg"
-                 #:run-name tomf_test_far_noretarget_noNode
-                 #:checkers [(card-checker '((Node 4)))
-                             (card-checker '((Node 4)))])
+
+; Not yet supported
+;(run-target-test #:file-name "tomf.frg"
+;                 #:run-name tomf_test_far_noretarget_noNode
+;                 #:checkers [(card-checker '((Node 4)))
+;                             (card-checker '((Node 4)))])
 
 ; retargeting is currently buggy
 
@@ -205,6 +208,22 @@
                  #:run-name tomf_test_use_named_inst
                  #:checkers [(card-checker '((Node 3)
                                              (edges 9)))]) 
+
+
+; Check the tests in the change-making example
+
+; Minimize the number of coins used
+(run-target-test #:file-name "tomf_change.frg"
+                 #:run-name change57_min_coins
+                 #:checkers [(card-checker '((Quarter 2) (Nickel 1) (Penny 2)))
+                             (card-checker '((Quarter 1) (Dime 2) (Nickel 2) (Penny 2)))
+                             (card-checker '((Quarter 2) (Penny 7)))])
+
+; Maximize the number of pennies and nickels used
+(run-target-test #:file-name "tomf_change.frg"
+                 #:run-name change57_max_1_5
+                 #:checkers [(card-checker '((Quarter 1) (Dime 1) (Nickel 3) (Penny 7)))])
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

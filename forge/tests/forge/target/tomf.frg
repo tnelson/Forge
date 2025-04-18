@@ -7,7 +7,14 @@
 
 option problem_type target
 option solver PMaxSAT4J
-// option run_sterling off
+
+// Not intended to run, should be called by tomf.rkt. 
+// If debugging, comment this line out.
+option run_sterling off
+
+// For debugging, if needed
+//option engine_verbosity 5
+//option verbose 5
 
 sig Node { edges: pfunc Node -> Int }
 
@@ -18,9 +25,11 @@ option target_mode close_noretarget
 tomf_test_defaults: run {some Node}  
 
 tomf_test_close_noretarget_noNode: run {}
-  target_pi {no Node} close_noretarget 
-tomf_test_far_noretarget_noNode: run {}
-  target_pi {no Node} far_noretarget 
+  target_pi {no Node}
+
+// Not supported yet
+//tomf_test_far_noretarget_noNode: run {}
+//  target_pi {no Node} far_noretarget 
 
 // This confirms that the _partiality_ works: we don't say what 
 // the potential other node is connected to, if it exists.
@@ -28,64 +37,52 @@ tomf_test_close_noretarget_close_k3: run {}
   target_pi {
     Node = `Node0 + `Node1 + `Node2
     edges = Node -> Node -> 0
-  } close_noretarget 
+  }
 
 inst k3 {
     Node = `Node0 + `Node1 + `Node2
     edges = Node -> Node -> 0
 }
 tomf_test_use_named_inst: run {}
-  target_pi {k3} close_noretarget 
+  target_pi {k3} 
 
-
-
-
-// TODO: why is this experiencing bad performance?
-tomf_test_far_noretarget_contains_k3: run {}
-  target_pi {
+// test in presence of a constraint
+tomf_test_close_k3_someIsolated: run {
+    some n: Node | no (n.edges) and no ~(edges.Int).n
+} target_pi {
     Node = `Node0 + `Node1 + `Node2
     edges = Node -> Node -> 0
-  } far_noretarget 
+} 
 
 
+// Not supported yet (this example shows bad performance)
+// tomf_test_far_noretarget_contains_k3: run {}
+//   target_pi {
+//     Node = `Node0 + `Node1 + `Node2
+//     edges = Node -> Node -> 0
+//   } far_noretarget 
 
 
-
-
-// Not reliable yet
-tomf_test_close_retarget_noNode: run {}
-  target_pi {no Node} close_retarget 
-tomf_test_far_retarget_noNode: run {}
-  target_pi {no Node} far_retarget 
-
-// Not reliable yet
-tomf_test_hamming_noNode: run {}
-  target_pi {no Node} hamming_cover
-
-
-
-// TODO: why is 2nd instance of hamming cover taking so long??
-// TODO: same for k3 "far"
-
-// TODO: forge-core tests were only looking at the noretarget variants.
-//    (Maybe the retargeting versions never worked?)
+// Not supported yet (not necessarily reliable)
+// tomf_test_close_retarget_noNode: run {}
+//   target_pi {no Node} close_retarget 
+// tomf_test_far_retarget_noNode: run {}
+//   target_pi {no Node} far_retarget 
+// tomf_test_hamming_noNode: run {}
+//   target_pi {no Node} hamming_cover
 
 // TODO: at present, the extra relations taint the state for all runs
-
 
 //////////////////////
 // Int Minimization //
 //////////////////////
 
-// TODO: the syntax is rather strange: what is the _target_? Rather this is 
-// the minimization objective. 
-
 // Minimize number of nodes
 tomf_test_close_noretarget_int_numNode: run {}
-  target_int {#Node} close_noretarget 
+  minimize_int {#Node} 
 // Make sure that the constraints are respected
 tomf_test_close_noretarget_int_numNode_gte3: run {#Node >= 3}
-  target_int {#Node} close_noretarget 
+  minimize_int {#Node} 
 
 
 // This setting won't avoid, e.g., (-8 + -8 + -8) even though it "wraps"
@@ -94,15 +91,29 @@ option no_overflow true
 
 // Should give sum = -8 (mod)
 tomf_test_close_noretarget_int_totalWeight4: run {} for exactly 2 Node
-  target_int {sum m: Node | sum n: Node | m.edges[n]} close_noretarget 
+  minimize_int {sum m: Node | sum n: Node | m.edges[n]} 
+
+// (Not in .rkt, but here to enable performance testing.)
+// Should give sum = -8 (mod)
+tomf_test_close_noretarget_int_totalWeight4_6Node: run {} for 6 Node
+  minimize_int {sum m: Node | sum n: Node | m.edges[n]} 
+
+// TODO: into .rkt
+// What happens if we ask for all edges to have -8 weight? 
+//   With no_overflow on, this instance is _rejected_.
+tomf_test_close_noretarget_int_totalWeight4_force_many_min: run {
+    all n, m: Node | n.edges[m] = -8
+} for 3 Node
+  minimize_int {sum m: Node | sum n: Node | m.edges[n]} 
+
 
 // Should give sum = -2 (mod)
 tomf_test_close_noretarget_int_totalWeight2: run {} for exactly 2 Node, 2 Int
-  target_int {sum m: Node | sum n: Node | m.edges[n]} close_noretarget 
+  minimize_int {sum m: Node | sum n: Node | m.edges[n]}
 
 // Should give sum = -16 (mod)
 tomf_test_close_noretarget_int_totalWeight5: run {} for exactly 2 Node, 5 Int
-  target_int {sum m: Node | sum n: Node | m.edges[n]} close_noretarget 
+  minimize_int {sum m: Node | sum n: Node | m.edges[n]}
 
 //////////////////////
 // Int Maximization //
@@ -110,11 +121,10 @@ tomf_test_close_noretarget_int_totalWeight5: run {} for exactly 2 Node, 5 Int
 
 // Maximize number of nodes
 tomf_test_far_noretarget_int_numNode: run {}
-  target_int {#Node} far_noretarget 
-
+  maximize_int {#Node} 
 
 // Should give sum = 8 (mod)
 tomf_test_far_noretarget_int_totalWeight4: run {} for exactly 2 Node
-  target_int {sum m: Node | sum n: Node | m.edges[n]} far_noretarget 
+  maximize_int {sum m: Node | sum n: Node | m.edges[n]}
 
 ///////////////////////////////////////////
