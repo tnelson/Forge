@@ -15,16 +15,19 @@
          (for-syntax racket/base syntax/parse racket/syntax)
          (only-in rackunit check-true check-eq?)
          (only-in forge/sigs forge:make-model-generator forge:get-result
+                  forge:update-state! forge:init-state
                   set-option! forge:Sat? Sat-instances sum-quant join)
          (only-in forge/server/eval-model eval-int-expr))
 
 (define (card-checker list-of-reqs)
   (lambda (test-name an-instance idx)
+    ;(printf "~n~n~n~n~n~n~n~n~n~nChecking instance ~a: ~a~n" idx
+    ;        (hash-remove (hash-remove (hash-remove an-instance '__K_HELPER_ATOM) '__OPT_K_HELPER) '__OPT_K_COUNT_SET))
     (for ([req list-of-reqs])
       (check-true (hash? an-instance) (format "instance for ~a is a hash?" test-name))
-      (check-eq? (length (hash-ref an-instance (first req)))
-                 (second req)
-                 (format "size of ~a as expected for instance ~a of ~a" (first req) idx test-name)))))
+      (check-eq? (second req)
+                 (length (hash-ref an-instance (first req)))
+                 (format "size of ~a as expected for instance ~a (of ~a to be checked) of ~a" (first req) idx (length list-of-reqs) test-name)))))
 
 (define (same-card relname)
   (define history (box #f))
@@ -210,7 +213,14 @@
                                              (edges 9)))]) 
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Check the tests in the change-making example
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Need to clear out the state to get rid of now-unused relations, etc.
+; Forgetting to do this may cause test failures.
+(forge:update-state! forge:init-state)
+
 
 ; Minimize the number of coins used
 (run-target-test #:file-name "tomf_change.frg"

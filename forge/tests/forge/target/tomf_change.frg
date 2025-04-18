@@ -16,8 +16,7 @@ abstract sig Coin {}
 sig Penny, Nickel, Dime, Quarter extends Coin {}
 
 one sig Transaction {
-    change: one Int,
-    used: set Coin
+    change: one Int
 }
 
 fun valueOf[c: Coin]: one Int {
@@ -29,18 +28,25 @@ fun valueOf[c: Coin]: one Int {
 pred correctChangeMade {
     // We assume the set of Coin atoms corresponds to the available 
     // drawer of change. So we just check the total:
-    (sum c: Transaction.used | valueOf[c]) = Transaction.change
+    (sum c: Coin | valueOf[c]) = Transaction.change
 }
 pred correct57 {
     // Return $0.57 in change
     Transaction.change = 57
     // and do so correctly
     correctChangeMade
+    
     // with a specific drawer state 
-    #Quarter = 2
-    #Dime = 2
-    #Nickel = 3
-    #Penny = 8
+    #Quarter <= 2
+    #Dime <= 2
+    #Nickel <= 3
+    #Penny <= 8
+
+    // Note: the test runner (tomf.rkt) that uses this module will examine 
+    // the cardinality of these sigs in a given instance to decide if the 
+    // instance is expected. Hence why these are given as _upper_ bounds.
+    // I.e., all Coin atoms are part of the change given.
+ 
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -51,8 +57,8 @@ pred correct57 {
 //    (There is no way to solve this with exactly 6 coins, given the drawer.
 //     We need 2 pennies at minimum, leaving us only 4 to make 55 cents.)
 //  Instance 3: 9 coins (2 quarters, 7 pennies)
-change57_min_coins: run {correct57} for 8 Int, exactly 15 Coin
-  minimize_int {#Transaction.used}
+change57_min_coins: run {correct57} for 8 Int, 15 Coin
+  minimize_int {#Coin}
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -60,8 +66,8 @@ change57_min_coins: run {correct57} for 8 Int, exactly 15 Coin
 // rolls earlier for some reason)
 // Instance 1:    (1 quarter, 1 dime, 3 nickels, 7 pennies)
 
-change57_max_1_5: run {correct57} for 8 Int, exactly 15 Coin
-  maximize_int {#(Transaction.used & (Penny + Nickel))}
+change57_max_1_5: run {correct57} for 8 Int, 15 Coin
+  maximize_int {#(Penny + Nickel)}
 
 ////////////////////////////////////////////////////////////////////////////
 
