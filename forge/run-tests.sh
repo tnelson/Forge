@@ -39,9 +39,9 @@ echo -e "Found the following $numTestFiles test files:\n$breakLine$testFiles\n$b
 ##########################
 
 which cvc5 &> /dev/null;
-cvc5OnPath=$?
+cvc5OnPathES=$?
 
-if [[ $cvc5OnPath -eq 0 ]]; then 
+if [[ $cvc5OnPathES -eq 0 ]]; then 
   echo "Found cvc5, will run SMT tests if any."
 else 
   echo "Could not find cvc5, will skip SMT tests if any."
@@ -65,7 +65,7 @@ for testFile in $testFiles; do
     fi
 
     # Only run SMT tests if cvc5 is on the path.
-    if [[ $cvc5OnPath != 0 && $matchedSMT -ne 0 ]]; then
+    if [[ $cvc5OnPathES != 0 && $matchedSMT -eq 0 ]]; then
         echo "Skipping SMT backend test because cvc5 is not on the PATH: $testFile"
     else
         #start=`date +%s` 
