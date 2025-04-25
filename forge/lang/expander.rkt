@@ -9,6 +9,7 @@
                      (only-in racket/path file-name-from-path)
                      (only-in racket/string string-replace))
          syntax/srcloc
+         (only-in racket/list flatten)
          ; Needed because the abstract-tok definition below requires phase 2
          (for-syntax (for-syntax racket/base)))
                  
@@ -327,7 +328,8 @@
               (~optional (~or pred-name:QualNameClass
                               pred-block:BlockClass))
               (~optional scope:ScopeClass)
-              (~optional bounds:BoundsClass))))
+              (~optional bounds:BoundsClass)
+              (~optional tomf:TOMFClass))))
 
   ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
   (define-syntax-class TestDeclClass
@@ -720,6 +722,34 @@
               (~optional (~or "lone" "some" "one" "two" "set"))))
     (pattern ((~datum ArrowOp) "*")))
 
+  ; TOMF annotation on a `run`  
+  (define-syntax-class TOMFClass
+    (pattern ((~datum TOMFParams)
+              (~datum "target_pi")
+              tgt_b:BoundsClass)
+      ; This syntax takes the same form as a partial-instance block. These may refer to other
+      ; instance blocks, so the dependencies need to be resolved by `make-inst`. The resulting
+      ; Inst struct then needs to be converted to inst-hash format. (The restriction that the
+      ; partial instance be exact-bounds only is checked by the final conversion step, which
+      ; is done in sigs-functional.)
+      #:attr translate_tgt #`(make-inst (flatten (list #,@#'tgt_b.translate)))
+      #:attr translate_mode #'close_noretarget)
+
+    ; The syntax for int optimization doesn't expect a partial instance, but rather a
+    ; {}-delimited integer expression.
+    (pattern ((~datum TOMFParams)
+              (~datum "minimize_int")
+              tgt_ie:BlockClass)
+      #:attr translate_tgt #'tgt_ie
+      #:attr translate_mode #'close_noretarget)
+
+    (pattern ((~datum TOMFParams)
+              (~datum "maximize_int")
+              tgt_ie:BlockClass)
+      #:attr translate_tgt #'tgt_ie
+      #:attr translate_mode #'far_noretarget)  )
+
+
   ; CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | EQUIV-TOK | IS-TOK | NI-TOK
   (define-syntax-class CompareOpClass
     (pattern ((~datum CompareOp)
@@ -784,7 +814,6 @@
   (define-syntax-class ExprListClass
     (pattern ((~datum ExprList)
               exprs:ExprClass ...))))
-
 
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
@@ -1001,16 +1030,20 @@
                        (~optional (~or pred:QualNameClass
                                        preds:BlockClass))
                        (~optional scope:ScopeClass)
-                       (~optional bounds:BoundsClass))
+                       (~optional bounds:BoundsClass)
+                       (~optional tomf:TOMFClass))
    (with-syntax ([cmd-type (datum->syntax #'cmd-type
                                           (string->symbol (syntax->datum #'cmd-type))
                                           #'cmd-type)]
                  [name #`(~? name.name #,(make-temporary-name stx))]
                  [preds #'(~? pred.name preds)])
+     ;(printf "Trying to make target: ~a~n" #'tomf.translate_tgt)
     #`(begin
        #,(syntax/loc stx (cmd-type name (~? (~@ #:preds [preds]))
                       (~? (~@ #:scope scope.translate))
-                      (~? (~@ #:bounds bounds.translate))))
+                      (~? (~@ #:bounds bounds.translate))
+                      (~? (~@ #:target tomf.translate_tgt))
+                      (~? (~@ #:target-distance tomf.translate_mode))))
        ; This should no longer be called per-command. Instead, an external coordinator
        ; (such as Sterling) will say when (and if) each command should be executed.
        ;#,(syntax/loc stx (display name))

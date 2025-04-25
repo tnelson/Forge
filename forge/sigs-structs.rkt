@@ -150,7 +150,11 @@
 
 ; A Target describes the goal of a target-oriented model-finding run.
 (struct/contract Target (
-  [instance (hash/c symbol? (listof (listof symbol?)))]
+  [target (or/c
+           ; Original forge/core partial-instance notation
+           (hash/c symbol? (listof (listof (or/c number? symbol?))))
+           ; `inst` notation from #lang forge
+           Inst?)]
   ; This is not the same as option target_mode, which provides a global default.
   ; Rather, this is per target.
   [distance (or/c 'close_noretarget 'far_noretarget 'close_retarget 'far_retarget 'hamming_cover)]
@@ -254,7 +258,7 @@
 ; an engine_verbosity of 1 logs SEVERE level in the Java engine;
 ;   this will send back info about crashes, but shouldn't spam (and possibly overfill) stderr.
 (define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default
-                                 'close-noretarget 'fast 0 'off 'on 0 1 'first 'false #f))
+                                 'close_noretarget 'fast 0 'off 'on 0 1 'first 'false #f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -424,8 +428,11 @@ Returns whether the given run resulted in sat or unsat, respectively.
            (Sig-name sig-name-or-rel)]
           [(node/expr/relation? sig-name-or-rel)
            (string->symbol (relation-name sig-name-or-rel))]
-          [else (error (format "get-sig failed to locate: ~a" sig-name-or-rel))]))
-  (hash-ref (State-sigs (get-state run-or-state)) sig-name))
+          [else (raise-forge-error #:msg (format "get-sig failed to locate: ~a" sig-name-or-rel)
+                                   #:context #f)]))
+  (cond [(hash-has-key? (State-sigs (get-state run-or-state)) sig-name)
+         (hash-ref (State-sigs (get-state run-or-state)) sig-name)]
+         [else #f]))
 
 ; get-sigs :: Run-or-State, Relation*? -> List<Sig>
 ; If a relation is provided, returns the column sigs;
@@ -464,7 +471,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
            (string->symbol (relation-name relation-name-or-rel))]
           [(Relation? relation-name-or-rel)
            (Relation-name relation-name-or-rel)]))
-  (hash-ref (State-relations (get-state run-or-state)) name))
+  (cond [(hash-has-key? (State-relations (get-state run-or-state)) name)
+         (hash-ref (State-relations (get-state run-or-state)) name)]
+        [else #f]))
 
 ; get-relations :: Run-or-State -> List<Relation>
 ; Returns the Relations in a run/state.
@@ -870,8 +879,9 @@ Returns whether the given run resulted in sat or unsat, respectively.
            (if (member (get-option (get-run-spec run-or-state) 'backend) UNBOUNDED_INT_BACKENDS)       
            (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (remove 'Int (map Sig-name (get-sigs run-or-state))))))  
            (remove-duplicates (flatten (map (lambda (n) (primify run-or-state n)) (cons 'Int (map Sig-name (get-sigs run-or-state)))))))]
-          [else           
+          [else
            (define the-sig (get-sig run-or-state signame))
+           
            (define all-primitive-descendants
              (remove-duplicates
               (flatten

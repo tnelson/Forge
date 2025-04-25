@@ -84,9 +84,15 @@ FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK HelperMult? Ex
 ParaDecls : /LEFT-PAREN-TOK @ParaDeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @ParaDeclList? /RIGHT-SQUARE-TOK
 
+; Configure target-oriented model finding, or integer optimization (which builds on TOMF).
+; Expect the type of targeted search, followed by the target, and then the mode (optionally).
+TOMFParams : TARGET_PI-TOK  Bounds
+           | MINIMIZE_INT-TOK Block
+           | MAXIMIZE_INT-TOK Block
+
 AssertDecl : /ASSERT-TOK Name? Block
-CmdDecl :  Name /COLON-TOK (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
-        | (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
+CmdDecl :  Name /COLON-TOK (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)? (TOMFParams)?
+        | (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)? (TOMFParams)?
 
 TestDecl : (Name /COLON-TOK)? (QualName | Block) Scope? (/FOR-TOK Bounds)? /IS-TOK
            (SAT-TOK | UNSAT-TOK | UNKNOWN-TOK | THEOREM-TOK | FORGE_ERROR-TOK (PATH-OR-STR-TOK)? | CHECKED-TOK )

@@ -28,7 +28,7 @@
 ; Disable DrRacket GUI extension/tool
 ;(require "drracket-gui.rkt")
 
-(provide send-to-solver)
+(provide send-to-solver reset-run-name-history! stop-solver-process!)
 
 (define no-version-printed-yet #t)
 
@@ -41,6 +41,14 @@
 ; In order to prevent a bad crash, keep track of run-names used in the past, 
 ; and throw a friendlier error if one is re-used. 
 (define run-name-history (box (list)))
+(define (reset-run-name-history!)
+  (set-box! run-name-history (list)))
+
+; This function is provided for scripting tests, but it is volatile; don't rely on it.
+(define (stop-solver-process!)
+  (when (unbox server-state)
+    ((Server-ports-shutdown (unbox server-state)))
+    (set-box! server-state #f)))
 
 ; send-to-solver :: Run-spec -> Stream<model>, List<Symbol>
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;
@@ -161,7 +169,7 @@
   ; Initializing our backend process, and getting ports for communication with it.
   ; This was originally just Kodkod; some of that terminology remains.
   (define backend (get-option run-spec 'backend))
-  (define-values (stdin stdout stderr shutdown is-running?) 
+  (define-values (stdin stdout stderr shutdown is-running?)
     (cond
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; if there is an active server state, and the server is running

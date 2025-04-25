@@ -16,7 +16,8 @@
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
          (only-in racket/list first second range rest empty flatten)
-         (only-in racket/set list->set set->list set-union set-intersect subset? set-count))
+         (only-in racket/set list->set set->list set-union set-intersect subset? set-count)
+         (only-in racket/hash hash-union))
 (require (only-in syntax/srcloc build-source-location-syntax))
 
 (require (except-in forge/lang/ast ->)
@@ -46,7 +47,8 @@
          display)
 (provide Int succ)
 (provide (prefix-out forge: make-model-generator))
-(provide solution-diff)         
+(provide solution-diff)
+(provide reset-run-name-history! stop-solver-process!)
 
 ; ; Instance analysis functions
 ; (provide is-sat? is-unsat?)
@@ -617,8 +619,62 @@
     (unless (node/formula? p)
       (raise-forge-error #:msg (format "Expected a formula but got something else: ~a" (deparse p))
                          #:context command)))
+
+  (define (inst->hash/exact tgt-i)
+    (define-values (tgt-scope tgt-bounds) 
+      ((Inst-func tgt-i) scope-with-ones default-bounds))
+
+    (unless (hash-empty? (Bound-piecewise tgt-bounds))
+      (raise-forge-error #:msg (format "Piecewise bounds are not allowed in target. Use `R = ...`")
+                         #:context command))
+    (define tbhash
+      (for/hash ([rel (hash-keys (Bound-tbindings tgt-bounds))]
+                 ; remove built-ins
+                 #:unless (member (string->symbol (node/expr/relation-name rel)) '(Int succ)))
+        (define val (hash-ref (Bound-tbindings tgt-bounds) rel))
+        (define relname (string->symbol (node/expr/relation-name rel)))
+        (values relname (map (lambda (tup)
+                               (map (lambda (atom)
+                                      (if (int-atom? atom)
+                                          (int-atom-n atom)
+                                          atom))
+                                    tup)) val))))
+    (define pbhash
+      (for/hash ([rel (hash-keys (Bound-pbindings tgt-bounds))])
+        (define val (hash-ref (Bound-pbindings tgt-bounds) rel))
+        (define relname (string->symbol (node/expr/relation-name rel)))
+        (define lower (sbound-lower val))
+        (define upper (sbound-upper val))
+        (unless (equal? lower upper)
+          (raise-forge-error #:msg (format "Non-exact bounds on ~a are not allowed in target. Use `=`, not `in` or `ni`." relname)
+                             #:context command))
+        (values relname (map (lambda (tup)
+                               (map (lambda (atom)
+                                      (if (int-atom? atom)
+                                          (int-atom-n atom)
+                                          atom))
+                                    tup)) (set->list lower)))))
+
+    (hash-union tbhash pbhash
+                #:combine/key (lambda (k v1 v2)
+                                (unless (equal? v1 v2)
+                                  (raise-forge-error #:msg (format"Error with the provided target bounds: generation was both total and partial for relation ~a" k)
+                                                     #:context command))
+                                v1)))
+
+      
   
-  (define spec (Run-spec state preds scope bounds-with-piecewise-lower target))        
+  (define cleaned-target
+    (cond [(and target (Inst? (Target-target target)))
+           ; Rebuild as a hash-based instance
+           (Target
+            (inst->hash/exact (Target-target target))
+            (Target-distance target))]
+          [else
+           target]))
+  ;(printf "cleaned-target: ~a~n" cleaned-target)
+  
+  (define spec (Run-spec state preds scope bounds-with-piecewise-lower cleaned-target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
                  (send-to-solver spec command #:run-name name))
   
