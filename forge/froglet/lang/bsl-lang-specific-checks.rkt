@@ -140,27 +140,27 @@
 (define (check-node-expr-op-+ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "+" expr-node loc "You may have meant to use the `add` predicate instead.")))
+    (raise-bsl-relational-error "+" expr-node loc "The `+` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant addition, use the `add` predicate instead.")))
 
 (define (check-node-expr-op-- expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "-" expr-node loc "You may have meant to use the `subtract` predicate instead.")))
+    (raise-bsl-relational-error "-" expr-node loc "The `-` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant subtraction, use the `subtract` predicate instead.")))
 
 (define (check-node-expr-op-& expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "&" expr-node loc "Set intersection (`&`) is not supported. Consider using `and` or `&&` instead.")))
+    (raise-bsl-relational-error "&" expr-node loc "The `&` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant intersection, use `and` or `&&` instead.")))
 
 (define (check-node-expr-op-| expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "|" expr-node loc "Bitwise operator (`|`) is not supported. Consider using `or` or `||` instead.")))
+    (raise-bsl-relational-error "|" expr-node loc "The `|` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant logical-or, use `or` or '||' instead.")))
 
 (define (check-node-expr-op--> expr-node node-type child-types)  
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-error "Use of -> in expressions is not allowed in forge/bsl" expr-node loc)))
+    (raise-bsl-error "The `->` operator is only used for field declaration in Froglet." expr-node loc)))
 
 (define (check-node-expr-op-join expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
@@ -175,17 +175,17 @@
 (define (check-node-expr-op-^ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "^" expr-node loc "The `^` operator is unsupported in Froglet. Transitive closure isn't available here.")))
+    (raise-bsl-relational-error "^" expr-node loc "The `^` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant exclusive-or, use the `xor` operator instead.")))
 
 (define (check-node-expr-op-* expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "*" expr-node loc "You may have meant to use the `multiply` predicate instead.")))
+    (raise-bsl-relational-error "*" expr-node loc "The `*` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant multiplication, use the `multiply` predicate instead.")))
 
 (define (check-node-expr-op-~ expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "~~" expr-node loc "Bitwise operator (`~`) is not supported. Consider using `not` or `!` instead.")))
+    (raise-bsl-relational-error "~~" expr-node loc "The `~` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant logical-negation, use `not` or '!' instead.")))
 
 (define bsl-checker-hash (make-hash))
 (hash-set! bsl-checker-hash node/formula/multiplicity check-formula-mult)
@@ -264,43 +264,43 @@
 (define (check-args-node-expr-op--> expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-error-deparsed-str "Direct use of -> in a formula is not allowed in Froglet" (format "(~a->~a)" (deparse (first expr-args)) (deparse (second expr-args))) loc)))
+    (raise-bsl-error-deparsed-str "The `->` operator is only used for field declaration in Froglet." (format "(~a->~a)" (deparse (first expr-args)) (deparse (second expr-args))) loc)))
 
 (define (check-args-node-expr-op-+ expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "+" expr-args loc "You may have meant to use the `add` predicate instead.")))
+    (raise-bsl-relational-error-expr-args "+" expr-args loc "The `+` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant addition, use the `add` predicate instead.")))
 
 
 (define (check-args-node-expr-op-- expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "-" expr-args loc "You may have meant to use the `subtract` predicate instead.")))
+    (raise-bsl-relational-error-expr-args "-" expr-args loc "The `-` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant subtraction, use the `subtract` predicate instead.")))
 
 (define (check-args-node-expr-op-& expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "&" expr-args loc "Set intersection (`&`) is not supported. Consider using `and` or `&&` instead.")))
+    (raise-bsl-relational-error-expr-args "&" expr-args loc "The `&` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant intersection, use `and` or `&&` instead.")))
 
 (define (check-args-node-expr-op-| expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "|" expr-args loc "Bitwise operator (`|`) is not supported. Consider using `or` or `||` instead.")))
+    (raise-bsl-relational-error-expr-args "|" expr-args loc "The `|` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant logical-or, use `or` or '||' instead.")))
 
 (define (check-args-node-expr-op-^ expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "^" expr-args loc "The `^` operator is unsupported in Froglet. Transitive closure isn't available here.")))
+    (raise-bsl-relational-error-expr-args "^" expr-args loc "The `^` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant exclusive-or, use the `xor` operator instead.")))
 
 (define (check-args-node-expr-op-* expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "*" expr-args loc "You may have meant to use the `multiply` predicate instead.")))
+    (raise-bsl-relational-error-expr-args "*" expr-args loc "The `*` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant multiplication, use the `multiply` predicate instead.")))
 
 (define (check-args-node-expr-op-~ expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "~" expr-args loc "Bitwise operator (`~`) is not supported. Consider using `not` or `!` instead.")))
+    (raise-bsl-relational-error-expr-args "~" expr-args loc "The `~` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant logical-negation, use `not` or '!' instead.")))
 
 ; Prevent the forge/core arity error from appearing, since it breaks closure
 (define (check-args-node-formula-op-= expr-args info)
