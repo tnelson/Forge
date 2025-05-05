@@ -150,12 +150,7 @@
 (define (check-node-expr-op-& expr-node node-type child-types)
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
     (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "&" expr-node loc "The `&` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant intersection, use `and` or `&&` instead.")))
-
-(define (check-node-expr-op-| expr-node node-type child-types)
-  (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
-    (define loc (nodeinfo-loc (node-info expr-node)))
-    (raise-bsl-relational-error "|" expr-node loc "The `|` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant logical-or, use `or` or '||' instead.")))
+    (raise-bsl-relational-error "&" expr-node loc "The `&` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant logical-and, use `and` or `&&` instead.")))
 
 (define (check-node-expr-op--> expr-node node-type child-types)  
   (when (eq? (nodeinfo-lang (node-info expr-node)) LANG_ID)
@@ -281,11 +276,6 @@
   (when (eq? (nodeinfo-lang info) LANG_ID)
     (define loc (nodeinfo-loc info))
     (raise-bsl-relational-error-expr-args "&" expr-args loc "The `&` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant intersection, use `and` or `&&` instead.")))
-
-(define (check-args-node-expr-op-| expr-args info)
-  (when (eq? (nodeinfo-lang info) LANG_ID)
-    (define loc (nodeinfo-loc info))
-    (raise-bsl-relational-error-expr-args "|" expr-args loc "The `|` operator is not used in Froglet, but is reserved for use in other Forge languages. If you meant logical-or, use `or` or '||' instead.")))
 
 (define (check-args-node-expr-op-^ expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
