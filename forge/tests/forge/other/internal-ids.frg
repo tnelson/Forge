@@ -38,7 +38,7 @@ sig AlloyModule, Block, ModuleDecl, Import, SigDecl, RelDecl
      // Trying various identifiers introduced by Forge and Racket
      
      // helper macro defined by Forge, but not a keyword
-     ,ifte
+     ,ifte, debug
      // top-level AST struct name
      ,node
      // Racket-defined macros

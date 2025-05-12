@@ -1661,7 +1661,7 @@
 ; Helper(s) for debugging syntax class nesting
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-syntax (debug stx)
+#;(define-syntax (debug stx)
   (define result
     (syntax-parse stx
       [(_ x:BoundsClass) (syntax/loc this-syntax x.translate)]
