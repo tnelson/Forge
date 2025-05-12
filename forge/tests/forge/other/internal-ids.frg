@@ -2,7 +2,7 @@
 
 open "other.frg"
 
-//option run_sterling off
+option run_sterling off
 option verbose 0
 
 /*
@@ -14,26 +14,27 @@ option verbose 0
   It was also unnecessary to rename all non-terminals, and so some 
   of these serve an active purpose in verifying that it continues
   to be unnecessary.
- 
-  E.g., to confirm that "AlloyModule" will not clash, it needs to 
-  be used as a name in the model.
 */
 
-sig Block, AlloyModule, ModuleDecl, Import, SigDecl, RelDecl
+sig AlloyModule, Block, ModuleDecl, Import, SigDecl, RelDecl
      ,PredDecl, FunDecl, CmdDecl, TestDecl, TestExpectDecl 
      ,PropertyDecl,QuantifiedPropertyDecl, SatisfiabilityDecl
      ,ConsistencyDecl, TestSuiteDecl, ExampleDecl, Const, OptionDecl
      ,InstDecl, Expr, Expr1, Expr2, Name, NameList, QualName, LetDecl
-     ,Bound, Scope, ArrowOp, QualNameList, ParaDeclList, QuantDeclList
+     ,Bound, Scope, QualNameList, ParaDeclList, QuantDeclList
      ,BlockOrBar, Quant, NumberList, Bounds, BoundLHS, BindRHSUnion
-     ,BindRHSProduct, BindRHSProductBase, AtomNameOrNumber, EvalDecl
-     ,ArrowExpr, LetDeclList, TypescopeList, TestBlock
+     ,BindRHSProduct, BindRHSProductBase, AtomNameOrNumber
+     ,ArrowExpr, LetDeclList, TypescopeList, TestBlock, Paragraph, SigExt
+     ,Mult, ArrowMult, HelperMult, ParaDecl, QuantDecl, ArrowDecl, PredType
+     ,ParaDecls, TOMFParams, Typescope, TestConstruct
+     ,ArrowOp, CompareOp, Sexpr, Number
+
+     // Used in evaluator queries about a specific instance
+     , EvalDecl
 
      // Not supported, but have a production anyway. Include to detect regressions.
      , AssertDecl ,FactDecl
 {}
-
-// TODO: confirm this produces a usable evaluator
 
 sig Node {edges: set Node, weightedEdges: set Node -> Int}
 
@@ -56,7 +57,7 @@ assert {} is necessary for foo
 assert {} is consistent with foo
 
 example anExample is {foo} for {
-
+  Node = `Node0 + `Node1 + `Providence
 }
 
 exampleRun: run {} for exactly 5 Node

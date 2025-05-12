@@ -589,26 +589,26 @@
   (define-syntax-class QualNameOrAtomOrAtomizedNumberClass
      #:description "name, atom name, or number"
     (pattern name:QualNameClass
-      #:attr translate (syntax/loc this-syntax (Expr name)))
+      #:attr translate (syntax/loc this-syntax (NT-Expr name)))
     (pattern ((~datum AtomNameOrNumber) "`" name:NameClass)
-      #:attr translate (syntax/loc this-syntax (Expr "`" name)))
+      #:attr translate (syntax/loc this-syntax (NT-Expr "`" name)))
     ; Negative numbers are now handled in the lexer, so that "- 1" is not transformed to "-1"
     (pattern ((~datum AtomNameOrNumber) num:NumberClass)
       #:attr translate
-      (quasisyntax/loc this-syntax (Expr #,(syntax/loc this-syntax (Const num))))))
+      (quasisyntax/loc this-syntax (NT-Expr #,(syntax/loc this-syntax (Const num))))))
   
   (define-syntax-class BoundLHSClass
     #:description "left-hand-side of a bind declaration"
     ; No join, relation name only on LHS
     (pattern ((~datum BoundLHS) target:QualNameClass)
-      #:attr translate (syntax/loc this-syntax (Expr target)))
+      #:attr translate (syntax/loc this-syntax (NT-Expr target)))
     ; Join, atom name dotted with field name
     (pattern ((~datum BoundLHS) ((~datum AtomNameOrNumber) "`" atom:NameClass)                                
                                 field:QualNameClass)
       #:attr translate (quasisyntax/loc this-syntax
-                         (Expr
-                          #,(syntax/loc this-syntax (Expr "`" atom)) "."
-                          #,(syntax/loc this-syntax (Expr field))))))
+                         (NT-Expr
+                          #,(syntax/loc this-syntax (NT-Expr "`" atom)) "."
+                          #,(syntax/loc this-syntax (NT-Expr field))))))
   
   (define-syntax-class BoundClass
      #:description "bind declaration"
@@ -618,37 +618,37 @@
               op:CompareOpClass
               rhs:BindRHSUnionClass)
       #:attr translate (begin
-                         (quasisyntax/loc this-syntax (Expr lhs.translate op rhs.translate))))
+                         (quasisyntax/loc this-syntax (NT-Expr lhs.translate op rhs.translate))))
 
     ; cardinality bound (single relation): #LHS = N
     (pattern ((~datum Bound)  ; or backquote name
               ((~datum BoundLHS) "#" target:QualNameClass)
               op:CompareOpClass
               rhs:BindRHSUnionClass) 
-      #:attr translate (with-syntax* ([tgt (syntax/loc #'target (Expr target))]
-                                     [left-subexpr (syntax/loc #'target (Expr "#" tgt))])
-                         (syntax/loc this-syntax (Expr left-subexpr op rhs.translate))))
+      #:attr translate (with-syntax* ([tgt (syntax/loc #'target (NT-Expr target))]
+                                     [left-subexpr (syntax/loc #'target (NT-Expr "#" tgt))])
+                         (syntax/loc this-syntax (NT-Expr left-subexpr op rhs.translate))))
     
     ; "no" bound: relation LHS and piecewise LHS
     (pattern ((~datum Bound) (~datum "no") 
                              ((~datum BoundLHS) target:QualNameClass)) 
-    #:attr translate (with-syntax ([tgt (syntax/loc #'target (Expr target))])
-                         (syntax/loc this-syntax (Expr "no" tgt))))
+    #:attr translate (with-syntax ([tgt (syntax/loc #'target (NT-Expr target))])
+                         (syntax/loc this-syntax (NT-Expr "no" tgt))))
     (pattern ((~datum Bound) (~datum "no")
                              ((~datum BoundLHS)
                               ((~datum AtomNameOrNumber) "`" atom:NameClass)
                               field:QualNameClass))
       #:attr translate (quasisyntax/loc this-syntax
-                         (Expr "no"
+                         (NT-Expr "no"
                                #,(quasisyntax/loc this-syntax
-                                   (Expr
-                                    #,(quasisyntax/loc this-syntax (Expr "`" atom)) "."
-                                    #,(quasisyntax/loc this-syntax (Expr field)))))))
+                                   (NT-Expr
+                                    #,(quasisyntax/loc this-syntax (NT-Expr "`" atom)) "."
+                                    #,(quasisyntax/loc this-syntax (NT-Expr field)))))))
 
     ; identifier: re-use of `inst` defined
     (pattern ((~datum Bound)  
               name:QualNameClass)
-      #:attr translate (syntax/loc this-syntax (Expr name))))
+      #:attr translate (syntax/loc this-syntax (NT-Expr name))))
 
   (define-syntax-class BindRHSUnionClass
      #:description "union in right-hand-side of a bind declaration"
@@ -660,11 +660,11 @@
     (pattern ((~datum BindRHSUnion)
               tups:BindRHSUnionClass
               tup:BindRHSProductClass)
-      #:attr translate (syntax/loc this-syntax (Expr tups.translate "+" tup.translate)))
+      #:attr translate (syntax/loc this-syntax (NT-Expr tups.translate "+" tup.translate)))
     (pattern ((~datum BindRHSUnion)
               tups1:BindRHSUnionClass
               tups2:BindRHSUnionClass) 
-      #:attr translate (syntax/loc this-syntax (Expr tups1.translate "+" tups2.translate))))
+      #:attr translate (syntax/loc this-syntax (NT-Expr tups1.translate "+" tups2.translate))))
   
   (define-syntax-class BindRHSProductClass
      #:description "product in right-hand-side of a bind declaration"
@@ -679,21 +679,21 @@
     (pattern ((~datum BindRHSProduct)
               tup:BindRHSProductClass
               atom:QualNameOrAtomOrAtomizedNumberClass) 
-      #:attr translate (syntax/loc this-syntax (Expr tup.translate (ArrowOp "->") atom.translate)))
+      #:attr translate (syntax/loc this-syntax (NT-Expr tup.translate (ArrowOp "->") atom.translate)))
     (pattern ((~datum BindRHSProduct)
               atom:QualNameOrAtomOrAtomizedNumberClass
               tup:BindRHSProductClass) 
-      #:attr translate (syntax/loc this-syntax (Expr atom.translate (ArrowOp "->") tup.translate)))
+      #:attr translate (syntax/loc this-syntax (NT-Expr atom.translate (ArrowOp "->") tup.translate)))
 
     ; "union -> product" or "product -> union"
     (pattern ((~datum BindRHSProduct)
               union1:BindRHSUnionClass
               product2:BindRHSProductClass) 
-      #:attr translate (syntax/loc this-syntax (Expr union1.translate (ArrowOp "->") product2.translate)))
+      #:attr translate (syntax/loc this-syntax (NT-Expr union1.translate (ArrowOp "->") product2.translate)))
     (pattern ((~datum BindRHSProduct)
               product1:BindRHSProductClass
               union2:BindRHSUnionClass) 
-      #:attr translate (syntax/loc this-syntax (Expr product1.translate (ArrowOp "->") union2.translate))))
+      #:attr translate (syntax/loc this-syntax (NT-Expr product1.translate (ArrowOp "->") union2.translate))))
   
   ; EXPRESSIONS
 
@@ -829,9 +829,9 @@
 
 ; AlloyModule : ModuleDecl? Import* Paragraph*
 ;             | EvalDecl*
-(define-syntax (AlloyModule stx)    
+(define-syntax (NT-AlloyModule stx)
   (syntax-parse stx
-    [((~datum AlloyModule) (~optional module-decl:ModuleDeclClass)
+    [((~datum NT-AlloyModule) (~optional module-decl:ModuleDeclClass)
                              (~seq import:ImportClass ...)
                              (~seq paragraph:ParagraphClass ...))
      (syntax/loc stx
@@ -839,18 +839,18 @@
          (~? module-decl)
          import ...
          paragraph ...))]
-    [((~datum AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass))
+    [((~datum NT-AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass))
      (syntax/loc stx expr)]
-    [((~datum AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass) ...+)
+    [((~datum NT-AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass) ...+)
      (quasisyntax/loc stx (raise-forge-error #:msg "Can't eval multiple expressions."
                                         #:context #,(build-source-location stx)))]))
 
 ; ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
-(define-syntax (ModuleDecl stx)
+(define-syntax (NT-ModuleDecl stx)
   (syntax-parse stx 
-    [((~datum ModuleDecl) module-name:QualNameClass
+    [((~datum NT-ModuleDecl) module-name:QualNameClass
                             (~optional (~seq "[" other-names:NameListClass "]")))
-     (syntax/loc stx (raise "ModuleDecl not yet implemented."))]))
+     (syntax/loc stx (raise "Forge does not yet support Alloy-style module naming."))]))
 
 
 ; Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?

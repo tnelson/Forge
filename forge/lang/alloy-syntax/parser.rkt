@@ -26,7 +26,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Starting production for the parser
 ; Two options: a model, or an evaluation request
-AlloyModule :  
+NT-AlloyModule :  
             NT-Import* Paragraph*
             | NT-EvalDecl*
 

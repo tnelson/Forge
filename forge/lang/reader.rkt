@@ -27,8 +27,8 @@
 
 (define (coerce-ints-to-atoms tree)
   ; AlloyModule: ModuleDecl? Import* Paragraph*
-  (syntax-parse tree #:datum-literals (AlloyModule ModuleDecl Import)
-    [(AlloyModule (~optional (~and module-decl
+  (syntax-parse tree #:datum-literals (NT-AlloyModule NT-ModuleDecl NT-Import)
+    [(NT-AlloyModule (~optional (~and module-decl
                                    (ModuleDecl _ ...)))
                   (~seq (~and import
                               (Import _ ...)) ...)
@@ -39,7 +39,7 @@
        ; (printf "Module-decl ~a~n~n" #'(~? module-decl "None present"))
        ; (printf "Paragraphs: ~a~n~n" #'(paragraphs ...))
        (quasisyntax/loc tree
-         (AlloyModule (~? module-decl)
+         (NT-AlloyModule (~? module-decl)
                       import ...
                       paragraphs ...))]))
 
@@ -48,8 +48,8 @@
   (syntax-parse expr #:datum-literals (Name QualName Const Number)
     [(_ (Const (~optional "-") (Number n)))
      (quasisyntax/loc expr
-       (Expr
-        #,(quasisyntax/loc expr (Expr
+       (NT-Expr
+        #,(quasisyntax/loc expr (NT-Expr
                                  #,(quasisyntax/loc expr (QualName sing)))) "["
         #,(quasisyntax/loc expr (ExprList #,expr)) "]"))]
     [(_ (~or (Name (~literal sing))
