@@ -58,6 +58,8 @@ assert {} is consistent with foo
 
 example anExample is {foo} for {
   Node = `Node0 + `Node1 + `Providence
+  no `Node0.edges
+  `Node1.edges = `Providence
 }
 
 exampleRun: run {} for exactly 5 Node
