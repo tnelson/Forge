@@ -10,6 +10,10 @@
 ; unusable as an identifier in Forge languages, which use - as set subtraction.
 ;   This is why the parser names its non-terminals with "NT-" prefixes.
 
+; *** NOTE WELL ***
+; If adding new expander macros or parser non-terminals, make sure to add a case to
+; the tests/forge/other/internal-id-sigs.frg and internal-id-preds.frg test files.
+
 (require syntax/parse/define racket/stxparam
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
                      syntax/srcloc racket/match racket/list                     
