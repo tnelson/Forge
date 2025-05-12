@@ -3,6 +3,13 @@
 ; The #lang forge reader produces a module referencing this one as its module-path:
 ; https://docs.racket-lang.org/reference/module.html
 
+; Internal-use-only macros defined in this module need to be available to the module
+; syntax produced by the Forge language reader. Thus, there is potential identifier
+; clash if such macros are named valid Forge identifiers (sig names, etc.)
+; To avoid this, all macro names should contain a hyphen. This renders the name
+; unusable as an identifier in Forge languages, which use - as set subtraction.
+;   This is why the parser names its non-terminals with "NT-" prefixes.
+
 (require syntax/parse/define racket/stxparam
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
                      syntax/srcloc racket/match racket/list                     
@@ -11,7 +18,10 @@
          syntax/srcloc
          (only-in racket/list flatten)
          ; Needed because the abstract-tok definition below requires phase 2
-         (for-syntax (for-syntax racket/base)))
+         (for-syntax (for-syntax racket/base))
+         
+         (only-in forge/server/eval-model ->string)
+         racket/string)
                  
 (require (only-in racket empty? first)
          (prefix-in @ (only-in racket +)))
@@ -93,11 +103,11 @@
 
   ; Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
   (define-syntax-class ImportClass
-    (pattern ((~datum Import)
+    (pattern ((~datum NT-Import)
               import-name:QualNameClass
               (~optional (~seq "[" other-names:QualNameListClass "]"))
               (~optional (~seq "as" as-name:NameClass))))
-    (pattern ((~datum Import)
+    (pattern ((~datum NT-Import)
               file-path:str
               (~optional (~seq "as" as-name:NameClass)))))
 
@@ -106,7 +116,7 @@
 
   ; EvalDecl : EVAL-TOK Expr
   (define-syntax-class EvalDeclClass
-    (pattern ((~datum EvalDecl)
+    (pattern ((~datum NT-EvalDecl)
               "eval"
               exp:ExprClass)))
 
@@ -145,7 +155,7 @@
 
   ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
   (define-syntax-class SigDeclClass
-    (pattern ((~datum SigDecl)
+    (pattern ((~datum NT-SigDecl)
               (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
               (~optional abstract:abstract-tok)
               (~optional mult:MultClass)
@@ -272,7 +282,7 @@
   ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
   (define-syntax-class PredDeclClass
     #:description "predicate declaration"
-    (pattern ((~datum PredDecl)
+    (pattern ((~datum NT-PredDecl)
               (~optional _:PredTypeClass)
               (~optional (~seq prefix:QualNameClass "."))
               name:NameClass
@@ -282,7 +292,7 @@
   ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
   (define-syntax-class FunDeclClass
     #:description "helper function declaration"
-    (pattern ((~datum FunDecl)
+    (pattern ((~datum NT-FunDecl)
               (~optional (~seq prefix:QualNameClass "."))
               name:NameClass
               (~optional decls:ParaDeclsClass)
@@ -315,13 +325,13 @@
 
   ; AssertDecl : /ASSERT-TOK Name? Block
   (define-syntax-class AssertDeclClass
-    (pattern ((~datum AssertDecl)
+    (pattern ((~datum NT-AssertDecl)
               (~optional name:NameClass)
               block:BlockClass)))
 
   ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
   (define-syntax-class CmdDeclClass
-    (pattern ((~datum CmdDecl)
+    (pattern ((~datum NT-CmdDecl)
               (~optional name:NameClass)
               (~or "run" "check")
               (~optional parameters:ParametersClass)
@@ -333,7 +343,7 @@
 
   ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
   (define-syntax-class TestDeclClass
-    (pattern ((~datum TestDecl)
+    (pattern ((~datum NT-TestDecl)
               (~optional name:NameClass)
               (~optional parameters:ParametersClass)
               (~optional (~or pred-name:QualNameClass
@@ -349,7 +359,7 @@
 
   ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
   (define-syntax-class TestExpectDeclClass
-    (pattern ((~datum TestExpectDecl)
+    (pattern ((~datum NT-TestExpectDecl)
               (~optional "test")
               "expect"
               (~optional name:NameClass)
@@ -366,7 +376,7 @@
   (define-syntax-class PropertyDeclClass
     #:attributes (tname prop pred-name constraint-type scope bounds)
     (pattern (
-              (~datum PropertyDecl)      
+              (~datum NT-PropertyDecl)      
               (~optional -tname:NameClass)
               -prop:ExprClass
               (~and (~or "sufficient" "necessary") ct)
@@ -382,7 +392,7 @@
 
   (define-syntax-class QuantifiedPropertyDeclClass
     #:attributes (tname quant-decls disj prop pred-name pred-exprs constraint-type scope bounds)
-    (pattern ((~datum QuantifiedPropertyDecl)
+    (pattern ((~datum NT-QuantifiedPropertyDecl)
               (~optional -tname:NameClass)
               (~optional (~and "disj" -disj))
               -quant-decls:DeclListClass
@@ -404,7 +414,7 @@
 
 (define-syntax-class SatisfiabilityDeclClass
   #:attributes (tname prop expected scope bounds)
-  (pattern ((~datum SatisfiabilityDecl)
+  (pattern ((~datum NT-SatisfiabilityDecl)
             (~optional -tname:NameClass)
             -prop:ExprClass
             (~and (~or "sat" "unsat" "forge_error") ct)
@@ -419,7 +429,7 @@
 
 (define-syntax-class ConsistencyDeclClass
   #:attributes (tname test-expr pred-name consistency expected scope bounds)
-  (pattern ((~datum ConsistencyDecl) 
+  (pattern ((~datum NT-ConsistencyDecl) 
             (~optional -tname:NameClass)     
             -test-expr:ExprClass
             (~and (~or "consistent" "inconsistent") ct)
@@ -436,13 +446,13 @@
 
   (define-syntax-class TestSuiteDeclClass
     #:attributes (pred-name (test-constructs 1))
-    (pattern ((~datum TestSuiteDecl)
+    (pattern ((~datum NT-TestSuiteDecl)
               -pred-name:NameClass
               test-constructs:TestConstructClass ...)
       #:with pred-name #'-pred-name.name))
 
   (define-syntax-class ExampleDeclClass
-    (pattern ((~datum ExampleDecl)
+    (pattern ((~datum NT-ExampleDecl)
               (~optional name:NameClass)
               pred:ExprClass
               bounds:BoundsClass)))
@@ -470,23 +480,23 @@
   ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
   (define-syntax-class OptionDeclClass
     #:attributes (n v)
-    (pattern ((~datum OptionDecl) name:QualNameClass value:QualNameClass)
+    (pattern ((~datum NT-OptionDecl) name:QualNameClass value:QualNameClass)
              #:attr n #'name.name
              #:attr v #'value.name)
-    (pattern ((~datum OptionDecl) name:QualNameClass value:str)
+    (pattern ((~datum NT-OptionDecl) name:QualNameClass value:str)
              #:attr n #'name.name
              #:attr v #'value)
-    (pattern ((~datum OptionDecl) name:QualNameClass value:NumberClass)
+    (pattern ((~datum NT-OptionDecl) name:QualNameClass value:NumberClass)
              #:attr n #'name.name
              #:attr v #'value.value)
-    (pattern ((~datum OptionDecl) name:QualNameClass "-" value:NumberClass)
+    (pattern ((~datum NT-OptionDecl) name:QualNameClass "-" value:NumberClass)
              #:attr n #'name.name
              #:attr v (quasisyntax #,(* -1 (syntax->datum #'value.value)))))
 
  
   ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
   (define-syntax-class BlockClass
-    (pattern ((~datum Block)
+    (pattern ((~datum NT-Block)
               exprs:ExprClass ...)))
 
   ; Name : IDENTIFIER-TOK
@@ -530,7 +540,7 @@
 
   ; SexprDecl : Sexpr
   (define-syntax-class SexprDeclClass
-    (pattern ((~datum SexprDecl) exp:SexprClass)))
+    (pattern ((~datum NT-SexprDecl) exp:SexprClass)))
 
   ; Sexpr : SEXPR-TOK
   (define-syntax-class SexprClass
@@ -538,14 +548,14 @@
 
   ; InstDecl : /INST-TOK Name Bounds Scope?
   (define-syntax-class InstDeclClass
-    (pattern ((~datum InstDecl)
+    (pattern ((~datum NT-InstDecl)
               name:NameClass
               bounds:BoundsClass
               (~optional scope:ScopeClass))))
 
   ; RelDecl : ArrowDecl
   (define-syntax-class RelDeclClass
-    (pattern ((~datum RelDecl) decl:ArrowDeclClass)))
+    (pattern ((~datum NT-RelDecl) decl:ArrowDeclClass)))
 
   ; Parameters : /LeftAngle @QualNameList /RightAngle 
   (define-syntax-class ParametersClass
@@ -802,11 +812,12 @@
       #:attr symbol (syntax/loc #'q sum-quant)))
 
   (define-syntax-class ExprClass
-    (pattern ((~or (~datum Expr) (~datum Expr1) (~datum Expr1.5) (~datum Expr2) (~datum Expr3)
-                   (~datum Expr4) (~datum Expr4.5) (~datum Expr5) (~datum Expr6) (~datum Expr7) (~datum Expr7.5)
-                   (~datum Expr8) (~datum Expr9) (~datum Expr10) (~datum Expr11)
-                   (~datum Expr12) (~datum Expr13) (~datum Expr14) (~datum Expr15)
-                   (~datum Expr16) (~datum Expr17))
+    (pattern ((~or (~datum NT-Expr)   (~datum NT-Expr1)   (~datum NT-Expr1.5) (~datum NT-Expr2) 
+                   (~datum NT-Expr3)  (~datum NT-Expr4)   (~datum NT-Expr4.5) (~datum NT-Expr5)
+                   (~datum NT-Expr6)  (~datum NT-Expr7)   (~datum NT-Expr7.5)
+                   (~datum NT-Expr8)  (~datum NT-Expr9)   (~datum NT-Expr10)  (~datum NT-Expr11)
+                   (~datum NT-Expr12) (~datum NT-Expr13)  (~datum NT-Expr14)  (~datum NT-Expr15)
+                   (~datum NT-Expr16) (~datum NT-Expr17))
              _ ...)))
 
   ; ExprList : Expr
@@ -828,10 +839,11 @@
          (~? module-decl)
          import ...
          paragraph ...))]
-    [((~datum AlloyModule) ((~datum EvalDecl) "eval" expr:ExprClass))
+    [((~datum AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass))
      (syntax/loc stx expr)]
-    [((~datum AlloyModule) ((~datum EvalDecl) "eval" expr:ExprClass) ...+)
-     (syntax/loc stx (raise "Can't eval multiple expressions."))]))
+    [((~datum AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass) ...+)
+     (quasisyntax/loc stx (raise-forge-error #:msg "Can't eval multiple expressions."
+                                        #:context #,(build-source-location stx)))]))
 
 ; ModuleDecl : /MODULE-TOK QualName (LEFT-SQUARE-TOK NameList RIGHT-SQUARE-TOK)?
 (define-syntax (ModuleDecl stx)
@@ -842,14 +854,14 @@
 
 
 ; Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
-(define-syntax (Import stx)
+(define-syntax (NT-Import stx)
   (syntax-parse stx
-      [((~datum Import) file-path:str
+      [((~datum NT-Import) file-path:str
                           (~optional (~seq "as" as-name:NameClass)))
        (syntax/loc stx (begin
            (~? (require (prefix-in as-name.name file-path))
                (require file-path))))]
-    [((~datum Import) import-name:QualNameClass
+    [((~datum NT-Import) import-name:QualNameClass
                         (~optional (~seq "[" other-names:QualNameListClass "]"))
                         (~optional (~seq "as" as-name:NameClass)))
      (syntax/loc stx (begin
@@ -858,9 +870,9 @@
          (~? (raise (format "Importing as not yet implemented. ~a" 'as-name)))))]))
   
 ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
-(define-syntax (SigDecl stx)
+(define-syntax (NT-SigDecl stx)
   (syntax-parse stx
-    [((~datum SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+    [((~datum NT-SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
                          sig-names:NameListClass
@@ -876,7 +888,7 @@
                      (~? (~@ #:is-var isv))
                      (~? (~@ extends.symbol extends.value))))))))]
 
-    [((~datum SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
+    [((~datum NT-SigDecl) (~optional isv:VarKeywordClass #:defaults ([isv #'#f]))
                          (~optional abstract:abstract-tok)
                          (~optional mult:MultClass)
                          sig-names:NameListClass
@@ -927,9 +939,9 @@
    (syntax/loc stx (raise "Facts are not allowed in #lang forge."))]))
 
 ; PredDecl : /PRED-TOK (QualName DOT-TOK)? Name ParaDecls? Block
-(define-syntax (PredDecl stx)
+(define-syntax (NT-PredDecl stx)
   (syntax-parse stx
-  [((~datum PredDecl) (~optional pt:PredTypeClass)
+  [((~datum NT-PredDecl) (~optional pt:PredTypeClass)
                         (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         block:BlockClass)
@@ -939,7 +951,7 @@
        ; preserve stx location in Racket *sub*expression
        #,(syntax/loc stx (pred (~? pt.kw) (#:lang (get-check-lang)) name.name block)))))]
 
-  [((~datum PredDecl) (~optional pt:PredTypeClass)
+  [((~datum NT-PredDecl) (~optional pt:PredTypeClass)
                         (~optional (~seq prefix:QualNameClass "."))
                         name:NameClass
                         decls:ParaDeclsClass
@@ -955,12 +967,12 @@
        #,(syntax/loc stx (pred (~? pt.kw) (#:lang (get-check-lang)) decl block)))))]))
 
 ; FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK Expr Block
-(define-syntax (FunDecl stx)
+(define-syntax (NT-FunDecl stx)
   (syntax-parse stx
   ; TODO: output type declared is currently being lost
 
   ; 0-ary function
-  [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
+  [((~datum NT-FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        (~optional output-mult:HelperMultClass)
                        output-expr:ExprClass
@@ -972,7 +984,7 @@
        (const name.name body))))]
 
   ; >0-ary function
-  [((~datum FunDecl) (~optional (~seq prefix:QualNameClass "."))
+  [((~datum NT-FunDecl) (~optional (~seq prefix:QualNameClass "."))
                        name:NameClass
                        decls:ParaDeclsClass
                        (~optional output-mult:HelperMultClass #:defaults ([output-mult #'#f]))
@@ -993,10 +1005,11 @@
        (fun decl body #:codomain output))))]))
 
 ; AssertDecl : /ASSERT-TOK Name? Block
-(define-syntax (AssertDecl stx)
+(define-syntax (NT-AssertDecl stx)
   (syntax-parse stx
-  [((~datum AssertDecl) _ ...)
-   (syntax/loc stx (raise "Assertions not yet implemented."))]))
+  [((~datum NT-AssertDecl) _ ...)
+   (quasisyntax/loc stx (raise-forge-error #:msg "Alloy-style assertions are not supported in Forge; use `assert {...} is unsat` instead."
+                                      #:context #,(build-source-location stx)))]))
 
 (define-for-syntax make-temporary-name
   (let ((name-counter (box 1)))
@@ -1022,9 +1035,9 @@
       (string->symbol (format "temporary-name_~a_~a" source_disambiguator curr-num)))))
 
 ; CmdDecl :  (Name /COLON-TOK)? (RUN-TOK | CHECK-TOK) Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)?
-(define-syntax (CmdDecl stx)
+(define-syntax (NT-CmdDecl stx)
   (syntax-parse stx
-  [((~datum CmdDecl) (~optional name:NameClass)
+  [((~datum NT-CmdDecl) (~optional name:NameClass)
                        (~and cmd-type (~or "run" "check"))
                        (~optional parameters:ParametersClass)
                        (~optional (~or pred:QualNameClass
@@ -1050,12 +1063,12 @@
        ))]))
 
 ; TestDecl : (Name /COLON-TOK)? Parameters? (QualName | Block)? Scope? (/FOR-TOK Bounds)? /IS-TOK (SAT-TOK | UNSAT-TOK)
-(define-syntax (TestDecl stx)
+(define-syntax (NT-TestDecl stx)
   ; This stx object currently has the location of the enclosing TestBlock
   ; ... unless there is a name provided? (already, at this point, even before the parse below)
   ;(printf "expander for TestDecl: ~a~n" stx)
   (syntax-parse stx
-  [((~datum TestDecl) (~optional name:NameClass)
+  [((~datum NT-TestDecl) (~optional name:NameClass)
                         (~optional parameters:ParametersClass)
                         (~optional (~or pred:QualNameClass
                                         preds:BlockClass))
@@ -1076,10 +1089,10 @@
                   (~? (~@ #:expect-details expected-details)))))]))
 
 ; TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
-(define-syntax (TestExpectDecl stx)
+(define-syntax (NT-TestExpectDecl stx)
   ;(printf "expander for TestExpectDecl: ~a~n" stx)
   (syntax-parse stx
-  [((~datum TestExpectDecl) (~optional (~and "test" test-tok))
+  [((~datum NT-TestExpectDecl) (~optional (~and "test" test-tok))
                               "expect" 
                               (~optional name:NameClass)
                               block:TestBlockClass)
@@ -1088,7 +1101,7 @@
        (syntax/loc stx (begin)))]))
 
 
-(define-syntax (PropertyDecl stx)
+(define-syntax (NT-PropertyDecl stx)
   (syntax-parse stx
   [pwd:PropertyDeclClass 
    #:with imp_total (if (eq? (syntax-e #'pwd.constraint-type) 'sufficient)
@@ -1107,7 +1120,7 @@
         #:bounds pwd.bounds
         #:expect checked ))]))
 
-(define-syntax (QuantifiedPropertyDecl stx)
+(define-syntax (NT-QuantifiedPropertyDecl stx)
   (syntax-parse stx
     [qpd:QuantifiedPropertyDeclClass  
     ;;;#:do [(printf "QuantifiedPropertyDeclClass.PropExprs: ~a~n" (syntax->datum #'qpd.prop-exprs))]
@@ -1137,7 +1150,7 @@
          #:expect checked )))]))
 
 
-(define-syntax (SatisfiabilityDecl stx)
+(define-syntax (NT-SatisfiabilityDecl stx)
   (syntax-parse stx
   [sd:SatisfiabilityDeclClass 
       #:with test_name (if (equal? (syntax-e #'sd.tname) "")
@@ -1151,7 +1164,7 @@
         #:bounds sd.bounds
         #:expect sd.expected ))]))
 
-(define-syntax (ConsistencyDecl stx)
+(define-syntax (NT-ConsistencyDecl stx)
   (syntax-parse stx
   [cd:ConsistencyDeclClass 
     #:with test_name (if (equal? (syntax-e #'cd.tname) "")
@@ -1181,7 +1194,7 @@
         (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp))))
 
 
-(define-syntax (TestSuiteDecl stx)
+(define-syntax (NT-TestSuiteDecl stx)
   (syntax-parse stx
   [tsd:TestSuiteDeclClass 
    
@@ -1193,9 +1206,9 @@
     (begin tsd.test-constructs ...))]))
 
 
-(define-syntax (ExampleDecl stx)
+(define-syntax (NT-ExampleDecl stx)
   (syntax-parse stx
-  [((~datum ExampleDecl) (~optional name:NameClass)
+  [((~datum NT-ExampleDecl) (~optional name:NameClass)
                            pred:ExprClass
                            bounds:BoundsClass)
    (quasisyntax/loc stx
@@ -1216,7 +1229,7 @@
 
 
 ; OptionDecl : /OPTION-TOK QualName (QualName | FILE-PATH-TOK | Number)
-(define-syntax (OptionDecl stx)
+(define-syntax (NT-OptionDecl stx)
   (syntax-parse stx
   [dec:OptionDeclClass
    ; Some options contain file paths. By saving the path of the .frg file at a point
@@ -1226,9 +1239,9 @@
    ]))
 
 ; InstDecl : /INST-TOK Name Bounds Scope?
-(define-syntax (InstDecl stx)
+(define-syntax (NT-InstDecl stx)
   (syntax-parse stx
-  [((~datum InstDecl)
+  [((~datum NT-InstDecl)
               name:NameClass
               bounds:BoundsClass
               (~optional scope:ScopeClass))
@@ -1276,115 +1289,115 @@
           #:context stx)]))
 
 ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
-(define-syntax (Block stx)
+(define-syntax (NT-Block stx)
   (syntax-parse stx
-    [((~datum Block) exprs:ExprClass ...)
+    [((~datum NT-Block) exprs:ExprClass ...)
      (with-syntax ([(exprs ...) (syntax->list #'(exprs ...))])
        (quasisyntax/loc stx
          (disambiguate-block (list exprs ...)
                              #:stx #,(build-source-location stx))))]))
 
-(define-syntax (Expr stx)
+(define-syntax (NT-Expr stx)
   ;(printf "Debug: Expr: ~a~n" stx)
   (syntax-parse stx
-  [((~datum Expr) "let" decls:LetDeclListClass bob:BlockOrBarClass)
+  [((~datum NT-Expr) "let" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (let decls.translate bob.exprs))]
 
-  [((~datum Expr) "bind" decls:LetDeclListClass bob:BlockOrBarClass)
+  [((~datum NT-Expr) "bind" decls:LetDeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (raise "bind not implemented."))]
 
   ; Quantifier
-  [((~datum Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)                       
+  [((~datum NT-Expr) q:QuantClass decls:DeclListClass bob:BlockOrBarClass)                       
    (syntax/loc stx (q.symbol decls.translate bob.exprs))] ; stx, not #'q
 
   ; Quantifier with disj
-  [((~datum Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
+  [((~datum NT-Expr) q:QuantClass "disj" decls:DeclListClass bob:BlockOrBarClass)
    (syntax/loc stx (q.symbol #:disj decls.translate bob.exprs))] ; stx, not #'q
 
-  [((~datum Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass (~or "or" "||") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (|| expr1 expr2)))]
 
     ; exclusive OR
-    [((~datum Expr) expr1:ExprClass "xor" expr2:ExprClass)
+    [((~datum NT-Expr) expr1:ExprClass "xor" expr2:ExprClass)
      (with-syntax ([expr1 (my-expand #'expr1)]
                    [expr2 (my-expand #'expr2)])
        (syntax/loc stx (xor expr1 expr2)))]
 
     
-  [((~datum Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass (~or "iff" "<=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (iff (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])     
      (syntax/loc stx (implies (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
+  [((~datum NT-Expr) expr1:ExprClass (~or "implies" "=>") expr2:ExprClass
                                     "else" expr3:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [expr3 (my-expand #'expr3)])
      (syntax/loc stx (ifte expr1 expr2 expr3)))]
 
-  [((~datum Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass (~or "and" "&&") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (&& expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass (~or "releases") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (releases expr1 expr2)))]
-  [((~datum Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass (~or "until") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (until expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass (~or "since") expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass (~or "since") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (since expr1 expr2)))]
-  [((~datum Expr) expr1:ExprClass (~or "triggered") expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass (~or "triggered") expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (triggered expr1 expr2)))]
 
     
-  [((~datum Expr) (~or "!" "not") expr1:ExprClass)
+  [((~datum NT-Expr) (~or "!" "not") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (! (#:lang (get-check-lang)) expr1)))]
 
-  [((~datum Expr) (~or "always") expr1:ExprClass)
+  [((~datum NT-Expr) (~or "always") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (always expr1)))]
-  [((~datum Expr) (~or "eventually") expr1:ExprClass)
+  [((~datum NT-Expr) (~or "eventually") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (eventually expr1)))]
-  [((~datum Expr) (~or "next_state") expr1:ExprClass)
+  [((~datum NT-Expr) (~or "next_state") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
        (syntax/loc stx (next_state expr1)))]
 
-  [((~datum Expr) (~or "historically") expr1:ExprClass)
+  [((~datum NT-Expr) (~or "historically") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (historically expr1)))]
-  [((~datum Expr) (~or "once") expr1:ExprClass)
+  [((~datum NT-Expr) (~or "once") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (once expr1)))]
-  [((~datum Expr) (~or "prev_state") expr1:ExprClass)
+  [((~datum NT-Expr) (~or "prev_state") expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
        (syntax/loc stx (prev_state expr1)))]       
     
-  [((~datum Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass op:CompareOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [op #'op.symbol])
      (syntax/loc stx (op (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass 
+  [((~datum NT-Expr) expr1:ExprClass 
                     (~or "!" "not") op:CompareOpClass 
                     expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
@@ -1394,23 +1407,23 @@
      (quasisyntax/loc stx (! #,(syntax/loc stx (op (#:lang (get-check-lang)) expr1 expr2)))))]
 
   ; Multiplicity form
-  [((~datum Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
+  [((~datum NT-Expr) (~and (~or "no" "some" "lone" "one" "two" "set")
                           op)
                     expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [op (datum->syntax #'op (string->symbol (syntax->datum #'op)) #'op)])
      (syntax/loc stx (op (#:lang (get-check-lang)) expr1)))]
 
-  [((~datum Expr) "#" expr1:ExprClass)
+  [((~datum NT-Expr) "#" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (card (#:lang (get-check-lang)) expr1)))]
 
   ; Semantic priming as in Electrum
-  [((~datum Expr) expr1:ExprClass "'")
+  [((~datum NT-Expr) expr1:ExprClass "'")
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (prime (#:lang (get-check-lang)) expr1)))]
 
-  [((~datum Expr) expr1:ExprClass "+" expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass "+" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [check-lang (if (forge-context=? '(inst example))
@@ -1418,22 +1431,22 @@
                                #'(get-check-lang))])
      (syntax/loc stx (+ (#:lang check-lang) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass "-" expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass "-" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (- (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass "++" expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass "++" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (++ (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass "&" expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass "&" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (& (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass op:ArrowOpClass expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)]
                  [check-lang (if (forge-context=? '(inst example))
@@ -1441,58 +1454,58 @@
                                #'(get-check-lang))])
      (syntax/loc stx (-> (#:lang check-lang) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass ":>" expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass ":>" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (:> (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) expr1:ExprClass "<:" expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass "<:" expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (<: (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) "[" exprs:ExprListClass "]")
+  [((~datum NT-Expr) "[" exprs:ExprListClass "]")
    (syntax/loc stx (raise (format "Unimplemented ~a" exprs)))]
 
-  [((~datum Expr) expr1:ExprClass "." expr2:ExprClass)
+  [((~datum NT-Expr) expr1:ExprClass "." expr2:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)]
                  [expr2 (my-expand #'expr2)])
      (syntax/loc stx (join (#:lang (get-check-lang)) expr1 expr2)))]
 
-  [((~datum Expr) name:NameClass "[" exprs:ExprListClass "]")
+  [((~datum NT-Expr) name:NameClass "[" exprs:ExprListClass "]")
    ; Is this production ever used? Both box join and helper use seem to use the Expr version below.
    ; (printf "expander: Name[Expr...]: ~a~n" #'name)
    (with-syntax ([name #'name.name]
                  [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
      (syntax/loc stx (name exprs ...)))]
 
-  [((~datum Expr) expr1orig:ExprClass "[" exprs:ExprListClass "]")
+  [((~datum NT-Expr) expr1orig:ExprClass "[" exprs:ExprListClass "]")
      ; This might be a helper function or predicate invocation (with arguments), or a box join.
      ; Note that expr1 might be a macro name *or* a procedure, so we can't necessarily "apply" it.
      (with-syntax ([expr1 (my-expand #'expr1orig)]
                    [(exprs ...) (datum->syntax #f (map my-expand (syntax->list #'(exprs.exprs ...))))])
        (syntax/loc stx (expr1 exprs ...)))]
 
-  [((~datum Expr) "~" expr1:ExprClass)
+  [((~datum NT-Expr) "~" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (~ (#:lang (get-check-lang)) expr1)))]
 
-  [((~datum Expr) "^" expr1:ExprClass)
+  [((~datum NT-Expr) "^" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (^ (#:lang (get-check-lang)) expr1)))]
 
-  [((~datum Expr) "*" expr1:ExprClass)
+  [((~datum NT-Expr) "*" expr1:ExprClass)
    (with-syntax ([expr1 (my-expand #'expr1)])
      (syntax/loc stx (* (#:lang (get-check-lang)) expr1)))]
 
-  [((~datum Expr) const:ConstClass)   
+  [((~datum NT-Expr) const:ConstClass)   
    (syntax/loc stx const.translate)]
 
   ; If the name references an AST node, retain use-site location information
   ; rather than the location of the declaration.
   ; If it references a _macro_, such as `add`, `max`, etc. *don't* wrap it!
 
-  [((~datum Expr) name:QualNameClass)
+  [((~datum NT-Expr) name:QualNameClass)
    (define local-value (syntax-local-value #'name.name (lambda () #f)))
    ; (printf "local-value for ~a: ~a~n" #'name.name local-value)
    (if local-value
@@ -1506,19 +1519,19 @@
        (with-syntax ([loc (build-source-location (syntax/loc this-syntax #'1))])
          (syntax/loc stx (correct-id-loc name.name #:loc loc))))]
    
-  [((~datum Expr) "this")
+  [((~datum NT-Expr) "this")
    (syntax/loc stx this)]
 
-  [((~datum Expr) "`" name:NameClass)
+  [((~datum NT-Expr) "`" name:NameClass)
    (syntax/loc stx (atom 'name.name))]
   
-  [((~datum Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
+  [((~datum NT-Expr) "{" decls:DeclListClass bob:BlockOrBarClass "}")
    (syntax/loc stx (set (#:lang (get-check-lang)) decls.translate bob.exprs))]
 
-  [((~datum Expr) block:BlockClass)
+  [((~datum NT-Expr) block:BlockClass)
    (my-expand (syntax/loc stx block))]
 
-    [((~datum Expr) sexpr:SexprClass)
+    [((~datum NT-Expr) sexpr:SexprClass)
      (syntax/loc stx (read sexpr))]))
 
 ; struct-copy would not retain the sub-struct identity and fields, producing just a node
@@ -1603,30 +1616,26 @@
              #:track-literals
              [((~var macro-id id) . pattern) pattern-directive ... (syntax/loc stx template)]))))]))
 
-(dsm-keep (Expr1 stx ...) (Expr stx ...))
-(dsm-keep (Expr1.5 stx ...) (Expr stx ...))
-(dsm-keep (Expr2 stx ...) (Expr stx ...))
-(dsm-keep (Expr3 stx ...) (Expr stx ...))
-(dsm-keep (Expr4 stx ...) (Expr stx ...))
-(dsm-keep (Expr4.5 stx ...) (Expr stx ...))
-(dsm-keep (Expr5 stx ...) (Expr stx ...))
-(dsm-keep (Expr6 stx ...) (Expr stx ...))
-(dsm-keep (Expr7 stx ...) (Expr stx ...))
-(dsm-keep (Expr7.5 stx ...) (Expr stx ...))
-(dsm-keep (Expr8 stx ...) (Expr stx ...))
-(dsm-keep (Expr9 stx ...) (Expr stx ...))
-(dsm-keep (Expr10 stx ...) (Expr stx ...))
-(dsm-keep (Expr11 stx ...) (Expr stx ...))
-(dsm-keep (Expr12 stx ...) (Expr stx ...))
-(dsm-keep (Expr13 stx ...) (Expr stx ...))
-(dsm-keep (Expr14 stx ...) (Expr stx ...))
-(dsm-keep (Expr15 stx ...) (Expr stx ...))
-(dsm-keep (Expr16 stx ...) (Expr stx ...))
-(dsm-keep (Expr17 stx ...) (Expr stx ...))
-
-
-
-
+(dsm-keep (NT-Expr1 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr1.5 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr2 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr3 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr4 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr4.5 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr5 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr6 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr7 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr7.5 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr8 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr9 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr10 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr11 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr12 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr13 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr14 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr15 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr16 stx ...) (NT-Expr stx ...))
+(dsm-keep (NT-Expr17 stx ...) (NT-Expr stx ...))
 
 ; Transition System Stuff to be implemented
 ; StateDecl : STATE-TOK /LEFT-SQUARE-TOK QualName /RIGHT-SQUARE-TOK 
