@@ -34,25 +34,43 @@ sig AlloyModule, Block, ModuleDecl, Import, SigDecl, RelDecl
 
      // Not supported, but have a production anyway. Include to detect regressions.
      , AssertDecl ,FactDecl
+
+     // Trying various identifiers introduced by Forge and Racket
+     
+     // helper macro defined by Forge, but not a keyword
+     ,ifte
+     // top-level AST struct name
+     ,node
+     // Racket-defined macros
+     ,lambda
+     // Racket-defined procedures 
+     ,gensym
+     // Forge-defined helper procedures 
+     ,primify
+     // Forge-defined struct
+     ,Sig, Run
+
 {}
 
 sig Node {edges: set Node, weightedEdges: set Node -> Int}
 
 pred foo {all n: Node | n = n}
 fun bar: Int { let five = 5 | {x : Int | x = five} }
-inst baz {}
+inst baz { Node = `Node0 + `Foo 
+           no edges}
 pred foo2[n1: Node, n2: Node] {} 
 
 test suite for foo {
-    test expect { {foo} is sat } 
+    test expect { {foo} for baz is sat 
+                  {foo} for 3 Node is sat} 
 }
 test expect {
-    {some Node} is sat -- tests Exprs as well
-    {some n: Node | foo2[n, n]} is sat -- tests NameList as well
-    {some univ} is sat -- tests Const as well
+    {some Node} is sat 
+    {some n: Node | foo2[n, n]} is sat
+    {some univ} is sat 
 }
-assert {} is sat for {} -- tests local insts as well
-assert {} is sat for baz -- tests declared insts as well
+assert {} is sat for {} 
+assert {} is sat for baz 
 assert {} is necessary for foo
 assert {} is consistent with foo
 
@@ -62,4 +80,7 @@ example anExample is {foo} for {
   `Node1.edges = `Providence
 }
 
-exampleRun: run {} for exactly 5 Node
+exampleRun: run { 
+  some Node => some Node else some Node
+  some (some Node => Node else Node)
+} for exactly 5 Node
