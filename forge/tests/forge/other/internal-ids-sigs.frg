@@ -1,6 +1,6 @@
 #lang forge
 
-open "other.frg"
+open "empty.frg"
 
 option run_sterling off
 option verbose 0
