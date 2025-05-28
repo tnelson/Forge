@@ -165,7 +165,7 @@ Beyond the notes and documention, you can find many examples of Forge models in 
 
 ## Our Papers 
 
-To read more about our motivation and design, see [our upcoming paper in OOPSLA 2024](https://cs.brown.edu/~tbn/publications/forge-oopsla24.pdf). 
+To read more about our motivation and design, see our [OOPSLA 2024 paper](https://cs.brown.edu/~tbn/publications/forge-oopsla24.pdf). 
 
 ## Contact 
 
