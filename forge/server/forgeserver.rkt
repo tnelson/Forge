@@ -454,7 +454,9 @@
            ; Read command as syntax from pipe
            (define expr
              (cond [(equal? (get-option curr-state 'eval-language) 'surface)
-                    (forge-lang:parse "/no-name" (forge-lang:make-tokenizer pipe2))]
+                    (let* ([tokenizer (forge-lang:make-tokenizer pipe2)]
+                           [parsed (forge-lang:parse "/no-name-evaluator" tokenizer)])
+                      parsed)]
                    [(equal? (get-option curr-state 'eval-language) 'core)
                     (read-syntax 'Evaluator pipe1)]
                    [else (raise-forge-error

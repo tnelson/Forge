@@ -170,7 +170,9 @@
     [(node/expr/relation info arity name typelist-thunk parent isvar)
      (print-cmd-cont (format-relname isvar name " "))]
     [(node/expr/atom info arity name)
-     (unless (member name atom-names) (raise (format "Atom ~a not in available atoms ~a" name atom-names)))
+     (unless (member name atom-names)
+       (raise-forge-error #:msg (format "Atom ~a not in available atoms ~a" name atom-names)
+                          #:context info))
      ( print-cmd-cont (format "~a " (a (index-of atom-names name))))]
     [(node/expr/fun-spacer info arity name args result expanded)
      (interpret-expr run-or-state expanded relations atom-names quantvars)]
