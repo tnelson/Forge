@@ -189,7 +189,7 @@
   [core_minimization symbol?]  
   [skolem_depth integer?] ; allow -1 (disable Skolemization entirely)
   [local_necessity symbol?]
-  [run_sterling (or/c string? symbol?)]
+  [run_sterling (or/c string? symbol? (listof string?))]
   [sterling_port nonnegative-integer?]
   [engine_verbosity nonnegative-integer?]
   [test_keep symbol?]
@@ -312,7 +312,10 @@
         'core_minimization symbol?
         'skolem_depth exact-integer?
         'local_necessity symbol?
-        'run_sterling (lambda (x) (or (symbol? x) (string? x))) ; allow for custom visualizer path
+        'run_sterling (lambda (x) (or (symbol? x)
+                                      (string? x)
+                                      (and (list? x)
+                                           (andmap (lambda (ele) (string? ele)) x))))
         'sterling_port exact-nonnegative-integer?
         'engine_verbosity exact-nonnegative-integer?
         'test_keep (oneof-pred '(first last))
@@ -333,7 +336,7 @@
         'core_minimization "symbol"
         'skolem_depth "integer"
         'local_necessity "symbol"
-        'run_sterling "symbol or string"
+        'run_sterling "symbol, string, or sequence of strings"
         'sterling_port "non-negative integer"
         'engine_verbosity "non-negative integer"
         'test_keep "one of: first or last"

@@ -134,7 +134,9 @@ NT-Block : /LEFT-CURLY-TOK NT-Expr* /RIGHT-CURLY-TOK
 BlockOrBar : NT-Block | BAR-TOK NT-Expr 
 Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
 QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK | SUM-TOK
-NT-OptionDecl : /OPTION-TOK QualName (QualName | PATH-OR-STR-TOK | MINUS-TOK? Number)
+
+; Some options now allow one-or-more paths. Specific details are validated later.
+NT-OptionDecl : /OPTION-TOK QualName (QualName | PATH-OR-STR-TOK+ | MINUS-TOK? Number)
 
 Name : IDENTIFIER-TOK
 NameList : @Name

@@ -48,7 +48,9 @@ sig AlloyModule, Block, ModuleDecl, Import, SigDecl, RelDecl
      // Forge-defined helper procedures 
      ,primify
      // Forge-defined struct
-     ,Sig, Run
+     ,Sig, Run, 
+     // Syntax class definition
+     OptionDeclClass 
 
 {}
 

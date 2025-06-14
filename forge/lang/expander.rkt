@@ -485,18 +485,21 @@
   (define-syntax-class OptionDeclClass
     #:attributes (n v)
     (pattern ((~datum NT-OptionDecl) name:QualNameClass value:QualNameClass)
-             #:attr n #'name.name
-             #:attr v #'value.name)
+      #:attr n #'name.name
+      #:attr v #'value.name)
     (pattern ((~datum NT-OptionDecl) name:QualNameClass value:str)
-             #:attr n #'name.name
-             #:attr v #'value)
+      #:attr n #'name.name
+      #:attr v #'value)
+    (pattern ((~datum NT-OptionDecl) name:QualNameClass (~seq values:str ...))
+      #:attr n #'name.name
+      #:attr v #'(values ...))
     (pattern ((~datum NT-OptionDecl) name:QualNameClass value:NumberClass)
-             #:attr n #'name.name
-             #:attr v #'value.value)
+      #:attr n #'name.name
+      #:attr v #'value.value)
     (pattern ((~datum NT-OptionDecl) name:QualNameClass "-" value:NumberClass)
-             #:attr n #'name.name
-             #:attr v (quasisyntax #,(* -1 (syntax->datum #'value.value)))))
-
+      #:attr n #'name.name
+      #:attr v (quasisyntax #,(* -1 (syntax->datum #'value.value)))))
+  
  
   ; Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
   (define-syntax-class BlockClass

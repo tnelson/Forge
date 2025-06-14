@@ -209,6 +209,9 @@
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
                               option (hash-ref option-types-names option) value)))
+
+  (define (translate-single-path p)
+    (path->string (build-path original-path (string->path p))))
   
   (define new-options
     (cond
@@ -268,9 +271,12 @@
       [(equal? option 'run_sterling)
        (struct-copy Options options
                     [run_sterling
-                     (if (and (string? value) original-path)
-                         (path->string (build-path original-path (string->path value)))
-                         value)])]
+                     (cond
+                       [(and (string? value) original-path)
+                         (translate-single-path value)]
+                       [(and (list? value) original-path)
+                        (map translate-single-path value)]
+                        [else value])])]
       [(equal? option 'sterling_port)
        (struct-copy Options options
                     [sterling_port value])]
