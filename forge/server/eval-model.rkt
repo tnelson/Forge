@@ -2,17 +2,18 @@
 
 ; NOTE WELL: this module is not used in the Sterling evaluator anymore.
 ; Instead, Forge uses it for evaluating expressions in `inst` bounds.
+; It may also be used to aid in writing forge/core tests.
 
 (require racket/match 
-         (only-in "../lang/ast.rkt" relation-name raise-forge-error) 
          racket/hash
+         racket/struct
+         syntax/srcloc
          (only-in racket range take first second rest flatten empty remove-duplicates string-join 
                          empty? set->list list->set set-subtract set-intersect))
-(require  (prefix-in ast: "../lang/ast.rkt"))
-(require "../shared.rkt")
-(require racket/struct)
 (require (only-in racket/base [abs racket-abs]))
-(require syntax/srcloc)
+
+(require forge/shared
+         (prefix-in ast: forge/lang/ast))
 
 (provide eval-exp eval-unknown eval-int-expr model->binding)
 (provide int-atom int-atom->string int-atom? int-atom-n ->string)
@@ -47,7 +48,7 @@
 (define (model->binding model bitwidth)
   (define out-bind (make-hash))
   (hash-map model (lambda (k v) (hash-set! out-bind 
-                                           (string->symbol (relation-name k))
+                                           (string->symbol (ast:relation-name k))
                                            (ints-to-atoms v))))
   
   ; add Int relation to our binding with appropriate bitwidth
@@ -77,7 +78,7 @@
 ; (This is a useful function to keep around, even if Sterling calls Kodkod's evaluator now.)
 (define (eval-unknown thing bind bitwidth)
   (define (final-fallback t b bw)
-    (raise-forge-error #:msg "Not a formula, expression, or int expression"
+    (ast:raise-forge-error #:msg "Not a formula, expression, or int expression"
                        #:context t))
   ((try-eval eval-int-expr (try-eval eval-exp final-fallback))
    thing bind bitwidth))
@@ -168,7 +169,7 @@
                    [id
                     (cond
                       [(relation? id)
-                       (raise-forge-error #:msg "Implicit set comprehension is disallowed - use \"set\""
+                       (ast:raise-forge-error #:msg "Implicit set comprehension is disallowed - use \"set\""
                                           #:context id)]   
                       ; relation name, and we have an entry in the binding: extract the value
                       [(hash-has-key? bind id) (hash-ref bind id)]
@@ -178,9 +179,9 @@
                       ; Otherwise, If this is an unsafe evaluation, just return the value
                       [(not safe) id]
                       ; Otherwise, if this is a safe evaluation, throw an error
-                      [else (raise-forge-error #:msg (format "Value of expression ~a is not defined in this context." id)
+                      [else (ast:raise-forge-error #:msg (format "Value of expression ~a is not defined in this context." id)
                                                #:context id)])]
-                   [_ (raise-forge-error #:msg "Not a supported expression for Racket-side evaluation"
+                   [_ (ast:raise-forge-error #:msg "Not a supported expression for Racket-side evaluation"
                                          #:context exp)]))
   
   ; The result represents a set of tuples, so ensure proper formatting and duplicate elimination

@@ -15,7 +15,8 @@
 (require forge/shared)
 (require forge/lang/ast 
          forge/lang/bounds 
-         forge/breaks)
+         forge/breaks
+         forge/utils/target-oriented)
 (require (only-in forge/lang/reader [read-syntax read-surface-syntax]))
 (require forge/server/eval-model)
 (require forge/server/forgeserver)
@@ -39,7 +40,9 @@
                   check-from-state
                   make-check
                   test-from-state
-                  make-test))
+                  make-test
+                  reset-run-name-history!
+                  stop-solver-process!))
 (require forge/choose-lang-specific)
 
 ; Commands
@@ -95,7 +98,9 @@
          check-from-state
          make-check
          test-from-state
-         make-test)
+         make-test
+         reset-run-name-history!
+         stop-solver-process!)
 
 ; Export everything for doing scripting
 (provide (prefix-out forge: (all-defined-out)))
@@ -127,7 +132,8 @@
     (raise-user-error (format "tried to add sig ~a, but it already existed" name)))
   ;(define new-sig (Sig name rel one abstract extends))
   (when (and extends (not (member extends (State-sig-order state))))
-    (raise-user-error "Can't extend nonexistent sig."))
+    (raise-user-error (format "Can't extend nonexistent sig ~a. Options were: ~a"
+                              extends (State-sig-order state))))
 
   (define new-state-sigs (hash-set (State-sigs state) name new-sig))
   (define new-state-sig-order (append (State-sig-order state) (list name)))
@@ -203,6 +209,9 @@
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
                               option (hash-ref option-types-names option) value)))
+
+  (define (translate-single-path p)
+    (path->string (build-path original-path (string->path p))))
   
   (define new-options
     (cond
@@ -262,9 +271,12 @@
       [(equal? option 'run_sterling)
        (struct-copy Options options
                     [run_sterling
-                     (if (and (string? value) original-path)
-                         (path->string (build-path original-path (string->path value)))
-                         value)])]
+                     (cond
+                       [(and (string? value) original-path)
+                         (translate-single-path value)]
+                       [(and (list? value) original-path)
+                        (map translate-single-path value)]
+                        [else value])])]
       [(equal? option 'sterling_port)
        (struct-copy Options options
                     [sterling_port value])]
@@ -292,7 +304,7 @@
 
 ; The environment threaded through commands
 (define curr-state init-state)
-(define (update-state! new-state) 
+(define (update-state! new-state)
   (set! curr-state new-state))
 
 ; check-temporal-for-var :: Boolean String -> void
@@ -633,46 +645,74 @@
             (~optional (~seq #:scope ((sig:id (~optional lower:nat) upper:nat) ...)))
             (~optional (~or (~seq #:bounds (boundss ...))
                             (~seq #:bounds bound)))
+            
             (~optional (~seq #:solver solver-choice)) ;unused
             (~optional (~seq #:backend backend-choice)) ;unused
-            (~optional (~seq #:target target-instance))
-            ;the last 3 appear to be unused in functional forge
+
+            ; In forge/functional, these 2 options are passed together as part of a Target struct.
+            (~optional (~seq #:target target-pi-or-int))
             (~optional (~seq #:target-distance target-distance))
+            
+            ;the last 2 appear to be unused in functional forge
             (~optional (~or (~and #:target-compare target-compare)
                             (~and #:target-contrast target-contrast)))) ...)
+     
      (quasisyntax/loc stx (begin
          ;(define checker-hash (get-ast-checker-hash))
-         ;(printf "sigs run ~n ch= ~a~n" checker-hash)
-         (define run-state curr-state)
+;         (printf "sigs run ~n ch= ~a~n" checker-hash)
+                     
          (define run-name (~? (~@ 'name) (~@ 'no-name-provided)))
          (define run-preds (~? (list preds ...) (~? (list pred) (list))))         
          (define run-scope
            (~? (~@ (list (~? (~@ (list sig lower upper))
                              (~@ (list sig upper))) ...))
                (~@ (list))))
-         #;(define run-scope
-           (~? (list (list sig (~? lower) upper) ...) (list)))
-         #;(define run-scope
-           (~? (list (~? (list sig lower upper) (list sig upper)) ...) (list)))
          (define run-bounds (~? (list boundss ...) (~? (list bound) (list))))                  
          (define run-solver (~? 'solver-choice #f))
          (define run-backend (~? 'backend #f))
+
+         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+         ; If the run has asked for an _integer expression_ to be targeted,
+         ; augment the run with a "gadget" which must appear in the relational bounds.
+         (define-values (target-pi bounds-maybe-with-gadget preds-maybe-with-gadget)
+           (~?
+            (cond
+              [(or (Inst? target-pi-or-int)
+                   (hash? target-pi-or-int))
+               (values target-pi-or-int run-bounds run-preds)]
+              [(node/int? target-pi-or-int)
+               ; curr-state should be a box. But that would be a wide-ranging change,
+               ; so instead provide a getter lambda so call-by-value works for us.
+               (build-int-opt-gadget target-pi-or-int run-scope run-bounds run-preds
+                                     (lambda () curr-state)
+                                     update-state! state-add-sig state-add-relation)]
+              [else
+               (raise-forge-error #:msg (format "Unexpected target type: ~a" target-pi-or-int)
+                                  #:context name)])
+            (values #f run-bounds run-preds)))
+         
          (define run-target
-           (~? (Target target-instance ;(cdr target-instance)
+           (if target-pi
+               (Target target-pi
                        (~? 'target-distance 'close_noretarget))
                #f))
-         (define run-command #'#,command)         
+         ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+         ;; TODO: this _really_ ought to be a box. If the above calls update-state!,
+         ;; this is no longer aliased. 
+         (define run-state curr-state) 
+         (define run-command #'#,command)
          (define name
            (run-from-state run-state
                            #:name run-name
-                           #:preds run-preds
+                           #:preds preds-maybe-with-gadget
                            #:scope run-scope
-                           #:bounds run-bounds
+                           #:bounds bounds-maybe-with-gadget
                            #:solver run-solver
                            #:backend run-backend
                            #:target run-target
                            #:command run-command))
          (update-state! (state-add-runmap curr-state 'name name))))]))
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

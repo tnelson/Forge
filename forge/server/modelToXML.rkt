@@ -3,6 +3,7 @@
 (require forge/lang/ast racket/date xml racket/string
          forge/sigs-structs ; for Sat/Unsat
          forge/shared
+         racket/path
          (prefix-in @ (only-in racket > - +))
          (only-in racket/port port->string)
          racket/hash
@@ -81,20 +82,32 @@
                  (types-to-XML-string rel ID-hash)
                  "\n</field>\n\n"))
 
-; Possibly annotate the XML with instructions on where to find visualization info
+; Possibly annotate the XML with instructions on where to find visualization info.
+; The option supports a _list_ of files, so Racket needs to disambiguate. 
 (define (sterling-viz-to-xml run-options)
+  (define rs-opt (Options-run_sterling run-options))
+  (define (single-path-to-xml p)
+    (cond [(and (string? p) (file-exists? p))
+           ; the forge expander makes this an absolute path (see OptionDecl)
+           (define vis-text (port->string (open-input-file p) #:close? #t))
+           (cond [(or (equal? (path-get-extension p) #".js")
+                      (equal? (path-get-extension p) #".ts"))
+                  (format " <visualizer script=\"~a\" />" (clean vis-text))]
+                 [(equal? (path-get-extension p) #".cnd")
+                  (format " <visualizer cnd=\"~a\" />" (clean vis-text))]
+                 [else
+                  (printf "A visualizer filename must end in either .js, .ts, or .cnd. Ignoring: ~a~n" p)
+                  ""])]
+          [(string? p)
+           ; provided a path string, but there is no such file; show a warning but continue to load Sterling
+           (printf "A visualizer file in option run_sterling could not be found. Ignoring: ~a~n" p)
+           ""]
+          [else
+           ""]))
   (cond
     [(not run-options) ""]
-    [(and (string? (Options-run_sterling run-options))
-          (file-exists? (Options-run_sterling run-options)))
-     ; the forge expander makes this an absolute path (see OptionDecl)
-     (define file-path (Options-run_sterling run-options))
-     (define script-text (port->string (open-input-file file-path) #:close? #t))
-     (format "<visualizer script=\"~a\" />" (clean script-text))]
-    [(string? (Options-run_sterling run-options))
-     ; provided a path string, but there is no such file; show a warning but continue to load Sterling
-     (printf "The visualizer file in option run_sterling did not exist; ignoring: ~a~n" (Options-run_sterling run-options))
-     ""]
+    [(string? rs-opt) (single-path-to-xml rs-opt)]
+    [(list? rs-opt) (apply string-append (map single-path-to-xml rs-opt))]
     [else ""]))
 
 (define (clean str)
@@ -233,6 +246,7 @@ here-string-delimiter
         [else
          ; Sat!
          ; We have a LIST of instances in data
+         (define vis-xml (sterling-viz-to-xml run-options))
          (define epilogue (string-append
                            "\n"
                            "<source filename=\"" filepath "\" content=\""
@@ -240,7 +254,7 @@ here-string-delimiter
                                             (λ (exn) (format "// Couldn't open source file (~a) (info: ~a). Is the file saved?" filepath (exn:fail:filesystem:errno-errno exn)))])
                              (clean (agg-lines (port->lines (open-input-file filepath)))))
                            "\"></source>\n"
-                           (sterling-viz-to-xml run-options)
+                           vis-xml
                            "</alloy>"))         
          (define message
            (string-append
@@ -267,7 +281,8 @@ here-string-delimiter
   (define sigs-unsorted (filter
                          (λ (key) (and (equal? (relation-arity key) 1)
                                         (not (equal? (relation-name key) "Int"))
-                                        (not (string-prefix? (relation-name key) "$"))))
+                                        (not (string-prefix? (relation-name key) "$"))
+                                        (not (string-prefix? (relation-name key) "__"))))
                          (hash-keys data)))
   
   (define skolems (filter (lambda (key) (string-prefix? (relation-name key) "$")) (hash-keys data)))
@@ -334,7 +349,10 @@ here-string-delimiter
   ; RACKET "or"
   (define fields (filter-not
                   (λ (key) (or (equal? (relation-arity key) 1)
-                                (string-prefix? (relation-name key) "$")))
+                                ; Skolem relations (which may have arity >1)
+                                (string-prefix? (relation-name key) "$")
+                                ; Helper relations added internally
+                                (string-prefix? (relation-name key) "__")))
                   (hash-keys data)))  
 
   (define sigs# (length sigs))

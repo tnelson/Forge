@@ -2,7 +2,10 @@
 
 ; Functional interface to the Forge library and solver. 
 ;   Formula/expression macros should largely be kept in sigs.rkt instead. 
-;   The design intent is: forge -> forge/core (in sigs.rkt) -> functional forge (this module)
+;   The design intent is:
+;     * forge surface languages use ->
+;       * forge/core (in sigs.rkt) uses ->
+;         * functional forge (this module)
 
 ;; TODO: there is still some duplicate logic (+ importing?) between this module + sigs, and possibly
 ;;   still unused imports...
@@ -13,7 +16,8 @@
          (only-in racket/function thunk)
          (only-in racket/math nonnegative-integer?)
          (only-in racket/list first second range rest empty flatten)
-         (only-in racket/set list->set set->list set-union set-intersect subset? set-count))
+         (only-in racket/set list->set set->list set-union set-intersect subset? set-count)
+         (only-in racket/hash hash-union))
 (require (only-in syntax/srcloc build-source-location-syntax))
 
 (require (except-in forge/lang/ast ->)
@@ -43,7 +47,8 @@
          display)
 (provide Int succ)
 (provide (prefix-out forge: make-model-generator))
-(provide solution-diff)         
+(provide solution-diff)
+(provide reset-run-name-history! stop-solver-process!)
 
 ; ; Instance analysis functions
 ; (provide is-sat? is-unsat?)
@@ -57,10 +62,7 @@
 (provide let quote)
 
 ; ; Technical stuff
-; (provide set-verbosity VERBOSITY_LOW VERBOSITY_HIGH)
-; (provide set-path!)
 (provide set-option!)
-; (define (set-path! path) #f)
 
 ; ; Data structures
 (provide (prefix-out forge: (struct-out Sig))
@@ -81,14 +83,6 @@
 ; Let forge/core work with the model tree without having to require helpers
 ; Don't prefix with tree:, that's already been done when importing
 (provide (all-from-out forge/utils/lazy-tree))
-
-; ; Export everything for doing scripting
-; (provide (prefix-out forge: (all-defined-out)))
-; (provide (prefix-out forge: (struct-out bound)))
-; (provide (prefix-out forge: relation-name))
-
-; (provide (struct-out Sat)
-;          (struct-out Unsat))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Language-Specific Checks ;;
@@ -376,8 +370,6 @@
        [(node/expr/op/~ info arity (list left-rel))
         (break left-rel (get-co right))]
        [_ (fail "is")])
-     ; hopefully the above calls to break update these somehow
-     ; and hopefully they don't rely on state :(
      (values scope bound)]
 
     ; Other instances (which may add new scope, bound, piecewise-bound information)
@@ -446,9 +438,6 @@
         (values scope (update-piecewise-binds 'ni the-relation the-atom left))]
        ; anything else is unexpected
        [else (fail "rel in/ni")])]    
-
-    ; Bitwidth
-    ; what does (Int n:nat) look like in the AST?
     
     [_ (fail "Invalid binding expression")]))
 
@@ -630,8 +619,62 @@
     (unless (node/formula? p)
       (raise-forge-error #:msg (format "Expected a formula but got something else: ~a" (deparse p))
                          #:context command)))
+
+  (define (inst->hash/exact tgt-i)
+    (define-values (tgt-scope tgt-bounds) 
+      ((Inst-func tgt-i) scope-with-ones default-bounds))
+
+    (unless (hash-empty? (Bound-piecewise tgt-bounds))
+      (raise-forge-error #:msg (format "Piecewise bounds are not allowed in target. Use `R = ...`")
+                         #:context command))
+    (define tbhash
+      (for/hash ([rel (hash-keys (Bound-tbindings tgt-bounds))]
+                 ; remove built-ins
+                 #:unless (member (string->symbol (node/expr/relation-name rel)) '(Int succ)))
+        (define val (hash-ref (Bound-tbindings tgt-bounds) rel))
+        (define relname (string->symbol (node/expr/relation-name rel)))
+        (values relname (map (lambda (tup)
+                               (map (lambda (atom)
+                                      (if (int-atom? atom)
+                                          (int-atom-n atom)
+                                          atom))
+                                    tup)) val))))
+    (define pbhash
+      (for/hash ([rel (hash-keys (Bound-pbindings tgt-bounds))])
+        (define val (hash-ref (Bound-pbindings tgt-bounds) rel))
+        (define relname (string->symbol (node/expr/relation-name rel)))
+        (define lower (sbound-lower val))
+        (define upper (sbound-upper val))
+        (unless (equal? lower upper)
+          (raise-forge-error #:msg (format "Non-exact bounds on ~a are not allowed in target. Use `=`, not `in` or `ni`." relname)
+                             #:context command))
+        (values relname (map (lambda (tup)
+                               (map (lambda (atom)
+                                      (if (int-atom? atom)
+                                          (int-atom-n atom)
+                                          atom))
+                                    tup)) (set->list lower)))))
+
+    (hash-union tbhash pbhash
+                #:combine/key (lambda (k v1 v2)
+                                (unless (equal? v1 v2)
+                                  (raise-forge-error #:msg (format"Error with the provided target bounds: generation was both total and partial for relation ~a" k)
+                                                     #:context command))
+                                v1)))
+
+      
   
-  (define spec (Run-spec state preds scope bounds-with-piecewise-lower target))        
+  (define cleaned-target
+    (cond [(and target (Inst? (Target-target target)))
+           ; Rebuild as a hash-based instance
+           (Target
+            (inst->hash/exact (Target-target target))
+            (Target-distance target))]
+          [else
+           target]))
+  ;(printf "cleaned-target: ~a~n" cleaned-target)
+  
+  (define spec (Run-spec state preds scope bounds-with-piecewise-lower cleaned-target))        
   (define-values (result atoms server-ports kodkod-currents kodkod-bounds) 
                  (send-to-solver spec command #:run-name name))
   

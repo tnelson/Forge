@@ -112,13 +112,13 @@
      (translate-to-kodkod-cli run-spec p all-rels all-atoms '())
      (pardinus:print-cmd ")")
      (pardinus:assert (pardinus:f assertion-number))))
-
+  
   ; target-oriented model finding may not impose an initial target, but might
   ; be used just to implement custom "next" strategies
   (when (equal? 'target (get-option run-spec 'problem_type))
     (define target (Run-spec-target run-spec))    
     (when target
-      (for ([(rel-name atoms) (Target-instance target)])
+      (for ([(rel-name atoms) (Target-target target)])
         (define relation (hash-ref (get-relation-map run-spec) (symbol->string rel-name)))
         (define sig-or-rel
           (if (@= (relation-arity relation) 1)
@@ -169,7 +169,7 @@
   (define-syntax-rule (pardinus-print lines ...)
     (pardinus:cmd [stdin] lines ...)) 
   
-  ; If the solver isn't running at all, error:
+  ; If the solver process isn't running at all, error:
   (unless (is-running?)
     (raise-user-error "KodKod server is not running."))
   ; If the solver is running, but this specific run ID is closed, user error

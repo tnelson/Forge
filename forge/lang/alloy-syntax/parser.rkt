@@ -26,37 +26,37 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Starting production for the parser
 ; Two options: a model, or an evaluation request
-AlloyModule :  
-            Import* Paragraph*
-            | EvalDecl*
+NT-AlloyModule :  
+            NT-Import* Paragraph*
+            | NT-EvalDecl*
 
 ; Import other Forge files by name
-Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
+NT-Import : /OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
        | /OPEN-TOK PATH-OR-STR-TOK (AS-TOK Name)?
 
 ; Basic top-level constructs of a model: sigs, preds, commands, etc.
 @Paragraph : 
-            SigDecl 
-          | PredDecl 
-          | FunDecl 
-          | AssertDecl 
-          | CmdDecl
-          | TestExpectDecl
-          | SexprDecl
-          | QueryDecl
-          | EvalRelDecl
-          | OptionDecl
-          | InstDecl
-          | ExampleDecl 
-          | PropertyDecl
-          | QuantifiedPropertyDecl
-          | SatisfiabilityDecl
-          | ConsistencyDecl
-          | TestSuiteDecl
+            NT-SigDecl 
+          | NT-PredDecl 
+          | NT-FunDecl 
+          | NT-AssertDecl 
+          | NT-CmdDecl
+          | NT-TestExpectDecl
+          | NT-SexprDecl
+          | NT-QueryDecl
+          | NT-EvalRelDecl
+          | NT-OptionDecl
+          | NT-InstDecl
+          | NT-ExampleDecl 
+          | NT-PropertyDecl
+          | NT-QuantifiedPropertyDecl
+          | NT-SatisfiabilityDecl
+          | NT-ConsistencyDecl
+          | NT-TestSuiteDecl
 
 ; NOTE: When extending sigs with "in" (subset sigs) is implemented,
 ;  if "sig A in B extends C" is allowed, update this to allow multiple SigExt
-SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
+NT-SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK NT-Block?
 SigExt : EXTENDS-TOK QualName 
        | IN-TOK QualName (PLUS-TOK QualName)*
 
@@ -65,8 +65,8 @@ Mult : LONE-TOK | SOME-TOK | ONE-TOK | TWO-TOK
 ArrowMult : LONE-TOK | SET-TOK | ONE-TOK | TWO-TOK | FUNC-TOK | PFUNC-TOK
 ; for helper fun/pred declaration
 HelperMult : LONE-TOK | SET-TOK | ONE-TOK | FUNC-TOK | PFUNC-TOK
-ParaDecl  : DISJ-TOK? NameList /COLON-TOK HelperMult? Expr
-QuantDecl : DISJ-TOK? NameList /COLON-TOK SET-TOK? Expr
+ParaDecl  : DISJ-TOK? NameList /COLON-TOK HelperMult? NT-Expr
+QuantDecl : DISJ-TOK? NameList /COLON-TOK SET-TOK? NT-Expr
 
 ; ArrowDecl should only be used by sig field declaration right now; 
 ; note the optional VAR for Electrum. Remember that a preceding / means
@@ -76,44 +76,51 @@ ArrowDecl : VAR-TOK? NameList /COLON-TOK ArrowMult ArrowExpr
 PredType : WHEAT-TOK
 
 ; A predicate declaration can contain any number of formulas in its body
-PredDecl : /PRED-TOK PredType? (QualName DOT-TOK)? Name ParaDecls? Block
+NT-PredDecl : /PRED-TOK PredType? (QualName DOT-TOK)? Name ParaDecls? NT-Block
 ; A function declaration should only ever contain a single expression in its body
-FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK HelperMult? Expr /LEFT-CURLY-TOK Expr /RIGHT-CURLY-TOK
+NT-FunDecl : /FUN-TOK (QualName DOT-TOK)? Name ParaDecls? /COLON-TOK HelperMult? NT-Expr /LEFT-CURLY-TOK NT-Expr /RIGHT-CURLY-TOK
 ; A ParaDecls is a special declaration form for pred/fun definition, where every identifier
 ; is paired with an expr and (optional) multiplicity
 ParaDecls : /LEFT-PAREN-TOK @ParaDeclList? /RIGHT-PAREN-TOK 
           | /LEFT-SQUARE-TOK @ParaDeclList? /RIGHT-SQUARE-TOK
 
-AssertDecl : /ASSERT-TOK Name? Block
-CmdDecl :  Name /COLON-TOK (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
-        | (RUN-TOK | CHECK-TOK) (QualName | Block)? Scope? (/FOR-TOK Bounds)?
+; Configure target-oriented model finding, or integer optimization (which builds on TOMF).
+; Expect the type of targeted search, followed by the target, and then the mode (optionally).
+TOMFParams : TARGET_PI-TOK  Bounds
+           | MINIMIZE_INT-TOK NT-Block
+           | MAXIMIZE_INT-TOK NT-Block
 
-TestDecl : (Name /COLON-TOK)? (QualName | Block) Scope? (/FOR-TOK Bounds)? /IS-TOK
+NT-AssertDecl : /ASSERT-TOK Name? NT-Block
+NT-CmdDecl :  Name /COLON-TOK (RUN-TOK | CHECK-TOK) (QualName | NT-Block)? Scope? (/FOR-TOK Bounds)? (TOMFParams)?
+        | (RUN-TOK | CHECK-TOK) (QualName | NT-Block)? Scope? (/FOR-TOK Bounds)? (TOMFParams)?
+
+NT-TestDecl : (Name /COLON-TOK)? (QualName | NT-Block) Scope? (/FOR-TOK Bounds)? /IS-TOK
            (SAT-TOK | UNSAT-TOK | UNKNOWN-TOK | THEOREM-TOK | FORGE_ERROR-TOK (PATH-OR-STR-TOK)? | CHECKED-TOK )
-TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
-TestBlock : /LEFT-CURLY-TOK TestDecl* /RIGHT-CURLY-TOK
+NT-TestExpectDecl : TEST-TOK? EXPECT-TOK Name? TestBlock
+TestBlock : /LEFT-CURLY-TOK NT-TestDecl* /RIGHT-CURLY-TOK
 Scope : /FOR-TOK Number (/BUT-TOK @TypescopeList)?
       | /FOR-TOK @TypescopeList
 Typescope : EXACTLY-TOK? Number QualName
 Const : NONE-TOK | UNIV-TOK | IDEN-TOK
       | MINUS-TOK? Number 
 
-SatisfiabilityDecl : Name /COLON-TOK /ASSERT-TOK Expr /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)? 
-                         | /ASSERT-TOK Expr /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)?
+NT-SatisfiabilityDecl : Name /COLON-TOK /ASSERT-TOK NT-Expr /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)? 
+                         | /ASSERT-TOK NT-Expr /IS-TOK (SAT-TOK | UNSAT-TOK | FORGE_ERROR-TOK) Scope? (/FOR-TOK Bounds)?
 
-PropertyDecl : Name /COLON-TOK /ASSERT-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)?
-             | /ASSERT-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)?
+NT-PropertyDecl : Name /COLON-TOK /ASSERT-TOK NT-Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)?
+             | /ASSERT-TOK NT-Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name Scope? (/FOR-TOK Bounds)?
 
-QuantifiedPropertyDecl : Name /COLON-TOK /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
-             | /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
+NT-QuantifiedPropertyDecl : Name /COLON-TOK /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK NT-Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
+             | /ASSERT-TOK /ALL-TOK DISJ-TOK? QuantDeclList /BAR-TOK NT-Expr /IS-TOK (SUFFICIENT-TOK | NECESSARY-TOK) /FOR-TOK Name (/LEFT-SQUARE-TOK ExprList /RIGHT-SQUARE-TOK)? Scope? (/FOR-TOK Bounds)? 
 
-ConsistencyDecl: Name /COLON-TOK /ASSERT-TOK Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
-                | /ASSERT-TOK Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
+NT-ConsistencyDecl: Name /COLON-TOK /ASSERT-TOK NT-Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
+                | /ASSERT-TOK NT-Expr /IS-TOK (CONSISTENT-TOK | INCONSISTENT-TOK) /WITH-TOK Name Scope? (/FOR-TOK Bounds)?
 
 
-TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
+NT-TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct* /RIGHT-CURLY-TOK
 
-@TestConstruct : ExampleDecl | TestExpectDecl | PropertyDecl | QuantifiedPropertyDecl | SatisfiabilityDecl | ConsistencyDecl
+@TestConstruct : NT-ExampleDecl | NT-TestExpectDecl | NT-PropertyDecl | NT-QuantifiedPropertyDecl
+               | NT-SatisfiabilityDecl | NT-ConsistencyDecl
 
 
 # UnOp : Mult
@@ -122,12 +129,14 @@ TestSuiteDecl : /TEST-TOK /SUITE-TOK /FOR-TOK Name /LEFT-CURLY-TOK TestConstruct
 #       | PLUS-TOK | MINUS-TOK | PPLUS-TOK | DOT-TOK | SUBT-TOK | SUPT-TOK
 ArrowOp : (@Mult | SET-TOK)? ARROW-TOK (@Mult | SET-TOK)?
 CompareOp : IN-TOK | EQ-TOK | LT-TOK | GT-TOK | LEQ-TOK | GEQ-TOK | IS-TOK | NI-TOK
-LetDecl : @Name /EQ-TOK Expr
-Block : /LEFT-CURLY-TOK Expr* /RIGHT-CURLY-TOK
-BlockOrBar : Block | BAR-TOK Expr 
+LetDecl : @Name /EQ-TOK NT-Expr
+NT-Block : /LEFT-CURLY-TOK NT-Expr* /RIGHT-CURLY-TOK
+BlockOrBar : NT-Block | BAR-TOK NT-Expr 
 Quant : ALL-TOK | NO-TOK | SUM-TOK | @Mult
 QualName : (THIS-TOK /SLASH-TOK)? (@Name /SLASH-TOK)* @Name | INT-TOK | SUM-TOK
-OptionDecl : /OPTION-TOK QualName (QualName | PATH-OR-STR-TOK | MINUS-TOK? Number)
+
+; Some options now allow one-or-more paths. Specific details are validated later.
+NT-OptionDecl : /OPTION-TOK QualName (QualName | PATH-OR-STR-TOK+ | MINUS-TOK? Number)
 
 Name : IDENTIFIER-TOK
 NameList : @Name
@@ -149,8 +158,8 @@ LetDeclList : LetDecl
             | LetDecl /COMMA-TOK @LetDeclList
 TypescopeList : Typescope
               | Typescope /COMMA-TOK @TypescopeList
-ExprList : Expr
-         | Expr /COMMA-TOK @ExprList
+ExprList : NT-Expr
+         | NT-Expr /COMMA-TOK @ExprList
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; This chain of productions enforces operator precedence in brag.
@@ -189,49 +198,49 @@ ExprList : Expr
 ;  implication and sequence, which associate to the right, and of 
 ;  binary temporal connectives which are not associative."
 
-Expr    : @Expr1
+NT-Expr    : @NT-Expr1
         | LET-TOK LetDeclList BlockOrBar
         | BIND-TOK LetDeclList BlockOrBar
         | Quant DISJ-TOK? QuantDeclList BlockOrBar
-Expr1   : @Expr1.5  | Expr1 OR-TOK Expr1.5
-Expr1.5 : @Expr2    | Expr1.5 XOR-TOK Expr2
-Expr2   : @Expr3  | Expr2 IFF-TOK Expr3
+NT-Expr1   : @NT-Expr1.5  | NT-Expr1 OR-TOK NT-Expr1.5
+NT-Expr1.5 : @NT-Expr2    | NT-Expr1.5 XOR-TOK NT-Expr2
+NT-Expr2   : @NT-Expr3    | NT-Expr2 IFF-TOK NT-Expr3
 ;; right assoc
-Expr3   : @Expr4  | Expr4 IMP-TOK Expr3 (ELSE-TOK Expr3)?        
-Expr4   : @Expr4.5  | Expr4 AND-TOK Expr4.5
+NT-Expr3   : @NT-Expr4    | NT-Expr4 IMP-TOK NT-Expr3 (ELSE-TOK NT-Expr3)?        
+NT-Expr4   : @NT-Expr4.5  | NT-Expr4 AND-TOK NT-Expr4.5
 ; Electrum binary operators (not associative)
-Expr4.5 : @Expr5  | Expr5 UNTIL-TOK Expr5
-                  | Expr5 RELEASE-TOK Expr5
-                  | Expr5 SINCE-TOK Expr5
-                  | Expr5 TRIGGERED-TOK Expr5
-Expr5   : @Expr6  | NEG-TOK Expr5
-                  | ALWAYS-TOK Expr5
-                  | EVENTUALLY-TOK Expr5
-                  | AFTER-TOK Expr5
-                  | BEFORE-TOK Expr5
-                  | ONCE-TOK Expr5
-                  | HISTORICALLY-TOK Expr5
-Expr6   : @Expr7  | Expr6 NEG-TOK? CompareOp Expr7
-Expr7   : @Expr8 | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) Expr8
-Expr8   : @Expr9  | Expr8 (PLUS-TOK | MINUS-TOK) Expr10
-Expr9   : @Expr10 | CARD-TOK Expr9
-Expr10  : @Expr11 | Expr10 PPLUS-TOK Expr11
-Expr11  : @Expr12 | Expr11 AMP-TOK Expr12
-Expr12  : @Expr13 | Expr12 ArrowOp Expr13
-Expr13  : @Expr14 | Expr13 (SUBT-TOK | SUPT-TOK) Expr14
-Expr14  : @Expr15 | Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
-Expr15  : @Expr16 | Expr15 DOT-TOK Expr16
+NT-Expr4.5 : @NT-Expr5  | NT-Expr5 UNTIL-TOK NT-Expr5
+                  | NT-Expr5 RELEASE-TOK NT-Expr5
+                  | NT-Expr5 SINCE-TOK NT-Expr5
+                  | NT-Expr5 TRIGGERED-TOK NT-Expr5
+NT-Expr5   : @NT-Expr6  | NEG-TOK NT-Expr5
+                  | ALWAYS-TOK NT-Expr5
+                  | EVENTUALLY-TOK NT-Expr5
+                  | AFTER-TOK NT-Expr5
+                  | BEFORE-TOK NT-Expr5
+                  | ONCE-TOK NT-Expr5
+                  | HISTORICALLY-TOK NT-Expr5
+NT-Expr6   : @NT-Expr7  | NT-Expr6 NEG-TOK? CompareOp NT-Expr7
+NT-Expr7   : @NT-Expr8 | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) NT-Expr8
+NT-Expr8   : @NT-Expr9  | NT-Expr8 (PLUS-TOK | MINUS-TOK) NT-Expr10
+NT-Expr9   : @NT-Expr10 | CARD-TOK NT-Expr9
+NT-Expr10  : @NT-Expr11 | NT-Expr10 PPLUS-TOK NT-Expr11
+NT-Expr11  : @NT-Expr12 | NT-Expr11 AMP-TOK NT-Expr12
+NT-Expr12  : @NT-Expr13 | NT-Expr12 ArrowOp NT-Expr13
+NT-Expr13  : @NT-Expr14 | NT-Expr13 (SUBT-TOK | SUPT-TOK) NT-Expr14
+NT-Expr14  : @NT-Expr15 | NT-Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
+NT-Expr15  : @NT-Expr16 | NT-Expr15 DOT-TOK NT-Expr16
                   | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
-Expr16  : @Expr17 | Expr16 PRIME-TOK
-Expr17  : @Expr18 | (TILDE-TOK | EXP-TOK | STAR-TOK) Expr17
-Expr18  : Const 
+NT-Expr16  : @NT-Expr17 | NT-Expr16 PRIME-TOK
+NT-Expr17  : @NT-Expr18 | (TILDE-TOK | EXP-TOK | STAR-TOK) NT-Expr17
+NT-Expr18  : Const 
         | QualName 
         | AT-TOK Name
         | BACKQUOTE-TOK Name
         | THIS-TOK
         | LEFT-CURLY-TOK QuantDeclList BlockOrBar RIGHT-CURLY-TOK
-        | /LEFT-PAREN-TOK @Expr /RIGHT-PAREN-TOK
-        | Block
+        | /LEFT-PAREN-TOK @NT-Expr /RIGHT-PAREN-TOK
+        | NT-Block
         | Sexpr
 
 ArrowExpr : QualName
@@ -241,7 +250,7 @@ ArrowExpr : QualName
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Escape to forge/core 
 
-SexprDecl : Sexpr
+NT-SexprDecl : Sexpr
 Sexpr : SEXPR-TOK
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -252,24 +261,24 @@ Sexpr : SEXPR-TOK
 ;InstanceDecl : INSTANCE-TOK
 
 ; Partial `inst` declaration
-InstDecl : /INST-TOK Name Bounds Scope?
+NT-InstDecl : /INST-TOK Name Bounds Scope?
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Productions for the evaluation-request case
 ;   i.e., this isn't a Forge model, but rather a query 
 ;   from the evaluator:
-EvalRelDecl : ArrowDecl
-EvalDecl : EVAL-TOK Expr
+NT-EvalRelDecl : ArrowDecl
+NT-EvalDecl : EVAL-TOK NT-Expr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;Bounds : EXACTLY-TOK? @ExprList
 ;       | EXACTLY-TOK? @Block
 
-ExampleDecl : /EXAMPLE-TOK Name /IS-TOK Expr /FOR-TOK Bounds
+NT-ExampleDecl : /EXAMPLE-TOK Name /IS-TOK NT-Expr /FOR-TOK Bounds
 
 ; ??? used where?
-QueryDecl : @Name /COLON-TOK ArrowExpr /EQ-TOK Expr
+NT-QueryDecl : @Name /COLON-TOK ArrowExpr /EQ-TOK NT-Expr
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -90,7 +90,7 @@
 
 ; Translate a formula AST node
 (define (interpret-formula formula quantvars matcher order collected stop context get-new-context)  
-  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "collector: interpret-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
@@ -112,7 +112,7 @@
   (define (process-children children quantvars)
     (apply append (map (lambda (x) (visit x quantvars matcher order collected stop context get-new-context)) children)))
 
-  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "collector: interpret-formula-op: ~a~n" formula))
   ; We could get away with only one case here, really, since there's no distinguishing
   ; but leaving the structure here for now in case we need it for any refinement.
@@ -161,7 +161,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-expr expr quantvars matcher order collected stop context get-new-context)
-  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
       (printf "collector: interpret-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
@@ -190,7 +190,7 @@
   (define (process-children children quantvars)
     (apply append (map (lambda (x) (visit x quantvars matcher order collected stop context get-new-context)) children)))
 
-  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "collector: interpret-expr-op: ~a~n" expr))
   ; We could get away with only one case here, really, since there's no distinguishing
   ; but leaving the structure here for now in case we need it for any refinement.
@@ -223,7 +223,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-int expr quantvars matcher order collected stop context get-new-context)
-  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "collector: interpret-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
@@ -252,7 +252,7 @@
   (define (process-children children quantvars)
     (apply append (map (lambda (x) (visit x quantvars matcher order collected stop context get-new-context)) children)))
 
-  (when (@>= (get-verbosity) VERBOSITY_HIGH)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "collector: interpret-int-op: ~a~n" expr))
 
   ; We could get away with only one case here, really, since there's no distinguishing
