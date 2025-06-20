@@ -16,16 +16,19 @@
 
 (require syntax/parse/define racket/stxparam
          (for-syntax racket/base syntax/parse racket/syntax syntax/parse/define racket/function
-                     syntax/srcloc racket/match racket/list                     
-                     (only-in racket/path file-name-from-path)
-                     (only-in racket/string string-replace))
+                     syntax/srcloc racket/match racket/list
+                     (only-in pkg/lib pkg-directory)
+                     (only-in racket/path file-name-from-path find-relative-path normalize-path)
+                     (only-in racket/string string-replace string-join)
+                     (only-in forge/lang/ast raise-forge-error))
          syntax/srcloc
-         (only-in racket/list flatten)
-         ; Needed because the abstract-tok definition below requires phase 2
-         (for-syntax (for-syntax racket/base))
-         
+         racket/string
+         (only-in syntax/modresolve resolve-module-path)
          (only-in forge/server/eval-model ->string)
-         racket/string)
+         (only-in racket/list flatten)
+         
+         ; Needed because the abstract-tok definition below requires phase 2
+         (for-syntax (for-syntax racket/base)))
                  
 (require (only-in racket empty? first)
          (prefix-in @ (only-in racket +)))
@@ -521,10 +524,18 @@
   (define-syntax-class QualNameClass
     #:attributes (name)
     (pattern ((~datum QualName)
-              (~optional "this") ; TODO, allow more complex qualnames
+              ;(~optional "this") ; TODO, allow more complex qualnames
               (~seq prefixes:id ...)
               raw-name:id)
-      #:attr name #'raw-name)
+      #:attr name
+      ; It is vital to provide #'raw-name for context in the new id, so Racket has the correct binding.
+      (with-syntax ([the-id (format-id #'raw-name "~a~a~a"
+                                       (string-join (map symbol->string (syntax->datum #'(prefixes ...))) "/")
+                                       (if (not (empty? (syntax->list #'(prefixes ...))))
+                                           "/" "")
+                                       #'raw-name
+                                       #:source #'raw-name)])
+        #'the-id))
     (pattern ((~datum QualName) "Int")
       #:attr name #'(raise "Int as qualname?"))
     (pattern ((~datum QualName) "sum")
@@ -859,23 +870,49 @@
                             (~optional (~seq "[" other-names:NameListClass "]")))
      (syntax/loc stx (raise "Forge does not yet support Alloy-style module naming."))]))
 
-
 ; Import : OPEN-TOK QualName (LEFT-SQUARE-TOK QualNameList RIGHT-SQUARE-TOK)? (AS-TOK Name)?
 (define-syntax (NT-Import stx)
   (syntax-parse stx
-      [((~datum NT-Import) file-path:str
-                          (~optional (~seq "as" as-name:NameClass)))
-       (syntax/loc stx (begin
-           (~? (require (prefix-in as-name.name file-path))
-               (require file-path))))]
+
+    ; Arbitrary relative path, usually a user-authored Forge module
+    [((~datum NT-Import) file-path:str
+                         (~optional (~seq "as" as-name:NameClass)))
+     (unless (file-exists? (build-path (current-load-relative-directory) (syntax->datum #'file-path)))
+       (raise-forge-error #:msg (format "File to import was not found: ~a" (syntax->datum #'file-path))
+                          #:context (build-source-location stx)))
+     (quasisyntax/loc stx
+       (begin         
+         (~? (require (prefix-in as-name.name file-path))
+             (require file-path))))]
+
+    ; Path relative to the `library` subfolder of the Forge package
     [((~datum NT-Import) import-name:QualNameClass
-                        (~optional (~seq "[" other-names:QualNameListClass "]"))
-                        (~optional (~seq "as" as-name:NameClass)))
-     (syntax/loc stx (begin
-         (raise (format "Importing packages not yet implemented: ~a." 'import-name))
-         (~? (raise (format "Bracketed import not yet implemented. ~a" 'other-names)))
-         (~? (raise (format "Importing as not yet implemented. ~a" 'as-name)))))]))
-  
+                         (~optional (~seq "[" other-names:QualNameListClass "]"))
+                         (~optional (~seq "as" as-name:NameClass)))
+     
+     (define prefixed-file-path
+       (build-path (pkg-directory "forge")
+                   "library"
+                   (symbol->string (syntax->datum #'import-name.name))))
+     (define actual-file-path
+       (find-relative-path
+        (current-load-relative-directory)
+        (simplify-path
+         (cond [(file-exists? (path-add-extension prefixed-file-path #".rkt"))
+                (path-add-extension prefixed-file-path #".rkt")]
+               [(file-exists? (path-add-extension prefixed-file-path #".frg"))
+                (path-add-extension prefixed-file-path #".frg")]
+               [else
+                (raise-forge-error #:msg (format "Forge library module to import did not exist: ~a" (syntax->datum #'import-name.name))
+                                   #:context stx)]))))
+     (with-syntax ([fp (datum->syntax #'import-name (path->string actual-file-path) #'import-name)])
+       (syntax/loc stx
+         (begin
+           ; It is important that the module-path given here has the context of the Forge module. 
+           (~? (require (prefix-in as-name.name fp))
+               (require fp))
+           (~? (raise (format "Parameterized import not yet implemented. ~a" 'other-names))))))]))
+
 ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax (NT-SigDecl stx)
   (syntax-parse stx
