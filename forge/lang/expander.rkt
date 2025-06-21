@@ -36,7 +36,6 @@
 (require forge/choose-lang-specific)
 (require (only-in forge/lang/ast raise-forge-error))
 
-(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups reachable)
 (provide #%module-begin)
 (provide #%top #%app #%datum #%top-interaction)
 

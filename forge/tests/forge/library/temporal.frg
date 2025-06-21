@@ -1,7 +1,7 @@
 #lang forge/temporal 
 
 // Relative path from the `library` subdirectory of the Forge package.
-open utils/temporal
+open util/temporal
 
 option max_tracelength 10
 option run_sterling off

@@ -4,6 +4,10 @@
 ; This isn't yet carefully testing their semantics; rather we want to ensure
 ; they expand properly in forge/core.
 
+; The `reachable` predicate is part of the base language. 
+; The sequences library is imported optionally. Test both forms.
+(require forge/library/util/sequences)
+
 (set-option! 'verbosity 0)
 (set-option! 'run_sterling 'off)
 
