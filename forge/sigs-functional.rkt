@@ -450,6 +450,7 @@
     (define-values (new-scope new-bound) 
       (for/fold ([scope scope] [bound bound])
                 ([bind binds])
+        ;(printf "*** In inst-func do-bind ~a~n" bind)
         (do-bind bind scope bound)))
     (values new-scope new-bound)) 
 

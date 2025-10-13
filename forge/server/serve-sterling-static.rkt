@@ -15,7 +15,7 @@
          racket/runtime-path
          racket/async-channel
          forge/shared)
-(provide serve-sterling-static)
+(provide serve-sterling-static serve-no-sterling)
 
 (define-runtime-path sterling-path "../sterling/build/")
 (define sterling-index (build-path sterling-path "index.html"))
@@ -74,3 +74,16 @@
        
          ; Once a character is read, stop the server
          (stop-static-server)]))
+
+
+(define (serve-no-sterling #:provider-port provider-port)
+  (define provider-url (format "http://127.0.0.1/~a" provider-port))
+  (printf "Forge running without Sterling; provider at: ~a.~n Press enter to stop Forge (or click 'Stop' in VSCode).~n" provider-url)
+  (flush-output)
+  
+  ; See serve-sterling-static for rationale of splitting windows/non-windows.
+  (cond 
+    [(equal? (system-type) 'windows)
+     (void (windows-read-char-patch))]
+    [else
+     (void (read-char))]))

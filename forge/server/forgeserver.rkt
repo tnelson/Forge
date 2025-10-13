@@ -321,8 +321,8 @@
 
        (define payload (hash-ref json-m 'payload))
        (define onClick (hash-ref payload 'onClick))
-       (define context (hash-ref payload 'context))
-       (define generatorName (string->symbol (hash-ref context 'generatorName)))
+       (define contextPayload (hash-ref payload 'context))
+       (define generatorName (string->symbol (hash-ref contextPayload 'generatorName)))
        (define next? (equal? "next" (substring onClick 0 4)))
        (unless (hash-has-key? runmap generatorName)
          (raise-forge-error
@@ -508,6 +508,8 @@
            (loop))))
      ; default #:port 0 will assign an ephemeral port
      #:port (get-option curr-state 'sterling_port) #:confirmation-channel chan))
+  ;; The instance-provider service is now active and listening.
+  
   (define port (async-channel-get chan))
   (when (string? port)
     (printf "NO PORTS AVAILABLE. Could not start provider server.~n"))
@@ -516,8 +518,12 @@
   ; Switch Sterling off for the "off" string too, because users may neglect the \'
   ; if providing an override at the command line. This means that one cannot provide
   ; a script in a file named "off".
-  (unless (or (member (get-option curr-state 'run_sterling) (list 'off "off" #f))
-              (empty? useful-run-names))
-    (serve-sterling-static #:provider-port port))
-  (when (empty? useful-run-names)
-    (printf "There was nothing useful to visualize: all commands were already executed and produced no instances.~n")))
+  
+  (cond [(empty? useful-run-names)
+         (printf "There was nothing useful to visualize: all commands were already executed and produced no instances.~n")]
+        [(member (get-option curr-state 'run_sterling) (list 'off "off" #f))
+         (void)]
+        [(member (get-option curr-state 'run_sterling) (list 'serve "serve"))
+         (serve-no-sterling #:provider-port port)]
+        [else
+         (serve-sterling-static #:provider-port port)]))
