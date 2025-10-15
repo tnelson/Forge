@@ -5,7 +5,7 @@ const d3 = require('d3')
 // if you manually set this to something bigger than 100%, however.
 const svgContainer = document.getElementById('svg-container')
 svgContainer.getElementsByTagName('svg')[0].style.height = '100%'
-svgContainer.getElementsByTagName('svg')[0].style.width = '100%'
+svgContainer.getElementsByTagName('svg')[0].style.width = '200%'
 
 // constants for our visualization
 const BASE_X = 150;
