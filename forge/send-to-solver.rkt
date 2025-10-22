@@ -644,7 +644,7 @@ Please declare a sufficient scope for ~a."
         (let ([bound-lower (get-bound-lower relation)])
             (if bound-lower
                 (set->list (set-union bound-lower (list->set empty)))
-                (list->set empty))))      
+                empty)))      
       ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
 
       (unless (subset? (list->set lower) (list->set upper))
