@@ -4,6 +4,13 @@
 
 (require forge/lang/bounds) ;; TYPED
 
+;; TODO TYPES SHOULD YIELD A TYPE ERROR 
+;; In fact, it does -- but only once I've dealt with all the _other_ similar errors later in the file!
+; So can "look like" I resolved the problem until I finish and discover the types are wrong.
+; (define foo (for/set : (Listof String) ([x '(1 2 3)]) x))
+
+;; TODO types: set-add! doesn't come equipped with types if I require it from typed/racket. 
+
 (require/typed forge/lang/ast 
   [raise-forge-error (-> #:msg String #:context Any #:raise Boolean Void)]
   [relation-arity (-> Any Integer)]
@@ -19,11 +26,15 @@
 (require (prefix-in @ (only-in forge/lang/ast 
   ~ no/info & && iden all/info in join some/info all - * one = ^ lone/info one/info)))
 
+;; TODO TYPES: any special type for _mutable_ sets?
+(require/typed typed/racket 
+  [set-add! (All (T) (-> (Setof T) T Void))]
+  [mutable-set (All (T) (T * -> (Setof T)))])
 
 (require predicates)
 (require (only-in typed/racket 
                          false true set set-union set-intersect set->list list->set set? first 
-                         rest cartesian-product empty empty? set-add! mutable-set in-set subset?
+                         rest cartesian-product empty empty? in-set subset?
                          set-subtract! set-map list->mutable-set set-remove! append* set-member?
                          set-empty? set-union! drop-right take-right for/set for*/set filter-not
                          second set-add match identity))
@@ -37,7 +48,7 @@
 
 (define-type (NonEmptyListOf T) (Pairof T (Listof T)))
 (define-type StrategyFunction 
-  (->* (Integer node/expr/relation bound (Listof (Listof Any)) (Listof Any)) 
+  (->* (Integer node/expr bound (Listof (Listof Any)) (Listof Any)) 
        ((U srcloc #f))
        breaker))
 
@@ -75,7 +86,8 @@
 
 ; sigs  :: set<sig>
 ; edges :: set<set<sig>>
-(struct break-graph ([sigs : (Setof Any)] [edges : (Setof Any)]) #:transparent)
+(struct break-graph ([sigs : (Setof node/expr/relation)] 
+                     [edges : (Setof (Setof node/expr/relation))]) #:transparent)
 
 ; pri               :: Nat
 ; break-graph       :: break-graph
@@ -88,13 +100,13 @@
 (struct breaker (
     ; priority level of the breaker
     [pri : Integer]
-    [break-graph : Any]
-    [make-break : Any] 
-    [make-default : Any] 
+    [break-graph : break-graph]
+    [make-break : (-> break)] 
+    [make-default : (-> break)] 
     [use-formula : Boolean ]) 
     #:transparent #:mutable)
 
-(: formula-breaker (-> Integer Any Any Any breaker))
+(: formula-breaker (-> Integer break-graph (-> break) (-> break) breaker))
 (define (formula-breaker pri break-graph make-break make-default)
     (define res (breaker pri break-graph make-break make-default #f))
     (set-breaker-use-formula! res #t)
@@ -153,7 +165,7 @@
 ;;;;;;;;;;;;;;
 
 ; symbol |-> (pri rel bound atom-lists rel-list) -> breaker
-(: strategies (HashTable Any Any))
+(: strategies (HashTable Any StrategyFunction))
 (define strategies (make-hash))
 
 ; compos[{a₀,...,aᵢ}] = b => a₀+...+aᵢ = b
@@ -211,6 +223,7 @@
     (unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
 
 ; strategy :: () -> breaker
+(: add-strategy (-> Any StrategyFunction Void))
 (define (add-strategy a strategy)
     (hash-set! strategies a strategy)
     (hash-add! upsets a a)      ;; a > a
@@ -467,7 +480,6 @@
 
     (values new-total-bounds (set->list formulas))
 )
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Strategy Combinators ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -477,7 +489,7 @@
 ; we will declare with formulas that g[a] is 'foo for all a in A
 ; but we will only enforce this with bounds for a single a in A
 (define (variadic [n : Integer] [f : StrategyFunction])
-    (λ ([pri : Integer] [rel : node/expr/relation] [bound : bound] [atom-lists : (Listof (Listof Any))]
+    (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof (Listof Any))]
         [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f])
         (cond [(= (length rel-list) n)
             (f pri rel bound atom-lists rel-list loc)
@@ -495,10 +507,8 @@
             (define sub-break-graph (breaker-break-graph sub-breaker))
             (define sigs (break-graph-sigs sub-break-graph))
             (define edges (break-graph-edges sub-break-graph))
-            (define new-break-graph (break-graph
-                sigs
-                (set-union edges (for/set ([sig sigs] [p prefix]) (set sig p)))
-            ))
+            (define edgesAnd (for/set : (Setof node/expr) ([sig sigs] [p prefix]) (set sig p)))
+            (define new-break-graph (break-graph sigs (set-union edges edgesAnd)))
             (breaker pri
                 new-break-graph
                 (λ ()
@@ -511,12 +521,12 @@
                     (cond [(set-empty? sigs)
                         ; no sigs are broken, so use sub-bounds for ALL instances
                         (define cart-pref (apply cartesian-product prefix-lists))
-                        (define lower (for*/set ([c cart-pref] [l sub-lower]) (append c l)))
-                        (define upper (for*/set ([c cart-pref] [u sub-upper]) (append c u)))
+                        (define lower (for*/set : (Setof node/expr) ([c cart-pref] [l sub-lower]) (append c l)))
+                        (define upper (for*/set : (Setof node/expr) ([c cart-pref] [u sub-upper]) (append c u)))
                         (define bound (sbound rel lower upper))
 
                         (define sub-formulas (break-formulas sub-break))                        
-                        (define formulas (for/set ([f sub-formulas])                            
+                        (define formulas (for/set : (Setof node/formula) ([f sub-formulas])                            
                             (quantified-formula (just-location-info loc) 'all (map cons vars prefix) f)
                         )) ; info quantifier decls formula)
 
@@ -548,11 +558,12 @@
                 (λ ()
                     (define sub-break ((breaker-make-default sub-breaker)));
                     (define sub-formulas (break-formulas sub-break))                                          
-                    (define formulas (for/set ([f sub-formulas])
+                    (define formulas (for/set : (Setof node/formula) ([f sub-formulas])
                         (quantified-formula (just-location-info loc) 'all (map cons vars prefix) f)
                     ))
-                    (break bound formulas)
+                    (break (bound->sbound bound) formulas)
                 )
+                #f
             )
         ])
     )
