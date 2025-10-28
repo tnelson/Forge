@@ -11,11 +11,16 @@
 
 ;; TODO types: set-add! doesn't come equipped with types if I require it from typed/racket. 
 
+;; TODO types: "ann" is an annotation to be checked at compile time.
+;;  "cast" is the runtime check
+
+(define-type Decl (Pairof Symbol node/expr))
+
 (require/typed forge/lang/ast 
   [raise-forge-error (-> #:msg String #:context Any #:raise Boolean Void)]
   [relation-arity (-> Any Integer)]
   [just-location-info (-> (U srcloc #f) nodeinfo)]
-  [quantified-formula (-> nodeinfo Symbol (Listof Any) node/formula node/formula)]
+  [quantified-formula (-> nodeinfo Symbol (Listof Decl) node/formula node/formula)]
   [multiplicity-formula (-> nodeinfo Symbol node/expr node/formula)]
   [empty-nodeinfo nodeinfo]
   [join/func (-> (U nodeinfo #f) node/expr node/expr node/expr)]
@@ -29,17 +34,23 @@
 ;; TODO TYPES: any special type for _mutable_ sets?
 (require/typed typed/racket 
   [set-add! (All (T) (-> (Setof T) T Void))]
-  [mutable-set (All (T) (T * -> (Setof T)))])
+  [set-subtract! (All (T) (-> (Setof T) (Setof T) Void))]
+  [mutable-set (All (T) (T * -> (Setof T)))]
+  [list->mutable-set (All (T) (-> (U (Listof T) (Setof T)) (Setof T)))]
+  [set-remove! (All (T) (-> (Setof T) T Void))]
+  [hash-set! (All (K V) (-> (HashTable K V) K V Void))]
+  [set-union! (All (T) (-> (Setof T) (Setof T) Void))])
 
 (require predicates)
 (require (only-in typed/racket 
                          false true set set-union set-intersect set->list list->set set? first 
                          rest cartesian-product empty empty? in-set subset?
-                         set-subtract! set-map list->mutable-set set-remove! append* set-member?
-                         set-empty? set-union! drop-right take-right for/set for*/set filter-not
+                         set-map append* set-member?
+                         set-empty? drop-right take-right for/set for*/set filter-not
                          second set-add match identity))
-; (require racket/hash)
-(require (only-in forge/shared get-verbosity VERBOSITY_HIGH))
+(require/typed forge/shared 
+  [get-verbosity (-> Integer)]
+  [VERBOSITY_HIGH Integer])
 
 (provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
@@ -48,7 +59,7 @@
 
 (define-type (NonEmptyListOf T) (Pairof T (Listof T)))
 (define-type StrategyFunction 
-  (->* (Integer node/expr bound (Listof (Listof Any)) (Listof Any)) 
+  (->* (Integer node/expr bound (Listof (Listof Any)) (Listof node/expr)) 
        ((U srcloc #f))
        breaker))
 
@@ -185,11 +196,11 @@
 (define instances (list))
 
 ; a ∈ rel-breaks[r] => "user wants to break r with a"
-(: rel-breaks (HashTable Any Any))
+(: rel-breaks (Mutable-HashTable node/expr/relation (Setof break)))
 (define rel-breaks (make-hash))
 
 ; rel-break-pri[r][a] = i => "breaking r with a has priority i"
-(: rel-break-pri (HashTable Any Any))
+(: rel-break-pri (Mutable-HashTable node/expr/relation Any))
 (define rel-break-pri (make-hash))
 
 ; priority counter
@@ -200,8 +211,8 @@
 (: clear-breaker-state (-> Void))
 (define (clear-breaker-state)
     (set! instances empty)
-    (set! rel-breaks (make-hash))
-    (set! rel-break-pri (make-hash))
+    (set! rel-breaks (ann (make-hash) (Mutable-HashTable node/expr/relation (Setof break))))
+    (set! rel-break-pri (ann (make-hash) (Mutable-HashTable node/expr/relation Any)))
     (set! pri_c 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -209,7 +220,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; h :: type(k) |-> set<type(v)>
-(: hash-add! (All (K V) (-> (HashTable K V) K V Void)))
+(: hash-add! (All (K V2) (-> (HashTable K (Setof V2)) K V2 Void)))
 (define (hash-add! h k v)
     (if (hash-has-key? h k)
         (set-add! (hash-ref h k) v)
@@ -223,7 +234,7 @@
     (unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
 
 ; strategy :: () -> breaker
-(: add-strategy (-> Any StrategyFunction Void))
+(: add-strategy (-> Symbol StrategyFunction Void))
 (define (add-strategy a strategy)
     (hash-set! strategies a strategy)
     (hash-add! upsets a a)      ;; a > a
@@ -267,7 +278,7 @@
 (: min-breaks! (-> (Setof Any) (Setof Any) Void))
 (define (min-breaks! breaks break-pris)
     (define changed false)
-    (hash-for-each compos (λ (k v)
+    (hash-for-each compos (λ ([k : (Setof Any)] v)
         (when (subset? k breaks)
               (set-subtract! breaks k)
               (set-add! breaks v)
@@ -281,7 +292,7 @@
 )
 
 ; renamed-out to 'break for use in forge
-(: break-rel (-> node/expr (U Symbol node/breaking/break) Void))
+(: break-rel (-> node/expr/relation (U Symbol node/breaking/break) Void))
 (define (break-rel rel . breaks)
     (for ([break breaks])
         (define break-key
@@ -294,15 +305,18 @@
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
 (define (add-instance i) (cons! instances i))
 
-(define (constrain-bounds total-bounds sigs bounds-store relations-store extensions-store) 
+(: constrain-bounds (-> (Listof bound) (Listof node/expr/relation) (HashTable node/expr/relation Any) 
+                        (HashTable node/expr/relation Any) (HashTable node/expr/relation Any) 
+                        (Values Any (Listof node/formula))))
+(define (constrain-bounds total-bounds maybe-list-sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
     (hash-for-each relations-store (λ (k v) (hash-set! name-to-rel (node/expr/relation-name k) k)))
-    (for ([s sigs]) (hash-set! name-to-rel (node/expr/relation-name s) s))
+    (for ([s maybe-list-sigs]) (hash-set! name-to-rel (node/expr/relation-name s) s))
     ; returns (values new-total-bounds (set->list formulas))
     (define new-total-bounds (list))
-    (define formulas (mutable-set))
+    (define formulas (ann (mutable-set) (Setof node/formula)))
     ; unextended sets
-    (set! sigs (list->mutable-set sigs))
+    (define sigs (list->mutable-set maybe-list-sigs))
 
     ; maintain non-transitive reachability relation 
     (define reachable (make-hash))
@@ -333,12 +347,12 @@
         
 
     ; proposed breakers from each relation
-    (define candidates (list))
+    (define candidates (ann (list) (Listof breaker)))
 
     (for ([bound total-bounds])
         ; get declared breaks for the relation associated with this bound        
         (define rel (bound-relation bound))        
-        (define breaks (hash-ref rel-breaks rel (set)))        
+        (define breaks (hash-ref rel-breaks rel (ann (set) (Setof break))))
         (define break-pris (hash-ref rel-break-pri rel (make-hash)))
         ; compose breaks
         (min-breaks! breaks break-pris)
@@ -421,9 +435,9 @@
         ; TODO: replace 'broken with univ
         (for ([sig broken-sigs]) (cons! edges (cons sig 'broken)))
         ; get all pairs from sets
-        (for ([edge broken-edges])
+        (for ([edge-as-set broken-edges])
             ; TODO: make functional
-            (set! edge (set->list edge))
+            (define edge (set->list edge-as-set))
             (define L (length edge))
             (for* ([i (in-range 0 (- L 1))]
                    [j (in-range (+ i 1) L)])
@@ -432,7 +446,7 @@
         )
     
         ; acceptable :<-> doesn't create loops <-> no edges already exist
-        (define acceptable (for/and ([edge edges])
+        (define acceptable (for/and : Boolean ([edge edges])
             (define A (car edge))
             (define B (cdr edge))
             (not (set-member? (hash-ref reachable A) B))
@@ -488,7 +502,8 @@
 ; ex: (f:B->C) => (g:A->B->C) where f is declared 'foo
 ; we will declare with formulas that g[a] is 'foo for all a in A
 ; but we will only enforce this with bounds for a single a in A
-(define (variadic [n : Integer] [f : StrategyFunction])
+(: variadic (-> Integer StrategyFunction StrategyFunction))
+(define (variadic n f)
     (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof (Listof Any))]
         [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f])
         (cond [(= (length rel-list) n)
@@ -728,14 +743,14 @@
 ; ))
 
 ;;; A->B Strategies ;;;
-(add-strategy 'func (λ ([pri : Integer] [rel : node/expr/relation] [bound : bound] [atom-lists : (Listof (Listof Any))] [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f])
+(add-strategy 'func (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof (Listof Any))] [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f])
     (: funcformulajoin (-> (Listof node/expr/quantifier-var) node/expr))
     (define (funcformulajoin quantvarlst) 
         (cond 
             [(empty? (rest quantvarlst)) (join/func (just-location-info loc) (first quantvarlst) rel)]
             [else (join/func (just-location-info loc) (first quantvarlst) (funcformulajoin (rest quantvarlst)))]))
 
-    (: funcformula (-> (Listof node/expr/relation) (Listof node/expr/quantifier-var) node/formula))
+    (: funcformula (-> (Listof node/expr) (Listof node/expr/quantifier-var) node/formula))
     (define (funcformula rllst quantvarlst) 
         (cond
           [(empty? (rest (rest rllst)))
@@ -979,7 +994,8 @@
 
 ; use to prevent breaks
 (add-strategy 'default (λ ([pri : Integer] [rel : node/expr/relation] [bound : bound] 
-                           [atom-lists : (Listof (Listof Any))] [rel-list : (Listof Any)] [loc : (U srcloc #f) #f]) 
+                           [atom-lists : (Listof (Listof Any))] 
+                           [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f]) 
   (breaker pri
     (break-graph (set) (set))    
     (λ ()      
