@@ -43,7 +43,8 @@
 ;; ^^^^^^^^
 
 (provide (struct-out bound) (struct-out bounds) 
-           make-bound make-exact-bound exact-bound? make-upper-bound make-product-bound
+           make-bound make-exact-bound exact-bound? make-upper-bound 
+           ; make-product-bound
            get-upper-bound bounds-variables bounds-union Tuple
            (struct-out node)
            (struct-out node/expr)
@@ -55,7 +56,7 @@
            (struct-out node/expr/quantifier-var)
            )
 
-(define-type Tuple (Listof Any))
+(define-type Tuple (Listof Symbol))
 
 ; A bound is a relation and two lists of tuples `lower` and `upper`.
 (struct bound ([relation : node/expr/relation]
@@ -88,9 +89,10 @@
 (define (make-upper-bound relation contents)
   (make-bound relation '() contents))
 
-(: make-product-bound (-> node/expr/relation (Listof Tuple) bound))
-(define (make-product-bound relation col1 . columns)
-  (make-bound relation '() (apply cartesian-product col1 columns)))
+; (: make-product-bound (-> node/expr/relation (Listof Tuple) (Listof Tuple) * bound))
+; (define (make-product-bound relation col1 . columns)
+;   (define ub (apply cartesian-product col1 columns))
+;   (make-bound relation '() ub))
 
 ;; for/first is not supported by the typechecker??
 ;; but for/last is???
@@ -116,3 +118,8 @@
   (bounds U (for*/list : (Listof bound) ([bnds (in-list lbnds)]
                         [bnd (in-list (bounds-entries bnds))]) bnd)))
 
+
+
+(: handle-divide-by-zero : Real -> Real)
+(define (handle-divide-by-zero x)
+    (raise "foo"))

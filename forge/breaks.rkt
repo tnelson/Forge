@@ -14,7 +14,11 @@
 ;; TODO types: "ann" is an annotation to be checked at compile time.
 ;;  "cast" is the runtime check
 
-(define-type Decl (Pairof Symbol node/expr))
+;; TODO types: raise-forge-error can _either_ raise an error or return void. This is annoying, so using 
+;  basic "raise" for now in this module.
+
+;(define-type Decl (Pairof Symbol node/expr))
+(define-type Decl (Pairof node/expr/quantifier-var node/expr))
 
 (require/typed forge/lang/ast 
   [raise-forge-error (-> #:msg String #:context Any #:raise Boolean Void)]
@@ -59,7 +63,7 @@
 
 (define-type (NonEmptyListOf T) (Pairof T (Listof T)))
 (define-type StrategyFunction 
-  (->* (Integer node/expr bound (Listof (Listof Any)) (Listof node/expr)) 
+  (->* (Integer node/expr bound (Listof (Listof Symbol)) (Listof node/expr)) 
        ((U srcloc #f))
        breaker))
 
@@ -180,7 +184,7 @@
 (define strategies (make-hash))
 
 ; compos[{a₀,...,aᵢ}] = b => a₀+...+aᵢ = b
-(: compos (HashTable (Setof Any) Any))
+(: compos (HashTable (Setof Symbol) Symbol))
 (define compos (make-hash))
 
 ; a ∈ upsets[b] => a > b
@@ -192,7 +196,7 @@
 (define downsets (make-hash))
 
 ; list of partial instance breakers
-(: instances (Listof Any))
+(: instances (Listof sbound))
 (define instances (list))
 
 ; a ∈ rel-breaks[r] => "user wants to break r with a"
@@ -200,7 +204,7 @@
 (define rel-breaks (make-hash))
 
 ; rel-break-pri[r][a] = i => "breaking r with a has priority i"
-(: rel-break-pri (Mutable-HashTable node/expr/relation Any))
+(: rel-break-pri (Mutable-HashTable node/expr/relation (Mutable-HashTable node/breaking/break Integer)))
 (define rel-break-pri (make-hash))
 
 ; priority counter
@@ -212,7 +216,7 @@
 (define (clear-breaker-state)
     (set! instances empty)
     (set! rel-breaks (ann (make-hash) (Mutable-HashTable node/expr/relation (Setof break))))
-    (set! rel-break-pri (ann (make-hash) (Mutable-HashTable node/expr/relation Any)))
+    (set! rel-break-pri (ann (make-hash) (Mutable-HashTable node/expr/relation (Mutable-HashTable node/breaking/break Integer))))
     (set! pri_c 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -227,11 +231,14 @@
         (hash-set! h k (mutable-set v))))
 
 ; h :: type(k1) |-> type(k2) |-> type(v)
-(: hash-add-set! (All (K V) (-> (HashTable K V) K K V Void)))
+(: hash-add-set! (All (K1 K2 V) (-> (HashTable K1 (HashTable K2 V)) K1 K2 V Void)))
 (define (hash-add-set! h k1 k2 v)
-    (unless (hash-has-key? h k1) (hash-set! h k1 (make-hash)))
+    (unless (hash-has-key? h k1) (hash-set! h k1 (ann (make-hash) (HashTable K2 V))))
     (define h_k1 (hash-ref h k1))
-    (unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
+    ;; TODO TYPES: `v` is unused, and we're referring to the pri_c directly here? no wonder this doesn't type!
+    ;; CHANGED pri_c to v.
+    ;(unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
+    (unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 v)))
 
 ; strategy :: () -> breaker
 (: add-strategy (-> Symbol StrategyFunction Void))
@@ -277,16 +284,18 @@
     [(_ a < bs ...) (weaker a bs ...)]
     [(_ a = bs ...) (equiv a bs ...)]))
 
-(: min-breaks! (-> (Setof Any) (Setof Any) Void))
+
+; compos: set of sym to sym
+(: min-breaks! (-> (Setof break) (Mutable-HashTable node/breaking/break Integer) Void))
 (define (min-breaks! breaks break-pris)
     (define changed false)
-    (hash-for-each compos (λ ([k : (Setof Any)] v)
+    (hash-for-each compos (λ ([k : (Setof Symbol)] [v : Symbol])
         (when (subset? k breaks)
               (set-subtract! breaks k)
               (set-add! breaks v)
               ; new break should have priority of highest priority component
               (define max-pri (apply min 
-                (set-map k (lambda (s) (hash-ref break-pris s)))))
+                  (set-map k (lambda (s) (hash-ref break-pris s)))))
               (hash-set! break-pris v max-pri)
               (set! changed true))
     ))
@@ -305,7 +314,9 @@
                 (error (format "break not implemented among ~a" strategies) break-key))
         (hash-add! rel-breaks rel break)
         (hash-add-set! rel-break-pri rel break (add1! pri_c))))
-(define (add-instance i) (cons! instances i))
+
+(: add-instance (-> sbound Void))
+(define (add-instance i) (cons! instances i)) 
 
 (: constrain-bounds (-> (Listof bound) (Listof node/expr/relation) (HashTable node/expr/relation Any) 
                         (HashTable node/expr/relation Any) (HashTable node/expr/relation Any) 
@@ -321,7 +332,7 @@
     (define sigs (list->mutable-set maybe-list-sigs))
 
     ; maintain non-transitive reachability relation 
-    (define reachable (make-hash))
+    (define reachable (ann (make-hash) (Mutable-HashTable (U node/expr/relation Symbol) (Setof (U node/expr/relation Symbol)))))
     (hash-set! reachable 'broken (mutable-set 'broken))
     (for ([sig sigs]) (hash-set! reachable sig (mutable-set sig)))
 
@@ -448,16 +459,18 @@
         )
     
         ; acceptable :<-> doesn't create loops <-> no edges already exist
-        (define acceptable (for/and : Boolean ([edge edges])
+        ;; TODO TYPES for/and is not supported by the type checker
+        (define acceptable (foldl (lambda ([edge : (Pairof Any Any)] [res : Boolean]) 
             (define A (car edge))
             (define B (cdr edge))
-            (define Aval (hash-ref reachable A))
-            (not (set-member? Aval B))
-        ))
+            (define Aval (ann (hash-ref reachable A) (Setof (U node/expr/relation Symbol))))
+            (and res (not (set-member? Aval B)))) #t edges))
+
+;    (define reachable (ann (make-hash) (Mutable-HashTable (U node/expr/relation Symbol) (Setof (U node/expr/relation Symbol)))))
 
         (cond [acceptable
             ; update reachability. do all edges in parallel
-            (define new-reachable (make-hash))
+            (define new-reachable (ann (make-hash) (Mutable-HashTable node/expr/relation (Setof Any))))
             (for ([edge edges])
                 (define A (car edge))
                 (define B (cdr edge))
@@ -505,87 +518,93 @@
 ; ex: (f:B->C) => (g:A->B->C) where f is declared 'foo
 ; we will declare with formulas that g[a] is 'foo for all a in A
 ; but we will only enforce this with bounds for a single a in A
-(: variadic (-> Integer StrategyFunction StrategyFunction))
-(define (variadic n f)
-    (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof (Listof Any))]
-        [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f])
-        (cond [(= (length rel-list) n)
-            (f pri rel bound atom-lists rel-list loc)
-        ][else
-            (define prefix (drop-right rel-list n))
-            (define postfix (take-right rel-list n))
-            (define prefix-lists (drop-right atom-lists n))
-            (define postfix-lists (take-right atom-lists n))
-            (define vars (for/list ([p prefix]) : (Listof node/expr/quantifier-var)
-                (let ([symv (gensym "v")])
-                    (node/expr/quantifier-var empty-nodeinfo 1 symv symv))
-            ))
-            (define new-rel (build-box-join rel vars))  ; rel[a][b]...
-            (define sub-breaker (f pri new-rel bound postfix-lists postfix loc))
-            (define sub-break-graph (breaker-break-graph sub-breaker))
-            (define sigs (break-graph-sigs sub-break-graph))
-            (define edges (break-graph-edges sub-break-graph))
-            (define edgesAnd (for/set : (Setof node/expr) ([sig sigs] [p prefix]) (set sig p)))
-            (define new-break-graph (break-graph sigs (set-union edges edgesAnd)))
-            (breaker pri
-                new-break-graph
-                (λ ()
-                    ; unpack results of sub-breaker
-                    (define sub-break ((breaker-make-break sub-breaker)))
-                    (define sub-sbound (break-sbound sub-break))
-                    (define sub-lower (sbound-lower sub-sbound))
-                    (define sub-upper (sbound-upper sub-sbound))
+; (: variadic (-> Integer StrategyFunction StrategyFunction))
+; (define (variadic n f)
+;     (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof (Listof Symbol))]
+;         [rel-list : (Listof node/expr)] [loc : (U srcloc #f) #f])
+;         (cond [(= (length rel-list) n)
+;             (f pri rel bound atom-lists rel-list loc)
+;         ][else
+;             (define prefix (ann (drop-right rel-list n) (Listof node/expr)))
+;             (define postfix (take-right rel-list n))
+;             (define prefix-lists (ann (drop-right atom-lists n) (Listof (Listof Symbol))))
+;             (define postfix-lists (take-right atom-lists n))
+;             (define vars (for/list ([p prefix]) : (Listof node/expr/quantifier-var)
+;                 (let ([symv (gensym "v")])
+;                     (node/expr/quantifier-var empty-nodeinfo 1 symv symv))
+;             ))
+;             (define new-rel (build-box-join rel vars))  ; rel[a][b]...
+;             (define sub-breaker (f pri new-rel bound postfix-lists postfix loc))
+;             (define sub-break-graph (breaker-break-graph sub-breaker))
+;             (define sigs (ann (break-graph-sigs sub-break-graph) (Setof node/expr/relation)))
+;             (define edges (break-graph-edges sub-break-graph))
+;             (define edgesAnd (for/set : (Setof (Setof node/expr/relation)) ([sig sigs] [p prefix])
+;                (if (node/expr/relation? p) 
+;                    (set sig p)
+;                    ;; TODO TYPES raise-forge-error would be better, but harder to integrate
+;                    ;; TODO TYPES do we even need most of this anymore?
+;                    (raise (format "Internal error: breaks.variadic combining sigs and non-sigs")))))
+;             (define new-break-graph (break-graph sigs (set-union edges edgesAnd)))
+;             (breaker pri
+;                 new-break-graph
+;                 (λ ()
+;                     ; unpack results of sub-breaker
+;                     (define sub-break ((breaker-make-break sub-breaker)))
+;                     (define sub-sbound (break-sbound sub-break))
+;                     (define sub-lower (sbound-lower sub-sbound))
+;                     (define sub-upper (sbound-upper sub-sbound))
 
-                    (cond [(set-empty? sigs)
-                        ; no sigs are broken, so use sub-bounds for ALL instances
-                        (define cart-pref (apply cartesian-product prefix-lists))
-                        (define lower (for*/set : (Setof node/expr) ([c cart-pref] [l sub-lower]) (append c l)))
-                        (define upper (for*/set : (Setof node/expr) ([c cart-pref] [u sub-upper]) (append c u)))
-                        (define bound (sbound rel lower upper))
+;                     (cond [(set-empty? sigs)
+;                         ; no sigs are broken, so use sub-bounds for ALL instances
+;                         (define cart-pref (apply cartesian-product prefix-lists))
+;                         (define lower (for*/set : (Setof node/expr) ([c cart-pref] [l sub-lower]) (append c l)))
+;                         (define upper (for*/set : (Setof node/expr) ([c cart-pref] [u sub-upper]) (append c u)))
+;                         (define bound (sbound rel lower upper))
 
-                        (define sub-formulas (break-formulas sub-break))                        
-                        (define formulas (for/set : (Setof node/formula) ([f sub-formulas])                            
-                            (quantified-formula (just-location-info loc) 'all (map cons vars prefix) f)
-                        )) ; info quantifier decls formula)
+;                         (define sub-formulas (break-formulas sub-break))                        
+;                         (define formulas (for/set : (Setof node/formula) ([f sub-formulas])                            
+;                             (quantified-formula (just-location-info loc) 'all (map cons vars prefix) f)
+;                         )) ; info quantifier decls formula)
 
-                        (break bound formulas)
-                    ][else
-                        ; just use the sub-bounds for a single instance of prefix
-                        (define cars (map car prefix-lists))
-                        (define cdrs (map cdr prefix-lists))
-                        (define lower (for/set ([l sub-lower]) (append cars l)))
-                        (define upper (set-union
-                            (for/set ([u sub-upper]) (append cars u))
-                            (list->set (apply cartesian-product (append cdrs postfix-lists)))
-                        ))
-                        (define bound (sbound rel lower upper))
+;                         (break bound formulas)
+;                     ][else
+;                         ; just use the sub-bounds for a single instance of prefix
+;                         ;; TODO TYPES notice what we needed to do here: give a more specific type for `car`
+;                         (define cars (map (ann car (-> Tuple Symbol)) prefix-lists))
+;                         (define cdrs (map (ann cdr (-> Tuple Tuple)) prefix-lists))
+;                         (define lower (for/set : (Listof Tuple) ([l sub-lower]) (append cars l)))
+;                         (define upper (set-union
+;                             (for/set : (Setof (Listof Any)) ([u sub-upper]) (append cars u))
+;                             (list->set (apply cartesian-product (append cdrs postfix-lists)))
+;                         ))
+;                         (define bound (sbound rel lower upper))
 
-                        ; use default formulas unless single instance
-                        (define sub-formulas (if (> (apply * (map length prefix-lists)) 1)
-                            (break-formulas ((breaker-make-default sub-breaker)))
-                            (break-formulas sub-break)
-                        ))
-                        ; wrap each formula in foralls for each prefix rel 
-                        (define formulas (for/set ([f sub-formulas])
-                            (quantified-formula (just-location-info loc) 'all (map cons vars prefix) f)
-                        ))
+;                         ; use default formulas unless single instance
+;                         (define sub-formulas (if (> (apply * (map length prefix-lists)) 1)
+;                             (break-formulas ((breaker-make-default sub-breaker)))
+;                             (break-formulas sub-break)
+;                         ))
+;                         ; wrap each formula in foralls for each prefix rel 
+;                         (define formulas (for/set : (Setof node/formula) ([f sub-formulas])
+;                             (quantified-formula (just-location-info loc) 'all (map cons vars prefix) f)
+;                         ))
 
-                        (break bound formulas)
-                    ])
-                )
-                (λ ()
-                    (define sub-break ((breaker-make-default sub-breaker)));
-                    (define sub-formulas (break-formulas sub-break))                                          
-                    (define formulas (for/set : (Setof node/formula) ([f sub-formulas])
-                        (quantified-formula (just-location-info loc) 'all (map cons vars prefix) f)
-                    ))
-                    (break (bound->sbound bound) formulas)
-                )
-                #f
-            )
-        ])
-    )
-)
+;                         (break bound formulas)
+;                     ])
+;                 )
+;                 (λ ()
+;                     (define sub-break ((breaker-make-default sub-breaker)));
+;                     (define sub-formulas (break-formulas sub-break))                                          
+;                     (define formulas (for/set : (Setof node/formula) ([f sub-formulas])
+;                         (quantified-formula (just-location-info loc) 'all (map cons vars prefix) f)
+;                     ))
+;                     (break (bound->sbound bound) formulas)
+;                 )
+;                 #f
+;             )
+;         ])
+;     )
+; )
 
 ; (define (co f)
 ;     (λ (pri rel bound atom-lists rel-list [loc #f])
@@ -746,7 +765,7 @@
 ; ))
 
 ;;; A->B Strategies ;;;
-(add-strategy 'func (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof (Listof Any))] [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f])
+(add-strategy 'func (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof (Listof Symbol))] [rel-list : (Listof node/expr)] [loc : (U srcloc #f) #f])
     (: funcformulajoin (-> (Listof node/expr/quantifier-var) node/expr))
     (define (funcformulajoin quantvarlst) 
         (cond 
@@ -760,7 +779,7 @@
            (let* ([var-id (gensym 'pfunc)]
                   [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
              (quantified-formula (just-location-info loc) 'all
-                                  (list (cons a (first rllst)))
+                                  (ann (list (cons a (first rllst))) (Listof (Pairof node/expr/quantifier-var node/expr)))
                                   (one/func (just-location-info loc) (funcformulajoin (cons a quantvarlst)))))]
             [else
              (let* ([var-id (gensym 'pfunc)]
@@ -821,14 +840,13 @@
 ;             (λ () (break bound formulas))
 ;         )
 ; END INSERTED TEMPORARY FIX FOR 'FUNC
-    (breaker pri 
+        (breaker pri 
             (break-graph (set) (set))
             (λ () (break (bound->sbound bound) formulas))
             ;; TYPES
             ;(λ () (break bound formulas))
             (λ () (break (bound->sbound bound) formulas))
-            #f)
-))
+            #f)))
 
 ; (add-strategy 'pfunc
 ;               (λ (pri rel bound atom-lists rel-list [loc #f])
@@ -996,16 +1014,27 @@
 ; ))
 
 ; use to prevent breaks
-(add-strategy 'default (λ ([pri : Integer] [rel : node/expr/relation] [bound : bound] 
-                           [atom-lists : (Listof (Listof Any))] 
-                           [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f]) 
-  (breaker pri
-    (break-graph (set) (set))    
-    (λ ()      
-      (make-upper-break rel (list->set (apply cartesian-product atom-lists))))
-    (λ () (break (bound->sbound bound) (set)))
-    #f
-)))
+;; TODO TYPES TEMP I think this function shape was used for multiple purposes before
+(: defaultStrategy StrategyFunction)
+(define defaultStrategy (λ ([pri : Integer] [rel : node/expr] [bound : bound] 
+                           [atom-lists : (Listof (Listof Symbol))] 
+                           [rel-list : (Listof node/expr)] [loc : (U srcloc #f) #f]) 
+  (if (node/expr/relation? rel)
+    (breaker pri
+      (break-graph (set) (set))    
+      (λ ()      
+        (make-upper-break rel (list->set (apply cartesian-product atom-lists))))
+      (λ () (break (bound->sbound bound) (set)))
+      #f)
+    (raise (format "Internal error in breaks.defaultStrategy. Given: ~a; from:~a~n" rel loc)))))
+
+(add-strategy 'default defaultStrategy)
+
+#;(define-type StrategyFunction 
+  (->* (Integer node/expr bound (Listof (Listof Symbol)) (Listof node/expr)) 
+       ((U srcloc #f))
+       breaker))
+
 
 
 
@@ -1018,8 +1047,8 @@
 ; (add-strategy 'ref (variadic 2 (hash-ref strategies 'ref)))
 
 ; this one cannot afford to go to purely formula break
-(add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
-(add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
+; (add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
+; (add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
 
 ; (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
 ; (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
