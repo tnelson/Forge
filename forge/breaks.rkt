@@ -176,7 +176,7 @@
 ;;;;;;;;;;;;;;
 
 ; symbol |-> (pri rel bound atom-lists rel-list) -> breaker
-(: strategies (HashTable Any StrategyFunction))
+(: strategies (HashTable Symbol StrategyFunction))
 (define strategies (make-hash))
 
 ; compos[{a₀,...,aᵢ}] = b => a₀+...+aᵢ = b
@@ -184,11 +184,11 @@
 (define compos (make-hash))
 
 ; a ∈ upsets[b] => a > b
-(: upsets (HashTable Any (Setof Any)))
+(: upsets (HashTable Symbol (Setof Symbol)))
 (define upsets (make-hash))
 
 ; a ∈ downsets[b] => a < b
-(: downsets (HashTable Any (Setof Any)))
+(: downsets (HashTable Symbol (Setof Symbol)))
 (define downsets (make-hash))
 
 ; list of partial instance breakers
@@ -239,6 +239,8 @@
     (hash-set! strategies a strategy)
     (hash-add! upsets a a)      ;; a > a
     (hash-add! downsets a a))   ;; a < a
+
+(: equiv (-> Symbol Symbol * Any))
 (define (equiv a . bs) 
     (hash-set! compos (apply set bs) a)
     (apply stricter a bs)
@@ -248,7 +250,7 @@
                 (apply break+ (for ([b bs]) 
                     ((hash-ref strategies b) atom-lists) )) )))
 )
-(: dominate (-> Any Any Any))
+(: dominate (-> Symbol Symbol Void))
 (define (dominate a b)  
     (define upa (hash-ref upsets a))
     (define downb (hash-ref downsets b))
@@ -263,9 +265,9 @@
         (hash-set! compos (set a x) a)  ;; a = a + x
     )
 )
-(: stricter (-> Any Any * Void))
+(: stricter (-> Symbol Symbol * Void))
 (define (stricter a . bs) (for ([b bs]) (dominate a b)))
-(: weaker (-> Any Any * Void))
+(: weaker (-> Symbol Symbol * Void))
 (define (weaker a . bs) (for ([b bs]) (dominate b a)))
 
 ; TODO: allow syntax like (declare 'a 'b > 'c 'd > 'e 'f)
@@ -430,7 +432,7 @@
         (define broken-sigs (break-graph-sigs break-graph))
         (define broken-edges (break-graph-edges break-graph))
 
-        (define edges (list))
+        (define edges (ann (list) (Listof (Pairof Any Any))))
         ; reduce broken sigs to broken edges between those sigs and the auxiliary 'broken symbol
         ; TODO: replace 'broken with univ
         (for ([sig broken-sigs]) (cons! edges (cons sig 'broken)))
@@ -449,7 +451,8 @@
         (define acceptable (for/and : Boolean ([edge edges])
             (define A (car edge))
             (define B (cdr edge))
-            (not (set-member? (hash-ref reachable A) B))
+            (define Aval (hash-ref reachable A))
+            (not (set-member? Aval B))
         ))
 
         (cond [acceptable
