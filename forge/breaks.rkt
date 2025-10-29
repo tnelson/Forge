@@ -17,7 +17,6 @@
 ;; TODO types: raise-forge-error can _either_ raise an error or return void. This is annoying, so using 
 ;  basic "raise" for now in this module.
 
-;(define-type Decl (Pairof Symbol node/expr))
 (define-type Decl (Pairof node/expr/quantifier-var node/expr))
 
 (require/typed forge/lang/ast 
@@ -30,6 +29,7 @@
   [join/func (-> (U nodeinfo #f) node/expr node/expr node/expr)]
   [one/func (-> (U nodeinfo #f) node/expr node/formula)]
   [build-box-join (-> node/expr (Listof node/expr) node/expr)]
+  [univ node/expr]
   )
 
 (require (prefix-in @ (only-in forge/lang/ast 
@@ -92,6 +92,7 @@
 (: make-exact-sbound (-> node/expr/relation (Setof Tuple) sbound))
 (define (make-exact-sbound relation s) (sbound relation s s))
 
+;; N.B. Not to be confused with node/breaking/break
 (struct break ([sbound : sbound] 
                [formulas : (Setof node/formula)]) 
             #:transparent)
@@ -200,7 +201,7 @@
 (define instances (list))
 
 ; a ∈ rel-breaks[r] => "user wants to break r with a"
-(: rel-breaks (Mutable-HashTable node/expr/relation (Setof break)))
+(: rel-breaks (Mutable-HashTable node/expr/relation (Setof node/breaking/break)))
 (define rel-breaks (make-hash))
 
 ; rel-break-pri[r][a] = i => "breaking r with a has priority i"
@@ -215,7 +216,7 @@
 (: clear-breaker-state (-> Void))
 (define (clear-breaker-state)
     (set! instances empty)
-    (set! rel-breaks (ann (make-hash) (Mutable-HashTable node/expr/relation (Setof break))))
+    (set! rel-breaks (ann (make-hash) (Mutable-HashTable node/expr/relation (Setof node/breaking/break))))
     (set! rel-break-pri (ann (make-hash) (Mutable-HashTable node/expr/relation (Mutable-HashTable node/breaking/break Integer))))
     (set! pri_c 0))
 
@@ -284,32 +285,34 @@
     [(_ a < bs ...) (weaker a bs ...)]
     [(_ a = bs ...) (equiv a bs ...)]))
 
-
-; compos: set of sym to sym
-(: min-breaks! (-> (Setof break) (Mutable-HashTable node/breaking/break Integer) Void))
+(: min-breaks! (-> (Setof node/breaking/break) (Mutable-HashTable node/breaking/break Integer) Void))
 (define (min-breaks! breaks break-pris)
-    (define changed false)
+    (define changed (ann false Boolean))
     (hash-for-each compos (λ ([k : (Setof Symbol)] [v : Symbol])
+    ; TODO TYPES needed to do some re-wrapping of symbols here, is this the right decision?
         (when (subset? k breaks)
               (set-subtract! breaks k)
               (set-add! breaks v)
               ; new break should have priority of highest priority component
-              (define max-pri (apply min 
-                  (set-map k (lambda (s) (hash-ref break-pris s)))))
-              (hash-set! break-pris v max-pri)
+              (define pris (ann (set-map k (lambda (s) 
+                (hash-ref break-pris (node/breaking/break empty-nodeinfo s)))) (Listof Integer)))
+              (define min-pri (apply min pris)) ; was max-pri (typo?)
+              (hash-set! break-pris (node/breaking/break empty-nodeinfo v) min-pri)
               (set! changed true))
     ))
     (when changed (min-breaks! breaks break-pris))
 )
 
 ; renamed-out to 'break for use in forge
-(: break-rel (-> node/expr/relation (U Symbol node/breaking/break) Void))
+(: break-rel (-> node/expr/relation (Listof (U Symbol node/breaking/break)) Void))
 (define (break-rel rel . breaks)
     (for ([break breaks])
-        (define break-key
-            (cond [(symbol? break) break]
-                  [(node/breaking/break? break) (node/breaking/break-break break)]
-                  [else (raise-forge-error #:msg (format "Not a valid break name: ~a~n" break) #:context #f)]))
+        (define-values (break-key break-node)
+            (cond [(symbol? break) (values break (node/breaking/break empty-nodeinfo break))]
+                  [(node/breaking/break? break) (values (node/breaking/break-break break) break)]
+                  ;; TODO TYPES had to disambiguate the two union cases, unsure if this is the right behavior
+                  ;[else (raise-forge-error #:msg (format "Not a valid break name: ~a~n" break) #:context #f #:raise #t)]))
+                  [else (raise (format "Not a value break or break name: ~a" break))]))
         (unless (hash-has-key? strategies break-key)
                 (error (format "break not implemented among ~a" strategies) break-key))
         (hash-add! rel-breaks rel break)
@@ -319,11 +322,12 @@
 (define (add-instance i) (cons! instances i)) 
 
 (: constrain-bounds (-> (Listof bound) (Listof node/expr/relation) (HashTable node/expr/relation Any) 
-                        (HashTable node/expr/relation Any) (HashTable node/expr/relation Any) 
+                        (HashTable node/expr/relation (Listof node/expr/relation)) 
+                        (HashTable node/expr/relation (Listof node/expr/relation)) 
                         (Values Any (Listof node/formula))))
 (define (constrain-bounds total-bounds maybe-list-sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
-    (hash-for-each relations-store (λ (k v) (hash-set! name-to-rel (node/expr/relation-name k) k)))
+    (hash-for-each relations-store (λ ([k : node/expr/relation] v) (hash-set! name-to-rel (node/expr/relation-name k) k)))
     (for ([s maybe-list-sigs]) (hash-set! name-to-rel (node/expr/relation-name s) s))
     ; returns (values new-total-bounds (set->list formulas))
     (define new-total-bounds (list))
@@ -332,7 +336,8 @@
     (define sigs (list->mutable-set maybe-list-sigs))
 
     ; maintain non-transitive reachability relation 
-    (define reachable (ann (make-hash) (Mutable-HashTable (U node/expr/relation Symbol) (Setof (U node/expr/relation Symbol)))))
+    (define reachable (ann (make-hash) (Mutable-HashTable (U node/expr/relation Symbol) 
+                                                          (Setof (U node/expr/relation Symbol)))))
     (hash-set! reachable 'broken (mutable-set 'broken))
     (for ([sig sigs]) (hash-set! reachable sig (mutable-set sig)))
 
@@ -364,9 +369,15 @@
 
     (for ([bound total-bounds])
         ; get declared breaks for the relation associated with this bound        
-        (define rel (bound-relation bound))        
-        (define breaks (hash-ref rel-breaks rel (ann (set) (Setof break))))
-        (define break-pris (hash-ref rel-break-pri rel (make-hash)))
+        (define rel (bound-relation bound))       
+
+        ;(Setof node/breaking/break)
+        ;; TODO TYPES why did I need to turn the default value into a thunk?
+        (define breaks (hash-ref rel-breaks rel (ann (lambda () (set)) (-> (Setof node/breaking/break)) ))) 
+        ;(define breaks (hash-ref rel-breaks rel (ann (set) (Setof node/breaking/break))))
+        ;; TODO TYPES HashTableTop is a HT with unknown key and value types.
+        ;(define breaks (hash-ref rel-breaks rel (set)))
+        (define break-pris (hash-ref rel-break-pri rel (ann (lambda () (make-hash)) (-> (Mutable-HashTable node/breaking/break Integer)))))
         ; compose breaks
         (min-breaks! breaks break-pris)
         ;(printf "bound in total-bounds: ~a~n" bound)
@@ -376,23 +387,43 @@
         ][else
             (unless (hash-has-key? relations-store rel)
               (raise-forge-error #:msg (format "Attempted to set or modify bounds of ~a, but the annotation given was of the wrong form (sig vs. field).~n" rel)
-                                 #:context #f))
+                                 #:context #f
+                                 #:raise #t))
             (define rel-list (hash-ref relations-store rel))
             (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
 
             ; make all breakers
-            (define breakers (for/list ([break (set->list breaks)])
+            ;; break is a "break", strategy returns a "breaker"
+
+            (define breakers (map (lambda (b) 
                 (define break-sym
-                    (cond [(symbol? break) break]
-                          [(node/breaking/break? break) (node/breaking/break-break break)]
-                          [else (raise-forge-error #:msg (format "constrain-bounds: not a valid break name: ~a~n" break)
-                                                   #:context #f)]))
-                (define loc (if (node? break) 
-                                (nodeinfo-loc (node-info break)) 
+                      (cond [(symbol? b) b]
+                            [(node/breaking/break? b) (node/breaking/break-break b)]
+                            [else (raise-forge-error #:msg (format "constrain-bounds: not a valid break name: ~a~n" break)
+                                                     #:context #f
+                                                     #:raise #t)]))
+                (define loc (if (node? b) 
+                                (nodeinfo-loc (node-info b)) 
                                 #f))
                 (define strategy (hash-ref strategies break-sym))
-                (define pri (hash-ref break-pris break))
-                (strategy pri rel bound atom-lists rel-list loc)))
+                (define pri (hash-ref break-pris b))
+                (strategy pri rel bound atom-lists rel-list loc)
+              ) (set->list breaks)))
+
+
+            ; (define breakers (for/list ([break (set->list breaks)])
+            ;     (define break-sym
+            ;         (cond [(symbol? break) break]
+            ;               [(node/breaking/break? break) (node/breaking/break-break break)]
+            ;               [else (raise-forge-error #:msg (format "constrain-bounds: not a valid break name: ~a~n" break)
+            ;                                        #:context #f)]))
+            ;     (define loc (if (node? break) 
+            ;                     (nodeinfo-loc (node-info break)) 
+            ;                     #f))
+            ;     (define strategy (hash-ref strategies break-sym))
+            ;     (define pri (hash-ref break-pris break))
+            ;     (strategy pri rel bound atom-lists rel-list loc)))
+
             (set! breakers (sort breakers < #:key breaker-pri))
 
             ; propose highest pri breaker that breaks only leaf sigs
@@ -436,6 +467,7 @@
         Broken sigs are given an edge to a unique 'broken "sig", so we only need to check for loops.
     |#
 
+    (define foo (ann candidates (Listof breaker))) ;; !!!!!
     (set! candidates (sort candidates < #:key breaker-pri))
 
     (for ([breaker candidates])
@@ -443,7 +475,9 @@
         (define broken-sigs (break-graph-sigs break-graph))
         (define broken-edges (break-graph-edges break-graph))
 
-        (define edges (ann (list) (Listof (Pairof Any Any))))
+        (define edges (ann (list) (Listof (U (Pairof node/expr/relation Symbol) 
+                                             (Pairof node/expr/relation node/expr/relation)))))
+        
         ; reduce broken sigs to broken edges between those sigs and the auxiliary 'broken symbol
         ; TODO: replace 'broken with univ
         (for ([sig broken-sigs]) (cons! edges (cons sig 'broken)))
@@ -460,30 +494,37 @@
     
         ; acceptable :<-> doesn't create loops <-> no edges already exist
         ;; TODO TYPES for/and is not supported by the type checker
-        (define acceptable (foldl (lambda ([edge : (Pairof Any Any)] [res : Boolean]) 
+        (define acceptable (foldl (lambda ([edge : (U (Pairof node/expr/relation Symbol) 
+                                                      (Pairof node/expr/relation node/expr/relation))] 
+                                           [res : Boolean]) 
             (define A (car edge))
             (define B (cdr edge))
             (define Aval (ann (hash-ref reachable A) (Setof (U node/expr/relation Symbol))))
             (and res (not (set-member? Aval B)))) #t edges))
 
-;    (define reachable (ann (make-hash) (Mutable-HashTable (U node/expr/relation Symbol) (Setof (U node/expr/relation Symbol)))))
-
-        (cond [acceptable
+        (cond 
+          [acceptable
             ; update reachability. do all edges in parallel
-            (define new-reachable (ann (make-hash) (Mutable-HashTable node/expr/relation (Setof Any))))
+            (define new-reachable (ann (make-hash) (Mutable-HashTable node/expr/relation 
+                                                                      (Setof (U node/expr/relation Symbol)))))
             (for ([edge edges])
-                (define A (car edge))
-                (define B (cdr edge))
+                (define A (ann (car edge) node/expr/relation))
+                (define B (ann (cdr edge) (U node/expr/relation Symbol))) 
                 (when (not (hash-has-key? new-reachable A)) 
-                        (hash-set! new-reachable A (mutable-set)))
+                    (hash-set! new-reachable A (ann (mutable-set) (Setof (U node/expr/relation Symbol)))))
                 (when (not (hash-has-key? new-reachable B)) 
-                        (hash-set! new-reachable B (mutable-set)))
+                    (when (node/expr/relation? B)
+                        ;; TODO TYPES: narrowing because of the fact that the symbol 'broken could end up in edges
+                        (hash-set! new-reachable B (ann (mutable-set) (Setof (U node/expr/relation Symbol))))))
                 (set-union! (hash-ref new-reachable A) (hash-ref reachable B))
-                (set-union! (hash-ref new-reachable B) (hash-ref reachable A))
+                (when (node/expr/relation? B)
+                    (set-union! (hash-ref new-reachable B) (hash-ref reachable A)))
             )
-            (hash-for-each new-reachable (λ (sig newset)
+            
+            (hash-for-each new-reachable (λ ([sig : node/expr/relation] 
+                                             [newset : (Setof (U node/expr/relation Symbol))])
                 ; set new sigs reachable from sig and vice versa
-                (define oldset (hash-ref reachable sig))
+                (define oldset (ann (hash-ref reachable sig) (Setof (U node/expr/relation Symbol))))
                 (set-subtract! newset oldset)
                 (for ([sig2 newset])
                     (define oldset2 (hash-ref reachable sig2))
@@ -495,8 +536,8 @@
             ; do break
             (define break ((breaker-make-break breaker)))
             (cons! new-total-bounds (break-bound break))
-            (set-union! formulas (break-formulas break))
-        ][else
+            (set-union! formulas (break-formulas break))]
+        [else
             ; do default break
             (define default ((breaker-make-default breaker)))
             (cons! new-total-bounds (break-sbound default))
@@ -508,8 +549,7 @@
       (printf "~nBreakers ran.~n        New total bounds:~a~n        New formulas:~a~n" 
         new-total-bounds formulas))
 
-    (values new-total-bounds (set->list formulas))
-)
+    (values new-total-bounds (set->list formulas)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Strategy Combinators ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1061,26 +1101,26 @@
 
 
 ;;; Domination Order ;;;
-(declare 'linear > 'tree)
-(declare 'tree > 'acyclic)
-(declare 'acyclic > 'irref)
-(declare 'func < 'surj 'inj 'pfunc)
-(declare 'bij = 'surj 'inj)
-(declare 'linear = 'tree 'cotree)
-(declare 'bij = 'func 'cofunc)
-(declare 'cofunc < 'cosurj 'coinj)
-(declare 'bij = 'cosurj 'coinj)
+; (declare 'linear > 'tree)
+; (declare 'tree > 'acyclic)
+; (declare 'acyclic > 'irref)
+; (declare 'func < 'surj 'inj 'pfunc)
+; (declare 'bij = 'surj 'inj)
+; (declare 'linear = 'tree 'cotree)
+; (declare 'bij = 'func 'cofunc)
+; (declare 'cofunc < 'cosurj 'coinj)
+; (declare 'bij = 'cosurj 'coinj)
 
-(provide get-co)
-(define co-map (make-hash))
-(hash-set! co-map 'tree 'cotree)
-(hash-set! co-map 'func 'cofunc)
-(hash-set! co-map 'surj 'cosurj)
-(hash-set! co-map 'inj 'coinj)
-(hash-set! co-map 'tree 'cotree)
-(for ([(k v) (in-hash co-map)]) (hash-set! co-map v k))
-(for ([sym '('bij 'pbij 'linear 'plinear 'ref 'irref 'acyclic)]) (hash-set! co-map sym sym))
-(define (get-co sym) (hash-ref co-map sym))
+; (provide get-co)
+; (define co-map (make-hash))
+; (hash-set! co-map 'tree 'cotree)
+; (hash-set! co-map 'func 'cofunc)
+; (hash-set! co-map 'surj 'cosurj)
+; (hash-set! co-map 'inj 'coinj)
+; (hash-set! co-map 'tree 'cotree)
+; (for ([(k v) (in-hash co-map)]) (hash-set! co-map v k))
+; (for ([sym '('bij 'pbij 'linear 'plinear 'ref 'irref 'acyclic)]) (hash-set! co-map sym sym))
+; (define (get-co sym) (hash-ref co-map sym))
 
 
 
