@@ -16,16 +16,16 @@
 (require racket/generator)
 (require/typed forge/lang/ast 
   [relation-arity (-> node/expr Integer)]
-  [#:struct node ([info : Any])]
+  [#:struct node ([info : nodeinfo])]
   [#:struct (node/expr node) ([arity : Number])]
   [#:struct (node/expr/relation node/expr)
      ([name : String] 
-      [typelist-thunk : Any] 
+      [typelist-thunk : (-> (Listof Any))] 
       [parent : Any] 
       [is-variable : Boolean])]
   [#:struct nodeinfo ([loc : srcloc] [lang : Symbol] [annotations : (Option (Listof Any))])]
   [#:struct (node/breaking node) ()]
-  [#:struct (node/breaking/break node/breaking) ([break : Any])]
+  [#:struct (node/breaking/break node/breaking) ([break : Symbol])]
   [#:struct (node/formula node) ()]
   [#:struct (node/expr/quantifier-var node/expr) ([sym : Symbol] [name : Symbol])])
 

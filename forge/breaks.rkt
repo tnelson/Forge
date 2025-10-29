@@ -321,16 +321,17 @@
 (: add-instance (-> sbound Void))
 (define (add-instance i) (cons! instances i)) 
 
-(: constrain-bounds (-> (Listof bound) (Listof node/expr/relation) (HashTable node/expr/relation Any) 
+(: constrain-bounds (-> (Listof bound) (Listof node/expr/relation) 
+                        (HashTable node/expr/relation SomethingIDunno)  
                         (HashTable node/expr/relation (Listof node/expr/relation)) 
                         (HashTable node/expr/relation (Listof node/expr/relation)) 
-                        (Values Any (Listof node/formula))))
+                        (Values (Listof bound) (Listof node/formula))))
 (define (constrain-bounds total-bounds maybe-list-sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
     (hash-for-each relations-store (λ ([k : node/expr/relation] v) (hash-set! name-to-rel (node/expr/relation-name k) k)))
     (for ([s maybe-list-sigs]) (hash-set! name-to-rel (node/expr/relation-name s) s))
     ; returns (values new-total-bounds (set->list formulas))
-    (define new-total-bounds (list))
+    (define new-total-bounds (ann (list) (Listof bound)))
     (define formulas (ann (mutable-set) (Setof node/formula)))
     ; unextended sets
     (define sigs (list->mutable-set maybe-list-sigs))
@@ -389,13 +390,13 @@
               (raise-forge-error #:msg (format "Attempted to set or modify bounds of ~a, but the annotation given was of the wrong form (sig vs. field).~n" rel)
                                  #:context #f
                                  #:raise #t))
-            (define rel-list (hash-ref relations-store rel))
-            (define atom-lists (map (λ (b) (hash-ref bounds-store b)) rel-list))
+            (define rel-list (ann (hash-ref relations-store rel) (Listof node/expr/relation)))
+            (define atom-lists (ann (map (λ (b) (hash-ref bounds-store b)) rel-list) (Listof Symbol)))
 
             ; make all breakers
             ;; break is a "break", strategy returns a "breaker"
 
-            (define breakers (map (lambda (b) 
+            (define breakers (map (lambda ([b : (U node/breaking/break Symbol)]) 
                 (define break-sym
                       (cond [(symbol? b) b]
                             [(node/breaking/break? b) (node/breaking/break-break b)]
@@ -407,8 +408,8 @@
                                 #f))
                 (define strategy (hash-ref strategies break-sym))
                 (define pri (hash-ref break-pris b))
-                (strategy pri rel bound atom-lists rel-list loc)
-              ) (set->list breaks)))
+                (strategy pri rel bound atom-lists rel-list loc)) 
+              (set->list breaks)))
 
 
             ; (define breakers (for/list ([break (set->list breaks)])
@@ -429,18 +430,18 @@
             ; propose highest pri breaker that breaks only leaf sigs
             ; break the rest the default way (with get-formulas)
             (define broken defined)
-            (for ([breaker breakers])
-                (cond [(or broken (breaker-use-formula breaker))
-                    (define default ((breaker-make-default breaker)))
+            (for ([bkr breakers])
+                (cond [(or broken (breaker-use-formula bkr))
+                    (define default ((breaker-make-default bkr)))
                     (set-union! formulas (break-formulas default))
                 ][else
-                    (define break-graph (breaker-break-graph breaker))
+                    (define break-graph (breaker-break-graph bkr))
                     (define broken-sigs (break-graph-sigs break-graph))
                     (cond [(subset? broken-sigs sigs)
-                        (cons! candidates breaker)
+                        (cons! candidates bkr)
                         (set! broken #t)
                     ][else
-                        (define default ((breaker-make-default breaker)))
+                        (define default ((breaker-make-default bkr)))
                         (set-union! formulas (break-formulas default))
                     ])
                 ])
@@ -540,7 +541,8 @@
         [else
             ; do default break
             (define default ((breaker-make-default breaker)))
-            (cons! new-total-bounds (break-sbound default))
+            ;; TODO TYPES: this sbound->bound call was absent. is this code run anywhere?
+            (cons! new-total-bounds (sbound->bound (break-sbound default)))
             (set-union! formulas (break-formulas default))
         ])
     )
