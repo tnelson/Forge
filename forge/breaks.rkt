@@ -4,6 +4,8 @@
 
 (require forge/lang/bounds) ;; TYPED
 
+;; TODO TYPES is priority 0 safe as the default? which direction is "highest"?
+
 ;; TODO TYPES SHOULD YIELD A TYPE ERROR 
 ;; In fact, it does -- but only once I've dealt with all the _other_ similar errors later in the file!
 ; So can "look like" I resolved the problem until I finish and discover the types are wrong.
@@ -294,7 +296,7 @@
               (set-subtract! breaks k)
               (set-add! breaks v)
               ; new break should have priority of highest priority component
-              (define pris (ann (set-map k (lambda (s) 
+              (define pris (ann (set-map k (lambda ([s : Symbol]) 
                 (hash-ref break-pris (node/breaking/break empty-nodeinfo s)))) (Listof Integer)))
               (define min-pri (apply min pris)) ; was max-pri (typo?)
               (hash-set! break-pris (node/breaking/break empty-nodeinfo v) min-pri)
@@ -322,7 +324,7 @@
 (define (add-instance i) (cons! instances i)) 
 
 (: constrain-bounds (-> (Listof bound) (Listof node/expr/relation) 
-                        (HashTable node/expr/relation SomethingIDunno)  
+                        (HashTable node/expr/relation (List Symbol))
                         (HashTable node/expr/relation (Listof node/expr/relation)) 
                         (HashTable node/expr/relation (Listof node/expr/relation)) 
                         (Values (Listof bound) (Listof node/formula))))
@@ -378,7 +380,8 @@
         ;(define breaks (hash-ref rel-breaks rel (ann (set) (Setof node/breaking/break))))
         ;; TODO TYPES HashTableTop is a HT with unknown key and value types.
         ;(define breaks (hash-ref rel-breaks rel (set)))
-        (define break-pris (hash-ref rel-break-pri rel (ann (lambda () (make-hash)) (-> (Mutable-HashTable node/breaking/break Integer)))))
+        (define backup (ann (lambda () (make-hash)) (-> (Mutable-HashTable node/breaking/break Integer))))
+        (define break-pris (ann (hash-ref rel-break-pri rel backup) (Mutable-HashTable node/breaking/break Integer)))
         ; compose breaks
         (min-breaks! breaks break-pris)
         ;(printf "bound in total-bounds: ~a~n" bound)
@@ -391,7 +394,9 @@
                                  #:context #f
                                  #:raise #t))
             (define rel-list (ann (hash-ref relations-store rel) (Listof node/expr/relation)))
-            (define atom-lists (ann (map (λ (b) (hash-ref bounds-store b)) rel-list) (Listof Symbol)))
+            (define atom-lists (map (λ ([b : node/expr/relation]) 
+              (define sym-list (ann (hash-ref bounds-store b (lambda () (list))) (Listof Symbol)))
+              (hash-ref bounds-store b)) rel-list))
 
             ; make all breakers
             ;; break is a "break", strategy returns a "breaker"
@@ -407,8 +412,13 @@
                                 (nodeinfo-loc (node-info b)) 
                                 #f))
                 (define strategy (hash-ref strategies break-sym))
+                ; break-pris (Mutable-HashTable node/breaking/break Integer)
                 (define pri (hash-ref break-pris b))
-                (strategy pri rel bound atom-lists rel-list loc)) 
+                ;(strategy pri rel bound atom-lists rel-list loc)
+                (if (and (exact? pri) (integer? pri))
+                   (strategy pri rel bound atom-lists rel-list loc)
+                   (strategy 0 rel bound atom-lists rel-list loc))) 
+                
               (set->list breaks)))
 
 
