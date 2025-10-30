@@ -39,7 +39,7 @@
 
 (define-type (NonEmptyListOf T) (Pairof T (Listof T)))
 (define-type StrategyFunction 
-  (->* (Integer node/expr bound (Listof (Listof Symbol)) (Listof node/expr)) 
+  (->* (Integer node/expr/relation bound (Listof (Listof Symbol)) (Listof node/expr/relation)) 
        ((U srcloc #f))
        breaker))
 
@@ -699,6 +699,9 @@
 ;     )
 ; ))
 
+(define list-maker : (-> Symbol Symbol (List Symbol Symbol))
+  (λ (x y) (list x y)))
+
 ;(-> nodeinfo Symbol (Listof Decl) node/formula node/formula)]
 (add-strategy 'linear (λ (pri rel bound atom-lists rel-list [loc #f])     
     (define atoms (first atom-lists))
@@ -709,11 +712,13 @@
     (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x))
     (breaker pri
         (break-graph (set sig) (set))
-        (λ () (make-exact-break rel (list->set (map list (drop-right atoms 1) (cdr atoms))) (set)))
-        (λ () (break bound (set
+        (λ () (make-exact-break rel (list->set (map (ann list (-> Symbol Symbol (Listof Symbol))) 
+                                                  (drop-right atoms 1) (cdr atoms))) 
+                                (set)))
+        (λ () (break (bound->sbound bound) (set
             (quantified-formula info 'some (list (cons init sig)) (&&/func #:info info
                 (multiplicity-formula info 'no (join/func #:info info rel init))
-                (quantified-formula info 'all (list (cons x (-/func info sig init)))
+                (quantified-formula info 'all (list (cons x (-/func #:info info sig init)))
                                               (multiplicity-formula info 'one (join/func #:info info rel x)))
                 (=/func #:info info (join/func #:info info init (*/func #:info info rel)) sig)
             ))
@@ -810,8 +815,8 @@
     (: funcformulajoin (-> (Listof node/expr/quantifier-var) node/expr))
     (define (funcformulajoin quantvarlst) 
         (cond 
-            [(empty? (rest quantvarlst)) (join/func (just-location-info loc) (first quantvarlst) rel)]
-            [else (join/func (just-location-info loc) (first quantvarlst) (funcformulajoin (rest quantvarlst)))]))
+            [(empty? (rest quantvarlst)) (join/func #:info (just-location-info loc) (first quantvarlst) rel)]
+            [else (join/func #:info (just-location-info loc) (first quantvarlst) (funcformulajoin (rest quantvarlst)))]))
 
     (: funcformula (-> (Listof node/expr) (Listof node/expr/quantifier-var) node/formula))
     (define (funcformula rllst quantvarlst) 
