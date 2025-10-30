@@ -39,7 +39,7 @@
 
 (define-type (NonEmptyListOf T) (Pairof T (Listof T)))
 (define-type StrategyFunction 
-  (->* (Integer node/expr/relation bound (Listof (Listof Symbol)) (Listof node/expr/relation)) 
+  (->* (Integer node/expr/relation bound (Listof Tuple) (Listof node/expr/relation)) 
        ((U srcloc #f))
        breaker))
 
@@ -699,10 +699,7 @@
 ;     )
 ; ))
 
-(define list-maker : (-> Symbol Symbol (List Symbol Symbol))
-  (λ (x y) (list x y)))
 
-;(-> nodeinfo Symbol (Listof Decl) node/formula node/formula)]
 (add-strategy 'linear (λ (pri rel bound atom-lists rel-list [loc #f])     
     (define atoms (first atom-lists))
     (define sig (first rel-list))
@@ -712,7 +709,7 @@
     (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x))
     (breaker pri
         (break-graph (set sig) (set))
-        (λ () (make-exact-break rel (list->set (map (ann list (-> Symbol Symbol (Listof Symbol))) 
+        (λ () (make-exact-break rel (list->set (map (ann list (-> FAtom FAtom (Listof FAtom))) 
                                                   (drop-right atoms 1) (cdr atoms))) 
                                 (set)))
         (λ () (break (bound->sbound bound) (set
@@ -811,7 +808,7 @@
 ; ))
 
 ;;; A->B Strategies ;;;
-(add-strategy 'func (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof (Listof Symbol))] [rel-list : (Listof node/expr)] [loc : (U srcloc #f) #f])
+(add-strategy 'func (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof Tuple)] [rel-list : (Listof node/expr)] [loc : (U srcloc #f) #f])
     (: funcformulajoin (-> (Listof node/expr/quantifier-var) node/expr))
     (define (funcformulajoin quantvarlst) 
         (cond 
@@ -1063,7 +1060,7 @@
 ;; TODO TYPES TEMP I think this function shape was used for multiple purposes before
 (: defaultStrategy StrategyFunction)
 (define defaultStrategy (λ ([pri : Integer] [rel : node/expr] [bound : bound] 
-                           [atom-lists : (Listof (Listof Symbol))] 
+                           [atom-lists : (Listof Tuple)] 
                            [rel-list : (Listof node/expr)] [loc : (U srcloc #f) #f]) 
   (if (node/expr/relation? rel)
     (breaker pri
@@ -1089,13 +1086,13 @@
 ; (add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
 
 (add-strategy 'linear (hash-ref strategies 'linear))
-(add-strategy 'plinear (hash-ref strategies 'plinear))
+; (add-strategy 'plinear (hash-ref strategies 'plinear))
 
 
 ; (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
 ; (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
 (add-strategy 'func (hash-ref strategies 'func))
-(add-strategy 'pfunc (hash-ref strategies 'pfunc))
+;(add-strategy 'pfunc (hash-ref strategies 'pfunc))
 ; (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
 ; (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
 ; (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
@@ -1103,15 +1100,15 @@
 
 
 ;;; Domination Order ;;;
-(declare 'linear > 'tree)
-(declare 'tree > 'acyclic)
-(declare 'acyclic > 'irref)
-(declare 'func < 'surj 'inj 'pfunc)
-(declare 'bij = 'surj 'inj)
-(declare 'linear = 'tree 'cotree)
-(declare 'bij = 'func 'cofunc)
-(declare 'cofunc < 'cosurj 'coinj)
-(declare 'bij = 'cosurj 'coinj)
+; (declare 'linear > 'tree)
+; (declare 'tree > 'acyclic)
+; (declare 'acyclic > 'irref)
+; (declare 'func < 'surj 'inj 'pfunc)
+; (declare 'bij = 'surj 'inj)
+; (declare 'linear = 'tree 'cotree)
+; (declare 'bij = 'func 'cofunc)
+; (declare 'cofunc < 'cosurj 'coinj)
+; (declare 'bij = 'cosurj 'coinj)
 
 (provide get-co)
 (define co-map (make-hash))

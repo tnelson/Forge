@@ -31,11 +31,12 @@
 
 (provide (struct-out bound) (struct-out bounds) 
            make-bound make-exact-bound exact-bound? make-upper-bound 
-           get-upper-bound bounds-variables bounds-union Tuple
+           get-upper-bound bounds-variables bounds-union Tuple FAtom
            
            )
 
-(define-type Tuple (Listof Symbol))
+(define-type FAtom (U Symbol Integer))
+(define-type Tuple (Listof FAtom))
 
 ; A bound is a relation and two lists of tuples `lower` and `upper`.
 (struct bound ([relation : node/expr/relation]
@@ -97,8 +98,3 @@
   (bounds U (for*/list : (Listof bound) ([bnds (in-list lbnds)]
                         [bnd (in-list (bounds-entries bnds))]) bnd)))
 
-
-
-(: handle-divide-by-zero : Real -> Real)
-(define (handle-divide-by-zero x)
-    (raise "foo"))
