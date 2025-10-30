@@ -1,51 +1,25 @@
-#lang typed/racket/base
+#lang typed/racket/base/optional
 
 ; This module is concerned with "is linear" and other such "breaker" bind expressions.
 
 (require forge/lang/bounds) ;; TYPED
+(require forge/types/ast-adapter) ;; TYPED, contains needed AST functions (not macros)
 
 ;; TODO TYPES is priority 0 safe as the default? which direction is "highest"?
 
-;; TODO TYPES SHOULD YIELD A TYPE ERROR 
-;; In fact, it does -- but only once I've dealt with all the _other_ similar errors later in the file!
-; So can "look like" I resolved the problem until I finish and discover the types are wrong.
-; (define foo (for/set : (Listof String) ([x '(1 2 3)]) x))
-
-;; TODO types: set-add! doesn't come equipped with types if I require it from typed/racket. 
-
-;; TODO types: "ann" is an annotation to be checked at compile time.
-;;  "cast" is the runtime check
-
-;; TODO types: raise-forge-error can _either_ raise an error or return void. This is annoying, so using 
-;  basic "raise" for now in this module.
-
-(define-type Decl (Pairof node/expr/quantifier-var node/expr))
-
-(require/typed forge/lang/ast 
-  [raise-forge-error (-> #:msg String #:context Any #:raise Boolean Void)]
-  [relation-arity (-> Any Integer)]
-  [just-location-info (-> (U srcloc #f) nodeinfo)]
-  [quantified-formula (-> nodeinfo Symbol (Listof Decl) node/formula node/formula)]
-  [multiplicity-formula (-> nodeinfo Symbol node/expr node/formula)]
-  [empty-nodeinfo nodeinfo]
-  [join/func (-> (U nodeinfo #f) node/expr node/expr node/expr)]
-  [one/func (-> (U nodeinfo #f) node/expr node/formula)]
-  [build-box-join (-> node/expr (Listof node/expr) node/expr)]
-  [univ node/expr]
-  )
-
-(require (prefix-in @ (only-in forge/lang/ast 
-  ~ no/info & && iden all/info in join some/info all - * one = ^ lone/info one/info)))
-
 ;; TODO TYPES: any special type for _mutable_ sets?
 (require/typed typed/racket 
-  [set-add! (All (T) (-> (Setof T) T Void))]
+  ; These are not OK
   [set-subtract! (All (T) (-> (Setof T) (Setof T) Void))]
+  [set-add! (All (T) (-> (Setof T) T Void))]
+  [set-union! (All (T) (-> (Setof T) (Setof T) Void))]
   [mutable-set (All (T) (T * -> (Setof T)))]
-  [list->mutable-set (All (T) (-> (U (Listof T) (Setof T)) (Setof T)))]
   [set-remove! (All (T) (-> (Setof T) T Void))]
+  [list->mutable-set (All (T) (-> (U (Listof T) (Setof T)) (Setof T)))]
+  
+  ; This is OK
   [hash-set! (All (K V) (-> (HashTable K V) K V Void))]
-  [set-union! (All (T) (-> (Setof T) (Setof T) Void))])
+  )
 
 (require predicates)
 (require (only-in typed/racket 
@@ -313,7 +287,7 @@
             (cond [(symbol? break) (values break (node/breaking/break empty-nodeinfo break))]
                   [(node/breaking/break? break) (values (node/breaking/break-break break) break)]
                   ;; TODO TYPES had to disambiguate the two union cases, unsure if this is the right behavior
-                  ;[else (raise-forge-error #:msg (format "Not a valid break name: ~a~n" break) #:context #f #:raise #t)]))
+                  ;[else (raise-forge-error #:msg (format "Not a valid break name: ~a~n" break) #:context #f #:raise? #t)]))
                   [else (raise (format "Not a value break or break name: ~a" break))]))
         (unless (hash-has-key? strategies break-key)
                 (error (format "break not implemented among ~a" strategies) break-key))
@@ -392,7 +366,7 @@
             (unless (hash-has-key? relations-store rel)
               (raise-forge-error #:msg (format "Attempted to set or modify bounds of ~a, but the annotation given was of the wrong form (sig vs. field).~n" rel)
                                  #:context #f
-                                 #:raise #t))
+                                 #:raise? #t))
             (define rel-list (ann (hash-ref relations-store rel) (Listof node/expr/relation)))
             (define atom-lists (map (λ ([b : node/expr/relation]) 
               (define sym-list (ann (hash-ref bounds-store b (lambda () (list))) (Listof Symbol)))
@@ -435,7 +409,11 @@
             ;     (define pri (hash-ref break-pris break))
             ;     (strategy pri rel bound atom-lists rel-list loc)))
 
-            (set! breakers (sort breakers < #:key breaker-pri))
+  ; TODO TYPES: neither of these work. but if we get rid of the keyword + type the lambda, we're OK.
+  ;  (set! breakers ((inst sort (Listof breaker)) breakers < #:key breaker-pri))
+  ;  (set! breakers (sort breakers < #:key breaker-pri))
+            (sort breakers (lambda ([x : breaker] [y : breaker]) 
+              (< (breaker-pri x) (breaker-pri y))))          
 
             ; propose highest pri breaker that breaks only leaf sigs
             ; break the rest the default way (with get-formulas)
@@ -477,9 +455,9 @@
         Paths between broken sigs can also break soundness.
         Broken sigs are given an edge to a unique 'broken "sig", so we only need to check for loops.
     |#
-
-    (define foo (ann candidates (Listof breaker))) ;; !!!!!
-    (set! candidates (sort candidates < #:key breaker-pri))
+    
+    (sort candidates (lambda ([x : breaker] [y : breaker]) 
+              (< (breaker-pri x) (breaker-pri y))))          
 
     (for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
@@ -720,26 +698,37 @@
 ;         )))
 ;     )
 ; ))
-; (add-strategy 'linear (λ (pri rel bound atom-lists rel-list [loc #f])     
-;     (define atoms (first atom-lists))
-;     (define sig (first rel-list))
-;     (breaker pri
-;         (break-graph (set sig) (set))
-;         (λ () (make-exact-break rel (list->set (map list (drop-right atoms 1) (cdr atoms)))))
-;         (λ () (break bound (set
-;             (@some/info (just-location-info loc) ([init sig]) (@&&
-;                 (@no/info (just-location-info loc) (@join rel init))
-;                 (@all ([x (@- sig init)]) (@one (@join rel x)))
-;                 (@= (@join init (@* rel)) sig)
-;             ))
-;             (@some/info (just-location-info loc) ([term sig]) (@&&
-;                 (@no/info (just-location-info loc) (@join term rel))
-;                 (@all ([x (@- sig term)]) (@one (@join x rel)))
-;                 (@= (@join (@* rel) term) sig)
-;             ))
-;         )))
-;     )
-; ))
+
+;(-> nodeinfo Symbol (Listof Decl) node/formula node/formula)]
+(add-strategy 'linear (λ (pri rel bound atom-lists rel-list [loc #f])     
+    (define atoms (first atom-lists))
+    (define sig (first rel-list))
+    (define info (just-location-info loc))
+    (define init (node/expr/quantifier-var (just-location-info loc) 1 'init 'init))
+    (define term (node/expr/quantifier-var (just-location-info loc) 1 'term 'term))
+    (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x))
+    (breaker pri
+        (break-graph (set sig) (set))
+        (λ () (make-exact-break rel (list->set (map list (drop-right atoms 1) (cdr atoms))) (set)))
+        (λ () (break bound (set
+            (quantified-formula info 'some (list (cons init sig)) (&&/func #:info info
+                (multiplicity-formula info 'no (join/func #:info info rel init))
+                (quantified-formula info 'all (list (cons x (-/func info sig init)))
+                                              (multiplicity-formula info 'one (join/func #:info info rel x)))
+                (=/func #:info info (join/func #:info info init (*/func #:info info rel)) sig)
+            ))
+            
+            (quantified-formula info 'some (list (cons term sig)) (&&/func #:info info
+                (multiplicity-formula info 'no (join/func #:info info term rel))
+                (quantified-formula info 'all (list (cons x (-/func #:info info sig term))) 
+                                              (multiplicity-formula info 'one (join/func #:info info x rel)))
+                (=/func #:info info (join/func #:info info (*/func #:info info rel) term) sig)
+            ))
+        )))
+        #f
+    )
+))
+
 ; (add-strategy 'acyclic (λ (pri rel bound [atom-lists : (Listof Any)] [rel-list : (Listof Any)] [loc #f]) 
 ;     (define atoms (first atom-lists))
 ;     (define sig (first rel-list))
@@ -832,7 +821,7 @@
                   [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
              (quantified-formula (just-location-info loc) 'all
                                   (ann (list (cons a (first rllst))) (Listof (Pairof node/expr/quantifier-var node/expr)))
-                                  (one/func (just-location-info loc) (funcformulajoin (cons a quantvarlst)))))]
+                                  (one/func #:info (just-location-info loc) (funcformulajoin (cons a quantvarlst)))))]
             [else
              (let* ([var-id (gensym 'pfunc)]
                   [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
@@ -1082,14 +1071,6 @@
 
 (add-strategy 'default defaultStrategy)
 
-#;(define-type StrategyFunction 
-  (->* (Integer node/expr bound (Listof (Listof Symbol)) (Listof node/expr)) 
-       ((U srcloc #f))
-       breaker))
-
-
-
-
 ; (add-strategy 'cotree (variadic 2 (co (hash-ref strategies 'tree))))
 ; (add-strategy 'cofunc (variadic 2 (co (hash-ref strategies 'func))))
 ; (add-strategy 'cosurj (variadic 2 (co (hash-ref strategies 'surj))))
@@ -1102,10 +1083,14 @@
 ; (add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
 ; (add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
 
+(add-strategy 'linear (hash-ref strategies 'linear))
+(add-strategy 'plinear (hash-ref strategies 'plinear))
+
+
 ; (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
 ; (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
-; (add-strategy 'func (hash-ref strategies 'func))
-; (add-strategy 'pfunc (hash-ref strategies 'pfunc))
+(add-strategy 'func (hash-ref strategies 'func))
+(add-strategy 'pfunc (hash-ref strategies 'pfunc))
 ; (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
 ; (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
 ; (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
@@ -1113,26 +1098,26 @@
 
 
 ;;; Domination Order ;;;
-; (declare 'linear > 'tree)
-; (declare 'tree > 'acyclic)
-; (declare 'acyclic > 'irref)
-; (declare 'func < 'surj 'inj 'pfunc)
-; (declare 'bij = 'surj 'inj)
-; (declare 'linear = 'tree 'cotree)
-; (declare 'bij = 'func 'cofunc)
-; (declare 'cofunc < 'cosurj 'coinj)
-; (declare 'bij = 'cosurj 'coinj)
+(declare 'linear > 'tree)
+(declare 'tree > 'acyclic)
+(declare 'acyclic > 'irref)
+(declare 'func < 'surj 'inj 'pfunc)
+(declare 'bij = 'surj 'inj)
+(declare 'linear = 'tree 'cotree)
+(declare 'bij = 'func 'cofunc)
+(declare 'cofunc < 'cosurj 'coinj)
+(declare 'bij = 'cosurj 'coinj)
 
-; (provide get-co)
-; (define co-map (make-hash))
-; (hash-set! co-map 'tree 'cotree)
-; (hash-set! co-map 'func 'cofunc)
-; (hash-set! co-map 'surj 'cosurj)
-; (hash-set! co-map 'inj 'coinj)
-; (hash-set! co-map 'tree 'cotree)
-; (for ([(k v) (in-hash co-map)]) (hash-set! co-map v k))
-; (for ([sym '('bij 'pbij 'linear 'plinear 'ref 'irref 'acyclic)]) (hash-set! co-map sym sym))
-; (define (get-co sym) (hash-ref co-map sym))
+(provide get-co)
+(define co-map (make-hash))
+(hash-set! co-map 'tree 'cotree)
+(hash-set! co-map 'func 'cofunc)
+(hash-set! co-map 'surj 'cosurj)
+(hash-set! co-map 'inj 'coinj)
+(hash-set! co-map 'tree 'cotree)
+(for ([(k v) (in-hash co-map)]) (hash-set! co-map v k))
+(for ([sym '('bij 'pbij 'linear 'plinear 'ref 'irref 'acyclic)]) (hash-set! co-map sym sym))
+(define (get-co sym) (hash-ref co-map sym))
 
 
 
