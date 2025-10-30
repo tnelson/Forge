@@ -25,7 +25,7 @@
         (struct-out node/expr/quantifier-var)
         relation-arity just-location-info quantified-formula multiplicity-formula empty-nodeinfo
         join/func one/func build-box-join univ raise-forge-error &&/func &/func ||/func +/func 
-        -/func =/func */func iden
+        -/func =/func */func iden ^/func
         Decl Decls)
 
 (define-type Decl (Pairof node/expr/quantifier-var node/expr))
@@ -59,11 +59,12 @@
   [one/func (->* (node/expr) (#:info nodeinfo) node/formula)]
   [&&/func (->* (node/formula) (#:info nodeinfo) #:rest node/formula node/formula)]
   [||/func (->* (node/formula) (#:info nodeinfo) #:rest node/formula node/formula)]
-  [&/func (-> (U nodeinfo #f) node/expr node/expr node/expr)]
-  [+/func (-> (U nodeinfo #f) node/expr node/expr node/expr)]
+  [&/func  (->* (node/expr)    (#:info nodeinfo) #:rest node/expr    node/expr)]
+  [+/func  (->* (node/expr)    (#:info nodeinfo) #:rest node/expr    node/expr)]
   [-/func (->* (node/expr node/expr) (#:info nodeinfo) node/expr)]
   [=/func (->* (node/expr node/expr) (#:info nodeinfo) node/formula)]
   [*/func (->* (node/expr) (#:info nodeinfo) node/expr)]
+  [^/func (->* (node/expr) (#:info nodeinfo) node/expr)]
   [build-box-join (-> node/expr (Listof node/expr) node/expr)]
   [univ node/expr]
   [iden node/expr]

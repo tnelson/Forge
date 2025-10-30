@@ -778,34 +778,40 @@
 ;         )))
 ;     )
 ; ))
-; (add-strategy 'plinear (λ (pri rel bound atom-lists rel-list [loc #f])     
-;     (define atoms (first atom-lists))
-;     (define sig (first rel-list))
-;     (breaker pri
-;         (break-graph (set sig) (set))
-;         (λ () (break
-;             (sbound rel 
-;                 (set) ;(set (take atoms 2))
-;                 (list->set (map list (drop-right atoms 1) (cdr atoms)))
-;             )
-;             (set
-;                 (@lone/info (just-location-info loc) ([init sig]) (@&&
-;                     (@no/info (just-location-info loc) (@join rel init))
-;                     (@some/info (just-location-info loc) (@join init rel))
-;                 ))
-;             )
-;         ))
-;         (λ () (break bound (set
-;             (@lone/info (just-location-info loc) (@- (@join rel sig) (@join sig rel)))    ; lone init
-;             (@lone/info (just-location-info loc) (@- (@join sig rel) (@join rel sig)))    ; lone term
-;             (@no/info (just-location-info loc) (@& @iden (@^ rel)))   ; acyclic
-;             (@all/info (just-location-info loc) ([x sig]) (@&&       ; all x have
-;                 (@lone/info (just-location-info loc) (@join x rel))   ; lone successor
-;                 (@lone/info (just-location-info loc) (@join rel x))   ; lone predecessor
-;             ))
-;         )))
-;     )
-; ))
+(add-strategy 'plinear (λ (pri rel bound atom-lists rel-list [loc #f])     
+    (define atoms (first atom-lists))
+    (define sig (first rel-list))
+    (define info (just-location-info loc))
+    (define init (node/expr/quantifier-var (just-location-info loc) 1 'init 'init))
+    (define term (node/expr/quantifier-var (just-location-info loc) 1 'term 'term))
+    (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x))
+    (breaker pri
+        (break-graph (set sig) (set))
+        (λ () (break
+            (sbound rel 
+                (set) ;(set (take atoms 2))
+                (list->set (map (ann list (-> FAtom FAtom (Listof FAtom))) 
+                                (drop-right atoms 1) (cdr atoms)))
+            )
+            (set
+                (quantified-formula info 'lone  (list (cons init sig)) (&&/func #:info info
+                    (multiplicity-formula info 'no (join/func #:info info rel init))
+                    (multiplicity-formula info 'some (join/func #:info info init rel))
+                ))
+            )
+        ))
+        (λ () (break (bound->sbound bound) (set
+            (multiplicity-formula info 'lone (-/func #:info info (join/func #:info info rel sig) (join/func #:info info sig rel)))    ; lone init
+            (multiplicity-formula info 'lone (-/func #:info info (join/func #:info info sig rel) (join/func #:info info rel sig)))    ; lone term
+            (multiplicity-formula info 'no (&/func #:info info iden (^/func #:info info rel)))   ; acyclic
+            (quantified-formula info 'all (list (cons x sig)) (&&/func #:info info       ; all x have
+                (multiplicity-formula info 'lone (join/func #:info info x rel))   ; lone successor
+                (multiplicity-formula info 'lone (join/func #:info info rel x))   ; lone predecessor
+            ))
+        )))
+        #f
+    )
+))
 
 ;;; A->B Strategies ;;;
 (add-strategy 'func (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof Tuple)] [rel-list : (Listof node/expr)] [loc : (U srcloc #f) #f])
@@ -1086,7 +1092,7 @@
 ; (add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
 
 (add-strategy 'linear (hash-ref strategies 'linear))
-; (add-strategy 'plinear (hash-ref strategies 'plinear))
+(add-strategy 'plinear (hash-ref strategies 'plinear))
 
 
 ; (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
