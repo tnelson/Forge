@@ -825,13 +825,13 @@
     (define (funcformula rllst quantvarlst) 
         (cond
           [(empty? (rest (rest rllst)))
-           (let* ([var-id (gensym 'pfunc)]
+           (let* ([var-id (gensym 'func)]
                   [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
              (quantified-formula (just-location-info loc) 'all
                                   (ann (list (cons a (first rllst))) (Listof (Pairof node/expr/quantifier-var node/expr)))
                                   (one/func #:info (just-location-info loc) (funcformulajoin (cons a quantvarlst)))))]
             [else
-             (let* ([var-id (gensym 'pfunc)]
+             (let* ([var-id (gensym 'func)]
                   [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
              (quantified-formula (just-location-info loc) 'all
                                   (list (cons a (first rllst)))
@@ -897,60 +897,65 @@
             (λ () (break (bound->sbound bound) formulas))
             #f)))
 
-; (add-strategy 'pfunc
-;               (λ (pri rel bound atom-lists rel-list [loc #f])
-;                 (: pfuncformulajoin (-> Any Any))
-;                 (define (pfuncformulajoin quantvarlst) 
-;                   (cond
-;                     ; x_n.rel
-;                     [(empty? (rest quantvarlst)) (@join (first quantvarlst) rel)]
-;                     ; ... x_n-1.x_n.rel
-;                     [else (@join (first quantvarlst) (pfuncformulajoin (rest quantvarlst)))]))
-;                 (define (pfuncformula rllst quantvarlst)
-;                   (cond
-;                     [(empty? (rest (rest rllst)))
-;                      (let* ([var-id (gensym 'pfunc)]
-;                             [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
-;                        (quantified-formula (just-location-info loc) 'all
-;                                             (list (cons a (first rllst)))
-;                                             (@lone/info (just-location-info loc) (pfuncformulajoin (cons a quantvarlst)))))]
-;                     [else (let* ([var-id (gensym 'pfunc)]
-;                                  [a (node/expr/quantifier-var (just-location-info loc) 1 var-id var-id)])
-;                             (quantified-formula (just-location-info loc) 'all
-;                                                  (list (cons a (first rllst)))
-;                                                  (pfuncformula (rest rllst) (cons a quantvarlst))))]))
-;                 (define pf-fmla (pfuncformula rel-list (list)))
-;                 (define formulas (set pf-fmla))
+(add-strategy 'pfunc
+              (λ (pri rel bound atom-lists rel-list [loc #f])
+                (define info (just-location-info loc))
+
+                (: pfuncformulajoin (-> (Listof node/expr/quantifier-var) node/expr))
+                (define (pfuncformulajoin quantvarlst) 
+                  (cond
+                    ; x_n.rel
+                    [(empty? (rest quantvarlst)) (join/func #:info info (first quantvarlst) rel)]
+                    ; ... x_n-1.x_n.rel
+                    [else (join/func #:info info (first quantvarlst) (pfuncformulajoin (rest quantvarlst)))]))
+
+                (: pfuncformula (-> (Listof node/expr) (Listof node/expr/quantifier-var) node/formula))
+                (define (pfuncformula rllst quantvarlst)
+                  (cond
+                    [(empty? (rest (rest rllst)))
+                     (let* ([var-id (gensym 'pfunc)]
+                            [a (node/expr/quantifier-var info 1 var-id var-id)])
+                       (quantified-formula info 'all
+                                            (list (cons a (first rllst)))
+                                            (multiplicity-formula info 'lone (pfuncformulajoin (cons a quantvarlst)))))]
+                    [else (let* ([var-id (gensym 'pfunc)]
+                                 [a (node/expr/quantifier-var info 1 var-id var-id)])
+                            (quantified-formula info 'all
+                                                 (list (cons a (first rllst)))
+                                                 (pfuncformula (rest rllst) (cons a quantvarlst))))]))
+                (define pf-fmla (pfuncformula rel-list (list)))
+                (define formulas (set pf-fmla))
                 
-;     ; OLD CODE
-;     ; (if (equal? A B)
-;     ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;     ;         (break-graph (set A) (set))
-;     ;         (λ () (break ;(bound->sbound bound) formulas))
-;     ;             (sbound rel
-;     ;                 (set)
-;     ;                 ;(for*/set ([a (length As)]
-;     ;                 ;           [b (length Bs)] #:when (<= b (+ a 1)))
-;     ;                 ;    (list (list-ref As a) (list-ref Bs b))))
-;     ;                 (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-;     ;             formulas))
-;     ;         (λ () (break bound formulas)))
-;     ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
-;     ;         (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
-;     ;         (λ () 
-;     ;             ; assume wlog f(a) = b for some a in A, b in B
-;     ;             (break 
-;     ;                 (sbound rel
-;     ;                     (set (list (car As) (car Bs)))
-;     ;                     (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
-;     ;                 formulas))
-;     ;         (λ () (break bound formulas))))
-;         (breaker pri
-;             (break-graph (set) (set))
-;             (λ () (break (bound->sbound bound) formulas))
-;             (λ () (break bound formulas))
-;         )
-;     ))
+    ; OLD CODE
+    ; (if (equal? A B)
+    ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+    ;         (break-graph (set A) (set))
+    ;         (λ () (break ;(bound->sbound bound) formulas))
+    ;             (sbound rel
+    ;                 (set)
+    ;                 ;(for*/set ([a (length As)]
+    ;                 ;           [b (length Bs)] #:when (<= b (+ a 1)))
+    ;                 ;    (list (list-ref As a) (list-ref Bs b))))
+    ;                 (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+    ;             formulas))
+    ;         (λ () (break bound formulas)))
+    ;     (formula-breaker pri ; TODO: can improve, but need better symmetry-breaking predicates
+    ;         (break-graph (set B) (set (set A B)))   ; breaks B and {A,B}
+    ;         (λ () 
+    ;             ; assume wlog f(a) = b for some a in A, b in B
+    ;             (break 
+    ;                 (sbound rel
+    ;                     (set (list (car As) (car Bs)))
+    ;                     (set-add (cartesian-product (cdr As) Bs) (list (car As) (car Bs))))
+    ;                 formulas))
+    ;         (λ () (break bound formulas))))
+        (breaker pri
+            (break-graph (set) (set))
+            (λ () (break (bound->sbound bound) formulas))
+            (λ () (break (bound->sbound bound) formulas))
+            #f
+        )
+    ))
 
 ; ;(: surj-strategy StrategyFunction)
 ; (define surj-strategy (λ ([pri : Number] [rel : Any] [bound : bound] [atom-lists : (NonEmptyListOf (Listof Any))] [rel-list : (NonEmptyListOf Any)] [loc #f]) 
@@ -1098,7 +1103,7 @@
 ; (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
 ; (add-strategy 'tree (variadic 2 (hash-ref strategies 'tree)))
 (add-strategy 'func (hash-ref strategies 'func))
-;(add-strategy 'pfunc (hash-ref strategies 'pfunc))
+(add-strategy 'pfunc (hash-ref strategies 'pfunc))
 ; (add-strategy 'surj (variadic 2 (hash-ref strategies 'surj)))
 ; (add-strategy 'inj (variadic 2 (hash-ref strategies 'inj)))
 ; (add-strategy 'bij (variadic 2 (hash-ref strategies 'bij)))
@@ -1110,6 +1115,7 @@
 ; (declare 'tree > 'acyclic)
 ; (declare 'acyclic > 'irref)
 ; (declare 'func < 'surj 'inj 'pfunc)
+(declare 'func < 'pfunc)
 ; (declare 'bij = 'surj 'inj)
 ; (declare 'linear = 'tree 'cotree)
 ; (declare 'bij = 'func 'cofunc)
