@@ -38,8 +38,10 @@
 (provide (struct-out sbound))
 
 (define-type (NonEmptyListOf T) (Pairof T (Listof T)))
+
+; The `rel` parameter needs to allow for join arguments, not just relations.
 (define-type StrategyFunction 
-  (->* (Integer node/expr/relation bound (Listof Tuple) (Listof node/expr/relation)) 
+  (->* (Integer node/expr bound (Listof Tuple) (Listof node/expr/relation)) 
        ((U srcloc #f))
        breaker))
 
@@ -57,8 +59,9 @@
 
 ; An "sbound" is nearly identical to the "bound" struct defined in forge/lang/bounds,
 ; except that it contains sets rather than lists. #f is permitted to denote a lack of value.
+; Also, it may represent a bound on a _join_, not just a relation. This is not the case for "bound".
 (struct sbound 
-   ([relation : node/expr/relation]
+   ([relation : node/expr]
     [lower : (Setof Tuple)]
     [upper : (Setof Tuple)]) #:transparent)
 
@@ -113,9 +116,11 @@
 
 (: sbound->bound (-> sbound bound))
 (define (sbound->bound sbound) 
-    (make-bound (sbound-relation sbound)
+    (if (node/expr/relation? (sbound-relation sbound))
+        (make-bound (sbound-relation sbound)
                 (set->list (sbound-lower sbound))
-                (set->list (sbound-upper sbound))))
+                (set->list (sbound-upper sbound)))
+        (raise (format "Internal error: sbound->bound called on non-relation. sbound=~a" sbound))))
 
 (: bound->break (-> bound break))                
 (define (bound->break bound) (break (bound->sbound bound) (set)))
@@ -123,10 +128,10 @@
 (define break-lower    (compose sbound-lower    break-sbound))
 (: break-upper (-> break (Setof Tuple)))
 (define break-upper    (compose sbound-upper    break-sbound))
-(: break-relation (-> break node/expr/relation))
+(: break-relation (-> break node/expr))
 (define break-relation (compose sbound-relation break-sbound))
 (: break-bound (-> break bound))
-(define break-bound    (compose sbound->bound   break-sbound))
+(define break-bound (compose sbound->bound   break-sbound))
 
 ; (: sbound+ (-> (Listof sbound) bound))
 ; (define (sbound+ sbounds)
@@ -140,7 +145,7 @@
 ;     (make-break (sbound+ breaks)
 ;                 (apply set-union (map break-formulas breaks))))
 
-(: make-exact-break (-> node/expr/relation (Setof Tuple) (Setof node/formula) break))
+(: make-exact-break (-> node/expr (Setof Tuple) (Setof node/formula) break))
 (define (make-exact-break relation contents [formulas : (Setof node/formula) (set)])
   (break (sbound relation contents contents) formulas))
 
@@ -555,7 +560,7 @@
 ;   `sig N { next: lone N}` because `next` is ternary.
 (: variadic (-> Integer StrategyFunction StrategyFunction))
 (define (variadic n f)
-    (λ ([pri : Integer] [rel : node/expr/relation] [bound : bound] [atom-lists : (Listof Tuple)]
+    (λ ([pri : Integer] [rel : node/expr] [bound : bound] [atom-lists : (Listof Tuple)]
         [rel-list : (Listof node/expr/relation)] [loc : (U srcloc #f) #f])
         (define info (just-location-info loc))
 
@@ -1106,11 +1111,9 @@
 ; (add-strategy 'ref (variadic 2 (hash-ref strategies 'ref)))
 
 ; this one cannot afford to go to purely formula break
-; (add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
-; (add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
+(add-strategy 'linear (variadic 2 (hash-ref strategies 'linear)))
+(add-strategy 'plinear (variadic 2 (hash-ref strategies 'plinear)))
 
-(add-strategy 'linear (hash-ref strategies 'linear))
-(add-strategy 'plinear (hash-ref strategies 'plinear))
 
 
 ; (add-strategy 'acyclic (variadic 2 (hash-ref strategies 'acyclic)))
