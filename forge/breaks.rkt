@@ -320,24 +320,23 @@
 
     (hash-for-each extensions-store (λ (k v) (set-remove! sigs v)))    
 
-    ; First add all partial instances.
-    ; (define instance-bounds (append* (for/list ([i instances]) 
-    ;     (if (sbound? i) (list i) (xml->breakers i name-to-rel)))))        
+    ; First add all partial instances. 
+    ; This is not obsolete! The breakers need to "play nicely" with user-defined `inst`s.
     (define defined-relations (mutable-set))
-    ; (for ([b instance-bounds])
-    ;     (define rel-inst (sbound-relation b))
-    ;     (for ([bound total-bounds])
-    ;         (define rel (bound-relation bound))
-    ;         (when (equal? rel-inst rel) 
-    ;               (begin
-    ;                 (define rel (sbound-relation b))
-    ;                 (if (equal? 'Sig (object-name rel))
-    ;                     (cons! new-total-bounds (sbound->bound b))
-    ;                     (cons! new-total-bounds bound))
-    ;                 (set-add! defined-relations rel)
-    ;                 (define typelist ((node/expr/relation-typelist-thunk rel)))
-    ;                 (for ([t typelist]) (when (hash-has-key? name-to-rel t)
-    ;                     (set-remove! sigs (hash-ref name-to-rel t))))))))
+    (for ([b instances])
+        (define rel-inst (sbound-relation b))
+        (for ([bound total-bounds])
+            (define rel (bound-relation bound))
+            (when (equal? rel-inst rel) 
+                  (begin
+                    (define rel (sbound-relation b))
+                    (if (equal? 'Sig (object-name rel))
+                        (cons! new-total-bounds (sbound->bound b))
+                        (cons! new-total-bounds bound))
+                    (set-add! defined-relations rel)
+                    (define typelist ((node/expr/relation-typelist-thunk rel)))
+                    (for ([t typelist]) (when (hash-has-key? name-to-rel t)
+                        (set-remove! sigs (hash-ref name-to-rel t))))))))
 
         
 
@@ -356,8 +355,13 @@
         ;(define breaks (hash-ref rel-breaks rel (set)))
         (define backup (ann (lambda () (make-hash)) (-> (Mutable-HashTable node/breaking/break Integer))))
         (define break-pris (ann (hash-ref rel-break-pri rel backup) (Mutable-HashTable node/breaking/break Integer)))
+
         ; compose breaks
         (min-breaks! breaks break-pris)
+
+        ;(printf "const-bnds: ~a~nbreaks:~a~nbackup:~a~nbreak-pris:~a~n" rel breaks backup break-pris)
+        
+
         ;(printf "bound in total-bounds: ~a~n" bound)
         (define defined (set-member? defined-relations rel))
         (cond [(set-empty? breaks)
@@ -394,7 +398,6 @@
                    (strategy 0 rel bound atom-lists rel-list loc))) 
                 
               (set->list breaks)))
-
 
             ; (define breakers (for/list ([break (set->list breaks)])
             ;     (define break-sym

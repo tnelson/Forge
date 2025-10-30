@@ -98,7 +98,7 @@
   (set-box! run-name-history (cons run-name (unbox run-name-history)))
 
   (print-version-number)
-  
+
   ; Do relation breaks from declarations
   (define relation-constraints 
     (apply append
@@ -637,7 +637,6 @@ Please declare a sufficient scope for ~a."
              (apply cartesian-product sig-atoms)])))
       
       ;(define upper (set->list (set-intersect (get-bound-upper relation) (list->set (apply cartesian-product sig-atoms)))))
-      ;(printf "~a: refined upper : ~a~n" relation upper)
 
       ; Piecewise lower bounds were handled in sigs-functional, before send-to-solver is called.
       (define lower                   
@@ -647,6 +646,7 @@ Please declare a sufficient scope for ~a."
                 empty)))      
       ;(define lower (set->list (set-union (get-bound-lower relation) (list->set empty))))
 
+      ;(printf "~a:~nrefined upper: ~a~nrefined lower: ~a~n" relation upper lower)
       (unless (subset? (list->set lower) (list->set upper))
         (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)
                          (get-blame-node run-spec relation)))
