@@ -385,23 +385,19 @@
             ;; break is a "break", strategy returns a "breaker"
 
             (define breakers (map (lambda ([b : (U node/breaking/break Symbol)]) 
-                (define break-sym
-                      (cond [(symbol? b) b]
-                            [(node/breaking/break? b) (node/breaking/break-break b)]
+                (define-values (break-sym break-node)
+                      (cond [(symbol? b) (values b (node/breaking/break empty-nodeinfo b))]
+                            [(node/breaking/break? b) (values (node/breaking/break-break b) b)]
                             [else (raise-forge-error #:msg (format "constrain-bounds: not a valid break name: ~a~n" break)
                                                      #:context #f
-                                                     #:raise #t)]))
+                                                     #:raise? #t)]))
                 (define loc (if (node? b) 
                                 (nodeinfo-loc (node-info b)) 
                                 #f))
-                (define strategy (hash-ref strategies break-sym))
-                ; break-pris (Mutable-HashTable node/breaking/break Integer)
-                (define pri (hash-ref break-pris b))
-                ;(strategy pri rel bound atom-lists rel-list loc)
-                (if (and (exact? pri) (integer? pri))
-                   (strategy pri rel bound atom-lists rel-list loc)
-                   (strategy 0 rel bound atom-lists rel-list loc))) 
-                
+                (define strategy (ann (hash-ref strategies break-sym) StrategyFunction))
+                ; What if it's a symbol instead of a break?? check dev !!!! b could be maybe
+                (define pri (ann (hash-ref break-pris break-node) Integer))
+                (strategy pri rel bound atom-lists rel-list loc))                
               (set->list breaks)))
 
             ; (define breakers (for/list ([break (set->list breaks)])
