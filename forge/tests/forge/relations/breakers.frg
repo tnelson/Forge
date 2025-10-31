@@ -51,6 +51,7 @@ test expect {
     linearnoloop: {some a, b: A | (a->b + b->a) in ^(FrontDesk.next)} for {next is linear} is unsat
     linearnobranch: {some disj a, b, c: A | (a->c + b->c) in FrontDesk.next} for {next is linear} is unsat 
     linearnobranch2: {some disj a, b, c: A | (a->b + a->c) in FrontDesk.next} for {next is linear} is unsat
+    // Note: as in Alloy, "is linear" enforces exact bounds on that specific type. So empty "next" is excluded.
     linear_covers_all: {some a: A | {no a.(FrontDesk.next) and no a.~(FrontDesk.next)}} for {next is linear} is unsat
 
     ----- test "plinear" -----
