@@ -5,15 +5,29 @@
          (only-in racket/string string-trim)
          (only-in racket/port call-with-output-string)
          (only-in pkg/lib pkg-directory))
-(require racket/stream)
-(require 
-         json 
-         base64)
+(require base64)
 
 (require (only-in typed/net/url URL))
 
+(require/typed racket/stream
+  [#:opaque Stream stream?]
+  [#:opaque Empty-Stream stream-empty?]
+  [stream-first (-> NonEmpty-Stream Any)]
+  [stream-rest (-> NonEmpty-Stream Stream)])
+(require (only-in racket/stream stream-cons))
+
+(: nonempty-stream? (-> Stream Boolean))
+(define (nonempty-stream? s) (and (stream? s) (not (stream-empty? s))))
+(define-type NonEmpty-Stream (Opaque nonempty-stream?))
+
+(require/typed json 
+  [#:opaque JSExpr jsexpr?]
+  [string->jsexpr (-> String JSExpr)]
+  [jsexpr->string (-> JSExpr String)])
+
 (require/typed pkg/lib
   [pkg-directory (->* (String) (#:cache (U False (HashTable Any Any))) (U Path-String False))])
+
 (require/typed net/http-easy
   [#:opaque Response response?]
   [response-body (-> Response Bytes)]
@@ -138,6 +152,7 @@
        (filter (lambda (k) (not (member k (hash-keys i2)))) (hash-keys i1))
        (filter (lambda (k) (not (member k (hash-keys i1)))) (hash-keys i2)))))
 
+(: stream-map/once (-> (-> Any Any) Stream Any))
 (define (stream-map/once func strm)
   (stream-cons (func (stream-first strm))
                (stream-map/once func (stream-rest strm))))
