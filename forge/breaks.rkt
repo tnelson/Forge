@@ -807,10 +807,10 @@
                                 (drop-right atoms 1) (cdr atoms)))
             )
             (set
-                (quantified-formula info 'lone  (list (cons init sig)) (&&/func #:info info
+                (multiplicity-formula info 'lone 
+                  (set/func #:info info (list (cons init sig)) (&&/func #:info info
                     (multiplicity-formula info 'no (join/func #:info info rel init))
-                    (multiplicity-formula info 'some (join/func #:info info init rel))
-                ))
+                    (multiplicity-formula info 'some (join/func #:info info init rel)))))
             )
         ))
         (λ () (break (bound->sbound bound) (set
