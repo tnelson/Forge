@@ -47,7 +47,7 @@
          run-spec total-bounds formula relations atom-names
          quantvars quantvar-types info decls form
          #:tag-with-spacer [tag-with-spacer #f])
-  (when (@> (get-verbosity) VERBOSITY_LOW)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "skolemize-formula-helper: ~a ~a~n" formula quantvars))
   ; RESTRICTION: Because we are mapping top-level sigs to sorts, we have no "univ".
   ; Discuss. May be better to not use sorts (or worse).
@@ -120,7 +120,7 @@
           ; only one type
           (first upper-bound-list)
           ; otherwise, build product
-          (apply cartesian-product upper-bound-list)))
+          (apply cartesian-product (map (lambda (sublist) (apply append sublist)) upper-bound-list))))
     ;(printf "~nskolem-upper-bound: ~a~n" skolem-upper-bound)
   
     ; 4. add that new relation to the bounds
@@ -183,7 +183,7 @@
          list?)
         (#:tag-with-spacer boolean?)
       (values node? list?))
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "to-skolem: interpret-formula: ~a~n" formula))
   (set! current-bounds total-bounds) ; no "kodkod-bounds" yet; the Run hasn't been created
   (define resulting-formula 
@@ -257,7 +257,7 @@
       [(? node/int? i) (interpret-int run-or-state total-bounds i relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)])))
 
 (define (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types args #:tag-with-spacer [tag-with-spacer #f])
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "to-skolem: interpret-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
@@ -304,7 +304,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-expr run-spec total-bounds expr relations atom-names quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
       (printf "to-skolem: interpret-expr: ~a~n" expr))
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent isvar)
@@ -344,7 +344,7 @@
      (node/expr/comprehension info len new-decls processed-form))]))
 
 (define (interpret-expr-op run-spec total-bounds expr relations atom-names quantvars quantvar-types args #:tag-with-spacer [tag-with-spacer #f])
-    (when (@>= (get-verbosity) 2)
+    (when (@>= (get-verbosity) VERBOSITY_DEBUG)
       (printf "to-skolem: interpret-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
@@ -375,7 +375,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (interpret-int run-spec total-bounds expr relations atom-names quantvars quantvar-types #:tag-with-spacer [tag-with-spacer #f])
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "to-skolem: interpret-int: ~a~n" expr))
   (match expr
     [(node/int/constant info value)
@@ -398,7 +398,7 @@
       (node/int/sum-quant info new-decls processed-int))]))
 
 (define (interpret-int-op run-spec total-bounds expr relations atom-names quantvars quantvar-types args #:tag-with-spacer [tag-with-spacer #f])
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "to-skolem: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)

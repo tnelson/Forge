@@ -43,7 +43,7 @@
                [lower : (Listof Tuple)]
                [upper : (Listof Tuple)]) #:transparent)
 ; A bounds object is a universe and a collection of bound? instances.
-(struct bounds ([universe : (Listof Any)]
+(struct bounds ([universe : (Listof FAtom)]
                 [entries : (Listof bound)]) #:transparent)
 
 ; Error-checking constructors for bounds
