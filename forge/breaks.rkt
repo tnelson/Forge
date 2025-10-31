@@ -797,7 +797,6 @@
     (define sig (first rel-list))
     (define info (just-location-info loc))
     (define init (node/expr/quantifier-var (just-location-info loc) 1 'init 'init))
-    (define term (node/expr/quantifier-var (just-location-info loc) 1 'term 'term))
     (define x (node/expr/quantifier-var (just-location-info loc) 1 'x 'x))
     (breaker pri
         (break-graph (set sig) (set))
