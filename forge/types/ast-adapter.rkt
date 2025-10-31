@@ -1,19 +1,5 @@
 #lang typed/racket/base/optional
 
-
-;; TODO TYPES SHOULD YIELD A TYPE ERROR 
-;; In fact, it does -- but only once I've dealt with all the _other_ similar errors later in the file!
-; So can "look like" I resolved the problem until I finish and discover the types are wrong.
-; (define foo (for/set : (Listof String) ([x '(1 2 3)]) x))
-
-;; TODO types: set-add! doesn't come equipped with types if I require it from typed/racket. 
-
-;; TODO types: "ann" is an annotation to be checked at compile time.
-;;  "cast" is the runtime check
-
-;; TODO types: raise-forge-error can _either_ raise an error or return void. This is annoying, so using 
-;  basic "raise" for now in this module.
-
 (provide 
         (struct-out node)
         (struct-out node/expr)
@@ -69,6 +55,7 @@
   [build-box-join (-> node/expr (Listof node/expr) node/expr)]
   [univ node/expr]
   [iden node/expr]
+  ; Don't export these as-is. Potential conflict with existing Racket identifiers.
 ;   [true node/formula]
 ;   [false node/formula]  
   )
