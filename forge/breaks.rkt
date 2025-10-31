@@ -416,8 +416,8 @@
   ; TODO TYPES: neither of these work. but if we get rid of the keyword + type the lambda, we're OK.
   ;  (set! breakers ((inst sort (Listof breaker)) breakers < #:key breaker-pri))
   ;  (set! breakers (sort breakers < #:key breaker-pri))
-            (sort breakers (lambda ([x : breaker] [y : breaker]) 
-              (< (breaker-pri x) (breaker-pri y))))          
+            (set! breakers (sort breakers (lambda ([x : breaker] [y : breaker]) 
+              (< (breaker-pri x) (breaker-pri y)))))
 
             ; propose highest pri breaker that breaks only leaf sigs
             ; break the rest the default way (with get-formulas)
@@ -460,8 +460,8 @@
         Broken sigs are given an edge to a unique 'broken "sig", so we only need to check for loops.
     |#
     
-    (sort candidates (lambda ([x : breaker] [y : breaker]) 
-              (< (breaker-pri x) (breaker-pri y))))          
+    (set! candidates (sort candidates (lambda ([x : breaker] [y : breaker]) 
+              (< (breaker-pri x) (breaker-pri y)))))
 
     (for ([breaker candidates])
         (define break-graph (breaker-break-graph breaker))
