@@ -1,39 +1,14 @@
 #lang typed/racket/base
 
-; Notes for exporting on typed racket experiment
-;   - no support for for/first, needed to rewrite with for/or
-;   - the error messages are _terrible_. something about macros when i try to use for/first
-;     and a _mismatched paren error_ i can't find a mismatched paren for. Magic Racket
-;     highlights the wrong file. Lesson: needed to recompile via DrRacket (even racket filename)
-;     wouldn't work.
-;   - need to explicitly import super-structs; confusing runtime error about contract violation otherwise
-;   - need to change from (provide (all-defined-out)) to something more explicit
-
-; BREAKS.RKT
-;  - couldn't use #:auto and #:auto-value in struct defn
-;    this led to a lot of confusion
 
 (require racket/generator)
 (require forge/types/ast-adapter)
 
 (require (only-in racket cartesian-product))
 
-;; ^^^^ Could it be the import _here_ vs. the import _later_ being different?
-;; We're only exporting the bound struct once. But if it's got an alternative defn
-;; embedded in it...
-
-;; TODO: issue with doubly-required identifiers when transitioned to typed on this module
-;; experienced problems even when trying to use except-out. Need to be very explicit.
-;; (provide (all-defined-out))
-;;  TODO: if we require/typed the same thing twice, we get duplicate...
-;;   so don't bridge untyped to typed twice! Best to have an "adapter" module? Probably.
-;; ^^^^^^^^
-
 (provide (struct-out bound) (struct-out bounds) 
            make-bound make-exact-bound exact-bound? make-upper-bound 
-           get-upper-bound bounds-variables bounds-union Tuple FAtom
-           
-           )
+           get-upper-bound bounds-variables bounds-union Tuple FAtom)
 
 (define-type FAtom (U Symbol Integer))
 (define-type Tuple (Listof FAtom))

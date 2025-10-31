@@ -5,19 +5,15 @@
 (require forge/lang/bounds) ;; TYPED
 (require forge/types/ast-adapter) ;; TYPED, contains needed AST functions (not macros)
 
-;; TODO TYPES is priority 0 safe as the default? which direction is "highest"?
-
-;; TODO TYPES: any special type for _mutable_ sets?
 (require/typed typed/racket 
-  ; These are not OK
+  ; Missing from typed racket's definitions as of 2025-oct-31.
   [set-subtract! (All (T) (-> (Setof T) (Setof T) Void))]
   [set-add! (All (T) (-> (Setof T) T Void))]
   [set-union! (All (T) (-> (Setof T) (Setof T) Void))]
   [mutable-set (All (T) (T * -> (Setof T)))]
   [set-remove! (All (T) (-> (Setof T) T Void))]
   [list->mutable-set (All (T) (-> (U (Listof T) (Setof T)) (Setof T)))]
-  
-  ; This is OK
+  ; Present in typed racket's definitions
   [hash-set! (All (K V) (-> (HashTable K V) K V Void))]
   )
 
@@ -37,14 +33,11 @@
 (provide make-exact-sbound)
 (provide (struct-out sbound))
 
-(define-type (NonEmptyListOf T) (Pairof T (Listof T)))
-
 ; The `rel` parameter needs to allow for join arguments, not just relations.
 (define-type StrategyFunction 
   (->* (Integer node/expr bound (Listof Tuple) (Listof node/expr/relation)) 
        ((U srcloc #f))
        breaker))
-
 
 ;;;;;;;;;;;;;;
 ;;;; util ;;;;
@@ -217,7 +210,6 @@
 (define (hash-add-set! h k1 k2 v)
     (unless (hash-has-key? h k1) (hash-set! h k1 (ann (make-hash) (HashTable K2 V))))
     (define h_k1 (hash-ref h k1))
-    ;; TODO TYPES: `v` is unused, and we're referring to the pri_c directly here? no wonder this doesn't type!
     ;; CHANGED pri_c to v.
     ;(unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
     (unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 v)))
@@ -270,7 +262,6 @@
 (define (min-breaks! breaks break-pris)
     (define changed (ann false Boolean))
     (hash-for-each compos (λ ([k : (Setof Symbol)] [v : Symbol])
-    ; TODO TYPES needed to do some re-wrapping of symbols here, is this the right decision?
         (when (subset? k breaks)
               (set-subtract! breaks k)
               (set-add! breaks v)
@@ -291,8 +282,6 @@
         (define-values (break-key break-node)
             (cond [(symbol? break) (values break (node/breaking/break empty-nodeinfo break))]
                   [(node/breaking/break? break) (values (node/breaking/break-break break) break)]
-                  ;; TODO TYPES had to disambiguate the two union cases, unsure if this is the right behavior
-                  ;[else (raise-forge-error #:msg (format "Not a valid break name: ~a~n" break) #:context #f #:raise? #t)]))
                   [else (raise (format "Not a value break or break name: ~a" break))]))
         (unless (hash-has-key? strategies break-key)
                 (error (format "break not implemented among ~a" strategies) break-key))
@@ -352,22 +341,13 @@
         ; get declared breaks for the relation associated with this bound        
         (define rel (bound-relation bound))       
 
-        ;(Setof node/breaking/break)
-        ;; TODO TYPES why did I need to turn the default value into a thunk?
         (define breaks (hash-ref rel-breaks rel (ann (lambda () (set)) (-> (Setof node/breaking/break)) ))) 
-        ;(define breaks (hash-ref rel-breaks rel (ann (set) (Setof node/breaking/break))))
-        ;; TODO TYPES HashTableTop is a HT with unknown key and value types.
-        ;(define breaks (hash-ref rel-breaks rel (set)))
         (define backup (ann (lambda () (make-hash)) (-> (Mutable-HashTable node/breaking/break Integer))))
         (define break-pris (ann (hash-ref rel-break-pri rel backup) (Mutable-HashTable node/breaking/break Integer)))
 
         ; compose breaks
         (min-breaks! breaks break-pris)
 
-        ;(printf "const-bnds: ~a~nbreaks:~a~nbackup:~a~nbreak-pris:~a~n" rel breaks backup break-pris)
-        
-
-        ;(printf "bound in total-bounds: ~a~n" bound)
         (define defined (set-member? defined-relations rel))
         (cond [(set-empty? breaks)
             (unless defined (cons! new-total-bounds bound))
@@ -400,22 +380,6 @@
                 (strategy pri rel bound atom-lists rel-list loc))                
               (set->list breaks)))
 
-            ; (define breakers (for/list ([break (set->list breaks)])
-            ;     (define break-sym
-            ;         (cond [(symbol? break) break]
-            ;               [(node/breaking/break? break) (node/breaking/break-break break)]
-            ;               [else (raise-forge-error #:msg (format "constrain-bounds: not a valid break name: ~a~n" break)
-            ;                                        #:context #f)]))
-            ;     (define loc (if (node? break) 
-            ;                     (nodeinfo-loc (node-info break)) 
-            ;                     #f))
-            ;     (define strategy (hash-ref strategies break-sym))
-            ;     (define pri (hash-ref break-pris break))
-            ;     (strategy pri rel bound atom-lists rel-list loc)))
-
-  ; TODO TYPES: neither of these work. but if we get rid of the keyword + type the lambda, we're OK.
-  ;  (set! breakers ((inst sort (Listof breaker)) breakers < #:key breaker-pri))
-  ;  (set! breakers (sort breakers < #:key breaker-pri))
             (set! breakers (sort breakers (lambda ([x : breaker] [y : breaker]) 
               (< (breaker-pri x) (breaker-pri y)))))
 
@@ -441,8 +405,7 @@
             (unless (or broken defined) (cons! new-total-bounds bound))
         ])     
     )
-    ;(printf "new-total-bounds: ~a~n" new-total-bounds)
-    
+
     #|
         Now we try to use candidate breakers, starting with highest priority.
 
@@ -486,7 +449,6 @@
         )
     
         ; acceptable :<-> doesn't create loops <-> no edges already exist
-        ;; TODO TYPES for/and is not supported by the type checker
         (define acceptable (foldl (lambda ([edge : (U (Pairof node/expr/relation Symbol) 
                                                       (Pairof node/expr/relation node/expr/relation))] 
                                            [res : Boolean]) 
@@ -506,8 +468,7 @@
                 (when (not (hash-has-key? new-reachable A)) 
                     (hash-set! new-reachable A (ann (mutable-set) (Setof (U node/expr/relation Symbol)))))
                 (when (not (hash-has-key? new-reachable B)) 
-                    (when (node/expr/relation? B)
-                        ;; TODO TYPES: narrowing because of the fact that the symbol 'broken could end up in edges
+                    (when (node/expr/relation? B) ; narrowing
                         (hash-set! new-reachable B (ann (mutable-set) (Setof (U node/expr/relation Symbol))))))
                 (set-union! (hash-ref new-reachable A) (hash-ref reachable B))
                 (when (node/expr/relation? B)
@@ -533,7 +494,6 @@
         [else
             ; do default break
             (define default ((breaker-make-default breaker)))
-            ;; TODO TYPES: this sbound->bound call was absent. is this code run anywhere?
             (cons! new-total-bounds (sbound->bound (break-sbound default)))
             (set-union! formulas (break-formulas default))
         ])
@@ -579,8 +539,6 @@
             (define edgesAnd (for/set : (Setof (Setof node/expr/relation)) ([sig sigs] [p prefix])
                (if (node/expr/relation? p) 
                    (set sig p)
-                   ;; TODO TYPES raise-forge-error would be better, but harder to integrate
-                   ;; TODO TYPES do we even need most of this anymore?
                    (raise (format "Internal error: breaks.variadic combining sigs and non-sigs")))))
             (define new-break-graph (break-graph sigs (set-union edges edgesAnd)))
             (breaker pri
@@ -609,7 +567,6 @@
                         (break bound formulas)
                     ][else
                         ; just use the sub-bounds for a single instance of prefix
-                        ;; TODO TYPES notice what we needed to do here: give a more specific type for `car`
                         (define cars (map (ann car (-> Tuple FAtom)) prefix-lists))
                         (define cdrs (map (ann cdr (-> Tuple Tuple)) prefix-lists))
                         (define lower (for/set : (Setof Tuple) ([l sub-lower]) (append cars l)))
@@ -1081,7 +1038,6 @@
 ; ))
 
 ; use to prevent breaks
-;; TODO TYPES TEMP I think this function shape was used for multiple purposes before
 (: defaultStrategy StrategyFunction)
 (define defaultStrategy (λ ([pri : Integer] [rel : node/expr] [bound : bound] 
                            [atom-lists : (Listof Tuple)] 
