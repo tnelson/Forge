@@ -1,24 +1,16 @@
-#lang typed/racket/base
+#lang typed/racket/base/optional
 
 (require racket/runtime-path racket/file)
 (require (only-in racket/system system*)
          (only-in racket/string string-trim)
          (only-in racket/port call-with-output-string)
          (only-in pkg/lib pkg-directory))
-(require base64)
-
+(require typed/net/base64)
 (require (only-in typed/net/url URL))
 
-(require/typed racket/stream
-  [#:opaque Stream stream?]
-  [#:opaque Empty-Stream stream-empty?]
-  [stream-first (-> NonEmpty-Stream Any)]
-  [stream-rest (-> NonEmpty-Stream Stream)])
-(require (only-in racket/stream stream-cons))
-
-(: nonempty-stream? (-> Stream Boolean))
-(define (nonempty-stream? s) (and (stream? s) (not (stream-empty? s))))
-(define-type NonEmpty-Stream (Opaque nonempty-stream?))
+(define-type FAtom (U Symbol Integer))
+(define-type Tuple (Listof FAtom))
+(provide FAtom Tuple)
 
 (require/typed json 
   [#:opaque JSExpr jsexpr?]
@@ -51,9 +43,7 @@
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
          VERBOSITY_DEBUG VERBOSITY_LASTCHECK get-temp-dir)
 (provide forge-version forge-git-info instance-diff curr-forge-version)
-(provide stream-map/once port-echo java>=1.9? do-time)
-
-(module+ test (require rackunit))
+(provide port-echo java>=1.9? do-time)
 
 ; Level of output when running specs
 (define VERBOSITY_SCRIPT 0) ; for test scripts
@@ -120,42 +110,38 @@
                       "tnelson"
                       "Forge"
                       "forge/info.rkt"))
-
   (define response (get URL))
   (if (= (response-status-code response) 200)
       (let* ([body (response-body response)]
-            [json-data (string->jsexpr (bytes->string/utf-8 body))]
-            [content (hash-ref json-data 'content)]
-            [decoded-content (bytes->string/utf-8 (base64-decode (string->bytes/utf-8 content)))]
-           [version (regexp-match #px"\\(define version \"([0-9]+[.0-9]+)\"\\)" decoded-content)])
-        (car (cdr version)))
+            [json-data (string->jsexpr (bytes->string/utf-8 body))])
+            (define content (if (hash? json-data) (hash-ref json-data 'content) #f))
+            (define decoded-content (bytes->string/utf-8 (base64-decode (string->bytes/utf-8 
+                   (if (string? content) content "")))))
+            (define version (regexp-match #px"\\(define version \"([0-9]+[.0-9]+)\"\\)" decoded-content))
+        (if (list? version)
+          (car (cdr version))
+        void))
       void)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-type InstanceHash (HashTable Any Any))
-
+(define-type InstanceHash (HashTable Symbol (Listof Tuple)))
 ; Returns the difference of two instances (> and < separately)
-(: instance-diff (-> InstanceHash InstanceHash (Listof Any)))
+(: instance-diff (-> InstanceHash InstanceHash (List Symbol (Listof Any) (Listof Any))))
 (define (instance-diff i1 i2)  
   (if (equal? (hash-keys i1) (hash-keys i2))
       (list
        'same-signature
-       (hash-map i1 (lambda (k v)                                          
+       (hash-map i1 (lambda ([k : Symbol] [v : (Listof Tuple)])                                          
                       (list k (filter (lambda (ele)
                                         (not (member ele (hash-ref i2 k)))) v))))
-       (hash-map i2 (lambda (k v)                                          
+       (hash-map i2 (lambda ([k : Symbol] [v : (Listof Tuple)])                                          
                       (list k (filter (lambda (ele)
                                         (not (member ele (hash-ref i1 k)))) v)))))
       (list
        'different-signature
        (filter (lambda (k) (not (member k (hash-keys i2)))) (hash-keys i1))
        (filter (lambda (k) (not (member k (hash-keys i1)))) (hash-keys i2)))))
-
-(: stream-map/once (-> (-> Any Any) Stream Any))
-(define (stream-map/once func strm)
-  (stream-cons (func (stream-first strm))
-               (stream-map/once func (stream-rest strm))))
 
 (: port-echo (->* (Input-Port Output-Port) (#:title String) Void))
 (define (port-echo in-port out-port #:title [title #f])
@@ -169,26 +155,33 @@
   (define version-str (shell java-exe "-version"))
   (java-version>=1.9? version-str java-exe))
 
-(: java-version>=1.9? (-> String Path-String Boolean))
+(: java-version>=1.9? (-> String (U False Path-String) Boolean))
 (define (java-version>=1.9? version-str java-exe)
-  (define major-nums
-    (let* ([m0 (regexp-match #rx"(java|openjdk) version \"([^\"]+)\"" version-str)]
-           [vstr (if m0 (caddr m0) "")]
-           [m1 (or
-                 (regexp-match #rx"^([0-9]+)(\\.[0-9]+\\.)?" vstr)
-                 (raise-arguments-error 'forge/shared
-                                        "Error checking Java version"
-                                        "java exe" java-exe
-                                        "version string" version-str))]
-           [major (cadr m1)]
-           [minor (caddr m1)])
-      (list (string->number major)
-            (if minor (string->number (substring minor 1 (sub1 (string-length minor)))) 0))))
-  (or (and (= 1 (car major-nums))
-           (<= 9 (cadr major-nums)))
-      (<= 9 (car major-nums))))
+  (: m0 (U False (Pairof String (Listof (U False String)))))
+  (define m0 (regexp-match #rx"(java|openjdk) version \"([^\"]+)\"" version-str))
 
-(module+ test
+  ; Needed to do this step-by-step; (and ...) wasn't working to narrow.
+  (define maybe-vstr (if m0 (caddr m0) "")) 
+  (define vstr (if maybe-vstr maybe-vstr ""))
+  (define m1 (or (regexp-match #rx"^([0-9]+)(\\.[0-9]+\\.)?" vstr)
+                (raise-arguments-error 'forge/shared
+                                      "Error checking Java version"
+                                      "java exe" java-exe
+                                      "version string" version-str)))
+  (define major (cadr m1))
+  (define minor (caddr m1))
+
+  (: major-nums (List (U Number False) (U Number False)))
+  (define major-nums
+        (list (if major (string->number major) #f)
+              (if minor (string->number (substring minor 1 (sub1 (string-length minor)))) 0)))
+  ; Note on types: <= requires a *Real* number, not just a Number.
+  (or (and (number? (car major-nums)) (= 1 (car major-nums))
+           (real? (cadr major-nums)) (<= 9 (cadr major-nums)))
+      (and (real? (car major-nums)) (<= 9 (car major-nums)))))
+
+(module+ test (require typed/rackunit))
+(module+ test 
   (test-case "java-version"
     (check-true (java-version>=1.9? "openjdk version \"17\" 2021-09-14" #f))
     (check-false (java-version>=1.9? "openjdk version \"1.8.0_242\"\nOpenJDK Runtime Environment (build 1.8.0_242-b08)" #f))
@@ -215,17 +208,17 @@
 
 (define do-time
   (let ()
-    (: last-time (U False Number))
+    (: last-time (Option Integer))
     (define last-time #f)
-    (: initial-time (U False Number))
+    (: initial-time (Option Integer))
     (define initial-time #f)
-    (: gc-time (U False Number))
+    (: gc-time (Option Integer))
     (define gc-time #f)
-    (: set!-initial-time (-> Number Void))
+    (: set!-initial-time (-> Integer Void))
     (define (set!-initial-time t) (set! initial-time t))
-    (: set!-last-time (-> Number Void))
+    (: set!-last-time (-> Integer Void))
     (define (set!-last-time t) (set! last-time t))
-    (: set!-gc-time (-> Number Void))
+    (: set!-gc-time (-> Integer Void))
     (define (set!-gc-time t) (set! gc-time t))
     (define pad-len 40)
 
@@ -244,17 +237,19 @@
       (set!-gc-time (current-gc-milliseconds))
       (log-forge-timing-debug "~a at ~a" (pad "Starting" #\space) initial-time))
 
-    (lambda (msg)
+    (lambda ([msg : String])
       (unless last-time
         (start-timing msg))
-      (log-forge-timing-debug
-        (let* ([t (current-process-milliseconds)]
-               [gc (current-gc-milliseconds)]
-               [old last-time]
-               [diff (- t old)]
-               [gc-diff (- gc gc-time)]
-               [new-msg (pad msg #\space)])
-          (set!-last-time t)
-          (set!-gc-time gc)
+        (define t (current-process-milliseconds))
+        (define gc (current-gc-milliseconds))
+        (define old last-time)
+        (define diff (if old (- t old) #f))
+        (define new-msg (pad msg #\space))
+        ;; TODO TYPES why did I need the (runtime checked) assertions?
+        (define gc-diff   (if (exact-integer? gc-time) (- gc (assert gc-time exact-integer?)) #f))
+        (define init-diff (if (exact-integer? initial-time) (- t (assert initial-time exact-integer?)) #f)) 
+        (set!-last-time t)
+        (set!-gc-time gc)
+      (log-forge-timing-debug          
           (format "~a at ~a\tlast step: ~a\tgc: ~a\ttotal: ~a"
-                  new-msg t diff gc-diff (- t initial-time)))))))
+                  new-msg t diff gc-diff init-diff)))))

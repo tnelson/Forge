@@ -10,9 +10,6 @@
            make-bound make-exact-bound exact-bound? make-upper-bound 
            get-upper-bound bounds-variables bounds-union Tuple FAtom)
 
-(define-type FAtom (U Symbol Integer))
-(define-type Tuple (Listof FAtom))
-
 ; A bound is a relation and two lists of tuples `lower` and `upper`.
 (struct bound ([relation : node/expr/relation]
                [lower : (Listof Tuple)]
