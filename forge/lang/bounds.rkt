@@ -1,14 +1,11 @@
 #lang typed/racket/base
 
-
-(require racket/generator)
 (require forge/types/ast-adapter)
-
-(require (only-in racket cartesian-product))
+(require forge/shared)
 
 (provide (struct-out bound) (struct-out bounds) 
            make-bound make-exact-bound exact-bound? make-upper-bound 
-           get-upper-bound bounds-variables bounds-union Tuple FAtom)
+           get-upper-bound bounds-variables bounds-union)
 
 ; A bound is a relation and two lists of tuples `lower` and `upper`.
 (struct bound ([relation : node/expr/relation]

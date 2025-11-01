@@ -4,6 +4,7 @@
 
 (require forge/lang/bounds) ;; TYPED
 (require forge/types/ast-adapter) ;; TYPED, contains needed AST functions (not macros)
+(require forge/shared)
 
 (require/typed typed/racket 
   ; Missing from typed racket's definitions as of 2025-oct-31.
