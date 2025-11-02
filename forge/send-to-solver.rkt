@@ -1,10 +1,35 @@
 #lang typed/racket/base/optional
 
-(require forge/sigs-structs)
+;(require forge/sigs-structs)
+(require forge/types/ast-adapter)
 
 (define-type PiecewiseBounds (HashTable node/expr/relation PiecewiseBound))
 
+
+;; TYPES TODO: the contracts are more refined. should we combine the two?
 (require/typed forge/sigs-structs
+  [#:struct Kodkod-current (
+    [formula : Integer]
+    [expression : Integer]
+    [int : Integer])]
+  [#:struct (Relation node/expr/relation) (
+    [name : Symbol] ; symbol?
+    [sigs-thunks : (Listof (-> Sig))] ; (listof (-> Sig?))
+    [breaker : (U node/breaking/break False)]; (or/c node/breaking/break? #f)
+  )]
+  [#:struct Server-ports (
+    [stdin : Any]
+    [stdout : Any]
+    [stderr : Any]
+    [shutdown : Any]
+    [is-running? : (-> Boolean)])]
+  [#:struct (Sig node/expr/relation) (
+    [name : Symbol] ; symbol?
+    [one : Boolean] ; boolean?
+    [lone : Boolean] ; boolean?
+    [abstract : Boolean] ; boolean?
+    [extends : (U Sig False)] ; (or/c Sig? #f)
+  )]
   [#:struct Run-spec (
     [state : State]  ; Model state at the point of this run 
     [preds : (Listof node/formula)] ; predicates to run, conjoined
@@ -54,16 +79,22 @@
     [default-scope : (U Range False)]
     [bitwidth : (U Integer False)]
     [sig-scopes : (HashTable Symbol Range)])]
-  [get-relations (-> (U Run State Run-spec) (Listof node/expr/relation))]
-  [get-sigs (->* ((U Run State Run-spec)) ((U False node/expr/relation)) (Listof node/expr/relation))]
+  [get-relations (-> (U Run State Run-spec) (Listof Relation))]
+  [get-sigs (->* ((U Run State Run-spec)) ((U False node/expr/relation)) (Listof Sig))]
+  [get-sig (-> (U Run State Run-spec) (U Symbol node/expr/relation) (U Sig False))]
   [get-option (-> (U Run State Run-spec) Symbol Any) ]
   [get-state (-> (U Run Run-spec State) State)]
   [get-bitwidth (-> (U Run-spec Scope) Integer)]
-  [get-children (-> (U Run State) node/expr/relation node/expr/relation)]
+  [get-children (-> (U Run State Run-spec) Sig (Listof Sig))]
+  [DEFAULT-SIG-SCOPE Integer]
+  [get-top-level-sigs (-> (U Run State Run-spec) (Listof Sig))]
+  ;; TODO TYPES: these are macros, but they has no parameters, so they are being immediately 
+  ;; expanded here to the relations they denote. 
+  [Int node/expr/relation]
+  [succ node/expr/relation]
 )
 
 (require forge/breaks)
-(require forge/types/ast-adapter)
 (require forge/lang/bounds)
 (require forge/shared
          (prefix-in tree: forge/utils/lazy-tree)
@@ -283,6 +314,7 @@
   ;; Generate top-level constraint for this run, execute last-checker
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+  (: maybe-alwaysify (-> node/formula node/formula))
   (define (maybe-alwaysify fmla)
     (if (equal? 'temporal (get-option run-spec 'problem_type))
         (always/func #:info (node-info fmla) fmla)
@@ -347,7 +379,9 @@
           ; This becomes the "kodkod-bounds" field of the Run that is eventually created.
           total-bounds))
 
-
+(: get-bounds (-> Run-spec Any (Values (HashTable Symbol bound) 
+                               (HashTable Symbol bound) 
+                               (Listof FAtom))))
 (define (get-bounds run-spec raise-run-error)
   ; Send user defined partial bindings to breaks
   (map instance (hash-values (Bound-pbindings (Run-spec-bounds run-spec))))
@@ -720,6 +754,7 @@ Please declare a sufficient scope for ~a."
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig to restrict
 ; it to the correct lower/upper bound.
+(: get-sig-size-preds (-> Run-spec (HashTable node/expr/relation bound) #:error Any (Listof node/formula)))
 (define (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error) 
   (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
   (define lists (for/list : (Listof node/formula) ([sig (get-sigs run-spec)]
@@ -778,22 +813,28 @@ Please declare a sufficient scope for ~a."
 (define (get-extender-preds run-spec)
   (define sig-constraints (for/list : (Listof node/formula) ([sig (get-sigs run-spec)])
     ; get children information
+    (: children-rels (Listof Sig))
     (define children-rels (get-children run-spec sig))
-
     ; abstract and sig1, ... extend => (= sig (+ sig1 ...))
     ; not abstract and sig is parent of sig1 => (in sig1 sig)
     ; TODO: optimize by identifying abstract sigs as sum of children
+    (: abstract (-> Sig (Listof Sig) node/formula))
     (define (abstract sig extenders)
       ; TODO : location not correct
-      (let ([loc (nodeinfo-loc (node-info sig))])
+      (let* ([loc (nodeinfo-loc (node-info sig))]
+            [info (nodeinfo loc 'checklangNoCheck #f)])
+
         (if (equal? (length extenders) 1)
-            (=/func #:info (nodeinfo loc 'checklangNoCheck #f) sig (car extenders))
-            (=/func #:info (nodeinfo loc 'checklangNoCheck #f) sig (+ extenders)))))
+            (=/func #:info info sig (car extenders))
+            (=/func #:info info sig (app-e +/func info extenders)))))
+  
+    (: parent (-> Sig Sig node/formula))
     (define (parent sig1 sig2)
       ; loc of sig2?
       (let ([loc (nodeinfo-loc (node-info sig2))])
         (in/func #:info (nodeinfo loc 'checklangNoCheck #f) sig2 sig1)))
 
+    (: extends-constraints (Listof node/formula))
     (define extends-constraints 
       (if (and (Sig-abstract sig) (cons? (get-children run-spec sig)))
           (list (abstract sig children-rels))
@@ -801,21 +842,26 @@ Please declare a sufficient scope for ~a."
 
     ; sig1 and sig2 extend sig => (no (& sig1 sig2))
     ; (unless both are #:one, in which case exact-bounds should enforce this constraint)
+    (: disjoin-pair (-> Sig Sig node/formula))
     (define (disjoin-pair sig1 sig2)
       (let* ([loc (nodeinfo-loc (node-info sig2))]
              [info (nodeinfo loc 'checklangNoCheck #f)])
         (cond [(and (Sig-one sig1) (Sig-one sig2)) true-formula]
               [else (no/func #:info info (&/func #:info info sig1 sig2))])))
+
+    (: disjoin-list (-> Sig (Listof Sig) (Listof node/formula)))
     (define (disjoin-list a-sig a-list)
       (map (curry disjoin-pair a-sig) a-list))
+
+    (: disjoin (-> (Listof Sig) (Listof node/formula)))
     (define (disjoin a-list)
       (if (empty? a-list)
           empty
           (append (disjoin-list (first a-list) (rest a-list))
                   (disjoin (rest a-list)))))
     (define disjoint-constraints (disjoin children-rels))
-
-    (append extends-constraints disjoint-constraints)))
+    (append extends-constraints disjoint-constraints) ;; TODO extra nesting somewhere?
+    ))
 
   ; combine all constraints together
   (apply append sig-constraints))
