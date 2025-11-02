@@ -1,8 +1,9 @@
-#lang racket/base
+#lang racket/base ;/optional
 
 (require forge/sigs-structs)
 (require forge/breaks)
 (require forge/lang/ast)
+;(require forge/types/ast-adapter)
 (require forge/lang/bounds)
 (require forge/shared
          (prefix-in tree: forge/utils/lazy-tree)
@@ -99,22 +100,15 @@
 
   (print-version-number)
 
-  ; Do relation breaks from declarations
-  (define relation-constraints 
-    (apply append
-           (for/list ([relation (get-relations run-spec)])
-             (match (Relation-breaker relation)
-               [#f (list)]
-               ['default (list)]
-               ['pfunc (let* ([rel relation]
-                              [sigs (map (lambda (sig-thunk) (sig-thunk))
-                                         (Relation-sigs-thunks relation))]
-                              [left-sig (get-sig run-spec (first sigs))]
-                              [sig-rel left-sig])
-                         (list (all ([s sig-rel])
-                                 (lone (join s rel)))))]
-               [other (break relation other)
-                      (list)]))))
+  ; Set up breakers on each relation. These may arise from declaration multiplicities like "lone" 
+  ; or from partial-instance annotations like "is linear". 
+  ; ** THIS MUST BE DONE BEFORE COMPUTING BOUNDS! **
+  (for ([relation (get-relations run-spec)])
+    ;(printf "applying constraints for ~a; ~a ~n" relation (Relation-breaker relation))
+      (match (Relation-breaker relation)
+        ; Built-ins like int successor ("succ") can have #f as their break.
+        [#f (void)]
+        [other (break relation other)]))
 
   ; Produce bounds from scopes
   (define-values (sig-to-bound relation-to-bound all-atoms)
@@ -145,6 +139,7 @@
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
   
   ;(printf "after-- total-bounds : ~a~n" total-bounds)
+  ; Because the breaker module is stateful, we need to clear out that state for the next run.
   (clear-breaker-state)
 
   (define sigs-and-rels
@@ -237,7 +232,6 @@
     (append (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
-            relation-constraints
             break-preds))
   (define conjuncts-implicit-constraints
     (apply append (map maybe-and->list raw-implicit-constraints)))
