@@ -47,7 +47,13 @@
     [kodkod-currents : Any] ; Kodkod-current?]
     [kodkod-bounds : (Listof Any)] ;(listof any/c)]
     [last-sterling-instance : Any ])] ; (box/c (or/c Sat? Unsat? Unknown? false/c))])]
-
+  [#:struct Range (
+    [lower : (U Integer False)]
+    [upper : (U Integer False)])]
+  [#:struct Scope (
+    [default-scope : (U Range False)]
+    [bitwidth : (U Integer False)]
+    [sig-scopes : (HashTable Symbol Range)])]
   [get-relations (-> (U Run State) (Listof node/expr/relation))]
   [get-sigs (-> (U Run State) (U False node/expr/relation) (Listof node/expr/relation))]
   [get-option (-> (U Run State) Symbol Any) ]
