@@ -9,9 +9,13 @@
         (struct-out nodeinfo)
         (struct-out node/formula)
         (struct-out node/expr/quantifier-var)
+        (struct-out node/int) 
+        (struct-out node/int/constant)
         relation-arity just-location-info quantified-formula multiplicity-formula empty-nodeinfo
         join/func one/func build-box-join univ raise-forge-error &&/func &/func ||/func +/func 
-        -/func =/func */func iden ^/func set/func
+        -/func =/func */func iden ^/func set/func relation-name always/func maybe-and->list
+        int=/func int</func int/func card/func in/func true-formula false-formula no/func
+        lone/func ->/func
         Decl Decls)
 
 (define-type Decl (Pairof node/expr/quantifier-var node/expr))
@@ -20,6 +24,8 @@
 (require/typed forge/lang/ast 
   [#:struct nodeinfo ([loc : srcloc] [lang : Symbol] [annotations : (Option (Listof Any))])]
   [#:struct node ([info : nodeinfo])]
+  [#:struct (node/int node) ()]
+  [#:struct (node/int/constant node/int) ([value : Integer])]
   [#:struct (node/expr node) ([arity : Number])]
   [#:struct (node/breaking node) ()]
   [#:struct (node/breaking/break node/breaking) ([break : Symbol])]
@@ -36,6 +42,7 @@
 
   [raise-forge-error (->* () (#:msg String #:context Any #:raise? Boolean) Void)]
   [relation-arity (-> Any Integer)]
+  [relation-name (-> node/expr/relation String)]
   [just-location-info (-> (U srcloc #f) nodeinfo)]
   [quantified-formula (-> nodeinfo Symbol (Listof Decl) node/formula node/formula)]
   [multiplicity-formula (-> nodeinfo Symbol node/expr node/formula)]
@@ -43,21 +50,31 @@
   ;; ?? which of these is correct?
   [join/func (->* (node/expr node/expr) (#:info nodeinfo) node/expr)]
   [one/func (->* (node/expr) (#:info nodeinfo) node/formula)]
+  [lone/func (->* (node/expr) (#:info nodeinfo) node/formula)]
+  [no/func (->* (node/expr) (#:info nodeinfo) node/formula)]
   [&&/func (->* (node/formula) (#:info nodeinfo) #:rest node/formula node/formula)]
   [||/func (->* (node/formula) (#:info nodeinfo) #:rest node/formula node/formula)]
   [&/func  (->* (node/expr)    (#:info nodeinfo) #:rest node/expr    node/expr)]
+  [->/func (->* (node/expr)   (#:info nodeinfo) #:rest node/expr    node/expr)]
   [+/func  (->* (node/expr)    (#:info nodeinfo) #:rest node/expr    node/expr)]
   [-/func (->* (node/expr node/expr) (#:info nodeinfo) node/expr)]
   [=/func (->* (node/expr node/expr) (#:info nodeinfo) node/formula)]
+  [in/func (->* (node/expr node/expr) (#:info nodeinfo) node/formula)]
   [*/func (->* (node/expr) (#:info nodeinfo) node/expr)]
   [^/func (->* (node/expr) (#:info nodeinfo) node/expr)]
   [set/func (->* ((Listof Decl) node/formula) (#:info nodeinfo) node/expr)]
+  [always/func (->* (node/formula) (#:info nodeinfo) node/formula)]
+  [int=/func (->* (node/int node/int) (#:info nodeinfo) node/formula)]
+  [int</func (->* (node/int node/int) (#:info nodeinfo) node/formula)]
+  [int/func (->* (Integer) (#:info nodeinfo) node/int/constant)]
+  [card/func (->* (node/expr) (#:info nodeinfo) node/int/constant)]
   [build-box-join (-> node/expr (Listof node/expr) node/expr)]
+  [maybe-and->list (-> node/formula -> (Listof node/formula))]
   [univ node/expr]
   [iden node/expr]
   ; Don't export these as-is. Potential conflict with existing Racket identifiers.
-;   [true node/formula]
-;   [false node/formula]  
+   [(true true-formula)   node/formula]
+   [(false false-formula) node/formula]  
   )
 
 (define-type (ASTConstructor PT RT) (->* (PT) (#:info nodeinfo) #:rest PT RT))

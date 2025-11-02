@@ -1,9 +1,37 @@
-#lang racket/base ;/optional
+#lang typed/racket/base/optional
 
 (require forge/sigs-structs)
+
+(require/typed forge/sigs-structs
+  [#:struct State (
+    [sigs : (HashTable Symbol node/expr/relation)] ;(hash/c symbol? Sig?)]
+    [sig-order : (Listof Symbol)] ;(listof symbol?)]
+    [relations : (HashTable Symbol node/expr/relation)] ;(hash/c symbol? Relation?)]
+    [relation-order : (Listof Symbol)]
+    [pred-map : (HashTable Symbol node/formula)]
+    ;(hash/c symbol? (or/c (unconstrained-domain-> node/formula?)
+    ;                                node/formula?))]
+    [fun-map : (HashTable Symbol Any)] ; (hash/c symbol? (unconstrained-domain-> node?))]
+    [const-map : (HashTable Symbol node)]
+    [inst-map : (HashTable Symbol Any)] ; (hash/c symbol? Inst?)]
+    [options : Any] ; Options?]
+    [runmap : (HashTable Symbol Any)])]
+  [#:struct Run (
+            [name : Symbol]
+            [command : Syntax]
+            [run-spec : Any] ;Run-spec?]
+            [result : Any] ;tree:node?]
+            [server-ports : Any] ;Server-ports?]
+            [atoms : (Listof FAtom)] ; (listof (or/c symbol? number?))]
+            [kodkod-currents : Any] ; Kodkod-current?]
+            [kodkod-bounds : (Listof Any)] ;(listof any/c)]
+            [last-sterling-instance : Any ])] ; (box/c (or/c Sat? Unsat? Unknown? false/c))])]
+  [get-relations (-> (U Run State) (Listof node/expr/relation))]
+  [get-sigs (-> (U Run State) (U False node/expr/relation) (Listof node/expr/relation))])
+
 (require forge/breaks)
-(require forge/lang/ast)
-;(require forge/types/ast-adapter)
+;(require forge/lang/ast)
+(require forge/types/ast-adapter)
 (require forge/lang/bounds)
 (require forge/shared
          (prefix-in tree: forge/utils/lazy-tree)
@@ -87,6 +115,7 @@
   (do-time "send-to-solver")
   
   ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
+  (: raise-run-error (-> String (U node False) Void))
   (define (raise-run-error message [node #f])
     (if node
         (raise-forge-error #:msg message
@@ -223,7 +252,7 @@
 
   (define (maybe-alwaysify fmla)
     (if (equal? 'temporal (get-option run-spec 'problem_type))
-        (always/info (node-info fmla) fmla)
+        (always/func #:info (node-info fmla) fmla)
         fmla))
   
   ; If in temporal mode, need to always-ify the auto-generated constraints but not the
@@ -680,9 +709,9 @@ Please declare a sufficient scope for ~a."
                                                         "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
                                          sig int-lower (sub1 max-int))
                                  (get-blame-node run-spec sig)))
-              (list (||/info info
-                             (int</info info (int int-lower) (card sig))
-                             (int=/info info (int int-lower) (card sig)))))
+              (list (||/func #:info info
+                             (int</func #:info info (int/func #:info info int-lower) (card/func #:info info sig))
+                             (int=/func #:info info (int/func #:info info int-lower) (card/func #:info info sig)))))
             (list))
         (if (@and int-upper (@< int-upper bound-upper-size))
             (let ()
@@ -691,9 +720,9 @@ Please declare a sufficient scope for ~a."
                                                         "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                          sig int-upper (sub1 max-int))
                                  (get-blame-node run-spec sig)))
-              (list (||/info info
-                             (int</info info (card sig) (int int-upper))
-                             (int=/info info (card sig) (int int-upper)))))
+              (list (||/func #:info info
+                             (int</func #:info info (card/func #:info info sig) (int/func #:info info int-upper))
+                             (int=/func #:info info (card/func #:info info sig) (int/func #:info info int-upper)))))
             (list))))))
 
 
@@ -710,7 +739,7 @@ Please declare a sufficient scope for ~a."
 ; -                    else it must contain the sum of its extenders
 ; - all extenders are pair-wise disjoint.
 (define (get-extender-preds run-spec)
-  (define sig-constraints (for/list ([sig (get-sigs run-spec)])
+  (define sig-constraints (for/list : (Listof node/formula) ([sig (get-sigs run-spec)])
     ; get children information
     (define children-rels (get-children run-spec sig))
 
@@ -721,12 +750,12 @@ Please declare a sufficient scope for ~a."
       ; TODO : location not correct
       (let ([loc (nodeinfo-loc (node-info sig))])
         (if (@= (length extenders) 1)
-            (=/info (nodeinfo loc 'checklangNoCheck #f) sig (car extenders))
-            (=/info (nodeinfo loc 'checklangNoCheck #f) sig (+ extenders)))))
+            (=/func #:info (nodeinfo loc 'checklangNoCheck #f) sig (car extenders))
+            (=/func #:info (nodeinfo loc 'checklangNoCheck #f) sig (+ extenders)))))
     (define (parent sig1 sig2)
       ; loc of sig2?
       (let ([loc (nodeinfo-loc (node-info sig2))])
-        (in/info (nodeinfo loc 'checklangNoCheck #f) sig2 sig1)))
+        (in/func #:info (nodeinfo loc 'checklangNoCheck #f) sig2 sig1)))
 
     (define extends-constraints 
       (if (and (Sig-abstract sig) (cons? (get-children run-spec sig)))
@@ -738,8 +767,8 @@ Please declare a sufficient scope for ~a."
     (define (disjoin-pair sig1 sig2)
       (let* ([loc (nodeinfo-loc (node-info sig2))]
              [info (nodeinfo loc 'checklangNoCheck #f)])
-        (cond [(and (Sig-one sig1) (Sig-one sig2)) true]
-              [else (no/info info (&/info info sig1 sig2))])))
+        (cond [(and (Sig-one sig1) (Sig-one sig2)) true-formula]
+              [else (no/func #:info info (&/func #:info info sig1 sig2))])))
     (define (disjoin-list a-sig a-list)
       (map (curry disjoin-pair a-sig) a-list))
     (define (disjoin a-list)
@@ -758,10 +787,10 @@ Please declare a sufficient scope for ~a."
 ; Creates assertions for each Relation to ensure that it does not
 ; contain any atoms which don't populate their Sig.
 (define (get-relation-preds run-spec)
-  (for/list ([relation (get-relations run-spec)])
+  (for/list : (Listof node/formula) ([relation (get-relations run-spec)])
     (define sig-rels (get-sigs run-spec relation))
     (define info (nodeinfo (nodeinfo-loc (node-info relation)) 'checklangNoCheck #f))
-    (in/info info relation (->/info info sig-rels))))
+    (in/func #:info info relation (->/func #:info info sig-rels))))
 
 #|
 
