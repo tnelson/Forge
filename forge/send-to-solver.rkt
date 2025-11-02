@@ -54,11 +54,12 @@
     [default-scope : (U Range False)]
     [bitwidth : (U Integer False)]
     [sig-scopes : (HashTable Symbol Range)])]
-  [get-relations (-> (U Run State) (Listof node/expr/relation))]
-  [get-sigs (-> (U Run State) (U False node/expr/relation) (Listof node/expr/relation))]
-  [get-option (-> (U Run State) Symbol Any) ]
+  [get-relations (-> (U Run State Run-spec) (Listof node/expr/relation))]
+  [get-sigs (->* ((U Run State Run-spec)) ((U False node/expr/relation)) (Listof node/expr/relation))]
+  [get-option (-> (U Run State Run-spec) Symbol Any) ]
+  [get-state (-> (U Run Run-spec State) State)]
   [get-bitwidth (-> (U Run-spec Scope) Integer)]
-  [get-children (-> (U Run State) node/expr/relation)]
+  [get-children (-> (U Run State) node/expr/relation node/expr/relation)]
 )
 
 (require forge/breaks)
@@ -827,7 +828,7 @@ Please declare a sufficient scope for ~a."
   (for/list : (Listof node/formula) ([relation (get-relations run-spec)])
     (define sig-rels (get-sigs run-spec relation))
     (define info (nodeinfo (nodeinfo-loc (node-info relation)) 'checklangNoCheck #f))
-    (in/func #:info info relation (->/func #:info info sig-rels))))
+    (in/func #:info info relation (app-e ->/func info sig-rels))))
 
 #|
 

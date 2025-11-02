@@ -83,10 +83,16 @@
 (require/typed typed/racket 
   [keyword-apply   (All (PT RT) (-> (ASTConstructor PT RT) (Listof '#:info) (Listof nodeinfo) (Listof PT) RT))])
 
-(provide app-f)
+(provide app-f app-e app-i)
 
 (: app-f (-> (ASTConstructor node/formula node/formula) nodeinfo (Listof node/formula) node/formula))
 (define (app-f func info nodes)
+  (keyword-apply func '(#:info) (list info) nodes))
+(: app-e (-> (ASTConstructor node/expr node/expr) nodeinfo (Listof node/expr) node/expr))
+(define (app-e func info nodes)
+  (keyword-apply func '(#:info) (list info) nodes))
+(: app-i (-> (ASTConstructor node/int node/int) nodeinfo (Listof node/int) node/int))
+(define (app-i func info nodes)
   (keyword-apply func '(#:info) (list info) nodes))
 
 ; (&&/func #:info empty-nodeinfo true false true)
