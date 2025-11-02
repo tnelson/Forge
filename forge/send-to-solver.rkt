@@ -2,6 +2,8 @@
 
 (require forge/sigs-structs)
 
+(define-type PiecewiseBounds (HashTable node/expr/relation PiecewiseBound))
+
 (require/typed forge/sigs-structs
   [#:struct Run-spec (
     [state : State]  ; Model state at the point of this run 
@@ -20,6 +22,10 @@
     ; original AST nodes, for improving errors, indexed by relation
     [orig-nodes : (HashTable node/expr/relation (Listof node))] ; (hash/c node/expr/relation? (listof node?))]
   )]
+  [#:struct PiecewiseBound (
+    [tuples : (Listof Tuple)]                  ; first element is the indexed atom in the original piecewise bounds
+    [atoms : (Listof FAtom)]                   ; which atoms have been bound? (distinguish "given none" from "none given")
+    [operator : (U '= 'in 'ni)])]               ; which operator mode?
   [#:struct State (
     [sigs : (HashTable Symbol node/expr/relation)] ;(hash/c symbol? Sig?)]
     [sig-order : (Listof Symbol)] ;(listof symbol?)]
@@ -45,7 +51,7 @@
   [get-relations (-> (U Run State) (Listof node/expr/relation))]
   [get-sigs (-> (U Run State) (U False node/expr/relation) (Listof node/expr/relation))]
   [get-option (-> (U Run State) Symbol Any) ]
-  [get-bitwidth (-> (U Run-spec Scope) Int)]
+  [get-bitwidth (-> (U Run-spec Scope) Integer)]
   [get-children (-> (U Run State) node/expr/relation)]
 )
 
@@ -603,6 +609,7 @@ Please declare a sufficient scope for ~a."
 ; Given a Run-spec, the atoms assigned to each sig, the atoms assigned to each name,
 ; and the starting relation name, assigns names to each relation
 ; and minimum and maximum sets of atoms for each relation.
+(: get-relation-bounds (-> Run-spec (HashTable Sig bound) Any (HashTable Symbol bound)))
 (define (get-relation-bounds run-spec sig-to-bound raise-run-error)
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
   (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
@@ -760,6 +767,7 @@ Please declare a sufficient scope for ~a."
 ; - if it is abstract, then it must equal the sum of its extenders
 ; -                    else it must contain the sum of its extenders
 ; - all extenders are pair-wise disjoint.
+(: get-extender-preds (-> Run-spec (Listof node/formula)))
 (define (get-extender-preds run-spec)
   (define sig-constraints (for/list : (Listof node/formula) ([sig (get-sigs run-spec)])
     ; get children information
@@ -808,6 +816,7 @@ Please declare a sufficient scope for ~a."
 ; get-relation-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Relation to ensure that it does not
 ; contain any atoms which don't populate their Sig.
+(: get-relation-preds (-> Run-spec (Listof node/formula)))
 (define (get-relation-preds run-spec)
   (for/list : (Listof node/formula) ([relation (get-relations run-spec)])
     (define sig-rels (get-sigs run-spec relation))
