@@ -121,7 +121,7 @@
   [(start-server smtlib:start-server) (-> Symbol Symbol 
   (Values Output-Port Input-Port Input-Port (-> Void) (-> Boolean)))])
 (require/typed forge/pardinus-cli/server/kks
-  [(start-server pardinus:start-server ) (-> Symbol Symbol Path-String
+  [(start-server pardinus:start-server ) (-> Symbol Symbol (U False Path-String)
   (Values Output-Port Input-Port Input-Port  (-> Void) (-> Boolean)))])
 
 ; (stdin stdout stderr shutdown is-running?)
@@ -313,13 +313,14 @@
       [else (raise (format "Invalid backend: ~a" backend))]))
 
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
-  (define solverspec (cond [(symbol? (get-option run-spec 'solver))
-                            (get-option run-spec 'solver)]
-                           [else (string-append "\"" (get-option run-spec 'solver) "\"")]))
-  (unless (or (symbol? (get-option run-spec 'solver))
-              (file-exists? (get-option run-spec 'solver)))
-    (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist." 
-                              (get-option run-spec 'solver))))
+  (define solver-option (get-option run-spec 'solver))
+  (define solverspec (cond [(symbol? solver-option)
+                            solver-option]
+                           [else (string-append "\"" solver-option "\"")]))
+  (unless (symbol? solver-option)
+    (unless (file-exists? solver-option)
+      (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist." 
+                                solver-option))))
   
   ; Print configure and declare univ size
   ; Note that target mode is passed separately, nearer to the (solve) invocation
