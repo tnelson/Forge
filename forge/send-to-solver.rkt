@@ -220,19 +220,21 @@
   (define-values (total-bounds break-preds)
     (let* ([sigs (get-sigs run-spec)]
            [sig-names : (Listof Symbol) (map Sig-name sigs)]
-           [sig-bounds (map (curry hash-ref sig-to-bound) sig-names)]
-           [relation-bounds (map (compose (curry hash-ref relation-to-bound )
+           [sig-bounds (map (lambda (sn) (hash-ref sig-to-bound sn)) sig-names)]
+           [relation-bounds (map (compose (lambda (x) (hash-ref relation-to-bound x))
                                           Relation-name)
                                  (get-relations run-spec))]
            [total-bounds (append sig-bounds relation-bounds)]
            [sig-rels (filter (lambda (sig) (not (equal? (Sig-name sig) 'Int))) sigs)]
-           [upper-bounds (for/hash ([sig sigs]) 
+           [upper-bounds (for/hash : (HashTable Sig (Listof FAtom)) ([sig sigs]) 
                            (values sig
                                    (map car (bound-upper (hash-ref sig-to-bound (Sig-name sig))))))]
-           [relations-store (for/hash ([relation (get-relations run-spec)]
+
+           [relations-store (for/hash : (HashTable Relation (Listof Sig)) ([relation (get-relations run-spec)]
                                        #:unless (equal? (Relation-name relation) 'succ))
                               (values relation (get-sigs run-spec relation)))]
-           [extensions-store (for/hash ([sig sigs]
+
+           [extensions-store (for/hash : (HashTable Sig Sig) ([sig sigs]
                                         #:when (Sig-extends sig))
                                (values sig (get-sig run-spec (Sig-extends sig))))])
       ;(printf "args-- total-bounds : ~a~n args-- sig-rels : ~a~n args-- upper-bounds : ~a~n" total-bounds sig-rels upper-bounds )
