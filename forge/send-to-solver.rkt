@@ -1,10 +1,12 @@
 #lang typed/racket/base/optional
 
-;(require forge/sigs-structs)
 (require forge/types/ast-adapter)
 
-(define-type PiecewiseBounds (HashTable node/expr/relation PiecewiseBound))
+;; TODO TYPES:
+;   Notice that we need to instantiate polymorphic functions often. E.g., 
+; (inst map FAtom Tuple) <-- to mean we're mapping tuples to atoms
 
+(define-type PiecewiseBounds (HashTable node/expr/relation PiecewiseBound))
 
 ;; TYPES TODO: the contracts are more refined. should we combine the two?
 (require/typed forge/sigs-structs
@@ -14,8 +16,8 @@
     [int : Integer])]
   [#:struct (Relation node/expr/relation) (
     [name : Symbol] ; symbol?
-    [sigs-thunks : (Listof (-> Sig))] ; (listof (-> Sig?))
-    [breaker : (U node/breaking/break False)]; (or/c node/breaking/break? #f)
+    [sigs-thunks : (Listof (-> Sig))]
+    [breaker : (U node/breaking/break False)]
   )]
   [#:struct Server-ports (
     [stdin : Any]
@@ -33,45 +35,45 @@
   [#:struct Run-spec (
     [state : State]  ; Model state at the point of this run 
     [preds : (Listof node/formula)] ; predicates to run, conjoined
-    [scope : Any] ; Scope?]  ; Numeric scope(s)
-    [bounds : Bound] ; Bound?] ; set-based upper and lower bounds
-    [target : Any] ;(or/c Target? #f)] ; target-oriented model finding
+    [scope : Scope] ; Numeric scope(s)
+    [bounds : Bound] ; set-based upper and lower bounds
+    [target : Any] ;(or/c Target? #f) ; target-oriented model finding
   )]
   [#:struct Bound (
     ; pbindings: partial (but complete) bindings for a given relation
-    [pbindings : (HashTable node/expr/relation sbound)] ;(hash/c node/expr/relation? sbound?)]
+    [pbindings : (HashTable node/expr/relation sbound)] 
     ; tbindings: total (and complete) bindings for a given relation; also known as an exact bound.
-    [tbindings : (HashTable node/expr/relation Any)] ; (hash/c node/expr/relation? any/c)]
+    [tbindings : (HashTable node/expr/relation Any)] 
     ; incomplete bindings for a given relation, indexed by first column
     [piecewise : PiecewiseBounds]
     ; original AST nodes, for improving errors, indexed by relation
-    [orig-nodes : (HashTable node/expr/relation (Listof node))] ; (hash/c node/expr/relation? (listof node?))]
+    [orig-nodes : (HashTable node/expr/relation (Listof node))] 
   )]
   [#:struct PiecewiseBound (
     [tuples : (Listof Tuple)]                  ; first element is the indexed atom in the original piecewise bounds
     [atoms : (Listof FAtom)]                   ; which atoms have been bound? (distinguish "given none" from "none given")
     [operator : (U '= 'in 'ni)])]               ; which operator mode?
   [#:struct State (
-    [sigs : (HashTable Symbol node/expr/relation)] ;(hash/c symbol? Sig?)]
-    [sig-order : (Listof Symbol)] ;(listof symbol?)]
-    [relations : (HashTable Symbol node/expr/relation)] ;(hash/c symbol? Relation?)]
+    [sigs : (HashTable Symbol Sig)] 
+    [sig-order : (Listof Symbol)] 
+    [relations : (HashTable Symbol Relation)] 
     [relation-order : (Listof Symbol)]
-    [pred-map : (HashTable Symbol node/formula)] ;(hash/c symbol? (or/c (unconstrained-domain-> node/formula?) node/formula?))]
-    [fun-map : (HashTable Symbol Any)] ; (hash/c symbol? (unconstrained-domain-> node?))]
+    [pred-map : (HashTable Symbol node/formula)] ;(hash/c symbol? (or/c (unconstrained-domain-> node/formula?) node/formula?))
+    [fun-map : (HashTable Symbol node)] ; (hash/c symbol? (unconstrained-domain-> node?))
     [const-map : (HashTable Symbol node)]
     [inst-map : (HashTable Symbol Any)] ; (hash/c symbol? Inst?)]
     [options : Any] ; Options?]
-    [runmap : (HashTable Symbol Any)])]
+    [runmap : (HashTable Symbol Run)])]
   [#:struct Run (
     [name : Symbol]
     [command : Syntax]
-    [run-spec : Any] ;Run-spec?]
+    [run-spec : Run-spec] 
     [result : Any] ;tree:node?]
     [server-ports : Any] ;Server-ports?]
-    [atoms : (Listof FAtom)] ; (listof (or/c symbol? number?))]
+    [atoms : (Listof FAtom)] 
     [kodkod-currents : Any] ; Kodkod-current?]
-    [kodkod-bounds : (Listof Any)] ;(listof any/c)]
-    [last-sterling-instance : Any ])] ; (box/c (or/c Sat? Unsat? Unknown? false/c))])]
+    [kodkod-bounds : (Listof Any)]
+    [last-sterling-instance : Any ])] ; (box/c (or/c Sat? Unsat? Unknown? false/c))
   [#:struct Range (
     [lower : (U Integer False)]
     [upper : (U Integer False)])]
@@ -86,12 +88,12 @@
   [get-state (-> (U Run Run-spec State) State)]
   [get-bitwidth (-> (U Run-spec Scope) Integer)]
   [get-children (-> (U Run State Run-spec) Sig (Listof Sig))]
-  [DEFAULT-SIG-SCOPE Integer]
+  [DEFAULT-SIG-SCOPE Range]
   [get-top-level-sigs (-> (U Run State Run-spec) (Listof Sig))]
   ;; TODO TYPES: these are macros, but they has no parameters, so they are being immediately 
   ;; expanded here to the relations they denote. 
-  [Int node/expr/relation]
-  [succ node/expr/relation]
+  [Int Sig]
+  [succ Relation]
 )
 
 (require forge/breaks)
@@ -103,13 +105,20 @@
 (require (prefix-in @ (only-in racket/base max + -))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
-                         remove-duplicates subset? cartesian-product match-define cons? set-subtract)
+                         remove-duplicates subset? cartesian-product match-define cons? set-subtract
+                         build-list)
           racket/hash)
 (require (only-in syntax/srcloc build-source-location-syntax))
 
 ; Solver-specific backend initializer functions
-(require (prefix-in pardinus: (only-in forge/pardinus-cli/server/kks start-server)))
-(require (prefix-in smtlib: (only-in forge/solver-specific/cvc5-server start-server)))
+(require/typed forge/solver-specific/cvc5-server
+  [(start-server smtlib:start-server) (-> Symbol Symbol 
+  (Values Output-Port Input-Port Input-Port (-> Void) (-> Boolean)))])
+(require/typed forge/pardinus-cli/server/kks
+  [(start-server pardinus:start-server ) (-> Symbol Symbol Path-String
+  (Values Output-Port Input-Port Input-Port  (-> Void) (-> Boolean)))])
+
+; (stdin stdout stderr shutdown is-running?)
 
 ; Separate solver-specific translation for each solver backend
 (require (only-in forge/solver-specific/pardinus
@@ -170,7 +179,15 @@
             "https://report.forge-fm.org")))
 
 
-; send-to-solver :: Run-spec -> Stream<model>, List<Symbol>
+; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
+(: raise-run-error (->* (String Syntax) ( (U False node) ) Void))
+(define (raise-run-error message run-command [node #f])
+  (if node
+      (raise-forge-error #:msg message
+                          #:context (nodeinfo-loc (node-info node)))
+      (raise-forge-error #:msg message
+                          #:context run-command)))
+
 ; Given a Run-spec structure, processes the data and communicates it to KodKod-CLI;
 ; then produces a stream to produce instances generated by KodKod, 
 ; along with a list of all of the atom names for sig atoms.
@@ -178,46 +195,36 @@
 (define (send-to-solver run-spec run-command #:run-name [run-name (gensym)])
   (do-time "send-to-solver")
   
-  ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
-  (: raise-run-error (-> String (U node False) Void))
-  (define (raise-run-error message [node #f])
-    (if node
-        (raise-forge-error #:msg message
-                           #:context (nodeinfo-loc (node-info node)))
-        (raise-forge-error #:msg message
-                           #:context run-command)))
-  
   (when (member run-name (unbox run-name-history))
-    (raise-run-error (format "Run name ~a was re-used; please use a different run name.~n" run-name)))
+    (raise-run-error (format "Run name ~a was re-used; please use a different run name.~n" run-name) run-command))
   (set-box! run-name-history (cons run-name (unbox run-name-history)))
 
   (print-version-number)
 
   ; Set up breakers on each relation. These may arise from declaration multiplicities like "lone" 
   ; or from partial-instance annotations like "is linear". 
+  ; TODO TYPES: really? what about relations declared pfunc / is linear together?
   ; ** THIS MUST BE DONE BEFORE COMPUTING BOUNDS! **
   (for ([relation (get-relations run-spec)])
     ;(printf "applying constraints for ~a; ~a ~n" relation (Relation-breaker relation))
-      (match (Relation-breaker relation)
-        ; Built-ins like int successor ("succ") can have #f as their break.
-        [#f (void)]
-        [other (break relation other)]))
+      ; Built-ins like int successor ("succ") can have #f as their break.
+      (define the-breaker (Relation-breaker relation))
+      (when the-breaker
+        (break-rel relation (list the-breaker))))
 
   ; Produce bounds from scopes
   (define-values (sig-to-bound relation-to-bound all-atoms)
-    (get-bounds run-spec raise-run-error))
+    (get-bounds run-spec run-command))
   
   ; Get new bounds and constraints from breaks
   (define-values (total-bounds break-preds)
-    (let* ([sig-bounds (map (compose (curry hash-ref sig-to-bound )
-                                     Sig-name)
-                            (get-sigs run-spec))]
+    (let* ([sigs (get-sigs run-spec)]
+           [sig-names : (Listof Symbol) (map Sig-name sigs)]
+           [sig-bounds (map (curry hash-ref sig-to-bound) sig-names)]
            [relation-bounds (map (compose (curry hash-ref relation-to-bound )
                                           Relation-name)
                                  (get-relations run-spec))]
            [total-bounds (append sig-bounds relation-bounds)]
-
-           [sigs (get-sigs run-spec)]
            [sig-rels (filter (lambda (sig) (not (equal? (Sig-name sig) 'Int))) sigs)]
            [upper-bounds (for/hash ([sig sigs]) 
                            (values sig
@@ -323,7 +330,7 @@
   ; If in temporal mode, need to always-ify the auto-generated constraints but not the
   ;   predicates that come from users
   (define raw-implicit-constraints
-    (append (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error)
+    (append (get-sig-size-preds run-spec run-command sig-to-bound #:error raise-run-error)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
             break-preds))
@@ -379,23 +386,29 @@
           ; This becomes the "kodkod-bounds" field of the Run that is eventually created.
           total-bounds))
 
-(: get-bounds (-> Run-spec Any (Values (HashTable Symbol bound) 
-                               (HashTable Symbol bound) 
-                               (Listof FAtom))))
-(define (get-bounds run-spec raise-run-error)
+(: int-range (-> Integer Integer (Listof Integer)))
+(define (int-range start excluded-end)
+  (if (< excluded-end start) 
+   empty 
+   (build-list (@- excluded-end start) (lambda ([idx : Integer]) (@+ idx start)))))
+
+(: get-bounds (-> Run-spec Syntax
+                  (Values (HashTable Symbol bound) (HashTable Symbol bound) (Listof FAtom))))
+(define (get-bounds run-spec run-command)
   ; Send user defined partial bindings to breaks
   (map instance (hash-values (Bound-pbindings (Run-spec-bounds run-spec))))
   
   ; Get KodKod names, min sets, and max sets of Sigs and Relations
   (define-values (sig-to-bound all-atoms) ; Map<Symbol, bound>, List<Symbol>
-    (get-sig-bounds run-spec raise-run-error))
+    (get-sig-bounds run-spec run-command))
 
   (define relation-to-bound ; Map<Symbol, bound>
-    (get-relation-bounds run-spec sig-to-bound raise-run-error))
+    (get-relation-bounds run-spec run-command sig-to-bound))
 
   (values sig-to-bound relation-to-bound all-atoms))
 
 ; Produce a single AST node to blame for a given relation's bound, or #f if none available
+(: get-blame-node (-> Run-spec node (U node False)))
 (define (get-blame-node run-spec the-rel)
   (cond [(or (not (node/expr/relation? the-rel))
              (not (Run-spec? run-spec)))
@@ -407,33 +420,44 @@
 ; get-sig-bounds :: Run-spec -> Map<Symbol, bound>, List<Symbol>
 ; Given a Run-spec, assigns names to each sig, assigns minimum and maximum 
 ; sets of atoms for each, and find the total number of atoms needed (including ints).
-(: get-sig-bounds (-> Run-spec Any (Values (HashTable Symbol bound) (Listof FAtom))))
-(define (get-sig-bounds run-spec raise-run-error)
+(: get-sig-bounds (-> Run-spec Syntax (Values (HashTable Symbol bound) (Listof FAtom))))
+(define (get-sig-bounds run-spec run-command)
   ;;;;; Helpers for extracting declared relational bounds from the run-spec
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))  
-  (define (get-bound-lower sig)
+
+  (define (get-bound-lower [sig : Sig])
+    (: pbinding (U False sbound))
     (define pbinding (hash-ref pbindings sig #f))
     (and pbinding ;; !!!
-          (map car (set->list (sbound-lower pbinding)))))
-  (define (get-bound-upper sig)
+          ((inst map FAtom Tuple) car (set->list (sbound-lower pbinding)))))
+  
+  (define (get-bound-upper [sig : Sig])
+    (: pbinding (U False sbound))
     (define pbinding (hash-ref pbindings sig #f))
     (and pbinding
           (sbound-upper pbinding)
-          (map car (set->list (sbound-upper pbinding)))))
+          ((inst map FAtom Tuple) car (set->list (sbound-upper pbinding)))))
 
   ;;;;; Helpers for extracting declared numeric scopes from the run-spec
   (define scopes (Run-spec-scope run-spec))
+  (: get-scope-lower (-> Sig (U False Integer)))
   (define (get-scope-lower sig)
     (define scope (hash-ref (Scope-sig-scopes scopes) (Sig-name sig) #f))
     (and scope (Range-lower scope)))
+  
+  (: get-scope-upper (-> Sig (U False Integer)))
   (define (get-scope-upper sig)
     (define scope (hash-ref (Scope-sig-scopes scopes) (Sig-name sig) #f))
     (and scope (Range-upper scope)))
+  
+  (: get-scope-lower-default (-> Sig Integer))
   (define (get-scope-lower-default sig)
     (let ([actual (get-scope-lower sig)])
-      (or actual
-          (Range-lower (or (Scope-default-scope scopes)
-                           DEFAULT-SIG-SCOPE)))))
+      (cond [actual actual]
+            [(Scope-default-scope scopes) (Range-lower (Scope-default-scope scopes))]
+            [else (Range-lower DEFAULT-SIG-SCOPE)])))
+  
+  (: get-scope-upper-default (-> Sig Integer))
   (define (get-scope-upper-default sig)
     (let ([actual (get-scope-upper sig)])
       (or actual
@@ -443,16 +467,22 @@
 
 
   ; Map<Symbol, int>; keeps track of what the "next" generated atom ID should be
+  (: curr-atom-number (HashTable Symbol Integer))
   (define curr-atom-number (make-hash))
 
-  ; Sig -> Listof<Symbol>; the atom names declared by the user in a partial instance
+  ; The atom names declared by the user in a partial instance
+  (: all-user-atoms (Listof FAtom))
   (define all-user-atoms 
-    (apply append (for/list : (Listof FAtom) ([sig (get-sigs run-spec)]
+    (apply append (for/list : (Listof (Listof FAtom)) ([sig (get-sigs run-spec)]
                              #:when (hash-has-key? pbindings sig))
-      (define bound (hash-ref pbindings sig))
-      (map car (set->list (or (sbound-upper bound) (sbound-lower bound)))))))
+      (: the-bound sbound)
+      (define the-bound (hash-ref pbindings sig))
+      (: the-set (Setof Tuple))
+      (define the-set (or (sbound-upper the-bound) (sbound-lower the-bound)))
+      ((inst map FAtom Tuple) car (set->list the-set)))))
 
   ; Generate the "next" atom ID for a given sig, based on what's been generated/declared so far
+  (: get-next-name (-> Sig Symbol))
   (define (get-next-name sig)
     (define atom-number (add1 (hash-ref curr-atom-number (Sig-name sig) -1)))    
     (let loop ([atom-number atom-number])
@@ -463,16 +493,20 @@
           new-name)))
 
   ; Generate <num> new names for sig <sig>
+  (: generate-names (-> Sig Integer (Listof Symbol)))
   (define (generate-names sig num)
-    (map (thunk* (get-next-name sig)) (range num)))
+    (map (lambda (_) (get-next-name sig)) (range num)))
 
   ; Overall bounds data structures, will be modified as this procedure executes
+  (: lower-bounds (HashTable Sig (Listof FAtom)))
   (define lower-bounds (make-hash))
+  (: upper-bounds (HashTable Sig (Listof FAtom)))
   (define upper-bounds (make-hash))
 
   ; Helper to populate a sig's lower bound based on relational bound given
   ;   If any #:one children lack tuple-based lower bounds, there is a risk of inconsistency
   ;   since those children must receive a fresh atom name to denote (and for #:one sigs, LB=UB)
+  (: fill-lower-by-bound (-> Sig (Listof FAtom)))
   (define (fill-lower-by-bound sig)
     (define children-lowers
       (apply append (map fill-lower-by-bound (get-children run-spec sig))))
@@ -491,6 +525,7 @@
     true-lower)
 
   ; Helper to populate a lower bound based on a numeric scope given
+  (: fill-lower-by-scope (-> Sig (Listof FAtom)))
   (define (fill-lower-by-scope sig)
     (define children-lowers
       (apply append (map fill-lower-by-scope (get-children run-spec sig))))
@@ -505,6 +540,7 @@
     (hash-set! lower-bounds sig true-lower)
     true-lower)
 
+  (: fill-upper-with-bound (->* (Sig) ( (Listof Tuple) ) Void))
   (define (fill-upper-with-bound sig [parent-upper #f])
     (define curr-upper (get-bound-upper sig))
     (if curr-upper
@@ -513,7 +549,8 @@
           (map (lambda (child) (fill-upper-with-bound child curr-upper))
                (get-children run-spec sig)))
         (fill-upper-past-bound sig parent-upper)))
-
+  
+  (: fill-upper-past-bound (-> Sig (Listof Tuple) Void))
   (define (fill-upper-past-bound sig parent-upper)
     (when (get-bound-upper sig)
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
@@ -523,6 +560,7 @@
          (get-children run-spec sig)))
 
   ; For use in situations where there is no existing upper (relational) bound
+  (: fill-upper-no-bound (-> Sig (Listof FAtom) Void))
   (define (fill-upper-no-bound sig shared)
 
     ; If the sig has a relational upper bound, don't try to resolve the possible
@@ -530,7 +568,8 @@
     (when (get-bound-upper sig)
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
                        (get-blame-node run-spec sig)))
-    (define curr-lower (hash-ref lower-bounds sig))
+            
+    (define curr-lower (ann (hash-ref lower-bounds sig) (Listof Tuple)))
 
     ; Before doing anything else, confirm that if *no* scope was given for this sig,
     ; that the declared scopes for its children, combined, are not bigger than the default. 
@@ -588,6 +627,7 @@ Please declare a sufficient scope for ~a."
           ;        root (get-scope-upper root) (get-scope-upper-default root))
 
           ; Generate new names
+          (: shared (Listof Symbol))
           (define shared (generate-names root (@- upper-size lower-size)))
           ; This function is also responsible for validating totals (we didn't go over budget)
           (fill-upper-no-bound root shared)))
@@ -595,10 +635,11 @@ Please declare a sufficient scope for ~a."
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
   ; Set the bounds for the Int built-in sig
+  (: int-atoms (Listof Integer))
   (define int-atoms
     (let* ([bitwidth (get-bitwidth run-spec)]
-           [max-int (expt 2 (sub1 bitwidth))])
-      (range (@- max-int) max-int)))
+           [max-int (floor (expt 2 (sub1 bitwidth)))])
+      (int-range (@- max-int) max-int)))
   (hash-set! lower-bounds (get-sig run-spec Int) int-atoms)
   (hash-set! upper-bounds (get-sig run-spec Int) int-atoms)
 
@@ -611,6 +652,7 @@ Please declare a sufficient scope for ~a."
   (define all-atoms (append int-atoms sig-atoms))
 
   ; for ease of understanding, just sort by first atom
+  (: tuple<? (-> Tuple Tuple Boolean))
   (define (tuple<? t1 t2)
     (cond [(and (symbol? t1) (symbol? t2))
            (symbol<? (first t1) (first t2))]
@@ -620,10 +662,10 @@ Please declare a sufficient scope for ~a."
 
   ; Map<Symbol, bound>
   (define bounds-hash
-    (for/hash ([sig (get-sigs run-spec)])
+    (for/hash : (HashTable Symbol bound) ([sig (get-sigs run-spec)])
       (let* ([name (Sig-name sig)]
              [rel sig]
-             [lower (map list (hash-ref lower-bounds sig))]
+             [lower (map (inst list Tuple) (hash-ref lower-bounds sig))]
              ; Override generated upper bounds for #:one sigs, unless they extend Int
              ; (In this case, we cannot generate an arbitrary atom for them, since Int atoms
              ;  have semantic value -- i.e., they are not isomorphic.)
@@ -631,7 +673,7 @@ Please declare a sufficient scope for ~a."
               (cond [(and (Sig-one sig) (not (member sig int-extenders)))
                      lower]
                     [else
-                     (map list (hash-ref upper-bounds sig))])])
+                     (map (inst list Tuple) (hash-ref upper-bounds sig))])])
         ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                            
         (unless (subset? (list->set lower) (list->set upper))
           (raise-run-error (format "Bounds inconsistency detected for sig ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)
@@ -650,52 +692,67 @@ Please declare a sufficient scope for ~a."
 ; Given a Run-spec, the atoms assigned to each sig, the atoms assigned to each name,
 ; and the starting relation name, assigns names to each relation
 ; and minimum and maximum sets of atoms for each relation.
-(: get-relation-bounds (-> Run-spec (HashTable Sig bound) Any (HashTable Symbol bound)))
-(define (get-relation-bounds run-spec sig-to-bound raise-run-error)
+(: get-relation-bounds (-> Run-spec Syntax (HashTable Symbol bound) (HashTable Symbol bound)))
+(define (get-relation-bounds run-spec run-command sig-to-bound)  
+  (: pbindings (HashTable node/expr/relation sbound))
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))
+  (: piecewise PiecewiseBounds)
   (define piecewise (Bound-piecewise (Run-spec-bounds run-spec)))
  
-  (: get-bound-lower (-> node/expr/relation (Setof Tuple)))
+  (: get-bound-lower (-> node/expr/relation (U False (Setof Tuple))))
   (define (get-bound-lower rel)
     (define pbinding (hash-ref pbindings rel #f))
     (and pbinding
           (sbound-lower pbinding)))
+  
+  (: get-bound-upper (-> node/expr/relation (U False (Setof Tuple))))
   (define (get-bound-upper rel)
-    (define pbinding (hash-ref pbindings rel #f))
+    (define pbinding (ann (hash-ref pbindings rel #f) (U False sbound)))
     (and pbinding
-          (sbound-upper pbinding)
+          (sbound-upper pbinding) ;; TODO why duplicate?
           (sbound-upper pbinding)))
+  (: get-bound-piecewise (-> node/expr/relation (U False PiecewiseBound)))
   (define (get-bound-piecewise rel)
     (hash-ref piecewise rel #f))
 
   (define without-succ
     (for/hash : (HashTable Symbol bound) ([relation (get-relations run-spec)]
                #:unless (equal? (Relation-name relation) 'succ))
+      (: sigs (Listof Sig))
       (define sigs (get-sigs run-spec relation))
-      (define sig-atoms (map (compose (curry map car )
-                                      bound-upper
-                                      (curry hash-ref sig-to-bound )
-                                      Sig-name) 
+      ; Types: compose is supposed to be varargs!
+      ; (define sig-atoms (map (compose (curry map car)
+      ;                                 bound-upper
+      ;                                 (curry hash-ref sig-to-bound)
+      ;                                 Sig-name) 
+      ;                        sigs))
+      
+      (define sig-atoms (map (lambda ([a-sig : Sig]) 
+                                  (define sig-name (Sig-name a-sig))
+                                  (: upper-tups (Listof Tuple))
+                                  (define upper-tups (bound-upper (hash-ref sig-to-bound sig-name)))
+                                  (map (lambda ([tup : Tuple]) (car tup))
+                                       upper-tups))
                              sigs))
        ;(printf "~a: sig-atoms : ~a~n" relation sig-atoms)
        ;(printf "~a: raw upper : ~a~n" relation (get-bound-upper relation))
        ;(printf "~a: raw lower : ~a~n" relation (get-bound-lower relation))
-      
+      (: upper (Listof Tuple))
       (define upper                   
-        (let ([bound-upper (get-bound-upper relation)]
-              [bound-piecewise (get-bound-piecewise relation)])
+        (let ([upper-bound-value (get-bound-upper relation)]
+              [piecewise-bound-value (get-bound-piecewise relation)])
           (cond
-            [(and bound-piecewise bound-upper)
+            [(and piecewise-bound-value upper-bound-value)
              ; Error condition -- should never have both complete and piecewise on the same relation
              (raise-run-error (format "~a upper-bound had both complete and piecewise components, could not resolve them."
-                                   relation)
+                                   relation) run-command
                               (get-blame-node run-spec relation))]
-            [bound-piecewise
+            [piecewise-bound-value
              ;(printf "upper; bound-piecewise tuples: ~a~n" (PiecewiseBound-tuples bound-piecewise))
              ; for each admissible atom (taken from first component of the relation's declaration):
              ;   Where a piecewise entry exists: intersect with cartesian product of restricted universe.
              ;   otherwise: include the full cartesian-product for the restriction outside of that domain
-             (define pw-domain (PiecewiseBound-atoms bound-piecewise))
+             (define pw-domain (PiecewiseBound-atoms piecewise-bound-value))
              ;(printf "upper; sig-atoms[domain]: ~a~n" (first sig-atoms))
              ;(printf "upper; pw-domain: ~a~n" pw-domain) ; ISSUE: this is pre-eval :/ store post-eval?
              
@@ -705,24 +762,25 @@ Please declare a sufficient scope for ~a."
                (define undeclared (set->list (set-subtract (list->set pw-domain) (list->set (first sig-atoms)))))
                (raise-run-error (format "Field ~a was bounded for atom(s): ~a, but the corresponding sig ~a contained only ~a. This might be caused by an inst or example not providing a value or bound for the sig; recall the default scope of ~a through ~a atoms will apply if no scope or bound is given."
                                         (Relation-name relation) undeclared (first sigs) (first sig-atoms) (Range-lower DEFAULT-SIG-SCOPE) (Range-upper DEFAULT-SIG-SCOPE))
-                         (get-blame-node run-spec relation)))
+                         run-command (get-blame-node run-spec relation)))
 
              ; TODO: that only helps with the domain, not the range
              
-             (define in-domain (set-intersect (list->set (PiecewiseBound-tuples bound-piecewise))
+             (define in-domain (set-intersect (list->set (PiecewiseBound-tuples piecewise-bound-value))
                                               (list->set (apply cartesian-product sig-atoms))))
              ;(printf "upper; sig-atoms product was: ~a~n" (apply cartesian-product sig-atoms))
              ;(printf "upper; in-domain: ~a~n" in-domain)
              (define out-of-domain (list->set
-                                    (filter (lambda (tup)
+                                    (filter (lambda ([tup : Tuple]
+                                    )
                                               (not (member (first tup) pw-domain)))
                                             (apply cartesian-product sig-atoms))))
              ;(printf "upper; out-of-domain: ~a~n" out-of-domain)
              (set->list (set-union in-domain out-of-domain))]
-            [bound-upper
+            [upper-bound-value
              ; complete upper bound exists; intersect with the cartesian product of universe
              ; restricted to the sig-sequence in relation's declaration
-             (set->list (set-intersect bound-upper
+             (set->list (set-intersect upper-bound-value
                                        (list->set (apply cartesian-product sig-atoms))))]
             [else
              ; no upper-bound given, default to cartesian product of universe, restricted
@@ -742,27 +800,35 @@ Please declare a sufficient scope for ~a."
       ;(printf "~a:~nrefined upper: ~a~nrefined lower: ~a~n" relation upper lower)
       (unless (subset? (list->set lower) (list->set upper))
         (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)
+                         run-command
                          (get-blame-node run-spec relation)))
       
       (values (Relation-name relation) 
               (bound relation lower upper))))
   
-  (define ints (map car (bound-upper (hash-ref sig-to-bound 'Int))))
-  (define succ-tuples (map list (reverse (rest (reverse ints))) (rest ints)))
+  (: upper-on-int (Listof Tuple))
+  (define upper-on-int (bound-upper (hash-ref sig-to-bound 'Int)))
+  (: ints (Listof FAtom))
+  (define ints (map (ann car (-> Tuple FAtom)) upper-on-int))
+  (: succ-tuples (Listof (Listof FAtom)))
+  ;; TODO: this relies on getting the right ordering on unary Int tuples, doesn't it?
+  (define succ-tuples (map 
+                       (inst list FAtom)
+                       (reverse (rest (reverse ints))) (rest ints)))
   (hash-set without-succ 'succ (bound succ succ-tuples succ-tuples)))
 
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig to restrict
 ; it to the correct lower/upper bound.
-(: get-sig-size-preds (-> Run-spec (HashTable node/expr/relation bound) #:error Any (Listof node/formula)))
-(define (get-sig-size-preds run-spec sig-to-bound #:error raise-run-error) 
+(: get-sig-size-preds (-> Run-spec Syntax (HashTable node/expr/relation bound) (Listof node/formula)))
+(define (get-sig-size-preds run-spec run-command sig-to-bound) 
   (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
-  (define lists (for/list : (Listof node/formula) ([sig (get-sigs run-spec)]
+  (define lists (for/list : (Listof (Listof node/formula)) ([sig (get-sigs run-spec)]
                #:unless (equal? (Sig-name sig) 'Int))
       (match-define (bound rel bound-lower bound-upper) (hash-ref sig-to-bound (Sig-name sig)))
       (define-values (bound-lower-size bound-upper-size) (values (length bound-lower) (length bound-upper)))
       (match-define (Range int-lower int-upper) 
-        (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (Range #f #f)))
+        (hash-ref (Scope-sig-scopes (Run-spec-scope run-spec)) (Sig-name sig) (lambda () (Range #f #f))))
 
       ; Sub-optimal, because it points to the sig definition
       (define info (nodeinfo (nodeinfo-loc (node-info sig)) 'checklangNoCheck #f))
@@ -778,6 +844,7 @@ Please declare a sufficient scope for ~a."
                 (raise-run-error (format (string-append "Lower bound too large for given BitWidth; "
                                                         "Sig: ~a, Lower-bound: ~a, Max-int: ~a")
                                          sig int-lower (sub1 max-int))
+                                 run-command
                                  (get-blame-node run-spec sig)))
               (list (||/func #:info info
                              (int</func #:info info (int/func #:info info int-lower) (card/func #:info info sig))
@@ -789,6 +856,7 @@ Please declare a sufficient scope for ~a."
                 (raise-run-error (format (string-append "Upper bound too large for given BitWidth; "
                                                         "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
                                          sig int-upper (sub1 max-int))
+                                 run-command
                                  (get-blame-node run-spec sig)))
               (list (||/func #:info info
                              (int</func #:info info (card/func #:info info sig) (int/func #:info info int-upper))

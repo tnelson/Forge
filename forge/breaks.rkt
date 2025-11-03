@@ -29,7 +29,7 @@
   [get-verbosity (-> Integer)]
   [VERBOSITY_HIGH Integer])
 
-(provide constrain-bounds (rename-out [break-rel break]) break-bound break-formulas)
+(provide constrain-bounds break-rel break-bound break-formulas)
 (provide (rename-out [add-instance instance]) clear-breaker-state)
 (provide make-exact-sbound)
 (provide (struct-out sbound))
@@ -276,7 +276,6 @@
     (when changed (min-breaks! breaks break-pris))
 )
 
-; renamed-out to 'break for use in forge
 (: break-rel (-> node/expr/relation (Listof (U Symbol node/breaking/break)) Void))
 (define (break-rel rel . breaks)
     (for ([break breaks])
