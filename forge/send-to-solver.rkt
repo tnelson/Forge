@@ -84,7 +84,12 @@
   [get-relations (-> (U Run State Run-spec) (Listof Relation))]
   [get-sigs (->* ((U Run State Run-spec)) ((U False node/expr/relation)) (Listof Sig))]
   [get-sig (-> (U Run State Run-spec) (U Symbol node/expr/relation) (U Sig False))]
-  [get-option (-> (U Run State Run-spec) Symbol Any) ]
+  [get-option (case-> 
+    (-> (U Run State Run-spec) 'backend Symbol)
+    (-> (U Run State Run-spec) 'solver (U String Symbol))
+    (-> (U Run State Run-spec) 'java_exe_location (U False Path-String))
+    (-> (U Run State Run-spec) 'problem_type Symbol)
+    (-> (U Run State Run-spec) Symbol Any))]
   [get-state (-> (U Run Run-spec State) State)]
   [get-bitwidth (-> (U Run-spec Scope) Integer)]
   [get-children (-> (U Run State Run-spec) Sig (Listof Sig))]
@@ -110,7 +115,8 @@
           racket/hash)
 (require (only-in syntax/srcloc build-source-location-syntax))
 
-; Solver-specific backend initializer functions
+; Solver-specific backend initializer functions. 
+
 (require/typed forge/solver-specific/cvc5-server
   [(start-server smtlib:start-server) (-> Symbol Symbol 
   (Values Output-Port Input-Port Input-Port (-> Void) (-> Boolean)))])
@@ -180,7 +186,8 @@
 
 
 ; In case of error, highlight an AST node if able. Otherwise, focus on the offending run command.
-(: raise-run-error (->* (String Syntax) ( (U False node) ) Void))
+; Never returns; we don't use the #:raise? #f option of raise-forge-error.
+(: raise-run-error (->* (String Syntax) ( (U False node) ) Nothing))
 (define (raise-run-error message run-command [node #f])
   (if node
       (raise-forge-error #:msg message
@@ -332,7 +339,7 @@
   ; If in temporal mode, need to always-ify the auto-generated constraints but not the
   ;   predicates that come from users
   (define raw-implicit-constraints
-    (append (get-sig-size-preds run-spec run-command sig-to-bound #:error raise-run-error)
+    (append (get-sig-size-preds run-spec run-command sig-to-bound)
             (get-relation-preds run-spec)
             (get-extender-preds run-spec)
             break-preds))

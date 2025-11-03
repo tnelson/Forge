@@ -40,7 +40,11 @@
   ; (define (functionname #:info [info empty-nodeinfo] . raw-args) // and so on
   ; (apply &&/func #:info empty-nodeinfo (list true true true))
 
-  [raise-forge-error (->* () (#:msg String #:context Any #:raise? Boolean) Void)]
+  [raise-forge-error (->* (#:msg String #:context Any) (#:raise? Boolean) Void) ]
+  ; (case->
+  ;                      (->* () (#:msg String #:context Any #:raise? True) Nothing)
+  ;                      (->* () (#:msg String #:context Any #:raise? False) Void)
+  ;                      (->* () (#:msg String #:context Any) Nothing))] 
   [relation-arity (-> Any Integer)]
   [relation-name (-> node/expr/relation String)]
   [just-location-info (-> (U srcloc #f) nodeinfo)]
