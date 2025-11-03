@@ -811,7 +811,8 @@ Please declare a sufficient scope for ~a."
 ; - all extenders are pair-wise disjoint.
 (: get-extender-preds (-> Run-spec (Listof node/formula)))
 (define (get-extender-preds run-spec)
-  (define sig-constraints (for/list : (Listof node/formula) ([sig (get-sigs run-spec)])
+  (: sig-constraints (Listof (Listof node/formula)))
+  (define sig-constraints (for/list : (Listof (Listof node/formula)) ([sig (get-sigs run-spec)])
     ; get children information
     (: children-rels (Listof Sig))
     (define children-rels (get-children run-spec sig))
@@ -859,9 +860,9 @@ Please declare a sufficient scope for ~a."
           empty
           (append (disjoin-list (first a-list) (rest a-list))
                   (disjoin (rest a-list)))))
+    (: disjoint-constraints (Listof node/formula))
     (define disjoint-constraints (disjoin children-rels))
-    (append extends-constraints disjoint-constraints) ;; TODO extra nesting somewhere?
-    ))
+    (append extends-constraints disjoint-constraints)))
 
   ; combine all constraints together
   (apply append sig-constraints))
