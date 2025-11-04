@@ -9,7 +9,6 @@
          racket/pretty)
 (require forge/lang/alloy-syntax/parser)
 (require forge/lang/alloy-syntax/tokenizer)
-;(require (prefix-in log: forge/logging/2023/main))
 (require forge/shared)
 
 (do-time "forge/lang/reader")
@@ -113,15 +112,9 @@
       path port LANG-NAME CH ACH ICH EXTRA-REQUIRES (~optional INJECTED #:defaults ([INJECTED #''()])))
      (quasisyntax/loc stx
        (begin 
-         ;(define-values (logging-on? project email) (plog:setup LANG-NAME port path))
          (define compile-time (current-seconds))
          (define injected-if-any INJECTED)
          (define extra-requires EXTRA-REQUIRES)
-
-         ; We no longer do in-Forge logging.
-         ;(when logging-on?
-         ;  (uncaught-exception-handler (log:error-handler logging-on? compile-time (uncaught-exception-handler)))
-         ;  (log:register-run compile-time project LANG-NAME email path))
 
          (define parse-tree (parse path (make-tokenizer port)))
          (define ints-coerced (coerce-ints-to-atoms parse-tree))
@@ -138,10 +131,6 @@
                          ;; Used for the evaluator
                          (define-namespace-anchor forge:n) 
                          (forge:nsa forge:n)
-
-                         ; We no longer do in-Forge logging
-                         ;(require (prefix-in log: forge/logging/2023/main))
-                         ;(require (only-in racket printf uncaught-exception-handler))
                          
                          ;; Set up language-specific error messages
                          (require forge/choose-lang-specific
@@ -151,10 +140,6 @@
                          (set-inst-checker-hash! ICH)
                          (set-check-lang! LANG-NAME)                  
                          
-                         ;; Override default exception handler
-                         ;(uncaught-exception-handler
-                         ; (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
-
                          ;; Add any code to inject before the model is expanded
                          ,@injected-if-any
                          ;; Expanded model, etc.
@@ -175,9 +160,6 @@
                          (module+ main
                            ; Invoke the execs submodule
                            (require (submod ".." execs)))                                    
-
-                         ; We no longer do in-Forge logging
-                         ;(log:flush-logs ',compile-time "no-error")
                          ))
          
          (define module-datum `(module forge-mod forge/lang/expander
