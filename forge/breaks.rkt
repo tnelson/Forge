@@ -44,8 +44,10 @@
 ;;;; util ;;;;
 ;;;;;;;;;;;;;;
 
+(: int-add1 (-> Integer Integer))
+(define (int-add1 x) (+ x 1))
 (define-syntax-rule (cons! xs x) (set! xs (cons x xs)))
-(define-syntax-rule (add1! x)    (begin (set! x  (add1 x)) x))
+(define-syntax-rule (add1! x)    (begin (set! x  (int-add1 x)) x))
 
 ;;;;;;;;;;;;;;;;
 ;;;; breaks ;;;;
@@ -160,15 +162,15 @@
 (define strategies (make-hash))
 
 ; compos[{a₀,...,aᵢ}] = b => a₀+...+aᵢ = b
-(: compos (HashTable (Setof Symbol) Symbol))
+(: compos (Mutable-HashTable (Setof Symbol) Symbol))
 (define compos (make-hash))
 
 ; a ∈ upsets[b] => a > b
-(: upsets (HashTable Symbol (Setof Symbol)))
+(: upsets (Mutable-HashTable Symbol (Setof Symbol)))
 (define upsets (make-hash))
 
 ; a ∈ downsets[b] => a < b
-(: downsets (HashTable Symbol (Setof Symbol)))
+(: downsets (Mutable-HashTable Symbol (Setof Symbol)))
 (define downsets (make-hash))
 
 ; list of partial instance breakers
@@ -184,7 +186,7 @@
 (define rel-break-pri (make-hash))
 
 ; priority counter
-(: pri_c Number)
+(: pri_c Integer)
 (define pri_c 0)
 
 ; clear all state
@@ -207,9 +209,9 @@
         (hash-set! h k (mutable-set v))))
 
 ; h :: type(k1) |-> type(k2) |-> type(v)
-(: hash-add-set! (All (K1 K2 V) (-> (HashTable K1 (HashTable K2 V)) K1 K2 V Void)))
+(: hash-add-set! (All (K1 K2 V) (-> (Mutable-HashTable K1 (Mutable-HashTable K2 V)) K1 K2 V Void)))
 (define (hash-add-set! h k1 k2 v)
-    (unless (hash-has-key? h k1) (hash-set! h k1 (ann (make-hash) (HashTable K2 V))))
+    (unless (hash-has-key? h k1) (hash-set! h k1 (ann (make-hash) (Mutable-HashTable K2 V))))
     (define h_k1 (hash-ref h k1))
     ;; CHANGED pri_c to v.
     ;(unless (hash-has-key? h_k1 k2) (hash-set! h_k1 k2 pri_c)))
@@ -276,17 +278,19 @@
     (when changed (min-breaks! breaks break-pris))
 )
 
-(: break-rel (-> node/expr/relation (Listof (U Symbol node/breaking/break)) Void))
+(: break-rel (->* (node/expr/relation) () #:rest (U Symbol node/breaking/break) Void))
 (define (break-rel rel . breaks)
     (for ([break breaks])
+        (: break-key Symbol)
+        (: break-node node/breaking/break)
         (define-values (break-key break-node)
             (cond [(symbol? break) (values break (node/breaking/break empty-nodeinfo break))]
                   [(node/breaking/break? break) (values (node/breaking/break-break break) break)]
                   [else (raise (format "Not a value break or break name: ~a" break))]))
         (unless (hash-has-key? strategies break-key)
                 (error (format "break not implemented among ~a" strategies) break-key))
-        (hash-add! rel-breaks rel break)
-        (hash-add-set! rel-break-pri rel break (add1! pri_c))))
+        (hash-add! rel-breaks rel break-node)
+        (hash-add-set! rel-break-pri rel break-node (add1! pri_c))))
 
 (: add-instance (-> sbound Void))
 (define (add-instance i) (cons! instances i)) 

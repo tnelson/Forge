@@ -253,7 +253,7 @@
       ; Built-ins like int successor ("succ") can have #f as their break.
       (define the-breaker (Relation-breaker relation))
       (when the-breaker
-        (break-rel relation (list the-breaker))))
+        (break-rel relation the-breaker)))
 
   ; Produce bounds from scopes
   (define-values (sig-to-bound relation-to-bound all-atoms)
@@ -426,12 +426,12 @@
   ;; DO NOT ADD MORE MESSAGES TO SOLVER AFTER THIS POINT
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-  (: next-button (-> Symbol tree:node))
+  (: next-button (-> String tree:node))
   (define (next-button type)
     (tree:make-node/func get-next-model type next-button))
   (: results tree:node)
   (define results
-    (tree:make-node/func get-next-model 'start next-button))
+    (tree:make-node/func get-next-model "start" next-button))
 
   (define new-server-state (Server-ports stdin stdout stderr shutdown is-running?))
   (set-box! server-state new-server-state)

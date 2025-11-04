@@ -1,4 +1,4 @@
-#lang typed/racket/base
+#lang typed/racket/base/optional
 
 (provide ; (struct-out computation) 
          ; (struct-out computation/delayed) 
@@ -6,12 +6,10 @@
          (prefix-out tree: make-node/func)
          get-checker-hash)
 
-; We need the tree:make-node macro, which expands using constructs from that module:
-;  node, computation/delayed 
 (require/typed forge/utils/lazy-tree
-  [#:struct computation ()]
-  [#:struct (computation/delayed computation) ([thnk : Any])]
-  [make-node/func (-> Any Symbol Any node)]
+  ; [#:struct computation ()]
+  ; [#:struct (computation/delayed computation) ([thnk : Any])]
+  [make-node/func (-> (-> String Any) String (-> String Any) node)]
   [#:struct node (
     [datum : Any] 
     [child-generator : Any] 
