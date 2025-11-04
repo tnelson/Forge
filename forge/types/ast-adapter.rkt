@@ -40,11 +40,14 @@
   ; (define (functionname #:info [info empty-nodeinfo] . raw-args) // and so on
   ; (apply &&/func #:info empty-nodeinfo (list true true true))
 
-  [raise-forge-error (->* (#:msg String #:context Any) (#:raise? Boolean) Void) ]
-  ; (case->
-  ;                      (->* () (#:msg String #:context Any #:raise? True) Nothing)
-  ;                      (->* () (#:msg String #:context Any #:raise? False) Void)
-  ;                      (->* () (#:msg String #:context Any) Nothing))] 
+  ; This by itself doesn't allow the type system to differentiate between
+  ; the #t and #f modes, even when they are provided as literals. 
+  ;(->* (#:msg String #:context Any) (#:raise? Boolean) Void) ]
+  [raise-forge-error 
+  (case->
+        (->* () (#:msg String #:context Any #:raise? True) Nothing)
+        (->* () (#:msg String #:context Any #:raise? False) Void)
+        (->* () (#:msg String #:context Any) Nothing))] 
   [relation-arity (-> Any Integer)]
   [relation-name (-> node/expr/relation String)]
   [just-location-info (-> (U srcloc #f) nodeinfo)]
@@ -73,7 +76,7 @@
   [int/func (->* (Integer) (#:info nodeinfo) node/int/constant)]
   [card/func (->* (node/expr) (#:info nodeinfo) node/int/constant)]
   [build-box-join (-> node/expr (Listof node/expr) node/expr)]
-  [maybe-and->list (-> node/formula -> (Listof node/formula))]
+  [maybe-and->list (-> node/formula (Listof node/formula))]
   [univ node/expr]
   [iden node/expr]
   ; Don't export these as-is. Potential conflict with existing Racket identifiers.

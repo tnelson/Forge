@@ -4,7 +4,10 @@
 (require syntax/parse/define)
 (require (only-in racket empty? match cons? first thunk))
 
-(provide node? make-node get-child get-children get-value lazy-tree-map is-evaluated?)
+(provide node? make-node get-child get-children get-value lazy-tree-map is-evaluated?
+  make-node/func
+  ; temporary, until this module is typed 
+  (struct-out computation) (struct-out computation/delayed) (struct-out node))
 
 (struct computation ())
 (struct computation/delayed computation (thnk))
@@ -31,6 +34,9 @@
 
 (define-simple-macro (make-node datum child-generator)
   (node (computation/delayed (thunk datum)) child-generator (make-hash) (list)))
+
+(define (make-node/func datum type child-generator)
+  (make-node (datum type) child-generator))
 
 (define/contract (get-value a-node)
   (node? . -> . any/c)
