@@ -291,10 +291,11 @@
 (: add-instance (-> sbound Void))
 (define (add-instance i) (cons! instances i)) 
 
-(: constrain-bounds (-> (Listof bound) (Listof node/expr/relation) 
-                        (HashTable node/expr/relation (List Symbol))
+(: constrain-bounds (-> (Listof bound) 
+                        (Listof node/expr/relation) 
+                        (HashTable node/expr/relation (Listof FAtom))
                         (HashTable node/expr/relation (Listof node/expr/relation)) 
-                        (HashTable node/expr/relation (Listof node/expr/relation)) 
+                        (HashTable node/expr/relation node/expr/relation) 
                         (Values (Listof bound) (Listof node/formula))))
 (define (constrain-bounds total-bounds maybe-list-sigs bounds-store relations-store extensions-store) 
     (define name-to-rel (make-hash))
@@ -358,7 +359,7 @@
                                  #:raise? #t))
             (define rel-list (ann (hash-ref relations-store rel) (Listof node/expr/relation)))
             (define atom-lists (map (λ ([b : node/expr/relation]) 
-              (define sym-list (ann (hash-ref bounds-store b (lambda () (list))) (Listof Symbol)))
+              (define sym-list (ann (hash-ref bounds-store b (lambda () (list))) (Listof FAtom)))
               (hash-ref bounds-store b)) rel-list))
 
             ; make all breakers

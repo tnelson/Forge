@@ -264,23 +264,29 @@
   (define-values (total-bounds break-preds) 
     (let* ([sigs (get-sigs run-spec)]
            [sig-names : (Listof Symbol) (map Sig-name sigs)]
-           [sig-bounds (map (lambda (sn) (hash-ref sig-to-bound sn)) sig-names)]
-           [relation-bounds (map (compose (lambda (x) (hash-ref relation-to-bound x))
-                                          Relation-name)
-                                 (get-relations run-spec))]
+           [sig-bounds : (Listof bound) 
+             (map (lambda ([sn : Symbol]) (hash-ref sig-to-bound sn)) 
+                  sig-names)]
+           [relation-bounds : (Listof bound) 
+             (map (lambda ([rel : Relation]) (hash-ref relation-to-bound (Relation-name rel)))
+                  (get-relations run-spec))]
            [total-bounds (append sig-bounds relation-bounds)]
            [sig-rels (filter (lambda ([sig : Sig]) (not (equal? (Sig-name sig) 'Int))) sigs)]
-           [upper-bounds (for/hash : (HashTable Sig (Listof FAtom)) ([sig sigs]) 
+           [upper-bounds (for/hash : (Immutable-HashTable Sig (Listof FAtom)) ([sig sigs]) 
                            (values sig
                                    ((inst map FAtom Tuple) car (bound-upper (hash-ref sig-to-bound (Sig-name sig))))))]
 
-           [relations-store (for/hash : (HashTable Relation (Listof Sig)) ([relation (get-relations run-spec)]
+           [relations-store (for/hash : (Immutable-HashTable Relation (Listof Sig)) ([relation (get-relations run-spec)]
                                        #:unless (equal? (Relation-name relation) 'succ))
                               (values relation (get-sigs run-spec relation)))]
 
-           [extensions-store (for/hash : (HashTable Sig Sig) ([sig sigs]
+           [extensions-store (for/hash : (Immutable-HashTable Sig Sig) ([sig sigs]
                                         #:when (Sig-extends sig))
-                               (values sig (get-sig run-spec (Sig-extends sig))))])
+                                (define extend (Sig-extends sig))
+                                (define extend-sig (if extend (get-sig run-spec extend) #f))
+                                (if extend-sig
+                                  (values sig extend-sig)
+                                  (raise (format "Internal error building extensions-store. Sig was: ~a" sig))))])
       ;(printf "args-- total-bounds : ~a~n args-- sig-rels : ~a~n args-- upper-bounds : ~a~n" total-bounds sig-rels upper-bounds )
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
   
@@ -291,7 +297,7 @@
   (define sigs-and-rels
     (append (State-sig-order (Run-spec-state run-spec))
             (State-relation-order (Run-spec-state run-spec))))
-  (set! total-bounds (map (lambda (name) 
+  (set! total-bounds (filter-map (lambda (name) 
                             (findf (lambda ([b : bound]) 
                                      (equal? name (string->symbol (relation-name (bound-relation b)))))
                                    total-bounds)) 
@@ -392,7 +398,7 @@
     (append explicit-constraints implicit-constraints))
 
   ; Run last-minute checks for errors  
-  (for-each (lambda ([c node/formula])
+  (for-each (lambda ([c : node/formula])
               (checkFormula run-spec c '() (get-checker-hash)))
             run-constraints)
   
@@ -623,7 +629,9 @@
     (when (get-bound-upper sig)
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
                        run-command (get-blame-node run-spec sig)))
-    (hash-set! upper-bounds sig parent-upper)
+    (if parent-upper
+        (hash-set! upper-bounds sig parent-upper)
+        (raise (format "internal error: parent-upper for ~a was absent" sig)))
     (for ([child : Sig (get-children run-spec sig)])
       (fill-upper-past-bound child parent-upper)))
 
@@ -637,7 +645,7 @@
       (raise-run-error (format "Please specify an upper bound for ancestors of ~a." (Sig-name sig))
                        run-command (get-blame-node run-spec sig)))
             
-    (define curr-lower (ann (hash-ref lower-bounds sig) (Listof Tuple)))
+    (define curr-lower (ann (hash-ref lower-bounds sig) (Listof FAtom)))
 
     ; Before doing anything else, confirm that if *no* scope was given for this sig,
     ; that the declared scopes for its children, combined, are not bigger than the default. 
@@ -649,7 +657,7 @@
         (@max (length curr-lower)
               (get-scope-upper-default sig)))
       (define child-upper-declared-total
-        (foldl (lambda (curr acc)
+        (foldl (lambda ([curr : Sig] [acc : Integer])
                  (@+ acc (or (get-scope-upper curr) 0)))
                0
                (get-children run-spec sig)))
@@ -659,6 +667,7 @@
 However, the total of declared and inferred child-sig scopes was ~a. \
 Please declare a sufficient scope for ~a."
                  (Sig-name sig) upper-budget child-upper-declared-total (Sig-name sig))
+          run-command
          (get-blame-node run-spec sig))))
     
     ; If the upper-bound's scope is bigger than the lower bound's current contents
@@ -668,7 +677,8 @@ Please declare a sufficient scope for ~a."
         (hash-set! upper-bounds sig (append curr-lower shared))
         (hash-set! upper-bounds sig curr-lower))
     ; Recur on children
-    (map (lambda (child) (fill-upper-no-bound child (append curr-lower shared)))
+    (for-each (lambda ([child : Sig]) 
+                (fill-upper-no-bound child (append curr-lower shared)))
          (get-children run-spec sig)))
 
   ; List of all atoms that come from sigs, except Int. Will change as this procedure runs.
@@ -894,7 +904,7 @@ Please declare a sufficient scope for ~a."
 ; get-sig-size-preds :: Run-spec -> List<node/formula>
 ; Creates assertions for each Sig to restrict
 ; it to the correct lower/upper bound.
-(: get-sig-size-preds (-> Run-spec Syntax (HashTable node/expr/relation bound) (Listof node/formula)))
+(: get-sig-size-preds (-> Run-spec Syntax (HashTable Symbol bound) (Listof node/formula)))
 (define (get-sig-size-preds run-spec run-command sig-to-bound) 
   (define max-int (expt 2 (sub1 (get-bitwidth run-spec))))
   (define lists (for/list : (Listof (Listof node/formula)) ([sig (get-sigs run-spec)]

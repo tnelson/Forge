@@ -84,6 +84,8 @@
    [(false false-formula) node/formula]  
   )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (define-type (ASTConstructor PT RT) (->* (PT) (#:info nodeinfo) #:rest PT RT))
 
 ; This is a more narrow type than the real type. 
@@ -102,7 +104,10 @@
 (define (app-i func info nodes)
   (keyword-apply func '(#:info) (list info) nodes))
 
-; (&&/func #:info empty-nodeinfo true false true)
 
-;(app-f &&/func empty-nodeinfo (list true false true))
-;(app-f ||/func empty-nodeinfo (list true false true))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; (: ->immutable/hash (All (K V) (-> (HashTable K V) (Immutable-HashTable K V))))
+; (define (->immutable/hash ht)
+;   (for/hash ([k v]))
+;   (hash-map/copy ht (lambda (k v) (values k v))  #:kind 'immutable))
