@@ -228,9 +228,10 @@ NT-Expr10  : @NT-Expr11 | NT-Expr10 PPLUS-TOK NT-Expr11
 NT-Expr11  : @NT-Expr12 | NT-Expr11 AMP-TOK NT-Expr12
 NT-Expr12  : @NT-Expr13 | NT-Expr12 ArrowOp NT-Expr13
 NT-Expr13  : @NT-Expr14 | NT-Expr13 (SUBT-TOK | SUPT-TOK) NT-Expr14
-NT-Expr14  : @NT-Expr15 | NT-Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
-NT-Expr15  : @NT-Expr16 | NT-Expr15 DOT-TOK NT-Expr16
-                  | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
+NT-Expr14  : @NT-Expr15 
+           | NT-Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
+           | NT-Expr14 DOT-TOK NT-Expr15
+NT-Expr15  : @NT-Expr16
 NT-Expr16  : @NT-Expr17 | NT-Expr16 PRIME-TOK
 NT-Expr17  : @NT-Expr18 | (TILDE-TOK | EXP-TOK | STAR-TOK) NT-Expr17
 NT-Expr18  : Const 
