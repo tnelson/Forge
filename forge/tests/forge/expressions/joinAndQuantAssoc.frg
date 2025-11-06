@@ -6,8 +6,17 @@ one sig Solution { people: pfunc Int -> Person }
 lone sig Light {}
 
 /** Regression test for join-associativity parser bug. 
-     Previously, this needed to be expressed as (Solution.people[0]).age */
+     Previously, this needed to be expressed as (Solution.people[0]).age. 
+     Need to also check semantics. */
 assert { Solution.people[0].age = 0 } is sat
+
+test expect {
+  { Solution.people[0].age = 0 
+    iff
+    ((Solution.people)[0]).age = 0} is checked
+} 
+
+////////////////////////////////////////////////////////////////
 
 // Not yet fixed
 /** Regression test for quantifier-precedence parser bug. 
@@ -15,7 +24,7 @@ assert { Solution.people[0].age = 0 } is sat
      some Solution and (some i: Int | no Solution.people[i]) */
 //assert { some Solution and some i: Int | no Solution.people[i]} is sat
 
-////////// Test for semantics after parse. //////////
+////////// Test for quantifier semantics after parse. //////////
 
 // This doesn't allow anybody to have a positive age if the light is off.
 pred formulation_1 { (some p: Person | p.age > 0) implies (some Light) }
