@@ -8,7 +8,7 @@ lone sig Light {}
 /** Regression test for join-associativity parser bug. 
      Previously, this needed to be expressed as (Solution.people[0]).age. 
      Need to also check semantics. */
-assert { Solution.people[0].age = 0 } is sat
+pred dotTest { Solution.people[0].age = 0 }
 
 test expect {
   { Solution.people[0].age = 0 
@@ -18,11 +18,11 @@ test expect {
 
 ////////////////////////////////////////////////////////////////
 
-// Not yet fixed
+// TODO Not yet fixed
 /** Regression test for quantifier-precedence parser bug. 
      Previously, the quantified sub-expression needed parentheses:
      some Solution and (some i: Int | no Solution.people[i]) */
-//assert { some Solution and some i: Int | no Solution.people[i]} is sat
+// pred qTest { some Solution and some i: Int | no Solution.people[i]} is sat
 
 ////////// Test for quantifier semantics after parse. //////////
 
@@ -40,3 +40,19 @@ test expect {
 // So Alloy's parsing disagrees with Enderton, who says that (paraphrasing)
 // "...all and some apply to as little as possible. 
 //  ...   all x | A => B is not all x | (A => B)"
+
+
+////////////////////////////////
+// Other potential precedence issues
+
+pred xOrTest1 {some Solution xor some Solution and some Solution}
+pred xOrTest2 {some Solution and some Solution xor some Solution}
+pred iffTest {some Solution iff some Solution or some Solution}
+pred inTest {Solution in Solution and some Solution}
+pred unionTest {Solution + Solution = Solution}
+
+////////////////////////////////
+// "let" has the same issue as quantifiers
+// TODO
+// pred qTest { some Solution and let s = Solution | some s}
+
