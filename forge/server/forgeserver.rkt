@@ -205,7 +205,7 @@
         [(Unknown? inst) "unknown"]
         [else "error"]))
 (define (make-core-value inst)
-  (if (Unsat? inst)
+  (if (and (Unsat? inst) (Unsat-core inst))
       (map (lambda (cr) (cond [(node? cr) (deparse cr)]
                               [(string? cr) cr]
                               [else (raise-forge-error #:msg (format "Unexpected core value sending to Sterling: ~a" cr)
