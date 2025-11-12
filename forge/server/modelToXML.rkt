@@ -225,11 +225,11 @@ here-string-delimiter
                         "<atom label=\"Unsatisfiable\"/>"
                         "</sig>\n"
                         "\n</instance>\n"
-                        (if data
-                            (string-append "<source filename=\"Unsat Core\" content=\""
-                                           (agg-lines
-                                            (map clean data))
-                                           "\"></source>\n") "")
+                        "<source filename=\"" filepath "\" content=\""
+                           (with-handlers ([exn:fail:filesystem:errno?
+                                            (λ (exn) (format "// Couldn't open source file (~a) (info: ~a). Is the file saved?" filepath (exn:fail:filesystem:errno-errno exn)))])
+                             (clean (agg-lines (port->lines (open-input-file filepath)))))
+                           "\"></source>\n"
                         "</alloy>")]
 
         ; ** Special display for "out of instances" vs. "unsat" **
