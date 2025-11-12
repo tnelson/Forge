@@ -5,7 +5,7 @@
 (require (prefix-in @ (only-in rackunit check)))
 (require (only-in racket remove-duplicates))
 
-(set-verbosity 2)
+;(set-verbosity 2)
 
 (run run-statement #:preds [])
 

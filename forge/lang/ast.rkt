@@ -898,6 +898,11 @@
     (raise-forge-error
      #:msg (format "~a quantifier cannot use the same variable name more than once; used: ~a." quantifier vars)
      #:context info))
+  ; lone and one are desugared to either more basic quantifiers or to a multiplicity.
+  (unless (member quantifier '(some all no))
+    (raise-forge-error
+     #:msg (format "~a quantified-formula must be desugared first to some, all, or no." quantifier)
+     #:context info))
   
   (for ([e (in-list (map cdr decls))])
     (unless (node/expr? e)
