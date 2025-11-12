@@ -4,6 +4,7 @@
          (only-in forge/lang/ast univ)) 
 (require forge/sigs-structs)
 (require (only-in racket curry first second third fourth fifth match-define))
+(require (only-in forge/solver-specific/pardinus-cores process-core-formula))
 
 (provide translate-from-kodkod-cli
          translate-evaluation-from-kodkod-cli )
@@ -55,6 +56,9 @@ Note: sometimes the engine manufactures NEW atoms, as Pardinus does in temporal 
   (define indices (make-hash)))
 |#
 
+(define (process-core core-map data)
+  (map (lambda (core-fmla) (process-core-formula core-fmla core-map)) data))
+
 #|
 model is in the form (cons sym data). sym is either 'sat, 'unsat, or 'no-more-sat.
 If sym is 'sat, data is the relation list. If 'unsat, data is either a core or #f. If 'no-more-sat, data is #f.
@@ -65,7 +69,7 @@ So, the proper name of atom 0 is the value of (list-ref univ 0).
 relation-names is the same, a list of all relation names ordered as they are in the model.
 This function just recreates the model, but using names instead of numbers.
 |#
-(define (translate-from-kodkod-cli runtype model relations inty-univ)   
+(define (translate-from-kodkod-cli runtype model relations inty-univ core-map) 
   ; (flag run-name data stats [metadata]) where metadata is for sat only 
   (define flag (first model))   
   (define run-name (second model))
@@ -75,11 +79,11 @@ This function just recreates the model, but using names instead of numbers.
   ; TODO: add run-name to struct for error checking / context 
   
   (cond [(and (equal? 'unsat flag) (equal? runtype 'run) data)
-         (Unsat data stats 'unsat)]
+         (Unsat (process-core core-map data) stats 'unsat)]
         [(and (equal? 'unsat flag) (equal? runtype 'run) (not data))
          (Unsat #f stats 'unsat)]
         [(and (equal? 'unsat flag) (equal? runtype 'check) data)
-         (Unsat data stats 'no-counterexample)]
+         (Unsat (process-core core-map data) stats 'no-counterexample)]
         [(and (equal? 'unsat flag) (equal? runtype 'check) (not data))
          (Unsat #f stats 'no-counterexample)]
         [(equal? 'no-more-instances flag)

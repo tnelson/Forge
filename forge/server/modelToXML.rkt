@@ -110,12 +110,16 @@
     [(list? rs-opt) (apply string-append (map single-path-to-xml rs-opt))]
     [else ""]))
 
-(define (clean str)
-  (string-replace
-   (string-replace
-    (string-replace
+(define (clean ele)
+  (cond
+    [(string? ele) 
      (string-replace
-      (string-replace str "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;") "\n" "&#xA;"))
+      (string-replace
+       (string-replace
+        (string-replace
+         (string-replace ele "\"" "&quot;") ">" "&gt;") "<" "&lt;") "&" "&amp;") "\n" "&#xA;")]
+    [(node? ele) (deparse ele)]
+    [else ele]))
 
 (define (agg-lines lines)
   (if (empty? lines)

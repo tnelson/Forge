@@ -14,7 +14,7 @@
 ;   should be called for any context where a menu of commands doesn't fit (such as a
 ;   failing test, perhaps). 
 
-(require (only-in forge/lang/ast relation-name raise-forge-error)
+(require (only-in forge/lang/ast relation-name raise-forge-error deparse node?)
          forge/server/modelToXML
          forge/evaluator
          xml
@@ -130,7 +130,7 @@
                   [else
                    (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
-          (define response (make-sterling-data xml datum-id name temporal? (Sat? inst) old-datum-id))
+          (define response (make-sterling-data xml datum-id name temporal? inst old-datum-id))
           (send-to-sterling response #:connection connection)]
          [else
           (printf "Sterling: unexpected onClick: ~a~n" json-m)])     
@@ -143,7 +143,7 @@
        (define inst (get-current-instance)) 
        (define id curr-datum-id)
        (define xml (get-xml inst))
-       (define response (make-sterling-data xml id name temporal? (Sat? inst)))
+       (define response (make-sterling-data xml id name temporal? inst))
        (send-to-sterling response #:connection connection)     
        ]
       [(equal? (hash-ref json-m 'type) "eval")
@@ -199,7 +199,22 @@
   (unless (equal? 'off (get-option state-for-run 'run_sterling))
     (serve-sterling-static #:provider-port port)))
 
-(define (make-sterling-data xml id run-name temporal? not-done? [old-id #f])
+(define (make-status-value inst) 
+  (cond [(Sat? inst) "sat"]
+        [(Unsat? inst) "unsat"]
+        [(Unknown? inst) "unknown"]
+        [else "error"]))
+(define (make-core-value inst)
+  (if (Unsat? inst)
+      (map (lambda (cr) (cond [(node? cr) (deparse cr)]
+                              [(string? cr) cr]
+                              [else (raise-forge-error #:msg (format "Unexpected core value sending to Sterling: ~a" cr)
+                                                       #:context #f)]))
+           (Unsat-core inst))
+      #f))
+
+(define (make-sterling-data xml id run-name temporal? inst [old-id #f])
+  (define not-done? (Sat? inst))
   (jsexpr->string
    (hash
     'type "data"
@@ -210,6 +225,8 @@
                             'generatorName (->string run-name)
                             'format "alloy"
                             'data xml
+                            'status (make-status-value inst)
+                            'core (make-core-value inst)
                             'buttons (cond [(not not-done?) (list)]
                                            [temporal?
                                             (list (hash 'text "Next Trace"
@@ -407,7 +424,7 @@
          ; is-run-closed? is about whether this specific run has been terminated
          ; Sat? is about whether the solution we have is Sat.
          (define response (make-sterling-data xml datum-id name temporal?
-                                              (and (is-running? the-run) (not (is-run-closed? the-run)) (Sat? inst))
+                                              (and (is-running? the-run) (not (is-run-closed? the-run)) inst)
                                               old-datum-id))
         (send-to-sterling response #:connection connection)]
        [else
