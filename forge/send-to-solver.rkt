@@ -725,6 +725,7 @@ Please declare a sufficient scope for ~a."
     ; TODO: optimize by identifying abstract sigs as sum of children
     (define (abstract sig extenders)
       ; TODO : location not correct
+      (printf "abstract: ~a ~a~n" sig extenders)
       (let ([loc (nodeinfo-loc (node-info sig))])
         (if (@= (length extenders) 1)
             (=/info (nodeinfo loc 'checklangNoCheck #f) sig (car extenders))

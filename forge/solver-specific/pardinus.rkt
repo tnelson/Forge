@@ -254,6 +254,7 @@
           [idx (range (length (Unsat-core result)))])
       (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
         (cond [(member fmla-num (hash-keys core-map))
+               (printf "known core, not subfmla. ~a.~n~a~n" fmla-num id)
                ; This is a formula ID and we know it immediately; it's a top-level constraint
                (pretty-core idx (length (Unsat-core result)) fmla-num (hash-ref core-map fmla-num))]
               [else

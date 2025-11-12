@@ -68,6 +68,16 @@ run {
   for {next is linear
        mt_next is linear}
 
+
+/*
+  Notes on performance from November, 2025
+
+  * This is rather slow to get unsat. We need 3 microticks, however: initial term, middle term, inner term.
+  * Hypothesis: excessive atom overlap due to top-down instantation (?) 
+  
+
+*/
+
     //   #:scope [(KeyPairs 1 1)
     //            (Timeslot 4 4) 
     //            (Message 4 4)
