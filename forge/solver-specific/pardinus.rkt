@@ -33,6 +33,8 @@
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract)
           racket/hash)
 
+(require forge/solver-specific/pardinus-cores)
+
 (provide send-to-kodkod get-next-kodkod-model)
 
 (define (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr)
@@ -181,68 +183,8 @@
                   'run 
                   (pardinus:read-solution stdout stderr) 
                   all-rels 
-                  all-atoms))
-
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ; Note on cores: if core granularity is high, Kodkod may return a formula we do not have an ID for.
-  ; In these cases, the engine should be passing something like "f:0,0" which indexes _child_ formulas.
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  (define (traverse-path-list path [fmla #f])
-    ;; Cannot use for/fold or fold here, because we need to _not_ move down the list for
-    ;; a node/fmla/pred-spacer node (and any other node that is invisible to Pardinus).
-    (cond
-      ; Base case: no more indexes to process
-      [(empty? path) fmla]
-      ; We have an index, descend as appropriate
-      [else 
-       (define idx-str (first path))
-       (define idx (string->number idx-str))
-       (cond [(not fmla)
-              (traverse-path-list (rest path)
-                                  (hash-ref core-map idx))]
-             [(node/formula/quantified? fmla)
-              ; Quantified: decls formulas first, then sub-formula last
-              (cond [(>= idx (length (node/formula/quantified-decls fmla)))
-                     (traverse-path-list (rest path)
-                                         (node/formula/quantified-formula fmla))]
-                    [else
-                     (define decl (list-ref (node/formula/quantified-decls fmla) idx))
-                     (traverse-path-list (rest path)
-                                         (car decl))])]
-             [(node/formula/op? fmla)
-              ; Operator formula: sub-formulas in order. Note that this layer isn't shown
-              ; to Pardinus, so we cannot move down the path index list for this.
-              (traverse-path-list (rest path)
-                                  (list-ref (node/formula/op-children fmla) idx))]
-             [(node/fmla/pred-spacer? fmla)
-              ; Predicate spacer, just use internal formula, and don't move forward in the path
-              (traverse-path-list path
-                                  (node/fmla/pred-spacer-expanded fmla))]
-             [else
-              (raise-user-error (format "Unsupported formula type in core: ~a" fmla))])]))
-    
-  (define (find-core-formula id)
-    (unless (string-prefix? id "f:")
-      (raise-user-error (format "Unexpected error: invalid formula path ID: ~a" id)))
-    (define path (string-split (first (string-split id "f:")) ","))
-    (printf "core path: ~a~n" path)
-    (unless (and (> (length path) 0) (member (string->number (first path)) (hash-keys core-map)))
-      (raise-user-error (format "Unexpected error: solver path ID prefix was invalid: ~a; valid prefixes: ~a" id (hash-keys core-map))))
-    (traverse-path-list path #f))
-    
-  (define (pretty-core idx max known? fmla-or-id)
-    (cond [known?
-           (define fmla fmla-or-id)
-           (fprintf (current-error-port) "Core(part ~a/~a): [~a] ~a~n" (@+ idx 1) max
-                    (pretty-loc fmla) (deparse fmla))]
-          [(string-prefix? fmla-or-id "f:")
-           (define fmla (find-core-formula fmla-or-id))
-           (fprintf (current-error-port) "Core(part ~a/~a): [~a] ~a~n" (@+ idx 1) max
-                    (pretty-loc fmla) (deparse fmla))]
-          [else
-           (fprintf (current-error-port) "Core(part ~a/~a): [UNKNOWN] ~a~n" (@+ idx 1) max
-                    fmla-or-id)]))
-    
+                  all-atoms
+                  core-map))
     
   (when (and (Unsat? result) (Unsat-core result)) ; if we have a core
     (when (@>= (get-verbosity) VERBOSITY_DEBUG)
@@ -252,13 +194,7 @@
       (printf "Unsat core available (~a formulas):~n" (length (Unsat-core result))))
     (for ([id (Unsat-core result)]
           [idx (range (length (Unsat-core result)))])
-      (let ([fmla-num (if (string-prefix? id "f:") (string->number (substring id 2)) #f)])
-        (cond [(member fmla-num (hash-keys core-map))
-               ; This is a formula ID and we know it immediately; it's a top-level constraint
-               (pretty-core idx (length (Unsat-core result)) fmla-num (hash-ref core-map fmla-num))]
-              [else
-               ; This is NOT a known top-level constraint, but it's part of the core
-               (pretty-core idx (length (Unsat-core result)) #f id)]))))
+               (pretty-print-core-formula idx (length (Unsat-core result)) id core-map)))
     
   (when (@>= (get-verbosity) VERBOSITY_LOW)
     (displayln (format-statistics (if (Sat? result) (Sat-stats result) (Unsat-stats result)))))
