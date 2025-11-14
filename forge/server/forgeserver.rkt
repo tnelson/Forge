@@ -14,13 +14,14 @@
 ;   should be called for any context where a menu of commands doesn't fit (such as a
 ;   failing test, perhaps). 
 
-(require (only-in forge/lang/ast relation-name raise-forge-error deparse node?)
+(require (only-in forge/lang/ast relation-name raise-forge-error deparse node? nodeinfo-loc node-info)
          forge/server/modelToXML
          forge/evaluator
          xml
          net/sendurl "../racket-rfc6455/net/rfc6455.rkt" net/url web-server/http/request-structs racket/runtime-path
          racket/async-channel
          racket/hash
+         racket/path
          (only-in racket empty? first rest)
          (only-in forge/server/eval-model ->string)
          (prefix-in tree: forge/utils/lazy-tree)
@@ -204,10 +205,21 @@
         [(Unsat? inst) "unsat"]
         [(Unknown? inst) "unknown"]
         [else "error"]))
+(define (srcloc->json srcloc)
+  (define source-path (source-location-source srcloc))
+  ; Scrub the directory prefix from the file path to avoid leaking the identity of the user.
+  (hash 'source   (if source-path (path->string (file-name-from-path source-path)) #f)
+        'line     (source-location-line srcloc)
+        'column   (source-location-column srcloc)
+        'position (source-location-position srcloc)
+        'span     (source-location-span srcloc)))
 (define (make-core-value inst)
   (if (and (Unsat? inst) (Unsat-core inst))
-      (map (lambda (cr) (cond [(node? cr) (deparse cr)]
-                              [(string? cr) cr]
+      ; Sometimes Pardinus will return a formula string for which Forge lacks context. 
+      (map (lambda (cr) (cond [(node? cr)   (hash 'location (srcloc->json (nodeinfo-loc (node-info cr)))
+                                                  'constraint (deparse cr))]
+                              [(string? cr) (hash 'location #f             
+                                                  'constraint cr)]
                               [else (raise-forge-error #:msg (format "Unexpected core value sending to Sterling: ~a" cr)
                                                        #:context #f)]))
            (Unsat-core inst))
