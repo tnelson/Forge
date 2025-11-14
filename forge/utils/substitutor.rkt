@@ -29,7 +29,7 @@
       node?
       node? 
       node?)
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-formula: ~a~n" formula))
   (match formula
     [(node/formula/constant info type)
@@ -86,7 +86,7 @@
 )
 
 (define (substitute-formula-op run-or-state formula relations atom-names quantvars args target value)
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-formula-op: ~a~n" formula))
   (match formula
     [(node/formula/op/&& info children)
@@ -133,7 +133,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (substitute-expr run-or-state expr relations atom-names quantvars target value)
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
       (printf "substitutor: interpret-expr: ~a~n" expr))
   (if (equal? expr target)
       value
@@ -174,7 +174,7 @@
            (node/expr/comprehension info len new-decls processed-form))])))
   
 (define (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)
-    (when (@>= (get-verbosity) 2)
+    (when (@>= (get-verbosity) VERBOSITY_DEBUG)
       (printf "substitutor: interpret-expr-op: ~a~n" expr))
   (match expr
     [(node/expr/op/+ info arity children)
@@ -206,7 +206,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (substitute-int run-or-state expr relations atom-names quantvars target value)
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-int: ~a~n" expr))
   ; TEMP fix to match int variables. Should probably modify process-children-int to handle constants.
   (if (equal? expr target) value
@@ -231,7 +231,7 @@
       (node/int/sum-quant info new-decls processed-int))])))
 
 (define (substitute-int-op run-or-state expr relations atom-names quantvars args target value)
-  (when (@>= (get-verbosity) 2)
+  (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-int-op: ~a~n" expr))
   (match expr
     [(node/int/op/add info children)

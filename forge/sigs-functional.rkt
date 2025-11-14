@@ -48,7 +48,8 @@
 (provide Int succ)
 (provide (prefix-out forge: make-model-generator))
 (provide solution-diff)
-(provide reset-run-name-history! stop-solver-process!)
+(provide ;reset-run-name-history! 
+         stop-solver-process!)
 
 ; ; Instance analysis functions
 ; (provide is-sat? is-unsat?)
@@ -366,9 +367,9 @@
          [(node/breaking/break _ breaker) breaker]
          [_ (fail "is")]))
      (match left
-       [(? node/expr/relation?) (break left right)]
+       [(? node/expr/relation?) (break-rel left right)]
        [(node/expr/op/~ info arity (list left-rel))
-        (break left-rel (get-co right))]
+        (break-rel left-rel (get-co right))]
        [_ (fail "is")])
      (values scope bound)]
 

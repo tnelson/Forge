@@ -38,7 +38,11 @@
   ) #:transparent)
 
 (struct/contract Unsat (               
-  [core (or/c #f (listof any/c))]; list-of-Formula-string-or-formulaID)]
+  ;[core (or/c #f (listof any/c))]; list-of-Formula-string-or-formulaID)]
+  ; If there's a core, there are two cases per component:
+  ;  (1) a node: a known formula
+  ;  (2) a string: an unknown formula (Kodkod couldn't map back this part of the core)
+  [core (or/c #f (listof (or/c node? string?)))]
   [stats any/c] ; association list
   [kind symbol?] ; symbol
   ) #:transparent)

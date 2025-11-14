@@ -199,49 +199,68 @@ ExprList : NT-Expr
 ;  binary temporal connectives which are not associative."
 
 NT-Expr    : @NT-Expr1
-        | LET-TOK LetDeclList BlockOrBar
-        | BIND-TOK LetDeclList BlockOrBar
-        | Quant DISJ-TOK? QuantDeclList BlockOrBar
-NT-Expr1   : @NT-Expr1.5  | NT-Expr1 OR-TOK NT-Expr1.5
-NT-Expr1.5 : @NT-Expr2    | NT-Expr1.5 XOR-TOK NT-Expr2
-NT-Expr2   : @NT-Expr3    | NT-Expr2 IFF-TOK NT-Expr3
+           | LET-TOK LetDeclList BlockOrBar
+           | BIND-TOK LetDeclList BlockOrBar
+           | Quant DISJ-TOK? QuantDeclList BlockOrBar
+NT-Expr1   : @NT-Expr1.5  
+           | NT-Expr1 OR-TOK NT-Expr1.5
+NT-Expr1.5 : @NT-Expr2   
+           | NT-Expr1.5 XOR-TOK NT-Expr2
+NT-Expr2   : @NT-Expr3    
+           | NT-Expr2 IFF-TOK NT-Expr3
 ;; right assoc
-NT-Expr3   : @NT-Expr4    | NT-Expr4 IMP-TOK NT-Expr3 (ELSE-TOK NT-Expr3)?        
-NT-Expr4   : @NT-Expr4.5  | NT-Expr4 AND-TOK NT-Expr4.5
+NT-Expr3   : @NT-Expr4    
+           | NT-Expr4 IMP-TOK NT-Expr3 (ELSE-TOK NT-Expr3)? 
+;; back to left assoc           
+NT-Expr4   : @NT-Expr4.5  
+           | NT-Expr4 AND-TOK NT-Expr4.5
 ; Electrum binary operators (not associative)
-NT-Expr4.5 : @NT-Expr5  | NT-Expr5 UNTIL-TOK NT-Expr5
-                  | NT-Expr5 RELEASE-TOK NT-Expr5
-                  | NT-Expr5 SINCE-TOK NT-Expr5
-                  | NT-Expr5 TRIGGERED-TOK NT-Expr5
-NT-Expr5   : @NT-Expr6  | NEG-TOK NT-Expr5
-                  | ALWAYS-TOK NT-Expr5
-                  | EVENTUALLY-TOK NT-Expr5
-                  | AFTER-TOK NT-Expr5
-                  | BEFORE-TOK NT-Expr5
-                  | ONCE-TOK NT-Expr5
-                  | HISTORICALLY-TOK NT-Expr5
-NT-Expr6   : @NT-Expr7  | NT-Expr6 NEG-TOK? CompareOp NT-Expr7
-NT-Expr7   : @NT-Expr8 | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) NT-Expr8
-NT-Expr8   : @NT-Expr9  | NT-Expr8 (PLUS-TOK | MINUS-TOK) NT-Expr10
-NT-Expr9   : @NT-Expr10 | CARD-TOK NT-Expr9
-NT-Expr10  : @NT-Expr11 | NT-Expr10 PPLUS-TOK NT-Expr11
-NT-Expr11  : @NT-Expr12 | NT-Expr11 AMP-TOK NT-Expr12
-NT-Expr12  : @NT-Expr13 | NT-Expr12 ArrowOp NT-Expr13
-NT-Expr13  : @NT-Expr14 | NT-Expr13 (SUBT-TOK | SUPT-TOK) NT-Expr14
-NT-Expr14  : @NT-Expr15 | NT-Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
-NT-Expr15  : @NT-Expr16 | NT-Expr15 DOT-TOK NT-Expr16
-                  | Name LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
-NT-Expr16  : @NT-Expr17 | NT-Expr16 PRIME-TOK
-NT-Expr17  : @NT-Expr18 | (TILDE-TOK | EXP-TOK | STAR-TOK) NT-Expr17
+NT-Expr4.5 : @NT-Expr5  
+           | NT-Expr5 UNTIL-TOK NT-Expr5
+           | NT-Expr5 RELEASE-TOK NT-Expr5
+           | NT-Expr5 SINCE-TOK NT-Expr5
+           | NT-Expr5 TRIGGERED-TOK NT-Expr5
+NT-Expr5   : @NT-Expr6  
+           | NEG-TOK NT-Expr5
+           | ALWAYS-TOK NT-Expr5
+           | EVENTUALLY-TOK NT-Expr5
+           | AFTER-TOK NT-Expr5
+           | BEFORE-TOK NT-Expr5
+           | ONCE-TOK NT-Expr5
+           | HISTORICALLY-TOK NT-Expr5
+NT-Expr6   : @NT-Expr7  
+           | NT-Expr6 NEG-TOK? CompareOp NT-Expr7
+NT-Expr7   : @NT-Expr8 
+           | (NO-TOK | SOME-TOK | LONE-TOK | ONE-TOK | TWO-TOK | SET-TOK) NT-Expr8
+NT-Expr8   : @NT-Expr9  
+           | NT-Expr8 (PLUS-TOK | MINUS-TOK) NT-Expr10
+NT-Expr9   : @NT-Expr10 
+           | CARD-TOK NT-Expr9
+NT-Expr10  : @NT-Expr11 
+           | NT-Expr10 PPLUS-TOK NT-Expr11
+NT-Expr11  : @NT-Expr12 
+           | NT-Expr11 AMP-TOK NT-Expr12
+NT-Expr12  : @NT-Expr13 
+           | NT-Expr12 ArrowOp NT-Expr13
+NT-Expr13  : @NT-Expr14 
+           | NT-Expr13 (SUBT-TOK | SUPT-TOK) NT-Expr14
+NT-Expr14  : @NT-Expr15 
+           | NT-Expr14 LEFT-SQUARE-TOK ExprList RIGHT-SQUARE-TOK
+           | NT-Expr14 DOT-TOK NT-Expr15
+NT-Expr15  : @NT-Expr16
+NT-Expr16  : @NT-Expr17 
+           | NT-Expr16 PRIME-TOK
+NT-Expr17  : @NT-Expr18 
+           | (TILDE-TOK | EXP-TOK | STAR-TOK) NT-Expr17
 NT-Expr18  : Const 
-        | QualName 
-        | AT-TOK Name
-        | BACKQUOTE-TOK Name
-        | THIS-TOK
-        | LEFT-CURLY-TOK QuantDeclList BlockOrBar RIGHT-CURLY-TOK
-        | /LEFT-PAREN-TOK @NT-Expr /RIGHT-PAREN-TOK
-        | NT-Block
-        | Sexpr
+           | QualName 
+           | AT-TOK Name
+           | BACKQUOTE-TOK Name
+           | THIS-TOK
+           | LEFT-CURLY-TOK QuantDeclList BlockOrBar RIGHT-CURLY-TOK
+           | /LEFT-PAREN-TOK @NT-Expr /RIGHT-PAREN-TOK
+           | NT-Block
+           | Sexpr
 
 ArrowExpr : QualName
           | QualName /ARROW-TOK @ArrowExpr

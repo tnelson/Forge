@@ -10,7 +10,6 @@
 (require (only-in forge/lang/reader generic-forge-reader))
 ;(require forge/lang/alloy-syntax/parser)
 ;(require forge/lang/alloy-syntax/tokenizer)
-;(require (prefix-in log: forge/logging/2023/main))
 (require forge/shared)
 (do-time "forge/temporal/lang/reader")
 

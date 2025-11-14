@@ -41,14 +41,13 @@
                   make-check
                   test-from-state
                   make-test
-                  reset-run-name-history!
                   stop-solver-process!))
 (require forge/choose-lang-specific)
 
 ; Commands
 (provide sig relation fun const pred inst with)
 (provide run check test example display execute start-sterling-menu)
-(provide instance-diff solution-diff evaluate)
+(provide solution-diff evaluate)
 
 ; Instance analysis functions
 (provide is-unsat? is-sat? is-unknown?)
