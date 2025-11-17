@@ -2,126 +2,20 @@
 
 (require forge/types/ast-adapter)
 (require forge/types/lazy-tree-adapter)
+(require forge/types/structs-adapter)
+(require forge/utils/bounds)
 
 ;; TODO TYPES:
 ;   Notice that we need to instantiate polymorphic functions often. E.g., 
 ; (inst map FAtom Tuple) <-- to mean we're mapping tuples to atoms
 
-(define-type PiecewiseBounds (HashTable node/expr/relation PiecewiseBound))
-
 (require/typed forge/last-checker
   [checkFormula (-> Run-spec node/formula (Listof Any) (HashTable Any Any) Void)])
 
-;; TYPES TODO: the contracts are more refined. should we combine the two?
-(require/typed forge/sigs-structs
-  [#:struct Sat (
-    [instances : Any] ; list of hashes            
-    [stats : Any]     ; association list
-    [metadata : Any])]  ; association list)
-  [#:struct Unsat (
-    [core : (U False (Listof Any))] ; list-of-Formula-string-or-formulaID
-    [stats : Any] ; association list
-    [kind : Symbol] ; symbol
-  )]
-  [#:struct Unknown (
-    [stats : Any]    ; data on performance, translation, etc. 
-    [metadata : Any] ; any solver-specific data provided about the unknown result
-  )]
-  [#:struct Kodkod-current (
-    [formula : Integer]
-    [expression : Integer]
-    [int : Integer])]
-  [#:struct (Relation node/expr/relation) (
-    [name : Symbol] ; symbol?
-    [sigs-thunks : (Listof (-> Sig))]
-    [breaker : (U node/breaking/break False)]
-  )]
-  [#:struct Server-ports (
-    [stdin : Output-Port]
-    [stdout : Input-Port]
-    [stderr : Input-Port]
-    [shutdown : (-> Void)]
-    [is-running? : (-> Boolean)])]
-  [#:struct (Sig node/expr/relation) (
-    [name : Symbol] ; symbol?
-    [one : Boolean] ; boolean?
-    [lone : Boolean] ; boolean?
-    [abstract : Boolean] ; boolean?
-    [extends : (U Sig False)] ; (or/c Sig? #f)
-  )]
-  [#:struct Run-spec (
-    [state : State]  ; Model state at the point of this run 
-    [preds : (Listof node/formula)] ; predicates to run, conjoined
-    [scope : Scope] ; Numeric scope(s)
-    [bounds : Bound] ; set-based upper and lower bounds
-    [target : Any] ;(or/c Target? #f) ; target-oriented model finding
-  )]
-  [#:struct Bound (
-    ; pbindings: partial (but complete) bindings for a given relation
-    [pbindings : (HashTable node/expr/relation sbound)] 
-    ; tbindings: total (and complete) bindings for a given relation; also known as an exact bound.
-    [tbindings : (HashTable node/expr/relation Any)] 
-    ; incomplete bindings for a given relation, indexed by first column
-    [piecewise : PiecewiseBounds]
-    ; original AST nodes, for improving errors, indexed by relation
-    [orig-nodes : (HashTable node/expr/relation (Listof node))] 
-  )]
-  [#:struct PiecewiseBound (
-    [tuples : (Listof Tuple)]                  ; first element is the indexed atom in the original piecewise bounds
-    [atoms : (Listof FAtom)]                   ; which atoms have been bound? (distinguish "given none" from "none given")
-    [operator : (U '= 'in 'ni)])]               ; which operator mode?
-  [#:struct State (
-    [sigs : (HashTable Symbol Sig)] 
-    [sig-order : (Listof Symbol)] 
-    [relations : (HashTable Symbol Relation)] 
-    [relation-order : (Listof Symbol)]
-    [pred-map : (HashTable Symbol node/formula)] ;(hash/c symbol? (or/c (unconstrained-domain-> node/formula?) node/formula?))
-    [fun-map : (HashTable Symbol node)] ; (hash/c symbol? (unconstrained-domain-> node?))
-    [const-map : (HashTable Symbol node)]
-    [inst-map : (HashTable Symbol Any)] ; (hash/c symbol? Inst?)
-    [options : Any] ; Options?
-    [runmap : (HashTable Symbol Run)])]
-  [#:struct Run (
-    [name : Symbol]
-    [command : Syntax]
-    [run-spec : Run-spec] 
-    [result : Any] ;tree:node
-    [server-ports : Any] ;Server-ports?]
-    [atoms : (Listof FAtom)] 
-    [kodkod-currents : Any] ; Kodkod-current?]
-    [kodkod-bounds : (Listof Any)]
-    [last-sterling-instance : Any ])] ; (box/c (or/c Sat? Unsat? Unknown? false/c))
-  [#:struct Range (
-    [lower : (U Integer False)]
-    [upper : (U Integer False)])]
-  [#:struct Scope (
-    [default-scope : (U Range False)]
-    [bitwidth : (U Integer False)]
-    [sig-scopes : (HashTable Symbol Range)])]
-  [get-relations (-> (U Run State Run-spec) (Listof Relation))]
-  [get-sigs (->* ((U Run State Run-spec)) ((U False node/expr/relation)) (Listof Sig))]
-  [get-sig (-> (U Run State Run-spec) (U Symbol node/expr/relation) (U Sig False))]
-  [get-option (case-> 
-    (-> (U Run State Run-spec) 'backend Symbol)
-    (-> (U Run State Run-spec) 'solver (U String Symbol))
-    (-> (U Run State Run-spec) 'java_exe_location (U False Path-String))
-    (-> (U Run State Run-spec) 'problem_type Symbol)
-    (-> (U Run State Run-spec) Symbol Any))]
-  [get-state (-> (U Run Run-spec State) State)]
-  [get-bitwidth (-> (U Run-spec Scope) Integer)]
-  [get-children (-> (U Run State Run-spec) Sig (Listof Sig))]
-  [DEFAULT-SIG-SCOPE Range]
-  [get-top-level-sigs (-> (U Run State Run-spec) (Listof Sig))]
-  ;; TODO TYPES: these are macros, but they has no parameters, so they are being immediately 
-  ;; expanded here to the relations they denote. 
-  [Int Sig]
-  [succ Relation]
-)
 
 (require forge/breaks)
 (require forge/lang/bounds)
-(require forge/shared
-         forge/last-checker)
+(require forge/shared)
 (require (prefix-in @ (only-in racket/base max + -))
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
@@ -258,6 +152,7 @@
   ; Produce bounds from scopes
   (define-values (sig-to-bound relation-to-bound all-atoms)
     (get-bounds run-spec run-command))
+  ;(printf "GET-BOUNDS ~a~n~n~n" sig-to-bound)
   
   ; Get new bounds and constraints from breaks
   (: total-bounds (Listof bound))
@@ -380,6 +275,7 @@
     (if (equal? 'temporal (get-option run-spec 'problem_type))
         (always/func #:info (node-info fmla) fmla)
         fmla))
+  ;(printf "SIG-TO-BOUND: ~a~n" sig-to-bound)
   
   ; If in temporal mode, need to always-ify the auto-generated constraints but not the
   ;   predicates that come from users
@@ -479,6 +375,11 @@
 ; sets of atoms for each, and find the total number of atoms needed (including ints).
 (: get-sig-bounds (-> Run-spec Syntax (Values (HashTable Symbol bound) (Listof FAtom))))
 (define (get-sig-bounds run-spec run-command)
+
+  ;; DEBUG
+  ;(printf "DEBUG: ~a~n" (preprocess-sigs run-spec))
+
+  
   ;;;;; Helpers for extracting declared relational bounds from the run-spec
   (define pbindings (Bound-pbindings (Run-spec-bounds run-spec)))  
 
@@ -936,16 +837,36 @@ Please declare a sufficient scope for ~a."
             (list))
         (if (and int-upper (< int-upper bound-upper-size))
             (let ()
-              (unless (< int-upper max-int)
-                (raise-run-error (format (string-append "Upper bound too large for given BitWidth; "
-                                                        "Sig: ~a, Upper-bound: ~a, Max-int: ~a")
-                                         sig int-upper (sub1 max-int))
-                                 run-command
-                                 (get-blame-node run-spec sig)))
-              (list (||/func #:info info
-                             (int</func #:info info (card/func #:info info sig) (int/func #:info info int-upper))
-                             (int=/func #:info info (card/func #:info info sig) (int/func #:info info int-upper)))))
+              ;(unless (< int-upper max-int)
+              ;  (raise-run-error (format (string-append "Upper bound too large for given BitWidth; "
+              ;                                          "Sig: ~a, Upper-bound: ~a vs. ~a, Max-int: ~a")
+              ;                           sig int-upper bound-upper (sub1 max-int))
+              ;                   run-command
+              ;                   (get-blame-node run-spec sig)))
+              
+              ; For upper bounds, we can avoid using cardinality here by employing `some` quantifiers.
+              ; E.g., #A <= 3 would be (no A) or (some a1, a2, a3 : A | a1+a2+a3 = A).
+              ;   But this seems much slower in Forge than in Alloy. TODO investigate
+              ;(: new-vars (Listof node/expr/quantifier-var))
+              ;(define new-vars (build-list int-upper
+              ;                             (lambda ([i : Integer]) (let ([id (gensym (format "card~a" i))])
+              ;                                                       (node/expr/quantifier-var empty-nodeinfo 1 id id)))))
+              ; (node/expr/quantifier-var empty-nodeinfo 1 symv symv)
+              ;(define new-decls (map (lambda ([v : node/expr/quantifier-var]) (cons v sig)) new-vars))
+              ;(list
+              ; (||/func #:info info
+              ;          (no/func #:info info sig)
+              ;          (quantified-formula info 'some new-decls
+              ;                              (=/func #:info info
+              ;                                      sig
+              ;                                      (app-e +/func info new-vars)))))
+             (list (||/func #:info info
+                           (int</func #:info info (card/func #:info info sig) (int/func #:info info int-upper))
+                           (int=/func #:info info (card/func #:info info sig) (int/func #:info info int-upper))))
+              )
             (list)))))
+  
+  ; Ideally, all the lists will be empty.
   (apply append lists))
 
 

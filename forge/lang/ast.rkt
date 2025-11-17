@@ -178,8 +178,7 @@
                     #:same-arity? [same-arity? #f] #:arity [arity #f]
                     #:min-length [min-length 2] #:max-length [max-length #f]
                     #:join? [join? #f] #:domain? [domain? #f] #:range? [range? #f])
-  (define loc (nodeinfo-loc info))
-
+  (define loc (nodeinfo-loc info)) 
   ; check: correct number of arguments
   (when (< (length args) min-length)
     (raise-forge-error
@@ -467,12 +466,12 @@
   (lambda e (car e)))
 (define get-second
   (lambda e (cadr e)))
-(define-syntax-rule (define-op/combine id)
-  (define-node-op id node/expr/op get-first #:same-arity? #t #:type node/expr?))
+;(define-syntax-rule (define-op/combine id elim-unary)
+;  (define-node-op id node/expr/op get-first #:same-arity? #t #:lift #f #:type node/expr? #:elim-unary? elim-unary))
 
-(define-op/combine +)
-(define-op/combine -)
-(define-op/combine &)
+(define-node-op + node/expr/op get-first #:min-length 1 #:same-arity? #t #:lift #f #:type node/expr? #:elim-unary? #t)
+(define-node-op - node/expr/op get-first #:min-length 2 #:same-arity? #t #:lift #f #:type node/expr? #:elim-unary? #f)
+(define-node-op & node/expr/op get-first #:min-length 1 #:same-arity? #t #:lift #f #:type node/expr? #:elim-unary? #t)
 
 (define-syntax-rule (define-op/cross id)
   (define-node-op id node/expr/op @+ #:type node/expr?))
