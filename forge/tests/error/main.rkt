@@ -206,6 +206,13 @@
     ;; The "is theorem" test construct is temporarily disabled in favor of "is checked";
     ;; it will be re-enabled for complete solver backends only
     (list "is_theorem_disabled.frg" #rx"use 'is checked' instead")
+
+    ;; Bad option names
+    (list "bad_option_name.frg" #rx"No such option")
+    ;; Bad option types
+    (list "bad_option_type.frg" #rx"requires non-negative integer")
+    ;; Bad enum member (checked via option types)
+    (list "bad_option_enum.frg" #rx"requires one of")
   ))
 
 

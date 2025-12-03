@@ -85,7 +85,7 @@
 ; Possibly annotate the XML with instructions on where to find visualization info.
 ; The option supports a _list_ of files, so Racket needs to disambiguate. 
 (define (sterling-viz-to-xml run-options)
-  (define rs-opt (Options-run_sterling run-options))
+  (define rs-opt (hash-ref run-options 'run_sterling))
   (define (single-path-to-xml p)
     (cond [(and (string? p) (file-exists? p))
            ; the forge expander makes this an absolute path (see OptionDecl)

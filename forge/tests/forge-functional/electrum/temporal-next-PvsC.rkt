@@ -11,7 +11,7 @@
 (define r2 (make-relation 'r2 (list A B)))
 
 (define myrun-options
-  (struct-copy forge:Options forge:DEFAULT-OPTIONS [problem_type 'temporal]))
+  (hash-set forge:DEFAULT-OPTIONS 'problem_type 'temporal))
 
 (define myrun (make-run #:name 'myrun
                         #:preds (list (some r1) (some r2))
