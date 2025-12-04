@@ -1,6 +1,6 @@
 #lang typed/racket/base/optional
 
-(require racket/runtime-path racket/file)
+(require racket/runtime-path racket/file racket/match)
 (require (only-in racket/system system*)
          (only-in racket/string string-trim)
          (only-in racket/port call-with-output-string)
@@ -253,3 +253,57 @@
       (log-forge-timing-debug          
           (format "~a at ~a\tlast step: ~a\tgc: ~a\ttotal: ~a"
                   new-msg t diff gc-diff init-diff)))))
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Infrastructure for logging to files ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-logger forge-logger) 
+(: logfile-name (Boxof (U False Path-String)))
+(define logfile-name (box #f))
+
+
+(provide log-forge-event setup-logfile! log-to-file-enabled?)
+(: setup-logfile! (-> Path-String Void))
+(define (setup-logfile! fp)
+  (set-box! logfile-name fp))
+(: log-to-file-enabled? (-> Boolean))
+(define (log-to-file-enabled?)
+  (if (unbox logfile-name) #t #f))
+
+(define receiver (make-log-receiver forge-logger-logger 'debug))
+  
+; Only set up the file if logging to file is enabled.
+(: logger-port (U False Output-Port))
+(define logger-port (let ([unboxed (unbox logfile-name)])
+                      (if unboxed
+                          (open-output-file unboxed
+                                            #:exists 'replace)
+                          #f)))
+
+(when logger-port
+  ; Set up the receiver to write to the file
+  (define forge-log-receiver-thread
+    (thread
+     (lambda ()
+       (let loop ()
+         (match (sync receiver)
+           [(vector level msg data event-name)
+           ; (printf "Log received: ~a~n" data)
+            (fprintf logger-port "[~a] ~a: ~a\n" level event-name data)
+            (flush-output logger-port)])
+         (loop)))))
+  ; Be prepared to gracefully close the logger file, if any
+  (exit-handler
+   (let ([old-exit (exit-handler)])
+     (lambda (v)
+       (close-output-port logger-port)
+       (old-exit v)))))
+
+(: log-forge-event (-> Log-Level String Any Void))
+(define (log-forge-event level topic datum)
+ ; (printf "Log sending: ~a~n" datum)
+  (log-message forge-logger-logger level topic datum))

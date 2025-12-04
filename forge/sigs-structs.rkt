@@ -305,7 +305,8 @@
         'engine_verbosity exact-nonnegative-integer?
         'test_keep (oneof-pred '(first last))
         'no_overflow (oneof-pred '(false true))
-        'java_exe_location (lambda (x) (or (equal? x #f) (string? x)))))
+        'java_exe_location (lambda (x) (or (equal? x #f) (string? x)))
+        ))
 
 (define option-types-names
   (hash 'eval-language "symbol"
@@ -326,7 +327,8 @@
         'engine_verbosity "non-negative integer"
         'test_keep "one of: first or last"
         'no_overflow "one of: false or true"
-        'java_exe_location "string"))
+        'java_exe_location "string"
+        ))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

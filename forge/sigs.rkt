@@ -1141,7 +1141,7 @@
  #:multi
  [("-o" "--option") OPTION-NAME OPTION-VALUE
                     "Option set"
-                    (begin 
+                    (begin
                       (printf "Setting ~a = ~a~n" (string->symbol OPTION-NAME) OPTION-VALUE)
                       (set-option! (string->symbol OPTION-NAME)
                                    (string->option-type OPTION-NAME OPTION-VALUE)))]
@@ -1154,6 +1154,9 @@
                                      (string->option-type OPTION-NAME OPTION-VALUE))
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
+ [("-L" "--logfile") LOGFILE-PATH
+                     "Log filename"
+                     (setup-logfile! LOGFILE-PATH)]
  [("-N" "--notests")
   "Disable tests for this model execution (NOT YET SUPPORTED)"
   (begin

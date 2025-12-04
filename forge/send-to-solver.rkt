@@ -13,6 +13,10 @@
   [checkFormula (-> Run-spec node/formula (Listof Any) (HashTable Any Any) Void)])
 
 ;; TYPES TODO: the contracts are more refined. should we combine the two?
+
+(require/typed forge/server/modelToXML
+               [solution-to-XML-string (-> (U Sat Unsat Unknown) String)])
+
 (require/typed forge/sigs-structs
   [#:struct Sat (
     [instances : Any] ; list of hashes            
@@ -405,19 +409,26 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Beginning to send to solver. All type-checking must be complete _before_ this point.
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+  (: maybe-log-wrap (-> (U Sat Unsat Unknown) (U Sat Unsat Unknown)))
+  (define (maybe-log-wrap soln)
+    ; Potentially log this solution in XML form.
+    (when (log-to-file-enabled?)
+      (log-forge-event 'debug "solution" (solution-to-XML-string soln)))
+    soln)
   
   (define get-next-model
     (cond [(equal? backend 'smtlibtor)
            (begin
              (define-values (all-rels core-map)
                (send-to-cvc5-tor run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
-             (lambda ([mode : String]) (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode
-                                                     #:run-command run-command)))]        
+             (lambda ([mode : String]) (maybe-log-wrap (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode
+                                                     #:run-command run-command))))]        
           [(equal? backend 'pardinus)
            (begin
              (define-values (all-rels core-map)
                (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
-             (lambda ([mode : String]) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]   
+             (lambda ([mode : String]) (maybe-log-wrap (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode))))]   
           [else (raise (format "Invalid backend: ~a" backend))]))
            
      
