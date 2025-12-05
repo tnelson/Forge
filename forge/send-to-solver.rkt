@@ -15,7 +15,13 @@
 ;; TYPES TODO: the contracts are more refined. should we combine the two?
 
 (require/typed forge/server/modelToXML
-               [solution-to-XML-string (-> (U Sat Unsat Unknown) String)])
+               [solution-to-XML-string (->* ((U Sat Unsat Unknown) (HashTable Symbol node/expr/relation) Symbol String String Integer String)
+                                            (#:tuple-annotations (HashTable Any Any)
+                                             #:run-options (HashTable Symbol Any))
+                                            String)])
+
+(require/typed syntax/srcloc
+               [source-location-source (-> Any Path)])
 
 (require/typed forge/sigs-structs
   [#:struct Sat (
@@ -83,7 +89,7 @@
     [fun-map : (HashTable Symbol node)] ; (hash/c symbol? (unconstrained-domain-> node?))
     [const-map : (HashTable Symbol node)]
     [inst-map : (HashTable Symbol Any)] ; (hash/c symbol? Inst?)
-    [options : Any] ; Options?
+    [options : (HashTable Symbol Any)] 
     [runmap : (HashTable Symbol Run)])]
   [#:struct Run (
     [name : Symbol]
@@ -120,6 +126,7 @@
   ;; expanded here to the relations they denote. 
   [Int Sig]
   [succ Relation]
+  [get-relation-map (-> (U Run Run-spec) (HashTable Symbol node/expr/relation))]
 )
 
 (require forge/breaks)
@@ -414,7 +421,21 @@
   (define (maybe-log-wrap soln)
     ; Potentially log this solution in XML form.
     (when (log-to-file-enabled?)
-      (log-forge-event 'debug "solution" (solution-to-XML-string soln)))
+      (define filepath (if (source-location-source run-command)
+                           (path->string (source-location-source run-command))
+                           "/no-name.frg"))
+      (define soln-string
+        (solution-to-XML-string soln
+                                (get-relation-map run-spec)
+                                run-name
+                                (format "~a" (syntax->datum run-command))
+                                filepath
+                                (get-bitwidth run-spec)
+                                forge-version
+                                #:tuple-annotations (hash)
+                                #:run-options (State-options (Run-spec-state run-spec))))
+      (define result (cond [(Sat? soln) "Sat"] [(Unsat? soln) "Unsat"] [(Unknown? soln) "Unknown"]))
+      (log-forge-event 'debug (string->symbol result) result (remove-newlines soln-string)))
     soln)
   
   (define get-next-model
