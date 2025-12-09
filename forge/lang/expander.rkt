@@ -849,12 +849,13 @@
 (define-syntax (NT-AlloyModule stx)
   (syntax-parse stx
     [((~datum NT-AlloyModule) (~optional module-decl:ModuleDeclClass)
-                             (~seq import:ImportClass ...)
+                              ; Imports are now handled separately
+                             ;(~seq import:ImportClass ...)
                              (~seq paragraph:ParagraphClass ...))
      (syntax/loc stx
        (begin
          (~? module-decl)
-         import ...
+         ;import ...
          paragraph ...))]
     [((~datum NT-AlloyModule) ((~datum NT-EvalDecl) "eval" expr:ExprClass))
      (syntax/loc stx expr)]
@@ -873,7 +874,8 @@
 (define-syntax (NT-Import stx)
   (syntax-parse stx
 
-    ; Arbitrary relative path, usually a user-authored Forge module
+    ; Arbitrary relative path, usually a user-authored Forge module. Here we need to 
+    ; take the importing module's location into account. 
     [((~datum NT-Import) file-path:str
                          (~optional (~seq "as" as-name:NameClass)))
      (unless (file-exists? (build-path (current-load-relative-directory) (syntax->datum #'file-path)))
@@ -881,36 +883,49 @@
                           #:context (build-source-location stx)))
      (quasisyntax/loc stx
        (begin         
+       ; TODO: absolute paths should work in Windows here, but relative paths 
+       ; not so much.
          (~? (require (prefix-in as-name.name file-path))
              (require file-path))))]
 
     ; Path relative to the `library` subfolder of the Forge package
+    ; Here we can require a module path in the forge package. 
     [((~datum NT-Import) import-name:QualNameClass
                          (~optional (~seq "[" other-names:QualNameListClass "]"))
                          (~optional (~seq "as" as-name:NameClass)))
+
+     (when (syntax->datum #'(~? other-names #f))
+       (raise (format "Parameterized import not yet implemented. ~a" 'other-names)))
      
-     (define prefixed-file-path
-       (build-path (pkg-directory "forge")
-                   "library"
-                   (symbol->string (syntax->datum #'import-name.name))))
-     (define actual-file-path
-       (find-relative-path
-        (current-load-relative-directory)
-        (simplify-path
-         (cond [(file-exists? (path-add-extension prefixed-file-path #".rkt"))
-                (path-add-extension prefixed-file-path #".rkt")]
-               [(file-exists? (path-add-extension prefixed-file-path #".frg"))
-                (path-add-extension prefixed-file-path #".frg")]
-               [else
-                (raise-forge-error #:msg (format "Forge library module to import did not exist: ~a" (syntax->datum #'import-name.name))
-                                   #:context stx)]))))
-     (with-syntax ([fp (datum->syntax #'import-name (path->string actual-file-path) #'import-name)])
-       (syntax/loc stx
-         (begin
+    ;   (define prefixed-file-path
+    ;      (build-path (pkg-directory "forge")
+    ;                  "library"
+    ;                  (symbol->string (syntax->datum #'import-name.name))))  
+
+    ;     (printf "value: ~a~n" (symbol->string (syntax->datum #'import-name.name)))  
+    ;   (printf "Prefixed: ~a~n" prefixed-file-path)   
+    ;  (define actual-file-path
+    ;    (find-relative-path
+    ;     (current-load-relative-directory)
+    ;     (simplify-path  
+    ;      (cond [(file-exists? (path-add-extension prefixed-file-path #".rkt"))
+    ;             (path-add-extension prefixed-file-path #".rkt")]
+    ;            [(file-exists? (path-add-extension prefixed-file-path #".frg"))
+    ;             (path-add-extension prefixed-file-path #".frg")]
+    ;            [else
+    ;             (raise-forge-error #:msg (format "Forge library module to import did not exist: ~a" (syntax->datum #'import-name.name))
+    ;                                #:context stx)]))))
+      
+     (define actual-module-path 
+       (string->symbol 
+         (format "forge/library/~a" (syntax->datum #'import-name.name))))
+      
+     (with-syntax ([fp (datum->syntax #'import-name actual-module-path #'import-name)])
+       (quasisyntax/loc stx
            ; It is important that the module-path given here has the context of the Forge module. 
            (~? (require (prefix-in as-name.name fp))
-               (require fp))
-           (~? (raise (format "Parameterized import not yet implemented. ~a" 'other-names))))))]))
+              (require fp))
+       ))]))
 
 ; SigDecl : VAR-TOK? ABSTRACT-TOK? Mult? /SIG-TOK NameList SigExt? /LEFT-CURLY-TOK ArrowDeclList? /RIGHT-CURLY-TOK Block?
 (define-syntax (NT-SigDecl stx)
