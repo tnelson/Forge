@@ -9,7 +9,7 @@
 (define Variable (make-sig 'Variable #:is-var #t))
 
 (define var-opt
-  (struct-copy forge:Options forge:DEFAULT-OPTIONS [problem_type 'temporal]))
+  (hash-set forge:DEFAULT-OPTIONS 'problem_type 'temporal))
 
 (define myrun (make-run #:name 'myrun
                         #:preds (list (some Constant) (some Variable))

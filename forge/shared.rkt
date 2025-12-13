@@ -1,8 +1,8 @@
 #lang typed/racket/base/optional
 
-(require racket/runtime-path racket/file)
+(require racket/runtime-path racket/file racket/match)
 (require (only-in racket/system system*)
-         (only-in racket/string string-trim)
+         (only-in racket/string string-trim string-replace)
          (only-in racket/port call-with-output-string)
          (only-in pkg/lib pkg-directory))
 (require typed/net/base64)
@@ -42,7 +42,7 @@
 (provide get-verbosity set-verbosity
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
          VERBOSITY_DEBUG VERBOSITY_LASTCHECK get-temp-dir)
-(provide forge-version forge-git-info instance-diff curr-forge-version)
+(provide forge-version forge-git-info instance-diff curr-forge-version remove-newlines)
 (provide port-echo java>=1.9? do-time)
 
 ; Level of output when running specs
@@ -202,6 +202,10 @@
     str
     (raise-user-error 'shell "failed to apply '~a' to arguments '~a': got ~a" exe cmd* (unbox success?))))
 
+(: remove-newlines (-> String String))
+(define (remove-newlines str)
+  (string-replace (string-replace str "\n" "") "\r" ""))
+
 ;; --- timing
 
 (define-logger forge-timing)
@@ -253,3 +257,57 @@
       (log-forge-timing-debug          
           (format "~a at ~a\tlast step: ~a\tgc: ~a\ttotal: ~a"
                   new-msg t diff gc-diff init-diff)))))
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Infrastructure for logging to files ;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(provide log-forge-event setup-logfile! log-to-file-enabled?)
+(define-logger forge-logger)
+
+(: logfile-name (Boxof (U False Path-String)))
+(define logfile-name (box #f))
+(: logger-port (Boxof (U False Output-Port)))
+(define logger-port (box #f))
+
+(: log-to-file-enabled? (-> Boolean))
+(define (log-to-file-enabled?)
+  (if (and (unbox logger-port) (unbox logfile-name)) #t #f))
+
+(: setup-logfile! (-> Path-String Void))
+(define (setup-logfile! fp)
+  (set-box! logfile-name fp)
+  (when fp
+    (define receiver (make-log-receiver forge-logger-logger 'debug))
+    (define logger-port-temp (open-output-file fp #:exists 'replace))
+    (set-box! logger-port logger-port-temp)
+    
+    (when logger-port-temp
+      ; Set up the receiver to write to the file
+      (define forge-log-receiver-thread
+        (thread
+         (lambda ()
+           (let loop ()
+             (match (sync receiver)
+               [(vector level msg data event-name)
+                ;(printf "Log received: ~a~n" data)
+                (fprintf logger-port-temp "[~a] ~a: ~a\n" level event-name data)
+                (flush-output logger-port-temp)])
+             (loop)))))
+      ; Be prepared to gracefully close the logger file, if any
+      (exit-handler
+       (let ([old-exit (exit-handler)])
+         (lambda (v)
+           (close-output-port logger-port-temp)
+           (old-exit v))))))) 
+  
+
+(: log-forge-event (-> Log-Level Symbol String Any Void))
+(define (log-forge-event level topic message datum)
+  (when (log-to-file-enabled?)
+    ;(printf "Log sending: ~a~n" datum)
+    ; logger level topic message data prefix-message
+    (log-message forge-logger-logger level topic message datum #t)))

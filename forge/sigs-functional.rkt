@@ -44,7 +44,8 @@
          make-check
          test-from-state
          make-test
-         display)
+         display
+         state-set-option)
 (provide Int succ)
 (provide (prefix-out forge: make-model-generator))
 (provide solution-diff)
@@ -71,7 +72,6 @@
          (prefix-out forge: (struct-out Range))
          (prefix-out forge: (struct-out Scope))
          (prefix-out forge: (struct-out Bound))
-         (prefix-out forge: (struct-out Options))
          (prefix-out forge: (struct-out State))
          (prefix-out forge: (struct-out Run-spec))
          (prefix-out forge: (struct-out Run))         
@@ -483,7 +483,7 @@
   (->* () 
        (#:sigs (listof Sig?)
         #:relations (listof Relation?)
-        #:options (or/c Options? #f))
+        #:options (or/c (hash/c symbol? any/c) #f))
        State?)
   
   (define sigs-with-Int (append sigs-input (list Int)))
@@ -702,7 +702,7 @@
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
         #:relations (listof Relation?)
-        #:options (or/c Options? #f))
+        #:options (or/c (hash/c symbol? any/c) #f))
        Run?)
 
   (define state (make-state-for-run #:sigs sigs-input
@@ -770,7 +770,7 @@
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
         #:relations (listof Relation?)
-        #:options (or/c Options? #f))
+        #:options (or/c (hash/c symbol? any/c) #f))
        Run?)
   (let ([state (make-state-for-run #:sigs sigs-input
                                    #:relations relations-input
@@ -862,8 +862,8 @@
         #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
-        #:relations (listof Relation?)
-        #:options (or/c Options? #f))
+        #:relations (listof Relation?)   
+        #:options (or/c (hash/c symbol? any/c) #f))
        void?)
   (let ([state (make-state-for-run #:sigs sigs-input
                                    #:relations relations-input
@@ -1069,62 +1069,53 @@
 
 ; state-set-option :: State, Symbol, Symbol -> State
 ; Sets option to value for state.
-(define (state-set-option state option value)
+(define/contract (state-set-option state option value #:original-path [original-path #f])
+  (->* (State? symbol? any/c) 
+       (#:original-path (or/c path-string? #f))
+       State?)
   (define options (State-options state))
 
+  (unless (hash-ref option-types option #f)
+    (raise-user-error (format "No such option: ~a" option)))
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
-                              option (hash-ref option-types option) value)))
+                              option (hash-ref option-types-names option) value)))
 
-  (define new-options
+  (define (translate-single-path p)
+    (path->string (build-path original-path (string->path p))))
+  
+  (define/contract new-options (hash/c symbol? any/c)
     (cond
+      [(equal? option 'eval-language)
+       (unless (or (equal? value 'surface) (equal? value 'core))
+         (raise-user-error (format "Invalid evaluator language ~a; must be surface or core.~n"
+                                   value)))
+       (hash-set options option value)]
       [(equal? option 'solver)
-       (struct-copy Options options
-                    [solver value])]
-      [(equal? option 'backend)
-       (struct-copy Options options
-                    [backend value])]
-      [(equal? option 'sb)
-       (struct-copy Options options
-                    [sb value])]
-      [(equal? option 'coregranularity)
-       (struct-copy Options options
-                    [coregranularity value])]
-      [(equal? option 'logtranslation)
-       (struct-copy Options options
-                    [logtranslation value])]
-      [(equal? option 'local_necessity)
-       (struct-copy Options options
-                    [local_necessity value])]
+       (hash-set options 'solver (if (and (string? value) original-path)
+                             (path->string (build-path original-path (string->path value)))
+                             value))]
       [(equal? option 'min_tracelength)
        (let ([max-trace-length (get-option state 'max_tracelength)])
          (if (> value max-trace-length)
              (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
                                        value max-trace-length))
-             (struct-copy Options options
-                          [min_tracelength value])))]
+             (hash-set options option value)))]
       [(equal? option 'max_tracelength)
        (let ([min-trace-length (get-option state 'min_tracelength)])
          (if (< value min-trace-length)
              (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
                                        value min-trace-length))
-             (struct-copy Options options
-                          [max_tracelength value])))]
-      [(equal? option 'problem_type)
-       (struct-copy Options options
-                    [problem_type value])]
-      [(equal? option 'target_mode)
-       (struct-copy Options options
-                    [target_mode value])]
-      [(equal? option 'core_minimization)
-       (struct-copy Options options
-                    [core_minimization value])]
-      [(equal? option 'skolem_depth)
-       (struct-copy Options options
-                    [skolem_depth value])]
+             (hash-set options option value)))]
       [(equal? option 'run_sterling)
-       (struct-copy Options options
-                    [run_sterling value])]))
+       (hash-set options 'run_sterling (cond
+                           [(and (string? value) original-path)
+                            (translate-single-path value)]
+                           [(and (list? value) original-path)
+                            (map translate-single-path value)]
+                           [else value]))]
+      [else 
+       (hash-set options option value)]))
 
   (struct-copy State state
                [options new-options]))

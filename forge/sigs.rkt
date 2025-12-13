@@ -41,6 +41,7 @@
                   make-check
                   test-from-state
                   make-test
+                  state-set-option
                   stop-solver-process!))
 (require forge/choose-lang-specific)
 
@@ -71,7 +72,6 @@
          (prefix-out forge: (struct-out Range))
          (prefix-out forge: (struct-out Scope))
          (prefix-out forge: (struct-out Bound))
-         (prefix-out forge: (struct-out Options))
          (prefix-out forge: (struct-out State))
          (prefix-out forge: (struct-out Run-spec))
          (prefix-out forge: (struct-out Run))         
@@ -198,103 +198,6 @@
         [else
          (update-state! (state-set-option curr-state option value #:original-path original-path))]))
 
-; state-set-option :: State, Symbol, Symbol -> State
-; Sets option to value for state.
-(define (state-set-option state option value #:original-path [original-path #f])
-  (define options (State-options state))
-
-  (unless (hash-ref option-types option #f)
-    (raise-user-error (format "No such option: ~a" option)))
-  (unless ((hash-ref option-types option) value)
-    (raise-user-error (format "Setting option ~a requires ~a; received ~a"
-                              option (hash-ref option-types-names option) value)))
-
-  (define (translate-single-path p)
-    (path->string (build-path original-path (string->path p))))
-  
-  (define new-options
-    (cond
-      [(equal? option 'eval-language)
-       (unless (or (equal? value 'surface) (equal? value 'core))
-         (raise-user-error (format "Invalid evaluator language ~a; must be surface or core.~n"
-                                   value)))
-       (struct-copy Options options
-                    [eval-language value])]
-      [(equal? option 'solver)
-       (struct-copy Options options
-                    [solver
-                     (if (and (string? value) original-path)
-                         (path->string (build-path original-path (string->path value)))
-                         value)])]
-      [(equal? option 'backend)
-       (struct-copy Options options
-                    [backend value])]
-      [(equal? option 'sb)
-       (struct-copy Options options
-                    [sb value])]
-      [(equal? option 'coregranularity)
-       (struct-copy Options options
-                    [coregranularity value])]
-      [(equal? option 'logtranslation)
-       (struct-copy Options options
-                    [logtranslation value])]
-      [(equal? option 'local_necessity)
-       (struct-copy Options options
-                    [local_necessity value])]
-      [(equal? option 'min_tracelength)
-       (let ([max-trace-length (get-option state 'max_tracelength)])
-         (if (> value max-trace-length)
-             (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
-                                       value max-trace-length))
-             (struct-copy Options options
-                          [min_tracelength value])))]
-      [(equal? option 'max_tracelength)
-       (let ([min-trace-length (get-option state 'min_tracelength)])
-         (if (< value min-trace-length)
-             (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
-                                       value min-trace-length))
-             (struct-copy Options options
-                          [max_tracelength value])))]
-      [(equal? option 'problem_type)
-       (struct-copy Options options
-                    [problem_type value])]
-      [(equal? option 'target_mode)
-       (struct-copy Options options
-                    [target_mode value])]
-      [(equal? option 'core_minimization)
-       (struct-copy Options options
-                    [core_minimization value])]
-      [(equal? option 'skolem_depth)
-       (struct-copy Options options
-                    [skolem_depth value])]
-      [(equal? option 'run_sterling)
-       (struct-copy Options options
-                    [run_sterling
-                     (cond
-                       [(and (string? value) original-path)
-                         (translate-single-path value)]
-                       [(and (list? value) original-path)
-                        (map translate-single-path value)]
-                        [else value])])]
-      [(equal? option 'sterling_port)
-       (struct-copy Options options
-                    [sterling_port value])]
-      [(equal? option 'engine_verbosity)
-       (struct-copy Options options
-                    [engine_verbosity value])]
-      [(equal? option 'test_keep)
-       (struct-copy Options options
-                    [test_keep value])]
-      [(equal? option 'no_overflow)
-       (struct-copy Options options
-                    [no_overflow value])]
-      [(equal? option 'java_exe_location)
-       (struct-copy Options options
-                    [java_exe_location value])]
-      ))
-
-  (struct-copy State state
-               [options new-options]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1238,7 +1141,7 @@
  #:multi
  [("-o" "--option") OPTION-NAME OPTION-VALUE
                     "Option set"
-                    (begin 
+                    (begin
                       (printf "Setting ~a = ~a~n" (string->symbol OPTION-NAME) OPTION-VALUE)
                       (set-option! (string->symbol OPTION-NAME)
                                    (string->option-type OPTION-NAME OPTION-VALUE)))]
@@ -1251,6 +1154,9 @@
                                      (string->option-type OPTION-NAME OPTION-VALUE))
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
+ [("-L" "--logfile") LOGFILE-PATH
+                     "Log filename"
+                     (setup-logfile! LOGFILE-PATH)]
  [("-N" "--notests")
   "Disable tests for this model execution (NOT YET SUPPORTED)"
   (begin
