@@ -179,60 +179,60 @@
   (when (@>= (get-verbosity) VERBOSITY_HIGH)
     (printf "to-smtlib-tor: convert-formula-op: ~a~n" formula))
   (match formula
-    [(node/formula/op/&& info children)
+    [(node/formula/op-on-formulas/&& info children)
      `(and ,@(process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds))]
-    [(node/formula/op/|| info children)
+    [(node/formula/op-on-formulas/|| info children)
      `(or ,@(process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds))]
-    [(node/formula/op/=> info children)
+    [(node/formula/op-on-formulas/=> info children)
      `(=> ,@(process-children-formula run-or-state children relations atom-names quantvars quantvar-types bounds))]
-    [(node/formula/op/always info children)
+    [(node/formula/op-on-formulas/always info children)
      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/eventually info children)
+    [(node/formula/op-on-formulas/eventually info children)
      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/next_state info children)
+    [(node/formula/op-on-formulas/next_state info children)
       (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/releases info children)
+    [(node/formula/op-on-formulas/releases info children)
       (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/until info children)
+    [(node/formula/op-on-formulas/until info children)
      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/historically info children)
+    [(node/formula/op-on-formulas/historically info children)
       (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/once info children)
+    [(node/formula/op-on-formulas/once info children)
       (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/prev_state info children)
+    [(node/formula/op-on-formulas/prev_state info children)
       (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/since info children)
+    [(node/formula/op-on-formulas/since info children)
       (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/triggered info children)
+    [(node/formula/op-on-formulas/triggered info children)
       (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context formula)]
-    [(node/formula/op/in info children)
+    [(node/formula/op-on-exprs/in info children)
       `(set.subset ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/formula/op/= info children)
-      (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
+    [(node/formula/op-on-exprs/= info children)
+      (if (for/or ([child children]) (if (node/int/op-on-exprs/card? child) #t #f))
       (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "=" bounds)
       `(= ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
-    [(node/formula/op/! info children)
+    [(node/formula/op-on-formulas/! info children)
       `(not ,@(process-children-formula run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/formula/op/int> info children)
-      (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
+    [(node/formula/op-on-ints/int> info children)
+      (if (for/or ([child children]) (if (node/int/op-on-exprs/card? child) #t #f))
       (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children ">" bounds)
       `(> ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t)))]
-    [(node/formula/op/int< info children)
-      (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
+    [(node/formula/op-on-ints/int< info children)
+      (if (for/or ([child children]) (if (node/int/op-on-exprs/card? child) #t #f))
       (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "<" bounds)
       `(< ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t)))]
-    [(node/formula/op/int= info children)
-      (if (for/or ([child children]) (if (node/int/op/card? child) #t #f))
+    [(node/formula/op-on-ints/int= info children)
+      (if (for/or ([child children]) (if (node/int/op-on-exprs/card? child) #t #f))
       (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children "=" bounds)
        `(= ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t)))]))
 
@@ -346,8 +346,8 @@
 
 (define (form-cardinality run-or-state formula relations atom-names quantvars quantvar-types children op bounds)
   ; Ensure that the child that is not a cardinality operator is an int constant.
-  (define int-expr (for/or ([child children] #:when (not (node/int/op/card? child))) child))
-  (define card-expr (for/or ([child children] #:when (node/int/op/card? child)) (car (node/int/op-children child))))
+  (define int-expr (for/or ([child children] #:when (not (node/int/op-on-exprs/card? child))) child))
+  (define card-expr (for/or ([child children] #:when (node/int/op-on-exprs/card? child)) (car (node/int/op-children child))))
   (define card-expr-type (expression-type-top-level-types (checkExpression run-or-state card-expr quantvar-types (make-hash))))
   (define processed-card-expr (convert-expr run-or-state card-expr relations atom-names quantvars quantvar-types bounds))
   (define value 0)
@@ -489,32 +489,32 @@
     (when (@>= (get-verbosity) VERBOSITY_HIGH)
       (printf "to-smtlib-tor: convert-expr-op: ~a~n" expr))
   (match expr
-    [(node/expr/op/+ info arity children)
+    [(node/expr/op-on-exprs/+ info arity children)
      `(set.union ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/expr/op/- info arity children)
+    [(node/expr/op-on-exprs/- info arity children)
      `(set.minus ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/expr/op/& info arity children)
+    [(node/expr/op-on-exprs/& info arity children)
      `(set.inter ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/expr/op/-> info arity children)
+    [(node/expr/op-on-exprs/-> info arity children)
      ; rel.product in CVC5 is _binary_, not nary, so need to chain this.
      (define child-strings (process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))
      (define rest-string (for/fold ([acc (second child-strings)])
                                    ([str (rest (rest child-strings))])
                            `(rel.product ,acc ,str)))
      `(rel.product ,(first child-strings) ,rest-string)]
-    [(node/expr/op/prime info arity children)
+    [(node/expr/op-on-exprs/prime info arity children)
      (raise-forge-error #:msg "Temporal operators are unsupported by SMT backend."
                         #:context expr)]
-    [(node/expr/op/join info arity children)
+    [(node/expr/op-on-exprs/join info arity children)
      `(rel.join ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/expr/op/^ info arity children)
+    [(node/expr/op-on-exprs/^ info arity children)
      `(rel.tclosure ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/expr/op/* info arity children)
+    [(node/expr/op-on-exprs/* info arity children)
      `(set.union (rel.tclosure ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds)) 
                  (rel.iden (as set.universe (Relation Atom))))]
-    [(node/expr/op/~ info arity children)
+    [(node/expr/op-on-exprs/~ info arity children)
      `(rel.transpose ,@(process-children-expr run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/expr/op/++ info arity children)
+    [(node/expr/op-on-exprs/++ info arity children)
       ; The relational-override expression R ++ (key -> B) is equivalent to:
       ;   R - (key -> univ) + (key -> B)
       ; Note that `B` may be of arity > 1, it must be of arity 1 less than R.
@@ -527,7 +527,7 @@
       (define converted-RHS (convert-expr run-or-state RHS relations atom-names quantvars quantvar-types bounds))
       `(set.union (set.minus ,converted-R ,converted-to-remove) ,converted-RHS)]
             
-    [(node/expr/op/sing info arity children)
+    [(node/expr/op-on-ints/sing info arity children)
       (let ([processed-form (process-children-int run-or-state children relations atom-names quantvars quantvar-types bounds #t)])
         (form-int-op-comp run-or-state expr relations atom-names quantvars quantvar-types processed-form bounds))]))
 
@@ -574,15 +574,15 @@
   (when (@>= (get-verbosity) VERBOSITY_HIGH)
     (printf "to-smtlib-tor: convert-int-op: ~a~n" expr))
   (match expr
-    [(node/int/op/add info children)
+    [(node/int/op-on-ints/add info children)
       `(+ ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
-    [(node/int/op/subtract info children)
+    [(node/int/op-on-ints/subtract info children)
       `(- ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
-    [(node/int/op/multiply info children)
+    [(node/int/op-on-ints/multiply info children)
       `(* ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
-    [(node/int/op/divide info children)
+    [(node/int/op-on-ints/divide info children)
       `(div ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
-    [(node/int/op/sum info children)
+    [(node/int/op-on-exprs/sum info children)
      ; Since we are following the CRS/cvc4 work for integer-handling, the child must always be a singleton.
      ; This holds whether or not the "sum" was added automatically, but manual/auto affects the nature of the error.
      ;(printf "qv-types: ~a; qvs: ~a~n" quantvar-types quantvars)
@@ -595,15 +595,15 @@
            (raise-forge-error #:msg "SMT backend requires that this expression evaluates to a singleton integer, but could not infer this." #:context expr)
            (raise-forge-error #:msg "SMT backend does not currently support `sum` over multiple integer values, but could not infer safety." #:context expr)))
     `(IntAtom-to-Int (reconcile-int_atom ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds)))]
-    [(node/int/op/card info children)
+    [(node/int/op-on-exprs/card info children)
     (let ([processed-form (string->symbol (string-join (process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds) " "))])
     processed-form)]
-    [(node/int/op/remainder info children)
+    [(node/int/op-on-ints/remainder info children)
      ; TODO: do we need int-ctxt, or can it be inferred?
       `(mod ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds #t))]
-    [(node/int/op/abs info children)
+    [(node/int/op-on-ints/abs info children)
       `(abs ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
-    [(node/int/op/sign info children)
+    [(node/int/op-on-ints/sign info children)
      ; The Forge->SMT-LIB generator preamble defines a function "sign"
      `(sign ,@(process-children-ambiguous run-or-state args relations atom-names quantvars quantvar-types bounds))]
     [(node/int/sum-quant info decls int-expr)
@@ -618,7 +618,7 @@
   (match expr
     [(node/expr/relation info arity name typelist-thunk parent is-var)
      (list expr)]
-    [(node/expr/op/join info 2 children)
+    [(node/expr/op-on-exprs/join info 2 children)
      (cons (first children) (join->list/right (second children)))]
     [else (raise-forge-error #:msg (format "join->list/right expected relation or right-chain of binary joins, got ~a" expr)
                              #:context expr)]))

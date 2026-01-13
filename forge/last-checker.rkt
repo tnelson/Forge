@@ -190,94 +190,94 @@
   (match formula
     
     ; TEMPORAL OPERATORS
-    [(? node/formula/op/always?)
+    [(? node/formula/op-on-formulas/always?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/always
+                       node/formula/op-on-formulas/always
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/eventually?)
+    [(? node/formula/op-on-formulas/eventually?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/eventually
+                       node/formula/op-on-formulas/eventually
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/until?)
+    [(? node/formula/op-on-formulas/until?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/until
+                       node/formula/op-on-formulas/until
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/releases?)
+    [(? node/formula/op-on-formulas/releases?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/releases
+                       node/formula/op-on-formulas/releases
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/next_state?)
+    [(? node/formula/op-on-formulas/next_state?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/next_state
+                       node/formula/op-on-formulas/next_state
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
-    [(? node/formula/op/historically?)
+    [(? node/formula/op-on-formulas/historically?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/historically
+                       node/formula/op-on-formulas/historically
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/once?)
+    [(? node/formula/op-on-formulas/once?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/once
+                       node/formula/op-on-formulas/once
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/prev_state?)
+    [(? node/formula/op-on-formulas/prev_state?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/prev_state
+                       node/formula/op-on-formulas/prev_state
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/since?)
+    [(? node/formula/op-on-formulas/since?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/since
+                       node/formula/op-on-formulas/since
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
-    [(? node/formula/op/triggered?)
+    [(? node/formula/op-on-formulas/triggered?)
      (check-temporal-mode run-or-state formula)
      (check-and-output formula
-                       node/formula/op/triggered
+                       node/formula/op-on-formulas/triggered
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; AND 
-     [(? node/formula/op/&&?)
+     [(? node/formula/op-on-formulas/&&?)
       (check-and-output formula
-                        node/formula/op/&&
+                        node/formula/op-on-formulas/&&
                         checker-hash
                         (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
 
     ; OR
-    [(? node/formula/op/||?)
+    [(? node/formula/op-on-formulas/||?)
      (check-and-output formula
-                       node/formula/op/||
+                       node/formula/op-on-formulas/||
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; IMPLIES
-    [(? node/formula/op/=>?)
+    [(? node/formula/op-on-formulas/=>?)
      (check-and-output formula
-                       node/formula/op/=>
+                       node/formula/op-on-formulas/=>
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; IN (atomic fmla)
-    [(? node/formula/op/in?)
+    [(? node/formula/op-on-exprs/in?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output formula
-                       node/formula/op/in
+                       node/formula/op-on-exprs/in
                        checker-hash
                        ;(for-each (lambda (x) (expression-type-type (checkExpression run-or-state x quantvars checker-hash))) args)
                        (void)
@@ -285,25 +285,25 @@
                        )]
     
     ; EQUALS 
-    [(? node/formula/op/=?)
+    [(? node/formula/op-on-exprs/=?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output formula
-                       node/formula/op/=
+                       node/formula/op-on-exprs/=
                        checker-hash
                        (void)
                        child-types)]
 
     ; NEGATION
-    [(? node/formula/op/!?)
+    [(? node/formula/op-on-formulas/!?)
      (check-and-output formula
-                       node/formula/op/!
+                       node/formula/op-on-formulas/!
                        checker-hash
                        (for-each (lambda (x) (checkFormula run-or-state x quantvars checker-hash)) args))]
     
     ; INTEGER >, <, =
-    [(or (? node/formula/op/int>?)
-         (? node/formula/op/int<?)
-         (? node/formula/op/int=?))
+    [(or (? node/formula/op-on-ints/int>?)
+         (? node/formula/op-on-ints/int<?)
+         (? node/formula/op-on-ints/int=?))
       ; descend into the integer-expression within and confirm no literals are unsafe
      (checkInt run-or-state (first (node/formula/op-children formula)) quantvars checker-hash)
      (checkInt run-or-state (second (node/formula/op-children formula)) quantvars checker-hash)]))
@@ -630,12 +630,12 @@
   (match expr
 
     ; prime (temporal mode only)
-    [(? node/expr/op/prime?)
+    [(? node/expr/op-on-exprs/prime?)
      (check-temporal-mode run-or-state expr)
      (let [(expression (checkExpression run-or-state (first args) quantvars checker-hash))]
      (if (expression-type-temporal-variance expression)
          (check-and-output expr
-              node/expr/op/prime
+              node/expr/op-on-exprs/prime
               checker-hash
               (expression-type (expression-type-type expression)
                                'set ; TODO: can we re-use the subexpression safely, even if in a different state?
@@ -646,10 +646,10 @@
           #:context expr)))]
 
     ; UNION
-    [(? node/expr/op/+?)
+    [(? node/expr/op-on-exprs/+?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output expr
-                       node/expr/op/+
+                       node/expr/op-on-exprs/+
                        checker-hash
                        (expression-type
                         (remove-duplicates (apply append
@@ -664,7 +664,7 @@
 
     
     ; SETMINUS 
-    [(? node/expr/op/-?)
+    [(? node/expr/op-on-exprs/-?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (begin
        ; A-B should have only 2 children. B may not exist; use A as the bound returned regardless. 
@@ -672,7 +672,7 @@
        (when (@> (length args) 1)
          (expression-type-type (checkExpression run-or-state (second args) quantvars checker-hash)))
        (check-and-output expr
-                         node/expr/op/-
+                         node/expr/op-on-exprs/-
                          checker-hash
                          ; A-B should have only 2 children. B may be empty.
                          (let ([a-type (first child-types)])
@@ -683,10 +683,10 @@
                          child-types))]
     
     ; INTERSECTION
-    [(? node/expr/op/&?)
+    [(? node/expr/op-on-exprs/&?)
      (define sub-results (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output expr
-                       node/expr/op/&
+                       node/expr/op-on-exprs/&
                        checker-hash
                        (expression-type
                         (foldl (lambda (x acc) (keep-only (expression-type-type x) acc))
@@ -702,10 +702,10 @@
                        sub-results)]
     
     ; PRODUCT
-    [(? node/expr/op/->?)
+    [(? node/expr/op-on-exprs/->?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output expr
-                       node/expr/op/->
+                       node/expr/op-on-exprs/->
                        checker-hash
                        (let* ([child-values (map (lambda (x) (expression-type-type x)) child-types)]
                               [all-singleton (andmap (lambda (x) (equal? 'one (expression-type-multiplicity x))) child-types)]
@@ -718,10 +718,10 @@
                        child-types)]
    
     ; JOIN
-    [(? node/expr/op/join?)
+    [(? node/expr/op-on-exprs/join?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output expr
-                       node/expr/op/join
+                       node/expr/op-on-exprs/join
                        checker-hash
                        (let* ([join-result (check-join (map expression-type-type child-types))]
                               [join-top-level (check-join (map (lambda (x) (list (expression-type-top-level-types x))) child-types))])
@@ -749,10 +749,10 @@
                        child-types)]
     
     ; TRANSITIVE CLOSURE
-    [(? node/expr/op/^?)
+    [(? node/expr/op-on-exprs/^?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output expr
-                       node/expr/op/^
+                       node/expr/op-on-exprs/^
                        checker-hash
                        (expression-type (let* ([child-values (map (lambda (x) (expression-type-type x)) child-types)])     
                                (check-closure (first child-values)))
@@ -762,10 +762,10 @@
                               (get-top-levels (check-closure (first child-values)) run-or-state))))]
 
     ; REFLEXIVE-TRANSITIVE CLOSURE
-    [(? node/expr/op/*?)
+    [(? node/expr/op-on-exprs/*?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output expr
-                       node/expr/op/*
+                       node/expr/op-on-exprs/*
                        checker-hash
                        ; includes iden, so might contain any arity-2 tuple
                        (expression-type (let ([prims (primify run-or-state 'univ)])
@@ -777,10 +777,10 @@
                        child-types)]
 
     ; TRANSPOSE: ~(r); r must be arity 2. reverse all types of r
-    [(? node/expr/op/~?)
+    [(? node/expr/op-on-exprs/~?)
      (define child-types (map (lambda (x) (checkExpression run-or-state x quantvars checker-hash)) args))
      (check-and-output expr
-                       node/expr/op/~
+                       node/expr/op-on-exprs/~
                        checker-hash
                        (expression-type (map reverse (expression-type-type (first child-types)))
                               'set ; TODO
@@ -795,7 +795,7 @@
     ; Need to check that the left sub-expression has arity at least 2
     ; Need to check the the left and right sub-expressions have the same types
     ; (which is much easier thanks to the AST checking that they have the same arity)
-    [(? node/expr/op/++?)
+    [(? node/expr/op-on-exprs/++?)
      ;; TODO: check-and-output for this case
      (let ([left-arity (node/expr-arity (first args))]
            [left-tuples (expression-type-type (checkExpression run-or-state (first args) quantvars checker-hash))]
@@ -821,11 +821,11 @@
                 (get-top-levels (remove-duplicates (append left-tuples right-tuples)) run-or-state))))]
 
     ; SINGLETON (typecast number to 1x1 relation with that number in it)
-    [(? node/expr/op/sing?)
+    [(? node/expr/op-on-ints/sing?)
      ; descend into the integer-expression within and confirm no literals are unsafe
      (checkInt run-or-state (first (node/expr/op-children expr)) quantvars checker-hash)
      (check-and-output expr
-                       node/expr/op/sing
+                       node/expr/op-on-ints/sing
                        checker-hash
                        (expression-type (list (list 'Int)) 'one
                         (get-temporal-variance run-or-state expr quantvars args checker-hash) (list 'Int))

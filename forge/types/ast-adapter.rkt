@@ -1,6 +1,6 @@
 #lang typed/racket/base/optional
 
-(provide 
+(provide
         (struct-out node)
         (struct-out node/expr)
         (struct-out node/expr/relation)
@@ -9,10 +9,30 @@
         (struct-out nodeinfo)
         (struct-out node/formula)
         (struct-out node/expr/quantifier-var)
-        (struct-out node/int) 
+        (struct-out node/int)
         (struct-out node/int/constant)
+        ;; Operator hierarchies
+        (struct-out node/expr/op)
+        (struct-out node/expr/op-on-exprs)
+        (struct-out node/expr/op-on-ints)
+        (struct-out node/int/op)
+        (struct-out node/int/op-on-ints)
+        (struct-out node/int/op-on-exprs)
+        (struct-out node/formula/op)
+        (struct-out node/formula/op-on-formulas)
+        (struct-out node/formula/op-on-exprs)
+        (struct-out node/formula/op-on-ints)
+        ;; Typed children accessors
+        expr-op-expr-children
+        expr-op-int-children
+        int-op-int-children
+        int-op-expr-children
+        formula-op-formula-children
+        formula-op-expr-children
+        formula-op-int-children
+        ;; Other exports
         relation-arity just-location-info quantified-formula multiplicity-formula empty-nodeinfo
-        join/func one/func build-box-join univ raise-forge-error &&/func &/func ||/func +/func 
+        join/func one/func build-box-join univ raise-forge-error &&/func &/func ||/func +/func
         -/func =/func */func iden ^/func set/func relation-name always/func maybe-and->list
         int=/func int</func int/func card/func in/func true-formula false-formula no/func
         lone/func ->/func
@@ -32,11 +52,27 @@
   [#:struct (node/formula node) ()]
   [#:struct (node/expr/quantifier-var node/expr) ([sym : Symbol] [name : Symbol])]
   [#:struct (node/expr/relation node/expr)
-     ([name : String] 
-      [typelist-thunk : (-> (Listof Any))] 
-      [parent : Any] 
+     ([name : String]
+      [typelist-thunk : (-> (Listof Any))]
+      [parent : Any]
       [is-variable : Boolean])]
-  
+
+  ;; Expression operator hierarchy
+  [#:struct (node/expr/op node/expr) ([children : (Listof node)])]
+  [#:struct (node/expr/op-on-exprs node/expr/op) ()]
+  [#:struct (node/expr/op-on-ints node/expr/op) ()]
+
+  ;; Integer operator hierarchy
+  [#:struct (node/int/op node/int) ([children : (Listof node)])]
+  [#:struct (node/int/op-on-ints node/int/op) ()]
+  [#:struct (node/int/op-on-exprs node/int/op) ()]
+
+  ;; Formula operator hierarchy
+  [#:struct (node/formula/op node/formula) ([children : (Listof node)])]
+  [#:struct (node/formula/op-on-formulas node/formula/op) ()]
+  [#:struct (node/formula/op-on-exprs node/formula/op) ()]
+  [#:struct (node/formula/op-on-ints node/formula/op) ()]
+
   ; (define (functionname #:info [info empty-nodeinfo] . raw-args) // and so on
   ; (apply &&/func #:info empty-nodeinfo (list true true true))
 
@@ -81,8 +117,43 @@
   [iden node/expr]
   ; Don't export these as-is. Potential conflict with existing Racket identifiers.
    [(true true-formula)   node/formula]
-   [(false false-formula) node/formula]  
+   [(false false-formula) node/formula]
   )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Typed children accessors
+;;
+;; These provide properly narrowed types for the children of operator nodes.
+;; The intermediate structs group operators by their child type, so we can
+;; safely cast the generic (Listof node) to the specific child type.
+
+(: expr-op-expr-children (-> node/expr/op-on-exprs (Listof node/expr)))
+(define (expr-op-expr-children op)
+  (cast (node/expr/op-children op) (Listof node/expr)))
+
+(: expr-op-int-children (-> node/expr/op-on-ints (Listof node/int)))
+(define (expr-op-int-children op)
+  (cast (node/expr/op-children op) (Listof node/int)))
+
+(: int-op-int-children (-> node/int/op-on-ints (Listof node/int)))
+(define (int-op-int-children op)
+  (cast (node/int/op-children op) (Listof node/int)))
+
+(: int-op-expr-children (-> node/int/op-on-exprs (Listof node/expr)))
+(define (int-op-expr-children op)
+  (cast (node/int/op-children op) (Listof node/expr)))
+
+(: formula-op-formula-children (-> node/formula/op-on-formulas (Listof node/formula)))
+(define (formula-op-formula-children op)
+  (cast (node/formula/op-children op) (Listof node/formula)))
+
+(: formula-op-expr-children (-> node/formula/op-on-exprs (Listof node/expr)))
+(define (formula-op-expr-children op)
+  (cast (node/formula/op-children op) (Listof node/expr)))
+
+(: formula-op-int-children (-> node/formula/op-on-ints (Listof node/int)))
+(define (formula-op-int-children op)
+  (cast (node/formula/op-children op) (Listof node/int)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

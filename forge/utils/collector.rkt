@@ -117,43 +117,43 @@
   ; We could get away with only one case here, really, since there's no distinguishing
   ; but leaving the structure here for now in case we need it for any refinement.
   (match formula
-    [(node/formula/op/&& info children)
+    [(node/formula/op-on-formulas/&& info children)
       (process-children args quantvars)]
-    [(node/formula/op/|| info children)
+    [(node/formula/op-on-formulas/|| info children)
      (process-children args quantvars)]
-    [(node/formula/op/=> info children)
+    [(node/formula/op-on-formulas/=> info children)
      (process-children args quantvars)]
-    [(node/formula/op/always info children)
+    [(node/formula/op-on-formulas/always info children)
      (process-children args quantvars)]
-    [(node/formula/op/eventually info children)
+    [(node/formula/op-on-formulas/eventually info children)
      (process-children args quantvars)]
-    [(node/formula/op/next_state info children)
+    [(node/formula/op-on-formulas/next_state info children)
      (process-children args quantvars)]
-    [(node/formula/op/releases info children)
+    [(node/formula/op-on-formulas/releases info children)
      (process-children args quantvars)]
-    [(node/formula/op/until info children)
+    [(node/formula/op-on-formulas/until info children)
      (process-children args quantvars)]
-    [(node/formula/op/historically info children)
+    [(node/formula/op-on-formulas/historically info children)
      (process-children args quantvars)]
-    [(node/formula/op/once info children)
+    [(node/formula/op-on-formulas/once info children)
      (process-children args quantvars)]
-    [(node/formula/op/prev_state info children)
+    [(node/formula/op-on-formulas/prev_state info children)
      (process-children args quantvars)]
-    [(node/formula/op/since info children)
+    [(node/formula/op-on-formulas/since info children)
      (process-children args quantvars)]
-    [(node/formula/op/triggered info children)
+    [(node/formula/op-on-formulas/triggered info children)
      (process-children args quantvars)]
-    [(node/formula/op/in info children)
+    [(node/formula/op-on-exprs/in info children)
      (process-children args quantvars)]
-    [(node/formula/op/= info children)
+    [(node/formula/op-on-exprs/= info children)
      (process-children args quantvars)]
-    [(node/formula/op/! info children)
+    [(node/formula/op-on-formulas/! info children)
      (process-children args quantvars)]
-    [(node/formula/op/int> info children)
+    [(node/formula/op-on-ints/int> info children)
      (process-children args quantvars)]
-    [(node/formula/op/int< info children)
+    [(node/formula/op-on-ints/int< info children)
      (process-children args quantvars)]
-    [(node/formula/op/int= info children)
+    [(node/formula/op-on-ints/int= info children)
      (process-children args quantvars)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -195,27 +195,27 @@
   ; We could get away with only one case here, really, since there's no distinguishing
   ; but leaving the structure here for now in case we need it for any refinement.
   (match expr
-    [(node/expr/op/+ info arity children)
+    [(node/expr/op-on-exprs/+ info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/- info arity children)
+    [(node/expr/op-on-exprs/- info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/& info arity children)
+    [(node/expr/op-on-exprs/& info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/-> info arity children)
+    [(node/expr/op-on-exprs/-> info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/prime info arity children)
+    [(node/expr/op-on-exprs/prime info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/join info arity children)
+    [(node/expr/op-on-exprs/join info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/^ info arity children)
+    [(node/expr/op-on-exprs/^ info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/* info arity children)
+    [(node/expr/op-on-exprs/* info arity children)
     (process-children args quantvars)]
-    [(node/expr/op/~ info arity children)
+    [(node/expr/op-on-exprs/~ info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/++ info arity children)
+    [(node/expr/op-on-exprs/++ info arity children)
      (process-children args quantvars)]
-    [(node/expr/op/sing info arity children)
+    [(node/expr/op-on-ints/sing info arity children)
      (process-children args quantvars)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -258,23 +258,23 @@
   ; We could get away with only one case here, really, since there's no distinguishing
   ; but leaving the structure here for now in case we need it for any refinement.
   (match expr
-    [(node/int/op/add info children)
+    [(node/int/op-on-ints/add info children)
      (process-children args quantvars)]
-    [(node/int/op/subtract info children)
+    [(node/int/op-on-ints/subtract info children)
      (process-children args quantvars)]
-    [(node/int/op/multiply info children)
+    [(node/int/op-on-ints/multiply info children)
      (process-children args quantvars)]
-    [(node/int/op/divide info children)
+    [(node/int/op-on-ints/divide info children)
      (process-children args quantvars)]
-    [(node/int/op/sum info children)
+    [(node/int/op-on-exprs/sum info children)
      (process-children args quantvars)]
-    [(node/int/op/card info children)
+    [(node/int/op-on-exprs/card info children)
      (process-children args quantvars)]
-    [(node/int/op/remainder info children)
+    [(node/int/op-on-ints/remainder info children)
      (process-children args quantvars)]
-    [(node/int/op/abs info children)
+    [(node/int/op-on-ints/abs info children)
      (process-children args quantvars)]
-    [(node/int/op/sign info children)
+    [(node/int/op-on-ints/sign info children)
      (process-children args quantvars)]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]))
@@ -342,10 +342,10 @@
   (check-equal?
    (collect (add (int 1) (int 5))
             (lambda (n ctxt)
-              (if (and ctxt (node/int/op/sum? n)) n #f))
+              (if (and ctxt (node/int/op-on-exprs/sum? n)) n #f))
             #:order 'pre-order
             #:context #t
-            #:get-new-context (lambda (n ctxt) (if (node/int/op/sum? n) #f ctxt)))
+            #:get-new-context (lambda (n ctxt) (if (node/int/op-on-exprs/sum? n) #f ctxt)))
    (list ))
   ; Test: gather any immediate child of a "sum" node
   (check-equal?
@@ -353,7 +353,7 @@
             (lambda (n ctxt) (if ctxt n #f))
             #:order 'pre-order
             #:context #f
-            #:get-new-context (lambda (n ctxt) (if (node/int/op/sum? n) #t #f)))
+            #:get-new-context (lambda (n ctxt) (if (node/int/op-on-exprs/sum? n) #t #f)))
    (list (sing (sum (sing (int 1))))
          (sing (int 1))))
 

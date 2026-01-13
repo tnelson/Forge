@@ -310,23 +310,23 @@
     ; no rel, one rel, two rel, lone rel
     [(node/formula/multiplicity info mult rel)
      ; is it safe to use the info from above here?
-     (let ([rel-card (node/int/op/card info (list rel))])
+     (let ([rel-card (node/int/op-on-exprs/card info (list rel))])
        (do-bind
         (match mult
-          ['no (node/formula/op/= info (list rel none))]
-          ['one (node/formula/op/int= info (list rel-card 1))]
-          ['two (node/formula/op/int= info (list rel-card 2))]
+          ['no (node/formula/op-on-exprs/= info (list rel none))]
+          ['one (node/formula/op-on-ints/int= info (list rel-card 1))]
+          ['two (node/formula/op-on-ints/int= info (list rel-card 2))]
           ['lone
-           (node/formula/op/|| info
-                                   (list (node/formula/op/int< info (list rel-card 1))
-                                         (node/formula/op/int= info (list rel-card 1))))])
+           (node/formula/op-on-formulas/|| info
+                                   (list (node/formula/op-on-ints/int< info (list rel-card 1))
+                                         (node/formula/op-on-ints/int= info (list rel-card 1))))])
         scope
         bound))]
     
     ; (= (card rel) n)
-    [(node/formula/op/int= eq-info (list left right))
+    [(node/formula/op-on-ints/int= eq-info (list left right))
      (match left
-       [(node/int/op/card c-info (list left-rel))
+       [(node/int/op-on-exprs/card c-info (list left-rel))
         (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (if (equal? (relation-name left-rel) "Int")
                               (update-bitwidth scope exact)
@@ -335,26 +335,26 @@
        [_ (fail "int=")])]
 
     ; (<= (card rel) upper)
-    [(node/formula/op/|| or-info
-                             (list (node/formula/op/int< lt-info (list lt-left lt-right))
-                                   (node/formula/op/int= eq-info (list eq-left eq-right))))
+    [(node/formula/op-on-formulas/|| or-info
+                             (list (node/formula/op-on-ints/int< lt-info (list lt-left lt-right))
+                                   (node/formula/op-on-ints/int= eq-info (list eq-left eq-right))))
      (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail "int<="))
      (match lt-left
-       [(node/int/op/card c-info (list left-rel))
+       [(node/int/op-on-exprs/card c-info (list left-rel))
         (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
        [_ (fail "int<=")])]
 
     ; (<= lower (card-rel))
-    [(node/formula/op/|| or-info
-                             (list (node/formula/op/int< lt-info (list lt-left lt-right))
-                                   (node/formula/op/int= eq-info (list eq-left eq-right))))
+    [(node/formula/op-on-formulas/|| or-info
+                             (list (node/formula/op-on-ints/int< lt-info (list lt-left lt-right))
+                                   (node/formula/op-on-ints/int= eq-info (list eq-left eq-right))))
      (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail "int>="))
      (match lt-right
-       [(node/int/op/card c-info (list right-rel))
+       [(node/int/op-on-exprs/card c-info (list right-rel))
         (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
@@ -368,7 +368,7 @@
          [_ (fail "is")]))
      (match left
        [(? node/expr/relation?) (break-rel left right)]
-       [(node/expr/op/~ info arity (list left-rel))
+       [(node/expr/op-on-exprs/~ info arity (list left-rel))
         (break-rel left-rel (get-co right))]
        [_ (fail "is")])
      (values scope bound)]
@@ -378,14 +378,14 @@
 
     ; rel = expr [absolute bound]
     ; (atom . rel) = expr  [partial bound, indexed by atom]
-    [(node/formula/op/= info (list left right))
-     (inst-check bind node/formula/op/=) 
+    [(node/formula/op-on-exprs/= info (list left right))
+     (inst-check bind node/formula/op-on-exprs/=) 
      (cond [(node/expr/relation? left)
             (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)])
               (define new-scope scope)
               (define new-bound (update-bindings bound left tups tups #:node bind))
               (values new-scope new-bound))]
-           [(and (node/expr/op/join? left)
+           [(and (node/expr/op-on-exprs/join? left)
                  (list? (node/expr/op-children left))
                  (equal? 2 (length (node/expr/op-children left)))
                  (node/expr/atom? (first (node/expr/op-children left)))
@@ -402,8 +402,8 @@
     ; expr in rel
     ; (atom . rel) in/ni expr  [partial bound, indexed by atom]
     ; note: "ni" is handled by desugaring to "in" with reversed arguments.
-    [(node/formula/op/in info (list left right))
-     (inst-check bind node/formula/op/in)
+    [(node/formula/op-on-exprs/in info (list left right))
+     (inst-check bind node/formula/op-on-exprs/in)
      (cond
        ; rel in expr
        [(node/expr/relation? left)
@@ -411,7 +411,7 @@
           (define new-bound (update-bindings bound left (@set) tups #:node bind))
           (values scope new-bound))]
        ; atom.rel in expr
-       [(and (node/expr/op/join? left)
+       [(and (node/expr/op-on-exprs/join? left)
              (list? (node/expr/op-children left))
              (equal? 2 (length (node/expr/op-children left)))
              (node/expr/atom? (first (node/expr/op-children left)))
@@ -427,7 +427,7 @@
           (define new-bound (update-bindings bound right tups #:node bind))
           (values scope new-bound))]
        ; atom.rel ni expr
-       [(and (node/expr/op/join? right)
+       [(and (node/expr/op-on-exprs/join? right)
              (list? (node/expr/op-children right))
              (equal? 2 (length (node/expr/op-children right)))
              (node/expr/atom? (first (node/expr/op-children right)))

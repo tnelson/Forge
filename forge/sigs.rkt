@@ -594,7 +594,7 @@
                  ; maintain the invariant that helper functions are always rel-expression valued
                  (define safe-result
                    (cond [(node/int? result-once)
-                          (node/expr/op/sing (node-info result-once) 1 (list result-once))]
+                          (node/expr/op-on-ints/sing (node-info result-once) 1 (list result-once))]
                          [else result-once]))
                  ; - "fun spacer" added to record use of function along with original argument declarations etc.           
                  (node/expr/fun-spacer
