@@ -52,8 +52,8 @@
      (if type 'true 'false)]    
     [(node/fmla/pred-spacer info name args expanded)
      (convert-formula run-or-state expanded relations atom-names quantvars quantvar-types bounds)]
-    [(node/formula/op info args)
-     (convert-formula-op run-or-state formula relations atom-names quantvars quantvar-types args bounds)]
+    [(? node/formula/op? op)
+     (convert-formula-op run-or-state formula relations atom-names quantvars quantvar-types (node/formula/op-children op) bounds)]
     [(node/formula/multiplicity info mult expr)
     (let ([processed-expr (convert-expr run-or-state expr relations atom-names quantvars quantvar-types bounds)])
       (match mult
@@ -468,8 +468,8 @@
     [(node/expr/constant info arity type)
      (raise-forge-error #:msg (format "Unexpected node reached by to-smtlib-tor: node/expr/constant with type " type)
                         #:context info)]
-    [(node/expr/op info arity args)
-     (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)]
+    [(? node/expr/op? op)
+     (convert-expr-op run-or-state expr relations atom-names quantvars quantvar-types (node/expr/op-children op) bounds)]
     [(node/expr/quantifier-var info arity sym name)
      ; If this is an integer-unwrapping quantifier variable, it will be declared of sort Int,
      ; and should not be wrapped to make it a singleton-set-of-tuples. Otherwise, it must be
@@ -551,8 +551,8 @@
         (define new-constraint `(assert (= (IntAtom-to-Int ,const-name) ,value)))
         (set-box! new-top-level-strings (append (list new-decl new-constraint) (get-new-top-level-strings)))
         (string->symbol (format "~a" const-name))])]
-    [(node/int/op info args)
-     (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types args bounds)]
+    [(? node/int/op? op)
+     (convert-int-op run-or-state expr relations atom-names quantvars quantvar-types (node/int/op-children op) bounds)]
     [(node/int/sum-quant info decls int-expr)
     (define new-vs-decls
        (for/fold ([vs-decls (list quantvars '())])

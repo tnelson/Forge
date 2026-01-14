@@ -39,8 +39,8 @@
      (node/formula/constant info type)]    
     [(node/fmla/pred-spacer info name args expanded)
      (interpret-formula run-or-state expanded relations atom-names quantvars)]
-    [(node/formula/op info args)
-     (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
+    [(? node/formula/op?)
+     (interpret-formula-op run-or-state formula relations atom-names quantvars (node/formula/op-children formula))]
     [(node/formula/multiplicity info mult expr)
     (let ([processed-expr (interpret-expr run-or-state expr relations atom-names quantvars)])
      (node/formula/multiplicity info mult processed-expr))]
@@ -180,8 +180,8 @@
      (node/expr/constant info 1 'Int)]
     [(node/expr/constant info arity type)
      (node/expr/constant info arity type)]
-    [(node/expr/op info arity args)
-     (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
+    [(? node/expr/op? op)
+     (interpret-expr-op run-or-state expr relations atom-names quantvars (node/expr/op-children op))]
     [(node/expr/quantifier-var info arity sym name)  
      (node/expr/quantifier-var info arity sym name)]
     [(node/expr/comprehension info len decls form)     
@@ -236,8 +236,8 @@
   (match expr
     [(node/int/constant info value)
      (node/int/constant info value)]
-    [(node/int/op info args)
-     (interpret-int-op run-or-state expr relations atom-names quantvars args)]
+    [(? node/int/op? op)
+     (interpret-int-op run-or-state expr relations atom-names quantvars (node/int/op-children op))]
     [(node/int/sum-quant info decls int-expr)
      (define new-vs-and-decls
        (for/fold ([vs-and-decls (list quantvars '())])

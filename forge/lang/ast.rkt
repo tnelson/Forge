@@ -291,11 +291,18 @@
 ;; -- operators ----------------------------------------------------------------
 
 ; Should never be directly instantiated
-(struct node/expr/op node/expr (children) #:transparent)
+(struct node/expr/op node/expr () #:transparent)
 
 ; Intermediate structs grouping operators by child type (for Typed Racket support)
-(struct node/expr/op-on-exprs node/expr/op () #:transparent)  ; children are node/expr
-(struct node/expr/op-on-ints node/expr/op () #:transparent)   ; children are node/int
+; Each intermediate declares children with the appropriate type constraint
+(struct node/expr/op-on-exprs node/expr/op (children) #:transparent)  ; children are node/expr
+(struct node/expr/op-on-ints node/expr/op (children) #:transparent)   ; children are node/int
+
+; Generic accessor for backward compatibility (returns Listof node)
+(define (node/expr/op-children op)
+  (cond [(node/expr/op-on-exprs? op) (node/expr/op-on-exprs-children op)]
+        [(node/expr/op-on-ints? op) (node/expr/op-on-ints-children op)]
+        [else (raise-forge-error #:msg "Unknown node/expr/op subtype" #:context op)]))
 
 ;; if-then-else *expression*, which is different from an if-then-else formula
 ;   The formula version is just sugar, the expression version is a basic expr type
@@ -383,11 +390,11 @@
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
-           (struct name intermediate () #:transparent #:reflection-name 'id  
+           (struct name intermediate () #:transparent #:reflection-name 'id
              #:methods gen:equal+hash
-             [(define equal-proc (make-robust-node-equal-syntax parentname))
-              (define hash-proc  (make-robust-node-hash-syntax parentname 0))
-              (define hash2-proc (make-robust-node-hash-syntax parentname 3))]
+             [(define equal-proc (make-robust-node-equal-syntax intermediate))
+              (define hash-proc  (make-robust-node-hash-syntax intermediate 0))
+              (define hash2-proc (make-robust-node-hash-syntax intermediate 3))]
              #:methods gen:custom-write
              [(define (write-proc self port mode)
                 ; all of the /op nodes have their children in a field named "children"
@@ -728,11 +735,18 @@
 
 ;; -- operators ----------------------------------------------------------------
 
-(struct node/int/op node/int (children) #:transparent)
+(struct node/int/op node/int () #:transparent)
 
 ; Intermediate structs grouping operators by child type (for Typed Racket support)
-(struct node/int/op-on-ints node/int/op () #:transparent)   ; children are node/int
-(struct node/int/op-on-exprs node/int/op () #:transparent)  ; children are node/expr
+; Each intermediate declares children with the appropriate type constraint
+(struct node/int/op-on-ints node/int/op (children) #:transparent)   ; children are node/int
+(struct node/int/op-on-exprs node/int/op (children) #:transparent)  ; children are node/expr
+
+; Generic accessor for backward compatibility (returns Listof node)
+(define (node/int/op-children op)
+  (cond [(node/int/op-on-ints? op) (node/int/op-on-ints-children op)]
+        [(node/int/op-on-exprs? op) (node/int/op-on-exprs-children op)]
+        [else (raise-forge-error #:msg "Unknown node/int/op subtype" #:context op)]))
 
 (define-node-op add node/int/op #f #:min-length 2 #:type node/int?)
 (define-node-op subtract node/int/op #f #:min-length 2 #:type node/int?)
@@ -846,12 +860,20 @@
 ;; -- operators ----------------------------------------------------------------
 
 ; Should never be directly instantiated
-(struct node/formula/op node/formula (children) #:transparent)
+(struct node/formula/op node/formula () #:transparent)
 
 ; Intermediate structs grouping operators by child type (for Typed Racket support)
-(struct node/formula/op-on-formulas node/formula/op () #:transparent)  ; children are node/formula
-(struct node/formula/op-on-exprs node/formula/op () #:transparent)     ; children are node/expr
-(struct node/formula/op-on-ints node/formula/op () #:transparent)      ; children are node/int
+; Each intermediate declares children with the appropriate type constraint
+(struct node/formula/op-on-formulas node/formula/op (children) #:transparent)  ; children are node/formula
+(struct node/formula/op-on-exprs node/formula/op (children) #:transparent)     ; children are node/expr
+(struct node/formula/op-on-ints node/formula/op (children) #:transparent)      ; children are node/int
+
+; Generic accessor for backward compatibility (returns Listof node)
+(define (node/formula/op-children op)
+  (cond [(node/formula/op-on-formulas? op) (node/formula/op-on-formulas-children op)]
+        [(node/formula/op-on-exprs? op) (node/formula/op-on-exprs-children op)]
+        [(node/formula/op-on-ints? op) (node/formula/op-on-ints-children op)]
+        [else (raise-forge-error #:msg "Unknown node/formula/op subtype" #:context op)]))
 
 (define-node-op in node/formula/op #f  #:same-arity? #t #:max-length 2 #:type node/expr?)
 

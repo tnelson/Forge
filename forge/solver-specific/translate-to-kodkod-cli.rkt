@@ -36,8 +36,8 @@
      ( print-cmd-cont (format "~a " type))]
     [(node/fmla/pred-spacer info name args expanded)
      (interpret-formula run-or-state expanded relations atom-names quantvars)]
-    [(node/formula/op info args)
-     (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
+    [(? node/formula/op? op)
+     (interpret-formula-op run-or-state formula relations atom-names quantvars (node/formula/op-children op))]
     [(node/formula/multiplicity info mult expr)
      ( print-cmd-cont (format "(~a " mult ))
      (interpret-expr run-or-state expr relations atom-names quantvars)
@@ -196,8 +196,8 @@
                                 (build-univ-string run-or-state)))]
        [else
         (print-cmd-cont (format "~a " type))])]
-    [(node/expr/op info arity args)
-     (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
+    [(? node/expr/op? op)
+     (interpret-expr-op run-or-state expr relations atom-names quantvars (node/expr/op-children op))]
     [(node/expr/quantifier-var info arity sym name)     
      ;(print-cmd-cont (symbol->string (v sym)))
      (print-cmd-cont (symbol->string (v (get-sym expr))))
@@ -274,8 +274,8 @@
   (match expr
     [(node/int/constant info value)
      (print-cmd-cont (format "~a " value))]
-    [(node/int/op info args)
-     (interpret-int-op run-or-state expr relations atom-names quantvars args)]
+    [(? node/int/op? op)
+     (interpret-int-op run-or-state expr relations atom-names quantvars (node/int/op-children op))]
     [(node/int/sum-quant info decls int-expr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])

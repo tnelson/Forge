@@ -197,7 +197,7 @@
      (format "~a" type)]
     [(node/fmla/pred-spacer info name args expanded)
      (deparse-formula expanded parent-priority)]
-    [(node/formula/op info args)
+    [(? node/formula/op?)
      (deparse-formula-op formula parent-priority)]
     [(node/formula/multiplicity info mult expr)
      (if (@<= PRIORITY-MULT parent-priority)
@@ -310,7 +310,7 @@
      "Int"]
     [(node/expr/constant info arity type)
      (format "~a " type)]
-    [(node/expr/op info arity args)
+    [(? node/expr/op?)
      (deparse-expr-op expr parent-priority)]
     [(node/expr/quantifier-var info arity sym name)     
      (format "~a" name)]
@@ -327,7 +327,7 @@
   (match expr
     [(node/int/constant info value)
      (format "~a" value)]
-    [(node/int/op info args)
+    [(? node/int/op?)
      (deparse-int-op expr parent-priority)]
     [(node/int/sum-quant info decls int-expr)
      (format "sum ~a | { ~a }"

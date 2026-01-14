@@ -194,8 +194,8 @@
        (define-values (fmla bounds) (interpret-formula run-spec total-bounds expanded relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
        (set! current-bounds bounds)
        fmla]
-      [(node/formula/op info args)
-       (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types args #:tag-with-spacer tag-with-spacer)]
+      [(? node/formula/op?)
+       (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types (node/formula/op-children formula) #:tag-with-spacer tag-with-spacer)]
       [(node/formula/multiplicity info mult expr)
        (let ([processed-expr (interpret-expr run-spec total-bounds expr relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)])
          (node/formula/multiplicity info mult processed-expr))]
@@ -323,8 +323,8 @@
      (node/expr/constant info 1 'Int)]
     [(node/expr/constant info arity type)
      (node/expr/constant info arity type)]
-    [(node/expr/op info arity args)
-     (interpret-expr-op run-spec total-bounds expr relations atom-names quantvars quantvar-types args #:tag-with-spacer tag-with-spacer)]
+    [(? node/expr/op? op)
+     (interpret-expr-op run-spec total-bounds expr relations atom-names quantvars quantvar-types (node/expr/op-children op) #:tag-with-spacer tag-with-spacer)]
     [(node/expr/quantifier-var info arity sym name)  
      (node/expr/quantifier-var info arity sym name)]
     [(node/expr/comprehension info len decls form)   
@@ -380,8 +380,8 @@
   (match expr
     [(node/int/constant info value)
      (node/int/constant info value)]
-    [(node/int/op info args)
-     (interpret-int-op run-spec total-bounds expr relations atom-names quantvars quantvar-types args #:tag-with-spacer tag-with-spacer)]
+    [(? node/int/op? op)
+     (interpret-int-op run-spec total-bounds expr relations atom-names quantvars quantvar-types (node/int/op-children op) #:tag-with-spacer tag-with-spacer)]
     [(node/int/sum-quant info decls int-expr)
      (define new-vs-and-decls
        (for/fold ([vs-and-decls (list quantvars '())])

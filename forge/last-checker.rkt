@@ -120,11 +120,11 @@
     (check-helper-args run-or-state 'predicate name args arg-types domain-types)
     (checkFormula run-or-state expanded quantvars checker-hash)]
     
-    [(node/formula/op info args)
+    [(? node/formula/op? op)
      (check-and-output formula
                        node/formula/op
                        checker-hash
-                       (checkFormulaOp run-or-state formula quantvars args checker-hash))]
+                       (checkFormulaOp run-or-state formula quantvars (node/formula/op-children op) checker-hash))]
         
     [(node/formula/multiplicity info mult expr)
      (define expr-type (checkExpression run-or-state expr quantvars checker-hash))
@@ -491,9 +491,9 @@
                                     [else (get-top-levels (cartesian-product prims prims) run-or-state)]))) '())]
           
     ; expression w/ operator (union, intersect, ~, etc...)
-    [(node/expr/op info arity args)
+    [(? node/expr/op? op)
      ; We don't call check-and-output here. That is called for each individual case within checkExpressionOp.
-     (checkExpressionOp run-or-state expr quantvars args checker-hash)]
+     (checkExpressionOp run-or-state expr quantvars (node/expr/op-children op) checker-hash)]
  
     ; quantifier variable
     [(node/expr/quantifier-var info arity sym name)
