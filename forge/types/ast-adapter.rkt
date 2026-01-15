@@ -81,7 +81,7 @@
         join/func one/func build-box-join univ raise-forge-error &&/func &/func ||/func +/func
         -/func =/func */func iden ^/func set/func relation-name always/func maybe-and->list
         int=/func int</func int/func card/func in/func true-formula false-formula no/func
-        lone/func ->/func some/func !/func add/func sum/func sing/func var
+        lone/func ->/func some/func !/func add/func sum/func sing/func var ite/func
         Decl Decls)
 
 (define-type Decl (Pairof node/expr/quantifier-var node/expr))
@@ -225,6 +225,7 @@
   [sum/func (->* (node/expr) (#:info nodeinfo) node/int)]
   [sing/func (->* (node/int) (#:info nodeinfo) node/expr)]
   [var (->* () (Symbol #:info nodeinfo) node/expr/quantifier-var)]
+  [(ite/info-helper ite/func) (-> nodeinfo node/formula node/expr node/expr node/expr)]
   [build-box-join (-> node/expr (Listof node/expr) node/expr)]
   [maybe-and->list (-> node/formula (Listof node/formula))]
   [univ node/expr]

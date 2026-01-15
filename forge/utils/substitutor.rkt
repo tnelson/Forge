@@ -19,7 +19,8 @@
 ; target - the node to be replaced
 ; value - the node to replace the target with
 ; relations and atom-names are currently unused (dead parameters)
-(: substitute-formula (-> (U Run State Run-spec) node/formula (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) node node node/formula))
+; Types: relations = (Listof node/expr/relation), atom-names = (Listof FAtom)
+(: substitute-formula (-> (U Run State Run-spec) node/formula (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) node node node/formula))
 (define (substitute-formula run-or-state formula relations atom-names quantvars target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-formula: ~a~n" formula))
@@ -53,19 +54,19 @@
     [#f "false"]
     ))
 
-(: process-children-formula (-> (U Run State Run-spec) (Listof node) (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) node node (Listof node/formula)))
+(: process-children-formula (-> (U Run State Run-spec) (Listof node) (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) node node (Listof node/formula)))
 (define (process-children-formula run-or-state children relations atom-names quantvars target value)
   (map (lambda ([x : node]) (substitute-formula run-or-state (assert x node/formula?) relations atom-names quantvars target value)) children))
 
-(: process-children-expr (-> (U Run State Run-spec) (Listof node) (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) node node (Listof node/expr)))
+(: process-children-expr (-> (U Run State Run-spec) (Listof node) (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) node node (Listof node/expr)))
 (define (process-children-expr run-or-state children relations atom-names quantvars target value)
   (map (lambda ([x : node]) (substitute-expr run-or-state (assert x node/expr?) relations atom-names quantvars target value)) children))
 
-(: process-children-int (-> (U Run State Run-spec) (Listof node) (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) node node (Listof node/int)))
+(: process-children-int (-> (U Run State Run-spec) (Listof node) (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) node node (Listof node/int)))
 (define (process-children-int run-or-state children relations atom-names quantvars target value)
   (map (lambda ([x : node]) (substitute-int run-or-state (assert x node/int?) relations atom-names quantvars target value)) children))
 
-(: process-children-ambiguous (-> (U Run State Run-spec) (Listof node) (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) node node (Listof node)))
+(: process-children-ambiguous (-> (U Run State Run-spec) (Listof node) (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) node node (Listof node)))
 (define (process-children-ambiguous run-or-state children relations atom-names quantvars target value)
   (for/list : (Listof node) ([child : node children])
     (match child
@@ -73,14 +74,14 @@
       [(? node/expr? e) (substitute-expr run-or-state e relations atom-names quantvars target value)]
       [(? node/int? i) (substitute-int run-or-state i relations atom-names quantvars target value)])))
 
-(: substitute-ambig (-> (U Run State Run-spec) node (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) node node node))
+(: substitute-ambig (-> (U Run State Run-spec) node (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) node node node))
 (define (substitute-ambig run-or-state formula relations atom-names quantvars target value)
   (match formula
     [(? node/formula? f) (substitute-formula run-or-state f relations atom-names quantvars target value)]
     [(? node/expr? e) (substitute-expr run-or-state e relations atom-names quantvars target value)]
     [(? node/int? i) (substitute-int run-or-state i relations atom-names quantvars target value)]))
 
-(: substitute-formula-op (-> (U Run State Run-spec) node/formula/op (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) (Listof node) node node node/formula))
+(: substitute-formula-op (-> (U Run State Run-spec) node/formula/op (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) (Listof node) node node node/formula))
 (define (substitute-formula-op run-or-state formula relations atom-names quantvars args target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-formula-op: ~a~n" formula))
@@ -130,7 +131,7 @@
 ; Relational expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(: substitute-expr (-> (U Run State Run-spec) node/expr (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) node node node/expr))
+(: substitute-expr (-> (U Run State Run-spec) node/expr (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) node node node/expr))
 (define (substitute-expr run-or-state expr relations atom-names quantvars target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
       (printf "substitutor: interpret-expr: ~a~n" expr))
@@ -172,7 +173,7 @@
            (define new-decls (second new-vs-and-decls))
            (node/expr/comprehension info len new-decls processed-form))])))
   
-(: substitute-expr-op (-> (U Run State Run-spec) node/expr/op (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) (Listof node) node node node/expr))
+(: substitute-expr-op (-> (U Run State Run-spec) node/expr/op (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) (Listof node) node node node/expr))
 (define (substitute-expr-op run-or-state expr relations atom-names quantvars args target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-expr-op: ~a~n" expr))
@@ -209,7 +210,7 @@
 ; Integer expressions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(: substitute-int (-> (U Run State Run-spec) node/int (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) node node node/int))
+(: substitute-int (-> (U Run State Run-spec) node/int (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) node node node/int))
 (define (substitute-int run-or-state expr relations atom-names quantvars target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-int: ~a~n" expr))
@@ -236,7 +237,7 @@
            (define new-decls (second new-vs-and-decls))
            (node/int/sum-quant info new-decls processed-int))])))
 
-(: substitute-int-op (-> (U Run State Run-spec) node/int/op (Listof Any) (Listof Any) (Listof node/expr/quantifier-var) (Listof node) node node node/int))
+(: substitute-int-op (-> (U Run State Run-spec) node/int/op (Listof node/expr/relation) (Listof FAtom) (Listof node/expr/quantifier-var) (Listof node) node node node/int))
 (define (substitute-int-op run-or-state expr relations atom-names quantvars args target value)
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "substitutor: interpret-int-op: ~a~n" expr))

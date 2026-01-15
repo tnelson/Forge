@@ -11,7 +11,8 @@
          (only-in racket thunk ~a))
 
 (provide configure declare-ints print-cmd print-cmd-cont print-eoi cmd declare-univ
-         declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product]))
+         declare-rel declare-target read-solution solve v r x tupleset (rename-out [-> product])
+         pardinus-port)
 (provide assert e f i a define-const)
 (provide read-evaluation read-ack)
 (provide clear)
