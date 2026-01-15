@@ -1,6 +1,7 @@
 {
-  "name": "sterling-ts",
-  "short_name": "sterling-ts",
+  "name": "sterling-layout",
+  "short_name": "sterling-layout",
+  "description": "A fork of the Sterling visualizer with support for declarative layout.",
   "dir": "auto",
   "lang": "en-US",
   "display": "standalone",
