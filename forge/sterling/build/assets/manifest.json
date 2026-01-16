@@ -1,7 +1,7 @@
 {
   "name": "sterling-layout",
   "short_name": "sterling-layout",
-  "description": "A fork of the Sterling visualizer with support for declarative layout.",
+  "description": "Spytial Sterling is a fork of the Sterling visualizer that encodes spatial layout.",
   "dir": "auto",
   "lang": "en-US",
   "display": "standalone",
