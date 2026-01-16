@@ -42,7 +42,7 @@
 ; I guess this weird way of creating the relation works, since the test passes....
 ; This is helpful to now that rel is logically equivalent to Relation.
 ; TODO: what is the 'parent' field of a relation?
-(define var-to-sub-2-2 (node/expr/op/join '() 2 (list quantvar-2 (node/expr/relation '() 1 'age (list 'Int) '() #f))))
+(define var-to-sub-2-2 (node/expr/op-on-exprs/join '() 2 (list quantvar-2 (node/expr/relation '() 1 'age (list 'Int) '() #f))))
 (define quantified-for-int-result (substitute-formula run-statement quantified-for-int
                         '() '() '() var-to-sub-2-1 var-to-sub-2-2))
 (@check are-logically-equivalent/bounds? quantified-for-int-result int_pre)
