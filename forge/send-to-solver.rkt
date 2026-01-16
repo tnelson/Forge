@@ -232,14 +232,14 @@
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; Backend=Kodkod; server isn't active/running
       [(equal? backend 'kodkod)
-       (raise "Pure Kodkod backend is no longer supported; please use `pardinus` backend instead.")]
+       (raise-forge-error #:msg "Pure Kodkod backend is no longer supported; please use `pardinus` backend instead." #:context run-command)]
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; Backend=smtlibtor; server isn't active/running
       [(equal? backend 'smtlibtor)
        (printf "Will use SMT-LIB-v2 output. This is experimental functionality. Please ensure that cvc5 is on your path.~n")
        (define problem-type-smt (get-option run-spec 'problem_type))
        (unless (symbol? problem-type-smt)
-         (error 'send-to-solver "problem_type option must be a symbol"))
+         (raise-forge-error #:msg "problem_type option must be a symbol" #:context run-command))
        (smtlib:start-server 'stepper problem-type-smt)]
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; Backend=Pardinus; server isn't active/running
@@ -248,12 +248,12 @@
          (printf "Starting/restarting Pardinus server (prior state=~a)...~n" (unbox server-state)))
        (define problem-type-pard (get-option run-spec 'problem_type))
        (unless (symbol? problem-type-pard)
-         (error 'send-to-solver "problem_type option must be a symbol"))
+         (raise-forge-error #:msg "problem_type option must be a symbol" #:context run-command))
        (define java-loc (get-option run-spec 'java_exe_location))
        (define java-exe : (U False Path-String)
          (cond [(not java-loc) #f]
                [(path-string? java-loc) java-loc]
-               [else (error 'send-to-solver "java_exe_location must be #f or a path")]))
+               [else (raise-forge-error #:msg "java_exe_location must be #f or a path" #:context run-command)]))
        (pardinus:start-server
         'stepper ; always a stepper problem (there is a "next" button)
         ; 'default, 'temporal, or 'target (tells Pardinus which solver to load,
@@ -262,14 +262,14 @@
         ; control version of java used (by path string)
         java-exe)]
 
-      [else (raise (format "Invalid backend: ~a" backend))]))
+      [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)]))
 
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
   (define solver-opt (get-option run-spec 'solver))
   (define solver-option : (U Symbol String)
     (cond [(symbol? solver-opt) solver-opt]
           [(string? solver-opt) solver-opt]
-          [else (error 'send-to-solver "solver option must be a symbol or string")]))
+          [else (raise-forge-error #:msg "solver option must be a symbol or string" #:context run-command)]))
   (define solverspec (cond [(symbol? solver-option)
                             solver-option]
                            [else (string-append "\"" solver-option "\"")]))
@@ -329,8 +329,8 @@
            (begin
              (define-values (all-rels core-map)
                (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
-             (lambda ([mode : String]) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]   
-          [else (raise (format "Invalid backend: ~a" backend))]))
+             (lambda ([mode : String]) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]
+          [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)]))
            
      
   
