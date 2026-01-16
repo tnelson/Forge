@@ -1,14 +1,14 @@
 {
-  "version": "1.0.0",
-  "name": "sterling-ts",
-  "description": null,
+  "version": "2.0.4",
+  "name": "sterling-layout",
+  "description": "Spytial Sterling is a fork of the Sterling visualizer that encodes spatial layout.",
   "icons": {
     "60": "firefox_app_60x60.png",
     "128": "firefox_app_128x128.png",
     "512": "firefox_app_512x512.png"
   },
   "developer": {
-    "name": "Tristan Dyer",
+    "name": "Siddhartha Prasad",
     "url": null
   }
 }
