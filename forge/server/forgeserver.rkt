@@ -420,6 +420,7 @@
                   #:msg (format "Error: Sterling sent unexpected 'next' request type: ~a~n" json-m)
                   #:context context)]))
          (define xml (get-xml inst))
+         
          ; is-running? is about the _solver process itself_.
          ; is-run-closed? is about whether this specific run has been terminated
          ; Sat? is about whether the solution we have is Sat.

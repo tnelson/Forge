@@ -176,31 +176,11 @@
 
 ; If adding new option fields, remember to update all of:
 ;  -- DEFAULT_OPTIONS
-;  -- symbol->proc
 ;  -- option-types
 ;  -- option-types-names
-;  -- state-set-option (in sigs.rkt)
-(struct Options (
-  [eval-language : Symbol]
-  [solver : (U String Symbol)]
-  [backend : Symbol]
-  [sb : Nonnegative-Integer]
-  [coregranularity : Nonnegative-Integer]
-  [logtranslation : Nonnegative-Integer]
-  [min_tracelength : Nonnegative-Integer]
-  [max_tracelength : Nonnegative-Integer]
-  [problem_type : Symbol]
-  [target_mode : Symbol]
-  [core_minimization : Symbol]
-  [skolem_depth : Integer] ; allow -1 (disable Skolemization entirely)
-  [local_necessity : Symbol]
-  [run_sterling : (U String Symbol (Listof String))]
-  [sterling_port : Nonnegative-Integer]
-  [engine_verbosity : Nonnegative-Integer]
-  [test_keep : Symbol]
-  [no_overflow : Symbol]
-  [java_exe_location : (U False String)]
-  ) #:transparent)
+;  -- state-set-option (in sigs.rkt or sigs-functional.rkt)
+; Options are stored as a hash for flexibility; type safety is provided
+; via case-> typing on get-option for known option keys.
 
 (struct State (
   [sigs : (HashTable Symbol Sig)]
@@ -211,7 +191,7 @@
   [fun-map : (HashTable Symbol Any)]  ; (unconstrained-domain-> node?)
   [const-map : (HashTable Symbol node)]
   [inst-map : (HashTable Symbol Inst)]
-  [options : Options]
+  [options : (HashTable Symbol Any)]  ; hash-based options with case-> typed accessor
   [runmap : (HashTable Symbol Any)] ; TODO: Any -> Run
   ) #:transparent)
 
@@ -260,10 +240,29 @@
 
 (define DEFAULT-BITWIDTH 4)
 (define DEFAULT-SIG-SCOPE (Range 0 4))
+
 ; an engine_verbosity of 1 logs SEVERE level in the Java engine;
 ;   this will send back info about crashes, but shouldn't spam (and possibly overfill) stderr.
-(define DEFAULT-OPTIONS (Options 'surface 'SAT4J 'pardinus 20 0 0 1 5 'default
-                                 'close_noretarget 'fast 0 'off 'on 0 1 'first 'false #f))
+(define DEFAULT-OPTIONS : (HashTable Symbol Any)
+  (hash 'eval-language     'surface
+        'solver            'SAT4J
+        'backend           'pardinus
+        'sb                20
+        'coregranularity   0
+        'logtranslation    0
+        'min_tracelength   1
+        'max_tracelength   5
+        'problem_type      'default
+        'target_mode       'close_noretarget
+        'core_minimization 'fast
+        'skolem_depth      0
+        'local_necessity   'off
+        'run_sterling      'on
+        'sterling_port     0
+        'engine_verbosity  1
+        'test_keep         'first
+        'no_overflow       'false
+        'java_exe_location #f))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;    Constants    ;;;;;;;
@@ -281,35 +280,17 @@
 (define (min s-int)
   (sum/func (-/func s-int (join/func s-int (^/func succ)))))
 
-(define symbol->proc
-  (hash 'eval-language Options-eval-language
-        'solver Options-solver
-        'backend Options-backend
-        'sb Options-sb
-        'coregranularity Options-coregranularity
-        'logtranslation Options-logtranslation
-        'min_tracelength Options-min_tracelength
-        'max_tracelength Options-max_tracelength
-        'problem_type Options-problem_type
-        'target_mode Options-target_mode
-        'core_minimization Options-core_minimization
-        'skolem_depth Options-skolem_depth
-        'local_necessity Options-local_necessity
-        'run_sterling Options-run_sterling
-        'sterling_port Options-sterling_port
-        'engine_verbosity Options-engine_verbosity
-        'test_keep Options-test_keep
-        'no_overflow Options-no_overflow
-        'java_exe_location Options-java_exe_location))
-
 ; Helper for option type checking - returns a predicate that checks membership
 (: oneof-pred (-> (Listof Symbol) (-> Any Boolean)))
 (define (oneof-pred lst)
   (lambda ([x : Any]) (if (member x lst) #t #f)))
 
+(define VALID_BUILTIN_SOLVERS '(SAT4J Glucose MiniSat MiniSatProver PMaxSAT4J))
+
 (define option-types
   (hash 'eval-language symbol?
-        'solver (lambda (x) (or (symbol? x) (string? x))) ; allow for custom solver path
+        ; allow for custom solver path given as a string
+        'solver (lambda ([x : Any]) (or (member x VALID_BUILTIN_SOLVERS) (string? x)))
         'backend symbol?
         ; 'verbosity exact-nonnegative-integer?
         'sb exact-nonnegative-integer?
@@ -334,7 +315,7 @@
 
 (define option-types-names
   (hash 'eval-language "symbol"
-        'solver "symbol or string"
+        'solver (format "one of ~a or a path string" VALID_BUILTIN_SOLVERS)
         'backend "symbol"
         'sb "non-negative integer"
         'coregranularity "non-negative integer"
@@ -650,10 +631,12 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (values (relation-name rel) rel)))
 
 ; get-option :: Run-or-state Symbol -> Any
+; Returns the value of an option from the state's options hash.
+; Note: callers needing specific types should cast the result.
 (: get-option (-> Run-or-State Symbol Any))
 (define (get-option run-or-state option)
   (define state (get-state run-or-state))
-  ((hash-ref symbol->proc option) (State-options state)))
+  (hash-ref (State-options state) option #f))
 
 ; is-sat? :: Run -> boolean
 ; Checks if a given run result is 'sat

@@ -13,16 +13,7 @@
   [checkFormula (-> Run-spec node/formula (Listof Any) (HashTable Any Any) Void)])
 
 ;; Since sigs-structs.rkt is now typed, we can import directly
-(require (except-in forge/sigs-structs get-option))
-
-;; Import get-option with refined case-> type for specific option keys
-(require/typed forge/sigs-structs
-  [get-option (case->
-    (-> (U Run State Run-spec) 'backend Symbol)
-    (-> (U Run State Run-spec) 'solver (U String Symbol))
-    (-> (U Run State Run-spec) 'java_exe_location (U False Path-String))
-    (-> (U Run State Run-spec) 'problem_type Symbol)
-    (-> (U Run State Run-spec) Symbol Any))])
+(require forge/sigs-structs)
 
 (require forge/breaks)
 (require forge/lang/bounds)
@@ -246,30 +237,45 @@
       ; Backend=smtlibtor; server isn't active/running
       [(equal? backend 'smtlibtor)
        (printf "Will use SMT-LIB-v2 output. This is experimental functionality. Please ensure that cvc5 is on your path.~n")
-       (smtlib:start-server 'stepper (get-option run-spec 'problem_type))]
+       (define problem-type-smt (get-option run-spec 'problem_type))
+       (unless (symbol? problem-type-smt)
+         (error 'send-to-solver "problem_type option must be a symbol"))
+       (smtlib:start-server 'stepper problem-type-smt)]
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; Backend=Pardinus; server isn't active/running
       [(equal? backend 'pardinus)
        (when (>= (get-verbosity) VERBOSITY_HIGH)
          (printf "Starting/restarting Pardinus server (prior state=~a)...~n" (unbox server-state)))
+       (define problem-type-pard (get-option run-spec 'problem_type))
+       (unless (symbol? problem-type-pard)
+         (error 'send-to-solver "problem_type option must be a symbol"))
+       (define java-loc (get-option run-spec 'java_exe_location))
+       (define java-exe : (U False Path-String)
+         (cond [(not java-loc) #f]
+               [(path-string? java-loc) java-loc]
+               [else (error 'send-to-solver "java_exe_location must be #f or a path")]))
        (pardinus:start-server
         'stepper ; always a stepper problem (there is a "next" button)
         ; 'default, 'temporal, or 'target (tells Pardinus which solver to load,
         ;  and affects parsing so needs to be known at invocation time)
-        (get-option run-spec 'problem_type)
+        problem-type-pard
         ; control version of java used (by path string)
-        (get-option run-spec 'java_exe_location))]
+        java-exe)]
 
       [else (raise (format "Invalid backend: ~a" backend))]))
 
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
-  (define solver-option (get-option run-spec 'solver))
+  (define solver-opt (get-option run-spec 'solver))
+  (define solver-option : (U Symbol String)
+    (cond [(symbol? solver-opt) solver-opt]
+          [(string? solver-opt) solver-opt]
+          [else (error 'send-to-solver "solver option must be a symbol or string")]))
   (define solverspec (cond [(symbol? solver-option)
                             solver-option]
                            [else (string-append "\"" solver-option "\"")]))
   (unless (symbol? solver-option)
     (unless (file-exists? solver-option)
-      (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist." 
+      (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist."
                                 solver-option))))
   
   ; Print configure and declare univ size

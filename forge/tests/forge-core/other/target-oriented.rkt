@@ -21,9 +21,8 @@
 ; Because the macro below uses forge/functional, not forge/core, stateful option setters have no
 ; effect; we need to create Options ourselves
 (define the-options
-  (struct-copy forge:Options forge:DEFAULT-OPTIONS
-               [problem_type 'target]
-               [solver 'PMaxSAT4J]))
+  (hash-set (hash-set forge:DEFAULT-OPTIONS 'problem_type 'target) 
+            'solver 'PMaxSAT4J))
   
 
 ; Create a Run, but don't open a visualizer
