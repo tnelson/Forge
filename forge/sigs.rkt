@@ -107,7 +107,8 @@
 (provide (prefix-out forge: relation-name))
 
 (provide (prefix-out forge: curr-state)
-         (prefix-out forge: update-state!))
+         (prefix-out forge: update-state!)
+         (prefix-out forge: current-options))
 
 (provide (struct-out Sat)
          (struct-out Unsat))
@@ -196,7 +197,10 @@
         [(or (equal? option 'verbosity) (equal? option 'verbose))
          (set-verbosity value)]
         [else
-         (update-state! (state-set-option curr-state option value #:original-path original-path))]))
+         (define new-state (state-set-option curr-state option value #:original-path original-path))
+         (update-state! new-state)
+         ; Also update the current-options parameter so tests can snapshot it
+         (current-options (State-options new-state))]))
 
 ; state-set-option :: State, Symbol, Symbol -> State
 ; Sets option to value for state.
@@ -305,6 +309,10 @@
 (define curr-state init-state)
 (define (update-state! new-state)
   (set! curr-state new-state))
+
+; Parameter for snapshotting options at test definition time.
+; Tests capture this value when defined, then parameterize with it when executed.
+(define current-options (make-parameter (State-options init-state)))
 
 ; check-temporal-for-var :: Boolean String -> void
 ; raises an error if is-var is true and the problem_type option is 'temporal
@@ -696,9 +704,9 @@
                        (~? 'target-distance 'close_noretarget))
                #f))
          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-         ;; TODO: this _really_ ought to be a box. If the above calls update-state!,
-         ;; this is no longer aliased. 
-         (define run-state curr-state) 
+         ;; Use current-options parameter so tests can snapshot options at definition time.
+         ;; The state gets current sigs/preds/etc, but options from the parameter.
+         (define run-state (struct-copy State curr-state [options (current-options)])) 
          (define run-command #'#,command)
          (define name
            (run-from-state run-state
@@ -727,12 +735,29 @@
     [(test name args ... #:expect expected)
      (syntax/loc stx (test name args ... #:expect expected #:expect-details #f))]
     [(test name args ... #:expect expected #:expect-details expected-details)
-     (add-to-execs
-      (with-syntax ([loc (build-source-location stx)]
-                    [run-stx (syntax/loc stx (run name args ...))]
-                    [check-stx (syntax/loc stx (check name args ...))])
-       (quasisyntax/loc stx 
-         (cond
+     ; Snapshot options at definition time, then parameterize at execution time
+     (with-syntax ([snapshot-id (generate-temporary 'options-snapshot)]
+                   [loc (build-source-location stx)]
+                   [run-stx (syntax/loc stx (run name args ...))]
+                   [check-stx (syntax/loc stx (check name args ...))])
+       (if (equal? (syntax-local-context) 'module)
+           ; At module level: capture options now, defer test with parameterize
+           (quasisyntax/loc stx
+             (begin
+               (define snapshot-id (current-options))
+               (module+ execs
+                 (parameterize ([current-options snapshot-id])
+                   #,(quasisyntax/loc stx (test-body name loc run-stx check-stx expected expected-details))))))
+           ; Not at module level: just run directly
+           (quasisyntax/loc stx
+             (test-body name loc run-stx check-stx expected expected-details))))]))
+
+; Helper macro for test body - factored out to avoid duplication
+(define-syntax (test-body stx)
+  (syntax-case stx ()
+    [(test-body name loc run-stx check-stx expected expected-details)
+     (quasisyntax/loc stx
+       (cond
            ; TODO: isn't this known at expansion time? We'll have the value of <expected>.
           [(equal? 'expected 'forge_error)
            ; Expecting an error. If we receive one, do nothing. 
@@ -821,55 +846,97 @@
            (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
                               #:context loc)]
 
-          [else (raise-forge-error                 
+          [else (raise-forge-error
                  #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, checked, or forge_error."
                                'expected)
-                 #:context loc)]))))]))
+                 #:context loc)]))]))
 
-(define-syntax (example stx)  
+(define-syntax (example stx)
   (syntax-parse stx
     [(_ name:id pred bounds ...)
-     (add-to-execs
-      (with-syntax* ([double-check-name (format-id #'name "double-check_~a_~a" #'name (gensym))]
-                     [run-stx (syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))]
-                     [double-check-run-stx (syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))])
-       (quasisyntax/loc stx (begin
-         (when (eq? 'temporal (get-option curr-state 'problem_type))
-           (raise-forge-error
-            #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
-            #:context #,(build-source-location stx)))
-         run-stx
-         (define first-instance (tree:get-value (Run-result name)))
-         (cond
-           [(Unsat? first-instance)
-            ; Run a second check to see if {} would have also failed, meaning this example
-            ; violates the sig/field declarations.
-            double-check-run-stx
-            (define double-check-instance (tree:get-value (Run-result double-check-name)))
-            (close-run double-check-name) ;; always close the double-check run immediately
-            
-            (cond
-              [(Sat? double-check-instance)
-               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
-                                     #:context #,(build-source-location stx)
-                                     #:instance first-instance
-                                     #:run name)]
-              [(Unsat? double-check-instance)
-               (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
-                                                                              "This means that the specified bounds conflict with each other "
-                                                                              "or with the sig/field definitions.")
-                                                               'name)
-                                     #:context #,(build-source-location stx)
-                                     #:instance first-instance
-                                     #:run name)]
-              [(Unknown? double-check-instance)
-               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'. Unable to determine if the instance given satisfies the sig/field definitions or specified bounds." 'name)
-                                     #:context #,(build-source-location stx)
-                                     #:instance first-instance
-                                     #:run name)])]
-           [else
-            (report-passing-test #:name 'name)
-            (close-run name)])))))]))
+     ; Snapshot options at definition time, then parameterize at execution time
+     (with-syntax* ([snapshot-id (generate-temporary 'options-snapshot)]
+                    [double-check-name (format-id #'name "double-check_~a_~a" #'name (gensym))]
+                    [run-stx (syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))]
+                    [double-check-run-stx (syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))])
+       (if (equal? (syntax-local-context) 'module)
+           (quasisyntax/loc stx
+             (begin
+               (define snapshot-id (current-options))
+               (module+ execs
+                 (parameterize ([current-options snapshot-id])
+                   (when (eq? 'temporal (get-option curr-state 'problem_type))
+                     (raise-forge-error
+                      #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
+                      #:context #,(build-source-location stx)))
+                   run-stx
+                   (define first-instance (tree:get-value (Run-result name)))
+                   (cond
+                     [(Unsat? first-instance)
+                      ; Run a second check to see if {} would have also failed, meaning this example
+                      ; violates the sig/field declarations.
+                      double-check-run-stx
+                      (define double-check-instance (tree:get-value (Run-result double-check-name)))
+                      (close-run double-check-name) ;; always close the double-check run immediately
+
+                      (cond
+                        [(Sat? double-check-instance)
+                         (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+                                              #:context #,(build-source-location stx)
+                                              #:instance first-instance
+                                              #:run name)]
+                        [(Unsat? double-check-instance)
+                         (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+                                                                                        "This means that the specified bounds conflict with each other "
+                                                                                        "or with the sig/field definitions.")
+                                                                         'name)
+                                              #:context #,(build-source-location stx)
+                                              #:instance first-instance
+                                              #:run name)]
+                        [(Unknown? double-check-instance)
+                         (report-test-failure #:name 'name #:msg (format "Invalid example '~a'. Unable to determine if the instance given satisfies the sig/field definitions or specified bounds." 'name)
+                                              #:context #,(build-source-location stx)
+                                              #:instance first-instance
+                                              #:run name)])]
+                     [else
+                      (report-passing-test #:name 'name)
+                      (close-run name)])))))
+           ; Not at module level: just run directly (original behavior)
+           (quasisyntax/loc stx
+             (begin
+               (when (eq? 'temporal (get-option curr-state 'problem_type))
+                 (raise-forge-error
+                  #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
+                  #:context #,(build-source-location stx)))
+               run-stx
+               (define first-instance (tree:get-value (Run-result name)))
+               (cond
+                 [(Unsat? first-instance)
+                  double-check-run-stx
+                  (define double-check-instance (tree:get-value (Run-result double-check-name)))
+                  (close-run double-check-name)
+                  (cond
+                    [(Sat? double-check-instance)
+                     (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+                                          #:context #,(build-source-location stx)
+                                          #:instance first-instance
+                                          #:run name)]
+                    [(Unsat? double-check-instance)
+                     (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+                                                                                    "This means that the specified bounds conflict with each other "
+                                                                                    "or with the sig/field definitions.")
+                                                                     'name)
+                                          #:context #,(build-source-location stx)
+                                          #:instance first-instance
+                                          #:run name)]
+                    [(Unknown? double-check-instance)
+                     (report-test-failure #:name 'name #:msg (format "Invalid example '~a'. Unable to determine if the instance given satisfies the sig/field definitions or specified bounds." 'name)
+                                          #:context #,(build-source-location stx)
+                                          #:instance first-instance
+                                          #:run name)])]
+                 [else
+                  (report-passing-test #:name 'name)
+                  (close-run name)])))))]))
 
 ; Checks that some predicates are always true.
 (define-syntax (check stx)
