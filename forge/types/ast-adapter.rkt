@@ -11,6 +11,8 @@
         (struct-out node/expr/constant)
         (struct-out node/breaking)
         (struct-out node/breaking/break)
+        (struct-out node/breaking/op)
+        (struct-out node/breaking/op/is)
         (struct-out nodeinfo)
         (struct-out node/formula)
         (struct-out node/formula/constant)
@@ -78,7 +80,7 @@
         node/formula/op-children
         ;; Other exports
         relation-arity just-location-info quantified-formula multiplicity-formula empty-nodeinfo
-        join/func one/func build-box-join univ raise-forge-error &&/func &/func ||/func +/func
+        join/func one/func build-box-join univ none raise-forge-error &&/func &/func ||/func +/func
         -/func =/func */func iden ^/func set/func relation-name always/func maybe-and->list
         int=/func int</func int/func card/func in/func true-formula false-formula no/func
         lone/func ->/func some/func !/func add/func sum/func sing/func var ite/func
@@ -95,6 +97,8 @@
   [#:struct (node/expr node) ([arity : Number])]
   [#:struct (node/breaking node) ()]
   [#:struct (node/breaking/break node/breaking) ([break : Symbol])]
+  [#:struct (node/breaking/op node/breaking) ([children : (Listof Any)])]
+  [#:struct (node/breaking/op/is node/breaking/op) ()]
   [#:struct (node/formula node) ()]
   [#:struct (node/formula/constant node/formula) ([type : Any])]
   [#:struct (node/fmla/pred-spacer node/formula) ([name : Symbol] [args : (Listof node)] [expanded : node/formula])]
@@ -103,7 +107,7 @@
      ([name : String]
       [typelist-thunk : (-> (Listof Any))]
       [parent : Any]
-      [is-variable : Boolean])]
+      [is-variable : (U String Boolean)])]
   [#:struct (node/expr/comprehension node/expr) ([decls : Decls] [formula : node/formula])]
   [#:struct (node/expr/atom node/expr) ([name : Any])]
   [#:struct (node/expr/fun-spacer node/expr) ([name : Any] [args : (Listof node)] [codomain : Any] [expanded : node/expr])]
@@ -187,11 +191,7 @@
   ; This by itself doesn't allow the type system to differentiate between
   ; the #t and #f modes, even when they are provided as literals. 
   ;(->* (#:msg String #:context Any) (#:raise? Boolean) Void) ]
-  [raise-forge-error 
-  (case->
-        (->* () (#:msg String #:context Any #:raise? True) Nothing)
-        (->* () (#:msg String #:context Any #:raise? False) Void)
-        (->* () (#:msg String #:context Any) Nothing))] 
+  [raise-forge-error (->* () (#:msg String #:context Any #:raise? Boolean) Nothing)] 
   [relation-arity (-> Any Integer)]
   [relation-name (-> node/expr/relation String)]
   [just-location-info (-> (U srcloc #f) nodeinfo)]
@@ -230,6 +230,7 @@
   [maybe-and->list (-> node/formula (Listof node/formula))]
   [univ node/expr]
   [iden node/expr]
+  [none node/expr]
   ; Don't export these as-is. Potential conflict with existing Racket identifiers.
    [(true true-formula)   node/formula]
    [(false false-formula) node/formula]

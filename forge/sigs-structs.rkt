@@ -803,8 +803,8 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; Helper to convert int expressions to node/expr for ite
 (: ensure-expr (-> Any nodeinfo node/expr))
 (define (ensure-expr x info)
-  (cond [(node/expr? x) x]
-        [(node/int? x) (sing/func x #:info info)]
+  (cond [(node/expr? x) (assert x node/expr?)]
+        [(node/int? x) (sing/func (assert x node/int?) #:info info)]
         [(exact-integer? x) (sing/func (int/func x #:info info) #:info info)]
         [else (raise-forge-error #:msg (format "Expected expression, got ~a" (pretty-type-of x))
                                  #:context info)]))
@@ -819,16 +819,20 @@ Returns whether the given run resulted in sat or unsat, respectively.
     (raise-forge-error
      #:msg (format "If-then-else needed a boolean-valued formula for its first argument; got ~a." (pretty-type-of a))
      #:context a))
+  ; Type narrowing: after the check above, a is known to be node/formula
+  (define a-fmla : node/formula (assert a node/formula?))
   (cond
     ; It's a formula if-then-else: (a => b) && (!a => c) = (!a || b) && (a || c)
     [(and (node/formula? b) (node/formula? c))
-     (&&/func (||/func (!/func a #:info info) b #:info info)
-              (||/func a c #:info info)
+     (define b-fmla : node/formula (assert b node/formula?))
+     (define c-fmla : node/formula (assert c node/formula?))
+     (&&/func (||/func (!/func a-fmla #:info info) b-fmla #:info info)
+              (||/func a-fmla c-fmla #:info info)
               #:info info)]
     ; It's an expression if-then-else (note: mixing int-expr and rel-expr is OK)
     [(and (or (node/expr? b) (node/int? b) (integer? b))
           (or (node/expr? c) (node/int? c) (integer? c)))
-     (ite/func info a (ensure-expr b info) (ensure-expr c info))]
+     (ite/func info a-fmla (ensure-expr b info) (ensure-expr c info))]
     ; It's an error
     [else
      (raise-forge-error #:msg (format "If-then-else needed consistent types (either both formulas or both expressions) for its true and false branches, but got (~a) and (~a)."
