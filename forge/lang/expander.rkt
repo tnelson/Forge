@@ -1623,17 +1623,17 @@
         ; Annoyingly, structs aren't polymorphic in the way we need. This is not elegant, but:
 
         ; join, transpose, +, -, &, ^, *, ->, sing, ', ++
-        [(node/expr/op/join? astnode) (rebuild-expr-op node/expr/op/join astnode new-info)]
-        [(node/expr/op/~? astnode) (rebuild-expr-op node/expr/op/~ astnode new-info)]
-        [(node/expr/op/+? astnode) (rebuild-expr-op node/expr/op/+ astnode new-info)]
-        [(node/expr/op/-? astnode) (rebuild-expr-op node/expr/op/- astnode new-info)]
-        [(node/expr/op/&? astnode) (rebuild-expr-op node/expr/op/& astnode new-info)]
-        [(node/expr/op/^? astnode) (rebuild-expr-op node/expr/op/^ astnode new-info)]
-        [(node/expr/op/*? astnode) (rebuild-expr-op node/expr/op/* astnode new-info)]
-        [(node/expr/op/->? astnode) (rebuild-expr-op node/expr/op/-> astnode new-info)]
-        [(node/expr/op/sing? astnode) (rebuild-expr-op node/expr/op/sing astnode new-info)]
-        [(node/expr/op/prime? astnode) (rebuild-expr-op node/expr/op/prime astnode new-info)]
-        [(node/expr/op/++? astnode) (rebuild-expr-op node/expr/op/++ astnode new-info)]
+        [(node/expr/op-on-exprs/join? astnode) (rebuild-expr-op node/expr/op-on-exprs/join astnode new-info)]
+        [(node/expr/op-on-exprs/~? astnode) (rebuild-expr-op node/expr/op-on-exprs/~ astnode new-info)]
+        [(node/expr/op-on-exprs/+? astnode) (rebuild-expr-op node/expr/op-on-exprs/+ astnode new-info)]
+        [(node/expr/op-on-exprs/-? astnode) (rebuild-expr-op node/expr/op-on-exprs/- astnode new-info)]
+        [(node/expr/op-on-exprs/&? astnode) (rebuild-expr-op node/expr/op-on-exprs/& astnode new-info)]
+        [(node/expr/op-on-exprs/^? astnode) (rebuild-expr-op node/expr/op-on-exprs/^ astnode new-info)]
+        [(node/expr/op-on-exprs/*? astnode) (rebuild-expr-op node/expr/op-on-exprs/* astnode new-info)]
+        [(node/expr/op-on-exprs/->? astnode) (rebuild-expr-op node/expr/op-on-exprs/-> astnode new-info)]
+        [(node/expr/op-on-ints/sing? astnode) (rebuild-expr-op node/expr/op-on-ints/sing astnode new-info)]
+        [(node/expr/op-on-exprs/prime? astnode) (rebuild-expr-op node/expr/op-on-exprs/prime astnode new-info)]
+        [(node/expr/op-on-exprs/++? astnode) (rebuild-expr-op node/expr/op-on-exprs/++ astnode new-info)]
         
         [(node/expr/ite? astnode)
          (node/expr/ite new-info (node/expr-arity astnode)

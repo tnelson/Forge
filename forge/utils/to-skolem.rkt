@@ -39,7 +39,7 @@
   (define join-rhs skolem-relation)
   (for/fold ([join-rhs join-rhs])
             ([quantvar quantvars])
-    (define new-join-expr (node/expr/op/join info 2 (list quantvar join-rhs)))
+    (define new-join-expr (node/expr/op-on-exprs/join info 2 (list quantvar join-rhs)))
     new-join-expr))
 
 ; TODO: suspect some of these arguments are no longer needed
@@ -194,8 +194,8 @@
        (define-values (fmla bounds) (interpret-formula run-spec total-bounds expanded relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))
        (set! current-bounds bounds)
        fmla]
-      [(node/formula/op info args)
-       (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types args #:tag-with-spacer tag-with-spacer)]
+      [(? node/formula/op?)
+       (interpret-formula-op run-spec total-bounds formula relations atom-names quantvars quantvar-types (node/formula/op-children formula) #:tag-with-spacer tag-with-spacer)]
       [(node/formula/multiplicity info mult expr)
        (let ([processed-expr (interpret-expr run-spec total-bounds expr relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer)])
          (node/formula/multiplicity info mult processed-expr))]
@@ -260,44 +260,44 @@
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "to-skolem: interpret-formula-op: ~a~n" formula))
   (match formula
-    [(node/formula/op/&& info children)
-      (node/formula/op/&& info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/|| info children)
-     (node/formula/op/|| info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/=> info children)
-     (node/formula/op/=> info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/always info children)
-     (node/formula/op/always info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/eventually info children)
-     (node/formula/op/eventually info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/next_state info children)
-      (node/formula/op/next_state info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/releases info children)
-      (node/formula/op/releases info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/until info children)
-     (node/formula/op/until info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/historically info children)
-      (node/formula/op/historically info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/once info children)
-      (node/formula/op/once info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/prev_state info children)
-      (node/formula/op/prev_state info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/since info children)
-      (node/formula/op/since info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/triggered info children)
-      (node/formula/op/triggered info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/in info children)
-      (node/formula/op/in info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/= info children)
-      (node/formula/op/= info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/! info children)
-      (node/formula/op/! info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/int> info children)
-      (node/formula/op/int> info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/int< info children)
-      (node/formula/op/int< info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/formula/op/int= info children)
-     (node/formula/op/int= info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]))
+    [(node/formula/op-on-formulas/&& info children)
+      (node/formula/op-on-formulas/&& info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/|| info children)
+     (node/formula/op-on-formulas/|| info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/=> info children)
+     (node/formula/op-on-formulas/=> info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/always info children)
+     (node/formula/op-on-formulas/always info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/eventually info children)
+     (node/formula/op-on-formulas/eventually info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/next_state info children)
+      (node/formula/op-on-formulas/next_state info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/releases info children)
+      (node/formula/op-on-formulas/releases info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/until info children)
+     (node/formula/op-on-formulas/until info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/historically info children)
+      (node/formula/op-on-formulas/historically info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/once info children)
+      (node/formula/op-on-formulas/once info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/prev_state info children)
+      (node/formula/op-on-formulas/prev_state info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/since info children)
+      (node/formula/op-on-formulas/since info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/triggered info children)
+      (node/formula/op-on-formulas/triggered info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-exprs/in info children)
+      (node/formula/op-on-exprs/in info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-exprs/= info children)
+      (node/formula/op-on-exprs/= info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-formulas/! info children)
+      (node/formula/op-on-formulas/! info (process-children-formula run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-ints/int> info children)
+      (node/formula/op-on-ints/int> info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-ints/int< info children)
+      (node/formula/op-on-ints/int< info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/formula/op-on-ints/int= info children)
+     (node/formula/op-on-ints/int= info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -323,8 +323,8 @@
      (node/expr/constant info 1 'Int)]
     [(node/expr/constant info arity type)
      (node/expr/constant info arity type)]
-    [(node/expr/op info arity args)
-     (interpret-expr-op run-spec total-bounds expr relations atom-names quantvars quantvar-types args #:tag-with-spacer tag-with-spacer)]
+    [(? node/expr/op? op)
+     (interpret-expr-op run-spec total-bounds expr relations atom-names quantvars quantvar-types (node/expr/op-children op) #:tag-with-spacer tag-with-spacer)]
     [(node/expr/quantifier-var info arity sym name)  
      (node/expr/quantifier-var info arity sym name)]
     [(node/expr/comprehension info len decls form)   
@@ -347,28 +347,28 @@
     (when (@>= (get-verbosity) VERBOSITY_DEBUG)
       (printf "to-skolem: interpret-expr-op: ~a~n" expr))
   (match expr
-    [(node/expr/op/+ info arity children)
-     (node/expr/op/+ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/- info arity children)
-     (node/expr/op/- info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/& info arity children)
-     (node/expr/op/& info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/-> info arity children)
-     (node/expr/op/-> info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/prime info arity children)
-     (node/expr/op/prime info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/join info arity children)
-     (node/expr/op/join info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/^ info arity children)
-     (node/expr/op/^ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/* info arity children)
-    (node/expr/op/* info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/~ info arity children)
-     (node/expr/op/~ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/++ info arity children)
-     (node/expr/op/++ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/expr/op/sing info arity children)
-     (node/expr/op/sing info arity (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]))
+    [(node/expr/op-on-exprs/+ info arity children)
+     (node/expr/op-on-exprs/+ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/- info arity children)
+     (node/expr/op-on-exprs/- info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/& info arity children)
+     (node/expr/op-on-exprs/& info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/-> info arity children)
+     (node/expr/op-on-exprs/-> info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/prime info arity children)
+     (node/expr/op-on-exprs/prime info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/join info arity children)
+     (node/expr/op-on-exprs/join info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/^ info arity children)
+     (node/expr/op-on-exprs/^ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/* info arity children)
+    (node/expr/op-on-exprs/* info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/~ info arity children)
+     (node/expr/op-on-exprs/~ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-exprs/++ info arity children)
+     (node/expr/op-on-exprs/++ info arity (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/expr/op-on-ints/sing info arity children)
+     (node/expr/op-on-ints/sing info arity (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions
@@ -380,8 +380,8 @@
   (match expr
     [(node/int/constant info value)
      (node/int/constant info value)]
-    [(node/int/op info args)
-     (interpret-int-op run-spec total-bounds expr relations atom-names quantvars quantvar-types args #:tag-with-spacer tag-with-spacer)]
+    [(? node/int/op? op)
+     (interpret-int-op run-spec total-bounds expr relations atom-names quantvars quantvar-types (node/int/op-children op) #:tag-with-spacer tag-with-spacer)]
     [(node/int/sum-quant info decls int-expr)
      (define new-vs-and-decls
        (for/fold ([vs-and-decls (list quantvars '())])
@@ -401,24 +401,24 @@
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "to-skolem: interpret-int-op: ~a~n" expr))
   (match expr
-    [(node/int/op/add info children)
-      (node/int/op/add info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/int/op/subtract info children)
-    (node/int/op/subtract info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/int/op/multiply info children)
-    (node/int/op/multiply info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/int/op/divide info children)
-    (node/int/op/divide info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/int/op/sum info children)
-    (node/int/op/sum info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/int/op/card info children)
-    (node/int/op/card info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/int/op/remainder info children)
-     (node/int/op/remainder info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/int/op/abs info children)
-     (node/int/op/abs info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
-    [(node/int/op/sign info children)
-     (node/int/op/sign info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-ints/add info children)
+      (node/int/op-on-ints/add info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-ints/subtract info children)
+    (node/int/op-on-ints/subtract info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-ints/multiply info children)
+    (node/int/op-on-ints/multiply info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-ints/divide info children)
+    (node/int/op-on-ints/divide info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-exprs/sum info children)
+    (node/int/op-on-exprs/sum info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-exprs/card info children)
+    (node/int/op-on-exprs/card info (process-children-expr run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-ints/remainder info children)
+     (node/int/op-on-ints/remainder info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-ints/abs info children)
+     (node/int/op-on-ints/abs info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
+    [(node/int/op-on-ints/sign info children)
+     (node/int/op-on-ints/sign info (process-children-ambiguous run-spec total-bounds args relations atom-names quantvars quantvar-types #:tag-with-spacer tag-with-spacer))]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     ))

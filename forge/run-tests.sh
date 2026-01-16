@@ -18,8 +18,8 @@ testDir=$1
 # In "basic" regular expressions, use the backslashed versions of "(", ")", and "|"
 # Also, apply the pattern deeper than just one directory level (handle error/loc/*.frg)
 #doNotTestPattern="\(error\|srclocs\)/[^/]*\\.frg"
-doNotTestPattern="\(error\|srclocs\)/.*\\.frg"
-# ^ these tests get checked by tests/error/main.rkt
+doNotTestPattern="\(error\|srclocs\|helpers\)/.*\\.frg"
+# ^ error/srclocs: checked by tests/error/main.rkt; helpers: imported by other tests, not run directly
 
 smtTestPattern=".*/smtlibtor/.*"
 

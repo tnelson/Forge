@@ -12,122 +12,8 @@
 (require/typed forge/last-checker
   [checkFormula (-> Run-spec node/formula (Listof Any) (HashTable Any Any) Void)])
 
-;; TYPES TODO: the contracts are more refined. should we combine the two?
-
-(require/typed forge/server/modelToXML
-               [solution-to-XML-string (->* ((U Sat Unsat Unknown) (HashTable Symbol node/expr/relation) Symbol String String Integer String)
-                                            (#:tuple-annotations (HashTable Any Any)
-                                             #:run-options (HashTable Symbol Any))
-                                            String)])
-
-(require/typed syntax/srcloc
-               [source-location-source (-> Any Path)])
-
-(require/typed forge/sigs-structs
-  [#:struct Sat (
-    [instances : Any] ; list of hashes            
-    [stats : Any]     ; association list
-    [metadata : Any])]  ; association list)
-  [#:struct Unsat (
-    [core : (U False (Listof Any))] ; list-of-Formula-string-or-formulaID
-    [stats : Any] ; association list
-    [kind : Symbol] ; symbol
-  )]
-  [#:struct Unknown (
-    [stats : Any]    ; data on performance, translation, etc. 
-    [metadata : Any] ; any solver-specific data provided about the unknown result
-  )]
-  [#:struct Kodkod-current (
-    [formula : Integer]
-    [expression : Integer]
-    [int : Integer])]
-  [#:struct (Relation node/expr/relation) (
-    [name : Symbol] ; symbol?
-    [sigs-thunks : (Listof (-> Sig))]
-    [breaker : (U node/breaking/break False)]
-  )]
-  [#:struct Server-ports (
-    [stdin : Output-Port]
-    [stdout : Input-Port]
-    [stderr : Input-Port]
-    [shutdown : (-> Void)]
-    [is-running? : (-> Boolean)])]
-  [#:struct (Sig node/expr/relation) (
-    [name : Symbol] ; symbol?
-    [one : Boolean] ; boolean?
-    [lone : Boolean] ; boolean?
-    [abstract : Boolean] ; boolean?
-    [extends : (U Sig False)] ; (or/c Sig? #f)
-  )]
-  [#:struct Run-spec (
-    [state : State]  ; Model state at the point of this run 
-    [preds : (Listof node/formula)] ; predicates to run, conjoined
-    [scope : Scope] ; Numeric scope(s)
-    [bounds : Bound] ; set-based upper and lower bounds
-    [target : Any] ;(or/c Target? #f) ; target-oriented model finding
-  )]
-  [#:struct Bound (
-    ; pbindings: partial (but complete) bindings for a given relation
-    [pbindings : (HashTable node/expr/relation sbound)] 
-    ; tbindings: total (and complete) bindings for a given relation; also known as an exact bound.
-    [tbindings : (HashTable node/expr/relation Any)] 
-    ; incomplete bindings for a given relation, indexed by first column
-    [piecewise : PiecewiseBounds]
-    ; original AST nodes, for improving errors, indexed by relation
-    [orig-nodes : (HashTable node/expr/relation (Listof node))] 
-  )]
-  [#:struct PiecewiseBound (
-    [tuples : (Listof Tuple)]                  ; first element is the indexed atom in the original piecewise bounds
-    [atoms : (Listof FAtom)]                   ; which atoms have been bound? (distinguish "given none" from "none given")
-    [operator : (U '= 'in 'ni)])]               ; which operator mode?
-  [#:struct State (
-    [sigs : (HashTable Symbol Sig)] 
-    [sig-order : (Listof Symbol)] 
-    [relations : (HashTable Symbol Relation)] 
-    [relation-order : (Listof Symbol)]
-    [pred-map : (HashTable Symbol node/formula)] ;(hash/c symbol? (or/c (unconstrained-domain-> node/formula?) node/formula?))
-    [fun-map : (HashTable Symbol node)] ; (hash/c symbol? (unconstrained-domain-> node?))
-    [const-map : (HashTable Symbol node)]
-    [inst-map : (HashTable Symbol Any)] ; (hash/c symbol? Inst?)
-    [options : (HashTable Symbol Any)] 
-    [runmap : (HashTable Symbol Run)])]
-  [#:struct Run (
-    [name : Symbol]
-    [command : Syntax]
-    [run-spec : Run-spec] 
-    [result : Any] ;tree:node
-    [server-ports : Any] ;Server-ports?]
-    [atoms : (Listof FAtom)] 
-    [kodkod-currents : Any] ; Kodkod-current?]
-    [kodkod-bounds : (Listof Any)]
-    [last-sterling-instance : Any ])] ; (box/c (or/c Sat? Unsat? Unknown? false/c))
-  [#:struct Range (
-    [lower : (U Integer False)]
-    [upper : (U Integer False)])]
-  [#:struct Scope (
-    [default-scope : (U Range False)]
-    [bitwidth : (U Integer False)]
-    [sig-scopes : (HashTable Symbol Range)])]
-  [get-relations (-> (U Run State Run-spec) (Listof Relation))]
-  [get-sigs (->* ((U Run State Run-spec)) ((U False node/expr/relation)) (Listof Sig))]
-  [get-sig (-> (U Run State Run-spec) (U Symbol node/expr/relation) (U Sig False))]
-  [get-option (case-> 
-    (-> (U Run State Run-spec) 'backend Symbol)
-    (-> (U Run State Run-spec) 'solver (U String Symbol))
-    (-> (U Run State Run-spec) 'java_exe_location (U False Path-String))
-    (-> (U Run State Run-spec) 'problem_type Symbol)
-    (-> (U Run State Run-spec) Symbol Any))]
-  [get-state (-> (U Run Run-spec State) State)]
-  [get-bitwidth (-> (U Run-spec Scope) Integer)]
-  [get-children (-> (U Run State Run-spec) Sig (Listof Sig))]
-  [DEFAULT-SIG-SCOPE Range]
-  [get-top-level-sigs (-> (U Run State Run-spec) (Listof Sig))]
-  ;; TODO TYPES: these are macros, but they has no parameters, so they are being immediately 
-  ;; expanded here to the relations they denote. 
-  [Int Sig]
-  [succ Relation]
-  [get-relation-map (-> (U Run Run-spec) (HashTable Symbol node/expr/relation))]
-)
+;; Since sigs-structs.rkt is now typed, we can import directly
+(require forge/sigs-structs)
 
 (require forge/breaks)
 (require forge/lang/bounds)
@@ -346,35 +232,50 @@
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; Backend=Kodkod; server isn't active/running
       [(equal? backend 'kodkod)
-       (raise "Pure Kodkod backend is no longer supported; please use `pardinus` backend instead.")]
+       (raise-forge-error #:msg "Pure Kodkod backend is no longer supported; please use `pardinus` backend instead." #:context run-command)]
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; Backend=smtlibtor; server isn't active/running
       [(equal? backend 'smtlibtor)
        (printf "Will use SMT-LIB-v2 output. This is experimental functionality. Please ensure that cvc5 is on your path.~n")
-       (smtlib:start-server 'stepper (get-option run-spec 'problem_type))]
+       (define problem-type-smt (get-option run-spec 'problem_type))
+       (unless (symbol? problem-type-smt)
+         (raise-forge-error #:msg "problem_type option must be a symbol" #:context run-command))
+       (smtlib:start-server 'stepper problem-type-smt)]
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ; Backend=Pardinus; server isn't active/running
       [(equal? backend 'pardinus)
        (when (>= (get-verbosity) VERBOSITY_HIGH)
          (printf "Starting/restarting Pardinus server (prior state=~a)...~n" (unbox server-state)))
+       (define problem-type-pard (get-option run-spec 'problem_type))
+       (unless (symbol? problem-type-pard)
+         (raise-forge-error #:msg "problem_type option must be a symbol" #:context run-command))
+       (define java-loc (get-option run-spec 'java_exe_location))
+       (define java-exe : (U False Path-String)
+         (cond [(not java-loc) #f]
+               [(path-string? java-loc) java-loc]
+               [else (raise-forge-error #:msg "java_exe_location must be #f or a path" #:context run-command)]))
        (pardinus:start-server
         'stepper ; always a stepper problem (there is a "next" button)
         ; 'default, 'temporal, or 'target (tells Pardinus which solver to load,
         ;  and affects parsing so needs to be known at invocation time)
-        (get-option run-spec 'problem_type)
+        problem-type-pard
         ; control version of java used (by path string)
-        (get-option run-spec 'java_exe_location))]
+        java-exe)]
 
-      [else (raise (format "Invalid backend: ~a" backend))]))
+      [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)]))
 
   ; Confirm that if the user is invoking a custom solver, that custom solver exists
-  (define solver-option (get-option run-spec 'solver))
+  (define solver-opt (get-option run-spec 'solver))
+  (define solver-option : (U Symbol String)
+    (cond [(symbol? solver-opt) solver-opt]
+          [(string? solver-opt) solver-opt]
+          [else (raise-forge-error #:msg "solver option must be a symbol or string" #:context run-command)]))
   (define solverspec (cond [(symbol? solver-option)
                             solver-option]
                            [else (string-append "\"" solver-option "\"")]))
   (unless (symbol? solver-option)
     (unless (file-exists? solver-option)
-      (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist." 
+      (raise-user-error (format "option solver specified custom solver (via string): ~a, but file did not exist."
                                 solver-option))))
   
   ; Print configure and declare univ size
@@ -416,41 +317,20 @@
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; Beginning to send to solver. All type-checking must be complete _before_ this point.
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-  (: maybe-log-wrap (-> (U Sat Unsat Unknown) (U Sat Unsat Unknown)))
-  (define (maybe-log-wrap soln)
-    ; Potentially log this solution in XML form.
-    (when (log-to-file-enabled?)
-      (define filepath (if (source-location-source run-command)
-                           (path->string (source-location-source run-command))
-                           "/no-name.frg"))
-      (define soln-string
-        (solution-to-XML-string soln
-                                (get-relation-map run-spec)
-                                run-name
-                                (format "~a" (syntax->datum run-command))
-                                filepath
-                                (get-bitwidth run-spec)
-                                forge-version
-                                #:tuple-annotations (hash)
-                                #:run-options (State-options (Run-spec-state run-spec))))
-      (define result (cond [(Sat? soln) "Sat"] [(Unsat? soln) "Unsat"] [(Unknown? soln) "Unknown"]))
-      (log-forge-event 'debug (string->symbol result) result (remove-newlines soln-string)))
-    soln)
   
   (define get-next-model
     (cond [(equal? backend 'smtlibtor)
            (begin
              (define-values (all-rels core-map)
                (send-to-cvc5-tor run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
-             (lambda ([mode : String]) (maybe-log-wrap (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode
-                                                     #:run-command run-command))))]        
+             (lambda ([mode : String]) (get-next-cvc5-tor-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode
+                                                     #:run-command run-command)))]        
           [(equal? backend 'pardinus)
            (begin
              (define-values (all-rels core-map)
                (send-to-kodkod run-name run-spec bitwidth all-atoms solverspec total-bounds bound-lower bound-upper run-constraints stdin stdout stderr))
-             (lambda ([mode : String]) (maybe-log-wrap (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode))))]   
-          [else (raise (format "Invalid backend: ~a" backend))]))
+             (lambda ([mode : String]) (get-next-kodkod-model is-running? run-name all-rels all-atoms core-map stdin stdout stderr mode)))]
+          [else (raise-forge-error #:msg (format "Invalid backend: ~a" backend) #:context run-command)]))
            
      
   

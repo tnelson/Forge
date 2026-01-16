@@ -94,30 +94,30 @@
     (printf "evaluating expr : ~v~n" exp))  
   (define result (match exp
                    ; Conversion from int values
-                   [(ast:node/expr/op/sing _ _ `(,ix1))
+                   [(ast:node/expr/op-on-ints/sing _ _ `(,ix1))
                     (int-atom (eval-int-expr ix1 bind bitwidth))]
                    ; Binary set operations
 
                    ; Union should support n-ary
-                   [(ast:node/expr/op/+ _ _ (list exp1 exps ...))
+                   [(ast:node/expr/op-on-exprs/+ _ _ (list exp1 exps ...))
                     (apply append (map (lambda (exp) (eval-exp exp bind bitwidth safe)) (cons exp1 exps)))]
                    
-                   [(ast:node/expr/op/- _ _ `(,exp-1 ,exp-2))
+                   [(ast:node/expr/op-on-exprs/- _ _ `(,exp-1 ,exp-2))
                     (set->list (set-subtract
                                 (list->set (eval-exp exp-1 bind bitwidth safe))
                                 (list->set (eval-exp exp-2 bind bitwidth safe))))]
-                   [(ast:node/expr/op/& _ _ `(,exp-1 ,exp-2))
+                   [(ast:node/expr/op-on-exprs/& _ _ `(,exp-1 ,exp-2))
                     (set->list (set-intersect
                                 (list->set (eval-exp exp-1 bind bitwidth safe))
                                 (list->set (eval-exp exp-2 bind bitwidth safe))))]
-                   [(ast:node/expr/op/-> _ _ `(,exp-1 ,exp-2))
+                   [(ast:node/expr/op-on-exprs/-> _ _ `(,exp-1 ,exp-2))
                     (map flatten (foldl append
                                         '()
                                         (map (lambda (x)
                                                (map (lambda (y) `(,x ,y))
                                                     (eval-exp exp-2 bind bitwidth safe)))
                                              (eval-exp exp-1 bind bitwidth safe))))]
-                   [(ast:node/expr/op/++ _ _ `(,exp-1 ,exp-2))
+                   [(ast:node/expr/op-on-exprs/++ _ _ `(,exp-1 ,exp-2))
                     (let* ([right-tuples (eval-exp exp-2 bind bitwidth safe)]
                            [to-override (map (lambda (t) (first t)) right-tuples)]
                            [left-tuples (eval-exp exp-1 bind bitwidth safe)]
@@ -125,7 +125,7 @@
                             (filter (lambda (t) (not (member (first t) right-tuples)))
                                     left-tuples)])
                       (append left-after-removal right-tuples))]
-                   [(ast:node/expr/op/join _ _ `(,exp-1 ,exp-2))
+                   [(ast:node/expr/op-on-exprs/join _ _ `(,exp-1 ,exp-2))
                     (foldl append
                            '() 
                            (map (lambda (x)
@@ -135,11 +135,11 @@
                                                (eval-exp exp-2 bind bitwidth safe))))
                                 (eval-exp exp-1 bind bitwidth safe)))]
                    ; Unary set operations
-                   [(ast:node/expr/op/^ _ _ `(,child-exp))
+                   [(ast:node/expr/op-on-exprs/^ _ _ `(,child-exp))
                     (tc (eval-exp child-exp bind bitwidth safe))]
-                   [(ast:node/expr/op/* _ _ `(,child-exp))
+                   [(ast:node/expr/op-on-exprs/* _ _ `(,child-exp))
                     (append (build-iden bind) (tc (eval-exp child-exp bind bitwidth safe)))]
-                   [(ast:node/expr/op/~ _ _ `(,child-exp))
+                   [(ast:node/expr/op-on-exprs/~ _ _ `(,child-exp))
                     (map reverse (eval-exp child-exp bind bitwidth safe))]
                    ; Set comprehension - TODO (do we need this? Thomas says no)
                    #;[`(set ,var ,lst ,form) (filter (lambda (x) (eval-form form (hash-set bind var (list x)) bitwidth))
@@ -311,30 +311,30 @@
        (foldl (λ (x res) (+ res (eval-int-expr ie (hash-set bind var (list x)) bitwidth)))
               0
               (eval-exp lst bind bitwidth))]
-    [(ast:node/int/op/sum _ `(,child-exp))
+    [(ast:node/int/op-on-exprs/sum _ `(,child-exp))
      (wraparound
       (let ([expr-val (eval-exp child-exp bind bitwidth)])
         (foldl (λ (x ret) (if (and (= (length x) 1) (int-atom? (first x)))
                               (+ ret (int-atom-n (first x)))
                               ret))
                0 expr-val)) bitwidth)]
-    [(ast:node/int/op/card _ `(,child-exp))
+    [(ast:node/int/op-on-exprs/card _ `(,child-exp))
      (wraparound (length (eval-exp child-exp bind bitwidth)) bitwidth)]
-    [(ast:node/int/op/add _ `(,ix1 ,ix2))
+    [(ast:node/int/op-on-ints/add _ `(,ix1 ,ix2))
      (wraparound (+ (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
-    [(ast:node/int/op/subtract _ `(,ix1 ,ix2))
+    [(ast:node/int/op-on-ints/subtract _ `(,ix1 ,ix2))
      (wraparound (- (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
-    [(ast:node/int/op/multiply _ `(,ix1 ,ix2))
+    [(ast:node/int/op-on-ints/multiply _ `(,ix1 ,ix2))
      (wraparound (* (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
-    [(ast:node/int/op/divide _ `(,ix1 ,ix2))
+    [(ast:node/int/op-on-ints/divide _ `(,ix1 ,ix2))
      (wraparound (quotient (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
-    [(ast:node/int/op/remainder _ `(,ix1 ,ix2))
+    [(ast:node/int/op-on-ints/remainder _ `(,ix1 ,ix2))
      (wraparound (remainder (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
-    [(ast:node/int/op/abs _ `(,ix1))
+    [(ast:node/int/op-on-ints/abs _ `(,ix1))
      (let ([ix1-val (eval-int-expr ix1 bind bitwidth)])
        (wraparound (racket-abs ix1-val)
                    bitwidth))]
-    [(ast:node/int/op/sign _ `(,ix1))
+    [(ast:node/int/op-on-ints/sign _ `(,ix1))
      (let ([ix1-val (eval-int-expr ix1 bind bitwidth)])
        (wraparound (cond [(> ix1-val 0) 1]
                          [(= ix1-val 0) 0]

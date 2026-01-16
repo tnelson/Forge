@@ -35,8 +35,8 @@
      (node/formula/constant info type)]    
     [(node/fmla/pred-spacer info name args expanded)
      (interpret-formula run-or-state expanded relations atom-names quantvars)]
-    [(node/formula/op info args)
-     (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
+    [(? node/formula/op?)
+     (interpret-formula-op run-or-state formula relations atom-names quantvars (node/formula/op-children formula))]
     [(node/formula/multiplicity info mult expr)
     (let ([processed-expr (interpret-expr run-or-state expr relations atom-names quantvars)])
      (node/formula/multiplicity info mult processed-expr))]
@@ -160,11 +160,11 @@
     ; Use the collector for this. 
     ; Collector lambda should return non-int-op nodes, since we're looking for relational->int ops.
     ; 7/17 - We don't want to stop on, or collect, 'sing' nodes
-  (define collector-lambda (lambda (n ctxt) (if (and (not (node/expr/op/sing? n)) (not (node/int? n))) n #f)))
+  (define collector-lambda (lambda (n ctxt) (if (and (not (node/expr/op-on-ints/sing? n)) (not (node/int? n))) n #f)))
     ; The collector also requires a stopping lambda, which should stop at the same condition as when we collect.
     ; This is because supposed we had sign[sum[join[sum x, y]]], we would want to stop at the join,
     ; since recursive descent will have already unwrapped the inner x and y.
-  (define stopping-lambda (lambda (n ctxt) (if (or (node/expr/op/sing? n) (node/int? n)) #f #t)))
+  (define stopping-lambda (lambda (n ctxt) (if (or (node/expr/op-on-ints/sing? n) (node/int? n)) #f #t)))
     ; Context? Not entirely sure
   (define lhs-relational-exprs (collect lhs collector-lambda #:order 'pre-order #:stop stopping-lambda))
   (define rhs-relational-exprs (collect rhs collector-lambda #:order 'pre-order #:stop stopping-lambda))
@@ -183,12 +183,12 @@
                             (for/fold ([substituted-expr lhs])
                                     ([rel-expr lhs-relational-exprs] [new-quantifier lhs-quantifiers])
                                     (substitute-ambig run-or-state substituted-expr relations atom-names 
-                                    quantvars (node/int/op/sum (node-info rel-expr) (list rel-expr)) new-quantifier))))
+                                    quantvars (node/int/op-on-exprs/sum (node-info rel-expr) (list rel-expr)) new-quantifier))))
   (define rhs-substituted (if (equal? rhs-relational-exprs '()) rhs
                             (for/fold ([substituted-expr rhs])
                                     ([rel-expr rhs-relational-exprs] [new-quantifier rhs-quantifiers])
                                     (substitute-ambig run-or-state substituted-expr relations atom-names 
-                                    quantvars (node/int/op/sum (node-info rel-expr) (list rel-expr)) new-quantifier))))
+                                    quantvars (node/int/op-on-exprs/sum (node-info rel-expr) (list rel-expr)) new-quantifier))))
   
   (define int-flag true)
   ; if both sides of the equality are equal to the empty list, both the 'in' and '=' case should NOT contain annotated-info. 
@@ -199,17 +199,17 @@
   ; (4) Assemble a quantified formula, over those variables, with domain Int, with body
   ;    a conjunction of (v1 = expr1) and ... and (vk = exprk) and subst(LHS) (operator) SUBST(RHS)
   (define lhs-equality-formulas (for/list ([lhs-quant lhs-quantifiers] [lhs-expr lhs-relational-exprs])
-                            (node/formula/op/= info (list lhs-quant lhs-expr))))
+                            (node/formula/op-on-exprs/= info (list lhs-quant lhs-expr))))
   (define rhs-equality-formulas (for/list ([rhs-quant rhs-quantifiers] [rhs-expr rhs-relational-exprs])
-                            (node/formula/op/= info (list rhs-quant rhs-expr))))
+                            (node/formula/op-on-exprs/= info (list rhs-quant rhs-expr))))
   
   (define new-fmla 
     (match form 
-      [(? node/formula/op/int<? form) (node/formula/op/int< (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
-      [(? node/formula/op/int=? form) (node/formula/op/int= (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
-      [(? node/formula/op/int>? form) (node/formula/op/int> (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
-      [(? node/formula/op/=? form) (node/formula/op/= (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
-      [(? node/formula/op/in? form) (node/formula/op/in (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op-on-ints/int<? form) (node/formula/op-on-ints/int< (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op-on-ints/int=? form) (node/formula/op-on-ints/int= (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op-on-ints/int>? form) (node/formula/op-on-ints/int> (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op-on-exprs/=? form) (node/formula/op-on-exprs/= (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
+      [(? node/formula/op-on-exprs/in? form) (node/formula/op-on-exprs/in (if int-flag annotated-info info) (list lhs-substituted rhs-substituted))]
     )
   )
 
@@ -221,7 +221,7 @@
   (if (equal? var-int-pairs '())
     new-fmla
     (node/formula/quantified info 'some var-int-pairs 
-      (node/formula/op/&& info (cons new-fmla (append lhs-equality-formulas rhs-equality-formulas))))
+      (node/formula/op-on-formulas/&& info (cons new-fmla (append lhs-equality-formulas rhs-equality-formulas))))
   )
 )
 
@@ -229,44 +229,44 @@
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "integer-converter: interpret-formula-op: ~a~n" formula))
   (match formula
-    [(node/formula/op/&& info children)
-      (node/formula/op/&& info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/|| info children)
-     (node/formula/op/|| info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/=> info children)
-     (node/formula/op/=> info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/always info children)
-     (node/formula/op/always info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/eventually info children)
-     (node/formula/op/eventually info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/next_state info children)
-      (node/formula/op/next_state info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/releases info children)
-      (node/formula/op/releases info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/until info children)
-     (node/formula/op/until info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/historically info children)
-      (node/formula/op/historically info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/once info children)
-      (node/formula/op/once info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/prev_state info children)
-      (node/formula/op/prev_state info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/since info children)
-      (node/formula/op/since info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/triggered info children)
-      (node/formula/op/triggered info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/in info children)
-      (node/formula/op/in info (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/= info children)
-      (node/formula/op/= info (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/! info children)
-      (node/formula/op/! info (process-children-formula run-or-state args relations atom-names quantvars))]
-    [(node/formula/op/int> info children)
-      (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op/int> info children))]
-    [(node/formula/op/int< info children)
-      (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op/int< info children))]
-    [(node/formula/op/int= info children)
-     (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op/int= info children))]))
+    [(node/formula/op-on-formulas/&& info children)
+      (node/formula/op-on-formulas/&& info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/|| info children)
+     (node/formula/op-on-formulas/|| info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/=> info children)
+     (node/formula/op-on-formulas/=> info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/always info children)
+     (node/formula/op-on-formulas/always info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/eventually info children)
+     (node/formula/op-on-formulas/eventually info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/next_state info children)
+      (node/formula/op-on-formulas/next_state info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/releases info children)
+      (node/formula/op-on-formulas/releases info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/until info children)
+     (node/formula/op-on-formulas/until info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/historically info children)
+      (node/formula/op-on-formulas/historically info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/once info children)
+      (node/formula/op-on-formulas/once info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/prev_state info children)
+      (node/formula/op-on-formulas/prev_state info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/since info children)
+      (node/formula/op-on-formulas/since info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/triggered info children)
+      (node/formula/op-on-formulas/triggered info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-exprs/in info children)
+      (node/formula/op-on-exprs/in info (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-exprs/= info children)
+      (node/formula/op-on-exprs/= info (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-formulas/! info children)
+      (node/formula/op-on-formulas/! info (process-children-formula run-or-state args relations atom-names quantvars))]
+    [(node/formula/op-on-ints/int> info children)
+      (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op-on-ints/int> info children))]
+    [(node/formula/op-on-ints/int< info children)
+      (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op-on-ints/int< info children))]
+    [(node/formula/op-on-ints/int= info children)
+     (reconcile-integer-expr run-or-state args relations atom-names quantvars info (node/formula/op-on-ints/int= info children))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Relational expressions
@@ -291,8 +291,8 @@
      (node/expr/constant info 1 'Int)]
     [(node/expr/constant info arity type)
      (node/expr/constant info arity type)]
-    [(node/expr/op info arity args)
-     (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
+    [(? node/expr/op? op)
+     (interpret-expr-op run-or-state expr relations atom-names quantvars (node/expr/op-children op))]
     [(node/expr/quantifier-var info arity sym name)  
      (node/expr/quantifier-var info arity sym name)]
     [(node/expr/comprehension info len decls form)   
@@ -314,28 +314,28 @@
     (when (@>= (get-verbosity) VERBOSITY_DEBUG)
       (printf "integer-converter: interpret-expr-op: ~a~n" expr))
   (match expr
-    [(node/expr/op/+ info arity children)
-     (node/expr/op/+ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/- info arity children)
-     (node/expr/op/- info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/& info arity children)
-     (node/expr/op/& info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/-> info arity children)
-     (node/expr/op/-> info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/prime info arity children)
-     (node/expr/op/prime info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/join info arity children)
-     (node/expr/op/join info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/^ info arity children)
-     (node/expr/op/^ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/* info arity children)
-    (node/expr/op/* info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/~ info arity children)
-     (node/expr/op/~ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/++ info arity children)
-     (node/expr/op/++ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/expr/op/sing info arity children)
-     (node/expr/op/sing info arity (process-children-int run-or-state args relations atom-names quantvars))]))
+    [(node/expr/op-on-exprs/+ info arity children)
+     (node/expr/op-on-exprs/+ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/- info arity children)
+     (node/expr/op-on-exprs/- info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/& info arity children)
+     (node/expr/op-on-exprs/& info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/-> info arity children)
+     (node/expr/op-on-exprs/-> info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/prime info arity children)
+     (node/expr/op-on-exprs/prime info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/join info arity children)
+     (node/expr/op-on-exprs/join info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/^ info arity children)
+     (node/expr/op-on-exprs/^ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/* info arity children)
+    (node/expr/op-on-exprs/* info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/~ info arity children)
+     (node/expr/op-on-exprs/~ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-exprs/++ info arity children)
+     (node/expr/op-on-exprs/++ info arity (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/expr/op-on-ints/sing info arity children)
+     (node/expr/op-on-ints/sing info arity (process-children-int run-or-state args relations atom-names quantvars))]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Integer expressions
@@ -347,8 +347,8 @@
   (match expr
     [(node/int/constant info value)
      (node/int/constant info value)]
-    [(node/int/op info args)
-     (interpret-int-op run-or-state expr relations atom-names quantvars args)]
+    [(? node/int/op? op)
+     (interpret-int-op run-or-state expr relations atom-names quantvars (node/int/op-children op))]
     [(node/int/sum-quant info decls int-expr)
      (define new-vs-and-decls
        (for/fold ([vs-and-decls (list quantvars '())])
@@ -368,24 +368,24 @@
   (when (@>= (get-verbosity) VERBOSITY_DEBUG)
     (printf "integer-converter: interpret-int-op: ~a~n" expr))
   (match expr
-    [(node/int/op/add info children)
-      (node/int/op/add info (process-children-int run-or-state args relations atom-names quantvars))]
-    [(node/int/op/subtract info children)
-    (node/int/op/subtract info (process-children-int run-or-state args relations atom-names quantvars))]
-    [(node/int/op/multiply info children)
-    (node/int/op/multiply info (process-children-int run-or-state args relations atom-names quantvars))]
-    [(node/int/op/divide info children)
-    (node/int/op/divide info (process-children-int run-or-state args relations atom-names quantvars))]
-    [(node/int/op/sum info children)
-    (node/int/op/sum info (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/int/op/card info children)
-    (node/int/op/card info (process-children-expr run-or-state args relations atom-names quantvars))]
-    [(node/int/op/remainder info children)
-     (node/int/op/remainder info (process-children-int run-or-state args relations atom-names quantvars))]
-    [(node/int/op/abs info children)
-     (node/int/op/abs info (process-children-int run-or-state args relations atom-names quantvars))]
-    [(node/int/op/sign info children)
-     (node/int/op/sign info (process-children-int run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-ints/add info children)
+      (node/int/op-on-ints/add info (process-children-int run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-ints/subtract info children)
+    (node/int/op-on-ints/subtract info (process-children-int run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-ints/multiply info children)
+    (node/int/op-on-ints/multiply info (process-children-int run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-ints/divide info children)
+    (node/int/op-on-ints/divide info (process-children-int run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-exprs/sum info children)
+    (node/int/op-on-exprs/sum info (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-exprs/card info children)
+    (node/int/op-on-exprs/card info (process-children-expr run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-ints/remainder info children)
+     (node/int/op-on-ints/remainder info (process-children-int run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-ints/abs info children)
+     (node/int/op-on-ints/abs info (process-children-int run-or-state args relations atom-names quantvars))]
+    [(node/int/op-on-ints/sign info children)
+     (node/int/op-on-ints/sign info (process-children-int run-or-state args relations atom-names quantvars))]
     [(node/int/sum-quant info decls int-expr)
      (raise-forge-error #:msg "Reached expected unreachable code." #:context expr)]
     ))
