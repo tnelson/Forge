@@ -83,13 +83,15 @@
         join/func one/func build-box-join univ none raise-forge-error &&/func &/func ||/func +/func
         -/func =/func */func iden ^/func set/func relation-name always/func maybe-and->list
         int=/func int</func int/func card/func in/func true-formula false-formula no/func
-        lone/func ->/func some/func !/func add/func sum/func sing/func var ite/func
-        Decl Decls)
+        lone/func ->/func some/func !/func add/func sum/func sing/func var ite/func atom/func
+        Decl Decls ASTConstructor)
 
 (define-type Decl (Pairof node/expr/quantifier-var node/expr))
 (define-type Decls (Listof Decl))
 
-(require/typed forge/lang/ast 
+(require racket/list)  ; for rest, first
+
+(require/typed forge/lang/ast
   [#:struct nodeinfo ([loc : srcloc] [lang : Symbol] [annotations : (Option (Listof Any))])]
   [#:struct node ([info : nodeinfo])]
   [#:struct (node/int node) ()]
@@ -220,6 +222,7 @@
   [int=/func (->* (node/int node/int) (#:info nodeinfo) node/formula)]
   [int</func (->* (node/int node/int) (#:info nodeinfo) node/formula)]
   [int/func (->* (Integer) (#:info nodeinfo) node/int/constant)]
+  [atom/func (->* (Symbol) (#:info nodeinfo) node/expr/atom)]
   [card/func (->* (node/expr) (#:info nodeinfo) node/int)]
   [add/func (->* (node/int node/int) (#:info nodeinfo) node/int)]
   [sum/func (->* (node/expr) (#:info nodeinfo) node/int)]
@@ -244,7 +247,7 @@
 (require/typed typed/racket 
   [keyword-apply   (All (PT RT) (-> (ASTConstructor PT RT) (Listof '#:info) (Listof nodeinfo) (Listof PT) RT))])
 
-(provide app-f app-e app-i)
+(provide app-f app-e app-i fold-ast)
 
 (: app-f (-> (ASTConstructor node/formula node/formula) nodeinfo (Listof node/formula) node/formula))
 (define (app-f func info nodes)
@@ -255,6 +258,14 @@
 (: app-i (-> (ASTConstructor node/int node/int) nodeinfo (Listof node/int) node/int))
 (define (app-i func info nodes)
   (keyword-apply func '(#:info) (list info) nodes))
+
+;; Fold a non-empty list of AST nodes using a binary constructor.
+;; E.g., (fold-ast +/func (list a b c)) produces (+/func a (+/func b c))
+(: fold-ast (All (T) (-> (ASTConstructor T T) (Listof T) T)))
+(define (fold-ast constructor nodes)
+  (cond [(null? nodes) (error "fold-ast: empty list")]
+        [(null? (rest nodes)) (first nodes)]
+        [else (constructor (first nodes) (fold-ast constructor (rest nodes)))]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
