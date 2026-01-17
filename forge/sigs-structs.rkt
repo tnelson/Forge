@@ -135,6 +135,13 @@
   ) #:transparent)
 (define-type PiecewiseBounds (HashTable node/expr/relation PiecewiseBound))
 
+; Type for arguments to helper predicates and functions: expressions, int-expressions, or Racket integers
+(define-type HelperArg (U Integer node/expr node/int))
+; Type for a helper predicate: either a procedure (n-arg, or 0-arg before use) or a node/formula (0-arg after use)
+(define-type HelperPred (U (->* () (#:info (U nodeinfo False)) #:rest HelperArg node/formula) node/formula))
+; Type for a helper function: always a procedure returning node/expr
+(define-type HelperFun (->* () (#:info (U nodeinfo False)) #:rest HelperArg node/expr))
+
 ; A Bound represents the set-based size limitations on sigs and relations in a run.
 ; Information from Scope(s) and Bounds(s) will be combined only once a run executes.
 (struct Bound (
@@ -187,8 +194,8 @@
   [sig-order : (Listof Symbol)]
   [relations : (HashTable Symbol Relation)]
   [relation-order : (Listof Symbol)]
-  [pred-map : (HashTable Symbol Any)] ; (or/c (unconstrained-domain-> node/formula?) node/formula?)
-  [fun-map : (HashTable Symbol Any)]  ; (unconstrained-domain-> node?)
+  [pred-map : (HashTable Symbol HelperPred)]
+  [fun-map : (HashTable Symbol HelperFun)]
   [const-map : (HashTable Symbol node)]
   [inst-map : (HashTable Symbol Inst)]
   [options : (HashTable Symbol Any)]  ; hash-based options with case-> typed accessor
@@ -343,8 +350,8 @@
 (define init-sig-order (list 'Int))
 (define init-relations (hash 'succ succ))
 (define init-relation-order (list 'succ))
-(define init-pred-map : (HashTable Symbol Any) (@hash))
-(define init-fun-map : (HashTable Symbol Any) (@hash))
+(define init-pred-map : (HashTable Symbol HelperPred) (@hash))
+(define init-fun-map : (HashTable Symbol HelperFun) (@hash))
 (define init-const-map : (HashTable Symbol node) (@hash))
 (define init-inst-map : (HashTable Symbol Inst) (@hash))
 (define init-runmap : (HashTable Symbol Any) (@hash))
@@ -488,35 +495,35 @@ Returns whether the given run resulted in sat or unsat, respectively.
   (map (lambda ([s : Symbol]) (hash-ref (State-relations state) s))
        (State-relation-order state)))
 
-; get-pred :: Run-or-State, Symbol -> Predicate
-; Gets a predicate by name from a given state
+; get-pred :: Run-or-State, Symbol -> HelperPred or #f
+; Gets a predicate by name from a given state, or #f if not found.
 ; Note that this will return the procedure, not the macro (no stx loc capture)
-(: get-pred (-> Run-or-State Symbol Any))
+(: get-pred (-> Run-or-State Symbol (U HelperPred False)))
 (define (get-pred run-or-state name)
   (define state (get-state run-or-state))
-  (hash-ref (State-pred-map state) name))
+  (hash-ref (State-pred-map state) name #f))
 
-; get-fun :: Run-or-State, Symbol -> Function
-; Gets a function by name from a given state
+; get-fun :: Run-or-State, Symbol -> HelperFun or #f
+; Gets a function by name from a given state, or #f if not found.
 ; Note that this will return the procedure, not the macro (no stx loc capture)
-(: get-fun (-> Run-or-State Symbol Any))
+(: get-fun (-> Run-or-State Symbol (U HelperFun False)))
 (define (get-fun run-or-state name)
   (define state (get-state run-or-state))
-  (hash-ref (State-fun-map state) name))
+  (hash-ref (State-fun-map state) name #f))
 
-; get-const :: Run-or-State, Symbol -> Constant
-; Gets a constant by name from a given state
-(: get-const (-> Run-or-State Symbol node))
+; get-const :: Run-or-State, Symbol -> Constant or #f
+; Gets a constant by name from a given state, or #f if not found.
+(: get-const (-> Run-or-State Symbol (U node False)))
 (define (get-const run-or-state name)
   (define state (get-state run-or-state))
-  (hash-ref (State-const-map state) name))
+  (hash-ref (State-const-map state) name #f))
 
-; get-inst :: Run-or-State, Symbol -> Inst
-; Gets a inst by name from a given state
-(: get-inst (-> Run-or-State Symbol Inst))
+; get-inst :: Run-or-State, Symbol -> Inst or #f
+; Gets an inst by name from a given state, or #f if not found.
+(: get-inst (-> Run-or-State Symbol (U Inst False)))
 (define (get-inst run-or-state name)
   (define state (get-state run-or-state))
-  (hash-ref (State-inst-map state) name))
+  (hash-ref (State-inst-map state) name #f))
 
 ; get-children :: Run-or-State, Sig* -> List<Sig>
 ; Returns the children Sigs of a Sig.
