@@ -326,10 +326,16 @@
      (wraparound (- (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
     [(ast:node/int/op-on-ints/multiply _ `(,ix1 ,ix2))
      (wraparound (* (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
-    [(ast:node/int/op-on-ints/divide _ `(,ix1 ,ix2))
-     (wraparound (quotient (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
-    [(ast:node/int/op-on-ints/remainder _ `(,ix1 ,ix2))
-     (wraparound (remainder (eval-int-expr ix1 bind bitwidth) (eval-int-expr ix2 bind bitwidth)) bitwidth)]
+    [(and div-node (ast:node/int/op-on-ints/divide _ `(,ix1 ,ix2)))
+     (let ([divisor (eval-int-expr ix2 bind bitwidth)])
+       (when (= divisor 0)
+         (ast:raise-forge-error #:msg "division by zero" #:context div-node))
+       (wraparound (quotient (eval-int-expr ix1 bind bitwidth) divisor) bitwidth))]
+    [(and rem-node (ast:node/int/op-on-ints/remainder _ `(,ix1 ,ix2)))
+     (let ([divisor (eval-int-expr ix2 bind bitwidth)])
+       (when (= divisor 0)
+         (ast:raise-forge-error #:msg "remainder by zero" #:context rem-node))
+       (wraparound (remainder (eval-int-expr ix1 bind bitwidth) divisor) bitwidth))]
     [(ast:node/int/op-on-ints/abs _ `(,ix1))
      (let ([ix1-val (eval-int-expr ix1 bind bitwidth)])
        (wraparound (racket-abs ix1-val)
