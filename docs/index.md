@@ -62,7 +62,7 @@
   <div class="logoimg"><img src="./img/logo_trimmed.png"/></div> 
   <div class="viztext">
     <div class="viznote">Forge is a lightweight formal-methods tool, similar to <a href="https://alloytools.org">Alloy 6</a>, built with <b>teaching</b> in mind. Forge provides a progression of sub-languages that gradually build in expressive power to match students' experience and expertise. <br/><br/>
-    <A href="https://forge-fm.github.io/forge-documentation/getting-started/installation.html">Installation and Documentation</A>
+    <A href="https://forge-fm.github.io/forge-documentation/latest/getting-started/installation/">Installation and Documentation</A>
     </div>
   </div>
 </div>
@@ -100,7 +100,7 @@
 
 ### Modern Editor Integration
 
-Edit Forge in your favorite text editor; we have added support in both [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-language-server) and DrRacket. 
+Edit Forge in your favorite text editor; we have added support in both Visual Studio Code and DrRacket. 
 
 ### Domain-Specific Visualization Support
 
@@ -139,9 +139,16 @@ Forge uses the [Sterling](https://sterling-js.github.io) visualizer to enable cu
 
 ## Getting Started 
 
-To get started with Forge, follow [these instructions](https://forge-fm.github.io/forge-documentation/getting-started/installation.html).
+We suggest that users install via Git, rather than using Racket's package system. Our Github contains release tags that are useful for those who wish to use older versions of the software. Forge now uses [semantic versioning](https://semver.org); major version changes introduce breaking changes.
 
-Forge was originally created for [CSCI 1710, "Logic for Systems"](https://csci1710.github.io/) at Brown University. The notes and materials (except for recordings, which we cannot release) are public and free to use. A draft [textbook draft](https://forge-fm.github.io/book/) is also available.
+| Version      | Textbook    | VSCode Extension |
+| ------------ | ----------- | ---------------- |
+| **5.0.0 (docs)**                                                        |  **Spring 2025**                                          | [forge-language-server](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-language-server) |
+|   4.2.1 ([docs](https://forge-fm.github.io/forge-documentation/4.2/))   |  [Spring 2026](https://forge-fm.github.io/book/2025/)     | [forge-fm](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-fm) |
+
+## Materials and Github
+
+Forge was originally created for [CSCI 1710, "Logic for Systems"](https://csci1710.github.io/) at Brown University. The notes and materials (except for recordings, which we cannot release) are public and free to use. A [textbook draft](https://forge-fm.github.io/book/) is also available.
 
 Forge is open source and [hosted on Github](http://github.com/tnelson/forge). 
 
