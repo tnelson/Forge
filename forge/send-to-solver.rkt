@@ -649,11 +649,13 @@ Please declare a sufficient scope for ~a."
   ; for ease of understanding, just sort by first atom
   (: tuple<? (-> Tuple Tuple Boolean))
   (define (tuple<? t1 t2)
-    (cond [(and (symbol? t1) (symbol? t2))
-           (symbol<? (first t1) (first t2))]
-          [(and (number? t1) (number? t2))
-           (< (first t1) (first t2))]
-          [else (symbol? t1)]))
+    (define a1 (first t1))
+    (define a2 (first t2))
+    (cond [(and (symbol? a1) (symbol? a2))
+           (symbol<? a1 a2)]
+          [(and (number? a1) (number? a2))
+           (< a1 a2)]
+          [else (symbol? a1)]))  ; symbols sort before numbers
 
   ; Map<Symbol, bound>
   (define bounds-hash
@@ -807,7 +809,7 @@ Please declare a sufficient scope for ~a."
   (: ints (Listof FAtom))
   (define ints (map (ann car (-> Tuple FAtom)) upper-on-int))
   (: succ-tuples (Listof (Listof FAtom)))
-  ;; TODO: this relies on getting the right ordering on unary Int tuples, doesn't it?
+  ;; Int tuples are sorted numerically by tuple<?, so ints is in ascending order.
   (define succ-tuples (map 
                        (inst list FAtom)
                        (reverse (rest (reverse ints))) (rest ints)))
