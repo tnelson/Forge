@@ -266,6 +266,7 @@
         'local_necessity   'off
         'run_sterling      'on
         'sterling_port     0
+        'sterling_static_port 0
         'engine_verbosity  1
         'test_keep         'first
         'no_overflow       'false
@@ -315,6 +316,7 @@
                                       (and (list? x)
                                            (andmap (lambda (ele) (string? ele)) x))))
         'sterling_port exact-nonnegative-integer?
+        'sterling_static_port exact-nonnegative-integer?
         'engine_verbosity exact-nonnegative-integer?
         'test_keep (oneof-pred '(first last))
         'no_overflow (oneof-pred '(false true))
@@ -336,6 +338,7 @@
         'local_necessity "symbol"
         'run_sterling "symbol, string, or sequence of strings"
         'sterling_port "non-negative integer"
+        'sterling_static_port "non-negative integer"
         'engine_verbosity "non-negative integer"
         'test_keep "one of: first or last"
         'no_overflow "one of: false or true"
