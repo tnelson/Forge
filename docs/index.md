@@ -141,10 +141,10 @@ Forge uses the [Sterling](https://sterling-js.github.io) visualizer to enable cu
 
 We suggest that users install via Git, rather than using Racket's package system. Our Github contains release tags that are useful for those who wish to use older versions of the software. Forge now uses [semantic versioning](https://semver.org); major version changes introduce breaking changes.
 
-| Version      | Textbook    | VSCode Extension |
-| ------------ | ----------- | ---------------- |
-| **5.0.0 (docs)**                                                        |  **Spring 2025**                                          | [forge-language-server](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-language-server) |
-|   4.2.1 ([docs](https://forge-fm.github.io/forge-documentation/4.2/))   |  [Spring 2026](https://forge-fm.github.io/book/2025/)     | [forge-fm](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-fm) |
+| Forge Major Version | Textbook Version | VSCode Extension |
+| ------------------- | ---------------- | ---------------- |
+| **5.0.0 (docs)**                                                        |  [**Spring 2026**](https://forge-fm.github.io/book/2025/) | [forge-language-server](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-language-server) |
+|   4.2.1 ([docs](https://forge-fm.github.io/forge-documentation/4.2/))   |  [Spring 2025](https://forge-fm.github.io/book/2025/)     | [forge-fm](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-fm) |
 
 ## Materials and Github
 
