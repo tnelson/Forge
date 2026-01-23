@@ -143,7 +143,7 @@ We suggest that users install via Git, rather than using Racket's package system
 
 | Forge Major Version | Textbook Version | VSCode Extension |
 | ------------------- | ---------------- | ---------------- |
-| **5.0.0 (docs)**                                                        |  [**Spring 2026**](https://forge-fm.github.io/book/2025/) | [forge-language-server](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-language-server) |
+| **5.0.0 (docs)**                                                        |  [**Spring 2026**](https://forge-fm.github.io/book/2026/) | [forge-language-server](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-language-server) |
 |   4.2.1 ([docs](https://forge-fm.github.io/forge-documentation/4.2/))   |  [Spring 2025](https://forge-fm.github.io/book/2025/)     | [forge-fm](https://marketplace.visualstudio.com/items?itemName=SiddharthaPrasad.forge-fm) |
 
 ## Materials and Github
