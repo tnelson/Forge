@@ -35,3 +35,8 @@ forge/pardinus-cli/classes
 *.icloud
 
 *quotes_in_*filename.frg
+
+# Node.js / Playwright e2e tests
+forge/e2e/node_modules/
+forge/e2e/playwright-report/
+forge/e2e/test-results/

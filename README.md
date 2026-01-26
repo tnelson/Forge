@@ -15,7 +15,7 @@ Forge also uses [Sterling](https://sterling-js.github.io/), an expanded and scri
 
 ## Documentation
 
-The [Forge documentation page](https://forge-fm.github.io/forge-documentation/home.html) is the best resource for Forge syntax, etc.; the Wiki on this repo may not be up to date. 
+The [Forge documentation page](https://forge-fm.github.io/forge-documentation/) is the best resource for Forge syntax, etc.; the Wiki on this repo may not be up to date. 
 Note that the documentation is a living document and work in progress; we will be updating it live as students and other users ask questions.
 
 For broader historical context on Forge, the [Alloy documentation
@@ -26,12 +26,11 @@ To contribute, fork the repository (or open a new branch if a core contributor) 
 
 
 ## Installation from source
-To install from source, use the following commands. Make sure that you have [Racket](https://racket-lang.org/) installed (any version should work, although we suggest the latest: 8.3), and the `raco` package manager is in your path. You will also need Java installed (we suggest version 11 or later). 
+To install from source, use the following commands. Make sure that you have [Racket](https://racket-lang.org/) installed (any version should work, although we suggest the latest: 8.3), and the `raco` package manager is in your path. You will also need Java installed (we suggest version 11 or later). Clone this repo, and then:
 
 ```
-git clone https://github.com/tnelson/Forge
-cd Forge
-raco pkg install ./forge ./froglet
+cd Forge 
+raco pkg install ./forge
 ```
 
 To update, `git pull` the repo and run `raco setup forge` to recompile.
@@ -40,7 +39,7 @@ Running on the development branch, `dev`, requires `checkout dev` before install
 
 ## Repository Structure 
 
-- The `forge` and `froglet` subdirectories contain the `forge` and `froglet` Racket packages. 
+- The `forge` subdirectory contains the `forge` Racket package.
   - Relational Forge (`#lang forge`) is defined in the package root (`main.rkt`); 
   - Temporal Forge (`#lang forge/temporal`) is defined in `temporal/main.rkt`.
 - The `forge/examples/` subdirectory contains a set of curated examples that can be run without reference to the Forge book or other resources. 

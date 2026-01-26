@@ -14,7 +14,7 @@
 ;   should be called for any context where a menu of commands doesn't fit (such as a
 ;   failing test, perhaps). 
 
-(require (only-in forge/lang/ast relation-name raise-forge-error)
+(require (only-in forge/lang/ast relation-name raise-forge-error deparse node?)
          forge/server/modelToXML
          forge/evaluator
          xml
@@ -49,10 +49,46 @@
 (define/contract (get-from-json json-m path)
   (-> (and/c jsexpr? hash?) (listof symbol?) jsexpr?)
   (cond [(empty? path) json-m]
-        [else 
+        [else
          (unless (hash-has-key? json-m (first path))
            (error (format "get-from-json expected JSON dictionary with ~a field, got: ~a~n" (first path) json-m)))
          (get-from-json (hash-ref json-m (first path)) (rest path))]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Shared helpers for Sterling communication
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Send a message to Sterling over a WebSocket connection
+(define (send-to-sterling m #:connection connection)
+  (when (@>= (get-verbosity) VERBOSITY_STERLING)
+    (printf "Sending message to Sterling: ~a~n" m))
+  (ws-send! connection m))
+
+; Start a WebSocket server for Sterling communication.
+; Returns (values stop-service port) where port may be a string on failure.
+; handler-proc: (-> connection message void) - handles non-ping messages
+; port-option: the port number to listen on (0 for ephemeral)
+(define (start-websocket-server port-option handler-proc)
+  (define chan (make-async-channel))
+  (define stop-service
+    (ws-serve
+     (λ (connection _)
+       (let loop ()
+         (define m (ws-recv connection))
+         (unless (eof-object? m)
+           (when (@>= (get-verbosity) VERBOSITY_STERLING)
+             (printf "Message received from Sterling: ~a~n" m))
+           (cond [(equal? m "ping")
+                  (send-to-sterling "pong" #:connection connection)]
+                 [else (handler-proc connection m)])
+           (loop))))
+     #:port port-option #:confirmation-channel chan))
+  (define port (async-channel-get chan))
+  (when (string? port)
+    (printf "NO PORTS AVAILABLE. Could not start provider server.~n"))
+  (values stop-service port))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; name is the name of the model
 ; get-next-instance returns the next instance each time it is called, or #f.
@@ -63,11 +99,16 @@
 
   (define state-for-run (Run-spec-state (Run-run-spec the-run)))
 
-  (define current-tree orig-lazy-tree)
-  (define curr-datum-id 1) ; nonzero
-  (define id-to-instance-map (make-hash)) ; mutable hash
-  
-  (define (get-current-instance)
+  ;; Skip starting WebSocket server if Sterling is disabled
+  (when (member (get-option the-run 'run_sterling) (list 'off "off" #f))
+    (printf "Sterling is disabled (run_sterling = off). Skipping visualization.~n"))
+
+  (unless (member (get-option the-run 'run_sterling) (list 'off "off" #f))
+    (define current-tree orig-lazy-tree)
+    (define curr-datum-id 1) ; nonzero
+    (define id-to-instance-map (make-hash)) ; mutable hash
+
+    (define (get-current-instance)
     (define returned-instance (tree:get-value current-tree))
     (set-box! (Run-last-sterling-instance the-run) returned-instance)
     returned-instance)
@@ -81,12 +122,7 @@
     (values curr-datum-id (get-current-instance)))
   
   (define command-string (format "~a" (syntax->datum command)))
-  
-  (define (send-to-sterling m #:connection connection)
-    (when (@>= (get-verbosity) VERBOSITY_STERLING) 
-      (printf "Sending message to Sterling: ~a~n" m))
-    (ws-send! connection m))
-  
+
    (define (get-xml soln)    
     ;(define tuple-annotations (if (and (Sat? model) (equal? 'on (get-option the-run 'local_necessity)))
     ;                              (build-tuple-annotations-for-ln model)
@@ -130,7 +166,7 @@
                   [else
                    (printf "Sterling: unexpected 'next' request type: ~a~n" json-m)]))
           (define xml (get-xml inst))
-          (define response (make-sterling-data xml datum-id name temporal? (Sat? inst) old-datum-id))
+          (define response (make-sterling-data xml datum-id name temporal? inst old-datum-id))
           (send-to-sterling response #:connection connection)]
          [else
           (printf "Sterling: unexpected onClick: ~a~n" json-m)])     
@@ -143,7 +179,7 @@
        (define inst (get-current-instance)) 
        (define id curr-datum-id)
        (define xml (get-xml inst))
-       (define response (make-sterling-data xml id name temporal? (Sat? inst)))
+       (define response (make-sterling-data xml id name temporal? inst))
        (send-to-sterling response #:connection connection)     
        ]
       [(equal? (hash-ref json-m 'type) "eval")
@@ -169,37 +205,39 @@
        (send-to-sterling "BAD REQUEST" #:connection connection)
        (printf "Sterling message contained unexpected type field: ~a~n" json-m)]))
   
-  (define chan (make-async-channel))
+    (define-values (stop-service port)
+      (start-websocket-server (get-option the-run 'sterling_port) handle-json))
 
-  ; After this is defined, the service is active and should be listening
-  (define stop-service    
-    (ws-serve
-     ; This is the connection handler function, it has total control over the connection
-     ; from the time that conn-headers finishes responding to the connection request, to the time
-     ; the connection closes. The server generates a new handler thread for this function
-     ; every time a connection is initiated.
-     (λ (connection _)       
-       (let loop ()         
-         (define m (ws-recv connection))
-         (unless (eof-object? m)           
-           (when (@>= (get-verbosity) VERBOSITY_STERLING) 
-             (printf "Message received from Sterling: ~a~n" m))
-           (cond [(equal? m "ping")
-                  (send-to-sterling "pong" #:connection connection)]
-                 [else (handle-json connection m)])
-           (loop))))
-     ; default #:port 0 will assign an ephemeral port
-     #:port (get-option the-run 'sterling_port) #:confirmation-channel chan))
+    ; Now, serve the static sterling website files (this will be a different server/port).
+    (define run-sterling-mode (get-option state-for-run 'run_sterling))
+    (cond [(member run-sterling-mode (list 'off "off"))
+           (void)] ; do nothing
+          [(member run-sterling-mode (list 'serve "serve"))
+           (serve-no-sterling #:provider-port port)]
+          [(member run-sterling-mode (list 'headless "headless"))
+           (serve-sterling-static #:provider-port port
+                                  #:static-port (get-option state-for-run 'sterling_static_port)
+                                  #:open-browser #f)]
+          [else
+           (serve-sterling-static #:provider-port port
+                                  #:static-port (get-option state-for-run 'sterling_static_port))]))) ; closes outer unless
 
-  (define port (async-channel-get chan))
-  (when (string? port)
-    (printf "NO PORTS AVAILABLE. Could not start provider server.~n"))
-  
-  ; Now, serve the static sterling website files (this will be a different server/port).
-  (unless (equal? 'off (get-option state-for-run 'run_sterling))
-    (serve-sterling-static #:provider-port port)))
+(define (make-status-value inst) 
+  (cond [(Sat? inst) "sat"]
+        [(Unsat? inst) "unsat"]
+        [(Unknown? inst) "unknown"]
+        [else "error"]))
+(define (make-core-value inst)
+  (if (and (Unsat? inst) (Unsat-core inst))
+      (map (lambda (cr) (cond [(node? cr) (deparse cr)]
+                              [(string? cr) cr]
+                              [else (raise-forge-error #:msg (format "Unexpected core value sending to Sterling: ~a" cr)
+                                                       #:context #f)]))
+           (Unsat-core inst))
+      #f))
 
-(define (make-sterling-data xml id run-name temporal? not-done? [old-id #f])
+(define (make-sterling-data xml id run-name temporal? inst [old-id #f])
+  (define not-done? (Sat? inst))
   (jsexpr->string
    (hash
     'type "data"
@@ -210,6 +248,8 @@
                             'generatorName (->string run-name)
                             'format "alloy"
                             'data xml
+                            'status (make-status-value inst)
+                            'core (make-core-value inst)
                             'buttons (cond [(not not-done?) (list)]
                                            [temporal?
                                             (list (hash 'text "Next Trace"
@@ -252,8 +292,11 @@
 ;; The namespace is passed to aid evaluation
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (start-sterling-menu curr-state nsa)
-  ; The runs defined in the state at this point, which should be after all declarations.
-  (define runmap (State-runmap curr-state))
+  ;; Early exit if Sterling is disabled - avoid starting WebSocket server
+  (unless (member (get-option curr-state 'run_sterling) (list 'off "off" #f))
+
+    ; The runs defined in the state at this point, which should be after all declarations.
+    (define runmap (State-runmap curr-state))
   (define defined-run-names (hash-keys runmap))
 
   ; Filter out runs that are not useful to visualize, like tests that failed due to unsat.
@@ -278,11 +321,6 @@
   (when (> (get-verbosity) VERBOSITY_LOW)
     (printf "Starting Sterling in command-selection mode...~n")
     (printf "Available commands: ~a~n" useful-run-names))
-  
-  (define (send-to-sterling m #:connection connection)
-    (when (@>= (get-verbosity) VERBOSITY_STERLING) 
-      (printf "Sending message to Sterling: ~a~n" m))
-    (ws-send! connection m))
 
   (define curr-datum-id 0) ; nonzero
   (define id-to-instance-map (make-hash)) ; mutable hash
@@ -321,8 +359,8 @@
 
        (define payload (hash-ref json-m 'payload))
        (define onClick (hash-ref payload 'onClick))
-       (define context (hash-ref payload 'context))
-       (define generatorName (string->symbol (hash-ref context 'generatorName)))
+       (define contextPayload (hash-ref payload 'context))
+       (define generatorName (string->symbol (hash-ref contextPayload 'generatorName)))
        (define next? (equal? "next" (substring onClick 0 4)))
        (unless (hash-has-key? runmap generatorName)
          (raise-forge-error
@@ -403,11 +441,12 @@
                   #:msg (format "Error: Sterling sent unexpected 'next' request type: ~a~n" json-m)
                   #:context context)]))
          (define xml (get-xml inst))
+         
          ; is-running? is about the _solver process itself_.
          ; is-run-closed? is about whether this specific run has been terminated
          ; Sat? is about whether the solution we have is Sat.
          (define response (make-sterling-data xml datum-id name temporal?
-                                              (and (is-running? the-run) (not (is-run-closed? the-run)) (Sat? inst))
+                                              (and (is-running? the-run) (not (is-run-closed? the-run)) inst)
                                               old-datum-id))
         (send-to-sterling response #:connection connection)]
        [else
@@ -487,37 +526,22 @@
         #:msg (format "Sterling message contained unexpected type field: ~a~n" json-m)
         #:context context)]))
   
-  (define chan (make-async-channel))
+    (define-values (stop-service port)
+      (start-websocket-server (get-option curr-state 'sterling_port) handle-json))
 
-  ; After this is defined, the service is active and should be listening
-  (define stop-service    
-    (ws-serve
-     ; This is the connection handler function, it has total control over the connection
-     ; from the time that conn-headers finishes responding to the connection request, to the time
-     ; the connection closes. The server generates a new handler thread for this function
-     ; every time a connection is initiated.
-     (λ (connection _)       
-       (let loop ()         
-         (define m (ws-recv connection))
-         (unless (eof-object? m)           
-           (when (@>= (get-verbosity) VERBOSITY_STERLING) 
-             (printf "Message received from Sterling: ~a~n" m))
-           (cond [(equal? m "ping")
-                  (send-to-sterling "pong" #:connection connection)]
-                 [else (handle-json connection m)])
-           (loop))))
-     ; default #:port 0 will assign an ephemeral port
-     #:port (get-option curr-state 'sterling_port) #:confirmation-channel chan))
-  (define port (async-channel-get chan))
-  (when (string? port)
-    (printf "NO PORTS AVAILABLE. Could not start provider server.~n"))
-  
-  ; Now, serve the static sterling website files (this will be a different server/port).
-  ; Switch Sterling off for the "off" string too, because users may neglect the \'
-  ; if providing an override at the command line. This means that one cannot provide
-  ; a script in a file named "off".
-  (unless (or (member (get-option curr-state 'run_sterling) (list 'off "off" #f))
-              (empty? useful-run-names))
-    (serve-sterling-static #:provider-port port))
-  (when (empty? useful-run-names)
-    (printf "There was nothing useful to visualize: all commands were already executed and produced no instances.~n")))
+    ; Now, serve the static sterling website files (this will be a different server/port).
+    ; Switch Sterling off for the "off" string too, because users may neglect the \'
+    ; if providing an override at the command line. This means that one cannot provide
+    ; a script in a file named "off".
+
+    (cond [(empty? useful-run-names)
+           (printf "There was nothing useful to visualize: all commands were already executed and produced no instances.~n")]
+          [(member (get-option curr-state 'run_sterling) (list 'serve "serve"))
+           (serve-no-sterling #:provider-port port)]
+          [(member (get-option curr-state 'run_sterling) (list 'headless "headless"))
+           (serve-sterling-static #:provider-port port
+                                  #:static-port (get-option curr-state 'sterling_static_port)
+                                  #:open-browser #f)]
+          [else
+           (serve-sterling-static #:provider-port port
+                                  #:static-port (get-option curr-state 'sterling_static_port))]))) ; closes unless

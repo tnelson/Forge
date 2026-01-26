@@ -1,5 +1,7 @@
 #lang forge/froglet
 
+open util/sequences
+
 option run_sterling off
 
 abstract sig Node {}

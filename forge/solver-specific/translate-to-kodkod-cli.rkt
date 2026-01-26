@@ -36,8 +36,8 @@
      ( print-cmd-cont (format "~a " type))]
     [(node/fmla/pred-spacer info name args expanded)
      (interpret-formula run-or-state expanded relations atom-names quantvars)]
-    [(node/formula/op info args)
-     (interpret-formula-op run-or-state formula relations atom-names quantvars args)]
+    [(? node/formula/op? op)
+     (interpret-formula-op run-or-state formula relations atom-names quantvars (node/formula/op-children op))]
     [(node/formula/multiplicity info mult expr)
      ( print-cmd-cont (format "(~a " mult ))
      (interpret-expr run-or-state expr relations atom-names quantvars)
@@ -71,85 +71,85 @@
 
 (define (interpret-formula-op run-or-state formula relations atom-names quantvars args)
   (match formula
-    [(? node/formula/op/&&?)
+    [(? node/formula/op-on-formulas/&&?)
      ( print-cmd-cont "(&& ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/||?)
+    [(? node/formula/op-on-formulas/||?)
      ( print-cmd-cont "(|| ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/=>?)
+    [(? node/formula/op-on-formulas/=>?)
      ( print-cmd-cont "(=> ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
 
-    [(? node/formula/op/always?)
+    [(? node/formula/op-on-formulas/always?)
      ( print-cmd-cont "(always ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/eventually?)
+    [(? node/formula/op-on-formulas/eventually?)
      ( print-cmd-cont "(eventually ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/next_state?)
+    [(? node/formula/op-on-formulas/next_state?)
      ( print-cmd-cont "(after ") ; note name change
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/releases?)
+    [(? node/formula/op-on-formulas/releases?)
      ( print-cmd-cont "(releases ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/until?)
+    [(? node/formula/op-on-formulas/until?)
      ( print-cmd-cont "(until ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
 
-    [(? node/formula/op/historically?)
+    [(? node/formula/op-on-formulas/historically?)
      ( print-cmd-cont "(historically ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/once?)
+    [(? node/formula/op-on-formulas/once?)
      ( print-cmd-cont "(once ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/prev_state?)
+    [(? node/formula/op-on-formulas/prev_state?)
      ( print-cmd-cont "(before ") ; note name change
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/since?)
+    [(? node/formula/op-on-formulas/since?)
      ( print-cmd-cont "(since ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/triggered?)
+    [(? node/formula/op-on-formulas/triggered?)
      ( print-cmd-cont "(triggered ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
 
     
-    [(? node/formula/op/in?)
+    [(? node/formula/op-on-exprs/in?)
      (print-cmd-cont "(in ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont ")")]
-    [(? node/formula/op/=?)
+    [(? node/formula/op-on-exprs/=?)
      (print-cmd-cont "(= ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont ")")]
 
-    [(? node/formula/op/!?)
+    [(? node/formula/op-on-formulas/!?)
      (print-cmd-cont "(! ")
      (map (lambda (x) (interpret-formula run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont ")")]
 
-    [(? node/formula/op/int>?)
+    [(? node/formula/op-on-ints/int>?)
      ( print-cmd-cont "(> ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/int<?)
+    [(? node/formula/op-on-ints/int<?)
      ( print-cmd-cont "(< ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/formula/op/int=?)
+    [(? node/formula/op-on-ints/int=?)
      ( print-cmd-cont "(= ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]))
@@ -196,8 +196,8 @@
                                 (build-univ-string run-or-state)))]
        [else
         (print-cmd-cont (format "~a " type))])]
-    [(node/expr/op info arity args)
-     (interpret-expr-op run-or-state expr relations atom-names quantvars args)]
+    [(? node/expr/op? op)
+     (interpret-expr-op run-or-state expr relations atom-names quantvars (node/expr/op-children op))]
     [(node/expr/quantifier-var info arity sym name)     
      ;(print-cmd-cont (symbol->string (v sym)))
      (print-cmd-cont (symbol->string (v (get-sym expr))))
@@ -218,37 +218,37 @@
 
 (define (interpret-expr-op run-or-state expr relations atom-names quantvars args)
   (match expr
-    [(? node/expr/op/+?)
+    [(? node/expr/op-on-exprs/+?)
      ( print-cmd-cont "(+ ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/expr/op/-?)
+    [(? node/expr/op-on-exprs/-?)
      ( print-cmd-cont "(- ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/expr/op/&?)
+    [(? node/expr/op-on-exprs/&?)
      ( print-cmd-cont "(& ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/expr/op/->?)
+    [(? node/expr/op-on-exprs/->?)
      ( print-cmd-cont "(-> ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
 
-    [(? node/expr/op/prime?)
+    [(? node/expr/op-on-exprs/prime?)
      ( print-cmd-cont "(prime ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
 
-    [(? node/expr/op/join?)
+    [(? node/expr/op-on-exprs/join?)
      ( print-cmd-cont "(. ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/expr/op/^?)
+    [(? node/expr/op-on-exprs/^?)
      ( print-cmd-cont "(^ ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/expr/op/*?)
+    [(? node/expr/op-on-exprs/*?)
      ; Since * involves iden, we need to intercede so univ is restricted to actual *used* universe
      (print-cmd-cont
       (format "(+ (& iden (-> ~a ~a)) (^ "              
@@ -256,15 +256,15 @@
               (build-univ-string run-or-state))) 
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont "))")]
-    [(? node/expr/op/~?)
+    [(? node/expr/op-on-exprs/~?)
      (print-cmd-cont "(~a " '~) ; Likely '~ added this way because ~ would need to be escaped 
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont ")")]
-    [(? node/expr/op/++?)
+    [(? node/expr/op-on-exprs/++?)
      (print-cmd-cont "(++ ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont ")")]
-    [(? node/expr/op/sing?)
+    [(? node/expr/op-on-ints/sing?)
      (print-cmd-cont "(lone ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      (print-cmd-cont ")")
@@ -274,8 +274,8 @@
   (match expr
     [(node/int/constant info value)
      (print-cmd-cont (format "~a " value))]
-    [(node/int/op info args)
-     (interpret-int-op run-or-state expr relations atom-names quantvars args)]
+    [(? node/int/op? op)
+     (interpret-int-op run-or-state expr relations atom-names quantvars (node/int/op-children op))]
     [(node/int/sum-quant info decls int-expr)
      (define var (car (car decls)))
      (let ([quantvars (cons var quantvars)])
@@ -289,39 +289,39 @@
 
 (define (interpret-int-op run-or-state expr relations atom-names quantvars args)
   (match expr
-    [(? node/int/op/add?)
+    [(? node/int/op-on-ints/add?)
      ( print-cmd-cont "(+ ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/subtract?)
+    [(? node/int/op-on-ints/subtract?)
      ( print-cmd-cont "(- ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/multiply?)
+    [(? node/int/op-on-ints/multiply?)
      ( print-cmd-cont "(* ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/divide?)
+    [(? node/int/op-on-ints/divide?)
      ( print-cmd-cont "(/ ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars )) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/sum?)
+    [(? node/int/op-on-exprs/sum?)
      ( print-cmd-cont "(sum ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars )) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/card?)
+    [(? node/int/op-on-exprs/card?)
      ( print-cmd-cont "(# ")
      (map (lambda (x) (interpret-expr run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/remainder?)
+    [(? node/int/op-on-ints/remainder?)
      ( print-cmd-cont "(% ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/abs?)
+    [(? node/int/op-on-ints/abs?)
      ( print-cmd-cont "(abs ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]
-    [(? node/int/op/sign?)
+    [(? node/int/op-on-ints/sign?)
      ( print-cmd-cont "(sgn ")
      (map (lambda (x) (interpret-int run-or-state x relations atom-names quantvars)) args)
      ( print-cmd-cont ")")]

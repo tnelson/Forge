@@ -1,0 +1,16 @@
+{
+  "name": "forge-e2e",
+  "version": "1.0.0",
+  "description": "End-to-end tests for Forge/Sterling integration",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

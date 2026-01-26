@@ -1,6 +1,6 @@
 #lang racket/base
 
-(provide coerce-ints-to-atoms
+(provide coerce-ints-to-atoms-and-preprocess
          read-syntax
          generic-forge-reader)
 
@@ -9,7 +9,6 @@
          racket/pretty)
 (require forge/lang/alloy-syntax/parser)
 (require forge/lang/alloy-syntax/tokenizer)
-;(require (prefix-in log: forge/logging/2023/main))
 (require forge/shared)
 
 (do-time "forge/lang/reader")
@@ -19,29 +18,38 @@
 ; insert automatic conversion between int-exprs and rel-exprs in
 ; *some* cases; the others are handled in the AST construction.
 
+; It also separates the (leading!) imports out from the main module,
+; so that the reader can lift (require ...) expressions.
+
 ; Regarding syntax replacement, here and in the expander,
 ; NOTE WELL this sentence from the Racket docs on syntax/loc: 
 ; "The source location is adjusted only if the resulting syntax object
 ; comes from the template itself rather than the value of a syntax pattern variable."
 ; (In all other cases, we apparently must use datum->syntax.)
 
-(define (coerce-ints-to-atoms tree)
+(define (coerce-ints-to-atoms-and-preprocess tree)
   ; AlloyModule: ModuleDecl? Import* Paragraph*
   (syntax-parse tree #:datum-literals (NT-AlloyModule NT-ModuleDecl NT-Import)
     [(NT-AlloyModule (~optional (~and module-decl
-                                   (ModuleDecl _ ...)))
-                  (~seq (~and import
-                              (Import _ ...)) ...)
-                  . parags)
+                                      (NT-ModuleDecl _ ...)))
+                     ;(~seq (~and import
+                     ;            (Import _ ...)) ...)
+                     (~seq (~and import (NT-Import _)) ...)
+                     . parags)
      #:with (paragraphs ...)
             (quasisyntax/loc tree
               #,(replace-ints-paragraph* (syntax/loc tree parags)))
-       ; (printf "Module-decl ~a~n~n" #'(~? module-decl "None present"))
-       ; (printf "Paragraphs: ~a~n~n" #'(paragraphs ...))
-       (quasisyntax/loc tree
+            ;(printf "Module-decl ~a~n~n" #'(~? module-decl "None present"))
+            ;(printf "Imports: ~a~n~n" #'(import ...))
+            ;(printf "Paragraphs: ~a~n~n" #'(paragraphs ...))
+       (values
+        ; The module imports
+        (quasisyntax/loc tree (import ...))
+        ; The module body with integers coerced and imports removed 
+        (quasisyntax/loc tree
          (NT-AlloyModule (~? module-decl)
-                      import ...
-                      paragraphs ...))]))
+                      ;import ...
+                      paragraphs ...)))]))
 
 (define (replace-ints-expr expr)
   ;(printf "Replace-int-expr: ~a~n~n" expr)
@@ -107,24 +115,21 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; NOTE: Changes to this macro may need re-compiling Forge before they are soon.
+
 (define-syntax (generic-forge-reader stx)
   (syntax-parse stx
     [((~datum generic-forge-reader)
       path port LANG-NAME CH ACH ICH EXTRA-REQUIRES (~optional INJECTED #:defaults ([INJECTED #''()])))
+     ; This is the Racket code for the specialized reader:
      (quasisyntax/loc stx
        (begin 
-         ;(define-values (logging-on? project email) (plog:setup LANG-NAME port path))
          (define compile-time (current-seconds))
          (define injected-if-any INJECTED)
          (define extra-requires EXTRA-REQUIRES)
 
-         ; We no longer do in-Forge logging.
-         ;(when logging-on?
-         ;  (uncaught-exception-handler (log:error-handler logging-on? compile-time (uncaught-exception-handler)))
-         ;  (log:register-run compile-time project LANG-NAME email path))
-
          (define parse-tree (parse path (make-tokenizer port)))
-         (define ints-coerced (coerce-ints-to-atoms parse-tree))
+         (define-values (imports ints-coerced) (coerce-ints-to-atoms-and-preprocess parse-tree))
          
          (define final `((provide (except-out (all-defined-out) ; So other programs can require it
                                               forge:n))         ; but don't share the namespace anchor
@@ -132,16 +137,14 @@
                          ; Racket functions are needed too.
                          (require (only-in racket/base unless hash-empty?))
                          (require (only-in forge/shared do-time))
+                         ; Module imports (via "open")
+                         ,@(syntax->list imports)
                          
                          (do-time "forge-mod toplevel")
                          
                          ;; Used for the evaluator
                          (define-namespace-anchor forge:n) 
                          (forge:nsa forge:n)
-
-                         ; We no longer do in-Forge logging
-                         ;(require (prefix-in log: forge/logging/2023/main))
-                         ;(require (only-in racket printf uncaught-exception-handler))
                          
                          ;; Set up language-specific error messages
                          (require forge/choose-lang-specific
@@ -151,10 +154,6 @@
                          (set-inst-checker-hash! ICH)
                          (set-check-lang! LANG-NAME)                  
                          
-                         ;; Override default exception handler
-                         ;(uncaught-exception-handler
-                         ; (log:error-handler ',logging-on? ',compile-time (uncaught-exception-handler)))
-
                          ;; Add any code to inject before the model is expanded
                          ,@injected-if-any
                          ;; Expanded model, etc.
@@ -175,9 +174,6 @@
                          (module+ main
                            ; Invoke the execs submodule
                            (require (submod ".." execs)))                                    
-
-                         ; We no longer do in-Forge logging
-                         ;(log:flush-logs ',compile-time "no-error")
                          ))
          
          (define module-datum `(module forge-mod forge/lang/expander
@@ -185,6 +181,7 @@
          
          ; For debugging purposes, convert to a datum first or pretty-format will truncate.
          ;(printf "Ints-coerced: ~a~n" (pretty-format (syntax->datum ints-coerced)))
+         ;printf "Parse-tree (converted to datum:~n   ~a~n" (pretty-format (syntax->datum parse-tree)))
          
          (define result (datum->syntax #f module-datum))
          ;(printf "debug result of expansion: ~a~n" result)

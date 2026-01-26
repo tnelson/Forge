@@ -26,8 +26,8 @@
 ;   * node/expr (arity) -- expressions
 ;     * node/expr/fun-spacer -- no-op spacer to record location where a fun substitution was done
 ;     * node/expr/op (children) -- simple operators
-;       * node/expr/op/+
-;       * node/expr/op/-
+;       * node/expr/op-on-exprs/+
+;       * node/expr/op-on-exprs/-
 ;       * ...
 ;     * node/expr/comprehension (decls formula)  -- set comprehension
 ;     * node/expr/relation (name typelist-thunk parent is-variable)  -- leaf relation
@@ -46,7 +46,7 @@
 ;   * node/int -- integer expression
 ;     * node/int/sum-quant -- sum "quantified" form
 ;     * node/int/op (children)
-;       * node/int/op/add
+;       * node/int/op-on-ints/add
 ;       * ...
 ;     * node/int/constant (value) -- int constant
 ;; -----------------------------------------------------------------------------
@@ -130,7 +130,7 @@
 ; if somehow the user has provided something ill-typed that wasn't caught elsewhere.
 (define (intexpr->expr/maybe a-node #:op functionname #:info info)
   ;(@-> (or/c node? integer?) #:op symbol? #:info nodeinfo? node/expr?)  
-  (cond [(node/int? a-node) (node/expr/op/sing (update-annotation (node-info a-node) 'automatic-int-conversion #t) 1 (list a-node))]
+  (cond [(node/int? a-node) (node/expr/op-on-ints/sing (update-annotation (node-info a-node) 'automatic-int-conversion #t) 1 (list a-node))]
         [(integer? a-node) (intexpr->expr/maybe (int a-node) #:op functionname #:info info)]
         [(node/expr? a-node) a-node]
         [else 
@@ -144,7 +144,7 @@
   (cond [(and (node/expr? a-node)
               (equal? (node/expr-arity a-node) 1))
          ; If arity 1, this node/expr can be converted automatically to a node/int
-         (node/int/op/sum (update-annotation (node-info a-node) 'automatic-int-conversion #t) (list a-node))]
+         (node/int/op-on-exprs/sum (update-annotation (node-info a-node) 'automatic-int-conversion #t) (list a-node))]
         [(node/expr? a-node)
          ; Otherwise, this node/expr has the wrong arity for auto-conversion to a node/int
          (raise-forge-error
@@ -291,7 +291,18 @@
 ;; -- operators ----------------------------------------------------------------
 
 ; Should never be directly instantiated
-(struct node/expr/op node/expr (children) #:transparent)
+(struct node/expr/op node/expr () #:transparent)
+
+; Intermediate structs grouping operators by child type (for Typed Racket support)
+; Each intermediate declares children with the appropriate type constraint
+(struct node/expr/op-on-exprs node/expr/op (children) #:transparent)  ; children are node/expr
+(struct node/expr/op-on-ints node/expr/op (children) #:transparent)   ; children are node/int
+
+; Generic accessor for backward compatibility (returns Listof node)
+(define (node/expr/op-children op)
+  (cond [(node/expr/op-on-exprs? op) (node/expr/op-on-exprs-children op)]
+        [(node/expr/op-on-ints? op) (node/expr/op-on-ints-children op)]
+        [else (raise-forge-error #:msg "Unknown node/expr/op subtype" #:context op)]))
 
 ;; if-then-else *expression*, which is different from an if-then-else formula
 ;   The formula version is just sugar, the expression version is a basic expr type
@@ -350,27 +361,40 @@
 ; lifted operators are defaults, for when the types aren't as expected
 ; parent: the node struct type that is the parent of this new one
 ; arity: the arity of the new node, in terms of the arities of its children
+
+; Helper to derive the intermediate parent suffix based on child type
+; Used at compile time to generate hierarchical struct names
+(begin-for-syntax
+  (define (childtype->suffix childtype-stx)
+    (define ct (syntax->datum childtype-stx))
+    (cond [(equal? ct 'node/expr?) "-on-exprs"]
+          [(equal? ct 'node/int?) "-on-ints"]
+          [(equal? ct 'node/formula?) "-on-formulas"]
+          ; For custom type predicates (e.g., breakers), use empty suffix (old behavior)
+          [else ""])))
+
 (define-syntax (define-node-op stx)
   
   (syntax-case stx ()
     [(_ id parent arity checks ... #:lift @op #:type childtype #:elim-unary? elim-unary?)
      ;(printf "define-node-op defn case: ~a~n" stx)
-     (with-syntax ([name (format-id #'id "~a/~a" #'parent #'id)]
+     (with-syntax ([intermediate (format-id #'id "~a~a" #'parent (childtype->suffix #'childtype))]
+                   [name (format-id #'id "~a~a/~a" #'parent (childtype->suffix #'childtype) #'id)]
                    [parentname (format-id #'id "~a" #'parent)]
                    [functionname (format-id #'id "~a/func" #'id)]
                    [macroname/info-help (format-id #'id "~a/info-help" #'id)]
                    [macroname/info (format-id #'id "~a/info" #'id)]
                    [child-accessor (format-id #'id "~a-children" #'parent)]
-                   [key (format-id #'id "~a/~a" #'parent #'id)]
+                   [key (format-id #'id "~a~a/~a" #'parent (childtype->suffix #'childtype) #'id)]
                    [display-id (if (equal? '|| (syntax->datum #'id)) "||" #'id)]
                    [ellip '...]) ; otherwise ... is interpreted as belonging to the outer macro
        (syntax/loc stx
          (begin
-           (struct name parent () #:transparent #:reflection-name 'id  
+           (struct name intermediate () #:transparent #:reflection-name 'id
              #:methods gen:equal+hash
-             [(define equal-proc (make-robust-node-equal-syntax parentname))
-              (define hash-proc  (make-robust-node-hash-syntax parentname 0))
-              (define hash2-proc (make-robust-node-hash-syntax parentname 3))]
+             [(define equal-proc (make-robust-node-equal-syntax intermediate))
+              (define hash-proc  (make-robust-node-hash-syntax intermediate 0))
+              (define hash2-proc (make-robust-node-hash-syntax intermediate 3))]
              #:methods gen:custom-write
              [(define (write-proc self port mode)
                 ; all of the /op nodes have their children in a field named "children"
@@ -711,7 +735,18 @@
 
 ;; -- operators ----------------------------------------------------------------
 
-(struct node/int/op node/int (children) #:transparent)
+(struct node/int/op node/int () #:transparent)
+
+; Intermediate structs grouping operators by child type (for Typed Racket support)
+; Each intermediate declares children with the appropriate type constraint
+(struct node/int/op-on-ints node/int/op (children) #:transparent)   ; children are node/int
+(struct node/int/op-on-exprs node/int/op (children) #:transparent)  ; children are node/expr
+
+; Generic accessor for backward compatibility (returns Listof node)
+(define (node/int/op-children op)
+  (cond [(node/int/op-on-ints? op) (node/int/op-on-ints-children op)]
+        [(node/int/op-on-exprs? op) (node/int/op-on-exprs-children op)]
+        [else (raise-forge-error #:msg "Unknown node/int/op subtype" #:context op)]))
 
 (define-node-op add node/int/op #f #:min-length 2 #:type node/int?)
 (define-node-op subtract node/int/op #f #:min-length 2 #:type node/int?)
@@ -825,7 +860,20 @@
 ;; -- operators ----------------------------------------------------------------
 
 ; Should never be directly instantiated
-(struct node/formula/op node/formula (children) #:transparent)
+(struct node/formula/op node/formula () #:transparent)
+
+; Intermediate structs grouping operators by child type (for Typed Racket support)
+; Each intermediate declares children with the appropriate type constraint
+(struct node/formula/op-on-formulas node/formula/op (children) #:transparent)  ; children are node/formula
+(struct node/formula/op-on-exprs node/formula/op (children) #:transparent)     ; children are node/expr
+(struct node/formula/op-on-ints node/formula/op (children) #:transparent)      ; children are node/int
+
+; Generic accessor for backward compatibility (returns Listof node)
+(define (node/formula/op-children op)
+  (cond [(node/formula/op-on-formulas? op) (node/formula/op-on-formulas-children op)]
+        [(node/formula/op-on-exprs? op) (node/formula/op-on-exprs-children op)]
+        [(node/formula/op-on-ints? op) (node/formula/op-on-ints-children op)]
+        [else (raise-forge-error #:msg "Unknown node/formula/op subtype" #:context op)]))
 
 (define-node-op in node/formula/op #f  #:same-arity? #t #:max-length 2 #:type node/expr?)
 
@@ -874,7 +922,7 @@
 (require (prefix-in @ (only-in racket ->)))
 (define/contract (maybe-and->list fmla)
   (@-> node/formula? (listof node/formula?))
-  (cond [(node/formula/op/&&? fmla)
+  (cond [(node/formula/op-on-formulas/&&? fmla)
          (apply append (map maybe-and->list (node/formula/op-children fmla)))]
         [else
          (list fmla)]))
@@ -897,6 +945,11 @@
   (unless (equal? (length (remove-duplicates vars)) (length vars))
     (raise-forge-error
      #:msg (format "~a quantifier cannot use the same variable name more than once; used: ~a." quantifier vars)
+     #:context info))
+  ; lone and one are desugared to either more basic quantifiers or to a multiplicity.
+  (unless (member quantifier '(some all no))
+    (raise-forge-error
+     #:msg (format "~a quantified-formula must be desugared first to some, all, or no." quantifier)
      #:context info))
   
   (for ([e (in-list (map cdr decls))])

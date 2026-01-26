@@ -54,13 +54,13 @@
     (list "multiple-positive-examples-failing.frg" #rx"Invalid example 'e1'.*?Invalid example 'e2'") 
    
     (list "abstract.frg" #rx"abstract")
-    (list "bsl-ast-arrow.frg" #rx"Direct use of ->")
+    (list "bsl-ast-arrow.frg" #rx"is only used for field declaration in Froglet")
     (list "bsl-ast-intersect.frg" #rx"& operator")
     (list "bsl-ast-minus.frg" #rx"- operator")
     (list "bsl-ast-plus.frg" #rx"\\+ operator")
     (list "bsl-ast-star.frg" #rx"\\* operator")
     (list "bsl-ast-transitive-closure.frg" #rx"\\^ operator")
-    (list "bsl-arrow.frg" #rx"Direct use of ->")
+    (list "bsl-arrow.frg" #rx"is only used for field declaration in Froglet")
     (list "bsl-int-minus.frg" #rx"- operator")
     (list "bsl-join-right.frg" #rx"not an object")
     (list "bsl-join-right2.frg" #rx"not an object")
@@ -82,7 +82,7 @@
     (list "bsl-reachable-nonfield.frg" #rx"Field argument given to reachable is not a field")
     (list "bsl-reachable-too-few-arguments.frg" #rx"The reachable predicate expected at least three arguments, given 2")
 
-    (list "froglet-ast-arrow.frg" #rx"-> in a formula")
+    (list "froglet-ast-arrow.frg" #rx"is only used for field declaration in Froglet")
     (list "froglet-ast-intersect.frg" #rx"invalid use of the &")
     (list "froglet-ast-minus.frg" #rx"invalid use of the -")
     (list "froglet-ast-plus.frg" #rx"invalid use of the \\+")
@@ -206,6 +206,13 @@
     ;; The "is theorem" test construct is temporarily disabled in favor of "is checked";
     ;; it will be re-enabled for complete solver backends only
     (list "is_theorem_disabled.frg" #rx"use 'is checked' instead")
+
+    ;; Bad option names
+    (list "bad_option_name.frg" #rx"No such option")
+    ;; Bad option types
+    (list "bad_option_type.frg" #rx"requires non-negative integer")
+    ;; Bad enum member (checked via option types)
+    (list "bad_option_enum.frg" #rx"requires one of")
   ))
 
 

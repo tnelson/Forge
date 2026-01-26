@@ -41,14 +41,14 @@
                   make-check
                   test-from-state
                   make-test
-                  reset-run-name-history!
+                  state-set-option
                   stop-solver-process!))
 (require forge/choose-lang-specific)
 
 ; Commands
 (provide sig relation fun const pred inst with)
 (provide run check test example display execute start-sterling-menu)
-(provide instance-diff solution-diff evaluate)
+(provide solution-diff evaluate)
 
 ; Instance analysis functions
 (provide is-unsat? is-sat? is-unknown?)
@@ -72,7 +72,6 @@
          (prefix-out forge: (struct-out Range))
          (prefix-out forge: (struct-out Scope))
          (prefix-out forge: (struct-out Bound))
-         (prefix-out forge: (struct-out Options))
          (prefix-out forge: (struct-out State))
          (prefix-out forge: (struct-out Run-spec))
          (prefix-out forge: (struct-out Run))         
@@ -108,7 +107,8 @@
 (provide (prefix-out forge: relation-name))
 
 (provide (prefix-out forge: curr-state)
-         (prefix-out forge: update-state!))
+         (prefix-out forge: update-state!)
+         (prefix-out forge: current-options))
 
 (provide (struct-out Sat)
          (struct-out Unsat))
@@ -197,105 +197,11 @@
         [(or (equal? option 'verbosity) (equal? option 'verbose))
          (set-verbosity value)]
         [else
-         (update-state! (state-set-option curr-state option value #:original-path original-path))]))
+         (define new-state (state-set-option curr-state option value #:original-path original-path))
+         (update-state! new-state)
+         ; Also update the current-options parameter so tests can snapshot it
+         (current-options (State-options new-state))]))
 
-; state-set-option :: State, Symbol, Symbol -> State
-; Sets option to value for state.
-(define (state-set-option state option value #:original-path [original-path #f])
-  (define options (State-options state))
-
-  (unless (hash-ref option-types option #f)
-    (raise-user-error (format "No such option: ~a" option)))
-  (unless ((hash-ref option-types option) value)
-    (raise-user-error (format "Setting option ~a requires ~a; received ~a"
-                              option (hash-ref option-types-names option) value)))
-
-  (define (translate-single-path p)
-    (path->string (build-path original-path (string->path p))))
-  
-  (define new-options
-    (cond
-      [(equal? option 'eval-language)
-       (unless (or (equal? value 'surface) (equal? value 'core))
-         (raise-user-error (format "Invalid evaluator language ~a; must be surface or core.~n"
-                                   value)))
-       (struct-copy Options options
-                    [eval-language value])]
-      [(equal? option 'solver)
-       (struct-copy Options options
-                    [solver
-                     (if (and (string? value) original-path)
-                         (path->string (build-path original-path (string->path value)))
-                         value)])]
-      [(equal? option 'backend)
-       (struct-copy Options options
-                    [backend value])]
-      [(equal? option 'sb)
-       (struct-copy Options options
-                    [sb value])]
-      [(equal? option 'coregranularity)
-       (struct-copy Options options
-                    [coregranularity value])]
-      [(equal? option 'logtranslation)
-       (struct-copy Options options
-                    [logtranslation value])]
-      [(equal? option 'local_necessity)
-       (struct-copy Options options
-                    [local_necessity value])]
-      [(equal? option 'min_tracelength)
-       (let ([max-trace-length (get-option state 'max_tracelength)])
-         (if (> value max-trace-length)
-             (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
-                                       value max-trace-length))
-             (struct-copy Options options
-                          [min_tracelength value])))]
-      [(equal? option 'max_tracelength)
-       (let ([min-trace-length (get-option state 'min_tracelength)])
-         (if (< value min-trace-length)
-             (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
-                                       value min-trace-length))
-             (struct-copy Options options
-                          [max_tracelength value])))]
-      [(equal? option 'problem_type)
-       (struct-copy Options options
-                    [problem_type value])]
-      [(equal? option 'target_mode)
-       (struct-copy Options options
-                    [target_mode value])]
-      [(equal? option 'core_minimization)
-       (struct-copy Options options
-                    [core_minimization value])]
-      [(equal? option 'skolem_depth)
-       (struct-copy Options options
-                    [skolem_depth value])]
-      [(equal? option 'run_sterling)
-       (struct-copy Options options
-                    [run_sterling
-                     (cond
-                       [(and (string? value) original-path)
-                         (translate-single-path value)]
-                       [(and (list? value) original-path)
-                        (map translate-single-path value)]
-                        [else value])])]
-      [(equal? option 'sterling_port)
-       (struct-copy Options options
-                    [sterling_port value])]
-      [(equal? option 'engine_verbosity)
-       (struct-copy Options options
-                    [engine_verbosity value])]
-      [(equal? option 'test_keep)
-       (struct-copy Options options
-                    [test_keep value])]
-      [(equal? option 'no_overflow)
-       (struct-copy Options options
-                    [no_overflow value])]
-      [(equal? option 'java_exe_location)
-       (struct-copy Options options
-                    [java_exe_location value])]
-      ))
-
-  (struct-copy State state
-               [options new-options]))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -306,6 +212,10 @@
 (define curr-state init-state)
 (define (update-state! new-state)
   (set! curr-state new-state))
+
+; Parameter for snapshotting options at test definition time.
+; Tests capture this value when defined, then parameterize with it when executed.
+(define current-options (make-parameter (State-options init-state)))
 
 ; check-temporal-for-var :: Boolean String -> void
 ; raises an error if is-var is true and the problem_type option is 'temporal
@@ -595,7 +505,7 @@
                  ; maintain the invariant that helper functions are always rel-expression valued
                  (define safe-result
                    (cond [(node/int? result-once)
-                          (node/expr/op/sing (node-info result-once) 1 (list result-once))]
+                          (node/expr/op-on-ints/sing (node-info result-once) 1 (list result-once))]
                          [else result-once]))
                  ; - "fun spacer" added to record use of function along with original argument declarations etc.           
                  (node/expr/fun-spacer
@@ -697,9 +607,9 @@
                        (~? 'target-distance 'close_noretarget))
                #f))
          ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-         ;; TODO: this _really_ ought to be a box. If the above calls update-state!,
-         ;; this is no longer aliased. 
-         (define run-state curr-state) 
+         ;; Use current-options parameter so tests can snapshot options at definition time.
+         ;; The state gets current sigs/preds/etc, but options from the parameter.
+         (define run-state (struct-copy State curr-state [options (current-options)])) 
          (define run-command #'#,command)
          (define name
            (run-from-state run-state
@@ -728,12 +638,29 @@
     [(test name args ... #:expect expected)
      (syntax/loc stx (test name args ... #:expect expected #:expect-details #f))]
     [(test name args ... #:expect expected #:expect-details expected-details)
-     (add-to-execs
-      (with-syntax ([loc (build-source-location stx)]
-                    [run-stx (syntax/loc stx (run name args ...))]
-                    [check-stx (syntax/loc stx (check name args ...))])
-       (quasisyntax/loc stx 
-         (cond
+     ; Snapshot options at definition time, then parameterize at execution time
+     (with-syntax ([snapshot-id (generate-temporary 'options-snapshot)]
+                   [loc (build-source-location stx)]
+                   [run-stx (syntax/loc stx (run name args ...))]
+                   [check-stx (syntax/loc stx (check name args ...))])
+       (if (equal? (syntax-local-context) 'module)
+           ; At module level: capture options now, defer test with parameterize
+           (quasisyntax/loc stx
+             (begin
+               (define snapshot-id (current-options))
+               (module+ execs
+                 (parameterize ([current-options snapshot-id])
+                   #,(quasisyntax/loc stx (test-body name loc run-stx check-stx expected expected-details))))))
+           ; Not at module level: just run directly
+           (quasisyntax/loc stx
+             (test-body name loc run-stx check-stx expected expected-details))))]))
+
+; Helper macro for test body - factored out to avoid duplication
+(define-syntax (test-body stx)
+  (syntax-case stx ()
+    [(test-body name loc run-stx check-stx expected expected-details)
+     (quasisyntax/loc stx
+       (cond
            ; TODO: isn't this known at expansion time? We'll have the value of <expected>.
           [(equal? 'expected 'forge_error)
            ; Expecting an error. If we receive one, do nothing. 
@@ -822,55 +749,97 @@
            (raise-forge-error #:msg "The syntax 'is theorem' is deprecated and will be re-enabled in a future version for complete solver backends only; use 'is checked' instead."
                               #:context loc)]
 
-          [else (raise-forge-error                 
+          [else (raise-forge-error
                  #:msg (format "Illegal argument to test. Received ~a, expected sat, unsat, checked, or forge_error."
                                'expected)
-                 #:context loc)]))))]))
+                 #:context loc)]))]))
 
-(define-syntax (example stx)  
+(define-syntax (example stx)
   (syntax-parse stx
     [(_ name:id pred bounds ...)
-     (add-to-execs
-      (with-syntax* ([double-check-name (format-id #'name "double-check_~a_~a" #'name (gensym))]
-                     [run-stx (syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))]
-                     [double-check-run-stx (syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))])
-       (quasisyntax/loc stx (begin
-         (when (eq? 'temporal (get-option curr-state 'problem_type))
-           (raise-forge-error
-            #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
-            #:context #,(build-source-location stx)))
-         run-stx
-         (define first-instance (tree:get-value (Run-result name)))
-         (cond
-           [(Unsat? first-instance)
-            ; Run a second check to see if {} would have also failed, meaning this example
-            ; violates the sig/field declarations.
-            double-check-run-stx
-            (define double-check-instance (tree:get-value (Run-result double-check-name)))
-            (close-run double-check-name) ;; always close the double-check run immediately
-            
-            (cond
-              [(Sat? double-check-instance)
-               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
-                                     #:context #,(build-source-location stx)
-                                     #:instance first-instance
-                                     #:run name)]
-              [(Unsat? double-check-instance)
-               (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
-                                                                              "This means that the specified bounds conflict with each other "
-                                                                              "or with the sig/field definitions.")
-                                                               'name)
-                                     #:context #,(build-source-location stx)
-                                     #:instance first-instance
-                                     #:run name)]
-              [(Unknown? double-check-instance)
-               (report-test-failure #:name 'name #:msg (format "Invalid example '~a'. Unable to determine if the instance given satisfies the sig/field definitions or specified bounds." 'name)
-                                     #:context #,(build-source-location stx)
-                                     #:instance first-instance
-                                     #:run name)])]
-           [else
-            (report-passing-test #:name 'name)
-            (close-run name)])))))]))
+     ; Snapshot options at definition time, then parameterize at execution time
+     (with-syntax* ([snapshot-id (generate-temporary 'options-snapshot)]
+                    [double-check-name (format-id #'name "double-check_~a_~a" #'name (gensym))]
+                    [run-stx (syntax/loc stx (run name #:preds [pred] #:bounds [bounds ...]))]
+                    [double-check-run-stx (syntax/loc stx (run double-check-name #:preds [] #:bounds [bounds ...]))])
+       (if (equal? (syntax-local-context) 'module)
+           (quasisyntax/loc stx
+             (begin
+               (define snapshot-id (current-options))
+               (module+ execs
+                 (parameterize ([current-options snapshot-id])
+                   (when (eq? 'temporal (get-option curr-state 'problem_type))
+                     (raise-forge-error
+                      #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
+                      #:context #,(build-source-location stx)))
+                   run-stx
+                   (define first-instance (tree:get-value (Run-result name)))
+                   (cond
+                     [(Unsat? first-instance)
+                      ; Run a second check to see if {} would have also failed, meaning this example
+                      ; violates the sig/field declarations.
+                      double-check-run-stx
+                      (define double-check-instance (tree:get-value (Run-result double-check-name)))
+                      (close-run double-check-name) ;; always close the double-check run immediately
+
+                      (cond
+                        [(Sat? double-check-instance)
+                         (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+                                              #:context #,(build-source-location stx)
+                                              #:instance first-instance
+                                              #:run name)]
+                        [(Unsat? double-check-instance)
+                         (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+                                                                                        "This means that the specified bounds conflict with each other "
+                                                                                        "or with the sig/field definitions.")
+                                                                         'name)
+                                              #:context #,(build-source-location stx)
+                                              #:instance first-instance
+                                              #:run name)]
+                        [(Unknown? double-check-instance)
+                         (report-test-failure #:name 'name #:msg (format "Invalid example '~a'. Unable to determine if the instance given satisfies the sig/field definitions or specified bounds." 'name)
+                                              #:context #,(build-source-location stx)
+                                              #:instance first-instance
+                                              #:run name)])]
+                     [else
+                      (report-passing-test #:name 'name)
+                      (close-run name)])))))
+           ; Not at module level: just run directly (original behavior)
+           (quasisyntax/loc stx
+             (begin
+               (when (eq? 'temporal (get-option curr-state 'problem_type))
+                 (raise-forge-error
+                  #:msg (format "example ~a: Can't have examples when problem_type option is temporal" 'name)
+                  #:context #,(build-source-location stx)))
+               run-stx
+               (define first-instance (tree:get-value (Run-result name)))
+               (cond
+                 [(Unsat? first-instance)
+                  double-check-run-stx
+                  (define double-check-instance (tree:get-value (Run-result double-check-name)))
+                  (close-run double-check-name)
+                  (cond
+                    [(Sat? double-check-instance)
+                     (report-test-failure #:name 'name #:msg (format "Invalid example '~a'; the instance specified does not satisfy the given predicate." 'name)
+                                          #:context #,(build-source-location stx)
+                                          #:instance first-instance
+                                          #:run name)]
+                    [(Unsat? double-check-instance)
+                     (report-test-failure #:name 'name #:msg (format (string-append "Invalid example '~a'; the instance specified is impossible. "
+                                                                                    "This means that the specified bounds conflict with each other "
+                                                                                    "or with the sig/field definitions.")
+                                                                     'name)
+                                          #:context #,(build-source-location stx)
+                                          #:instance first-instance
+                                          #:run name)]
+                    [(Unknown? double-check-instance)
+                     (report-test-failure #:name 'name #:msg (format "Invalid example '~a'. Unable to determine if the instance given satisfies the sig/field definitions or specified bounds." 'name)
+                                          #:context #,(build-source-location stx)
+                                          #:instance first-instance
+                                          #:run name)])]
+                 [else
+                  (report-passing-test #:name 'name)
+                  (close-run name)])))))]))
 
 ; Checks that some predicates are always true.
 (define-syntax (check stx)
@@ -1039,99 +1008,6 @@
 
 (define (solution-diff s1 s2)
   (map instance-diff (Sat-instances s1) (Sat-instances s2)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;; Seq Library  ;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; reference:
-; https://github.com/AlloyTools/org.alloytools.alloy/blob/master/org.alloytools.alloy.core/src/main/resources/models/util/seqrel.als
-
-; need to provide through expander
-
-(provide isSeqOf seqFirst seqLast indsOf idxOf lastIdxOf elems inds isEmpty hasDups seqRest)
-
-(define-syntax (define-builtin stx)
-  (syntax-parse stx
-   [(define-builtin:id (opName:id locArg:id args:id ...) body:expr)
-    (with-syntax ([opName/func (format-id #'opName "~a/func" #'opName)]
-                  [ellip '...])
-      (syntax/loc stx (begin
-        (define-syntax (opName stxx)
-          (syntax-parse stxx
-            ; For use in forge/core; full s-expression expands to 0-ary procedure
-            ; Note use of "ellip" to denote "..." for the inner macro.
-            [(opName inner-args:id ellip)
-             (quasisyntax/loc stxx
-               (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck #f) inner-args ellip))]
-            ; For use with #lang forge; identifier by itself expands to 3+-ary procedure
-            [opName
-             (quasisyntax/loc stxx
-               (lambda (args ...)
-                 (opName/func (nodeinfo #,(build-source-location stxx) 'checklangNoCheck #f) args ...)))]))
-        
-        (define (opName/func locArg args ...)
-          body)
-        )))
-    ]))
-
-(define-builtin (isSeqOf info r1 d)
-  (&&/info info
-      (in/info info r1 (->/info info Int univ))
-      (in/info info (join/info info Int r1) d)
-      (all/info info ([i1 (join/info info r1 univ)])
-           (&&/info info (int>= (sum/info info i1) (int 0))
-               (lone/info info (join/info info i1 r1))))
-      (all/info info ([e (join/info info Int r1)])
-           (some/info info (join/info info r1 e)))
-      (all/info info ([i1 (join/info info r1 univ)])
-           (=>/info info (!= i1 (sing/info info (int 0)))
-                    (some/info info (join/info info
-                     (sing/info info
-                      (subtract/info info
-                       (sum/info info i1) (int 1))) r1))))))
-
-(define-builtin (seqFirst info r)
-  (join/info info
-    (sing/info info (int 0))
-    r))
-
-(define-builtin (seqLast info r)
-  (join/info info
-    (sing/info info
-      (subtract/info info
-        (card/info info r) (int 1)))
-    r))
-
-; precondition: r isSeqOf something
-(define-builtin (seqRest info r)
-  (-/info info 
-    (join/info info succ r)
-    (->/info info (int -1) univ)))
-
-(define-builtin (indsOf info r e)
-  (join/info info r e))
-
-(define-builtin (idxOf info r e)
-  (min (join/info info r e)))
-
-(define-builtin (lastIdxOf info r e)
-  (max (join/info info r e)))
-
-(define-builtin (elems info r)
-  (join/info info Int r))
-
-(define-builtin (inds info r)
-  (join/info info r univ))
-
-(define-builtin (isEmpty info r)
-  (no/func r #:info info))
-
-(define-builtin (hasDups info r)
-  (some ([e (elems/func info r)])
-    (some ([num1 (indsOf/func info r e)] [num2 (indsOf/func info r e)])
-      (!= num1 num2))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;; Reachability Library  ;;;;;;;;
@@ -1332,7 +1208,7 @@
  #:multi
  [("-o" "--option") OPTION-NAME OPTION-VALUE
                     "Option set"
-                    (begin 
+                    (begin
                       (printf "Setting ~a = ~a~n" (string->symbol OPTION-NAME) OPTION-VALUE)
                       (set-option! (string->symbol OPTION-NAME)
                                    (string->option-type OPTION-NAME OPTION-VALUE)))]
@@ -1345,6 +1221,9 @@
                                      (string->option-type OPTION-NAME OPTION-VALUE))
                         ; Don't allow the Forge file to reset this option.
                         (set-box! option-overrides (cons (string->symbol OPTION-NAME) (unbox option-overrides))))]
+ [("-L" "--logfile") LOGFILE-PATH
+                     "Log filename"
+                     (setup-logfile! LOGFILE-PATH)]
  [("-N" "--notests")
   "Disable tests for this model execution (NOT YET SUPPORTED)"
   (begin

@@ -44,11 +44,13 @@
          make-check
          test-from-state
          make-test
-         display)
+         display
+         state-set-option)
 (provide Int succ)
 (provide (prefix-out forge: make-model-generator))
 (provide solution-diff)
-(provide reset-run-name-history! stop-solver-process!)
+(provide ;reset-run-name-history! 
+         stop-solver-process!)
 
 ; ; Instance analysis functions
 ; (provide is-sat? is-unsat?)
@@ -70,7 +72,6 @@
          (prefix-out forge: (struct-out Range))
          (prefix-out forge: (struct-out Scope))
          (prefix-out forge: (struct-out Bound))
-         (prefix-out forge: (struct-out Options))
          (prefix-out forge: (struct-out State))
          (prefix-out forge: (struct-out Run-spec))
          (prefix-out forge: (struct-out Run))         
@@ -309,23 +310,23 @@
     ; no rel, one rel, two rel, lone rel
     [(node/formula/multiplicity info mult rel)
      ; is it safe to use the info from above here?
-     (let ([rel-card (node/int/op/card info (list rel))])
+     (let ([rel-card (node/int/op-on-exprs/card info (list rel))])
        (do-bind
         (match mult
-          ['no (node/formula/op/= info (list rel none))]
-          ['one (node/formula/op/int= info (list rel-card 1))]
-          ['two (node/formula/op/int= info (list rel-card 2))]
+          ['no (node/formula/op-on-exprs/= info (list rel none))]
+          ['one (node/formula/op-on-ints/int= info (list rel-card 1))]
+          ['two (node/formula/op-on-ints/int= info (list rel-card 2))]
           ['lone
-           (node/formula/op/|| info
-                                   (list (node/formula/op/int< info (list rel-card 1))
-                                         (node/formula/op/int= info (list rel-card 1))))])
+           (node/formula/op-on-formulas/|| info
+                                   (list (node/formula/op-on-ints/int< info (list rel-card 1))
+                                         (node/formula/op-on-ints/int= info (list rel-card 1))))])
         scope
         bound))]
     
     ; (= (card rel) n)
-    [(node/formula/op/int= eq-info (list left right))
+    [(node/formula/op-on-ints/int= eq-info (list left right))
      (match left
-       [(node/int/op/card c-info (list left-rel))
+       [(node/int/op-on-exprs/card c-info (list left-rel))
         (let* ([exact (safe-fast-eval-int-expr right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (if (equal? (relation-name left-rel) "Int")
                               (update-bitwidth scope exact)
@@ -334,26 +335,26 @@
        [_ (fail "int=")])]
 
     ; (<= (card rel) upper)
-    [(node/formula/op/|| or-info
-                             (list (node/formula/op/int< lt-info (list lt-left lt-right))
-                                   (node/formula/op/int= eq-info (list eq-left eq-right))))
+    [(node/formula/op-on-formulas/|| or-info
+                             (list (node/formula/op-on-ints/int< lt-info (list lt-left lt-right))
+                                   (node/formula/op-on-ints/int= eq-info (list eq-left eq-right))))
      (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail "int<="))
      (match lt-left
-       [(node/int/op/card c-info (list left-rel))
+       [(node/int/op-on-exprs/card c-info (list left-rel))
         (let* ([upper-val (safe-fast-eval-int-expr lt-right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (update-int-bound scope left-rel (Range 0 upper-val))])
           (values new-scope bound))]
        [_ (fail "int<=")])]
 
     ; (<= lower (card-rel))
-    [(node/formula/op/|| or-info
-                             (list (node/formula/op/int< lt-info (list lt-left lt-right))
-                                   (node/formula/op/int= eq-info (list eq-left eq-right))))
+    [(node/formula/op-on-formulas/|| or-info
+                             (list (node/formula/op-on-ints/int< lt-info (list lt-left lt-right))
+                                   (node/formula/op-on-ints/int= eq-info (list eq-left eq-right))))
      (unless (and (equal? lt-left eq-left) (equal? lt-right eq-right))
        (fail "int>="))
      (match lt-right
-       [(node/int/op/card c-info (list right-rel))
+       [(node/int/op-on-exprs/card c-info (list right-rel))
         (let* ([lower-val (safe-fast-eval-int-expr lt-left (Bound-tbindings bound) SUFFICIENT-INT-BOUND)]
                [new-scope (update-int-bound scope right-rel (Range lower-val 0))])
           (values new-scope bound))]
@@ -366,9 +367,9 @@
          [(node/breaking/break _ breaker) breaker]
          [_ (fail "is")]))
      (match left
-       [(? node/expr/relation?) (break left right)]
-       [(node/expr/op/~ info arity (list left-rel))
-        (break left-rel (get-co right))]
+       [(? node/expr/relation?) (break-rel left right)]
+       [(node/expr/op-on-exprs/~ info arity (list left-rel))
+        (break-rel left-rel (get-co right))]
        [_ (fail "is")])
      (values scope bound)]
 
@@ -377,14 +378,14 @@
 
     ; rel = expr [absolute bound]
     ; (atom . rel) = expr  [partial bound, indexed by atom]
-    [(node/formula/op/= info (list left right))
-     (inst-check bind node/formula/op/=) 
+    [(node/formula/op-on-exprs/= info (list left right))
+     (inst-check bind node/formula/op-on-exprs/=) 
      (cond [(node/expr/relation? left)
             (let ([tups (safe-fast-eval-exp right (Bound-tbindings bound) SUFFICIENT-INT-BOUND)])
               (define new-scope scope)
               (define new-bound (update-bindings bound left tups tups #:node bind))
               (values new-scope new-bound))]
-           [(and (node/expr/op/join? left)
+           [(and (node/expr/op-on-exprs/join? left)
                  (list? (node/expr/op-children left))
                  (equal? 2 (length (node/expr/op-children left)))
                  (node/expr/atom? (first (node/expr/op-children left)))
@@ -401,8 +402,8 @@
     ; expr in rel
     ; (atom . rel) in/ni expr  [partial bound, indexed by atom]
     ; note: "ni" is handled by desugaring to "in" with reversed arguments.
-    [(node/formula/op/in info (list left right))
-     (inst-check bind node/formula/op/in)
+    [(node/formula/op-on-exprs/in info (list left right))
+     (inst-check bind node/formula/op-on-exprs/in)
      (cond
        ; rel in expr
        [(node/expr/relation? left)
@@ -410,7 +411,7 @@
           (define new-bound (update-bindings bound left (@set) tups #:node bind))
           (values scope new-bound))]
        ; atom.rel in expr
-       [(and (node/expr/op/join? left)
+       [(and (node/expr/op-on-exprs/join? left)
              (list? (node/expr/op-children left))
              (equal? 2 (length (node/expr/op-children left)))
              (node/expr/atom? (first (node/expr/op-children left)))
@@ -426,7 +427,7 @@
           (define new-bound (update-bindings bound right tups #:node bind))
           (values scope new-bound))]
        ; atom.rel ni expr
-       [(and (node/expr/op/join? right)
+       [(and (node/expr/op-on-exprs/join? right)
              (list? (node/expr/op-children right))
              (equal? 2 (length (node/expr/op-children right)))
              (node/expr/atom? (first (node/expr/op-children right)))
@@ -450,6 +451,7 @@
     (define-values (new-scope new-bound) 
       (for/fold ([scope scope] [bound bound])
                 ([bind binds])
+        ;(printf "*** In inst-func do-bind ~a~n" bind)
         (do-bind bind scope bound)))
     (values new-scope new-bound)) 
 
@@ -481,7 +483,7 @@
   (->* () 
        (#:sigs (listof Sig?)
         #:relations (listof Relation?)
-        #:options (or/c Options? #f))
+        #:options (or/c (hash/c symbol? any/c) #f))
        State?)
   
   (define sigs-with-Int (append sigs-input (list Int)))
@@ -700,7 +702,7 @@
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
         #:relations (listof Relation?)
-        #:options (or/c Options? #f))
+        #:options (or/c (hash/c symbol? any/c) #f))
        Run?)
 
   (define state (make-state-for-run #:sigs sigs-input
@@ -768,7 +770,7 @@
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
         #:relations (listof Relation?)
-        #:options (or/c Options? #f))
+        #:options (or/c (hash/c symbol? any/c) #f))
        Run?)
   (let ([state (make-state-for-run #:sigs sigs-input
                                    #:relations relations-input
@@ -860,8 +862,8 @@
         #:bounds (or/c Inst? (listof (or/c Inst? node/formula)))
         #:target (or/c Target? #f)
         #:sigs (listof Sig?)
-        #:relations (listof Relation?)
-        #:options (or/c Options? #f))
+        #:relations (listof Relation?)   
+        #:options (or/c (hash/c symbol? any/c) #f))
        void?)
   (let ([state (make-state-for-run #:sigs sigs-input
                                    #:relations relations-input
@@ -1067,62 +1069,53 @@
 
 ; state-set-option :: State, Symbol, Symbol -> State
 ; Sets option to value for state.
-(define (state-set-option state option value)
+(define/contract (state-set-option state option value #:original-path [original-path #f])
+  (->* (State? symbol? any/c) 
+       (#:original-path (or/c path-string? #f))
+       State?)
   (define options (State-options state))
 
+  (unless (hash-ref option-types option #f)
+    (raise-user-error (format "No such option: ~a" option)))
   (unless ((hash-ref option-types option) value)
     (raise-user-error (format "Setting option ~a requires ~a; received ~a"
-                              option (hash-ref option-types option) value)))
+                              option (hash-ref option-types-names option) value)))
 
-  (define new-options
+  (define (translate-single-path p)
+    (path->string (build-path original-path (string->path p))))
+  
+  (define/contract new-options (hash/c symbol? any/c)
     (cond
+      [(equal? option 'eval-language)
+       (unless (or (equal? value 'surface) (equal? value 'core))
+         (raise-user-error (format "Invalid evaluator language ~a; must be surface or core.~n"
+                                   value)))
+       (hash-set options option value)]
       [(equal? option 'solver)
-       (struct-copy Options options
-                    [solver value])]
-      [(equal? option 'backend)
-       (struct-copy Options options
-                    [backend value])]
-      [(equal? option 'sb)
-       (struct-copy Options options
-                    [sb value])]
-      [(equal? option 'coregranularity)
-       (struct-copy Options options
-                    [coregranularity value])]
-      [(equal? option 'logtranslation)
-       (struct-copy Options options
-                    [logtranslation value])]
-      [(equal? option 'local_necessity)
-       (struct-copy Options options
-                    [local_necessity value])]
+       (hash-set options 'solver (if (and (string? value) original-path)
+                             (path->string (build-path original-path (string->path value)))
+                             value))]
       [(equal? option 'min_tracelength)
        (let ([max-trace-length (get-option state 'max_tracelength)])
          (if (> value max-trace-length)
              (raise-user-error (format "Cannot set min_tracelength to ~a because min_tracelength cannot be greater than max_tracelength. Current max_tracelength is ~a."
                                        value max-trace-length))
-             (struct-copy Options options
-                          [min_tracelength value])))]
+             (hash-set options option value)))]
       [(equal? option 'max_tracelength)
        (let ([min-trace-length (get-option state 'min_tracelength)])
          (if (< value min-trace-length)
              (raise-user-error (format "Cannot set max_tracelength to ~a because max_tracelength cannot be less than min_tracelength. Current min_tracelength is ~a."
                                        value min-trace-length))
-             (struct-copy Options options
-                          [max_tracelength value])))]
-      [(equal? option 'problem_type)
-       (struct-copy Options options
-                    [problem_type value])]
-      [(equal? option 'target_mode)
-       (struct-copy Options options
-                    [target_mode value])]
-      [(equal? option 'core_minimization)
-       (struct-copy Options options
-                    [core_minimization value])]
-      [(equal? option 'skolem_depth)
-       (struct-copy Options options
-                    [skolem_depth value])]
+             (hash-set options option value)))]
       [(equal? option 'run_sterling)
-       (struct-copy Options options
-                    [run_sterling value])]))
+       (hash-set options 'run_sterling (cond
+                           [(and (string? value) original-path)
+                            (translate-single-path value)]
+                           [(and (list? value) original-path)
+                            (map translate-single-path value)]
+                           [else value]))]
+      [else 
+       (hash-set options option value)]))
 
   (struct-copy State state
                [options new-options]))
