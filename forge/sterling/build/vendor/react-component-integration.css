@@ -222,10 +222,6 @@
 .code-input {
   font-family: monospace;
 }
-.selector-input-container {
-  position: relative;
-  flex: 1;
-}
 .selector-input {
   font-family:
     ui-monospace,
@@ -240,66 +236,28 @@
   border: 1px solid #d0d7de;
   padding: 0.375rem 0.5rem;
   width: 100%;
-  position: relative;
-  z-index: 1;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  resize: vertical;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre;
+  line-height: 1.5;
+  field-sizing: content;
+}
+.selector-input:not([rows="1"]),
+.selector-input[style*=height] {
+  overflow-y: auto;
+  height: auto;
 }
 .selector-input:focus {
   outline: 2px solid #0969da;
   outline-offset: -1px;
   background-color: #ffffff;
 }
-.selector-highlight-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  font-family:
-    ui-monospace,
-    SFMono-Regular,
-    "SF Mono",
-    Menlo,
-    Consolas,
-    "Liberation Mono",
-    monospace;
-  font-size: 0.9rem;
-  padding: 0.375rem 0.5rem;
-  pointer-events: none;
-  white-space: pre;
-  overflow: hidden;
-  z-index: 0;
-  background-color: #f6f8fa;
-  border: 1px solid transparent;
-}
-.selector-highlight-overlay .selector-sig {
-  color: #8250df;
-  font-weight: 600;
-}
-.selector-highlight-overlay .selector-operator {
-  color: #cf222e;
-  font-weight: bold;
-}
-.selector-highlight-overlay .selector-field {
-  color: #0550ae;
-}
-.selector-highlight-overlay .selector-join {
-  color: #cf222e;
-  font-weight: bold;
-}
-.selector-highlight-overlay .selector-paren {
-  color: #57606a;
-  font-weight: bold;
-}
-.selector-highlight-overlay .selector-wildcard {
-  color: #bf8700;
-  font-weight: bold;
-}
-.selector-highlight-overlay .selector-keyword {
-  color: #cf222e;
-  font-weight: 600;
-}
-.selector-highlight-overlay .selector-atom {
-  color: #116329;
+.selector-input::-webkit-resizer {
+  background-color: #d0d7de;
+  border-radius: 2px;
 }
 .infolabel {
   cursor: help;

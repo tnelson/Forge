@@ -46,8 +46,8 @@ test.describe('Sterling Navigation', () => {
     // Verify instance history shows the first run
     await expect(page.getByText(/from: 'simpleRun'/)).toBeVisible({ timeout: 5000 });
 
-    // Now select and run second command
-    const runSelect = page.getByRole('combobox');
+    // Now select and run second command (first combobox is run selector)
+    const runSelect = page.getByRole('combobox').first();
     await runSelect.selectOption({ label: 'connectedRun' });
 
     const runButton = page.getByRole('button', { name: 'Run', exact: true });
@@ -65,7 +65,7 @@ test.describe('Sterling Navigation', () => {
     forge = await startForge('e2e/fixtures/simple-graph.frg');
     await page.goto(forge.sterlingUrl);
 
-    const runSelect = page.getByRole('combobox');
+    const runSelect = page.getByRole('combobox').first();
     await expect(runSelect).toBeVisible({ timeout: 10000 });
 
     // Get all options

@@ -16,8 +16,8 @@ import { Page, expect } from '@playwright/test';
  * Sterling requires selecting from dropdown AND clicking "Run" button.
  */
 export async function selectAndRunCommand(page: Page, runName: string): Promise<void> {
-  // Select from the combobox
-  const runSelect = page.getByRole('combobox');
+  // Select from the combobox (first one is the run selector, not the routing dropdown)
+  const runSelect = page.getByRole('combobox').first();
   await expect(runSelect).toBeVisible({ timeout: 10000 });
   await runSelect.selectOption({ label: runName });
 
