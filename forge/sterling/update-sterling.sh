@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DEFAULT_REPO="sidprasad/sterling-ts"
-DEFAULT_TAG="v2.1.3"
+DEFAULT_TAG="v2.1.4"
 DEFAULT_ASSET="sterling-forge.zip"
 
 usage() {
