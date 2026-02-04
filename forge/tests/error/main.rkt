@@ -145,7 +145,13 @@
     (list "consistency-error.frg" #rx"Failed test thisisatestname")
     (list "inconsistency-error.frg" #rx"Failed test inconsistent_assertion_for_q_")
     (list "properties_directed_tree_necessity_error.frg" #rx"tnecc failed.")
-    
+
+    ;;; Parameter name shadowing errors
+    (list "pred-param-shadows-field.frg" #rx"Parameter 'age' in predicate 'shadowsField' shadows an existing field")
+    (list "pred-param-shadows-sig.frg" #rx"Parameter 'Person' in predicate 'shadowsSig' shadows an existing sig")
+    (list "fun-param-shadows-field.frg" #rx"Parameter 'age' in function 'shadowsField' shadows an existing field")
+    (list "fun-param-shadows-sig.frg" #rx"Parameter 'Person' in function 'shadowsSig' shadows an existing sig")
+
     ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions
     (list "exp-on-rhs-assert.frg" #rx"parsing error")
     (list "exp-on-rhs-quantified-assert.frg" #rx"parsing error")

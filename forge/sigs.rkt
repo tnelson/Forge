@@ -373,6 +373,23 @@
 ; this parameter, make sure it is done in a normal function, not a macro.
 (define helpers-enclosing (make-parameter '()))
 
+; Check that parameter names don't shadow existing definitions.
+; Called at runtime (file load time) when pred/fun is being defined.
+(define (check-param-shadowing! param-names helper-kind helper-name context-info)
+  (for ([param-name param-names])
+    (define shadowed-kind
+      (cond
+        [(hash-has-key? (State-sigs curr-state) param-name) "sig"]
+        [(hash-has-key? (State-relations curr-state) param-name) "field"]
+        [(hash-has-key? (State-pred-map curr-state) param-name) "predicate"]
+        [(hash-has-key? (State-fun-map curr-state) param-name) "function"]
+        [else #f]))
+    (when shadowed-kind
+      (raise-forge-error
+       #:msg (format "Parameter '~a' in ~a '~a' shadows an existing ~a with the same name."
+                     param-name helper-kind helper-name shadowed-kind)
+       #:context context-info))))
+
 ; Declare a new predicate
 ; Two cases: one with args, and one with no args
 (define-syntax (pred stx)
@@ -420,6 +437,9 @@
          (with-syntax ([functionname (format-id #'name "~a/func" #'name)])
            (quasisyntax/loc stx
              (begin
+               ; Check for parameter name shadowing
+               (check-param-shadowing! '(decls.name ...) "predicate" 'name decl-info)
+
                ; - Use a macro in order to capture the location of the _use_.
                (define-syntax (name stx2)
                  (syntax-parse stx2
@@ -478,6 +498,9 @@
                      [inner-unsyntax #'unsyntax])
          (quasisyntax/loc stx
            (begin
+             ; Check for parameter name shadowing
+             (check-param-shadowing! '(decls.name ...) "function" 'name decl-info)
+
              ; - create a macro that captures the syntax location of the _use_
              (define-syntax (name stx2)
                (syntax-parse stx2
