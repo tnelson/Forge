@@ -149,8 +149,12 @@
     ;;; Parameter name shadowing errors
     (list "pred-param-shadows-field.frg" #rx"Parameter 'age' in predicate 'shadowsField' shadows an existing field")
     (list "pred-param-shadows-sig.frg" #rx"Parameter 'Person' in predicate 'shadowsSig' shadows an existing sig")
+    (list "pred-param-shadows-pred.frg" #rx"Parameter 'helper' in predicate 'shadowsPred' shadows an existing predicate")
+    (list "pred-param-shadows-fun.frg" #rx"Parameter 'getP' in predicate 'shadowsFun' shadows an existing function")
     (list "fun-param-shadows-field.frg" #rx"Parameter 'age' in function 'shadowsField' shadows an existing field")
     (list "fun-param-shadows-sig.frg" #rx"Parameter 'Person' in function 'shadowsSig' shadows an existing sig")
+    (list "fun-param-shadows-pred.frg" #rx"Parameter 'helper' in function 'shadowsPred' shadows an existing predicate")
+    (list "fun-param-shadows-fun.frg" #rx"Parameter 'getP' in function 'shadowsFun' shadows an existing function")
 
     ;;; And these tests ensure that you cannot have arbitrary expressions on the RHS of assertions
     (list "exp-on-rhs-assert.frg" #rx"parsing error")
