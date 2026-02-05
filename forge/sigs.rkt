@@ -385,7 +385,7 @@
         [(hash-has-key? (State-fun-map curr-state) param-name) "function"]
         [else #f]))
     (when shadowed-kind
-      (raise-forge-error
+      (raise-forge-warning
        #:msg (format "Parameter '~a' in ~a '~a' shadows an existing ~a with the same name."
                      param-name helper-kind helper-name shadowed-kind)
        #:context context-info))))
