@@ -1348,9 +1348,12 @@
       "unknown:?:?"))
 
 (define (raise-forge-error #:msg [msg "error"] #:context [context #f] #:raise? [raise? #t])
-  (if raise? 
+  (if raise?
       (raise-user-error (format "[~a] ~a" (pretty-loc context) msg))
       (fprintf (current-error-port) "[~a] ~a" (pretty-loc context) msg)))
+
+(define (raise-forge-warning #:msg [msg "warning"] #:context [context #f])
+  (fprintf (current-error-port) "Warning: [~a] ~a~n" (pretty-loc context) msg))
 
 ; Helper for other locations we might need to generate a nodeinfo struct from a variety
 ; of datatype possibilities.

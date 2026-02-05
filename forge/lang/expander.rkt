@@ -20,7 +20,7 @@
                      (only-in pkg/lib pkg-directory)
                      (only-in racket/path file-name-from-path find-relative-path normalize-path)
                      (only-in racket/string string-replace string-join)
-                     (only-in forge/lang/ast raise-forge-error))
+                     (only-in forge/lang/ast raise-forge-error raise-forge-warning))
          syntax/srcloc
          racket/string
          (only-in syntax/modresolve resolve-module-path)
@@ -1246,10 +1246,11 @@
 (define-for-syntax (ensure-target-ref target-pred ex)
   (define tp (syntax-e target-pred))
   (let ([ex-as-datum (syntax->datum ex)])
-    (unless 
+    (unless
       (memq tp (flatten ex-as-datum))
-      (eprintf  "Warning: ~a ~a:~a Test does not reference ~a.\n" 
-        (syntax-source ex) (syntax-line ex) (syntax-column ex)  tp))))
+      (raise-forge-warning
+       #:msg (format "Test does not reference ~a." tp)
+       #:context ex))))
 
 
 (define-syntax (NT-TestSuiteDecl stx)

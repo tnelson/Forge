@@ -373,6 +373,23 @@
 ; this parameter, make sure it is done in a normal function, not a macro.
 (define helpers-enclosing (make-parameter '()))
 
+; Check that parameter names don't shadow existing definitions.
+; Called at runtime (file load time) when pred/fun is being defined.
+(define (check-param-shadowing! param-names helper-kind helper-name context-info)
+  (for ([param-name param-names])
+    (define shadowed-kind
+      (cond
+        [(hash-has-key? (State-sigs curr-state) param-name) "sig"]
+        [(hash-has-key? (State-relations curr-state) param-name) "field"]
+        [(hash-has-key? (State-pred-map curr-state) param-name) "predicate"]
+        [(hash-has-key? (State-fun-map curr-state) param-name) "function"]
+        [else #f]))
+    (when shadowed-kind
+      (raise-forge-warning
+       #:msg (format "Parameter '~a' in ~a '~a' shadows an existing ~a with the same name."
+                     param-name helper-kind helper-name shadowed-kind)
+       #:context context-info))))
+
 ; Declare a new predicate
 ; Two cases: one with args, and one with no args
 (define-syntax (pred stx)
@@ -420,6 +437,9 @@
          (with-syntax ([functionname (format-id #'name "~a/func" #'name)])
            (quasisyntax/loc stx
              (begin
+               ; Check for parameter name shadowing
+               (check-param-shadowing! '(decls.name ...) "predicate" 'name decl-info)
+
                ; - Use a macro in order to capture the location of the _use_.
                (define-syntax (name stx2)
                  (syntax-parse stx2
@@ -478,6 +498,9 @@
                      [inner-unsyntax #'unsyntax])
          (quasisyntax/loc stx
            (begin
+             ; Check for parameter name shadowing
+             (check-param-shadowing! '(decls.name ...) "function" 'name decl-info)
+
              ; - create a macro that captures the syntax location of the _use_
              (define-syntax (name stx2)
                (syntax-parse stx2
@@ -663,18 +686,20 @@
        (cond
            ; TODO: isn't this known at expansion time? We'll have the value of <expected>.
           [(equal? 'expected 'forge_error)
-           ; Expecting an error. If we receive one, do nothing. 
+           ; Expecting an error. If we receive one, do nothing.
            ; Otherwise, continue to report the error and then close the run.
            ; (N.B., this assumes the run isn't actually created or sent to the solver.)
            (define run-reference #f)
-           
-           ; `is forge_error` should be satisfied by an error produced via raise-forge-error. These 
-           ; are exn:fail:user values. Other Racket errors, such as arity errors, use a different 
-           ; error value type, and so would not be considered valid for `is forge_error` testing. 
+           (define handler-failed #f)
+
+           ; `is forge_error` should be satisfied by an error produced via raise-forge-error. These
+           ; are exn:fail:user values. Other Racket errors, such as arity errors, use a different
+           ; error value type, and so would not be considered valid for `is forge_error` testing.
            (with-handlers ([exn:fail:user?
-                            (lambda (e) 
+                            (lambda (e)
                               (unless (or (not expected-details)
                                           (regexp-match (regexp expected-details) (exn-message e)))
+                                (set! handler-failed #t)
                                 (report-test-failure
                                  #:name 'name
                                  #:msg (format "Failed test ~a. Forge error was produced with unexpected message. Expected match: ~a. Actual message: ~a."
@@ -686,6 +711,7 @@
              ; Cannot throw the new "failed test" Forge error here, or it will be caught and ignored
              (set! run-reference name)
              (close-run name))
+
            ; Instead, wait and throw it here (note this will only happen if _NO_ user-error was
            ; produced by the run, and thus a run-reference is present.
            (when run-reference
@@ -695,9 +721,12 @@
               #:context loc
               #:run run-reference
               #:sterling #f))
-           (when (member 'name (hash-keys (State-runmap curr-state)))
-             (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))
-           (report-passing-test #:name 'name)]
+
+           ; Only report passing if error was caught/matched as expected
+           (unless (or run-reference handler-failed)
+             (when (member 'name (hash-keys (State-runmap curr-state)))
+               (printf "Warning: successful `is forge_error` test run left in state environment: ~a.~n" 'name))
+             (report-passing-test #:name 'name))]
 
           ; It may not be immediately obvious why we would ever test for unknown,
           ; but it seems reasonable to support it in the engine, regardless.
