@@ -674,19 +674,19 @@ Returns whether the given run resulted in sat or unsat, respectively.
 ; get-stdin :: Run -> input-port?
 (: get-stdin (-> Run Output-Port))
 (define (get-stdin run)
-  (assert-is-running run)
+  (assert-solver-process-alive run)
   (Server-ports-stdin (Run-server-ports run)))
 
 ; get-stdout :: Run -> output-port?
 (: get-stdout (-> Run Input-Port))
 (define (get-stdout run)
-  (assert-is-running run)
+  (assert-solver-process-alive run)
   (Server-ports-stdout (Run-server-ports run)))
 
 ; get-stderr :: Run -> output-port?
 (: get-stderr (-> Run Input-Port))
 (define (get-stderr run)
-  (assert-is-running run)
+  (assert-solver-process-alive run)
   (Server-ports-stderr (Run-server-ports run)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -710,39 +710,41 @@ Returns whether the given run resulted in sat or unsat, respectively.
           (member name-or-run (unbox closed-run-names))])))
 
 ; close-run :: Run -> void
+; Idempotent: safe to call multiple times on the same run.
 (: close-run (-> Run Void))
 (define (close-run run)
-  (assert-is-running run)
-  (when (>= (get-verbosity) VERBOSITY_HIGH)
-        (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))
-  ; Cut off this Run's ability to query the solver, since it's about to be closed
-  ; This state is referenced in the instance-generator thunk
-  (add-closed-run-name! (Run-name run))
+  (unless (is-run-closed? run)
+    (assert-solver-process-alive run)
+    (when (>= (get-verbosity) VERBOSITY_HIGH)
+          (printf "Clearing run ~a. Keeping engine process active...~n" (Run-name run)))
+    ; Cut off this Run's ability to query the solver, since it's about to be closed
+    ; This state is referenced in the instance-generator thunk
+    (add-closed-run-name! (Run-name run))
 
-  ; Since we're using a single process now, send it instructions to clear this run
-  ; Different backends will be cleared in different ways.
-  (define backend (get-option (Run-run-spec run) 'backend))
-  (match backend
-    ['pardinus
-     (parameterize ([pardinus-port (get-stdin run)])
-       (pardinus-clear (Run-name run))
-       (flush-output (get-stdin run)))]
-    ['smtlibtor
-     (cvc5-smtlib-display (get-stdin run) "(reset)")]
-    [else
-     (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
-                        #:context #f)]))
+    ; Since we're using a single process now, send it instructions to clear this run
+    ; Different backends will be cleared in different ways.
+    (define backend (get-option (Run-run-spec run) 'backend))
+    (match backend
+      ['pardinus
+       (parameterize ([pardinus-port (get-stdin run)])
+         (pardinus-clear (Run-name run))
+         (flush-output (get-stdin run)))]
+      ['smtlibtor
+       (cvc5-smtlib-display (get-stdin run) "(reset)")]
+      [else
+       (raise-forge-error #:msg (format "Unsupported backend when closing solver run: ~a" backend)
+                          #:context #f)])))
 
-; is-running :: Run -> Boolean
-; This reports whether the _solver server_ is running;
-; *NOT* whether an individual run is still open.
-(: is-running? (-> Run Boolean))
-(define (is-running? run)
+; is-solver-process-alive? :: Run -> Boolean
+; This reports whether the _solver server process_ is running;
+; *NOT* whether an individual run is still open (use is-run-closed? for that).
+(: is-solver-process-alive? (-> Run Boolean))
+(define (is-solver-process-alive? run)
   ((Server-ports-is-running? (Run-server-ports run))))
 
-(: assert-is-running (-> Run Void))
-(define (assert-is-running run)
-  (unless (is-running? run)
+(: assert-solver-process-alive (-> Run Void))
+(define (assert-solver-process-alive run)
+  (unless (is-solver-process-alive? run)
     (raise-user-error "Solver process is not running.")))
 
 (require (for-syntax syntax/srcloc)) ; for these macros

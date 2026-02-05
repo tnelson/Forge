@@ -442,11 +442,11 @@
                   #:context context)]))
          (define xml (get-xml inst))
          
-         ; is-running? is about the _solver process itself_.
+         ; is-solver-process-alive? is about the _solver process itself_.
          ; is-run-closed? is about whether this specific run has been terminated
          ; Sat? is about whether the solution we have is Sat.
          (define response (make-sterling-data xml datum-id name temporal?
-                                              (and (is-running? the-run) (not (is-run-closed? the-run)) inst)
+                                              (and (is-solver-process-alive? the-run) (not (is-run-closed? the-run)) inst)
                                               old-datum-id))
         (send-to-sterling response #:connection connection)]
        [else
