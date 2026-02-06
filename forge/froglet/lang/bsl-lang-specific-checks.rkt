@@ -163,7 +163,7 @@
     (define rhs-type (second child-types))
     (define args (node/expr/op-children expr-node))
     (unless (member (expression-type-multiplicity lhs-type) '(one lone))
-      (raise-bsl-error (format "\"~a\" was not an object, so could not access its fields." (deparse (first args))) expr-node))
+      (raise-bsl-error (format "\"~a\" was not a singleton atom, so could not access its fields." (deparse (first args))) expr-node))
     (unless (member (expression-type-multiplicity rhs-type) '(pfunc func))
       (raise-bsl-error (format "\"~a\" was not usable as a field." (deparse (second args))) expr-node))))
 
@@ -244,17 +244,31 @@
 ;     is useful for assigning syntax locations in errors given). 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; motivation: if student use join on relations and get arity error, that could be confusing
-#;(define (check-node-expr-op-join-args expr-args)
-  ;(printf "checking join: ~a~n" expr-args)
-  (define left-hand-side (first expr-args))
-  (define loc (nodeinfo-loc (node-info left-hand-side)))
-  (define locstr (format "line ~a, col ~a, span: ~a" (source-location-line loc) (source-location-column loc) (source-location-span loc)))
-  (unless (or (node/expr/quantifier-var? left-hand-side)
-          (and (node/expr/relation? left-hand-side) (equal? 1 (node/expr-arity left-hand-side)) (Sig-one left-hand-side)))
-    (raise-user-error (format "Left hand side to field access at ~a must be an object at loc: ~a" expr-args locstr))))
-
-  ;NOTE: make better error message 
+(define (check-args-node-expr-op-join expr-args info)
+  (when (eq? (nodeinfo-lang info) LANG_ID)
+    (define lhs (first expr-args))
+    (define rhs (second expr-args))
+    ;; Skip all checks if LHS is an atom - atoms only appear in bounds/inst contexts,
+    ;; where these Froglet restrictions don't apply.
+    (unless (node/expr/atom? lhs)
+      ;; Check if RHS is a sig (not a field). If so, give a Froglet-friendly error.
+      (when (and (node/expr/relation? rhs)
+                 (Sig? rhs))
+        (raise-forge-error
+         #:msg (format "\"~a\" is not a field, so you cannot access \"~a.~a\"."
+                       (deparse rhs) (deparse lhs) (deparse rhs))
+         #:context info))
+      ;; Check if LHS is not a singleton (not a quantifier var, not a one-sig, not a join).
+      ;; Join expressions are allowed because they represent chained field access that has
+      ;; already been validated (e.g., Tim.father.grad where Tim.father was already checked).
+      (unless (or (node/expr/quantifier-var? lhs)
+                  (node/expr/op-on-exprs/join? lhs)
+                  (and (node/expr/relation? lhs)
+                       (equal? 1 (node/expr-arity lhs))))
+        (raise-forge-error
+         #:msg (format "\"~a\" was not a singleton atom, so could not access its fields."
+                       (deparse lhs))
+         #:context info))))) 
 
 (define (check-args-node-expr-op--> expr-args info)
   (when (eq? (nodeinfo-lang info) LANG_ID)
@@ -325,6 +339,7 @@
 (hash-set! bsl-ast-checker-hash node/expr/op-on-exprs/- check-args-node-expr-op--)
 (hash-set! bsl-ast-checker-hash node/expr/op-on-exprs/& check-args-node-expr-op-&)
 (hash-set! bsl-ast-checker-hash node/expr/op-on-exprs/^ check-args-node-expr-op-^)
+(hash-set! bsl-ast-checker-hash node/expr/op-on-exprs/join check-args-node-expr-op-join)
 (hash-set! bsl-ast-checker-hash node/expr/op-on-exprs/* check-args-node-expr-op-*)
 (hash-set! bsl-ast-checker-hash node/expr/op-on-exprs/~ check-args-node-expr-op-~)
 

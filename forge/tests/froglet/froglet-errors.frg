@@ -33,7 +33,7 @@ test expect {
   uni2lone: {lone father} is forge_error
   uni3: {some father.Tim} is forge_error
   uni4: {some p: Person | reachable[p, father.Tim, father, mother]} is forge_error
-  uni5: {some Tim.Tim} is forge_error
+  uni5: {some Tim.Tim} is forge_error "is not a field"
   
   reach2: {all n: Node | reachable[next, n, next]} is forge_error "not a singleton"
 
