@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DEFAULT_REPO="sidprasad/sterling-ts"
-DEFAULT_TAG="v2.3.0"
+DEFAULT_TAG="latest"
 DEFAULT_ASSET="sterling-forge.zip"
 
 usage() {
@@ -14,6 +14,23 @@ Usage: ./update-sterling.sh [tag]
 Environment overrides:
   STERLING_REPO, STERLING_TAG, STERLING_ASSET, STERLING_URL
 USAGE
+}
+
+get_latest_tag() {
+  local repo_name="$1"
+  local api_url="https://api.github.com/repos/${repo_name}/releases/latest"
+  local response=""
+
+  if command -v curl >/dev/null 2>&1; then
+    response="$(curl -fsSL "$api_url")"
+  elif command -v wget >/dev/null 2>&1; then
+    response="$(wget -qO- "$api_url")"
+  else
+    echo "Missing required tool: curl or wget" >&2
+    exit 1
+  fi
+
+  echo "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
 }
 
 repo="${STERLING_REPO:-$DEFAULT_REPO}"
@@ -64,11 +81,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$url" ]]; then
-  if [[ -z "$tag" || -z "$repo" || -z "$asset" ]]; then
-    echo "Missing tag/repo/asset values." >&2
+  if [[ -z "$repo" || -z "$asset" ]]; then
+    echo "Missing repo/asset values." >&2
     usage
     exit 1
   fi
+
+  if [[ -z "$tag" || "$tag" == "latest" ]]; then
+    tag="$(get_latest_tag "$repo")"
+    if [[ -z "$tag" ]]; then
+      echo "Unable to resolve latest release tag." >&2
+      exit 1
+    fi
+  fi
+
   url="https://github.com/${repo}/releases/download/${tag}/${asset}"
 fi
 
