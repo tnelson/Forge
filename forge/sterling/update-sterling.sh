@@ -5,6 +5,8 @@ DEFAULT_REPO="sidprasad/sterling-ts"
 DEFAULT_TAG="latest"
 DEFAULT_ASSET="sterling-forge.zip"
 
+
+
 usage() {
   cat <<'USAGE'
 Usage: ./update-sterling.sh [tag]
