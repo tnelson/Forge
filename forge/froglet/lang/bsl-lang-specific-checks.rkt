@@ -263,6 +263,7 @@
       ;; already been validated (e.g., Tim.father.grad where Tim.father was already checked).
       (unless (or (node/expr/quantifier-var? lhs)
                   (node/expr/op-on-exprs/join? lhs)
+                  (node/expr/op-on-ints/sing? lhs)
                   (and (node/expr/relation? lhs)
                        (equal? 1 (node/expr-arity lhs))))
         (raise-forge-error

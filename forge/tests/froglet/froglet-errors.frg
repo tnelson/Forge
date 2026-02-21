@@ -84,7 +84,7 @@ test expect {
   /////////////////////////////////////////////////////////////////////////////
 
   box_join_bare_relation: {some n: Node | next[Node] = n} is forge_error "not a singleton"
-  // box_join_sig_as_field: {some p: Person | Tim[p] = p} is forge_error "is not a field"  // gets "arity 0" error
+  box_join_sig_as_field: {some p: Person | Tim[p] = p} is forge_error "is not a field"
 
   /////////////////////////////////////////////////////////////////////////////
   // Bare relation equality (comparing relations, not singletons)

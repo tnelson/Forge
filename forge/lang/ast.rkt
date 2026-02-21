@@ -244,7 +244,8 @@
          (define loc1 (nodeinfo-loc (node-info sofar)))
          (define loc2 (nodeinfo-loc (node-info (first todo))))
          (build-box-join (join/info
-                          (nodeinfo (build-source-location loc1 loc2) 'checklangplaceholder #f)
+                          (nodeinfo (build-source-location loc1 loc2)
+                                    (nodeinfo-lang (node-info sofar)) #f)
                                     (first todo) sofar)
                           (rest todo))]))
 
