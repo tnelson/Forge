@@ -141,8 +141,8 @@
 
   (print-version-number)
 
-  ; Set up breakers on each relation. These may arise from declaration multiplicities like "lone" 
-  ; or from partial-instance annotations like "is linear". 
+  ; Set up breakers on each relation. These may arise from declaration multiplicities like "lone"
+  ; or from partial-instance annotations like "is linear".
   ; TODO TYPES: really? what about relations declared pfunc / is linear together?
   ; ** THIS MUST BE DONE BEFORE COMPUTING BOUNDS! **
   (for ([relation (get-relations run-spec)])
@@ -152,9 +152,11 @@
       (when the-breaker
         (break-rel relation the-breaker)))
 
-  ; Produce bounds from scopes
+  ; Produce bounds from scopes.
+  ; On error, clear breaker state so it doesn't leak into the next run.
   (define-values (sig-to-bound relation-to-bound all-atoms)
-    (get-bounds run-spec run-command))
+    (with-handlers ([exn:fail? (lambda ([e : exn:fail]) (clear-breaker-state) (raise e))])
+    (get-bounds run-spec run-command)))
   
   ; Get new bounds and constraints from breaks
   (: total-bounds (Listof bound))
@@ -188,7 +190,6 @@
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
   
   ;(printf "after-- total-bounds : ~a~n" total-bounds)
-  ; Because the breaker module is stateful, we need to clear out that state for the next run.
   (clear-breaker-state)
 
   (define sigs-and-rels
