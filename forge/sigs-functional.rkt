@@ -1027,19 +1027,18 @@
             rel (if lower (set-count (list->set lower)) #f) 
                 (if upper (set-count (list->set upper)) #f)))
 
-  ; In case of error, highlight an AST node if able.
-  (define (raise-error message node)
-        (raise-syntax-error #f message
-                            (datum->syntax #f (build-source-location-syntax (nodeinfo-loc (node-info node))))))
-  
   (unless lower
-    (raise (error (format "Error: update-bindings for ~a expected a lower bound, got #f." rel))))  
+    (raise-forge-error
+      #:msg (format "Internal error: update-bindings for ~a expected a lower bound, got #f." rel)
+      ;; Use the current bind node, not get-blame-node, which returns
+      ;; the *previous* binding (the new one hasn't been stored yet).
+      #:context (or node (get-blame-node bound rel))))
   (set! lower (list->set lower))
   (when upper (set! upper (list->set upper)))
-  
+
   (define old-pbindings (Bound-pbindings bound))
-  (define old-tbindings (Bound-tbindings bound))  
-  
+  (define old-tbindings (Bound-tbindings bound))
+
   ; New bindings can only strengthen old ones
   (when (hash-has-key? old-pbindings rel)
     (let ([old (hash-ref old-pbindings rel)])
@@ -1047,11 +1046,14 @@
       (set! upper (cond [(and upper (sbound-upper old))
                          (set-intersect upper (sbound-upper old))]
                         [else (or upper (sbound-upper old))]))))
-  
+
   (unless (or (not upper) (subset? lower upper))
-    (raise-error (format "Bound conflict: upper bound on sig or field ~a was not a superset of lower bound. Lower=~a; Upper=~a." 
-                             rel lower upper)
-                     (get-blame-node bound rel)))
+    (raise-forge-error
+      #:msg (format "Bound conflict for ~a: lower bound includes ~a, but upper bound only allows ~a."
+                    (relation-name rel) (format-tuple-set lower) (format-tuple-set upper))
+      ;; Use the current bind node, not get-blame-node, which returns
+      ;; the *previous* binding (the new one hasn't been stored yet).
+      #:context (or node (get-blame-node bound rel))))
   
   (define new-pbindings
     (hash-set old-pbindings rel (sbound rel lower upper)))

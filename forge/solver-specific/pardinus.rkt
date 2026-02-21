@@ -82,8 +82,10 @@
       (for/list ([tup atom-names])
         (for/list ([atom tup])
           (unless (member atom all-atoms)
-            (raise (format "atom (~a) not in all-atoms (~a)"
-                           atom all-atoms)))
+            (raise-forge-error
+              #:msg (format "Atom `~a in bounds for ~a is not a member of any sig. Ensure all atoms in field or relation bounds are also declared in a sig bound. (all-atoms: ~a)"
+                            atom (relation-name rel) all-atoms)
+              #:context rel))
           (index-of all-atoms atom))))
     (define ret (to-tupleset (relation-arity rel) atoms))
     ret)

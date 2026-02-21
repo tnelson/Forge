@@ -111,12 +111,21 @@
                 (list->set (bound-upper bound))))
 
 (: sbound->bound (-> sbound bound))
-(define (sbound->bound sbound) 
-    (if (node/expr/relation? (sbound-relation sbound))
-        (make-bound (sbound-relation sbound)
-                (set->list (sbound-lower sbound))
-                (set->list (sbound-upper sbound)))
-        (raise (format "Internal error: sbound->bound called on non-relation. sbound=~a" sbound))))
+(define (sbound->bound sbound)
+    (cond
+      [(not (node/expr/relation? (sbound-relation sbound)))
+       (raise-forge-error
+         #:msg (format "Internal error: sbound->bound called on non-relation. sbound=~a" sbound)
+         #:context #f)]
+      [(not (sbound-upper sbound))
+       (raise-forge-error
+         #:msg (format "No upper bound for ~a. Cannot convert to solver bound."
+                       (relation-name (sbound-relation sbound)))
+         #:context (sbound-relation sbound))]
+      [else
+       (make-bound (sbound-relation sbound)
+                   (set->list (sbound-lower sbound))
+                   (set->list (sbound-upper sbound)))]))
 
 (: bound->break (-> bound break))                
 (define (bound->break bound) (break (bound->sbound bound) (set)))
@@ -330,7 +339,13 @@
                   (begin
                     (define rel (sbound-relation b))
                     (if (equal? 'Sig (object-name rel))
-                        (cons! new-total-bounds (sbound->bound b))
+                        ;; ni-only bounds have #f upper; use scope-resolved upper from total-bounds
+                        (if (sbound-upper b)
+                            (cons! new-total-bounds (sbound->bound b))
+                            (cons! new-total-bounds
+                                   (make-bound rel-inst
+                                               (set->list (sbound-lower b))
+                                               (bound-upper bound))))
                         (cons! new-total-bounds bound))
                     (set-add! defined-relations rel)
                     (define typelist ((node/expr/relation-typelist-thunk rel)))

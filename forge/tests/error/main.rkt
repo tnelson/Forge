@@ -128,7 +128,7 @@
 
     (list "example_electrum.frg" #rx"example foo: .* temporal")
     (list "example_impossible.frg" #rx"Invalid example 'onlyBabies'")
-    (list "excluded-extender-value.frg" #rx"not a subset")
+    (list "excluded-extender-value.frg" #rx"Bounds conflict for sig")
     (list "failed_sat.frg" #rx"Failed test")
     (list "failed_theorem.frg" #rx"failed.")
     (list "failed_sat.frg" #rx"Failed test")
@@ -169,7 +169,12 @@
     
     (list "ill_typed_inst_columns_reversed.frg" #rx"age")
     (list "inst-undefined-bound-child-one.frg" #rx"for an ancestor of")
-    (list "inst-lower-not-subset-upper.frg" #rx"was not a superset")
+    (list "inst-lower-not-subset-upper.frg" #rx"Bound conflict for")
+    (list "./loc/inst-bound-conflict.frg" #rx"inst-bound-conflict.frg:12:.*Bound conflict for")
+    ; ni-only bounds are valid (upper derived from scope); tested in bounds-errors.frg
+    (list "./loc/inst-bad-atom-inherit.frg" #rx"inst-bad-atom-inherit.frg:13:.*child sig Child.*Bounds conflict")
+    (list "./loc/inst-bad-atom-field.frg" #rx"inst-bad-atom-field.frg:13:.*not in bounds for sig")
+
     (list "invalid-example.frg" #rx"Invalid example 'onlyBabies'")
 
     (list "no-temporal-ltl.frg" #rx"use of LTL operator without temporal problem_type")
