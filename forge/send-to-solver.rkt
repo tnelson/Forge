@@ -839,8 +839,16 @@ Please declare a sufficient scope for ~a."
             [upper-bound-value
              ; complete upper bound exists; intersect with the cartesian product of universe
              ; restricted to the sig-sequence in relation's declaration
-             (set->list (set-intersect upper-bound-value
-                                       (list->set (apply cartesian-product sig-atoms))))]
+             (define sig-product (list->set (apply cartesian-product sig-atoms)))
+             (define dropped (set->list (set-subtract upper-bound-value sig-product)))
+             (unless (empty? dropped)
+               (define owner-sig (first sigs))
+               (define detail (bounds-error-detail dropped sigs sig-atoms pbindings))
+               (raise-run-error (format "For field ~a of ~a: ~a"
+                                        (Relation-name relation) (Sig-name owner-sig) detail)
+                                run-command
+                                (get-blame-node run-spec relation)))
+             (set->list (set-intersect upper-bound-value sig-product))]
             [else
              ; no upper-bound given, default to cartesian product of universe, restricted
              ; to the sig-sequence in relation's declaration

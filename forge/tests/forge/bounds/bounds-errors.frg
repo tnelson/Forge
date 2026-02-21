@@ -87,18 +87,15 @@ test expect niOnly {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// BUG: Silent acceptance of invalid atoms
-// Field 'in' bounds accept atoms not in sig without error.
-// Field 'ni' bounds correctly error for the same case → inconsistent.
+// Field 'in' bounds with atoms not in sig — should error (like 'ni' does)
 /////////////////////////////////////////////////////////////////////////////
 
--- Uncomment after fixing: should be forge_error but currently passes silently.
--- test expect silentBugs {
---   field_in_atom_not_in_sig: {some Node} for {
---     Node = `A + `B
---     edges in `A -> `Z
---   } is forge_error
--- }
+test expect fieldInValidation {
+  field_in_atom_not_in_sig: {some Node} for {
+    Node = `A + `B
+    edges in `A -> `Z
+  } is forge_error "not in bounds for sig"
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // Bad error messages: sigs-functional.rkt:1023
