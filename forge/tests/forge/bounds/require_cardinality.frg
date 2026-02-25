@@ -6,28 +6,9 @@ option run_sterling off
 sig Parent {}
 sig Child extends Parent {} 
 
-// Error. Hypothesis: we don't need cardinality here, after all. There's a surplus. 
-// But this is satisfiable in Alloy. It must be ignoring the Int parameter? Or else 
-// it's doing something smarter and the debug output isn't reflecting that.
-/*
-   Sig this/Parent scope <= 3
-      Sig this/Child scope <= 2
-      Sig this/Parent in [[Parent$0], [Parent$1], [Parent$2]]
-      Sig this/Child in [[Parent$0], [Parent$1], [Parent$2]] with size<=2
-
-    Modifying A4Solution.java:solve() with rep.debug(...);
-
-Bounds: 
-    this/Child: [[], [[Parent$0], [Parent$1], [Parent$2]]] 
-    this/Parent_remainder: [[], [[Parent$0], [Parent$1], [Parent$2]]] 
-
-Formulas:
-    [(no this/Child or (some [v1: one this/Child, v0: one this/Child] | ((v1 + v0) = this/Child)))]
-   
-    *** So it _is_ doing something smarter than cardinality. 
-    *** But it also isn't limiting the upper bound. 
-
-*/
+// Surplus atoms: 3 Parent, 2 Child means Child shares Parent's upper bound.
+// Alloy handles this with an existential cardinality formula rather than #Child <= 2.
+// Forge uses cardinality constraints (or the partition optimization to avoid them).
 TEST_check_bounds_surplus: assert {} is sat for // forge_error for 
     3 Parent, 2 Child
     , 2 Int
@@ -40,34 +21,13 @@ TEST_check_bounds_shortfall: assert {#Child = 3} is unsat for
 
 
 
-/* 
-  If we start assigning atoms at the parent, then we get {P0, P1, P2} and we have no idea
-  which of them should be assigned to the child. So we add a cardinality constraint:
-    #Child <= 2. 
-  This isn't needed if there's an `exact` bound on Child, since those get enumerated atoms. 
+/*
+  Top-down allocation (parent first) gives all children the parent's full upper bound,
+  requiring cardinality constraints (#Child <= 2) to enforce scopes. Exact bounds skip
+  this since they get dedicated atoms.
 
-  Alloy seems to do the same (at least, its debug output reports that it does):
-    Sig this/Parent in [[Parent$0], [Parent$1], [Parent$2]]
-    Sig this/Child in [[Parent$0], [Parent$1], [Parent$2]] with size<=2
-
-  Suppose we started at the bottom instead. 
-    Child: {} : {(Atom0), (Atom1)}
-  Now those 2 atom names are used, and in the upper bound of the parent, which needs to add 1 more:
-    Parent:  {} : {(Atom0), (Atom1), (Atom2)}
-  
-  The atom names are even less descriptive. But let's explore this idea anyway. 
-    (1) DFS the sig hierarchy. 
-    (2) At a leaf, allocate upper bound (even if not exact)
-    (3) when returning, take union of child upper bounds, then add more if needed. 
-    (4) pass over the tree again, renaming atoms (one, exactly, ... or top level)
-  
-  Q1: Is this sound? Alloy doesn't do this, apparently, even though it builds bottom up (I think?)
-  Q2: Does this cause trouble with partial instances?
-
-    'lone' sigs?
-    subset sigs?
-
-  
-
+  Bottom-up allocation (children first) would avoid cardinality constraints by giving
+  each child its own atoms, then unioning them for the parent. The partition optimization
+  in send-to-solver.rkt takes this approach when feasible (clean shared pool, children
+  fit within surplus). Open question: interaction with partial instances and subset sigs.
 */
-    

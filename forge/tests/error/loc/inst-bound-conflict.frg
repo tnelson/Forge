@@ -2,8 +2,8 @@
 option run_sterling off
 option verbose 0
 
--- Error should blame the conflicting ni (line 10), not the first in (line 9).
--- Currently blames line 9 because get-blame-node returns the first binding.
+-- Known limitation: error blames the first `in` binding rather than
+-- the conflicting `ni`, because get-blame-node returns the first binding.
 sig Node {}
 
 test expect {

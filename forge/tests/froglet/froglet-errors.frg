@@ -104,7 +104,7 @@ test expect {
 
   /////////////////////////////////////////////////////////////////////////////
   // Atom literals in formulas - should only be allowed in inst blocks
-  // FINDING: Currently ALLOWED - no error produced (see task #1)
+  // Known gap: atom literals in formulas are not yet rejected outside inst blocks
   /////////////////////////////////////////////////////////////////////////////
 
   // atom_in_formula: {some p: Person | p = `Person0} is forge_error "not allowed"
