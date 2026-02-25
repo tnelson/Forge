@@ -23,7 +23,7 @@
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract
-                         set-empty? build-list string-join)
+                         set-empty? build-list string-join take drop)
           racket/hash)
 (require (only-in syntax/srcloc build-source-location-syntax))
 
@@ -548,9 +548,70 @@
     (for ([child : Sig (get-children run-spec sig)])
       (fill-upper-past-bound child parent-upper)))
 
+  ; Atoms referenced in relation bindings or piecewise bounds. If any overlap
+  ; with a hierarchy's surplus atoms, partition must be skipped to avoid conflicts.
+  ; Checks both Bound-pbindings (complete relation bounds) and Bound-piecewise
+  ; (per-atom relation bounds), since piecewise bounds are stored separately.
+  (: inst-relation-atoms (Setof FAtom))
+  (define pw-bounds (Bound-piecewise (Run-spec-bounds run-spec)))
+  (define inst-relation-atoms
+    (list->set
+      (append
+        ; Atoms from complete relation bindings (pbindings)
+        (apply append
+          (for/list : (Listof (Listof FAtom))
+            ([rel (in-list (get-relations run-spec))]
+             #:when (hash-has-key? pbindings rel))
+            (define rel-bound (hash-ref pbindings rel))
+            (define upper-tups
+              (if (sbound-upper rel-bound)
+                  (set->list (sbound-upper rel-bound))
+                  '()))
+            (define lower-tups
+              (if (sbound-lower rel-bound)
+                  (set->list (sbound-lower rel-bound))
+                  '()))
+            (apply append (append upper-tups lower-tups))))
+        ; Atoms from piecewise relation bounds (Bound-piecewise)
+        (apply append
+          (for/list : (Listof (Listof FAtom))
+            ([rel (in-list (get-relations run-spec))]
+             #:when (hash-has-key? pw-bounds rel))
+            (define pw-bound (hash-ref pw-bounds rel))
+            (append (PiecewiseBound-atoms pw-bound)
+                    (apply append (PiecewiseBound-tuples pw-bound))))))))
+
+  ; Try to partition `shared` atoms among children to avoid cardinality constraints.
+  ; Returns a list of per-child atom slices if partition is feasible, or #f for fallback.
+  (: try-partition-shared (-> (Listof Sig) (Listof FAtom) (U (Listof (Listof FAtom)) False)))
+  (define (try-partition-shared children shared)
+    (define child-needs : (Listof Integer)
+      (for/list : (Listof Integer)
+        ([child (in-list children)])
+        (@max 0 (@- (get-scope-upper-default child)
+                     (length (ann (hash-ref lower-bounds child) (Listof FAtom)))))))
+    (define total-need : Integer
+      (foldl (lambda ([n : Integer] [acc : Integer]) (@+ n acc)) 0 child-needs))
+    (cond
+      [(> total-need (length shared)) #f]  ; children need more than available
+      [(not (set-empty? (set-intersect inst-relation-atoms (list->set shared)))) #f]  ; relation inst conflict
+      [else
+       ; Build per-child slices via take/drop
+       (let loop : (Listof (Listof FAtom))
+         ([remaining : (Listof FAtom) shared]
+          [ns : (Listof Integer) child-needs]
+          [acc : (Listof (Listof FAtom)) '()])
+         (if (empty? ns)
+             (reverse acc)
+             (loop (drop remaining (first ns))
+                   (rest ns)
+                   (cons (take remaining (first ns)) acc))))]))
+
   ; For use in situations where there is no existing upper (relational) bound
-  (: fill-upper-no-bound (-> Sig (Listof FAtom) Void))
-  (define (fill-upper-no-bound sig shared)
+  ; clean-shared? is #t when `shared` contains only freshly generated atoms
+  ; (no lower-bound atoms from any sig). Partition is only safe with clean pools.
+  (: fill-upper-no-bound (-> Sig (Listof FAtom) Boolean Void))
+  (define (fill-upper-no-bound sig shared clean-shared?)
 
     ; If the sig has a relational upper bound, don't try to resolve the possible
     ; atom names etc.; ask the user to give an explicit bound on the parent, too.
@@ -589,10 +650,19 @@ Please declare a sufficient scope for ~a."
     (if (> (get-scope-upper-default sig) (length curr-lower))
         (hash-set! upper-bounds sig (append curr-lower shared))
         (hash-set! upper-bounds sig curr-lower))
-    ; Recur on children
-    (for-each (lambda ([child : Sig]) 
-                (fill-upper-no-bound child (append curr-lower shared)))
-         (get-children run-spec sig)))
+    ; Recur on children, partitioning atoms when possible to avoid cardinality constraints.
+    ; Partition is only attempted when shared is clean (no lower-bound atoms from siblings).
+    (let ([children (get-children run-spec sig)])
+      (unless (empty? children)
+        (define slices (and clean-shared? (try-partition-shared children shared)))
+        (if slices
+            ; PARTITION: each child gets its own clean atom slice
+            (for ([child (in-list children)]
+                  [slice (in-list slices)])
+              (fill-upper-no-bound child slice #t))
+            ; FALLBACK: all children share the pool; shared is dirty (includes curr-lower)
+            (for ([child (in-list children)])
+              (fill-upper-no-bound child (append curr-lower shared) #f))))))
 
   ; List of all atoms that come from sigs, except Int. Will change as this procedure runs.
   (: sig-atoms (Listof FAtom))
@@ -622,7 +692,7 @@ Please declare a sufficient scope for ~a."
           (: shared (Listof Symbol))
           (define shared (generate-names root (@- upper-size lower-size)))
           ; This function is also responsible for validating totals (we didn't go over budget)
-          (fill-upper-no-bound root shared)))
+          (fill-upper-no-bound root shared #t)))  ; root shared is always clean
     ;(printf "filling bounds at ~a; upper = ~a; lower = ~a~n" root upper-bounds lower-bounds)
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
