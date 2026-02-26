@@ -597,7 +597,8 @@
   (for/list ([rel (hash-keys (Bound-piecewise bounds))])
     (when (or (hash-has-key? (Bound-tbindings bounds) rel)
               (hash-has-key? (Bound-pbindings bounds) rel))
-      (raise (error (format "Piecewise bounds (on ~a) may not be combined with complete bounds; remove one or the other." rel)))))
+      (raise-forge-error #:msg (format "Piecewise bounds (on ~a) may not be combined with complete bounds; remove one or the other." rel)
+                         #:context command)))
   
   (define bounds-with-piecewise-lower
     (for/fold ([bs bounds])

@@ -2,7 +2,7 @@
 option run_sterling off
 option verbose 0
 
--- Field bound references atom not in sig. Already correctly blames line 13.
+-- Field bound references atom not in sig. Error should blame the field binding (top = ...).
 sig StackState {top: lone StackElement}
 sig StackElement {}
 

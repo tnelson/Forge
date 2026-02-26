@@ -2,7 +2,8 @@
 option run_sterling off
 option verbose 0
 
--- ni-only bounds crash (breaks.rkt). Error should blame the ni line.
+-- Using only ni (backwards in, i.e. superset bound) without in should produce
+-- an error, not a crash. Error should blame the ni binding.
 sig Node {}
 
 test expect {

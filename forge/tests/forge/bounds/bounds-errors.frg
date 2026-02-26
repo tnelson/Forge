@@ -4,19 +4,10 @@ option verbose 0
 
 /*
   Bounds declaration error handling tests.
-  Consolidation of bounds-error-investigation/ test cases.
+  Regression tests for fixes in dbb3dd1a, 250a9880, 7dadf90b, fb8c114c.
 
   Covers: sig bounds, field bounds, piecewise bounds, inheritance,
   multiplicity, and various error conditions.
-
-  Categories:
-    1. Valid combinations (should pass)
-    2. Crash bugs (ni-only → contract violation)
-    3. Silent bugs (invalid atoms accepted)
-    4. Bad error messages (internal representations leaked)
-    5. Generic error messages (solver unsat, no explanation)
-    6. Good error messages (already well-handled)
-    7. Parse-level errors (syntax limitations)
 */
 
 sig Node {edges: set Node}
@@ -74,12 +65,10 @@ test expect validInheritance {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// BUG: ni-only bounds → contract violation (breaks.rkt:114)
-// Upper bound is #f when unspecified, but code expects a set.
-// Error: "set->list: contract violation: expected: set? given: #f"
+// ni-only bounds (no in/= declaration)
+// Upper bound derived from numeric scope, lower from ni declaration.
 /////////////////////////////////////////////////////////////////////////////
 
--- ni-only bounds: upper derived from scope, lower from ni declaration.
 test expect niOnly {
   sig_ni_only: {some Node} for {Node ni `A + `B} is sat
   sig_ni_ni_same: {some Node} for {Node ni `A + `B  Node ni `A + `B} is sat
@@ -87,7 +76,7 @@ test expect niOnly {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Field 'in' bounds with atoms not in sig — should error (like 'ni' does)
+// Field bounds referencing atoms not in the owning sig
 /////////////////////////////////////////////////////////////////////////////
 
 test expect fieldInValidation {
@@ -98,11 +87,10 @@ test expect fieldInValidation {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Bad error messages: sigs-functional.rkt:1023
-// Shows internal #<set: (A) (B)> instead of friendly `A, `B, `C format
+// Conflicting bound declarations (in/ni/= combinations that contradict)
 /////////////////////////////////////////////////////////////////////////////
 
-test expect badMessagesSigsFunctional {
+test expect boundConflicts {
   in_ni_conflict_sig: {some Node} for {
     Node in `A + `B
     Node ni `C
@@ -126,24 +114,21 @@ test expect badMessagesSigsFunctional {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Bad error messages: send-to-solver.rkt
-// Shows raw tuples like ((C1) (P1)) instead of friendly format
+// Inheritance bounds: field and sig atoms checked against hierarchy
+// See bounds-inheritance-errors.frg for additional inheritance tests.
 /////////////////////////////////////////////////////////////////////////////
 
 sig StackState {top: lone StackElement}
 sig StackElement {}
-
--- These tests work in isolation but fail in this combined file due to
--- stale breaker state leaking between tests. See bounds-inheritance-errors.frg.
 
 sig Grandparent {}
 sig GParent extends Grandparent {}
 sig GChild extends GParent {}
 
 /////////////////////////////////////////////////////////////////////////////
-// Generic "Invalid Example" messages
-// Solver returns unsat but message doesn't explain WHY.
-// These are correctly caught as errors, but the messages could be better.
+// Multiplicity violations caught as unsat (not as forge_error)
+// The solver rejects these but doesn't explain why. Pre-validation could
+// produce better messages; for now, test that they are at least unsat.
 /////////////////////////////////////////////////////////////////////////////
 
 one sig OneNode {}
@@ -155,11 +140,7 @@ sig Sibling1 extends Parent {}
 sig Sibling2 extends Parent {}
 sig LinkedNode {next: one Node}
 
--- These don't produce forge_error — the solver returns unsat or "invalid example"
--- without explaining WHY. Pre-validation could catch these with better messages.
--- For now, test that they at least aren't sat.
-
-test expect genericMessages {
+test expect multiplicityViolations {
   one_sig_multiple: {some OneNode} for {
     OneNode = `A + `B
   } is unsat
@@ -194,23 +175,18 @@ test expect genericMessages {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// Good error messages (already well-handled, kept as regression tests)
+// Piecewise bound errors
 /////////////////////////////////////////////////////////////////////////////
 
--- BUG: Even the "good" error messages crash the test file.
--- Bounds-processing errors are not raised via raise-forge-error,
--- so is forge_error can't catch them. ALL bounds errors need to be
--- converted to use raise-forge-error.
+test expect piecewiseErrors {
+  piecewise_conflict: {some Node} for {
+    Node = `A + `B + `C
+    edges = `A -> `B
+    `A.edges = `C
+  } is forge_error "may not be combined"
 
--- test expect goodMessages {
---   piecewise_conflict: {some Node} for {
---     Node = `A + `B + `C
---     edges = `A -> `B
---     `A.edges = `C
---   } is forge_error "may not be combined"
---
---   piecewise_bad_owner: {some Node} for {
---     Node = `A + `B
---     `Z.edges = `A
---   } is forge_error "was bounded for atom"
--- }
+  piecewise_bad_owner: {some Node} for {
+    Node = `A + `B
+    `Z.edges = `A
+  } is forge_error "was bounded for atom"
+}
