@@ -2,11 +2,13 @@
 
 /*
   Needham-Schroeder benchmark: same scenario with three bounding strategies.
-  - ns_exact:         all `exactly` bounds (baseline, no cardinality constraints)
-  - ns_nonexact_keys: Key hierarchy uses non-exact bounds
+  - ns_exact:         all `exactly` bounds
+  - ns_nonexact_keys: Key hierarchy (only) uses non-exact bounds
   - ns_nonexact_all:  most sigs use non-exact bounds
-  Non-exact bounds generate cardinality constraints unless the bounds-partition
-  optimization can assign each child sig its own atom slice.
+
+  The purpose of this file is to measure potential optimizations. 
+  Strictly speaking, it is not an "example", but it goes in this 
+  directory for the time being. 
 */
 
 open "ns.rkt"
