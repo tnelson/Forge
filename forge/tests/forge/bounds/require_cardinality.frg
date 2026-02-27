@@ -29,5 +29,10 @@ TEST_check_bounds_shortfall: assert {#Child = 3} is unsat for
   Bottom-up allocation (children first) would avoid cardinality constraints by giving
   each child its own atoms, then unioning them for the parent. The partition optimization
   in send-to-solver.rkt takes this approach when feasible (clean shared pool, children
-  fit within surplus). Open question: interaction with partial instances and subset sigs.
+  fit within surplus). Partial instances: a parent can be inst-bound (with user-chosen
+  or generated names) while children are scope-based; surplus atoms are then drawn from
+  the parent's inst-provided pool. Partition is skipped if any relation inst (field
+  binding or piecewise bound) references a surplus atom by name
+  (see bounds-partition-inst.frg, Sections J-b, P). Binding a child sig via inst while
+  the parent is scope-based errors. Subset sigs use a different bounds path.
 */

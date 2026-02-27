@@ -266,10 +266,103 @@ test expect N_PiecewiseBounds {
         for 4 PwParent, 2 PwChildA, 2 PwChildB for instPiecewise is sat
 }
 
-// Also test the error case: binding a child SIG (not just a relation) in an inst
-// while the parent is scope-based. This SHOULD error.
-// (Can't test for errors in test-expect, so this is documented only.)
-// inst instBadSigBind { PwChildA = `A0 + `A1 }  -- would error
+// Binding a child sig while parent is scope-based should error.
+inst instBadSigBind { PwChildA = `A0 + `A1 }
+
+test expect N_ErrorCases {
+    bad_child_bind: { some PwChildA }
+        for 4 PwParent, 2 PwChildA, 2 PwChildB for instBadSigBind
+        is forge_error "upper bound"
+}
+
+// --------------------------------------------------------------------
+// Section P: Custom atom names (user-named parent, scope-based children)
+//   Users can bind a parent sig with custom names (e.g., `Alice) while
+//   children remain scope-based. The children's upper bounds draw from
+//   the parent's custom-named atom pool instead of generated names.
+// --------------------------------------------------------------------
+
+sig CParent {}
+sig CChildA extends CParent {
+    clink: lone CParent
+}
+sig CChildB extends CParent {}
+
+inst instCustomParent {
+    CParent = `Alice + `Bob + `Carol + `Dave
+}
+
+inst instCustomParentAndField {
+    CParent = `Alice + `Bob + `Carol + `Dave
+    clink = `Alice -> `Bob
+}
+
+test expect P_CustomAtomNames {
+    -- Children draw from custom-named parent atoms
+    p_basic: { some CChildA and some CChildB }
+        for 4 CParent, 2 CChildA, 2 CChildB for instCustomParent is sat
+
+    p_full: { #CChildA = 2 and #CChildB = 2 }
+        for 4 CParent, 2 CChildA, 2 CChildB for instCustomParent is sat
+
+    p_disjoint: { some (CChildA & CChildB) }
+        for 4 CParent, 2 CChildA, 2 CChildB for instCustomParent is unsat
+
+    p_parent_fixed: { not (#CParent = 4) }
+        for 4 CParent, 2 CChildA, 2 CChildB for instCustomParent is unsat
+
+    -- Field inst with custom parent names: partition skipped (inst atoms
+    -- overlap with surplus), so Alice stays available to both children.
+    p_field: { some clink and some CChildB }
+        for 4 CParent, 2 CChildA, 2 CChildB for instCustomParentAndField is sat
+
+    p_field_full: { #CChildA = 2 and #CChildB = 2 and some clink }
+        for 4 CParent, 2 CChildA, 2 CChildB for instCustomParentAndField is sat
+
+    -- Alice is in clink's domain, so she must be in CChildA
+    p_field_forced: { not (`Alice in CChildA) }
+        for 4 CParent, 2 CChildA, 2 CChildB for instCustomParentAndField is unsat
+}
+
+// --------------------------------------------------------------------
+// Section Q: Multi-level hierarchy with inst at various levels
+// --------------------------------------------------------------------
+
+sig MRoot {}
+sig MMid extends MRoot {}
+sig MLeafA extends MMid {}
+sig MLeafB extends MMid {}
+sig MOther extends MRoot {}
+
+// Root inst-bound with custom names, all descendants scope-based
+inst instMRootCustom {
+    MRoot = `R1 + `R2 + `R3 + `R4 + `R5 + `R6
+}
+
+test expect Q_MultiLevelInst {
+    -- Custom root atoms flow through multi-level scope-based descendants
+    q_basic: { some MLeafA and some MLeafB and some MOther }
+        for 6 MRoot, 4 MMid, 2 MLeafA, 2 MLeafB, 2 MOther
+        for instMRootCustom is sat
+
+    q_full: { #MLeafA = 2 and #MLeafB = 2 and #MOther = 2 }
+        for 6 MRoot, 4 MMid, 2 MLeafA, 2 MLeafB, 2 MOther
+        for instMRootCustom is sat
+
+    q_mid_other_disjoint: { some (MMid & MOther) }
+        for 6 MRoot, 4 MMid, 2 MLeafA, 2 MLeafB, 2 MOther
+        for instMRootCustom is unsat
+
+    q_leaves_disjoint: { some (MLeafA & MLeafB) }
+        for 6 MRoot, 4 MMid, 2 MLeafA, 2 MLeafB, 2 MOther
+        for instMRootCustom is unsat
+
+    -- Intermediate inst binding with scope-based root should error
+    q_intermediate_errors: { some MMid }
+        for 5 MRoot, 3 MMid, 2 MLeafA, 1 MLeafB
+        for { MMid = `M0 + `M1 + `M2 }
+        is forge_error "upper bound"
+}
 
 // --------------------------------------------------------------------
 // Baseline hierarchy tests: behavior the partition targets
