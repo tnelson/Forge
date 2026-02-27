@@ -23,7 +23,7 @@
          (only-in racket match first rest empty empty? set->list list->set set-intersect set-union
                          curry range index-of pretty-print filter-map string-prefix? string-split thunk*
                          remove-duplicates subset? cartesian-product match-define cons? set-subtract
-                         build-list)
+                         set-empty? build-list string-join take drop)
           racket/hash)
 (require (only-in syntax/srcloc build-source-location-syntax))
 
@@ -141,8 +141,8 @@
 
   (print-version-number)
 
-  ; Set up breakers on each relation. These may arise from declaration multiplicities like "lone" 
-  ; or from partial-instance annotations like "is linear". 
+  ; Set up breakers on each relation. These may arise from declaration multiplicities like "lone"
+  ; or from partial-instance annotations like "is linear".
   ; TODO TYPES: really? what about relations declared pfunc / is linear together?
   ; ** THIS MUST BE DONE BEFORE COMPUTING BOUNDS! **
   (for ([relation (get-relations run-spec)])
@@ -152,9 +152,11 @@
       (when the-breaker
         (break-rel relation the-breaker)))
 
-  ; Produce bounds from scopes
+  ; Produce bounds from scopes.
+  ; On error, clear breaker state so it doesn't leak into the next run.
   (define-values (sig-to-bound relation-to-bound all-atoms)
-    (get-bounds run-spec run-command))
+    (with-handlers ([exn:fail? (lambda ([e : exn:fail]) (clear-breaker-state) (raise e))])
+    (get-bounds run-spec run-command)))
   
   ; Get new bounds and constraints from breaks
   (: total-bounds (Listof bound))
@@ -188,7 +190,6 @@
       (constrain-bounds total-bounds sig-rels upper-bounds relations-store extensions-store)))
   
   ;(printf "after-- total-bounds : ~a~n" total-bounds)
-  ; Because the breaker module is stateful, we need to clear out that state for the next run.
   (clear-breaker-state)
 
   (define sigs-and-rels
@@ -547,9 +548,70 @@
     (for ([child : Sig (get-children run-spec sig)])
       (fill-upper-past-bound child parent-upper)))
 
+  ; Atoms referenced in relation bindings or piecewise bounds. If any overlap
+  ; with a hierarchy's surplus atoms, partition must be skipped to avoid conflicts.
+  ; Checks both Bound-pbindings (complete relation bounds) and Bound-piecewise
+  ; (per-atom relation bounds), since piecewise bounds are stored separately.
+  (: inst-relation-atoms (Setof FAtom))
+  (define pw-bounds (Bound-piecewise (Run-spec-bounds run-spec)))
+  (define inst-relation-atoms
+    (list->set
+      (append
+        ; Atoms from complete relation bindings (pbindings)
+        (apply append
+          (for/list : (Listof (Listof FAtom))
+            ([rel (in-list (get-relations run-spec))]
+             #:when (hash-has-key? pbindings rel))
+            (define rel-bound (hash-ref pbindings rel))
+            (define upper-tups
+              (if (sbound-upper rel-bound)
+                  (set->list (sbound-upper rel-bound))
+                  '()))
+            (define lower-tups
+              (if (sbound-lower rel-bound)
+                  (set->list (sbound-lower rel-bound))
+                  '()))
+            (apply append (append upper-tups lower-tups))))
+        ; Atoms from piecewise relation bounds (Bound-piecewise)
+        (apply append
+          (for/list : (Listof (Listof FAtom))
+            ([rel (in-list (get-relations run-spec))]
+             #:when (hash-has-key? pw-bounds rel))
+            (define pw-bound (hash-ref pw-bounds rel))
+            (append (PiecewiseBound-atoms pw-bound)
+                    (apply append (PiecewiseBound-tuples pw-bound))))))))
+
+  ; Try to partition `shared` atoms among children to avoid cardinality constraints.
+  ; Returns a list of per-child atom slices if partition is feasible, or #f for fallback.
+  (: try-partition-shared (-> (Listof Sig) (Listof FAtom) (U (Listof (Listof FAtom)) False)))
+  (define (try-partition-shared children shared)
+    (define child-needs : (Listof Integer)
+      (for/list : (Listof Integer)
+        ([child (in-list children)])
+        (@max 0 (@- (get-scope-upper-default child)
+                     (length (ann (hash-ref lower-bounds child) (Listof FAtom)))))))
+    (define total-need : Integer
+      (foldl (lambda ([n : Integer] [acc : Integer]) (@+ n acc)) 0 child-needs))
+    (cond
+      [(> total-need (length shared)) #f]  ; children need more than available
+      [(not (set-empty? (set-intersect inst-relation-atoms (list->set shared)))) #f]  ; relation inst conflict
+      [else
+       ; Build per-child slices via take/drop
+       (let loop : (Listof (Listof FAtom))
+         ([remaining : (Listof FAtom) shared]
+          [ns : (Listof Integer) child-needs]
+          [acc : (Listof (Listof FAtom)) '()])
+         (if (empty? ns)
+             (reverse acc)
+             (loop (drop remaining (first ns))
+                   (rest ns)
+                   (cons (take remaining (first ns)) acc))))]))
+
   ; For use in situations where there is no existing upper (relational) bound
-  (: fill-upper-no-bound (-> Sig (Listof FAtom) Void))
-  (define (fill-upper-no-bound sig shared)
+  ; clean-shared? is #t when `shared` contains only freshly generated atoms
+  ; (no lower-bound atoms from any sig). Partition is only safe with clean pools.
+  (: fill-upper-no-bound (-> Sig (Listof FAtom) Boolean Void))
+  (define (fill-upper-no-bound sig shared clean-shared?)
 
     ; If the sig has a relational upper bound, don't try to resolve the possible
     ; atom names etc.; ask the user to give an explicit bound on the parent, too.
@@ -588,10 +650,19 @@ Please declare a sufficient scope for ~a."
     (if (> (get-scope-upper-default sig) (length curr-lower))
         (hash-set! upper-bounds sig (append curr-lower shared))
         (hash-set! upper-bounds sig curr-lower))
-    ; Recur on children
-    (for-each (lambda ([child : Sig]) 
-                (fill-upper-no-bound child (append curr-lower shared)))
-         (get-children run-spec sig)))
+    ; Recur on children, partitioning atoms when possible to avoid cardinality constraints.
+    ; Partition is only attempted when shared is clean (no lower-bound atoms from siblings).
+    (let ([children (get-children run-spec sig)])
+      (unless (empty? children)
+        (define slices (and clean-shared? (try-partition-shared children shared)))
+        (if slices
+            ; PARTITION: each child gets its own clean atom slice
+            (for ([child (in-list children)]
+                  [slice (in-list slices)])
+              (fill-upper-no-bound child slice #t))
+            ; FALLBACK: all children share the pool; shared is dirty (includes curr-lower)
+            (for ([child (in-list children)])
+              (fill-upper-no-bound child (append curr-lower shared) #f))))))
 
   ; List of all atoms that come from sigs, except Int. Will change as this procedure runs.
   (: sig-atoms (Listof FAtom))
@@ -621,7 +692,7 @@ Please declare a sufficient scope for ~a."
           (: shared (Listof Symbol))
           (define shared (generate-names root (@- upper-size lower-size)))
           ; This function is also responsible for validating totals (we didn't go over budget)
-          (fill-upper-no-bound root shared)))
+          (fill-upper-no-bound root shared #t)))  ; root shared is always clean
     ;(printf "filling bounds at ~a; upper = ~a; lower = ~a~n" root upper-bounds lower-bounds)
     (set! sig-atoms (append sig-atoms (hash-ref upper-bounds root))))
 
@@ -657,6 +728,24 @@ Please declare a sufficient scope for ~a."
            (< a1 a2)]
           [else (symbol? a1)]))  ; symbols sort before numbers
 
+  ; Find the deepest descendant whose lower bound contributed atoms not in a sig's upper.
+  ; Returns #f if no descendant is responsible (e.g. the sig's own bound is the issue).
+  (: find-blame-descendant (-> Sig (Setof Tuple) (U Sig False)))
+  (define (find-blame-descendant sig extra)
+    (let loop ([cs : (Listof Sig) (get-children run-spec sig)])
+      (cond
+        [(empty? cs) #f]
+        [else
+         (define child (first cs))
+         (define child-lower : (Listof FAtom)
+           (hash-ref lower-bounds child (lambda () '())))
+         (define child-tuples : (Listof Tuple)
+           (map (inst list FAtom) child-lower))
+         (if (not (set-empty? (set-intersect extra (list->set child-tuples))))
+             ;; This child's subtree has extra atoms; recurse to find deeper culprit
+             (or (find-blame-descendant child extra) child)
+             (loop (rest cs)))])))
+
   ; Map<Symbol, bound>
   (define bounds-hash
     (for/hash : (HashTable Symbol bound) ([sig (get-sigs run-spec)])
@@ -671,11 +760,18 @@ Please declare a sufficient scope for ~a."
                      lower]
                     [else
                      (map (inst list FAtom) (hash-ref upper-bounds sig))])])
-        ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))                            
-        (unless (subset? (list->set lower) (list->set upper))
-          (raise-run-error (format "Bounds inconsistency detected for sig ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Sig-name sig) lower upper)
-                           run-command
-                           (get-blame-node run-spec sig)))
+        ;(printf "bounds-hash at ~a; lower = ~a; upper = ~a; non-one upper = ~a~n" rel lower upper (hash-ref upper-bounds sig))
+        (define extra (set-subtract (list->set lower) (list->set upper)))
+        (unless (set-empty? extra)
+          (define blame (or (find-blame-descendant sig extra) sig))
+          (raise-run-error
+            (if (equal? blame sig)
+                (format "Bounds conflict for sig ~a: lower bound includes ~a, but upper bound only allows ~a."
+                        (Sig-name sig) (format-tuple-set extra) (format-tuple-set (list->set upper)))
+                (format "Bounds conflict for sig ~a: child sig ~a's bound includes ~a, but ~a's upper bound only allows ~a."
+                        (Sig-name sig) (Sig-name blame) (format-tuple-set extra) (Sig-name sig) (format-tuple-set (list->set upper)))    )
+            run-command
+            (get-blame-node run-spec blame)))
         (values name (bound rel
                             (sort (remove-duplicates lower) tuple<?)
                             (sort (remove-duplicates upper) tuple<?))))))
@@ -685,6 +781,41 @@ Please declare a sufficient scope for ~a."
 ;;   TODO  
 
   (values bounds-hash all-atoms))
+
+; Helper: format atom names with backticks for error messages
+(: format-atoms (-> (Listof FAtom) String))
+(define (format-atoms atoms)
+  (string-join (map (lambda ([a : FAtom]) (format "`~a" a)) atoms) ", "))
+
+; Helper: format atoms for use in a bounds suggestion (joined with +)
+(: format-atoms-for-bounds (-> (Listof FAtom) String))
+(define (format-atoms-for-bounds atoms)
+  (string-join (map (lambda ([a : FAtom]) (format "`~a" a)) atoms) " + "))
+
+; Helper: build detailed error message for bounds inconsistency
+; Explains which atoms are missing from which sigs, and whether the sig had explicit bounds
+(: bounds-error-detail (-> (Listof Tuple) (Listof Sig) (Listof (Listof FAtom))
+                           (HashTable node/expr/relation sbound) String))
+(define (bounds-error-detail problem-tuples sigs sig-atoms pbindings)
+  (define details
+    (for/list : (Listof (U False String)) ([col-idx (in-range (length sigs))])
+      (define col-sig (list-ref sigs col-idx))
+      (define col-sig-name (Sig-name col-sig))
+      (define col-atom-set (list->set (list-ref sig-atoms col-idx)))
+      (define atoms-in-col
+        (list->set (map (lambda ([tup : Tuple]) (list-ref tup col-idx)) problem-tuples)))
+      (define missing (set->list (set-subtract atoms-in-col col-atom-set)))
+      (cond
+        [(empty? missing) #f]
+        [(hash-has-key? pbindings col-sig)
+         (define declared (set->list col-atom-set))
+         (format "~a not in bounds for sig ~a (has: ~a)"
+                 (format-atoms missing) col-sig-name
+                 (if (empty? declared) "none" (format-atoms declared)))]
+        [else
+         (format "~a used but sig ~a has no bounds in this inst/example (using default numeric scope). Add: ~a = ~a + ..."
+                 (format-atoms missing) col-sig-name col-sig-name (format-atoms-for-bounds missing))])))
+  (string-join (filter-map (lambda ([x : (U False String)]) x) details) "; "))
 
 ; get-relation-info :: Run-spec -> Map<Symbol, bound>
 ; Given a Run-spec, the atoms assigned to each sig, the atoms assigned to each name,
@@ -778,8 +909,16 @@ Please declare a sufficient scope for ~a."
             [upper-bound-value
              ; complete upper bound exists; intersect with the cartesian product of universe
              ; restricted to the sig-sequence in relation's declaration
-             (set->list (set-intersect upper-bound-value
-                                       (list->set (apply cartesian-product sig-atoms))))]
+             (define sig-product (list->set (apply cartesian-product sig-atoms)))
+             (define dropped (set->list (set-subtract upper-bound-value sig-product)))
+             (unless (empty? dropped)
+               (define owner-sig (first sigs))
+               (define detail (bounds-error-detail dropped sigs sig-atoms pbindings))
+               (raise-run-error (format "For field ~a of ~a: ~a"
+                                        (Relation-name relation) (Sig-name owner-sig) detail)
+                                run-command
+                                (get-blame-node run-spec relation)))
+             (set->list (set-intersect upper-bound-value sig-product))]
             [else
              ; no upper-bound given, default to cartesian product of universe, restricted
              ; to the sig-sequence in relation's declaration
@@ -797,7 +936,11 @@ Please declare a sufficient scope for ~a."
 
       ;(printf "~a:~nrefined upper: ~a~nrefined lower: ~a~n" relation upper lower)
       (unless (subset? (list->set lower) (list->set upper))
-        (raise-run-error (format "Bounds inconsistency detected for field ~a: lower bound was ~a, which is not a subset of upper bound ~a." (Relation-name relation) lower upper)
+        (define problem-tuples (set->list (set-subtract (list->set lower) (list->set upper))))
+        (define owner-sig (first sigs))
+        (define detail (bounds-error-detail problem-tuples sigs sig-atoms pbindings))
+        (raise-run-error (format "For field ~a of ~a: ~a"
+                                 (Relation-name relation) (Sig-name owner-sig) detail)
                          run-command
                          (get-blame-node run-spec relation)))
       

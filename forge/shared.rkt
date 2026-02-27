@@ -1,8 +1,8 @@
 #lang typed/racket/base/optional
 
-(require racket/runtime-path racket/file racket/match)
+(require racket/runtime-path racket/file racket/match racket/set)
 (require (only-in racket/system system*)
-         (only-in racket/string string-trim string-replace)
+         (only-in racket/string string-trim string-replace string-join)
          (only-in racket/port call-with-output-string)
          (only-in pkg/lib pkg-directory))
 (require typed/net/base64)
@@ -43,7 +43,7 @@
          VERBOSITY_LOW VERBOSITY_STERLING VERBOSITY_HIGH
          VERBOSITY_DEBUG VERBOSITY_LASTCHECK get-temp-dir)
 (provide forge-version forge-git-info instance-diff curr-forge-version remove-newlines)
-(provide port-echo java>=1.9? do-time)
+(provide port-echo java>=1.9? do-time format-tuple-set)
 
 ; Level of output when running specs
 (define VERBOSITY_SCRIPT 0) ; for test scripts
@@ -205,6 +205,17 @@
 (: remove-newlines (-> String String))
 (define (remove-newlines str)
   (string-replace (string-replace str "\n" "") "\r" ""))
+
+; Format a set of tuples for error messages.
+; e.g. (set '(A) '(B)) → "`A, `B"  ;  (set '(A B) '(A C)) → "`A -> `B, `A -> `C"
+(: format-tuple-set (-> (Setof Tuple) String))
+(define (format-tuple-set s)
+  (string-join
+    (sort
+      (for/list : (Listof String) ([tup (set->list s)])
+        (string-join (map (lambda ([a : FAtom]) (format "`~a" a)) tup) " -> "))
+      string<?)
+    ", "))
 
 ;; --- timing
 

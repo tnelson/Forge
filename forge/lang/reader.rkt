@@ -6,7 +6,8 @@
 
 (require syntax/parse
          (for-syntax racket/base syntax/parse)
-         racket/pretty)
+         racket/pretty
+         (only-in racket/list partition second))
 (require forge/lang/alloy-syntax/parser)
 (require forge/lang/alloy-syntax/tokenizer)
 (require forge/shared)
@@ -27,6 +28,38 @@
 ; comes from the template itself rather than the value of a syntax pattern variable."
 ; (In all other cases, we apparently must use datum->syntax.)
 
+;; Declaration hoisting: reorder paragraphs so users can write run/check
+;; before the sigs they reference. Emitted module order:
+;;   0. option problem_type  (file-level config; needed before var sigs)
+;;   1. sig, pred, fun       (foundations; pred/fun bodies are thunked)
+;;   2. inst                 (references sigs eagerly)
+;;   3. everything else      (commands, other options — source order)
+;; Other options are NOT hoisted so they can vary between runs.
+
+(define (paragraph-tag stx)
+  (define d (syntax-e stx))
+  (and (pair? d) (syntax->datum (car d))))
+
+;; Check if this is `option problem_type ...`.
+;; Parse tree: (NT-OptionDecl (QualName problem_type) ...)
+(define (problem-type-option? stx)
+  (and (equal? (paragraph-tag stx) 'NT-OptionDecl)
+       (let ([elems (syntax->list stx)])
+         (and elems
+              (>= (length elems) 2)
+              (let ([name-stx (second elems)])
+                (let ([name-elems (syntax->list name-stx)])
+                  (and name-elems
+                       (>= (length name-elems) 2)
+                       (equal? (syntax->datum (second name-elems))
+                               'problem_type))))))))
+
+(define (sig-like-paragraph? stx)
+  (member (paragraph-tag stx) '(NT-SigDecl NT-PredDecl NT-FunDecl)))
+
+(define (inst-paragraph? stx)
+  (equal? (paragraph-tag stx) 'NT-InstDecl))
+
 (define (coerce-ints-to-atoms-and-preprocess tree)
   ; AlloyModule: ModuleDecl? Import* Paragraph*
   (syntax-parse tree #:datum-literals (NT-AlloyModule NT-ModuleDecl NT-Import)
@@ -42,14 +75,23 @@
             ;(printf "Module-decl ~a~n~n" #'(~? module-decl "None present"))
             ;(printf "Imports: ~a~n~n" #'(import ...))
             ;(printf "Paragraphs: ~a~n~n" #'(paragraphs ...))
+
+     ;; Reorder paragraphs into tiers (see declaration-hoisting comment above).
+     ;; Original order within each tier is preserved.
+     (define par-list (syntax->list #'(paragraphs ...)))
+     (define-values (problem-type rest-after-pt) (partition problem-type-option? par-list))
+     (define-values (sigs rest-after-sigs) (partition sig-like-paragraph? rest-after-pt))
+     (define-values (insts rest) (partition inst-paragraph? rest-after-sigs))
+     (define reordered (append problem-type sigs insts rest))
+
        (values
         ; The module imports
         (quasisyntax/loc tree (import ...))
-        ; The module body with integers coerced and imports removed 
+        ; The module body with integers coerced, imports removed, declarations hoisted
         (quasisyntax/loc tree
          (NT-AlloyModule (~? module-decl)
                       ;import ...
-                      paragraphs ...)))]))
+                      #,@reordered)))]))
 
 (define (replace-ints-expr expr)
   ;(printf "Replace-int-expr: ~a~n~n" expr)

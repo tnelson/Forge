@@ -40,8 +40,8 @@ fun getBuddyOrBFF[c: Chordate]: lone Chordate {
 }
 
 test expect {
-    disallowRHS_unary_join: {some e: Eukaryote | e in cakesEaten.Int} 
-      is forge_error "was not an object"
+    disallowRHS_unary_join: {some e: Eukaryote | e in cakesEaten.Int}
+      is forge_error "is not a field"
     disallowLHS_non_singleton: { Animal in Eukaryote } is forge_error 
     disallowLHS_non_singleton_op: { Dog+Cat in Eukaryote } is forge_error
 
