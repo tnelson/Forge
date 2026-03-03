@@ -198,10 +198,18 @@
      (list (= r (atom 'True)))]
     [(equal? (relation-name r) "Request")
      (list (= r (atom 'Request)))]
+    ; Boolean fields (target sig is True)
+    [(equal? (relation-name r) "training")
+     (list (in r (-> (+ atoms) (atom 'True))))]
+    [(equal? (relation-name r) "audit")
+     (list (in r (-> (+ atoms) (atom 'True))))]
+    ; owner maps File -> Subject; Subject's upper bound is the universe atoms
+    [(equal? (relation-name r) "owner")
+     (list (in r (-> (+ atoms) (+ atoms))))]
     ; Everything else:
     [(equal? 1 (relation-arity r))
      (list (in r (+ atoms)))]
-    [(equal? 2 (relation-arity r))  
+    [(equal? 2 (relation-arity r))
      (list (in r (-> (+ atoms) (+ (atom 'True) (+ atoms)))))]
     [else
      (raise-user-error (format "Error: relation ~a had invalid arity" r))]))
