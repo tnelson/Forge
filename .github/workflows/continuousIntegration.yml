@@ -59,7 +59,7 @@ jobs:
 
     - name: Install Forge
       run: |
-        raco pkg install --auto --no-docs ./forge
+        raco pkg update --auto --no-docs --batch ./forge 2>/dev/null || raco pkg install --auto --no-docs ./forge
 
     - name: Run tests
       run: |
