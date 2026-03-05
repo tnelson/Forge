@@ -1,27 +1,52 @@
 name: Continuous Integration
 
 on:
-  pull_request: ~ 
+  pull_request: ~
   push:
     branches:
     - main
     - dev
 
-# Docker images for various Racket versions available on DockerHub 
-# as racket/racket:<version>
-# (https://github.com/racket/docker)
-# We use features that require at least 8.4; try to use latest.
-
 jobs:
   forge-tests:
     runs-on: ubuntu-latest
-    container: docker://karimmouline/forge-dev-img:latest
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Setup Racket
+      uses: Bogdanp/setup-racket@v1.14
+      with:
+        version: '8.15'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq libcairo2-dev libpango1.0-dev libgdk-pixbuf-2.0-dev
+
+    - name: Install cvc5
+      run: |
+        wget -q https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
+        unzip -q cvc5-Linux-x86_64-static.zip
+        echo "$PWD/cvc5-Linux-x86_64-static/bin" >> $GITHUB_PATH
+
+    - name: Cache Racket packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/racket
+        key: racket-pkgs-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-pkgs-
+
     - name: Install Forge
       run: |
         raco pkg install --auto --no-docs ./forge
+
     - name: Run tests
       run: |
         cd forge/
