@@ -24,17 +24,21 @@
                    (find-executable-path (if windows? "java.exe" "java")))]
          [path-separator (if windows? ";" ":")]
          [cp (foldl string-append "" (add-between (map path->string jars) path-separator))]
-         ;[lib (path->string (build-path pardinus/jni (case (system-type)
-                                                     ;[(macosx) "darwin_x86_64"]
-                                                     ;[(unix) "linux_x86_64"]
-                                                     ;[(windows) "win_x86_64"])))]
-         ;[-Djava.library.path (string-append "-Djava.library.path=" lib)]
+         [native-subdir (case (system-type)
+                         [(macosx) "macos"]
+                         [(unix) (if (equal? (system-type 'word) 64)
+                                     "linux-x86_64"
+                                     "linux-x86")]
+                         [(windows) (if (equal? (system-type 'word) 64)
+                                        "windows-x86_64"
+                                        "windows-x86")])]
+         [native-dir (build-path pardinus/jar "native" native-subdir)]
          [error-out (build-path (find-system-path 'home-dir) "forge-pardinus-error-output.txt")])
-    
-    (when (> (get-verbosity) VERBOSITY_LOW)        
+
+    (when (> (get-verbosity) VERBOSITY_LOW)
       (printf "  Starting solver process. subtype: ~a~n" solver-subtype))
 
-    (define lib-path (string-append "-Djava.library.path=" (path->string pardinus/jar)))
+    (define lib-path (string-append "-Djava.library.path=" (path->string native-dir)))
     (define solver-subtype-str (cond [(equal? solver-subtype 'target) "-target-oriented"]
                                      [(equal? solver-subtype 'temporal) "-temporal"]
                                      [(equal? solver-subtype 'default) ""]
