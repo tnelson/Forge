@@ -8,20 +8,62 @@ on:
     - dev
 
 jobs:
+  check-test-coverage:
+    runs-on: ubuntu-latest
+    name: check-test-coverage
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Verify all test subdirs are in CI matrix
+      run: |
+        # Extract all tests/* paths mentioned in the workflow file itself.
+        # This avoids maintaining a separate list — the matrix IS the source of truth.
+        workflow=".github/workflows/continuousIntegration.yml"
+        covered=$(grep -oE 'tests/[a-zA-Z0-9_-]+(/[a-zA-Z0-9_-]+)?' "$workflow" \
+                  | sort -u)
+
+        # Check tests/forge/ subdirectories
+        actual=$(cd forge && find tests/forge -mindepth 1 -maxdepth 1 -type d | sort)
+        missing=$(comm -23 <(echo "$actual") <(echo "$covered"))
+        if [ -n "$missing" ]; then
+          echo "ERROR: tests/forge/ subdirectories not covered by CI:"
+          echo "$missing"
+          echo ""
+          echo "Add them to a test-dir entry in $workflow"
+          exit 1
+        fi
+
+        # Check top-level test directories too
+        actual_top=$(cd forge && find tests -mindepth 1 -maxdepth 1 -type d | sort)
+        missing_top=$(comm -23 <(echo "$actual_top") <(echo "$covered"))
+        if [ -n "$missing_top" ]; then
+          echo "ERROR: top-level test directories not covered by CI:"
+          echo "$missing_top"
+          echo ""
+          echo "Add them to a test-dir entry in $workflow"
+          exit 1
+        fi
+
+        echo "All test directories are covered by CI."
+
   test-forge:
+    needs: check-test-coverage
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: forge
-            test-dir: tests/forge
+          - name: forge-1
+            test-dir: tests/forge/other
+          - name: forge-2
+            test-dir: tests/forge/bounds tests/forge/domains tests/forge/eval-model tests/forge/examples tests/forge/expressions tests/forge/formulas tests/forge/fuzz tests/forge/ints tests/forge/library tests/forge/relations tests/forge/sigs tests/forge/target
           - name: forge-core
             test-dir: tests/forge-core tests/forge-functional
           - name: smt
             test-dir: tests/smt
           - name: other
-            test-dir: tests/error tests/froglet tests/srclocs
+            test-dir: tests/error tests/froglet tests/srclocs tests/temporal
     name: test-${{ matrix.name }}
     steps:
     - name: Checkout repo

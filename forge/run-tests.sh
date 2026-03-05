@@ -92,7 +92,7 @@ done
 #   If running from Git Bash, uname will return a different value. 
 osid=$(uname)
 quotesDir="tests/forge/other"
-if [[ "$testDir" != "tests" && "$testDir" != "tests/forge" ]]; then
+if [[ "$testDir" != "tests" && "$testDir" != "tests/forge" && "$testDir" != "tests/forge/other" ]]; then
     echo "Skipping unusual filename handling (not running forge tests)."
 elif [[ $(uname) != "Windows" && ! $(uname) =~ ^MINGW ]]; then
     echo "Testing unusual filename handling: creating file with quotes in its name..."
