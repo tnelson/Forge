@@ -8,8 +8,21 @@ on:
     - dev
 
 jobs:
-  forge-tests:
+  test-forge:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: forge
+            test-dir: tests/forge
+          - name: forge-core
+            test-dir: tests/forge-core tests/forge-functional
+          - name: smt
+            test-dir: tests/smt
+          - name: other
+            test-dir: tests/error tests/froglet tests/srclocs
+    name: test-${{ matrix.name }}
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -31,6 +44,7 @@ jobs:
         sudo apt-get install -y -qq libcairo2-dev libpango1.0-dev libgdk-pixbuf-2.0-dev
 
     - name: Install cvc5
+      if: matrix.name == 'smt'
       run: |
         wget -q https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
         unzip -q cvc5-Linux-x86_64-static.zip
@@ -51,4 +65,6 @@ jobs:
       run: |
         cd forge/
         chmod +x run-tests.sh
-        ./run-tests.sh tests/
+        for dir in ${{ matrix.test-dir }}; do
+          ./run-tests.sh "$dir"
+        done
