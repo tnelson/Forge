@@ -1,29 +1,112 @@
 name: Continuous Integration
 
 on:
-  pull_request: ~ 
+  pull_request: ~
   push:
     branches:
     - main
     - dev
 
-# Docker images for various Racket versions available on DockerHub 
-# as racket/racket:<version>
-# (https://github.com/racket/docker)
-# We use features that require at least 8.4; try to use latest.
-
 jobs:
-  forge-tests:
+  check-test-coverage:
     runs-on: ubuntu-latest
-    container: docker://karimmouline/forge-dev-img:latest
+    name: check-test-coverage
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Verify all test subdirs are in CI matrix
+      run: |
+        # Extract all tests/* paths mentioned in the workflow file itself.
+        # This avoids maintaining a separate list — the matrix IS the source of truth.
+        workflow=".github/workflows/continuousIntegration.yml"
+        covered=$(grep -oE 'tests/[a-zA-Z0-9_-]+(/[a-zA-Z0-9_-]+)?' "$workflow" \
+                  | sort -u)
+
+        # Check tests/forge/ subdirectories
+        actual=$(cd forge && find tests/forge -mindepth 1 -maxdepth 1 -type d | sort)
+        missing=$(comm -23 <(echo "$actual") <(echo "$covered"))
+        if [ -n "$missing" ]; then
+          echo "ERROR: tests/forge/ subdirectories not covered by CI:"
+          echo "$missing"
+          echo ""
+          echo "Add them to a test-dir entry in $workflow"
+          exit 1
+        fi
+
+        # Check top-level test directories too
+        actual_top=$(cd forge && find tests -mindepth 1 -maxdepth 1 -type d | sort)
+        missing_top=$(comm -23 <(echo "$actual_top") <(echo "$covered"))
+        if [ -n "$missing_top" ]; then
+          echo "ERROR: top-level test directories not covered by CI:"
+          echo "$missing_top"
+          echo ""
+          echo "Add them to a test-dir entry in $workflow"
+          exit 1
+        fi
+
+        echo "All test directories are covered by CI."
+
+  test-forge:
+    needs: check-test-coverage
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: forge-1
+            test-dir: tests/forge/other
+          - name: forge-2
+            test-dir: tests/forge/bounds tests/forge/domains tests/forge/eval-model tests/forge/examples tests/forge/expressions tests/forge/formulas tests/forge/fuzz tests/forge/ints tests/forge/library tests/forge/relations tests/forge/sigs tests/forge/target
+          - name: forge-core
+            test-dir: tests/forge-core tests/forge-functional
+          - name: smt
+            test-dir: tests/smt
+          - name: other
+            test-dir: tests/error tests/froglet tests/srclocs tests/temporal
+    name: test-${{ matrix.name }}
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Racket
+      uses: Bogdanp/setup-racket@v1.14
+      with:
+        version: '8.15'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq libcairo2-dev libpango1.0-dev libgdk-pixbuf-2.0-dev
+
+    - name: Install cvc5
+      if: matrix.name == 'smt'
+      run: |
+        wget -q https://github.com/cvc5/cvc5/releases/download/cvc5-1.2.0/cvc5-Linux-x86_64-static.zip
+        unzip -q cvc5-Linux-x86_64-static.zip
+        echo "$PWD/cvc5-Linux-x86_64-static/bin" >> $GITHUB_PATH
+
+    - name: Cache Racket packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/racket
+        key: racket-pkgs-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-pkgs-
+
     - name: Install Forge
       run: |
-        raco pkg install --auto --no-docs ./forge
+        raco pkg update --auto --no-docs --batch ./forge 2>/dev/null || raco pkg install --auto --no-docs ./forge
+
     - name: Run tests
       run: |
         cd forge/
         chmod +x run-tests.sh
-        ./run-tests.sh tests/
+        for dir in ${{ matrix.test-dir }}; do
+          ./run-tests.sh "$dir"
+        done
