@@ -2,7 +2,6 @@
 option verbose 0
 
 -- Confirm that forge/temporal activates temporal solver; DO NOT activate it manually in this test.
--- (Most forge/temporal tests are under the "tests/forge/electrum" test directory for historical reasons.)
 
 sig Node {
 	var edges: set Node

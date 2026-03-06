@@ -85,10 +85,9 @@
       (string-contains?
        (path->string (srcloc-source loc))
        sub-path-str))
-    (unless source-path-correct 
+    (unless source-path-correct
       (printf "    Source path unexpected for:~n ~a~n~a~n" n loc))
-    ; Comment out for now, avoid unpleasant flickering spam
-    ;(check-true source-path-correct)
+    (check-true source-path-correct)
     ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -153,7 +152,7 @@
 (define pvdReachesEverything (reachesEverything Providence))
 (check-true (node? pvdReachesEverything))
 ;(printf "~npvdReachesEverything: ~a~n" (nodeinfo-loc (node-info pvdReachesEverything)))
-(check-equal? 153
+(check-equal? 152
               (srcloc-line (nodeinfo-loc (node-info pvdReachesEverything))))
               
 
@@ -161,5 +160,5 @@
 (define twoHopsFromProvidence (twoHopsAway Providence))
 (check-true (node? twoHopsFromProvidence))
 ;(printf "~ntopHopsFromProvidence: ~a~n" (nodeinfo-loc (node-info twoHopsFromProvidence)))
-(check-equal? 161
+(check-equal? 160
               (srcloc-line (nodeinfo-loc (node-info twoHopsFromProvidence))))

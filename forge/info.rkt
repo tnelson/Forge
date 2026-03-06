@@ -2,7 +2,7 @@
 
 (define collection "forge")
 
-(define version "5.0.1")
+(define version "5.1")
 
 (define deps '("base"
                "syntax-classes"       ; used in parser and expander
@@ -40,7 +40,7 @@
 ; This includes outdated modules but also examples.
 (define compile-omit-paths '("example" "examples" "doc" "tests" "check-ex-spec/demo"
                              "OLD" "pardinus-cli/out" "kodkod-cli/out" "check-ex-spec/examples"                            
-                             "amalgam/tests" "amalgam" "domains/crypto/examples" "domains/abac/tests"
+                             "amalgam/tests" "amalgam" "domains/crypto/examples"
                              ))
 
 
