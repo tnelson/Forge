@@ -42,6 +42,7 @@ sig PublicKey extends akey {}
 one sig KeyPairs {
   pairs: set PrivateKey -> PublicKey,
   owners: func PrivateKey -> name,
+  -- There may be LTKs that aren't pre-assigned to a pair of agents. E.g., session keys.
   ltks: set name -> name -> skey
 }
 
@@ -160,7 +161,7 @@ pred wellformed {
   -- AGENT -> TICK -> MICRO-TICK LEARNED_SUBTERM
   all d: mesg | all t: Timeslot, microt: Microtick | let a = t.receiver.agent | d in (workspace[t])[microt] iff {
     -- Base case:
-    -- received the data in the clear just now 
+    -- received the data in the clear just now (first microtick)
     {d in t.data and no microt.~mt_next}
     or
     -- Inductive case:
@@ -173,11 +174,20 @@ pred wellformed {
     { 
       --d not in ((a.workspace)[t])[Timeslot - microt.^next] and -- first time appearing
       {some superterm : Ciphertext | {      
-      d in superterm.plaintext and     
-      superterm in (a.learned_times).(Timeslot - t.*next) + workspace[t][Microtick - microt.*mt_next] + baseKnown[a] and
-      getInv[superterm.encryptionKey] in (a.learned_times).(Timeslot - t.*next) + workspace[t][Microtick - microt.*mt_next] + baseKnown[a]
+           -- the term in question is contained within superterm
+           d in superterm.plaintext 
+           and     
+           -- we had learned the superterm in a previous timeslot or previous microtick in this timeslot
+           superterm in (a.learned_times).(Timeslot - t.*next) + 
+                        workspace[t][Microtick - microt.*mt_next] + 
+                        baseKnown[a] 
+           and
+           -- we had also learned how to decrypt the superterm previously
+           getInv[superterm.encryptionKey] in (a.learned_times).(Timeslot - t.*next) + 
+                                              workspace[t][Microtick - microt.*mt_next] + 
+                                              baseKnown[a]
     }}}
-  }
+  } -- end block for workspace 
  
   -- names only learn information that associated strands are explicitly sent 
   -- (start big disjunction for learned_times)
@@ -224,7 +234,8 @@ pred wellformed {
 
   -- Messages comprise only values known by the sender
   all m: Timeslot | m.data in (((m.sender).agent).learned_times).(Timeslot - m.^next) 
-  -- Always send or receive to the adversary
+
+  -- Always send or receive to the adversary (who is the "medium of communication")
   all m: Timeslot | m.sender = AttackerStrand or m.receiver = AttackerStrand 
 
   -- plaintext relation is acyclic  
