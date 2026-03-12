@@ -20,6 +20,12 @@
       as the protocol role execution.
     - This model embraces Dolev-Yao in a very concrete way: there is an explicit 
       attacker, who is also the medium of communication between participants.
+
+  Fall 2025 update:
+    - This model had previously used the `Timeslot` sig for both states between 
+      messages _and_ microticks (which allow "learning" within nested encrypted terms).
+      Instead, the model now uses a subset of the available time slots according to 
+      the user-provided scope on the `Microtick` sig.
 */
 
 -- NOTE WELL: `mesg` is what CPSA calls terms; we echo that here, do not confuse 
@@ -54,8 +60,9 @@ fun getInv[k: Key]: one Key {
 }
 
 
--- Time indexes (t=0, t=1, ...). These are also used as micro-tick indexes, so the 
--- bound on `Timeslot` will also affect how many microticks are available between ticks.
+/** Time indexes corresponding to one message being sent and received.
+    Dropped messages are modeled as the medium receiving the message but 
+    not forwarding it. */
 sig Timeslot {
   -- structure of time (must be rendered linear in every run via `next is linear`)
   next: lone Timeslot,
@@ -67,7 +74,16 @@ sig Timeslot {
 
   -- relation is: Tick x Microtick x learned-mesg
   -- Only one agent per tick is receiving, so always know which agent's workspace it is
-  workspace: set Timeslot -> mesg
+  workspace: set Microtick -> mesg
+}
+
+/** A Microtick represents a step of _learning_ that is part of processing a single 
+    message reception. */
+sig Microtick {
+  -- structure of microticks. (must be rendered linear in every run via `next is linear`)
+  -- The `wellformed` predicate below contains constraints that enforce this, in case 
+  -- a user forgets the add the linear annotation, but doing so would harm performance. 
+  mt_next: lone Microtick
 }
 
 -- As names process received messages, they learn pieces of data
@@ -89,7 +105,7 @@ one sig Attacker extends name {}
 sig Ciphertext extends mesg {
    -- encrypted with this key
    encryptionKey: one Key,
-   -- result in concating plaintexts
+   -- concatenated plaintexts (order not currently modeled)
    plaintext: set mesg
 }
 
@@ -111,11 +127,29 @@ fun baseKnown[a: name]: set mesg {
     a
 }
 
+/** Time and micro-time are ordered. 
+    (This constraint should be tautologous if the user has given an `is linear` 
+    for `next` and `mt_next`.) */
+pred timeSafety {
+  some firstTimeslot: Timeslot | {
+    all ts: Timeslot | ts in firstTimeslot.*next
+    no firstTimeslot.~next
+    -- field declaration ensures at most one successor
+  }
+  some firstMicro: Microtick | {
+    all ts: Microtick  | ts in firstMicro.*mt_next
+    no firstMicro.~mt_next
+    -- field declaration ensures at most one successor
+  }
+}
+
 /** This (large) predicate contains the vast majority of domain axioms */
 pred wellformed {
   -- Design choice: only one message event per timeslot;
   --   assume we have a shared notion of time
-    
+
+  timeSafety
+
   -- You cannot send a message with no data
   all m: Timeslot | some m.data
 
@@ -124,10 +158,10 @@ pred wellformed {
 
   -- workspace: workaround to avoid cyclic justification within just deconstructions
   -- AGENT -> TICK -> MICRO-TICK LEARNED_SUBTERM
-  all d: mesg | all t, microt: Timeslot | let a = t.receiver.agent | d in (workspace[t])[microt] iff {
+  all d: mesg | all t: Timeslot, microt: Microtick | let a = t.receiver.agent | d in (workspace[t])[microt] iff {
     -- Base case:
     -- received the data in the clear just now 
-    {d in t.data and no microt.~next}
+    {d in t.data and no microt.~mt_next}
     or
     -- Inductive case:
     -- breaking down a ciphertext we learned *previously*, or that we've produced from 
@@ -140,8 +174,8 @@ pred wellformed {
       --d not in ((a.workspace)[t])[Timeslot - microt.^next] and -- first time appearing
       {some superterm : Ciphertext | {      
       d in superterm.plaintext and     
-      superterm in (a.learned_times).(Timeslot - t.*next) + workspace[t][Timeslot - microt.*next] + baseKnown[a] and
-      getInv[superterm.encryptionKey] in (a.learned_times).(Timeslot - t.*next) + workspace[t][Timeslot - microt.*next] + baseKnown[a]
+      superterm in (a.learned_times).(Timeslot - t.*next) + workspace[t][Microtick - microt.*mt_next] + baseKnown[a] and
+      getInv[superterm.encryptionKey] in (a.learned_times).(Timeslot - t.*next) + workspace[t][Microtick - microt.*mt_next] + baseKnown[a]
     }}}
   }
  
@@ -166,7 +200,7 @@ pred wellformed {
     -- consider: (k1, enc(k2, enc(n1, invk(k2)), invk(k1)))
     -- or, worse: (k1, enc(x, invk(k3)), enc(k2, enc(k3, invk(k2)), invk(k1)))
     { t.receiver.agent = a
-      d in workspace[t][Timeslot] -- derived in any micro-tick in this (reception) timeslot
+      d in workspace[t][Microtick] -- derived in any micro-tick in this (reception) timeslot
     }   
     or 
     -- construct encrypted terms (only allow at NON-reception time; see above)
