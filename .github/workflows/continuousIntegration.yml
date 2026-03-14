@@ -64,6 +64,10 @@ jobs:
             test-dir: tests/smt
           - name: other
             test-dir: tests/error tests/froglet tests/srclocs tests/temporal
+          - name: custom-solver
+            test-dir: tests/forge/custom-solver
+            custom-run: true
+
     name: test-${{ matrix.name }}
     steps:
     - name: Checkout repo
@@ -106,7 +110,66 @@ jobs:
     - name: Run tests
       run: |
         cd forge/
-        chmod +x run-tests.sh
-        for dir in ${{ matrix.test-dir }}; do
-          ./run-tests.sh "$dir"
-        done
+        if [ "${{ matrix.custom-run }}" = "true" ]; then
+          cd ${{ matrix.test-dir }}
+          chmod +x run.sh subdir/run.sh
+          exitCode=0
+          for f in *.frg; do
+            echo "Running $f..."
+            if ! racket "$f" -O run_sterling 'off'; then
+              echo "FAILED: $f"
+              exitCode=1
+            fi
+          done
+          exit $exitCode
+        else
+          chmod +x run-tests.sh
+          for dir in ${{ matrix.test-dir }}; do
+            ./run-tests.sh "$dir"
+          done
+        fi
+
+  test-custom-solver-win:
+    needs: check-test-coverage
+    runs-on: windows-latest
+    name: test-custom-solver-win
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Racket
+      uses: Bogdanp/setup-racket@v1.14
+      with:
+        version: '8.15'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Cache Racket packages
+      uses: actions/cache@v4
+      with:
+        path: ~/AppData/Roaming/Racket
+        key: racket-pkgs-win-${{ hashFiles('forge/info.rkt') }}
+        restore-keys: racket-pkgs-win-
+
+    - name: Install Forge
+      run: |
+        raco pkg update --auto --no-docs --batch ./forge 2>$null; if ($LASTEXITCODE -ne 0) { raco pkg install --auto --no-docs ./forge }
+
+    - name: Run custom solver tests
+      shell: cmd
+      run: |
+        cd forge\tests\forge\custom-solver\win
+        set exitCode=0
+        for %%f in (*.frg) do (
+          echo Running %%f...
+          racket "%%f" -O run_sterling 'off'
+          if errorlevel 1 (
+            echo FAILED: %%f
+            set exitCode=1
+          )
+        )
+        exit /b %exitCode%
