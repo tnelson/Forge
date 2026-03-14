@@ -22,12 +22,12 @@ pred reflect_scenario {
 
 test expect {
     reflect_sat: { reflect_scenario }
-        for exactly 4 Timeslot, 13 mesg,
+        for exactly 4 Timeslot, exactly 2 Microtick, 13 mesg,
             exactly 1 KeyPairs, exactly 6 Key, exactly 6 akey, 0 skey,
             exactly 3 PrivateKey, exactly 3 PublicKey,
             exactly 3 name, 0 text, exactly 4 Ciphertext,
             exactly 1 reflect_init, exactly 1 reflect_resp,
             1 Int
-            for {next is linear}
+            for {next is linear  mt_next is linear}
         is sat
 }
